@@ -16,7 +16,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
-| `sync_map.dart` | The tempo track: anchors pinning score positions to recording times |
+| `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump) |
 | `scroll_map.dart` | Playback time → the score x under the pointer |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout, planned per curation segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column; tile-cached drawing |
@@ -49,6 +49,18 @@ A video is laid out like a preview `VideoFormat.layoutHeight` (540) points high 
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back
 from the barline. Snapping, tapping, the scroll map's anchors, the tempo lane and every
 `12.2` position (`BeatGrid.format` / `parse`) go through it.
+
+**A place in the score can sound more than once.** A warp is an anchor that jumps: the
+score arrives at `quarter` and, at that same moment, goes on from `jumpTo` (back for a
+repeat, on to a coda). The performance is then a list of `ScoreTimeline.passes`, stretches
+played straight through. A time is always at one place (`quarterAtSeconds`), but a place
+sounds once per pass that plays it, so asking when something sounds takes a pass:
+`secondsAtQuarter(q, pass: k)`, or `spans` / `timesOf` for every time. The scroll map has a
+curve per pass, a lane's fades are per pass (joined across a warp while still shown), and the
+timeline draws bars and regions per pass. Inside, `SyncMap` works on the performed position,
+which a warp doesn't interrupt, so the tempo runs on through a jump. Changing a jump moves
+the anchors after it (up to the next warp) with it, keeping their times (`SyncMap.setJump`).
+Anchors are kept in time order, each arriving further on than the one before went on from.
 
 **Lanes are painted, not cut.** Drawing adds a region and merges it with what it touches;
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip
