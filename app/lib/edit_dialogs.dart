@@ -371,33 +371,32 @@ class _AnchorDialogState extends State<_AnchorDialog> {
       if (valid) Navigator.pop(context, (quarter: q, jumpTo: jump));
     }
 
+    // A bad entry is outlined in red (no message): Set stays off until both read as bars.
+    InputDecoration field(String label, {required bool bad, String? hint}) => InputDecoration(
+        labelText: label, hintText: hint, errorText: bad ? '' : null, errorStyle: const TextStyle(height: 0, fontSize: 0));
     return AlertDialog(
       title: Text(plain ? 'Anchor' : 'Warp'),
       content: SizedBox(
-        width: 260,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-            controller: _position,
-            autofocus: !widget.warp,
-            decoration: InputDecoration(labelText: 'Position', errorText: q == null ? 'e.g. 12 or 12.3' : null),
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) => save(),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _jump,
-            autofocus: widget.warp,
-            decoration: InputDecoration(
-              labelText: 'Then jumps to',
-              helperText: 'Back for a repeat, on to skip · empty: no jump',
-              errorText: nowhere
-                  ? 'That is where it already is'
-                  : !plain && jump == null
-                      ? 'e.g. 1, or empty'
-                      : null,
+        width: 240,
+        child: Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _position,
+              autofocus: !widget.warp,
+              decoration: field('At', bad: q == null),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => save(),
             ),
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) => save(),
+          ),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_forward_rounded, size: 18)),
+          Expanded(
+            child: TextField(
+              controller: _jump,
+              autofocus: widget.warp,
+              decoration: field('Jump to', bad: nowhere || (!plain && jump == null), hint: 'none'),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => save(),
+            ),
           ),
         ]),
       ),
