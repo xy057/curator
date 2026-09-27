@@ -4,7 +4,7 @@ The next generation of condensed scores.
 
 This project is inspired by The Beethoven 9 App on iOS.
 
-Learn more at https://0x57.cc/xylab-curator/
+Learn more at https://0x57.cc/xylabs-introducing-curator/
 
 Still in heavy development, but most functions should work.
 
