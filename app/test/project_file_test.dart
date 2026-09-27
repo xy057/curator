@@ -101,6 +101,7 @@ void main() {
     Matcher damaged(String where) => throwsA(isA<FormatException>().having((e) => e.message, 'message', contains(where)));
     expect(() => read({'partNames': {'P1': 5}}), damaged('state.partNames.P1 is not an object'));
     expect(() => read({'sync': {'anchors': [{'quarter': 0, 'seconds': 'soon'}]}}), damaged('state.sync.anchors[0].seconds is not a number'));
+    expect(() => read({'sync': {'anchors': [{'quarter': 0, 'seconds': 1, 'jumpTo': 'bar 1'}]}}), damaged('state.sync.anchors[0].jumpTo is not a number'));
     expect(() => read({'curation': {'lanes': {'P1': [{'start': 4, 'end': 2}]}}}), damaged('state.curation.lanes.P1[0] ends before it starts'));
     expect(() => read({'view': {'grid': 'minute'}}), damaged('state.view.grid'));
     expect(() => read({'condensed': [3]}), damaged('state.condensed[0] is not text'));
@@ -111,8 +112,20 @@ void main() {
     final state = ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 1);
     expect(state.condensed, isEmpty);
     expect(state.pairs, isEmpty);
-    expect(ProjectState.version, 3);
+    expect(ProjectState.version, 4);
     expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).pairs, isEmpty);
+  });
+
+  test('warps are saved with their jump; plain anchors without one', () {
+    const anchors = [SyncAnchor(0, 1), SyncAnchor(24, 10, jumpTo: 0), SyncAnchor(6, 13)];
+    final json = jsonDecode(jsonEncode(const ProjectState(anchors: anchors).toJson())) as Map<String, Object?>;
+    expect((json['sync'] as Map)['anchors'], [
+      {'quarter': 0, 'seconds': 1},
+      {'quarter': 24, 'seconds': 10, 'jumpTo': 0},
+      {'quarter': 6, 'seconds': 13},
+    ]);
+    expect(ProjectState.fromJson(json).anchors, anchors);
+    expect(ProjectState.fromJson({'sync': {'anchors': [{'quarter': 0, 'seconds': 1}]}}, savedVersion: 3).anchors.single.isWarp, isFalse);
   });
 
   test('a project that is not ours, or from the future, is refused', () async {

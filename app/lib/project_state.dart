@@ -37,7 +37,7 @@ class ProjectState {
   });
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 3;
+  static const version = 4;
 
   /// When each instrument is shown; null when the project has none saved (they are then
   /// filled from where each part plays).
@@ -46,8 +46,8 @@ class ProjectState {
   /// Seconds for a staff to enter or leave; null: the default for new projects.
   final double? transition;
 
-  /// The tempo track: where the score is pinned to the recording, and the start before any
-  /// anchor.
+  /// The tempo track: where the score is pinned to the recording (warps among them), and the
+  /// start before any anchor.
   final List<SyncAnchor> anchors;
   final double leadIn;
 
@@ -71,6 +71,7 @@ class ProjectState {
   static final Map<int, Map<String, Object?> Function(Map<String, Object?>)> _migrations = {
     1: (state) => {...state, 'condensed': const <String>[]}, // condensing came in 2: nothing condensed
     2: (state) => {...state, 'pairs': const <Object?>[]}, // the user's own pairs came in 3: none
+    3: (state) => state, // warps came in 4 (an anchor's `jumpTo`): none, so nothing to change
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -100,7 +101,8 @@ class ProjectState {
         for (final (i, anchor) in sync.list('anchors').indexed)
           () {
             final a = JsonReader(anchor, '${sync.where}.anchors[$i]');
-            return SyncAnchor(a.number('quarter', required: true)!, a.number('seconds', required: true)!);
+            return SyncAnchor(a.number('quarter', required: true)!, a.number('seconds', required: true)!,
+                jumpTo: a.number('jumpTo'));
           }(),
       ]..sort((a, b) => a.seconds.compareTo(b.seconds)),
       leadIn: sync.number('leadIn') ?? 0,
@@ -160,7 +162,9 @@ class ProjectState {
         },
         'sync': {
           'leadIn': leadIn,
-          'anchors': [for (final a in anchors) {'quarter': a.quarter, 'seconds': a.seconds}],
+          'anchors': [
+            for (final a in anchors) {'quarter': a.quarter, 'seconds': a.seconds, 'jumpTo': ?a.jumpTo},
+          ],
         },
         'view': {
           'staffSpace': ?view.staffSpace,
