@@ -16,6 +16,10 @@ https://www.youtube.com/watch?v=BVE01OheT70
 
 We even support condensing!
 
+> [!warning]
+>
+> Only macOS is tested.
+
 
 
 ## Screenshots
