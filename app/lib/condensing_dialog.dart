@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
+import 'ui_kit.dart';
 
 /// Score ▸ Condensing…, as in Dorico (Layout Options ▸ Condensing and Edit Condensing Groups):
 /// which pairs of players share a staff, and pairs of the user's own (Flute 1 + Oboe 1,
 /// Horn 1 + 3). Every change is made at once, as its own Undo step. The only place
 /// condensing is chosen.
-Future<void> showCondensingDialog(BuildContext context, EditorController c) => showDialog<void>(
+Future<void> showCondensingDialog(BuildContext context, EditorController c) => showAppDialog<void>(
   context: context,
   builder: (context) => _CondensingDialog(controller: c),
 );

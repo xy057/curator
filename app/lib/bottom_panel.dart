@@ -129,7 +129,7 @@ class _TabSwitch extends StatelessWidget {
         ),
         Row(mainAxisSize: MainAxisSize.min, children: [
           for (final (tab, icon, tip) in _tabs)
-            Tooltip(
+            Tip(
               message: tip,
               child: InkWell(
                 borderRadius: BorderRadius.circular(8),

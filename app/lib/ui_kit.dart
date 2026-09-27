@@ -7,6 +7,62 @@ import 'app_colors.dart';
 String shortcut(String mac, [String? other]) =>
     defaultTargetPlatform == TargetPlatform.macOS ? mac : (other ?? mac.replaceAll('⌘', 'Ctrl+').replaceAll('⇧', 'Shift+'));
 
+/// Gives a widget that shows an overlay (a tooltip, a slider's value) a semantics node of its own.
+///
+/// Such widgets show their overlay through an [OverlayPortal], which ties the overlay to a
+/// marker on the nearest semantics node above it. Where two markers reach the same node,
+/// Flutter keeps only the first (flutter/flutter#182444, #190357), and the other overlay is
+/// sent with no parent: the desktop engine rejects that update ("Failed to update ui::AXTree")
+/// and its accessibility tree stays broken from then on. With a node each, no marker is lost.
+class OverlaySemantics extends StatelessWidget {
+  const OverlaySemantics({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Semantics(container: true, child: child);
+}
+
+/// A [Tooltip] for the app: always use it rather than [Tooltip] (see [OverlaySemantics]).
+class Tip extends StatelessWidget {
+  const Tip({super.key, required this.message, this.waitDuration, required this.child});
+  final String message;
+  final Duration? waitDuration;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      OverlaySemantics(child: Tooltip(message: message, waitDuration: waitDuration, child: child));
+}
+
+/// [showDialog] for the app: always use it rather than [showDialog].
+///
+/// A [Slider] keeps its overlay (the value) shown for as long as it is built. A fade at
+/// opacity 0 drops what it fades from the semantics tree, but not the slider's overlay,
+/// which then has no parent (flutter/flutter#190357; see [OverlaySemantics]). The material
+/// dialog fades in from 0, so this one keeps its dialog in the tree while it fades.
+Future<T?> showAppDialog<T>({required BuildContext context, required WidgetBuilder builder, bool barrierDismissible = true}) {
+  final navigator = Navigator.of(context, rootNavigator: true);
+  return navigator.push(_DialogRoute<T>(
+    context: context,
+    builder: builder,
+    barrierDismissible: barrierDismissible,
+    themes: InheritedTheme.capture(from: context, to: navigator.context),
+  ));
+}
+
+class _DialogRoute<T> extends DialogRoute<T> {
+  _DialogRoute({required super.context, required super.builder, super.barrierDismissible, super.themes})
+      : super(traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop);
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+    final fade = super.buildTransitions(context, animation, secondaryAnimation, child);
+    return fade is FadeTransition
+        ? FadeTransition(opacity: fade.opacity, alwaysIncludeSemantics: true, child: fade.child)
+        : fade;
+  }
+}
+
 /// The compact icon button used in every toolbar: 32 × 32, its label in the tooltip.
 class ToolbarButton extends StatelessWidget {
   const ToolbarButton({
@@ -29,20 +85,22 @@ class ToolbarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      isSelected: selected,
-      iconSize: 18,
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-      padding: EdgeInsets.zero,
-      style: IconButton.styleFrom(
-        foregroundColor: selected ? colors.accentStrong : (color ?? colors.text),
-        backgroundColor: selected ? colors.accentSoft : null,
-        animationDuration: const Duration(milliseconds: 150),
+    return OverlaySemantics(
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        isSelected: selected,
+        iconSize: 18,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          foregroundColor: selected ? colors.accentStrong : (color ?? colors.text),
+          backgroundColor: selected ? colors.accentSoft : null,
+          animationDuration: const Duration(milliseconds: 150),
+        ),
+        icon: Icon(icon),
       ),
-      icon: Icon(icon),
     );
   }
 }

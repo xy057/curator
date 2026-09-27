@@ -576,13 +576,13 @@ class _LaneHeader extends StatelessWidget {
       color: selected ? context.colors.accentSoft : null,
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         if (condensed)
-          Tooltip(
+          Tip(
             message: '${group.partIds.map(controller.partNameOf).join(' and ')}: one lane, and one staff while shown',
             child: Icon(Icons.link_rounded, size: 14, color: context.colors.textMuted),
           ),
         menu,
       ]),
-      child: Tooltip(
+      child: Tip(
         message: condensed ? 'Click to select the lane (⇧ adds)' : 'Click to select the lane (⇧ adds) · double-click to rename',
         waitDuration: const Duration(seconds: 1),
         child: GestureDetector(

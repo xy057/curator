@@ -5,10 +5,11 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
+import 'ui_kit.dart';
 
 /// Rename an instrument: the full name and the short name used when space is tight.
 Future<void> showRenameDialog(BuildContext context, EditorController c, ScorePart part) =>
-    showDialog<void>(context: context, builder: (context) => _RenameDialog(controller: c, part: part));
+    showAppDialog<void>(context: context, builder: (context) => _RenameDialog(controller: c, part: part));
 
 class _RenameDialog extends StatefulWidget {
   const _RenameDialog({required this.controller, required this.part});
@@ -81,7 +82,7 @@ class _RenameDialogState extends State<_RenameDialog> {
 
 /// Every text in the score (directions, tempo and rehearsal marks) in one searchable list.
 Future<void> showTextsDialog(BuildContext context, EditorController c) =>
-    showDialog<void>(context: context, builder: (context) => _TextsDialog(controller: c));
+    showAppDialog<void>(context: context, builder: (context) => _TextsDialog(controller: c));
 
 class _TextsDialog extends StatefulWidget {
   const _TextsDialog({required this.controller});
@@ -215,7 +216,7 @@ class _TextsDialogState extends State<_TextsDialog> {
 
 /// Type where a region starts and ends, as bar or bar.beat ("12" or "12.3").
 Future<void> showRegionDialog(BuildContext context, EditorController c, RegionRef ref) async {
-  final region = await showDialog<Region>(context: context, builder: (context) => _RegionDialog(controller: c, ref: ref));
+  final region = await showAppDialog<Region>(context: context, builder: (context) => _RegionDialog(controller: c, ref: ref));
   if (region != null) c.lanes.setRegion(ref, region);
 }
 
@@ -296,7 +297,7 @@ class _RegionDialogState extends State<_RegionDialog> {
 Future<void> showCopyLaneDialog(BuildContext context, EditorController c, ScorePart from) async {
   final others = c.laneParts.where((p) => p.id != from.id).toList();
   final chosen = <String>{};
-  final ok = await showDialog<bool>(
+  final ok = await showAppDialog<bool>(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
@@ -332,7 +333,7 @@ Future<void> showCopyLaneDialog(BuildContext context, EditorController c, ScoreP
 /// Type one score position, as bar or bar.beat ("12" or "12.3"). Returns it, or null.
 Future<double?> showPositionDialog(BuildContext context,
         {required String title, required String initial, required BeatGrid beats}) =>
-    showDialog<double>(context: context, builder: (context) => _PositionDialog(title: title, initial: initial, beats: beats));
+    showAppDialog<double>(context: context, builder: (context) => _PositionDialog(title: title, initial: initial, beats: beats));
 
 class _PositionDialog extends StatefulWidget {
   const _PositionDialog({required this.title, required this.initial, required this.beats});

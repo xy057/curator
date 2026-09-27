@@ -235,7 +235,7 @@ class _AudioLanesState extends State<AudioLanes> {
           ),
           const LaneLabel(
             height: _tempoLaneHeight,
-            child: Tooltip(message: 'Beats a minute, as the time signature counts them', child: Text('Tempo')),
+            child: Tip(message: 'Beats a minute, as the time signature counts them', child: Text('Tempo')),
           ),
         ]),
       ),
@@ -266,7 +266,7 @@ class AudioToolbar extends StatelessWidget {
         ),
         _TapButton(controller: c),
         const ToolbarDivider(),
-        Tooltip(
+        Tip(
           message: 'What taps, ⌥-clicks and ↑/↓ step by: whole bars, or the beats of the time signature',
           child: ToolGroup(children: [
             for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
@@ -283,7 +283,7 @@ class AudioToolbar extends StatelessWidget {
           onPressed: () => c.anchors.snapToOnsets = !c.anchors.snapToOnsets,
         ),
         const ToolbarDivider(),
-        Tooltip(
+        Tip(
           message: 'Playback speed: slower helps tapping fast passages',
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.speed_rounded, size: 17, color: colors.textMuted),
@@ -313,7 +313,7 @@ class AudioToolbar extends StatelessWidget {
               : Padding(
                   key: const ValueKey('selection'),
                   padding: const EdgeInsets.only(right: 4),
-                  child: Tooltip(
+                  child: Tip(
                     message: '↑/↓ re-point them a bar (or beat) · ←/→ nudge · drag to move together · ⌫ delete',
                     child: InputChip(
                       visualDensity: VisualDensity.compact,
@@ -343,7 +343,7 @@ class _TapButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final colors = context.colors;
-    return Tooltip(
+    return Tip(
       message: c.anchors.tapArmed
           ? 'Tapping: press Space on each bar (or beat) as you hear it · T or Esc stops'
           : 'Tap anchors (T)\nSpace starts playback, then marks each bar or beat as you hear it',
@@ -467,7 +467,7 @@ class _StartFieldState extends State<_StartField> {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
+    return Tip(
       message: 'Starts at: the blank time before bar 1, in seconds. Tapping sets it too.',
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.start_rounded, size: 17, color: context.colors.textMuted),

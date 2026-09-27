@@ -72,23 +72,25 @@ class EditorToolbar extends StatelessWidget {
           onPressed: c.isReengraving ? null : onExportVideo,
         ),
         const ToolbarDivider(),
-        Tooltip(
+        Tip(
           message: 'Score size',
           child: Icon(Icons.format_size_rounded, size: 16, color: colors.textMuted),
         ),
         SizedBox(
           width: 132,
           // At the top of the window the value shows below the thumb, not above it.
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(valueIndicatorShape: const BelowValueIndicatorShape()),
-            child: Slider(
-            value: c.staffSpace,
-            min: EditorController.minStaffSpace,
-            max: EditorController.maxStaffSpace,
-            divisions: 14,
-            label: c.staffSpace.toStringAsFixed(1),
-            onChanged: (v) => c.setStaffSpace(v, dragging: true),
-            onChangeEnd: c.setStaffSpace,
+          child: OverlaySemantics(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(valueIndicatorShape: const BelowValueIndicatorShape()),
+              child: Slider(
+                value: c.staffSpace,
+                min: EditorController.minStaffSpace,
+                max: EditorController.maxStaffSpace,
+                divisions: 14,
+                label: c.staffSpace.toStringAsFixed(1),
+                onChanged: (v) => c.setStaffSpace(v, dragging: true),
+                onChangeEnd: c.setStaffSpace,
+              ),
             ),
           ),
         ),
@@ -106,7 +108,7 @@ class _PlayButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final playing = controller.playback.isPlaying;
-    return Tooltip(
+    return Tip(
       message: playing ? 'Pause (Space)' : 'Play (Space)',
       child: Material(
         color: colors.accent,
@@ -167,7 +169,7 @@ class _TimeReadout extends StatelessWidget {
             TextSpan(text: '  /  ${_clock(controller.playback.duration)}', style: mono.copyWith(color: colors.textMuted)),
           ])),
           const SizedBox(width: 10),
-          Tooltip(
+          Tip(
             message: 'Bar.beat sounding now',
             child: Container(
               height: 24,

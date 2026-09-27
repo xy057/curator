@@ -123,6 +123,18 @@ tints tiles, names and the frozen zone with the ink colour as it composites them
 (`paint(paper:, ink:)`), so a theme change (or its cross-fade) never re-rasterises anything.
 The app passes the theme's `scorePaper` / `scoreInk`.
 
+**Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
+overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that
+overlay hangs from the widget that shows it. Flutter loses the link when two such widgets
+share a semantics node (flutter/flutter#182444), and when the widget is faded to opacity 0,
+which drops its semantics but not its overlay (a `Slider`'s is always there,
+flutter/flutter#190357). The overlay is then sent with no parent, the desktop engine rejects
+the update ("Failed to update ui::AXTree" in `make run`), and its tree stays broken. So:
+`Tip`, never `Tooltip` (and `ToolbarButton` for icon buttons); a `Slider` inside
+`OverlaySemantics`; `showAppDialog`, never `showDialog`; and a fade over any of them keeps its
+semantics (`alwaysIncludeSemantics: true`). `test/accessibility_tree_test.dart` replays every
+update through a model of the engine's tree (`test/accessibility_mirror.dart`).
+
 **Fonts: engraving and drawing agree.** Verovio lays out with the metrics of the same fonts
 the renderer draws: Bravura for music (`assets/verovio/Bravura.xml`; Leipzig's metrics are
 there because Verovio always loads them), Academico for text (metrics written under Verovio's

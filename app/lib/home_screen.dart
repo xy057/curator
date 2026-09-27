@@ -77,7 +77,7 @@ class HomeScreen extends StatelessWidget {
                   runSpacing: 8,
                   alignment: WrapAlignment.center,
                   children: [
-                    Tooltip(
+                    Tip(
                       message: 'A Curated Score project, or a MusicXML score to start one (${shortcut('⌘O')})',
                       child: FilledButton.icon(
                         onPressed: onOpen,
@@ -252,6 +252,8 @@ class _RecentRowState extends State<_RecentRow> {
             AnimatedOpacity(
               opacity: _hover || !_exists ? 1 : 0,
               duration: const Duration(milliseconds: 120),
+              // Hidden until hovered, but always there for VoiceOver (and its tooltip's overlay).
+              alwaysIncludeSemantics: true,
               child: ToolbarButton(
                 icon: Icons.close_rounded,
                 tooltip: 'Remove from Recent',

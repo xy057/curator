@@ -29,6 +29,7 @@ import 'project_file.dart';
 import 'scratch_space.dart';
 import 'score_view.dart';
 import 'settings_dialog.dart';
+import 'ui_kit.dart';
 import 'window_chrome.dart';
 
 Future<void> main() async {
@@ -250,7 +251,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// Before replacing the project: offers to save unsaved changes. False: stay.
   Future<bool> _confirmDiscard() async {
     if (!document.isDirty) return true;
-    final choice = await showDialog<String>(
+    final choice = await showAppDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Save changes to “${document.title}”?'),
@@ -279,7 +280,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       await action();
     } catch (e) {
       if (!mounted) return;
-      showDialog<void>(
+      showAppDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text(title),
@@ -442,8 +443,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       duration: const Duration(milliseconds: 320),
                       switchInCurve: Curves.easeOutCubic,
                       switchOutCurve: Curves.easeInCubic,
+                      // Semantics stay through the fade (see showAppDialog: the size slider).
                       transitionBuilder: (child, animation) => FadeTransition(
                         opacity: animation,
+                        alwaysIncludeSemantics: true,
                         child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(animation), child: child),
                       ),
                       child: controller.score == null

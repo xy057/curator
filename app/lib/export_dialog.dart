@@ -9,6 +9,7 @@ import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
 import 'media_converter.dart';
+import 'ui_kit.dart';
 import 'video_export.dart';
 
 /// File ▸ Export Video… (⌘E): a still of the video at the playhead, its size, frame rate,
@@ -17,7 +18,7 @@ import 'video_export.dart';
 Future<void> showExportDialog(BuildContext context, EditorController controller, AppSettings settings,
     {required String suggestedName}) {
   controller.playback.pause();
-  return showDialog<void>(
+  return showAppDialog<void>(
     context: context,
     barrierDismissible: false, // closing mid-export would lose it: Cancel says so
     builder: (context) => _ExportDialog(controller: controller, settings: settings, suggestedName: suggestedName),
@@ -176,17 +177,19 @@ class _ExportDialogState extends State<_ExportDialog> {
       _Row(
         label: 'Score size',
         // The project's score size (the toolbar's slider): the video frames it like the editor.
-        child: Slider(
-          value: c.staffSpace,
-          min: EditorController.minStaffSpace,
-          max: EditorController.maxStaffSpace,
-          divisions: 14,
-          label: c.staffSpace.toStringAsFixed(1),
-          onChanged: (v) => setState(() {
-            c.setStaffSpace(v, dragging: true);
-            _export.staffSpace = c.staffSpace;
-          }),
-          onChangeEnd: c.setStaffSpace,
+        child: OverlaySemantics(
+          child: Slider(
+            value: c.staffSpace,
+            min: EditorController.minStaffSpace,
+            max: EditorController.maxStaffSpace,
+            divisions: 14,
+            label: c.staffSpace.toStringAsFixed(1),
+            onChanged: (v) => setState(() {
+              c.setStaffSpace(v, dragging: true);
+              _export.staffSpace = c.staffSpace;
+            }),
+            onChangeEnd: c.setStaffSpace,
+          ),
         ),
       ),
       const SizedBox(height: 6),

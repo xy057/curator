@@ -6,12 +6,13 @@ import 'package:score_engine/score_engine.dart';
 import 'app_colors.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
+import 'ui_kit.dart';
 
 /// Settings ▸ Advanced ▸ Engrave Option: every Verovio option that is safe to change
 /// ([EngraveOption.all]) by its code name, for those who know Verovio. A change is saved at
 /// once (for every score) and re-engraves the open score, shown beside the list.
 Future<void> showEngraveOptionsDialog(BuildContext context, AppSettings settings, {EditorController? controller}) =>
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       builder: (context) => _EngraveOptionsDialog(settings: settings, controller: controller),
     );
@@ -152,10 +153,12 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
       Divider(height: 1, color: colors.line),
       SizedBox(
         height: 36,
-        child: Slider(
-          value: time,
-          max: math.max(duration, 0.001),
-          onChanged: (t) => setState(() => _time = t),
+        child: OverlaySemantics(
+          child: Slider(
+            value: time,
+            max: math.max(duration, 0.001),
+            onChanged: (t) => setState(() => _time = t),
+          ),
         ),
       ),
     ]);
@@ -225,7 +228,7 @@ class _OptionRow extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 1, 4, 1),
       child: Row(children: [
         Expanded(
-          child: Tooltip(
+          child: Tip(
             message: '${range}default ${formatOptionValue(option.defaultValue)}',
             waitDuration: const Duration(milliseconds: 500),
             child: Text(

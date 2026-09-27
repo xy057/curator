@@ -5,6 +5,7 @@ import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'engrave_options_dialog.dart';
 import 'project_file.dart';
+import 'ui_kit.dart';
 
 /// Settings… (⌘,): categories on the left, each a page of items on the right.
 ///
@@ -22,6 +23,7 @@ Future<void> showSettingsDialog(BuildContext context, AppSettings settings, {Edi
         final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
         return FadeTransition(
           opacity: curved,
+          alwaysIncludeSemantics: true, // see showAppDialog
           child: ScaleTransition(scale: Tween(begin: 0.96, end: 1.0).animate(curved), child: child),
         );
       },
@@ -457,7 +459,7 @@ class _AccentPicker extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Wrap(spacing: 6, children: [
       for (final accent in AccentColor.values)
-        Tooltip(
+        Tip(
           message: accent.label,
           child: GestureDetector(
             onTap: () => settings.accent = accent,
