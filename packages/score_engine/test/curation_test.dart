@@ -118,6 +118,27 @@ void main() {
     expect(c.edgesInSeconds(timeline), [2.0]); // the piece's own ends don't move anything
   });
 
+  test('a warp shows a lane again when the music comes round again, with no dip across the jump', () {
+    // 8 bars of 4/4 at ♩ = 120 (2 s a bar); after bar 4 (8 s) back to bar 1.
+    final sync = SyncMap(measureStarts: [for (var i = 0; i <= 8; i++) i * 4.0], defaultTempo: 120)
+      ..addAnchor(const SyncAnchor(0, 0))
+      ..addAnchor(const SyncAnchor(16, 8, jumpTo: 0));
+    final c = Curation(['vn', 'fl'])
+      ..transition = 0.4
+      ..addRegion('vn', const Region(4, 8)) // bar 2: at 2–4 s and again at 10–12 s
+      ..addRegion('fl', const Region(12, 16)) // bar 4 then bar 1, across the jump
+      ..addRegion('fl', const Region(0, 4));
+    double v(String id, double t) => c.visibilityAt(t, sync)[id]!;
+    expect(v('vn', 3), 1);
+    expect(v('vn', 7), 0);
+    expect(v('vn', 11), 1);
+    for (var t = 6.5; t < 9.5; t += 0.05) {
+      expect(v('fl', t), 1, reason: 'at $t s');
+    }
+    // Flute: bar 1 (open start … 2 s), bar 4 → bar 1 as one (6–10 s), bar 4 again (14–16 s).
+    expect(c.edgesInSeconds(sync).toList()..sort(), [2, 2, 4, 6, 10, 10, 12, 14, 16]);
+  });
+
   test('staff stack centres a few staves and never exceeds maxGap', () {
     const slot = StaffSlot(height: 36, inkAbove: 0, inkBelow: 0, visibility: 1);
     const hidden = StaffSlot(height: 36, inkAbove: 0, inkBelow: 0, visibility: 0);

@@ -61,25 +61,40 @@ class Curation extends ChangeNotifier {
   /// not edges: a region there is shown from before bar 1 and after the last bar.
   Iterable<double> edgesInSeconds(ScoreTimeline timeline) sync* {
     for (final lane in _lanes.values) {
-      for (final r in lane) {
-        final (:start, :end) = _span(r, timeline);
+      for (final (:start, :end) in _spans(lane, timeline)) {
         if (start.isFinite) yield start;
         if (end.isFinite) yield end;
       }
     }
   }
 
-  /// A region's time span; open-ended where it reaches the start or end of the piece, so
-  /// nothing fades in on the first bar or out after the last.
-  static ({double start, double end}) _span(Region r, ScoreTimeline timeline) {
-    final starts = timeline.measureStarts;
-    return (
-      start: starts.isNotEmpty && r.start <= starts.first + 1e-6
-          ? double.negativeInfinity
-          : timeline.secondsAtQuarter(r.start),
-      end: starts.isNotEmpty && r.end >= starts.last - 1e-6 ? double.infinity : timeline.secondsAtQuarter(r.end),
-    );
+  /// When a lane is shown: each region once in every pass that plays it (see
+  /// [ScoreTimeline.passes]), joined where a warp goes on with the lane still shown, so
+  /// nothing fades out and in again across the jump. Open-ended where the performance starts
+  /// or ends, so nothing fades in on the first bar or out after the last.
+  static List<({double start, double end})> _spans(List<Region> lane, ScoreTimeline timeline) {
+    final passes = timeline.passes;
+    final spans = [
+      for (final r in lane)
+        for (final s in timeline.spans(r.start, r.end))
+          (
+            start: s.pass == 0 && s.start <= passes.first.start + 1e-6 ? double.negativeInfinity : s.startSeconds,
+            end: s.pass == passes.length - 1 && s.end >= passes.last.end - 1e-6 ? double.infinity : s.endSeconds,
+          ),
+    ];
+    if (passes.length == 1) return spans; // regions never touch (see [_normalize])
+    spans.sort((a, b) => a.start.compareTo(b.start));
+    final joined = <({double start, double end})>[];
+    for (final s in spans) {
+      if (joined.isNotEmpty && s.start <= joined.last.end + 1e-6) {
+        joined.last = (start: joined.last.start, end: math.max(joined.last.end, s.end));
+      } else {
+        joined.add(s);
+      }
+    }
+    return joined;
   }
+
   List<Region> lane(String partId) => _lanes[partId] ?? const [];
 
   // MARK: Editing
@@ -272,13 +287,8 @@ class Curation extends ChangeNotifier {
   // MARK: Visibility at playback time
 
   /// Whether [partId] is inside one of its regions at [seconds] (ignoring the fades).
-  bool isShownAt(String partId, double seconds, ScoreTimeline timeline) {
-    for (final r in lane(partId)) {
-      final (:start, :end) = _span(r, timeline);
-      if (seconds >= start && seconds < end) return true;
-    }
-    return false;
-  }
+  bool isShownAt(String partId, double seconds, ScoreTimeline timeline) =>
+      _spans(lane(partId), timeline).any((s) => seconds >= s.start && seconds < s.end);
 
   /// 0…1 for every part at [seconds]. Each region edge is a smooth ramp of [transition]
   /// seconds centred on the edge, so the result is continuous in time. Regions reaching the
@@ -289,8 +299,7 @@ class Curation extends ChangeNotifier {
       for (final entry in _lanes.entries)
         entry.key: () {
           var v = 0.0;
-          for (final r in entry.value) {
-            final (:start, :end) = _span(r, timeline);
+          for (final (:start, :end) in _spans(entry.value, timeline)) {
             if (seconds < start - half || seconds > end + half) continue;
             final fadeIn = half > 0 ? ((seconds - start + half) / _transition).clamp(0.0, 1.0) : 1.0;
             final fadeOut = half > 0 ? ((end + half - seconds) / _transition).clamp(0.0, 1.0) : 1.0;

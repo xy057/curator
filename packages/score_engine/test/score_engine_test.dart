@@ -68,6 +68,30 @@ void main() {
     }
   });
 
+  test('at a warp the score jumps at once, and scrolls on smoothly on either side', () {
+    final starts = score.timeline.measureStarts;
+    // Bars 1–8 at the score's tempo, then back to bar 1.
+    final repeatAt = score.timeline.secondsAtQuarter(starts[8]);
+    final sync = SyncMap(measureStarts: starts, defaultTempo: 93, beats: score.beats)
+      ..addAnchor(const SyncAnchor(0, 0))
+      ..addAnchor(SyncAnchor(starts[8], repeatAt, jumpTo: 0));
+    final map = ScrollMap(score.engraving, sync, beats: score.beats);
+    final bar1 = map.xAt(0), bar9 = score.engraving.measures[8].onsetXs.first;
+    expect(map.xAt(repeatAt - 1e-6), closeTo(bar9, 0.5));
+    expect(map.xAt(repeatAt), closeTo(bar1, 0.5));
+    expect(map.xAt(repeatAt + 2), closeTo(map.xAt(2), 0.5)); // the same music, the same place
+    expect(map.duration, closeTo(repeatAt + score.timeline.secondsAtQuarter(starts.last), 1e-6));
+    final range = map.xRange(repeatAt - 1, repeatAt + 1); // both sides of the jump
+    expect(range.min, closeTo(bar1, 0.5));
+    expect(range.max, closeTo(bar9, 0.5));
+    var previous = double.negativeInfinity;
+    for (var t = -2.0; t < map.duration + 2; t += 0.01) {
+      final x = map.xAt(t);
+      if (t < repeatAt || t - 0.01 >= repeatAt) expect(x, greaterThanOrEqualTo(previous - 1e-9));
+      previous = x;
+    }
+  });
+
   test('staves stay still between transitions and only move while an instrument enters', () {
     final scene = CuratedScene(score);
     const size = ui.Size(1600, 900);

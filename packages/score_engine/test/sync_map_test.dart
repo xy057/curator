@@ -135,4 +135,130 @@ void main() {
       expect(m.anchors.map((a) => a.quarter), [0, 4, 16]);
     });
   });
+
+  group('warps', () {
+    // Bars 1–8 (32 quarters) at ♩ = 120, then back to bar 1 and on to the end (bar 16).
+    SyncMap repeat() => map()
+      ..addAnchor(const SyncAnchor(0, 0))
+      ..addAnchor(const SyncAnchor(32, 16, jumpTo: 0))
+      ..addAnchor(const SyncAnchor(64, 48));
+
+    test('a warp back plays the score again from where it points', () {
+      final m = repeat();
+      expect(m.passes, [const ScorePass(0, 32), const ScorePass(0, 64)]);
+      expect(m.segmentTempo(0), closeTo(120, 1e-9));
+      expect(m.segmentTempo(1), closeTo(120, 1e-9)); // the tempo runs on through the jump
+      expect(m.quarterAtSeconds(10), closeTo(20, 1e-9));
+      expect(m.quarterAtSeconds(15.99), closeTo(31.98, 1e-9));
+      expect(m.quarterAtSeconds(16), 0); // touching the warp jumps at once
+      expect(m.quarterAtSeconds(20), closeTo(8, 1e-9));
+      expect(m.passAt(15.99), 0);
+      expect(m.passAt(16), 1);
+    });
+
+    test('a place in a repeat sounds once in each pass', () {
+      final m = repeat();
+      expect(m.secondsAtQuarter(8), closeTo(4, 1e-9));
+      expect(m.secondsAtQuarter(8, pass: 1), closeTo(20, 1e-9));
+      expect(m.timesOf(8).map((t) => t.seconds), [closeTo(4, 1e-9), closeTo(20, 1e-9)]);
+      // Bar 9 starts where the first pass ends: it only sounds in the second.
+      expect(m.timesOf(32).map((t) => t.pass), [1]);
+      expect(m.spans(24, 40).map((s) => (s.startSeconds, s.endSeconds)), [(12, 16), (28, 36)]);
+      expect(m.endSeconds, closeTo(48, 1e-9));
+    });
+
+    test('a warp forward skips a stretch', () {
+      final m = map()
+        ..addAnchor(const SyncAnchor(0, 0))
+        ..addAnchor(const SyncAnchor(16, 8, jumpTo: 48)) // after bar 4, on to bar 13
+        ..addAnchor(const SyncAnchor(64, 16));
+      expect(m.quarterAtSeconds(12), closeTo(56, 1e-9));
+      expect(m.spans(16, 48), isEmpty); // never played
+      expect(m.segmentTempo(1), closeTo(120, 1e-9));
+    });
+
+    test('taps after a warp go on from where it jumps to, and never remove it', () {
+      final m = map()
+        ..addAnchor(const SyncAnchor(0, 0))
+        ..addAnchor(const SyncAnchor(32, 16, jumpTo: 0));
+      m.beginTapping();
+      expect(m.tap(18).quarter, 4); // bar 2, second time
+      m.beginTapping();
+      m.tap(14);
+      m.tap(20.1); // a retap passing over the warp
+      expect(m.anchors.where((a) => a.isWarp), hasLength(1));
+      expect(m.anchors.last.quarter, 8);
+    });
+
+    test('tapping on a warp re-times it', () {
+      final m = repeat()..beginTapping();
+      final tapped = m.tap(16.1);
+      expect(tapped.isWarp, isTrue);
+      expect(m.anchors.map((a) => a.seconds), [0, 16.1, 48]);
+    });
+
+    test('marking a warp moves the anchors after it by the jump, keeping their times', () {
+      // Tapped straight through (bars 1–12), though the music went back to bar 1 after bar 8.
+      final m = map();
+      for (var bar = 0; bar < 12; bar++) {
+        m.addAnchor(SyncAnchor(bar * 4.0, bar * 2.0));
+      }
+      final before = [for (var t = 0.0; t < 24; t += 0.5) m.quarterAtSeconds(t)];
+      expect(m.setJump(8, 0), isTrue); // bar 9's anchor is really the repeat
+      expect(m.anchors.map((a) => a.quarter).skip(8), [32, 4, 8, 12]);
+      expect(m.anchors[8].jumpTo, 0);
+      for (var i = 0; i < 11; i++) {
+        expect(m.segmentTempo(i), closeTo(120, 1e-9));
+      }
+      // Undoing the jump puts them back.
+      expect(m.setJump(8, null), isTrue);
+      expect([for (var t = 0.0; t < 24; t += 0.5) m.quarterAtSeconds(t)], before);
+    });
+
+    test('a jump that would push anchors out of the score, or nowhere, is refused', () {
+      final m = map()
+        ..addAnchor(const SyncAnchor(0, 0))
+        ..addAnchor(const SyncAnchor(8, 4))
+        ..addAnchor(const SyncAnchor(60, 30));
+      expect(m.setJump(1, 16), isFalse); // 60 + 8 is past the end
+      expect(m.setJump(1, 8), isFalse); // to where it already is
+      expect(m.anchors.every((a) => !a.isWarp), isTrue);
+    });
+
+    test('removing a warp takes its jump back', () {
+      final m = repeat()..addAnchor(const SyncAnchor(8, 20));
+      m.removeAnchors({1});
+      expect(m.anchors.map((a) => a.quarter), [0, 40]); // bar 11 would be past the end: dropped
+      final n = map()
+        ..addAnchor(const SyncAnchor(0, 0))
+        ..addAnchor(const SyncAnchor(16, 8, jumpTo: 0))
+        ..addAnchor(const SyncAnchor(8, 12));
+      n.removeAnchors({1});
+      expect(n.anchors.map((a) => a.quarter), [0, 24]);
+    });
+
+    test('a warp\'s arrival is ordered against what comes before it, not after', () {
+      final m = repeat()..addAnchor(const SyncAnchor(4, 18));
+      expect(m.setAnchorQuarter(1, 36), isTrue); // the anchor after it is in the next pass
+      expect(m.setAnchorQuarter(1, 0), isFalse); // …but it must come after bar 1
+      expect(m.setAnchorQuarter(2, 0), isFalse); // and bar 2 (second time) comes after where it went on from
+      expect(m.shiftAnchors({2}, -1, SyncGrid.bar), isFalse);
+    });
+
+    test('a warp\'s position and jump change together, as one', () {
+      final m = map()
+        ..addAnchor(const SyncAnchor(0, 0))
+        ..addAnchor(const SyncAnchor(32, 16, jumpTo: 16))
+        ..addAnchor(const SyncAnchor(20, 18));
+      // One after the other, the first half would have the warp jump to where it is.
+      expect(m.setAnchor(1, 16, jumpTo: 32), isTrue);
+      expect(m.anchors.map((a) => (a.quarter, a.jumpTo)), [(0, null), (16, 32), (36, null)]);
+    });
+
+    test('loading drops anchors that are out of order', () {
+      final m = map()
+        ..load(const [SyncAnchor(0, 0), SyncAnchor(32, 16, jumpTo: 0), SyncAnchor(4, 18), SyncAnchor(2, 19)]);
+      expect(m.anchors.map((a) => a.seconds), [0, 16, 18]);
+    });
+  });
 }

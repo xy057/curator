@@ -39,9 +39,11 @@ class SpacingPlan {
     final keyframes = <List<double>>[];
     for (var i = 0; i + 1 < bounds.length; i++) {
       final middle = (bounds[i] + bounds[i + 1]) / 2;
-      // Everything on screen from a little before the segment starts to a little after it ends.
-      final left = scrollMap.xAt(bounds[i] - transition) - visibleLeft;
-      final right = scrollMap.xAt(bounds[i + 1] + transition) + visibleRight;
+      // Everything on screen from a little before the segment starts to a little after it ends
+      // (on both sides of a warp, when one jumps in between).
+      final (min: from, max: to) = scrollMap.xRange(bounds[i] - transition, bounds[i + 1] + transition);
+      final left = from - visibleLeft;
+      final right = to + visibleRight;
 
       final shown = [for (final s in order) isShown(s.partId, middle)];
       final slots = [
