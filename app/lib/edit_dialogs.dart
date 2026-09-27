@@ -330,52 +330,80 @@ Future<void> showCopyLaneDialog(BuildContext context, EditorController c, ScoreP
   if (ok == true) c.lanes.copyLane(from.id, chosen);
 }
 
-/// Type one score position, as bar or bar.beat ("12" or "12.3"). Returns it, or null.
-Future<double?> showPositionDialog(BuildContext context,
-        {required String title, required String initial, required BeatGrid beats}) =>
-    showAppDialog<double>(context: context, builder: (context) => _PositionDialog(title: title, initial: initial, beats: beats));
+/// An anchor's position and, for a warp, where the score goes on from: null when cancelled.
+/// [warp] starts in the jump's field (making a warp).
+Future<({double quarter, double? jumpTo})?> showAnchorDialog(BuildContext context,
+        {required BeatGrid beats, required double quarter, double? jumpTo, bool warp = false}) =>
+    showAppDialog<({double quarter, double? jumpTo})>(
+        context: context,
+        builder: (context) => _AnchorDialog(beats: beats, quarter: quarter, jumpTo: jumpTo, warp: warp));
 
-class _PositionDialog extends StatefulWidget {
-  const _PositionDialog({required this.title, required this.initial, required this.beats});
-  final String title;
-  final String initial;
+class _AnchorDialog extends StatefulWidget {
+  const _AnchorDialog({required this.beats, required this.quarter, required this.jumpTo, required this.warp});
   final BeatGrid beats;
+  final double quarter;
+  final double? jumpTo;
+  final bool warp;
 
   @override
-  State<_PositionDialog> createState() => _PositionDialogState();
+  State<_AnchorDialog> createState() => _AnchorDialogState();
 }
 
-class _PositionDialogState extends State<_PositionDialog> {
-  late final _field = TextEditingController(text: widget.initial);
+class _AnchorDialogState extends State<_AnchorDialog> {
+  late final _position = TextEditingController(text: widget.beats.format(widget.quarter));
+  late final _jump = TextEditingController(text: widget.jumpTo == null ? '' : widget.beats.format(widget.jumpTo!));
 
   @override
   void dispose() {
-    _field.dispose();
+    _position.dispose();
+    _jump.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final q = widget.beats.parse(_field.text);
+    final q = widget.beats.parse(_position.text);
+    final plain = _jump.text.trim().isEmpty;
+    final jump = plain ? null : widget.beats.parse(_jump.text);
+    final nowhere = q != null && jump != null && (jump - q).abs() < 1e-6;
+    final valid = q != null && (plain || (jump != null && !nowhere));
     void save() {
-      if (q != null) Navigator.pop(context, q);
+      if (valid) Navigator.pop(context, (quarter: q, jumpTo: jump));
     }
 
     return AlertDialog(
-      title: Text(widget.title),
+      title: Text(plain ? 'Anchor' : 'Warp'),
       content: SizedBox(
-        width: 240,
-        child: TextField(
-          controller: _field,
-          autofocus: true,
-          decoration: InputDecoration(labelText: 'Bar or bar.beat', errorText: q == null ? 'e.g. 12 or 12.3' : null),
-          onChanged: (_) => setState(() {}),
-          onSubmitted: (_) => save(),
-        ),
+        width: 260,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: _position,
+            autofocus: !widget.warp,
+            decoration: InputDecoration(labelText: 'Position', errorText: q == null ? 'e.g. 12 or 12.3' : null),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => save(),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _jump,
+            autofocus: widget.warp,
+            decoration: InputDecoration(
+              labelText: 'Then jumps to',
+              helperText: 'Back for a repeat, on to skip · empty: no jump',
+              errorText: nowhere
+                  ? 'That is where it already is'
+                  : !plain && jump == null
+                      ? 'e.g. 1, or empty'
+                      : null,
+            ),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => save(),
+          ),
+        ]),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: q == null ? null : save, child: const Text('Set')),
+        FilledButton(onPressed: valid ? save : null, child: const Text('Set')),
       ],
     );
   }

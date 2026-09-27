@@ -310,6 +310,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     controller.anchors.tapArmed = !controller.anchors.tapArmed;
   }
 
+  /// W: make the selected anchor a warp, or add one at the playhead (in the Audio tab).
+  void _warp() {
+    if (controller.score == null) return;
+    controller.tab = BottomTab.audio;
+    controller.playback.pause(); // a dialog asks where it jumps to
+    editWarp(context, controller);
+  }
+
   /// ←/→ nudge the selected anchors (10 ms, ⇧ 1 ms) or regions (a bar, ⇧ a beat);
   /// otherwise skip 5 s (⇧ 1 s).
   void _arrow(int direction, {required bool fine}) {
@@ -484,6 +492,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         const SingleActivator(LogicalKeyboardKey.enter): controller.playback.togglePlay,
         const SingleActivator(LogicalKeyboardKey.numpadEnter): controller.playback.togglePlay,
         const SingleActivator(LogicalKeyboardKey.keyT): _toggleTapMode,
+        const SingleActivator(LogicalKeyboardKey.keyW): _warp,
         const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _arrow(-1, fine: false),
         const SingleActivator(LogicalKeyboardKey.arrowRight): () => _arrow(1, fine: false),
         const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () => _arrow(-1, fine: true),

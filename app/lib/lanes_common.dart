@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
@@ -127,21 +128,27 @@ class _RulerPainter extends CustomPainter {
 
     final starts = tl.measureStarts;
     final tick = Paint()..color = colors.activity;
+    final jump = Paint()..color = colors.accentStrong;
     var lastLabel = double.negativeInfinity;
-    for (var i = 0; i < starts.length; i++) {
-      final x = v.x(tl.secondsAtQuarter(starts[i]));
-      if (x < -40 || x > size.width + 40) continue;
-      final labelled = x - lastLabel >= 30 && i < starts.length - 1;
-      canvas.drawLine(Offset(x, labelled ? 8 : 17), Offset(x, size.height), tick);
-      if (labelled) {
-        lastLabel = x;
-        final tp = TextPainter(
-          text: TextSpan(text: '${i + 1}', style: TextStyle(fontSize: 11, color: colors.textMuted)),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        tp
-          ..paint(canvas, Offset(x + 4, 3))
-          ..dispose();
+    // Bar by bar through each pass: after a warp the numbers start again where it jumps to.
+    for (final (k, bars) in _barsByPass(tl).indexed) {
+      for (final (j, i) in bars.indexed) {
+        final x = v.x(tl.secondsAtQuarter(starts[i], pass: k));
+        if (x < -40 || x > size.width + 40) continue;
+        final warped = k > 0 && j == 0 && (starts[i] - tl.passes[k].start).abs() < 1e-9;
+        final labelled = (warped || x - lastLabel >= 30) && i < starts.length - 1;
+        canvas.drawLine(Offset(x, labelled ? 8 : 17), Offset(x, size.height), warped ? jump : tick);
+        if (labelled) {
+          lastLabel = x;
+          final tp = TextPainter(
+            text: TextSpan(
+                text: '${i + 1}', style: TextStyle(fontSize: 11, color: warped ? colors.accentStrong : colors.textMuted)),
+            textDirection: TextDirection.ltr,
+          )..layout();
+          tp
+            ..paint(canvas, Offset(x + 4, 3))
+            ..dispose();
+        }
       }
     }
     paintPlayhead(canvas, size, c, colors, handle: true);
@@ -169,27 +176,52 @@ void paintPlayhead(Canvas canvas, Size size, EditorController c, AppColors color
 /// Beats narrower than this (on screen) are too fine to draw, snap to or click one by one.
 const kMinBeatWidth = 14.0;
 
-/// Whether the beat at [quarter] is wide enough on screen to work beat by beat.
-bool beatsFit(EditorController c, double quarter) {
+/// Whether the beat at [quarter] is wide enough on screen to work beat by beat (as it
+/// sounds in [pass]).
+bool beatsFit(EditorController c, double quarter, {int pass = 0}) {
   final beat = c.beats.beatAt(quarter);
   final tl = c.timeline;
-  return (tl.secondsAtQuarter(beat.end) - tl.secondsAtQuarter(beat.start)) * c.viewport.pxPerSec >= kMinBeatWidth;
+  return (tl.secondsAtQuarter(beat.end, pass: pass) - tl.secondsAtQuarter(beat.start, pass: pass)) * c.viewport.pxPerSec >=
+      kMinBeatWidth;
 }
 
-/// Faint bar lines (and the time signature's beats when there is room) at their synced times.
+/// For each pass (see [ScoreTimeline.passes]), the bars whose barline it plays, in order. A
+/// pass's end is the next one's start, so only the last pass has the final barline.
+List<List<int>> _barsByPass(ScoreTimeline tl) {
+  final starts = tl.measureStarts;
+  final passes = tl.passes;
+  return [
+    for (final (k, p) in passes.indexed)
+      [
+        for (var i = 0; i < starts.length; i++)
+          if (starts[i] >= p.start - 1e-9 && (starts[i] < p.end - 1e-9 || (k == passes.length - 1 && starts[i] <= p.end + 1e-9)))
+            i,
+      ],
+  ];
+}
+
+/// Faint bar lines (and the time signature's beats when there is room) at their synced times,
+/// once in every pass that plays them.
 void paintBarGrid(Canvas canvas, Size size, EditorController c, AppColors colors) {
   final v = c.viewport, tl = c.timeline;
   final starts = tl.measureStarts;
   final grid = Paint()..color = colors.grid;
   final beat = Paint()..color = colors.grid.withValues(alpha: 0.5);
-  for (var m = 0; m < starts.length; m++) {
-    final x = v.x(tl.secondsAtQuarter(starts[m]));
-    if (x >= -1 && x <= size.width + 1) canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
-    if (m + 1 >= starts.length || x > size.width) continue;
-    if (v.x(tl.secondsAtQuarter(starts[m + 1])) < 0 || !beatsFit(c, starts[m])) continue;
-    for (final q in c.beats.beatsIn(m).skip(1)) {
-      final bx = v.x(tl.secondsAtQuarter(q));
-      if (bx >= 0 && bx <= size.width) canvas.drawLine(Offset(bx, 0), Offset(bx, size.height), beat);
+  final passes = tl.passes;
+  for (final (k, p) in passes.indexed) {
+    double x(double q) => v.x(tl.secondsAtQuarter(q, pass: k));
+    final last = k == passes.length - 1;
+    // From the bar the pass starts in (a warp may land mid-bar) to the one it ends in.
+    for (var m = c.beats.measureAt(p.start); m < starts.length && (starts[m] < p.end - 1e-9 || last); m++) {
+      final bx = x(starts[m]);
+      if (bx > size.width + 1) break;
+      if (starts[m] >= p.start - 1e-9 && bx >= -1) canvas.drawLine(Offset(bx, 0), Offset(bx, size.height), grid);
+      if (m + 1 >= starts.length || x(starts[m + 1]) < 0 || !beatsFit(c, starts[m], pass: k)) continue;
+      for (final q in c.beats.beatsIn(m).skip(1)) {
+        if (q <= p.start + 1e-9 || q >= p.end - 1e-9) continue;
+        final qx = x(q);
+        if (qx >= 0 && qx <= size.width) canvas.drawLine(Offset(qx, 0), Offset(qx, size.height), beat);
+      }
     }
   }
 }

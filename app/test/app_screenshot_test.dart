@@ -81,6 +81,28 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     await shot('app-audio-dark');
+
+    // A warp: bars 1–16 tapped every 2 s, then back to bar 9 and on to the end.
+    settings.themeMode = ThemeMode.light;
+    final sync = controller.sync!, starts = sync.measureStarts;
+    controller.beginEdit();
+    sync.load([for (var bar = 0; bar <= 30; bar++) SyncAnchor(starts[bar], 1.0 + bar * 2)]);
+    controller.anchors.setAnchor(16, starts[16], jumpTo: starts[8]); // bar 17's anchor is the repeat
+    controller.endEdit();
+    controller.anchors.select(16);
+    controller.tab = BottomTab.audio;
+    controller.viewport.requestFit();
+    controller.playback.seek(34);
+    ScaffoldMessenger.of(tester.element(find.byType(HomePage))).clearSnackBars();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await shot('app-warp-audio');
+    controller.tab = BottomTab.instruments;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await shot('app-warp-instruments');
+    controller.undo();
   });
 
   testWidgets('double-clicking a score text edits it in place', (tester) async {

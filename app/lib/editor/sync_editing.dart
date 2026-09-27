@@ -101,8 +101,28 @@ class SyncEditing {
   /// ([from]), together. See [SyncMap.moveAnchors].
   void drag(double delta, {required List<SyncAnchor> from}) => _sync?.moveAnchors(_valid, delta, from: from);
 
-  /// Points anchor [index] at [quarter]; false when that would cross a neighbour.
-  bool setPosition(int index, double quarter) => _sync?.setAnchorQuarter(index, quarter) ?? false;
+  /// Points anchor [index] at [quarter] and makes it go on from [jumpTo] (a warp; null: a
+  /// plain anchor). False (changing nothing) when that would put the anchors out of order or
+  /// outside the score. See [SyncMap.setAnchor].
+  bool setAnchor(int index, double quarter, {double? jumpTo}) =>
+      _sync?.setAnchor(index, quarter, jumpTo: jumpTo) ?? false;
+
+  /// Adds a warp at [seconds] (arriving at [quarter], going on from [jumpTo]; null: a plain
+  /// anchor) as one step, and selects it. The anchors after it move with the jump (see
+  /// [SyncMap.setJump]). False (adding nothing) when that would push one out of the score.
+  bool addWarp(double seconds, double quarter, double? jumpTo) {
+    final sync = _sync;
+    if (sync == null) return false;
+    final before = sync.anchors;
+    _editor.beginEdit();
+    sync.addAnchor(SyncAnchor(quarter, seconds));
+    final index = sync.anchors.indexWhere((a) => a.seconds == seconds);
+    final added = jumpTo == null || sync.setJump(index, jumpTo);
+    if (!added) sync.load(before, leadIn: sync.leadIn);
+    _editor.endEdit();
+    select(added ? index : null);
+    return added;
+  }
 
   /// Where bar 1 sounds in the recording (Starts at).
   void setStart(double seconds) => _sync?.startSeconds = seconds;

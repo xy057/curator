@@ -34,7 +34,7 @@ class Playback {
   double get duration {
     if (_editor.score == null) return 0;
     final timeline = _editor.timeline;
-    final end = timeline.secondsAtQuarter(timeline.measureStarts.last) + 1;
+    final end = timeline.endSeconds + 1; // the end of the last pass, after any repeats
     return math.max(end, _editor.track?.length ?? 0);
   }
 

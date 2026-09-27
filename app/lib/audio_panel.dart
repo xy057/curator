@@ -25,7 +25,8 @@ const _grab = 7.0;
 /// Audio tab: the recording, the anchors that pin the score to it, and the resulting tempo.
 ///
 /// Tap mode (T): Space starts playback, then each Space marks the bar (or beat) sounding
-/// now. ⌥-click adds an anchor · double-click one to type its position.
+/// now. ⌥-click adds an anchor · double-click one to type its position, or where it jumps
+/// to (a warp) · W makes the selected anchor a warp, or adds one at the playhead.
 ///
 /// Selection: click an anchor · ⇧-click extends · ⌘-click toggles · drag across the anchor
 /// lane (or ⇧-drag anywhere) box-selects · ⌘A selects all. The selection then moves together:
@@ -161,16 +162,7 @@ class _AudioLanesState extends State<AudioLanes> {
     if (cursor != _cursor) setState(() => _cursor = cursor);
   }
 
-  Future<void> _editPosition(int index) async {
-    final q = await showPositionDialog(context,
-        title: 'Anchor position', initial: sync.beats.format(sync.anchors[index].quarter), beats: sync.beats);
-    if (q == null || !mounted) return;
-    if (!c.anchors.setPosition(index, q)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${sync.beats.format(q)} would cross a neighbouring anchor.')),
-      );
-    }
-  }
+  Future<void> _editPosition(int index) => _editAnchor(context, c, index);
 
   @override
   Widget build(BuildContext context) {
@@ -244,6 +236,37 @@ class _AudioLanesState extends State<AudioLanes> {
   }
 }
 
+/// Opens anchor [index]'s position and jump to edit ([warp]: starting with the jump).
+Future<void> _editAnchor(BuildContext context, EditorController c, int index, {bool warp = false}) async {
+  final sync = c.sync!;
+  final a = sync.anchors[index];
+  final set = await showAnchorDialog(context, beats: sync.beats, quarter: a.quarter, jumpTo: a.jumpTo, warp: warp);
+  if (set == null || !context.mounted || index >= sync.anchors.length) return;
+  if (!c.anchors.setAnchor(index, set.quarter, jumpTo: set.jumpTo)) {
+    _refused(context, set.jumpTo == a.jumpTo ? '${sync.beats.format(set.quarter)} would cross a neighbouring anchor.' : null);
+  }
+}
+
+void _refused(BuildContext context, String? why) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    content: Text(why ?? 'That would put anchors out of order, or the ones after the jump past the end of the score.')));
+
+/// Warp (W): makes the selected anchor jump (back for a repeat, on to a coda), or adds a
+/// warp at the playhead, on the bar (or beat) sounding there.
+Future<void> editWarp(BuildContext context, EditorController c) async {
+  final sync = c.sync;
+  if (sync == null) return;
+  final selected = c.anchors.selected.where((i) => i < sync.anchors.length);
+  if (selected.length == 1) return _editAnchor(context, c, selected.single, warp: true);
+
+  var t = c.playback.time.value;
+  final onset = c.anchors.snapToOnsets ? c.track?.waveform.nearestOnset(t, 0.08) : null;
+  if (onset != null) t = onset;
+  final quarter = sync.nearestGrid(sync.quarterAtSeconds(t), c.anchors.grid);
+  final set = await showAnchorDialog(context, beats: sync.beats, quarter: quarter, warp: true);
+  if (set == null || !context.mounted) return;
+  if (!c.anchors.addWarp(t, set.quarter, set.jumpTo)) _refused(context, null);
+}
+
 /// Audio tab tools (right of the tab switch). Every control explains itself on hover.
 class AudioToolbar extends StatelessWidget {
   const AudioToolbar({super.key, required this.controller});
@@ -265,6 +288,15 @@ class AudioToolbar extends StatelessWidget {
           onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
         ),
         _TapButton(controller: c),
+        ToolbarButton(
+          icon: Icons.u_turn_left_rounded,
+          tooltip: c.anchors.selected.length == 1
+              ? 'Warp (W)\nMake the selected anchor jump: the score goes on from another bar there '
+                  '(back for a repeat, on to a coda)'
+              : 'Warp (W)\nAdd a warp at the playhead: the score jumps to another bar there '
+                  '(back for a repeat, on to a coda)',
+          onPressed: () => editWarp(context, c),
+        ),
         const ToolbarDivider(),
         Tip(
           message: 'What taps, ⌥-clicks and ↑/↓ step by: whole bars, or the beats of the time signature',
@@ -540,6 +572,7 @@ class _AnchorPainter extends CustomPainter {
       final x = v.x(a.seconds);
       if (x < -20 || x > size.width + 20) continue;
       final selected = c.anchors.selected.contains(i);
+      final color = selected || a.isWarp ? colors.accentStrong : colors.accent;
       final y = size.height / 2 + 4;
       final diamond = Path()
         ..moveTo(x, y - 6)
@@ -547,14 +580,31 @@ class _AnchorPainter extends CustomPainter {
         ..lineTo(x, y + 6)
         ..lineTo(x - 5, y)
         ..close();
-      canvas.drawPath(diamond, Paint()..color = selected ? colors.accentStrong : colors.accent);
-      final label = sync.beats.format(a.quarter, compact: true);
+      canvas.drawPath(diamond, Paint()..color = color);
+      if (a.isWarp) {
+        // A warp: ringed, and labelled with where it jumps to.
+        final ring = Path()
+          ..moveTo(x, y - 8)
+          ..lineTo(x + 7, y)
+          ..lineTo(x, y + 8)
+          ..lineTo(x - 7, y)
+          ..close();
+        canvas.drawPath(
+            ring,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.2
+              ..color = color);
+      }
+      final label = a.isWarp
+          ? '${sync.beats.format(a.quarter, compact: true)}→${sync.beats.format(a.jumpTo!, compact: true)}'
+          : sync.beats.format(a.quarter, compact: true);
       final tp = TextPainter(
         text: TextSpan(
           text: label,
           style: TextStyle(
             fontSize: 10.5,
-            color: selected ? colors.accentStrong : colors.textMuted,
+            color: selected || a.isWarp ? colors.accentStrong : colors.textMuted,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -627,9 +677,11 @@ class _WaveformPainter extends CustomPainter {
     for (final (i, a) in sync.anchors.indexed) {
       final x = v.x(a.seconds);
       if (x < 0 || x > size.width) continue;
+      final width = a.isWarp ? 2.0 : 1.0; // a warp: where the score jumps
       canvas.drawRect(
-        Rect.fromLTWH(x - 0.5, 0, 1, size.height),
-        Paint()..color = c.anchors.selected.contains(i) ? colors.accentStrong : colors.accent.withValues(alpha: 0.7),
+        Rect.fromLTWH(x - width / 2, 0, width, size.height),
+        Paint()
+          ..color = c.anchors.selected.contains(i) || a.isWarp ? colors.accentStrong : colors.accent.withValues(alpha: 0.7),
       );
     }
     _paintMarquee(canvas, size, c, colors, marquee.value);

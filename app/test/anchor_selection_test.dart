@@ -58,4 +58,31 @@ void main() {
     c.anchors.selectAll();
     expect(c.anchors.selected, {0, 1, 2, 3, 4, 5});
   });
+
+  test('a warp added at the repeat is one step, re-points the taps after it, and the preview jumps', () {
+    // Tapped straight through bars 1–6, but the music went back to bar 1 after bar 3.
+    final before = [...sync.anchors];
+    final x = c.scene!.scrollMap.xAt;
+    final bar2 = x(3), bar4 = x(7 - 1e-6);
+    expect(c.anchors.addWarp(7, 9, 0), isTrue); // at 7 s: bar 4 → bar 1
+    expect(sync.anchors.map((a) => (a.quarter, a.jumpTo)), [(0, null), (3, null), (6, null), (9, 0), (3, null), (6, null)]);
+    expect(c.anchors.selected, {3});
+    expect(c.scene!.scrollMap.xAt(7 - 1e-6), closeTo(bar4, 0.5));
+    expect(c.scene!.scrollMap.xAt(9), closeTo(bar2, 0.5)); // bar 2 again
+    expect(c.playback.duration, greaterThan(c.score!.timeline.measureStarts.last / 3 * 2 + 7));
+
+    c.undo();
+    expect(sync.anchors, before);
+  });
+
+  test('a warp can be edited and made a plain anchor again', () {
+    expect(c.anchors.setAnchor(3, 9, jumpTo: 0), isTrue); // the bar 4 anchor is really the repeat
+    expect(sync.anchors.map((a) => a.quarter), [0, 3, 6, 9, 3, 6]);
+    expect(c.anchors.setAnchor(3, 9, jumpTo: 3), isTrue); // …to bar 2
+    expect(sync.anchors.map((a) => a.quarter), [0, 3, 6, 9, 6, 9]);
+    expect(c.anchors.setAnchor(3, 9), isTrue);
+    expect(sync.anchors.map((a) => a.quarter), [0, 3, 6, 9, 12, 15]);
+    expect(c.anchors.addWarp(12, 18, 200), isFalse, reason: 'past the end of the score');
+    expect(sync.anchors, hasLength(6));
+  });
 }

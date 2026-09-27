@@ -39,10 +39,12 @@ const _minLength = 0.25; // a sixteenth: regions never collapse to nothing
 enum _DragKind { paint, move, resizeStart, resizeEnd, scrub, marquee }
 
 class _Drag {
-  _Drag(this.kind, {required this.downAt, required this.downQ, this.lane = 0, this.grabbed, this.shown = true});
+  _Drag(this.kind,
+      {required this.downAt, required this.downQ, required this.pass, this.lane = 0, this.grabbed, this.shown = true});
   final _DragKind kind;
   final Offset downAt;
   final double downQ; // score position under the pointer when the drag began
+  final int pass; // the pass (see ScoreTimeline.passes) it began in, and stays in
   final int lane; // lane the drag began in
   final RegionRef? grabbed; // move / resize: the region under the pointer
   final bool shown; // paint: draw (true) or erase
@@ -92,18 +94,39 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
     super.dispose();
   }
 
-  double _xq(double quarter) => c.viewport.x(tl.secondsAtQuarter(quarter));
-  double _q(double x) => tl.quarterAtSeconds(c.viewport.seconds(x));
+  /// Where the stretch [q0]–[q1] of the score is on screen: once in every pass that plays
+  /// it (a repeat shows it again). An end is the stretch's own, or where a warp cuts it.
+  Iterable<({double x0, double x1, bool ownStart, bool ownEnd})> _xs(double q0, double q1) sync* {
+    for (final s in tl.spans(q0, q1)) {
+      yield (
+        x0: c.viewport.x(s.startSeconds),
+        x1: c.viewport.x(s.endSeconds),
+        ownStart: (s.start - q0).abs() < 1e-9,
+        ownEnd: (s.end - q1).abs() < 1e-9,
+      );
+    }
+  }
+
+  /// The score position under [x]; with [pass], kept inside that pass (a drag stays in the
+  /// pass it began in, rather than leaping with a warp).
+  double _q(double x, {int? pass}) {
+    final seconds = c.viewport.seconds(x);
+    final here = tl.passAt(seconds);
+    if (pass == null || here == pass) return tl.quarterAtSeconds(seconds);
+    return here < pass ? tl.passes[pass].start : tl.passes[pass].end;
+  }
+
+  int _passAt(double x) => tl.passAt(c.viewport.seconds(x));
   double get _totalQuarters => tl.measureStarts.last;
 
   /// Snaps a score position to the time signature's beats, or to barlines when beats are
-  /// too close together on screen.
-  double _snap(double q) {
+  /// too close together on screen (as they sound in [pass]).
+  double _snap(double q, int pass) {
     q = q.clamp(0.0, _totalQuarters);
     if (isCommandPressed) return q;
     final starts = tl.measureStarts;
     var i = c.beats.measureAt(q);
-    if (beatsFit(c, q)) {
+    if (beatsFit(c, q, pass: pass)) {
       final beat = c.beats.beatAt(q);
       return q - beat.start <= beat.end - q ? beat.start : beat.end;
     }
@@ -120,12 +143,13 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
     if (lane < 0 || lane >= parts.length) return null;
     final id = parts[lane].id;
     for (final r in c.curation!.lane(id)) {
-      final x0 = _xq(r.start), x1 = _xq(r.end);
-      if (p.dx < x0 - _edgeGrab || p.dx > x1 + _edgeGrab) continue;
-      final ref = (partId: id, region: r);
-      if ((p.dx - x0).abs() <= _edgeGrab) return (ref: ref, kind: _DragKind.resizeStart);
-      if ((p.dx - x1).abs() <= _edgeGrab) return (ref: ref, kind: _DragKind.resizeEnd);
-      if (p.dx > x0 && p.dx < x1) return (ref: ref, kind: _DragKind.move);
+      for (final (:x0, :x1, :ownStart, :ownEnd) in _xs(r.start, r.end)) {
+        if (p.dx < x0 - _edgeGrab || p.dx > x1 + _edgeGrab) continue;
+        final ref = (partId: id, region: r);
+        if (ownStart && (p.dx - x0).abs() <= _edgeGrab) return (ref: ref, kind: _DragKind.resizeStart);
+        if (ownEnd && (p.dx - x1).abs() <= _edgeGrab) return (ref: ref, kind: _DragKind.resizeEnd);
+        if (p.dx > x0 && p.dx < x1) return (ref: ref, kind: _DragKind.move);
+      }
     }
     return null;
   }
@@ -159,6 +183,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
     final curation = c.curation!;
     final p = e.localPosition;
     final q = _q(p.dx);
+    final pass = _passAt(p.dx);
     final doubleClick = e.timeStamp - _lastDown < const Duration(milliseconds: 350) && (p - _lastDownAt).distance < 6;
     _lastDown = e.timeStamp;
     _lastDownAt = p;
@@ -166,7 +191,8 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
     final tool = _tool;
     if (tool != LaneTool.select) {
       c.beginEdit();
-      _drag = _Drag(_DragKind.paint, downAt: p, downQ: _snap(q), lane: _laneIndex(p), shown: tool == LaneTool.draw)
+      _drag = _Drag(_DragKind.paint,
+          downAt: p, downQ: _snap(q, pass), pass: pass, lane: _laneIndex(p), shown: tool == LaneTool.draw)
         ..from = {for (final part in parts) part.id: curation.lane(part.id)};
       return;
     }
@@ -189,15 +215,15 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
         c.lanes.select(ref.partId, ref.region);
       }
       c.beginEdit();
-      _drag = _Drag(hit.kind, downAt: p, downQ: q, grabbed: ref)
+      _drag = _Drag(hit.kind, downAt: p, downQ: q, pass: pass, grabbed: ref)
         ..from = {for (final part in parts) part.id: curation.lane(part.id)}
         ..moving = c.lanes.selected;
       if (hit.kind == _DragKind.move) setState(() => _cursor = SystemMouseCursors.grabbing);
     } else if (keys.isShiftPressed || isCommandPressed) {
-      _drag = _Drag(_DragKind.marquee, downAt: p, downQ: q, lane: _laneIndex(p))..keep = c.lanes.selected;
+      _drag = _Drag(_DragKind.marquee, downAt: p, downQ: q, pass: pass, lane: _laneIndex(p))..keep = c.lanes.selected;
     } else {
       c.clearSelection();
-      _drag = _Drag(_DragKind.scrub, downAt: p, downQ: q);
+      _drag = _Drag(_DragKind.scrub, downAt: p, downQ: q, pass: pass);
       c.playback.seek(c.viewport.seconds(p.dx));
     }
   }
@@ -206,13 +232,13 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
     final drag = _drag;
     if (drag == null) return;
     final p = e.localPosition;
-    final q = _q(p.dx);
+    final q = _q(p.dx, pass: drag.pass);
     drag.moved |= (p - drag.downAt).distance >= 3;
     switch (drag.kind) {
       case _DragKind.scrub:
         c.playback.seek(c.viewport.seconds(p.dx));
       case _DragKind.paint:
-        final edge = _snap(q);
+        final edge = _snap(q, drag.pass);
         _paint(drag, math.min(drag.downQ, edge), math.max(drag.downQ, edge), _laneIndex(p));
       case _DragKind.marquee:
         final lane = _laneIndex(p);
@@ -260,15 +286,15 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
       case _DragKind.move:
         final first = moving.map((r) => r.region.start).reduce(math.min);
         final last = moving.map((r) => r.region.end).reduce(math.max);
-        final delta = math.max(-first, math.min(_totalQuarters - last, _snap(q - (drag.downQ - grabbed.start)) - grabbed.start));
+        final delta = math.max(-first, math.min(_totalQuarters - last, _snap(q - (drag.downQ - grabbed.start), drag.pass) - grabbed.start));
         change = (r) => Region(r.start + delta, r.end + delta);
         final rows = [for (final r in moving) _row(r.partId)];
         lanes = (lane - _row(drag.grabbed!.partId)).clamp(-rows.reduce(math.min), parts.length - 1 - rows.reduce(math.max));
       case _DragKind.resizeStart:
-        final delta = _snap(q) - grabbed.start;
+        final delta = _snap(q, drag.pass) - grabbed.start;
         change = (r) => Region(math.min(math.max(0.0, r.start + delta), r.end - _minLength), r.end);
       case _DragKind.resizeEnd:
-        final delta = _snap(q) - grabbed.end;
+        final delta = _snap(q, drag.pass) - grabbed.end;
         change = (r) => Region(r.start, math.max(math.min(_totalQuarters, r.end + delta), r.start + _minLength));
       default:
         return;
@@ -294,7 +320,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
       final q = _q(drag.downAt.dx).clamp(0.0, _totalQuarters).toDouble();
       final m = c.beats.measureAt(q);
       if (m + 1 < starts.length) {
-        if (beatsFit(c, q)) {
+        if (beatsFit(c, q, pass: drag.pass)) {
           final beat = c.beats.beatAt(q); // a dotted crotchet in 6/8
           _paint(drag, beat.start, beat.end, drag.lane);
         } else {
@@ -636,42 +662,52 @@ class _LanesPainter extends CustomPainter {
         while (m + 1 < bars && active[m + 1]) {
           m++;
         }
-        final x0 = s._xq(starts[first]), x1 = s._xq(starts[m + 1]);
-        if (x1 < 0 || x0 > size.width) continue;
-        canvas.drawRRect(RRect.fromLTRBR(x0 + 1, y, x1 - 1, y + 2, const Radius.circular(1)), activity);
+        for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(starts[first], starts[m + 1])) {
+          if (x1 < 0 || x0 > size.width) continue;
+          canvas.drawRRect(RRect.fromLTRBR(x0 + 1, y, x1 - 1, y + 2, const Radius.circular(1)), activity);
+        }
       }
     }
 
     final selection = c.lanes.selected;
     for (var i = 0; i < parts.length; i++) {
       for (final r in curation.lane(parts[i].id)) {
-        final x0 = s._xq(r.start), x1 = s._xq(r.end);
-        if (x1 < 0 || x0 > size.width) continue;
         final selected = selection.contains((partId: parts[i].id, region: r));
-        final rect = RRect.fromLTRBR(x0, i * _laneHeight + 4, x1, (i + 1) * _laneHeight - 7, const Radius.circular(4));
-        canvas.drawRRect(rect, Paint()..color = selected ? colors.accent : colors.accentSoft);
-        canvas.drawRRect(
-          rect,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = selected ? 1.5 : 1
-            ..color = selected ? colors.accentStrong : colors.accent,
-        );
+        // Once in every pass that plays it; square where a warp cuts it.
+        for (final (:x0, :x1, :ownStart, :ownEnd) in s._xs(r.start, r.end)) {
+          if (x1 < 0 || x0 > size.width) continue;
+          const round = Radius.circular(4);
+          final rect = RRect.fromLTRBAndCorners(x0, i * _laneHeight + 4, x1, (i + 1) * _laneHeight - 7,
+              topLeft: ownStart ? round : Radius.zero,
+              bottomLeft: ownStart ? round : Radius.zero,
+              topRight: ownEnd ? round : Radius.zero,
+              bottomRight: ownEnd ? round : Radius.zero);
+          canvas.drawRRect(rect, Paint()..color = selected ? colors.accent : colors.accentSoft);
+          canvas.drawRRect(
+            rect,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = selected ? 1.5 : 1
+              ..color = selected ? colors.accentStrong : colors.accent,
+          );
+        }
       }
     }
 
     // The box being dragged: a selection outline, or the stretch being drawn or erased.
     final band = s._band.value;
     if (band != null) {
-      final rect = Rect.fromLTRB(s._xq(band.q0), band.lane0 * _laneHeight + 1, s._xq(band.q1), (band.lane1 + 1) * _laneHeight - 1);
       final color = band.kind == _DragKind.marquee || band.shown ? colors.accentStrong : colors.erase;
-      canvas.drawRect(rect, Paint()..color = color.withValues(alpha: 0.08));
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..color = color.withValues(alpha: 0.6),
-      );
+      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(band.q0, band.q1)) {
+        final rect = Rect.fromLTRB(x0, band.lane0 * _laneHeight + 1, x1, (band.lane1 + 1) * _laneHeight - 1);
+        canvas.drawRect(rect, Paint()..color = color.withValues(alpha: 0.08));
+        canvas.drawRect(
+          rect,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..color = color.withValues(alpha: 0.6),
+        );
+      }
     }
     paintPlayhead(canvas, size, c, colors);
   }
