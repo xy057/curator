@@ -370,6 +370,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// File ▸ Close (⌘W): back to the start screen.
   Future<void> _close() async {
     if (controller.score == null || !await _confirmDiscard() || !mounted) return;
+    // Only what is painted can be snapshot, and a click (the toolbar's Close) has just left
+    // the editor to paint again: let that frame happen first.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
     final boundary = _editorKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
     if (boundary != null && boundary.hasSize) {
       setState(() => _editorSnapshot = boundary.toImageSync(pixelRatio: MediaQuery.devicePixelRatioOf(context)));

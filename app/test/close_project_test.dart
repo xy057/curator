@@ -8,6 +8,7 @@ import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/home_screen.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/project_document.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -100,5 +101,16 @@ void main() {
     await openSample();
     expect(c.score, isNotNull);
     expect(c.score!.metadata.parts.any((p) => c.curation!.lane(p.id).isNotEmpty), isTrue); // the saved curation, not the cleared one
+
+    // The toolbar's Close button: its click leaves the editor to paint again just as Close
+    // takes the snapshot it cross-fades from.
+    await tester.tap(find.byTooltip('Close project (${shortcut('⌘W')})'));
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(tester.takeException(), isNull);
+    expect(c.score, isNull);
+    expect(find.byType(HomeScreen), findsOneWidget);
   });
 }
