@@ -1,0 +1,318 @@
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
+
+import 'auto_curate.dart';
+import 'scroll_map.dart';
+import 'search.dart';
+
+/// A stretch of the piece during which one instrument's staff is shown.
+/// Stored in score quarters (quarter notes from the start of the performance), so regions
+/// stay attached to the music when the audio sync changes.
+@immutable
+class Region {
+  const Region(this.start, this.end) : assert(end >= start);
+  final double start;
+  final double end;
+
+  double get length => end - start;
+  bool overlaps(Region other) => start <= other.end && other.start <= end;
+
+  @override
+  bool operator ==(Object other) => other is Region && other.start == start && other.end == end;
+  @override
+  int get hashCode => Object.hash(start, end);
+  @override
+  String toString() => 'Region($start–$end)';
+}
+
+/// When each instrument is visible: one lane of non-overlapping regions per part.
+///
+/// A drag edits live through [updateLanes], which lets regions overlap while they pass over
+/// each other; [normalize] merges them when it ends. Undo is kept by whoever owns this (the
+/// app keeps one history for the whole document).
+class Curation extends ChangeNotifier {
+  Curation(Iterable<String> partIds) : _lanes = {for (final id in partIds) id: const []};
+
+  Map<String, List<Region>> _lanes;
+
+  /// Seconds for a staff to enter or leave, centred on the region edge.
+  double get transition => _transition;
+  double _transition = 0.3;
+  set transition(double value) {
+    if (value == _transition) return;
+    _transition = value;
+    notifyListeners();
+  }
+
+  Iterable<String> get partIds => _lanes.keys;
+
+  /// Increases on every change, so derived data (like the spacing plan) knows to rebuild.
+  int get revision => _revision;
+  int _revision = 0;
+
+  @override
+  void notifyListeners() {
+    _revision++;
+    super.notifyListeners();
+  }
+
+  /// Every region edge in seconds, all lanes together. The start and end of the piece are
+  /// not edges: a region there is shown from before bar 1 and after the last bar.
+  Iterable<double> edgesInSeconds(ScoreTimeline timeline) sync* {
+    for (final lane in _lanes.values) {
+      for (final r in lane) {
+        final (:start, :end) = _span(r, timeline);
+        if (start.isFinite) yield start;
+        if (end.isFinite) yield end;
+      }
+    }
+  }
+
+  /// A region's time span; open-ended where it reaches the start or end of the piece, so
+  /// nothing fades in on the first bar or out after the last.
+  static ({double start, double end}) _span(Region r, ScoreTimeline timeline) {
+    final starts = timeline.measureStarts;
+    return (
+      start: starts.isNotEmpty && r.start <= starts.first + 1e-6
+          ? double.negativeInfinity
+          : timeline.secondsAtQuarter(r.start),
+      end: starts.isNotEmpty && r.end >= starts.last - 1e-6 ? double.infinity : timeline.secondsAtQuarter(r.end),
+    );
+  }
+  List<Region> lane(String partId) => _lanes[partId] ?? const [];
+
+  // MARK: Editing
+
+  /// Replaces a lane. Regions are sorted and overlapping or touching ones merged.
+  void setLane(String partId, List<Region> regions) {
+    _lanes = _joinedLanes(_lanes, {..._lanes, partId: _normalize(regions)});
+    notifyListeners();
+  }
+
+  void addRegion(String partId, Region region) => setLane(partId, [...lane(partId), region]);
+
+  void removeRegion(String partId, Region region) =>
+      setLane(partId, lane(partId).where((r) => r != region).toList());
+
+  /// Replaces several lanes at once, as one change.
+  void setLanes(Map<String, List<Region>> lanes) {
+    _lanes = _joinedLanes(
+        _lanes, {..._lanes, for (final e in lanes.entries) if (_lanes.containsKey(e.key)) e.key: _normalize(e.value)});
+    notifyListeners();
+  }
+
+  /// Shows (or, with [shown] false, hides) every lane in [partIds] over [range]: drawing
+  /// joins the regions it touches, erasing trims, splits or removes them.
+  void paint(Iterable<String> partIds, Region range, {bool shown = true}) =>
+      setLanes({for (final id in partIds) id: painted(lane(id), range, shown: shown)});
+
+  /// [regions] with [range] drawn on (or erased).
+  static List<Region> painted(List<Region> regions, Region range, {bool shown = true}) {
+    if (shown) return [...regions, range];
+    return [
+      for (final r in regions)
+        if (!r.overlaps(range) || range.length <= 0)
+          r
+        else ...[
+          if (r.start < range.start) Region(r.start, range.start),
+          if (r.end > range.end) Region(range.end, r.end),
+        ],
+    ];
+  }
+
+  /// Joins regions separated by rests of at most [bars] bars, so a staff doesn't vanish
+  /// for a moment and come straight back. Acts on [partIds] (all lanes when null).
+  void fillGaps(List<double> measureStarts, double bars, {Iterable<String>? partIds}) {
+    final ids = partIds ?? _lanes.keys;
+    setLanes({
+      for (final id in ids)
+        id: () {
+          final out = <Region>[];
+          for (final r in lane(id)) {
+            if (out.isNotEmpty && barsBetween(measureStarts, out.last.end, r.start) <= bars + 1e-6) {
+              out.last = Region(out.last.start, r.end);
+            } else {
+              out.add(r);
+            }
+          }
+          return out;
+        }(),
+    });
+  }
+
+  /// Removes regions shorter than [bars] bars (a staff flashing up for a single note).
+  /// Acts on [partIds] (all lanes when null).
+  void removeShort(List<double> measureStarts, double bars, {Iterable<String>? partIds}) {
+    final ids = partIds ?? _lanes.keys;
+    setLanes({
+      for (final id in ids) id: [for (final r in lane(id)) if (barsBetween(measureStarts, r.start, r.end) >= bars - 1e-6) r],
+    });
+  }
+
+  /// Copies the regions of [from] into each of [to], replacing what they had.
+  void copyLane(String from, Iterable<String> to) => setLanes({for (final id in to) id: lane(from)});
+
+  void clearAll() {
+    _lanes = {for (final id in _lanes.keys) id: const []};
+    notifyListeners();
+  }
+
+  /// Fills lanes from where each part actually plays (see [autoCurateMeasures]): [partIds],
+  /// or every lane when null.
+  void autoCurate(Map<String, List<bool>> activeMeasures, List<double> measureStarts, {Iterable<String>? partIds}) =>
+      setLanes(autoCuratedLanes(partIds ?? _lanes.keys, activeMeasures, measureStarts));
+
+  /// The lanes of [partIds] as auto-curation fills them, from where each part plays.
+  static Map<String, List<Region>> autoCuratedLanes(
+          Iterable<String> partIds, Map<String, List<bool>> activeMeasures, List<double> measureStarts) =>
+      {
+        for (final id in partIds)
+          id: [
+            for (final (first, last) in autoCurateMeasures(activeMeasures[id] ?? const []))
+              if (last < measureStarts.length) Region(measureStarts[first], measureStarts[last]),
+          ],
+      };
+
+  /// Live update during a drag: overlaps are kept until [normalize], so regions can pass
+  /// over each other while dragging.
+  void updateLanes(Map<String, List<Region>> lanes) {
+    _lanes = _joinedLanes(
+        _lanes,
+        {
+          ..._lanes,
+          for (final e in lanes.entries) e.key: [...e.value]..sort((a, b) => a.start.compareTo(b.start)),
+        },
+        normalize: false);
+    notifyListeners();
+  }
+
+  /// Merges what a drag left overlapping or touching (see [updateLanes]).
+  void normalize() {
+    final normalized = {for (final e in _lanes.entries) e.key: _normalize(e.value)};
+    if (sameLanes(normalized, _lanes)) return;
+    _lanes = normalized;
+    notifyListeners();
+  }
+
+  /// Whether two sets of lanes hold the same regions.
+  static bool sameLanes(Map<String, List<Region>> a, Map<String, List<Region>> b) =>
+      a.length == b.length && a.keys.every((k) => listEquals(a[k], b[k]));
+
+  /// The length from [from] to [to] in bars, counting each bar by its own length (so a
+  /// 2/4 bar and a 4/4 bar are both "one bar").
+  static double barsBetween(List<double> measureStarts, double from, double to) =>
+      _barPosition(measureStarts, to) - _barPosition(measureStarts, from);
+
+  static double _barPosition(List<double> starts, double q) {
+    if (starts.length < 2) return 0;
+    final lo = segmentAt(starts.length, q, (i) => starts[i]);
+    final length = starts[lo + 1] - starts[lo];
+    return lo + (length > 0 ? (q - starts[lo]) / length : 0);
+  }
+
+  static List<Region> _normalize(List<Region> regions) {
+    final sorted = regions.where((r) => r.length > 1e-6).toList()..sort((a, b) => a.start.compareTo(b.start));
+    final merged = <Region>[];
+    for (final r in sorted) {
+      if (merged.isNotEmpty && r.start <= merged.last.end + 1e-6) {
+        merged.last = Region(merged.last.start, math.max(merged.last.end, r.end));
+      } else {
+        merged.add(r);
+      }
+    }
+    return List.unmodifiable(merged);
+  }
+
+  // MARK: Joined lanes
+
+  /// Lanes that are one (a condensed pair of players): each follower's id → its leader's.
+  /// Joined lanes always hold the same regions: an edit of either is an edit of both.
+  Map<String, String> get joined => _joined;
+  Map<String, String> _joined = const {};
+
+  /// Joins lanes ([followers]: follower → leader), replacing what was joined. Lanes joined
+  /// now show wherever either did; lanes no longer joined keep the regions they had.
+  void join(Map<String, String> followers) {
+    final next = {
+      for (final MapEntry(key: f, value: l) in followers.entries)
+        if (f != l && _lanes.containsKey(f) && _lanes.containsKey(l)) f: l,
+    };
+    if (mapEquals(next, _joined)) return;
+    _joined = Map.unmodifiable(next);
+    final lanes = _joinedLanes(_lanes, _lanes);
+    if (sameLanes(lanes, _lanes)) return;
+    _lanes = lanes;
+    notifyListeners();
+  }
+
+  /// [next] (what [before] becomes) with each pair of joined lanes made the same: the one
+  /// that changed, or both together when both did (or neither, but they differ).
+  Map<String, List<Region>> _joinedLanes(Map<String, List<Region>> before, Map<String, List<Region>> next,
+      {bool normalize = true}) {
+    if (_joined.isEmpty) return next;
+    final out = {...next};
+    for (final MapEntry(key: f, value: l) in _joined.entries) {
+      final a = out[f]!, b = out[l]!;
+      if (listEquals(a, b)) continue;
+      final aChanged = !listEquals(a, before[f]), bChanged = !listEquals(b, before[l]);
+      final List<Region> regions;
+      if (aChanged != bChanged) {
+        regions = aChanged ? a : b;
+      } else {
+        final both = [...a, ...b];
+        regions = normalize ? _normalize(both) : (both..sort((x, y) => x.start.compareTo(y.start)));
+      }
+      out[f] = regions;
+      out[l] = regions;
+    }
+    return out;
+  }
+
+  // MARK: Visibility at playback time
+
+  /// Whether [partId] is inside one of its regions at [seconds] (ignoring the fades).
+  bool isShownAt(String partId, double seconds, ScoreTimeline timeline) {
+    for (final r in lane(partId)) {
+      final (:start, :end) = _span(r, timeline);
+      if (seconds >= start && seconds < end) return true;
+    }
+    return false;
+  }
+
+  /// 0…1 for every part at [seconds]. Each region edge is a smooth ramp of [transition]
+  /// seconds centred on the edge, so the result is continuous in time. Regions reaching the
+  /// start or end of the piece don't fade there.
+  Map<String, double> visibilityAt(double seconds, ScoreTimeline timeline) {
+    final half = _transition / 2;
+    return {
+      for (final entry in _lanes.entries)
+        entry.key: () {
+          var v = 0.0;
+          for (final r in entry.value) {
+            final (:start, :end) = _span(r, timeline);
+            if (seconds < start - half || seconds > end + half) continue;
+            final fadeIn = half > 0 ? ((seconds - start + half) / _transition).clamp(0.0, 1.0) : 1.0;
+            final fadeOut = half > 0 ? ((end + half - seconds) / _transition).clamp(0.0, 1.0) : 1.0;
+            v = math.max(v, _smooth(math.min(fadeIn, fadeOut)));
+          }
+          return v;
+        }(),
+    };
+  }
+
+  static double _smooth(double t) => t * t * (3 - 2 * t);
+
+  // MARK: Saving
+
+  /// Every lane, by part id.
+  Map<String, List<Region>> get lanes => Map.unmodifiable(_lanes);
+
+  /// Replaces every lane (opening a project, or Undo). Lanes for parts this score doesn't
+  /// have are ignored; parts without one get none.
+  void load(Map<String, List<Region>> lanes, {double? transition}) {
+    _lanes = _joinedLanes(_lanes, {for (final id in _lanes.keys) id: _normalize(lanes[id] ?? const [])});
+    _transition = transition ?? _transition;
+    notifyListeners();
+  }
+}

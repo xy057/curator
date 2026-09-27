@@ -1,0 +1,77 @@
+diff --git a/src/iomusxml.cpp b/src/iomusxml.cpp
+index f20540d..930ae65 100644
+--- a/src/iomusxml.cpp
++++ b/src/iomusxml.cpp
+@@ -2105,6 +2105,47 @@ void MusicXmlInput::ReadMusicXmlAttributes(pugi::xml_node node, Section *section
+         m_meterUnit = time.child("beat-type").text().as_int();
+     }
+ 
++    // [curated-score patch] Mid-piece key changes reach every part's own staves, so transposing
++    // instruments keep their written key (upstream copies the first part's key to all staves).
++    const int measureIndex = m_measureCounts.at(measure);
++    if (key && measureIndex > 0 && !node.select_node("preceding-sibling::attributes/key")) {
++        // The scoreDef right before this measure: the part's measures merge into the first part's.
++        ScoreDef *scoreDef = NULL;
++        for (Object *child : section->GetChildren()) {
++            if (!child->Is(MEASURE) || m_measureCounts.at(vrv_cast<Measure *>(child)) != measureIndex) continue;
++            const int index = section->GetChildIndex(child);
++            Object *previous = (index > 0) ? section->GetChild(index - 1) : NULL;
++            if (previous && previous->Is(SCOREDEF)) {
++                scoreDef = vrv_cast<ScoreDef *>(previous);
++            }
++            else {
++                scoreDef = new ScoreDef();
++                section->InsertBefore(child, scoreDef);
++            }
++            break;
++        }
++        if (!scoreDef) scoreDef = GetOrCreateLastScoreDef(section); // first part: measure not added yet
++
++        StaffGrp *staffGrp = vrv_cast<StaffGrp *>(scoreDef->FindDescendantByType(STAFFGRP, 1));
++        if (!staffGrp) {
++            staffGrp = new StaffGrp();
++            scoreDef->AddChild(staffGrp);
++        }
++        for (pugi::xml_node partKey : node.children("key")) {
++            const int keyStaff = partKey.attribute("number").as_int();
++            int local = 0;
++            for (Object *child : measure->GetChildren()) {
++                if (!child->Is(STAFF)) continue;
++                ++local;
++                if (keyStaff > 0 && keyStaff != local) continue;
++                StaffDef *staffDef = new StaffDef();
++                staffDef->SetN(vrv_cast<Staff *>(child)->GetN());
++                staffDef->AddChild(ConvertKey(partKey));
++                staffGrp->AddChild(staffDef);
++            }
++        }
++    }
++
+     pugi::xpath_node measureRepeat = node.select_node("measure-style/measure-repeat");
+     pugi::xpath_node measureSlash = node.select_node("measure-style/slash");
+     if (measureRepeat) {
+@@ -2384,6 +2425,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
+         }
+         else {
+             Dir *dir = new Dir();
++            // [curated-score patch] keep the MusicXML id so edits can find their source text.
++            if (!directionId.empty()) dir->SetID(directionId);
+             if (words.size() == 1) {
+                 dir->SetLang(words.first().node().attribute("xml:lang").as_string());
+             }
+@@ -2726,6 +2769,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
+     pugi::xml_node rehearsal = typeNode.child("rehearsal");
+     if (rehearsal) {
+         Reh *reh = new Reh();
++        if (!directionId.empty()) reh->SetID(directionId + "-reh"); // [curated-score patch]
+         reh->SetPlace(reh->AttPlacementRelStaff::StrToStaffrel(placeStr.c_str()));
+         const std::string halign = rehearsal.attribute("halign").as_string();
+         const std::string lang = rehearsal.attribute("xml:lang") ? rehearsal.attribute("xml:lang").as_string() : "it";
+@@ -2750,6 +2794,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
+     // Tempo
+     if (containsTempo) {
+         Tempo *tempo = new Tempo();
++        if (!directionId.empty()) tempo->SetID(directionId); // [curated-score patch]
+         if (!words.empty()) {
+             const std::string lang = words.first().node().attribute("xml:lang")
+                 ? words.first().node().attribute("xml:lang").as_string()

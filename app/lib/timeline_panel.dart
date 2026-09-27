@@ -1,0 +1,681 @@
+import 'dart:math' as math;
+
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:score_engine/score_engine.dart';
+
+import 'app_colors.dart';
+import 'condensing_dialog.dart';
+import 'editor_controller.dart';
+import 'edit_dialogs.dart';
+import 'lanes_common.dart';
+import 'ui_kit.dart';
+
+/// Instruments tab: one lane per instrument; a region is a stretch of the video where that
+/// instrument's staff is shown.
+///
+/// Select tool (V): click a region to select it · ⇧-click adds · ⌘-click toggles · ⇧/⌘-drag
+/// on empty space box-selects · drag the selection to move it, along the lane and up or down
+/// into other lanes (↑/↓ from the keyboard) · drag an edge to trim every
+/// selected region · double-click a region to type its bars · click empty space to move the
+/// playhead · ⌥-drag draws.
+/// Draw (D) / Erase (E): drag across lanes and bars to show / hide those instruments there;
+/// a click does one beat when zoomed in far enough to snap to beats, otherwise one bar.
+/// ⌥ swaps the two.
+/// Edges snap to beats (bars when zoomed out); hold ⌘ while dragging for free placement.
+class InstrumentLanes extends StatefulWidget {
+  const InstrumentLanes({super.key, required this.controller});
+  final EditorController controller;
+
+  @override
+  State<InstrumentLanes> createState() => _InstrumentLanesState();
+}
+
+const _laneHeight = 26.0;
+const _edgeGrab = 6.0;
+const _minLength = 0.25; // a sixteenth: regions never collapse to nothing
+
+enum _DragKind { paint, move, resizeStart, resizeEnd, scrub, marquee }
+
+class _Drag {
+  _Drag(this.kind, {required this.downAt, required this.downQ, this.lane = 0, this.grabbed, this.shown = true});
+  final _DragKind kind;
+  final Offset downAt;
+  final double downQ; // score position under the pointer when the drag began
+  final int lane; // lane the drag began in
+  final RegionRef? grabbed; // move / resize: the region under the pointer
+  final bool shown; // paint: draw (true) or erase
+  Map<String, List<Region>> from = const {}; // lanes as they were before the drag
+  Set<RegionRef> moving = const {}; // move / resize: the selection being dragged
+  Set<RegionRef> keep = const {}; // marquee: selection it adds to
+  bool moved = false;
+}
+
+/// The box being dragged out: lanes [lane0, lane1] × score quarters [q0, q1].
+typedef _Band = ({int lane0, int lane1, double q0, double q1, _DragKind kind, bool shown});
+
+class _InstrumentLanesState extends State<InstrumentLanes> {
+  EditorController get c => widget.controller;
+  LoadedScore get score => c.score!;
+  ScoreTimeline get tl => c.timeline;
+  List<ScorePart> get parts => c.laneParts;
+
+  _Drag? _drag;
+  final _band = ValueNotifier<_Band?>(null);
+  MouseCursor _cursor = SystemMouseCursors.basic;
+  final _vScroll = ScrollController();
+  Duration _lastDown = Duration.zero;
+  Offset _lastDownAt = Offset.zero;
+
+  /// ⌘ (Ctrl) held: scrolling zooms the time axis (see [ViewportGestures]), so the lanes
+  /// must not scroll vertically at the same time.
+  bool _zooming = false;
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  bool _onKey(KeyEvent _) {
+    final zooming = isZoomModifierPressed;
+    if (zooming != _zooming && mounted) setState(() => _zooming = zooming);
+    return false; // only watching: the key still goes to the shortcuts
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    _vScroll.dispose();
+    _band.dispose();
+    super.dispose();
+  }
+
+  double _xq(double quarter) => c.viewport.x(tl.secondsAtQuarter(quarter));
+  double _q(double x) => tl.quarterAtSeconds(c.viewport.seconds(x));
+  double get _totalQuarters => tl.measureStarts.last;
+
+  /// Snaps a score position to the time signature's beats, or to barlines when beats are
+  /// too close together on screen.
+  double _snap(double q) {
+    q = q.clamp(0.0, _totalQuarters);
+    if (isCommandPressed) return q;
+    final starts = tl.measureStarts;
+    var i = c.beats.measureAt(q);
+    if (beatsFit(c, q)) {
+      final beat = c.beats.beatAt(q);
+      return q - beat.start <= beat.end - q ? beat.start : beat.end;
+    }
+    if (i + 1 < starts.length && (starts[i + 1] - q) < (q - starts[i])) i++;
+    return starts[i];
+  }
+
+  int _laneIndex(Offset p) => (p.dy / _laneHeight).floor().clamp(0, parts.length - 1);
+
+  // MARK: Hit testing
+
+  ({RegionRef ref, _DragKind kind})? _hit(Offset p) {
+    final lane = (p.dy / _laneHeight).floor();
+    if (lane < 0 || lane >= parts.length) return null;
+    final id = parts[lane].id;
+    for (final r in c.curation!.lane(id)) {
+      final x0 = _xq(r.start), x1 = _xq(r.end);
+      if (p.dx < x0 - _edgeGrab || p.dx > x1 + _edgeGrab) continue;
+      final ref = (partId: id, region: r);
+      if ((p.dx - x0).abs() <= _edgeGrab) return (ref: ref, kind: _DragKind.resizeStart);
+      if ((p.dx - x1).abs() <= _edgeGrab) return (ref: ref, kind: _DragKind.resizeEnd);
+      if (p.dx > x0 && p.dx < x1) return (ref: ref, kind: _DragKind.move);
+    }
+    return null;
+  }
+
+  /// The tool a plain drag uses now: ⌥ draws with the select tool and swaps draw and erase.
+  LaneTool get _tool {
+    final alt = HardwareKeyboard.instance.isAltPressed;
+    return switch (c.lanes.tool) {
+      LaneTool.select => alt ? LaneTool.draw : LaneTool.select,
+      LaneTool.draw => alt ? LaneTool.erase : LaneTool.draw,
+      LaneTool.erase => alt ? LaneTool.draw : LaneTool.erase,
+    };
+  }
+
+  // MARK: Pointer handling
+
+  void _onHover(PointerHoverEvent e) {
+    final tool = _tool;
+    final hit = tool == LaneTool.select ? _hit(e.localPosition) : null;
+    final cursor = switch (hit?.kind) {
+      _DragKind.resizeStart || _DragKind.resizeEnd => SystemMouseCursors.resizeLeftRight,
+      _DragKind.move => SystemMouseCursors.grab,
+      _ => tool == LaneTool.select ? SystemMouseCursors.basic : SystemMouseCursors.precise,
+    };
+    if (cursor != _cursor) setState(() => _cursor = cursor);
+  }
+
+  void _onDown(PointerDownEvent e) {
+    if (e.buttons != kPrimaryButton) return;
+    final keys = HardwareKeyboard.instance;
+    final curation = c.curation!;
+    final p = e.localPosition;
+    final q = _q(p.dx);
+    final doubleClick = e.timeStamp - _lastDown < const Duration(milliseconds: 350) && (p - _lastDownAt).distance < 6;
+    _lastDown = e.timeStamp;
+    _lastDownAt = p;
+
+    final tool = _tool;
+    if (tool != LaneTool.select) {
+      c.beginEdit();
+      _drag = _Drag(_DragKind.paint, downAt: p, downQ: _snap(q), lane: _laneIndex(p), shown: tool == LaneTool.draw)
+        ..from = {for (final part in parts) part.id: curation.lane(part.id)};
+      return;
+    }
+
+    final hit = _hit(p);
+    if (hit != null) {
+      final ref = hit.ref;
+      if (isCommandPressed) {
+        c.lanes.select(ref.partId, ref.region, toggle: true);
+        return;
+      }
+      if (doubleClick) {
+        c.lanes.select(ref.partId, ref.region);
+        showRegionDialog(context, c, ref);
+        return;
+      }
+      if (keys.isShiftPressed) {
+        c.lanes.select(ref.partId, ref.region, add: true);
+      } else if (!c.lanes.isSelected(ref.partId, ref.region)) {
+        c.lanes.select(ref.partId, ref.region);
+      }
+      c.beginEdit();
+      _drag = _Drag(hit.kind, downAt: p, downQ: q, grabbed: ref)
+        ..from = {for (final part in parts) part.id: curation.lane(part.id)}
+        ..moving = c.lanes.selected;
+      if (hit.kind == _DragKind.move) setState(() => _cursor = SystemMouseCursors.grabbing);
+    } else if (keys.isShiftPressed || isCommandPressed) {
+      _drag = _Drag(_DragKind.marquee, downAt: p, downQ: q, lane: _laneIndex(p))..keep = c.lanes.selected;
+    } else {
+      c.clearSelection();
+      _drag = _Drag(_DragKind.scrub, downAt: p, downQ: q);
+      c.playback.seek(c.viewport.seconds(p.dx));
+    }
+  }
+
+  void _onMove(PointerMoveEvent e) {
+    final drag = _drag;
+    if (drag == null) return;
+    final p = e.localPosition;
+    final q = _q(p.dx);
+    drag.moved |= (p - drag.downAt).distance >= 3;
+    switch (drag.kind) {
+      case _DragKind.scrub:
+        c.playback.seek(c.viewport.seconds(p.dx));
+      case _DragKind.paint:
+        final edge = _snap(q);
+        _paint(drag, math.min(drag.downQ, edge), math.max(drag.downQ, edge), _laneIndex(p));
+      case _DragKind.marquee:
+        final lane = _laneIndex(p);
+        final band = (
+          lane0: math.min(drag.lane, lane),
+          lane1: math.max(drag.lane, lane),
+          q0: math.min(drag.downQ, q),
+          q1: math.max(drag.downQ, q),
+          kind: _DragKind.marquee,
+          shown: true,
+        );
+        _band.value = band;
+        final range = Region(band.q0, band.q1);
+        c.lanes.selectMany([
+          for (var i = band.lane0; i <= band.lane1; i++)
+            for (final r in c.curation!.lane(parts[i].id))
+              if (r.overlaps(range)) (partId: parts[i].id, region: r),
+        ], keep: drag.keep);
+      case _DragKind.move || _DragKind.resizeStart || _DragKind.resizeEnd:
+        _reshape(drag, q, _laneIndex(p));
+    }
+  }
+
+  /// Draw / erase: lanes between the first and current lane, over [q0, q1].
+  void _paint(_Drag drag, double q0, double q1, int lane) {
+    final lane0 = math.min(drag.lane, lane), lane1 = math.max(drag.lane, lane);
+    _band.value = (lane0: lane0, lane1: lane1, q0: q0, q1: q1, kind: _DragKind.paint, shown: drag.shown);
+    final range = Region(q0, q1);
+    c.lanes.preview({
+      for (final (i, part) in parts.indexed)
+        part.id: i >= lane0 && i <= lane1 && range.length > 0
+            ? Curation.painted(drag.from[part.id]!, range, shown: drag.shown)
+            : drag.from[part.id]!,
+    });
+  }
+
+  /// Move / trim: every selected region follows the grabbed one by the same amount. A move
+  /// also follows the pointer up or down into other lanes, keeping the regions' spacing.
+  void _reshape(_Drag drag, double q, int lane) {
+    final grabbed = drag.grabbed!.region;
+    final moving = drag.moving;
+    final Region Function(Region) change;
+    var lanes = 0; // how many lanes up (-) or down (+) the regions go
+    switch (drag.kind) {
+      case _DragKind.move:
+        final first = moving.map((r) => r.region.start).reduce(math.min);
+        final last = moving.map((r) => r.region.end).reduce(math.max);
+        final delta = math.max(-first, math.min(_totalQuarters - last, _snap(q - (drag.downQ - grabbed.start)) - grabbed.start));
+        change = (r) => Region(r.start + delta, r.end + delta);
+        final rows = [for (final r in moving) _row(r.partId)];
+        lanes = (lane - _row(drag.grabbed!.partId)).clamp(-rows.reduce(math.min), parts.length - 1 - rows.reduce(math.max));
+      case _DragKind.resizeStart:
+        final delta = _snap(q) - grabbed.start;
+        change = (r) => Region(math.min(math.max(0.0, r.start + delta), r.end - _minLength), r.end);
+      case _DragKind.resizeEnd:
+        final delta = _snap(q) - grabbed.end;
+        change = (r) => Region(r.start, math.max(math.min(_totalQuarters, r.end + delta), r.start + _minLength));
+      default:
+        return;
+    }
+    final placed = [
+      for (final r in moving) (partId: parts[_row(r.partId) + lanes].id, region: change(r.region)),
+    ];
+    // Always from the lanes as they were: a lane the regions passed through gets its own back.
+    c.lanes.preview(relocateRegions(drag.from, moving, placed));
+    c.lanes.selectMany(placed);
+  }
+
+  int _row(String partId) => parts.indexWhere((p) => p.id == partId);
+
+  void _onUp(PointerEvent e) {
+    final drag = _drag;
+    _drag = null;
+    _band.value = null;
+    if (drag == null || drag.kind == _DragKind.scrub || drag.kind == _DragKind.marquee) return;
+    if (drag.kind == _DragKind.paint && !drag.moved) {
+      // A click draws (or erases) the beat under the pointer, or the bar when zoomed out.
+      final starts = tl.measureStarts;
+      final q = _q(drag.downAt.dx).clamp(0.0, _totalQuarters).toDouble();
+      final m = c.beats.measureAt(q);
+      if (m + 1 < starts.length) {
+        if (beatsFit(c, q)) {
+          final beat = c.beats.beatAt(q); // a dotted crotchet in 6/8
+          _paint(drag, beat.start, beat.end, drag.lane);
+        } else {
+          _paint(drag, starts[m], starts[m + 1], drag.lane);
+        }
+      }
+      _band.value = null;
+    }
+    final selected = c.lanes.selected;
+    c.endEdit();
+    // After merging, keep whatever now covers the edited regions selected.
+    if (drag.kind == _DragKind.paint) {
+      c.clearSelection();
+    } else {
+      c.lanes.reselect(selected);
+    }
+    setState(() => _cursor = SystemMouseCursors.basic);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final curation = c.curation;
+    if (c.score == null || curation == null) return const SizedBox.shrink();
+    return SingleChildScrollView(
+      controller: _vScroll,
+      physics: _zooming ? const NeverScrollableScrollPhysics() : null,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: kLaneHeaderWidth,
+            child: ListenableBuilder(
+              listenable: Listenable.merge([c, curation]),
+              builder: (context, _) {
+                final selectedLanes = c.lanes.selectedPartIds;
+                return Column(children: [
+                  for (final part in parts)
+                    _LaneHeader(controller: c, part: part, selected: selectedLanes.contains(part.id)),
+                ]);
+              },
+            ),
+          ),
+          Expanded(
+            child: MouseRegion(
+              cursor: _cursor,
+              onHover: _onHover,
+              child: Listener(
+                onPointerDown: _onDown,
+                onPointerMove: _onMove,
+                onPointerUp: _onUp,
+                onPointerCancel: _onUp,
+                child: CustomPaint(
+                  size: Size(double.infinity, parts.length * _laneHeight),
+                  painter: _LanesPainter(this, context.colors, Listenable.merge([c.playback.time, curation, c.viewport, c, _band])),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Instruments tab tools (right of the tab switch). Every button explains itself on hover.
+class InstrumentsToolbar extends StatelessWidget {
+  const InstrumentsToolbar({super.key, required this.controller});
+  final EditorController controller;
+
+  static const _tools = {
+    LaneTool.select: (
+      Icons.near_me_outlined,
+      'Select (V)\nClick, ⇧-click or ⇧-drag to select regions; drag them to move (also to other lanes) '
+          'or drag an edge to trim. Double-click to type bars. ⌥-drag draws.'
+    ),
+    LaneTool.draw: (
+      Icons.edit_outlined,
+      'Draw (D)\nDrag across lanes and bars to show those instruments — down across lanes for a whole '
+          'section. A click shows one beat (one bar when zoomed out). ⌥ erases.'
+    ),
+    LaneTool.erase: (
+      Icons.hide_source_outlined,
+      'Erase (E)\nDrag across lanes and bars to hide those instruments. A click hides one beat (one bar '
+          'when zoomed out). ⌥ draws.'
+    ),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    final curation = c.curation!;
+    final score = c.score!;
+    return ListenableBuilder(
+      listenable: Listenable.merge([curation, c]),
+      builder: (context, _) {
+        final selected = c.lanes.selected;
+        final lanes = c.lanes.selectedPartIds;
+        final status = _status(c, score, selected, lanes);
+        return Row(
+          children: [
+            ToolGroup(children: [
+              for (final MapEntry(key: tool, value: (icon, tip)) in _tools.entries)
+                ToolbarButton(icon: icon, tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
+            ]),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FadeSlideSwitcher(
+                child: status == null
+                    ? const SizedBox.shrink()
+                    : Text(
+                        status,
+                        key: ValueKey(status),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: context.colors.textMuted),
+                      ),
+              ),
+            ),
+            FadeSlideSwitcher(
+              alignment: Alignment.centerRight,
+              child: selected.isEmpty
+                  ? const SizedBox.shrink()
+                  : Row(key: const ValueKey('selection'), mainAxisSize: MainAxisSize.min, children: [
+                      ToolbarButton(
+                        icon: Icons.first_page_rounded,
+                        tooltip: 'Start at the playhead ([)',
+                        onPressed: () => c.lanes.trimToPlayhead(start: true),
+                      ),
+                      ToolbarButton(
+                        icon: Icons.last_page_rounded,
+                        tooltip: 'End at the playhead (])',
+                        onPressed: () => c.lanes.trimToPlayhead(start: false),
+                      ),
+                      ToolbarButton(icon: Icons.delete_outline_rounded, tooltip: 'Remove (Delete)', onPressed: c.deleteSelection),
+                      const ToolbarDivider(),
+                    ]),
+            ),
+            if (score.condensing.partners.values.any((p) => p.isNotEmpty)) ...[
+              ToolbarButton(
+                icon: Icons.merge_type_rounded,
+                tooltip: 'Condensing…',
+                onPressed: () => showCondensingDialog(context, c),
+              ),
+              const ToolbarDivider(),
+            ],
+            _TidyMenu(controller: c, lanes: lanes.length),
+            ToolbarButton(
+              icon: Icons.auto_awesome_outlined,
+              tooltip: 'Auto-curate: show each instrument where it plays',
+              onPressed: c.lanes.autoCurate,
+            ),
+            ToolbarButton(
+              icon: Icons.layers_clear_outlined,
+              tooltip: 'Clear all lanes',
+              onPressed: c.lanes.clear,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// What is selected; nothing when nothing is (the tools explain themselves on hover).
+  static String? _status(EditorController c, LoadedScore score, Set<RegionRef> selected, Set<String> lanes) {
+    if (selected.length == 1) {
+      final ref = selected.single;
+      final part = score.metadata.parts.firstWhere((p) => p.id == ref.partId);
+      return '${c.laneName(part)} · ${c.beats.format(ref.region.start)} → ${c.beats.format(ref.region.end)}';
+    }
+    if (selected.isNotEmpty) {
+      return '${selected.length} regions in ${lanes.length} ${lanes.length == 1 ? 'lane' : 'lanes'} · ←/→ move a bar (⇧ a beat) · ↑/↓ change lane';
+    }
+    return null;
+  }
+}
+
+/// Clean-up that acts on the selected lanes (or all of them).
+class _TidyMenu extends StatelessWidget {
+  const _TidyMenu({required this.controller, required this.lanes});
+  final EditorController controller;
+  final int lanes;
+
+  @override
+  Widget build(BuildContext context) {
+    final where = lanes == 0 ? 'all lanes' : '$lanes selected ${lanes == 1 ? 'lane' : 'lanes'}';
+    String bars(double n) => n == 1 ? '1 bar' : '${n.toStringAsFixed(0)} bars';
+    return PopupMenuButton<void Function()>(
+      tooltip: 'Tidy $where',
+      iconSize: 18,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 280),
+      style: IconButton.styleFrom(
+        fixedSize: const Size(32, 32),
+        minimumSize: const Size(32, 32),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: const Icon(Icons.cleaning_services_outlined),
+      onSelected: (action) => action(),
+      itemBuilder: (context) => [
+        PopupMenuItem(enabled: false, height: 28, child: Text('Tidy $where', style: const TextStyle(fontSize: 12))),
+        for (final n in const [1.0, 2.0, 4.0])
+          PopupMenuItem(
+            value: () => controller.lanes.fillGaps(n),
+            child: Text('Keep shown through rests of up to ${bars(n)}'),
+          ),
+        const PopupMenuDivider(),
+        for (final n in const [1.0, 2.0])
+          PopupMenuItem(
+            value: () => controller.lanes.removeShort(n),
+            child: Text('Remove regions shorter than ${bars(n)}'),
+          ),
+      ],
+    );
+  }
+}
+
+/// What a lane's ⋯ menu offers.
+enum _LaneAction {
+  rename('Rename…'),
+  select('Select all in lane'),
+  copy('Copy lane to…'),
+  showThroughout('Show throughout'),
+  autoCurate('Auto-curate this lane'),
+  clear('Clear lane');
+
+  const _LaneAction(this.label);
+  final String label;
+}
+
+class _LaneHeader extends StatelessWidget {
+  const _LaneHeader({required this.controller, required this.part, required this.selected});
+  final EditorController controller;
+  final ScorePart part;
+  final bool selected;
+
+  void _run(BuildContext context, _LaneAction action) {
+    final lanes = controller.lanes;
+    switch (action) {
+      case _LaneAction.rename:
+        showRenameDialog(context, controller, part);
+      case _LaneAction.select:
+        lanes.selectLane(part.id);
+      case _LaneAction.copy:
+        showCopyLaneDialog(context, controller, part);
+      case _LaneAction.showThroughout:
+        lanes.showThroughout(part.id);
+      case _LaneAction.autoCurate:
+        lanes.autoCurate([part.id]);
+      case _LaneAction.clear:
+        lanes.clear([part.id]);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    PopupMenuItem<_LaneAction> item(_LaneAction a) => PopupMenuItem(value: a, child: Text(a.label));
+    final group = controller.condensedGroupOf(part.id);
+    final condensed = group != null;
+    final menu = PopupMenuButton<_LaneAction>(
+        tooltip: 'Lane options',
+        padding: EdgeInsets.zero,
+        iconSize: 16,
+        icon: Icon(Icons.more_horiz, color: context.colors.textMuted),
+        onSelected: (action) => _run(context, action),
+        itemBuilder: (context) => [
+          if (!condensed) ...[
+            item(_LaneAction.rename),
+            const PopupMenuDivider(),
+          ],
+          item(_LaneAction.select),
+          item(_LaneAction.copy),
+          const PopupMenuDivider(),
+          item(_LaneAction.showThroughout),
+          item(_LaneAction.autoCurate),
+          item(_LaneAction.clear),
+        ],
+    );
+    return LaneLabel(
+      height: _laneHeight,
+      color: selected ? context.colors.accentSoft : null,
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (condensed)
+          Tooltip(
+            message: '${group.partIds.map(controller.partNameOf).join(' and ')}: one lane, and one staff while shown',
+            child: Icon(Icons.link_rounded, size: 14, color: context.colors.textMuted),
+          ),
+        menu,
+      ]),
+      child: Tooltip(
+        message: condensed ? 'Click to select the lane (⇧ adds)' : 'Click to select the lane (⇧ adds) · double-click to rename',
+        waitDuration: const Duration(seconds: 1),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            final keys = HardwareKeyboard.instance;
+            controller.lanes.selectLane(part.id, add: keys.isShiftPressed || isCommandPressed);
+          },
+          onDoubleTap: condensed ? null : () => showRenameDialog(context, controller, part),
+          child: Text(controller.laneName(part)),
+        ),
+      ),
+    );
+  }
+}
+
+class _LanesPainter extends CustomPainter {
+  _LanesPainter(this.s, this.colors, Listenable repaint) : super(repaint: repaint);
+  final _InstrumentLanesState s;
+  final AppColors colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRect(Offset.zero & size);
+    final c = s.c;
+    final parts = s.parts;
+    final starts = s.tl.measureStarts;
+    final curation = c.curation!;
+
+    for (var i = 0; i < parts.length; i++) {
+      canvas.drawRect(Rect.fromLTWH(0, i * _laneHeight, size.width, _laneHeight),
+          Paint()..color = i.isEven ? colors.surface : colors.accentWash);
+    }
+    paintBarGrid(canvas, size, c, colors);
+
+    // Where each part actually plays (either player, for a condensed pair): a thin hint along
+    // the bottom of its lane, one unbroken line for each run of bars the part plays in.
+    final activity = Paint()..color = colors.activity;
+    final playing = s.score.metadata.activeMeasures;
+    for (var i = 0; i < parts.length; i++) {
+      final ids = c.condensedGroupOf(parts[i].id)?.partIds ?? [parts[i].id];
+      final lists = [for (final id in ids) playing[id] ?? const <bool>[]];
+      final active = [
+        for (var m = 0; m < lists.map((l) => l.length).reduce(math.max); m++) lists.any((l) => l.elementAtOrNull(m) == true),
+      ];
+      final y = (i + 1) * _laneHeight - 5;
+      final bars = math.min(active.length, starts.length - 1);
+      for (var m = 0; m < bars; m++) {
+        if (!active[m]) continue;
+        final first = m;
+        while (m + 1 < bars && active[m + 1]) {
+          m++;
+        }
+        final x0 = s._xq(starts[first]), x1 = s._xq(starts[m + 1]);
+        if (x1 < 0 || x0 > size.width) continue;
+        canvas.drawRRect(RRect.fromLTRBR(x0 + 1, y, x1 - 1, y + 2, const Radius.circular(1)), activity);
+      }
+    }
+
+    final selection = c.lanes.selected;
+    for (var i = 0; i < parts.length; i++) {
+      for (final r in curation.lane(parts[i].id)) {
+        final x0 = s._xq(r.start), x1 = s._xq(r.end);
+        if (x1 < 0 || x0 > size.width) continue;
+        final selected = selection.contains((partId: parts[i].id, region: r));
+        final rect = RRect.fromLTRBR(x0, i * _laneHeight + 4, x1, (i + 1) * _laneHeight - 7, const Radius.circular(4));
+        canvas.drawRRect(rect, Paint()..color = selected ? colors.accent : colors.accentSoft);
+        canvas.drawRRect(
+          rect,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = selected ? 1.5 : 1
+            ..color = selected ? colors.accentStrong : colors.accent,
+        );
+      }
+    }
+
+    // The box being dragged: a selection outline, or the stretch being drawn or erased.
+    final band = s._band.value;
+    if (band != null) {
+      final rect = Rect.fromLTRB(s._xq(band.q0), band.lane0 * _laneHeight + 1, s._xq(band.q1), (band.lane1 + 1) * _laneHeight - 1);
+      final color = band.kind == _DragKind.marquee || band.shown ? colors.accentStrong : colors.erase;
+      canvas.drawRect(rect, Paint()..color = color.withValues(alpha: 0.08));
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..color = color.withValues(alpha: 0.6),
+      );
+    }
+    paintPlayhead(canvas, size, c, colors);
+  }
+
+  @override
+  bool shouldRepaint(_LanesPainter old) => true;
+}

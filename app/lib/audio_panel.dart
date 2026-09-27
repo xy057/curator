@@ -1,0 +1,731 @@
+import 'dart:math' as math;
+
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:score_engine/score_engine.dart';
+
+import 'app_colors.dart';
+import 'editor_controller.dart';
+import 'edit_dialogs.dart';
+import 'error_text.dart';
+import 'lanes_common.dart';
+import 'media_converter.dart';
+import 'ui_kit.dart';
+
+/// Recordings: audio, or a video whose sound is taken out of it.
+final audioTypes = XTypeGroup(label: 'Audio or video', extensions: MediaFormats.all.toList());
+
+const _anchorLaneHeight = 30.0;
+const _tempoLaneHeight = 58.0;
+const _grab = 7.0;
+
+/// Audio tab: the recording, the anchors that pin the score to it, and the resulting tempo.
+///
+/// Tap mode (T): Space starts playback, then each Space marks the bar (or beat) sounding
+/// now. ⌥-click adds an anchor · double-click one to type its position.
+///
+/// Selection: click an anchor · ⇧-click extends · ⌘-click toggles · drag across the anchor
+/// lane (or ⇧-drag anywhere) box-selects · ⌘A selects all. The selection then moves together:
+/// drag it (the grabbed anchor snaps to note onsets; ⌘ = free) · ←/→ nudge 10 ms (⇧ 1 ms) ·
+/// ↑/↓ re-point every selected anchor a bar or beat · Delete removes them.
+class AudioLanes extends StatefulWidget {
+  const AudioLanes({super.key, required this.controller});
+  final EditorController controller;
+
+  @override
+  State<AudioLanes> createState() => _AudioLanesState();
+}
+
+class _AudioLanesState extends State<AudioLanes> {
+  EditorController get c => widget.controller;
+  SyncMap get sync => c.sync!;
+
+  // Dragging a selection: anchors as they were when the drag began, and the one grabbed.
+  List<SyncAnchor>? _dragFrom;
+  int? _grabbed;
+  bool _scrubbing = false;
+
+  /// Box selection in progress (seconds); painted as a band across the lanes.
+  final _marquee = ValueNotifier<(double, double)?>(null);
+  Set<int> _marqueeKeep = const {};
+
+  Duration _lastDown = Duration.zero;
+  Offset _lastDownAt = Offset.zero;
+  MouseCursor _cursor = SystemMouseCursors.basic;
+
+  @override
+  void dispose() {
+    _marquee.dispose();
+    super.dispose();
+  }
+
+  int? _anchorAt(double x) {
+    final anchors = sync.anchors;
+    int? best;
+    for (var i = 0; i < anchors.length; i++) {
+      final d = (c.viewport.x(anchors[i].seconds) - x).abs();
+      if (d <= _grab && (best == null || d < (c.viewport.x(anchors[best].seconds) - x).abs())) best = i;
+    }
+    return best;
+  }
+
+  double _snapToOnset(double seconds) {
+    final waveform = c.track?.waveform;
+    if (waveform == null || isCommandPressed) return seconds;
+    return waveform.nearestOnset(seconds, 12 / c.viewport.pxPerSec) ?? seconds;
+  }
+
+  void _onDown(PointerDownEvent e) {
+    if (e.buttons != kPrimaryButton) return;
+    final keys = HardwareKeyboard.instance;
+    final x = e.localPosition.dx;
+    final seconds = c.viewport.seconds(x);
+    final hit = _anchorAt(x);
+    final doubleClick = e.timeStamp - _lastDown < const Duration(milliseconds: 350) &&
+        (e.localPosition - _lastDownAt).distance < 6;
+    _lastDown = e.timeStamp;
+    _lastDownAt = e.localPosition;
+
+    if (hit != null) {
+      if (isCommandPressed) {
+        c.anchors.select(hit, toggle: true);
+        return;
+      }
+      if (keys.isShiftPressed) {
+        c.anchors.select(hit, extend: true);
+        return;
+      }
+      if (doubleClick) {
+        c.anchors.select(hit);
+        _editPosition(hit);
+        return;
+      }
+      // Grabbing an unselected anchor selects just it; grabbing a selected one drags them all.
+      if (!c.anchors.selected.contains(hit)) c.anchors.select(hit);
+      c.beginEdit();
+      _dragFrom = sync.anchors;
+      _grabbed = hit;
+      setState(() => _cursor = SystemMouseCursors.grabbing);
+    } else if (keys.isAltPressed) {
+      final at = _snapToOnset(seconds);
+      c.anchors.add(SyncAnchor(sync.nearestGrid(sync.quarterAtSeconds(at), c.anchors.grid), at));
+    } else if (e.localPosition.dy < _anchorLaneHeight || keys.isShiftPressed || isCommandPressed) {
+      // Box selection: drag across the anchor lane (or ⇧/⌘-drag anywhere); ⇧/⌘ adds to it.
+      _marqueeKeep = keys.isShiftPressed || isCommandPressed ? {...c.anchors.selected} : const {};
+      _marquee.value = (seconds, seconds);
+      c.anchors.selectBetween(seconds, seconds, keep: _marqueeKeep);
+    } else {
+      c.anchors.select(null);
+      _scrubbing = true;
+      c.playback.seek(seconds);
+    }
+  }
+
+  void _onMove(PointerMoveEvent e) {
+    final seconds = c.viewport.seconds(e.localPosition.dx);
+    final from = _dragFrom, grabbed = _grabbed;
+    if (from != null && grabbed != null) {
+      final delta = _snapToOnset(seconds - (_lastDownSeconds - from[grabbed].seconds)) - from[grabbed].seconds;
+      c.anchors.drag(delta, from: from);
+    } else if (_marquee.value != null) {
+      _marquee.value = (_marquee.value!.$1, seconds);
+      c.anchors.selectBetween(_marquee.value!.$1, seconds, keep: _marqueeKeep);
+    } else if (_scrubbing) {
+      c.playback.seek(seconds);
+    }
+  }
+
+  /// Where the pointer was (in seconds) when the current drag began.
+  double get _lastDownSeconds => c.viewport.seconds(_lastDownAt.dx);
+
+  void _onUp(PointerEvent e) {
+    if (_dragFrom != null) {
+      c.endEdit();
+      _dragFrom = null;
+      _grabbed = null;
+      setState(() => _cursor = SystemMouseCursors.basic);
+    }
+    _marquee.value = null;
+    _scrubbing = false;
+  }
+
+  void _onHover(PointerHoverEvent e) {
+    final cursor = _anchorAt(e.localPosition.dx) != null
+        ? SystemMouseCursors.grab
+        : HardwareKeyboard.instance.isAltPressed
+            ? SystemMouseCursors.precise
+            : SystemMouseCursors.basic;
+    if (cursor != _cursor) setState(() => _cursor = cursor);
+  }
+
+  Future<void> _editPosition(int index) async {
+    final q = await showPositionDialog(context,
+        title: 'Anchor position', initial: sync.beats.format(sync.anchors[index].quarter), beats: sync.beats);
+    if (q == null || !mounted) return;
+    if (!c.anchors.setPosition(index, q)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${sync.beats.format(q)} would cross a neighbouring anchor.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final track = c.track;
+    final colors = context.colors;
+    final repaint = Listenable.merge([c.playback.time, c.viewport, sync, c, _marquee]);
+    final lanes = MouseRegion(
+      cursor: _cursor,
+      onHover: _onHover,
+      child: Listener(
+        onPointerDown: _onDown,
+        onPointerMove: _onMove,
+        onPointerUp: _onUp,
+        onPointerCancel: _onUp,
+        child: Column(children: [
+          SizedBox(
+            height: _anchorLaneHeight,
+            child: CustomPaint(size: Size.infinite, painter: _AnchorPainter(c, colors, _marquee, repaint)),
+          ),
+          Expanded(
+            child: Stack(fit: StackFit.expand, children: [
+              CustomPaint(painter: _WaveformPainter(c, colors, _marquee, repaint)),
+              if (track == null)
+                Center(
+                  child: Text(
+                    c.isLoadingAudio
+                        ? 'Reading the recording…'
+                        : 'Load a recording (or drop it here) to see its waveform. You can also tap along without one.',
+                    style: TextStyle(color: colors.textMuted, fontSize: 12),
+                  ),
+                ),
+            ]),
+          ),
+          SizedBox(
+            height: _tempoLaneHeight,
+            child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint)),
+          ),
+        ]),
+      ),
+    );
+
+    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SizedBox(
+        width: kLaneHeaderWidth,
+        child: Column(children: [
+          const LaneLabel(height: _anchorLaneHeight, child: Text('Anchors')),
+          Expanded(
+            child: LaneLabel(
+              height: double.infinity,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Recording'),
+                  if (track != null)
+                    Text(track.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: colors.textMuted)),
+                ],
+              ),
+            ),
+          ),
+          const LaneLabel(
+            height: _tempoLaneHeight,
+            child: Tooltip(message: 'Beats a minute, as the time signature counts them', child: Text('Tempo')),
+          ),
+        ]),
+      ),
+      Expanded(child: lanes),
+    ]);
+  }
+}
+
+/// Audio tab tools (right of the tab switch). Every control explains itself on hover.
+class AudioToolbar extends StatelessWidget {
+  const AudioToolbar({super.key, required this.controller});
+  final EditorController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    final sync = c.sync!;
+    final colors = context.colors;
+    return ListenableBuilder(
+      listenable: Listenable.merge([sync, c]),
+      builder: (context, _) => Row(children: [
+        ToolbarButton(
+          icon: c.track == null ? Icons.audio_file_outlined : Icons.change_circle_outlined,
+          tooltip: c.track == null
+              ? 'Load the recording… (audio or video; or drop it here)'
+              : 'Replace the recording…\nNow: ${c.track!.name}',
+          onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
+        ),
+        _TapButton(controller: c),
+        const ToolbarDivider(),
+        Tooltip(
+          message: 'What taps, ⌥-clicks and ↑/↓ step by: whole bars, or the beats of the time signature',
+          child: ToolGroup(children: [
+            for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
+              _TextToggle(label: label, selected: c.anchors.grid == grid, onPressed: () => c.anchors.grid = grid),
+          ]),
+        ),
+        const SizedBox(width: 2),
+        ToolbarButton(
+          icon: Icons.align_horizontal_center_rounded,
+          tooltip: c.anchors.snapToOnsets
+              ? 'Taps and dragged anchors snap to the nearest note onset (on)'
+              : 'Snap taps and dragged anchors to the nearest note onset (off)',
+          selected: c.anchors.snapToOnsets,
+          onPressed: () => c.anchors.snapToOnsets = !c.anchors.snapToOnsets,
+        ),
+        const ToolbarDivider(),
+        Tooltip(
+          message: 'Playback speed: slower helps tapping fast passages',
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.speed_rounded, size: 17, color: colors.textMuted),
+            const SizedBox(width: 2),
+            DropdownButton<double>(
+              value: c.playback.speed,
+              isDense: true,
+              underline: const SizedBox.shrink(),
+              focusColor: Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              icon: Icon(Icons.expand_more_rounded, size: 16, color: colors.textMuted),
+              items: [
+                for (final s in const [0.5, 0.75, 1.0])
+                  DropdownMenuItem(value: s, child: Text('${(s * 100).round()}%', style: TextStyle(fontSize: 12, color: colors.text))),
+              ],
+              onChanged: (s) => c.playback.speed = s ?? 1,
+            ),
+          ]),
+        ),
+        const SizedBox(width: 8),
+        _StartField(controller: c),
+        const Spacer(),
+        FadeSlideSwitcher(
+          alignment: Alignment.centerRight,
+          child: c.anchors.selected.length < 2
+              ? const SizedBox.shrink()
+              : Padding(
+                  key: const ValueKey('selection'),
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Tooltip(
+                    message: '↑/↓ re-point them a bar (or beat) · ←/→ nudge · drag to move together · ⌫ delete',
+                    child: InputChip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text('${c.anchors.selected.length} anchors', style: const TextStyle(fontSize: 12)),
+                      onDeleted: () => c.anchors.select(null),
+                      deleteButtonTooltipMessage: 'Deselect (Esc)',
+                    ),
+                  ),
+                ),
+        ),
+        ToolbarButton(
+          icon: Icons.clear_all_rounded,
+          tooltip: 'Remove all anchors',
+          onPressed: sync.anchors.isEmpty ? null : c.anchors.clear,
+        ),
+      ]),
+    );
+  }
+}
+
+/// Tap mode (T): a record-like toggle that breathes while armed.
+class _TapButton extends StatelessWidget {
+  const _TapButton({required this.controller});
+  final EditorController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    final colors = context.colors;
+    return Tooltip(
+      message: c.anchors.tapArmed
+          ? 'Tapping: press Space on each bar (or beat) as you hear it · T or Esc stops'
+          : 'Tap anchors (T)\nSpace starts playback, then marks each bar or beat as you hear it',
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        height: 32,
+        padding: EdgeInsets.symmetric(horizontal: c.anchors.tapArmed ? 8 : 0),
+        decoration: BoxDecoration(
+          color: c.anchors.tapArmed ? colors.recordingWash : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => c.anchors.tapArmed = !c.anchors.tapArmed,
+          child: SizedBox(
+            height: 32,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (c.anchors.tapArmed) ...[
+                PulsingDot(color: colors.recording, size: 9),
+                const SizedBox(width: 4),
+                Text('Space', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.recording)),
+              ] else
+                SizedBox.square(dimension: 32, child: Icon(Icons.touch_app_outlined, size: 18, color: colors.text)),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A short text choice inside a [ToolGroup].
+class _TextToggle extends StatelessWidget {
+  const _TextToggle({required this.label, required this.selected, required this.onPressed});
+  final String label;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onPressed,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 9),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: selected ? colors.accentSoft : Colors.transparent, borderRadius: BorderRadius.circular(8)),
+        child: Text(label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              color: selected ? colors.accentStrong : colors.textMuted,
+            )),
+      ),
+    );
+  }
+}
+
+Future<void> pickAudio(BuildContext context, EditorController c) async {
+  final file = await openFile(acceptedTypeGroups: [audioTypes]);
+  if (file == null) return;
+  try {
+    await c.loadAudio(file.path);
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not load the recording: ${describeError(e)}')));
+    }
+  }
+}
+
+/// "Starts at": where bar 1 sounds in the recording (the blank time before the music).
+class _StartField extends StatefulWidget {
+  const _StartField({required this.controller});
+  final EditorController controller;
+
+  @override
+  State<_StartField> createState() => _StartFieldState();
+}
+
+class _StartFieldState extends State<_StartField> {
+  final _text = TextEditingController();
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_show);
+    _focus.addListener(_show);
+    _show();
+  }
+
+  @override
+  void didUpdateWidget(_StartField old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      old.controller.removeListener(_show);
+      widget.controller.addListener(_show);
+      _show();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_show);
+    _text.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  /// Shows the start as it is now, unless it is being typed.
+  void _show() {
+    final sync = widget.controller.sync;
+    if (sync == null || _focus.hasFocus) return;
+    final text = sync.startSeconds.toStringAsFixed(2);
+    if (_text.text != text) _text.text = text;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Starts at: the blank time before bar 1, in seconds. Tapping sets it too.',
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.start_rounded, size: 17, color: context.colors.textMuted),
+        const SizedBox(width: 4),
+        SizedBox(
+          width: 64,
+          height: 28,
+          child: TextField(
+            controller: _text,
+            focusNode: _focus,
+            style: TextStyle(fontSize: 12, color: context.colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
+            textAlign: TextAlign.right,
+            decoration: InputDecoration(
+              isDense: true,
+              suffixText: 's',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: context.colors.line),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: context.colors.accent, width: 1.5),
+              ),
+            ),
+            onSubmitted: (v) {
+              final seconds = double.tryParse(v);
+              if (seconds != null) widget.controller.anchors.setStart(seconds);
+              _focus.unfocus();
+            },
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// MARK: - Painting
+
+/// The box-selection band, drawn behind the anchors.
+void _paintMarquee(Canvas canvas, Size size, EditorController c, AppColors colors, (double, double)? marquee) {
+  if (marquee == null) return;
+  final x0 = c.viewport.x(marquee.$1), x1 = c.viewport.x(marquee.$2);
+  final rect = Rect.fromLTRB(math.min(x0, x1), 0, math.max(x0, x1), size.height);
+  canvas.drawRect(rect, Paint()..color = colors.accent.withValues(alpha: 0.12));
+  canvas.drawRect(
+    rect,
+    Paint()
+      ..style = PaintingStyle.stroke
+      ..color = colors.accent.withValues(alpha: 0.6),
+  );
+}
+
+class _AnchorPainter extends CustomPainter {
+  _AnchorPainter(this.c, this.colors, this.marquee, Listenable repaint) : super(repaint: repaint);
+  final EditorController c;
+  final AppColors colors;
+  final ValueListenable<(double, double)?> marquee;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRect(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, Paint()..color = c.anchors.tapArmed ? colors.recordingWash : colors.accentWash);
+    canvas.drawLine(Offset(0, size.height - 0.5), Offset(size.width, size.height - 0.5), Paint()..color = colors.line);
+    _paintMarquee(canvas, size, c, colors, marquee.value);
+    final sync = c.sync!;
+    final v = c.viewport;
+    var lastLabelEnd = double.negativeInfinity;
+    for (final (i, a) in sync.anchors.indexed) {
+      final x = v.x(a.seconds);
+      if (x < -20 || x > size.width + 20) continue;
+      final selected = c.anchors.selected.contains(i);
+      final y = size.height / 2 + 4;
+      final diamond = Path()
+        ..moveTo(x, y - 6)
+        ..lineTo(x + 5, y)
+        ..lineTo(x, y + 6)
+        ..lineTo(x - 5, y)
+        ..close();
+      canvas.drawPath(diamond, Paint()..color = selected ? colors.accentStrong : colors.accent);
+      final label = sync.beats.format(a.quarter, compact: true);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            fontSize: 10.5,
+            color: selected ? colors.accentStrong : colors.textMuted,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      if (selected || x - tp.width / 2 > lastLabelEnd + 3) {
+        tp.paint(canvas, Offset(x - tp.width / 2, 1));
+        lastLabelEnd = x + tp.width / 2;
+      }
+      tp.dispose();
+    }
+    paintPlayhead(canvas, size, c, colors);
+  }
+
+  @override
+  bool shouldRepaint(_AnchorPainter old) => true;
+}
+
+class _WaveformPainter extends CustomPainter {
+  _WaveformPainter(this.c, this.colors, this.marquee, Listenable repaint) : super(repaint: repaint);
+  final EditorController c;
+  final AppColors colors;
+  final ValueListenable<(double, double)?> marquee;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRect(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, Paint()..color = colors.surface);
+    final v = c.viewport;
+    final sync = c.sync!;
+
+    // Blank time before bar 1.
+    final startX = v.x(sync.startSeconds);
+    if (startX > 0) {
+      canvas.drawRect(Rect.fromLTRB(0, 0, math.min(startX, size.width), size.height), Paint()..color = colors.grid.withValues(alpha: 0.6));
+    }
+    paintBarGrid(canvas, size, c, colors);
+
+    final track = c.track;
+    if (track != null) {
+      final waveform = track.waveform;
+      final mid = size.height / 2;
+      final paint = Paint()
+        ..color = colors.waveform
+        ..strokeWidth = 1;
+      final path = Path();
+      for (var x = 0.0; x < size.width; x += 1) {
+        final t0 = v.seconds(x), t1 = v.seconds(x + 1);
+        if (t1 < 0 || t0 > track.length) continue;
+        final h = math.max(0.5, math.sqrt(waveform.peak(math.max(0, t0), t1)) * (mid - 4));
+        path
+          ..moveTo(x + 0.5, mid - h)
+          ..lineTo(x + 0.5, mid + h);
+      }
+      canvas.drawPath(path, paint..style = PaintingStyle.stroke);
+
+      // Note onsets: small ticks, the targets taps and drags snap to.
+      final onset = Paint()..color = colors.onset;
+      final left = v.seconds(0), right = v.seconds(size.width);
+      if ((right - left) < 120) {
+        for (final o in waveform.onsets) {
+          if (o < left || o > right) continue;
+          final x = v.x(o);
+          canvas.drawLine(Offset(x, 0), Offset(x, 5), onset);
+        }
+      }
+    }
+
+    // Anchors across the recording.
+    for (final (i, a) in sync.anchors.indexed) {
+      final x = v.x(a.seconds);
+      if (x < 0 || x > size.width) continue;
+      canvas.drawRect(
+        Rect.fromLTWH(x - 0.5, 0, 1, size.height),
+        Paint()..color = c.anchors.selected.contains(i) ? colors.accentStrong : colors.accent.withValues(alpha: 0.7),
+      );
+    }
+    _paintMarquee(canvas, size, c, colors, marquee.value);
+    paintPlayhead(canvas, size, c, colors);
+  }
+
+  @override
+  bool shouldRepaint(_WaveformPainter old) => true;
+}
+
+/// The tempo track: one step per segment between anchors (dashed where it is extrapolated), in
+/// beats a minute as the time signature counts them (6/8: dotted crotchets).
+class _TempoPainter extends CustomPainter {
+  _TempoPainter(this.c, this.colors, Listenable repaint) : super(repaint: repaint);
+  final EditorController c;
+  final AppColors colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRect(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, Paint()..color = colors.accentWash);
+    canvas.drawLine(const Offset(0, 0.5), Offset(size.width, 0.5), Paint()..color = colors.line);
+    final sync = c.sync!;
+    final v = c.viewport;
+    final anchors = sync.anchors;
+
+    final segments = <(double, double, double, bool)>[]; // start s, end s, beats a minute, extrapolated
+    final end = math.max(c.playback.duration, v.seconds(size.width));
+    // Quarter notes a minute → the meter's beats a minute, at the beat where [seconds] falls.
+    double bpm(double quartersPerMinute, double seconds) {
+      final q = sync.quarterAtSeconds(seconds).clamp(0.0, sync.totalQuarters);
+      final beat = sync.beats.beatAt(q.toDouble());
+      final length = beat.end - beat.start;
+      return length > 1e-9 ? quartersPerMinute / length : quartersPerMinute;
+    }
+
+    void add(double s0, double s1, double quartersPerMinute, bool extrapolated) =>
+        segments.add((s0, s1, bpm(quartersPerMinute, math.max(s0, 0)), extrapolated));
+    if (anchors.length < 2) {
+      final start = anchors.isEmpty ? sync.startSeconds : anchors.first.seconds;
+      add(start, end, sync.defaultTempo, true);
+    } else {
+      add(v.seconds(0), anchors.first.seconds, sync.segmentTempo(0), true);
+      for (var i = 0; i + 1 < anchors.length; i++) {
+        add(anchors[i].seconds, anchors[i + 1].seconds, sync.segmentTempo(i), false);
+      }
+      add(anchors.last.seconds, end, sync.segmentTempo(anchors.length - 2), true);
+    }
+    final bpms = [for (final s in segments) s.$3];
+    var lo = bpms.reduce(math.min), hi = bpms.reduce(math.max);
+    if (hi - lo < 20) {
+      final m = (hi + lo) / 2;
+      lo = m - 10;
+      hi = m + 10;
+    }
+    double y(double bpm) => size.height - 8 - (bpm - lo) / (hi - lo) * (size.height - 22);
+
+    final line = Paint()
+      ..color = colors.accentStrong
+      ..strokeWidth = 1.5;
+    final faint = Paint()
+      ..color = colors.accent.withValues(alpha: 0.5)
+      ..strokeWidth = 1.2;
+    Offset? previous;
+    for (final (s0, s1, bpm, extrapolated) in segments) {
+      final x0 = v.x(s0), x1 = v.x(s1);
+      if (x1 < 0 || x0 > size.width) {
+        previous = Offset(x1, y(bpm));
+        continue;
+      }
+      final yy = y(bpm);
+      if (previous != null && !extrapolated) canvas.drawLine(previous, Offset(x0, yy), faint);
+      if (extrapolated) {
+        for (var x = x0; x < x1; x += 8) {
+          canvas.drawLine(Offset(x, yy), Offset(math.min(x + 4, x1), yy), faint);
+        }
+      } else {
+        canvas.drawLine(Offset(x0, yy), Offset(x1, yy), line);
+      }
+      if (x1 - x0 > 34) {
+        final tp = TextPainter(
+          text: TextSpan(
+            text: '${bpm.round()}',
+            style: TextStyle(fontSize: 10, color: extrapolated ? colors.textMuted : colors.text),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp
+          ..paint(canvas, Offset(math.max(x0, 0) + 4, yy - tp.height - 1))
+          ..dispose();
+      }
+      previous = Offset(x1, yy);
+    }
+    paintPlayhead(canvas, size, c, colors);
+  }
+
+  @override
+  bool shouldRepaint(_TempoPainter old) => true;
+}

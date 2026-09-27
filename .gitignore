@@ -1,0 +1,11 @@
+.DS_Store
+.dart_tool/
+build/
+*.iml
+.idea/
+.vscode/
+# Fetched by `make setup`
+packages/score_engine/third_party/verovio/
+
+# Local sample projects/media
+/Samples/

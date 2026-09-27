@@ -1,0 +1,208 @@
+import 'package:flutter/foundation.dart';
+import 'package:score_engine/score_engine.dart';
+
+/// An instrument's name as the user set it: the full name and the short one.
+typedef PartName = ({String name, String abbreviation});
+
+/// How the editor was left: restored when the project opens, but not an edit.
+@immutable
+class ViewState {
+  const ViewState({this.staffSpace, this.grid, this.snapTapsToOnsets, this.time});
+
+  /// Null: not saved, keep the editor's own.
+  final double? staffSpace;
+  final SyncGrid? grid;
+  final bool? snapTapsToOnsets;
+  final double? time;
+}
+
+/// Everything a project stores besides the score and the recording (`project.json` →
+/// `state`): the edits, and the view. Reading it checks every field, so a damaged file says
+/// what is wrong instead of failing somewhere later.
+///
+/// The JSON is written by [toJson] for [ProjectState.version]. Files from older versions
+/// go through [_migrations] first, one version at a time.
+@immutable
+class ProjectState {
+  const ProjectState({
+    this.lanes,
+    this.transition,
+    this.anchors = const [],
+    this.leadIn = 0,
+    this.partNames = const {},
+    this.textEdits = const {},
+    this.condensed = const {},
+    this.pairs = const [],
+    this.view = const ViewState(),
+  });
+
+  /// The version [toJson] writes (the project file's format version).
+  static const version = 3;
+
+  /// When each instrument is shown; null when the project has none saved (they are then
+  /// filled from where each part plays).
+  final Map<String, List<Region>>? lanes;
+
+  /// Seconds for a staff to enter or leave; null: the default for new projects.
+  final double? transition;
+
+  /// The tempo track: where the score is pinned to the recording, and the start before any
+  /// anchor.
+  final List<SyncAnchor> anchors;
+  final double leadIn;
+
+  /// Instrument names set by the user, by part id.
+  final Map<String, PartName> partNames;
+
+  /// Score texts changed by the user: text id → new text ('' removes it).
+  final Map<String, String> textEdits;
+
+  /// The pairs of players that share a staff while both are shown (CondensedGroup ids).
+  final Set<String> condensed;
+
+  /// Pairs of players the user made (Flute 1 + Oboe 1), besides the score's own; a player in
+  /// one leaves the built-in pair (see [CondensingOptions.pairs]).
+  final List<PlayerPair> pairs;
+
+  final ViewState view;
+
+  /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
+  /// [toJson] changes shape, and bump [version].
+  static final Map<int, Map<String, Object?> Function(Map<String, Object?>)> _migrations = {
+    1: (state) => {...state, 'condensed': const <String>[]}, // condensing came in 2: nothing condensed
+    2: (state) => {...state, 'pairs': const <Object?>[]}, // the user's own pairs came in 3: none
+  };
+
+  /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
+  /// names the damaged field.
+  factory ProjectState.fromJson(Map<String, Object?> json, {int savedVersion = version}) {
+    var state = json;
+    for (var v = savedVersion; v < version; v++) {
+      final migrate = _migrations[v];
+      if (migrate != null) state = migrate(state);
+    }
+    final r = JsonReader(state, 'state');
+    final curation = r.child('curation');
+    final sync = r.child('sync');
+    final view = r.child('view');
+    return ProjectState(
+      lanes: curation.isAbsent('lanes')
+          ? null
+          : {
+              for (final MapEntry(key: id, value: lane) in curation.map('lanes').entries)
+                id: [
+                  for (final (i, region) in JsonReader.listAt(lane, '${curation.where}.lanes.$id').indexed)
+                    _region(JsonReader(region, '${curation.where}.lanes.$id[$i]')),
+                ],
+            },
+      transition: curation.number('transition'),
+      anchors: [
+        for (final (i, anchor) in sync.list('anchors').indexed)
+          () {
+            final a = JsonReader(anchor, '${sync.where}.anchors[$i]');
+            return SyncAnchor(a.number('quarter', required: true)!, a.number('seconds', required: true)!);
+          }(),
+      ]..sort((a, b) => a.seconds.compareTo(b.seconds)),
+      leadIn: sync.number('leadIn') ?? 0,
+      partNames: {
+        for (final id in r.map('partNames').keys)
+          id: () {
+            final p = r.child('partNames').child(id);
+            return (name: p.string('name', required: true)!, abbreviation: p.string('abbreviation') ?? '');
+          }(),
+      },
+      textEdits: {
+        for (final id in r.map('textEdits').keys) id: r.child('textEdits').string(id, required: true)!,
+      },
+      condensed: {
+        for (final (i, id) in r.list('condensed').indexed)
+          id is String ? id : throw FormatException('The project is damaged: ${r.where}.condensed[$i] is not text.'),
+      },
+      pairs: [
+        for (final (i, pair) in r.list('pairs').indexed)
+          switch (pair) {
+            [final String a, final String b] when a != b => PlayerPair(a, b),
+            _ => throw FormatException('The project is damaged: ${r.where}.pairs[$i] is not two part ids.'),
+          },
+      ],
+      view: ViewState(
+        staffSpace: view.number('staffSpace'),
+        grid: switch (view.string('grid')) {
+          null => null,
+          final name =>
+            SyncGrid.values.asNameMap()[name] ?? (throw FormatException('The project is damaged: ${view.where}.grid "$name" is unknown.')),
+        },
+        snapTapsToOnsets: view.boolean('snapTapsToOnsets'),
+        time: view.number('time'),
+      ),
+    );
+  }
+
+  static Region _region(JsonReader r) {
+    final start = r.number('start', required: true)!, end = r.number('end', required: true)!;
+    if (end < start) throw FormatException('The project is damaged: ${r.where} ends before it starts.');
+    return Region(start, end);
+  }
+
+  Map<String, Object?> toJson() => {
+        'textEdits': textEdits,
+        'condensed': [...condensed],
+        'pairs': [for (final p in pairs) p.partIds],
+        'partNames': {
+          for (final MapEntry(key: id, value: p) in partNames.entries) id: {'name': p.name, 'abbreviation': p.abbreviation},
+        },
+        'curation': {
+          'transition': ?transition,
+          'lanes': {
+            for (final MapEntry(key: id, value: lane) in (lanes ?? const <String, List<Region>>{}).entries)
+              id: [for (final r in lane) {'start': r.start, 'end': r.end}],
+          },
+        },
+        'sync': {
+          'leadIn': leadIn,
+          'anchors': [for (final a in anchors) {'quarter': a.quarter, 'seconds': a.seconds}],
+        },
+        'view': {
+          'staffSpace': ?view.staffSpace,
+          'grid': ?view.grid?.name,
+          'snapTapsToOnsets': ?view.snapTapsToOnsets,
+          'time': ?view.time,
+        },
+      };
+}
+
+/// Typed access to one object of a project's JSON, with its path for error messages
+/// ("The project is damaged: state.sync.anchors[3].seconds is not a number.").
+class JsonReader {
+  JsonReader(Object? value, this.where)
+      : _map = value == null
+            ? const {}
+            : value is Map
+                ? value.cast<String, Object?>()
+                : throw FormatException('The project is damaged: $where is not an object.');
+
+  final Map<String, Object?> _map;
+  final String where;
+
+  static List<Object?> listAt(Object? value, String where) =>
+      value is List ? value : throw FormatException('The project is damaged: $where is not a list.');
+
+  bool isAbsent(String key) => _map[key] == null;
+
+  JsonReader child(String key) => JsonReader(_map[key], _join(key));
+  Map<String, Object?> map(String key) => child(key)._map;
+  List<Object?> list(String key) => _map[key] == null ? const [] : listAt(_map[key], _join(key));
+
+  double? number(String key, {bool required = false}) => _typed<num>(key, 'a number', required)?.toDouble();
+  String? string(String key, {bool required = false}) => _typed<String>(key, 'text', required);
+  bool? boolean(String key) => _typed<bool>(key, 'true or false', false);
+
+  T? _typed<T>(String key, String kind, bool required) {
+    final value = _map[key];
+    if (value == null && !required) return null;
+    if (value is T) return value;
+    throw FormatException('The project is damaged: ${_join(key)} is not $kind.');
+  }
+
+  String _join(String key) => '$where.$key';
+}
