@@ -356,11 +356,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
-  /// ↑/↓ move the selected regions to the lane above / below, or re-bar the selected anchors
+  /// ↑/↓ move the selection to the lane above / below, or re-bar the selected anchors
   /// (↑ the next bar or beat, ↓ the previous).
   void _vertical(int direction) {
     if (_curating) {
-      controller.lanes.moveToLane(direction);
+      controller.lanes.selectNextLane(direction);
     } else {
       controller.anchors.shift(-direction);
     }

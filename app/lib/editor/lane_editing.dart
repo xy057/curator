@@ -45,8 +45,14 @@ class LaneEditing {
   }
 
   void _reset() {
-    _selected = {};
+    _clear();
     _laneAnchor = null;
+  }
+
+  /// Nothing selected: no regions, no lanes.
+  void _clear() {
+    _selected = {};
+    _lanes = {};
   }
 
   // MARK: Selection
@@ -64,12 +70,19 @@ class LaneEditing {
 
   bool isSelected(String partId, Region region) => _selected.contains((partId: partId, region: region));
 
-  /// Lanes with something selected.
-  Set<String> get selectedPartIds => {for (final r in _valid) r.partId};
+  /// Lanes selected by their names, empty ones too (their regions are selected with them).
+  Set<String> _lanes = {};
+
+  /// Lanes with something selected, or selected by their names.
+  Set<String> get selectedPartIds {
+    final shown = {for (final p in _editor.laneParts) p.id};
+    return {for (final id in _lanes) if (shown.contains(id)) id, for (final r in _valid) r.partId};
+  }
 
   /// Click: select just this region. ⇧ ([add]): add it. ⌘ ([toggle]): add or remove it.
   void select(String partId, Region region, {bool add = false, bool toggle = false}) {
     final ref = (partId: partId, region: region);
+    if (!add && !toggle) _lanes = {};
     if (toggle) {
       _selected = {..._valid};
       if (!_selected.remove(ref)) _selected.add(ref);
@@ -79,9 +92,11 @@ class LaneEditing {
     _editor._changed();
   }
 
-  /// Replaces the selection with [regions] (plus [keep]).
-  void selectMany(Iterable<RegionRef> regions, {Iterable<RegionRef> keep = const []}) {
+  /// Replaces the selection with [regions] (plus [keep]); lanes selected by their names stay
+  /// only with [keepLanes].
+  void selectMany(Iterable<RegionRef> regions, {Iterable<RegionRef> keep = const [], bool keepLanes = false}) {
     _selected = {...keep, ...regions};
+    if (!keepLanes) _lanes = {};
     _editor._changed();
   }
 
@@ -91,10 +106,19 @@ class LaneEditing {
   /// Every region in one lane (added to the selection with [add]).
   void selectLane(String partId, {bool add = false}) {
     _laneAnchor = partId;
-    selectMany(
-      [for (final r in _curation?.lane(partId) ?? const <Region>[]) (partId: partId, region: r)],
-      keep: add ? _valid : const [],
-    );
+    _selectLanes([partId], add: add);
+  }
+
+  /// Selects [partIds] by their names, and every region in them.
+  void _selectLanes(Iterable<String> partIds, {bool add = false}) {
+    final curation = _curation;
+    if (curation == null) return;
+    final lanes = add ? {..._lanes, ...partIds} : {...partIds};
+    selectMany([
+      for (final id in partIds)
+        for (final r in curation.lane(id)) (partId: id, region: r),
+    ], keep: add ? _valid : const []);
+    _lanes = lanes;
   }
 
   /// ⌘-click on a lane's name: every region in the lanes from the one last selected by its
@@ -107,20 +131,27 @@ class LaneEditing {
     final from = ids.indexOf(_laneAnchor ?? partId);
     final (a, b) = from < 0 ? (to, to) : (math.min(from, to), math.max(from, to));
     _laneAnchor ??= partId;
-    selectMany([
-      for (final id in ids.sublist(a, b + 1))
-        for (final r in curation.lane(id)) (partId: id, region: r),
-    ]);
+    _selectLanes(ids.sublist(a, b + 1));
   }
 
-  void selectAll() {
-    final curation = _curation;
-    if (curation == null) return;
-    selectMany([
-      for (final p in _editor.laneParts)
-        for (final r in curation.lane(p.id)) (partId: p.id, region: r),
-    ]);
+  /// ↑/↓: the selection moves to the lane above (-1) or below (+1), Oboe 1 to Oboe 2: the
+  /// lanes with something selected, together, become those next to them (whole lanes). Stops
+  /// at the top (bottom) lane. With nothing selected, ↓ selects the top lane and ↑ the bottom.
+  void selectNextLane(int direction) {
+    final ids = [for (final p in _editor.laneParts) p.id];
+    if (ids.isEmpty) return;
+    final rows = [for (final id in selectedPartIds) ids.indexOf(id)]..sort();
+    if (rows.isEmpty) {
+      selectLane(direction > 0 ? ids.first : ids.last);
+      return;
+    }
+    if (rows.first + direction < 0 || rows.last + direction >= ids.length) return;
+    final anchor = ids.indexOf(_laneAnchor ?? '');
+    _laneAnchor = anchor < 0 ? null : ids[(anchor + direction).clamp(0, ids.length - 1)];
+    _selectLanes([for (final i in rows) ids[i + direction]]);
   }
+
+  void selectAll() => _selectLanes([for (final p in _editor.laneParts) p.id]);
 
   /// After an edit merged or reshaped regions, selects whatever now covers [wanted].
   void reselect(Iterable<RegionRef> wanted) {
@@ -168,20 +199,6 @@ class LaneEditing {
     delta = delta.clamp(-first, total - last).toDouble();
     if (delta.abs() < 1e-9) return;
     _editSelected((r) => Region(r.start + delta, r.end + delta));
-  }
-
-  /// ↑/↓: moves the selected regions to the lane above (-1) or below (+1), together. Does
-  /// nothing when one of them is already in the top (bottom) lane.
-  void moveToLane(int direction) {
-    final curation = _curation;
-    final selected = _valid;
-    if (curation == null || selected.isEmpty) return;
-    final ids = [for (final p in _editor.laneParts) p.id];
-    final rows = [for (final r in selected) ids.indexOf(r.partId)];
-    if (rows.reduce(math.min) + direction < 0 || rows.reduce(math.max) + direction >= ids.length) return;
-    final placed = [for (final r in selected) (partId: ids[ids.indexOf(r.partId) + direction], region: r.region)];
-    curation.setLanes(relocateRegions({for (final id in ids) id: curation.lane(id)}, selected, placed));
-    reselect(placed);
   }
 
   /// [ / ]: the selected regions now start (or end) at the beat nearest the playhead.

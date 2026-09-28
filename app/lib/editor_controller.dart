@@ -370,7 +370,7 @@ class EditorController extends ChangeNotifier {
   }
 
   Future<void> _pairsChanged() {
-    lanes._selected = {};
+    lanes._clear();
     _joinLanes();
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
@@ -407,18 +407,20 @@ class EditorController extends ChangeNotifier {
 
   /// Moves [partId]'s lane (and its staff) to lane [to] of [laneParts] (0: the top), one
   /// Undo step. A condensed pair moves as one: its second player goes along with the first.
-  void moveLane(String partId, int to) {
+  void moveLane(String partId, int to) => moveLanes([partId], to);
+
+  /// Moves the lanes [partIds] (and their staves), in their order and next to each other, to
+  /// just before the [to]th of the other lanes (their count: after the last): one Undo step.
+  void moveLanes(Iterable<String> partIds, int to) {
     final lanes = [for (final p in laneParts) p.id];
-    final from = lanes.indexOf(partId);
-    to = to.clamp(0, lanes.length - 1);
-    if (from < 0 || from == to) return;
-    lanes
-      ..removeAt(from)
-      ..insert(to, partId);
-    final moving = condensedGroupOf(partId)?.partIds ?? [partId];
+    final block = [for (final id in lanes) if (partIds.contains(id)) id];
+    if (block.isEmpty) return;
+    final others = [for (final id in lanes) if (!block.contains(id)) id];
+    to = to.clamp(0, others.length);
+    final moving = [for (final id in block) ...(condensedGroupOf(id)?.partIds ?? [id])];
     final order = [for (final id in _partOrder) if (!moving.contains(id)) id];
-    final next = to + 1 < lanes.length ? order.indexOf(lanes[to + 1]) : order.length;
-    _setPartOrder(order..insertAll(next, moving));
+    final at = to < others.length ? order.indexOf(others[to]) : order.length;
+    _setPartOrder(order..insertAll(at, moving));
   }
 
   /// Puts every instrument back in the score's order: one Undo step.
@@ -463,7 +465,7 @@ class EditorController extends ChangeNotifier {
     if (setEquals(next, _condensed)) return;
     _condensed = Set.unmodifiable(next);
     _scene?.condensed = _condensed;
-    lanes._selected = {};
+    lanes._clear();
     _joinLanes();
     _edited();
     notifyListeners();
@@ -534,8 +536,8 @@ class EditorController extends ChangeNotifier {
 
   /// Nothing selected in either tab.
   void clearSelection() {
-    if (lanes._selected.isEmpty && anchors._selected.isEmpty) return;
-    lanes._selected = {};
+    if (lanes._selected.isEmpty && lanes._lanes.isEmpty && anchors._selected.isEmpty) return;
+    lanes._clear();
     anchors._selected = {};
     notifyListeners();
   }
@@ -621,7 +623,7 @@ class EditorController extends ChangeNotifier {
       _restoring = false;
     }
     _committed = state;
-    lanes._selected = {};
+    lanes._clear();
     anchors._selected = {};
     _edited();
     notifyListeners();

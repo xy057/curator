@@ -18,8 +18,8 @@ import 'ui_kit.dart';
 /// instrument's staff is shown.
 ///
 /// Select tool (V): click a region to select it · ⇧-click adds · ⌘-click toggles · ⇧/⌘-drag
-/// on empty space box-selects · drag the selection to move it, along the lane and up or down
-/// into other lanes (↑/↓ from the keyboard) · drag an edge to trim every
+/// on empty space box-selects · drag the selection to move it, along the lane (←/→ from the
+/// keyboard) and up or down into other lanes · ↑/↓ select the lane above / below · drag an edge to trim every
 /// selected region · double-click a region to type its bars · click empty space to move the
 /// playhead · ⌥-drag draws.
 /// Draw (D) / Erase (E): drag across lanes and bars to show / hide those instruments there;
@@ -28,7 +28,8 @@ import 'ui_kit.dart';
 /// Edges snap to beats (bars when zoomed out); hold ⌘ while dragging for free placement.
 /// An instrument's name: click selects its lane, ⇧-click adds it, ⌘-click selects every lane
 /// from the last one clicked; double-click renames. Click and hold, then drag up or down, to
-/// move it (its staff moves with it in the preview): Violin I at the top, say.
+/// move it (its staff moves with it in the preview): Violin I at the top, say. Holding a
+/// selected lane moves every selected lane, together.
 class InstrumentLanes extends StatefulWidget {
   const InstrumentLanes({super.key, required this.controller});
   final EditorController controller;
@@ -95,12 +96,14 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
 
   // MARK: Moving lanes
 
-  /// The lane being moved (held by its name), the lanes as they will be when it is let go,
-  /// and where the pointer is.
+  /// The lane held by its name, and the lanes moving with it (itself, or every selected lane
+  /// when it is one of them), top to bottom; the lanes as they will be when let go, and where
+  /// the pointer is.
   String? _lifted;
+  List<String> _held = const [];
   List<ScorePart>? _reordered;
   Offset _liftPointer = Offset.zero;
-  double _grab = 0; // where in its lane the held name was taken, from the lane's top
+  double _grab = 0; // where the held name was taken, from the top of the held block
   final _headersKey = GlobalKey();
   final _viewportKey = GlobalKey();
 
@@ -134,15 +137,19 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   }
 
   void _lift(String partId, Offset global) {
-    c.clearSelection();
     final lanes = c.laneParts;
     final i = lanes.indexWhere((p) => p.id == partId);
     final box = _headersKey.currentContext?.findRenderObject() as RenderBox?;
     if (i < 0 || box == null) return;
-    _grab = box.globalToLocal(global).dy - i * _laneHeight;
+    // A selected lane takes the whole selection with it, gathered into one block.
+    final selected = c.lanes.selectedPartIds;
+    final held = selected.contains(partId) ? [for (final p in lanes) if (selected.contains(p.id)) p.id] : [partId];
+    if (!selected.contains(partId)) c.clearSelection();
+    _grab = box.globalToLocal(global).dy - (i - held.indexOf(partId)) * _laneHeight;
     _liftPointer = global;
     setState(() {
       _lifted = partId;
+      _held = held;
       _reordered = lanes;
     });
     _animate();
@@ -151,14 +158,16 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   void _dragLifted(Offset global) => _liftPointer = global;
 
   void _dropLifted() {
-    final lifted = _lifted, lanes = _reordered;
+    final held = _held, lanes = _reordered;
     setState(() {
       _lifted = null;
+      _held = const [];
       _reordered = null;
     });
-    if (lanes != null) _shownOrder = [for (final p in lanes) p.id]; // already there, but for the held one
-    if (lifted != null && lanes != null) c.moveLane(lifted, lanes.indexWhere((p) => p.id == lifted));
-    _animate(); // the held lane settles into its place
+    if (lanes == null) return;
+    _shownOrder = [for (final p in lanes) p.id]; // already there, but for the held ones
+    c.moveLanes(held, lanes.indexWhere((p) => held.contains(p.id)));
+    _animate(); // the held lanes settle into their places
   }
 
   void _animate() {
@@ -173,19 +182,24 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     final dt = ((elapsed - _lastTick).inMicroseconds / 1e6).clamp(0.0, 0.05);
     _lastTick = elapsed;
     final lifted = _lifted;
+    var blockTop = 0.0;
     if (lifted != null) {
       _scrollNearEdge(dt);
       final box = _headersKey.currentContext?.findRenderObject() as RenderBox?;
       final lanes = _reordered!;
+      final others = [for (final p in lanes) if (!_held.contains(p.id)) p];
       if (box != null) {
-        final y = (box.globalToLocal(_liftPointer).dy - _grab).clamp(0.0, (lanes.length - 1) * _laneHeight);
-        _rowY[lifted] = y;
-        final to = ((y + _laneHeight / 2) / _laneHeight).floor().clamp(0, lanes.length - 1);
-        final from = lanes.indexWhere((p) => p.id == lifted);
-        if (from != to) {
+        blockTop = (box.globalToLocal(_liftPointer).dy - _grab).clamp(0.0, others.length * _laneHeight);
+        _rowY[lifted] = blockTop + _held.indexOf(lifted) * _laneHeight; // right under the pointer
+        final to = ((blockTop + _laneHeight / 2) / _laneHeight).floor().clamp(0, others.length);
+        final next = [
+          ...others.take(to),
+          for (final p in lanes) if (_held.contains(p.id)) p,
+          ...others.skip(to),
+        ];
+        if (!listEquals([for (final p in next) p.id], [for (final p in lanes) p.id])) {
           _slideFrom([for (final p in lanes) p.id]);
-          final next = [...lanes];
-          _reordered = next..insert(to, next.removeAt(from));
+          _reordered = next;
         }
       }
     }
@@ -193,7 +207,9 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     var moving = false;
     for (final (i, part) in parts.indexed) {
       if (part.id == lifted) continue;
-      final target = i * _laneHeight;
+      // The rest of a held block gathers under the held lane and follows it.
+      final k = _held.indexOf(part.id);
+      final target = lifted != null && k >= 0 ? blockTop + k * _laneHeight : i * _laneHeight;
       final y = _rowY[part.id] ?? target;
       final next = y + (target - y) * ease;
       if ((next - target).abs() < 0.5) {
@@ -397,7 +413,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
           for (var i = band.lane0; i <= band.lane1; i++)
             for (final r in c.curation!.lane(parts[i].id))
               if (r.overlaps(range)) (partId: parts[i].id, region: r),
-        ], keep: drag.keep);
+        ], keep: drag.keep, keepLanes: true);
       case _DragKind.move || _DragKind.resizeStart || _DragKind.resizeEnd:
         _reshape(drag, q, _laneIndex(p));
     }
@@ -513,7 +529,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                         controller: c,
                         part: part,
                         selected: selectedLanes.contains(part.id),
-                        lifted: part.id == _lifted,
+                        lifted: _held.contains(part.id),
                         onLift: (global) => _lift(part.id, global),
                         onDrag: _dragLifted,
                         onDrop: _dropLifted,
@@ -521,14 +537,15 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                     );
                   }
 
-                  final held = parts.indexWhere((p) => p.id == _lifted);
+                  bool held(int i) => _held.contains(parts[i].id);
                   return SizedBox(
                     key: _headersKey,
                     height: parts.length * _laneHeight,
                     child: Stack(clipBehavior: Clip.none, children: [
                       for (var i = 0; i < parts.length; i++)
-                        if (i != held) header(i),
-                      if (held >= 0) header(held), // on top of the others
+                        if (!held(i)) header(i),
+                      for (var i = 0; i < parts.length; i++)
+                        if (held(i)) header(i), // on top of the others
                     ]),
                   );
                 },
@@ -662,8 +679,10 @@ class InstrumentsToolbar extends StatelessWidget {
       return '${c.laneName(part)} · ${c.beats.format(ref.region.start)} → ${c.beats.format(ref.region.end)}';
     }
     if (selected.isNotEmpty) {
-      return '${selected.length} regions in ${lanes.length} ${lanes.length == 1 ? 'lane' : 'lanes'} · ←/→ move a bar (⇧ a beat) · ↑/↓ change lane';
+      return '${selected.length} regions in ${lanes.length} ${lanes.length == 1 ? 'lane' : 'lanes'} · ←/→ move a bar (⇧ a beat)';
     }
+    if (lanes.length == 1) return c.laneName(score.metadata.parts.firstWhere((p) => p.id == lanes.single));
+    if (lanes.isNotEmpty) return '${lanes.length} lanes';
     return null;
   }
 }
@@ -843,19 +862,15 @@ class _LaneHeaderState extends State<_LaneHeader> {
           ),
         menu,
       ]),
-      child: Tip(
-        message: '⇧ adds · ⌘ range · hold to move',
-        waitDuration: const Duration(seconds: 1),
-        child: Listener(
-          onPointerDown: _down,
-          onPointerUp: _up,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onLongPressStart: (d) => widget.onLift(d.globalPosition),
-            onLongPressMoveUpdate: (d) => widget.onDrag(d.globalPosition),
-            onLongPressEnd: (_) => widget.onDrop(),
-            child: Text(controller.laneName(part)),
-          ),
+      child: Listener(
+        onPointerDown: _down,
+        onPointerUp: _up,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onLongPressStart: (d) => widget.onLift(d.globalPosition),
+          onLongPressMoveUpdate: (d) => widget.onDrag(d.globalPosition),
+          onLongPressEnd: (_) => widget.onDrop(),
+          child: Text(controller.laneName(part)),
         ),
       ),
     );
@@ -896,20 +911,21 @@ class _LanesPainter extends CustomPainter {
     }
     paintBarGrid(canvas, size, c, colors);
 
-    final held = parts.indexWhere((p) => p.id == s._lifted);
+    bool held(int i) => s._held.contains(parts[i].id);
     for (var i = 0; i < parts.length; i++) {
-      if (i != held) _paintLane(canvas, size, i, s._rowTop(i));
+      if (!held(i)) _paintLane(canvas, size, i, s._rowTop(i));
     }
-    if (held >= 0) {
-      // The held lane floats above the others.
-      final band = Rect.fromLTWH(0, s._rowTop(held), size.width, _laneHeight);
+    for (var i = 0; i < parts.length; i++) {
+      if (!held(i)) continue;
+      // Held lanes float above the others.
+      final band = Rect.fromLTWH(0, s._rowTop(i), size.width, _laneHeight);
       canvas.drawRect(band.shift(const Offset(0, 2)).inflate(1),
           Paint()
             ..color = colors.text.withValues(alpha: 0.15)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
       canvas.drawRect(band, Paint()..color = colors.surface);
       canvas.drawRect(band, Paint()..color = colors.accentSoft);
-      _paintLane(canvas, size, held, band.top);
+      _paintLane(canvas, size, i, band.top);
     }
 
     // The box being dragged: a selection outline, or the stretch being drawn or erased.

@@ -135,6 +135,17 @@ void main() {
     expect(c.lanes.selectedPartIds, {ids[2]});
     await tester.pump(const Duration(milliseconds: 400));
 
+    // A lane with nothing in it can be selected too, and ↓ moves the selection on.
+    expect(c.curation!.lane(ids[5]), isEmpty);
+    await tester.tap(name(5), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(c.lanes.selectedPartIds, {ids[5]});
+    expect(c.lanes.selected, isEmpty);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(c.lanes.selectedPartIds, {ids[6]});
+    await tester.pump(const Duration(milliseconds: 400));
+
     // ⌘-click: every lane from the one last clicked, up or down; ⇧-click adds one.
     c.curation!.setLanes({for (final id in ids.take(8)) id: [Region(bars[0], bars[1])]});
     await tester.tap(name(1), kind: PointerDeviceKind.mouse);
@@ -204,6 +215,31 @@ void main() {
     expect(c.lanes.selectedPartIds, {'P1'});
     expect(c.laneParts[1].id, 'P1');
 
+    c.undo();
+    expect(c.isScoreOrder, isTrue);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // Holding a selected lane moves the whole selection: Flute 2 and Oboe 2 (lanes 2 and 4),
+    // gathered, go to the top in their order.
+    await tester.tap(find.text('Flute 2'), kind: PointerDeviceKind.mouse);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.tap(find.text('Oboe 2'), kind: PointerDeviceKind.mouse);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.lanes.selectedPartIds, {'P3', 'P5'});
+    final oboe = tester.getCenter(find.text('Oboe 2'));
+    final h = await tester.startGesture(oboe, kind: PointerDeviceKind.mouse);
+    await tester.pump(const Duration(milliseconds: 600));
+    await h.moveTo(oboe - const Offset(0, 4 * 26.0));
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 16)); // frames: the block gathers as it goes
+    }
+    await _shot(tester, dir, 'lanes-moving-selection');
+    await h.up();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect([for (final p in c.laneParts.take(4)) p.id], ['P3', 'P5', 'P1', 'P2']);
+    expect(c.lanes.selectedPartIds, {'P3', 'P5'}, reason: 'still selected');
     c.undo();
     expect(c.isScoreOrder, isTrue);
   });
@@ -276,17 +312,18 @@ void main() {
     expect(c.curation!.lane(ids[2]), isEmpty);
     expect(c.curation!.lane(ids[3]), isEmpty);
 
-    // ↑/↓ do the same from the keyboard; ↑ at the top lane does nothing.
+    // ↑/↓ move the selection, not the regions: lanes 0 and 1 selected become lanes 1 and 2,
+    // whole; ↑ at the top lane does nothing.
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pump();
-    expect(c.curation!.lane(ids[1]), [Region(bars[0], bars[1])]);
-    expect(c.curation!.lane(ids[2]), [Region(bars[3], bars[5])]);
-    expect(c.lanes.selected, hasLength(2));
+    expect(c.curation!.lane(ids[0]), [Region(bars[0], bars[1])], reason: 'the regions stay');
+    expect(c.curation!.lane(ids[1]), [Region(bars[3], bars[5])]);
+    expect(c.lanes.selectedPartIds, {ids[1], ids[2]});
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await tester.pump();
+    expect(c.lanes.selectedPartIds, {ids[0], ids[1]});
     expect(c.curation!.lane(ids[0]), [Region(bars[0], bars[1])]);
-    expect(c.curation!.lane(ids[1]), [Region(bars[3], bars[5])]);
   });
 
   testWidgets('a condensed pair is one lane: drawn, erased and dragged as a whole', (tester) async {
