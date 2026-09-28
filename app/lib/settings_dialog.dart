@@ -1,24 +1,39 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'engrave_options_dialog.dart';
+import 'export_dialog.dart' show revealInFileManager;
 import 'project_file.dart';
 import 'ui_kit.dart';
+import 'updater.dart';
 
 /// Settings… (⌘,): categories on the left, each a page of items on the right.
 ///
 /// Adding a setting is one [_Item] in [_categories]; adding a page is one [_Category]. The
-/// search field filters items across every page.
-Future<void> showSettingsDialog(BuildContext context, AppSettings settings, {EditorController? controller}) =>
+/// search field filters items across every page. [page] (a category's label) opens that page.
+Future<void> showSettingsDialog(
+  BuildContext context,
+  AppSettings settings, {
+  EditorController? controller,
+  Updater? updater,
+  String? page,
+}) =>
     showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Close settings',
       barrierColor: Colors.black.withValues(alpha: 0.28),
       transitionDuration: const Duration(milliseconds: 220),
-      pageBuilder: (context, _, _) => _SettingsWindow(settings: settings, controller: controller),
+      pageBuilder: (context, _, _) => _SettingsWindow(
+        settings: settings,
+        controller: controller,
+        updater: updater ?? Updater(),
+        page: page,
+      ),
       transitionBuilder: (context, animation, _, child) {
         final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
         return FadeTransition(
@@ -47,7 +62,7 @@ class _Category {
   final List<_Item> items;
 }
 
-typedef _Context = ({AppSettings settings, EditorController? controller});
+typedef _Context = ({AppSettings settings, EditorController? controller, Updater updater});
 
 final _categories = <_Category>[
   _Category('General', Icons.tune_rounded, [
@@ -148,7 +163,40 @@ final _categories = <_Category>[
       keywords: 'engrave engraving verovio options spacing slur tie beam stem thickness margin bar number lyric',
     ),
   ]),
+  _Category('Update', Icons.system_update_alt_rounded, [
+    _Item(
+      'Version $appVersion',
+      (c) => _updateHelp(c.updater.status),
+      (c) => _UpdateControl(updater: c.updater),
+      keywords: 'update download release new version check',
+    ),
+    _Item(
+      'Check at launch',
+      (_) => 'Asks GitHub for a newer version each time the app starts.',
+      (c) => Switch(value: c.settings.checkForUpdates, onChanged: (v) => c.settings.checkForUpdates = v),
+      keywords: 'update automatic startup',
+    ),
+    _Item(
+      'Source code',
+      null,
+      (_) => const _Link(repositoryUrl),
+      keywords: 'github repository repo source code website open',
+    ),
+  ]),
 ];
+
+String _updateHelp(UpdateStatus status) => switch (status) {
+      UpdateIdle() => 'Curated Score, from GitHub.',
+      UpdateChecking() => 'Asking GitHub…',
+      UpToDate() => 'This is the latest version.',
+      UpdateAvailable(:final release) when release.download == null =>
+        '${release.version} is out, but not for this system yet.',
+      UpdateAvailable(:final release) => '${release.version} is out.',
+      UpdateDownloading(:final release) => 'Downloading ${release.version}…',
+      UpdateDownloaded(:final path) =>
+        'Saved “${path.split(RegExp(r'[/\\]')).last}”. Unzip it and replace this app with it.',
+      UpdateFailed(:final message) => message,
+    };
 
 String _autosaveLabel(Duration d) => switch (d) {
       Duration.zero => 'Off',
@@ -158,9 +206,11 @@ String _autosaveLabel(Duration d) => switch (d) {
     };
 
 class _SettingsWindow extends StatefulWidget {
-  const _SettingsWindow({required this.settings, this.controller});
+  const _SettingsWindow({required this.settings, this.controller, required this.updater, this.page});
   final AppSettings settings;
   final EditorController? controller;
+  final Updater updater;
+  final String? page;
 
   @override
   State<_SettingsWindow> createState() => _SettingsWindowState();
@@ -168,7 +218,10 @@ class _SettingsWindow extends StatefulWidget {
 
 class _SettingsWindowState extends State<_SettingsWindow> {
   static int _lastPage = 0; // reopens where it was left
-  int _page = _lastPage;
+  late int _page = _lastPage = switch (_categories.indexWhere((c) => c.label == widget.page)) {
+    -1 => _lastPage,
+    final i => i,
+  };
   final _search = TextEditingController();
 
   @override
@@ -177,7 +230,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     super.dispose();
   }
 
-  _Context get _ctx => (settings: widget.settings, controller: widget.controller);
+  _Context get _ctx => (settings: widget.settings, controller: widget.controller, updater: widget.updater);
 
   /// Items matching the search, with their category; null when not searching.
   List<(_Category, _Item)>? get _matches {
@@ -204,7 +257,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: colors.line)),
           clipBehavior: Clip.antiAlias,
           child: ListenableBuilder(
-            listenable: Listenable.merge([widget.settings, _search, ?widget.controller]),
+            listenable: Listenable.merge([widget.settings, _search, widget.updater, ?widget.controller]),
             builder: (context, _) => Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               _sidebar(context),
               VerticalDivider(width: 1, color: colors.line),
@@ -505,4 +558,53 @@ class _TransitionPicker extends StatelessWidget {
       onChanged: onChanged,
     );
   }
+}
+
+/// Check, then Download, then Show in Finder: the one button the update's state calls for.
+class _UpdateControl extends StatelessWidget {
+  const _UpdateControl({required this.updater});
+  final Updater updater;
+
+  static String get _revealLabel => Platform.isMacOS
+      ? 'Show in Finder'
+      : Platform.isWindows
+          ? 'Show in Explorer'
+          : 'Open Folder';
+
+  @override
+  Widget build(BuildContext context) {
+    final check = OutlinedButton(onPressed: updater.check, child: const Text('Check for Updates'));
+    final Widget control = switch (updater.status) {
+      UpdateIdle() || UpToDate() || UpdateFailed(release: null) => check,
+      UpdateChecking() => const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+      UpdateAvailable(:final release) when release.download == null =>
+        OutlinedButton(onPressed: () => openInBrowser(release.pageUrl), child: const Text('Open Release Page')),
+      UpdateAvailable(:final release) =>
+        FilledButton(onPressed: () => updater.download(release), child: Text('Download ${release.version}')),
+      UpdateDownloading(:final progress) => SizedBox(
+          width: 140,
+          child: LinearProgressIndicator(value: progress, borderRadius: BorderRadius.circular(2)),
+        ),
+      UpdateDownloaded(:final path) =>
+        OutlinedButton(onPressed: () => revealInFileManager(path), child: Text(_revealLabel)),
+      UpdateFailed(release: final release?) =>
+        OutlinedButton(onPressed: () => updater.download(release), child: const Text('Try Again')),
+    };
+    return AnimatedSwitcher(duration: const Duration(milliseconds: 180), child: control);
+  }
+}
+
+/// An address that opens in the browser.
+class _Link extends StatelessWidget {
+  const _Link(this.url);
+  final String url;
+
+  @override
+  Widget build(BuildContext context) => Tip(
+        message: 'Open in the browser',
+        child: TextButton(
+          onPressed: () => openInBrowser(url),
+          child: Text(url.replaceFirst('https://', ''), style: const TextStyle(fontSize: 13)),
+        ),
+      );
 }

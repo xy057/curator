@@ -30,6 +30,7 @@ import 'scratch_space.dart';
 import 'score_view.dart';
 import 'settings_dialog.dart';
 import 'ui_kit.dart';
+import 'updater.dart';
 import 'window_chrome.dart';
 
 Future<void> main() async {
@@ -37,14 +38,20 @@ Future<void> main() async {
   // Clear out what earlier runs left behind (a crash can't clean up after itself).
   final keep = ScratchSpace.session.path;
   unawaited(Isolate.run(() => ScratchSpace.sweep(keep: keep)).catchError((_) {}));
-  runApp(CuratedScoreApp(settings: await AppSettings.load()));
+  final settings = await AppSettings.load();
+  final updater = Updater();
+  if (settings.checkForUpdates) unawaited(updater.check());
+  runApp(CuratedScoreApp(settings: settings, updater: updater));
 }
 
 class CuratedScoreApp extends StatefulWidget {
-  const CuratedScoreApp({super.key, this.settings});
+  const CuratedScoreApp({super.key, this.settings, this.updater});
 
   /// Stored preferences; in-memory defaults when not given (tests).
   final AppSettings? settings;
+
+  /// Settings ▸ Update; one that hasn't checked yet when not given (tests).
+  final Updater? updater;
 
   @override
   State<CuratedScoreApp> createState() => _CuratedScoreAppState();
@@ -66,15 +73,16 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> {
         themeMode: settings.themeMode,
         themeAnimationDuration: const Duration(milliseconds: 280),
         themeAnimationCurve: Curves.easeInOut,
-        home: HomePage(settings: settings),
+        home: HomePage(settings: settings, updater: widget.updater),
       ),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, this.settings});
+  const HomePage({super.key, this.settings, this.updater});
   final AppSettings? settings;
+  final Updater? updater;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -83,6 +91,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   late final controller = EditorController(vsync: this);
   late final settings = widget.settings ?? AppSettings.memory();
+  late final updater = widget.updater ?? Updater();
   late final document = ProjectDocument(controller, settings)..onAutosaveError = _autosaveFailed;
   late final _lifecycle = AppLifecycleListener(onExitRequested: _exitRequested);
   bool _dragging = false;
@@ -112,7 +121,22 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     settings.addListener(_engravingChanged);
     _engravingChanged();
     _lifecycle; // start listening for Quit
+    updater.addListener(_launchCheckAnswered);
     WindowChrome.listenForOpenedFiles((paths) => _openPath(paths.first));
+  }
+
+  /// The check made at launch (Settings ▸ Update ▸ Check at launch) says so when there is a
+  /// newer version, once; failures stay quiet. Later checks are the Update page's to show.
+  void _launchCheckAnswered() {
+    final status = updater.status;
+    if (status is UpdateIdle || status is UpdateChecking) return;
+    updater.removeListener(_launchCheckAnswered);
+    if (status is! UpdateAvailable || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      duration: const Duration(seconds: 10),
+      content: Text('Curated Score ${status.release.version} is out.'),
+      action: SnackBarAction(label: 'Update…', onPressed: () => _settings(page: 'Update')),
+    ));
   }
 
   void _scoreChanged() => _hasScore.value = controller.score != null;
@@ -139,6 +163,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     document.removeListener(_sampleChanged);
     controller.removeListener(_scoreChanged);
     settings.removeListener(_engravingChanged);
+    updater.removeListener(_launchCheckAnswered);
     _hasScore.dispose();
     _isSample.dispose();
     _lifecycle.dispose();
@@ -273,7 +298,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return AppExitResponse.exit;
   }
 
-  void _settings() => showSettingsDialog(context, settings, controller: controller);
+  void _settings({String? page}) =>
+      showSettingsDialog(context, settings, controller: controller, updater: updater, page: page);
 
   Future<void> _guard(Future<void> Function() action, {String title = 'Could not open the score'}) async {
     try {

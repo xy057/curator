@@ -23,7 +23,8 @@ class AppSettings extends ChangeNotifier {
             VideoResolution.values.asNameMap()[_prefs?.getString(_videoResolutionKey)] ?? VideoResolution.hd1080,
         _videoFps = _prefs?.getInt(_videoFpsKey) ?? 30,
         _videoPaper = VideoPaper.values.asNameMap()[_prefs?.getString(_videoPaperKey)] ?? VideoPaper.light,
-        _engraving = _readEngraving(_prefs?.getString(_engravingKey));
+        _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
+        _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true;
 
   /// Defaults, kept in memory only (tests, or when there is no preferences store).
   AppSettings.memory() : this._(null);
@@ -40,7 +41,7 @@ class AppSettings extends ChangeNotifier {
 
   static const _autosaveKey = 'autosaveSeconds', _mediaKey = 'mediaStorage', _undoKey = 'undoSteps';
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
-  static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions';
+  static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const defaultAutosave = Duration(minutes: 2);
 
@@ -176,6 +177,18 @@ class AppSettings extends ChangeNotifier {
     } on FormatException {
       return const EngravingOptions();
     }
+  }
+
+  // MARK: Update
+
+  /// Whether the app asks GitHub for a newer release when it starts.
+  bool get checkForUpdates => _checkForUpdates;
+  bool _checkForUpdates;
+  set checkForUpdates(bool value) {
+    if (value == _checkForUpdates) return;
+    _checkForUpdates = value;
+    _prefs?.setBool(_updatesKey, value);
+    notifyListeners();
   }
 
   // MARK: Open Recent

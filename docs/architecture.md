@@ -33,6 +33,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as H.264/AAC MP4; the dialog |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
+| `updater.dart` | Settings ▸ Update: `appVersion`, the latest GitHub release, its download into Downloads |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
 ## Rules
