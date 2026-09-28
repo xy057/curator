@@ -6,6 +6,7 @@ import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/media_converter.dart';
 import 'package:curated_score/video_export.dart';
+import 'package:flutter/painting.dart' show Size;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
@@ -64,12 +65,48 @@ Encoders:
     expect(VideoFormat.of(VideoResolution.hd1080, fps: 30).devicePixelRatio, 2);
     expect(VideoFormat.of(VideoResolution.uhd2160, fps: 30).devicePixelRatio, 4);
     for (final r in VideoResolution.values) {
-      expect(r.width / VideoFormat.of(r, fps: 30).devicePixelRatio, 960);
+      final f = VideoFormat.of(r, fps: 30);
+      expect(f.width / f.devicePixelRatio, 960);
     }
     const format = VideoFormat(width: 320, height: 180, fps: 25);
     expect(format.frameCount(2), 50);
     expect(format.frameCount(2.01), 51);
     expect(format.timeOf(25), 1);
+  });
+
+  group('the video\'s ratio', () {
+    test('the size is the short side: wide ones are that high, tall ones that wide', () {
+      VideoFormat at(VideoRatio ratio, [VideoResolution r = VideoResolution.hd1080]) =>
+          VideoFormat.of(r, ratio: ratio, fps: 30);
+      expect((at(VideoRatio.widescreen).width, at(VideoRatio.widescreen).height), (1920, 1080));
+      expect((at(const VideoRatio(9, 16)).width, at(const VideoRatio(9, 16)).height), (1080, 1920));
+      expect((at(const VideoRatio(1, 1)).width, at(const VideoRatio(1, 1)).height), (1080, 1080));
+      expect((at(const VideoRatio(4, 3), VideoResolution.uhd2160).width), 2880);
+      // H.264 in 4:2:0 needs even sizes: 2.39 × 1080 = 2581.2, so 2582.
+      expect(at(const VideoRatio(2.39, 1)).width, 2582);
+      // Every ratio is laid out 540 points on its short side: 1080p is 2 pixels a point,
+      // so a tall video draws the score as big as a wide one, with room for more staves.
+      expect(at(const VideoRatio(9, 16)).devicePixelRatio, 2);
+      expect(VideoFormat.layoutOf(9 / 16), const Size(540, 960));
+      expect(VideoFormat.layoutOf(21 / 9), const Size(1260, 540));
+    });
+
+    test('typed as W:H, W/H, pixels (reduced) or one number; out of range or junk is null', () {
+      expect(VideoRatio.parse('16:9'), VideoRatio.widescreen);
+      expect(VideoRatio.parse(' 1920 x 1080 '), VideoRatio.widescreen);
+      expect(VideoRatio.parse('1080×1920'), const VideoRatio(9, 16));
+      expect(VideoRatio.parse('4/5'), const VideoRatio(4, 5));
+      expect(VideoRatio.parse('2.39'), const VideoRatio(2.39, 1));
+      expect(VideoRatio.parse('2.39:1')!.label, '2.39:1');
+      expect(VideoRatio.parse('64:18')!.label, '32:9');
+      expect(VideoRatio.parse('7:3')!.label, '21:9', reason: 'a preset\'s shape is named as the preset');
+      for (final bad in ['', 'wide', '16:', ':9', '0:1', '-4:3', '5:1', '1:5', '1:2:3', 'NaN']) {
+        expect(VideoRatio.parse(bad), isNull, reason: bad);
+      }
+      for (final r in VideoRatio.presets) {
+        expect(VideoRatio.parse(r.label), r, reason: 'a preset reads back as itself');
+      }
+    });
   });
 
   group('writing a video of the demo', () {

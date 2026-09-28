@@ -12,8 +12,8 @@ import 'media_converter.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
 
-/// File ▸ Export Video… (⌘E): a still of the video at the playhead, its size, frame rate,
-/// paper and score size; then where to save it, and progress until it is written.
+/// File ▸ Export Video… (⌘E): a still of the video at the playhead, its ratio (a preset or
+/// any typed), size, frame rate, paper and score size; then where to save it, and progress until it is written.
 /// [suggestedName] is the file name offered (without extension).
 Future<void> showExportDialog(BuildContext context, EditorController controller, AppSettings settings,
     {required String suggestedName}) {
@@ -45,15 +45,21 @@ class _ExportDialogState extends State<_ExportDialog> {
   var _stage = _Stage.setup;
   ExportProgress? _progress;
   String? _output, _error;
+  late final _ratio = TextEditingController(text: _settings.videoRatio.label);
 
   @override
   void dispose() {
     _export.dispose();
+    _ratio.dispose();
     super.dispose();
   }
 
-  VideoFormat get _format =>
-      VideoFormat.of(_settings.videoResolution, fps: _settings.videoFps, paper: _settings.videoPaper);
+  VideoFormat get _format => _settings.videoFormat;
+
+  void _setRatio(VideoRatio ratio) => setState(() {
+        _settings.videoRatio = ratio;
+        _ratio.text = ratio.label;
+      });
 
   Future<void> _start() async {
     final location = await getSaveLocation(
@@ -133,20 +139,64 @@ class _ExportDialogState extends State<_ExportDialog> {
     final track = c.track;
     final muted = TextStyle(fontSize: 12.5, color: colors.textMuted);
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      // The frame at the playhead, as the video will show it.
-      AspectRatio(
-        aspectRatio: format.width / format.height,
-        child: DecoratedBox(
-          decoration: BoxDecoration(border: Border.all(color: colors.line)),
-          child: CustomPaint(
-            painter: _StillPainter(_export, time: c.playback.time.value, paper: format.paper,
-                devicePixelRatio: MediaQuery.devicePixelRatioOf(context)),
+      // The frame at the playhead, as the video will show it: in a 16:9 box whatever the
+      // ratio, so a tall one doesn't stretch the dialog, and the controls stay put.
+      SizedBox(
+        height: 520 / VideoRatio.widescreen.value,
+        child: Center(
+          child: AspectRatio(
+            aspectRatio: format.aspectRatio,
+            child: DecoratedBox(
+              decoration: BoxDecoration(border: Border.all(color: colors.line)),
+              child: CustomPaint(
+                painter: _StillPainter(_export, time: c.playback.time.value, paper: format.paper,
+                    devicePixelRatio: MediaQuery.devicePixelRatioOf(context)),
+              ),
+            ),
           ),
         ),
       ),
       const SizedBox(height: 4),
       Text('At the playhead (${_clock(c.playback.time.value)})', style: muted, textAlign: TextAlign.center),
       const SizedBox(height: 14),
+      _Row(
+        label: 'Ratio',
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          SegmentedButton<VideoRatio>(
+            showSelectedIcon: false,
+            emptySelectionAllowed: true, // a typed ratio that isn't a preset
+            segments: [for (final r in VideoRatio.presets) ButtonSegment(value: r, label: Text(r.label))],
+            selected: {if (VideoRatio.presets.contains(_settings.videoRatio)) _settings.videoRatio},
+            onSelectionChanged: (s) {
+              if (s.isNotEmpty) _setRatio(s.single);
+            },
+          ),
+          const SizedBox(width: 10),
+          // Any other ratio: "2.39:1", "4:5", "1920x800". A bad one is outlined in red and
+          // leaves the last good one chosen. It gives way first when the row is tight.
+          Flexible(
+            child: SizedBox(
+              width: 92,
+              child: TextField(
+                controller: _ratio,
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'W:H',
+                  errorText: VideoRatio.parse(_ratio.text) == null ? '' : null,
+                  errorStyle: const TextStyle(height: 0, fontSize: 0),
+                ),
+                onChanged: (text) => setState(() {
+                  if (VideoRatio.parse(text) case final r?) _settings.videoRatio = r;
+                }),
+                onSubmitted: (text) {
+                  if (VideoRatio.parse(text) case final r?) _setRatio(r);
+                },
+              ),
+            ),
+          ),
+        ]),
+      ),
       _Row(
         label: 'Size',
         child: SegmentedButton<VideoResolution>(

@@ -11,24 +11,81 @@ import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'media_converter.dart';
 
-/// A video's frame size. Every size is laid out like a preview [VideoFormat.layoutHeight]
-/// points high, so they all frame the score the same way; bigger ones are only sharper.
+/// A video's size: its short side in pixels ("1080p" is 1080 pixels high when wide, 1080
+/// wide when tall), the long one following from the [VideoRatio]. Every size is laid out
+/// [VideoFormat.layoutShortSide] points on its short side, so they all frame the score the
+/// same way; bigger ones are only sharper.
 enum VideoResolution {
-  hd720(1280, 720, '720p'),
-  hd1080(1920, 1080, '1080p'),
-  qhd1440(2560, 1440, '1440p'),
-  uhd2160(3840, 2160, '4K');
+  hd720(720, '720p'),
+  hd1080(1080, '1080p'),
+  qhd1440(1440, '1440p'),
+  uhd2160(2160, '4K');
 
-  const VideoResolution(this.width, this.height, this.label);
-  final int width, height;
+  const VideoResolution(this.shortSide, this.label);
+  final int shortSide;
   final String label;
 
-  double get aspectRatio => width / height;
+  /// The frame's pixels at [ratio], both even (H.264 in 4:2:0 needs that).
+  ({int width, int height}) size(VideoRatio ratio) {
+    int even(double v) => math.max(2, (v / 2).round() * 2);
+    return ratio.value >= 1
+        ? (width: even(shortSide * ratio.value), height: shortSide)
+        : (width: shortSide, height: even(shortSide / ratio.value));
+  }
+}
+
+/// A video's shape, width : height: one of the [presets], or any the user types between
+/// [min] and [max] (1:4 to 4:1; wider would be more pixels than H.264 allows at 4K).
+@immutable
+class VideoRatio {
+  const VideoRatio(this.width, this.height);
+  final double width, height;
+
+  static const widescreen = VideoRatio(16, 9);
+  static const presets = [widescreen, VideoRatio(21, 9), VideoRatio(4, 3), VideoRatio(1, 1), VideoRatio(9, 16)];
+  static const min = 1 / 4, max = 4.0;
+
+  double get value => width / height;
+
+  /// "16:9", "2.39:1".
+  String get label => '${_number(width)}:${_number(height)}';
+
+  static String _number(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';
+
+  /// Reads "16:9", "16/9", "1920x1080" or "1920 × 1080" (both reduced to 16:9), or one
+  /// number ("2.39", read as 2.39:1). Null if it isn't a ratio within [min]…[max].
+  static VideoRatio? parse(String text) {
+    final parts = text.trim().split(RegExp(r'\s*[:/x×X]\s*'));
+    if (parts.length > 2) return null;
+    final w = double.tryParse(parts.first), h = parts.length == 2 ? double.tryParse(parts.last) : 1.0;
+    if (w == null || h == null || !w.isFinite || !h.isFinite || w <= 0 || h <= 0) return null;
+    if (w / h < min - 1e-9 || w / h > max + 1e-9) return null;
+    // A preset's shape reads as the preset, as it's known ("21:9", not 7:3).
+    for (final p in presets) {
+      if ((p.value - w / h).abs() < 1e-9) return p;
+    }
+    if (w == w.roundToDouble() && h == h.roundToDouble()) {
+      final d = _gcd(w.round(), h.round());
+      return VideoRatio(w / d, h / d);
+    }
+    return VideoRatio(w, h);
+  }
+
+  static int _gcd(int a, int b) => b == 0 ? a : _gcd(b, a % b);
+
+  @override
+  bool operator ==(Object other) => other is VideoRatio && other.width == width && other.height == height;
+
+  @override
+  int get hashCode => Object.hash(width, height);
+
+  @override
+  String toString() => label;
 }
 
 /// Where a video's frame sits in a view of any size: centred, as large as fits, and laid out
-/// like the video ([layout] points, [VideoFormat.layoutHeight] high) at [scale] view points a
-/// layout point. The editor's preview draws through it, so it shows what the video will.
+/// like the video ([layout] points, [VideoFormat.layoutShortSide] on the short side) at
+/// [scale] view points a layout point. The editor's preview draws through it, so it shows what the video will.
 @immutable
 class VideoFrame {
   const VideoFrame._(this.rect, this.layout, this.scale);
@@ -36,7 +93,7 @@ class VideoFrame {
   /// The frame starts on a whole pixel at [devicePixelRatio], so the renderer's pixel
   /// snapping (crisp staff lines) lands on the screen's pixels.
   factory VideoFrame.fit(ui.Size view, double aspectRatio, {double devicePixelRatio = 1}) {
-    final layout = ui.Size(VideoFormat.layoutHeight * aspectRatio, VideoFormat.layoutHeight);
+    final layout = VideoFormat.layoutOf(aspectRatio);
     final scale = view.isEmpty ? 0.0 : math.min(view.width / layout.width, view.height / layout.height);
     final size = layout * scale;
     double snap(double v) => (v * devicePixelRatio).floorToDouble() / devicePixelRatio;
@@ -79,20 +136,32 @@ class VideoFormat {
   const VideoFormat({required this.width, required this.height, required this.fps, this.paper = VideoPaper.light})
       : assert(width % 2 == 0 && height % 2 == 0, 'H.264 in 4:2:0 needs even sizes');
 
-  VideoFormat.of(VideoResolution resolution, {required int fps, VideoPaper paper = VideoPaper.light})
-      : this(width: resolution.width, height: resolution.height, fps: fps, paper: paper);
+  factory VideoFormat.of(VideoResolution resolution,
+      {VideoRatio ratio = VideoRatio.widescreen, required int fps, VideoPaper paper = VideoPaper.light}) {
+    final (:width, :height) = resolution.size(ratio);
+    return VideoFormat(width: width, height: height, fps: fps, paper: paper);
+  }
 
   final int width, height, fps;
   final VideoPaper paper;
 
+  /// Width over height, of the pixels themselves (the ratio, rounded to even pixels).
+  double get aspectRatio => width / height;
+
   static const frameRates = [24, 25, 30, 50, 60];
 
-  /// The height, in points, of the preview a frame is laid out like. The score size (the
-  /// staff space) means the same here as in the editor, where the score is about this high.
-  static const layoutHeight = 540.0;
+  /// The short side, in points, of the preview a frame is laid out like (the height of a
+  /// wide video). The score size (the staff space) means the same here as in the editor,
+  /// where the score is about this high; a tall video has room for more staves.
+  static const layoutShortSide = 540.0;
 
-  /// Pixels per point: 2 for 1080p.
-  double get devicePixelRatio => height / layoutHeight;
+  /// The points a frame of [aspectRatio] is laid out in.
+  static ui.Size layoutOf(double aspectRatio) => aspectRatio >= 1
+      ? ui.Size(layoutShortSide * aspectRatio, layoutShortSide)
+      : ui.Size(layoutShortSide, layoutShortSide / aspectRatio);
+
+  /// Pixels per point: 2 for 1080p, whatever the ratio.
+  double get devicePixelRatio => math.min(width, height) / layoutShortSide;
 
   /// How many frames cover [seconds] (the last one may run a little past the end).
   int frameCount(double seconds) => seconds <= 0 ? 0 : (seconds * fps - 1e-9).ceil();
@@ -234,8 +303,8 @@ class VideoExport {
   /// Draws the frame at [time] into [size] (points), for a still preview in the dialog.
   void paintPreview(ui.Canvas canvas, ui.Size size,
       {required double time, required VideoPaper paper, required double devicePixelRatio}) {
-    // Laid out like the video (layoutHeight points high), scaled to fit.
-    final scale = size.height / VideoFormat.layoutHeight;
+    // Laid out like the video (layoutShortSide points on the short side), scaled to fit.
+    final scale = size.shortestSide / VideoFormat.layoutShortSide;
     canvas
       ..save()
       ..clipRect(ui.Offset.zero & size)

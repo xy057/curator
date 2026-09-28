@@ -21,6 +21,7 @@ class AppSettings extends ChangeNotifier {
         _recent = List.unmodifiable(_prefs?.getStringList(_recentKey) ?? const <String>[]),
         _videoResolution =
             VideoResolution.values.asNameMap()[_prefs?.getString(_videoResolutionKey)] ?? VideoResolution.hd1080,
+        _videoRatio = VideoRatio.parse(_prefs?.getString(_videoRatioKey) ?? '') ?? VideoRatio.widescreen,
         _videoFps = _prefs?.getInt(_videoFpsKey) ?? 30,
         _videoPaper = VideoPaper.values.asNameMap()[_prefs?.getString(_videoPaperKey)] ?? VideoPaper.light,
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
@@ -44,7 +45,7 @@ class AppSettings extends ChangeNotifier {
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
-  static const _previewFrameKey = 'previewVideoFrame';
+  static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame';
   static const defaultAutosave = Duration(minutes: 2);
 
   /// Choices offered for autosave; [Duration.zero] turns it off.
@@ -142,6 +143,20 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The video's shape: a preset, or one the user typed.
+  VideoRatio get videoRatio => _videoRatio;
+  VideoRatio _videoRatio;
+  set videoRatio(VideoRatio value) {
+    if (value == _videoRatio) return;
+    _videoRatio = value;
+    _prefs?.setString(_videoRatioKey, value.label);
+    notifyListeners();
+  }
+
+  /// The video these choices make; the preview's frame is its [VideoFormat.aspectRatio].
+  VideoFormat get videoFormat =>
+      VideoFormat.of(videoResolution, ratio: videoRatio, fps: videoFps, paper: videoPaper);
+
   /// Frames a second, one of [VideoFormat.frameRates].
   int get videoFps => VideoFormat.frameRates.contains(_videoFps) ? _videoFps : 30;
   int _videoFps;
@@ -161,7 +176,7 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The score preview shows the video's frame ([videoResolution]'s aspect ratio, laid out
+  /// The score preview shows the video's frame ([videoFormat]'s aspect ratio, laid out
   /// like the video), instead of filling the window. Off by default.
   bool get previewVideoFrame => _previewVideoFrame;
   bool _previewVideoFrame;

@@ -38,7 +38,7 @@ void main() {
       // Framed, the score is laid out like the video and scaled into the view (VideoFrame).
       final view = tester.getSize(find.byType(ScoreView));
       final frame = framed
-          ? VideoFrame.fit(view, VideoResolution.hd1080.aspectRatio, devicePixelRatio: 2)
+          ? VideoFrame.fit(view, VideoFormat.of(VideoResolution.hd1080, fps: 30).aspectRatio, devicePixelRatio: 2)
           : VideoFrame.fill(view);
       if (framed) expect(frame.scale, isNot(1), reason: 'a frame scaled to fit, off the whole-pixel grid');
       final width = frame.layout.width;

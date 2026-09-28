@@ -59,6 +59,11 @@ void main() {
     settings.previewVideoFrame = true;
     await tester.pump(const Duration(milliseconds: 50));
     await shot('app-framed');
+    // A tall video (9:16): 540 points wide, with room for more staves, centred.
+    settings.videoRatio = const VideoRatio(9, 16);
+    await tester.pump(const Duration(milliseconds: 50));
+    await shot('app-framed-tall');
+    settings.videoRatio = VideoRatio.widescreen;
     settings.previewVideoFrame = false;
 
     // The same with condensing: both horns (and clarinets) on one staff.
@@ -137,7 +142,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     final box = tester.getRect(find.byType(ScoreView));
-    final frame = VideoFrame.fit(box.size, VideoResolution.hd1080.aspectRatio,
+    final frame = VideoFrame.fit(box.size, VideoFormat.of(VideoResolution.hd1080, fps: 30).aspectRatio,
         devicePixelRatio: tester.view.devicePixelRatio);
     Offset? target;
     for (var y = 0.0; y < frame.layout.height && target == null; y += 4) {

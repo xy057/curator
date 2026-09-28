@@ -15,7 +15,7 @@ import 'demo_project.dart';
 import 'test_fonts.dart';
 
 void main() {
-  testWidgets('Export Video… offers size, frame rate, paper and score size', (tester) async {
+  testWidgets('Export Video… offers ratio, size, frame rate, paper and score size', (tester) async {
     await tester.runAsync(loadTestFonts);
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
@@ -57,6 +57,24 @@ void main() {
     expect((settings.videoResolution, settings.videoFps, settings.videoPaper),
         (VideoResolution.uhd2160, 60, VideoPaper.dark));
     expect(find.textContaining('3840 × 2160'), findsOneWidget);
+
+    // Any ratio: a preset, or one typed; a bad entry keeps the last good one.
+    await tester.tap(find.text('9:16'));
+    await tester.pump();
+    expect(settings.videoRatio, const VideoRatio(9, 16));
+    expect(find.textContaining('2160 × 3840'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '2.39:1');
+    await tester.pump();
+    expect(settings.videoRatio, const VideoRatio(2.39, 1));
+    expect(find.textContaining('5162 × 2160'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '9:1');
+    await tester.pump();
+    expect(settings.videoRatio, const VideoRatio(2.39, 1), reason: 'wider than 4:1');
+    await tester.enterText(find.byType(TextField), '1920x1080');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(settings.videoRatio, VideoRatio.widescreen);
+    expect(find.widgetWithText(TextField, '16:9'), findsOneWidget, reason: 'tidied to the ratio it means');
 
     final dir = Platform.environment['SCREENSHOT_DIR'];
     if (dir != null) {

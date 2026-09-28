@@ -43,12 +43,15 @@ curation, the sync and the time alone; nothing accumulates between frames. That 
 the preview scrub freely, and what video export reuses: frame *i* is `renderFrame(i / fps)`,
 the same painting offscreen. `VideoExport` works on its own scene and copies of the curation
 and sync, so something the scene shows must be copied in `VideoExport.of` too (as `names` is).
-A video is laid out like a preview `VideoFormat.layoutHeight` (540) points high at
-`height / 540` pixels a point, so every size frames the score the same way. The editor's
-preview fills the window by default; the toolbar's frame toggle (`AppSettings.previewVideoFrame`)
-makes it that frame too: `ScoreView` letterboxes the chosen resolution's aspect ratio, laid
-out 540 points high and scaled to fit (`VideoFrame.fit`; filling is `VideoFrame.fill`), so
-the window's size never changes what the score shows. Hit tests go through `VideoFrame.toLayout`.
+A video has any ratio (`VideoRatio`: a preset or one typed, 1:4 to 4:1); its size
+(`VideoResolution`, "1080p") is its short side in pixels. It is laid out like a preview
+`VideoFormat.layoutShortSide` (540) points on its short side (`VideoFormat.layoutOf`) at
+`shortSide / 540` pixels a point, so every size frames the score the same way, and a tall
+video draws it as big as a wide one, with room for more staves. The editor's preview fills
+the window by default; the toolbar's frame toggle (`AppSettings.previewVideoFrame`) makes it
+that frame too: `ScoreView` letterboxes `AppSettings.videoFormat`'s aspect ratio, laid out
+the same way and scaled to fit (`VideoFrame.fit`; filling is `VideoFrame.fill`), so the
+window's size never changes what the score shows. Hit tests go through `VideoFrame.toLayout`.
 
 **Beats come from `BeatGrid`, never "a quarter note".** Compound meters beat in dotted notes
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back
