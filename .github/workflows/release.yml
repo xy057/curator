@@ -81,60 +81,8 @@ jobs:
           path: Curated-Score-*-macos.zip
           if-no-files-found: error
 
-  windows:
-    needs: version
-    runs-on: windows-2022
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash # Git Bash: the same commands as on macOS
-    steps:
-      # Keep LF endings: patches/*.patch must apply to Verovio's sources byte for byte.
-      - run: git config --global core.autocrlf false
-
-      - uses: actions/checkout@v5
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-
-      - name: Fetch and patch Verovio
-        # What `make setup` does (no make on Windows): the tag pinned in the Makefile, every patch,
-        # then the stamp the build hook checks for.
-        run: |
-          tag=$(sed -n 's/^VEROVIO_TAG := *//p' Makefile)
-          dir=packages/score_engine/third_party/verovio
-          git clone --depth 1 --branch "$tag" https://github.com/rism-digital/verovio.git "$dir"
-          for p in patches/*.patch; do echo "applying $p"; git -C "$dir" apply "$PWD/$p"; done
-          touch "$dir/.curated-score-patched"
-
-      - name: Build
-        # The build hook runs CMake with Visual Studio for the engine (Verovio) as it goes.
-        working-directory: app
-        run: flutter build windows --release
-
-      - name: Package
-        shell: pwsh
-        run: |
-          $out = "Curated Score"
-          Copy-Item -Recurse app/build/windows/x64/runner/Release $out
-          # Flutter apps need the Visual C++ runtime; ship it beside the .exe so a fresh
-          # Windows doesn't have to install it first.
-          foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
-            Copy-Item "$env:WINDIR/System32/$dll" $out
-          }
-          Compress-Archive -Path $out -DestinationPath "Curated-Score-${{ needs.version.outputs.version }}-windows.zip"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows
-          path: Curated-Score-*-windows.zip
-          if-no-files-found: error
-
   release:
-    needs: [version, macos, windows]
+    needs: [version, macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
