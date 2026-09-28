@@ -24,7 +24,8 @@ class AppSettings extends ChangeNotifier {
         _videoFps = _prefs?.getInt(_videoFpsKey) ?? 30,
         _videoPaper = VideoPaper.values.asNameMap()[_prefs?.getString(_videoPaperKey)] ?? VideoPaper.light,
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
-        _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true;
+        _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
+        _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false;
 
   /// Defaults, kept in memory only (tests, or when there is no preferences store).
   AppSettings.memory() : this._(null);
@@ -43,6 +44,7 @@ class AppSettings extends ChangeNotifier {
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
+  static const _previewFrameKey = 'previewVideoFrame';
   static const defaultAutosave = Duration(minutes: 2);
 
   /// Choices offered for autosave; [Duration.zero] turns it off.
@@ -156,6 +158,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _videoPaper) return;
     _videoPaper = value;
     _prefs?.setString(_videoPaperKey, value.name);
+    notifyListeners();
+  }
+
+  /// The score preview shows the video's frame ([videoResolution]'s aspect ratio, laid out
+  /// like the video), instead of filling the window. Off by default.
+  bool get previewVideoFrame => _previewVideoFrame;
+  bool _previewVideoFrame;
+  set previewVideoFrame(bool value) {
+    if (value == _previewVideoFrame) return;
+    _previewVideoFrame = value;
+    _prefs?.setBool(_previewFrameKey, value);
     notifyListeners();
   }
 

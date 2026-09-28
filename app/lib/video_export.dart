@@ -44,6 +44,9 @@ class VideoFrame {
         ui.Offset(snap((view.width - size.width) / 2), snap((view.height - size.height) / 2)) & size, layout, scale);
   }
 
+  /// No frame: the whole view, laid out at its own size.
+  factory VideoFrame.fill(ui.Size view) => VideoFrame._(ui.Offset.zero & view, view, 1);
+
   /// The frame, in the view's points.
   final ui.Rect rect;
   final ui.Size layout;

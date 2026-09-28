@@ -12,17 +12,18 @@ import 'video_export.dart';
 /// The curated score preview, drawn by CuratedScene.paint: a frame is a function of the
 /// time alone, which video export reuses (CuratedScene.renderFrame, VideoExport).
 ///
-/// It shows the video's frame: the export's aspect ratio, laid out like the video and scaled
-/// to fit ([VideoFrame]), so resizing the window never changes what the score shows.
+/// It fills the view, or, given an [aspectRatio], shows the video's frame: that aspect ratio,
+/// laid out like the video and scaled to fit ([VideoFrame]), so resizing the window never
+/// changes what the score shows.
 ///
 /// Double-click a text (tempo mark, "arco", "dolce"…) to edit it in place — Enter saves,
 /// Esc cancels, an empty text removes it. Double-click an instrument name to rename it.
 class ScoreView extends StatefulWidget {
-  const ScoreView({super.key, required this.controller, required this.aspectRatio});
+  const ScoreView({super.key, required this.controller, this.aspectRatio});
   final EditorController controller;
 
-  /// The video's width over its height.
-  final double aspectRatio;
+  /// The video's width over its height, to show its frame; null fills the view.
+  final double? aspectRatio;
 
   @override
   State<ScoreView> createState() => _ScoreViewState();
@@ -82,20 +83,23 @@ class _ScoreViewState extends State<ScoreView> {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-      final frame = VideoFrame.fit(constraints.biggest, widget.aspectRatio, devicePixelRatio: devicePixelRatio);
+      final aspectRatio = widget.aspectRatio;
+      final frame = aspectRatio == null
+          ? VideoFrame.fill(constraints.biggest)
+          : VideoFrame.fit(constraints.biggest, aspectRatio, devicePixelRatio: devicePixelRatio);
       final colors = context.colors;
       final editing = _editing;
       final editRect = editing == null ? null : frame.toView(editing.rect);
       return Stack(children: [
-        Positioned.fill(child: ColoredBox(color: colors.surface)),
+        Positioned.fill(child: ColoredBox(color: aspectRatio == null ? colors.scorePaper : colors.surface)),
         Positioned.fromRect(
           rect: frame.rect,
           child: DecoratedBox(
             position: DecorationPosition.foreground,
-            decoration: BoxDecoration(border: Border.all(color: colors.line)),
+            decoration: BoxDecoration(border: aspectRatio == null ? null : Border.all(color: colors.line)),
             child: RepaintBoundary(
               child: CustomPaint(
-                painter: _ScorePainter(c, devicePixelRatio, colors),
+                painter: _ScorePainter(c, devicePixelRatio, colors, scale: frame.scale),
                 size: Size.infinite,
               ),
             ),
@@ -201,18 +205,21 @@ class _InlineEditor extends StatelessWidget {
 }
 
 class _ScorePainter extends CustomPainter {
-  _ScorePainter(this.controller, this.devicePixelRatio, this.colors) : super(repaint: controller.playback.repaint);
+  _ScorePainter(this.controller, this.devicePixelRatio, this.colors, {required this.scale})
+      : super(repaint: controller.playback.repaint);
   final EditorController controller;
   final double devicePixelRatio;
   final AppColors colors;
+
+  /// View points a layout point ([VideoFrame.scale]): 1 when filling the view.
+  final double scale;
 
   @override
   void paint(Canvas canvas, Size size) {
     final scene = controller.scene, curation = controller.curation;
     if (scene == null || curation == null || size.isEmpty) return;
-    // Laid out like the video (layoutHeight points high), scaled to fit, as the export
-    // dialog's still is (VideoExport.paintPreview).
-    final scale = size.height / VideoFormat.layoutHeight;
+    // Laid out at the frame's layout size, scaled to fit, as the export dialog's still is
+    // (VideoExport.paintPreview).
     canvas
       ..clipRect(Offset.zero & size)
       ..scale(scale);
@@ -231,6 +238,7 @@ class _ScorePainter extends CustomPainter {
   bool shouldRepaint(_ScorePainter old) =>
       old.controller != controller ||
       old.devicePixelRatio != devicePixelRatio ||
+      old.scale != scale ||
       old.colors.scorePaper != colors.scorePaper ||
       old.colors.scoreInk != colors.scoreInk;
 }

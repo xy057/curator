@@ -14,12 +14,18 @@ class EditorToolbar extends StatelessWidget {
     required this.document,
     required this.onEditTexts,
     required this.onExportVideo,
+    required this.videoFrame,
+    required this.onVideoFrame,
     required this.onClose,
   });
   final EditorController controller;
   final ProjectDocument document;
   final VoidCallback onEditTexts;
   final VoidCallback onExportVideo;
+
+  /// Whether the score shows the video's frame rather than filling the window.
+  final bool videoFrame;
+  final ValueChanged<bool> onVideoFrame;
   final VoidCallback onClose;
 
   static const height = 46.0;
@@ -70,6 +76,12 @@ class EditorToolbar extends StatelessWidget {
           icon: Icons.movie_outlined,
           tooltip: 'Export video… (${shortcut('⌘E')})',
           onPressed: c.isReengraving ? null : onExportVideo,
+        ),
+        ToolbarButton(
+          icon: Icons.crop_16_9_rounded,
+          tooltip: videoFrame ? 'Fill the window' : "Show the video's frame",
+          selected: videoFrame,
+          onPressed: () => onVideoFrame(!videoFrame),
         ),
         const ToolbarDivider(),
         Tip(

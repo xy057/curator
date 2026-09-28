@@ -55,6 +55,12 @@ void main() {
 
     await shot('app');
 
+    // The same showing the video's frame (the toolbar's toggle), letterboxed in the view.
+    settings.previewVideoFrame = true;
+    await tester.pump(const Duration(milliseconds: 50));
+    await shot('app-framed');
+    settings.previewVideoFrame = false;
+
     // The same with condensing: both horns (and clarinets) on one staff.
     final controller = state.controller as EditorController;
     controller.setCondensed([for (final g in controller.condensable) g.id], on: true);
@@ -114,7 +120,8 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const CuratedScoreApp());
+    // Framed, so the click goes through the frame's mapping (VideoFrame.toLayout).
+    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()..previewVideoFrame = true));
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final controller = state.controller as EditorController;
     await tester.runAsync(() => controller.openFile(demoScore.path));
