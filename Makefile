@@ -7,11 +7,12 @@ PATCHES := $(sort $(wildcard patches/*.patch))
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
-.PHONY: help setup run test check doctor clean
+.PHONY: help setup run build test check doctor clean
 
 help:
 	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG), get Dart packages"
 	@echo "make run     – launch the app (macOS)"
+	@echo "make build   – build the release app (app/build/macos/Build/Products/Release)"
 	@echo "make test    – run the engine and app tests (builds the native engine on first run)"
 	@echo "make check   – analyze both packages, then run every test"
 	@echo "make doctor  – check that the required tools are installed"
@@ -34,6 +35,10 @@ $(VEROVIO_STAMP): $(VEROVIO_DIR)/src/toolkit.cpp $(PATCHES)
 
 run: setup
 	cd app && flutter run -d macos
+
+# What the Release workflow (.github/workflows/release.yml) builds and zips.
+build: setup
+	cd app && flutter build macos --release
 
 # Every test runs on the bundled demo project (app/assets/demo), so a fresh clone can run them all.
 test: setup

@@ -162,6 +162,19 @@ and at start-up it sweeps folders whose lock is free (their app crashed).
 engine tests build variants of it where they need something it lacks (a key change, an
 additive meter). `Samples/` is for trying things by hand only.
 
+## Releasing
+
+`.github/workflows/release.yml` runs only when started by hand (GitHub ▸ Actions ▸ Release ▸
+Run workflow, or `gh workflow run release.yml`). It builds with `make build` on macOS, zips the
+app as `Curated-Score-<version>-macos.zip` and publishes release `v<version>`, where the
+version is `app/pubspec.yaml`'s. To release again, bump that version and `appVersion` in
+`updater.dart` together (`updater_test.dart` checks they match); a version already released
+stops the run before it builds. The app finds its download by that name
+(`-<platform>.` in the asset's name), so a Windows or Linux build only needs its own job
+uploading `…-windows.zip` / `…-linux.zip`. The app is signed ad hoc, not notarized; the
+release notes say how to open it the first time. The updater only downloads: it never
+replaces the running app.
+
 ## Adding things
 
 - **A setting**: an `_Item` in `settings_dialog.dart`'s `_categories`, backed by a field in

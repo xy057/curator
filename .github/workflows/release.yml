@@ -1,0 +1,87 @@
+# Builds the macOS app and publishes it as a GitHub release.
+#
+# Runs only when started by hand: GitHub ▸ Actions ▸ Release ▸ Run workflow
+# (or `gh workflow run release.yml`). Nothing runs on push.
+#
+# The version is app/pubspec.yaml's (`version: 0.1.0+1` → tag v0.1.0). To release again, bump it
+# there (and `appVersion` in app/lib/updater.dart; a test keeps them equal) and run this again.
+# A version that is already released stops the run before anything is built.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: Publish as a draft (only you see it until you publish it on GitHub)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # create the tag and the release
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Read the version
+        id: version
+        run: |
+          version=$(sed -n 's/^version: *\([0-9][0-9.]*\).*/\1/p' app/pubspec.yaml)
+          [ -n "$version" ] || { echo "::error::No version in app/pubspec.yaml"; exit 1; }
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "::error::v$version is already released. Bump the version in app/pubspec.yaml first."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$version"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.5
+          cache: true
+
+      - name: Build
+        # Fetches and patches Verovio, then `flutter build macos --release`. Xcode has once failed
+        # a first build with "could not build module 'flutter_soloud'" and passed on the next,
+        # so a failed build is tried once more (it is incremental).
+        run: make build || make build
+
+      - name: Package
+        id: package
+        run: |
+          app=$(find app/build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
+          zip="Curated-Score-${{ steps.version.outputs.version }}-macos.zip"
+          # ditto keeps the bundle's symlinks, permissions and signature intact (zip -r doesn't).
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$zip"
+          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ZIP: ${{ steps.package.outputs.zip }}
+        run: |
+          cat > notes.md <<'EOF'
+          ## Install (macOS)
+
+          1. Unzip and move the app to Applications.
+          2. The app isn't notarized by Apple, so the first time macOS refuses to open it.
+             Open **System Settings ▸ Privacy & Security** and click **Open Anyway**,
+             or run once in Terminal: `xattr -dr com.apple.quarantine /Applications/curated_score.app`
+
+          Later updates can be downloaded from inside the app: **Settings ▸ Update**.
+          EOF
+          gh release create "v$VERSION" "$ZIP" \
+            --title "Curated Score $VERSION" \
+            --notes-file notes.md \
+            --generate-notes \
+            --target "$GITHUB_SHA" \
+            ${{ inputs.draft && '--draft' || '' }}
