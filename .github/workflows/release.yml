@@ -102,10 +102,6 @@ jobs:
           and click **Open Anyway**, or run once in Terminal:
           `xattr -dr com.apple.quarantine /Applications/curated_score.app`
 
-          **Windows:** unzip, open the **Curated Score** folder and run `curated_score.exe`.
-          The app isn't signed, so SmartScreen may say "Windows protected your PC": click
-          **More info ▸ Run anyway**. Video export needs FFmpeg: `winget install Gyan.FFmpeg`.
-
           Later updates can be downloaded from inside the app: **Settings ▸ Update**.
           EOF
           gh release create "v$VERSION" Curated-Score-*.zip \
