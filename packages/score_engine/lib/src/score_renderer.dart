@@ -123,19 +123,21 @@ class ScoreRenderer {
       canvas.saveLayer(ui.Offset.zero & size, ui.Paint()..colorFilter = inkFilter);
       // Score position at the zone's right edge: a change takes over the zone as it passes here.
       final edgeX = scrollX - (pointerX - musicLeft) / scale;
-      // Until the music reaches the zone, the zone's staff lines run on to meet it.
-      final measures = display.data.measures;
-      final staffStart = measures.isEmpty ? 0.0 : originX + measures.first.left * scale;
+      // Until the music reaches the zone, the zone's staff lines run on to meet the staff's
+      // own, and stop there: drawn twice, a line would come out heavier wherever it doesn't
+      // fall on whole pixels.
       for (final placement in placements) {
         if (placement.opacity <= 0.001) continue;
         final faded = placement.opacity < 0.999;
         if (faded) canvas.saveLayer(null, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, placement.opacity));
-        zone.paintStaff(canvas, display.staves[placement.staffIndex].info,
+        final staff = display.staves[placement.staffIndex];
+        final inkLeft = staff.inkLeft;
+        zone.paintStaff(canvas, staff.info,
             left: style.headerWidth,
             top: _snap(placement.y, devicePixelRatio),
             scoreX: edgeX,
             fadeWidth: _fade,
-            linesTo: staffStart);
+            linesTo: inkLeft == null ? 0 : originX + inkLeft * scale);
         if (faded) canvas.restore();
       }
       canvas.restore();

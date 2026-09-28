@@ -81,6 +81,11 @@ class StaffLayer {
   late final List<double> _binTop, _binBottom; // ink extent per bin, relative to the top line
   double _maxItemWidth = 0;
 
+  /// Where the staff's ink begins (its staff lines, which start before the first barline);
+  /// null for an empty staff.
+  late final double? inkLeft =
+      items.isEmpty ? null : items.fold<double>(double.infinity, (m, i) => math.min(m, i.bounds.left));
+
   /// Items whose bounds may intersect [left, right].
   Iterable<DisplayItem> itemsIn(double left, double right) sync* {
     if (_bins.isEmpty) return;
