@@ -305,7 +305,7 @@ class CuratedScene {
   /// The layout plan for this curation and frame size, rebuilt only when either changes.
   SpacingPlan _planFor(Curation curation, ui.Size size) {
     final key =
-        (curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion);
+        (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion);
     if (_plan == null || _planKey != key) {
       final pointerX = renderer.pointerX(size.width);
       _plan = SpacingPlan.build(
