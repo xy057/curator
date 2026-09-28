@@ -17,7 +17,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump) |
-| `scroll_map.dart` | Playback time → the score x under the pointer |
+| `scroll_map.dart` | Playback time → the score x under the pointer: every onset on time, the speed between them free |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column; tile-cached drawing |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready) and `CuratedScene`: one frame is `paint(time)` |
@@ -56,8 +56,17 @@ window's size never changes what the score shows. Hit tests go through `VideoFra
 
 **Beats come from `BeatGrid`, never "a quarter note".** Compound meters beat in dotted notes
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back
-from the barline. Snapping, tapping, the scroll map's anchors, the tempo lane and every
+from the barline. Snapping, tapping, the tempo lane and every
 `12.2` position (`BeatGrid.format` / `parse`) go through it.
+
+**The scroll follows the notes, not a constant speed.** Every onset the engraving records
+(a note or rest starting in any staff) is under the pointer exactly when it sounds
+(`ScrollMap`); nothing is ever drawn off its time. Engraved spacing grows far more slowly
+than duration, so the speed changes even at one tempo: slow through long notes, quicker
+through runs, and quick across room no note owns (a barline, a key change). Between onsets
+only the speed is free, and it is the curve with the least acceleration relative to its
+speed (a natural spline weighted by 1 / speed², `_Curve._tangentsOf`), held above a quarter
+of each stretch's mean speed so the score never stalls or runs back.
 
 **A place in the score can sound more than once.** A warp is an anchor that jumps: the
 score arrives at `quarter` and, at that same moment, goes on from `jumpTo` (back for a

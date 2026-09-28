@@ -87,7 +87,7 @@ class LoadedScore {
     final timeline = ConstantTempoTimeline(engraving.measures,
         quarterNotesPerMinute: tempo ?? metadata.tempo ?? 100);
     final beats = BeatGrid(timeline.measureStarts, meters: metadata.meters, pickups: metadata.pickups);
-    return LoadedScore._(metadata, engraving, timeline, beats, ScrollMap(engraving, timeline, beats: beats),
+    return LoadedScore._(metadata, engraving, timeline, beats, ScrollMap(engraving, timeline),
         musicXML: musicXML,
         texts: prepared.texts,
         textEdits: Map.unmodifiable(textEdits),
@@ -176,7 +176,7 @@ class CuratedScene {
   /// Follows a new or edited tempo track: rebuilds the scroll mapping and the layout plan.
   void setTimeline(ScoreTimeline timeline) {
     _timeline = timeline;
-    scrollMap = ScrollMap(score.engraving, timeline, beats: score.beats);
+    scrollMap = ScrollMap(score.engraving, timeline);
     _timelineVersion++;
   }
   late final ScoreDisplayList display;

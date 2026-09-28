@@ -52,20 +52,46 @@ void main() {
     expect(measures.first.onsetTimes, [0, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.25, 2.5]);
   });
 
-  test('scroll map puts each beat under the pointer and never runs backwards', () {
+  test('scroll map puts every onset under the pointer as it sounds, and never runs backwards', () {
     final map = score.scrollMap;
+    final measures = score.engraving.measures, starts = score.timeline.measureStarts;
     expect(map.duration, closeTo(44 * 3 * 60 / 93, 1e-6)); // 44 bars of 6/8 at ♩ = 93
-    expect(map.xAt(score.timeline.secondsAtQuarter(3)), closeTo(score.engraving.measures[1].onsetXs.first, 0.5));
-    // 6/8 beats in dotted crotchets: two anchors a bar (and the end), each on its notes.
-    expect(map.times, hasLength(44 * 2 + 1));
-    final bar2 = score.engraving.measures[1];
-    expect(map.xAt(score.timeline.secondsAtQuarter(4.5)), closeTo(bar2.onsetXs[bar2.onsetTimes.indexOf(1.5)], 0.5));
+    // An anchor on every onset in every staff (and the final barline), each on its notes.
+    expect(map.times, hasLength(measures.fold(0, (n, m) => n + m.onsetTimes.length) + 1));
+    for (var i = 0; i < measures.length; i++) {
+      for (var j = 0; j < measures[i].onsetTimes.length; j++) {
+        final t = score.timeline.secondsAtQuarter(starts[i] + measures[i].onsetTimes[j]);
+        expect(map.xAt(t), closeTo(measures[i].onsetXs[j], 0.5), reason: 'bar ${i + 1}, onset $j');
+      }
+    }
     var previous = double.negativeInfinity;
     for (var t = -2.0; t < map.duration + 2; t += 0.01) {
       final x = map.xAt(t);
       expect(x, greaterThanOrEqualTo(previous - 1e-9));
       previous = x;
     }
+  });
+
+  test('the scroll speed follows the notes, smoothly, even at one tempo', () {
+    final map = score.scrollMap;
+    final times = map.times, xs = map.xs;
+    double speedAt(double t) => (map.xAt(t + 1e-4) - map.xAt(t - 1e-4)) / 2e-4;
+    // Between two onsets the score keeps moving: never slower than a quarter of its mean
+    // speed there, and never jolting (the speed has no steps).
+    final means = <double>[];
+    for (var k = 0; k + 1 < times.length; k++) {
+      final mean = (xs[k + 1] - xs[k]) / (times[k + 1] - times[k]);
+      means.add(mean);
+      for (var f = 0.0; f <= 1; f += 0.1) {
+        final t = times[k] + f * (times[k + 1] - times[k]);
+        expect(speedAt(t), greaterThanOrEqualTo(0.25 * mean - 1e-6), reason: 'at $t s');
+        expect((speedAt(t + 1e-3) - speedAt(t)).abs(), lessThan(0.02 * mean), reason: 'a jolt at $t s');
+      }
+    }
+    // The score's own tempo throughout, yet the speed isn't one constant: long notes are
+    // engraved closer than their length would say, so the score slows through them.
+    means.sort();
+    expect(means.last / means.first, greaterThan(1.5));
   });
 
   test('at a warp the score jumps at once, and scrolls on smoothly on either side', () {
@@ -75,7 +101,7 @@ void main() {
     final sync = SyncMap(measureStarts: starts, defaultTempo: 93, beats: score.beats)
       ..addAnchor(const SyncAnchor(0, 0))
       ..addAnchor(SyncAnchor(starts[8], repeatAt, jumpTo: 0));
-    final map = ScrollMap(score.engraving, sync, beats: score.beats);
+    final map = ScrollMap(score.engraving, sync);
     final bar1 = map.xAt(0), bar9 = score.engraving.measures[8].onsetXs.first;
     expect(map.xAt(repeatAt - 1e-6), closeTo(bar9, 0.5));
     expect(map.xAt(repeatAt), closeTo(bar1, 0.5));

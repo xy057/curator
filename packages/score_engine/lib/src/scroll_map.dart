@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
-import 'beat_grid.dart';
 import 'engraving.dart';
 import 'search.dart';
 
@@ -133,15 +132,18 @@ class ConstantTempoTimeline implements ScoreTimeline {
 
 /// Playback time → the score x that sits under the fixed pointer.
 ///
-/// Anchors sit on every beat of the time signature ([beats]; every crotchet without one),
-/// taking the beat's x from the engraved onsets, so each beat lands exactly on the pointer.
-/// Between beats a monotone cubic (Fritsch–Carlson) keeps the scroll speed continuous and
-/// never lets the score move backwards. Each pass of the performance (see
-/// [ScoreTimeline.passes]) has a curve of its own: where a warp jumps, so does the score.
+/// Every onset in the score (a note or rest starting in any staff, taken from the engraving)
+/// is an anchor: it is under the pointer exactly when it sounds. Engraved spacing grows much
+/// more slowly than duration (a minim takes far less than two crotchets' room), so the scroll
+/// speed follows the notes: slow through long notes, quicker through runs, and quick across
+/// room no note owns (a barline, a key change) — without moving a single note off its time.
+/// Between onsets only the speed is free: it changes as gently as it can (see [_Curve]).
+/// Each pass of the performance (see [ScoreTimeline.passes]) has a curve of its own: where a
+/// warp jumps, so does the score.
 class ScrollMap {
   ScrollMap._(this._curves, this._starts);
 
-  factory ScrollMap(EngravingData score, ScoreTimeline timeline, {BeatGrid? beats}) {
+  factory ScrollMap(EngravingData score, ScoreTimeline timeline) {
     final measures = score.measures;
     final starts = timeline.measureStarts;
     // Each measure's onsets as (quarters into it, x), closed by the next measure's first
@@ -163,13 +165,10 @@ class ScrollMap {
       return _interpolate(points[i], q - starts[i]);
     }
 
-    // Every beat in the score, and the final barline.
-    final beatQuarters = <double>[
+    // Every onset in the score, and the final barline.
+    final onsetQuarters = <double>[
       for (var i = 0; i < measures.length; i++)
-        if (beats == null || i >= beats.measureStarts.length - 1)
-          for (var q = 0.0; q < measures[i].duration - 1e-9; q += 1) starts[i] + q
-        else
-          ...beats.beatsIn(i),
+        for (final (q, _) in points[i].take(points[i].length - 1)) starts[i] + q,
       starts[measures.length],
     ];
 
@@ -178,17 +177,22 @@ class ScrollMap {
     for (final (k, pass) in timeline.passes.indexed) {
       final quarters = [
         pass.start,
-        for (final q in beatQuarters)
+        for (final q in onsetQuarters)
           if (q > pass.start + 1e-9 && q < pass.end - 1e-9) q,
         pass.end,
       ];
-      // Strictly increasing times, non-decreasing x.
+      // Strictly increasing times and x (an onset no further on than the one before can't be
+      // reached any later; the pass's end is always kept, as a warp jumps from there).
       final times = <double>[], xs = <double>[];
-      for (final q in quarters) {
+      for (final (j, q) in quarters.indexed) {
         final t = timeline.secondsAtQuarter(q, pass: k), x = xAtQuarter(q);
-        if (times.isNotEmpty && t <= times.last + 1e-6) continue;
+        if (times.isNotEmpty && (t <= times.last + 1e-6 || x <= xs.last + 1e-3)) {
+          if (j < quarters.length - 1 || times.length < 2) continue;
+          times.removeLast();
+          xs.removeLast();
+        }
         times.add(t);
-        xs.add(xs.isEmpty ? x : math.max(x, xs.last));
+        xs.add(xs.isEmpty ? x : math.max(x, xs.last + 1e-3));
       }
       curves.add(_Curve(times, xs));
       passStarts.add(k == 0 ? double.negativeInfinity : timeline.secondsAtQuarter(pass.start, pass: k));
@@ -250,13 +254,23 @@ class ScrollMap {
   }
 }
 
-/// One pass's scroll: a monotone cubic through (time, x) anchors.
+/// One pass's scroll: a cubic through the (time, x) anchors whose speed changes as little as
+/// it can, relative to how fast the score is moving.
+///
+/// Of all the curves through the anchors, the natural cubic spline has the least acceleration
+/// overall; weighing each stretch by 1 / (its mean speed)², a speed change costs the same
+/// fast or slow, so a burst across a key change stays where it is instead of making the notes
+/// around it lurch. Where that curve would slow below [floor] of a stretch's mean speed (or
+/// stop, or run back), its tangents are held back, so the score always moves on.
 class _Curve {
-  _Curve(this.times, this.xs) : _tangents = _monotoneTangents(times, xs);
+  _Curve(this.times, this.xs) : _tangents = _tangentsOf(times, xs);
 
   final List<double> times;
   final List<double> xs;
   final List<double> _tangents;
+
+  /// The slowest the score may move between two onsets, relative to its mean speed there.
+  static const floor = 0.25;
 
   double xAt(double t) {
     if (times.length < 2) return xs.firstOrNull ?? 0;
@@ -290,29 +304,56 @@ class _Curve {
     return hi;
   }
 
-  static List<double> _monotoneTangents(List<double> t, List<double> x) {
+  /// The tangents (speeds at the anchors): the least relative acceleration, subject to the
+  /// floor, by Gauss–Seidel sweeps each clamped to the bounds the neighbours leave.
+  static List<double> _tangentsOf(List<double> t, List<double> x) {
     final n = t.length;
     if (n < 2) return List.filled(n, 0);
     final secants = [for (var k = 0; k < n - 1; k++) (x[k + 1] - x[k]) / (t[k + 1] - t[k])];
-    final m = List<double>.filled(n, 0);
-    m[0] = secants.first;
-    m[n - 1] = secants.last;
-    for (var k = 1; k < n - 1; k++) {
-      m[k] = secants[k - 1] * secants[k] <= 0 ? 0 : (secants[k - 1] + secants[k]) / 2;
+    // ∫x''² over stretch k is (4/h)(m0² + m0·m1 + m1²) − (12/h)·secant·(m0 + m1) + const.
+    final weights = [for (var k = 0; k < n - 1; k++) 4 / (t[k + 1] - t[k]) / (secants[k] * secants[k])];
+    // A start that keeps every stretch above the floor.
+    final m = [for (var i = 0; i < n; i++) math.min(secants[math.max(0, i - 1)], secants[math.min(n - 2, i)])];
+
+    // How fast stretch k moves at [s] (0–1) is secant·6s(1−s) + m0·(1−s)(1−3s) + m1·s(3s−2):
+    // for each sample the floor bounds m[i] given the other end.
+    const samples = [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875];
+    void bound(int k, {required bool atStart, required List<double> range}) {
+      final other = atStart ? m[k + 1] : m[k];
+      for (final s in samples) {
+        final c0 = (1 - s) * (1 - 3 * s), c1 = s * (3 * s - 2);
+        final self = atStart ? c0 : c1, rest = atStart ? c1 : c0;
+        final limit = (floor - 6 * s * (1 - s)) * secants[k] - rest * other;
+        if (self > 1e-12) {
+          range[0] = math.max(range[0], limit / self);
+        } else if (self < -1e-12) {
+          range[1] = math.min(range[1], limit / self);
+        }
+      }
     }
-    for (var k = 0; k < n - 1; k++) {
-      if (secants[k] == 0) {
-        m[k] = 0;
-        m[k + 1] = 0;
-        continue;
+
+    for (var sweep = 0; sweep < 500; sweep++) {
+      var moved = 0.0;
+      for (var i = 0; i < n; i++) {
+        var num = 0.0, den = 0.0;
+        // The speed at an anchor is at least the floor of the slower stretch beside it.
+        final range = [floor * math.min(secants[math.max(0, i - 1)], secants[math.min(n - 2, i)]), double.infinity];
+        if (i > 0) {
+          num += weights[i - 1] * (3 * secants[i - 1] - m[i - 1]);
+          den += 2 * weights[i - 1];
+          bound(i - 1, atStart: false, range: range);
+        }
+        if (i < n - 1) {
+          num += weights[i] * (3 * secants[i] - m[i + 1]);
+          den += 2 * weights[i];
+          bound(i, atStart: true, range: range);
+        }
+        final best = num / den;
+        final next = range[0] <= range[1] ? best.clamp(range[0], range[1]) : (range[0] + range[1]) / 2;
+        moved = math.max(moved, (next - m[i]).abs() / math.max(secants[math.max(0, i - 1)], secants[math.min(n - 2, i)]));
+        m[i] = next;
       }
-      final a = m[k] / secants[k], b = m[k + 1] / secants[k];
-      final r = a * a + b * b;
-      if (r > 9) {
-        final tau = 3 / math.sqrt(r);
-        m[k] = tau * a * secants[k];
-        m[k + 1] = tau * b * secants[k];
-      }
+      if (moved < 1e-7) break;
     }
     return m;
   }
