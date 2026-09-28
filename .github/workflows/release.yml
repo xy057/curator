@@ -1,4 +1,4 @@
-# Builds the macOS app and publishes it as a GitHub release.
+# Builds the macOS and Windows apps and publishes them as one GitHub release.
 #
 # Runs only when started by hand: GitHub ▸ Actions ▸ Release ▸ Run workflow
 # (or `gh workflow run release.yml`). Nothing runs on push.
@@ -6,6 +6,10 @@
 # The version is app/pubspec.yaml's (`version: 0.1.0+1` → tag v0.1.0). To release again, bump it
 # there (and `appVersion` in app/lib/updater.dart; a test keeps them equal) and run this again.
 # A version that is already released stops the run before anything is built.
+#
+# Both systems build side by side; the release is published only when both have built, so a
+# release always has both downloads. The app's updater finds its own by the name:
+# Curated-Score-<version>-<macos|windows>.zip.
 name: Release
 
 on:
@@ -23,10 +27,14 @@ concurrency:
   group: release
   cancel-in-progress: false
 
+env:
+  FLUTTER_VERSION: 3.47.5
+
 jobs:
-  macos:
-    runs-on: macos-15
-    timeout-minutes: 60
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
 
@@ -42,10 +50,17 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Releasing v$version"
 
+  macos:
+    needs: version
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.47.5
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Build
@@ -55,31 +70,98 @@ jobs:
         run: make build || make build
 
       - name: Package
-        id: package
         run: |
           app=$(find app/build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
-          zip="Curated-Score-${{ steps.version.outputs.version }}-macos.zip"
           # ditto keeps the bundle's symlinks, permissions and signature intact (zip -r doesn't).
-          ditto -c -k --sequesterRsrc --keepParent "$app" "$zip"
-          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "Curated-Score-${{ needs.version.outputs.version }}-macos.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: Curated-Score-*-macos.zip
+          if-no-files-found: error
+
+  windows:
+    needs: version
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash # Git Bash: the same commands as on macOS
+    steps:
+      # Keep LF endings: patches/*.patch must apply to Verovio's sources byte for byte.
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Fetch and patch Verovio
+        # What `make setup` does (no make on Windows): the tag pinned in the Makefile, every patch,
+        # then the stamp the build hook checks for.
+        run: |
+          tag=$(sed -n 's/^VEROVIO_TAG := *//p' Makefile)
+          dir=packages/score_engine/third_party/verovio
+          git clone --depth 1 --branch "$tag" https://github.com/rism-digital/verovio.git "$dir"
+          for p in patches/*.patch; do echo "applying $p"; git -C "$dir" apply "$PWD/$p"; done
+          touch "$dir/.curated-score-patched"
+
+      - name: Build
+        # The build hook runs CMake with Visual Studio for the engine (Verovio) as it goes.
+        working-directory: app
+        run: flutter build windows --release
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $out = "Curated Score"
+          Copy-Item -Recurse app/build/windows/x64/runner/Release $out
+          # Flutter apps need the Visual C++ runtime; ship it beside the .exe so a fresh
+          # Windows doesn't have to install it first.
+          foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+            Copy-Item "$env:WINDIR/System32/$dll" $out
+          }
+          Compress-Archive -Path $out -DestinationPath "Curated-Score-${{ needs.version.outputs.version }}-windows.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: Curated-Score-*-windows.zip
+          if-no-files-found: error
+
+  release:
+    needs: [version, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true # both zips side by side
 
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-          ZIP: ${{ steps.package.outputs.zip }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           cat > notes.md <<'EOF'
-          ## Install (macOS)
+          ## Install
 
-          1. Unzip and move the app to Applications.
-          2. The app isn't notarized by Apple, so the first time macOS refuses to open it.
-             Open **System Settings ▸ Privacy & Security** and click **Open Anyway**,
-             or run once in Terminal: `xattr -dr com.apple.quarantine /Applications/curated_score.app`
+          **macOS:** unzip and move the app to Applications. The app isn't notarized by Apple, so
+          the first time macOS refuses to open it: open **System Settings ▸ Privacy & Security**
+          and click **Open Anyway**, or run once in Terminal:
+          `xattr -dr com.apple.quarantine /Applications/curated_score.app`
+
+          **Windows:** unzip, open the **Curated Score** folder and run `curated_score.exe`.
+          The app isn't signed, so SmartScreen may say "Windows protected your PC": click
+          **More info ▸ Run anyway**. Video export needs FFmpeg: `winget install Gyan.FFmpeg`.
 
           Later updates can be downloaded from inside the app: **Settings ▸ Update**.
           EOF
-          gh release create "v$VERSION" "$ZIP" \
+          gh release create "v$VERSION" Curated-Score-*.zip \
+            --repo "$GITHUB_REPOSITORY" \
             --title "Curated Score $VERSION" \
             --notes-file notes.md \
             --generate-notes \
