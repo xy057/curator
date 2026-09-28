@@ -1,5 +1,5 @@
 name: score_engine
-description: "Engraving and rendering engine for Curated Score: Verovio + SMuFL, scroll mapping, tile-cached staves."
+description: "Engraving and rendering engine for Curator: Verovio + SMuFL, scroll mapping, tile-cached staves."
 version: 0.1.0
 publish_to: none
 

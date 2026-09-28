@@ -50,13 +50,13 @@ void main() {
     String? find(Set<String> files, {Map<String, String> environment = env}) => MediaConverter.findFfmpeg(
           windows: true,
           environment: environment,
-          appDirectory: r'C:\Program Files\Curated Score',
+          appDirectory: r'C:\Program Files\Curator',
           exists: files.contains,
         );
 
     test('next to the app first', () {
-      expect(find({r'C:\Program Files\Curated Score\ffmpeg.exe', r'C:\Tools\bin\ffmpeg.exe'}),
-          r'C:\Program Files\Curated Score\ffmpeg.exe');
+      expect(find({r'C:\Program Files\Curator\ffmpeg.exe', r'C:\Tools\bin\ffmpeg.exe'}),
+          r'C:\Program Files\Curator\ffmpeg.exe');
     });
 
     test('then on PATH (whatever its case)', () {
@@ -81,7 +81,7 @@ void main() {
       MediaConverter.findFfmpeg(
         windows: false,
         environment: const {'PATH': '/usr/bin:/bin'},
-        appDirectory: '/Applications/Curated Score.app/Contents/MacOS',
+        appDirectory: '/Applications/Curator.app/Contents/MacOS',
         exists: {'/opt/homebrew/bin/ffmpeg'}.contains,
       ),
       '/opt/homebrew/bin/ffmpeg',

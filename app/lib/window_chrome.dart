@@ -4,11 +4,11 @@ import 'package:flutter/services.dart';
 /// The native window's title: the open document, and whether it has unsaved changes.
 ///
 /// macOS shows the name with the edited dot in the close button and a proxy icon for the
-/// saved file; Windows and Linux show "• name — Curated Score". The runners implement the
+/// saved file; Windows and Linux show "• name — Curator". The runners implement the
 /// `curated_score/window` channel; without it (tests) this does nothing.
 abstract final class WindowChrome {
   static const _channel = MethodChannel('curated_score/window');
-  static const appName = 'Curated Score';
+  static const appName = 'Curator';
 
   /// The smallest window the editor's panels fit in. The runners set it natively (so it holds
   /// before Flutter starts): macos/Runner/MainFlutterWindow.swift,

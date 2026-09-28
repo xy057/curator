@@ -186,7 +186,7 @@ final _categories = <_Category>[
 ];
 
 String _updateHelp(UpdateStatus status) => switch (status) {
-      UpdateIdle() => 'Curated Score, from GitHub.',
+      UpdateIdle() => 'Curator, from GitHub.',
       UpdateChecking() => 'Asking GitHub…',
       UpToDate() => 'This is the latest version.',
       UpdateAvailable(:final release) when release.download == null =>

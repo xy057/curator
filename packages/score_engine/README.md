@@ -1,6 +1,6 @@
 # score_engine
 
-The engine behind Curated Score: engraves MusicXML with [Verovio](https://www.verovio.org)
+The engine behind Curator: engraves MusicXML with [Verovio](https://www.verovio.org)
 into one endless system, records the drawing per staff, maps playback time to the scroll,
 plans the vertical layout of the curated staves, and draws frames from cached tiles. See
 [docs/architecture.md](../../docs/architecture.md).

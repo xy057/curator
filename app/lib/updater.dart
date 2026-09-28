@@ -57,7 +57,7 @@ class Release {
     final version = Version.tryParse('${json['tag_name']}');
     if (version == null) return null;
     final assets = [for (final a in json['assets'] as List? ?? const []) if (a is Map) a];
-    // The workflow names downloads `Curated-Score-<version>-<platform>.zip`.
+    // The workflow names downloads `Curator-<version>-<platform>.zip`.
     final asset = assets.where((a) => '${a['name']}'.contains('-$platform.')).firstOrNull;
     return Release(
       version: version,
@@ -72,7 +72,7 @@ class Release {
   final Uri? download;
   final int? downloadSize;
 
-  String get fileName => download?.pathSegments.last ?? 'Curated-Score-$version.zip';
+  String get fileName => download?.pathSegments.last ?? 'Curator-$version.zip';
 }
 
 /// Where an update check or download has got to.
@@ -146,7 +146,7 @@ class Updater extends ChangeNotifier {
 
   HttpClient _client() => HttpClient()
     ..connectionTimeout = _timeout
-    ..userAgent = 'Curated-Score/$appVersion';
+    ..userAgent = 'Curator/$appVersion';
 
   /// Asks GitHub for the latest release. Returns it when it is newer than this build.
   Future<Release?> check() async {

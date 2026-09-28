@@ -17,7 +17,7 @@ enum MediaStorage {
   link,
 }
 
-/// A Curated Score project (.ccs): a zip archive holding
+/// A Curator project (.ccs): a zip archive holding
 ///
 ///     mimetype          application/x-curated-score (stored first, uncompressed)
 ///     project.json      format version, where things are, and every edit made in the app
@@ -104,12 +104,12 @@ abstract final class ProjectFile {
     try {
       final archive = ZipDecoder().decodeStream(input);
       final manifestFile = archive.findFile('project.json');
-      if (manifestFile == null) throw const FormatException('This is not a Curated Score project.');
+      if (manifestFile == null) throw const FormatException('This is not a Curator project.');
       final manifest = JsonReader(jsonDecode(utf8.decode(manifestFile.content)), 'project');
-      if (manifest.string('format') != mimeType) throw const FormatException('This is not a Curated Score project.');
+      if (manifest.string('format') != mimeType) throw const FormatException('This is not a Curator project.');
       final version = manifest.number('version')?.toInt() ?? 0;
       if (version > formatVersion) {
-        throw const FormatException('This project was saved by a newer version of Curated Score.');
+        throw const FormatException('This project was saved by a newer version of Curator.');
       }
 
       final score = manifest.child('score');

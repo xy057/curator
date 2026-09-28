@@ -6,7 +6,7 @@
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>Curated Score Project</string>
+			<string>Curator Project</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSHandlerRank</key>
@@ -36,7 +36,7 @@
 			<key>UTTypeIdentifier</key>
 			<string>com.curatedscore.project</string>
 			<key>UTTypeDescription</key>
-			<string>Curated Score Project</string>
+			<string>Curator Project</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>

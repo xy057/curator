@@ -1,6 +1,6 @@
 # Architecture
 
-How Curated Score is put together, and the rules that keep it working. Read this before
+How Curator is put together, and the rules that keep it working. Read this before
 changing how a score is engraved, what a project stores, or how edits are made.
 
 ## The two packages
@@ -167,7 +167,7 @@ additive meter). `Samples/` is for trying things by hand only.
 
 `.github/workflows/release.yml` runs only when started by hand (GitHub ▸ Actions ▸ Release ▸
 Run workflow, or `gh workflow run release.yml`). It builds with `make build` on macOS, zips the
-app as `Curated-Score-<version>-macos.zip` and publishes release `v<version>`, where the
+app as `Curator-<version>-macos.zip` and publishes release `v<version>`, where the
 version is `app/pubspec.yaml`'s. To release again, bump that version and `appVersion` in
 `updater.dart` together (`updater_test.dart` checks they match); a version already released
 stops the run before it builds. The app finds its download by that name

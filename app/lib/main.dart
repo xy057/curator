@@ -66,7 +66,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> {
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) => MaterialApp(
-        title: 'Curated Score',
+        title: 'Curator',
         debugShowCheckedModeBanner: false,
         theme: AppColors.theme(accent: settings.accent, brightness: Brightness.light),
         darkTheme: AppColors.theme(accent: settings.accent, brightness: Brightness.dark),
@@ -103,7 +103,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     extensions: [ProjectFile.extension, ..._scoreExtensions],
   );
   static const _scoreTypes = XTypeGroup(label: 'MusicXML', extensions: _scoreExtensions);
-  static const _projectTypes = XTypeGroup(label: 'Curated Score project', extensions: [ProjectFile.extension]);
+  static const _projectTypes = XTypeGroup(label: 'Curator project', extensions: [ProjectFile.extension]);
 
   /// Whether a score is open: the menus' Score items follow it.
   final _hasScore = ValueNotifier(false);
@@ -134,7 +134,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (status is! UpdateAvailable || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       duration: const Duration(seconds: 10),
-      content: Text('Curated Score ${status.release.version} is out.'),
+      content: Text('Curator ${status.release.version} is out.'),
       action: SnackBarAction(label: 'Update…', onPressed: () => _settings(page: 'Update')),
     ));
   }
@@ -183,7 +183,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   // MARK: Files
 
-  /// Open… (⌘O): a Curated Score project, or a MusicXML score to start a new one.
+  /// Open… (⌘O): a Curator project, or a MusicXML score to start a new one.
   Future<void> _open() async {
     if (!await _confirmDiscard()) return;
     final file = await openFile(acceptedTypeGroups: const [_openableTypes, _projectTypes, _scoreTypes]);
@@ -430,7 +430,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// File ▸ Export Video… (⌘E): offers the project's (or the score's) name for the video.
   void _exportVideo() {
     if (controller.score == null || controller.isReengraving) return;
-    final title = document.title ?? 'Curated Score';
+    final title = document.title ?? 'Curator';
     final dot = title.lastIndexOf('.');
     showExportDialog(context, controller, settings, suggestedName: dot > 0 ? title.substring(0, dot) : title);
   }

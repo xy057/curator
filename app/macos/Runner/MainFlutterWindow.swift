@@ -40,7 +40,7 @@ class MainFlutterWindow: NSWindow {
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
     self.contentMinSize = MainFlutterWindow.minimumSize
-    self.title = "Curated Score"
+    self.title = "Curator"
 
     // The document's name, its edited dot and its proxy icon, set from Dart (window_chrome.dart).
     let channel = FlutterMethodChannel(
@@ -55,7 +55,7 @@ class MainFlutterWindow: NSWindow {
         result(FlutterMethodNotImplemented)
         return
       }
-      self.title = args["title"] as? String ?? "Curated Score"
+      self.title = args["title"] as? String ?? "Curator"
       self.isDocumentEdited = args["edited"] as? Bool ?? false
       if let path = args["path"] as? String {
         self.representedURL = URL(fileURLWithPath: path)

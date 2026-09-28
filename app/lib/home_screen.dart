@@ -59,7 +59,7 @@ class HomeScreen extends StatelessWidget {
               _Entrance(
                 delay: 1,
                 child: Column(children: [
-                  Text('Curated Score', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
+                  Text('Curator', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Text(
                     'One continuous line of music scrolling past a fixed pointer. '
@@ -78,7 +78,7 @@ class HomeScreen extends StatelessWidget {
                   alignment: WrapAlignment.center,
                   children: [
                     Tip(
-                      message: 'A Curated Score project, or a MusicXML score to start one (${shortcut('⌘O')})',
+                      message: 'A Curator project, or a MusicXML score to start one (${shortcut('⌘O')})',
                       child: FilledButton.icon(
                         onPressed: onOpen,
                         icon: const Icon(Icons.folder_open_rounded, size: 18),

@@ -38,10 +38,10 @@ class _FakeGitHub {
         'tag_name': tag,
         'html_url': '$_base/releases/tag/$tag',
         'assets': [
-          {'name': 'Curated-Score-9.0.0-windows.zip', 'browser_download_url': '$_base/dl/win.zip', 'size': 1},
+          {'name': 'Curator-9.0.0-windows.zip', 'browser_download_url': '$_base/dl/win.zip', 'size': 1},
           {
-            'name': 'Curated-Score-9.0.0-macos.zip',
-            'browser_download_url': '$_base/dl/Curated-Score-9.0.0-macos.zip',
+            'name': 'Curator-9.0.0-macos.zip',
+            'browser_download_url': '$_base/dl/Curator-9.0.0-macos.zip',
             'size': zip.length,
           },
         ],
@@ -96,7 +96,7 @@ void main() {
       final release = await u.check();
       expect(u.status, isA<UpdateAvailable>());
       expect(release!.version, const Version(9, 0, 0));
-      expect(release.fileName, 'Curated-Score-9.0.0-macos.zip');
+      expect(release.fileName, 'Curator-9.0.0-macos.zip');
     });
 
     test('the same or an older version, or nothing released, is up to date', () async {
@@ -122,12 +122,12 @@ void main() {
 
       await u.download(release);
       final first = (u.status as UpdateDownloaded).path;
-      expect(first, '${downloads.path}/Curated-Score-9.0.0-macos.zip');
+      expect(first, '${downloads.path}/Curator-9.0.0-macos.zip');
       expect(File(first).readAsBytesSync(), github.zip);
       expect(seen.last, 1.0);
 
       await u.download(release);
-      expect((u.status as UpdateDownloaded).path, '${downloads.path}/Curated-Score-9.0.0-macos (2).zip');
+      expect((u.status as UpdateDownloaded).path, '${downloads.path}/Curator-9.0.0-macos (2).zip');
       expect(downloads.listSync().where((f) => f.path.endsWith('.part')), isEmpty);
     });
 

@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "xy057" "\0"
-            VALUE "FileDescription", "curated_score" "\0"
+            VALUE "FileDescription", "Curator" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "curated_score" "\0"
+            VALUE "InternalName", "curator" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 xy057" "\0"
-            VALUE "OriginalFilename", "curated_score.exe" "\0"
-            VALUE "ProductName", "curated_score" "\0"
+            VALUE "OriginalFilename", "curator.exe" "\0"
+            VALUE "ProductName", "Curator" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

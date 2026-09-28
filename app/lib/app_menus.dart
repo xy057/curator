@@ -53,7 +53,7 @@ class AppMenus extends StatelessWidget {
 
   List<PlatformMenuItem> get _menus => [
         if (_mac)
-          PlatformMenu(label: 'Curated Score', menus: [
+          PlatformMenu(label: 'Curator', menus: [
             if (PlatformProvidedMenuItem.hasMenu(PlatformProvidedMenuItemType.about))
               const PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.about),
             PlatformMenuItemGroup(members: [
