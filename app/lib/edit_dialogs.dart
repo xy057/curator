@@ -6,6 +6,7 @@ import 'package:score_engine/score_engine.dart';
 import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'ui_kit.dart';
+import 'video_export.dart';
 
 /// Rename an instrument: the full name and the short name used when space is tight.
 Future<void> showRenameDialog(BuildContext context, EditorController c, ScorePart part) =>
@@ -403,6 +404,61 @@ class _AnchorDialogState extends State<_AnchorDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(onPressed: valid ? save : null, child: const Text('Set')),
+      ],
+    );
+  }
+}
+
+/// A video ratio typed by hand ("2.39:1", "4:5", "1920x800"): null when cancelled.
+Future<VideoRatio?> showVideoRatioDialog(BuildContext context, VideoRatio current) =>
+    showAppDialog<VideoRatio>(context: context, builder: (context) => _VideoRatioDialog(current: current));
+
+class _VideoRatioDialog extends StatefulWidget {
+  const _VideoRatioDialog({required this.current});
+  final VideoRatio current;
+
+  @override
+  State<_VideoRatioDialog> createState() => _VideoRatioDialogState();
+}
+
+class _VideoRatioDialogState extends State<_VideoRatioDialog> {
+  late final _text = TextEditingController(text: widget.current.label);
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = VideoRatio.parse(_text.text);
+    void save() {
+      // Read now, not at the last build: Enter may come before the rebuild.
+      if (VideoRatio.parse(_text.text) case final r?) Navigator.pop(context, r);
+    }
+
+    // A bad entry is outlined in red (no message): Set stays off until it reads as a ratio.
+    return AlertDialog(
+      title: const Text('Video Ratio'),
+      content: SizedBox(
+        width: 240,
+        child: TextField(
+          controller: _text,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'Width : height',
+            hintText: '2.39:1',
+            errorText: ratio == null ? '' : null,
+            errorStyle: const TextStyle(height: 0, fontSize: 0),
+          ),
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) => save(),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(onPressed: ratio == null ? null : save, child: const Text('Set')),
       ],
     );
   }

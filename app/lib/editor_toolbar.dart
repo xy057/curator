@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'project_document.dart';
 import 'ui_kit.dart';
+import 'video_export.dart';
 
 /// The one bar above the score: playback on the left, the score's own controls on the right.
 /// The document's name is in the window's title bar; files are in the File menu.
@@ -16,6 +18,8 @@ class EditorToolbar extends StatelessWidget {
     required this.onExportVideo,
     required this.videoFrame,
     required this.onVideoFrame,
+    required this.videoRatio,
+    required this.onVideoRatio,
     required this.onClose,
   });
   final EditorController controller;
@@ -26,6 +30,10 @@ class EditorToolbar extends StatelessWidget {
   /// Whether the score shows the video's frame rather than filling the window.
   final bool videoFrame;
   final ValueChanged<bool> onVideoFrame;
+
+  /// The video's ratio, which the frame shows and the video is exported at.
+  final VideoRatio videoRatio;
+  final ValueChanged<VideoRatio> onVideoRatio;
   final VoidCallback onClose;
 
   static const height = 46.0;
@@ -83,6 +91,7 @@ class EditorToolbar extends StatelessWidget {
           selected: videoFrame,
           onPressed: () => onVideoFrame(!videoFrame),
         ),
+        _RatioMenu(ratio: videoRatio, onSelected: onVideoRatio),
         const ToolbarDivider(),
         Tip(
           message: 'Score size',
@@ -107,6 +116,51 @@ class EditorToolbar extends StatelessWidget {
           ),
         ),
       ]),
+    );
+  }
+}
+
+/// The video's ratio: "16:9 ▾", a preset or Custom… (any ratio, typed).
+class _RatioMenu extends StatelessWidget {
+  const _RatioMenu({required this.ratio, required this.onSelected});
+  final VideoRatio ratio;
+  final ValueChanged<VideoRatio> onSelected;
+
+  /// Custom…'s value in the menu (a menu's null means it was dismissed).
+  static const _custom = VideoRatio(0, 1);
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final custom = !VideoRatio.presets.contains(ratio);
+    return OverlaySemantics(
+      child: PopupMenuButton<VideoRatio>(
+        tooltip: 'Video ratio',
+        position: PopupMenuPosition.under,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.only(left: 8, right: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onSelected: (r) async {
+          if (r != _custom) return onSelected(r);
+          final typed = await showVideoRatioDialog(context, ratio);
+          if (typed != null) onSelected(typed);
+        },
+        itemBuilder: (context) => [
+          for (final r in VideoRatio.presets)
+            CheckedPopupMenuItem(value: r, checked: r == ratio, child: Text(r.label)),
+          const PopupMenuDivider(),
+          CheckedPopupMenuItem(
+              value: _custom, checked: custom, child: Text(custom ? 'Custom (${ratio.label})…' : 'Custom…')),
+        ],
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(ratio.label,
+              style: TextStyle(
+                  fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
+          Icon(Icons.arrow_drop_down_rounded, size: 18, color: colors.textMuted),
+        ]),
+      ),
     );
   }
 }

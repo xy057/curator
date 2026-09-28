@@ -558,6 +558,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             onExportVideo: _exportVideo,
             videoFrame: settings.previewVideoFrame,
             onVideoFrame: (on) => settings.previewVideoFrame = on,
+            videoRatio: settings.videoRatio,
+            // Choosing a ratio shows it.
+            onVideoRatio: (r) => settings
+              ..videoRatio = r
+              ..previewVideoFrame = true,
             onClose: _close,
           ),
           Expanded(child: ScoreView(

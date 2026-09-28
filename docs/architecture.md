@@ -43,7 +43,8 @@ curation, the sync and the time alone; nothing accumulates between frames. That 
 the preview scrub freely, and what video export reuses: frame *i* is `renderFrame(i / fps)`,
 the same painting offscreen. `VideoExport` works on its own scene and copies of the curation
 and sync, so something the scene shows must be copied in `VideoExport.of` too (as `names` is).
-A video has any ratio (`VideoRatio`: a preset or one typed, 1:4 to 4:1); its size
+A video has any ratio (`VideoRatio`: a preset or one typed, 1:4 to 4:1, chosen in the
+toolbar beside the frame toggle, which choosing one turns on); its size
 (`VideoResolution`, "1080p") is its short side in pixels. It is laid out like a preview
 `VideoFormat.layoutShortSide` (540) points on its short side (`VideoFormat.layoutOf`) at
 `shortSide / 540` pixels a point, so every size frames the score the same way, and a tall

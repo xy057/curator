@@ -12,8 +12,9 @@ import 'media_converter.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
 
-/// File ▸ Export Video… (⌘E): a still of the video at the playhead, its ratio (a preset or
-/// any typed), size, frame rate, paper and score size; then where to save it, and progress until it is written.
+/// File ▸ Export Video… (⌘E): a still of the video at the playhead (at the ratio chosen in
+/// the toolbar), its size, frame rate, paper and score size; then where to save it, and
+/// progress until it is written.
 /// [suggestedName] is the file name offered (without extension).
 Future<void> showExportDialog(BuildContext context, EditorController controller, AppSettings settings,
     {required String suggestedName}) {
@@ -45,21 +46,14 @@ class _ExportDialogState extends State<_ExportDialog> {
   var _stage = _Stage.setup;
   ExportProgress? _progress;
   String? _output, _error;
-  late final _ratio = TextEditingController(text: _settings.videoRatio.label);
 
   @override
   void dispose() {
     _export.dispose();
-    _ratio.dispose();
     super.dispose();
   }
 
   VideoFormat get _format => _settings.videoFormat;
-
-  void _setRatio(VideoRatio ratio) => setState(() {
-        _settings.videoRatio = ratio;
-        _ratio.text = ratio.label;
-      });
 
   Future<void> _start() async {
     final location = await getSaveLocation(
@@ -94,6 +88,7 @@ class _ExportDialogState extends State<_ExportDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true, // a short window scrolls the dialog rather than cutting it off
       title: Text(switch (_stage) {
         _Stage.setup => 'Export Video',
         _Stage.writing => 'Exporting Video…',
@@ -160,44 +155,6 @@ class _ExportDialogState extends State<_ExportDialog> {
       Text('At the playhead (${_clock(c.playback.time.value)})', style: muted, textAlign: TextAlign.center),
       const SizedBox(height: 14),
       _Row(
-        label: 'Ratio',
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          SegmentedButton<VideoRatio>(
-            showSelectedIcon: false,
-            emptySelectionAllowed: true, // a typed ratio that isn't a preset
-            segments: [for (final r in VideoRatio.presets) ButtonSegment(value: r, label: Text(r.label))],
-            selected: {if (VideoRatio.presets.contains(_settings.videoRatio)) _settings.videoRatio},
-            onSelectionChanged: (s) {
-              if (s.isNotEmpty) _setRatio(s.single);
-            },
-          ),
-          const SizedBox(width: 10),
-          // Any other ratio: "2.39:1", "4:5", "1920x800". A bad one is outlined in red and
-          // leaves the last good one chosen. It gives way first when the row is tight.
-          Flexible(
-            child: SizedBox(
-              width: 92,
-              child: TextField(
-                controller: _ratio,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: 'W:H',
-                  errorText: VideoRatio.parse(_ratio.text) == null ? '' : null,
-                  errorStyle: const TextStyle(height: 0, fontSize: 0),
-                ),
-                onChanged: (text) => setState(() {
-                  if (VideoRatio.parse(text) case final r?) _settings.videoRatio = r;
-                }),
-                onSubmitted: (text) {
-                  if (VideoRatio.parse(text) case final r?) _setRatio(r);
-                },
-              ),
-            ),
-          ),
-        ]),
-      ),
-      _Row(
         label: 'Size',
         child: SegmentedButton<VideoResolution>(
           showSelectedIcon: false,
@@ -244,8 +201,8 @@ class _ExportDialogState extends State<_ExportDialog> {
       ),
       const SizedBox(height: 6),
       Text(
-        '${_clock(_export.duration)} · ${format.width} × ${format.height} · '
-        '${_count(format.frameCount(_export.duration))} frames · MP4 (H.264, AAC): plays in every player and browser',
+        '${_clock(_export.duration)} · ${_settings.videoRatio.label} · ${format.width} × ${format.height} · '
+        '${_count(format.frameCount(_export.duration))} frames · MP4 (H.264, AAC): plays anywhere',
         style: muted,
       ),
       const SizedBox(height: 2),
