@@ -171,8 +171,7 @@ app as `Curator-<version>-macos.zip` and publishes release `v<version>`, where t
 version is `app/pubspec.yaml`'s. To release again, bump that version and `appVersion` in
 `updater.dart` together (`updater_test.dart` checks they match); a version already released
 stops the run before it builds. The app finds its download by that name
-(`-<platform>.` in the asset's name), so a Windows or Linux build only needs its own job
-uploading `…-windows.zip` / `…-linux.zip`. The app is signed ad hoc, not notarized; the
+(`-macos.` in the asset's name). Releases are macOS only. The app is signed ad hoc, not notarized; the
 release notes say how to open it the first time. The updater only downloads: it never
 replaces the running app.
 

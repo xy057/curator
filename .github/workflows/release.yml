@@ -1,15 +1,13 @@
-# Builds the macOS and Windows apps and publishes them as one GitHub release.
+# Builds the macOS app and publishes it as a GitHub release.
 #
 # Runs only when started by hand: GitHub ▸ Actions ▸ Release ▸ Run workflow
 # (or `gh workflow run release.yml`). Nothing runs on push.
 #
-# The version is app/pubspec.yaml's (`version: 0.1.0+1` → tag v0.1.0). To release again, bump it
+# The version is app/pubspec.yaml's (`version: 0.1.1+2` → tag v0.1.1). To release again, bump it
 # there (and `appVersion` in app/lib/updater.dart; a test keeps them equal) and run this again.
 # A version that is already released stops the run before anything is built.
 #
-# Both systems build side by side; the release is published only when both have built, so a
-# release always has both downloads. The app's updater finds its own by the name:
-# Curator-<version>-<macos|windows>.zip.
+# The app's updater finds the download by its name: Curator-<version>-macos.zip.
 name: Release
 
 on:
