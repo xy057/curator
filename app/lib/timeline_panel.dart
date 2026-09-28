@@ -1,8 +1,9 @@
-import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -25,8 +26,9 @@ import 'ui_kit.dart';
 /// a click does one beat when zoomed in far enough to snap to beats, otherwise one bar.
 /// ⌥ swaps the two.
 /// Edges snap to beats (bars when zoomed out); hold ⌘ while dragging for free placement.
-/// Click and hold an instrument's name, then drag it up or down, to move it (its staff moves
-/// with it in the preview): Violin I at the top, say.
+/// An instrument's name: click selects its lane, ⇧-click adds it, ⌘-click selects every lane
+/// from the last one clicked; double-click renames. Click and hold, then drag up or down, to
+/// move it (its staff moves with it in the preview): Violin I at the top, say.
 class InstrumentLanes extends StatefulWidget {
   const InstrumentLanes({super.key, required this.controller});
   final EditorController controller;
@@ -60,7 +62,7 @@ class _Drag {
 /// The box being dragged out: lanes [lane0, lane1] × score quarters [q0, q1].
 typedef _Band = ({int lane0, int lane1, double q0, double q1, _DragKind kind, bool shown});
 
-class _InstrumentLanesState extends State<InstrumentLanes> {
+class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProviderStateMixin {
   EditorController get c => widget.controller;
   LoadedScore get score => c.score!;
   ScoreTimeline get tl => c.timeline;
@@ -81,6 +83,8 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_onKey);
+    _motion = createTicker(_tick);
+    c.addListener(_orderChanged);
   }
 
   bool _onKey(KeyEvent _) {
@@ -96,63 +100,135 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
   String? _lifted;
   List<ScorePart>? _reordered;
   Offset _liftPointer = Offset.zero;
-  Timer? _autoScroll;
+  double _grab = 0; // where in its lane the held name was taken, from the lane's top
   final _headersKey = GlobalKey();
   final _viewportKey = GlobalKey();
 
+  /// Lanes on their way to their place (their top, by part id): the held one follows the
+  /// pointer, the others slide aside, and the held one settles into its place when let go.
+  final _rowY = <String, double>{};
+  late final Ticker _motion;
+  Duration _lastTick = Duration.zero;
+
+  /// The top of lane [i] as drawn now.
+  double _rowTop(int i) => _rowY[parts[i].id] ?? i * _laneHeight;
+
+  /// The lanes' order as last drawn at rest (part ids).
+  List<String> _shownOrder = const [];
+
+  /// Lanes moved some other way (the ⋯ menu, Undo, condensing) slide to their new places too.
+  void _orderChanged() {
+    final ids = [for (final p in c.laneParts) p.id];
+    if (_lifted != null || listEquals(ids, _shownOrder)) return;
+    _slideFrom(_shownOrder);
+    _shownOrder = ids;
+  }
+
+  /// Lanes not already moving start from where they are in [order] (part ids, top to bottom).
+  void _slideFrom(List<String> order) {
+    if (order.isEmpty) return;
+    for (final (i, id) in order.indexed) {
+      _rowY.putIfAbsent(id, () => i * _laneHeight);
+    }
+    _animate();
+  }
+
   void _lift(String partId, Offset global) {
     c.clearSelection();
+    final lanes = c.laneParts;
+    final i = lanes.indexWhere((p) => p.id == partId);
+    final box = _headersKey.currentContext?.findRenderObject() as RenderBox?;
+    if (i < 0 || box == null) return;
+    _grab = box.globalToLocal(global).dy - i * _laneHeight;
+    _liftPointer = global;
     setState(() {
       _lifted = partId;
-      _reordered = c.laneParts;
+      _reordered = lanes;
     });
-    _liftPointer = global;
-    // Near the top or bottom of the panel the lanes scroll, for a lane that goes further.
-    _autoScroll = Timer.periodic(const Duration(milliseconds: 16), (_) => _scrollNearEdge());
+    _animate();
   }
 
-  void _dragLifted(Offset global) {
-    _liftPointer = global;
-    _placeLifted();
-  }
-
-  /// Puts the held lane where the pointer is.
-  void _placeLifted() {
-    final lanes = _reordered, box = _headersKey.currentContext?.findRenderObject() as RenderBox?;
-    if (lanes == null || box == null) return;
-    final to = (box.globalToLocal(_liftPointer).dy / _laneHeight).floor().clamp(0, lanes.length - 1);
-    final from = lanes.indexWhere((p) => p.id == _lifted);
-    if (from == to) return;
-    final next = [...lanes];
-    setState(() => _reordered = next..insert(to, next.removeAt(from)));
-  }
-
-  void _scrollNearEdge() {
-    final box = _viewportKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !_vScroll.hasClients) return;
-    const edge = 24.0, step = 8.0;
-    final y = box.globalToLocal(_liftPointer).dy;
-    final delta = y < edge ? -step : y > box.size.height - edge ? step : 0.0;
-    final position = _vScroll.position;
-    final to = (position.pixels + delta).clamp(position.minScrollExtent, position.maxScrollExtent);
-    if (to == position.pixels) return;
-    _vScroll.jumpTo(to);
-    _placeLifted();
-  }
+  void _dragLifted(Offset global) => _liftPointer = global;
 
   void _dropLifted() {
     final lifted = _lifted, lanes = _reordered;
-    _autoScroll?.cancel();
     setState(() {
       _lifted = null;
       _reordered = null;
     });
+    if (lanes != null) _shownOrder = [for (final p in lanes) p.id]; // already there, but for the held one
     if (lifted != null && lanes != null) c.moveLane(lifted, lanes.indexWhere((p) => p.id == lifted));
+    _animate(); // the held lane settles into its place
+  }
+
+  void _animate() {
+    if (_motion.isActive) return;
+    _lastTick = Duration.zero;
+    _motion.start();
+  }
+
+  /// One frame of moving lanes: scroll near the panel's edges, follow the pointer, put the
+  /// held lane where it now is, and ease every other lane towards its place.
+  void _tick(Duration elapsed) {
+    final dt = ((elapsed - _lastTick).inMicroseconds / 1e6).clamp(0.0, 0.05);
+    _lastTick = elapsed;
+    final lifted = _lifted;
+    if (lifted != null) {
+      _scrollNearEdge(dt);
+      final box = _headersKey.currentContext?.findRenderObject() as RenderBox?;
+      final lanes = _reordered!;
+      if (box != null) {
+        final y = (box.globalToLocal(_liftPointer).dy - _grab).clamp(0.0, (lanes.length - 1) * _laneHeight);
+        _rowY[lifted] = y;
+        final to = ((y + _laneHeight / 2) / _laneHeight).floor().clamp(0, lanes.length - 1);
+        final from = lanes.indexWhere((p) => p.id == lifted);
+        if (from != to) {
+          _slideFrom([for (final p in lanes) p.id]);
+          final next = [...lanes];
+          _reordered = next..insert(to, next.removeAt(from));
+        }
+      }
+    }
+    final ease = 1 - math.exp(-dt / 0.05); // a lane covers most of its way in about a tenth of a second
+    var moving = false;
+    for (final (i, part) in parts.indexed) {
+      if (part.id == lifted) continue;
+      final target = i * _laneHeight;
+      final y = _rowY[part.id] ?? target;
+      final next = y + (target - y) * ease;
+      if ((next - target).abs() < 0.5) {
+        _rowY.remove(part.id);
+      } else {
+        _rowY[part.id] = next;
+        moving = true;
+      }
+    }
+    if (!moving && lifted == null) {
+      _rowY.clear();
+      _motion.stop();
+    }
+    setState(() {});
+  }
+
+  /// Near the top or bottom of the panel the lanes scroll, for a lane that goes further: the
+  /// closer to the edge, the faster.
+  void _scrollNearEdge(double dt) {
+    final box = _viewportKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !_vScroll.hasClients) return;
+    const edge = 32.0, speed = 600.0; // points a second, at the very edge
+    final y = box.globalToLocal(_liftPointer).dy;
+    final depth = y < edge ? y - edge : y > box.size.height - edge ? y - (box.size.height - edge) : 0.0;
+    if (depth == 0) return;
+    final position = _vScroll.position;
+    final to = (position.pixels + (depth / edge).clamp(-1.0, 1.0) * speed * dt)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    if (to != position.pixels) _vScroll.jumpTo(to);
   }
 
   @override
   void dispose() {
-    _autoScroll?.cancel();
+    c.removeListener(_orderChanged);
+    _motion.dispose();
     HardwareKeyboard.instance.removeHandler(_onKey);
     _vScroll.dispose();
     _band.dispose();
@@ -424,11 +500,16 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
                 listenable: Listenable.merge([c, curation]),
                 builder: (context, _) {
                   final selectedLanes = c.lanes.selectedPartIds;
-                  return Column(key: _headersKey, children: [
-                    // Keyed, so the held lane's name keeps its gesture as it moves.
-                    for (final part in parts)
-                      _LaneHeader(
-                        key: ValueKey(part.id),
+                  Widget header(int i) {
+                    final part = parts[i];
+                    // Keyed, so each name keeps its hover and the held one its gesture as they move.
+                    return Positioned(
+                      key: ValueKey(part.id),
+                      top: _rowTop(i),
+                      left: 0,
+                      right: 0,
+                      height: _laneHeight,
+                      child: _LaneHeader(
                         controller: c,
                         part: part,
                         selected: selectedLanes.contains(part.id),
@@ -437,7 +518,19 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
                         onDrag: _dragLifted,
                         onDrop: _dropLifted,
                       ),
-                  ]);
+                    );
+                  }
+
+                  final held = parts.indexWhere((p) => p.id == _lifted);
+                  return SizedBox(
+                    key: _headersKey,
+                    height: parts.length * _laneHeight,
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      for (var i = 0; i < parts.length; i++)
+                        if (i != held) header(i),
+                      if (held >= 0) header(held), // on top of the others
+                    ]),
+                  );
                 },
               ),
             ),
@@ -631,9 +724,8 @@ enum _LaneAction {
   final String label;
 }
 
-class _LaneHeader extends StatelessWidget {
+class _LaneHeader extends StatefulWidget {
   const _LaneHeader({
-    super.key,
     required this.controller,
     required this.part,
     required this.selected,
@@ -650,6 +742,38 @@ class _LaneHeader extends StatelessWidget {
   final bool lifted;
   final void Function(Offset global) onLift, onDrag;
   final VoidCallback onDrop;
+
+  @override
+  State<_LaneHeader> createState() => _LaneHeaderState();
+}
+
+class _LaneHeaderState extends State<_LaneHeader> {
+  EditorController get controller => widget.controller;
+  ScorePart get part => widget.part;
+  bool _hovered = false;
+  Offset? _downAt;
+  Duration? _lastClick;
+
+  void _down(PointerDownEvent e) => _downAt = e.buttons == kPrimaryButton ? e.position : null;
+
+  /// A click, handled as the button comes up (not after waiting to see whether a second click
+  /// follows), so clicking through lanes one after another keeps up. Not after a hold, which
+  /// moved the lane, nor after the pointer wandered off.
+  void _up(PointerUpEvent e) {
+    final down = _downAt;
+    _downAt = null;
+    if (down == null || widget.lifted || (e.position - down).distance > 6) return;
+    final last = _lastClick;
+    final doubleClick = last != null && e.timeStamp - last < const Duration(milliseconds: 350);
+    _lastClick = doubleClick ? null : e.timeStamp;
+    if (doubleClick && controller.condensedGroupOf(part.id) == null) {
+      showRenameDialog(context, controller, part);
+    } else if (isCommandPressed) {
+      controller.lanes.selectLaneRange(part.id);
+    } else {
+      controller.lanes.selectLane(part.id, add: HardwareKeyboard.instance.isShiftPressed);
+    }
+  }
 
   void _run(BuildContext context, _LaneAction action) {
     final lanes = controller.lanes;
@@ -703,9 +827,14 @@ class _LaneHeader extends StatelessWidget {
           if (!controller.isScoreOrder) item(_LaneAction.scoreOrder),
         ],
     );
-    return LaneLabel(
+    final colors = context.colors;
+    final label = LaneLabel(
       height: _laneHeight,
-      color: lifted ? context.colors.accent.withValues(alpha: 0.35) : selected ? context.colors.accentSoft : null,
+      color: widget.lifted || widget.selected
+          ? colors.accentSoft
+          : _hovered
+              ? colors.accentWash
+              : colors.surface.withValues(alpha: 0),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         if (condensed)
           Tip(
@@ -715,22 +844,34 @@ class _LaneHeader extends StatelessWidget {
         menu,
       ]),
       child: Tip(
-        message: condensed
-            ? 'Click to select the lane (⇧ adds) · hold and drag to move it'
-            : 'Click to select the lane (⇧ adds) · double-click to rename · hold and drag to move it',
+        message: '⇧ adds · ⌘ range · hold to move',
         waitDuration: const Duration(seconds: 1),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            final keys = HardwareKeyboard.instance;
-            controller.lanes.selectLane(part.id, add: keys.isShiftPressed || isCommandPressed);
-          },
-          onDoubleTap: condensed ? null : () => showRenameDialog(context, controller, part),
-          onLongPressStart: (d) => onLift(d.globalPosition),
-          onLongPressMoveUpdate: (d) => onDrag(d.globalPosition),
-          onLongPressEnd: (_) => onDrop(),
-          child: Text(controller.laneName(part)),
+        child: Listener(
+          onPointerDown: _down,
+          onPointerUp: _up,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onLongPressStart: (d) => widget.onLift(d.globalPosition),
+            onLongPressMoveUpdate: (d) => widget.onDrag(d.globalPosition),
+            onLongPressEnd: (_) => widget.onDrop(),
+            child: Text(controller.laneName(part)),
+          ),
         ),
+      ),
+    );
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      // The held name floats above the others, on the panel's own colour.
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        decoration: BoxDecoration(
+          color: widget.lifted ? colors.surface : colors.surface.withValues(alpha: 0),
+          boxShadow: [
+            if (widget.lifted) BoxShadow(color: colors.text.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: label,
       ),
     );
   }
@@ -746,63 +887,29 @@ class _LanesPainter extends CustomPainter {
     canvas.clipRect(Offset.zero & size);
     final c = s.c;
     final parts = s.parts;
-    final starts = s.tl.measureStarts;
-    final curation = c.curation!;
 
+    // The stripes stay put; each lane's content is drawn at its own top, which moves while a
+    // lane is being moved (see _InstrumentLanesState._tick).
     for (var i = 0; i < parts.length; i++) {
       canvas.drawRect(Rect.fromLTWH(0, i * _laneHeight, size.width, _laneHeight),
-          Paint()..color = parts[i].id == s._lifted ? colors.accentSoft : i.isEven ? colors.surface : colors.accentWash);
+          Paint()..color = i.isEven ? colors.surface : colors.accentWash);
     }
     paintBarGrid(canvas, size, c, colors);
 
-    // Where each part actually plays (either player, for a condensed pair): a thin hint along
-    // the bottom of its lane, one unbroken line for each run of bars the part plays in.
-    final activity = Paint()..color = colors.activity;
-    final playing = s.score.metadata.activeMeasures;
+    final held = parts.indexWhere((p) => p.id == s._lifted);
     for (var i = 0; i < parts.length; i++) {
-      final ids = c.condensedGroupOf(parts[i].id)?.partIds ?? [parts[i].id];
-      final lists = [for (final id in ids) playing[id] ?? const <bool>[]];
-      final active = [
-        for (var m = 0; m < lists.map((l) => l.length).reduce(math.max); m++) lists.any((l) => l.elementAtOrNull(m) == true),
-      ];
-      final y = (i + 1) * _laneHeight - 5;
-      final bars = math.min(active.length, starts.length - 1);
-      for (var m = 0; m < bars; m++) {
-        if (!active[m]) continue;
-        final first = m;
-        while (m + 1 < bars && active[m + 1]) {
-          m++;
-        }
-        for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(starts[first], starts[m + 1])) {
-          if (x1 < 0 || x0 > size.width) continue;
-          canvas.drawRRect(RRect.fromLTRBR(x0 + 1, y, x1 - 1, y + 2, const Radius.circular(1)), activity);
-        }
-      }
+      if (i != held) _paintLane(canvas, size, i, s._rowTop(i));
     }
-
-    final selection = c.lanes.selected;
-    for (var i = 0; i < parts.length; i++) {
-      for (final r in curation.lane(parts[i].id)) {
-        final selected = selection.contains((partId: parts[i].id, region: r));
-        // Once in every pass that plays it; square where a warp cuts it.
-        for (final (:x0, :x1, :ownStart, :ownEnd) in s._xs(r.start, r.end)) {
-          if (x1 < 0 || x0 > size.width) continue;
-          const round = Radius.circular(4);
-          final rect = RRect.fromLTRBAndCorners(x0, i * _laneHeight + 4, x1, (i + 1) * _laneHeight - 7,
-              topLeft: ownStart ? round : Radius.zero,
-              bottomLeft: ownStart ? round : Radius.zero,
-              topRight: ownEnd ? round : Radius.zero,
-              bottomRight: ownEnd ? round : Radius.zero);
-          canvas.drawRRect(rect, Paint()..color = selected ? colors.accent : colors.accentSoft);
-          canvas.drawRRect(
-            rect,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = selected ? 1.5 : 1
-              ..color = selected ? colors.accentStrong : colors.accent,
-          );
-        }
-      }
+    if (held >= 0) {
+      // The held lane floats above the others.
+      final band = Rect.fromLTWH(0, s._rowTop(held), size.width, _laneHeight);
+      canvas.drawRect(band.shift(const Offset(0, 2)).inflate(1),
+          Paint()
+            ..color = colors.text.withValues(alpha: 0.15)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+      canvas.drawRect(band, Paint()..color = colors.surface);
+      canvas.drawRect(band, Paint()..color = colors.accentSoft);
+      _paintLane(canvas, size, held, band.top);
     }
 
     // The box being dragged: a selection outline, or the stretch being drawn or erased.
@@ -821,6 +928,59 @@ class _LanesPainter extends CustomPainter {
       }
     }
     paintPlayhead(canvas, size, c, colors);
+  }
+
+  /// Lane [i]'s content with its top at [top]: where the part plays, and its regions.
+  void _paintLane(Canvas canvas, Size size, int i, double top) {
+    final c = s.c;
+    final parts = s.parts;
+    final starts = s.tl.measureStarts;
+
+    // Where each part actually plays (either player, for a condensed pair): a thin hint along
+    // the bottom of its lane, one unbroken line for each run of bars the part plays in.
+    final activity = Paint()..color = colors.activity;
+    final playing = s.score.metadata.activeMeasures;
+    final ids = c.condensedGroupOf(parts[i].id)?.partIds ?? [parts[i].id];
+    final lists = [for (final id in ids) playing[id] ?? const <bool>[]];
+    final active = [
+      for (var m = 0; m < lists.map((l) => l.length).reduce(math.max); m++) lists.any((l) => l.elementAtOrNull(m) == true),
+    ];
+    final y = top + _laneHeight - 5;
+    final bars = math.min(active.length, starts.length - 1);
+    for (var m = 0; m < bars; m++) {
+      if (!active[m]) continue;
+      final first = m;
+      while (m + 1 < bars && active[m + 1]) {
+        m++;
+      }
+      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(starts[first], starts[m + 1])) {
+        if (x1 < 0 || x0 > size.width) continue;
+        canvas.drawRRect(RRect.fromLTRBR(x0 + 1, y, x1 - 1, y + 2, const Radius.circular(1)), activity);
+      }
+    }
+
+    final selection = c.lanes.selected;
+    for (final r in c.curation!.lane(parts[i].id)) {
+      final selected = selection.contains((partId: parts[i].id, region: r));
+      // Once in every pass that plays it; square where a warp cuts it.
+      for (final (:x0, :x1, :ownStart, :ownEnd) in s._xs(r.start, r.end)) {
+        if (x1 < 0 || x0 > size.width) continue;
+        const round = Radius.circular(4);
+        final rect = RRect.fromLTRBAndCorners(x0, top + 4, x1, top + _laneHeight - 7,
+            topLeft: ownStart ? round : Radius.zero,
+            bottomLeft: ownStart ? round : Radius.zero,
+            topRight: ownEnd ? round : Radius.zero,
+            bottomRight: ownEnd ? round : Radius.zero);
+        canvas.drawRRect(rect, Paint()..color = selected ? colors.accent : colors.accentSoft);
+        canvas.drawRRect(
+          rect,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = selected ? 1.5 : 1
+            ..color = selected ? colors.accentStrong : colors.accent,
+        );
+      }
+    }
   }
 
   @override

@@ -44,7 +44,10 @@ class LaneEditing {
     _editor._changed();
   }
 
-  void _reset() => _selected = {};
+  void _reset() {
+    _selected = {};
+    _laneAnchor = null;
+  }
 
   // MARK: Selection
 
@@ -82,11 +85,33 @@ class LaneEditing {
     _editor._changed();
   }
 
+  /// The lane last selected by its name: where a range of lanes ([selectLaneRange]) starts.
+  String? _laneAnchor;
+
   /// Every region in one lane (added to the selection with [add]).
-  void selectLane(String partId, {bool add = false}) => selectMany(
-        [for (final r in _curation?.lane(partId) ?? const <Region>[]) (partId: partId, region: r)],
-        keep: add ? _valid : const [],
-      );
+  void selectLane(String partId, {bool add = false}) {
+    _laneAnchor = partId;
+    selectMany(
+      [for (final r in _curation?.lane(partId) ?? const <Region>[]) (partId: partId, region: r)],
+      keep: add ? _valid : const [],
+    );
+  }
+
+  /// ⌘-click on a lane's name: every region in the lanes from the one last selected by its
+  /// name to [partId], top to bottom, and nothing else.
+  void selectLaneRange(String partId) {
+    final curation = _curation;
+    final ids = [for (final p in _editor.laneParts) p.id];
+    final to = ids.indexOf(partId);
+    if (curation == null || to < 0) return;
+    final from = ids.indexOf(_laneAnchor ?? partId);
+    final (a, b) = from < 0 ? (to, to) : (math.min(from, to), math.max(from, to));
+    _laneAnchor ??= partId;
+    selectMany([
+      for (final id in ids.sublist(a, b + 1))
+        for (final r in curation.lane(id)) (partId: id, region: r),
+    ]);
+  }
 
   void selectAll() {
     final curation = _curation;

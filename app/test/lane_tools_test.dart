@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/timeline_panel.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -126,11 +127,34 @@ void main() {
     c.undo();
     expect(c.curation!.lane(ids[4]), [Region(bars[3], bars[7])]);
 
-    // Clicking a lane name selects the whole lane.
-    await tester.tap(find.text(c.partName(c.score!.metadata.parts[2])));
-    await tester.pump(const Duration(milliseconds: 400));
+    // Clicking a lane name selects the whole lane, at once: no waiting for a second click.
+    Finder name(int i) => find.text(c.partName(c.score!.metadata.parts[i]));
+    await tester.tap(name(2), kind: PointerDeviceKind.mouse);
+    await tester.pump();
     expect(c.lanes.selected, hasLength(2));
     expect(c.lanes.selectedPartIds, {ids[2]});
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // ⌘-click: every lane from the one last clicked, up or down; ⇧-click adds one.
+    c.curation!.setLanes({for (final id in ids.take(8)) id: [Region(bars[0], bars[1])]});
+    await tester.tap(name(1), kind: PointerDeviceKind.mouse);
+    await tester.pump(const Duration(milliseconds: 400));
+    final command = defaultTargetPlatform == TargetPlatform.macOS ? LogicalKeyboardKey.metaLeft : LogicalKeyboardKey.controlLeft;
+    await tester.sendKeyDownEvent(command);
+    await tester.tap(name(4), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(c.lanes.selectedPartIds, {ids[1], ids[2], ids[3], ids[4]});
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(name(0), kind: PointerDeviceKind.mouse); // from the same lane, the other way
+    await tester.pump();
+    expect(c.lanes.selectedPartIds, {ids[0], ids[1]});
+    await tester.sendKeyUpEvent(command);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.tap(name(6), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    expect(c.lanes.selectedPartIds, {ids[0], ids[1], ids[6]});
   });
 
   testWidgets("holding an instrument's name and dragging it moves it: Violin I to the top", (tester) async {
@@ -158,9 +182,17 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
     }
     expect(c.isScoreOrder, isTrue, reason: 'nothing changes until it is let go');
+    await g.moveBy(const Offset(0, 40)); // down a lane and a half, between the flutes: they slide aside
+    await tester.pump(const Duration(milliseconds: 16));
+    final piccolo = tester.getTopLeft(find.text('Piccolo')).dy;
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(tester.getTopLeft(find.text('Piccolo')).dy, lessThan(piccolo), reason: 'sliding up, not jumping');
+    await tester.pump(const Duration(milliseconds: 400));
     await _shot(tester, dir, 'lanes-moving');
+    await g.moveBy(const Offset(0, -40));
+    await tester.pump(const Duration(milliseconds: 400));
     await g.up();
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400)); // settles into its place
     await _shot(tester, dir, 'lanes-moved');
     expect(c.laneParts.first.name, 'Violin I');
     expect(c.scene!.partOrder.first, 'P17');
