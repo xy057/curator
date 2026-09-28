@@ -147,6 +147,29 @@ void main() {
     scene.dispose();
   });
 
+  test('instruments can be stacked in any order: Violin I on top, the rest as in the score', () {
+    final scene = CuratedScene(score);
+    const size = ui.Size(1600, 900);
+    final end = score.timeline.measureStarts.last;
+    final curation = Curation(score.metadata.parts.map((p) => p.id));
+    for (final id in ['P1', 'P2', 'P17', 'P21']) {
+      curation.setLane(id, [Region(0, end)]); // piccolo, flute 1, violin I, double bass
+    }
+    List<String> stacked() {
+      final labels = scene.layoutAt(10, curation, size).labels.toList()..sort((a, b) => a.centerY.compareTo(b.centerY));
+      return [for (final l in labels) l.partId];
+    }
+
+    expect(stacked(), ['P1', 'P2', 'P17', 'P21']);
+    scene.partOrder = ['P17', 'nobody']; // unknown ids are dropped, missing ones follow in score order
+    expect(scene.partOrder, ['P17', for (final p in score.metadata.parts) if (p.id != 'P17') p.id]);
+    expect(stacked(), ['P17', 'P1', 'P2', 'P21']);
+    final placements = scene.layoutAt(10, curation, size).placements;
+    expect(placements.first.staffIndex, score.engraving.staves.indexWhere((s) => s.n == 17));
+    expect(placements.first.y, lessThan(placements[1].y));
+    scene.dispose();
+  });
+
   test('the colours are chosen when drawing: dark paper and light ink, no re-rasterising', () async {
     final scene = CuratedScene(score);
     const size = ui.Size(800, 400);

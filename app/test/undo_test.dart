@@ -50,6 +50,34 @@ void main() {
     expect(c.canRedo, isFalse);
   });
 
+  test('moving an instrument is one step, and moves its staff in the preview too', () {
+    final scoreOrder = [for (final p in c.score!.metadata.parts) p.id];
+    expect(c.isScoreOrder, isTrue);
+    c.moveLane('P17', 0); // Violin I to the top
+    expect(c.laneParts.first.name, 'Violin I');
+    expect(c.scene!.partOrder, ['P17', ...scoreOrder.where((id) => id != 'P17')]);
+    expect(c.projectState.partOrder.first, 'P17');
+    c.moveLane('P1', c.laneParts.length - 1); // the piccolo to the bottom
+    expect(c.laneParts.last.id, 'P1');
+    c.moveLane('P1', c.laneParts.length - 1); // already there: nothing to undo
+    c.undo();
+    expect(c.laneParts.first.id, 'P17');
+    expect(c.laneParts.last.id, 'P21');
+    c.undo();
+    expect(c.isScoreOrder, isTrue);
+    expect(c.scene!.partOrder, scoreOrder);
+    expect(c.projectState.partOrder, isEmpty, reason: 'the score order is not saved');
+    expect(c.canUndo, isFalse);
+
+    // A condensed pair is one lane, and moves as one.
+    c.setCondensed(['cond-P2-P3'], on: true);
+    c.moveLane('P2', 0);
+    expect(c.partOrder.take(3), ['P2', 'P3', 'P1']);
+    expect(c.laneParts.take(2).map((p) => p.id), ['P2', 'P1']);
+    c.restoreScoreOrder();
+    expect(c.isScoreOrder, isTrue);
+  });
+
   test('condensing a pair is one step, and only pairs that can condense are kept', () {
     expect(c.condensable.map((g) => g.id), contains('cond-P2-P3'));
     expect(c.condensed, isEmpty, reason: 'off until asked for, as in Dorico');

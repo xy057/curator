@@ -33,11 +33,12 @@ class ProjectState {
     this.textEdits = const {},
     this.condensed = const {},
     this.pairs = const [],
+    this.partOrder = const [],
     this.view = const ViewState(),
   });
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 4;
+  static const version = 5;
 
   /// When each instrument is shown; null when the project has none saved (they are then
   /// filled from where each part plays).
@@ -64,6 +65,10 @@ class ProjectState {
   /// one leaves the built-in pair (see [CondensingOptions.pairs]).
   final List<PlayerPair> pairs;
 
+  /// The instruments top to bottom (part ids), when the user moved some; empty: the score's
+  /// order. Parts it lacks follow in score order.
+  final List<String> partOrder;
+
   final ViewState view;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
@@ -72,6 +77,7 @@ class ProjectState {
     1: (state) => {...state, 'condensed': const <String>[]}, // condensing came in 2: nothing condensed
     2: (state) => {...state, 'pairs': const <Object?>[]}, // the user's own pairs came in 3: none
     3: (state) => state, // warps came in 4 (an anchor's `jumpTo`): none, so nothing to change
+    4: (state) => state, // the instruments' order came in 5: none saved is the score's
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -127,6 +133,10 @@ class ProjectState {
             _ => throw FormatException('The project is damaged: ${r.where}.pairs[$i] is not two part ids.'),
           },
       ],
+      partOrder: [
+        for (final (i, id) in r.list('partOrder').indexed)
+          id is String ? id : throw FormatException('The project is damaged: ${r.where}.partOrder[$i] is not text.'),
+      ],
       view: ViewState(
         staffSpace: view.number('staffSpace'),
         grid: switch (view.string('grid')) {
@@ -150,6 +160,7 @@ class ProjectState {
         'textEdits': textEdits,
         'condensed': [...condensed],
         'pairs': [for (final p in pairs) p.partIds],
+        'partOrder': partOrder,
         'partNames': {
           for (final MapEntry(key: id, value: p) in partNames.entries) id: {'name': p.name, 'abbreviation': p.abbreviation},
         },

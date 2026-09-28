@@ -133,6 +133,49 @@ void main() {
     expect(c.lanes.selectedPartIds, {ids[2]});
   });
 
+  testWidgets("holding an instrument's name and dragging it moves it: Violin I to the top", (tester) async {
+    final dir = Platform.environment['SCREENSHOT_DIR'];
+    if (dir != null) await tester.runAsync(loadTestFonts);
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const CuratedScoreApp());
+    final state = tester.state(find.byType(HomePage)) as dynamic;
+    final c = state.controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    await tester.pump();
+
+    final violin = find.text('Violin I');
+    await tester.ensureVisible(violin);
+    await tester.pump();
+    final g = await tester.startGesture(tester.getCenter(violin), kind: PointerDeviceKind.mouse);
+    await tester.pump(const Duration(milliseconds: 600)); // held: the lane lifts
+    // Up to the top edge of the lanes: they scroll, and Violin I goes along.
+    final top = tester.getTopLeft(find.byType(InstrumentLanes)).dy;
+    await g.moveTo(Offset(tester.getCenter(violin).dx, top + 4));
+    for (var i = 0; i < 200; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(c.isScoreOrder, isTrue, reason: 'nothing changes until it is let go');
+    await _shot(tester, dir, 'lanes-moving');
+    await g.up();
+    await tester.pump();
+    await _shot(tester, dir, 'lanes-moved');
+    expect(c.laneParts.first.name, 'Violin I');
+    expect(c.scene!.partOrder.first, 'P17');
+    expect(c.lanes.selected, isEmpty, reason: 'holding a name is not a click on it');
+
+    // A quick click still selects the lane, and doesn't move it.
+    await tester.tap(find.text('Piccolo'), kind: PointerDeviceKind.mouse);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.lanes.selectedPartIds, {'P1'});
+    expect(c.laneParts[1].id, 'P1');
+
+    c.undo();
+    expect(c.isScoreOrder, isTrue);
+  });
+
   testWidgets('dragging regions moves them freely across lanes as well as along them', (tester) async {
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
@@ -389,5 +432,17 @@ void main() {
     await g.up();
     await tester.pump();
     expect(c.curation!.lane(ids[1]), [Region(bars[1] + 1.5, bars[2] + 1.5)]);
+  });
+}
+
+/// Saves the window as [name].png in [dir] (SCREENSHOT_DIR), when set.
+Future<void> _shot(WidgetTester tester, String? dir, String name) async {
+  if (dir == null) return;
+  await tester.runAsync(() async {
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.ancestor(of: find.byType(Scaffold), matching: find.byType(RepaintBoundary)).first);
+    final image = await boundary.toImage(pixelRatio: 2);
+    final png = await image.toByteData(format: ui.ImageByteFormat.png);
+    File('$dir/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
   });
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -24,6 +25,8 @@ import 'ui_kit.dart';
 /// a click does one beat when zoomed in far enough to snap to beats, otherwise one bar.
 /// ⌥ swaps the two.
 /// Edges snap to beats (bars when zoomed out); hold ⌘ while dragging for free placement.
+/// Click and hold an instrument's name, then drag it up or down, to move it (its staff moves
+/// with it in the preview): Violin I at the top, say.
 class InstrumentLanes extends StatefulWidget {
   const InstrumentLanes({super.key, required this.controller});
   final EditorController controller;
@@ -61,7 +64,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
   EditorController get c => widget.controller;
   LoadedScore get score => c.score!;
   ScoreTimeline get tl => c.timeline;
-  List<ScorePart> get parts => c.laneParts;
+  List<ScorePart> get parts => _reordered ?? c.laneParts;
 
   _Drag? _drag;
   final _band = ValueNotifier<_Band?>(null);
@@ -86,8 +89,70 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
     return false; // only watching: the key still goes to the shortcuts
   }
 
+  // MARK: Moving lanes
+
+  /// The lane being moved (held by its name), the lanes as they will be when it is let go,
+  /// and where the pointer is.
+  String? _lifted;
+  List<ScorePart>? _reordered;
+  Offset _liftPointer = Offset.zero;
+  Timer? _autoScroll;
+  final _headersKey = GlobalKey();
+  final _viewportKey = GlobalKey();
+
+  void _lift(String partId, Offset global) {
+    c.clearSelection();
+    setState(() {
+      _lifted = partId;
+      _reordered = c.laneParts;
+    });
+    _liftPointer = global;
+    // Near the top or bottom of the panel the lanes scroll, for a lane that goes further.
+    _autoScroll = Timer.periodic(const Duration(milliseconds: 16), (_) => _scrollNearEdge());
+  }
+
+  void _dragLifted(Offset global) {
+    _liftPointer = global;
+    _placeLifted();
+  }
+
+  /// Puts the held lane where the pointer is.
+  void _placeLifted() {
+    final lanes = _reordered, box = _headersKey.currentContext?.findRenderObject() as RenderBox?;
+    if (lanes == null || box == null) return;
+    final to = (box.globalToLocal(_liftPointer).dy / _laneHeight).floor().clamp(0, lanes.length - 1);
+    final from = lanes.indexWhere((p) => p.id == _lifted);
+    if (from == to) return;
+    final next = [...lanes];
+    setState(() => _reordered = next..insert(to, next.removeAt(from)));
+  }
+
+  void _scrollNearEdge() {
+    final box = _viewportKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !_vScroll.hasClients) return;
+    const edge = 24.0, step = 8.0;
+    final y = box.globalToLocal(_liftPointer).dy;
+    final delta = y < edge ? -step : y > box.size.height - edge ? step : 0.0;
+    final position = _vScroll.position;
+    final to = (position.pixels + delta).clamp(position.minScrollExtent, position.maxScrollExtent);
+    if (to == position.pixels) return;
+    _vScroll.jumpTo(to);
+    _placeLifted();
+  }
+
+  void _dropLifted() {
+    final lifted = _lifted, lanes = _reordered;
+    _autoScroll?.cancel();
+    setState(() {
+      _lifted = null;
+      _reordered = null;
+    });
+    if (lifted != null && lanes != null) c.moveLane(lifted, lanes.indexWhere((p) => p.id == lifted));
+  }
+
   @override
   void dispose() {
+    _autoScroll?.cancel();
     HardwareKeyboard.instance.removeHandler(_onKey);
     _vScroll.dispose();
     _band.dispose();
@@ -345,6 +410,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
     final curation = c.curation;
     if (c.score == null || curation == null) return const SizedBox.shrink();
     return SingleChildScrollView(
+      key: _viewportKey,
       controller: _vScroll,
       physics: _zooming ? const NeverScrollableScrollPhysics() : null,
       child: Row(
@@ -352,15 +418,28 @@ class _InstrumentLanesState extends State<InstrumentLanes> {
         children: [
           SizedBox(
             width: kLaneHeaderWidth,
-            child: ListenableBuilder(
-              listenable: Listenable.merge([c, curation]),
-              builder: (context, _) {
-                final selectedLanes = c.lanes.selectedPartIds;
-                return Column(children: [
-                  for (final part in parts)
-                    _LaneHeader(controller: c, part: part, selected: selectedLanes.contains(part.id)),
-                ]);
-              },
+            child: MouseRegion(
+              cursor: _lifted != null ? SystemMouseCursors.grabbing : MouseCursor.defer,
+              child: ListenableBuilder(
+                listenable: Listenable.merge([c, curation]),
+                builder: (context, _) {
+                  final selectedLanes = c.lanes.selectedPartIds;
+                  return Column(key: _headersKey, children: [
+                    // Keyed, so the held lane's name keeps its gesture as it moves.
+                    for (final part in parts)
+                      _LaneHeader(
+                        key: ValueKey(part.id),
+                        controller: c,
+                        part: part,
+                        selected: selectedLanes.contains(part.id),
+                        lifted: part.id == _lifted,
+                        onLift: (global) => _lift(part.id, global),
+                        onDrag: _dragLifted,
+                        onDrop: _dropLifted,
+                      ),
+                  ]);
+                },
+              ),
             ),
           ),
           Expanded(
@@ -543,17 +622,34 @@ enum _LaneAction {
   copy('Copy lane to…'),
   showThroughout('Show throughout'),
   autoCurate('Auto-curate this lane'),
-  clear('Clear lane');
+  clear('Clear lane'),
+  moveToTop('Move to top'),
+  moveToBottom('Move to bottom'),
+  scoreOrder('Restore score order');
 
   const _LaneAction(this.label);
   final String label;
 }
 
 class _LaneHeader extends StatelessWidget {
-  const _LaneHeader({required this.controller, required this.part, required this.selected});
+  const _LaneHeader({
+    super.key,
+    required this.controller,
+    required this.part,
+    required this.selected,
+    required this.lifted,
+    required this.onLift,
+    required this.onDrag,
+    required this.onDrop,
+  });
   final EditorController controller;
   final ScorePart part;
   final bool selected;
+
+  /// Held (click and hold on the name) and being moved to another place.
+  final bool lifted;
+  final void Function(Offset global) onLift, onDrag;
+  final VoidCallback onDrop;
 
   void _run(BuildContext context, _LaneAction action) {
     final lanes = controller.lanes;
@@ -570,6 +666,12 @@ class _LaneHeader extends StatelessWidget {
         lanes.autoCurate([part.id]);
       case _LaneAction.clear:
         lanes.clear([part.id]);
+      case _LaneAction.moveToTop:
+        controller.moveLane(part.id, 0);
+      case _LaneAction.moveToBottom:
+        controller.moveLane(part.id, controller.laneParts.length - 1);
+      case _LaneAction.scoreOrder:
+        controller.restoreScoreOrder();
     }
   }
 
@@ -595,11 +697,15 @@ class _LaneHeader extends StatelessWidget {
           item(_LaneAction.showThroughout),
           item(_LaneAction.autoCurate),
           item(_LaneAction.clear),
+          const PopupMenuDivider(),
+          item(_LaneAction.moveToTop),
+          item(_LaneAction.moveToBottom),
+          if (!controller.isScoreOrder) item(_LaneAction.scoreOrder),
         ],
     );
     return LaneLabel(
       height: _laneHeight,
-      color: selected ? context.colors.accentSoft : null,
+      color: lifted ? context.colors.accent.withValues(alpha: 0.35) : selected ? context.colors.accentSoft : null,
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         if (condensed)
           Tip(
@@ -609,7 +715,9 @@ class _LaneHeader extends StatelessWidget {
         menu,
       ]),
       child: Tip(
-        message: condensed ? 'Click to select the lane (⇧ adds)' : 'Click to select the lane (⇧ adds) · double-click to rename',
+        message: condensed
+            ? 'Click to select the lane (⇧ adds) · hold and drag to move it'
+            : 'Click to select the lane (⇧ adds) · double-click to rename · hold and drag to move it',
         waitDuration: const Duration(seconds: 1),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -618,6 +726,9 @@ class _LaneHeader extends StatelessWidget {
             controller.lanes.selectLane(part.id, add: keys.isShiftPressed || isCommandPressed);
           },
           onDoubleTap: condensed ? null : () => showRenameDialog(context, controller, part),
+          onLongPressStart: (d) => onLift(d.globalPosition),
+          onLongPressMoveUpdate: (d) => onDrag(d.globalPosition),
+          onLongPressEnd: (_) => onDrop(),
           child: Text(controller.laneName(part)),
         ),
       ),
@@ -640,7 +751,7 @@ class _LanesPainter extends CustomPainter {
 
     for (var i = 0; i < parts.length; i++) {
       canvas.drawRect(Rect.fromLTWH(0, i * _laneHeight, size.width, _laneHeight),
-          Paint()..color = i.isEven ? colors.surface : colors.accentWash);
+          Paint()..color = parts[i].id == s._lifted ? colors.accentSoft : i.isEven ? colors.surface : colors.accentWash);
     }
     paintBarGrid(canvas, size, c, colors);
 

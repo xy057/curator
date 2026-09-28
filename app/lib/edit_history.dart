@@ -17,6 +17,7 @@ class EditState {
     required this.textEdits,
     required this.condensed,
     required this.pairs,
+    required this.partOrder,
   });
 
   final Map<String, List<Region>> lanes;
@@ -27,6 +28,7 @@ class EditState {
   final Map<String, String> textEdits;
   final Set<String> condensed;
   final List<PlayerPair> pairs;
+  final List<String> partOrder;
 
   @override
   bool operator ==(Object other) =>
@@ -38,7 +40,8 @@ class EditState {
       mapEquals(partNames, other.partNames) &&
       mapEquals(textEdits, other.textEdits) &&
       setEquals(condensed, other.condensed) &&
-      listEquals(pairs, other.pairs);
+      listEquals(pairs, other.pairs) &&
+      listEquals(partOrder, other.partOrder);
 
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes.length, anchors.length, partNames.length, textEdits.length);

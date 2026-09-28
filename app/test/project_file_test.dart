@@ -106,13 +106,20 @@ void main() {
     expect(() => read({'view': {'grid': 'minute'}}), damaged('state.view.grid'));
     expect(() => read({'condensed': [3]}), damaged('state.condensed[0] is not text'));
     expect(() => read({'pairs': [['P1']]}), damaged('state.pairs[0] is not two part ids'));
+    expect(() => read({'partOrder': ['P17', 2]}), damaged('state.partOrder[1] is not text'));
+  });
+
+  test('the instruments\' order is saved when moved; older projects keep the score\'s', () {
+    final json = jsonDecode(jsonEncode(const ProjectState(partOrder: ['P17', 'P1']).toJson())) as Map<String, Object?>;
+    expect(ProjectState.fromJson(json).partOrder, ['P17', 'P1']);
+    expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 4).partOrder, isEmpty);
   });
 
   test('a project from before condensing opens with nothing condensed', () {
     final state = ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 1);
     expect(state.condensed, isEmpty);
     expect(state.pairs, isEmpty);
-    expect(ProjectState.version, 4);
+    expect(ProjectState.version, 5);
     expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).pairs, isEmpty);
   });
 

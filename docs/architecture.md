@@ -107,6 +107,14 @@ condensed pair is one lane: `Curation.join` keeps the second player's lane equal
 first's (an edit of either is an edit of both; joining unites them), and the Instruments tab
 shows only the first (`EditorController.laneParts`), named for both.
 
+**The instruments' order is a layout, not an engraving.** Verovio engraves in score order,
+but every staff is drawn on its own (brackets and system labels are left out), so the
+preview stacks them in `CuratedScene.partOrder`: the user's order (hold a lane's name in the
+Instruments tab and drag it, or its ⋯ menu), then any part it lacks in score order. Changing
+it only re-plans the layout, like condensing. It is an edit (`partOrder` in `EditState`, and
+in the project from format 5, empty for the score's order); the lanes follow it
+(`EditorController.laneParts`), and a condensed pair moves as one.
+
 **Opening is all or nothing.** A project is read and validated (`ProjectState.fromJson`),
 then engraved, and only then swapped in, in one synchronous step. If anything before the swap
 fails, what was open stays open, with its path — so a later save can't write one project

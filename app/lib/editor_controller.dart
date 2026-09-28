@@ -152,6 +152,7 @@ class EditorController extends ChangeNotifier {
     _textEdits = Map.unmodifiable(state.textEdits);
     _pairs = List.unmodifiable({for (final p in state.pairs) ?score.condensing.pair(p.first, p.second)});
     _condensed = Set.unmodifiable({for (final g in condensable) if (state.condensed.contains(g.id)) g.id});
+    _partOrder = CuratedScene.orderedPartIds(score.metadata.parts, state.partOrder);
     _sync = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
       ..load(state.anchors, leadIn: state.leadIn)
       ..addListener(_syncChanged);
@@ -205,6 +206,7 @@ class EditorController extends ChangeNotifier {
     _textEdits = const {};
     _condensed = const {};
     _pairs = const [];
+    _partOrder = const [];
     _tab = BottomTab.instruments;
   }
 
@@ -214,7 +216,8 @@ class EditorController extends ChangeNotifier {
   CuratedScene _makeScene(LoadedScore score) {
     final scene = CuratedScene(score, style: RenderStyle(staffSpace: _staffSpace))
       ..names = _partNames
-      ..condensed = _condensed;
+      ..condensed = _condensed
+      ..partOrder = _partOrder;
     if (_sync != null) scene.setTimeline(_sync!);
     return scene;
   }
@@ -381,12 +384,54 @@ class EditorController extends ChangeNotifier {
     return group != null && _condensed.contains(group.id) ? group : null;
   }
 
-  /// One lane per instrument, in score order, except that a condensed pair is one lane: its
-  /// first player's, standing for both (the second's always holds the same regions).
-  List<ScorePart> get laneParts => [
-        for (final p in _score?.metadata.parts ?? const <ScorePart>[])
-          if (condensedGroupOf(p.id)?.partIds.last != p.id) p,
-      ];
+  /// One lane per instrument, top to bottom as in the preview ([partOrder]), except that a
+  /// condensed pair is one lane: its first player's, standing for both (the second's always
+  /// holds the same regions).
+  List<ScorePart> get laneParts {
+    final parts = {for (final p in _score?.metadata.parts ?? const <ScorePart>[]) p.id: p};
+    return [
+      for (final id in _partOrder)
+        if (condensedGroupOf(id)?.partIds.last != id) parts[id]!,
+    ];
+  }
+
+  // MARK: Instrument order
+
+  List<String> _partOrder = const [];
+
+  /// Every instrument (part id), top to bottom: the score's order unless the user moved some.
+  List<String> get partOrder => _partOrder;
+
+  /// Whether the instruments are in the score's own order.
+  bool get isScoreOrder => listEquals(_partOrder, [for (final p in _score!.metadata.parts) p.id]);
+
+  /// Moves [partId]'s lane (and its staff) to lane [to] of [laneParts] (0: the top), one
+  /// Undo step. A condensed pair moves as one: its second player goes along with the first.
+  void moveLane(String partId, int to) {
+    final lanes = [for (final p in laneParts) p.id];
+    final from = lanes.indexOf(partId);
+    to = to.clamp(0, lanes.length - 1);
+    if (from < 0 || from == to) return;
+    lanes
+      ..removeAt(from)
+      ..insert(to, partId);
+    final moving = condensedGroupOf(partId)?.partIds ?? [partId];
+    final order = [for (final id in _partOrder) if (!moving.contains(id)) id];
+    final next = to + 1 < lanes.length ? order.indexOf(lanes[to + 1]) : order.length;
+    _setPartOrder(order..insertAll(next, moving));
+  }
+
+  /// Puts every instrument back in the score's order: one Undo step.
+  void restoreScoreOrder() => _setPartOrder(const []);
+
+  void _setPartOrder(List<String> ids) {
+    final next = CuratedScene.orderedPartIds(_score!.metadata.parts, ids);
+    if (listEquals(next, _partOrder)) return;
+    _partOrder = next;
+    _scene?.partOrder = next;
+    _edited();
+    notifyListeners();
+  }
 
   /// A lane's name: the instrument's, or a condensed pair's shared one ("Flute 1.2").
   String laneName(ScorePart part) {
@@ -498,7 +543,8 @@ class EditorController extends ChangeNotifier {
   /// Delete: removes what is selected in the tab that is showing.
   void deleteSelection() => _tab == BottomTab.audio ? anchors.delete() : lanes.delete();
 
-  // One history for the whole document: lanes, sync, names, texts, condensing and the transition. After
+  // One history for the whole document: lanes, sync, names, texts, condensing, the instruments'
+  // order and the transition. After
   // every change the document's state is compared with the last one recorded; a difference
   // is one Undo step. A gesture (a drag) records only when it ends.
 
@@ -518,6 +564,7 @@ class EditorController extends ChangeNotifier {
         textEdits: _textEdits,
         condensed: _condensed,
         pairs: _pairs,
+        partOrder: _partOrder,
       );
 
   /// How many steps Undo can go back.
@@ -568,6 +615,8 @@ class EditorController extends ChangeNotifier {
       _sync!.load(state.anchors, leadIn: state.leadIn);
       _partNames = state.partNames;
       _scene?.names = _partNames;
+      _partOrder = state.partOrder;
+      _scene?.partOrder = _partOrder;
     } finally {
       _restoring = false;
     }
@@ -599,6 +648,7 @@ class EditorController extends ChangeNotifier {
         textEdits: _textEdits,
         condensed: _condensed,
         pairs: _pairs,
+        partOrder: isScoreOrder ? const [] : _partOrder,
         view: ViewState(
           staffSpace: _staffSpace,
           grid: anchors.grid,

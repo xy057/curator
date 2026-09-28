@@ -195,5 +195,13 @@ Encoders:
       c.setCondensed(['cond-P2-P3'], on: false); // changed in the editor afterwards
       expect(export.condensed, {'cond-P2-P3'});
     });
+
+    test('the export stacks the instruments as the editor did when it started', () {
+      c.moveLane('P17', 0); // Violin I on top
+      final export = VideoExport.of(c);
+      addTearDown(export.dispose);
+      c.restoreScoreOrder(); // changed in the editor afterwards
+      expect(export.partOrder.first, 'P17');
+    });
   });
 }

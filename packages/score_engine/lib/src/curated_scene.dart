@@ -212,22 +212,53 @@ class CuratedScene {
   SpacingPlan? _plan;
   Object? _planKey;
 
-  /// Every shown staff in score order (empty divisi staves are left out entirely), a pair's
+  /// The instruments from top to bottom (part ids): the score's order unless the user moved
+  /// some. Changing it re-plans the layout; nothing is engraved again (every staff is drawn
+  /// on its own). Ids it lacks keep their score order after the others; unknown ones are
+  /// dropped.
+  List<String> get partOrder => _partOrder;
+  late List<String> _partOrder = [for (final p in score.metadata.parts) p.id];
+  set partOrder(List<String> ids) {
+    final next = orderedPartIds(score.metadata.parts, ids);
+    if (listEquals(next, _partOrder)) return;
+    _partOrder = next;
+    _order = _plannedOrder();
+    _twins = _twinsOf(_order);
+    _orderVersion++;
+  }
+
+  int _orderVersion = 0;
+
+  /// Every part of [parts] once: those in [ids] in that order, then the rest in score order.
+  static List<String> orderedPartIds(List<ScorePart> parts, Iterable<String> ids) {
+    final known = {for (final p in parts) p.id};
+    final ordered = <String>{for (final id in ids) if (known.contains(id)) id};
+    return List.unmodifiable([...ordered, for (final p in parts) if (!ordered.contains(p.id)) p.id]);
+  }
+
+  /// Every shown staff in [partOrder] (empty divisi staves are left out entirely), a pair's
   /// shared staff just above its first player's.
-  late final List<PlannedStaff> _order = [
-    for (final part in score.metadata.parts) ...[
-      for (final g in score.condensed)
-        if (g.partIds.first == part.id && _staffIndex[g.staffNumber] != null)
-          (staffIndex: _staffIndex[g.staffNumber]!, partId: g.id),
-      for (final n in part.shownStaffNumbers)
-        if (_staffIndex[n] != null) (staffIndex: _staffIndex[n]!, partId: part.id),
-    ],
-  ];
+  late List<PlannedStaff> _order = _plannedOrder();
+
+  List<PlannedStaff> _plannedOrder() {
+    final parts = {for (final p in score.metadata.parts) p.id: p};
+    return [
+      for (final id in _partOrder) ...[
+        for (final g in score.condensed)
+          if (g.partIds.first == id && _staffIndex[g.staffNumber] != null)
+            (staffIndex: _staffIndex[g.staffNumber]!, partId: g.id),
+        for (final n in parts[id]!.shownStaffNumbers)
+          if (_staffIndex[n] != null) (staffIndex: _staffIndex[n]!, partId: id),
+      ],
+    ];
+  }
 
   /// A shared staff and its players' own take each other's place: when one is hidden while
   /// the other is shown, it waits right there, so swapping them is a cross-fade in place.
-  late final Map<int, List<int>> _twins = () {
-    final at = {for (final (i, s) in _order.indexed) s.partId: i};
+  late Map<int, List<int>> _twins = _twinsOf(_order);
+
+  Map<int, List<int>> _twinsOf(List<PlannedStaff> order) {
+    final at = {for (final (i, s) in order.indexed) s.partId: i};
     final twins = <int, List<int>>{};
     for (final g in score.condensed) {
       final shared = at[g.id];
@@ -239,7 +270,7 @@ class CuratedScene {
       }
     }
     return twins;
-  }();
+  }
 
   /// Whether the staff planned for [id] (a part, or a pair's shared staff) is shown.
   bool _isShown(Curation curation, String id, double seconds) {
@@ -274,7 +305,7 @@ class CuratedScene {
   /// The layout plan for this curation and frame size, rebuilt only when either changes.
   SpacingPlan _planFor(Curation curation, ui.Size size) {
     final key =
-        (curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion);
+        (curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion);
     if (_plan == null || _planKey != key) {
       final pointerX = renderer.pointerX(size.width);
       _plan = SpacingPlan.build(

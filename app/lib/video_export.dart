@@ -279,6 +279,7 @@ class VideoExport {
     final scene = CuratedScene(score, style: RenderStyle(staffSpace: editor.staffSpace))
       ..names = editor.scene!.names
       ..condensed = editor.condensed
+      ..partOrder = editor.partOrder
       ..setTimeline(timeline);
     return VideoExport._(scene, copy, timeline, duration: editor.playback.duration, audio: editor.track?.path);
   }
@@ -295,6 +296,9 @@ class VideoExport {
 
   /// The pairs of players sharing a staff, as in the editor when the export was made.
   Set<String> get condensed => _scene.condensed;
+
+  /// The instruments top to bottom, as in the editor when the export was made.
+  List<String> get partOrder => _scene.partOrder;
 
   /// The score size, as in the editor's toolbar.
   double get staffSpace => _scene.style.staffSpace;
