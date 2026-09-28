@@ -57,10 +57,15 @@ class ScoreRenderer {
 
   static const _fade = 24.0;
 
-  /// Where the music starts: right of the names and the frozen zone.
-  double get musicLeft => style.headerWidth + (frozen?.width ?? 0);
+  /// Where the music starts, right of the names and the frozen zone, with a key column
+  /// [keyColumn] staff spaces wide (see [FrozenZone]).
+  double musicLeftFor(double keyColumn) => style.headerWidth + (frozen?.widthFor(keyColumn) ?? 0);
 
-  /// The fixed pointer, kept clear of the frozen zone on narrow frames.
+  /// Where the music starts when the frozen zone is at its widest.
+  double get musicLeft => style.headerWidth + (frozen?.maxWidth ?? 0);
+
+  /// The fixed pointer, kept clear of the frozen zone at its widest on narrow frames (so it
+  /// never moves as the zone widens or narrows).
   double pointerX(double width) => math.max(width * style.pointerFraction, musicLeft + _fade + 24);
 
   /// Score x range (device units) visible in a frame of [width].
@@ -76,9 +81,12 @@ class ScoreRenderer {
     required List<StaffPlacement> placements,
     required List<StaffLabel> labels,
     required double devicePixelRatio,
+    double? keyColumn,
     ui.Color? paper,
     ui.Color? ink,
   }) {
+    final column = keyColumn ?? frozen?.maxKeyColumn ?? 0;
+    final musicLeft = musicLeftFor(column);
     if (devicePixelRatio != _tileDpr) {
       _dropTiles(); // rasterised for another screen
       _tileDpr = devicePixelRatio;
@@ -117,7 +125,7 @@ class ScoreRenderer {
       }
     }
 
-    _paintHeader(canvas, size, labels, paperColor, inkFilter);
+    _paintHeader(canvas, size, labels, musicLeft, paperColor, inkFilter);
     final zone = frozen;
     if (zone != null) {
       canvas.saveLayer(ui.Offset.zero & size, ui.Paint()..colorFilter = inkFilter);
@@ -136,6 +144,7 @@ class ScoreRenderer {
             left: style.headerWidth,
             top: _snap(placement.y, devicePixelRatio),
             scoreX: edgeX,
+            keyColumn: column,
             fadeWidth: _fade,
             linesTo: inkLeft == null ? 0 : originX + inkLeft * scale);
         if (faded) canvas.restore();
@@ -231,9 +240,9 @@ class ScoreRenderer {
 
   final _labelCache = <String, ui.Paragraph>{};
 
-  void _paintHeader(ui.Canvas canvas, ui.Size size, List<StaffLabel> labels, ui.Color paper, ui.ColorFilter ink) {
+  void _paintHeader(
+      ui.Canvas canvas, ui.Size size, List<StaffLabel> labels, double left, ui.Color paper, ui.ColorFilter ink) {
     // Names and the frozen zone sit on paper; the music fades out as it slides underneath.
-    final left = musicLeft;
     canvas.drawRect(ui.Rect.fromLTWH(0, 0, left, size.height), ui.Paint()..color = paper);
     canvas.drawRect(
       ui.Rect.fromLTWH(left, 0, _fade, size.height),

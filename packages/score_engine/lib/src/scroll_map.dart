@@ -215,13 +215,30 @@ class ScrollMap {
   /// shows two stretches of the score).
   ({double min, double max}) xRange(double t0, double t1) {
     var lo = double.infinity, hi = double.negativeInfinity;
-    for (var k = _passAt(t0); k <= _passAt(t1); k++) {
-      final a = math.max(t0, _starts[k]), b = k + 1 < _starts.length ? math.min(t1, _starts[k + 1]) : t1;
-      lo = math.min(lo, _curves[k].xAt(a));
-      hi = math.max(hi, _curves[k].xAt(b));
+    for (final s in xStretches(t0, t1)) {
+      lo = math.min(lo, s.min);
+      hi = math.max(hi, s.max);
     }
     return (min: lo, max: hi);
   }
+
+  /// The stretches of the score shown between times [t0] and [t1], one per pass (a warp
+  /// between them shows two, with the score between them never on screen).
+  Iterable<({double min, double max})> xStretches(double t0, double t1) sync* {
+    for (var k = _passAt(t0); k <= _passAt(t1); k++) {
+      final a = math.max(t0, _starts[k]), b = k + 1 < _starts.length ? math.min(t1, _starts[k + 1]) : t1;
+      yield (min: _curves[k].xAt(a), max: _curves[k].xAt(b));
+    }
+  }
+
+  /// Every time at which the score reaches [x] (one per pass that plays it), in order.
+  List<double> timesAt(double x) => [
+        for (var k = 0; k < _curves.length; k++)
+          ?_curves[k].timeAt(x, from: _starts[k], to: k + 1 < _starts.length ? _starts[k + 1] : double.infinity),
+      ];
+
+  /// When each pass after the first begins: the score jumps there (a warp).
+  Iterable<double> get warpTimes => _starts.skip(1);
 
   static double _interpolate(List<(double, double)> points, double time) {
     final upper = points.indexWhere((p) => p.$1 >= time);
@@ -254,6 +271,23 @@ class _Curve {
     final h01 = s * s * (3 - 2 * s);
     final h11 = s * s * (s - 1);
     return h00 * xs[lo] + h10 * h * _tangents[lo] + h01 * xs[hi] + h11 * h * _tangents[hi];
+  }
+
+  /// The first time between [from] and [to] at which the scroll reaches [x], or null.
+  /// The curve never goes back, so this is a bisection.
+  double? timeAt(double x, {required double from, required double to}) {
+    if (times.length < 2) return null;
+    var lo = math.max(from, times.first - 10), hi = math.min(to, times.last + 10);
+    if (lo >= hi || xAt(lo) > x || xAt(hi) < x) return null;
+    for (var i = 0; i < 60 && hi - lo > 1e-6; i++) {
+      final mid = (lo + hi) / 2;
+      if (xAt(mid) < x) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return hi;
   }
 
   static List<double> _monotoneTangents(List<double> t, List<double> x) {

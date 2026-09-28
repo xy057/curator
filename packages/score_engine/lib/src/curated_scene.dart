@@ -210,6 +210,7 @@ class CuratedScene {
   double maxGap = 140;
 
   SpacingPlan? _plan;
+  KeyColumnPlan? _keyPlan;
   Object? _planKey;
 
   /// The instruments from top to bottom (part ids): the score's order unless the user moved
@@ -321,9 +322,30 @@ class CuratedScene {
         scale: renderer.scale,
         metrics: _metrics(size),
       );
+      final zone = renderer.frozen;
+      _keyPlan = zone == null
+          ? null
+          : KeyColumnPlan.build(
+              zone: zone,
+              staves: display.staves,
+              order: _order,
+              scrollMap: scrollMap,
+              edges: curation.edgesInSeconds(timeline),
+              isShown: (id, seconds) => _isShown(curation, id, seconds),
+              minReach: (pointerX - renderer.musicLeftFor(0)) / renderer.scale,
+              maxReach: (pointerX - renderer.musicLeft) / renderer.scale,
+              transition: curation.transition,
+            );
       _planKey = key;
     }
     return _plan!;
+  }
+
+  /// The frozen zone's key column at [time], staff spaces: as wide as the widest key
+  /// signature of the staves shown (see [KeyColumnPlan]).
+  double keyColumnAt(double time, Curation curation, ui.Size size) {
+    _planFor(curation, size);
+    return _keyPlan?.columnAt(time) ?? 0;
   }
 
   /// Draws the frame at [time]. [paper] and [ink] override the style's colours (a dark
@@ -340,6 +362,7 @@ class CuratedScene {
         placements: frame.placements,
         labels: frame.labels,
         devicePixelRatio: devicePixelRatio,
+        keyColumn: keyColumnAt(time, curation, size),
         paper: paper,
         ink: ink);
   }
@@ -422,7 +445,7 @@ class CuratedScene {
   ({String id, ui.Rect rect})? textAt(ui.Offset point, double time, Curation curation, ui.Size size) {
     final s = renderer.scale;
     final pointerX = renderer.pointerX(size.width);
-    if (point.dx < renderer.musicLeft) return null;
+    if (point.dx < renderer.musicLeftFor(keyColumnAt(time, curation, size))) return null;
     final scrollX = scrollMap.xAt(time);
     final x = scrollX + (point.dx - pointerX) / s;
     for (final placement in layoutAt(time, curation, size).placements) {

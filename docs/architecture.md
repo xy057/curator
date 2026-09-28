@@ -18,7 +18,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump) |
 | `scroll_map.dart` | Playback time → the score x under the pointer |
-| `spacing_plan.dart`, `staff_stack.dart` | The vertical layout, planned per curation segment |
+| `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column; tile-cached drawing |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready) and `CuratedScene`: one frame is `paint(time)` |
 

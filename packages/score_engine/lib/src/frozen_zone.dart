@@ -8,7 +8,9 @@ import 'native/bindings.dart' show VBKind;
 /// The frozen zone at the left of every staff, like Dorico's galley view: the clef, key and
 /// time signature currently in force stay visible while the music scrolls. A change takes over
 /// the zone the moment it scrolls into the zone's right edge. Time signatures share one column
-/// after the widest key signature, so they line up down the whole score.
+/// after the key signatures, so they line up down the whole score. The key column is only as
+/// wide as the widest key signature of the staves shown ([KeyColumnPlan] animates it); a key
+/// signature wider than the column (a staff fading out) slides under the time signature.
 ///
 /// Signatures are redrawn from their musical meaning (not copied glyphs), so a clef change
 /// engraved at cue size appears full size here, and key signatures are positioned for the
@@ -39,7 +41,13 @@ class FrozenZone {
         break;
       }
     }
-    _maxAccidentals = data.signatures.whereType<KeySignature>().fold(0, (m, k) => math.max(m, k.fifths.abs()));
+    for (final staff in data.staves) {
+      _drawsKeys[staff.n] = staff.lines == 5 && !(_clefs[staff.n]?.every((c) => c.shape == ClefShape.percussion) ?? false);
+    }
+    maxKeyColumn = [
+      for (final MapEntry(key: n, value: keys) in _keys.entries)
+        if (_drawsKeys[n] ?? false) ...keys.map(_keyColumn)
+    ].fold(0.0, math.max);
     _meterDigits = data.signatures.whereType<TimeSignature>().fold(
         0, (m, t) => math.max(m, t.symbol != null ? 1 : math.max(_numerator(t).length, '${t.unit}'.length)));
 
@@ -62,7 +70,7 @@ class FrozenZone {
   final _clefs = <int, List<ClefSignature>>{};
   final _keys = <int, List<KeySignature>>{};
   final _meters = <int, List<TimeSignature>>{};
-  late final int _maxAccidentals;
+  final _drawsKeys = <int, bool>{}; // staff number → whether its key signatures are drawn
   late final int _meterDigits; // widest time signature, in glyphs (0: none in the piece)
   late final double _firstOnset;
 
@@ -75,13 +83,47 @@ class FrozenZone {
   double _lineThickness = 0.13; // staff spaces; the engraving's own when it has staff lines
   static const _startLineThickness = 0.16;
 
-  /// Width of the zone in logical pixels. Fixed for the whole piece (sized for its largest
-  /// key signature), so nothing shifts when the key changes.
-  double get width => (_meterLeft + _meterWidth + _padRight) * style.staffSpace;
+  /// The widest key column in the piece, in staff spaces.
+  late final double maxKeyColumn;
+
+  /// Width of the zone in logical pixels with a key column [keyColumn] staff spaces wide.
+  double widthFor(double keyColumn) => (_meterLeft(keyColumn) + _meterWidth + _padRight) * style.staffSpace;
+
+  /// The widest the zone gets: with the widest key signature in the piece.
+  double get maxWidth => widthFor(maxKeyColumn);
+
+  /// Room a key signature takes after the clef, in staff spaces (none for no accidentals).
+  static double _keyColumn(KeySignature key) =>
+      key.fifths == 0 ? 0 : _clefGap + key.fifths.abs().clamp(0, 7) * (key.fifths > 0 ? _sharpStep : _flatStep);
+
+  /// The widest key column staff [staff] needs while the zone's right edge is anywhere between
+  /// score positions [from] and [to] (device units).
+  double keyColumnIn(int staff, double from, double to) {
+    final keys = _keys[staff];
+    if (keys == null || !(_drawsKeys[staff] ?? false)) return 0;
+    var widest = _keyColumnOrZero(stateAt(staff, from).key);
+    for (final k in keys) {
+      if (k.x > from && k.x <= to) widest = math.max(widest, _keyColumn(k));
+    }
+    return widest;
+  }
+
+  /// Each key change on staff [staff] (score position, device units) and the key column it
+  /// needs before and after.
+  Iterable<({double x, double before, double after})> keyColumnChanges(int staff) sync* {
+    final keys = _keys[staff];
+    if (keys == null || !(_drawsKeys[staff] ?? false)) return;
+    for (final (i, k) in keys.indexed) {
+      if (i == 0 && k.x < _firstOnset) continue; // the opening key: in force from the start
+      final before = i == 0 ? 0.0 : _keyColumn(keys[i - 1]), after = _keyColumn(k);
+      if (before != after) yield (x: k.x, before: before, after: after);
+    }
+  }
+
+  static double _keyColumnOrZero(KeySignature? key) => key == null ? 0 : _keyColumn(key);
 
   /// Where the time signature column starts, and its width, in staff spaces from the zone's left.
-  double get _meterLeft =>
-      _padLeft + _clefWidth + (_maxAccidentals == 0 ? 0 : _clefGap + _maxAccidentals * _sharpStep) + (_meterDigits == 0 ? 0 : _meterGap);
+  double _meterLeft(double keyColumn) => _padLeft + _clefWidth + keyColumn + (_meterDigits == 0 ? 0 : _meterGap);
   double get _meterWidth => _meterDigits * _digitWidth;
 
   ({ClefSignature? clef, KeySignature? key, TimeSignature? time}) stateAt(int staff, double x) {
@@ -102,18 +144,20 @@ class FrozenZone {
 
   /// Paints one staff's zone: staff lines, a starting line, clef, key and time signature.
   /// [top] is the staff's top line in logical pixels, [scoreX] the score position at the
-  /// zone's right edge (device units). The staff lines run on to [linesTo] (where the
-  /// scrolling staff begins, at the start of the piece) or through the fade.
+  /// zone's right edge (device units), [keyColumn] the key column's width in staff spaces.
+  /// The staff lines run on to [linesTo] (where the scrolling staff begins, at the start of
+  /// the piece) or through the fade.
   void paintStaff(ui.Canvas canvas, StaffInfo staff,
       {required double left,
       required double top,
       required double scoreX,
+      required double keyColumn,
       required double fadeWidth,
       double linesTo = 0}) {
     final sp = style.staffSpace;
     final lines = math.max(1, staff.lines);
     final height = (lines - 1) * sp;
-    final right = left + width;
+    final right = left + widthFor(keyColumn);
     final ink = ui.Paint()..color = style.ink;
 
     // Staff lines through the zone and the fade, so they join the scrolling staff seamlessly.
@@ -131,7 +175,7 @@ class FrozenZone {
 
     final state = stateAt(staff.n, scoreX);
     final time = state.time;
-    if (time != null) _paintTime(canvas, time, left + (_meterLeft + _meterWidth / 2) * sp, top + (lines - 1) * sp / 2);
+    if (time != null) _paintTime(canvas, time, left + (_meterLeft(keyColumn) + _meterWidth / 2) * sp, top + (lines - 1) * sp / 2);
     final clef = state.clef;
     var x = left + _padLeft * sp;
     if (clef != null) {
@@ -141,15 +185,23 @@ class FrozenZone {
         _drawGlyph(canvas, glyph, x, top + (lines - line) * sp);
       }
     }
-    x += _clefWidth * sp + _clefGap * sp;
+    final columnLeft = x + _clefWidth * sp;
+    x = columnLeft + _clefGap * sp;
 
     final key = state.key;
     if (key == null || key.fifths == 0 || lines != 5 || clef?.shape == ClefShape.percussion) return;
+    // Wider than the column while the column closes: cut off where the column ends.
+    final cut = _keyColumn(key) > keyColumn + 1e-6;
+    if (cut) {
+      canvas.save();
+      canvas.clipRect(ui.Rect.fromLTRB(left, top - 4 * sp, columnLeft + keyColumn * sp, top + height + 4 * sp));
+    }
     final steps = _keySteps(key.fifths, clef);
     for (final step in steps) {
       _drawGlyph(canvas, key.fifths > 0 ? 0xE262 : 0xE260, x, top + height - step * sp / 2);
       x += (key.fifths > 0 ? _sharpStep : _flatStep) * sp;
     }
+    if (cut) canvas.restore();
   }
 
   /// A time signature centred on [centerX]: the two numbers either side of the middle line,

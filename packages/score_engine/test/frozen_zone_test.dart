@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -57,7 +59,78 @@ void main() {
     expect(time.summands, [2, 2, 2]);
     expect(additive.beats.beatsIn(1), [3, 4, 5]); // three crotchet groups, not two dotted ones
     final wider = CuratedScene(additive);
-    expect(wider.renderer.frozen!.width, greaterThan(scene.renderer.frozen!.width), reason: '"2+2+2" takes more room than "6"');
+    expect(wider.renderer.frozen!.maxWidth, greaterThan(scene.renderer.frozen!.maxWidth), reason: '"2+2+2" takes more room than "6"');
     wider.dispose();
+  });
+
+  group('the key column', () {
+    const size = ui.Size(1280, 720);
+    String idOf(String name) => score.metadata.parts.firstWhere((p) => p.name == name).id;
+    double secondsAt(int bar) => score.timeline.secondsAtQuarter(score.timeline.measureStarts[bar - 1]);
+    double end() => score.timeline.measureStarts.last;
+    const twoSharps = 1.0 + 2 * 1.1, fourFlats = 1.0 + 4 * 1.0;
+
+    Curation curation(Map<String, List<Region>> lanes) {
+      final c = Curation(score.metadata.parts.map((p) => p.id))..transition = 0.4;
+      lanes.forEach((name, regions) => c.setLane(idOf(name), regions));
+      return c;
+    }
+
+    /// Every fully shown staff's key signature fits the column where the zone's edge is.
+    void expectKeysFit(Curation c, double from, double to) {
+      final zone = scene.renderer.frozen!;
+      final s = scene.renderer.scale, pointerX = scene.renderer.pointerX(size.width);
+      for (var t = from; t <= to; t += 0.02) {
+        final column = scene.keyColumnAt(t, c, size);
+        final edgeX = scene.scrollMap.xAt(t) - (pointerX - scene.renderer.musicLeftFor(column)) / s;
+        for (final p in scene.layoutAt(t, c, size).placements) {
+          if (p.opacity < 1) continue; // still gliding in or out
+          final n = scene.display.staves[p.staffIndex].info.n;
+          expect(zone.keyColumnIn(n, edgeX, edgeX), lessThanOrEqualTo(column + 1e-9), reason: 'staff $n at $t s');
+        }
+      }
+    }
+
+    test('is as wide as the widest key of the staves shown: it closes when they leave and opens when they return', () {
+      final c = curation({
+        'Oboe 1': [Region(0, end())], // C major: no key signature
+        'Clarinet in B♭ 1': [Region(0, score.timeline.measureStarts[10]), Region(score.timeline.measureStarts[19], end())], // D major
+      });
+      final leaves = secondsAt(11), returns = secondsAt(20);
+      expect(scene.keyColumnAt(leaves - 1, c, size), closeTo(twoSharps, 1e-9));
+      final midway = scene.keyColumnAt(leaves, c, size);
+      expect(midway, inExclusiveRange(0, twoSharps), reason: 'glides over the transition time');
+      expect(scene.keyColumnAt(leaves + 0.21, c, size), 0);
+      expect(scene.keyColumnAt(returns - 0.21, c, size), 0);
+      expect(scene.keyColumnAt(returns + 0.21, c, size), closeTo(twoSharps, 1e-9));
+      expect(scene.renderer.musicLeftFor(0), lessThan(scene.renderer.musicLeftFor(twoSharps)), reason: 'the music starts further left');
+      expectKeysFit(c, leaves - 1, returns + 1);
+    });
+
+    test('with nothing shown needing a key signature, there is none', () {
+      final c = curation({'Oboe 1': [Region(0, score.timeline.measureStarts[20])]});
+      expect(scene.keyColumnAt(secondsAt(5), c, size), 0);
+      expect(scene.renderer.frozen!.maxKeyColumn, greaterThan(0), reason: 'the piece has key signatures elsewhere');
+    });
+
+    test('opens ahead of a wider key, so it is never cut off as it takes over', () {
+      final c = curation({'Oboe 1': [Region(0, end())]}); // C major, then A♭ major at bar 29
+      final zone = scene.renderer.frozen!;
+      final s = scene.renderer.scale, pointerX = scene.renderer.pointerX(size.width);
+      final oboe = staffOf('Oboe 1');
+      // The first frame at which the zone shows A♭ major.
+      var t = secondsAt(26);
+      while (zone.stateAt(oboe,
+                  scene.scrollMap.xAt(t) - (pointerX - scene.renderer.musicLeftFor(scene.keyColumnAt(t, c, size))) / s)
+              .key ==
+          null) {
+        t += 0.01;
+      }
+      expect(scene.keyColumnAt(secondsAt(26), c, size), 0);
+      expect(scene.keyColumnAt(t, c, size), closeTo(fourFlats, 1e-9), reason: 'fully open as the key arrives');
+      expect(scene.keyColumnAt(t - 0.2, c, size), inExclusiveRange(0, fourFlats), reason: 'opening as it approaches');
+      expect(scene.keyColumnAt(t + 5, c, size), closeTo(fourFlats, 1e-9));
+      expectKeysFit(c, t - 2, t + 2);
+    });
   });
 }
