@@ -74,6 +74,11 @@ void main() {
     await tester.tap(find.text('0.8 s').last);
     await tester.pumpAndSettle();
     expect(settings.transition, 0.8);
+
+    await tester.tap(find.text('Extension'));
+    await tester.pumpAndSettle();
+    expect(find.text('No extensions yet.'), findsOneWidget);
+    await shot(tester, 'settings-extension');
   });
 
   testWidgets('search finds items on every page', (tester) async {

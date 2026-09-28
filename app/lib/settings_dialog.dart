@@ -56,10 +56,13 @@ class _Item {
 }
 
 class _Category {
-  const _Category(this.label, this.icon, this.items);
+  const _Category(this.label, this.icon, this.items, {this.empty});
   final String label;
   final IconData icon;
   final List<_Item> items;
+
+  /// Shown in place of the items while there are none.
+  final String? empty;
 }
 
 typedef _Context = ({AppSettings settings, EditorController? controller, Updater updater});
@@ -150,6 +153,9 @@ final _categories = <_Category>[
       keywords: 'embed link media audio video file',
     ),
   ]),
+  // First-party components that are not part of the main work (import, curate, sync, export):
+  // lower priority, each one optional.
+  _Category('Extension', Icons.extension_outlined, [], empty: 'No extensions yet.'),
   _Category('Advanced', Icons.build_outlined, [
     _Item(
       'Engraving',
@@ -338,7 +344,12 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     final cat = _categories[_page];
     final Widget page;
     if (matches == null) {
-      page = _Page(key: ValueKey(_page), title: cat.label, children: [for (final item in cat.items) _row(item)]);
+      page = _Page(
+        key: ValueKey(_page),
+        title: cat.label,
+        empty: cat.empty,
+        children: [for (final item in cat.items) _row(item)],
+      );
     } else {
       page = _Page(
         key: const ValueKey('search'),
@@ -425,9 +436,10 @@ class _SidebarTile extends StatelessWidget {
 }
 
 class _Page extends StatelessWidget {
-  const _Page({super.key, required this.title, required this.children});
+  const _Page({super.key, required this.title, required this.children, this.empty});
   final String title;
   final List<Widget> children;
+  final String? empty;
 
   @override
   Widget build(BuildContext context) {
@@ -449,7 +461,9 @@ class _Page extends StatelessWidget {
                 child,
               ],
             ]),
-          ),
+          )
+        else if (empty != null)
+          Text(empty!, style: TextStyle(fontSize: 13, color: colors.textMuted)),
       ],
     );
   }

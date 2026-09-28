@@ -203,7 +203,8 @@ replaces the running app.
 ## Adding things
 
 - **A setting**: an `_Item` in `settings_dialog.dart`'s `_categories`, backed by a field in
-  `AppSettings`.
+  `AppSettings`. Settings of first-party components that are not part of the main work
+  (import, curate, sync, export) and matter less go under **Extension**.
 - **Something a project saves**: a field in `ProjectState` (and `EditState` if Undo should
   cover it), written in `toJson`, read in `fromJson`; bump the version with a migration if
   older files need converting.
