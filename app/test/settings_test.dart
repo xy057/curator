@@ -95,6 +95,9 @@ void main() {
 
     await tester.tap(find.text('Engrave Option'));
     await tester.pumpAndSettle();
+    await shot(tester, 'engrave-warning');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
     await shot(tester, 'engrave-options');
 
     // Every option is there, once, A–Z by code name: scroll through the whole list.
@@ -128,5 +131,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(settings.engravingOptions.isEmpty, isTrue);
     expect(find.text('Engrave Options'), findsNothing, reason: 'no title, no help: code names only');
+  });
+
+  testWidgets('Advanced ▸ Engrave Option warns first; Cancel leaves the options closed', (tester) async {
+    await open(tester);
+    if (find.text('Engrave Option').evaluate().isEmpty) {
+      await tester.tap(find.text('Advanced')); // the dialog reopens on the page it was left on
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.text('Engrave Option'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Editing these values might generate unintended results and errors'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Search'), findsOneWidget, reason: 'only the settings search is open');
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Editing these values'), findsNothing);
+    expect(find.widgetWithText(TextField, 'Search'), findsOneWidget, reason: 'no engraving list opened');
+    expect(find.text('Engrave Option'), findsOneWidget, reason: 'back on the Advanced page');
   });
 }

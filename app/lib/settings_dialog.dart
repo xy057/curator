@@ -156,7 +156,10 @@ final _categories = <_Category>[
       null,
       (c) => Builder(
         builder: (context) => OutlinedButton(
-          onPressed: () => showEngraveOptionsDialog(context, c.settings, controller: c.controller),
+          onPressed: () async {
+            if (!await _confirmEngraving(context) || !context.mounted) return;
+            showEngraveOptionsDialog(context, c.settings, controller: c.controller);
+          },
           child: const Text('Engrave Option'),
         ),
       ),
@@ -184,6 +187,22 @@ final _categories = <_Category>[
     ),
   ]),
 ];
+
+/// Asked each time before the engraving options open: their values go straight to Verovio.
+Future<bool> _confirmEngraving(BuildContext context) async {
+  final go = await showAppDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Advanced engraving'),
+      content: const Text('Editing these values might generate unintended results and errors. Use cautiously.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continue')),
+      ],
+    ),
+  );
+  return go ?? false;
+}
 
 String _updateHelp(UpdateStatus status) => switch (status) {
       UpdateIdle() => 'Curator, from GitHub.',
