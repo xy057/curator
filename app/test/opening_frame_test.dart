@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/score_view.dart';
+import 'package:curated_score/video_export.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,7 +28,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     final renderer = c.scene!.renderer;
-    final width = tester.getSize(find.byType(ScoreView)).width;
+    // The score is laid out like the video and scaled into the view (VideoFrame).
+    final frame = VideoFrame.fit(tester.getSize(find.byType(ScoreView)), VideoResolution.hd1080.aspectRatio,
+        devicePixelRatio: 2);
+    final width = frame.layout.width;
     final zoneRight = renderer.musicLeft;
     final musicStart = renderer.pointerX(width) +
         (c.score!.engraving.measures.first.left - c.scene!.scrollMap.xAt(0)) * renderer.scale;
@@ -42,7 +46,7 @@ void main() {
     final image = pixels!.image;
     List<int> inkRows(double x) => [
           for (var y = 0; y < image.height; y++)
-            if (pixels.bytes.getUint8((y * image.width + (x * 2).round()) * 4) < 160) y,
+            if (pixels.bytes.getUint8((y * image.width + (x * frame.scale * 2).round()) * 4) < 160) y,
         ];
 
     final inZone = inkRows(zoneRight - 4);

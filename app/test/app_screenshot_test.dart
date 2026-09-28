@@ -8,6 +8,7 @@ import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/score_view.dart';
+import 'package:curated_score/video_export.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -129,11 +130,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     final box = tester.getRect(find.byType(ScoreView));
+    final frame = VideoFrame.fit(box.size, VideoResolution.hd1080.aspectRatio,
+        devicePixelRatio: tester.view.devicePixelRatio);
     Offset? target;
-    for (var y = 0.0; y < box.height && target == null; y += 4) {
-      for (var x = 140.0; x < box.width && target == null; x += 6) {
-        final hit = controller.scene!.textAt(Offset(x, y), controller.playback.time.value, controller.curation!, box.size);
-        if (hit?.id == vivo.id) target = hit!.rect.center;
+    for (var y = 0.0; y < frame.layout.height && target == null; y += 4) {
+      for (var x = 140.0; x < frame.layout.width && target == null; x += 6) {
+        final hit =
+            controller.scene!.textAt(Offset(x, y), controller.playback.time.value, controller.curation!, frame.layout);
+        if (hit?.id == vivo.id) target = frame.toView(hit!.rect).center;
       }
     }
     expect(target, isNotNull);

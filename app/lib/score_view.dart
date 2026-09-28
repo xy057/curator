@@ -7,15 +7,22 @@ import 'package:score_engine/score_engine.dart' show RenderStyle;
 import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'edit_dialogs.dart';
+import 'video_export.dart';
 
 /// The curated score preview, drawn by CuratedScene.paint: a frame is a function of the
 /// time alone, which video export reuses (CuratedScene.renderFrame, VideoExport).
 ///
+/// It shows the video's frame: the export's aspect ratio, laid out like the video and scaled
+/// to fit ([VideoFrame]), so resizing the window never changes what the score shows.
+///
 /// Double-click a text (tempo mark, "arco", "dolce"…) to edit it in place — Enter saves,
 /// Esc cancels, an empty text removes it. Double-click an instrument name to rename it.
 class ScoreView extends StatefulWidget {
-  const ScoreView({super.key, required this.controller});
+  const ScoreView({super.key, required this.controller, required this.aspectRatio});
   final EditorController controller;
+
+  /// The video's width over its height.
+  final double aspectRatio;
 
   @override
   State<ScoreView> createState() => _ScoreViewState();
@@ -24,7 +31,7 @@ class ScoreView extends StatefulWidget {
 class _ScoreViewState extends State<ScoreView> {
   EditorController get c => widget.controller;
 
-  /// The text being edited in place, and where it is drawn.
+  /// The text being edited in place, and where it is drawn (layout points, see [VideoFrame]).
   ({String id, Rect rect})? _editing;
   final _field = TextEditingController();
   final _focus = FocusNode();
@@ -36,10 +43,12 @@ class _ScoreViewState extends State<ScoreView> {
     super.dispose();
   }
 
-  void _onDoubleTap(TapDownDetails details, Size size) {
+  void _onDoubleTap(TapDownDetails details, VideoFrame frame) {
     final scene = c.scene, curation = c.curation;
     if (scene == null || curation == null) return;
-    final p = details.localPosition;
+    if (!frame.rect.contains(details.localPosition)) return;
+    final p = frame.toLayout(details.localPosition);
+    final size = frame.layout;
 
     final partId = scene.partLabelAt(p, c.playback.time.value, curation, size);
     if (partId != null) {
@@ -72,27 +81,38 @@ class _ScoreViewState extends State<ScoreView> {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      final size = constraints.biggest;
+      final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+      final frame = VideoFrame.fit(constraints.biggest, widget.aspectRatio, devicePixelRatio: devicePixelRatio);
+      final colors = context.colors;
       final editing = _editing;
+      final editRect = editing == null ? null : frame.toView(editing.rect);
       return Stack(children: [
-        Positioned.fill(child: ColoredBox(color: context.colors.scorePaper)),
-        Positioned.fill(
-          child: GestureDetector(
-            onDoubleTapDown: (d) => _onDoubleTap(d, size),
-            onDoubleTap: () {},
+        Positioned.fill(child: ColoredBox(color: colors.surface)),
+        Positioned.fromRect(
+          rect: frame.rect,
+          child: DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(border: Border.all(color: colors.line)),
             child: RepaintBoundary(
               child: CustomPaint(
-                painter: _ScorePainter(c, MediaQuery.devicePixelRatioOf(context), context.colors),
+                painter: _ScorePainter(c, devicePixelRatio, colors),
                 size: Size.infinite,
               ),
             ),
           ),
         ),
-        if (editing != null)
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onDoubleTapDown: (d) => _onDoubleTap(d, frame),
+            onDoubleTap: () {},
+          ),
+        ),
+        if (editing != null && editRect != null)
           Positioned(
-            left: math.max(4, editing.rect.left - 8),
-            top: math.max(4, editing.rect.center.dy - 18),
-            width: math.max(editing.rect.width + 60, 200),
+            left: math.max(4, editRect.left - 8),
+            top: math.max(4, editRect.center.dy - 18),
+            width: math.max(editRect.width + 60, 200),
             child: _InlineEditor(
               controller: _field,
               focus: _focus,
@@ -189,14 +209,19 @@ class _ScorePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final scene = controller.scene, curation = controller.curation;
-    if (scene == null || curation == null) return;
-    canvas.clipRect(Offset.zero & size);
+    if (scene == null || curation == null || size.isEmpty) return;
+    // Laid out like the video (layoutHeight points high), scaled to fit, as the export
+    // dialog's still is (VideoExport.paintPreview).
+    final scale = size.height / VideoFormat.layoutHeight;
+    canvas
+      ..clipRect(Offset.zero & size)
+      ..scale(scale);
     scene.paint(
       canvas,
-      size,
+      size / scale,
       time: controller.playback.time.value,
       curation: curation,
-      devicePixelRatio: devicePixelRatio,
+      devicePixelRatio: devicePixelRatio * scale,
       paper: colors.scorePaper,
       ink: colors.scoreInk,
     );

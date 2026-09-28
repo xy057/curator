@@ -558,7 +558,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             onExportVideo: _exportVideo,
             onClose: _close,
           ),
-          Expanded(child: ScoreView(controller: controller)),
+          Expanded(child: ScoreView(controller: controller, aspectRatio: settings.videoResolution.aspectRatio)),
           _ResizeHandle(
             onDrag: (dy) => setState(() => _timelineHeight = (timelineHeight - dy).clamp(_minTimeline, maxTimeline)),
           ),

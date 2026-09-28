@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -21,6 +22,39 @@ enum VideoResolution {
   const VideoResolution(this.width, this.height, this.label);
   final int width, height;
   final String label;
+
+  double get aspectRatio => width / height;
+}
+
+/// Where a video's frame sits in a view of any size: centred, as large as fits, and laid out
+/// like the video ([layout] points, [VideoFormat.layoutHeight] high) at [scale] view points a
+/// layout point. The editor's preview draws through it, so it shows what the video will.
+@immutable
+class VideoFrame {
+  const VideoFrame._(this.rect, this.layout, this.scale);
+
+  /// The frame starts on a whole pixel at [devicePixelRatio], so the renderer's pixel
+  /// snapping (crisp staff lines) lands on the screen's pixels.
+  factory VideoFrame.fit(ui.Size view, double aspectRatio, {double devicePixelRatio = 1}) {
+    final layout = ui.Size(VideoFormat.layoutHeight * aspectRatio, VideoFormat.layoutHeight);
+    final scale = view.isEmpty ? 0.0 : math.min(view.width / layout.width, view.height / layout.height);
+    final size = layout * scale;
+    double snap(double v) => (v * devicePixelRatio).floorToDouble() / devicePixelRatio;
+    return VideoFrame._(
+        ui.Offset(snap((view.width - size.width) / 2), snap((view.height - size.height) / 2)) & size, layout, scale);
+  }
+
+  /// The frame, in the view's points.
+  final ui.Rect rect;
+  final ui.Size layout;
+  final double scale;
+
+  /// A point in the view, in layout points.
+  ui.Offset toLayout(ui.Offset p) => (p - rect.topLeft) / scale;
+
+  /// A rectangle in layout points, in the view's.
+  ui.Rect toView(ui.Rect r) => ui.Rect.fromLTWH(
+      rect.left + r.left * scale, rect.top + r.top * scale, r.width * scale, r.height * scale);
 }
 
 /// Light (black on white, the engraving's own colours) or dark paper, as in the app's themes.
