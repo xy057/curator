@@ -31,15 +31,28 @@ class MainFlutterWindow: NSWindow {
   /// Below this the editor's panels would overflow (WindowChrome.minimumSize in Dart).
   static let minimumSize = NSSize(width: 960, height: 620)
 
+  /// The first window's size, when nothing is remembered: at most 90% of the screen's usable
+  /// area (a 13-inch laptop), never below [minimumSize]. After that the window reopens where
+  /// and as big as it was left.
+  static let initialSize = NSSize(width: 1440, height: 900)
+  private static let frameName = "Curator"
+
   private var windowChannel: FlutterMethodChannel?
   private let opener = DocumentOpener()
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
-    let windowFrame = self.frame
     self.contentViewController = flutterViewController
-    self.setFrame(windowFrame, display: true)
     self.contentMinSize = MainFlutterWindow.minimumSize
+    if !self.setFrameUsingName(MainFlutterWindow.frameName) {
+      let visible = (self.screen ?? NSScreen.main)?.visibleFrame.size ?? MainFlutterWindow.initialSize
+      let size = NSSize(
+        width: max(MainFlutterWindow.minimumSize.width, min(MainFlutterWindow.initialSize.width, visible.width * 0.9)),
+        height: max(MainFlutterWindow.minimumSize.height, min(MainFlutterWindow.initialSize.height, visible.height * 0.9)))
+      self.setFrame(self.frameRect(forContentRect: NSRect(origin: .zero, size: size)), display: true)
+      self.center()
+    }
+    self.setFrameAutosaveName(MainFlutterWindow.frameName)
     self.title = "Curator"
 
     // The document's name, its edited dot and its proxy icon, set from Dart (window_chrome.dart).
