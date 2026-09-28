@@ -104,6 +104,11 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   List<ScorePart>? _reordered;
   Offset _liftPointer = Offset.zero;
   double _grab = 0; // where the held name was taken, from the top of the held block
+
+  /// How far each held lane was from its place in the block when lifted, and how far the
+  /// block has gathered (0…1): all of them close up together, then move as one.
+  Map<String, double> _gatherFrom = const {};
+  double _gathered = 1;
   final _headersKey = GlobalKey();
   final _viewportKey = GlobalKey();
 
@@ -116,12 +121,20 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   /// The top of lane [i] as drawn now.
   double _rowTop(int i) => _rowY[parts[i].id] ?? i * _laneHeight;
 
-  /// The held lanes as one object: from the top of the highest to the bottom of the lowest
-  /// (they gather into one block as they are lifted); null when none is held.
-  Rect? _heldBlock(double width) {
-    final rows = [for (var i = 0; i < parts.length; i++) if (_held.contains(parts[i].id)) _rowTop(i)];
-    if (rows.isEmpty) return null;
-    return Rect.fromLTRB(0, rows.reduce(math.min), width, rows.reduce(math.max) + _laneHeight);
+  /// The held lanes as objects: each run of held lanes that touch is one block, and once
+  /// they have gathered (as they are lifted) there is one. Empty when none is held.
+  List<Rect> _heldBlocks(double width) {
+    final rows = [for (var i = 0; i < parts.length; i++) if (_held.contains(parts[i].id)) _rowTop(i)]..sort();
+    final blocks = <Rect>[];
+    for (final top in rows) {
+      final last = blocks.lastOrNull;
+      if (last != null && top <= last.bottom + 0.5) {
+        blocks.last = Rect.fromLTRB(0, last.top, width, top + _laneHeight);
+      } else {
+        blocks.add(Rect.fromLTWH(0, top, width, _laneHeight));
+      }
+    }
+    return blocks;
   }
 
   /// The lane name under the mouse, and so the lanes that light up: the whole selection, as
@@ -168,7 +181,12 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     final selected = c.lanes.selectedPartIds;
     final held = selected.contains(partId) ? [for (final p in lanes) if (selected.contains(p.id)) p.id] : [partId];
     if (!selected.contains(partId)) c.clearSelection();
-    _grab = box.globalToLocal(global).dy - (i - held.indexOf(partId)) * _laneHeight;
+    final blockTop = _rowTop(i) - held.indexOf(partId) * _laneHeight;
+    _grab = box.globalToLocal(global).dy - blockTop;
+    _gatherFrom = {
+      for (final (k, id) in held.indexed) id: _rowTop(lanes.indexWhere((p) => p.id == id)) - (blockTop + k * _laneHeight),
+    };
+    _gathered = 0;
     _liftPointer = global;
     setState(() {
       _lifted = partId;
@@ -213,7 +231,12 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
       final others = [for (final p in lanes) if (!_held.contains(p.id)) p];
       if (box != null) {
         blockTop = (box.globalToLocal(_liftPointer).dy - _grab).clamp(0.0, others.length * _laneHeight);
-        _rowY[lifted] = blockTop + _held.indexOf(lifted) * _laneHeight; // right under the pointer
+        // The block follows the pointer exactly; its lanes close up on the held one together.
+        _gathered = math.min(1, _gathered + dt / 0.15);
+        final closing = 1 - _gathered * _gathered * (3 - 2 * _gathered);
+        for (final (k, id) in _held.indexed) {
+          _rowY[id] = blockTop + k * _laneHeight + (_gatherFrom[id] ?? 0) * closing;
+        }
         final to = ((blockTop + _laneHeight / 2) / _laneHeight).floor().clamp(0, others.length);
         final next = [
           ...others.take(to),
@@ -229,10 +252,9 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     final ease = 1 - math.exp(-dt / 0.05); // a lane covers most of its way in about a tenth of a second
     var moving = false;
     for (final (i, part) in parts.indexed) {
-      if (part.id == lifted) continue;
-      // The rest of a held block gathers under the held lane and follows it.
-      final k = _held.indexOf(part.id);
-      final target = lifted != null && k >= 0 ? blockTop + k * _laneHeight : i * _laneHeight;
+      if (lifted != null && _held.contains(part.id)) continue; // placed with its block
+      // Let go, a block is one distance from its place in every lane: it settles as one.
+      final target = i * _laneHeight;
       final y = _rowY[part.id] ?? target;
       final next = y + (target - y) * ease;
       if ((next - target).abs() < 0.5) {
@@ -540,7 +562,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                 builder: (context, _) {
                   final selectedLanes = c.lanes.selectedPartIds;
                   final hovered = _hoverGroup;
-                  final block = _heldBlock(kLaneHeaderWidth);
+                  final blocks = _heldBlocks(kLaneHeaderWidth);
                   Widget header(int i) {
                     final part = parts[i];
                     // Keyed, so each name keeps its hover and the held one its gesture as they move.
@@ -572,7 +594,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                       for (var i = 0; i < parts.length; i++)
                         if (!held(i)) header(i),
                       // The held names float above the others as one block, on one shadow.
-                      if (block != null)
+                      for (final block in blocks)
                         Positioned.fromRect(
                           rect: block,
                           child: IgnorePointer(
@@ -963,13 +985,15 @@ class _LanesPainter extends CustomPainter {
     for (var i = 0; i < parts.length; i++) {
       if (!held(i)) _paintLane(canvas, size, i, s._rowTop(i));
     }
-    final block = s._heldBlock(size.width);
-    if (block != null) {
+    final blocks = s._heldBlocks(size.width);
+    if (blocks.isNotEmpty) {
       // Held lanes float above the others as one block, on one shadow.
-      for (final shadow in _liftShadow(colors)) {
-        canvas.drawRect(block.shift(shadow.offset), shadow.toPaint());
+      for (final block in blocks) {
+        for (final shadow in _liftShadow(colors)) {
+          canvas.drawRect(block.shift(shadow.offset), shadow.toPaint());
+        }
+        canvas.drawRect(block, Paint()..color = colors.surface);
       }
-      canvas.drawRect(block, Paint()..color = colors.surface);
       for (var i = 0; i < parts.length; i++) {
         if (!held(i)) continue;
         canvas.drawRect(Rect.fromLTWH(0, s._rowTop(i), size.width, _laneHeight), Paint()..color = colors.accentSoft);

@@ -255,7 +255,25 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16)); // frames: the block gathers as it goes
     }
     await _shot(tester, dir, 'lanes-moving-selection');
+    // Gathered, the block is one object: its lanes one lane apart, moving by the same amount.
+    double nameTop(String name) => tester.getTopLeft(find.text(name)).dy;
+    double gap() => nameTop('Oboe 2') - nameTop('Flute 2');
+    expect(gap(), closeTo(26, 1e-6));
+    await h.moveBy(const Offset(0, 30));
+    final (flute, oboe2) = (nameTop('Flute 2'), nameTop('Oboe 2'));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(nameTop('Flute 2') - flute, closeTo(nameTop('Oboe 2') - oboe2, 1e-6));
+    expect(nameTop('Flute 2'), greaterThan(flute));
+    expect(gap(), closeTo(26, 1e-6));
+    await h.moveBy(const Offset(0, -30));
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     await h.up();
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(gap(), closeTo(26, 1e-6), reason: 'it settles as one');
+    }
     await tester.pump(const Duration(milliseconds: 400));
     expect([for (final p in c.laneParts.take(4)) p.id], ['P3', 'P5', 'P1', 'P2']);
     expect(c.lanes.selectedPartIds, {'P3', 'P5'}, reason: 'still selected');
