@@ -228,6 +228,25 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pump(const Duration(milliseconds: 400));
     expect(c.lanes.selectedPartIds, {'P3', 'P5'});
+
+    // Hovering a selected lane lights up the whole selection, as one; another lane, just itself.
+    Set<String> lit() => {
+          for (final w in tester.widgetList(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_LaneHeader')))
+            if ((w as dynamic).hovered as bool) (w as dynamic).part.id as String,
+        };
+    final mouse = TestPointer(1, PointerDeviceKind.mouse); // the mouse the clicks above used
+    Future<void> hover(Finder over) async {
+      await tester.sendEventToBinding(mouse.hover(tester.getCenter(over)));
+      await tester.pump();
+    }
+
+    await hover(find.text('Flute 2'));
+    expect(lit(), {'P3', 'P5'});
+    await hover(find.text('Piccolo'));
+    expect(lit(), {'P1'});
+    await hover(find.byType(InstrumentsToolbar));
+    expect(lit(), isEmpty);
+
     final oboe = tester.getCenter(find.text('Oboe 2'));
     final h = await tester.startGesture(oboe, kind: PointerDeviceKind.mouse);
     await tester.pump(const Duration(milliseconds: 600));

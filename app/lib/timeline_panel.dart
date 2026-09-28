@@ -116,6 +116,29 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   /// The top of lane [i] as drawn now.
   double _rowTop(int i) => _rowY[parts[i].id] ?? i * _laneHeight;
 
+  /// The held lanes as one object: from the top of the highest to the bottom of the lowest
+  /// (they gather into one block as they are lifted); null when none is held.
+  Rect? _heldBlock(double width) {
+    final rows = [for (var i = 0; i < parts.length; i++) if (_held.contains(parts[i].id)) _rowTop(i)];
+    if (rows.isEmpty) return null;
+    return Rect.fromLTRB(0, rows.reduce(math.min), width, rows.reduce(math.max) + _laneHeight);
+  }
+
+  /// The lane name under the mouse, and so the lanes that light up: the whole selection, as
+  /// one object, when it is one of them (a hold would move them all); none while one is held.
+  String? _hoveredLane;
+  Set<String> get _hoverGroup {
+    final hovered = _hoveredLane;
+    if (hovered == null || _lifted != null) return const {};
+    final selected = c.lanes.selectedPartIds;
+    return selected.contains(hovered) ? selected : {hovered};
+  }
+
+  void _hover(String partId, bool inside) {
+    final next = inside ? partId : (_hoveredLane == partId ? null : _hoveredLane);
+    if (next != _hoveredLane) setState(() => _hoveredLane = next);
+  }
+
   /// The lanes' order as last drawn at rest (part ids).
   List<String> _shownOrder = const [];
 
@@ -516,6 +539,8 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                 listenable: Listenable.merge([c, curation]),
                 builder: (context, _) {
                   final selectedLanes = c.lanes.selectedPartIds;
+                  final hovered = _hoverGroup;
+                  final block = _heldBlock(kLaneHeaderWidth);
                   Widget header(int i) {
                     final part = parts[i];
                     // Keyed, so each name keeps its hover and the held one its gesture as they move.
@@ -529,6 +554,8 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                         controller: c,
                         part: part,
                         selected: selectedLanes.contains(part.id),
+                        hovered: hovered.contains(part.id),
+                        onHover: (inside) => _hover(part.id, inside),
                         lifted: _held.contains(part.id),
                         onLift: (global) => _lift(part.id, global),
                         onDrag: _dragLifted,
@@ -544,8 +571,18 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                     child: Stack(clipBehavior: Clip.none, children: [
                       for (var i = 0; i < parts.length; i++)
                         if (!held(i)) header(i),
+                      // The held names float above the others as one block, on one shadow.
+                      if (block != null)
+                        Positioned.fromRect(
+                          rect: block,
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(color: context.colors.surface, boxShadow: _liftShadow(context.colors)),
+                            ),
+                          ),
+                        ),
                       for (var i = 0; i < parts.length; i++)
-                        if (held(i)) header(i), // on top of the others
+                        if (held(i)) header(i),
                     ]),
                   );
                 },
@@ -748,6 +785,8 @@ class _LaneHeader extends StatefulWidget {
     required this.controller,
     required this.part,
     required this.selected,
+    required this.hovered,
+    required this.onHover,
     required this.lifted,
     required this.onLift,
     required this.onDrag,
@@ -756,6 +795,10 @@ class _LaneHeader extends StatefulWidget {
   final EditorController controller;
   final ScorePart part;
   final bool selected;
+
+  /// Under the mouse, or selected with the lane that is (the selection lights up as one).
+  final bool hovered;
+  final ValueChanged<bool> onHover;
 
   /// Held (click and hold on the name) and being moved to another place.
   final bool lifted;
@@ -769,7 +812,6 @@ class _LaneHeader extends StatefulWidget {
 class _LaneHeaderState extends State<_LaneHeader> {
   EditorController get controller => widget.controller;
   ScorePart get part => widget.part;
-  bool _hovered = false;
   Offset? _downAt;
   Duration? _lastClick;
 
@@ -849,11 +891,15 @@ class _LaneHeaderState extends State<_LaneHeader> {
     final colors = context.colors;
     final label = LaneLabel(
       height: _laneHeight,
-      color: widget.lifted || widget.selected
+      color: widget.lifted
           ? colors.accentSoft
-          : _hovered
-              ? colors.accentWash
-              : colors.surface.withValues(alpha: 0),
+          : widget.selected
+              ? widget.hovered
+                  ? Color.alphaBlend(colors.accent.withValues(alpha: 0.14), colors.accentSoft)
+                  : colors.accentSoft
+              : widget.hovered
+                  ? colors.accentWash
+                  : colors.surface.withValues(alpha: 0),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         if (condensed)
           Tip(
@@ -875,22 +921,16 @@ class _LaneHeaderState extends State<_LaneHeader> {
       ),
     );
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      // The held name floats above the others, on the panel's own colour.
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        decoration: BoxDecoration(
-          color: widget.lifted ? colors.surface : colors.surface.withValues(alpha: 0),
-          boxShadow: [
-            if (widget.lifted) BoxShadow(color: colors.text.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 2)),
-          ],
-        ),
-        child: label,
-      ),
+      onEnter: (_) => widget.onHover(true),
+      onExit: (_) => widget.onHover(false),
+      child: label,
     );
   }
 }
+
+/// The shadow under lanes that are held: one for the whole block.
+List<BoxShadow> _liftShadow(AppColors colors) =>
+    [BoxShadow(color: colors.text.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 2))];
 
 class _LanesPainter extends CustomPainter {
   _LanesPainter(this.s, this.colors, Listenable repaint) : super(repaint: repaint);
@@ -911,21 +951,30 @@ class _LanesPainter extends CustomPainter {
     }
     paintBarGrid(canvas, size, c, colors);
 
+    // The lanes lit up with the name under the mouse: the selection lights up as one.
+    final hovered = s._hoverGroup;
+    for (var i = 0; i < parts.length; i++) {
+      if (hovered.contains(parts[i].id)) {
+        canvas.drawRect(Rect.fromLTWH(0, s._rowTop(i), size.width, _laneHeight), Paint()..color = colors.accent.withValues(alpha: 0.06));
+      }
+    }
+
     bool held(int i) => s._held.contains(parts[i].id);
     for (var i = 0; i < parts.length; i++) {
       if (!held(i)) _paintLane(canvas, size, i, s._rowTop(i));
     }
-    for (var i = 0; i < parts.length; i++) {
-      if (!held(i)) continue;
-      // Held lanes float above the others.
-      final band = Rect.fromLTWH(0, s._rowTop(i), size.width, _laneHeight);
-      canvas.drawRect(band.shift(const Offset(0, 2)).inflate(1),
-          Paint()
-            ..color = colors.text.withValues(alpha: 0.15)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
-      canvas.drawRect(band, Paint()..color = colors.surface);
-      canvas.drawRect(band, Paint()..color = colors.accentSoft);
-      _paintLane(canvas, size, i, band.top);
+    final block = s._heldBlock(size.width);
+    if (block != null) {
+      // Held lanes float above the others as one block, on one shadow.
+      for (final shadow in _liftShadow(colors)) {
+        canvas.drawRect(block.shift(shadow.offset), shadow.toPaint());
+      }
+      canvas.drawRect(block, Paint()..color = colors.surface);
+      for (var i = 0; i < parts.length; i++) {
+        if (!held(i)) continue;
+        canvas.drawRect(Rect.fromLTWH(0, s._rowTop(i), size.width, _laneHeight), Paint()..color = colors.accentSoft);
+        _paintLane(canvas, size, i, s._rowTop(i));
+      }
     }
 
     // The box being dragged: a selection outline, or the stretch being drawn or erased.
