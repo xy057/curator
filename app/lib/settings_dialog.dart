@@ -366,15 +366,11 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     return Column(children: [
       Expanded(
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween(begin: const Offset(0, 0.02), end: Offset.zero).animate(animation),
-              child: child,
-            ),
+          duration: const Duration(milliseconds: 320),
+          transitionBuilder: (child, animation) => _Wipe(
+            progress: animation,
+            color: Theme.of(context).dialogTheme.backgroundColor,
+            child: child,
           ),
           layoutBuilder: (current, previous) => Stack(alignment: Alignment.topLeft, children: [...previous, ?current]),
           child: page,
@@ -395,6 +391,47 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         category: category,
         help: item.help?.call(_ctx),
         control: item.control(_ctx),
+      );
+}
+
+/// A page wiping in over the one before, like PowerPoint's Wipe: a soft edge sweeps left to right,
+/// the page opaque ([color]) behind it. A page on its way out stays as it was until it's gone.
+class _Wipe extends StatefulWidget {
+  const _Wipe({required this.progress, required this.color, required this.child});
+  final Animation<double> progress;
+  final Color? color;
+  final Widget child;
+
+  @override
+  State<_Wipe> createState() => _WipeState();
+}
+
+class _WipeState extends State<_Wipe> {
+  /// The width of the soft edge, as a share of the page.
+  static const _soft = 0.25;
+
+  /// How far the edge has come; frozen once the page starts to leave, even partway (another page picked mid-wipe).
+  double _shown = 0;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: widget.progress,
+        builder: (context, child) {
+          if (widget.progress.status != AnimationStatus.reverse) _shown = widget.progress.value;
+          if (_shown >= 1) return child!;
+          // In alignment units (-1 … 1): the edge runs from just off the left (nothing shown) to the right (all shown).
+          final end = -1 + Curves.easeInOutCubic.transform(_shown) * (2 + 2 * _soft);
+          return ShaderMask(
+            blendMode: BlendMode.dstIn,
+            shaderCallback: (bounds) => LinearGradient(
+              begin: Alignment(end - 2 * _soft, 0),
+              end: Alignment(end, 0),
+              colors: const [Colors.white, Colors.transparent],
+            ).createShader(bounds),
+            child: child,
+          );
+        },
+        child: ColoredBox(color: widget.color ?? Colors.transparent, child: widget.child),
       );
 }
 
