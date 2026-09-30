@@ -101,7 +101,7 @@ jobs:
           `xattr -dr com.apple.quarantine /Applications/Curator.app`
 
           Later updates can be downloaded from inside the app: **Settings ▸ Update**.
-          Find full changelog at: https://0x57.cc/xylabs-changelog/
+          Find full changelog at: https://0x57.cc/xylabs-changelog#curator
           EOF
           gh release create "v$VERSION" Curator-*.zip \
             --repo "$GITHUB_REPOSITORY" \
