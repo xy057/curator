@@ -9,6 +9,7 @@ import 'package:curated_score/media_converter.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
+import 'package:curated_score/scratch_space.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -268,6 +269,30 @@ void main() {
       expect(doc.path, path);
       expect(c.fileName, 'Intro.musicxml');
       expect(c.track, isNull);
+    });
+
+    test('importing a score lets go of the recording the project before it unpacked', () async {
+      final path = '${dir.path}/with-recording.ccs';
+      await ProjectFile.write(
+        path,
+        ProjectContents(
+          scoreName: 'Intro.musicxml',
+          scoreBytes: demoScore.readAsBytesSync(),
+          state: const ProjectState(),
+          media: ProjectMedia(name: 'take.wav', storage: MediaStorage.embed, embedFrom: recording('take.wav').path),
+        ),
+      );
+      List<String> unpacked() => [
+            for (final e in ScratchSpace.session.listSync())
+              if (e is Directory && e.path.split(Platform.pathSeparator).last.startsWith('project-')) e.path,
+          ];
+      final before = unpacked();
+      await doc.open(path);
+      final opened = unpacked().where((p) => !before.contains(p)).toList();
+      expect(opened, hasLength(1));
+
+      await doc.importScore(demoScore.path);
+      expect(Directory(opened.single).existsSync(), isFalse);
     });
 
     test('Undo keeps as many steps as Settings say', () {

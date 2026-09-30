@@ -106,6 +106,8 @@ class ProjectDocument extends ChangeNotifier {
   /// Starts a new, unsaved project from a score file (Open… with a MusicXML score).
   Future<void> importScore(String path) async {
     await controller.openFile(path);
+    ScratchSpace.release(_mediaDirectory); // the project before had its recording unpacked there
+    _mediaDirectory = null;
     _path = null;
     _isSample = false;
     _markSaved(controller.editRevision.value);
