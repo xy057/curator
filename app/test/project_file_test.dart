@@ -103,8 +103,10 @@ void main() {
     expect(() => read({'sync': {'anchors': [{'quarter': 0, 'seconds': 'soon'}]}}), damaged('state.sync.anchors[0].seconds is not a number'));
     expect(() => read({'sync': {'anchors': [{'quarter': 0, 'seconds': 1, 'jumpTo': 'bar 1'}]}}), damaged('state.sync.anchors[0].jumpTo is not a number'));
     expect(() => read({'curation': {'lanes': {'P1': [{'start': 4, 'end': 2}]}}}), damaged('state.curation.lanes.P1[0] ends before it starts'));
-    expect(() => read({'curation': {'lanes': {'P1': [{'start': 0, 'end': 2, 'transition': -1}]}}}),
-        damaged('state.curation.lanes.P1[0].transition is not a length of time'));
+    expect(() => read({'curation': {'lanes': {'P1': [{'start': 0, 'end': 2, 'transitionIn': -1}]}}}),
+        damaged('state.curation.lanes.P1[0].transitionIn is not a length of time'));
+    expect(() => read({'curation': {'lanes': {'P1': [{'start': 0, 'end': 2, 'transitionOut': 'slow'}]}}}),
+        damaged('state.curation.lanes.P1[0].transitionOut is not a number'));
     expect(() => read({'view': {'grid': 'minute'}}), damaged('state.view.grid'));
     expect(() => read({'condensed': [3]}), damaged('state.condensed[0] is not text'));
     expect(() => read({'pairs': [['P1']]}), damaged('state.pairs[0] is not two part ids'));
@@ -125,16 +127,17 @@ void main() {
     expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).pairs, isEmpty);
   });
 
-  test('a region is saved with its own transition; one without, and older projects\' regions, use the project\'s', () {
-    const lanes = {'P1': [Region(0, 4, transition: 1.2), Region(8, 12)]};
+  test('a region is saved with its own transitions; one without, and older projects\' regions, use the project\'s', () {
+    const lanes = {'P1': [Region(0, 4, transitionIn: 1.2), Region(8, 12), Region(14, 16, transitionIn: 0.5, transitionOut: 2)]};
     final json = jsonDecode(jsonEncode(const ProjectState(lanes: lanes).toJson())) as Map<String, Object?>;
     expect(((json['curation'] as Map)['lanes'] as Map)['P1'], [
-      {'start': 0, 'end': 4, 'transition': 1.2},
+      {'start': 0, 'end': 4, 'transitionIn': 1.2},
       {'start': 8, 'end': 12},
+      {'start': 14, 'end': 16, 'transitionIn': 0.5, 'transitionOut': 2},
     ]);
     expect(ProjectState.fromJson(json).lanes, lanes);
     final old = ProjectState.fromJson({'curation': {'lanes': {'P1': [{'start': 0, 'end': 4}]}}}, savedVersion: 5);
-    expect(old.lanes!['P1']!.single.transition, isNull);
+    expect(old.lanes!['P1']!.single.hasDefaultProperties, isTrue);
   });
 
   test('warps are saved with their jump; plain anchors without one', () {
@@ -193,7 +196,7 @@ void main() {
     test('every edit survives save and open', () async {
       final part = c.score!.metadata.parts.first;
       c.renamePart(part, name: 'Solo Piccolo', abbreviation: 'Picc.');
-      c.curation!.setLane(part.id, [const Region(3, 12), const Region(21, 27, transition: 1.2)]);
+      c.curation!.setLane(part.id, [const Region(3, 12), const Region(21, 27, transitionIn: 1.2, transitionOut: 0.15)]);
       c.curation!.transition = 0.5;
       c.sync!.addAnchor(const SyncAnchor(0, 1.25));
       c.sync!.addAnchor(const SyncAnchor(12, 7.5));

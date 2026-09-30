@@ -10,42 +10,59 @@ import 'search.dart';
 /// Stored in score quarters (quarter notes from the start of the performance), so regions
 /// stay attached to the music when the audio sync changes.
 ///
-/// A region also has properties of its own (so far only [transition]); null means the
-/// curation's. They go with it wherever it is moved, trimmed, split or copied, and a merge
-/// keeps each one either region set ([joinedWith]).
+/// A region also has properties of its own (so far its transitions: [transitionIn] at its
+/// start, [transitionOut] at its end); null means the curation's. They go with it wherever it
+/// is moved, trimmed, split or copied, and a merge keeps each one either region set
+/// ([joinedWith]).
 @immutable
 class Region {
-  const Region(this.start, this.end, {this.transition}) : assert(end >= start), assert(transition == null || transition >= 0);
+  const Region(this.start, this.end, {this.transitionIn, this.transitionOut})
+      : assert(end >= start),
+        assert(transitionIn == null || transitionIn >= 0),
+        assert(transitionOut == null || transitionOut >= 0);
   final double start;
   final double end;
 
-  /// Seconds for the staff to enter at [start] and leave at [end]; null: the curation's
-  /// [Curation.transition].
-  final double? transition;
+  /// Seconds for the staff to enter at [start]; null: the curation's [Curation.transition].
+  final double? transitionIn;
+
+  /// Seconds for the staff to leave at [end]; null: the curation's [Curation.transition].
+  final double? transitionOut;
 
   double get length => end - start;
   bool overlaps(Region other) => start <= other.end && other.start <= end;
 
   /// Whether every property is the curation's.
-  bool get hasDefaultProperties => transition == null;
+  bool get hasDefaultProperties => transitionIn == null && transitionOut == null;
 
   /// This region between [start] and [end], with the same properties.
-  Region withBounds(double start, double end) => Region(start, end, transition: transition);
+  Region withBounds(double start, double end) => Region(start, end, transitionIn: transitionIn, transitionOut: transitionOut);
 
-  /// This region with its own [transition] (null: the curation's).
-  Region withTransition(double? transition) => Region(start, end, transition: transition);
+  /// This region with its own transitions (null: the curation's) at the edges asked for:
+  /// [atStart] ([transitionIn]) and [atEnd] ([transitionOut]).
+  Region withTransition(double? seconds, {bool atStart = true, bool atEnd = true}) => Region(start, end,
+      transitionIn: atStart ? seconds : transitionIn, transitionOut: atEnd ? seconds : transitionOut);
 
   /// This region and [later] (which starts no earlier) as one: from this one's start to the
-  /// further end, each property as this one sets it, else as [later] does.
-  Region joinedWith(Region later) => Region(start, math.max(end, later.end), transition: transition ?? later.transition);
+  /// further end. Each edge keeps the transition of the region it came from, else the other's.
+  Region joinedWith(Region later) {
+    final (last, other) = later.end > end ? (later, this) : (this, later);
+    return Region(start, last.end,
+        transitionIn: transitionIn ?? later.transitionIn, transitionOut: last.transitionOut ?? other.transitionOut);
+  }
 
   @override
   bool operator ==(Object other) =>
-      other is Region && other.start == start && other.end == end && other.transition == transition;
+      other is Region &&
+      other.start == start &&
+      other.end == end &&
+      other.transitionIn == transitionIn &&
+      other.transitionOut == transitionOut;
   @override
-  int get hashCode => Object.hash(start, end, transition);
+  int get hashCode => Object.hash(start, end, transitionIn, transitionOut);
   @override
-  String toString() => 'Region($start–$end${transition == null ? '' : ', ${transition}s'})';
+  String toString() => 'Region($start–$end'
+      '${transitionIn == null ? '' : ', in ${transitionIn}s'}${transitionOut == null ? '' : ', out ${transitionOut}s'})';
 }
 
 /// A stretch of playback time a lane is shown, with the seconds it takes to fade in and out.
@@ -65,7 +82,7 @@ class Curation extends ChangeNotifier {
   Map<String, List<Region>> _lanes;
 
   /// Seconds for a staff to enter or leave, centred on the region edge, where the region
-  /// doesn't set its own ([Region.transition]).
+  /// doesn't set its own ([Region.transitionIn], [Region.transitionOut]).
   double get transition => _transition;
   double _transition = 0.3;
   set transition(double value) {
@@ -86,8 +103,11 @@ class Curation extends ChangeNotifier {
     super.notifyListeners();
   }
 
-  /// Seconds for [region]'s staff to enter or leave: its own, or the curation's.
-  double transitionOf(Region region) => region.transition ?? _transition;
+  /// Seconds for [region]'s staff to enter at its start: its own, or the curation's.
+  double transitionInOf(Region region) => region.transitionIn ?? _transition;
+
+  /// Seconds for [region]'s staff to leave at its end: its own, or the curation's.
+  double transitionOutOf(Region region) => region.transitionOut ?? _transition;
 
   /// Every region edge in seconds, all lanes together, each with its region's transition.
   /// The start and end of the piece are not edges: a region there is shown from before bar 1
@@ -114,8 +134,8 @@ class Curation extends ChangeNotifier {
           (
             start: s.pass == 0 && s.start <= passes.first.start + 1e-6 ? double.negativeInfinity : s.startSeconds,
             end: s.pass == passes.length - 1 && s.end >= passes.last.end - 1e-6 ? double.infinity : s.endSeconds,
-            fadeIn: transitionOf(r),
-            fadeOut: transitionOf(r),
+            fadeIn: transitionInOf(r),
+            fadeOut: transitionOutOf(r),
           ),
     ];
     if (passes.length == 1) return spans; // regions never touch (see [_normalize])
@@ -327,8 +347,8 @@ class Curation extends ChangeNotifier {
   bool isShownAt(String partId, double seconds, ScoreTimeline timeline) =>
       _spans(lane(partId), timeline).any((s) => seconds >= s.start && seconds < s.end);
 
-  /// 0…1 for every part at [seconds]. Each region edge is a smooth ramp of the region's
-  /// transition ([transitionOf]) centred on the edge, so the result is continuous in time.
+  /// 0…1 for every part at [seconds]. Each region edge is a smooth ramp of that edge's
+  /// transition ([transitionInOf], [transitionOutOf]) centred on the edge, so the result is continuous in time.
   /// Regions reaching the start or end of the piece don't fade there.
   Map<String, double> visibilityAt(double seconds, ScoreTimeline timeline) => {
         for (final entry in _lanes.entries)

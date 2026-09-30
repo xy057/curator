@@ -151,7 +151,7 @@ void main() {
       for (final p in score.metadata.parts.skip(16)) {
         c.setLane(p.id, [Region(0, starts.last)]);
       }
-      return c..setLane('P1', [Region(starts[32], starts.last, transition: transition)]);
+      return c..setLane('P1', [Region(starts[32], starts.last, transitionIn: transition)]);
     }
 
     final quick = withPiccolo(), slow = withPiccolo(transition: 2);

@@ -148,15 +148,16 @@ void main() {
       expect(c.curation!.lane(ids[1]), isEmpty);
     });
 
-    test('a region can have a transition of its own, kept through edits and undone like one', () {
+    test('a region can have transitions of its own, in and out apart, kept through edits and undone like one', () {
       final r = Region(bars[4], bars[8]);
       c.curation!.setLane(ids[2], [r]);
-      c.lanes.setRegion((partId: ids[2], region: r), r.withTransition(1.2));
-      expect(c.curation!.lane(ids[2]), [Region(bars[4], bars[8], transition: 1.2)]);
-      expect(c.lanes.selected.single.region.transition, 1.2);
+      c.lanes.setRegion((partId: ids[2], region: r), r.withTransition(1.2, atEnd: false));
+      expect(c.curation!.lane(ids[2]), [Region(bars[4], bars[8], transitionIn: 1.2)]);
+      expect(c.lanes.selected.single.region.transitionIn, 1.2);
+      expect(c.lanes.selected.single.region.transitionOut, isNull, reason: 'its end is still the project\'s');
 
       c.lanes.nudge(1);
-      expect(c.curation!.lane(ids[2]), [Region(bars[5], bars[9], transition: 1.2)], reason: 'moved with it');
+      expect(c.curation!.lane(ids[2]), [Region(bars[5], bars[9], transitionIn: 1.2)], reason: 'moved with it');
       c.undo();
       c.undo();
       expect(c.curation!.lane(ids[2]), [r], reason: 'back to the project\'s');

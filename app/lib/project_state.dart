@@ -79,7 +79,7 @@ class ProjectState {
     2: (state) => {...state, 'pairs': const <Object?>[]}, // the user's own pairs came in 3: none
     3: (state) => state, // warps came in 4 (an anchor's `jumpTo`): none, so nothing to change
     4: (state) => state, // the instruments' order came in 5: none saved is the score's
-    5: (state) => state, // a region's own transition came in 6: none, the project's
+    5: (state) => state, // a region's own transitions came in 6: none, the project's
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -155,11 +155,13 @@ class ProjectState {
   static Region _region(JsonReader r) {
     final start = r.number('start', required: true)!, end = r.number('end', required: true)!;
     if (end < start) throw FormatException('The project is damaged: ${r.where} ends before it starts.');
-    final transition = r.number('transition');
-    if (transition != null && (transition < 0 || !transition.isFinite)) {
-      throw FormatException('The project is damaged: ${r.where}.transition is not a length of time.');
+    double? seconds(String key) {
+      final s = r.number(key);
+      if (s != null && (s < 0 || !s.isFinite)) throw FormatException('The project is damaged: ${r.where}.$key is not a length of time.');
+      return s;
     }
-    return Region(start, end, transition: transition);
+
+    return Region(start, end, transitionIn: seconds('transitionIn'), transitionOut: seconds('transitionOut'));
   }
 
   Map<String, Object?> toJson() => {
@@ -174,7 +176,7 @@ class ProjectState {
           'transition': ?transition,
           'lanes': {
             for (final MapEntry(key: id, value: lane) in (lanes ?? const <String, List<Region>>{}).entries)
-              id: [for (final r in lane) {'start': r.start, 'end': r.end, 'transition': ?r.transition}],
+              id: [for (final r in lane) {'start': r.start, 'end': r.end, 'transitionIn': ?r.transitionIn, 'transitionOut': ?r.transitionOut}],
           },
         },
         'sync': {

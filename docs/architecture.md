@@ -86,14 +86,15 @@ the staff's fade. During a drag regions may overlap (`Curation.updateLanes`); `n
 merges them when the drag ends.
 
 **A region carries its properties.** Besides its bounds a region has properties of its own
-(so far `Region.transition`: how long its staff glides in and out; null is the project's,
-`Curation.transition`). Every edit that reshapes a region keeps them (`withBounds`: moving,
-trimming, a split by erasing, copying a lane); a merge keeps each one either region set, the
-earlier one's when both did (`joinedWith`). They are part of the region's equality, so Undo,
-saving (`transition` on a region in the project, from format 6) and video export follow
-without more code. The layout glides over each edge's own transition (the longest where
-edges fall together; key changes and warps use the project's). A region's properties are set
-in its dialog (double-click it); one with its own transition shows it at its start.
+(so far its transitions: how long its staff glides in at its start, `Region.transitionIn`, and
+out at its end, `transitionOut`; null is the project's, `Curation.transition`). Every edit that
+reshapes a region keeps them (`withBounds`: moving, trimming, a split by erasing, copying a
+lane); a merge keeps each edge's from the region it came from, else the other's
+(`joinedWith`). They are part of the region's equality, so Undo, saving (`transitionIn` /
+`transitionOut` on a region in the project, from format 6) and video export follow without
+more code. The layout glides over each edge's own transition (the longest where edges fall
+together; key changes and warps use the project's). A region's properties are set in its
+dialog (double-click it); an edge with its own transition shows it beside it.
 
 **Widgets change the document only through `EditorController`** (and its parts). They may
 read the models (`curation`, `sync`) to draw them.

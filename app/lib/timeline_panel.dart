@@ -1068,16 +1068,20 @@ class _LanesPainter extends CustomPainter {
             ..strokeWidth = selected ? 1.5 : 1
             ..color = selected ? colors.accentStrong : colors.accent,
         );
-        // A region with a transition of its own says so at its start, where it has room.
-        final transition = r.transition;
-        if (transition != null && ownStart) {
-          final tp = TextPainter(
-            text: TextSpan(text: '$transition s', style: TextStyle(fontSize: 10, color: selected ? colors.surface : colors.accentStrong)),
-            textDirection: TextDirection.ltr,
-          )..layout();
-          if (tp.width + 10 <= x1 - x0) tp.paint(canvas, Offset(x0 + 5, rect.center.dy - tp.height / 2));
-          tp.dispose();
+        // An edge with a transition of its own says so beside it, where the region has room.
+        TextPainter? label(double? seconds) => seconds == null
+            ? null
+            : (TextPainter(
+                text: TextSpan(text: '$seconds s', style: TextStyle(fontSize: 10, color: selected ? colors.surface : colors.accentStrong)),
+                textDirection: TextDirection.ltr,
+              )..layout());
+        final atStart = ownStart ? label(r.transitionIn) : null, atEnd = ownEnd ? label(r.transitionOut) : null;
+        if ((atStart?.width ?? -5) + (atEnd?.width ?? -5) + 20 <= x1 - x0) {
+          atStart?.paint(canvas, Offset(x0 + 5, rect.center.dy - atStart.height / 2));
+          atEnd?.paint(canvas, Offset(x1 - 5 - atEnd.width, rect.center.dy - atEnd.height / 2));
         }
+        atStart?.dispose();
+        atEnd?.dispose();
       }
     }
   }

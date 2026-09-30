@@ -139,11 +139,12 @@ void main() {
     expect(c.edgesInSeconds(sync).map((e) => e.seconds).toList()..sort(), [2, 2, 4, 6, 10, 10, 12, 14, 16]);
   });
 
-  test('a region can fade over its own transition; the others keep the curation\'s', () {
-    final c = Curation(['vn', 'fl'])
+  test('a region can fade over its own transitions, in and out apart; the others keep the curation\'s', () {
+    final c = Curation(['vn', 'fl', 'va'])
       ..transition = 0.4
-      ..addRegion('vn', const Region(4, 12, transition: 2)) // bar 2–3 → 2 s … 6 s, fading over 2 s
-      ..addRegion('fl', const Region(4, 12));
+      ..addRegion('vn', const Region(4, 12, transitionIn: 2, transitionOut: 2)) // bar 2–3 → 2 s … 6 s, over 2 s
+      ..addRegion('fl', const Region(4, 12))
+      ..addRegion('va', const Region(4, 12, transitionOut: 1)); // enters over 0.4 s, leaves over 1 s
     double v(String id, double t) => c.visibilityAt(t, timeline)[id]!;
     expect(v('vn', 1.0), closeTo(0, 1e-9)); // the fade starts a second before the edge…
     expect(v('vn', 1.5), allOf(greaterThan(0), lessThan(0.5)));
@@ -151,28 +152,39 @@ void main() {
     expect(v('vn', 3.0), 1); // …and done a second after
     expect(v('fl', 1.5), 0);
     expect(v('fl', 2.2), 1);
+    expect(v('va', 1.5), 0, reason: 'its start is the curation\'s');
+    expect(v('va', 5.6), allOf(greaterThan(0.5), lessThan(1)), reason: 'its end its own');
+    expect(v('fl', 5.6), 1);
     expect(c.edgesInSeconds(timeline).toList(), [
       (seconds: 2.0, transition: 2.0),
       (seconds: 6.0, transition: 2.0),
       (seconds: 2.0, transition: 0.4),
       (seconds: 6.0, transition: 0.4),
+      (seconds: 2.0, transition: 0.4),
+      (seconds: 6.0, transition: 1.0),
     ]);
   });
 
   test('a region\'s properties go with it: moved, split, merged, copied', () {
-    final c = Curation(['vn', 'va'])..setLane('vn', const [Region(0, 8, transition: 1.2)]);
+    const both = Region(0, 8, transitionIn: 1.2, transitionOut: 0.6);
+    final c = Curation(['vn', 'va'])..setLane('vn', const [both]);
     c.paint(['vn'], const Region(2, 4), shown: false);
-    expect(c.lane('vn'), const [Region(0, 2, transition: 1.2), Region(4, 8, transition: 1.2)], reason: 'split');
+    expect(c.lane('vn'), [both.withBounds(0, 2), both.withBounds(4, 8)], reason: 'split');
     c.paint(['vn'], const Region(1, 6));
-    expect(c.lane('vn'), const [Region(0, 8, transition: 1.2)], reason: 'drawing over it keeps its own');
-    c.setLane('vn', const [Region(0, 4), Region(3, 8, transition: 0.8)]);
-    expect(c.lane('vn'), const [Region(0, 8, transition: 0.8)], reason: 'whichever region set it');
-    c.setLane('vn', const [Region(0, 4, transition: 0.15), Region(3, 8, transition: 0.8)]);
-    expect(c.lane('vn'), const [Region(0, 8, transition: 0.15)], reason: 'the earlier one when both did');
+    expect(c.lane('vn'), const [both], reason: 'drawing over it keeps its own');
+    c.setLane('vn', const [Region(0, 4), Region(3, 8, transitionIn: 0.8, transitionOut: 0.5)]);
+    expect(c.lane('vn'), const [Region(0, 8, transitionIn: 0.8, transitionOut: 0.5)], reason: 'whichever region set it');
+    c.setLane('vn', const [Region(0, 4, transitionIn: 0.15, transitionOut: 2), Region(3, 8, transitionIn: 0.8, transitionOut: 0.5)]);
+    expect(c.lane('vn'), const [Region(0, 8, transitionIn: 0.15, transitionOut: 0.5)], reason: 'each edge its own region\'s');
+    c.setLane('vn', const [Region(0, 8, transitionOut: 2), Region(3, 5, transitionOut: 0.5)]);
+    expect(c.lane('vn'), const [Region(0, 8, transitionOut: 2)], reason: 'the end of the one reaching further');
     c.copyLane('vn', ['va']);
-    expect(c.lane('va'), const [Region(0, 8, transition: 0.15)]);
-    expect(const Region(0, 8, transition: 0.15).withBounds(2, 3), const Region(2, 3, transition: 0.15));
-    expect(const Region(0, 8), isNot(const Region(0, 8, transition: 0.3)), reason: 'the curation\'s is not a value');
+    expect(c.lane('va'), const [Region(0, 8, transitionOut: 2)]);
+    expect(both.withBounds(2, 3), const Region(2, 3, transitionIn: 1.2, transitionOut: 0.6));
+    expect(both.withTransition(0.3, atEnd: false), const Region(0, 8, transitionIn: 0.3, transitionOut: 0.6));
+    expect(both.withTransition(null), const Region(0, 8));
+    expect(const Region(0, 8), isNot(const Region(0, 8, transitionIn: 0.3)), reason: 'the curation\'s is not a value');
+    expect(const Region(0, 8, transitionIn: 0.3), isNot(const Region(0, 8, transitionOut: 0.3)));
   });
 
   test('staff stack centres a few staves and never exceeds maxGap', () {

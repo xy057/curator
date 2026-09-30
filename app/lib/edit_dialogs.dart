@@ -217,7 +217,7 @@ class _TextsDialogState extends State<_TextsDialog> {
 }
 
 /// A region's properties: where it starts and ends, typed as bar or bar.beat ("12" or
-/// "12.3"), and how long its staff takes to glide in and out.
+/// "12.3"), and how long its staff takes to glide in at its start and out at its end.
 Future<void> showRegionDialog(BuildContext context, EditorController c, RegionRef ref) async {
   final region = await showAppDialog<Region>(context: context, builder: (context) => _RegionDialog(controller: c, ref: ref));
   if (region != null) c.lanes.setRegion(ref, region);
@@ -236,7 +236,7 @@ class _RegionDialogState extends State<_RegionDialog> {
   BeatGrid get _beats => widget.controller.beats;
   late final _from = TextEditingController(text: _beats.format(widget.ref.region.start));
   late final _to = TextEditingController(text: _beats.format(widget.ref.region.end));
-  late double? _transition = widget.ref.region.transition;
+  late double? _in = widget.ref.region.transitionIn, _out = widget.ref.region.transitionOut;
 
   @override
   void dispose() {
@@ -256,7 +256,7 @@ class _RegionDialogState extends State<_RegionDialog> {
             ? 'It has to end after it starts'
             : null;
     void save() {
-      if (error == null) Navigator.pop(context, Region(a!, b!, transition: _transition));
+      if (error == null) Navigator.pop(context, Region(a!, b!, transitionIn: _in, transitionOut: _out));
     }
 
     return AlertDialog(
@@ -285,17 +285,11 @@ class _RegionDialogState extends State<_RegionDialog> {
             ),
           ]),
           const SizedBox(height: 16),
-          // Null: the project's transition (Settings ▸ Animation), whatever it becomes.
-          DropdownButtonFormField<double?>(
-            initialValue: _transition,
-            decoration: const InputDecoration(labelText: 'Transition', helperText: 'How long the staff takes to glide in and out'),
-            items: [
-              DropdownMenuItem(value: null, child: Text("Project's (${c.curation!.transition} s)")),
-              for (final s in {...AppSettings.transitionChoices, ?_transition}.toList()..sort())
-                DropdownMenuItem(value: s, child: Text('$s s')),
-            ],
-            onChanged: (s) => setState(() => _transition = s),
-          ),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: _TransitionField(label: 'Glides in over', value: _in, project: c.curation!.transition, onChanged: (s) => setState(() => _in = s))),
+            const SizedBox(width: 16),
+            Expanded(child: _TransitionField(label: 'Glides out over', value: _out, project: c.curation!.transition, onChanged: (s) => setState(() => _out = s))),
+          ]),
         ]),
       ),
       actions: [
@@ -309,6 +303,28 @@ class _RegionDialogState extends State<_RegionDialog> {
       ],
     );
   }
+}
+
+/// How long a region's staff glides at one edge: the project's transition (null, whatever it
+/// becomes in Settings ▸ Animation) or one of the usual lengths.
+class _TransitionField extends StatelessWidget {
+  const _TransitionField({required this.label, required this.value, required this.project, required this.onChanged});
+  final String label;
+  final double? value;
+  final double project;
+  final ValueChanged<double?> onChanged;
+
+  @override
+  Widget build(BuildContext context) => DropdownButtonFormField<double?>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: label),
+        items: [
+          DropdownMenuItem(value: null, child: Text("Project's ($project s)")),
+          for (final s in {...AppSettings.transitionChoices, ?value}.toList()..sort()) DropdownMenuItem(value: s, child: Text('$s s')),
+        ],
+        onChanged: onChanged,
+      );
 }
 
 /// Copy one lane's regions to other instruments (e.g. Violin I → the rest of the strings).
