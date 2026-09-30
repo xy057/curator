@@ -212,6 +212,16 @@ class LaneEditing {
     });
   }
 
+  /// The transitions the selected regions' edges have (null: the project's); one when they
+  /// all agree.
+  Set<double?> get selectedTransitions => {
+        for (final r in _valid) ...[r.region.transitionIn, r.region.transitionOut],
+      };
+
+  /// Gives every selected region's edges their own transition (null: the project's), as one
+  /// step.
+  void setTransition(double? seconds) => _editSelected((r) => r.withTransition(seconds));
+
   /// Gives one region new bounds and properties (the region dialog).
   void setRegion(RegionRef ref, Region region) {
     final curation = _curation;

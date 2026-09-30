@@ -94,7 +94,8 @@ lane); a merge keeps each edge's from the region it came from, else the other's
 `transitionOut` on a region in the project, from format 6) and video export follow without
 more code. The layout glides over each edge's own transition (the longest where edges fall
 together; key changes and warps use the project's). A region's properties are set in its
-dialog (double-click it); an edge with its own transition shows it beside it.
+dialog (double-click it), or for every selected region at once in the Instruments tab's
+toolbar (`LaneEditing.setTransition`); an edge with its own transition shows it beside it.
 
 **Widgets change the document only through `EditorController`** (and its parts). They may
 read the models (`curation`, `sync`) to draw them.

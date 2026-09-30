@@ -441,6 +441,55 @@ void main() {
     expect(Curation.sameLanes(c.curation!.lanes, before), isTrue);
   });
 
+  testWidgets('the toolbar sets how long every selected region glides in and out, as one step', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const CuratedScoreApp());
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    await tester.pump();
+
+    final ids = [for (final p in c.score!.metadata.parts) p.id];
+    final bars = c.timeline.measureStarts;
+    final a = Region(bars[2], bars[4]), b = Region(bars[6], bars[9], transitionIn: 1.2);
+    c.curation!
+      ..clearAll()
+      ..setLane(ids[1], [a])
+      ..setLane(ids[2], [b]);
+    final menu = find.byType(PopupMenuButton<double>);
+    await tester.pump();
+    expect(menu, findsNothing, reason: 'only with a selection');
+
+    c.lanes.select(ids[1], a);
+    c.lanes.select(ids[2], b, add: true);
+    await tester.pumpAndSettle(); // the selection's tools fade in
+    expect(find.descendant(of: menu, matching: find.text('Mixed')), findsOneWidget);
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    Finder item(Finder text) => find.ancestor(of: text, matching: find.byType(CheckedPopupMenuItem<double>));
+    await tester.tap(item(find.text('0.8 s')));
+    await tester.pumpAndSettle();
+    expect(c.curation!.lane(ids[1]), [a.withTransition(0.8)]);
+    expect(c.curation!.lane(ids[2]), [b.withTransition(0.8)]);
+    expect(c.lanes.selected, hasLength(2), reason: 'still selected');
+    expect(find.descendant(of: menu, matching: find.text('0.8 s')), findsOneWidget);
+
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(item(find.textContaining("Project's")));
+    await tester.pumpAndSettle();
+    expect(c.curation!.lane(ids[1]), [a]);
+    expect(c.curation!.lane(ids[2]), [b.withTransition(null)]);
+
+    c.undo();
+    expect(c.curation!.lane(ids[2]), [b.withTransition(0.8)]);
+    c.undo();
+    expect(c.curation!.lane(ids[1]), [a]);
+    expect(c.curation!.lane(ids[2]), [b], reason: 'every region in one step');
+  });
+
   testWidgets('⌘-scroll zooms the lanes horizontally without scrolling them vertically', (tester) async {
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_settings.dart';
 import 'condensing_dialog.dart';
 import 'editor_controller.dart';
 import 'edit_dialogs.dart';
@@ -703,6 +704,8 @@ class InstrumentsToolbar extends StatelessWidget {
                       ),
                       ToolbarButton(icon: Icons.delete_outline_rounded, tooltip: 'Remove (Delete)', onPressed: c.deleteSelection),
                       const ToolbarDivider(),
+                      _TransitionMenu(controller: c),
+                      const ToolbarDivider(),
                     ]),
             ),
             if (score.condensing.partners.values.any((p) => p.isNotEmpty)) ...[
@@ -782,6 +785,58 @@ class _TidyMenu extends StatelessWidget {
             child: Text('Remove regions shorter than ${bars(n)}'),
           ),
       ],
+    );
+  }
+}
+
+/// How long the selected regions' staves glide in and out: "0.8 s ▾", their own or the
+/// project's (dimmed), for all of them at once.
+class _TransitionMenu extends StatelessWidget {
+  const _TransitionMenu({required this.controller});
+  final EditorController controller;
+
+  /// The project's transition in the menu (a menu's null means it was dismissed).
+  static const _project = -1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final project = controller.curation!.transition;
+    final values = controller.lanes.selectedTransitions;
+    final value = values.length == 1 ? values.single : _project;
+    final (label, tip) = switch (values.length) {
+      1 when values.single == null => ('$project s', "the project's"),
+      1 => ('${values.single} s', 'their own'),
+      _ => ('Mixed', 'mixed'),
+    };
+    return OverlaySemantics(
+      child: PopupMenuButton<double>(
+        tooltip: 'How long the selected regions glide in and out: $tip',
+        position: PopupMenuPosition.under,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.only(left: 6, right: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onSelected: (s) => controller.lanes.setTransition(s == _project ? null : s),
+        itemBuilder: (context) => [
+          CheckedPopupMenuItem(
+              value: _project, checked: values.length == 1 && value == null, child: Text("Project's ($project s)")),
+          const PopupMenuDivider(),
+          for (final s in {...AppSettings.transitionChoices, for (final v in values) ?v}.toList()..sort())
+            CheckedPopupMenuItem(value: s, checked: values.length == 1 && value == s, child: Text('$s s')),
+        ],
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.animation_rounded, size: 16, color: colors.textMuted),
+          const SizedBox(width: 5),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12.5,
+                  color: values.length == 1 && value != null ? colors.text : colors.textMuted,
+                  fontFeatures: const [FontFeature.tabularFigures()])),
+          Icon(Icons.arrow_drop_down_rounded, size: 18, color: colors.textMuted),
+        ]),
+      ),
     );
   }
 }

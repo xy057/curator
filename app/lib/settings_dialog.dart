@@ -120,7 +120,7 @@ final _categories = <_Category>[
       'Staff transition',
       (c) => c.controller?.curation == null
           ? 'Open a project to set how its staves glide in and out.'
-          : 'How long a staff takes to glide in or out, in this project. A region can have its own: double-click it.',
+          : 'How long a staff takes to glide in or out, in this project. Regions can have their own: select them and pick one in the Instruments tab, or double-click one.',
       (c) => _TransitionPicker(
         value: c.controller?.curation?.transition,
         onChanged: (s) => c.controller?.setTransition(s),
