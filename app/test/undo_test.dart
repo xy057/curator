@@ -153,4 +153,13 @@ void main() {
     c.curation!.setLane(id, const [Region(3, 6)]);
     expect(c.canRedo, isFalse);
   });
+
+  test('Undo and Redo with nothing open do nothing (⌘Z on the start screen)', () async {
+    c.renamePart(c.score!.metadata.parts.first, name: 'Solo Piccolo', abbreviation: 'Picc.');
+    await c.close();
+    expect(c.canUndo, isFalse);
+    c.undo();
+    c.redo();
+    expect(c.score, isNull);
+  });
 }

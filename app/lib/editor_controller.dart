@@ -599,8 +599,14 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void undo() => _restore(_history.undo(_editState));
-  void redo() => _restore(_history.redo(_editState));
+  // Nothing open (⌘Z on the start screen) has no state to step from.
+  void undo() {
+    if (_score != null) _restore(_history.undo(_editState));
+  }
+
+  void redo() {
+    if (_score != null) _restore(_history.redo(_editState));
+  }
 
   void _restore(EditState? state) {
     if (state == null || _score == null) return;
