@@ -140,9 +140,12 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
   /// Moves the start of the piece. With anchors, only the opening anchor moves (the rest are
   /// tied to events in the recording).
   set startSeconds(double seconds) {
+    if (!seconds.isFinite) return;
     if (_anchors.isNotEmpty && _anchors.first.quarter == 0) {
       final limit = _anchors.length > 1 ? _anchors[1].seconds - 0.01 : double.infinity;
-      _anchors = List.unmodifiable([_anchors.first.at(seconds.clamp(0, limit)), ..._anchors.skip(1)]);
+      final to = _within(seconds, 0, limit);
+      if (to == null) return;
+      _anchors = List.unmodifiable([_anchors.first.at(to), ..._anchors.skip(1)]);
     } else {
       _leadIn = math.max(0, seconds);
     }
@@ -297,12 +300,19 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
     notifyListeners();
   }
 
-  /// Moves anchor [index] in time, kept between its neighbours.
+  /// Moves anchor [index] in time, kept between its neighbours (where they leave no room,
+  /// it stays).
   void moveAnchor(int index, double seconds) {
     final lo = index > 0 ? _anchors[index - 1].seconds + 0.01 : 0.0;
     final hi = index + 1 < _anchors.length ? _anchors[index + 1].seconds - 0.01 : double.infinity;
-    _replace(index, _anchors[index].at(seconds.clamp(lo, hi)));
+    final to = _within(seconds, lo, hi);
+    if (to != null) _replace(index, _anchors[index].at(to));
   }
+
+  /// [seconds] kept between [lo] and [hi]; null when it isn't a time, or when anchors pinned
+  /// closer than [lo]–[hi] allow leave no room.
+  static double? _within(double seconds, double lo, double hi) =>
+      !seconds.isFinite || lo > hi ? null : seconds.clamp(lo, hi).toDouble();
 
   /// Points anchor [index] at another place in the score (e.g. "this is bar 12, not 11").
   /// A warp still goes on from where it jumps to. Returns false if that would cross a
@@ -400,7 +410,7 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
         if (i + 1 < base.length) hi = math.min(hi, base[i + 1].seconds - 0.01 - base[i].seconds);
       }
     }
-    final applied = delta.clamp(lo, hi).toDouble();
+    final applied = _within(delta, lo, hi) ?? 0.0;
     _anchors = List.unmodifiable([
       for (final (i, a) in base.indexed) indices.contains(i) ? a.at(a.seconds + applied) : a,
     ]);

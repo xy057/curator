@@ -93,6 +93,29 @@ void main() {
     expect(m.anchors.map((a) => a.seconds), [0.5, 3.0, 5.0]);
   });
 
+  test('an anchor with no room between its neighbours stays where it is instead of failing', () {
+    // Pinned by hand 5 ms apart: closer than the 10 ms moving keeps between anchors.
+    final m = map()..load(const [SyncAnchor(0, 0.004), SyncAnchor(4, 0.009), SyncAnchor(8, 0.014), SyncAnchor(12, 3)]);
+    m.moveAnchor(1, 0.5);
+    expect(m.anchors[1].seconds, 0.009);
+    m.startSeconds = 0.5;
+    expect(m.anchors.first.seconds, 0.004);
+    expect(m.moveAnchors({1}, 0.5), 0);
+    expect(m.anchors.map((a) => a.seconds), [0.004, 0.009, 0.014, 3]);
+  });
+
+  test('a time that is not a number (Starts at: "Infinity") changes nothing', () {
+    final m = map()..startSeconds = double.infinity;
+    expect(m.startSeconds, 0);
+    m.startSeconds = double.nan;
+    expect(m.startSeconds, 0);
+    m.load(const [SyncAnchor(0, 1), SyncAnchor(4, 3)]);
+    m.startSeconds = double.infinity;
+    m.moveAnchor(1, double.nan);
+    expect(m.moveAnchors({0, 1}, double.infinity), 0);
+    expect(m.anchors.map((a) => a.seconds), [1, 3]);
+  });
+
   group('batch editing', () {
     SyncMap fourBars() => map()
       ..addAnchor(const SyncAnchor(0, 0))
