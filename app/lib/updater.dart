@@ -11,6 +11,9 @@ const appVersion = '0.1.2';
 /// Where the source and the releases live.
 const repositoryUrl = 'https://github.com/xy057/curator';
 
+/// What changed in each version.
+const changelogUrl = 'https://0x57.cc/xylabs-changelog#curator';
+
 /// A released version: `v1.2.3` or `1.2.3`, compared number by number.
 @immutable
 class Version implements Comparable<Version> {

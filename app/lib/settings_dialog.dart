@@ -186,6 +186,12 @@ final _categories = <_Category>[
       keywords: 'update automatic startup',
     ),
     _Item(
+      'Changelog',
+      null,
+      (_) => const _Link(changelogUrl),
+      keywords: 'changelog changes release notes what\'s new history website open',
+    ),
+    _Item(
       'Source code',
       null,
       (_) => const _Link(repositoryUrl),
@@ -627,7 +633,7 @@ class _UpdateControl extends StatelessWidget {
   }
 }
 
-/// An address that opens in the browser.
+/// An address that opens in the browser, shown without its scheme or `#` part.
 class _Link extends StatelessWidget {
   const _Link(this.url);
   final String url;
@@ -637,7 +643,7 @@ class _Link extends StatelessWidget {
         message: 'Open in the browser',
         child: TextButton(
           onPressed: () => openInBrowser(url),
-          child: Text(url.replaceFirst('https://', ''), style: const TextStyle(fontSize: 13)),
+          child: Text(url.replaceFirst('https://', '').split('#').first, style: const TextStyle(fontSize: 13)),
         ),
       );
 }

@@ -139,7 +139,7 @@ void main() {
     });
   });
 
-  testWidgets('Settings ▸ Update shows the version and the repository, and checks', (tester) async {
+  testWidgets('Settings ▸ Update shows the version, the changelog and the repository, and checks', (tester) async {
     final settings = AppSettings.memory();
     final updater = Updater(api: Uri.parse('http://127.0.0.1:1/latest'));
     final shots = Platform.environment['SCREENSHOT_DIR'];
@@ -162,6 +162,7 @@ void main() {
 
     expect(find.text('Version $appVersion'), findsOneWidget);
     expect(find.text('github.com/xy057/curator'), findsOneWidget);
+    expect(find.text('0x57.cc/xylabs-changelog'), findsOneWidget);
     if (shots != null) {
       await tester.runAsync(() async {
         final boundary = tester.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first);
