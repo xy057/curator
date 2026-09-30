@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'curation.dart';
 import 'display_list.dart';
 import 'frozen_zone.dart';
 import 'scroll_map.dart';
@@ -18,17 +19,18 @@ typedef PlannedStaff = ({int staffIndex, String partId});
 /// that scrolls past during the whole segment, so nothing moves between edges.
 ///
 /// Around each edge every staff glides from its place in one keyframe to its place in the
-/// next over the transition time. A staff that enters grows out of the gap it will occupy;
-/// one that leaves closes into its gap; one that takes over from its twin (condensing) swaps
-/// with it in place. Per frame this is a lookup and a blend.
+/// next over the edge's transition time (its region's; the longest where edges coincide). A
+/// staff that enters grows out of the gap it will occupy; one that leaves closes into its
+/// gap; one that takes over from its twin (condensing) swaps with it in place. Per frame this
+/// is a lookup and a blend.
 class SpacingPlan {
-  SpacingPlan._(this._bounds, this._keyframes, this._transition);
+  SpacingPlan._(this._bounds, this._keyframes);
 
   factory SpacingPlan.build({
     required List<StaffLayer> staves,
     required List<PlannedStaff> order,
     required ScrollMap scrollMap,
-    required Iterable<double> edges,
+    required Iterable<RegionEdge> edges,
     required bool Function(String partId, double seconds) isShown,
     required double visibleLeft,
     required double visibleRight,
@@ -37,14 +39,13 @@ class SpacingPlan {
     required StackMetrics metrics,
     Map<int, List<int>> twins = const {},
   }) {
-    final duration = scrollMap.duration;
-    final bounds = <double>{-5, ...edges.where((e) => e > -5 && e < duration + 5), duration + 5}.toList()..sort();
+    final bounds = _Bounds.of(edges, scrollMap.duration, transition);
     final keyframes = <List<double>>[];
     for (var i = 0; i + 1 < bounds.length; i++) {
-      final middle = (bounds[i] + bounds[i + 1]) / 2;
+      final middle = (bounds.at[i] + bounds.at[i + 1]) / 2;
       // Everything on screen from a little before the segment starts to a little after it ends
       // (on both sides of a warp, when one jumps in between).
-      final (min: from, max: to) = scrollMap.xRange(bounds[i] - transition, bounds[i + 1] + transition);
+      final (min: from, max: to) = scrollMap.xRange(bounds.at[i] - bounds.transition[i], bounds.at[i + 1] + bounds.transition[i + 1]);
       final left = from - visibleLeft;
       final right = to + visibleRight;
 
@@ -65,34 +66,33 @@ class SpacingPlan {
       final tops = StaffStack.layout(slots, metrics);
       keyframes.add(_parkHidden(tops, slots, shown, metrics, twins));
     }
-    return SpacingPlan._(bounds, keyframes, transition);
+    return SpacingPlan._(bounds, keyframes);
   }
 
-  final List<double> _bounds;
+  final _Bounds _bounds;
   final List<List<double>> _keyframes; // [segment][staff in order]: top line, logical pixels
-  final double _transition;
 
   /// Top line of every planned staff at playback time [t], logical pixels from the top of
   /// the available area. Hidden staves report where they would appear.
-  List<double> topsAt(double t) => _blendAt(_bounds, _keyframes, _transition, t);
+  List<double> topsAt(double t) => _blendAt(_bounds, _keyframes, t);
 
   /// The keyframe of the segment of [bounds] around [t], blended towards the neighbouring
-  /// keyframe inside the transition window of the nearer bound.
-  static List<double> _blendAt(List<double> bounds, List<List<double>> keyframes, double transition, double t) {
-    final i = segmentAt(bounds.length, t, (i) => bounds[i]).clamp(0, keyframes.length - 1);
+  /// keyframe inside the transition window of the nearer bound (each bound has its own).
+  static List<double> _blendAt(_Bounds bounds, List<List<double>> keyframes, double t) {
+    final i = segmentAt(bounds.length, t, (i) => bounds.at[i]).clamp(0, keyframes.length - 1);
     final own = keyframes[i];
-    final half = transition / 2;
-    if (half <= 0) return own;
-
-    final start = bounds[i], end = bounds[i + 1];
+    final start = bounds.at[i], end = bounds.at[i + 1];
+    final fadeIn = bounds.transition[i], fadeOut = bounds.transition[i + 1];
+    final inStart = i > 0 && fadeIn > 0 && t < start + fadeIn / 2;
+    final inEnd = i + 1 < keyframes.length && fadeOut > 0 && t > end - fadeOut / 2;
     int? other;
     var p = 0.0;
-    if (i > 0 && t < start + half && (t - start) <= (end - t)) {
+    if (inStart && (!inEnd || (t - start) <= (end - t))) {
       other = i - 1;
-      p = 1 - _smooth(((t - (start - half)) / transition).clamp(0.0, 1.0));
-    } else if (i + 1 < keyframes.length && t > end - half) {
+      p = 1 - _smooth(((t - (start - fadeIn / 2)) / fadeIn).clamp(0.0, 1.0));
+    } else if (inEnd) {
       other = i + 1;
-      p = _smooth(((t - (end - half)) / transition).clamp(0.0, 1.0));
+      p = _smooth(((t - (end - fadeOut / 2)) / fadeOut).clamp(0.0, 1.0));
     }
     if (other == null || p == 0) return own;
     final to = keyframes[other];
@@ -140,29 +140,59 @@ class SpacingPlan {
   static double _smooth(double x) => x * x * (3 - 2 * x);
 }
 
+/// Where a plan's segments meet, in playback time, each with the seconds it glides over: from
+/// 5 s before the performance to 5 s after it, where edges fall together the longest of their
+/// transitions.
+class _Bounds {
+  _Bounds._(this.at, this.transition);
+
+  factory _Bounds.of(Iterable<RegionEdge> edges, double duration, double transition) {
+    final sorted = [
+      (seconds: -5.0, transition: transition),
+      for (final e in edges)
+        if (e.seconds > -5 && e.seconds < duration + 5) e,
+      (seconds: duration + 5, transition: transition),
+    ]..sort((a, b) => a.seconds.compareTo(b.seconds));
+    final at = <double>[], transitions = <double>[];
+    for (final e in sorted) {
+      if (at.isNotEmpty && e.seconds == at.last) {
+        transitions.last = math.max(transitions.last, e.transition);
+      } else {
+        at.add(e.seconds);
+        transitions.add(e.transition);
+      }
+    }
+    return _Bounds._(at, transitions);
+  }
+
+  final List<double> at;
+  final List<double> transition;
+  int get length => at.length;
+}
+
 /// How wide the frozen zone's key column is over the whole piece, planned ahead of playback
 /// like [SpacingPlan]: only as wide as the widest key signature among the staves shown.
 ///
 /// The piece is split into segments at the curation's region edges, at key changes and around
 /// warps. Each segment's column fits every key signature the zone can show while it lasts, on
 /// the staves shown in it. Around each bound the column glides from one width to the next over
-/// the transition time: with the staves at a region edge; ahead of a wider key, so the room is
-/// there before the key reaches the zone; after a narrower one has taken over, so the old key
-/// is never cut off.
+/// the transition time: with the staves at a region edge (over its region's); ahead of a
+/// wider key, so the room is there before the key reaches the zone; after a narrower one has
+/// taken over, so the old key is never cut off.
 ///
 /// The zone's right edge moves as the column changes, so which key it shows depends on its
 /// width. The plan never asks: it looks at every key the edge could meet at any width, from
 /// the narrowest zone ([minReach]) to the widest ([maxReach]), score distances left of the
 /// pointer.
 class KeyColumnPlan {
-  KeyColumnPlan._(this._bounds, this._keyframes, this._transition);
+  KeyColumnPlan._(this._bounds, this._keyframes);
 
   factory KeyColumnPlan.build({
     required FrozenZone zone,
     required List<StaffLayer> staves,
     required List<PlannedStaff> order,
     required ScrollMap scrollMap,
-    required Iterable<double> edges,
+    required Iterable<RegionEdge> edges,
     required bool Function(String partId, double seconds) isShown,
     required double minReach,
     required double maxReach,
@@ -170,7 +200,6 @@ class KeyColumnPlan {
   }) {
     final half = transition / 2;
     const margin = 1e-3; // seconds, so a segment reaching up to a key change leaves it out
-    final duration = scrollMap.duration;
     final keyBounds = <double>[
       // Widening ends as the widest zone's edge reaches the key; narrowing starts once the
       // narrowest zone's has passed it.
@@ -183,19 +212,13 @@ class KeyColumnPlan {
       // A warp jumps between keys: wider before it, narrower after.
       for (final w in scrollMap.warpTimes) ...[w - half - margin, w + half + margin],
     ];
-    final bounds = <double>{
-      -5,
-      for (final e in [...edges, ...keyBounds])
-        if (e > -5 && e < duration + 5) e,
-      duration + 5,
-    }.toList()
-      ..sort();
+    final bounds = _Bounds.of([...edges, for (final t in keyBounds) (seconds: t, transition: transition)], scrollMap.duration, transition);
 
     final keyframes = <List<double>>[];
     for (var i = 0; i + 1 < bounds.length; i++) {
-      final middle = (bounds[i] + bounds[i + 1]) / 2;
+      final middle = (bounds.at[i] + bounds.at[i + 1]) / 2;
       var column = 0.0;
-      for (final (:min, :max) in scrollMap.xStretches(bounds[i] - half, bounds[i + 1] + half)) {
+      for (final (:min, :max) in scrollMap.xStretches(bounds.at[i] - bounds.transition[i] / 2, bounds.at[i + 1] + bounds.transition[i + 1] / 2)) {
         for (final s in order) {
           if (!isShown(s.partId, middle)) continue;
           column = math.max(column, zone.keyColumnIn(staves[s.staffIndex].info.n, min - minReach, max - maxReach));
@@ -203,13 +226,12 @@ class KeyColumnPlan {
       }
       keyframes.add([column]);
     }
-    return KeyColumnPlan._(bounds, keyframes, transition);
+    return KeyColumnPlan._(bounds, keyframes);
   }
 
-  final List<double> _bounds;
+  final _Bounds _bounds;
   final List<List<double>> _keyframes; // [segment][0]: key column, staff spaces
-  final double _transition;
 
   /// The key column's width at playback time [t], in staff spaces.
-  double columnAt(double t) => SpacingPlan._blendAt(_bounds, _keyframes, _transition, t).first;
+  double columnAt(double t) => SpacingPlan._blendAt(_bounds, _keyframes, t).first;
 }

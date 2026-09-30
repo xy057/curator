@@ -38,13 +38,14 @@ class ProjectState {
   });
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 5;
+  static const version = 6;
 
-  /// When each instrument is shown; null when the project has none saved (they are then
-  /// filled from where each part plays).
+  /// When each instrument is shown, with each region's own properties; null when the project
+  /// has none saved (they are then filled from where each part plays).
   final Map<String, List<Region>>? lanes;
 
-  /// Seconds for a staff to enter or leave; null: the default for new projects.
+  /// Seconds for a staff to enter or leave where its region doesn't set its own; null: the
+  /// default for new projects.
   final double? transition;
 
   /// The tempo track: where the score is pinned to the recording (warps among them), and the
@@ -78,6 +79,7 @@ class ProjectState {
     2: (state) => {...state, 'pairs': const <Object?>[]}, // the user's own pairs came in 3: none
     3: (state) => state, // warps came in 4 (an anchor's `jumpTo`): none, so nothing to change
     4: (state) => state, // the instruments' order came in 5: none saved is the score's
+    5: (state) => state, // a region's own transition came in 6: none, the project's
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -153,7 +155,11 @@ class ProjectState {
   static Region _region(JsonReader r) {
     final start = r.number('start', required: true)!, end = r.number('end', required: true)!;
     if (end < start) throw FormatException('The project is damaged: ${r.where} ends before it starts.');
-    return Region(start, end);
+    final transition = r.number('transition');
+    if (transition != null && (transition < 0 || !transition.isFinite)) {
+      throw FormatException('The project is damaged: ${r.where}.transition is not a length of time.');
+    }
+    return Region(start, end, transition: transition);
   }
 
   Map<String, Object?> toJson() => {
@@ -168,7 +174,7 @@ class ProjectState {
           'transition': ?transition,
           'lanes': {
             for (final MapEntry(key: id, value: lane) in (lanes ?? const <String, List<Region>>{}).entries)
-              id: [for (final r in lane) {'start': r.start, 'end': r.end}],
+              id: [for (final r in lane) {'start': r.start, 'end': r.end, 'transition': ?r.transition}],
           },
         },
         'sync': {

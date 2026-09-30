@@ -103,6 +103,8 @@ void main() {
     expect(() => read({'sync': {'anchors': [{'quarter': 0, 'seconds': 'soon'}]}}), damaged('state.sync.anchors[0].seconds is not a number'));
     expect(() => read({'sync': {'anchors': [{'quarter': 0, 'seconds': 1, 'jumpTo': 'bar 1'}]}}), damaged('state.sync.anchors[0].jumpTo is not a number'));
     expect(() => read({'curation': {'lanes': {'P1': [{'start': 4, 'end': 2}]}}}), damaged('state.curation.lanes.P1[0] ends before it starts'));
+    expect(() => read({'curation': {'lanes': {'P1': [{'start': 0, 'end': 2, 'transition': -1}]}}}),
+        damaged('state.curation.lanes.P1[0].transition is not a length of time'));
     expect(() => read({'view': {'grid': 'minute'}}), damaged('state.view.grid'));
     expect(() => read({'condensed': [3]}), damaged('state.condensed[0] is not text'));
     expect(() => read({'pairs': [['P1']]}), damaged('state.pairs[0] is not two part ids'));
@@ -119,8 +121,20 @@ void main() {
     final state = ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 1);
     expect(state.condensed, isEmpty);
     expect(state.pairs, isEmpty);
-    expect(ProjectState.version, 5);
+    expect(ProjectState.version, 6);
     expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).pairs, isEmpty);
+  });
+
+  test('a region is saved with its own transition; one without, and older projects\' regions, use the project\'s', () {
+    const lanes = {'P1': [Region(0, 4, transition: 1.2), Region(8, 12)]};
+    final json = jsonDecode(jsonEncode(const ProjectState(lanes: lanes).toJson())) as Map<String, Object?>;
+    expect(((json['curation'] as Map)['lanes'] as Map)['P1'], [
+      {'start': 0, 'end': 4, 'transition': 1.2},
+      {'start': 8, 'end': 12},
+    ]);
+    expect(ProjectState.fromJson(json).lanes, lanes);
+    final old = ProjectState.fromJson({'curation': {'lanes': {'P1': [{'start': 0, 'end': 4}]}}}, savedVersion: 5);
+    expect(old.lanes!['P1']!.single.transition, isNull);
   });
 
   test('warps are saved with their jump; plain anchors without one', () {
@@ -179,7 +193,7 @@ void main() {
     test('every edit survives save and open', () async {
       final part = c.score!.metadata.parts.first;
       c.renamePart(part, name: 'Solo Piccolo', abbreviation: 'Picc.');
-      c.curation!.setLane(part.id, [const Region(3, 12), const Region(21, 27)]);
+      c.curation!.setLane(part.id, [const Region(3, 12), const Region(21, 27, transition: 1.2)]);
       c.curation!.transition = 0.5;
       c.sync!.addAnchor(const SyncAnchor(0, 1.25));
       c.sync!.addAnchor(const SyncAnchor(12, 7.5));

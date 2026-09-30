@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
@@ -215,7 +216,8 @@ class _TextsDialogState extends State<_TextsDialog> {
   }
 }
 
-/// Type where a region starts and ends, as bar or bar.beat ("12" or "12.3").
+/// A region's properties: where it starts and ends, typed as bar or bar.beat ("12" or
+/// "12.3"), and how long its staff takes to glide in and out.
 Future<void> showRegionDialog(BuildContext context, EditorController c, RegionRef ref) async {
   final region = await showAppDialog<Region>(context: context, builder: (context) => _RegionDialog(controller: c, ref: ref));
   if (region != null) c.lanes.setRegion(ref, region);
@@ -234,6 +236,7 @@ class _RegionDialogState extends State<_RegionDialog> {
   BeatGrid get _beats => widget.controller.beats;
   late final _from = TextEditingController(text: _beats.format(widget.ref.region.start));
   late final _to = TextEditingController(text: _beats.format(widget.ref.region.end));
+  late double? _transition = widget.ref.region.transition;
 
   @override
   void dispose() {
@@ -253,31 +256,45 @@ class _RegionDialogState extends State<_RegionDialog> {
             ? 'It has to end after it starts'
             : null;
     void save() {
-      if (error == null) Navigator.pop(context, Region(a!, b!));
+      if (error == null) Navigator.pop(context, Region(a!, b!, transition: _transition));
     }
 
     return AlertDialog(
       title: Text('Show ${c.laneName(part)}'),
       content: SizedBox(
         width: 320,
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(
-            child: TextField(
-              controller: _from,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'From'),
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) => save(),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: TextField(
+                controller: _from,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'From'),
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => save(),
+              ),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: TextField(
-              controller: _to,
-              decoration: const InputDecoration(labelText: 'Until', helperText: 'Hidden again from here'),
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) => save(),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextField(
+                controller: _to,
+                decoration: const InputDecoration(labelText: 'Until', helperText: 'Hidden again from here'),
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => save(),
+              ),
             ),
+          ]),
+          const SizedBox(height: 16),
+          // Null: the project's transition (Settings ▸ Animation), whatever it becomes.
+          DropdownButtonFormField<double?>(
+            initialValue: _transition,
+            decoration: const InputDecoration(labelText: 'Transition', helperText: 'How long the staff takes to glide in and out'),
+            items: [
+              DropdownMenuItem(value: null, child: Text("Project's (${c.curation!.transition} s)")),
+              for (final s in {...AppSettings.transitionChoices, ?_transition}.toList()..sort())
+                DropdownMenuItem(value: s, child: Text('$s s')),
+            ],
+            onChanged: (s) => setState(() => _transition = s),
           ),
         ]),
       ),

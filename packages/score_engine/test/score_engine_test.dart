@@ -142,6 +142,30 @@ void main() {
     scene.dispose();
   });
 
+  test('an entrance glides over its region\'s own transition', () {
+    final scene = CuratedScene(score);
+    const size = ui.Size(1600, 900);
+    final starts = score.timeline.measureStarts;
+    Curation withPiccolo({double? transition}) {
+      final c = Curation(score.metadata.parts.map((p) => p.id))..transition = 0.3;
+      for (final p in score.metadata.parts.skip(16)) {
+        c.setLane(p.id, [Region(0, starts.last)]);
+      }
+      return c..setLane('P1', [Region(starts[32], starts.last, transition: transition)]);
+    }
+
+    final quick = withPiccolo(), slow = withPiccolo(transition: 2);
+    final entrance = score.timeline.secondsAtQuarter(starts[32]);
+    List<double> tops(Curation c, double t) => [for (final p in scene.layoutAt(t, c, size).placements) p.y];
+    expect(tops(quick, entrance - 0.5), tops(quick, entrance - 3), reason: '0.3 s: still half a second before');
+    expect(tops(slow, entrance - 0.5), isNot(tops(slow, entrance - 3)), reason: '2 s: already making room');
+    expect(tops(slow, entrance + 0.5), isNot(tops(slow, entrance + 1.1)), reason: 'still gliding');
+    expect(tops(slow, entrance + 1.1), tops(slow, entrance + 3), reason: 'settled a second after');
+    expect(slow.visibilityAt(entrance - 0.5, scene.timeline)['P1'], greaterThan(0));
+    expect(quick.visibilityAt(entrance - 0.5, scene.timeline)['P1'], 0);
+    scene.dispose();
+  });
+
   test('hidden instruments never influence the spacing of the shown ones', () {
     final scene = CuratedScene(score);
     const size = ui.Size(1600, 900);

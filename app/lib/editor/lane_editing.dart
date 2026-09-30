@@ -198,7 +198,7 @@ class LaneEditing {
     var delta = (direction > 0 ? sync.nextGrid(first, grid) : sync.previousGrid(first, grid)) - first;
     delta = delta.clamp(-first, total - last).toDouble();
     if (delta.abs() < 1e-9) return;
-    _editSelected((r) => Region(r.start + delta, r.end + delta));
+    _editSelected((r) => r.withBounds(r.start + delta, r.end + delta));
   }
 
   /// [ / ]: the selected regions now start (or end) at the beat nearest the playhead.
@@ -208,11 +208,11 @@ class LaneEditing {
     final q = sync.nearestGrid(_editor.timeline.quarterAtSeconds(_editor.playback.time.value), SyncGrid.beat);
     _editSelected((r) {
       if (start ? q >= r.end : q <= r.start) return r; // would turn it inside out
-      return start ? Region(q, r.end) : Region(r.start, q);
+      return start ? r.withBounds(q, r.end) : r.withBounds(r.start, q);
     });
   }
 
-  /// Gives one region new bounds (the region dialog).
+  /// Gives one region new bounds and properties (the region dialog).
   void setRegion(RegionRef ref, Region region) {
     final curation = _curation;
     if (curation == null) return;

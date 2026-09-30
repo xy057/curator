@@ -489,15 +489,15 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
         final first = moving.map((r) => r.region.start).reduce(math.min);
         final last = moving.map((r) => r.region.end).reduce(math.max);
         final delta = math.max(-first, math.min(_totalQuarters - last, _snap(q - (drag.downQ - grabbed.start), drag.pass) - grabbed.start));
-        change = (r) => Region(r.start + delta, r.end + delta);
+        change = (r) => r.withBounds(r.start + delta, r.end + delta);
         final rows = [for (final r in moving) _row(r.partId)];
         lanes = (lane - _row(drag.grabbed!.partId)).clamp(-rows.reduce(math.min), parts.length - 1 - rows.reduce(math.max));
       case _DragKind.resizeStart:
         final delta = _snap(q, drag.pass) - grabbed.start;
-        change = (r) => Region(math.min(math.max(0.0, r.start + delta), r.end - _minLength), r.end);
+        change = (r) => r.withBounds(math.min(math.max(0.0, r.start + delta), r.end - _minLength), r.end);
       case _DragKind.resizeEnd:
         final delta = _snap(q, drag.pass) - grabbed.end;
-        change = (r) => Region(r.start, math.max(math.min(_totalQuarters, r.end + delta), r.start + _minLength));
+        change = (r) => r.withBounds(r.start, math.max(math.min(_totalQuarters, r.end + delta), r.start + _minLength));
       default:
         return;
     }
@@ -1068,6 +1068,16 @@ class _LanesPainter extends CustomPainter {
             ..strokeWidth = selected ? 1.5 : 1
             ..color = selected ? colors.accentStrong : colors.accent,
         );
+        // A region with a transition of its own says so at its start, where it has room.
+        final transition = r.transition;
+        if (transition != null && ownStart) {
+          final tp = TextPainter(
+            text: TextSpan(text: '$transition s', style: TextStyle(fontSize: 10, color: selected ? colors.surface : colors.accentStrong)),
+            textDirection: TextDirection.ltr,
+          )..layout();
+          if (tp.width + 10 <= x1 - x0) tp.paint(canvas, Offset(x0 + 5, rect.center.dy - tp.height / 2));
+          tp.dispose();
+        }
       }
     }
   }

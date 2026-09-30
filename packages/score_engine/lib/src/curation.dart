@@ -9,22 +9,50 @@ import 'search.dart';
 /// A stretch of the piece during which one instrument's staff is shown.
 /// Stored in score quarters (quarter notes from the start of the performance), so regions
 /// stay attached to the music when the audio sync changes.
+///
+/// A region also has properties of its own (so far only [transition]); null means the
+/// curation's. They go with it wherever it is moved, trimmed, split or copied, and a merge
+/// keeps each one either region set ([joinedWith]).
 @immutable
 class Region {
-  const Region(this.start, this.end) : assert(end >= start);
+  const Region(this.start, this.end, {this.transition}) : assert(end >= start), assert(transition == null || transition >= 0);
   final double start;
   final double end;
+
+  /// Seconds for the staff to enter at [start] and leave at [end]; null: the curation's
+  /// [Curation.transition].
+  final double? transition;
 
   double get length => end - start;
   bool overlaps(Region other) => start <= other.end && other.start <= end;
 
+  /// Whether every property is the curation's.
+  bool get hasDefaultProperties => transition == null;
+
+  /// This region between [start] and [end], with the same properties.
+  Region withBounds(double start, double end) => Region(start, end, transition: transition);
+
+  /// This region with its own [transition] (null: the curation's).
+  Region withTransition(double? transition) => Region(start, end, transition: transition);
+
+  /// This region and [later] (which starts no earlier) as one: from this one's start to the
+  /// further end, each property as this one sets it, else as [later] does.
+  Region joinedWith(Region later) => Region(start, math.max(end, later.end), transition: transition ?? later.transition);
+
   @override
-  bool operator ==(Object other) => other is Region && other.start == start && other.end == end;
+  bool operator ==(Object other) =>
+      other is Region && other.start == start && other.end == end && other.transition == transition;
   @override
-  int get hashCode => Object.hash(start, end);
+  int get hashCode => Object.hash(start, end, transition);
   @override
-  String toString() => 'Region($start–$end)';
+  String toString() => 'Region($start–$end${transition == null ? '' : ', ${transition}s'})';
 }
+
+/// A stretch of playback time a lane is shown, with the seconds it takes to fade in and out.
+typedef _Span = ({double start, double end, double fadeIn, double fadeOut});
+
+/// A region edge in playback time, with how long the staves take to glide there.
+typedef RegionEdge = ({double seconds, double transition});
 
 /// When each instrument is visible: one lane of non-overlapping regions per part.
 ///
@@ -36,7 +64,8 @@ class Curation extends ChangeNotifier {
 
   Map<String, List<Region>> _lanes;
 
-  /// Seconds for a staff to enter or leave, centred on the region edge.
+  /// Seconds for a staff to enter or leave, centred on the region edge, where the region
+  /// doesn't set its own ([Region.transition]).
   double get transition => _transition;
   double _transition = 0.3;
   set transition(double value) {
@@ -57,13 +86,17 @@ class Curation extends ChangeNotifier {
     super.notifyListeners();
   }
 
-  /// Every region edge in seconds, all lanes together. The start and end of the piece are
-  /// not edges: a region there is shown from before bar 1 and after the last bar.
-  Iterable<double> edgesInSeconds(ScoreTimeline timeline) sync* {
+  /// Seconds for [region]'s staff to enter or leave: its own, or the curation's.
+  double transitionOf(Region region) => region.transition ?? _transition;
+
+  /// Every region edge in seconds, all lanes together, each with its region's transition.
+  /// The start and end of the piece are not edges: a region there is shown from before bar 1
+  /// and after the last bar.
+  Iterable<RegionEdge> edgesInSeconds(ScoreTimeline timeline) sync* {
     for (final lane in _lanes.values) {
-      for (final (:start, :end) in _spans(lane, timeline)) {
-        if (start.isFinite) yield start;
-        if (end.isFinite) yield end;
+      for (final (:start, :end, :fadeIn, :fadeOut) in _spans(lane, timeline)) {
+        if (start.isFinite) yield (seconds: start, transition: fadeIn);
+        if (end.isFinite) yield (seconds: end, transition: fadeOut);
       }
     }
   }
@@ -71,8 +104,9 @@ class Curation extends ChangeNotifier {
   /// When a lane is shown: each region once in every pass that plays it (see
   /// [ScoreTimeline.passes]), joined where a warp goes on with the lane still shown, so
   /// nothing fades out and in again across the jump. Open-ended where the performance starts
-  /// or ends, so nothing fades in on the first bar or out after the last.
-  static List<({double start, double end})> _spans(List<Region> lane, ScoreTimeline timeline) {
+  /// or ends, so nothing fades in on the first bar or out after the last. Each span fades in
+  /// and out over the transitions of the regions it starts and ends with.
+  List<_Span> _spans(List<Region> lane, ScoreTimeline timeline) {
     final passes = timeline.passes;
     final spans = [
       for (final r in lane)
@@ -80,14 +114,17 @@ class Curation extends ChangeNotifier {
           (
             start: s.pass == 0 && s.start <= passes.first.start + 1e-6 ? double.negativeInfinity : s.startSeconds,
             end: s.pass == passes.length - 1 && s.end >= passes.last.end - 1e-6 ? double.infinity : s.endSeconds,
+            fadeIn: transitionOf(r),
+            fadeOut: transitionOf(r),
           ),
     ];
     if (passes.length == 1) return spans; // regions never touch (see [_normalize])
     spans.sort((a, b) => a.start.compareTo(b.start));
-    final joined = <({double start, double end})>[];
+    final joined = <_Span>[];
     for (final s in spans) {
       if (joined.isNotEmpty && s.start <= joined.last.end + 1e-6) {
-        joined.last = (start: joined.last.start, end: math.max(joined.last.end, s.end));
+        final last = joined.last;
+        joined.last = s.end > last.end ? (start: last.start, end: s.end, fadeIn: last.fadeIn, fadeOut: s.fadeOut) : last;
       } else {
         joined.add(s);
       }
@@ -130,8 +167,8 @@ class Curation extends ChangeNotifier {
         if (!r.overlaps(range) || range.length <= 0)
           r
         else ...[
-          if (r.start < range.start) Region(r.start, range.start),
-          if (r.end > range.end) Region(range.end, r.end),
+          if (r.start < range.start) r.withBounds(r.start, range.start),
+          if (r.end > range.end) r.withBounds(range.end, r.end),
         ],
     ];
   }
@@ -146,7 +183,7 @@ class Curation extends ChangeNotifier {
           final out = <Region>[];
           for (final r in lane(id)) {
             if (out.isNotEmpty && barsBetween(measureStarts, out.last.end, r.start) <= bars + 1e-6) {
-              out.last = Region(out.last.start, r.end);
+              out.last = out.last.joinedWith(r);
             } else {
               out.add(r);
             }
@@ -231,7 +268,7 @@ class Curation extends ChangeNotifier {
     final merged = <Region>[];
     for (final r in sorted) {
       if (merged.isNotEmpty && r.start <= merged.last.end + 1e-6) {
-        merged.last = Region(merged.last.start, math.max(merged.last.end, r.end));
+        merged.last = merged.last.joinedWith(r);
       } else {
         merged.add(r);
       }
@@ -290,25 +327,24 @@ class Curation extends ChangeNotifier {
   bool isShownAt(String partId, double seconds, ScoreTimeline timeline) =>
       _spans(lane(partId), timeline).any((s) => seconds >= s.start && seconds < s.end);
 
-  /// 0…1 for every part at [seconds]. Each region edge is a smooth ramp of [transition]
-  /// seconds centred on the edge, so the result is continuous in time. Regions reaching the
-  /// start or end of the piece don't fade there.
-  Map<String, double> visibilityAt(double seconds, ScoreTimeline timeline) {
-    final half = _transition / 2;
-    return {
-      for (final entry in _lanes.entries)
-        entry.key: () {
-          var v = 0.0;
-          for (final (:start, :end) in _spans(entry.value, timeline)) {
-            if (seconds < start - half || seconds > end + half) continue;
-            final fadeIn = half > 0 ? ((seconds - start + half) / _transition).clamp(0.0, 1.0) : 1.0;
-            final fadeOut = half > 0 ? ((end + half - seconds) / _transition).clamp(0.0, 1.0) : 1.0;
-            v = math.max(v, _smooth(math.min(fadeIn, fadeOut)));
-          }
-          return v;
-        }(),
-    };
-  }
+  /// 0…1 for every part at [seconds]. Each region edge is a smooth ramp of the region's
+  /// transition ([transitionOf]) centred on the edge, so the result is continuous in time.
+  /// Regions reaching the start or end of the piece don't fade there.
+  Map<String, double> visibilityAt(double seconds, ScoreTimeline timeline) => {
+        for (final entry in _lanes.entries)
+          entry.key: () {
+            var v = 0.0;
+            for (final (:start, :end, :fadeIn, :fadeOut) in _spans(entry.value, timeline)) {
+              if (seconds < start - fadeIn / 2 || seconds > end + fadeOut / 2) continue;
+              v = math.max(v, _smooth(math.min(_ramp(seconds - start, fadeIn), _ramp(end - seconds, fadeOut))));
+            }
+            return v;
+          }(),
+      };
+
+  /// 0…1 at [past] seconds past an edge whose ramp lasts [length], centred on it.
+  static double _ramp(double past, double length) =>
+      length > 0 ? ((past + length / 2) / length).clamp(0.0, 1.0) : (past >= 0 ? 1.0 : 0.0);
 
   static double _smooth(double t) => t * t * (3 - 2 * t);
 
