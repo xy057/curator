@@ -249,7 +249,11 @@ class _RegionDialogState extends State<_RegionDialog> {
   Widget build(BuildContext context) {
     final c = widget.controller;
     final part = c.score!.metadata.parts.firstWhere((p) => p.id == widget.ref.partId);
-    final a = _beats.parse(_from.text), b = _beats.parse(_to.text);
+    // A field as it was shown is the region's own edge, not the text's rounding of it (an
+    // edge between beats reads "12.1.33"), so changing only a transition moves nothing.
+    double? read(TextEditingController field, double edge) =>
+        field.text == _beats.format(edge) ? edge : _beats.parse(field.text);
+    final a = read(_from, widget.ref.region.start), b = read(_to, widget.ref.region.end);
     final error = a == null || b == null
         ? 'Type a bar, or bar.beat — e.g. 12 or 12.3'
         : b <= a

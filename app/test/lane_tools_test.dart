@@ -1,8 +1,10 @@
 // Drives the Instruments tab tools with real pointer gestures.
 // With SCREENSHOT_DIR set, also saves PNGs of the lanes mid-drag for visual review.
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:curated_score/edit_dialogs.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/timeline_panel.dart';
@@ -626,6 +628,32 @@ void main() {
     await g.up();
     await tester.pump();
     expect(c.curation!.lane(ids[1]), [Region(bars[1] + 1.5, bars[2] + 1.5)]);
+  });
+
+  testWidgets("a region's dialog keeps edges placed between beats where they are unless they are retyped", (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const CuratedScoreApp());
+    final state = tester.state(find.byType(HomePage)) as dynamic;
+    final c = state.controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    await tester.pump();
+
+    // Placed freely (⌘-drag): a third of the way into a dotted-crotchet beat, shown as "x.y.33".
+    final id = c.laneParts.first.id;
+    const placed = Region(1.5 + 0.5, 9 + 1.0);
+    c.curation!.setLane(id, const [placed]);
+    unawaited(showRegionDialog(tester.element(find.byType(HomePage)), c, (partId: id, region: placed)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.widgetWithText(TextField, c.beats.format(placed.start)), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(c.curation!.lane(id), const [placed], reason: 'nothing retyped, nothing moved');
   });
 }
 
