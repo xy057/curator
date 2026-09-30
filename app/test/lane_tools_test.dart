@@ -488,6 +488,45 @@ void main() {
     c.undo();
     expect(c.curation!.lane(ids[1]), [a]);
     expect(c.curation!.lane(ids[2]), [b], reason: 'every region in one step');
+
+    // A click on an edge selects that edge alone; the menu then sets only that side.
+    final lanes = tester.getRect(find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter.runtimeType.toString() == '_LanesPainter'));
+    Offset at(int lane, double quarter) =>
+        lanes.topLeft + Offset(c.viewport.x(c.timeline.secondsAtQuarter(quarter)), lane * 26.0 + 12);
+    await tester.tapAt(at(1, a.start));
+    await tester.pumpAndSettle();
+    expect(c.lanes.selection, {(partId: ids[1], region: a): RegionEdges.start});
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.tapAt(at(2, b.end));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+    expect(c.lanes.selection, {(partId: ids[1], region: a): RegionEdges.start, (partId: ids[2], region: b): RegionEdges.end});
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(item(find.text('0.5 s')));
+    await tester.pumpAndSettle();
+    final a2 = a.withTransition(0.5, atEnd: false), b2 = b.withTransition(0.5, atStart: false);
+    expect(c.curation!.lane(ids[1]), [a2]);
+    expect(c.curation!.lane(ids[2]), [b2]);
+
+    // Dragging a selected start trims the starts selected, not a region selected by its end.
+    final drag = await tester.startGesture(at(1, a.start));
+    await drag.moveTo(at(1, bars[1]));
+    await drag.up();
+    await tester.pumpAndSettle();
+    expect(c.curation!.lane(ids[1]), [a2.withBounds(bars[1], a.end)]);
+    expect(c.curation!.lane(ids[2]), [b2]);
+    expect(c.lanes.selection, {
+      (partId: ids[1], region: a2.withBounds(bars[1], a.end)): RegionEdges.start,
+      (partId: ids[2], region: b2): RegionEdges.end,
+    }, reason: 'the same edges stay selected');
+
+    // A click in the middle selects the whole region again.
+    await tester.pump(const Duration(seconds: 1)); // not a double-click
+    await tester.tapAt(at(2, (b.start + b.end) / 2));
+    await tester.pumpAndSettle();
+    expect(c.lanes.selection, {(partId: ids[2], region: b2): RegionEdges.both});
   });
 
   testWidgets('⌘-scroll zooms the lanes horizontally without scrolling them vertically', (tester) async {

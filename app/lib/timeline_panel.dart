@@ -18,10 +18,12 @@ import 'ui_kit.dart';
 /// Instruments tab: one lane per instrument; a region is a stretch of the video where that
 /// instrument's staff is shown.
 ///
-/// Select tool (V): click a region to select it · ⇧-click adds · ⌘-click toggles · ⇧/⌘-drag
-/// on empty space box-selects · drag the selection to move it, along the lane (←/→ from the
-/// keyboard) and up or down into other lanes · ↑/↓ select the lane above / below · drag an edge to trim every
-/// selected region · double-click a region to type its bars · click empty space to move the
+/// Select tool (V): click a region to select it, or one of its edges to select just that
+/// edge · ⇧-click adds · ⌘-click toggles · ⇧/⌘-drag on empty space box-selects · drag the
+/// selection to move it, along the lane (←/→ from the keyboard) and up or down into other
+/// lanes · ↑/↓ select the lane above / below · drag an edge to trim every region selected
+/// at that side · the toolbar sets the selected edges' transition (both of a whole region)
+/// · double-click a region for its bars and transitions · click empty space to move the
 /// playhead · ⌥-drag draws.
 /// Draw (D) / Erase (E): drag across lanes and bars to show / hide those instruments there;
 /// a click does one beat when zoomed in far enough to snap to beats, otherwise one bar.
@@ -56,8 +58,9 @@ class _Drag {
   final RegionRef? grabbed; // move / resize: the region under the pointer
   final bool shown; // paint: draw (true) or erase
   Map<String, List<Region>> from = const {}; // lanes as they were before the drag
-  Set<RegionRef> moving = const {}; // move / resize: the selection being dragged
-  Set<RegionRef> keep = const {}; // marquee: selection it adds to
+  Map<RegionRef, RegionEdges> moving = const {}; // move / resize: the regions dragged, with their selected edges
+  Map<RegionRef, RegionEdges> still = const {}; // resize: the rest of the selection, selected at the other side
+  Map<RegionRef, RegionEdges> keep = const {}; // marquee: selection it adds to
   bool moved = false;
 }
 
@@ -403,8 +406,14 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     final hit = _hit(p);
     if (hit != null) {
       final ref = hit.ref;
+      // An edge selects just that edge; the middle the region, both edges.
+      final edges = switch (hit.kind) {
+        _DragKind.resizeStart => RegionEdges.start,
+        _DragKind.resizeEnd => RegionEdges.end,
+        _ => RegionEdges.both,
+      };
       if (isCommandPressed) {
-        c.lanes.select(ref.partId, ref.region, toggle: true);
+        c.lanes.select(ref.partId, ref.region, toggle: true, edges: edges);
         return;
       }
       if (doubleClick) {
@@ -413,17 +422,21 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
         return;
       }
       if (keys.isShiftPressed) {
-        c.lanes.select(ref.partId, ref.region, add: true);
-      } else if (!c.lanes.isSelected(ref.partId, ref.region)) {
-        c.lanes.select(ref.partId, ref.region);
+        c.lanes.select(ref.partId, ref.region, add: true, edges: edges);
+      } else if (!c.lanes.isSelected(ref.partId, ref.region, edges)) {
+        c.lanes.select(ref.partId, ref.region, edges: edges);
       }
       c.beginEdit();
+      // A move takes every selected region; a trim those selected at the side grabbed.
+      final selection = c.lanes.selection;
+      bool dragged(RegionEdges e) => e.covers(edges) || edges == RegionEdges.both;
       _drag = _Drag(hit.kind, downAt: p, downQ: q, pass: pass, grabbed: ref)
         ..from = {for (final part in parts) part.id: curation.lane(part.id)}
-        ..moving = c.lanes.selected;
+        ..moving = {for (final MapEntry(key: r, value: e) in selection.entries) if (dragged(e)) r: e}
+        ..still = {for (final MapEntry(key: r, value: e) in selection.entries) if (!dragged(e)) r: e};
       if (hit.kind == _DragKind.move) setState(() => _cursor = SystemMouseCursors.grabbing);
     } else if (keys.isShiftPressed || isCommandPressed) {
-      _drag = _Drag(_DragKind.marquee, downAt: p, downQ: q, pass: pass, lane: _laneIndex(p))..keep = c.lanes.selected;
+      _drag = _Drag(_DragKind.marquee, downAt: p, downQ: q, pass: pass, lane: _laneIndex(p))..keep = c.lanes.selection;
     } else {
       c.clearSelection();
       _drag = _Drag(_DragKind.scrub, downAt: p, downQ: q, pass: pass);
@@ -487,11 +500,11 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     var lanes = 0; // how many lanes up (-) or down (+) the regions go
     switch (drag.kind) {
       case _DragKind.move:
-        final first = moving.map((r) => r.region.start).reduce(math.min);
-        final last = moving.map((r) => r.region.end).reduce(math.max);
+        final first = moving.keys.map((r) => r.region.start).reduce(math.min);
+        final last = moving.keys.map((r) => r.region.end).reduce(math.max);
         final delta = math.max(-first, math.min(_totalQuarters - last, _snap(q - (drag.downQ - grabbed.start), drag.pass) - grabbed.start));
         change = (r) => r.withBounds(r.start + delta, r.end + delta);
-        final rows = [for (final r in moving) _row(r.partId)];
+        final rows = [for (final r in moving.keys) _row(r.partId)];
         lanes = (lane - _row(drag.grabbed!.partId)).clamp(-rows.reduce(math.min), parts.length - 1 - rows.reduce(math.max));
       case _DragKind.resizeStart:
         final delta = _snap(q, drag.pass) - grabbed.start;
@@ -502,12 +515,13 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
       default:
         return;
     }
-    final placed = [
-      for (final r in moving) (partId: parts[_row(r.partId) + lanes].id, region: change(r.region)),
-    ];
+    final placed = {
+      for (final MapEntry(key: r, value: edges) in moving.entries)
+        (partId: parts[_row(r.partId) + lanes].id, region: change(r.region)): edges,
+    };
     // Always from the lanes as they were: a lane the regions passed through gets its own back.
-    c.lanes.preview(relocateRegions(drag.from, moving, placed));
-    c.lanes.selectMany(placed);
+    c.lanes.preview(relocateRegions(drag.from, moving.keys.toSet(), placed.keys));
+    c.lanes.selectEdges({...drag.still, ...placed});
   }
 
   int _row(String partId) => parts.indexWhere((p) => p.id == partId);
@@ -532,7 +546,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
       }
       _band.value = null;
     }
-    final selected = c.lanes.selected;
+    final selected = c.lanes.selection;
     c.endEdit();
     // After merging, keep whatever now covers the edited regions selected.
     if (drag.kind == _DragKind.paint) {
@@ -642,8 +656,9 @@ class InstrumentsToolbar extends StatelessWidget {
   static const _tools = {
     LaneTool.select: (
       Icons.near_me_outlined,
-      'Select (V)\nClick, ⇧-click or ⇧-drag to select regions; drag them to move (also to other lanes) '
-          'or drag an edge to trim. Double-click to type bars. ⌥-drag draws.'
+      'Select (V)\nClick, ⇧-click or ⇧-drag to select regions, or click an edge for just that edge; '
+          'drag them to move (also to other lanes) or drag an edge to trim. Double-click for bars and '
+          'transitions. ⌥-drag draws.'
     ),
     LaneTool.draw: (
       Icons.edit_outlined,
@@ -667,7 +682,7 @@ class InstrumentsToolbar extends StatelessWidget {
       builder: (context, _) {
         final selected = c.lanes.selected;
         final lanes = c.lanes.selectedPartIds;
-        final status = _status(c, score, selected, lanes);
+        final status = _status(c, score, c.lanes.selection, lanes);
         return Row(
           children: [
             ToolGroup(children: [
@@ -734,14 +749,21 @@ class InstrumentsToolbar extends StatelessWidget {
   }
 
   /// What is selected; nothing when nothing is (the tools explain themselves on hover).
-  static String? _status(EditorController c, LoadedScore score, Set<RegionRef> selected, Set<String> lanes) {
+  static String? _status(EditorController c, LoadedScore score, Map<RegionRef, RegionEdges> selected, Set<String> lanes) {
     if (selected.length == 1) {
-      final ref = selected.single;
+      final MapEntry(key: ref, value: edges) = selected.entries.single;
       final part = score.metadata.parts.firstWhere((p) => p.id == ref.partId);
-      return '${c.laneName(part)} · ${c.beats.format(ref.region.start)} → ${c.beats.format(ref.region.end)}';
+      final (from, to) = (c.beats.format(ref.region.start), c.beats.format(ref.region.end));
+      return '${c.laneName(part)} · ${switch (edges) {
+        RegionEdges.both => '$from → $to',
+        RegionEdges.start => 'start ($from)',
+        RegionEdges.end => 'end ($to)',
+      }}';
     }
     if (selected.isNotEmpty) {
-      return '${selected.length} regions in ${lanes.length} ${lanes.length == 1 ? 'lane' : 'lanes'} · ←/→ move a bar (⇧ a beat)';
+      final whole = selected.values.where((e) => e == RegionEdges.both).length, edges = selected.length - whole;
+      final what = [if (whole > 0) '$whole ${whole == 1 ? 'region' : 'regions'}', if (edges > 0) '$edges ${edges == 1 ? 'edge' : 'edges'}'];
+      return '${what.join(', ')} in ${lanes.length} ${lanes.length == 1 ? 'lane' : 'lanes'} · ←/→ move a bar (⇧ a beat)';
     }
     if (lanes.length == 1) return c.laneName(score.metadata.parts.firstWhere((p) => p.id == lanes.single));
     if (lanes.isNotEmpty) return '${lanes.length} lanes';
@@ -789,8 +811,8 @@ class _TidyMenu extends StatelessWidget {
   }
 }
 
-/// How long the selected regions' staves glide in and out: "0.8 s ▾", their own or the
-/// project's (dimmed), for all of them at once.
+/// How long the staves glide at the selected edges (both of a whole region): "0.8 s ▾",
+/// their own or the project's (dimmed), for all of them at once.
 class _TransitionMenu extends StatelessWidget {
   const _TransitionMenu({required this.controller});
   final EditorController controller;
@@ -811,7 +833,7 @@ class _TransitionMenu extends StatelessWidget {
     };
     return OverlaySemantics(
       child: PopupMenuButton<double>(
-        tooltip: 'How long the selected regions glide in and out: $tip',
+        tooltip: 'How long the staff glides at the selected edges: $tip',
         position: PopupMenuPosition.under,
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 32),
@@ -1103,9 +1125,10 @@ class _LanesPainter extends CustomPainter {
       }
     }
 
-    final selection = c.lanes.selected;
+    final selection = c.lanes.selection;
     for (final r in c.curation!.lane(parts[i].id)) {
-      final selected = selection.contains((partId: parts[i].id, region: r));
+      final edges = selection[(partId: parts[i].id, region: r)];
+      final selected = edges == RegionEdges.both;
       // Once in every pass that plays it; square where a warp cuts it.
       for (final (:x0, :x1, :ownStart, :ownEnd) in s._xs(r.start, r.end)) {
         if (x1 < 0 || x0 > size.width) continue;
@@ -1123,6 +1146,11 @@ class _LanesPainter extends CustomPainter {
             ..strokeWidth = selected ? 1.5 : 1
             ..color = selected ? colors.accentStrong : colors.accent,
         );
+        // A region selected by one edge: a bar on that edge.
+        if (edges != null && !selected && (edges.hasStart ? ownStart : ownEnd)) {
+          final x = edges.hasStart ? x0 : x1 - 3;
+          canvas.drawRRect(RRect.fromLTRBR(x, rect.top, x + 3, rect.bottom, const Radius.circular(1.5)), Paint()..color = colors.accentStrong);
+        }
         // An edge with a transition of its own says so beside it, where the region has room.
         TextPainter? label(double? seconds) => seconds == null
             ? null

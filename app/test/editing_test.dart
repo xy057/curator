@@ -132,6 +132,40 @@ void main() {
       expect(c.curation!.lane(ids[1]), isEmpty);
     });
 
+    test('a region can be selected by one edge: its transition there, and trims at that side, act on it alone', () {
+      final a = Region(bars[4], bars[8]), b = Region(bars[6], bars[10]);
+      c.curation!.setLane(ids[0], [a]);
+      c.curation!.setLane(ids[1], [b]);
+      c.lanes.select(ids[0], a, edges: RegionEdges.start);
+      c.lanes.select(ids[1], b, add: true, edges: RegionEdges.end);
+      expect(c.lanes.selection, {(partId: ids[0], region: a): RegionEdges.start, (partId: ids[1], region: b): RegionEdges.end});
+      expect(c.lanes.selectedTransitions, {null});
+
+      c.lanes.setTransition(0.8);
+      final a2 = a.withTransition(0.8, atEnd: false), b2 = b.withTransition(0.8, atStart: false);
+      expect(c.curation!.lane(ids[0]), [a2]);
+      expect(c.curation!.lane(ids[1]), [b2]);
+      expect(c.lanes.selection, {(partId: ids[0], region: a2): RegionEdges.start, (partId: ids[1], region: b2): RegionEdges.end},
+          reason: 'still selected at the same edges');
+      expect(c.lanes.selectedTransitions, {0.8});
+
+      c.playback.seek(c.timeline.secondsAtQuarter(bars[5] + 0.1));
+      c.lanes.trimToPlayhead(start: true);
+      expect(c.curation!.lane(ids[0]).single.start, bars[5]);
+      expect(c.curation!.lane(ids[1]), [b2], reason: 'selected by its end only');
+
+      // ⇧ adds the other edge (the whole region); ⌘ takes one away again.
+      final a3 = c.curation!.lane(ids[0]).single;
+      c.lanes.select(ids[0], a3, add: true, edges: RegionEdges.end);
+      expect(c.lanes.selection[(partId: ids[0], region: a3)], RegionEdges.both);
+      c.lanes.select(ids[0], a3, toggle: true, edges: RegionEdges.start);
+      expect(c.lanes.selection[(partId: ids[0], region: a3)], RegionEdges.end);
+      c.lanes.select(ids[0], a3, toggle: true, edges: RegionEdges.end);
+      expect(c.lanes.selected, {(partId: ids[1], region: b2)});
+      c.lanes.select(ids[1], b2);
+      expect(c.lanes.selection.values.single, RegionEdges.both, reason: 'a plain click: the whole region');
+    });
+
     test('tidying acts on the selected lanes, or all of them', () {
       final lane = [Region(bars[0], bars[2]), Region(bars[3], bars[5])]; // a one-bar rest
       c.curation!.setLane(ids[0], lane);
