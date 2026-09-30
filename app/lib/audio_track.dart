@@ -136,25 +136,33 @@ class AudioEngine {
 
   /// Loads a recording: audio, or a video whose soundtrack becomes the track. Anything SoLoud
   /// can't read is converted to FLAC first, into a scratch folder that goes with the track.
+  ///
+  /// The track it replaces goes only once this one is ready: a recording that can't be read
+  /// leaves the current one loaded.
   Future<AudioTrack> load(String path) async {
-    await _ensureInitialized();
-    await unload();
+    stop();
     final scratch = ScratchSpace.folder('recording');
+    final AudioTrack track;
+    AudioSource? source;
     try {
       final audio = MediaFormats.isVideo(path) ? await MediaConverter.toFlac(path, scratch.path) : path;
       final playable = MediaFormats.isPlayable(audio) ? audio : await MediaConverter.toFlac(audio, scratch.path);
-      final source = await SoLoud.instance.loadFile(playable);
+      await _ensureInitialized();
+      source = await SoLoud.instance.loadFile(playable);
       final length = SoLoud.instance.getLength(source).inMicroseconds / 1e6;
       // A whole number of frames between samples, or the waveform drifts from the audio.
       final plan = AudioFormat.samplingPlan(length, AudioFormat.sampleRateOf(playable));
       final samples = await SoLoud.instance.readSamplesFromFile(playable, plan.count);
       final waveform = await Waveform.analyze(samples, plan.rate);
-      _scratch = scratch;
-      return _track = AudioTrack._(audio, audio.split(RegExp(r'[/\\]')).last, source, length, waveform);
+      track = AudioTrack._(audio, audio.split(RegExp(r'[/\\]')).last, source, length, waveform);
     } catch (_) {
+      if (source != null) await SoLoud.instance.disposeSource(source);
       ScratchSpace.release(scratch);
       rethrow;
     }
+    await unload();
+    _scratch = scratch;
+    return _track = track;
   }
 
   Future<void> unload() async {

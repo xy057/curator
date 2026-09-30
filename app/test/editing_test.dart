@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
@@ -17,6 +20,19 @@ void main() {
   });
 
   tearDown(() => c.dispose());
+
+  test('a recording that can\'t be read leaves the one loaded, and the project unchanged', () async {
+    final loaded = AudioTrack.forTesting(name: 'take 1.flac', length: 60, waveform: await Waveform.analyze(Float32List(64), 64));
+    c.audio.debugTrack = loaded;
+    final revision = c.editRevision.value;
+    final broken = File('${Directory.systemTemp.createTempSync('broken-').path}/take 2.mkv')..writeAsStringSync('not a video');
+    addTearDown(() => broken.parent.deleteSync(recursive: true));
+
+    await expectLater(c.loadAudio(broken.path), throwsA(anything));
+    expect(c.track, same(loaded), reason: 'what was loaded stays, so a save keeps it');
+    expect(c.editRevision.value, revision);
+    expect(c.isLoadingAudio, isFalse);
+  });
 
   test('renaming an instrument reaches the name column; empty resets it', () {
     final clarinet = c.score!.metadata.parts.firstWhere((p) => p.name == 'Clarinet in B♭ 1');
