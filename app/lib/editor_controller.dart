@@ -216,7 +216,7 @@ class EditorController extends ChangeNotifier {
   /// How closely the scroll follows the notes, 0–1 (Settings ▸ Animation; see
   /// [ScrollMap.follow]). A view setting, not an edit.
   double get scrollFollow => _scrollFollow;
-  double _scrollFollow = 0;
+  double _scrollFollow = 0.4;
   set scrollFollow(double value) {
     if (value == _scrollFollow) return;
     _scrollFollow = value;

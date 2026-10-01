@@ -60,7 +60,7 @@ from the barline. Snapping, tapping, the tempo lane and every
 `12.2` position (`BeatGrid.format` / `parse`) go through it.
 
 **The scroll follows the beats, the notes, or a blend.** `ScrollMap.follow` (Settings ▸
-Animation ▸ Scrolling, `AppSettings.scrollFollow`, app-wide, copied into video export) runs
+Animation ▸ Scrolling, `AppSettings.scrollFollow`, app-wide, 0.4 by default, copied into video export) runs
 from 0, beats, to 1, notes. At 0 (as before 0.2) every beat of the time signature is under the
 pointer as it sounds and a monotone cubic (Fritsch–Carlson) glides between them. At 1 every
 onset the engraving records (a note or rest starting in any staff) is; engraved spacing grows

@@ -134,7 +134,7 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  static const defaultScrollFollow = 0.0;
+  static const defaultScrollFollow = 0.4;
 
   /// How closely the score's scroll follows the notes, 0–1: 0 glides from beat to beat (as
   /// before 0.2), 1 puts every note under the pointer exactly as it sounds; in between, a
