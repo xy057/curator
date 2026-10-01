@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import 'beat_grid.dart';
 import 'engraving.dart';
 import 'search.dart';
 
@@ -132,18 +133,36 @@ class ConstantTempoTimeline implements ScoreTimeline {
 
 /// Playback time → the score x that sits under the fixed pointer.
 ///
-/// Every onset in the score (a note or rest starting in any staff, taken from the engraving)
-/// is an anchor: it is under the pointer exactly when it sounds. Engraved spacing grows much
-/// more slowly than duration (a minim takes far less than two crotchets' room), so the scroll
-/// speed follows the notes: slow through long notes, quicker through runs, and quick across
-/// room no note owns (a barline, a key change) — without moving a single note off its time.
-/// Between onsets only the speed is free: it changes as gently as it can (see [_Curve]).
+/// Two ways to scroll, and any blend of them ([follow], 0–1):
+///
+/// * **Beats** (0, as before 0.2): every beat of the time signature ([beats]; every crotchet
+///   without one) is an anchor, its x taken from the engraved onsets, and a monotone cubic
+///   (Fritsch–Carlson) runs between them. The speed changes only with the tempo and the bar's
+///   spacing, so the scroll glides; a note off the beat may pass the pointer a little early
+///   or late.
+/// * **Notes** (1): every onset in the score (a note or rest starting in any staff) is an
+///   anchor: it is under the pointer exactly when it sounds. Engraved spacing grows much
+///   more slowly than duration (a minim takes far less than two crotchets' room), so the
+///   speed follows the notes: slow through long notes, quicker through runs, and quick
+///   across room no note owns (a barline, a key change). Between onsets only the speed is
+///   free: it changes as gently as it can (see [_Curve._tangentsOf]).
+///
+/// In between, x is the weighted mean of the two: both reach every beat on time and neither
+/// ever runs back, so neither does the blend, and its speed is the same mean of theirs.
 /// Each pass of the performance (see [ScoreTimeline.passes]) has a curve of its own: where a
 /// warp jumps, so does the score.
 class ScrollMap {
-  ScrollMap._(this._curves, this._starts);
+  ScrollMap._(this._beatCurves, this._onsetCurves, this._starts, this.follow)
+      : _curves = [
+          for (var k = 0; k < _starts.length; k++)
+            follow <= 0
+                ? _beatCurves[k]
+                : follow >= 1
+                    ? _onsetCurves[k]
+                    : _Blend(_beatCurves[k], _onsetCurves[k], follow),
+        ];
 
-  factory ScrollMap(EngravingData score, ScoreTimeline timeline) {
+  factory ScrollMap(EngravingData score, ScoreTimeline timeline, {BeatGrid? beats, double follow = 1}) {
     final measures = score.measures;
     final starts = timeline.measureStarts;
     // Each measure's onsets as (quarters into it, x), closed by the next measure's first
@@ -165,6 +184,15 @@ class ScrollMap {
       return _interpolate(points[i], q - starts[i]);
     }
 
+    // Every beat in the score, and the final barline.
+    final beatQuarters = <double>[
+      for (var i = 0; i < measures.length; i++)
+        if (beats == null || i >= beats.measureStarts.length - 1)
+          for (var q = 0.0; q < measures[i].duration - 1e-9; q += 1) starts[i] + q
+        else
+          ...beats.beatsIn(i),
+      starts[measures.length],
+    ];
     // Every onset in the score, and the final barline.
     final onsetQuarters = <double>[
       for (var i = 0; i < measures.length; i++)
@@ -172,17 +200,16 @@ class ScrollMap {
       starts[measures.length],
     ];
 
-    final curves = <_Curve>[];
-    final passStarts = <double>[];
-    for (final (k, pass) in timeline.passes.indexed) {
+    // One pass's anchors: strictly increasing times and x (an anchor no further on than the
+    // one before can't be reached any later; the pass's end is always kept, as a warp jumps
+    // from there).
+    (List<double>, List<double>) anchors(List<double> all, ScorePass pass, int k) {
       final quarters = [
         pass.start,
-        for (final q in onsetQuarters)
+        for (final q in all)
           if (q > pass.start + 1e-9 && q < pass.end - 1e-9) q,
         pass.end,
       ];
-      // Strictly increasing times and x (an onset no further on than the one before can't be
-      // reached any later; the pass's end is always kept, as a warp jumps from there).
       final times = <double>[], xs = <double>[];
       for (final (j, q) in quarters.indexed) {
         final t = timeline.secondsAtQuarter(q, pass: k), x = xAtQuarter(q);
@@ -194,20 +221,45 @@ class ScrollMap {
         times.add(t);
         xs.add(xs.isEmpty ? x : math.max(x, xs.last + 1e-3));
       }
-      curves.add(_Curve(times, xs));
+      return (times, xs);
+    }
+
+    // The anchors are read from the timeline now (a SyncMap changes later); the curves
+    // through them are solved when first used, so a map that never follows the notes never
+    // solves for them.
+    final beatCurves = <_Curve>[], onsetCurves = <_Curve>[];
+    final passStarts = <double>[];
+    for (final (k, pass) in timeline.passes.indexed) {
+      final (bt, bx) = anchors(beatQuarters, pass, k);
+      final (ot, ox) = anchors(onsetQuarters, pass, k);
+      beatCurves.add(_Curve(bt, bx, followsNotes: false));
+      onsetCurves.add(_Curve(ot, ox, followsNotes: true));
       passStarts.add(k == 0 ? double.negativeInfinity : timeline.secondsAtQuarter(pass.start, pass: k));
     }
-    return ScrollMap._(curves, passStarts);
+    return ScrollMap._(beatCurves, onsetCurves, passStarts, follow.isFinite ? follow.clamp(0, 1) : 1);
   }
 
-  final List<_Curve> _curves;
+  /// How closely the scroll follows the notes: 0 glides from beat to beat, 1 puts every
+  /// onset on time; in between, a blend.
+  final double follow;
+
+  /// The same scroll, following the notes by [follow] (0–1) instead. Cheap: the anchors
+  /// are shared, and each curve is solved once.
+  ScrollMap withFollow(double follow) {
+    final f = follow.isFinite ? follow.clamp(0.0, 1.0) : 1.0;
+    return f == this.follow ? this : ScrollMap._(_beatCurves, _onsetCurves, _starts, f);
+  }
+
+  final List<_Curve> _beatCurves;
+  final List<_Curve> _onsetCurves;
+  final List<_Scroll> _curves;
   final List<double> _starts; // when each pass begins (the first: always)
 
   /// The anchors' times and x, every pass one after another.
   List<double> get times => [for (final c in _curves) ...c.times];
   List<double> get xs => [for (final c in _curves) ...c.xs];
 
-  double get duration => _curves.last.times.lastOrNull ?? 0;
+  double get duration => _curves.last.end;
 
   int _passAt(double t) => segmentAt(_starts.length + 1, t, (i) => i < _starts.length ? _starts[i] : double.infinity);
 
@@ -254,38 +306,16 @@ class ScrollMap {
   }
 }
 
-/// One pass's scroll: a cubic through the (time, x) anchors whose speed changes as little as
-/// it can, relative to how fast the score is moving.
-///
-/// Of all the curves through the anchors, the natural cubic spline has the least acceleration
-/// overall; weighing each stretch by 1 / (its mean speed)², a speed change costs the same
-/// fast or slow, so a burst across a key change stays where it is instead of making the notes
-/// around it lurch. Where that curve would slow below [floor] of a stretch's mean speed (or
-/// stop, or run back), its tangents are held back, so the score always moves on.
-class _Curve {
-  _Curve(this.times, this.xs) : _tangents = _tangentsOf(times, xs);
+/// One pass's scroll: x at every time, never going back.
+abstract class _Scroll {
+  /// The anchors the curve passes through.
+  List<double> get times;
+  List<double> get xs;
 
-  final List<double> times;
-  final List<double> xs;
-  final List<double> _tangents;
+  /// When the last anchor is reached (0 without one).
+  double get end => times.lastOrNull ?? 0;
 
-  /// The slowest the score may move between two onsets, relative to its mean speed there.
-  static const floor = 0.25;
-
-  double xAt(double t) {
-    if (times.length < 2) return xs.firstOrNull ?? 0;
-    if (t <= times.first) return xs.first + _tangents.first * (t - times.first);
-    if (t >= times.last) return xs.last + _tangents.last * (t - times.last);
-
-    final lo = segmentAt(times.length, t, (i) => times[i]), hi = lo + 1;
-    final h = times[hi] - times[lo];
-    final s = (t - times[lo]) / h;
-    final h00 = (1 + 2 * s) * (1 - s) * (1 - s);
-    final h10 = s * (1 - s) * (1 - s);
-    final h01 = s * s * (3 - 2 * s);
-    final h11 = s * s * (s - 1);
-    return h00 * xs[lo] + h10 * h * _tangents[lo] + h01 * xs[hi] + h11 * h * _tangents[hi];
-  }
+  double xAt(double t);
 
   /// The first time between [from] and [to] at which the scroll reaches [x], or null.
   /// The curve never goes back, so this is a bisection.
@@ -302,6 +332,95 @@ class _Curve {
       }
     }
     return hi;
+  }
+}
+
+/// A pass scrolled by [follow] of the way from the beats' curve to the notes'.
+class _Blend extends _Scroll {
+  _Blend(this.beats, this.notes, this.follow);
+  final _Curve beats;
+  final _Curve notes;
+  final double follow;
+
+  /// Every anchor of either curve (each lands where the blend puts it).
+  @override
+  late final List<double> times = ({...beats.times, ...notes.times}.toList()..sort());
+  @override
+  late final List<double> xs = [for (final t in times) xAt(t)];
+
+  @override
+  double get end => math.max(beats.end, notes.end);
+
+  @override
+  double xAt(double t) => (1 - follow) * beats.xAt(t) + follow * notes.xAt(t);
+}
+
+/// One pass's scroll: a cubic through the (time, x) anchors.
+///
+/// Through the beats ([followsNotes] false) it is a monotone cubic (Fritsch–Carlson).
+/// Through the onsets its speed changes as little as it can, relative to how fast the score
+/// is moving: of all the curves through the anchors, the natural cubic spline has the least
+/// acceleration overall; weighing each stretch by 1 / (its mean speed)², a speed change
+/// costs the same fast or slow, so a burst across a key change stays where it is instead of
+/// making the notes around it lurch. Where that curve would slow below [floor] of a
+/// stretch's mean speed (or stop, or run back), its tangents are held back, so the score
+/// always moves on.
+class _Curve extends _Scroll {
+  _Curve(this.times, this.xs, {required this.followsNotes});
+
+  @override
+  final List<double> times;
+  @override
+  final List<double> xs;
+  final bool followsNotes;
+  late final List<double> _tangents = followsNotes ? _tangentsOf(times, xs) : _monotoneTangents(times, xs);
+
+  /// The slowest the score may move between two onsets, relative to its mean speed there.
+  static const floor = 0.25;
+
+  @override
+  double xAt(double t) {
+    if (times.length < 2) return xs.firstOrNull ?? 0;
+    if (t <= times.first) return xs.first + _tangents.first * (t - times.first);
+    if (t >= times.last) return xs.last + _tangents.last * (t - times.last);
+
+    final lo = segmentAt(times.length, t, (i) => times[i]), hi = lo + 1;
+    final h = times[hi] - times[lo];
+    final s = (t - times[lo]) / h;
+    final h00 = (1 + 2 * s) * (1 - s) * (1 - s);
+    final h10 = s * (1 - s) * (1 - s);
+    final h01 = s * s * (3 - 2 * s);
+    final h11 = s * s * (s - 1);
+    return h00 * xs[lo] + h10 * h * _tangents[lo] + h01 * xs[hi] + h11 * h * _tangents[hi];
+  }
+
+  /// Fritsch–Carlson: the mean of the secants either side, cut back so no stretch
+  /// overshoots its anchors (the curve never runs back).
+  static List<double> _monotoneTangents(List<double> t, List<double> x) {
+    final n = t.length;
+    if (n < 2) return List.filled(n, 0);
+    final secants = [for (var k = 0; k < n - 1; k++) (x[k + 1] - x[k]) / (t[k + 1] - t[k])];
+    final m = List<double>.filled(n, 0);
+    m[0] = secants.first;
+    m[n - 1] = secants.last;
+    for (var k = 1; k < n - 1; k++) {
+      m[k] = secants[k - 1] * secants[k] <= 0 ? 0 : (secants[k - 1] + secants[k]) / 2;
+    }
+    for (var k = 0; k < n - 1; k++) {
+      if (secants[k] == 0) {
+        m[k] = 0;
+        m[k + 1] = 0;
+        continue;
+      }
+      final a = m[k] / secants[k], b = m[k + 1] / secants[k];
+      final r = a * a + b * b;
+      if (r > 9) {
+        final tau = 3 / math.sqrt(r);
+        m[k] = tau * a * secants[k];
+        m[k + 1] = tau * b * secants[k];
+      }
+    }
+    return m;
   }
 
   /// The tangents (speeds at the anchors): the least relative acceleration, subject to the

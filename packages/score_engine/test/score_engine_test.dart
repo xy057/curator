@@ -94,6 +94,40 @@ void main() {
     expect(means.last / means.first, greaterThan(1.5));
   });
 
+  test('the scroll can glide from beat to beat, follow the notes, or anything between', () {
+    final starts = score.timeline.measureStarts;
+    final notes = ScrollMap(score.engraving, score.timeline, beats: score.beats);
+    final beats = notes.withFollow(0), half = notes.withFollow(0.5);
+    expect(notes.follow, 1);
+    expect(notes.withFollow(1), same(notes));
+    // Beats (as before 0.2): two anchors a bar in 6/8 (and the end), each beat on its notes.
+    expect(beats.times, hasLength(44 * 2 + 1));
+    final bar2 = score.engraving.measures[1];
+    expect(beats.xAt(score.timeline.secondsAtQuarter(starts[1] + 1.5)), closeTo(bar2.onsetXs[bar2.onsetTimes.indexOf(1.5)], 0.5));
+    // Every beat is on time whatever the blend; between them, the blend is the mean.
+    for (final q in [starts[1], starts[1] + 1.5, starts[20]]) {
+      final t = score.timeline.secondsAtQuarter(q);
+      expect(half.xAt(t), closeTo(notes.xAt(t), 0.5));
+      expect(half.xAt(t), closeTo(beats.xAt(t), 0.5));
+    }
+    double speedAt(ScrollMap m, double t) => (m.xAt(t + 1e-4) - m.xAt(t - 1e-4)) / 2e-4;
+    double spread(ScrollMap m) {
+      final speeds = [for (var t = 1.0; t < m.duration - 1; t += 0.05) speedAt(m, t)]..sort();
+      return speeds[(speeds.length * 0.95).floor()] / speeds[(speeds.length * 0.05).floor()];
+    }
+    var previous = double.negativeInfinity;
+    for (var t = -1.0; t < half.duration + 1; t += 0.01) {
+      final x = half.xAt(t);
+      expect(x, greaterThanOrEqualTo(previous - 1e-9), reason: 'ran back at $t s');
+      expect(x, closeTo(0.5 * notes.xAt(t) + 0.5 * beats.xAt(t), 1e-6));
+      previous = x;
+    }
+    // Following the notes changes the speed most; gliding by the beats least.
+    expect(spread(beats), lessThan(spread(half)));
+    expect(spread(half), lessThan(spread(notes)));
+    expect(ScrollMap(score.engraving, score.timeline, beats: score.beats, follow: double.nan).follow, 1);
+  });
+
   test('at a warp the score jumps at once, and scrolls on smoothly on either side', () {
     final starts = score.timeline.measureStarts;
     // Bars 1–8 at the score's tempo, then back to bar 1.

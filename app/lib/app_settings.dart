@@ -18,6 +18,7 @@ class AppSettings extends ChangeNotifier {
         _themeMode = ThemeMode.values.asNameMap()[_prefs?.getString(_themeKey)] ?? ThemeMode.system,
         _accent = AccentColor.values.asNameMap()[_prefs?.getString(_accentKey)] ?? AccentColor.sky,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
+        _scrollFollow = (_prefs?.getDouble(_scrollFollowKey) ?? defaultScrollFollow).clamp(0.0, 1.0),
         _recent = List.unmodifiable(_prefs?.getStringList(_recentKey) ?? const <String>[]),
         _videoResolution =
             VideoResolution.values.asNameMap()[_prefs?.getString(_videoResolutionKey)] ?? VideoResolution.hd1080,
@@ -43,6 +44,7 @@ class AppSettings extends ChangeNotifier {
 
   static const _autosaveKey = 'autosaveSeconds', _mediaKey = 'mediaStorage', _undoKey = 'undoSteps';
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
+  static const _scrollFollowKey = 'scrollFollow';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame';
@@ -129,6 +131,21 @@ class AppSettings extends ChangeNotifier {
     if (value == _transition) return;
     _transition = value;
     _prefs?.setDouble(_transitionKey, value);
+    notifyListeners();
+  }
+
+  static const defaultScrollFollow = 0.0;
+
+  /// How closely the score's scroll follows the notes, 0–1: 0 glides from beat to beat (as
+  /// before 0.2), 1 puts every note under the pointer exactly as it sounds; in between, a
+  /// blend. It applies to the preview and to exported videos.
+  double get scrollFollow => _scrollFollow;
+  double _scrollFollow;
+  set scrollFollow(double value) {
+    value = value.isFinite ? value.clamp(0.0, 1.0) : defaultScrollFollow;
+    if (value == _scrollFollow) return;
+    _scrollFollow = value;
+    _prefs?.setDouble(_scrollFollowKey, value);
     notifyListeners();
   }
 

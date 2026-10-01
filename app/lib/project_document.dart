@@ -224,6 +224,7 @@ class ProjectDocument extends ChangeNotifier {
   void _settingsChanged() {
     controller.undoLimit = settings.undoSteps;
     controller.defaultTransition = settings.transition;
+    controller.scrollFollow = settings.scrollFollow;
     if (settings.autosave != _autosaveInterval) _restartAutosave();
   }
 

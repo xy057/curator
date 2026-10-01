@@ -213,11 +213,23 @@ class EditorController extends ChangeNotifier {
   /// The staff transition a newly imported score starts with (Settings ▸ Animation).
   double defaultTransition = 0.3;
 
+  /// How closely the scroll follows the notes, 0–1 (Settings ▸ Animation; see
+  /// [ScrollMap.follow]). A view setting, not an edit.
+  double get scrollFollow => _scrollFollow;
+  double _scrollFollow = 0;
+  set scrollFollow(double value) {
+    if (value == _scrollFollow) return;
+    _scrollFollow = value;
+    _scene?.scrollFollow = value;
+    notifyListeners();
+  }
+
   CuratedScene _makeScene(LoadedScore score) {
     final scene = CuratedScene(score, style: RenderStyle(staffSpace: _staffSpace))
       ..names = _partNames
       ..condensed = _condensed
-      ..partOrder = _partOrder;
+      ..partOrder = _partOrder
+      ..scrollFollow = _scrollFollow;
     if (_sync != null) scene.setTimeline(_sync!);
     return scene;
   }

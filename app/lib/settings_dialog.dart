@@ -133,6 +133,17 @@ final _categories = <_Category>[
       (c) => _TransitionPicker(value: c.settings.transition, onChanged: (s) => c.settings.transition = s),
       keywords: 'fade duration enter leave default',
     ),
+    _Item(
+      'Scrolling',
+      (c) => switch (c.settings.scrollFollow) {
+        0 => 'Glides from beat to beat, as before 0.2: the speed changes only with the tempo.',
+        1 => 'Every note is under the pointer exactly as it sounds: slower through long notes, quicker through runs.',
+        _ => 'A blend: the beats land on time, and the speed follows the notes '
+            '${(c.settings.scrollFollow * 100).round()}% of the way.',
+      },
+      (c) => _ScrollFollowSlider(settings: c.settings),
+      keywords: 'scroll speed smooth snap note beat follow onset glide motion pointer',
+    ),
   ]),
   _Category('Recording', Icons.graphic_eq_rounded, [
     _Item(
@@ -660,6 +671,33 @@ class _TransitionPicker extends StatelessWidget {
       label: (s) => '$s s',
       onChanged: onChanged,
     );
+  }
+}
+
+/// Beats ⟷ Notes: how closely the scroll follows the notes, live in the preview.
+class _ScrollFollowSlider extends StatelessWidget {
+  const _ScrollFollowSlider({required this.settings});
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final label = TextStyle(fontSize: 12, color: colors.textMuted);
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Text('Beats', style: label),
+      SizedBox(
+        width: 150,
+        child: OverlaySemantics(
+          child: Slider(
+            value: settings.scrollFollow,
+            divisions: 20,
+            label: '${(settings.scrollFollow * 100).round()}%',
+            onChanged: (v) => settings.scrollFollow = v,
+          ),
+        ),
+      ),
+      Text('Notes', style: label),
+    ]);
   }
 }
 

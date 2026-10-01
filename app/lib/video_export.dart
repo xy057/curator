@@ -280,6 +280,7 @@ class VideoExport {
       ..names = editor.scene!.names
       ..condensed = editor.condensed
       ..partOrder = editor.partOrder
+      ..scrollFollow = editor.scrollFollow
       ..setTimeline(timeline);
     return VideoExport._(scene, copy, timeline, duration: editor.playback.duration, audio: editor.track?.path);
   }

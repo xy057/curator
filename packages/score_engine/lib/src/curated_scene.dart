@@ -87,7 +87,7 @@ class LoadedScore {
     final timeline = ConstantTempoTimeline(engraving.measures,
         quarterNotesPerMinute: tempo ?? metadata.tempo ?? 100);
     final beats = BeatGrid(timeline.measureStarts, meters: metadata.meters, pickups: metadata.pickups);
-    return LoadedScore._(metadata, engraving, timeline, beats, ScrollMap(engraving, timeline),
+    return LoadedScore._(metadata, engraving, timeline, beats, ScrollMap(engraving, timeline, beats: beats),
         musicXML: musicXML,
         texts: prepared.texts,
         textEdits: Map.unmodifiable(textEdits),
@@ -176,7 +176,18 @@ class CuratedScene {
   /// Follows a new or edited tempo track: rebuilds the scroll mapping and the layout plan.
   void setTimeline(ScoreTimeline timeline) {
     _timeline = timeline;
-    scrollMap = ScrollMap(score.engraving, timeline);
+    scrollMap = ScrollMap(score.engraving, timeline, beats: score.beats, follow: scrollFollow);
+    _timelineVersion++;
+  }
+
+  /// How closely the scroll follows the notes (see [ScrollMap.follow]): 0 glides from beat
+  /// to beat, 1 puts every onset under the pointer as it sounds. Changing it re-plans the
+  /// layout; the anchors stay.
+  double get scrollFollow => scrollMap.follow;
+  set scrollFollow(double value) {
+    final next = scrollMap.withFollow(value);
+    if (identical(next, scrollMap)) return;
+    scrollMap = next;
     _timelineVersion++;
   }
   late final ScoreDisplayList display;
