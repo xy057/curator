@@ -227,7 +227,7 @@ class _AudioLanesState extends State<AudioLanes> {
           ),
           const LaneLabel(
             height: _tempoLaneHeight,
-            child: Tip(message: 'Beats a minute, as the time signature counts them', child: Text('Tempo')),
+            child: Tip(message: 'Beats per minute', child: Text('Tempo')),
           ),
         ]),
       ),
@@ -283,23 +283,21 @@ class AudioToolbar extends StatelessWidget {
         ToolbarButton(
           icon: c.track == null ? Icons.audio_file_outlined : Icons.change_circle_outlined,
           tooltip: c.track == null
-              ? 'Load the recording… (audio or video; or drop it here)'
-              : 'Replace the recording…\nNow: ${c.track!.name}',
+              ? 'Load recording… (or drop it here)'
+              : 'Replace recording…\n${c.track!.name}',
           onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
         ),
         _TapButton(controller: c),
         ToolbarButton(
           icon: Icons.u_turn_left_rounded,
           tooltip: c.anchors.selected.length == 1
-              ? 'Warp (W)\nMake the selected anchor jump: the score goes on from another bar there '
-                  '(back for a repeat, on to a coda)'
-              : 'Warp (W)\nAdd a warp at the playhead: the score jumps to another bar there '
-                  '(back for a repeat, on to a coda)',
+              ? 'Warp (W)\nMake this anchor jump to another bar'
+              : 'Warp (W)\nJump to another bar here',
           onPressed: () => editWarp(context, c),
         ),
         const ToolbarDivider(),
         Tip(
-          message: 'What taps, ${shortcut('⌥-clicks')} and ↑/↓ step by: whole bars, or the beats of the time signature',
+          message: 'Step for taps, ${shortcut('⌥-click')} and ↑/↓',
           child: ToolGroup(children: [
             for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
               _TextToggle(label: label, selected: c.anchors.grid == grid, onPressed: () => c.anchors.grid = grid),
@@ -309,14 +307,14 @@ class AudioToolbar extends StatelessWidget {
         ToolbarButton(
           icon: Icons.align_horizontal_center_rounded,
           tooltip: c.anchors.snapToOnsets
-              ? 'Taps and dragged anchors snap to the nearest note onset (on)'
-              : 'Snap taps and dragged anchors to the nearest note onset (off)',
+              ? 'Snap to notes (on)'
+              : 'Snap to notes (off)',
           selected: c.anchors.snapToOnsets,
           onPressed: () => c.anchors.snapToOnsets = !c.anchors.snapToOnsets,
         ),
         const ToolbarDivider(),
         Tip(
-          message: 'Playback speed: slower helps tapping fast passages',
+          message: 'Playback speed',
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.speed_rounded, size: 17, color: colors.textMuted),
             const SizedBox(width: 2),
@@ -346,7 +344,7 @@ class AudioToolbar extends StatelessWidget {
                   key: const ValueKey('selection'),
                   padding: const EdgeInsets.only(right: 4),
                   child: Tip(
-                    message: '↑/↓ re-point them a bar (or beat) · ←/→ nudge · drag to move together · ${shortcut('⌫', 'Delete')} removes',
+                    message: '↑/↓ re-point · ←/→ nudge · ${shortcut('⌫', 'Delete')} remove',
                     child: InputChip(
                       visualDensity: VisualDensity.compact,
                       label: Text('${c.anchors.selected.length} anchors', style: const TextStyle(fontSize: 12)),
@@ -377,8 +375,8 @@ class _TapButton extends StatelessWidget {
     final colors = context.colors;
     return Tip(
       message: c.anchors.tapArmed
-          ? 'Tapping: press Space on each bar (or beat) as you hear it · T or Esc stops'
-          : 'Tap anchors (T)\nSpace starts playback, then marks each bar or beat as you hear it',
+          ? 'Space marks · T or Esc stops'
+          : 'Tap anchors (T)',
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
@@ -500,7 +498,7 @@ class _StartFieldState extends State<_StartField> {
   @override
   Widget build(BuildContext context) {
     return Tip(
-      message: 'Starts at: the blank time before bar 1, in seconds. Tapping sets it too.',
+      message: 'Silence before bar 1 (s)',
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.start_rounded, size: 17, color: context.colors.textMuted),
         const SizedBox(width: 4),

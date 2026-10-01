@@ -78,7 +78,7 @@ class HomeScreen extends StatelessWidget {
                   alignment: WrapAlignment.center,
                   children: [
                     Tip(
-                      message: 'A Curator project, or a MusicXML score to start one (${shortcut('⌘O')})',
+                      message: 'Open a project or MusicXML (${shortcut('⌘O')})',
                       child: FilledButton.icon(
                         onPressed: onOpen,
                         icon: const Icon(Icons.folder_open_rounded, size: 18),

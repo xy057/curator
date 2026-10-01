@@ -77,7 +77,7 @@ class EditorToolbar extends StatelessWidget {
         const ToolbarDivider(),
         ToolbarButton(
           icon: Icons.edit_note_rounded,
-          tooltip: 'Edit score texts…',
+          tooltip: 'Score texts…',
           onPressed: c.isReengraving ? null : onEditTexts,
         ),
         ToolbarButton(
@@ -236,7 +236,7 @@ class _TimeReadout extends StatelessWidget {
           ])),
           const SizedBox(width: 10),
           Tip(
-            message: 'Bar.beat sounding now',
+            message: 'Bar.beat',
             child: Container(
               height: 24,
               constraints: const BoxConstraints(minWidth: 52),

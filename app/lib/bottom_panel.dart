@@ -53,7 +53,7 @@ class BottomPanel extends StatelessWidget {
             ],
             ToolbarButton(
               icon: Icons.fit_screen_outlined,
-              tooltip: 'Fit the whole piece\nZoom with ${shortcut('⌘-scroll')} or a pinch',
+              tooltip: 'Fit',
               onPressed: c.viewport.fit,
             ),
           ]),
@@ -98,8 +98,8 @@ class _TabSwitch extends StatelessWidget {
   final ValueChanged<BottomTab> onChanged;
 
   static const _tabs = [
-    (BottomTab.instruments, Icons.view_list_rounded, 'Instruments\nWhen each instrument’s staff is shown'),
-    (BottomTab.audio, Icons.graphic_eq_rounded, 'Audio\nSync the score to the recording'),
+    (BottomTab.instruments, Icons.view_list_rounded, 'Instruments'),
+    (BottomTab.audio, Icons.graphic_eq_rounded, 'Audio'),
   ];
 
   @override

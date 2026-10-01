@@ -194,7 +194,7 @@ class _InlineEditor extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Back to the text in the file',
+            tooltip: 'Revert',
             icon: Icon(Icons.history, size: 18, color: colors.textMuted),
             onPressed: onRevert,
           ),
