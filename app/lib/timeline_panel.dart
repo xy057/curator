@@ -653,24 +653,25 @@ class InstrumentsToolbar extends StatelessWidget {
   const InstrumentsToolbar({super.key, required this.controller});
   final EditorController controller;
 
-  static const _tools = {
-    LaneTool.select: (
-      Icons.near_me_outlined,
-      'Select (V)\nClick, ⇧-click or ⇧-drag to select regions, or click an edge for just that edge; '
-          'drag them to move (also to other lanes) or drag an edge to trim. Double-click for bars and '
-          'transitions. ⌥-drag draws.'
-    ),
-    LaneTool.draw: (
-      Icons.edit_outlined,
-      'Draw (D)\nDrag across lanes and bars to show those instruments — down across lanes for a whole '
-          'section. A click shows one beat (one bar when zoomed out). ⌥ erases.'
-    ),
-    LaneTool.erase: (
-      Icons.hide_source_outlined,
-      'Erase (E)\nDrag across lanes and bars to hide those instruments. A click hides one beat (one bar '
-          'when zoomed out). ⌥ draws.'
-    ),
-  };
+  /// Each tool's icon and hover text: what it does, then one line of what each key changes.
+  static Map<LaneTool, (IconData, String)> get _tools => {
+        LaneTool.select: (
+          Icons.near_me_outlined,
+          'Select (V)\nClick a region, or an edge for just that edge; drag to move (also to other '
+              'lanes) or to trim. Double-click for bars and transitions.\n'
+              '${shortcut('⇧ adds · ⌘ toggles, no snap · ⌥ draws')}'
+        ),
+        LaneTool.draw: (
+          Icons.edit_outlined,
+          'Draw (D)\nDrag across lanes and bars to show those instruments — down across lanes for a whole '
+              'section. A click shows one beat (one bar when zoomed out).\n${shortcut('⌘ no snap · ⌥ erases')}'
+        ),
+        LaneTool.erase: (
+          Icons.hide_source_outlined,
+          'Erase (E)\nDrag across lanes and bars to hide those instruments. A click hides one beat (one bar '
+              'when zoomed out).\n${shortcut('⌘ no snap · ⌥ draws')}'
+        ),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -763,7 +764,7 @@ class InstrumentsToolbar extends StatelessWidget {
     if (selected.isNotEmpty) {
       final whole = selected.values.where((e) => e == RegionEdges.both).length, edges = selected.length - whole;
       final what = [if (whole > 0) '$whole ${whole == 1 ? 'region' : 'regions'}', if (edges > 0) '$edges ${edges == 1 ? 'edge' : 'edges'}'];
-      return '${what.join(', ')} in ${lanes.length} ${lanes.length == 1 ? 'lane' : 'lanes'} · ←/→ move a bar (⇧ a beat)';
+      return '${what.join(', ')} in ${lanes.length} ${lanes.length == 1 ? 'lane' : 'lanes'} · ${shortcut('←/→ move a bar (⇧ a beat)')}';
     }
     if (lanes.length == 1) return c.laneName(score.metadata.parts.firstWhere((p) => p.id == lanes.single));
     if (lanes.isNotEmpty) return '${lanes.length} lanes';
