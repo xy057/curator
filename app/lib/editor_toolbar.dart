@@ -66,7 +66,7 @@ class EditorToolbar extends StatelessWidget {
         _SavingIndicator(document: document),
         ToolbarButton(
           icon: Icons.undo_rounded,
-          tooltip: 'Undo (${shortcut('⌘Z', 'Ctrl+Z')})',
+          tooltip: 'Undo (${shortcut('⌘Z')})',
           onPressed: c.canUndo ? c.undo : null,
         ),
         ToolbarButton(

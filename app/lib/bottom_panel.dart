@@ -48,12 +48,12 @@ class BottomPanel extends StatelessWidget {
             const ToolbarDivider(),
             // In a narrow window only Fit stays: pinch or ⌘-scroll zoom anyway.
             if (MediaQuery.sizeOf(context).width >= 1100) ...[
-              ToolbarButton(icon: Icons.zoom_out_rounded, tooltip: 'Zoom out (${shortcut('⌘-scroll', 'Ctrl-scroll')})', onPressed: () => c.viewport.zoom(1 / 1.5)),
-              ToolbarButton(icon: Icons.zoom_in_rounded, tooltip: 'Zoom in (${shortcut('⌘-scroll', 'Ctrl-scroll')} or pinch)', onPressed: () => c.viewport.zoom(1.5)),
+              ToolbarButton(icon: Icons.zoom_out_rounded, tooltip: 'Zoom out (${shortcut('⌘-scroll')})', onPressed: () => c.viewport.zoom(1 / 1.5)),
+              ToolbarButton(icon: Icons.zoom_in_rounded, tooltip: 'Zoom in (${shortcut('⌘-scroll')} or pinch)', onPressed: () => c.viewport.zoom(1.5)),
             ],
             ToolbarButton(
               icon: Icons.fit_screen_outlined,
-              tooltip: 'Fit the whole piece\nZoom with ${shortcut('⌘-scroll', 'Ctrl-scroll')} or a pinch',
+              tooltip: 'Fit the whole piece\nZoom with ${shortcut('⌘-scroll')} or a pinch',
               onPressed: c.viewport.fit,
             ),
           ]),

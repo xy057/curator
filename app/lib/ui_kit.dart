@@ -3,9 +3,27 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 
-/// A shortcut as the platform writes it: [mac] on macOS ("⇧⌘Z"), [other] elsewhere ("Ctrl+Y").
+/// Keys as the platform writes them: [mac] on macOS ("⇧⌘Z", "⌥-drag"), [other] elsewhere, or
+/// else [mac] spelled out the Windows way: "Ctrl+Shift+Z", "Alt+drag". Modifier symbols are
+/// Mac-ordered (⌃⌥⇧⌘) and come out in Windows order (Ctrl, Alt, Shift); ⌫ is Backspace.
 String shortcut(String mac, [String? other]) =>
-    defaultTargetPlatform == TargetPlatform.macOS ? mac : (other ?? mac.replaceAll('⌘', 'Ctrl+').replaceAll('⇧', 'Shift+'));
+    defaultTargetPlatform == TargetPlatform.macOS ? mac : (other ?? windowsKeys(mac));
+
+const _windowsModifiers = {'⌘': 'Ctrl', '⌃': 'Ctrl', '⌥': 'Alt', '⇧': 'Shift'};
+
+/// [shortcut]'s spelling off macOS: each run of modifier symbols ("⇧⌘", "⌥-") becomes
+/// "Ctrl+Shift+", and a lone modifier ("⇧ adds") its name ("Shift adds").
+String windowsKeys(String mac) => mac
+    .replaceAllMapped(RegExp('([⌘⌃⌥⇧]+)(-?)(?=(.?))'), (m) {
+      final names = [
+        for (final name in const ['Ctrl', 'Alt', 'Shift'])
+          if (m[1]!.split('').any((symbol) => _windowsModifiers[symbol] == name)) name,
+      ].join('+');
+      // "⇧⌘Z" and "⌥-drag" join what follows with +; "⇧ adds" or "(⇧ a beat)" stays apart.
+      final joined = m[2]!.isNotEmpty || RegExp(r'[^\s)·,/]').hasMatch(m[3]!);
+      return joined ? '$names+' : names;
+    })
+    .replaceAll('⌫', 'Backspace');
 
 /// Gives a widget that shows an overlay (a tooltip, a slider's value) a semantics node of its own.
 ///

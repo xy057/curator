@@ -299,7 +299,7 @@ class AudioToolbar extends StatelessWidget {
         ),
         const ToolbarDivider(),
         Tip(
-          message: 'What taps, ⌥-clicks and ↑/↓ step by: whole bars, or the beats of the time signature',
+          message: 'What taps, ${shortcut('⌥-clicks')} and ↑/↓ step by: whole bars, or the beats of the time signature',
           child: ToolGroup(children: [
             for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
               _TextToggle(label: label, selected: c.anchors.grid == grid, onPressed: () => c.anchors.grid = grid),
@@ -346,7 +346,7 @@ class AudioToolbar extends StatelessWidget {
                   key: const ValueKey('selection'),
                   padding: const EdgeInsets.only(right: 4),
                   child: Tip(
-                    message: '↑/↓ re-point them a bar (or beat) · ←/→ nudge · drag to move together · ⌫ delete',
+                    message: '↑/↓ re-point them a bar (or beat) · ←/→ nudge · drag to move together · ${shortcut('⌫', 'Delete')} removes',
                     child: InputChip(
                       visualDensity: VisualDensity.compact,
                       label: Text('${c.anchors.selected.length} anchors', style: const TextStyle(fontSize: 12)),
