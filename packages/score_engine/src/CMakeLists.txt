@@ -9,6 +9,15 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
+# ccache, when installed, reuses compiled Verovio objects across clean builds (the Release
+# workflow restores its cache). Set here, not through CMAKE_*_LAUNCHER in the environment:
+# build hooks run with only a few variables (PATH, HOME, …) passed through.
+find_program(CCACHE ccache HINTS /opt/homebrew/bin /usr/local/bin)
+if(CCACHE)
+  set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE})
+  set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE})
+endif()
+
 set(VEROVIO ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/verovio)
 if(NOT EXISTS ${VEROVIO}/src/toolkit.cpp)
   message(FATAL_ERROR "Verovio sources missing. Run `make setup` at the repository root.")

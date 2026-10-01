@@ -61,11 +61,29 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
+      # Compiling Verovio is most of the build. ccache keeps its objects between runs, in its
+      # default directory: the build hook doesn't pass CCACHE_DIR through, so don't move it.
+      - name: Install ccache
+        run: |
+          brew install ccache
+          ccache --max-size=500M
+          ccache --zero-stats
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/ccache
+          # A cache can't be overwritten, so each run saves its own; the newest one is restored.
+          key: ccache-macos-15-${{ github.run_id }}
+          restore-keys: ccache-macos-15-
+
       - name: Build
         # Fetches and patches Verovio, then `flutter build macos --release`. Xcode has once failed
         # a first build with "could not build module 'flutter_soloud'" and passed on the next,
         # so a failed build is tried once more (it is incremental).
         run: make build || make build
+
+      - name: ccache hits
+        run: ccache --show-stats
 
       - name: Package
         run: |
