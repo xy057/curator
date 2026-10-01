@@ -87,6 +87,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Save the recording'), findsOneWidget);
     expect(find.text('Autosave'), findsNothing);
+    await tester.enterText(find.byType(TextField), 'e');
+    await tester.pumpAndSettle();
+    await shot(tester, 'settings-search');
     await tester.enterText(find.byType(TextField), 'zzz');
     await tester.pumpAndSettle();
     expect(find.text('No matching settings'), findsOneWidget);

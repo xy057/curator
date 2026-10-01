@@ -26,8 +26,8 @@ Future<void> showSettingsDialog(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Close settings',
-      barrierColor: Colors.black.withValues(alpha: 0.28),
-      transitionDuration: const Duration(milliseconds: 220),
+      barrierColor: Colors.black.withValues(alpha: 0.2),
+      transitionDuration: const Duration(milliseconds: 160),
       pageBuilder: (context, _, _) => _SettingsWindow(
         settings: settings,
         controller: controller,
@@ -35,11 +35,11 @@ Future<void> showSettingsDialog(
         page: page,
       ),
       transitionBuilder: (context, animation, _, child) {
-        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeOutCubic.flipped);
         return FadeTransition(
           opacity: curved,
           alwaysIncludeSemantics: true, // see showAppDialog
-          child: ScaleTransition(scale: Tween(begin: 0.96, end: 1.0).animate(curved), child: child),
+          child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(curved), child: child),
         );
       },
     );
@@ -280,12 +280,12 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     final size = MediaQuery.sizeOf(context);
     return Center(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 720, maxHeight: (size.height - 64).clamp(340, 460)),
+        constraints: BoxConstraints(maxWidth: 760, maxHeight: (size.height - 64).clamp(360, 500)),
         child: Material(
           color: Theme.of(context).dialogTheme.backgroundColor,
-          elevation: 10,
-          shadowColor: Colors.black.withValues(alpha: 0.18),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: colors.line)),
+          elevation: 16,
+          shadowColor: Colors.black.withValues(alpha: 0.14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.line)),
           clipBehavior: Clip.antiAlias,
           child: ListenableBuilder(
             listenable: Listenable.merge([widget.settings, _search, widget.updater, ?widget.controller]),
@@ -304,33 +304,32 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     final colors = context.colors;
     final searching = _search.text.trim().isNotEmpty;
     return Container(
-      width: 208,
-      color: colors.accentWash,
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
+      width: 200,
+      color: _sidebarColor(colors),
+      padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 6, bottom: 12),
-          child: Text('Settings', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-        ),
         SizedBox(
-          height: 32,
+          height: 30,
           child: TextField(
             controller: _search,
             style: const TextStyle(fontSize: 13),
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Search',
-              prefixIcon: Icon(Icons.search, size: 16, color: colors.textMuted),
-              prefixIconConstraints: const BoxConstraints(minWidth: 32),
+              prefixIcon: Icon(Icons.search_rounded, size: 16, color: colors.textMuted),
+              prefixIconConstraints: const BoxConstraints(minWidth: 30),
               filled: true,
-              fillColor: colors.surface,
-              contentPadding: const EdgeInsets.symmetric(vertical: 8),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: colors.line)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: colors.line)),
+              fillColor: colors.line.withValues(alpha: 0.6),
+              contentPadding: const EdgeInsets.symmetric(vertical: 7),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide.none),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(7),
+                borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.6)),
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         for (final (i, cat) in _categories.indexed)
           _SidebarTile(
             icon: cat.icon,
@@ -341,6 +340,11 @@ class _SettingsWindowState extends State<_SettingsWindow> {
               setState(() => _page = _lastPage = i);
             },
           ),
+        const Spacer(),
+        Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: Text('Curator $appVersion', style: TextStyle(fontSize: 11, color: colors.textMuted)),
+        ),
       ]),
     );
   }
@@ -352,90 +356,80 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     if (matches == null) {
       page = _Page(
         key: ValueKey(_page),
-        title: cat.label,
         empty: cat.empty,
-        children: [for (final item in cat.items) _row(item)],
+        groups: [if (cat.items.isNotEmpty) (null, [for (final item in cat.items) _row(item)])],
       );
     } else {
+      // One group per page, in sidebar order, each under its page's name.
       page = _Page(
         key: const ValueKey('search'),
-        title: matches.isEmpty ? 'No matching settings' : 'Search results',
-        children: [for (final (cat, item) in matches) _row(item, category: cat.label)],
+        empty: matches.isEmpty ? 'Try another word, such as “theme” or “update”.' : null,
+        groups: [
+          for (final c in _categories)
+            if (matches.where((m) => m.$1 == c).toList() case final inCat when inCat.isNotEmpty)
+              (c.label, [for (final (_, item) in inCat) _row(item)]),
+        ],
       );
     }
-    return Column(children: [
+    final colors = context.colors;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      // The header stays put while the page under it changes.
+      Container(
+        height: 52,
+        padding: const EdgeInsets.only(left: 28, right: 10),
+        child: Row(children: [
+          Expanded(
+            child: Text(
+              matches == null
+                  ? cat.label
+                  : matches.isEmpty
+                      ? 'No matching settings'
+                      : 'Search results',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Close',
+            iconSize: 18,
+            visualDensity: VisualDensity.compact,
+            color: colors.textMuted,
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close_rounded),
+          ),
+        ]),
+      ),
+      Divider(height: 1, color: colors.line),
       Expanded(
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 320),
-          transitionBuilder: (child, animation) => _Wipe(
-            progress: animation,
-            color: Theme.of(context).dialogTheme.backgroundColor,
-            child: child,
+          duration: const Duration(milliseconds: 160),
+          reverseDuration: const Duration(milliseconds: 90),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeOut,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              // A few points' rise as the page arrives; the leaving page only fades.
+              position: Tween(begin: const Offset(0, 0.008), end: Offset.zero).animate(animation),
+              child: child,
+            ),
           ),
           layoutBuilder: (current, previous) => Stack(alignment: Alignment.topLeft, children: [...previous, ?current]),
           child: page,
         ),
       ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 20, 16),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
-        ),
-      ),
     ]);
   }
 
-  Widget _row(_Item item, {String? category}) => _SettingRow(
-        title: item.title,
-        category: category,
-        help: item.help?.call(_ctx),
-        control: item.control(_ctx),
-      );
+  Widget _row(_Item item) => _SettingRow(title: item.title, help: item.help?.call(_ctx), control: item.control(_ctx));
 }
 
-/// A page wiping in over the one before, like PowerPoint's Wipe: a soft edge sweeps left to right,
-/// the page opaque ([color]) behind it. A page on its way out stays as it was until it's gone.
-class _Wipe extends StatefulWidget {
-  const _Wipe({required this.progress, required this.color, required this.child});
-  final Animation<double> progress;
-  final Color? color;
-  final Widget child;
+/// The sidebar's neutral tint: a step off the dialog's surface, without the accent.
+Color _sidebarColor(AppColors colors) => Color.lerp(colors.surface, colors.line, 0.32)!;
 
-  @override
-  State<_Wipe> createState() => _WipeState();
-}
+/// A group's fill: a lighter step than the sidebar, so the groups sit on the page without borders.
+Color _groupColor(AppColors colors) => Color.lerp(colors.surface, colors.line, 0.22)!;
 
-class _WipeState extends State<_Wipe> {
-  /// The width of the soft edge, as a share of the page.
-  static const _soft = 0.25;
-
-  /// How far the edge has come; frozen once the page starts to leave, even partway (another page picked mid-wipe).
-  double _shown = 0;
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: widget.progress,
-        builder: (context, child) {
-          if (widget.progress.status != AnimationStatus.reverse) _shown = widget.progress.value;
-          if (_shown >= 1) return child!;
-          // In alignment units (-1 … 1): the edge runs from just off the left (nothing shown) to the right (all shown).
-          final end = -1 + Curves.easeInOutCubic.transform(_shown) * (2 + 2 * _soft);
-          return ShaderMask(
-            blendMode: BlendMode.dstIn,
-            shaderCallback: (bounds) => LinearGradient(
-              begin: Alignment(end - 2 * _soft, 0),
-              end: Alignment(end, 0),
-              colors: const [Colors.white, Colors.transparent],
-            ).createShader(bounds),
-            child: child,
-          );
-        },
-        child: ColoredBox(color: widget.color ?? Colors.transparent, child: widget.child),
-      );
-}
-
-class _SidebarTile extends StatelessWidget {
+class _SidebarTile extends StatefulWidget {
   const _SidebarTile({required this.icon, required this.label, required this.selected, required this.onTap});
   final IconData icon;
   final String label;
@@ -443,34 +437,61 @@ class _SidebarTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_SidebarTile> createState() => _SidebarTileState();
+}
+
+class _SidebarTileState extends State<_SidebarTile> {
+  bool _hover = false;
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final selected = widget.selected;
+    // Raised off the sidebar: white on the light grey, a lighter grey on the dark one.
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            height: 34,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: selected ? colors.accentSoft : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
+      padding: const EdgeInsets.only(bottom: 1),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOut,
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: selected
+                    ? (dark ? colors.line : colors.surface)
+                    : _hover
+                        ? colors.line.withValues(alpha: 0.45)
+                        : colors.line.withValues(alpha: 0),
+                borderRadius: BorderRadius.circular(7),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: selected && !dark ? 0.06 : 0),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Row(children: [
+                Icon(widget.icon, size: 16, color: selected ? colors.accentStrong : colors.textMuted),
+                const SizedBox(width: 10),
+                Text(widget.label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colors.text,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    )),
+              ]),
             ),
-            child: Row(children: [
-              Icon(icon, size: 18, color: selected ? colors.accentStrong : colors.textMuted),
-              const SizedBox(width: 10),
-              Text(label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colors.text,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  )),
-            ]),
           ),
         ),
       ),
@@ -478,72 +499,77 @@ class _SidebarTile extends StatelessWidget {
   }
 }
 
+/// A page: groups of rows, each group optionally under a small heading; [empty] when there are none.
 class _Page extends StatelessWidget {
-  const _Page({super.key, required this.title, required this.children, this.empty});
-  final String title;
-  final List<Widget> children;
+  const _Page({super.key, required this.groups, this.empty});
+  final List<(String?, List<Widget>)> groups;
   final String? empty;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(28, 22, 24, 12),
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 16),
-        if (children.isNotEmpty)
-          DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border.all(color: colors.line),
-              borderRadius: BorderRadius.circular(10),
+        for (final (i, (heading, rows)) in groups.indexed) ...[
+          if (i > 0) const SizedBox(height: 18),
+          if (heading != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 6),
+              child: Text(heading,
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: colors.textMuted, letterSpacing: 0.2)),
             ),
+          DecoratedBox(
+            decoration: BoxDecoration(color: _groupColor(colors), borderRadius: BorderRadius.circular(10)),
             child: Column(children: [
-              for (final (i, child) in children.indexed) ...[
-                if (i > 0) Divider(height: 1, indent: 16, endIndent: 16, color: colors.line),
-                child,
+              for (final (j, row) in rows.indexed) ...[
+                if (j > 0) Divider(height: 1, indent: 14, endIndent: 14, color: colors.line),
+                row,
               ],
             ]),
-          )
-        else if (empty != null)
-          Text(empty!, style: TextStyle(fontSize: 13, color: colors.textMuted)),
+          ),
+        ],
+        if (groups.isEmpty && empty != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 48),
+            child: Text(empty!, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: colors.textMuted)),
+          ),
       ],
     );
   }
 }
 
 class _SettingRow extends StatelessWidget {
-  const _SettingRow({required this.title, required this.help, required this.control, this.category});
+  const _SettingRow({required this.title, required this.help, required this.control});
   final String title;
   final String? help;
   final Widget control;
-  final String? category;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Row(children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (category != null)
-              Text(category!.toUpperCase(),
-                  style: TextStyle(fontSize: 10, letterSpacing: 0.6, color: colors.textMuted, fontWeight: FontWeight.w600)),
-            Text(title, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: colors.text)),
-            if (help != null) ...[
-              const SizedBox(height: 2),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                layoutBuilder: (current, previous) => Stack(alignment: Alignment.topLeft, children: [...previous, ?current]),
-                child: Text(help!, key: ValueKey(help), style: TextStyle(fontSize: 12, color: colors.textMuted)),
-              ),
-            ],
-          ]),
-        ),
-        const SizedBox(width: 20),
-        control,
-      ]),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 52),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
+              if (help != null) ...[
+                const SizedBox(height: 2),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 120),
+                  layoutBuilder: (current, previous) => Stack(alignment: Alignment.topLeft, children: [...previous, ?current]),
+                  child: Text(help!, key: ValueKey(help), style: TextStyle(fontSize: 12, height: 1.35, color: colors.textMuted)),
+                ),
+              ],
+            ]),
+          ),
+          const SizedBox(width: 20),
+          control,
+        ]),
+      ),
     );
   }
 }
@@ -595,7 +621,8 @@ class _AccentPicker extends StatelessWidget {
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.easeOut,
                 width: 24,
                 height: 24,
                 padding: const EdgeInsets.all(3),
@@ -666,7 +693,7 @@ class _UpdateControl extends StatelessWidget {
       UpdateFailed(release: final release?) =>
         OutlinedButton(onPressed: () => updater.download(release), child: const Text('Try Again')),
     };
-    return AnimatedSwitcher(duration: const Duration(milliseconds: 180), child: control);
+    return AnimatedSwitcher(duration: const Duration(milliseconds: 120), child: control);
   }
 }
 
