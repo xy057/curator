@@ -165,6 +165,12 @@ then engraved, and only then swapped in, in one synchronous step. If anything be
 fails, what was open stays open, with its path — so a later save can't write one project
 over another. A recording that fails to load is reported, not fatal.
 
+**What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
+warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;
+`EngravingData.warnings` / `LoadedScore.warnings` carry them, each once, and importing a
+MusicXML score lists them in a dialog (`showImportWarnings`). Opening a project, or
+re-engraving after an edit, doesn't show them again.
+
 **The project format changes with a version.** `project.json`'s `state` is written by
 `ProjectState.toJson`. To change it: bump `ProjectState.version`, and add a migration from the
 old version in `ProjectState._migrations`, so older files still open. Reading checks every
@@ -178,7 +184,8 @@ Change both sides together.
 **Verovio is pinned and patched.** `make setup` clones the tagged release and applies
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
-keep their written key), and MusicXML direction ids (so texts can be edited). Mark changes in
+keep their written key), MusicXML direction ids (so texts can be edited), and a log per
+thread (engravings run side by side on isolates, each reading its own). Mark changes in
 Verovio's code with `[curated-score patch]`.
 
 **Engraving options: offered ones only, the layout ones fixed.** The bridge

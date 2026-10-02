@@ -31,6 +31,14 @@ void main() {
     expect(score.metadata.tempo, 93);
   });
 
+  test('says what it left out of the score, each thing once', () async {
+    expect(score.warnings, isEmpty, reason: 'the demo is read whole');
+    // Verovio has no harp pedal diagrams: it leaves them out, and says so.
+    final pedals = demoScore().replaceAll('<direction>', '<direction><direction-type><harp-pedals/></direction-type></direction><direction>');
+    final harp = await LoadedScore.load(pedals);
+    expect(harp.warnings, ["Unsupported direction-type 'harp-pedals'"]);
+  });
+
   test('engraves one layer per staff, stacked in score order', () {
     final staves = score.engraving.staves;
     // The 21 parts' staves, then the six shared by pairs of players (see condensing_test).

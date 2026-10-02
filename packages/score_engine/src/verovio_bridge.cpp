@@ -652,6 +652,9 @@ int32_t vb_struct_size(int32_t which)
 
 VBEngraver *vb_engraver_create(const char *resourcePath)
 {
+    // Warnings (what the import skipped or doesn't support) are kept for vb_engraver_log
+    // instead of going to stderr. The buffer is this thread's (a patch), as is the engraving.
+    EnableLogToBuffer(true);
     VBEngraver *engraver = new VBEngraver();
     if (!engraver->toolkit.SetResourcePath(resourcePath)) {
         delete engraver;

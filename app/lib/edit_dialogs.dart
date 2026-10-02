@@ -9,6 +9,40 @@ import 'editor_controller.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
 
+/// After importing [fileName]: what of it was left out or isn't supported ([warnings], as
+/// [LoadedScore.warnings] gives them), so the score isn't silently shown incomplete.
+Future<void> showImportWarnings(BuildContext context, String fileName, List<String> warnings) => showAppDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Some of “$fileName” isn’t shown'),
+        content: SizedBox(
+          width: 460,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(warnings.length == 1
+                ? 'This was left out or isn’t supported:'
+                : 'These ${warnings.length} things were left out or aren’t supported:'),
+            const SizedBox(height: 12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 320),
+              child: SelectionArea(
+                child: ListView(shrinkWrap: true, children: [
+                  for (final warning in warnings)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('•  ', style: TextStyle(color: context.colors.textMuted)),
+                        Expanded(child: Text(warning, style: const TextStyle(fontSize: 13))),
+                      ]),
+                    ),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+      ),
+    );
+
 /// Rename an instrument: the full name and the short name used when space is tight.
 Future<void> showRenameDialog(BuildContext context, EditorController c, ScorePart part) =>
     showAppDialog<void>(context: context, builder: (context) => _RenameDialog(controller: c, part: part));

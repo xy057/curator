@@ -153,6 +153,8 @@ VB_API bool vb_engraver_load_data(VBEngraver *engraver, const char *data);
 
 /// Engraves and records the display list. Call after loading.
 VB_API bool vb_engraver_render(VBEngraver *engraver);
+/// What Verovio reported (one "[Warning] …" or "[Error] …" a line) since loading, then
+/// clears it. Valid until the next call on this engraver.
 VB_API const char *vb_engraver_log(VBEngraver *engraver);
 
 /// Every Verovio option with its type, default and range (Toolkit::GetAvailableOptions), as

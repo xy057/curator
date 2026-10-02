@@ -173,6 +173,7 @@ class EngravingData {
     required this.fontNames,
     required this.signatures,
     required this.sourceIds,
+    required this.warnings,
   })  : commandInts = commandBytes.buffer.asInt32List(commandBytes.offsetInBytes, commandBytes.length ~/ 4),
         commandFloats = commandBytes.buffer.asFloat32List(commandBytes.offsetInBytes, commandBytes.length ~/ 4),
         pathInts = pathBytes.buffer.asInt32List(pathBytes.offsetInBytes, pathBytes.length ~/ 4),
@@ -201,6 +202,10 @@ class EngravingData {
 
   /// Ids of the MusicXML elements text commands come from (see ScoreText).
   final List<String> sourceIds;
+
+  /// What Verovio left out or doesn't support in the score ("Unsupported direction-type
+  /// 'harp-pedals'"), each once, in the order it met them; empty when it read everything.
+  final List<String> warnings;
 
   int get commandCount => commandInts.length ~/ Cmd.words;
 }
@@ -248,7 +253,7 @@ abstract final class Engraver {
         if (!vb_engraver_render(engraver)) {
           throw EngraveException('The score could not be engraved.\n${vb_engraver_log(engraver).toDartString()}');
         }
-        return _copy(engraver);
+        return _copy(engraver, warnings: logMessages(vb_engraver_log(engraver).toDartString()));
       } finally {
         vb_engraver_destroy(engraver);
       }
@@ -275,7 +280,16 @@ abstract final class Engraver {
     }
   }
 
-  static EngravingData _copy(Pointer<VBEngraver> e) {
+  /// Verovio's log as one message a line, without its "[Warning] " and "MusicXML import: "
+  /// prefixes.
+  static List<String> logMessages(String log) => [
+        for (final line in const LineSplitter().convert(log))
+          if (line.replaceFirst(RegExp(r'^\[(Warning|Error)\]\s*'), '').replaceFirst(RegExp(r'^MusicXML import:\s*'), '').trim()
+              case final message when message.isNotEmpty)
+            message,
+      ];
+
+  static EngravingData _copy(Pointer<VBEngraver> e, {required List<String> warnings}) {
     Uint8List bytes(Pointer<NativeType> pointer, int count, int size) =>
         count == 0 ? Uint8List(0) : Uint8List.fromList(pointer.cast<Uint8>().asTypedList(count * size));
 
@@ -308,6 +322,7 @@ abstract final class Engraver {
       classNames: [for (var i = 0; i < vb_class_name_count(e); i++) vb_class_name(e, i).toDartString()],
       fontNames: [for (var i = 0; i < vb_font_name_count(e); i++) vb_font_name(e, i).toDartString()],
       sourceIds: [for (var i = 0; i < vb_source_id_count(e); i++) vb_source_id(e, i).toDartString()],
+      warnings: List.unmodifiable(warnings),
       signatures: [
         for (var i = 0; i < vb_signature_count(e); i++)
           switch (vb_signatures(e)[i]) {

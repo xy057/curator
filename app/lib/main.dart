@@ -204,7 +204,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (problem != null && mounted) _recordingProblem(problem);
       }, title: 'Could not open the project');
     } else {
-      await _guard(() => document.importScore(path));
+      await _guard(() async {
+        await document.importScore(path);
+        final warnings = controller.score?.warnings ?? const [];
+        if (warnings.isNotEmpty && mounted) await showImportWarnings(context, controller.fileName ?? path, warnings);
+      });
     }
   }
 

@@ -1,3 +1,26 @@
+diff --git a/include/vrv/vrv.h b/include/vrv/vrv.h
+index d8070ce..a35e805 100644
+--- a/include/vrv/vrv.h
++++ b/include/vrv/vrv.h
+@@ -43,7 +43,8 @@ void LogWarning(const char *fmt, ...);
+ /**
+  * Member and functions specific to logging that uses a vector of string to buffer the logs.
+  */
+-extern std::vector<std::string> logBuffer;
++// [curated-score patch] one log per thread: engravings run side by side, each reads its own
++extern thread_local std::vector<std::string> logBuffer;
+ bool LogBufferContains(const std::string &s);
+ void LogString(std::string message, LogLevel level);
+ 
+@@ -153,7 +154,7 @@ inline data_DURATION DurationMax(data_DURATION dur1, data_DURATION dur2)
+  *
+  */
+ extern LogLevel logLevel;
+-extern bool loggingToBuffer;
++extern thread_local bool loggingToBuffer; // [curated-score patch]
+ 
+ /**
+  * Functions for logging in milliseconds the elapsed time of an
 diff --git a/src/iomusxml.cpp b/src/iomusxml.cpp
 index f20540d..930ae65 100644
 --- a/src/iomusxml.cpp
@@ -75,3 +98,19 @@ index f20540d..930ae65 100644
          if (!words.empty()) {
              const std::string lang = words.first().node().attribute("xml:lang")
                  ? words.first().node().attribute("xml:lang").as_string()
+diff --git a/src/vrv.cpp b/src/vrv.cpp
+index 9ab9747..d6d4119 100644
+--- a/src/vrv.cpp
++++ b/src/vrv.cpp
+@@ -67,9 +67,9 @@ struct timeval start;
+ LogLevel logLevel = LOG_WARNING;
+ 
+ /** By default log to stderr or JS console */
+-bool loggingToBuffer = false;
++thread_local bool loggingToBuffer = false; // [curated-score patch] per thread
+ 
+-std::vector<std::string> logBuffer;
++thread_local std::vector<std::string> logBuffer; // [curated-score patch] per thread
+ 
+ void LogElapsedTimeStart()
+ {

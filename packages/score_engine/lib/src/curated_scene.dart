@@ -63,6 +63,9 @@ class LoadedScore {
 
   double get duration => scrollMap.duration;
 
+  /// What the engraving left out or doesn't support (see [EngravingData.warnings]).
+  List<String> get warnings => engraving.warnings;
+
   /// The text as currently shown (after edits).
   String currentText(ScoreText text) => textEdits[text.id] ?? text.text;
 
