@@ -7,7 +7,7 @@ import 'project_file.dart';
 import 'ui_kit.dart';
 
 /// What shows before anything is open: one Open for projects and scores alike, the sample,
-/// and the files opened lately.
+/// and the files opened lately. Terse on purpose: a name, a line, what to open.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
@@ -62,8 +62,7 @@ class HomeScreen extends StatelessWidget {
                   Text('Curator', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Text(
-                    'One continuous line of music scrolling past a fixed pointer. '
-                    'Each instrument glides in only while it plays.',
+                    'Scores that follow the music.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(color: colors.textMuted, height: 1.4),
                   ),
@@ -78,7 +77,7 @@ class HomeScreen extends StatelessWidget {
                   alignment: WrapAlignment.center,
                   children: [
                     Tip(
-                      message: 'Open a project or MusicXML (${shortcut('⌘O')})',
+                      message: 'Project or MusicXML (${shortcut('⌘O')})',
                       child: FilledButton.icon(
                         onPressed: onOpen,
                         icon: const Icon(Icons.folder_open_rounded, size: 18),
@@ -91,15 +90,6 @@ class HomeScreen extends StatelessWidget {
                       label: const Text('Try the sample'),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              _Entrance(
-                delay: 2,
-                child: Text(
-                  'Projects (.ccs) and MusicXML scores (.musicxml, .mxl) — or drop one anywhere.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(color: colors.textMuted),
                 ),
               ),
               if (recentFiles.isNotEmpty) ...[
