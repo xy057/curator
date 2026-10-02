@@ -231,6 +231,28 @@ void main() {
     scene.dispose();
   });
 
+  test('an instrument on several staves moves as one: they stay as far apart as engraved, cross-staff notes and all', () async {
+    final piano = await LoadedScore.load(flutePianoScore);
+    final scene = CuratedScene(piano);
+    const size = ui.Size(1200, 700);
+    final end = piano.timeline.measureStarts.last;
+    final [right, left] = [for (final s in scene.display.staves) if (s.info.n >= 2) s];
+    final engraved = (left.info.top - right.info.top) * scene.renderer.scale;
+    // The right hand's ink reaches down into the left hand's staff: a staff spaced on its own
+    // would push the left hand away from the note written on it.
+    expect(right.maxInk(0, 1e9).below + right.info.top + right.info.height, greaterThan(left.info.top + left.info.height));
+
+    final c = Curation(piano.metadata.parts.map((p) => p.id))
+      ..setLane('P2', [Region(0, end)])
+      ..setLane('P1', [Region(piano.timeline.measureStarts[1], end)]); // the flute enters at bar 2
+    for (final t in [0.5, piano.timeline.secondsAtQuarter(piano.timeline.measureStarts[1]), 7.0]) {
+      final tops = {for (final p in scene.layoutAt(t, c, size).placements) p.staffIndex: p.y};
+      final [rh, lh] = [for (final s in [right, left]) tops[scene.display.staves.indexOf(s)]!];
+      expect(lh - rh, closeTo(engraved, 1e-6), reason: 'at $t s');
+    }
+    scene.dispose();
+  });
+
   test('instruments can be stacked in any order: Violin I on top, the rest as in the score', () {
     final scene = CuratedScene(score);
     const size = ui.Size(1600, 900);

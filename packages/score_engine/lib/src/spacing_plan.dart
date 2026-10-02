@@ -16,7 +16,8 @@ typedef PlannedStaff = ({int staffIndex, String partId});
 /// shown instruments is fixed. Each segment gets one complete layout (a keyframe), computed
 /// only from the instruments shown in it: a hidden instrument takes no room and its ink is
 /// never considered, however dense its part is. Each shown staff is sized for the tallest ink
-/// that scrolls past during the whole segment, so nothing moves between edges.
+/// that scrolls past during the whole segment, so nothing moves between edges. An instrument
+/// on several staves moves as one, its staves as far apart as the engraving put them.
 ///
 /// Around each edge every staff glides from its place in one keyframe to its place in the
 /// next over the edge's transition time (its region's; the longest where edges coincide). A
@@ -39,6 +40,23 @@ class SpacingPlan {
     required StackMetrics metrics,
     Map<int, List<int>> twins = const {},
   }) {
+    // An instrument's staves (a piano's two) are laid out as one: they keep the distance the
+    // engraving gave them, where cross-staff notes and their ledger lines were placed.
+    final units = <List<int>>[];
+    for (final (k, s) in order.indexed) {
+      if (k > 0 && order[k - 1].partId == s.partId) {
+        units.last.add(k);
+      } else {
+        units.add([k]);
+      }
+    }
+    final offsets = [
+      for (final unit in units)
+        for (final k in unit) (staves[order[k].staffIndex].info.top - staves[order[unit.first].staffIndex].info.top) * scale,
+    ];
+    final unitOf = [for (final (u, unit) in units.indexed) ...List.filled(unit.length, u)];
+    final unitTwins = {for (final MapEntry(:key, :value) in twins.entries) unitOf[key]: [for (final j in value) unitOf[j]]};
+
     final bounds = _Bounds.of(edges, scrollMap.duration, transition);
     final keyframes = <List<double>>[];
     for (var i = 0; i + 1 < bounds.length; i++) {
@@ -49,22 +67,27 @@ class SpacingPlan {
       final left = from - visibleLeft;
       final right = to + visibleRight;
 
-      final shown = [for (final s in order) isShown(s.partId, middle)];
+      final shown = [for (final unit in units) isShown(order[unit.first].partId, middle)];
       final slots = [
-        for (final (j, s) in order.indexed)
+        for (final (u, unit) in units.indexed)
           () {
-            final staff = staves[s.staffIndex];
-            final ink = shown[j] ? staff.maxInk(left, right) : (above: 0.0, below: 0.0);
-            return StaffSlot(
-              height: staff.info.height * scale,
-              inkAbove: ink.above * scale,
-              inkBelow: ink.below * scale,
-              visibility: shown[j] ? 1 : 0,
-            );
+            final last = staves[order[unit.last].staffIndex];
+            final height = offsets[unit.last] + last.info.height * scale;
+            // Ink beyond the unit's outer lines: a staff's ink can reach past its neighbours'.
+            var above = 0.0, below = 0.0;
+            if (shown[u]) {
+              for (final k in unit) {
+                final staff = staves[order[k].staffIndex];
+                final ink = staff.maxInk(left, right);
+                above = math.max(above, ink.above * scale - offsets[k]);
+                below = math.max(below, ink.below * scale - (height - offsets[k] - staff.info.height * scale));
+              }
+            }
+            return StaffSlot(height: height, inkAbove: above, inkBelow: below, visibility: shown[u] ? 1 : 0);
           }(),
       ];
-      final tops = StaffStack.layout(slots, metrics);
-      keyframes.add(_parkHidden(tops, slots, shown, metrics, twins));
+      final tops = _parkHidden(StaffStack.layout(slots, metrics), slots, shown, metrics, unitTwins);
+      keyframes.add([for (final (k, u) in unitOf.indexed) tops[u] + offsets[k]]);
     }
     return SpacingPlan._(bounds, keyframes);
   }
