@@ -18,7 +18,10 @@ String demoScore() {
 /// The demo with a key change at bar [bar] (1-based) to concert [concertFifths], written in
 /// each part's own key: B♭ instruments two sharps higher, horns in F one. Timpani and snare
 /// drum keep none.
-String demoScoreWithKeyChange({required int bar, required int concertFifths}) {
+String demoScoreWithKeyChange({required int bar, required int concertFifths}) => demoScoreWithKeyChanges({bar: concertFifths});
+
+/// The demo with key changes at each bar (1-based) of [concertFifths], as [demoScoreWithKeyChange].
+String demoScoreWithKeyChanges(Map<int, int> concertFifths) {
   final doc = XmlDocument.parse(demoScore());
   final names = {
     for (final p in doc.findAllElements('score-part')) p.getAttribute('id'): p.getElement('part-name')!.innerText,
@@ -26,9 +29,11 @@ String demoScoreWithKeyChange({required int bar, required int concertFifths}) {
   for (final part in doc.rootElement.findElements('part')) {
     final name = names[part.getAttribute('id')]!;
     if (name == 'Timpani' || name == 'Snare Drum') continue;
-    final written = concertFifths + (name.contains('B Flat') ? 2 : name.contains('Horn') ? 1 : 0);
-    final measure = part.findElements('measure').elementAt(bar - 1);
-    measure.children.insert(0, XmlDocument.parse('<attributes><key><fifths>$written</fifths></key></attributes>').rootElement.copy());
+    concertFifths.forEach((bar, fifths) {
+      final written = fifths + (name.contains('B Flat') ? 2 : name.contains('Horn') ? 1 : 0);
+      final measure = part.findElements('measure').elementAt(bar - 1);
+      measure.children.insert(0, XmlDocument.parse('<attributes><key><fifths>$written</fifths></key></attributes>').rootElement.copy());
+    });
   }
   return doc.toXmlString();
 }

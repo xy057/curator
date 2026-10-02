@@ -541,7 +541,12 @@ private:
             sig.x = found ? std::min(sig.x, commands[i].x) : commands[i].x;
             found = true;
         }
-        if (!found || sig.staff <= 0) return;
+        // A key signature can draw nothing and still change the key in force: a change to C major
+        // or an atonal key (Verovio draws no cancelling naturals there), or a hidden one. It is
+        // recorded where it stands, as no accidentals: what the score shows from there on.
+        const bool emptyKey = !found && object->Is(KEYSIG);
+        if (emptyKey) sig.x = float(vrv_cast<const KeySig *>(object)->GetDrawingX());
+        if ((!found && !emptyKey) || sig.staff <= 0) return;
 
         if (object->Is(CLEF)) {
             const Clef *clef = vrv_cast<const Clef *>(object);
@@ -569,7 +574,7 @@ private:
         }
         else {
             sig.kind = VB_SIG_KEY;
-            sig.fifths = vrv_cast<const KeySig *>(object)->GetFifthsInt();
+            sig.fifths = emptyKey ? 0 : vrv_cast<const KeySig *>(object)->GetFifthsInt();
         }
         signatures.push_back(sig);
     }

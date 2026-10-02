@@ -39,6 +39,37 @@ void main() {
     expect(stateAt('Trumpet in B♭ 1', 29).key?.fifths, -2);
   });
 
+  test('a change to no key signature takes over the zone too, though nothing is drawn for it', () async {
+    // B major from bar 5, then C major at bar 17, as a piece going atonal: no cancelling naturals.
+    final changes = await LoadedScore.load(demoScoreWithKeyChanges({5: 5, 17: 0}));
+    final scene = CuratedScene(changes);
+    int? fifths(String part, int bar) {
+      final n = changes.metadata.parts.firstWhere((p) => p.name == part).staffNumbers.first;
+      return scene.renderer.frozen!.stateAt(n, changes.engraving.measures[bar - 1].onsetXs.first).key?.fifths;
+    }
+
+    expect(fifths('Oboe 1', 16), 5);
+    expect(fifths('Oboe 1', 17), 0);
+    expect(fifths('Violin I', 30), 0);
+    expect(fifths('Clarinet in B♭ 1', 17), 2); // written D major
+
+    final c = Curation(changes.metadata.parts.map((p) => p.id))..transition = 0.4;
+    c.setLane(changes.metadata.parts.firstWhere((p) => p.name == 'Oboe 1').id, [Region(0, changes.timeline.measureStarts.last)]);
+    double column(int bar) => scene.keyColumnAt(changes.timeline.secondsAtQuarter(changes.timeline.measureStarts[bar - 1]), c, const ui.Size(1280, 720));
+    expect(column(12), closeTo(1.0 + 5 * 1.1, 1e-9));
+    expect(column(20), 0, reason: 'the column closes after the sharps leave');
+    scene.dispose();
+  });
+
+  test('a hidden key change shows no key signature, as the score does', () async {
+    final hidden = await LoadedScore.load(
+        demoScoreWithKeyChange(bar: 5, concertFifths: 3).replaceAll('<key><fifths>3</fifths>', '<key print-object="no"><fifths>3</fifths>'));
+    final scene = CuratedScene(hidden);
+    final n = hidden.metadata.parts.firstWhere((p) => p.name == 'Oboe 1').staffNumbers.first;
+    expect(scene.renderer.frozen!.stateAt(n, hidden.engraving.measures[6].onsetXs.first).key?.fifths ?? 0, 0);
+    scene.dispose();
+  });
+
   test('the opening time signature is pinned in the zone and left out of the scrolling score', () {
     final zone = scene.renderer.frozen!;
     for (final part in ['Oboe 1', 'Horn in F 1', 'Bassoon 1']) {
@@ -122,8 +153,9 @@ void main() {
       var t = secondsAt(26);
       while (zone.stateAt(oboe,
                   scene.scrollMap.xAt(t) - (pointerX - scene.renderer.musicLeftFor(scene.keyColumnAt(t, c, size))) / s)
-              .key ==
-          null) {
+              .key
+              ?.fifths ==
+          0) {
         t += 0.01;
       }
       expect(scene.keyColumnAt(secondsAt(26), c, size), 0);
