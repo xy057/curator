@@ -77,7 +77,11 @@ void main() {
 
     await tester.tap(find.text('Extension'));
     await tester.pumpAndSettle();
-    expect(find.text('No extensions yet.'), findsOneWidget);
+    expect(find.text('Attach Image'), findsOneWidget);
+    expect(settings.attachImage, isFalse, reason: 'extensions start off');
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(settings.attachImage, isTrue);
     await shot(tester, 'settings-extension');
   });
 

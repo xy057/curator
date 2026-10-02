@@ -166,7 +166,15 @@ final _categories = <_Category>[
   ]),
   // First-party components that are not part of the main work (import, curate, sync, export):
   // lower priority, each one optional.
-  _Category('Extension', Icons.extension_outlined, [], empty: 'No extensions yet.'),
+  // Each one is a switch, off by default; what it adds works only while it is on.
+  _Category('Extension', Icons.extension_outlined, [
+    _Item(
+      'Attach Image',
+      null,
+      (c) => Switch(value: c.settings.attachImage, onChanged: (v) => c.settings.attachImage = v),
+      keywords: 'image picture photo attach extension',
+    ),
+  ], empty: 'No extensions yet.'),
   _Category('Advanced', Icons.build_outlined, [
     _Item(
       'Engraving',
