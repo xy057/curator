@@ -250,6 +250,21 @@ void main() {
       final [rh, lh] = [for (final s in [right, left]) tops[scene.display.staves.indexOf(s)]!];
       expect(lh - rh, closeTo(engraved, 1e-6), reason: 'at $t s');
     }
+
+    // Its barlines run on between its staves, but not up to the flute's: the first, just
+    // before it reaches the pointer.
+    final t = piano.timeline.secondsAtQuarter(piano.timeline.measureStarts[1]) - 0.5;
+    c.setLane('P1', [Region(0, end)]);
+    final image = scene.renderFrame(size.width.toInt(), size.height.toInt(), time: t, curation: c, devicePixelRatio: 1);
+    final pixels = (await image.toByteData())!;
+    final tops = {for (final p in scene.layoutAt(t, c, size).placements) scene.display.staves[p.staffIndex].info.n: p.y};
+    final s = scene.renderer.scale, staffHeight = right.info.height * s;
+    final barX = scene.display.barlines.items.map((b) => b.bounds.center.dx).reduce((a, b) => a < b ? a : b);
+    final x = (scene.renderer.pointerX(size.width) + (barX - scene.scrollMap.xAt(t)) * s).round();
+    bool inked(double y) => [x - 1, x, x + 1].any((x) => pixels.getUint8((y.round() * size.width.toInt() + x) * 4) < 128);
+    expect(inked((tops[2]! + staffHeight + tops[3]!) / 2), isTrue, reason: 'between the hands');
+    expect(inked((tops[1]! + staffHeight + tops[2]!) / 2), isFalse, reason: 'between the flute and the piano');
+    image.dispose();
     scene.dispose();
   });
 

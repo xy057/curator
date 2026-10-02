@@ -145,11 +145,20 @@ class CuratedScene {
       },
       hiddenCommands: frozen.openingCommands,
     );
-    renderer = ScoreRenderer(display, style, frozen: frozen);
     for (final (i, staff) in score.engraving.staves.indexed) {
       _staffIndex[staff.n] = i;
     }
+    for (final part in score.metadata.parts) {
+      final staves = [for (final n in part.shownStaffNumbers) ?_staffIndex[n]];
+      for (var k = 1; k < staves.length; k++) {
+        _barlinesThrough[staves[k - 1]] = staves[k];
+      }
+    }
+    renderer = ScoreRenderer(display, style, frozen: frozen, barlinesThrough: _barlinesThrough);
   }
+
+  /// Staff index → the next staff of the same instrument: a piano's barlines run on between them.
+  final _barlinesThrough = <int, int>{};
 
   final LoadedScore score;
 
@@ -162,7 +171,7 @@ class CuratedScene {
     if (staffSpace == _style.staffSpace) return;
     _style = _style.copyWith(staffSpace: staffSpace);
     renderer.dispose();
-    renderer = ScoreRenderer(display, _style, frozen: FrozenZone(score.engraving, _style));
+    renderer = ScoreRenderer(display, _style, frozen: FrozenZone(score.engraving, _style), barlinesThrough: _barlinesThrough);
     _plan = null;
   }
 

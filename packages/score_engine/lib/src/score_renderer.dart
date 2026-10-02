@@ -45,13 +45,19 @@ class StaffLabel {
 /// The same painter serves the live preview and video export ([CuratedScene.renderFrame]),
 /// so a video looks exactly like the preview.
 class ScoreRenderer {
-  ScoreRenderer(this.display, this.style, {this.frozen, this.tileWidth = 512, this.maxTiles = 600});
+  ScoreRenderer(this.display, this.style,
+      {this.frozen, this.barlinesThrough = const {}, this.tileWidth = 512, this.maxTiles = 600});
 
   final ScoreDisplayList display;
   final RenderStyle style;
 
   /// Clef, key and time signature column beside the names (Dorico-style); null to leave it out.
   final FrozenZone? frozen;
+
+  /// Staff index → the staff index below it in the same instrument (a piano's left hand): the
+  /// barlines run on from one to the other, which an instrument's staves keep a fixed distance
+  /// apart for (see SpacingPlan).
+  final Map<int, int> barlinesThrough;
   final double tileWidth;
   final int maxTiles;
 
@@ -200,7 +206,7 @@ class ScoreRenderer {
     final cached = _tiles.remove(key);
     if (cached != null) return _tiles[key] = cached; // mark as recently used
     if (_emptyTiles.contains(key)) return null;
-    final tile = _render(display.staves[staffIndex], index);
+    final tile = _render(staffIndex, index);
     if (tile == null) {
       _emptyTiles.add(key);
       return null;
@@ -212,14 +218,21 @@ class ScoreRenderer {
     return tile;
   }
 
-  _Tile? _render(StaffLayer staff, int index) {
+  _Tile? _render(int staffIndex, int index) {
+    final staff = display.staves[staffIndex];
     final s = scale, dpr = _tileDpr;
     final left = index * _tileUnits, right = left + _tileUnits;
     final items = staff.itemsIn(left, right).toList();
     if (items.isEmpty) return null;
 
     // Vertical extent: the staff lines plus whatever ink reaches outside them in this tile.
-    var top = staff.info.top, bottom = staff.info.top + staff.info.height;
+    // One-line (percussion) staves get barlines a staff space above and below the line.
+    final bleed = display.data.staffSpace * (staff.info.lines <= 1 ? 1.0 : 0.08);
+    // Barlines run on to the next staff of the instrument, to its top line: from there on
+    // that staff draws them.
+    final through = barlinesThrough[staffIndex];
+    final barlinesTo = through == null ? staff.info.top + staff.info.height + bleed : display.staves[through].info.top;
+    var top = staff.info.top, bottom = math.max(staff.info.top + staff.info.height, barlinesTo);
     for (final item in items) {
       top = math.min(top, item.bounds.top);
       bottom = math.max(bottom, item.bounds.bottom);
@@ -243,10 +256,8 @@ class ScoreRenderer {
     for (final item in items) {
       item.paint(canvas);
     }
-    // Barlines: only the slice crossing this staff's own lines.
-    // One-line (percussion) staves get barlines a staff space above and below the line.
-    final bleed = display.data.staffSpace * (staff.info.lines <= 1 ? 1.0 : 0.08);
-    canvas.clipRect(ui.Rect.fromLTRB(left, staff.info.top - bleed, right, staff.info.top + staff.info.height + bleed));
+    // Barlines: only the slice crossing this staff's own lines, and on through its instrument.
+    canvas.clipRect(ui.Rect.fromLTRB(left, staff.info.top - bleed, right, barlinesTo));
     for (final item in display.barlines.itemsIn(left, right)) {
       item.paint(canvas);
     }
