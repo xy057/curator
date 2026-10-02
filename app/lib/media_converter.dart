@@ -19,6 +19,10 @@ abstract final class MediaFormats {
   static bool isPlayable(String path) => playable.contains(extensionOf(path));
   static bool isVideo(String path) => video.contains(extensionOf(path));
   static bool isRecording(String path) => all.contains(extensionOf(path));
+
+  /// MIDI files: not a recording, but a tempo map the sync can follow.
+  static const midi = {'mid', 'midi', 'smf', 'rmi'};
+  static bool isMidi(String path) => midi.contains(extensionOf(path));
 }
 
 /// Turns recordings SoLoud can't read (videos, AAC/M4A, AIFF, CAF…) into FLAC audio.

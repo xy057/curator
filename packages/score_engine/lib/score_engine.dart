@@ -12,6 +12,7 @@ export 'src/engraving.dart'
     show ClefShape, ClefSignature, EngraveException, EngravingData, KeySignature, MeasureLayout, MusicFont, Signature, StaffInfo, TimeSignature;
 export 'src/engraving_options.dart';
 export 'src/frozen_zone.dart';
+export 'src/midi_tempo.dart';
 export 'src/score_metadata.dart';
 export 'src/score_text.dart';
 export 'src/scroll_map.dart';

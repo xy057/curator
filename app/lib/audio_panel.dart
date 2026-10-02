@@ -18,6 +18,9 @@ import 'ui_kit.dart';
 /// Recordings: audio, or a video whose sound is taken out of it.
 final audioTypes = XTypeGroup(label: 'Audio or video', extensions: MediaFormats.all.toList());
 
+/// MIDI files, for their tempo map.
+final midiTypes = XTypeGroup(label: 'MIDI', extensions: MediaFormats.midi.toList());
+
 const _anchorLaneHeight = 30.0;
 const _tempoLaneHeight = 58.0;
 const _grab = 7.0;
@@ -32,6 +35,10 @@ const _grab = 7.0;
 /// lane (or ⇧-drag anywhere) box-selects · ⌘A selects all. The selection then moves together:
 /// drag it (the grabbed anchor snaps to note onsets; ⌘ = free) · ←/→ nudge 10 ms (⇧ 1 ms) ·
 /// ↑/↓ re-point every selected anchor a bar or beat · Delete removes them.
+///
+/// With a MIDI tempo map (dropped on the window, or the toolbar's MIDI button) the sync
+/// follows the file instead: the anchors, the waveform and tapping give way to the tempo map,
+/// drawn large. Clicking it moves the playhead.
 class AudioLanes extends StatefulWidget {
   const AudioLanes({super.key, required this.controller});
   final EditorController controller;
@@ -164,8 +171,41 @@ class _AudioLanesState extends State<AudioLanes> {
 
   Future<void> _editPosition(int index) => _editAnchor(context, c, index);
 
+  /// The MIDI tempo map in place of the anchors, the waveform and the tempo lane.
+  Widget _midiLanes(BuildContext context, MidiTempoMap midi) {
+    final colors = context.colors;
+    final repaint = Listenable.merge([c.playback.time, c.viewport, sync, c]);
+    void seek(PointerEvent e) => c.playback.seek(c.viewport.seconds(e.localPosition.dx));
+    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SizedBox(
+        width: kLaneHeaderWidth,
+        child: LaneLabel(
+          height: double.infinity,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Tip(message: 'Beats per minute', child: Text('MIDI tempo')),
+              Text(midi.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textMuted)),
+              if (c.track case final track?)
+                Text('♪ ${track.name}', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textMuted)),
+            ],
+          ),
+        ),
+      ),
+      Expanded(
+        child: Listener(
+          onPointerDown: (e) => e.buttons == kPrimaryButton ? seek(e) : null,
+          onPointerMove: (e) => e.buttons == kPrimaryButton ? seek(e) : null,
+          child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint, large: true)),
+        ),
+      ),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (c.midiTempo case final midi?) return _midiLanes(context, midi);
     final track = c.track;
     final colors = context.colors;
     final repaint = Listenable.merge([c.playback.time, c.viewport, sync, c, _marquee]);
@@ -190,7 +230,8 @@ class _AudioLanesState extends State<AudioLanes> {
                   child: Text(
                     c.isLoadingAudio
                         ? 'Reading the recording…'
-                        : 'Load a recording (or drop it here) to see its waveform. You can also tap along without one.',
+                        : 'Load a recording (or drop it here) to see its waveform. You can also tap along without one, '
+                            'or drop a MIDI file to follow its tempo map.',
                     style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                 ),
@@ -254,7 +295,7 @@ void _refused(BuildContext context, String? why) => ScaffoldMessenger.of(context
 /// warp at the playhead, on the bar (or beat) sounding there.
 Future<void> editWarp(BuildContext context, EditorController c) async {
   final sync = c.sync;
-  if (sync == null) return;
+  if (sync == null || c.usesMidiTempo) return;
   final selected = c.anchors.selected.where((i) => i < sync.anchors.length);
   if (selected.length == 1) return _editAnchor(context, c, selected.single, warp: true);
 
@@ -287,31 +328,39 @@ class AudioToolbar extends StatelessWidget {
               : 'Replace recording…\n${c.track!.name}',
           onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
         ),
-        _TapButton(controller: c),
         ToolbarButton(
-          icon: Icons.u_turn_left_rounded,
-          tooltip: c.anchors.selected.length == 1
-              ? 'Warp (W)\nMake this anchor jump to another bar'
-              : 'Warp (W)\nJump to another bar here',
-          onPressed: () => editWarp(context, c),
+          icon: Icons.piano_outlined,
+          tooltip: c.midiTempo == null ? 'Tempo from MIDI… (or drop it here)' : 'Stop following ${c.midiTempo!.name}',
+          selected: c.usesMidiTempo,
+          onPressed: () => c.usesMidiTempo ? c.useMidiTempo(null) : pickMidi(context, c),
         ),
-        const ToolbarDivider(),
-        Tip(
-          message: 'Step for taps, ${shortcut('⌥-click')} and ↑/↓',
-          child: ToolGroup(children: [
-            for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
-              _TextToggle(label: label, selected: c.anchors.grid == grid, onPressed: () => c.anchors.grid = grid),
-          ]),
-        ),
-        const SizedBox(width: 2),
-        ToolbarButton(
-          icon: Icons.align_horizontal_center_rounded,
-          tooltip: c.anchors.snapToOnsets
-              ? 'Snap to notes (on)'
-              : 'Snap to notes (off)',
-          selected: c.anchors.snapToOnsets,
-          onPressed: () => c.anchors.snapToOnsets = !c.anchors.snapToOnsets,
-        ),
+        if (!c.usesMidiTempo) ...[
+          _TapButton(controller: c),
+          ToolbarButton(
+            icon: Icons.u_turn_left_rounded,
+            tooltip: c.anchors.selected.length == 1
+                ? 'Warp (W)\nMake this anchor jump to another bar'
+                : 'Warp (W)\nJump to another bar here',
+            onPressed: () => editWarp(context, c),
+          ),
+          const ToolbarDivider(),
+          Tip(
+            message: 'Step for taps, ${shortcut('⌥-click')} and ↑/↓',
+            child: ToolGroup(children: [
+              for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
+                _TextToggle(label: label, selected: c.anchors.grid == grid, onPressed: () => c.anchors.grid = grid),
+            ]),
+          ),
+          const SizedBox(width: 2),
+          ToolbarButton(
+            icon: Icons.align_horizontal_center_rounded,
+            tooltip: c.anchors.snapToOnsets
+                ? 'Snap to notes (on)'
+                : 'Snap to notes (off)',
+            selected: c.anchors.snapToOnsets,
+            onPressed: () => c.anchors.snapToOnsets = !c.anchors.snapToOnsets,
+          ),
+        ],
         const ToolbarDivider(),
         Tip(
           message: 'Playback speed',
@@ -354,11 +403,12 @@ class AudioToolbar extends StatelessWidget {
                   ),
                 ),
         ),
-        ToolbarButton(
-          icon: Icons.clear_all_rounded,
-          tooltip: 'Remove all anchors',
-          onPressed: sync.anchors.isEmpty ? null : c.anchors.clear,
-        ),
+        if (!c.usesMidiTempo)
+          ToolbarButton(
+            icon: Icons.clear_all_rounded,
+            tooltip: 'Remove all anchors',
+            onPressed: sync.anchors.isEmpty ? null : c.anchors.clear,
+          ),
       ]),
     );
   }
@@ -444,6 +494,18 @@ Future<void> pickAudio(BuildContext context, EditorController c) async {
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not load the recording: ${describeError(e)}')));
+    }
+  }
+}
+
+Future<void> pickMidi(BuildContext context, EditorController c) async {
+  final file = await openFile(acceptedTypeGroups: [midiTypes]);
+  if (file == null) return;
+  try {
+    await c.loadMidiTempo(file.path);
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not use the MIDI file: ${describeError(e)}')));
     }
   }
 }
@@ -692,19 +754,31 @@ class _WaveformPainter extends CustomPainter {
 
 /// The tempo track: one step per segment between anchors (dashed where it is extrapolated), in
 /// beats a minute as the time signature counts them (6/8: dotted crotchets).
+///
+/// [large]: a MIDI tempo map, filling the lanes: over the bars, each change marked with a dot.
 class _TempoPainter extends CustomPainter {
-  _TempoPainter(this.c, this.colors, Listenable repaint) : super(repaint: repaint);
+  _TempoPainter(this.c, this.colors, Listenable repaint, {this.large = false}) : super(repaint: repaint);
   final EditorController c;
   final AppColors colors;
+  final bool large;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.clipRect(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, Paint()..color = colors.accentWash);
-    canvas.drawLine(const Offset(0, 0.5), Offset(size.width, 0.5), Paint()..color = colors.line);
     final sync = c.sync!;
     final v = c.viewport;
     final anchors = sync.anchors;
+    if (large) {
+      canvas.drawRect(Offset.zero & size, Paint()..color = colors.surface);
+      final startX = v.x(sync.startSeconds);
+      if (startX > 0) {
+        canvas.drawRect(Rect.fromLTRB(0, 0, math.min(startX, size.width), size.height), Paint()..color = colors.grid.withValues(alpha: 0.6));
+      }
+      paintBarGrid(canvas, size, c, colors);
+    } else {
+      canvas.drawRect(Offset.zero & size, Paint()..color = colors.accentWash);
+      canvas.drawLine(const Offset(0, 0.5), Offset(size.width, 0.5), Paint()..color = colors.line);
+    }
 
     final segments = <(double, double, double, bool)>[]; // start s, end s, beats a minute, extrapolated
     final end = math.max(c.playback.duration, v.seconds(size.width));
@@ -735,11 +809,12 @@ class _TempoPainter extends CustomPainter {
       lo = m - 10;
       hi = m + 10;
     }
-    double y(double bpm) => size.height - 8 - (bpm - lo) / (hi - lo) * (size.height - 22);
+    final margin = large ? 24.0 : 8.0, top = large ? 30.0 : 14.0;
+    double y(double bpm) => size.height - margin - (bpm - lo) / (hi - lo) * (size.height - margin - top);
 
     final line = Paint()
       ..color = colors.accentStrong
-      ..strokeWidth = 1.5;
+      ..strokeWidth = large ? 2 : 1.5;
     final faint = Paint()
       ..color = colors.accent.withValues(alpha: 0.5)
       ..strokeWidth = 1.2;
@@ -759,11 +834,12 @@ class _TempoPainter extends CustomPainter {
       } else {
         canvas.drawLine(Offset(x0, yy), Offset(x1, yy), line);
       }
+      if (large && !extrapolated && x0 >= -4) canvas.drawCircle(Offset(x0, yy), 3, Paint()..color = colors.accentStrong);
       if (x1 - x0 > 34) {
         final tp = TextPainter(
           text: TextSpan(
             text: '${bpm.round()}',
-            style: TextStyle(fontSize: 10, color: extrapolated ? colors.textMuted : colors.text),
+            style: TextStyle(fontSize: large ? 11.5 : 10, color: extrapolated ? colors.textMuted : colors.text),
           ),
           textDirection: TextDirection.ltr,
         )..layout();

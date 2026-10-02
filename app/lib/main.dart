@@ -383,7 +383,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   void _dropped(String path) {
-    if (MediaFormats.isRecording(path)) {
+    if (MediaFormats.isMidi(path)) {
+      if (controller.score == null) {
+        _snack('Open a score first, then add its MIDI tempo map.');
+      } else {
+        _guard(() => controller.loadMidiTempo(path), title: 'Could not use the MIDI file');
+      }
+    } else if (MediaFormats.isRecording(path)) {
       if (controller.score == null) {
         _snack('Open a score first, then add its recording.');
       } else {

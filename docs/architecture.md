@@ -17,6 +17,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump) |
+| `midi_tempo.dart` | A Standard MIDI File's tempo map (Set Tempo events only), and the anchors that make a `SyncMap` follow it |
 | `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column; tile-cached drawing |
@@ -84,6 +85,18 @@ timeline draws bars and regions per pass. Inside, `SyncMap` works on the perform
 which a warp doesn't interrupt, so the tempo runs on through a jump. Changing a jump moves
 the anchors after it (up to the next warp) with it, keeping their times (`SyncMap.setJump`).
 Anchors are kept in time order, each arriving further on than the one before went on from.
+
+**A MIDI file can stand in for the anchors.** Dropping a `.mid` (or the Audio tab's MIDI
+button) reads its tempo map (`MidiTempoMap.read`: tempo changes only; the beats still come
+from the score) and the sync follows it: the file's start is bar 1 (or its upbeat), sounding
+at Starts at, and `MidiTempoMap.anchors` puts an anchor at each change of tempo and at the
+score's end, so the tempo between them is constant, as a sequencer plays it. Everything that
+reads the sync (scroll, timeline, video export) then works unchanged. While it does, the
+anchors are derived: `SyncEditing` edits nothing (its `_sync` is null), tapping is off, and
+the Audio tab draws the tempo map large instead of the anchors and the waveform. The anchors
+set by hand are kept behind it (`EditorController._tapped`, saved as `sync.anchors`) and come
+back when the MIDI goes. Using or dropping one is an edit (`midi` in `EditState`, and
+`sync.midi` in the project from format 7, its tempos as `[quarter, quarters a minute]`).
 
 **Lanes are painted, not cut.** Drawing adds a region and merges it with what it touches;
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip

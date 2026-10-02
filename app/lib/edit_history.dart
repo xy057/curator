@@ -13,6 +13,7 @@ class EditState {
     required this.transition,
     required this.anchors,
     required this.leadIn,
+    this.midi,
     required this.partNames,
     required this.textEdits,
     required this.condensed,
@@ -24,6 +25,9 @@ class EditState {
   final double transition;
   final List<SyncAnchor> anchors;
   final double leadIn;
+
+  /// The MIDI tempo map the sync follows instead of [anchors] (kept for when it goes).
+  final MidiTempoMap? midi;
   final Map<String, PartName> partNames;
   final Map<String, String> textEdits;
   final Set<String> condensed;
@@ -35,6 +39,7 @@ class EditState {
       other is EditState &&
       transition == other.transition &&
       leadIn == other.leadIn &&
+      midi == other.midi &&
       Curation.sameLanes(lanes, other.lanes) &&
       listEquals(anchors, other.anchors) &&
       mapEquals(partNames, other.partNames) &&

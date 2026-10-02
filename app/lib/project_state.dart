@@ -29,6 +29,7 @@ class ProjectState {
     this.transition,
     this.anchors = const [],
     this.leadIn = 0,
+    this.midi,
     this.partNames = const {},
     this.textEdits = const {},
     this.condensed = const {},
@@ -38,7 +39,7 @@ class ProjectState {
   });
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 6;
+  static const version = 7;
 
   /// When each instrument is shown, with each region's own properties; null when the project
   /// has none saved (they are then filled from where each part plays).
@@ -52,6 +53,10 @@ class ProjectState {
   /// start before any anchor.
   final List<SyncAnchor> anchors;
   final double leadIn;
+
+  /// The MIDI tempo map the sync follows instead of [anchors] (which are kept for when it
+  /// goes), its start at [leadIn]; null: the anchors.
+  final MidiTempoMap? midi;
 
   /// Instrument names set by the user, by part id.
   final Map<String, PartName> partNames;
@@ -80,6 +85,7 @@ class ProjectState {
     3: (state) => state, // warps came in 4 (an anchor's `jumpTo`): none, so nothing to change
     4: (state) => state, // the instruments' order came in 5: none saved is the score's
     5: (state) => state, // a region's own transitions came in 6: none, the project's
+    6: (state) => state, // MIDI tempo maps came in 7: none, the anchors
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -114,6 +120,7 @@ class ProjectState {
           }(),
       ]..sort((a, b) => a.seconds.compareTo(b.seconds)),
       leadIn: sync.number('leadIn') ?? 0,
+      midi: sync.isAbsent('midi') ? null : _midi(sync.child('midi')),
       partNames: {
         for (final id in r.map('partNames').keys)
           id: () {
@@ -152,6 +159,24 @@ class ProjectState {
     );
   }
 
+  static MidiTempoMap _midi(JsonReader r) {
+    final tempos = <MidiTempo>[
+      for (final (i, t) in r.list('tempos').indexed)
+        switch (t) {
+          [final num q, final num qpm] when q >= 0 && qpm > 0 && q.isFinite && qpm.isFinite =>
+            (quarter: q.toDouble(), quartersPerMinute: qpm.toDouble()),
+          _ => throw FormatException('The project is damaged: ${r.where}.tempos[$i] is not a quarter and a tempo.'),
+        },
+    ];
+    for (var i = 0; i < tempos.length; i++) {
+      if (i == 0 ? tempos[i].quarter != 0 : tempos[i].quarter <= tempos[i - 1].quarter) {
+        throw FormatException('The project is damaged: ${r.where}.tempos are out of order.');
+      }
+    }
+    if (tempos.isEmpty) throw FormatException('The project is damaged: ${r.where}.tempos is empty.');
+    return MidiTempoMap(r.string('name') ?? '', tempos);
+  }
+
   static Region _region(JsonReader r) {
     final start = r.number('start', required: true)!, end = r.number('end', required: true)!;
     if (end < start) throw FormatException('The project is damaged: ${r.where} ends before it starts.');
@@ -181,6 +206,11 @@ class ProjectState {
         },
         'sync': {
           'leadIn': leadIn,
+          if (midi case final midi?)
+            'midi': {
+              'name': midi.name,
+              'tempos': [for (final t in midi.tempos) [t.quarter, t.quartersPerMinute]],
+            },
           'anchors': [
             for (final a in anchors) {'quarter': a.quarter, 'seconds': a.seconds, 'jumpTo': ?a.jumpTo},
           ],

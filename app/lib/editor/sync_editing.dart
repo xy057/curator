@@ -5,7 +5,8 @@ class SyncEditing {
   SyncEditing._(this._editor);
   final EditorController _editor;
 
-  SyncMap? get _sync => _editor._sync;
+  /// The sync, while its anchors are set by hand (not while a MIDI tempo map sets them).
+  SyncMap? get _sync => _editor._midi == null ? _editor._sync : null;
 
   void _reset() {
     _tapArmed = false;
@@ -19,10 +20,10 @@ class SyncEditing {
   }
 
   /// Space taps anchors while armed.
-  bool get tapArmed => _tapArmed;
+  bool get tapArmed => _tapArmed && _sync != null;
   bool _tapArmed = false;
   set tapArmed(bool value) {
-    _tapArmed = value;
+    _tapArmed = value && _sync != null;
     if (value) _sync?.beginTapping();
     _editor._changed();
   }
@@ -124,8 +125,11 @@ class SyncEditing {
     return added;
   }
 
-  /// Where bar 1 sounds in the recording (Starts at).
-  void setStart(double seconds) => _sync?.startSeconds = seconds;
+  /// Where bar 1 sounds in the recording (Starts at); with a MIDI tempo map, where it starts.
+  void setStart(double seconds) {
+    if (!seconds.isFinite) return;
+    _editor._midi != null ? _editor._followMidi(seconds) : _sync?.startSeconds = seconds;
+  }
 
   /// Removes every anchor.
   void clear() {

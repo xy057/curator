@@ -115,6 +115,22 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await shot('app-warp-instruments');
     controller.undo();
+
+    // A MIDI tempo map in place of the anchors: steady, a push, then a long ritardando.
+    controller.useMidiTempo(MidiTempoMap('WI275 tempo.mid', [
+      (quarter: 0, quartersPerMinute: 132),
+      (quarter: 48, quartersPerMinute: 144),
+      (quarter: 72, quartersPerMinute: 138),
+      for (var i = 0; i < 8; i++) (quarter: 108.0 + i * 3, quartersPerMinute: 126.0 - i * 9),
+    ]));
+    controller.tab = BottomTab.audio;
+    controller.viewport.requestFit();
+    controller.playback.seek(40);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await shot('app-midi-audio');
+    controller.undo();
   });
 
   testWidgets('double-clicking a score text edits it in place', (tester) async {

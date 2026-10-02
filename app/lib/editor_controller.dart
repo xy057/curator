@@ -153,8 +153,11 @@ class EditorController extends ChangeNotifier {
     _pairs = List.unmodifiable({for (final p in state.pairs) ?score.condensing.pair(p.first, p.second)});
     _condensed = Set.unmodifiable({for (final g in condensable) if (state.condensed.contains(g.id)) g.id});
     _partOrder = CuratedScene.orderedPartIds(score.metadata.parts, state.partOrder);
+    _midi = state.midi;
+    _tapped = state.midi != null ? state.anchors : const [];
     _sync = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
-      ..load(state.anchors, leadIn: state.leadIn)
+      ..load(_midi?.anchors(start: state.leadIn, totalQuarters: score.timeline.measureStarts.last) ?? state.anchors,
+          leadIn: state.leadIn)
       ..addListener(_syncChanged);
     final parts = [for (final p in score.metadata.parts) p.id];
     _curation = Curation(parts)
@@ -198,6 +201,8 @@ class EditorController extends ChangeNotifier {
     _sync?.removeListener(_syncChanged);
     _sync?.dispose();
     _sync = null;
+    _midi = null;
+    _tapped = const [];
     _score = null;
     _source = null;
     _fileName = null;
@@ -511,6 +516,58 @@ class EditorController extends ChangeNotifier {
 
   bool _staffSpaceChanged = false;
 
+  // MARK: MIDI tempo map
+
+  MidiTempoMap? _midi;
+
+  /// The anchors tapped (or set) by hand, kept while a MIDI tempo map stands in for them.
+  List<SyncAnchor> _tapped = const [];
+
+  /// The MIDI file whose tempo map the sync follows, instead of anchors set by hand.
+  MidiTempoMap? get midiTempo => _midi;
+
+  /// Whether the sync follows a MIDI tempo map: its anchors are then derived, and tapping and
+  /// editing them is off (the Audio tab shows the tempo map instead of the waveform).
+  bool get usesMidiTempo => _midi != null;
+
+  /// The anchors set by hand, whether in use or kept behind a MIDI tempo map.
+  List<SyncAnchor> get _ownAnchors => _midi == null ? _sync!.anchors : _tapped;
+
+  /// Reads the tempo map of the MIDI file at [path] and follows it ([useMidiTempo]). Throws
+  /// a [FormatException] (changing nothing) when it isn't a MIDI file with a tempo map.
+  Future<void> loadMidiTempo(String path) async {
+    final map = MidiTempoMap.read(await File(path).readAsBytes(), name: path.split(RegExp(r'[/\\]')).last);
+    if (_sync == null) return;
+    useMidiTempo(map);
+    _tab = BottomTab.audio;
+    notifyListeners();
+  }
+
+  /// Makes the sync follow [map] (null: the anchors set by hand again, as they were): one
+  /// Undo step. The file's start sounds where bar 1 does now (Starts at).
+  void useMidiTempo(MidiTempoMap? map) {
+    final sync = _sync;
+    if (sync == null || map == _midi) return;
+    final start = sync.startSeconds;
+    if (_midi == null) _tapped = sync.anchors;
+    final own = _tapped;
+    _midi = map;
+    anchors._reset();
+    if (map == null) {
+      _tapped = const [];
+      sync.load(own, leadIn: sync.leadIn);
+    } else {
+      _followMidi(start);
+    }
+    notifyListeners();
+  }
+
+  /// Puts the derived anchors of the MIDI tempo map in the sync, with its start at [start].
+  void _followMidi(double start) {
+    start = math.max(0, start);
+    _sync!.load(_midi!.anchors(start: start, totalQuarters: _sync!.totalQuarters), leadIn: start);
+  }
+
   // MARK: Audio
 
   final audio = AudioEngine();
@@ -572,8 +629,9 @@ class EditorController extends ChangeNotifier {
   EditState get _editState => EditState(
         lanes: _curation!.lanes,
         transition: _curation!.transition,
-        anchors: _sync!.anchors,
+        anchors: _ownAnchors,
         leadIn: _sync!.leadIn,
+        midi: _midi,
         partNames: _partNames,
         textEdits: _textEdits,
         condensed: _condensed,
@@ -632,7 +690,10 @@ class EditorController extends ChangeNotifier {
       if (reengrave) unawaited(_reengrave());
       _joinLanes(); // before the lanes, which fit it
       _curation!.load(state.lanes, transition: state.transition);
-      _sync!.load(state.anchors, leadIn: state.leadIn);
+      _midi = state.midi;
+      _tapped = state.midi != null ? state.anchors : const [];
+      _sync!.load(_midi?.anchors(start: state.leadIn, totalQuarters: _sync!.totalQuarters) ?? state.anchors,
+          leadIn: state.leadIn);
       _partNames = state.partNames;
       _scene?.names = _partNames;
       _partOrder = state.partOrder;
@@ -662,8 +723,9 @@ class EditorController extends ChangeNotifier {
   ProjectState get projectState => ProjectState(
         lanes: _curation!.lanes,
         transition: _curation!.transition,
-        anchors: _sync!.anchors,
+        anchors: _ownAnchors,
         leadIn: _sync!.leadIn,
+        midi: _midi,
         partNames: _partNames,
         textEdits: _textEdits,
         condensed: _condensed,
