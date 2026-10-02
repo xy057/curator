@@ -20,7 +20,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `midi_tempo.dart` | A Standard MIDI File's tempo map (Set Tempo events only), and the anchors that make a `SyncMap` follow it |
 | `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
-| `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column; tile-cached drawing |
+| `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready) and `CuratedScene`: one frame is `paint(time)` |
 
 **`app/`** is the editor around it:
@@ -150,7 +150,8 @@ first's (an edit of either is an edit of both; joining unites them), and the Ins
 shows only the first (`EditorController.laneParts`), named for both.
 
 **The instruments' order is a layout, not an engraving.** Verovio engraves in score order,
-but every staff is drawn on its own (brackets and system labels are left out), so the
+but every staff is drawn on its own (Verovio's brackets and system labels are left out; the
+frozen zone draws a brace for an instrument on more than one staff, `StaffBrace`), so the
 preview stacks them in `CuratedScene.partOrder`: the user's order (hold a lane's name in the
 Instruments tab and drag it, or its ⋯ menu), then any part it lacks in score order. Changing
 it only re-plans the layout, like condensing. It is an edit (`partOrder` in `EditState`, and

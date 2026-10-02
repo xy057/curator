@@ -372,6 +372,7 @@ class CuratedScene {
         scrollX: scrollMap.xAt(time),
         placements: frame.placements,
         labels: frame.labels,
+        braces: frame.braces,
         devicePixelRatio: devicePixelRatio,
         keyColumn: keyColumnAt(time, curation, size),
         paper: paper,
@@ -402,7 +403,7 @@ class CuratedScene {
   }
 
   /// Where every visible staff and label sits at [time]: a lookup into the plan.
-  ({List<StaffPlacement> placements, List<StaffLabel> labels}) layoutAt(
+  ({List<StaffPlacement> placements, List<StaffLabel> labels, List<StaffBrace> braces}) layoutAt(
       double time, Curation curation, ui.Size size) {
     final visibility = _visibilityAt(time, curation);
     final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin];
@@ -410,6 +411,7 @@ class CuratedScene {
 
     final placements = <StaffPlacement>[];
     final labels = <StaffLabel>[];
+    final braces = <StaffBrace>[];
     for (var i = 0; i < _order.length; i++) {
       final (:staffIndex, :partId) = _order[i];
       final v = (visibility[partId] ?? 0).clamp(0.0, 1.0);
@@ -445,9 +447,15 @@ class CuratedScene {
             centerY: (tops[i] + bottom) / 2,
             opacity: opacity,
             partId: part.id));
+        if (staves.length > 1) {
+          braces.add(StaffBrace(staves: [
+            for (var j = i; j <= last; j++)
+              (top: tops[j], height: display.staves[_order[j].staffIndex].info.height * renderer.scale),
+          ], opacity: opacity));
+        }
       }
     }
-    return (placements: placements, labels: labels);
+    return (placements: placements, labels: labels, braces: braces);
   }
 
   // MARK: Hit testing (for editing in the preview)

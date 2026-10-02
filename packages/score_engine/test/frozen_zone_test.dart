@@ -1,9 +1,34 @@
+import 'dart:io';
 import 'dart:ui' as ui;
+
+import 'package:flutter/services.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_score.dart';
+
+/// A flute and a two-staff piano, two bars.
+const _flutePiano = '''<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Flute</part-name></score-part><score-part id="P2"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1"><attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><type>whole</type></note></measure>
+    <measure number="2"><note><pitch><step>D</step><octave>5</octave></pitch><duration>4</duration><type>whole</type></note></measure>
+  </part>
+  <part id="P2">
+    <measure number="1"><attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><staves>2</staves>
+        <clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>4</duration><type>whole</type><staff>1</staff></note>
+      <backup><duration>4</duration></backup>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>whole</type><staff>2</staff></note></measure>
+    <measure number="2">
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>4</duration><type>whole</type><staff>1</staff></note>
+      <backup><duration>4</duration></backup>
+      <note><pitch><step>D</step><octave>3</octave></pitch><duration>4</duration><type>whole</type><staff>2</staff></note></measure>
+  </part>
+</score-partwise>''';
 
 void main() {
   late LoadedScore score;
@@ -67,6 +92,44 @@ void main() {
     final scene = CuratedScene(hidden);
     final n = hidden.metadata.parts.firstWhere((p) => p.name == 'Oboe 1').staffNumbers.first;
     expect(scene.renderer.frozen!.stateAt(n, hidden.engraving.measures[6].onsetXs.first).key?.fifths ?? 0, 0);
+    scene.dispose();
+  });
+
+  test('an instrument on more than one staff is joined by a brace at the left; one on a single staff is not', () async {
+    final score = await LoadedScore.load(_flutePiano);
+    final scene = CuratedScene(score);
+    const size = ui.Size(800, 400);
+    final piano = score.metadata.parts.firstWhere((p) => p.name == 'Piano');
+    final c = Curation(score.metadata.parts.map((p) => p.id));
+    for (final p in score.metadata.parts) {
+      c.setLane(p.id, [Region(0, score.timeline.measureStarts.last)]);
+    }
+    final layout = scene.layoutAt(1, c, size);
+    final brace = layout.braces.single;
+    final pianoTops = [
+      for (final p in layout.placements)
+        if (piano.staffNumbers.contains(scene.display.staves[p.staffIndex].info.n)) p.y,
+    ];
+    expect([for (final s in brace.staves) s.top], pianoTops);
+
+    // Drawn just left of the zone, between the piano's staves, and the starting line joins them.
+    await (FontLoader('packages/score_engine/Bravura')
+          ..addFont(Future.value(ByteData.sublistView(File('assets/fonts/Bravura.otf').readAsBytesSync()))))
+        .load();
+    final image = scene.renderFrame(size.width.toInt(), size.height.toInt(), time: 1, curation: c, devicePixelRatio: 1);
+    final pixels = (await image.toByteData())!;
+    final y = ((brace.staves.first.top + brace.staves.first.height + brace.staves.last.top) / 2).round();
+    final sp = scene.style.staffSpace, left = scene.style.headerWidth;
+    final inked = [
+      for (var x = (left - 1.4 * sp).floor(); x < left - 0.3 * sp; x++)
+        if (pixels.getUint8((y * size.width.toInt() + x) * 4) < 128) x,
+    ];
+    expect(inked, isNotEmpty, reason: 'the brace crosses the gap between the staves');
+    expect(pixels.getUint8((y * size.width.toInt() + left.round()) * 4), lessThan(128), reason: 'the starting line runs on between them');
+    image.dispose();
+
+    c.setLane(piano.id, []);
+    expect(scene.layoutAt(1, c, size).braces, isEmpty, reason: 'no brace while the piano is hidden');
     scene.dispose();
   });
 

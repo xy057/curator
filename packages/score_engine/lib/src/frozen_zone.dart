@@ -82,6 +82,7 @@ class FrozenZone {
   static const _meterGap = 1.1, _digitWidth = 1.9;
   double _lineThickness = 0.13; // staff spaces; the engraving's own when it has staff lines
   static const _startLineThickness = 0.16;
+  static const _braceWidth = 1.0, _braceGap = 0.35; // fits beside the names up to 10 px a staff space
 
   /// The widest key column in the piece, in staff spaces.
   late final double maxKeyColumn;
@@ -202,6 +203,28 @@ class FrozenZone {
       x += (key.fifths > 0 ? _sharpStep : _flatStep) * sp;
     }
     if (cut) canvas.restore();
+  }
+
+  /// A brace just left of the zone at [left] joining one instrument's [staves] (top line and
+  /// height, logical pixels, top to bottom), and the starting line run on between them.
+  /// Bravura's brace is one em (four staff spaces) tall and 0.08 em wide (2 to 82 of 1000
+  /// units): it is stretched to the staves and kept one staff space wide, as Verovio does.
+  void paintBrace(ui.Canvas canvas, {required double left, required List<({double top, double height})> staves}) {
+    if (staves.length < 2) return;
+    final sp = style.staffSpace;
+    final ink = ui.Paint()..color = style.ink;
+    // Only between the staves: each staff draws its own stretch, and drawn twice a line comes out heavier.
+    for (var i = 1; i < staves.length; i++) {
+      final above = staves[i - 1];
+      canvas.drawRect(ui.Rect.fromLTRB(left, above.top + above.height, left + _startLineThickness * sp, staves[i].top), ink);
+    }
+    final top = staves.first.top, bottom = staves.last.top + staves.last.height;
+    final em = 4 * sp;
+    canvas.save();
+    canvas.translate(left - (_braceGap + _braceWidth) * sp, bottom);
+    canvas.scale(_braceWidth * sp / (0.080 * em), (bottom - top) / (0.997 * em));
+    _drawGlyph(canvas, 0xE000, -0.002 * em, 0);
+    canvas.restore();
   }
 
   /// A time signature centred on [centerX]: the two numbers either side of the middle line,

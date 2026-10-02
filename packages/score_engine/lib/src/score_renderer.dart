@@ -12,6 +12,14 @@ class StaffPlacement {
   final double opacity;
 }
 
+/// One instrument's staves (a piano's two) joined by a brace at the left: each staff's top
+/// line and height, logical pixels, top to bottom.
+class StaffBrace {
+  const StaffBrace({required this.staves, required this.opacity});
+  final List<({double top, double height})> staves;
+  final double opacity;
+}
+
 class StaffLabel {
   const StaffLabel(
       {required this.text, this.shortText = '', required this.centerY, required this.opacity, this.partId = ''});
@@ -80,6 +88,7 @@ class ScoreRenderer {
     required double scrollX,
     required List<StaffPlacement> placements,
     required List<StaffLabel> labels,
+    List<StaffBrace> braces = const [],
     required double devicePixelRatio,
     double? keyColumn,
     ui.Color? paper,
@@ -147,6 +156,15 @@ class ScoreRenderer {
             keyColumn: column,
             fadeWidth: _fade,
             linesTo: inkLeft == null ? 0 : originX + inkLeft * scale);
+        if (faded) canvas.restore();
+      }
+      for (final brace in braces) {
+        if (brace.opacity <= 0.001) continue;
+        final faded = brace.opacity < 0.999;
+        if (faded) canvas.saveLayer(null, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, brace.opacity));
+        zone.paintBrace(canvas,
+            left: style.headerWidth,
+            staves: [for (final s in brace.staves) (top: _snap(s.top, devicePixelRatio), height: s.height)]);
         if (faded) canvas.restore();
       }
       canvas.restore();
