@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import 'package:flutter/gestures.dart' show DragStartBehavior, kPrimaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show RenderStyle, ScenePatch;
+import 'package:score_engine/score_engine.dart' show ScenePatch;
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
@@ -314,6 +314,7 @@ class _ScoreViewState extends State<ScoreView> {
             top: math.max(4, editRect.center.dy - 18),
             width: math.max(editRect.width + 60, 200),
             child: _InlineEditor(
+              fontFamily: c.score!.textFontFamily,
               controller: _field,
               focus: _focus,
               onCommit: _commit,
@@ -340,15 +341,16 @@ class _ScoreViewState extends State<ScoreView> {
 }
 
 class _InlineEditor extends StatelessWidget {
-  static const _score = RenderStyle();
-
   const _InlineEditor({
+    required this.fontFamily,
     required this.controller,
     required this.focus,
     required this.onCommit,
     required this.onCancel,
     required this.onRevert,
   });
+  /// The score's text font.
+  final String fontFamily;
   final TextEditingController controller;
   final FocusNode focus;
   final VoidCallback onCommit;
@@ -371,7 +373,7 @@ class _InlineEditor extends StatelessWidget {
               controller: controller,
               focusNode: focus,
               // The score's own text font and ink: the edit looks like the text it becomes.
-              style: TextStyle(fontFamily: _score.textFontFamily, fontSize: 16, color: colors.scoreInk),
+              style: TextStyle(fontFamily: fontFamily, fontSize: 16, color: colors.scoreInk),
               decoration: InputDecoration(
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),

@@ -41,11 +41,12 @@ class ProjectState {
     this.partOrder = const [],
     this.patches = const [],
     this.images = const {},
+    this.fonts = ScoreFonts.standard,
     this.view = const ViewState(),
   });
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 8;
+  static const version = 9;
 
   /// When each instrument is shown, with each region's own properties; null when the project
   /// has none saved (they are then filled from where each part plays).
@@ -88,6 +89,10 @@ class ProjectState {
   /// keeps each as `images/<id>`.
   final Map<String, PatchImage> images;
 
+  /// The music and text fonts the score is engraved in. A music font the user added travels
+  /// with the project (`fonts/<name>.font` and its SMuFL metadata, `fonts/<name>.json`).
+  final ScoreFonts fonts;
+
   final ViewState view;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
@@ -100,13 +105,17 @@ class ProjectState {
     5: (state) => state, // a region's own transitions came in 6: none, the project's
     6: (state) => state, // MIDI tempo maps came in 7: none, the anchors
     7: (state) => state, // images on the score came in 8: none
+    8: (state) => state, // fonts came in 9: none saved is Bravura and Academico
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
   /// names the damaged field.
-  /// [images] are the image files the project holds (see [images]).
+  /// [images] are the image files the project holds (see [images]); [fontFiles] its music
+  /// fonts' files and metadata, by name (see [fonts]).
   factory ProjectState.fromJson(Map<String, Object?> json,
-      {int savedVersion = version, Map<String, PatchImage> images = const {}}) {
+      {int savedVersion = version,
+      Map<String, PatchImage> images = const {},
+      Map<String, ({Uint8List file, Uint8List? metadata})> fontFiles = const {}}) {
     var state = json;
     for (var v = savedVersion; v < version; v++) {
       final migrate = _migrations[v];
@@ -166,6 +175,7 @@ class ProjectState {
         for (final (i, patch) in r.list('patches').indexed) _patch(JsonReader(patch, '${r.where}.patches[$i]'), images),
       ],
       images: images,
+      fonts: _fonts(r.child('fonts'), fontFiles),
       view: ViewState(
         staffSpace: view.number('staffSpace'),
         grid: switch (view.string('grid')) {
@@ -176,6 +186,23 @@ class ProjectState {
         snapTapsToOnsets: view.boolean('snapTapsToOnsets'),
         time: view.number('time'),
       ),
+    );
+  }
+
+  static ScoreFonts _fonts(JsonReader r, Map<String, ({Uint8List file, Uint8List? metadata})> files) {
+    final music = r.string('music');
+    final text = r.string('text');
+    if (text != null && text.trim().isEmpty) throw FormatException('The project is damaged: ${r.where}.text is empty.');
+    return ScoreFonts(
+      music: switch (music) {
+        null => MusicFont.bravura,
+        final name => MusicFont.bundledNamed(name) ??
+            switch (files[name]) {
+              null => throw FormatException('The project is damaged: the music font $name is missing.'),
+              final f => MusicFont.added(family: name, file: f.file, metadata: f.metadata),
+            },
+      },
+      text: text ?? TextFonts.academico,
     );
   }
 
@@ -230,6 +257,11 @@ class ProjectState {
   }
 
   Map<String, Object?> toJson() => {
+        if (fonts != ScoreFonts.standard)
+          'fonts': {
+            if (fonts.music != MusicFont.bravura) 'music': fonts.music.name,
+            if (fonts.text != TextFonts.academico) 'text': fonts.text,
+          },
         'textEdits': textEdits,
         'condensed': [...condensed],
         'pairs': [for (final p in pairs) p.partIds],

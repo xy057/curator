@@ -17,6 +17,7 @@ class AppMenus extends StatelessWidget {
     this.onClearRecent,
     this.onEditTexts,
     this.onCondensing,
+    this.onFonts,
     this.onAddRecording,
     this.onExportVideo,
     this.onClose,
@@ -40,6 +41,7 @@ class AppMenus extends StatelessWidget {
   /// Score menu; null (greyed out) while nothing is open.
   final VoidCallback? onEditTexts;
   final VoidCallback? onCondensing;
+  final VoidCallback? onFonts;
   final VoidCallback? onAddRecording;
 
   /// File ▸ Export Video…; null (greyed out) while nothing is open.
@@ -99,6 +101,7 @@ class AppMenus extends StatelessWidget {
         PlatformMenu(label: 'Score', menus: [
           PlatformMenuItem(label: 'Edit Texts…', onSelected: onEditTexts),
           PlatformMenuItem(label: 'Condensing…', onSelected: onCondensing),
+          PlatformMenuItem(label: 'Fonts…', onSelected: onFonts),
           PlatformMenuItem(label: 'Add Recording…', onSelected: onAddRecording),
         ]),
         if (_mac)

@@ -25,6 +25,8 @@ enum MediaStorage {
 ///     score/<name>      the source score file, byte for byte
 ///     media/<name>      the recording, when it is embedded
 ///     images/<id>       each image on the score (Attach Image), byte for byte
+///     fonts/<name>.font an added music font the score is engraved in, and its SMuFL
+///     fonts/<name>.json metadata (if it has some)
 ///
 /// Everything the app changes (curation, sync, texts, names…) lives in project.json, so
 /// the source score is never rewritten.
@@ -84,6 +86,11 @@ abstract final class ProjectFile {
         final image = c.state.images[id];
         if (image == null) throw FileSystemException('An image on the score is missing', id);
         zip.add(ArchiveFile.bytes('images/${_safeName(id)}', image.bytes)..compression = image.kind == ImageKind.vector ? CompressionType.deflate : CompressionType.none);
+      }
+      final music = c.state.fonts.music;
+      if (music.file case final file?) {
+        zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.font', file));
+        if (music.metadata case final metadata?) zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.json', metadata));
       }
       if (mediaEntry != null) {
         final source = media!.embedFrom;
@@ -163,6 +170,13 @@ abstract final class ProjectFile {
             if (file.isFile && file.name.startsWith('images/'))
               if (PatchImage.kindOfId(file.name.substring(7)) case final kind?)
                 file.name.substring(7): PatchImage(file.name.substring(7), kind, file.content),
+        }, fontFiles: {
+          for (final file in archive.files)
+            if (file.isFile && file.name.startsWith('fonts/') && file.name.endsWith('.font'))
+              file.name.substring(6, file.name.length - 5): (
+                file: file.content,
+                metadata: archive.findFile('${file.name.substring(0, file.name.length - 5)}.json')?.content,
+              ),
         }),
         media: media,
       );
