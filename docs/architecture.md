@@ -253,7 +253,12 @@ from one resource folder, the text font's always as `text/Times*.xml`, so for an
 bundled music font with Academico, `FontResources.prepare` writes a folder of its own (in the
 scratch space, once per pair of fonts), measuring the font files with stb_truetype
 (`vb_measure_font`: tight ink boxes from the outlines, and advances; `src/stb_truetype.h`,
-vendored, public domain / MIT). A text font not installed here falls back to Academico, the
+vendored, public domain / MIT). stb_truetype trusts its fonts, and a project brings its own
+music font, so our copy is changed (its "CURATOR CHANGES" note): every read is checked against
+the font file's bytes (`InFont` in `font_metrics.cpp`), and composite glyphs nest only so deep.
+Keep those changes when updating it; a test measures a font made to break it. A font that
+can't be read is never taken on (`EditorController.setFonts` prepares it first,
+`LoadedScore.prepareFonts`), so a project never saves one it couldn't open with. A text font not installed here falls back to Academico, the
 choice kept (`LoadedScore.textFontFound`). A glyph a music font lacks is laid out and drawn in
 Bravura (`fontFallback`, `RenderStyle.musicFontFallback`). The frozen zone still spaces its
 clef and time signature by Bravura's proportions.
