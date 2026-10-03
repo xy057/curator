@@ -130,12 +130,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   /// The check made at launch (Settings ▸ Update ▸ Check at launch) says so when there is a
-  /// newer version, once; failures stay quiet. Later checks are the Update page's to show.
+  /// newer version for this system, once; failures, and a release without this system's
+  /// download, stay quiet. Later checks are the Update page's to show.
   void _launchCheckAnswered() {
     final status = updater.status;
     if (status is UpdateIdle || status is UpdateChecking) return;
     updater.removeListener(_launchCheckAnswered);
-    if (status is! UpdateAvailable || !mounted) return;
+    if (status is! UpdateAvailable || status.release.download == null || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       duration: const Duration(seconds: 10),
       content: Text('Curator ${status.release.version} is out.'),

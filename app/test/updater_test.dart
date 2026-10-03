@@ -73,6 +73,22 @@ void main() {
     expect(Version.tryParse('nightly'), isNull);
   });
 
+  test('each system finds its own zip, and nothing else', () {
+    Map<String, Object> asset(String name) => {'name': name, 'browser_download_url': 'https://x/$name', 'size': 1};
+    final json = {
+      'tag_name': 'v9.0.0',
+      'assets': [
+        asset('Curator-9.0.0-macos.zip.sha256'),
+        asset('Curator-9.0.0-windows.zip.sha256'),
+        asset('Curator-9.0.0-windows.zip'),
+        asset('Curator-9.0.0-macos.zip'),
+      ],
+    };
+    expect(Release.fromJson(json, platform: 'macos')!.fileName, 'Curator-9.0.0-macos.zip');
+    expect(Release.fromJson(json, platform: 'windows')!.fileName, 'Curator-9.0.0-windows.zip');
+    expect(Release.fromJson(json, platform: 'linux')!.download, isNull);
+  });
+
   group('against GitHub', () {
     late _FakeGitHub github;
     late Directory downloads;

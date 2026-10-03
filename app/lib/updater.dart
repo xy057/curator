@@ -60,8 +60,9 @@ class Release {
     final version = Version.tryParse('${json['tag_name']}');
     if (version == null) return null;
     final assets = [for (final a in json['assets'] as List? ?? const []) if (a is Map) a];
-    // The workflow names downloads `Curator-<version>-<platform>.zip`.
-    final asset = assets.where((a) => '${a['name']}'.contains('-$platform.')).firstOrNull;
+    // The workflow names downloads `Curator-<version>-<platform>.zip`; nothing else (a checksum
+    // beside it, another platform's) is this platform's download.
+    final asset = assets.where((a) => '${a['name']}'.toLowerCase().endsWith('-$platform.zip')).firstOrNull;
     return Release(
       version: version,
       pageUrl: '${json['html_url'] ?? '$repositoryUrl/releases'}',
