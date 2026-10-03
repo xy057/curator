@@ -325,9 +325,11 @@ class VideoExport {
   }
 
   bool _cancelled = false;
+  bool _disposed = false;
   Process? _process;
 
-  /// Stops the export; [write] then throws [VideoExportCancelled].
+  /// Stops the export; [write] then throws [VideoExportCancelled]. The next [write] starts
+  /// afresh (the dialog offers Export again).
   void cancel() {
     _cancelled = true;
     _process?.kill();
@@ -343,6 +345,8 @@ class VideoExport {
     double? to,
     String? ffmpeg,
   }) async {
+    if (_disposed) throw const VideoExportCancelled();
+    _cancelled = false; // a cancelled export before this one doesn't stop it
     ffmpeg ??= MediaConverter.findFfmpeg();
     if (ffmpeg == null) throw VideoExportException(missingFfmpegForVideo());
     final encoder = await VideoEncoder.probe(ffmpeg);
@@ -405,6 +409,7 @@ class VideoExport {
   }
 
   void dispose() {
+    _disposed = true;
     cancel();
     _scene.dispose();
     _curation.dispose();
