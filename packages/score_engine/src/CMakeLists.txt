@@ -48,6 +48,8 @@ target_include_directories(score_engine PRIVATE
 # Verovio's warnings are not ours to fix; the bridge is our code and is held to them.
 if(MSVC)
   target_compile_options(score_engine PRIVATE /bigobj /utf-8 /EHsc)
+  # <windows.h> (font_metrics.cpp) would otherwise define min and max as macros, breaking std::min/max.
+  target_compile_definitions(score_engine PRIVATE NOMINMAX)
   set_source_files_properties(${VEROVIO_SOURCES} PROPERTIES COMPILE_OPTIONS /W0)
   set_source_files_properties(verovio_bridge.cpp font_metrics.cpp PROPERTIES COMPILE_OPTIONS /W3)
 else()
