@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 
 /// This build's version: `version` in pubspec.yaml without the build number (a test keeps them
 /// equal). The Release workflow tags each release `v` + this.
-const appVersion = '0.2.2';
+const appVersion = '0.2.3';
 
 /// Where the source and the releases live.
 const repositoryUrl = 'https://github.com/xy057/curator';
