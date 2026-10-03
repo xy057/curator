@@ -24,8 +24,8 @@ import 'video_export.dart';
 /// Double-click a text (tempo mark, "arco", "dolce"…) to edit it in place — Enter saves,
 /// Esc cancels, an empty text removes it. Double-click an instrument name to rename it.
 ///
-/// With Attach Image on (Settings ▸ Extension), right-click adds an image (from a file or
-/// the clipboard) where it was clicked; click one to select it, drag it to move it, drag a
+/// With Attach Image on (Settings ▸ Extension), right-click adds an image (an SVG, PNG or
+/// JPEG file, or the clipboard's) where it was clicked; click one to select it, drag it to move it, drag a
 /// corner to resize it; double-click it (or right-click ▸ Crop) and the handles crop it.
 class ScoreView extends StatefulWidget {
   const ScoreView({super.key, required this.controller, this.aspectRatio});
@@ -214,13 +214,7 @@ class _ScoreViewState extends State<ScoreView> {
     }
     final mac = defaultTargetPlatform == TargetPlatform.macOS;
     return [
-      SubmenuButton(
-        menuChildren: [
-          MenuItemButton(onPressed: () => _addFromFile(ImageKind.vector, at), child: const Text('Vector (SVG)…')),
-          MenuItemButton(onPressed: () => _addFromFile(ImageKind.raster, at), child: const Text('Raster (PNG, JPG)…')),
-        ],
-        child: const Text('Add Image'),
-      ),
+      MenuItemButton(onPressed: () => _addFromFile(at), child: const Text('Add Image…')),
       MenuItemButton(
         onPressed: () => _paste(at),
         shortcut: SingleActivator(LogicalKeyboardKey.keyV, meta: mac, control: !mac),
@@ -229,9 +223,11 @@ class _ScoreViewState extends State<ScoreView> {
     ];
   }
 
-  Future<void> _addFromFile(ImageKind kind, ({int? patch, double quarter, double top}) at) async {
-    final file = await openFile(acceptedTypeGroups: [kind.types]);
-    if (file == null) return;
+  /// An SVG (drawn as vectors) or a PNG / JPEG: the file's type says which.
+  Future<void> _addFromFile(({int? patch, double quarter, double top}) at) async {
+    final file = await openFile(acceptedTypeGroups: [ImageKind.types]);
+    final kind = file == null ? null : ImageKind.ofPath(file.name);
+    if (file == null || kind == null) return;
     try {
       await c.images.add(kind, await file.readAsBytes(), quarter: at.quarter, top: at.top, extension: file.name.split('.').last);
     } catch (e) {

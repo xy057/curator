@@ -16,7 +16,7 @@ import 'image_patch_test.dart' show png;
 import 'test_fonts.dart';
 
 void main() {
-  testWidgets('right-click the score: Add Image (vector or raster) and Paste; select, resize, crop', (tester) async {
+  testWidgets('right-click the score: Add Image… and Paste; select, resize, crop', (tester) async {
     await tester.runAsync(loadTestFonts);
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
@@ -52,19 +52,14 @@ void main() {
     }
 
     await rightClick(spot);
-    expect(find.text('Add Image'), findsNothing, reason: 'Attach Image is off');
+    expect(find.text('Add Image…'), findsNothing, reason: 'Attach Image is off');
 
     settings.attachImage = true;
     await tester.pump();
     await rightClick(spot);
-    expect(find.text('Add Image'), findsOneWidget);
+    expect(find.text('Add Image…'), findsOneWidget, reason: 'one item for SVG, PNG and JPEG');
     expect(find.text('Paste'), findsOneWidget);
-    await tester.tap(find.text('Add Image'));
-    await tester.pumpAndSettle();
-    expect(find.text('Vector (SVG)…'), findsOneWidget);
-    expect(find.text('Raster (PNG, JPG)…'), findsOneWidget);
     await shot('image-menu');
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 

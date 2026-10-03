@@ -17,7 +17,8 @@ enum ImageKind {
   const ImageKind(this.extensions);
   final List<String> extensions;
 
-  XTypeGroup get types => XTypeGroup(label: this == vector ? 'SVG' : 'PNG or JPEG', extensions: extensions);
+  /// What Add Image… offers: either kind.
+  static const types = XTypeGroup(label: 'Image', extensions: ['svg', 'png', 'jpg', 'jpeg']);
 
   static ImageKind? ofPath(String path) {
     final ext = path.split('.').last.toLowerCase();

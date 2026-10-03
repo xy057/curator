@@ -101,7 +101,7 @@ back when the MIDI goes. Using or dropping one is an edit (`midi` in `EditState`
 `sync.midi` in the project from format 7, its tempos as `[quarter, quarters a minute]`).
 
 **An image scrolls with the score** (the Attach Image extension). Right-click the preview ▸
-Add Image ▸ Vector (SVG)… / Raster (PNG, JPG)…, or Paste (⌘V: a PNG, SVG text, or a copied
+Add Image… (an SVG, drawn as vectors, or a PNG / JPEG: the file's type says which), or Paste (⌘V: a PNG, SVG text, or a copied
 file), puts one where it was clicked (⌘V: at the pointer). An `ImagePatch` pins its left edge
 to a score quarter (so re-engraving keeps it at its bar) and gives its top below the frame's
 top and its size in staff spaces (it grows with the score size); `crop` is the part of the

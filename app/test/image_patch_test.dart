@@ -124,5 +124,6 @@ void main() {
     expect(looksLikeSvg('Use an <svg> here'), isFalse);
     expect(ImageKind.ofPath('/a/B.JPG'), ImageKind.raster);
     expect(ImageKind.ofPath('/a/b.gif'), isNull);
+    expect(ImageKind.types.extensions, containsAll([for (final k in ImageKind.values) ...k.extensions]));
   });
 }
