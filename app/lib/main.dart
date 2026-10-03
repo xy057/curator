@@ -12,6 +12,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
+import 'app_extensions.dart';
 import 'app_menus.dart';
 import 'app_settings.dart';
 import 'audio_panel.dart';
@@ -202,6 +203,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       await _guard(() async {
         final problem = await document.open(path);
         if (problem != null && mounted) _recordingProblem(problem);
+        if (mounted) await promptForExtensions(context, settings, controller);
       }, title: 'Could not open the project');
     } else {
       await _guard(() async {

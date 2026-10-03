@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'app_extensions.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'engrave_options_dialog.dart';
@@ -166,14 +167,16 @@ final _categories = <_Category>[
   ]),
   // First-party components that are not part of the main work (import, curate, sync, export):
   // lower priority, each one optional.
-  // Each one is a switch, off by default; what it adds works only while it is on.
+  // Each one is a switch for the whole app (AppExtension), off by default; what it adds
+  // works only while it is on.
   _Category('Extension', Icons.extension_outlined, [
-    _Item(
-      'Attach Image',
-      null,
-      (c) => Switch(value: c.settings.attachImage, onChanged: (v) => c.settings.attachImage = v),
-      keywords: 'image picture photo attach extension',
-    ),
+    for (final e in AppExtension.values)
+      _Item(
+        e.label,
+        null,
+        (c) => Switch(value: e.isOn(c.settings), onChanged: (v) => e.set(c.settings, v)),
+        keywords: '${e.keywords} extension',
+      ),
   ], empty: 'No extensions yet.'),
   _Category('Advanced', Icons.build_outlined, [
     _Item(

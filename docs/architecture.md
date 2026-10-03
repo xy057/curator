@@ -264,8 +264,11 @@ replaces the running app.
 - **A setting**: an `_Item` in `settings_dialog.dart`'s `_categories`, backed by a field in
   `AppSettings`. Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extension**.
-- **An extension**: a switch on the Extension page backed by a `bool` in `AppSettings`, off by
-  default. Everything the extension adds (menu items, toolbar buttons, drop targets, shortcuts,
+- **An extension**: a value of `AppExtension` (`app_extensions.dart`: its name, icon, search
+  words, and its switch, a `bool` in `AppSettings`), which the Extension page lists. The switch
+  is the app's, never a project's, and off by default. Say in `AppExtension.usedBy` when an open
+  project uses it: opening a project that uses extensions that are off shows them in a dialog,
+  each with its switch (and "All" when there are several). Everything the extension adds (menu items, toolbar buttons, drop targets, shortcuts,
   what it draws or exports) works only while its switch is on, and is hidden or inert otherwise.
   **Attach Image** (`AppSettings.attachImage`) is the first one.
 - **Something a project saves**: a field in `ProjectState` (and `EditState` if Undo should
