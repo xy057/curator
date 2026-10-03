@@ -1,5 +1,9 @@
+import 'dart:ui' show Rect;
+
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart';
+
+import 'image_patch.dart';
 
 /// An instrument's name as the user set it: the full name and the short one.
 typedef PartName = ({String name, String abbreviation});
@@ -35,11 +39,13 @@ class ProjectState {
     this.condensed = const {},
     this.pairs = const [],
     this.partOrder = const [],
+    this.patches = const [],
+    this.images = const {},
     this.view = const ViewState(),
   });
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 7;
+  static const version = 8;
 
   /// When each instrument is shown, with each region's own properties; null when the project
   /// has none saved (they are then filled from where each part plays).
@@ -75,6 +81,13 @@ class ProjectState {
   /// order. Parts it lacks follow in score order.
   final List<String> partOrder;
 
+  /// Images on the score (Attach Image), bottom to top.
+  final List<ImagePatch> patches;
+
+  /// The image files [patches] show, by [PatchImage.id]. Not in the JSON: the project file
+  /// keeps each as `images/<id>`.
+  final Map<String, PatchImage> images;
+
   final ViewState view;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
@@ -86,11 +99,14 @@ class ProjectState {
     4: (state) => state, // the instruments' order came in 5: none saved is the score's
     5: (state) => state, // a region's own transitions came in 6: none, the project's
     6: (state) => state, // MIDI tempo maps came in 7: none, the anchors
+    7: (state) => state, // images on the score came in 8: none
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
   /// names the damaged field.
-  factory ProjectState.fromJson(Map<String, Object?> json, {int savedVersion = version}) {
+  /// [images] are the image files the project holds (see [images]).
+  factory ProjectState.fromJson(Map<String, Object?> json,
+      {int savedVersion = version, Map<String, PatchImage> images = const {}}) {
     var state = json;
     for (var v = savedVersion; v < version; v++) {
       final migrate = _migrations[v];
@@ -146,6 +162,10 @@ class ProjectState {
         for (final (i, id) in r.list('partOrder').indexed)
           id is String ? id : throw FormatException('The project is damaged: ${r.where}.partOrder[$i] is not text.'),
       ],
+      patches: [
+        for (final (i, patch) in r.list('patches').indexed) _patch(JsonReader(patch, '${r.where}.patches[$i]'), images),
+      ],
+      images: images,
       view: ViewState(
         staffSpace: view.number('staffSpace'),
         grid: switch (view.string('grid')) {
@@ -177,6 +197,26 @@ class ProjectState {
     return MidiTempoMap(r.string('name') ?? '', tempos);
   }
 
+  static ImagePatch _patch(JsonReader r, Map<String, PatchImage> images) {
+    final image = r.string('image', required: true)!;
+    if (!images.containsKey(image)) throw FormatException('The project is damaged: the image of ${r.where} is missing.');
+    double size(String key) {
+      final v = r.number(key, required: true)!;
+      if (!(v > 0) || !v.isFinite) throw FormatException('The project is damaged: ${r.where}.$key is not a size.');
+      return v;
+    }
+
+    final crop = switch (r.list('crop')) {
+      [] => ImagePatch.full,
+      [final num l, final num t, final num rt, final num b] when 0 <= l && l < rt && rt <= 1 && 0 <= t && t < b && b <= 1 =>
+        Rect.fromLTRB(l.toDouble(), t.toDouble(), rt.toDouble(), b.toDouble()),
+      _ => throw FormatException('The project is damaged: ${r.where}.crop is not a part of the image.'),
+    };
+    final quarter = r.number('quarter', required: true)!, top = r.number('top', required: true)!;
+    if (!quarter.isFinite || !top.isFinite) throw FormatException('The project is damaged: ${r.where} is not placed.');
+    return ImagePatch(image: image, quarter: quarter, top: top, width: size('width'), height: size('height'), crop: crop);
+  }
+
   static Region _region(JsonReader r) {
     final start = r.number('start', required: true)!, end = r.number('end', required: true)!;
     if (end < start) throw FormatException('The project is damaged: ${r.where} ends before it starts.');
@@ -194,6 +234,17 @@ class ProjectState {
         'condensed': [...condensed],
         'pairs': [for (final p in pairs) p.partIds],
         'partOrder': partOrder,
+        'patches': [
+          for (final p in patches)
+            {
+              'image': p.image,
+              'quarter': p.quarter,
+              'top': p.top,
+              'width': p.width,
+              'height': p.height,
+              if (p.crop != ImagePatch.full) 'crop': [p.crop.left, p.crop.top, p.crop.right, p.crop.bottom],
+            },
+        ],
         'partNames': {
           for (final MapEntry(key: id, value: p) in partNames.entries) id: {'name': p.name, 'abbreviation': p.abbreviation},
         },

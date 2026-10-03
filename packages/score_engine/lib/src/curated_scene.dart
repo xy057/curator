@@ -12,6 +12,7 @@ import 'frozen_zone.dart';
 import 'beat_grid.dart';
 import 'curation.dart';
 import 'score_metadata.dart';
+import 'score_patch.dart';
 import 'score_renderer.dart';
 import 'score_text.dart';
 import 'scroll_map.dart';
@@ -380,16 +381,53 @@ class CuratedScene {
       ui.Color? paper,
       ui.Color? ink}) {
     final frame = layoutAt(time, curation, size);
+    final scrollX = scrollMap.xAt(time);
     renderer.paint(canvas, size,
-        scrollX: scrollMap.xAt(time),
+        scrollX: scrollX,
         placements: frame.placements,
         labels: frame.labels,
         braces: frame.braces,
         devicePixelRatio: devicePixelRatio,
         keyColumn: keyColumnAt(time, curation, size),
         paper: paper,
-        ink: ink);
+        ink: ink,
+        overlay: patches.isEmpty
+            ? null
+            : (canvas, musicLeft) {
+                canvas
+                  ..save()
+                  ..clipRect(ui.Rect.fromLTRB(musicLeft, 0, size.width, size.height));
+                for (final patch in patches) {
+                  final rect = _patchRect(patch, scrollX, size);
+                  if (rect.right < musicLeft || rect.left > size.width) continue;
+                  patch.paint(canvas, rect);
+                }
+                canvas.restore();
+              });
   }
+
+  // MARK: Images
+
+  /// Images on the score, drawn over the music (under the names, the frozen zone and the
+  /// pointer), scrolling with it.
+  List<ScenePatch> patches = const [];
+
+  /// Score quarters ↔ engraving x.
+  late final ScoreAxis axis = ScoreAxis(score.engraving, score.timeline.measureStarts);
+
+  /// Where [patch] is drawn at [time] in a frame of [size] (points).
+  ui.Rect patchRect(ScenePatch patch, double time, ui.Size size) => _patchRect(patch, scrollMap.xAt(time), size);
+
+  ui.Rect _patchRect(ScenePatch patch, double scrollX, ui.Size size) {
+    final sp = style.staffSpace;
+    return ui.Rect.fromLTWH(renderer.pointerX(size.width) + (axis.xAt(patch.quarter) - scrollX) * renderer.scale,
+        patch.top * sp, patch.width * sp, patch.height * sp);
+  }
+
+  /// The score quarter under frame x [x] (points) at [time]: where a patch's left edge there
+  /// is pinned.
+  double quarterAtFrameX(double x, double time, ui.Size size) =>
+      axis.quarterAt(scrollMap.xAt(time) + (x - renderer.pointerX(size.width)) / renderer.scale);
 
   /// The frame at [time] as an image of [width] × [height] pixels, laid out at
   /// [devicePixelRatio] pixels per logical pixel (a video frame). It is [paint] drawn

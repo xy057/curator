@@ -1,12 +1,17 @@
 import 'dart:math' as math;
 
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/gestures.dart' show DragStartBehavior, kPrimaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show RenderStyle;
+import 'package:score_engine/score_engine.dart' show RenderStyle, ScenePatch;
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'edit_dialogs.dart';
+import 'error_text.dart';
+import 'image_patch.dart';
 import 'video_export.dart';
 
 /// The curated score preview, drawn by CuratedScene.paint: a frame is a function of the
@@ -18,6 +23,10 @@ import 'video_export.dart';
 ///
 /// Double-click a text (tempo mark, "arco", "dolce"…) to edit it in place — Enter saves,
 /// Esc cancels, an empty text removes it. Double-click an instrument name to rename it.
+///
+/// With Attach Image on (Settings ▸ Extension), right-click adds an image (from a file or
+/// the clipboard) where it was clicked; click one to select it, drag it to move it, drag a
+/// corner to resize it; double-click it (or right-click ▸ Crop) and the handles crop it.
 class ScoreView extends StatefulWidget {
   const ScoreView({super.key, required this.controller, this.aspectRatio});
   final EditorController controller;
@@ -51,6 +60,11 @@ class _ScoreViewState extends State<ScoreView> {
     final p = frame.toLayout(details.localPosition);
     final size = frame.layout;
 
+    if (_patchAt(p, frame) case final i?) {
+      c.images.select(i, crop: !(c.images.selected == i && c.images.cropping));
+      return;
+    }
+
     final partId = scene.partLabelAt(p, c.playback.time.value, curation, size);
     if (partId != null) {
       // A shared staff's name follows its players' (renamed in their lanes).
@@ -79,6 +93,164 @@ class _ScoreViewState extends State<ScoreView> {
 
   void _cancel() => setState(() => _editing = null);
 
+  // MARK: Images (Attach Image)
+
+  final _menu = MenuController();
+
+  /// Where the context menu was opened: the patch there, or the place a new image goes.
+  ({int? patch, double quarter, double top})? _menuAt;
+
+  _PatchDrag? _drag;
+  MouseCursor _cursor = MouseCursor.defer;
+
+  /// Patch [patch] as the scene draws it; null when its image isn't drawn.
+  ScenePatch? _scenePatch(ImagePatch patch) {
+    final art = c.images.artOf(patch);
+    return art == null
+        ? null
+        : ScenePatch(quarter: patch.quarter, top: patch.top, width: patch.width, height: patch.height, crop: patch.crop, art: art);
+  }
+
+  /// Where patch [index] is now, in layout points.
+  Rect? _rectOf(int index, VideoFrame frame) {
+    final scene = c.scene, patch = _scenePatch(c.images.patches[index]);
+    if (scene == null || patch == null) return null;
+    return scene.patchRect(patch, c.playback.time.value, frame.layout);
+  }
+
+  /// The topmost patch at [p] (layout points).
+  int? _patchAt(Offset p, VideoFrame frame) {
+    if (!c.images.enabled) return null;
+    for (var i = c.images.patches.length - 1; i >= 0; i--) {
+      if (_rectOf(i, frame)?.contains(p) ?? false) return i;
+    }
+    return null;
+  }
+
+  /// What of the selected patch is at [view] (view points): a handle, its body, or nothing.
+  _Grip? _gripAt(Offset view, VideoFrame frame) {
+    final i = c.images.selected;
+    final rect = i == null ? null : _rectOf(i, frame);
+    if (rect == null) return null;
+    final r = frame.toView(rect);
+    for (final grip in _Grip.handles(cropping: c.images.cropping)) {
+      if ((grip.on(r) - view).distance <= _PatchOverlay.handle) return grip;
+    }
+    return r.contains(view) ? _Grip.body : null;
+  }
+
+  void _onPointerDown(PointerDownEvent e, VideoFrame frame) {
+    if (!c.images.enabled || e.buttons != kPrimaryButton) return;
+    if (_gripAt(e.localPosition, frame) != null) return; // the selected one, to drag
+    final hit = _patchAt(frame.toLayout(e.localPosition), frame);
+    c.images.select(hit, crop: hit != null && hit == c.images.selected && c.images.cropping);
+  }
+
+  void _onPanStart(DragStartDetails d, VideoFrame frame) {
+    final i = c.images.selected, grip = _gripAt(d.localPosition, frame);
+    final rect = i == null ? null : _rectOf(i, frame);
+    if (i == null || grip == null || rect == null) return;
+    c.beginEdit();
+    _drag = _PatchDrag(i, grip, c.images.patches[i], rect, frame.toLayout(d.localPosition), cropping: c.images.cropping);
+  }
+
+  void _onPanUpdate(DragUpdateDetails d, VideoFrame frame) {
+    final drag = _drag, scene = c.scene;
+    if (drag == null || scene == null) return;
+    final rect = drag.rectFor(frame.toLayout(d.localPosition));
+    final sp = scene.style.staffSpace;
+    final crop = drag.cropping ? drag.cropFor(rect) : drag.start.crop;
+    c.images.update(
+      drag.index,
+      drag.start.copyWith(
+        quarter: scene.quarterAtFrameX(rect.left, c.playback.time.value, frame.layout),
+        top: rect.top / sp,
+        width: rect.width / sp,
+        height: rect.height / sp,
+        crop: crop,
+      ),
+    );
+  }
+
+  void _onPanEnd() {
+    if (_drag == null) return;
+    _drag = null;
+    c.endEdit();
+  }
+
+  void _onHover(PointerHoverEvent e, VideoFrame frame) {
+    final cursor = c.images.enabled ? (_gripAt(e.localPosition, frame)?.cursor ?? MouseCursor.defer) : MouseCursor.defer;
+    if (cursor != _cursor) setState(() => _cursor = cursor);
+  }
+
+  void _openMenu(TapUpDetails d, VideoFrame frame) {
+    final scene = c.scene;
+    if (!c.images.enabled || scene == null || !frame.rect.contains(d.localPosition)) return;
+    final p = frame.toLayout(d.localPosition);
+    final hit = _patchAt(p, frame);
+    if (hit != null && hit != c.images.selected) c.images.select(hit);
+    setState(() => _menuAt = (
+          patch: hit,
+          quarter: scene.quarterAtFrameX(p.dx, c.playback.time.value, frame.layout),
+          top: p.dy / scene.style.staffSpace,
+        ));
+    _menu.open(position: d.localPosition);
+  }
+
+  List<Widget> _menuItems() {
+    final at = _menuAt;
+    if (at == null) return const [];
+    final patch = at.patch;
+    if (patch != null) {
+      final cropping = c.images.cropping && c.images.selected == patch;
+      return [
+        MenuItemButton(onPressed: () => c.images.select(patch, crop: !cropping), child: Text(cropping ? 'Done' : 'Crop')),
+        MenuItemButton(
+          onPressed: () => c.images.remove(patch),
+          shortcut: const SingleActivator(LogicalKeyboardKey.backspace),
+          child: const Text('Remove'),
+        ),
+      ];
+    }
+    final mac = defaultTargetPlatform == TargetPlatform.macOS;
+    return [
+      SubmenuButton(
+        menuChildren: [
+          MenuItemButton(onPressed: () => _addFromFile(ImageKind.vector, at), child: const Text('Vector (SVG)…')),
+          MenuItemButton(onPressed: () => _addFromFile(ImageKind.raster, at), child: const Text('Raster (PNG, JPG)…')),
+        ],
+        child: const Text('Add Image'),
+      ),
+      MenuItemButton(
+        onPressed: () => _paste(at),
+        shortcut: SingleActivator(LogicalKeyboardKey.keyV, meta: mac, control: !mac),
+        child: const Text('Paste'),
+      ),
+    ];
+  }
+
+  Future<void> _addFromFile(ImageKind kind, ({int? patch, double quarter, double top}) at) async {
+    final file = await openFile(acceptedTypeGroups: [kind.types]);
+    if (file == null) return;
+    try {
+      await c.images.add(kind, await file.readAsBytes(), quarter: at.quarter, top: at.top, extension: file.name.split('.').last);
+    } catch (e) {
+      _say('Could not add the image: ${describeError(e)}');
+    }
+  }
+
+  Future<void> _paste(({int? patch, double quarter, double top}) at) async {
+    try {
+      if (!await c.images.paste(quarter: at.quarter, top: at.top)) _say('No image to paste.');
+    } catch (e) {
+      _say('Could not paste the image: ${describeError(e)}');
+    }
+  }
+
+  void _say(String message) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
@@ -105,11 +277,35 @@ class _ScoreViewState extends State<ScoreView> {
             ),
           ),
         ),
+        if (c.images.enabled && c.images.selected != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: _PatchOverlay(c, frame, colors, devicePixelRatio: devicePixelRatio)),
+            ),
+          ),
         Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onDoubleTapDown: (d) => _onDoubleTap(d, frame),
-            onDoubleTap: () {},
+          child: MenuAnchor(
+            controller: _menu,
+            menuChildren: _menuItems(),
+            child: MouseRegion(
+              cursor: _drag?.grip.cursor ?? _cursor,
+              onHover: (e) => _onHover(e, frame),
+              child: Listener(
+                behavior: HitTestBehavior.translucent, // the detector below has no child to hit
+                onPointerDown: (e) => _onPointerDown(e, frame),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  dragStartBehavior: DragStartBehavior.down, // a drag takes what was pressed, not what the slop reached
+                  onDoubleTapDown: (d) => _onDoubleTap(d, frame),
+                  onDoubleTap: () {},
+                  onSecondaryTapUp: (d) => _openMenu(d, frame),
+                  onPanStart: c.images.enabled ? (d) => _onPanStart(d, frame) : null,
+                  onPanUpdate: c.images.enabled ? (d) => _onPanUpdate(d, frame) : null,
+                  onPanEnd: c.images.enabled ? (_) => _onPanEnd() : null,
+                  onPanCancel: c.images.enabled ? _onPanEnd : null,
+                ),
+              ),
+            ),
           ),
         ),
         if (editing != null && editRect != null)
@@ -241,4 +437,145 @@ class _ScorePainter extends CustomPainter {
       old.scale != scale ||
       old.colors.scorePaper != colors.scorePaper ||
       old.colors.scoreInk != colors.scoreInk;
+}
+
+/// What part of a selected patch a drag takes: its body (moves it), a corner or, while
+/// cropping, an edge. [dx] / [dy]: which side it is on (-1 left / top, 1 right / bottom).
+enum _Grip {
+  body(0, 0),
+  topLeft(-1, -1),
+  top(0, -1),
+  topRight(1, -1),
+  right(1, 0),
+  bottomRight(1, 1),
+  bottom(0, 1),
+  bottomLeft(-1, 1),
+  left(-1, 0);
+
+  const _Grip(this.dx, this.dy);
+  final int dx, dy;
+
+  bool get isCorner => dx != 0 && dy != 0;
+
+  /// Corners resize; cropping, the edges crop too.
+  static Iterable<_Grip> handles({required bool cropping}) =>
+      values.where((g) => g != body && (cropping || g.isCorner));
+
+  Offset on(Rect r) => Offset(r.left + (dx + 1) / 2 * r.width, r.top + (dy + 1) / 2 * r.height);
+
+  MouseCursor get cursor => switch (this) {
+        body => SystemMouseCursors.move,
+        topLeft || bottomRight => SystemMouseCursors.resizeUpLeftDownRight,
+        topRight || bottomLeft => SystemMouseCursors.resizeUpRightDownLeft,
+        left || right => SystemMouseCursors.resizeLeftRight,
+        top || bottom => SystemMouseCursors.resizeUpDown,
+      };
+}
+
+/// A drag of patch [index] by [grip], from [origin] (layout points), the patch then [start]
+/// drawn at [rect].
+class _PatchDrag {
+  _PatchDrag(this.index, this.grip, this.start, this.rect, this.origin, {required this.cropping});
+  final int index;
+  final _Grip grip;
+  final ImagePatch start;
+  final Rect rect;
+  final Offset origin;
+  final bool cropping;
+
+  /// The smallest a patch gets, in layout points.
+  static const minSide = 8.0;
+
+  /// The whole image, uncropped, as [rect] shows part of it.
+  Rect get _full {
+    final c = start.crop, w = rect.width / c.width, h = rect.height / c.height;
+    return Rect.fromLTWH(rect.left - c.left * w, rect.top - c.top * h, w, h);
+  }
+
+  /// Where the patch goes with the pointer at [p].
+  Rect rectFor(Offset p) {
+    final d = p - origin;
+    if (grip == _Grip.body) return rect.shift(d);
+    if (cropping) {
+      final f = _full;
+      var Rect(:left, :top, :right, :bottom) = rect;
+      if (grip.dx < 0) left = (left + d.dx).clamp(f.left, right - minSide);
+      if (grip.dx > 0) right = (right + d.dx).clamp(left + minSide, f.right);
+      if (grip.dy < 0) top = (top + d.dy).clamp(f.top, bottom - minSide);
+      if (grip.dy > 0) bottom = (bottom + d.dy).clamp(top + minSide, f.bottom);
+      return Rect.fromLTRB(left, top, right, bottom);
+    }
+    // A corner: the opposite one stays, the shape is kept.
+    final ax = grip.dx < 0 ? rect.right : rect.left, ay = grip.dy < 0 ? rect.bottom : rect.top;
+    final f = math.max(
+      math.max(grip.dx * (p.dx - ax) / rect.width, grip.dy * (p.dy - ay) / rect.height),
+      minSide / math.min(rect.width, rect.height),
+    );
+    final w = rect.width * f, h = rect.height * f;
+    return Rect.fromLTWH(grip.dx < 0 ? ax - w : ax, grip.dy < 0 ? ay - h : ay, w, h);
+  }
+
+  /// The part of the image [shown] shows, cropping.
+  Rect cropFor(Rect shown) {
+    final f = _full;
+    return Rect.fromLTRB(
+      ((shown.left - f.left) / f.width).clamp(0.0, 1.0),
+      ((shown.top - f.top) / f.height).clamp(0.0, 1.0),
+      ((shown.right - f.left) / f.width).clamp(0.0, 1.0),
+      ((shown.bottom - f.top) / f.height).clamp(0.0, 1.0),
+    );
+  }
+}
+
+/// The selected patch's outline and handles; cropping, the whole image faintly behind.
+class _PatchOverlay extends CustomPainter {
+  _PatchOverlay(this.controller, this.frame, this.colors, {required this.devicePixelRatio})
+      : super(repaint: Listenable.merge([controller.playback.repaint, controller]));
+  final EditorController controller;
+  final VideoFrame frame;
+  final AppColors colors;
+  final double devicePixelRatio;
+
+  /// A handle's half size, and how near counts as on it (view points).
+  static const handle = 6.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final images = controller.images, scene = controller.scene, i = images.selected;
+    if (scene == null || i == null || i >= images.patches.length) return;
+    final patch = images.patches[i], art = images.artOf(patch);
+    if (art == null) return;
+    final scenePatch =
+        ScenePatch(quarter: patch.quarter, top: patch.top, width: patch.width, height: patch.height, crop: patch.crop, art: art);
+    final r = frame.toView(scene.patchRect(scenePatch, controller.playback.time.value, frame.layout));
+    canvas
+      ..save()
+      ..clipRect(frame.rect);
+    if (images.cropping) {
+      final c = patch.crop, w = r.width / c.width, h = r.height / c.height;
+      final full = Rect.fromLTWH(r.left - c.left * w, r.top - c.top * h, w, h);
+      art.paint(canvas, Offset.zero & art.size, full, opacity: 0.3);
+      canvas.drawRect(full, Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = colors.accent.withValues(alpha: 0.5));
+    }
+    canvas.drawRect(r, Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = colors.accentStrong);
+    for (final grip in _Grip.handles(cropping: images.cropping)) {
+      final box = Rect.fromCenter(center: grip.on(r), width: handle * 2 - 2, height: handle * 2 - 2);
+      canvas
+        ..drawRect(box, Paint()..color = colors.scorePaper)
+        ..drawRect(box, Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = colors.accentStrong);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_PatchOverlay old) => true;
 }

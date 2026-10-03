@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
 
+import 'image_patch.dart';
 import 'project_state.dart';
 
 /// How a project keeps its recording.
@@ -23,6 +24,7 @@ enum MediaStorage {
 ///     project.json      format version, where things are, and every edit made in the app
 ///     score/<name>      the source score file, byte for byte
 ///     media/<name>      the recording, when it is embedded
+///     images/<id>       each image on the score (Attach Image), byte for byte
 ///
 /// Everything the app changes (curation, sync, texts, names…) lives in project.json, so
 /// the source score is never rewritten.
@@ -77,6 +79,12 @@ abstract final class ProjectFile {
       zip.add(ArchiveFile.noCompress('mimetype', mimeType.length, ascii.encode(mimeType)));
       zip.add(ArchiveFile.string('project.json', const JsonEncoder.withIndent(' ').convert(manifest)));
       zip.add(ArchiveFile.bytes(scoreEntry, c.scoreBytes));
+      // Only the images still on the score (Undo keeps the rest while the project is open).
+      for (final id in {for (final p in c.state.patches) p.image}) {
+        final image = c.state.images[id];
+        if (image == null) throw FileSystemException('An image on the score is missing', id);
+        zip.add(ArchiveFile.bytes('images/${_safeName(id)}', image.bytes)..compression = image.kind == ImageKind.vector ? CompressionType.deflate : CompressionType.none);
+      }
       if (mediaEntry != null) {
         final source = media!.embedFrom;
         if (source == null || !File(source).existsSync()) {
@@ -150,7 +158,12 @@ abstract final class ProjectFile {
       return OpenedProject(
         scoreName: score.string('name', required: true)!,
         scoreBytes: scoreFile.content,
-        state: ProjectState.fromJson(manifest.map('state'), savedVersion: version),
+        state: ProjectState.fromJson(manifest.map('state'), savedVersion: version, images: {
+          for (final file in archive.files)
+            if (file.isFile && file.name.startsWith('images/'))
+              if (PatchImage.kindOfId(file.name.substring(7)) case final kind?)
+                file.name.substring(7): PatchImage(file.name.substring(7), kind, file.content),
+        }),
         media: media,
       );
     } finally {

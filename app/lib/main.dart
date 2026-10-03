@@ -386,6 +386,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
+  Future<void> _pasteImage() async {
+    if (!controller.images.enabled || controller.score == null) return;
+    String? problem;
+    try {
+      if (!await controller.images.paste()) problem = 'No image to paste.';
+    } catch (e) {
+      problem = 'Could not paste the image: ${describeError(e)}';
+    }
+    if (problem != null && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(problem)));
+  }
+
   void _dropped(String path) {
     if (MediaFormats.isMidi(path)) {
       if (controller.score == null) {
@@ -545,6 +556,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): controller.undo,
         const SingleActivator(LogicalKeyboardKey.keyY, control: true): controller.redo,
         const SingleActivator(LogicalKeyboardKey.escape): _escape,
+        // Attach Image: the clipboard's image, at the pointer.
+        const SingleActivator(LogicalKeyboardKey.keyV, meta: true): _pasteImage,
+        const SingleActivator(LogicalKeyboardKey.keyV, control: true): _pasteImage,
         // Instruments tab: tools, and trimming the selected regions to the playhead.
         const SingleActivator(LogicalKeyboardKey.keyV): () => _tool(LaneTool.select),
         const SingleActivator(LogicalKeyboardKey.keyD): () => _tool(LaneTool.draw),
@@ -582,7 +596,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           _ResizeHandle(
             onDrag: (dy) => setState(() => _timelineHeight = (timelineHeight - dy).clamp(_minTimeline, maxTimeline)),
           ),
-          SizedBox(height: timelineHeight, child: BottomPanel(controller: controller)),
+          SizedBox(
+            height: timelineHeight,
+            // Working in the timeline leaves the image selected in the score.
+            child: Listener(
+              onPointerDown: (_) => controller.images.select(null),
+              child: BottomPanel(controller: controller),
+            ),
+          ),
         ],
       );
     });

@@ -225,6 +225,7 @@ class ProjectDocument extends ChangeNotifier {
     controller.undoLimit = settings.undoSteps;
     controller.defaultTransition = settings.transition;
     controller.scrollFollow = settings.scrollFollow;
+    controller.images.enabled = settings.attachImage;
     if (settings.autosave != _autosaveInterval) _restartAutosave();
   }
 

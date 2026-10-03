@@ -22,13 +22,15 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready) and `CuratedScene`: one frame is `paint(time)` |
+| `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
 
 **`app/`** is the editor around it:
 
 | File | Job |
 |---|---|
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
-| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection |
+| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image) |
+| `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned); Undo's snapshots |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
@@ -97,6 +99,20 @@ the Audio tab draws the tempo map large instead of the anchors and the waveform.
 set by hand are kept behind it (`EditorController._tapped`, saved as `sync.anchors`) and come
 back when the MIDI goes. Using or dropping one is an edit (`midi` in `EditState`, and
 `sync.midi` in the project from format 7, its tempos as `[quarter, quarters a minute]`).
+
+**An image scrolls with the score** (the Attach Image extension). Right-click the preview ▸
+Add Image ▸ Vector (SVG)… / Raster (PNG, JPG)…, or Paste (⌘V: a PNG, SVG text, or a copied
+file), puts one where it was clicked (⌘V: at the pointer). An `ImagePatch` pins its left edge
+to a score quarter (so re-engraving keeps it at its bar) and gives its top below the frame's
+top and its size in staff spaces (it grows with the score size); `crop` is the part of the
+image shown, in fractions. The scene draws them over the music and under the names, the
+frozen zone and the pointer (`ScoreRenderer.paint`'s `overlay`), the same in a video. A
+click selects one, a drag moves it, a corner resizes it keeping its shape; double-click (or
+right-click ▸ Crop) and the handles crop it instead, the whole image shown faintly behind.
+Every change is an Undo step (`patches` in `EditState`); a project keeps them in
+`state.patches` and each image file, byte for byte, as `images/<id>` (format 8). While the
+switch is off the images stay in the project but are not drawn, exported or editable
+(`ImageEditing.enabled`).
 
 **Lanes are painted, not cut.** Drawing adds a region and merges it with what it touches;
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip

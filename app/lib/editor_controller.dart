@@ -9,9 +9,11 @@ import 'package:score_engine/score_engine.dart';
 import 'audio_track.dart';
 import 'edit_history.dart';
 import 'error_text.dart';
+import 'image_patch.dart';
 import 'project_state.dart';
 import 'time_viewport.dart';
 
+part 'editor/image_editing.dart';
 part 'editor/lane_editing.dart';
 part 'editor/playback.dart';
 part 'editor/sync_editing.dart';
@@ -25,7 +27,8 @@ enum BottomTab { instruments, audio }
 ///
 ///  * [playback]: the clock, play / pause / seek;
 ///  * [lanes]: editing in the Instruments tab (tools, the region selection, tidying);
-///  * [anchors]: editing in the Audio tab (tapping, the anchor selection).
+///  * [anchors]: editing in the Audio tab (tapping, the anchor selection);
+///  * [images]: images on the score (the Attach Image extension).
 ///
 /// All of them notify through this controller, so a widget listens to one thing.
 class EditorController extends ChangeNotifier {
@@ -36,6 +39,7 @@ class EditorController extends ChangeNotifier {
   late final Playback playback;
   late final lanes = LaneEditing._(this);
   late final anchors = SyncEditing._(this);
+  late final images = ImageEditing._(this);
 
   /// Zoom and scroll shared by both tabs of the bottom panel.
   final viewport = TimeViewport();
@@ -109,7 +113,8 @@ class EditorController extends ChangeNotifier {
     String? mediaOriginal,
   }) async {
     final score = await _engrave(scoreBytes, textEdits: state.textEdits, pairs: state.pairs);
-    await _install(name, scoreBytes, score, state);
+    final arts = await ImageEditing._decodeAll(state.images);
+    await _install(name, scoreBytes, score, state, arts: arts);
     if (mediaPath == null) return null;
     try {
       await loadAudio(mediaPath, temporary: true, originalPath: mediaOriginal);
@@ -138,8 +143,9 @@ class EditorController extends ChangeNotifier {
 
   /// Replaces what is open with [score] and the edits and view in [state], all at once.
   /// Nothing in here fails, so a project is never left half open.
-  Future<void> _install(String name, Uint8List bytes, LoadedScore score, ProjectState state) async {
-    if (_disposed) return; // the window closed while engraving
+  Future<void> _install(String name, Uint8List bytes, LoadedScore score, ProjectState state,
+      {Map<String, PatchArt> arts = const {}}) async {
+    if (_disposed) return arts.values.forEach(ImageEditing._dispose); // the window closed while engraving
     playback.pause();
     await audio.unload();
     _closeDocument();
@@ -153,6 +159,7 @@ class EditorController extends ChangeNotifier {
     _pairs = List.unmodifiable({for (final p in state.pairs) ?score.condensing.pair(p.first, p.second)});
     _condensed = Set.unmodifiable({for (final g in condensable) if (state.condensed.contains(g.id)) g.id});
     _partOrder = CuratedScene.orderedPartIds(score.metadata.parts, state.partOrder);
+    images._load(state.patches, state.images, arts);
     _midi = state.midi;
     _tapped = state.midi != null ? state.anchors : const [];
     _sync = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
@@ -193,6 +200,7 @@ class EditorController extends ChangeNotifier {
     _gestures = 0;
     anchors._reset();
     lanes._reset();
+    images._reset();
     _scene?.dispose();
     _scene = null;
     _curation?.removeListener(_edited);
@@ -234,7 +242,8 @@ class EditorController extends ChangeNotifier {
       ..names = _partNames
       ..condensed = _condensed
       ..partOrder = _partOrder
-      ..scrollFollow = _scrollFollow;
+      ..scrollFollow = _scrollFollow
+      ..patches = images._scenePatches;
     if (_sync != null) scene.setTimeline(_sync!);
     return scene;
   }
@@ -605,14 +614,20 @@ class EditorController extends ChangeNotifier {
 
   /// Nothing selected in either tab.
   void clearSelection() {
-    if (lanes._selected.isEmpty && lanes._lanes.isEmpty && anchors._selected.isEmpty) return;
+    if (lanes._selected.isEmpty && lanes._lanes.isEmpty && anchors._selected.isEmpty && images._selected == null) return;
+    images._deselect();
     lanes._clear();
     anchors._selected = {};
     notifyListeners();
   }
 
   /// Delete: removes what is selected in the tab that is showing.
-  void deleteSelection() => _tab == BottomTab.audio ? anchors.delete() : lanes.delete();
+  /// A selected image goes first.
+  void deleteSelection() => images._selected != null
+      ? images.remove()
+      : _tab == BottomTab.audio
+          ? anchors.delete()
+          : lanes.delete();
 
   // One history for the whole document: lanes, sync, names, texts, condensing, the instruments'
   // order and the transition. After
@@ -637,6 +652,7 @@ class EditorController extends ChangeNotifier {
         condensed: _condensed,
         pairs: _pairs,
         partOrder: _partOrder,
+        patches: images._patches,
       );
 
   /// How many steps Undo can go back.
@@ -698,6 +714,7 @@ class EditorController extends ChangeNotifier {
       _scene?.names = _partNames;
       _partOrder = state.partOrder;
       _scene?.partOrder = _partOrder;
+      images._restore(state.patches);
     } finally {
       _restoring = false;
     }
@@ -731,6 +748,8 @@ class EditorController extends ChangeNotifier {
         condensed: _condensed,
         pairs: _pairs,
         partOrder: isScoreOrder ? const [] : _partOrder,
+        patches: images._patches,
+        images: images._used,
         view: ViewState(
           staffSpace: _staffSpace,
           grid: anchors.grid,

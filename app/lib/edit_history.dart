@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart';
 
+import 'image_patch.dart';
 import 'project_state.dart';
 
 /// Everything Undo steps through, at one moment: the edits a project saves (not the view).
@@ -19,6 +20,7 @@ class EditState {
     required this.condensed,
     required this.pairs,
     required this.partOrder,
+    this.patches = const [],
   });
 
   final Map<String, List<Region>> lanes;
@@ -33,6 +35,7 @@ class EditState {
   final Set<String> condensed;
   final List<PlayerPair> pairs;
   final List<String> partOrder;
+  final List<ImagePatch> patches;
 
   @override
   bool operator ==(Object other) =>
@@ -46,7 +49,8 @@ class EditState {
       mapEquals(textEdits, other.textEdits) &&
       setEquals(condensed, other.condensed) &&
       listEquals(pairs, other.pairs) &&
-      listEquals(partOrder, other.partOrder);
+      listEquals(partOrder, other.partOrder) &&
+      listEquals(patches, other.patches);
 
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes.length, anchors.length, partNames.length, textEdits.length);

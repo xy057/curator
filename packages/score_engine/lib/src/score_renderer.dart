@@ -99,6 +99,7 @@ class ScoreRenderer {
     double? keyColumn,
     ui.Color? paper,
     ui.Color? ink,
+    void Function(ui.Canvas canvas, double musicLeft)? overlay,
   }) {
     final column = keyColumn ?? frozen?.maxKeyColumn ?? 0;
     final musicLeft = musicLeftFor(column);
@@ -139,6 +140,9 @@ class ScoreRenderer {
         );
       }
     }
+
+    // Over the music, under the names, the frozen zone and the pointer (images on the score).
+    overlay?.call(canvas, musicLeft);
 
     _paintHeader(canvas, size, labels, musicLeft, paperColor, inkFilter);
     final zone = frozen;
