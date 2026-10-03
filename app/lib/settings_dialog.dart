@@ -246,8 +246,8 @@ String _updateHelp(UpdateStatus status) => switch (status) {
         '${release.version} is out, but not for this system yet.',
       UpdateAvailable(:final release) => '${release.version} is out.',
       UpdateDownloading(:final release) => 'Downloading ${release.version}…',
-      UpdateDownloaded(:final path) =>
-        'Saved “${path.split(RegExp(r'[/\\]')).last}”. Unzip it and replace this app with it.',
+      UpdateDownloaded(:final path) => 'Saved “${path.split(RegExp(r'[/\\]')).last}”. '
+          '${Platform.isWindows ? 'Close Curator, then replace its folder with the unzipped one.' : 'Unzip it and replace this app with it.'}',
       UpdateFailed(:final message) => message,
     };
 
