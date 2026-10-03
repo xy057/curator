@@ -89,6 +89,16 @@ void main() {
     expect(Release.fromJson(json, platform: 'linux')!.download, isNull);
   });
 
+  test('Windows finds a moved Downloads folder in the registry', () {
+    const output = '\r\nHKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders\r\n'
+        '    {374DE290-123F-4565-9164-39C4925E467B}    REG_EXPAND_SZ    %USERPROFILE%\\Downloads\r\n\r\n';
+    expect(Updater.windowsShellFolder(output, {'UserProfile': r'C:\Users\Ann'}), r'C:\Users\Ann\Downloads');
+    expect(Updater.windowsShellFolder(output, {}), isNull, reason: 'USERPROFILE not set');
+    expect(Updater.windowsShellFolder(output.replaceFirst(r'%USERPROFILE%\Downloads', r'D:\Down loads'), {}),
+        r'D:\Down loads');
+    expect(Updater.windowsShellFolder('', {}), isNull);
+  });
+
   group('against GitHub', () {
     late _FakeGitHub github;
     late Directory downloads;

@@ -225,9 +225,40 @@ class Updater extends ChangeNotifier {
   /// The user's Downloads folder (their home folder when it has none).
   String get downloadsFolder {
     if (_downloads case final dir?) return dir;
+    if (Platform.isWindows) {
+      if (_windowsDownloads() case final dir? when Directory(dir).existsSync()) return dir;
+    }
     final home = Platform.environment[Platform.isWindows ? 'USERPROFILE' : 'HOME'] ?? Directory.systemTemp.path;
     final downloads = '$home${Platform.pathSeparator}Downloads';
     return Directory(downloads).existsSync() ? downloads : home;
+  }
+
+  /// Windows lets the Downloads folder be moved (its Properties ▸ Location); where it is now is
+  /// the known folder's entry in the registry.
+  static String? _windowsDownloads() {
+    try {
+      final r = Process.runSync('reg', [
+        'query',
+        r'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders',
+        '/v',
+        '{374DE290-123F-4565-9164-39C4925E467B}',
+      ]);
+      return r.exitCode == 0 ? windowsShellFolder('${r.stdout}', Platform.environment) : null;
+    } on ProcessException {
+      return null;
+    }
+  }
+
+  /// The folder in `reg query`'s [output] for one value, its `%VARIABLES%` expanded from [env]
+  /// (Windows names them in any case). Null when there is none, or a variable isn't set.
+  @visibleForTesting
+  static String? windowsShellFolder(String output, Map<String, String> env) {
+    final value = RegExp(r'REG_(?:EXPAND_)?SZ[ \t]+(.+)$', multiLine: true).firstMatch(output)?[1]?.trim();
+    if (value == null || value.isEmpty) return null;
+    final upper = {for (final e in env.entries) e.key.toUpperCase(): e.value};
+    final variables = RegExp(r'%([^%]+)%').allMatches(value).map((m) => m[1]!.toUpperCase());
+    if (!variables.every(upper.containsKey)) return null;
+    return value.replaceAllMapped(RegExp(r'%([^%]+)%'), (m) => upper[m[1]!.toUpperCase()]!);
   }
 
   /// `name`, or `name (2)`, `name (3)`… when that is taken.
