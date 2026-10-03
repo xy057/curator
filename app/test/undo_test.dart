@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:curated_score/editor_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
@@ -161,5 +163,14 @@ void main() {
     c.undo();
     c.redo();
     expect(c.score, isNull);
+  });
+
+  test('a music font that can\'t be read changes nothing, so the project never keeps it', () async {
+    final broken = MusicFont.added(family: 'Broken', file: Uint8List.fromList(List.filled(64, 7)));
+    await expectLater(c.setFonts(c.fonts.copyWith(music: broken)), throwsFormatException);
+    expect(c.fonts, ScoreFonts.standard);
+    expect(c.projectState.fonts, ScoreFonts.standard);
+    expect(c.addedFonts, isEmpty);
+    expect(c.canUndo, isFalse);
   });
 }

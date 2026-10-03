@@ -284,8 +284,10 @@ class EditorController extends ChangeNotifier {
   int _textGeneration = 0;
   bool _reengraving = false;
 
-  /// True while a text edit (a new pair of players, new engraving options) is being engraved.
-  bool get isReengraving => _reengraving;
+  /// True while a text edit (a new pair of players, new engraving options, new fonts) is being
+  /// engraved, fonts being got ready included.
+  bool get isReengraving => _reengraving || _preparingFonts > 0;
+  int _preparingFonts = 0;
 
   /// The Verovio options scores are engraved with (Settings ▸ Advanced, for every score). Not
   /// an edit: changing them re-engraves what is open, and the project stays as it was.
@@ -366,8 +368,20 @@ class EditorController extends ChangeNotifier {
   List<MusicFont> _addedFonts = const [];
 
   /// Engraves the score in [fonts]: one Undo step. The future completes when it is engraved.
+  /// A font that can't be read throws, and changes nothing: a project never keeps a font it
+  /// couldn't be engraved in (it would not open again).
   Future<void> setFonts(ScoreFonts fonts) async {
-    if (_score == null || fonts == _fonts) return;
+    final score = _score;
+    if (score == null || fonts == _fonts) return;
+    _preparingFonts++;
+    notifyListeners();
+    try {
+      await LoadedScore.prepareFonts(fonts);
+    } finally {
+      _preparingFonts--;
+      if (!_disposed) notifyListeners();
+    }
+    if (_score != score || fonts == _fonts) return; // closed, or another score opened, meanwhile
     if (!fonts.music.isBundled && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
     _fonts = fonts;
     final engraved = _reengrave();
