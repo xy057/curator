@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -11,6 +12,7 @@ import 'engraving_options.dart';
 import 'frozen_zone.dart';
 import 'beat_grid.dart';
 import 'curation.dart';
+import 'score_fonts.dart';
 import 'score_metadata.dart';
 import 'score_patch.dart';
 import 'score_renderer.dart';
@@ -25,7 +27,8 @@ class LoadedScore {
       {required this.musicXML,
       required this.texts,
       required this.textEdits,
-      required this.font,
+      required this.fonts,
+      required this.textFontFound,
       required this.options,
       required this.condensed,
       required this.condensing,
@@ -47,7 +50,16 @@ class LoadedScore {
 
   /// Text edits in effect: text id → new text ('' removes it).
   final Map<String, String> textEdits;
-  final MusicFont font;
+
+  /// The fonts it was engraved with.
+  final ScoreFonts fonts;
+
+  /// False when [fonts]' text font isn't installed here: Academico stands in for it.
+  final bool textFontFound;
+
+  /// The families the renderer draws it with.
+  String get musicFontFamily => fonts.music.family;
+  String get textFontFamily => TextFonts.familyOf(textFontFound ? fonts.text : TextFonts.academico);
 
   /// The engraving options it was engraved with.
   final EngravingOptions options;
@@ -73,7 +85,7 @@ class LoadedScore {
   static Future<LoadedScore> load(
     String musicXML, {
     String? resourceDirectory,
-    MusicFont font = MusicFont.bravura,
+    ScoreFonts fonts = ScoreFonts.standard,
     double? tempo,
     Map<String, String> textEdits = const {},
     List<PlayerPair> pairs = const [],
@@ -82,10 +94,15 @@ class LoadedScore {
     final doc = ScoreMetadata.parse(musicXML);
     final metadata = ScoreMetadata.fromDocument(doc);
     final prepared = PreparedScore.prepare(doc, textEdits, metadata: metadata, pairs: pairs);
+    final base = resourceDirectory ?? engineResourceDirectory(), work = FontResources.workDirectory;
+    final resources = fonts == ScoreFonts.standard
+        ? (directory: base, textFound: true)
+        : await Isolate.run(() => FontResources.prepare(fonts, base: base, work: work));
+    await fonts.music.load();
     final engraving = await Engraver.engrave(
       prepared.musicXML,
-      resourceDirectory: resourceDirectory ?? engineResourceDirectory(),
-      font: font,
+      resourceDirectory: resources.directory,
+      font: fonts.music,
       options: options,
     );
     final timeline = ConstantTempoTimeline(engraving.measures,
@@ -95,25 +112,27 @@ class LoadedScore {
         musicXML: musicXML,
         texts: prepared.texts,
         textEdits: Map.unmodifiable(textEdits),
-        font: font,
+        fonts: fonts,
+        textFontFound: resources.textFound,
         options: options,
         condensed: prepared.condensed,
         condensing: prepared.condensing!,
         pairs: List.unmodifiable(pairs));
   }
 
-  static Future<LoadedScore> open(String path, {MusicFont font = MusicFont.bravura}) async =>
-      load(await ScoreFile.readMusicXML(path), font: font);
+  static Future<LoadedScore> open(String path, {ScoreFonts fonts = ScoreFonts.standard}) async =>
+      load(await ScoreFile.readMusicXML(path), fonts: fonts);
 
   /// Re-engraves with different text edits (the structure, and so the curation and sync, stay
   /// valid).
   Future<LoadedScore> withTextEdits(Map<String, String> edits) => withEdits(textEdits: edits);
 
-  /// Re-engraves with different text edits, pairs of players or engraving options; what isn't
-  /// given stays.
-  Future<LoadedScore> withEdits({Map<String, String>? textEdits, List<PlayerPair>? pairs, EngravingOptions? options}) =>
+  /// Re-engraves with different text edits, pairs of players, fonts or engraving options; what
+  /// isn't given stays.
+  Future<LoadedScore> withEdits(
+          {Map<String, String>? textEdits, List<PlayerPair>? pairs, ScoreFonts? fonts, EngravingOptions? options}) =>
       load(musicXML,
-          font: font,
+          fonts: fonts ?? this.fonts,
           tempo: metadata.tempo,
           textEdits: textEdits ?? this.textEdits,
           pairs: pairs ?? this.pairs,
@@ -138,11 +157,12 @@ String engineResourceDirectory() {
 
 /// Turns "time + the curation" into one frame.
 class CuratedScene {
-  CuratedScene(this.score, {RenderStyle style = const RenderStyle()}) : _style = style {
-    final frozen = FrozenZone(score.engraving, style);
+  CuratedScene(this.score, {RenderStyle style = const RenderStyle()})
+      : _style = style.copyWith(musicFontFamily: score.musicFontFamily, textFontFamily: score.textFontFamily) {
+    final frozen = FrozenZone(score.engraving, _style);
     display = ScoreDisplayList.build(
       score.engraving,
-      style,
+      _style,
       withoutKeySignatures: {
         for (final part in score.metadata.parts)
           if (part.isUnpitchedPercussion) ...part.staffNumbers,
@@ -158,7 +178,7 @@ class CuratedScene {
         _barlinesThrough[staves[k - 1]] = staves[k];
       }
     }
-    renderer = ScoreRenderer(display, style, frozen: frozen, barlinesThrough: _barlinesThrough);
+    renderer = ScoreRenderer(display, _style, frozen: frozen, barlinesThrough: _barlinesThrough);
   }
 
   /// Staff index → the next staff of the same instrument: a piano's barlines run on between them.

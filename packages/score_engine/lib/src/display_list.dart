@@ -145,7 +145,10 @@ class RenderStyle {
   final String textFontFamily;
   final double labelFontSize;
 
-  RenderStyle copyWith({double? staffSpace}) => RenderStyle(
+  /// What music glyphs a font lacks are drawn with (Verovio placed them with its metrics).
+  static const musicFontFallback = ['packages/score_engine/Bravura'];
+
+  RenderStyle copyWith({double? staffSpace, String? musicFontFamily, String? textFontFamily}) => RenderStyle(
         paper: paper,
         ink: ink,
         pointer: pointer,
@@ -153,8 +156,8 @@ class RenderStyle {
         pointerFraction: pointerFraction,
         pointerWidth: pointerWidth,
         headerWidth: headerWidth,
-        musicFontFamily: musicFontFamily,
-        textFontFamily: textFontFamily,
+        musicFontFamily: musicFontFamily ?? this.musicFontFamily,
+        textFontFamily: textFontFamily ?? this.textFontFamily,
         labelFontSize: labelFontSize,
       );
 }
@@ -294,7 +297,11 @@ class _ItemBuilder {
     final size = floats[base + Cmd.size].toDouble();
     final paragraph = _glyphs.putIfAbsent((codepoint, size), () {
       final builder = ui.ParagraphBuilder(ui.ParagraphStyle(fontFamily: style.musicFontFamily, fontSize: size))
-        ..pushStyle(ui.TextStyle(color: style.ink, fontFamily: style.musicFontFamily, fontSize: size))
+        ..pushStyle(ui.TextStyle(
+            color: style.ink,
+            fontFamily: style.musicFontFamily,
+            fontFamilyFallback: RenderStyle.musicFontFallback,
+            fontSize: size))
         ..addText(String.fromCharCode(codepoint));
       return builder.build()..layout(ui.ParagraphConstraints(width: size * 8));
     });
@@ -321,6 +328,7 @@ class _ItemBuilder {
         ..pushStyle(ui.TextStyle(
           color: style.ink,
           fontFamily: music ? style.musicFontFamily : style.textFontFamily,
+          fontFamilyFallback: music ? RenderStyle.musicFontFallback : null,
           fontSize: floats[b + Cmd.size],
           fontStyle: flags & VBFlag.italic != 0 ? ui.FontStyle.italic : ui.FontStyle.normal,
           fontWeight: flags & VBFlag.bold != 0 ? ui.FontWeight.bold : ui.FontWeight.normal,
