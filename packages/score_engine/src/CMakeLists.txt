@@ -44,6 +44,10 @@ target_include_directories(score_engine PRIVATE
   ${VEROVIO}/include/zip
   ${VEROVIO}/libmei/dist
   ${VEROVIO}/libmei/addons)
+# Verovio's stand-ins for POSIX headers (dirent.h, sys/time.h), as its own CMake adds them.
+if(WIN32)
+  target_include_directories(score_engine PRIVATE ${VEROVIO}/include/win32)
+endif()
 
 # Verovio's warnings are not ours to fix; the bridge is our code and is held to them.
 if(MSVC)
