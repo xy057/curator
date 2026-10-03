@@ -29,7 +29,7 @@ file(GLOB_RECURSE VEROVIO_SOURCES CONFIGURE_DEPENDS
   ${VEROVIO}/libmei/dist/*.cpp
   ${VEROVIO}/libmei/addons/*.cpp)
 
-add_library(score_engine SHARED verovio_bridge.cpp ${VEROVIO_SOURCES})
+add_library(score_engine SHARED verovio_bridge.cpp font_metrics.cpp ${VEROVIO_SOURCES})
 target_compile_definitions(score_engine PRIVATE VB_BUILDING_LIBRARY)
 target_include_directories(score_engine PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -49,8 +49,9 @@ target_include_directories(score_engine PRIVATE
 if(MSVC)
   target_compile_options(score_engine PRIVATE /bigobj /utf-8 /EHsc)
   set_source_files_properties(${VEROVIO_SOURCES} PROPERTIES COMPILE_OPTIONS /W0)
-  set_source_files_properties(verovio_bridge.cpp PROPERTIES COMPILE_OPTIONS /W3)
+  set_source_files_properties(verovio_bridge.cpp font_metrics.cpp PROPERTIES COMPILE_OPTIONS /W3)
 else()
   set_source_files_properties(${VEROVIO_SOURCES} PROPERTIES COMPILE_OPTIONS -w)
-  set_source_files_properties(verovio_bridge.cpp PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Wno-unused-parameter")
+  set_source_files_properties(verovio_bridge.cpp font_metrics.cpp PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Wno-unused-parameter")
 endif()
+

@@ -21,6 +21,7 @@ class EditState {
     required this.pairs,
     required this.partOrder,
     this.patches = const [],
+    this.fonts = ScoreFonts.standard,
   });
 
   final Map<String, List<Region>> lanes;
@@ -36,6 +37,7 @@ class EditState {
   final List<PlayerPair> pairs;
   final List<String> partOrder;
   final List<ImagePatch> patches;
+  final ScoreFonts fonts;
 
   @override
   bool operator ==(Object other) =>
@@ -50,7 +52,8 @@ class EditState {
       setEquals(condensed, other.condensed) &&
       listEquals(pairs, other.pairs) &&
       listEquals(partOrder, other.partOrder) &&
-      listEquals(patches, other.patches);
+      listEquals(patches, other.patches) &&
+      fonts == other.fonts;
 
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes.length, anchors.length, partNames.length, textEdits.length);

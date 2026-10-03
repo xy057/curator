@@ -10,6 +10,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'app_extensions.dart';
@@ -23,6 +24,7 @@ import 'edit_dialogs.dart';
 import 'editor_toolbar.dart';
 import 'error_text.dart';
 import 'export_dialog.dart';
+import 'fonts_dialog.dart';
 import 'home_screen.dart';
 import 'media_converter.dart';
 import 'project_document.dart';
@@ -39,6 +41,7 @@ Future<void> main() async {
   // Clear out what earlier runs left behind (a crash can't clean up after itself).
   final keep = ScratchSpace.session.path;
   unawaited(Isolate.run(() => ScratchSpace.sweep(keep: keep)).catchError((_) {}));
+  FontResources.workDirectory = ScratchSpace.folder('fonts').path; // metrics of fonts not bundled
   final settings = await AppSettings.load();
   final updater = Updater();
   if (settings.checkForUpdates) unawaited(updater.check());
@@ -448,6 +451,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   void _editTexts() => showTextsDialog(context, controller);
   void _condensing() => showCondensingDialog(context, controller);
+  void _fonts() => showFontsDialog(context, controller);
   void _addRecording() => pickAudio(context, controller);
 
   /// File ▸ Export Video… (⌘E): offers the project's (or the score's) name for the video.
@@ -476,6 +480,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         onClose: _hasScore.value ? _close : null,
         onEditTexts: _hasScore.value ? _editTexts : null,
         onCondensing: _hasScore.value ? _condensing : null,
+        onFonts: _hasScore.value ? _fonts : null,
         onAddRecording: _hasScore.value ? _addRecording : null,
         onExportVideo: _hasScore.value ? _exportVideo : null,
         child: page!,

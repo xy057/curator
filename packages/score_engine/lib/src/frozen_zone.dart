@@ -308,7 +308,11 @@ class FrozenZone {
   ui.Paragraph _paragraph(String text) => _glyphs.putIfAbsent(text, () {
         final size = 4 * style.staffSpace; // SMuFL: one em is four staff spaces
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(fontFamily: style.musicFontFamily, fontSize: size))
-          ..pushStyle(ui.TextStyle(color: style.ink, fontFamily: style.musicFontFamily, fontSize: size))
+          ..pushStyle(ui.TextStyle(
+              color: style.ink,
+              fontFamily: style.musicFontFamily,
+              fontFamilyFallback: RenderStyle.musicFontFallback,
+              fontSize: size))
           ..addText(text);
         return builder.build()..layout(ui.ParagraphConstraints(width: size * 4));
       });

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'engraving.dart';
+import 'score_fonts.dart';
 
 /// What kind of value an [EngraveOption] takes.
 enum EngraveOptionKind { number, integer, toggle, choice }
@@ -199,7 +199,7 @@ class EngravingOptions {
   /// so the house style lives in [EngraveOption.all] alone.
   String verovioJson(MusicFont font) {
     final smufl = <String, Object>{...font.engravingDefaults};
-    final options = <String, Object>{'font': font.family, 'fontFallback': 'Bravura'};
+    final options = <String, Object>{'font': font.name, 'fontFallback': 'Bravura'};
     for (final option in EngraveOption.all) {
       final name = option.smuflKey;
       if (name == null) {

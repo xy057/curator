@@ -186,6 +186,14 @@ VB_API const char *vb_source_id(const VBEngraver *engraver, int32_t index);
 VB_API int32_t vb_signature_count(const VBEngraver *engraver);
 VB_API const VBSignature *vb_signatures(const VBEngraver *engraver);
 
+// Fonts (font_metrics.cpp, with stb_truetype).
+
+/// Measures [count] characters (Unicode scalars) of face [face] of the font file at [path]
+/// (0 but in a collection, .ttc). For each, 5 floats in [out]: its ink box x, y (y up), width,
+/// height and its advance, in font units; an advance of -1 when the font lacks it. Returns the
+/// font's units per em, or 0 when it can't be read.
+VB_API int32_t vb_measure_font(const char *path, int32_t face, const uint32_t *codes, int32_t count, float *out);
+
 #ifdef __cplusplus
 }
 #endif

@@ -112,7 +112,7 @@ class EditorController extends ChangeNotifier {
     String? mediaPath,
     String? mediaOriginal,
   }) async {
-    final score = await _engrave(scoreBytes, textEdits: state.textEdits, pairs: state.pairs);
+    final score = await _engrave(scoreBytes, textEdits: state.textEdits, pairs: state.pairs, fonts: state.fonts);
     final arts = await ImageEditing._decodeAll(state.images);
     await _install(name, scoreBytes, score, state, arts: arts);
     if (mediaPath == null) return null;
@@ -129,12 +129,14 @@ class EditorController extends ChangeNotifier {
 
   /// Engraves a score (the slow part, and the one that can fail) without touching what is open.
   Future<LoadedScore> _engrave(Uint8List bytes,
-      {Map<String, String> textEdits = const {}, List<PlayerPair> pairs = const []}) async {
+      {Map<String, String> textEdits = const {},
+      List<PlayerPair> pairs = const [],
+      ScoreFonts fonts = ScoreFonts.standard}) async {
     _loading = true;
     notifyListeners();
     try {
       return await LoadedScore.load(ScoreFile.decodeMusicXML(bytes),
-          textEdits: textEdits, pairs: pairs, options: _engravingOptions);
+          textEdits: textEdits, pairs: pairs, fonts: fonts, options: _engravingOptions);
     } finally {
       _loading = false;
       if (!_disposed) notifyListeners();
@@ -159,6 +161,8 @@ class EditorController extends ChangeNotifier {
     _pairs = List.unmodifiable({for (final p in state.pairs) ?score.condensing.pair(p.first, p.second)});
     _condensed = Set.unmodifiable({for (final g in condensable) if (state.condensed.contains(g.id)) g.id});
     _partOrder = CuratedScene.orderedPartIds(score.metadata.parts, state.partOrder);
+    _fonts = state.fonts;
+    if (!_fonts.music.isBundled && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
     images._load(state.patches, state.images, arts);
     _midi = state.midi;
     _tapped = state.midi != null ? state.anchors : const [];
@@ -220,6 +224,7 @@ class EditorController extends ChangeNotifier {
     _condensed = const {};
     _pairs = const [];
     _partOrder = const [];
+    _fonts = ScoreFonts.standard;
     _tab = BottomTab.instruments;
   }
 
@@ -321,7 +326,7 @@ class EditorController extends ChangeNotifier {
     _reengraving = true;
     notifyListeners();
     try {
-      final edited = await score.withEdits(textEdits: _textEdits, pairs: _pairs, options: _engravingOptions);
+      final edited = await score.withEdits(textEdits: _textEdits, pairs: _pairs, fonts: _fonts, options: _engravingOptions);
       if (generation != _textGeneration) return; // superseded, or another score was opened
       _score = edited;
       _scene?.dispose();
@@ -346,6 +351,30 @@ class EditorController extends ChangeNotifier {
 
   /// A text as it reads with the edits made so far.
   String currentText(ScoreText text) => _textEdits[text.id] ?? text.text;
+
+  // MARK: Fonts
+
+  ScoreFonts _fonts = ScoreFonts.standard;
+
+  /// The music and text fonts the score is engraved in (Score ▸ Fonts…). The engraving
+  /// catches up a moment later ([isReengraving]).
+  ScoreFonts get fonts => _fonts;
+
+  /// Music fonts the user added in this session, or that came with a project: offered beside
+  /// the bundled ones.
+  List<MusicFont> get addedFonts => _addedFonts;
+  List<MusicFont> _addedFonts = const [];
+
+  /// Engraves the score in [fonts]: one Undo step. The future completes when it is engraved.
+  Future<void> setFonts(ScoreFonts fonts) async {
+    if (_score == null || fonts == _fonts) return;
+    if (!fonts.music.isBundled && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
+    _fonts = fonts;
+    final engraved = _reengrave();
+    _edited(); // one Undo step, right away
+    notifyListeners();
+    await engraved;
+  }
 
   // MARK: Condensing
 
@@ -653,6 +682,7 @@ class EditorController extends ChangeNotifier {
         pairs: _pairs,
         partOrder: _partOrder,
         patches: images._patches,
+        fonts: _fonts,
       );
 
   /// How many steps Undo can go back.
@@ -698,9 +728,11 @@ class EditorController extends ChangeNotifier {
     if (state == null || _score == null) return;
     _restoring = true;
     try {
-      final reengrave = !mapEquals(state.textEdits, _textEdits) || !listEquals(state.pairs, _pairs);
+      final reengrave =
+          !mapEquals(state.textEdits, _textEdits) || !listEquals(state.pairs, _pairs) || state.fonts != _fonts;
       _textEdits = state.textEdits;
       _pairs = state.pairs;
+      _fonts = state.fonts;
       _condensed = state.condensed;
       _scene?.condensed = _condensed;
       if (reengrave) unawaited(_reengrave());
@@ -750,6 +782,7 @@ class EditorController extends ChangeNotifier {
         partOrder: isScoreOrder ? const [] : _partOrder,
         patches: images._patches,
         images: images._used,
+        fonts: _fonts,
         view: ViewState(
           staffSpace: _staffSpace,
           grid: anchors.grid,

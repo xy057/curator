@@ -29,7 +29,9 @@ Future<void> loadTestFonts() async {
   await _font('Roboto', roboto);
   await _font('FlutterTest', roboto); // what a TextStyle without a family resolves to in tests
   await _font('MaterialIcons', ['$_materialFonts/MaterialIcons-Regular.otf']);
-  await _font('packages/score_engine/Bravura', ['../packages/score_engine/assets/fonts/Bravura.otf']);
+  for (final f in ['Bravura.otf', 'Leland.otf', 'Petaluma.otf', 'Leipzig.ttf', 'Gootville.otf']) {
+    await _font('packages/score_engine/${f.split('.').first}', ['../packages/score_engine/assets/fonts/$f']);
+  }
   await _font('packages/score_engine/Academico',
       [for (final s in ['Regular', 'Italic', 'Bold', 'BoldItalic']) '../packages/score_engine/assets/fonts/Academico-$s.otf']);
 }

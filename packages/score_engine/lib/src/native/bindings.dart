@@ -167,3 +167,7 @@ external Pointer<VBSignature> vb_signatures(Pointer<VBEngraver> engraver);
 external int vb_source_id_count(Pointer<VBEngraver> engraver);
 @Native<Pointer<Utf8> Function(Pointer<VBEngraver>, Int32)>()
 external Pointer<Utf8> vb_source_id(Pointer<VBEngraver> engraver, int index);
+
+// Fonts (font_metrics.cpp, with stb_truetype).
+@Native<Int32 Function(Pointer<Utf8>, Int32, Pointer<Uint32>, Int32, Pointer<Float>)>()
+external int vb_measure_font(Pointer<Utf8> path, int face, Pointer<Uint32> codes, int count, Pointer<Float> out);

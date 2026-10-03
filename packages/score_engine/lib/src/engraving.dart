@@ -8,30 +8,7 @@ import 'package:ffi/ffi.dart';
 
 import 'engraving_options.dart';
 import 'native/bindings.dart';
-
-/// SMuFL fonts bundled with the engine. Verovio lays out with the font's metrics and
-/// the renderer draws the same font file, so engraving and drawing always agree. Adding one
-/// means its OTF (pubspec fonts), its Verovio metrics (`assets/verovio/Name.xml`) and its
-/// engraving defaults here.
-enum MusicFont {
-  bravura('Bravura', {
-    // From bravura_metadata.json: Steinberg's own values, the ones Dorico engraves with.
-    'staffLineThickness': 0.13, 'stemThickness': 0.12, 'legerLineThickness': 0.16,
-    'legerLineExtension': 0.4, 'slurEndpointThickness': 0.1, 'slurMidpointThickness': 0.22,
-    'tieEndpointThickness': 0.1, 'tieMidpointThickness': 0.22, 'thinBarlineThickness': 0.16,
-    'thickBarlineThickness': 0.5, 'barlineSeparation': 0.4, 'repeatBarlineDotSeparation': 0.16,
-    'dashedBarlineDashLength': 0.5, 'dashedBarlineGapLength': 0.25, 'bracketThickness': 0.5,
-    'subBracketThickness': 0.16, 'hairpinThickness': 0.16, 'octaveLineThickness': 0.16,
-    'pedalLineThickness': 0.16, 'repeatEndingLineThickness': 0.16, 'lyricLineThickness': 0.16,
-    'tupletBracketThickness': 0.16, 'textEnclosureThickness': 0.16, 'hBarThickness': 1.0,
-  });
-
-  const MusicFont(this.family, this.engravingDefaults);
-  final String family;
-
-  /// SMuFL engraving defaults (staff spaces) published with the font.
-  final Map<String, double> engravingDefaults;
-}
+import 'score_fonts.dart';
 
 class EngraveException implements Exception {
   EngraveException(this.message);

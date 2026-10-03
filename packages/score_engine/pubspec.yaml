@@ -26,9 +26,23 @@ flutter:
     - assets/verovio/
     - assets/verovio/text/
   fonts:
+    # SMuFL music fonts (SIL OFL 1.1, see assets/fonts/*-OFL.txt); Verovio's metrics for each
+    # are assets/verovio/<family>.xml.
     - family: Bravura
       fonts:
         - asset: assets/fonts/Bravura.otf
+    - family: Leland
+      fonts:
+        - asset: assets/fonts/Leland.otf
+    - family: Petaluma
+      fonts:
+        - asset: assets/fonts/Petaluma.otf
+    - family: Leipzig
+      fonts:
+        - asset: assets/fonts/Leipzig.ttf
+    - family: Gootville
+      fonts:
+        - asset: assets/fonts/Gootville.otf
     # Bravura's companion text font (SIL OFL 1.1, see assets/fonts/Academico-OFL.txt).
     - family: Academico
       fonts:

@@ -120,11 +120,36 @@ void main() {
     expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 4).partOrder, isEmpty);
   });
 
+  test('a project keeps its fonts, and an added music font travels inside it', () async {
+    final leland = File('../packages/score_engine/assets/fonts/Leland.otf').readAsBytesSync();
+    final added = MusicFont.added(family: 'My Leland', file: leland, metadata: utf8.encode('{"fontName": "My Leland"}'));
+    final path = '${dir.path}/fonts.ccs';
+    await ProjectFile.write(
+        path,
+        ProjectContents(
+          scoreName: 'Score.musicxml',
+          scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
+          state: ProjectState(fonts: ScoreFonts(music: added, text: 'Helvetica')),
+        ));
+    final archive = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
+    expect(archive.findFile('fonts/My Leland.font')!.content, leland);
+    expect(archive.findFile('fonts/My Leland.json'), isNotNull);
+    final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
+    expect(opened.state.fonts, ScoreFonts(music: added, text: 'Helvetica'));
+
+    final bundled = jsonDecode(jsonEncode(const ProjectState(fonts: ScoreFonts(music: MusicFont.petaluma)).toJson()));
+    expect(bundled['fonts'], {'music': 'Petaluma'}, reason: 'a bundled font is saved by name only');
+    expect(ProjectState.fromJson(bundled as Map<String, Object?>).fonts, const ScoreFonts(music: MusicFont.petaluma));
+    expect(const ProjectState().toJson().containsKey('fonts'), isFalse);
+    expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 8).fonts, ScoreFonts.standard);
+    expect(() => ProjectState.fromJson({'fonts': {'music': 'Gone'}}), throwsA(isA<FormatException>()));
+  });
+
   test('a project from before condensing opens with nothing condensed', () {
     final state = ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 1);
     expect(state.condensed, isEmpty);
     expect(state.pairs, isEmpty);
-    expect(ProjectState.version, 8);
+    expect(ProjectState.version, 9);
     expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).pairs, isEmpty);
   });
 
