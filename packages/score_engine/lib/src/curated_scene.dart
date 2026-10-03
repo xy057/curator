@@ -95,10 +95,12 @@ class LoadedScore {
     final metadata = ScoreMetadata.fromDocument(doc);
     final prepared = PreparedScore.prepare(doc, textEdits, metadata: metadata, pairs: pairs);
     final base = resourceDirectory ?? engineResourceDirectory(), work = FontResources.workDirectory;
+    final textFaces = fonts.text == TextFonts.academico ? null : await TextFonts.faces(fonts.text);
     final resources = fonts == ScoreFonts.standard
         ? (directory: base, textFound: true)
-        : await Isolate.run(() => FontResources.prepare(fonts, base: base, work: work));
+        : await Isolate.run(() => FontResources.prepare(fonts, base: base, work: work, textFaces: textFaces));
     await fonts.music.load();
+    if (textFaces != null) await TextFonts.load(fonts.text, textFaces);
     final engraving = await Engraver.engrave(
       prepared.musicXML,
       resourceDirectory: resources.directory,

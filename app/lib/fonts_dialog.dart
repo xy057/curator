@@ -24,14 +24,14 @@ class _FontsDialog extends StatefulWidget {
 }
 
 /// A music font offered: one ready to use, one installed (read when chosen), or a file to pick.
-typedef _MusicChoice = ({String name, MusicFont? font, ({String file, String metadata})? installed});
+typedef _MusicChoice = ({String name, MusicFont? font, ({FontFace face, String metadata})? installed});
 
 class _FontsDialogState extends State<_FontsDialog> {
   EditorController get c => widget.controller;
 
-  // Looked up once a dialog: the fonts on this computer.
-  final _installedMusic = MusicFont.installed();
-  final _installedText = TextFonts.installed();
+  // The fonts on this computer (read once an app run, shown when known).
+  var _installedMusic = const <({String name, FontFace face, String metadata})>[];
+  var _installedText = const <String>[];
   String? _error;
 
   static const _other = '\u0000other';
@@ -44,7 +44,7 @@ class _FontsDialogState extends State<_FontsDialog> {
         (
           name: i.name,
           font: c.addedFonts.where((f) => f.name == i.name).firstOrNull,
-          installed: (file: i.file, metadata: i.metadata),
+          installed: (face: i.face, metadata: i.metadata),
         ),
       for (final f in added) (name: f.name, font: f, installed: null),
     ];
@@ -62,11 +62,22 @@ class _FontsDialogState extends State<_FontsDialog> {
         return;
       }
       final choice = _musicChoices.firstWhere((m) => m.name == name);
-      final font = choice.font ?? await MusicFont.read(choice.installed!.file, metadataPath: choice.installed!.metadata);
+      final font = choice.font ?? await MusicFont.readFace(choice.installed!.face, metadataPath: choice.installed!.metadata);
       await c.setFonts(c.fonts.copyWith(music: font));
     } catch (e) {
       if (mounted) setState(() => _error = describeError(e));
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    MusicFont.installed().then((fonts) {
+      if (mounted) setState(() => _installedMusic = fonts);
+    });
+    TextFonts.installed().then((families) {
+      if (mounted) setState(() => _installedText = families);
+    });
   }
 
   @override
@@ -117,22 +128,14 @@ class _FontsDialogState extends State<_FontsDialog> {
                 row(
                   'Text',
                   DropdownMenu<String>(
-                    key: ValueKey(fonts.text), // shows an Undo's font
+                    key: ValueKey((fonts.text, texts.length)), // shows an Undo's font, and the list once read
                     expandedInsets: EdgeInsets.zero,
                     initialSelection: fonts.text,
                     enableFilter: true,
                     requestFocusOnTap: true,
                     menuHeight: 320,
                     errorText: missing,
-                    textStyle: TextStyle(fontFamily: TextFonts.familyOf(fonts.text)),
-                    dropdownMenuEntries: [
-                      for (final f in texts)
-                        DropdownMenuEntry(
-                          value: f,
-                          label: f,
-                          style: MenuItemButton.styleFrom(textStyle: TextStyle(fontFamily: TextFonts.familyOf(f))),
-                        ),
-                    ],
+                    dropdownMenuEntries: [for (final f in texts) DropdownMenuEntry(value: f, label: f)],
                     onSelected: (f) {
                       if (f != null) c.setFonts(fonts.copyWith(text: f));
                     },

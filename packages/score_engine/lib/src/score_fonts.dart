@@ -7,6 +7,7 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
+import 'font_files.dart';
 import 'native/bindings.dart';
 
 /// A SMuFL music font: one of the bundled ones, or one the user added (its file kept with the
@@ -54,44 +55,44 @@ class MusicFont {
     return MusicFont._added(name, file, metadata, Map.unmodifiable(defaults), _fnv(file) ^ _fnv(metadata ?? Uint8List(0)));
   }
 
-  /// Reads the font file at [path] and finds its SMuFL metadata: [metadataPath], else a
-  /// `*metadata*.json` beside it, else in a SMuFL folder
-  /// (`Library/Application Support/SMuFL/Fonts/<family>/`). Throws a [FormatException] when it isn't a font.
+  /// Reads the font file at [path] (its first face) and finds its SMuFL metadata: as for
+  /// [readFace]. Throws a [FormatException] when it isn't a font.
   static Future<MusicFont> read(String path, {String? metadataPath}) async {
-    final family = using((arena) => vb_font_file_family(path.toNativeUtf8(allocator: arena)).toDartString());
-    if (family.isEmpty) throw const FormatException('Not a font.');
-    metadataPath ??= _metadataBeside(path) ?? _smuflFolders.map((dir) => _metadataIn('$dir/$family')).nonNulls.firstOrNull;
+    final face = FontFiles.faces(path).firstOrNull ?? (throw const FormatException('Not a font.'));
+    return readFace(face, metadataPath: metadataPath);
+  }
+
+  /// Reads [face] and its SMuFL metadata: [metadataPath], else a `*metadata*.json` beside the
+  /// font, else in a SMuFL folder (`<folder>/<family>/`, see [FontFiles.smuflFolders]).
+  static Future<MusicFont> readFace(FontFace face, {String? metadataPath}) async {
+    metadataPath ??= _metadataIn(File(face.path).parent.path) ??
+        FontFiles.smuflFolders.map((dir) => _metadataIn('$dir${Platform.pathSeparator}${face.family}')).nonNulls.firstOrNull;
     return MusicFont.added(
-      family: family,
-      file: await File(path).readAsBytes(),
+      family: face.family,
+      file: FontFiles.faceBytes(face),
       metadata: metadataPath == null ? null : await File(metadataPath).readAsBytes(),
     );
   }
 
   /// SMuFL fonts installed on this computer besides the bundled ones: each with metadata in a
   /// SMuFL folder and its font installed. Sorted by name.
-  static List<({String name, String file, String metadata})> installed() {
-    final found = <String, ({String name, String file, String metadata})>{};
-    for (final root in _smuflFolders) {
+  static Future<List<({String name, FontFace face, String metadata})>> installed() async {
+    final fonts = await FontFiles.installed;
+    final found = <String, ({String name, FontFace face, String metadata})>{};
+    for (final root in FontFiles.smuflFolders) {
       final dir = Directory(root);
       if (!dir.existsSync()) continue;
       for (final folder in dir.listSync().whereType<Directory>()) {
         final name = folder.path.split(Platform.pathSeparator).last;
         final metadata = _metadataIn(folder.path);
         if (metadata == null || found.containsKey(name) || bundled.any((f) => f.name == name)) continue;
-        final file = using((arena) => vb_font_family_file(name.toNativeUtf8(allocator: arena)).toDartString());
-        if (file.isNotEmpty) found[name] = (name: name, file: file, metadata: metadata);
+        if (FontFiles.pick(fonts[name] ?? const [], bold: false, italic: false) case final face?) {
+          found[name] = (name: name, face: face, metadata: metadata);
+        }
       }
     }
     return found.values.toList()..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
-
-  static List<String> get _smuflFolders => [
-        if (Platform.environment['HOME'] case final home?) '$home/Library/Application Support/SMuFL/Fonts',
-        '/Library/Application Support/SMuFL/Fonts',
-      ];
-
-  static String? _metadataBeside(String fontPath) => _metadataIn(File(fontPath).parent.path);
 
   static String? _metadataIn(String folder) {
     final dir = Directory(folder);
@@ -216,18 +217,40 @@ class MusicFont {
 }
 
 /// Text fonts (tempo marks, expressions, instrument names): Academico, which the app ships, or
-/// any font family installed on the computer, by name.
+/// any font family installed on the computer, by name. An installed one is drawn from the very
+/// files it was measured from ([load]), registered under a family of the app's own, so drawing
+/// matches the engraving on every platform.
 abstract final class TextFonts {
   static const academico = 'Academico';
 
   /// The family the renderer draws [name] with.
-  static String familyOf(String name) => name == academico ? 'packages/score_engine/$academico' : name;
+  static String familyOf(String name) => name == academico ? 'packages/score_engine/$academico' : 'Curator text $name';
 
-  /// The font families installed on this computer, sorted (none off macOS).
-  static List<String> installed() {
-    final names = vb_font_families().toDartString().split('\n').where((n) => n.isNotEmpty).toSet().toList();
-    return names..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  /// The font families installed on this computer, sorted.
+  static Future<List<String>> installed() async =>
+      (await FontFiles.installed).keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+  /// The faces an installed [family] is drawn with, for each of Verovio's text styles
+  /// (`Times`, `Times-bold`…): the nearest it has. Null when it isn't installed.
+  static Future<Map<String, FontFace>?> faces(String family) async {
+    final faces = (await FontFiles.installed)[family];
+    if (faces == null || faces.isEmpty) return null;
+    return {
+      for (final MapEntry(key: file, value: style) in FontResources._textStyles.entries)
+        file: FontFiles.pick(faces, bold: style.bold, italic: style.italic)!,
+    };
   }
+
+  /// Makes [family] drawable with [faces] (each once).
+  static Future<void> load(String family, Map<String, FontFace> faces) async {
+    for (final face in faces.values.toSet()) {
+      if (_loaded.add('${familyOf(family)}|${face.path}|${face.index}')) {
+        await ui.loadFontFromList(FontFiles.faceBytes(face), fontFamily: familyOf(family));
+      }
+    }
+  }
+
+  static final _loaded = <String>{};
 }
 
 /// The fonts a score is engraved and drawn with.
@@ -274,11 +297,14 @@ abstract final class FontResources {
   /// The folder to engrave [fonts] with, given the bundled one ([base]). [textFound] is false
   /// when the text font isn't installed: Academico's metrics stand in. Measures fonts, so run
   /// it off the UI isolate.
-  static ({String directory, bool textFound}) prepare(ScoreFonts fonts, {required String base, String? work}) {
+  static ({String directory, bool textFound}) prepare(ScoreFonts fonts,
+      {required String base, String? work, Map<String, FontFace>? textFaces}) {
     final music = fonts.music, text = fonts.text;
     if (music.isBundled && text == TextFonts.academico) return (directory: base, textFound: true);
     work ??= workDirectory ?? '${Directory.systemTemp.path}/curated-score-fonts';
-    final key = MusicFont._fnv(utf8.encode('${music.name}|${music._digest}|$text|$base'));
+    final faces = text == TextFonts.academico ? null : textFaces;
+    final key = MusicFont._fnv(utf8.encode(
+        '${music.name}|${music._digest}|$text|$base|${[for (final f in (faces ?? const {}).values) '${f.path}:${f.index}']}'));
     final dir = Directory('$work/fonts-${key.toRadixString(16)}');
     final done = File('${dir.path}/.done');
     if (done.existsSync()) return (directory: dir.path, textFound: done.readAsStringSync() == 'text');
@@ -301,9 +327,8 @@ abstract final class FontResources {
       }
       final reference = File('$base/text/Times.xml').readAsStringSync();
       final measured = {
-        if (text != TextFonts.academico)
-          for (final MapEntry(key: file, value: style) in _textStyles.entries)
-            file: textMetrics(text, bold: style.bold, italic: style.italic, reference: reference),
+        if (faces != null)
+          for (final file in _textStyles.keys) file: textMetrics(faces[file]!, reference: reference),
       };
       textFound = text == TextFonts.academico || measured['Times'] != null;
       for (final file in _textStyles.keys) {
@@ -326,15 +351,15 @@ abstract final class FontResources {
     return (directory: dir.path, textFound: textFound);
   }
 
-  /// Verovio text metrics (`text/Times*.xml`) for an installed [family], for the characters
-  /// the [reference] file has (its `c` is each character's UTF-8 bytes, in hex); null when the
-  /// family isn't installed.
-  static String? textMetrics(String family, {required bool bold, required bool italic, required String reference}) {
+  /// Verovio text metrics (`text/Times*.xml`) for a font [face], for the characters the
+  /// [reference] file has (its `c` is each character's UTF-8 bytes, in hex); null when the
+  /// face can't be read.
+  static String? textMetrics(FontFace face, {required String reference}) {
     final codes = [
       for (final m in RegExp(r'<g c="([0-9A-Fa-f]+)"').allMatches(reference)) m.group(1)!,
     ];
     final chars = [for (final c in codes) _utf8Char(c)];
-    final measured = _measure(family, isFile: false, bold: bold, italic: italic, codes: [for (final c in chars) c ?? 0]);
+    final measured = _measure(face.path, face.index, codes: [for (final c in chars) c ?? 0]);
     if (measured == null) return null;
     final out = StringBuffer('<?xml version="1.0" encoding="UTF-8"?>\n<bounding-boxes font-family="Times" units-per-em="${measured.upm}">\n');
     for (final (i, c) in codes.indexed) {
@@ -352,7 +377,7 @@ abstract final class FontResources {
   static String? smuflMetrics(MusicFont font, String path, {required String bravura}) {
     final glyphs = XmlDocument.parse(bravura).rootElement.findElements('g').toList();
     final codes = [for (final g in glyphs) int.tryParse(g.getAttribute('c') ?? '', radix: 16) ?? 0];
-    final measured = _measure(path, isFile: true, bold: false, italic: false, codes: codes);
+    final measured = _measure(path, 0, codes: codes);
     if (measured == null) return null;
     final anchors = switch (font.metadata) {
       null => const <String, Object?>{},
@@ -397,15 +422,15 @@ abstract final class FontResources {
     }
   }
 
-  static ({int upm, List<({double x, double y, double w, double h, double advance})?> glyphs})? _measure(String font,
-          {required bool isFile, required bool bold, required bool italic, required List<int> codes}) =>
+  static ({int upm, List<({double x, double y, double w, double h, double advance})?> glyphs})? _measure(String path, int face,
+          {required List<int> codes}) =>
       using((arena) {
         final codePointer = arena<Uint32>(codes.length);
         for (final (i, c) in codes.indexed) {
           codePointer[i] = c;
         }
         final out = arena<Float>(codes.length * 5);
-        final upm = vb_measure_font(font.toNativeUtf8(allocator: arena), isFile, bold, italic, codePointer, codes.length, out);
+        final upm = vb_measure_font(path.toNativeUtf8(allocator: arena), face, codePointer, codes.length, out);
         if (upm <= 0) return null;
         return (
           upm: upm,

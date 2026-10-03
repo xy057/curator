@@ -72,16 +72,54 @@ void main() {
     expect(MusicFont.added(family: 'Other', file: bytes), MusicFont.added(family: 'Other', file: bytes));
   });
 
-  test('measures installed text fonts, and knows when one is missing', () {
-    expect(TextFonts.installed(), contains('Helvetica'));
-    final helvetica = boxes(FontResources.textMetrics('Helvetica', bold: false, italic: false, reference: times)!);
-    final bold = boxes(FontResources.textMetrics('Helvetica', bold: true, italic: false, reference: times)!);
-    final academico = boxes(times);
-    expect(helvetica.keys, containsAll(['41', '61', '20']));
-    expect(helvetica['6D']![4], isNot(academico['6D']![4]), reason: 'its own widths');
-    expect(bold['6D']![4], greaterThan(helvetica['6D']![4]), reason: 'bold is wider');
-    expect(FontResources.textMetrics('No Such Font 12345', bold: false, italic: false, reference: times), isNull);
+  test('reads which family, weight and slant a font file is, and picks the nearest face', () {
+    final faces = [
+      for (final style in ['Regular', 'Bold', 'Italic', 'BoldItalic']) ...FontFiles.faces('assets/fonts/Academico-$style.otf'),
+    ];
+    expect(faces.map((f) => f.family).toSet(), {'Academico'});
+    expect([for (final f in faces) (f.weight, f.italic)], [(400, false), (700, false), (400, true), (700, true)]);
+    expect(FontFiles.pick(faces, bold: true, italic: true)!.path, endsWith('BoldItalic.otf'));
+    expect(FontFiles.pick(faces.take(1), bold: true, italic: false)!.path, endsWith('Regular.otf'), reason: 'the nearest it has');
+    expect(FontFiles.faces('assets/verovio/Bravura.xml'), isEmpty, reason: 'not a font');
+
+    final dir = Directory.systemTemp.createTempSync('font-folder');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    File('assets/fonts/Leland.otf').copySync('${dir.path}/Leland.otf');
+    Directory('${dir.path}/sub').createSync();
+    File('assets/fonts/Academico-Bold.otf').copySync('${dir.path}/sub/Academico-Bold.otf');
+    expect(FontFiles.scan([dir.path]).keys.toSet(), {'Leland', 'Academico'});
   });
+
+  test('measures a text font from its file', () {
+    final bold = (path: 'assets/fonts/Academico-Bold.otf', index: 0, family: 'Academico', weight: 700, italic: false);
+    final ours = boxes(FontResources.textMetrics(bold, reference: times)!);
+    final tool = boxes(File('assets/verovio/text/Times-bold.xml').readAsStringSync());
+    expect(ours.keys.toSet(), tool.keys.toSet());
+    for (final c in ['41', '6D', '20', 'C3A9']) {
+      for (var i = 0; i < 5; i++) {
+        expect(ours[c]![i], closeTo(tool[c]![i], 1.5), reason: 'as make_text_metrics.swift measured $c with CoreText');
+      }
+    }
+    expect(FontResources.textMetrics((path: 'missing.otf', index: 0, family: 'x', weight: 400, italic: false), reference: times),
+        isNull);
+  });
+
+  test('finds installed text fonts, a face of a collection among them', () async {
+    expect(await TextFonts.installed(), contains('Helvetica'));
+    final faces = (await TextFonts.faces('Helvetica'))!;
+    expect(faces['Times-bold']!.weight, 700);
+    expect(faces['Times-bold']!.index, isNot(faces['Times']!.index), reason: 'Helvetica.ttc holds them all');
+    final regular = boxes(FontResources.textMetrics(faces['Times']!, reference: times)!);
+    final bold = boxes(FontResources.textMetrics(faces['Times-bold']!, reference: times)!);
+    expect(bold['6D']![4], greaterThan(regular['6D']![4]), reason: 'bold is wider');
+    // Copied out of the collection, the face is a font of its own: Flutter loads only first faces.
+    final dir = Directory.systemTemp.createTempSync('face');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final copy = File('${dir.path}/bold.otf')..writeAsBytesSync(FontFiles.faceBytes(faces['Times-bold']!));
+    expect(FontFiles.faces(copy.path).single.weight, 700);
+    expect(boxes(FontResources.textMetrics(FontFiles.faces(copy.path).single, reference: times)!), bold);
+    expect(await TextFonts.faces('No Such Font 12345'), isNull);
+  }, skip: Platform.isMacOS ? false : 'uses Helvetica, a macOS font');
 
   test('engraves and draws in another music font and text font', () async {
     final standard = await LoadedScore.load(demoScore());
@@ -90,16 +128,16 @@ void main() {
     expect(leland.fonts.music, MusicFont.leland);
     expect(leland.textFontFound, isTrue);
     expect(leland.musicFontFamily, 'packages/score_engine/Leland');
-    expect(leland.textFontFamily, 'Helvetica');
+    expect(leland.textFontFamily, 'Curator text Helvetica');
     expect(leland.engraving.staves.length, standard.engraving.staves.length);
     expect(leland.engraving.measures.length, standard.engraving.measures.length);
     expect(leland.engraving.width, isNot(standard.engraving.width), reason: 'other glyphs, other spacing');
 
     final scene = CuratedScene(leland);
     expect(scene.style.musicFontFamily, 'packages/score_engine/Leland');
-    expect(scene.style.textFontFamily, 'Helvetica');
+    expect(scene.style.textFontFamily, 'Curator text Helvetica');
     scene.dispose();
-  });
+  }, skip: Platform.isMacOS ? false : 'uses Helvetica, a macOS font');
 
   test('a text font not installed falls back to Academico', () async {
     final score = await LoadedScore.load(demoScore(), fonts: const ScoreFonts(text: 'No Such Font 12345'));

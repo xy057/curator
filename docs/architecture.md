@@ -22,7 +22,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready) and `CuratedScene`: one frame is `paint(time)` |
-| `score_fonts.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; Verovio's metrics for them, measured with CoreText (`FontResources`) |
+| `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
 
 **`app/`** is the editor around it:
@@ -240,14 +240,20 @@ the renderer draws. A project chooses its fonts (Score ▸ Fonts…, `ScoreFonts
 Music: a bundled SMuFL font (Bravura, Leland, Petaluma, Leipzig, Gootville: each an OTF in
 pubspec and Verovio's own metrics in `assets/verovio/<Name>.xml`; Leipzig's are there anyway
 because Verovio always loads them), one installed with SMuFL metadata
-(`Library/Application Support/SMuFL/Fonts/<name>/`), or a file the user picks (`MusicFont.added`:
+(in a SMuFL folder, where the specification puts them on each platform: `FontFiles.smuflFolders`), or a file the user picks (`MusicFont.added`:
 travels in the project as `fonts/<name>.font` and `.json`; registered for drawing by `load`).
 Text: Academico (metrics written under Verovio's `Times*` names by
-`Tools/make_text_metrics.swift`) or any installed family. Verovio reads every font's metrics
+`Tools/make_text_metrics.swift`) or any installed family. The app finds installed fonts itself,
+the same way on every platform: it reads the `name` and `OS/2` tables of every file in the
+platform's font folders (`FontFiles.installed`, once a run), and draws an installed family
+from those very files, registered under a family of its own (`TextFonts.load`, "Curator text
+<name>"; a face of a .ttc copied out, as Flutter loads only first faces), so what is drawn is
+what was measured. Verovio reads every font's metrics
 from one resource folder, the text font's always as `text/Times*.xml`, so for anything but a
 bundled music font with Academico, `FontResources.prepare` writes a folder of its own (in the
-scratch space, once per pair of fonts), measuring the font with CoreText as that tool does
-(`vb_measure_font`; macOS only). A text font not installed here falls back to Academico, the
+scratch space, once per pair of fonts), measuring the font files with stb_truetype
+(`vb_measure_font`: tight ink boxes from the outlines, and advances; `src/stb_truetype.h`,
+vendored, public domain / MIT). A text font not installed here falls back to Academico, the
 choice kept (`LoadedScore.textFontFound`). A glyph a music font lacks is laid out and drawn in
 Bravura (`fontFallback`, `RenderStyle.musicFontFallback`). The frozen zone still spaces its
 clef and time signature by Bravura's proportions.

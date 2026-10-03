@@ -49,13 +49,9 @@ target_include_directories(score_engine PRIVATE
 if(MSVC)
   target_compile_options(score_engine PRIVATE /bigobj /utf-8 /EHsc)
   set_source_files_properties(${VEROVIO_SOURCES} PROPERTIES COMPILE_OPTIONS /W0)
-  set_source_files_properties(verovio_bridge.cpp PROPERTIES COMPILE_OPTIONS /W3)
+  set_source_files_properties(verovio_bridge.cpp font_metrics.cpp PROPERTIES COMPILE_OPTIONS /W3)
 else()
   set_source_files_properties(${VEROVIO_SOURCES} PROPERTIES COMPILE_OPTIONS -w)
   set_source_files_properties(verovio_bridge.cpp font_metrics.cpp PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Wno-unused-parameter")
 endif()
 
-# Measuring fonts (font_metrics.cpp) uses CoreText.
-if(APPLE)
-  target_link_libraries(score_engine PRIVATE "-framework CoreText" "-framework CoreGraphics" "-framework CoreFoundation")
-endif()

@@ -186,20 +186,13 @@ VB_API const char *vb_source_id(const VBEngraver *engraver, int32_t index);
 VB_API int32_t vb_signature_count(const VBEngraver *engraver);
 VB_API const VBSignature *vb_signatures(const VBEngraver *engraver);
 
-// Fonts (font_metrics.cpp; CoreText, so macOS only: elsewhere they find nothing).
+// Fonts (font_metrics.cpp, with stb_truetype).
 
-/// Measures [count] characters (Unicode scalars) of a font: a font file's first face when
-/// [isFile], else an installed family's face nearest [bold] / [italic]. For each, 5 floats in
-/// [out]: its ink box x, y (y up), width, height and its advance, in font units; an advance of
-/// -1 when the font lacks it. Returns the font's units per em, or 0 when it can't be opened.
-VB_API int32_t vb_measure_font(const char *font, bool isFile, bool bold, bool italic, const uint32_t *codes, int32_t count,
-                               float *out);
-/// The font families installed, one a line. Valid until the next font call on this thread.
-VB_API const char *vb_font_families(void);
-/// The family of a font file's first face ("" when it isn't a font). Valid as above.
-VB_API const char *vb_font_file_family(const char *path);
-/// The file an installed family's regular face is in ("" when not installed). Valid as above.
-VB_API const char *vb_font_family_file(const char *family);
+/// Measures [count] characters (Unicode scalars) of face [face] of the font file at [path]
+/// (0 but in a collection, .ttc). For each, 5 floats in [out]: its ink box x, y (y up), width,
+/// height and its advance, in font units; an advance of -1 when the font lacks it. Returns the
+/// font's units per em, or 0 when it can't be read.
+VB_API int32_t vb_measure_font(const char *path, int32_t face, const uint32_t *codes, int32_t count, float *out);
 
 #ifdef __cplusplus
 }

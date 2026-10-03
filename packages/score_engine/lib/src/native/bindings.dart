@@ -168,13 +168,6 @@ external int vb_source_id_count(Pointer<VBEngraver> engraver);
 @Native<Pointer<Utf8> Function(Pointer<VBEngraver>, Int32)>()
 external Pointer<Utf8> vb_source_id(Pointer<VBEngraver> engraver, int index);
 
-// Fonts (font_metrics.cpp): CoreText, so they find nothing off macOS.
-@Native<Int32 Function(Pointer<Utf8>, Bool, Bool, Bool, Pointer<Uint32>, Int32, Pointer<Float>)>()
-external int vb_measure_font(
-    Pointer<Utf8> font, bool isFile, bool bold, bool italic, Pointer<Uint32> codes, int count, Pointer<Float> out);
-@Native<Pointer<Utf8> Function()>()
-external Pointer<Utf8> vb_font_families();
-@Native<Pointer<Utf8> Function(Pointer<Utf8>)>()
-external Pointer<Utf8> vb_font_file_family(Pointer<Utf8> path);
-@Native<Pointer<Utf8> Function(Pointer<Utf8>)>()
-external Pointer<Utf8> vb_font_family_file(Pointer<Utf8> family);
+// Fonts (font_metrics.cpp, with stb_truetype).
+@Native<Int32 Function(Pointer<Utf8>, Int32, Pointer<Uint32>, Int32, Pointer<Float>)>()
+external int vb_measure_font(Pointer<Utf8> path, int face, Pointer<Uint32> codes, int count, Pointer<Float> out);

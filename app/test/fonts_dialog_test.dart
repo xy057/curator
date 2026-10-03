@@ -9,7 +9,6 @@ import 'package:curated_score/fonts_dialog.dart';
 import 'package:curated_score/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -42,6 +41,7 @@ void main() {
 
     expect(c.fonts, ScoreFonts.standard);
     unawaited(showFontsDialog(tester.element(find.byType(HomePage)), c));
+    await tester.runAsync(TextFonts.installed); // read on another isolate
     await settle();
     expect(find.text('Fonts'), findsOneWidget);
 
@@ -62,15 +62,11 @@ void main() {
     await settle();
     await engraved();
     expect(c.fonts, const ScoreFonts(music: MusicFont.leland, text: 'Helvetica'));
-    expect(c.score!.textFontFamily, 'Helvetica');
+    expect(c.score!.textFontFamily, 'Curator text Helvetica');
     expect(c.projectState.fonts, c.fonts);
     final dir = Platform.environment['SCREENSHOT_DIR'];
     if (dir != null) {
-      await tester.runAsync(() async {
-        await loadTestFonts();
-        final helvetica = File('/System/Library/Fonts/Helvetica.ttc').readAsBytesSync();
-        await (FontLoader('Helvetica')..addFont(Future.value(ByteData.sublistView(helvetica)))).load();
-      });
+      await tester.runAsync(loadTestFonts);
       c.setStaffSpace(6); // a new scene, drawn with the fonts just loaded
       await settle();
       await tester.runAsync(() async {
