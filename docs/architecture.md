@@ -277,12 +277,13 @@ macOS and `flutter build windows` on Windows (Verovio fetched and patched by han
 Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built, where the
 version is `app/pubspec.yaml`'s. To release again, bump that version and `appVersion` in
 `updater.dart` together (`updater_test.dart` checks they match); a version already released
-stops the run before it builds. The app finds its download by that name (`-macos.` or
-`-windows.` in the asset's name). Neither build is notarized or signed (macOS ad hoc only), so
+stops the run before it builds. The app finds its download by that name (the asset whose
+name ends `-macos.zip` or `-windows.zip`; the launch notice stays quiet when there is none), so
+keep that suffix if the workflow is changed. Neither build is notarized or signed (macOS ad hoc only), so
 macOS Gatekeeper and Windows SmartScreen warn the first time; the release notes say how to open
 it on each. The engine's CMake builds Verovio's sources itself, so Verovio's own platform
-settings must be copied in by hand (on Windows: `include/win32` and `NOMINMAX`). The updater only downloads: it never
-replaces the running app.
+settings must be copied in by hand (on Windows: `include/win32` and `NOMINMAX`). The updater only downloads (into Downloads;
+on Windows wherever the registry says that folder now is): it never replaces the running app.
 
 ## Adding things
 
