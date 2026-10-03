@@ -134,18 +134,25 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
 
   double _leadIn;
 
-  /// Where bar 1 beat 1 sounds: the first anchor, or the lead-in when there are none.
-  double get startSeconds => _anchors.isNotEmpty && _anchors.first.quarter == 0 ? _anchors.first.seconds : _leadIn;
+  /// Where bar 1 beat 1 sounds: the opening anchor; with anchors but none at the start (it
+  /// was deleted), where the first stretch's tempo puts it; the lead-in when there are none.
+  double get startSeconds => _anchors.isEmpty
+      ? _leadIn
+      : _anchors.first.quarter == 0
+          ? _anchors.first.seconds
+          : secondsAtQuarter(0);
 
   /// Moves the start of the piece. With anchors, only the opening anchor moves (the rest are
-  /// tied to events in the recording).
+  /// tied to events in the recording); when there is none at the start, one is pinned there.
   set startSeconds(double seconds) {
     if (!seconds.isFinite) return;
-    if (_anchors.isNotEmpty && _anchors.first.quarter == 0) {
-      final limit = _anchors.length > 1 ? _anchors[1].seconds - 0.01 : double.infinity;
-      final to = _within(seconds, 0, limit);
+    if (_anchors.isNotEmpty) {
+      final opening = _anchors.first.quarter == 0;
+      final next = opening ? (_anchors.length > 1 ? _anchors[1] : null) : _anchors.first;
+      final to = _within(seconds, 0, next == null ? double.infinity : next.seconds - 0.01);
       if (to == null) return;
-      _anchors = List.unmodifiable([_anchors.first.at(to), ..._anchors.skip(1)]);
+      _anchors = List.unmodifiable(
+          opening ? [_anchors.first.at(to), ..._anchors.skip(1)] : [SyncAnchor(0, to), ..._anchors]);
     } else {
       _leadIn = math.max(0, seconds);
     }
