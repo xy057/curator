@@ -121,7 +121,8 @@ switch is off the images stay in the project but are not drawn, exported or edit
 (`ImageEditing.enabled`). Decoding is bounded (`PatchImage.decode`), so a small file can't
 take gigabytes: a file over 64 MB, or a PNG / JPEG over 64 megapixels (one inside an SVG
 too, read from its header before anything is decoded), is refused; one longer than 4096
-pixels is kept at 4096.
+pixels is kept at 4096. An SVG with no viewBox and no width and height (flutter_svg refuses
+it; a browser draws it) is given the box around what it draws.
 
 **Lanes are painted, not cut.** Drawing adds a region and merges it with what it touches;
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip

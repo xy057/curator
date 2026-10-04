@@ -234,6 +234,25 @@ void main() {
     art.dispose();
   });
 
+  testWidgets('an SVG with no size of its own is as big as what it draws', (tester) async {
+    Future<Object> decode(String text) => tester.runAsync<Object>(() async {
+          try {
+            return await PatchImage('a.svg', ImageKind.vector, utf8.encode(text)).decode();
+          } catch (e) {
+            return e;
+          }
+        }).then((v) => v!);
+
+    final drawn = await decode('<svg xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="30" height="10" stroke="black" stroke-width="2"/></svg>');
+    expect((drawn as VectorArt).size, const Size(32, 12), reason: 'the rectangle and its stroke');
+    drawn.dispose();
+    final blank = await decode('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+    expect((blank as VectorArt).size, const Size(300, 150), reason: "a browser's size");
+    blank.dispose();
+    expect(await decode('<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"><rect width="3" height="1"/></svg>'),
+        isA<FormatException>().having((e) => e.message, 'message', 'The SVG has no size.'));
+  });
+
   test('SVG text is told from other text', () {
     expect(looksLikeSvg('<svg xmlns="http://www.w3.org/2000/svg"/>'), isTrue);
     expect(looksLikeSvg('<?xml version="1.0"?>\n<svg/>'), isTrue);

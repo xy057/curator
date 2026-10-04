@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -8,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:score_engine/score_engine.dart';
+import 'package:vector_graphics_compiler/vector_graphics_compiler.dart' as vgc;
 
 /// Vector images are SVG; raster images PNG or JPEG.
 enum ImageKind {
@@ -78,12 +80,17 @@ class PatchImage {
       switch (kind) {
         case ImageKind.vector:
           await _checkEmbedded(bytes);
-          return VectorArt(await vg.loadPicture(SvgBytesLoader(bytes), null));
+          final info = await vg.loadPicture(SvgBytesLoader(await _sized(bytes)), null);
+          if (info.size.isEmpty) {
+            info.picture.dispose();
+            throw const _Refused('The SVG has no size.');
+          }
+          return VectorArt(info);
         case ImageKind.raster:
           return RasterArt(await _decodeRaster(bytes));
       }
-    } on _TooBig {
-      throw const FormatException('The image is too big.');
+    } on _Refused catch (e) {
+      throw FormatException(e.message);
     } catch (e) {
       throw FormatException('This is not ${kind == ImageKind.vector ? 'an SVG' : 'a PNG or JPEG'} image that can be read.');
     }
@@ -96,7 +103,7 @@ class PatchImage {
       final descriptor = await ui.ImageDescriptor.encoded(buffer);
       if (descriptor.width * descriptor.height > maxPixels) {
         descriptor.dispose();
-        throw const _TooBig();
+        throw const _Refused.tooBig();
       }
       return descriptor;
     } finally {
@@ -132,7 +139,7 @@ class PatchImage {
       final ui.ImageDescriptor descriptor;
       try {
         descriptor = await _describe(data);
-      } on _TooBig {
+      } on _Refused {
         rethrow;
       } catch (_) {
         continue; // not an image flutter_svg draws
@@ -141,11 +148,50 @@ class PatchImage {
     }
   }
 
+  /// [svg] with a size flutter_svg can draw: one without a viewBox and a width and height
+  /// (a browser draws it anyway) gets the box around what it draws, or a browser's
+  /// 300 × 150 when that is nothing.
+  static Future<Uint8List> _sized(Uint8List svg) async {
+    final text = utf8.decode(svg, allowMalformed: true);
+    final root = RegExp(r'<svg\b[^>]*>', caseSensitive: false).firstMatch(text);
+    if (root == null) return svg;
+    bool has(String name) => RegExp('\\s$name\\s*=', caseSensitive: false).hasMatch(root[0]!);
+    if (has('viewBox') || (has('width') && has('height'))) return svg;
+    final at = root.start + 4; // after "<svg"
+    String withAttributes(String attributes) => text.replaceRange(at, at, ' $attributes');
+    final missing = [if (!has('width')) 'width', if (!has('height')) 'height'];
+
+    final box = await Isolate.run(() {
+      final drawn = vgc.parseWithoutOptimizers(withAttributes(missing.map((a) => '$a="100000"').join(' ')));
+      vgc.Rect? box;
+      for (final r in [
+        for (final p in drawn.paths) p.bounds(),
+        for (final i in drawn.drawImages) i.transform?.transformRect(i.rect) ?? i.rect,
+      ]) {
+        box = box == null
+            ? r
+            : vgc.Rect.fromLTRB(math.min(box.left, r.left), math.min(box.top, r.top), math.max(box.right, r.right), math.max(box.bottom, r.bottom));
+      }
+      if (box == null || box.isEmpty) return (0.0, 0.0, 300.0, 150.0);
+      // Strokes reach half their width past their paths.
+      final pad = drawn.paints.fold(0.0, (m, p) => math.max(m, (p.stroke?.width ?? 0) / 2));
+      return (box.left - pad, box.top - pad, box.width + 2 * pad, box.height + 2 * pad);
+    });
+    final (l, t, w, h) = box;
+    return utf8.encode(withAttributes([
+      'viewBox="$l $t $w $h"',
+      if (missing.contains('width')) 'width="$w"',
+      if (missing.contains('height')) 'height="$h"',
+    ].join(' ')));
+  }
+
   static final _embedded = RegExp(r'data:image/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=\s]+)', caseSensitive: false);
 }
 
-class _TooBig implements Exception {
-  const _TooBig();
+class _Refused implements Exception {
+  const _Refused(this.message);
+  const _Refused.tooBig() : message = 'The image is too big.';
+  final String message;
 }
 
 /// A PNG or JPEG, drawn smoothly at any size.
