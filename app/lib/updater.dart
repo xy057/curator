@@ -22,8 +22,9 @@ class Version implements Comparable<Version> {
   /// Null when [text] isn't major.minor.patch (a suffix such as `-beta` is ignored).
   static Version? tryParse(String text) {
     final m = RegExp(r'^v?(\d+)\.(\d+)\.(\d+)').firstMatch(text.trim());
-    if (m == null) return null;
-    return Version(int.parse(m[1]!), int.parse(m[2]!), int.parse(m[3]!));
+    final [major, minor, patch] = [for (var i = 1; i <= 3; i++) m == null ? null : int.tryParse(m[i]!)];
+    if (major == null || minor == null || patch == null) return null; // or a number too long for an int
+    return Version(major, minor, patch);
   }
 
   static final current = tryParse(appVersion)!;

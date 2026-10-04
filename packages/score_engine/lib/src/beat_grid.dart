@@ -139,8 +139,10 @@ class BeatGrid {
   /// isn't one. The end of the piece is the bar after the last.
   double? parse(String text) {
     final match = RegExp(r'^\s*(\d+)(?:\.(\d+(?:\.\d+)?))?\s*$').firstMatch(text);
-    if (match == null) return null;
-    return quarterAt(int.parse(match[1]!) - 1, double.parse(match[2] ?? '1') - 1);
+    // A bar number too long for an int ("99999999999999999999") is no bar.
+    final bar = match == null ? null : int.tryParse(match[1]!);
+    if (bar == null) return null;
+    return quarterAt(bar - 1, double.parse(match![2] ?? '1') - 1);
   }
 
   /// The inverse of [position]: null when bar [measure] has no such beat. The end of the

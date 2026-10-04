@@ -18,6 +18,13 @@ void main() {
     expect(Meter.fromMusicXML([('x', '4')]), isNull);
   });
 
+  test('a bar number too long for a number is no position', () {
+    final grid = BeatGrid([0, 3, 6]);
+    expect(grid.parse('99999999999999999999'), isNull);
+    expect(grid.parse('99999999999999999999.1'), isNull);
+    expect(grid.parse('2.1'), 3);
+  });
+
   test('a time signature no music has (900000000/8) is unreadable, not a list that long', () {
     expect(Meter.fromMusicXML([('900000000', '8')]), isNull);
     expect(Meter.fromMusicXML([('3', '900000000')]), isNull);

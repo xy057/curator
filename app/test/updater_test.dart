@@ -71,6 +71,7 @@ void main() {
     expect(Version.tryParse('1.0.0')! > Version.tryParse('v1.0.0')!, isFalse);
     expect(Version.tryParse('v1.2.3-beta'), const Version(1, 2, 3));
     expect(Version.tryParse('nightly'), isNull);
+    expect(Version.tryParse('v99999999999999999999.0.0'), isNull);
   });
 
   test('each system finds its own zip, and nothing else', () {
