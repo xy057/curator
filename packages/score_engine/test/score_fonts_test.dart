@@ -111,7 +111,11 @@ void main() {
         'fontName': 'My Font/1',
         'engravingDefaults': {'stemThickness': 0.09, 'textFontFamily': ['Edwin']},
         'glyphsWithAnchors': {
-          'noteheadBlack': {'stemUpSE': [1.18, 0.168]},
+          'noteheadBlack': {
+            'stemUpSE': [1.18, 0.168],
+            // A name that would break out of its attribute: left out, the XML stays whole.
+            'x" /></g><g c="E0A4" n="evil': [0, 0],
+          },
         },
       })),
     );

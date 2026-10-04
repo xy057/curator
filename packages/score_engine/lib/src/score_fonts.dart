@@ -398,7 +398,12 @@ abstract final class FontResources {
       if (own is Map && own.isNotEmpty) {
         out.writeln('>');
         for (final MapEntry(key: anchor, value: at) in own.entries) {
-          if (at case [final num x, final num y]) out.writeln('    <a n="$anchor" x="$x" y="$y" />');
+          // The metadata is the font's: only an anchor's name (letters and digits) and two
+          // numbers go into the XML, so nothing in it can change the XML around them.
+          if (!_anchorName.hasMatch(anchor)) continue;
+          if (at case [final num x, final num y] when x.isFinite && y.isFinite) {
+            out.writeln('    <a n="$anchor" x="$x" y="$y" />');
+          }
         }
         out.writeln('  </g>');
       } else {
@@ -408,6 +413,8 @@ abstract final class FontResources {
     out.writeln('</bounding-boxes>');
     return out.toString();
   }
+
+  static final _anchorName = RegExp(r'^[A-Za-z][A-Za-z0-9]{0,63}$');
 
   static String _n(double v) => v.toStringAsFixed(1);
 
