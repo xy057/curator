@@ -12,7 +12,9 @@ abstract class PatchArt {
 /// An image placed on the score that scrolls with it: its left edge is pinned to score
 /// quarter [quarter], its top [top] staff spaces below the frame's top, and it is
 /// [width] × [height] staff spaces (so it grows with the score size). It shows the part
-/// [crop] of its [art], in fractions of the art (0–1).
+/// [crop] of its [art], in fractions of the art (0–1). With [ink] it is drawn in the
+/// score's ink, its own colours dropped (line art that follows the paper: dark on light,
+/// light on dark).
 class ScenePatch {
   const ScenePatch({
     required this.quarter,
@@ -20,18 +22,24 @@ class ScenePatch {
     required this.width,
     required this.height,
     this.crop = const ui.Rect.fromLTRB(0, 0, 1, 1),
+    this.ink = false,
     required this.art,
   });
 
   final double quarter, top, width, height;
   final ui.Rect crop;
+  final bool ink;
   final PatchArt art;
 
-  void paint(ui.Canvas canvas, ui.Rect destination, {double opacity = 1}) {
+  /// Draws the patch into [destination]; [inkColor] is the score's ink, used with [ink].
+  void paint(ui.Canvas canvas, ui.Rect destination, {double opacity = 1, ui.Color? inkColor}) {
     final s = art.size;
+    final tint = ink && inkColor != null;
+    if (tint) canvas.saveLayer(destination, ui.Paint()..colorFilter = ui.ColorFilter.mode(inkColor, ui.BlendMode.srcIn));
     art.paint(canvas, ui.Rect.fromLTRB(crop.left * s.width, crop.top * s.height, crop.right * s.width, crop.bottom * s.height),
         destination,
         opacity: opacity);
+    if (tint) canvas.restore();
   }
 }
 

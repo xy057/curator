@@ -114,6 +114,9 @@ image shown, in fractions. The scene draws them over the music and under the nam
 frozen zone and the pointer (`ScoreRenderer.paint`'s `overlay`), the same in a video. A
 click selects one, a drag moves it, a corner resizes it keeping its shape; double-click (or
 right-click ▸ Crop) and the handles crop it instead, the whole image shown faintly behind.
+Right-click ▸ Score Ink (`ImagePatch.ink`, format 10) draws it in the score's ink, its own
+colours dropped, so line art follows the paper (light ink on dark paper in a dark theme or
+video).
 Every change is an Undo step (`patches` in `EditState`); a project keeps them in
 `state.patches` and each image file, byte for byte, as `images/<id>` (format 8); opening
 reads only the files a patch shows. While the

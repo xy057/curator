@@ -56,7 +56,7 @@ class ImageEditing {
         if (_enabled)
           for (final p in _patches)
             if (_arts[p.image] case final art?)
-              ScenePatch(quarter: p.quarter, top: p.top, width: p.width, height: p.height, crop: p.crop, art: art),
+              p.scene(art),
       ];
 
   void _show() => _c._scene?.patches = _scenePatches;

@@ -245,7 +245,7 @@ class VectorArt implements PatchArt {
 
 /// An image placed on the score (see [ScenePatch]): which [image], the score quarter its
 /// left edge is pinned to, its top below the frame's and its size in staff spaces, and the
-/// part of the image shown ([crop], fractions 0–1).
+/// part of the image shown ([crop], fractions 0–1); with [ink], drawn in the score's ink.
 @immutable
 class ImagePatch {
   const ImagePatch({
@@ -255,6 +255,7 @@ class ImagePatch {
     required this.width,
     required this.height,
     this.crop = full,
+    this.ink = false,
   });
 
   static const full = ui.Rect.fromLTRB(0, 0, 1, 1);
@@ -263,15 +264,21 @@ class ImagePatch {
   final String image;
   final double quarter, top, width, height;
   final ui.Rect crop;
+  final bool ink;
 
-  ImagePatch copyWith({double? quarter, double? top, double? width, double? height, ui.Rect? crop}) => ImagePatch(
+  ImagePatch copyWith({double? quarter, double? top, double? width, double? height, ui.Rect? crop, bool? ink}) => ImagePatch(
         image: image,
         quarter: quarter ?? this.quarter,
         top: top ?? this.top,
         width: width ?? this.width,
         height: height ?? this.height,
         crop: crop ?? this.crop,
+        ink: ink ?? this.ink,
       );
+
+  /// As the scene draws it, with [art] (its image drawn).
+  ScenePatch scene(PatchArt art) =>
+      ScenePatch(quarter: quarter, top: top, width: width, height: height, crop: crop, ink: ink, art: art);
 
   @override
   bool operator ==(Object other) =>
@@ -281,10 +288,11 @@ class ImagePatch {
       other.top == top &&
       other.width == width &&
       other.height == height &&
-      other.crop == crop;
+      other.crop == crop &&
+      other.ink == ink;
 
   @override
-  int get hashCode => Object.hash(image, quarter, top, width, height, crop);
+  int get hashCode => Object.hash(image, quarter, top, width, height, crop, ink);
 }
 
 /// What can be pasted: an image on the clipboard (a PNG), SVG text, or a copied file of

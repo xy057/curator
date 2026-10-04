@@ -85,6 +85,7 @@ void main() {
     // Right-click it: Crop and Remove. Crop, then drag the left edge in.
     await rightClick(rect().center);
     expect(find.text('Remove'), findsOneWidget);
+    expect(find.text('Score Ink'), findsOneWidget);
     await tester.tap(find.text('Crop'));
     await tester.pumpAndSettle();
     expect(c.images.cropping, isTrue);

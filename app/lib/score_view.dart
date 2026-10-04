@@ -108,7 +108,7 @@ class _ScoreViewState extends State<ScoreView> {
     final art = c.images.artOf(patch);
     return art == null
         ? null
-        : ScenePatch(quarter: patch.quarter, top: patch.top, width: patch.width, height: patch.height, crop: patch.crop, art: art);
+        : patch.scene(art);
   }
 
   /// Where patch [index] is now, in layout points.
@@ -207,9 +207,15 @@ class _ScoreViewState extends State<ScoreView> {
     if (at == null) return const [];
     final patch = at.patch;
     if (patch != null) {
+      if (patch >= c.images.patches.length) return const []; // removed (the menu is closing)
       final cropping = c.images.cropping && c.images.selected == patch;
       return [
         MenuItemButton(onPressed: () => c.images.select(patch, crop: !cropping), child: Text(cropping ? 'Done' : 'Crop')),
+        CheckboxMenuButton(
+          value: c.images.patches[patch].ink,
+          onChanged: (on) => c.images.update(patch, c.images.patches[patch].copyWith(ink: on)),
+          child: const Text('Score Ink'),
+        ),
         MenuItemButton(
           onPressed: () => c.images.remove(patch),
           shortcut: const SingleActivator(LogicalKeyboardKey.backspace),
@@ -551,8 +557,7 @@ class _PatchOverlay extends CustomPainter {
     if (scene == null || i == null || i >= images.patches.length) return;
     final patch = images.patches[i], art = images.artOf(patch);
     if (art == null) return;
-    final scenePatch =
-        ScenePatch(quarter: patch.quarter, top: patch.top, width: patch.width, height: patch.height, crop: patch.crop, art: art);
+    final scenePatch = patch.scene(art);
     final r = frame.toView(scene.patchRect(scenePatch, controller.playback.time.value, frame.layout));
     canvas
       ..save()

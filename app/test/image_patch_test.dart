@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' show Rect, Size;
+import 'dart:ui' show Color, Rect, Size;
 
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
@@ -113,6 +113,30 @@ void main() {
     c.dispose();
   });
 
+  testWidgets("with Score Ink an image is drawn in the score's ink, its own colours dropped", (tester) async {
+    await open(tester);
+    c.images.enabled = true;
+    await tester.runAsync(() => c.images.add(ImageKind.raster, greyPng(40, 20), quarter: 3, top: 4)); // black
+    final scene = c.scene!, time = c.playback.time.value;
+    const size = Size(960, 540);
+    Future<Color> pixelAtImage({required Color ink}) async {
+      final at = scene.patchRect(scene.patches.single, time, size).center;
+      final image = scene.renderFrame(960, 540,
+          time: time, curation: c.curation!, devicePixelRatio: 1, paper: const Color(0xff202020), ink: ink);
+      final bytes = (await tester.runAsync(() => image.toByteData()))!;
+      image.dispose();
+      final i = (at.dy.round() * 960 + at.dx.round()) * 4;
+      return Color.fromARGB(bytes.getUint8(i + 3), bytes.getUint8(i), bytes.getUint8(i + 1), bytes.getUint8(i + 2));
+    }
+
+    expect(await pixelAtImage(ink: const Color(0xffeeeeee)), const Color(0xff000000), reason: 'its own colours');
+    c.images.update(0, c.images.patches.single.copyWith(ink: true));
+    expect(await pixelAtImage(ink: const Color(0xffeeeeee)), const Color(0xffeeeeee), reason: 'light ink on dark paper');
+    c.undo();
+    expect(c.images.patches.single.ink, isFalse, reason: 'an Undo step');
+    c.dispose();
+  });
+
   testWidgets('an image comes in at its own shape, and adding, moving and removing are Undo steps', (tester) async {
     await open(tester);
     c.images.enabled = true;
@@ -149,7 +173,7 @@ void main() {
       await c.images.add(ImageKind.raster, png, quarter: 3, top: 2, extension: 'png');
       await c.images.add(ImageKind.vector, svg, quarter: 12, top: 5);
     });
-    c.images.update(1, c.images.patches[1].copyWith(crop: const Rect.fromLTRB(0, 0.5, 0.5, 1)));
+    c.images.update(1, c.images.patches[1].copyWith(crop: const Rect.fromLTRB(0, 0.5, 0.5, 1), ink: true));
     c.images.remove(0); // its file is left out of the save
     final state = c.projectState;
     expect(state.images.keys, [state.patches.single.image]);
@@ -174,6 +198,7 @@ void main() {
         () => again.openProject(name: 'demo.musicxml', scoreBytes: opened.scoreBytes, state: opened.state));
     expect(again.images.patches, state.patches);
     expect(again.scene!.patches.single.crop, const Rect.fromLTRB(0, 0.5, 0.5, 1));
+    expect(again.scene!.patches.single.ink, isTrue);
     again.dispose();
     c.dispose();
   });

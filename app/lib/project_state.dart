@@ -46,7 +46,7 @@ class ProjectState {
   });
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 9;
+  static const version = 10;
 
   /// When each instrument is shown, with each region's own properties; null when the project
   /// has none saved (they are then filled from where each part plays).
@@ -106,6 +106,7 @@ class ProjectState {
     6: (state) => state, // MIDI tempo maps came in 7: none, the anchors
     7: (state) => state, // images on the score came in 8: none
     8: (state) => state, // fonts came in 9: none saved is Bravura and Academico
+    9: (state) => state, // an image's ink came in 10: none is its own colours
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -252,7 +253,8 @@ class ProjectState {
     };
     final quarter = r.number('quarter', required: true)!, top = r.number('top', required: true)!;
     if (!quarter.isFinite || !top.isFinite) throw FormatException('The project is damaged: ${r.where} is not placed.');
-    return ImagePatch(image: image, quarter: quarter, top: top, width: size('width'), height: size('height'), crop: crop);
+    return ImagePatch(
+        image: image, quarter: quarter, top: top, width: size('width'), height: size('height'), crop: crop, ink: r.boolean('ink') ?? false);
   }
 
   /// The longest a staff may take to glide in or out, seconds (far more than any dialog offers).
@@ -292,6 +294,7 @@ class ProjectState {
               'width': p.width,
               'height': p.height,
               if (p.crop != ImagePatch.full) 'crop': [p.crop.left, p.crop.top, p.crop.right, p.crop.bottom],
+              if (p.ink) 'ink': true,
             },
         ],
         'partNames': {
