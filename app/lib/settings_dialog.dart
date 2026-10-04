@@ -47,8 +47,11 @@ Future<void> showSettingsDialog(
 
 /// One setting: a title and help on the left, its control on the right.
 class _Item {
-  const _Item(this.title, this.help, this.control, {this.keywords = ''});
+  const _Item(this.title, this.help, this.control, {this.note, this.keywords = ''});
   final String title;
+
+  /// Small and muted after the title (a version).
+  final String? note;
 
   /// One short line under the title; null when the control says it all.
   final String Function(_Context)? help;
@@ -173,8 +176,13 @@ final _categories = <_Category>[
     for (final e in AppExtension.values)
       _Item(
         e.label,
-        null,
-        (c) => Switch(value: e.isOn(c.settings), onChanged: (v) => e.set(c.settings, v)),
+        (_) => e.summary,
+        (c) => Row(mainAxisSize: MainAxisSize.min, children: [
+          _ExtensionSettingsButton(e),
+          const SizedBox(width: 6),
+          Switch(value: e.isOn(c.settings), onChanged: (v) => e.set(c.settings, v)),
+        ]),
+        note: e.version,
         keywords: '${e.keywords} extension',
       ),
   ], empty: 'No extensions yet.'),
@@ -442,7 +450,8 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     ]);
   }
 
-  Widget _row(_Item item) => _SettingRow(title: item.title, help: item.help?.call(_ctx), control: item.control(_ctx));
+  Widget _row(_Item item) =>
+      _SettingRow(title: item.title, note: item.note, help: item.help?.call(_ctx), control: item.control(_ctx));
 }
 
 /// The sidebar's neutral tint: a step off the dialog's surface, without the accent.
@@ -562,8 +571,9 @@ class _Page extends StatelessWidget {
 }
 
 class _SettingRow extends StatelessWidget {
-  const _SettingRow({required this.title, required this.help, required this.control});
+  const _SettingRow({required this.title, this.note, required this.help, required this.control});
   final String title;
+  final String? note;
   final String? help;
   final Widget control;
 
@@ -577,7 +587,10 @@ class _SettingRow extends StatelessWidget {
         child: Row(children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
+              Text.rich(TextSpan(children: [
+                TextSpan(text: title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
+                if (note != null) TextSpan(text: '  $note', style: TextStyle(fontSize: 11.5, color: colors.textMuted)),
+              ])),
               if (help != null) ...[
                 const SizedBox(height: 2),
                 AnimatedSwitcher(
@@ -743,6 +756,36 @@ class _UpdateControl extends StatelessWidget {
         OutlinedButton(onPressed: () => updater.download(release), child: const Text('Try Again')),
     };
     return AnimatedSwitcher(duration: const Duration(milliseconds: 120), child: control);
+  }
+}
+
+/// Opens [extension]'s own settings; greyed out when it has none.
+class _ExtensionSettingsButton extends StatelessWidget {
+  const _ExtensionSettingsButton(this.extension);
+  final AppExtension extension;
+
+  @override
+  Widget build(BuildContext context) {
+    final page = extension.settings;
+    return Tip(
+      message: page == null ? 'No settings' : 'Settings',
+      child: IconButton(
+        iconSize: 18,
+        visualDensity: VisualDensity.compact,
+        color: context.colors.textMuted,
+        onPressed: page == null
+            ? null
+            : () => showAppDialog<void>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text(extension.label),
+                    content: Builder(builder: page),
+                    actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
+                  ),
+                ),
+        icon: const Icon(Icons.settings_outlined),
+      ),
+    );
   }
 }
 

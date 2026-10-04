@@ -319,8 +319,11 @@ on Windows wherever the registry says that folder now is): it never replaces the
 - **A setting**: an `_Item` in `settings_dialog.dart`'s `_categories`, backed by a field in
   `AppSettings`. Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extension**.
-- **An extension**: a value of `AppExtension` (`app_extensions.dart`: its name, icon, search
-  words, and its switch, a `bool` in `AppSettings`), which the Extension page lists. The switch
+- **An extension**: a value of `AppExtension` (`app_extensions.dart`: its name, icon, version,
+  one-line summary, search words, its own settings (`settings`, a dialog's content, or null)
+  and its switch, a `bool` in `AppSettings`), which the Extension page lists: name and
+  version, the summary under them, a settings button (greyed out without settings) and the
+  switch. The switch
   is the app's, never a project's, and off by default. Say in `AppExtension.usedBy` when an open
   project uses it: opening a project that uses extensions that are off shows them in a dialog,
   each with its switch (and "All" when there are several). Everything the extension adds (menu items, toolbar buttons, drop targets, shortcuts,

@@ -7,14 +7,27 @@ import 'ui_kit.dart';
 /// The optional first-party components (Settings ▸ Extension). Each is a switch for the whole
 /// app (not per project), off by default; what it adds works only while it is on.
 enum AppExtension {
-  attachImage('Attach Image', Icons.image_outlined, 'image picture photo svg png jpg');
+  attachImage('Attach Image', Icons.image_outlined, '1.0', 'Images on the score, scrolling with it.',
+      'image picture photo svg png jpg');
 
-  const AppExtension(this.label, this.icon, this.keywords);
+  const AppExtension(this.label, this.icon, this.version, this.summary, this.keywords);
   final String label;
   final IconData icon;
 
+  /// Shown after [label]; raised when what the extension does changes.
+  final String version;
+
+  /// One short line under [label].
+  final String summary;
+
   /// For Settings' search.
   final String keywords;
+
+  /// The extension's own settings, in a dialog from its row's settings button (greyed out
+  /// while this is null).
+  WidgetBuilder? get settings => switch (this) {
+        attachImage => null,
+      };
 
   bool isOn(AppSettings settings) => switch (this) {
         attachImage => settings.attachImage,

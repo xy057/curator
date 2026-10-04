@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:curated_score/app_colors.dart';
+import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:flutter/material.dart';
@@ -77,7 +78,10 @@ void main() {
 
     await tester.tap(find.text('Extension'));
     await tester.pumpAndSettle();
-    expect(find.text('Attach Image'), findsOneWidget);
+    expect(find.text('Attach Image  1.0'), findsOneWidget, reason: 'its version after its name');
+    expect(find.text(AppExtension.attachImage.summary), findsOneWidget);
+    final gear = tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.settings_outlined));
+    expect(gear.onPressed, isNull, reason: 'no settings of its own yet');
     expect(settings.attachImage, isFalse, reason: 'extensions start off');
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
