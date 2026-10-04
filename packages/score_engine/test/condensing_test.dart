@@ -414,4 +414,12 @@ ${parts.values.join()}</score-partwise>''');
       scene.dispose();
     });
   });
+
+  test('a part with no usable divisions (0, negative) is still read, and still condenses', () async {
+    for (final bad in ['0', '-12', '99999999999']) {
+      final xml = demoScore().replaceFirst('<divisions>12</divisions>', '<divisions>$bad</divisions>');
+      final score = await LoadedScore.load(xml, pairs: const [PlayerPair('P2', 'P3')]);
+      expect(score.engraving.measures, hasLength(44), reason: 'divisions $bad');
+    }
+  });
 }

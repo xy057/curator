@@ -232,7 +232,7 @@ abstract final class Condenser {
       for (final e in measure.childElements) {
         switch (e.name.local) {
           case 'attributes':
-            divisions = int.tryParse(e.getElement('divisions')?.innerText.trim() ?? '') ?? divisions;
+            divisions = _divisionsIn(e.getElement('divisions')) ?? divisions;
             final values = {
               if (e.getElement('clef') case final clef?) 'clef': _clef(clef),
               if (e.getElement('transpose') case final transpose?) 'transpose': _transposition(transpose),
@@ -303,14 +303,23 @@ abstract final class Condenser {
     var result = 1;
     for (final part in parts) {
       for (final d in part.findAllElements('divisions')) {
-        final n = int.tryParse(d.innerText.trim()) ?? 1;
-        if (n > 0) result = result ~/ _gcd(result, n) * n;
+        final n = _divisionsIn(d) ?? 1;
+        final common = result ~/ _gcd(result, n) * n;
+        if (common <= _maxDivisions) result = common; // else some durations come out fractional
       }
     }
     return result;
   }
 
   static int _gcd(int a, int b) => b == 0 ? a : _gcd(b, a % b);
+
+  /// A `<divisions>` value, or null when it is none a score can use (0, negative, absurd).
+  static int? _divisionsIn(XmlElement? element) => switch (int.tryParse(element?.innerText.trim() ?? '')) {
+        final n? when n > 0 && n <= _maxDivisions => n,
+        _ => null,
+      };
+
+  static const _maxDivisions = 1 << 24;
 
   // MARK: Merging
 
@@ -666,7 +675,7 @@ class _PartReader {
           if (!started) _follow(copy);
           final d = copy.getElement('divisions');
           if (d != null) {
-            _current = int.tryParse(d.innerText.trim()) ?? _current;
+            _current = Condenser._divisionsIn(d) ?? _current;
             d.innerText = '$divisions';
           }
           (started ? body : lead).add(copy);
