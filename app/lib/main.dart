@@ -122,6 +122,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     document.addListener(_updateWindowTitle);
     document.addListener(_sampleChanged);
     controller.addListener(_scoreChanged);
+    controller.engravingFailure.addListener(_engravingFailed);
     settings.addListener(_engravingChanged);
     _engravingChanged();
     _lifecycle; // start listening for Quit
@@ -150,6 +151,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _engravingChanged() => controller.engravingOptions = settings.engravingOptions;
   void _sampleChanged() => _isSample.value = document.isSample;
 
+  /// An edit that couldn't be engraved: the score stays as it was, and Undo steps back.
+  void _engravingFailed() {
+    final error = controller.engravingFailure.value;
+    if (error == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t engrave. ${describeError(error)}')));
+  }
+
   /// The document's name (without extension) and edited state, in the native title bar.
   void _updateWindowTitle() {
     final title = document.title;
@@ -167,6 +175,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     document.removeListener(_updateWindowTitle);
     document.removeListener(_sampleChanged);
     controller.removeListener(_scoreChanged);
+    controller.engravingFailure.removeListener(_engravingFailed);
     settings.removeListener(_engravingChanged);
     updater.removeListener(_launchCheckAnswered);
     _hasScore.dispose();

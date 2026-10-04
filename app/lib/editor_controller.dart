@@ -199,6 +199,7 @@ class EditorController extends ChangeNotifier {
   void _closeDocument() {
     _textGeneration++; // a text edit still engraving is for this document: drop it
     _reengraving = false;
+    engravingFailure.value = null;
     _history.clear();
     _committed = null;
     _gestures = 0;
@@ -322,18 +323,24 @@ class EditorController extends ChangeNotifier {
 
   /// Engraves the score again with the texts and pairs of players edited so far, and the
   /// engraving options. Only the latest request is shown when several overlap (quick Undos).
+  ///
+  /// Never throws: a failure leaves the score as it was engraved before and is told through
+  /// [engravingFailure] (several callers don't wait for it, Undo and the engraving options).
   Future<void> _reengrave() async {
     final score = _score!;
     final generation = ++_textGeneration;
     _reengraving = true;
     notifyListeners();
     try {
-      final edited = await score.withEdits(textEdits: _textEdits, pairs: _pairs, fonts: _fonts, options: _engravingOptions);
+      final edited = await engraveAgain(score);
       if (generation != _textGeneration) return; // superseded, or another score was opened
       _score = edited;
       _scene?.dispose();
       _scene = _makeScene(edited);
       playback._markDirty();
+      engravingFailure.value = null;
+    } catch (e) {
+      if (generation == _textGeneration && !_disposed) engravingFailure.value = e;
     } finally {
       if (generation == _textGeneration) {
         _reengraving = false;
@@ -341,6 +348,16 @@ class EditorController extends ChangeNotifier {
       }
     }
   }
+
+  /// [score] engraved with the edits made so far and the engraving options.
+  @protected
+  @visibleForTesting
+  Future<LoadedScore> engraveAgain(LoadedScore score) =>
+      score.withEdits(textEdits: _textEdits, pairs: _pairs, fonts: _fonts, options: _engravingOptions);
+
+  /// Why the latest re-engraving failed, the score showing as it was before; null once one
+  /// succeeds. Undo can step back from the edit that caused it.
+  final engravingFailure = ValueNotifier<Object?>(null);
 
   Future<void> editText(String id, String? text) => editTexts({id: text});
 
@@ -816,6 +833,7 @@ class EditorController extends ChangeNotifier {
     _sync?.dispose();
     unawaited(audio.unload());
     editRevision.dispose();
+    engravingFailure.dispose();
     viewport.dispose();
     super.dispose();
   }

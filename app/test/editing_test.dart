@@ -221,4 +221,42 @@ void main() {
       expect(c.lanes.selected.single.region, Region(bars[1], bars[3] + 2));
     });
   });
+
+  test("an edit that can't be engraved keeps the score as it was, says why, and Undo steps back", () async {
+    final failing = _FailingEngraver(vsync: const TestVSync());
+    addTearDown(failing.dispose);
+    await failing.openFile(demoScore.path);
+    final before = failing.score;
+    final vivo = before!.texts.firstWhere((t) => t.text == 'Vivo');
+
+    failing.fail = true;
+    await failing.editText(vivo.id, 'Presto'); // completes: nothing thrown at the caller
+    expect(failing.score, same(before), reason: 'the score engraved before stays');
+    expect(failing.engravingFailure.value, isA<EngraveException>());
+    expect(failing.isReengraving, isFalse);
+
+    failing.engravingOptions = const EngravingOptions().withValue(EngraveOption.byKey('measureMinWidth')!, 20);
+    await pumpEventQueue(); // not awaited by anyone: still caught
+    expect(failing.engravingFailure.value, isA<EngraveException>());
+
+    failing.fail = false;
+    failing.undo();
+    while (failing.isReengraving) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(failing.currentText(vivo), 'Vivo');
+    expect(failing.engravingFailure.value, isNull, reason: 'engraved again');
+  });
+}
+
+class _FailingEngraver extends EditorController {
+  _FailingEngraver({required super.vsync});
+
+  bool fail = false;
+
+  @override
+  Future<LoadedScore> engraveAgain(LoadedScore score) async {
+    if (fail) throw EngraveException('The score could not be engraved.');
+    return super.engraveAgain(score);
+  }
 }
