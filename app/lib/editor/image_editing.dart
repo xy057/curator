@@ -70,9 +70,10 @@ class ImageEditing {
   /// when the bytes are not such an image.
   Future<void> add(ImageKind kind, Uint8List bytes, {required double quarter, required double top, String extension = ''}) async {
     if (!_enabled || _c._score == null) return;
-    final image = PatchImage.create(kind, bytes, extension: extension);
+    final image = PatchImage.create(kind, bytes, extension: extension), document = _document;
     final art = await image.decode();
-    if (_c._score == null) return _dispose(art); // closed meanwhile
+    // Closed (another maybe opened) or switched off meanwhile: not for what is open now.
+    if (document != _document || !_enabled || _c._score == null) return _dispose(art);
     _images[image.id] = image;
     _arts[image.id] = art;
     final aspect = art.size.width / art.size.height;
@@ -154,7 +155,11 @@ class ImageEditing {
         for (final p in _patches) p.image: ?_images[p.image],
       };
 
+  /// Counts the documents closed, so an image decoded for one isn't added to the next.
+  int _document = 0;
+
   void _reset() {
+    _document++;
     _patches = const [];
     _deselect();
     _images.clear();

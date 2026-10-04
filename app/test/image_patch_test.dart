@@ -65,6 +65,25 @@ void main() {
     c.dispose();
   });
 
+  testWidgets('an image still being read when the project closes, or the switch goes off, is not added', (tester) async {
+    await open(tester);
+    c.images.enabled = true;
+    await tester.runAsync(() async {
+      final adding = c.images.add(ImageKind.raster, png, quarter: 3, top: 2);
+      await c.openFile(demoScore.path); // another document
+      await adding;
+    });
+    expect(c.images.patches, isEmpty);
+    await tester.runAsync(() async {
+      final adding = c.images.add(ImageKind.raster, png, quarter: 3, top: 2);
+      c.images.enabled = false;
+      await adding;
+    });
+    expect(c.images.patches, isEmpty);
+    expect(c.canUndo, isFalse);
+    c.dispose();
+  });
+
   testWidgets('an image comes in at its own shape, and adding, moving and removing are Undo steps', (tester) async {
     await open(tester);
     c.images.enabled = true;
