@@ -18,6 +18,13 @@ void main() {
     expect(Meter.fromMusicXML([('x', '4')]), isNull);
   });
 
+  test('a time signature no music has (900000000/8) is unreadable, not a list that long', () {
+    expect(Meter.fromMusicXML([('900000000', '8')]), isNull);
+    expect(Meter.fromMusicXML([('3', '900000000')]), isNull);
+    expect(Meter.fromMusicXML([(List.filled(1000, '1').join('+'), '4')]), isNull);
+    expect(meter('256', '4').beatLengths, hasLength(256), reason: 'long, but a meter');
+  });
+
   test('a grid mixes meters, and an upbeat counts back from the barline', () {
     // Bar 1: a one-quaver upbeat in 6/8 · bar 2: 6/8 · bar 3: 3/4.
     final grid = BeatGrid([0, 0.5, 3.5, 6.5],

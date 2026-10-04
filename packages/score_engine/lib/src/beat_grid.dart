@@ -32,7 +32,9 @@ class Meter {
     for (final (beats, beatType) in pairs) {
       final type = int.tryParse(beatType.trim());
       final groups = [for (final g in beats.split('+')) int.tryParse(g.trim())];
-      if (type == null || type <= 0 || groups.isEmpty || groups.any((g) => g == null || g <= 0)) return null;
+      // No real meter has hundreds of beats; a number like 900000000 would be a list that long.
+      if (type == null || type <= 0 || type > _maxBeats || groups.isEmpty || groups.length > _maxBeats) return null;
+      if (groups.any((g) => g == null || g <= 0 || g > _maxBeats)) return null;
       final unit = 4 / type;
       if (groups.length > 1) {
         lengths.addAll([for (final g in groups) g! * unit]);
@@ -43,8 +45,10 @@ class Meter {
       }
       label.add('${beats.trim()}/$type');
     }
-    return lengths.isEmpty ? null : Meter(List.unmodifiable(lengths), label.join('+'));
+    return lengths.isEmpty || lengths.length > _maxBeats ? null : Meter(List.unmodifiable(lengths), label.join('+'));
   }
+
+  static const _maxBeats = 256;
 
   @override
   bool operator ==(Object other) => other is Meter && other.label == label && listEquals(other.beatLengths, beatLengths);
