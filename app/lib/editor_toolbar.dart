@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'assets_dialog.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'project_document.dart';
@@ -80,6 +81,12 @@ class EditorToolbar extends StatelessWidget {
           tooltip: 'Score texts…',
           onPressed: c.isReengraving ? null : onEditTexts,
         ),
+        if (c.images.enabled)
+          ToolbarButton(
+            icon: Icons.photo_library_outlined,
+            tooltip: 'Manage assets…',
+            onPressed: () => showAssetsDialog(context, c),
+          ),
         ToolbarButton(
           icon: Icons.movie_outlined,
           tooltip: 'Export video… (${shortcut('⌘E')})',

@@ -124,6 +124,38 @@ class ImageEditing {
     _c._changed();
   }
 
+  /// The image files the project keeps (those [patches] show), in the order first shown.
+  List<PatchImage> get stored => _used.values.toList();
+
+  /// The patches showing image [id] (indices into [patches]).
+  List<int> usesOf(String id) => [
+        for (final (i, p) in _patches.indexed)
+          if (p.image == id) i,
+      ];
+
+  PatchArt? artOfImage(String id) => _arts[id];
+
+  /// Removes every patch showing image [id]: one Undo step.
+  void removeImage(String id) {
+    if (!_enabled || !_patches.any((p) => p.image == id)) return;
+    _patches = List.unmodifiable(_patches.where((p) => p.image != id));
+    _deselect();
+    _show();
+    _c._edited();
+    _c._changed();
+  }
+
+  /// Shows patch [index]: moves the playhead to where its left edge reaches the pointer (its
+  /// first pass) and selects it.
+  void locate(int index) {
+    if (!_enabled || index < 0 || index >= _patches.length) return;
+    final timeline = _c.timeline;
+    final quarter = _patches[index].quarter;
+    final first = timeline.timesOf(quarter).firstOrNull;
+    _c.playback.seek(first?.seconds ?? timeline.secondsAtQuarter(quarter));
+    select(index);
+  }
+
   /// Opens a project's images: every one is drawn before anything is replaced.
   static Future<Map<String, PatchArt>> _decodeAll(Map<String, PatchImage> images) async {
     final arts = <String, PatchArt>{};
