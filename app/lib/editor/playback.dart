@@ -30,12 +30,11 @@ class Playback {
 
   AudioEngine get _audio => _editor.audio;
 
-  /// Whole recording, or the whole piece (plus a bar of air), whichever is longer.
+  /// Whole recording, or the whole piece (after any repeats; the score then comes to rest
+  /// and fades out: [CuratedScene.endOf]), whichever is longer.
   double get duration {
     if (_editor.score == null) return 0;
-    final timeline = _editor.timeline;
-    final end = timeline.endSeconds + 1; // the end of the last pass, after any repeats
-    return math.max(end, _editor.track?.length ?? 0);
+    return math.max(CuratedScene.endOf(_editor.timeline), _editor.track?.length ?? 0);
   }
 
   /// Playback speed (0.5 = half speed, lower pitch): handy for tapping fast passages.

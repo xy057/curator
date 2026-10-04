@@ -51,6 +51,10 @@ the same painting offscreen. `VideoExport` works on its own scene and copies of 
 and sync, so something the scene shows must be copied in `VideoExport.of` too (as `names` is);
 the decoded images it shares are held (`ImageEditing.hold`) until it is disposed, since the
 menu bar can close the project under the export dialog.
+The end is a function of time too: after the final barline the score eases to rest over
+`ScrollMap.settle` seconds (its last bars stay on screen), and the frame fades to paper over the
+last `CuratedScene.fadeOut` seconds before `paint`'s `end` (the playback's duration: the piece's
+`CuratedScene.endOf`, or the recording if longer), in the preview as in a video.
 A video has any ratio (`VideoRatio`: a preset or one typed, 1:4 to 4:1, chosen in the
 toolbar beside the frame toggle, which choosing one turns on); its size
 (`VideoResolution`, "1080p") is its short side in pixels. It is laid out like a preview

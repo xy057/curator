@@ -80,6 +80,43 @@ void main() {
     }
   });
 
+  test('after the final barline the score eases to rest, its last bars on screen', () {
+    final map = score.scrollMap, end = map.duration, last = map.xs.last;
+    double speedAt(double t) => (map.xAt(t + 1e-4) - map.xAt(t - 1e-4)) / 2e-4;
+    final speed = speedAt(end - 1e-3);
+    expect(speedAt(end + 1e-3), closeTo(speed, 0.01 * speed), reason: 'no jolt at the barline');
+    for (var t = end; t < end + ScrollMap.settle; t += 0.05) {
+      expect(speedAt(t + 0.05), lessThanOrEqualTo(speedAt(t) + 1e-6), reason: 'slowing at $t s');
+    }
+    final rest = map.xAt(end + ScrollMap.settle);
+    expect(rest - last, closeTo(speed * ScrollMap.settle / 3, 1e-3 * speed), reason: 'a third of a slide at full speed');
+    expect(map.xAt(end + 60), rest, reason: 'at rest');
+  });
+
+  test('a frame fades to paper over the last seconds before its end', () async {
+    final scene = CuratedScene(score);
+    addTearDown(scene.dispose);
+    final c = Curation(score.metadata.parts.map((p) => p.id))
+      ..setLane(score.metadata.parts.first.id, [Region(0, score.timeline.measureStarts.last)]);
+    final end = CuratedScene.endOf(score.timeline);
+    expect(end, closeTo(score.timeline.endSeconds + ScrollMap.settle + CuratedScene.fadeOut, 1e-9));
+    Future<int> inked(double t) async {
+      final image = scene.renderFrame(400, 300, time: t, curation: c, devicePixelRatio: 1, end: end);
+      final pixels = (await image.toByteData())!;
+      image.dispose();
+      var n = 0;
+      for (var i = 0; i < pixels.lengthInBytes; i += 4) {
+        if (pixels.getUint8(i) < 250) n++;
+      }
+      return n;
+    }
+
+    final atRest = await inked(end - CuratedScene.fadeOut);
+    expect(atRest, greaterThan(500), reason: 'the last bars, still shown');
+    expect(await inked(end - CuratedScene.fadeOut / 2), lessThan(atRest));
+    expect(await inked(end), 0, reason: 'only paper');
+  });
+
   test('the scroll speed follows the notes, smoothly, even at one tempo', () {
     final map = score.scrollMap;
     final times = map.times, xs = map.xs;

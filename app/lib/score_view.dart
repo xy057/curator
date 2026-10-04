@@ -460,6 +460,7 @@ class _ScorePainter extends CustomPainter {
       time: controller.playback.time.value,
       curation: curation,
       devicePixelRatio: devicePixelRatio * scale,
+      end: controller.playback.duration,
       paper: colors.scorePaper,
       ink: colors.scoreInk,
     );

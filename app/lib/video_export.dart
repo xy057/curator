@@ -324,6 +324,7 @@ class VideoExport {
         time: time,
         curation: _curation,
         devicePixelRatio: devicePixelRatio * scale,
+        end: duration,
         paper: paper.paper,
         ink: paper.ink);
     canvas.restore();
@@ -383,6 +384,7 @@ class VideoExport {
             time: format.timeOf(i),
             curation: _curation,
             devicePixelRatio: format.devicePixelRatio,
+            end: duration,
             paper: format.paper.paper,
             ink: format.paper.ink);
         return image.toByteData(format: ui.ImageByteFormat.rawRgba).whenComplete(image.dispose);

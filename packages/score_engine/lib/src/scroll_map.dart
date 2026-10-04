@@ -263,8 +263,13 @@ class ScrollMap {
 
   int _passAt(double t) => segmentAt(_starts.length + 1, t, (i) => i < _starts.length ? _starts[i] : double.infinity);
 
-  /// x in device units at playback time [t]. Outside the anchors the score keeps moving
-  /// at the end speeds, so it scrolls in and out smoothly.
+  /// How long the score takes to come to rest after the final barline reaches the pointer.
+  static const settle = 2.5;
+
+  /// x in device units at playback time [t]. Before the first anchor the score keeps moving
+  /// at its opening speed, so it scrolls in smoothly; after the last it slows to rest over
+  /// [settle] seconds, travelling a third of what it would at that speed, so the last bars
+  /// stay on screen.
   double xAt(double t) => _curves[_passAt(t)].xAt(t);
 
   /// The leftmost and rightmost x shown between times [t0] and [t1] (a warp between them
@@ -382,7 +387,11 @@ class _Curve extends _Scroll {
   double xAt(double t) {
     if (times.length < 2) return xs.firstOrNull ?? 0;
     if (t <= times.first) return xs.first + _tangents.first * (t - times.first);
-    if (t >= times.last) return xs.last + _tangents.last * (t - times.last);
+    if (t >= times.last) {
+      // Speed v·(1 − u)², u from 0 to 1 over the settle: it eases to rest, no jolt.
+      final u = math.min((t - times.last) / ScrollMap.settle, 1.0), rest = 1 - u;
+      return xs.last + _tangents.last * ScrollMap.settle * (1 - rest * rest * rest) / 3;
+    }
 
     final lo = segmentAt(times.length, t, (i) => times[i]), hi = lo + 1;
     final h = times[hi] - times[lo];

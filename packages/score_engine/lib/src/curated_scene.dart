@@ -402,12 +402,21 @@ class CuratedScene {
     return _keyPlan?.columnAt(time) ?? 0;
   }
 
+  /// How long the frame takes to fade to paper before the [paint]'s `end`.
+  static const fadeOut = 1.5;
+
+  /// When a performance (and its video) ends: the score comes to rest after the final
+  /// barline ([ScrollMap.settle]), then fades out.
+  static double endOf(ScoreTimeline timeline) => timeline.endSeconds + ScrollMap.settle + fadeOut;
+
   /// Draws the frame at [time]. [paper] and [ink] override the style's colours (a dark
-  /// theme); changing them costs nothing (see ScoreRenderer).
+  /// theme); changing them costs nothing (see ScoreRenderer). Over the last [fadeOut]
+  /// seconds before [end] everything fades to paper.
   void paint(ui.Canvas canvas, ui.Size size,
       {required double time,
       required Curation curation,
       required double devicePixelRatio,
+      double end = double.infinity,
       ui.Color? paper,
       ui.Color? ink}) {
     final frame = layoutAt(time, curation, size);
@@ -434,6 +443,12 @@ class CuratedScene {
                 }
                 canvas.restore();
               });
+    final faded = ((time - (end - fadeOut)) / fadeOut).clamp(0.0, 1.0);
+    if (faded > 0) {
+      // Eased, so it leaves gently and settles into the paper.
+      final a = faded * faded * (3 - 2 * faded);
+      canvas.drawRect(ui.Offset.zero & size, ui.Paint()..color = (paper ?? style.paper).withValues(alpha: a));
+    }
   }
 
   // MARK: Images
@@ -466,6 +481,7 @@ class CuratedScene {
       {required double time,
       required Curation curation,
       required double devicePixelRatio,
+      double end = double.infinity,
       ui.Color? paper,
       ui.Color? ink}) {
     final size = ui.Size(width / devicePixelRatio, height / devicePixelRatio);
@@ -473,7 +489,8 @@ class CuratedScene {
     final canvas = ui.Canvas(recorder)
       ..scale(devicePixelRatio)
       ..clipRect(ui.Offset.zero & size);
-    paint(canvas, size, time: time, curation: curation, devicePixelRatio: devicePixelRatio, paper: paper, ink: ink);
+    paint(canvas, size,
+        time: time, curation: curation, devicePixelRatio: devicePixelRatio, end: end, paper: paper, ink: ink);
     final picture = recorder.endRecording();
     try {
       return picture.toImageSync(width, height);
