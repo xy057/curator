@@ -99,7 +99,7 @@ class ScoreMetadata {
   /// Drives auto-curation and the activity hints in the timeline.
   final Map<String, List<bool>> activeMeasures;
 
-  /// First `<sound tempo>` in the file, quarter notes per minute.
+  /// First `<sound tempo>` in the file that is a tempo (above 0), quarter notes per minute.
   final double? tempo;
 
   /// The time signature in force in each measure (null before the first one).
@@ -173,10 +173,11 @@ class ScoreMetadata {
       next += count;
     }
 
+    // A tempo of 0 (the schema allows it), "NaN" or "INF" would put every bar at infinity.
     final tempo = root
         .findAllElements('sound')
         .map((e) => double.tryParse(e.getAttribute('tempo') ?? ''))
-        .firstWhere((t) => t != null, orElse: () => null);
+        .firstWhere((t) => t != null && t.isFinite && t > 0, orElse: () => null);
 
     // Time signatures from the first part (MusicXML repeats them in every part).
     final meters = <Meter?>[];

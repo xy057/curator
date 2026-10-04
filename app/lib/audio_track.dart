@@ -177,11 +177,13 @@ class AudioEngine {
 
   bool get _valid => _handle != null && SoLoud.instance.getIsValidVoiceHandle(_handle!);
 
+  /// Plays from [fromSeconds]. Past the end of the recording nothing sounds, and whatever
+  /// was playing stops (the clock then runs on alone, through the score's last bars).
   void play(double fromSeconds) {
+    stop();
     final track = _track;
     final source = track?.source;
     if (track == null || source == null || fromSeconds >= track.length) return;
-    stop();
     final handle = SoLoud.instance.play(source, paused: true);
     SoLoud.instance.seek(handle, Duration(microseconds: (math.max(0.0, fromSeconds) * 1e6).round()));
     SoLoud.instance.setRelativePlaySpeed(handle, _speed);

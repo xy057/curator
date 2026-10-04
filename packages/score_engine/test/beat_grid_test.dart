@@ -67,4 +67,13 @@ void main() {
     expect(grid.parse('4'), 10); // the end of the piece
     expect(grid.parse('two'), isNull);
   });
+
+  test('the score\'s tempo is the first <sound tempo> above 0', () {
+    String score(List<String> tempos) => '''<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Flute</part-name></score-part></part-list>
+<part id="P1">${[for (final (i, t) in tempos.indexed) '<measure number="${i + 1}"><direction><sound tempo="$t"/></direction></measure>'].join()}</part>
+</score-partwise>''';
+    expect(ScoreMetadata.read(score(['0', 'NaN', 'INF', '-60', 'Infinity', '72'])).tempo, 72);
+    expect(ScoreMetadata.read(score(['0'])).tempo, isNull, reason: 'none: the default tempo is used');
+  });
 }

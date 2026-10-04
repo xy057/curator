@@ -168,6 +168,17 @@ Encoders:
       expect(File('${out.path}.part').existsSync(), isFalse);
     }, skip: skip);
 
+    test('after a cancelled export, exporting again writes the video', () async {
+      final export = VideoExport.of(c);
+      addTearDown(export.dispose);
+      final out = '${dir.path}/demo.mp4';
+      await expectLater(export.write(out, format: small, to: 5, onProgress: (p) {
+        if (p.frame == 2) export.cancel();
+      }), throwsA(isA<VideoExportCancelled>()));
+      await export.write(out, format: small, to: 0.3);
+      expect(File(out).lengthSync(), greaterThan(0));
+    }, skip: skip);
+
     test('when FFmpeg fails, it says why and leaves nothing', () async {
       await useRecording('${dir.path}/missing.flac');
       final export = VideoExport.of(c);

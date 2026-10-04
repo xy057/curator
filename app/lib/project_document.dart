@@ -70,12 +70,29 @@ class ProjectDocument extends ChangeNotifier {
   bool _isSample = false;
   Future<void>? _saving;
 
+  // MARK: One at a time
+
+  /// Opening, importing, closing and saving (autosaves too) run one at a time, in the order
+  /// asked. Interleaved, a second open could replace the score while the first was still
+  /// loading its recording, and leave one project's score under the other's path for the
+  /// next save; an autosave in the middle of an open would write the new project over the
+  /// old one's file.
+  Future<void> _queue = Future.value();
+
+  Future<T> _oneAtATime<T>(Future<T> Function() job) {
+    final run = _queue.then((_) => job());
+    _queue = run.then<void>((_) {}, onError: (Object _) {});
+    return run;
+  }
+
   // MARK: Opening
 
   /// Opens a .ccs project. Either it opens and becomes this document, or (it throws and)
   /// nothing changes. Returns what went wrong with the recording, if anything: the project
   /// still opens without it.
-  Future<String?> open(String path) async {
+  Future<String?> open(String path) => _oneAtATime(() => _open(path));
+
+  Future<String?> _open(String path) async {
     final String? recordingProblem;
     final previousMedia = _mediaDirectory;
     final mediaDirectory = ScratchSpace.folder('project');
@@ -104,7 +121,7 @@ class ProjectDocument extends ChangeNotifier {
   }
 
   /// Starts a new, unsaved project from a score file (Open… with a MusicXML score).
-  Future<void> importScore(String path) async {
+  Future<void> importScore(String path) => _oneAtATime(() async {
     await controller.openFile(path);
     ScratchSpace.release(_mediaDirectory); // the project before had its recording unpacked there
     _mediaDirectory = null;
@@ -112,17 +129,17 @@ class ProjectDocument extends ChangeNotifier {
     _isSample = false;
     _markSaved(controller.editRevision.value);
     settings.addRecent(path);
-  }
+  });
 
   /// Opens the demo project to try things in; it can't be saved ([isSample]). Returns the
   /// same as [open].
-  Future<String?> openSample() async {
+  Future<String?> openSample() => _oneAtATime(() async {
     final data = await rootBundle.load(sampleProjectAsset);
     final folder = ScratchSpace.folder('sample');
     final file = File('${folder.path}${Platform.pathSeparator}${sampleProjectAsset.split('/').last}');
     await file.writeAsBytes(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
     try {
-      final missing = await open(file.path);
+      final missing = await _open(file.path);
       settings.removeRecent(file.path); // a temporary copy: nothing to reopen
       _path = null;
       _isSample = true;
@@ -131,28 +148,28 @@ class ProjectDocument extends ChangeNotifier {
     } finally {
       ScratchSpace.release(folder); // its score and recording are unpacked by now
     }
-  }
+  });
 
   /// Closes the project (File ▸ Close); unsaved changes are the caller's to ask about.
-  Future<void> close() async {
+  Future<void> close() => _oneAtATime(() async {
     await controller.close();
     ScratchSpace.release(_mediaDirectory);
     _mediaDirectory = null;
     _path = null;
     _isSample = false;
     _markSaved(controller.editRevision.value);
-  }
+  });
 
   // MARK: Saving
 
   /// Saves to [path] (Save As…), or to where the project already is (Save).
-  Future<void> save([String? path]) async {
+  Future<void> save([String? path]) => _oneAtATime(() => _save(path));
+
+  /// One save at a time ([_oneAtATime]); each picks up the edits made until it starts.
+  Future<void> _save(String? path) async {
     if (_isSample) throw StateError('The demo can’t be saved.');
     final target = path ?? _path;
     if (target == null) throw StateError('The project has not been saved yet: choose where to save it.');
-    while (_saving != null) {
-      await _saving; // one save at a time; the next one picks up the latest edits
-    }
     final completer = Completer<void>();
     _saving = completer.future;
     notifyListeners();
@@ -238,14 +255,15 @@ class ProjectDocument extends ChangeNotifier {
   /// Saves if the project has a file and unsaved changes. An untitled project is left alone:
   /// autosave never asks where to save.
   @visibleForTesting
-  Future<void> autosave() async {
-    if (_path == null || !_dirty || isSaving) return;
+  Future<void> autosave() => _oneAtATime(() async {
+    // Asked after whatever ran before it: an open may have changed the answers.
+    if (_path == null || !_dirty || _isSample) return;
     try {
-      await save();
+      await _save(null);
     } catch (e) {
       onAutosaveError?.call(e);
     }
-  }
+  });
 
   // MARK: Housekeeping
 

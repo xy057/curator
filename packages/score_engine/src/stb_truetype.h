@@ -1,4 +1,11 @@
 // stb_truetype.h - v1.26 - public domain
+//
+// CURATOR CHANGES (search for "Curator"): stb_truetype trusts its fonts, and Curator measures
+// fonts that come inside projects. Every read of font data is checked against the font's bytes
+// (STBTT_IN_FONT, given by font_metrics.cpp; outside them a read gives 0), composite glyphs nest
+// at most STBTT_MAX_COMPOSITE_DEPTH deep within a budget of components, and a simple glyph's
+// vertex array has room for any outline its points can make.
+//
 // authored from 2009-2021 by Sean Barrett / RAD Game Tools
 //
 // =======================================================================
@@ -1132,14 +1139,14 @@ typedef int stbtt__test_oversample_pow2[(STBTT_MAX_OVERSAMPLE & (STBTT_MAX_OVERS
 
 static stbtt_uint8 stbtt__buf_get8(stbtt__buf *b)
 {
-   if (b->cursor >= b->size)
+   if (b->cursor >= b->size || !STBTT_IN_FONT(b->data + b->cursor, 1)) // Curator: a buffer can claim more than the font has
       return 0;
    return b->data[b->cursor++];
 }
 
 static stbtt_uint8 stbtt__buf_peek8(stbtt__buf *b)
 {
-   if (b->cursor >= b->size)
+   if (b->cursor >= b->size || !STBTT_IN_FONT(b->data + b->cursor, 1)) // Curator
       return 0;
    return b->data[b->cursor];
 }
@@ -1279,16 +1286,22 @@ static stbtt__buf stbtt__cff_index_get(stbtt__buf b, int i)
 // on platforms that don't allow misaligned reads, if we want to allow
 // truetype fonts that aren't padded to alignment, define ALLOW_UNALIGNED_TRUETYPE
 
-#define ttBYTE(p)     (* (stbtt_uint8 *) (p))
-#define ttCHAR(p)     (* (stbtt_int8 *) (p))
+// Curator: whether the n bytes at p are inside the font being read; reads outside give 0.
+#ifndef STBTT_IN_FONT
+#define STBTT_IN_FONT(p,n) 1
+#endif
+
+static stbtt_uint8 stbtt__byte(const stbtt_uint8 *p) { return STBTT_IN_FONT(p,1) ? p[0] : 0; }
+#define ttBYTE(p)     stbtt__byte((const stbtt_uint8 *) (p))
+#define ttCHAR(p)     ((stbtt_int8) stbtt__byte((const stbtt_uint8 *) (p)))
 #define ttFixed(p)    ttLONG(p)
 
-static stbtt_uint16 ttUSHORT(stbtt_uint8 *p) { return p[0]*256 + p[1]; }
-static stbtt_int16 ttSHORT(stbtt_uint8 *p)   { return p[0]*256 + p[1]; }
-static stbtt_uint32 ttULONG(stbtt_uint8 *p)  { return (p[0]<<24) + (p[1]<<16) + (p[2]<<8) + p[3]; }
-static stbtt_int32 ttLONG(stbtt_uint8 *p)    { return (p[0]<<24) + (p[1]<<16) + (p[2]<<8) + p[3]; }
+static stbtt_uint16 ttUSHORT(stbtt_uint8 *p) { return STBTT_IN_FONT(p,2) ? p[0]*256 + p[1] : 0; }
+static stbtt_int16 ttSHORT(stbtt_uint8 *p)   { return STBTT_IN_FONT(p,2) ? p[0]*256 + p[1] : 0; }
+static stbtt_uint32 ttULONG(stbtt_uint8 *p)  { return STBTT_IN_FONT(p,4) ? (p[0]<<24) + (p[1]<<16) + (p[2]<<8) + p[3] : 0; }
+static stbtt_int32 ttLONG(stbtt_uint8 *p)    { return STBTT_IN_FONT(p,4) ? (p[0]<<24) + (p[1]<<16) + (p[2]<<8) + p[3] : 0; }
 
-#define stbtt_tag4(p,c0,c1,c2,c3) ((p)[0] == (c0) && (p)[1] == (c1) && (p)[2] == (c2) && (p)[3] == (c3))
+#define stbtt_tag4(p,c0,c1,c2,c3) (STBTT_IN_FONT(p,4) && (p)[0] == (c0) && (p)[1] == (c1) && (p)[2] == (c2) && (p)[3] == (c3))
 #define stbtt_tag(p,str)           stbtt_tag4(p,str[0],str[1],str[2],str[3])
 
 static int stbtt__isfont(stbtt_uint8 *font)
@@ -1671,6 +1684,19 @@ static int stbtt__close_shape(stbtt_vertex *vertices, int num_vertices, int was_
    return num_vertices;
 }
 
+// Curator: how deep composite glyphs nest, and how many components one glyph may take in all.
+#ifndef STBTT_MAX_COMPOSITE_DEPTH
+#define STBTT_MAX_COMPOSITE_DEPTH 8
+#endif
+#ifndef STBTT_MAX_COMPONENTS
+#define STBTT_MAX_COMPONENTS 4096
+#endif
+#ifndef STBTT_THREAD_LOCAL
+#define STBTT_THREAD_LOCAL
+#endif
+static STBTT_THREAD_LOCAL int stbtt__composite_depth = 0;
+static STBTT_THREAD_LOCAL int stbtt__composite_budget = 0;
+
 static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, stbtt_vertex **pvertices)
 {
    stbtt_int16 numberOfContours;
@@ -1697,7 +1723,7 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
 
       n = 1+ttUSHORT(endPtsOfContours + numberOfContours*2-2);
 
-      m = n + 2*numberOfContours;  // a loose bound on how many vertices we might need
+      m = 3*n + 2*numberOfContours + 4;  // Curator: a bound no outline of n points can pass (was n + 2*contours)
       vertices = (stbtt_vertex *) STBTT_malloc(m * sizeof(vertices[0]), info->userdata);
       if (vertices == 0)
          return 0;
@@ -1715,9 +1741,10 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
 
       for (i=0; i < n; ++i) {
          if (flagcount == 0) {
-            flags = *points++;
-            if (flags & 8)
-               flagcount = *points++;
+            flags = ttBYTE(points); points++; // Curator: checked reads, here and below
+            if (flags & 8) {
+               flagcount = ttBYTE(points); points++;
+            }
          } else
             --flagcount;
          vertices[off+i].type = flags;
@@ -1728,11 +1755,11 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
       for (i=0; i < n; ++i) {
          flags = vertices[off+i].type;
          if (flags & 2) {
-            stbtt_int16 dx = *points++;
+            stbtt_int16 dx = ttBYTE(points); points++;
             x += (flags & 16) ? dx : -dx; // ???
          } else {
             if (!(flags & 16)) {
-               x = x + (stbtt_int16) (points[0]*256 + points[1]);
+               x = x + ttSHORT(points);
                points += 2;
             }
          }
@@ -1744,11 +1771,11 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
       for (i=0; i < n; ++i) {
          flags = vertices[off+i].type;
          if (flags & 4) {
-            stbtt_int16 dy = *points++;
+            stbtt_int16 dy = ttBYTE(points); points++;
             y += (flags & 32) ? dy : -dy; // ???
          } else {
             if (!(flags & 32)) {
-               y = y + (stbtt_int16) (points[0]*256 + points[1]);
+               y = y + ttSHORT(points);
                points += 2;
             }
          }
@@ -1815,6 +1842,9 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
       stbtt_uint8 *comp = data + g + 10;
       num_vertices = 0;
       vertices = 0;
+      // Curator: a glyph made of itself (directly or not) recursed for ever, and one made of
+      // many composites, each of many more, never finished: both are cut off.
+      if (stbtt__composite_depth == 0) stbtt__composite_budget = 0;
       while (more) {
          stbtt_uint16 flags, gidx;
          int comp_num_verts = 0, i;
@@ -1856,7 +1886,13 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
          n = (float) STBTT_sqrt(mtx[2]*mtx[2] + mtx[3]*mtx[3]);
 
          // Get indexed glyph.
+         if (stbtt__composite_depth >= STBTT_MAX_COMPOSITE_DEPTH || ++stbtt__composite_budget > STBTT_MAX_COMPONENTS) {
+            if (vertices) STBTT_free(vertices, info->userdata);
+            return 0;
+         }
+         ++stbtt__composite_depth;
          comp_num_verts = stbtt_GetGlyphShape(info, gidx, &comp_verts);
+         --stbtt__composite_depth;
          if (comp_num_verts > 0) {
             // Transform vertices.
             for (i = 0; i < comp_num_verts; ++i) {

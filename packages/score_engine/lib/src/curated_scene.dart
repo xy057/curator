@@ -94,13 +94,7 @@ class LoadedScore {
     final doc = ScoreMetadata.parse(musicXML);
     final metadata = ScoreMetadata.fromDocument(doc);
     final prepared = PreparedScore.prepare(doc, textEdits, metadata: metadata, pairs: pairs);
-    final base = resourceDirectory ?? engineResourceDirectory(), work = FontResources.workDirectory;
-    final textFaces = fonts.text == TextFonts.academico ? null : await TextFonts.faces(fonts.text);
-    final resources = fonts == ScoreFonts.standard
-        ? (directory: base, textFound: true)
-        : await Isolate.run(() => FontResources.prepare(fonts, base: base, work: work, textFaces: textFaces));
-    await fonts.music.load();
-    if (textFaces != null) await TextFonts.load(fonts.text, textFaces);
+    final resources = await prepareFonts(fonts, resourceDirectory: resourceDirectory);
     final engraving = await Engraver.engrave(
       prepared.musicXML,
       resourceDirectory: resources.directory,
@@ -120,6 +114,20 @@ class LoadedScore {
         condensed: prepared.condensed,
         condensing: prepared.condensing!,
         pairs: List.unmodifiable(pairs));
+  }
+
+  /// Gets [fonts] ready to engrave with and draw: their Verovio metrics (measured once) and
+  /// the added music font and installed text font registered. Throws (a [FormatException])
+  /// when a font can't be read, so a caller can try fonts before taking them on.
+  static Future<({String directory, bool textFound})> prepareFonts(ScoreFonts fonts, {String? resourceDirectory}) async {
+    final base = resourceDirectory ?? engineResourceDirectory(), work = FontResources.workDirectory;
+    final textFaces = fonts.text == TextFonts.academico ? null : await TextFonts.faces(fonts.text);
+    final resources = fonts == ScoreFonts.standard
+        ? (directory: base, textFound: true)
+        : await Isolate.run(() => FontResources.prepare(fonts, base: base, work: work, textFaces: textFaces));
+    await fonts.music.load();
+    if (textFaces != null) await TextFonts.load(fonts.text, textFaces);
+    return resources;
   }
 
   static Future<LoadedScore> open(String path, {ScoreFonts fonts = ScoreFonts.standard}) async =>

@@ -278,6 +278,32 @@ void main() {
       expect((await ProjectFile.read(a, mediaDirectory: '${dir.path}/m')).state.lanes!.values.every((l) => l.isEmpty), isTrue);
     });
 
+    test('opens asked for at once run one after the other; an autosave meanwhile waits for them', () async {
+      final part = c.score!.metadata.parts.first;
+      final a = '${dir.path}/A.ccs', b = '${dir.path}/B.ccs';
+      c.renamePart(part, name: 'From A', abbreviation: 'A');
+      // A opens slowly: its "video" goes through a converter (and fails) after the score is in.
+      await ProjectFile.write(
+          a,
+          ProjectContents(
+            scoreName: c.source!.name,
+            scoreBytes: c.source!.bytes,
+            state: c.projectState,
+            media: ProjectMedia(name: 'take.mp4', storage: MediaStorage.embed, embedFrom: recording('take.mp4').path),
+          ));
+      c.renamePart(part, name: 'From B', abbreviation: 'B');
+      await doc.save(b);
+      final savedA = File(a).readAsBytesSync();
+
+      final opening = [doc.open(a), doc.open(b)];
+      final autosaving = doc.autosave();
+      await Future.wait([...opening, autosaving]);
+      expect(doc.path, b);
+      expect(c.partName(part), 'From B');
+      expect(doc.isDirty, isFalse);
+      expect(File(a).readAsBytesSync(), savedA, reason: 'nothing of B was written over A');
+    });
+
     test('a recording that cannot be loaded does not stop the project from opening', () async {
       final path = '${dir.path}/bad-recording.ccs';
       await ProjectFile.write(

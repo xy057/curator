@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -25,8 +26,22 @@
 #elif defined(_MSC_VER)
 #pragma warning(push, 0)
 #endif
+// The font being read, for the bounds check below (one per thread: isolates measure at once).
+static thread_local const unsigned char *g_fontBegin = nullptr, *g_fontEnd = nullptr;
+
+// Whether the [n] bytes at [p] lie in the font being read. stb_truetype follows offsets and
+// counts read from the file; a font that comes inside a project is not to be trusted, so every
+// read it makes is checked here (stb_truetype.h: "Curator changes").
+static inline bool InFont(const void *p, size_t n)
+{
+    const uintptr_t at = uintptr_t(p), begin = uintptr_t(g_fontBegin), end = uintptr_t(g_fontEnd);
+    return begin != 0 && at >= begin && at <= end && n <= end - at;
+}
+
 #define STB_TRUETYPE_IMPLEMENTATION
 #define STBTT_STATIC
+#define STBTT_IN_FONT(p, n) InFont((p), (n))
+#define STBTT_THREAD_LOCAL thread_local
 #include "stb_truetype.h"
 #if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic pop
@@ -136,6 +151,10 @@ int32_t vb_measure_font(const char *path, int32_t face, const uint32_t *codes, i
 {
     const std::vector<unsigned char> bytes = ReadFile(path);
     if (bytes.empty()) return 0;
+    struct Reading { // stb_truetype reads only inside [bytes] while this lives
+        Reading(const std::vector<unsigned char> &b) { g_fontBegin = b.data(); g_fontEnd = b.data() + b.size(); }
+        ~Reading() { g_fontBegin = g_fontEnd = nullptr; }
+    } reading(bytes);
     const int offset = stbtt_GetFontOffsetForIndex(bytes.data(), face);
     stbtt_fontinfo font;
     if (offset < 0 || !stbtt_InitFont(&font, bytes.data(), offset)) return 0;

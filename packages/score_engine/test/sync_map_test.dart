@@ -284,4 +284,17 @@ void main() {
       expect(m.anchors.map((a) => a.seconds), [0, 16, 18]);
     });
   });
+
+  test('with the opening anchor deleted, the start is where bar 1 sounds, and setting it pins bar 1', () {
+    final s = SyncMap(measureStarts: [0, 4, 8, 12, 16], defaultTempo: 120);
+    s.load([const SyncAnchor(0, 2), const SyncAnchor(4, 4), const SyncAnchor(8, 6)]);
+    s.removeAnchors({0});
+    expect(s.startSeconds, closeTo(2, 1e-9), reason: 'the first stretch\'s tempo, carried back to bar 1');
+    s.startSeconds = 1;
+    expect(s.anchors.first, const SyncAnchor(0, 1));
+    expect(s.secondsAtQuarter(0), 1);
+    expect(s.startSeconds, 1);
+    s.startSeconds = 9; // past the next anchor: held just before it
+    expect(s.anchors.first.seconds, closeTo(3.99, 1e-9));
+  });
 }

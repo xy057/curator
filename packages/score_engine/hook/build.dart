@@ -48,9 +48,10 @@ void main(List<String> args) async {
       file: library,
     ));
 
-    // Re-run the hook when the bridge, the build script or our Verovio patches change.
+    // Re-run the hook when the bridge, the font measuring, the build script or our Verovio
+    // patches change.
     // Verovio itself is pinned.
-    for (final file in ['CMakeLists.txt', 'verovio_bridge.cpp', 'verovio_bridge.h']) {
+    for (final file in ['CMakeLists.txt', 'verovio_bridge.cpp', 'verovio_bridge.h', 'font_metrics.cpp', 'stb_truetype.h']) {
       output.dependencies.add(source.resolve(file));
     }
     for (final patch in _patches(input.packageRoot)) {
