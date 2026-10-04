@@ -120,6 +120,12 @@ void main() {
     expect(() => read({'partOrder': ['P17', 2]}), damaged('state.partOrder[1] is not text'));
   });
 
+  test('a project claiming a format before the first is read as the first, at once', () {
+    final clock = Stopwatch()..start();
+    expect(ProjectState.fromJson(const {}, savedVersion: -1000000000).pairs, isEmpty);
+    expect(clock.elapsed, lessThan(const Duration(seconds: 1)));
+  });
+
   test('the instruments\' order is saved when moved; older projects keep the score\'s', () {
     final json = jsonDecode(jsonEncode(const ProjectState(partOrder: ['P17', 'P1']).toJson())) as Map<String, Object?>;
     expect(ProjectState.fromJson(json).partOrder, ['P17', 'P1']);

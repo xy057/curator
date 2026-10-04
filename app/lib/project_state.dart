@@ -117,7 +117,9 @@ class ProjectState {
       Map<String, PatchImage> images = const {},
       Map<String, ({Uint8List file, Uint8List? metadata})> fontFiles = const {}}) {
     var state = json;
-    for (var v = savedVersion; v < version; v++) {
+    // The first format is 1: a file claiming one before it (-1e9) is read as 1, not stepped
+    // up from there.
+    for (var v = savedVersion.clamp(1, version); v < version; v++) {
       final migrate = _migrations[v];
       if (migrate != null) state = migrate(state);
     }
