@@ -107,5 +107,29 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     await tester.pump();
     expect(c.images.patches, isEmpty);
+
+    // A banner thinner than a handle: its edges crop, its corner resizes from where it is,
+    // and a drag inside moves it.
+    await tester.runAsync(() => c.images.add(ImageKind.raster, png, quarter: quarter, top: (spot.dy - view.top) / scene.style.staffSpace));
+    c.images.update(0, c.images.patches.single.copyWith(width: 30, height: 0.4));
+    await tester.pump();
+    final thin = rect();
+    expect(thin.height, lessThan(8));
+    await tester.dragFrom(thin.bottomRight + const Offset(3, 3), const Offset(30, 0));
+    await tester.pumpAndSettle();
+    expect(rect().width, closeTo(thin.width + 30, 0.5), reason: 'no jump to the smallest size');
+    final grown = rect(), placed = c.images.patches.single;
+    await tester.dragFrom(grown.center + Offset(-grown.width / 4, 0), const Offset(30, 0));
+    await tester.pumpAndSettle();
+    expect(rect().left, closeTo(grown.left + 30, 0.5), reason: 'moved, not resized');
+    expect(c.images.patches.single.width, closeTo(placed.width, 1e-6));
+    c.images.select(0, crop: true);
+    await tester.pump();
+    final banner = rect();
+    await tester.dragFrom(banner.topCenter + const Offset(0, -4), const Offset(0, 30));
+    await tester.dragFrom(banner.centerRight + const Offset(4, 0), const Offset(-20, 0));
+    await tester.pumpAndSettle();
+    expect(c.images.patches.single.crop.right, lessThan(1));
+    expect(rect().height, closeTo(banner.height, 0.5), reason: 'a thin side never gets thinner');
   });
 }

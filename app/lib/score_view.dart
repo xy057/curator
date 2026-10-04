@@ -133,10 +133,15 @@ class _ScoreViewState extends State<ScoreView> {
     final rect = i == null ? null : _rectOf(i, frame);
     if (rect == null) return null;
     final r = frame.toView(rect);
-    for (final grip in _Grip.handles(cropping: c.images.cropping)) {
-      if ((grip.on(r) - view).distance <= _PatchOverlay.handle) return grip;
+    // The nearest handle; but inside a patch too small for its handles, nearer the middle
+    // than any handle, the body (a handle is then taken from just outside).
+    _Grip? grip;
+    var distance = _PatchOverlay.handle;
+    for (final g in _Grip.handles(cropping: c.images.cropping)) {
+      final d = (g.on(r) - view).distance;
+      if (d <= distance) (grip, distance) = (g, d);
     }
-    return r.contains(view) ? _Grip.body : null;
+    return r.contains(view) && (grip == null || (r.center - view).distance < distance) ? _Grip.body : grip;
   }
 
   void _onPointerDown(PointerDownEvent e, VideoFrame frame) {
@@ -495,19 +500,22 @@ class _PatchDrag {
     final d = p - origin;
     if (grip == _Grip.body) return rect.shift(d);
     if (cropping) {
-      final f = _full;
+      // A patch already smaller than minSide may stay that small, never smaller.
+      final f = _full, minWidth = math.min(minSide, rect.width), minHeight = math.min(minSide, rect.height);
       var Rect(:left, :top, :right, :bottom) = rect;
-      if (grip.dx < 0) left = (left + d.dx).clamp(f.left, right - minSide);
-      if (grip.dx > 0) right = (right + d.dx).clamp(left + minSide, f.right);
-      if (grip.dy < 0) top = (top + d.dy).clamp(f.top, bottom - minSide);
-      if (grip.dy > 0) bottom = (bottom + d.dy).clamp(top + minSide, f.bottom);
+      if (grip.dx < 0) left = (left + d.dx).clamp(math.min(f.left, rect.left), right - minWidth);
+      if (grip.dx > 0) right = (right + d.dx).clamp(left + minWidth, math.max(f.right, rect.right));
+      if (grip.dy < 0) top = (top + d.dy).clamp(math.min(f.top, rect.top), bottom - minHeight);
+      if (grip.dy > 0) bottom = (bottom + d.dy).clamp(top + minHeight, math.max(f.bottom, rect.bottom));
       return Rect.fromLTRB(left, top, right, bottom);
     }
-    // A corner: the opposite one stays, the shape is kept.
+    // A corner: the opposite one stays, the shape is kept; one smaller than minSide doesn't
+    // jump to it.
     final ax = grip.dx < 0 ? rect.right : rect.left, ay = grip.dy < 0 ? rect.bottom : rect.top;
+    final corner = grip.on(rect) + d; // taken a little off the corner, it doesn't jump either
     final f = math.max(
-      math.max(grip.dx * (p.dx - ax) / rect.width, grip.dy * (p.dy - ay) / rect.height),
-      minSide / math.min(rect.width, rect.height),
+      math.max(grip.dx * (corner.dx - ax) / rect.width, grip.dy * (corner.dy - ay) / rect.height),
+      math.min(1.0, minSide / math.min(rect.width, rect.height)),
     );
     final w = rect.width * f, h = rect.height * f;
     return Rect.fromLTWH(grip.dx < 0 ? ax - w : ax, grip.dy < 0 ? ay - h : ay, w, h);
