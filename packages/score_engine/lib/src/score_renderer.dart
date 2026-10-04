@@ -46,7 +46,7 @@ class StaffLabel {
 /// so a video looks exactly like the preview.
 class ScoreRenderer {
   ScoreRenderer(this.display, this.style,
-      {this.frozen, this.barlinesThrough = const {}, this.tileWidth = 512, this.maxTiles = 600});
+      {this.frozen, this.barlinesThrough = const {}, this.tileWidth = 512, this.maxTileBytes = 256 << 20});
 
   final ScoreDisplayList display;
   final RenderStyle style;
@@ -59,11 +59,20 @@ class ScoreRenderer {
   /// apart for (see SpacingPlan).
   final Map<int, int> barlinesThrough;
   final double tileWidth;
-  final int maxTiles;
+
+  /// How much the tile images may hold, in bytes (RGBA). The least recently drawn go first,
+  /// but never one the frame being painted uses, so a frame that needs more than this still
+  /// draws whole (and the cache shrinks back on the next).
+  final int maxTileBytes;
 
   final _tiles = <(int, int), _Tile>{}; // insertion-ordered: LRU: (staff index, tile index)
   final _emptyTiles = <(int, int)>{};
   double _tileDpr = 0;
+  int _tileBytes = 0;
+  int _frame = 0; // counts paint calls: a tile drawn in this one stays
+
+  /// What the tile images hold now, in bytes.
+  int get tileBytes => _tileBytes;
 
   /// Logical pixels per device unit.
   double get scale => style.staffSpace / display.data.staffSpace;
@@ -101,6 +110,7 @@ class ScoreRenderer {
     ui.Color? ink,
     void Function(ui.Canvas canvas, double musicLeft)? overlay,
   }) {
+    _frame++;
     final column = keyColumn ?? frozen?.maxKeyColumn ?? 0;
     final musicLeft = musicLeftFor(column);
     if (devicePixelRatio != _tileDpr) {
@@ -201,6 +211,7 @@ class ScoreRenderer {
     }
     _tiles.clear();
     _emptyTiles.clear();
+    _tileBytes = 0;
   }
 
   static double _snap(double v, double dpr) => (v * dpr).roundToDouble() / dpr;
@@ -208,16 +219,20 @@ class ScoreRenderer {
   _Tile? _tile(int staffIndex, int index) {
     final key = (staffIndex, index);
     final cached = _tiles.remove(key);
-    if (cached != null) return _tiles[key] = cached; // mark as recently used
+    if (cached != null) return _tiles[key] = cached..frame = _frame; // mark as recently used
     if (_emptyTiles.contains(key)) return null;
     final tile = _render(staffIndex, index);
     if (tile == null) {
       _emptyTiles.add(key);
       return null;
     }
-    _tiles[key] = tile;
-    while (_tiles.length > maxTiles) {
-      _tiles.remove(_tiles.keys.first)!.image.dispose();
+    _tiles[key] = tile..frame = _frame;
+    _tileBytes += tile.bytes;
+    // Oldest first; once the oldest is this frame's, so is every later one.
+    while (_tileBytes > maxTileBytes && _tiles.values.first.frame != _frame) {
+      final old = _tiles.remove(_tiles.keys.first)!;
+      _tileBytes -= old.bytes;
+      old.image.dispose();
     }
     return tile;
   }
@@ -322,6 +337,10 @@ extension on ScoreRenderer {
 class _Tile {
   _Tile(this.image, this.top);
   final ui.Image image;
+  int get bytes => image.width * image.height * 4;
+
+  /// The paint call that last drew it.
+  int frame = 0;
 
   /// Offset of the image's top edge from the staff's top line, logical pixels.
   final double top;
