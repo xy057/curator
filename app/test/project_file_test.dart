@@ -109,6 +109,12 @@ void main() {
     expect(() => read({'curation': {'lanes': {'P1': [{'start': 0, 'end': 2, 'transitionOut': 'slow'}]}}}),
         damaged('state.curation.lanes.P1[0].transitionOut is not a number'));
     expect(() => read({'view': {'grid': 'minute'}}), damaged('state.view.grid'));
+    expect(() => read(jsonDecode('{"sync": {"leadIn": 1e999}}') as Map<String, Object?>), damaged('state.sync.leadIn is out of range'));
+    expect(() => read({'view': {'staffSpace': -1e300}}), damaged('state.view.staffSpace is out of range'));
+    expect(() => read({'curation': {'transition': -2}}), damaged('state.curation.transition is not a length of time'));
+    expect(() => read({'curation': {'lanes': {'P1': [{'start': 0, 'end': 2, 'transitionIn': 1e6}]}}}),
+        damaged('state.curation.lanes.P1[0].transitionIn is not a length of time'));
+    expect(() => read({'curation': {'lanes': {'P1': [{'start': -4, 'end': 2}]}}}), damaged('state.curation.lanes.P1[0] starts before the score'));
     expect(() => read({'condensed': [3]}), damaged('state.condensed[0] is not text'));
     expect(() => read({'pairs': [['P1']]}), damaged('state.pairs[0] is not two part ids'));
     expect(() => read({'partOrder': ['P17', 2]}), damaged('state.partOrder[1] is not text'));

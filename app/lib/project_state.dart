@@ -135,7 +135,11 @@ class ProjectState {
                     _region(JsonReader(region, '${curation.where}.lanes.$id[$i]')),
                 ],
             },
-      transition: curation.number('transition'),
+      transition: switch (curation.number('transition')) {
+        final s? when s < 0 || s > maxTransition =>
+          throw FormatException('The project is damaged: ${curation.where}.transition is not a length of time.'),
+        final s => s,
+      },
       anchors: [
         for (final (i, anchor) in sync.list('anchors').indexed)
           () {
@@ -244,12 +248,18 @@ class ProjectState {
     return ImagePatch(image: image, quarter: quarter, top: top, width: size('width'), height: size('height'), crop: crop);
   }
 
+  /// The longest a staff may take to glide in or out, seconds (far more than any dialog offers).
+  static const maxTransition = 60.0;
+
   static Region _region(JsonReader r) {
     final start = r.number('start', required: true)!, end = r.number('end', required: true)!;
+    if (start < 0) throw FormatException('The project is damaged: ${r.where} starts before the score.');
     if (end < start) throw FormatException('The project is damaged: ${r.where} ends before it starts.');
     double? seconds(String key) {
       final s = r.number(key);
-      if (s != null && (s < 0 || !s.isFinite)) throw FormatException('The project is damaged: ${r.where}.$key is not a length of time.');
+      if (s != null && (s < 0 || s > maxTransition)) {
+        throw FormatException('The project is damaged: ${r.where}.$key is not a length of time.');
+      }
       return s;
     }
 
@@ -329,7 +339,15 @@ class JsonReader {
   Map<String, Object?> map(String key) => child(key)._map;
   List<Object?> list(String key) => _map[key] == null ? const [] : listAt(_map[key], _join(key));
 
-  double? number(String key, {bool required = false}) => _typed<num>(key, 'a number', required)?.toDouble();
+  /// A number no bigger than [maxNumber] either way: JSON can say 1e999, which reads as
+  /// infinity, and every time, position and size in a project is far smaller.
+  double? number(String key, {bool required = false}) {
+    final value = _typed<num>(key, 'a number', required)?.toDouble();
+    if (value != null && !(value.abs() <= maxNumber)) throw FormatException('The project is damaged: ${_join(key)} is out of range.');
+    return value;
+  }
+
+  static const maxNumber = 1e9;
   String? string(String key, {bool required = false}) => _typed<String>(key, 'text', required);
   bool? boolean(String key) => _typed<bool>(key, 'true or false', false);
 
