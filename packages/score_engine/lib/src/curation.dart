@@ -164,9 +164,6 @@ class Curation extends ChangeNotifier {
 
   void addRegion(String partId, Region region) => setLane(partId, [...lane(partId), region]);
 
-  void removeRegion(String partId, Region region) =>
-      setLane(partId, lane(partId).where((r) => r != region).toList());
-
   /// Replaces several lanes at once, as one change.
   void setLanes(Map<String, List<Region>> lanes) {
     _lanes = _joinedLanes(
