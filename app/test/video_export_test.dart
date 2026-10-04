@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -34,6 +35,50 @@ Encoders:
 
     test('none: null (audio encoders and the legend don\'t count)', () {
       expect(VideoEncoder.pick(' V..... = Video\n A....D aac  AAC\n V....D mpeg4  MPEG-4 part 2\n'), isNull);
+    });
+  });
+
+  group('frames drawn ahead', () {
+    test('come out in order, at most three at a time, whatever order they finish in', () async {
+      final jobs = <int, Completer<int>>{};
+      var most = 0;
+      final out = <int>[];
+      final done = VideoExport.inOrder(10, (i) {
+        jobs[i] = Completer<int>();
+        final running = jobs.values.where((c) => !c.isCompleted).length;
+        if (running > most) most = running;
+        return jobs[i]!.future;
+      }).forEach(out.add);
+      for (var round = 0; round < 10; round++) {
+        await pumpEventQueue();
+        // Finish the newest running one first, the oldest last.
+        for (final c in jobs.values.toList().reversed) {
+          if (!c.isCompleted) c.complete(jobs.entries.firstWhere((e) => e.value == c).key);
+        }
+      }
+      await done;
+      expect(out, List.generate(10, (i) => i));
+      expect(most, 3);
+    });
+
+    test("a frame that fails ends them with its error, and a later one's error isn't lost", () async {
+      final seen = <int>[];
+      await expectLater(
+          VideoExport.inOrder(6, (i) async => i == 2 || i == 3 ? throw StateError('frame $i') : i).forEach(seen.add),
+          throwsA(isA<StateError>().having((e) => e.message, 'message', 'frame 2')));
+      expect(seen, [0, 1]);
+    });
+
+    test('stopping starts no more', () async {
+      final started = <int>[];
+      await for (final i in VideoExport.inOrder(100, (i) async {
+        started.add(i);
+        return i;
+      })) {
+        if (i == 4) break;
+      }
+      await pumpEventQueue();
+      expect(started.length, lessThanOrEqualTo(4 + 3));
     });
   });
 

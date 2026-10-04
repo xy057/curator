@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -371,18 +372,21 @@ class VideoExport {
     final clock = Stopwatch()..start();
     (Object, StackTrace)? failure;
     try {
-      for (var i = 0; i < frames && !_cancelled; i++) {
+      // A few frames are drawn and read back while FFmpeg encodes the one before them.
+      var i = 0;
+      await for (final pixels in inOrder(frames, (i) {
         final image = _scene.renderFrame(format.width, format.height,
             time: format.timeOf(i),
             curation: _curation,
             devicePixelRatio: format.devicePixelRatio,
             paper: format.paper.paper,
             ink: format.paper.ink);
-        final pixels = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-        image.dispose();
+        return image.toByteData(format: ui.ImageByteFormat.rawRgba).whenComplete(image.dispose);
+      })) {
+        if (_cancelled) break;
         process.stdin.add(pixels!.buffer.asUint8List(pixels.offsetInBytes, pixels.lengthInBytes));
         await process.stdin.flush(); // wait while FFmpeg catches up, instead of queueing frames
-        onProgress?.call(ExportProgress(i + 1, frames, clock.elapsed));
+        onProgress?.call(ExportProgress(++i, frames, clock.elapsed));
       }
     } catch (e, stack) {
       failure = (e, stack); // FFmpeg quit (its exit code says why), or a frame failed
@@ -406,6 +410,23 @@ class VideoExport {
     final target = File(output);
     if (target.existsSync()) target.deleteSync();
     part.renameSync(output);
+  }
+
+  /// The results of jobs `0 … count - 1`, in order, with up to [ahead] of them started while
+  /// waiting for the first unfinished one. The first that fails ends the stream with its
+  /// error; stopping listening starts no more (those running finish unheard).
+  @visibleForTesting
+  static Stream<T> inOrder<T>(int count, Future<T> Function(int i) start, {int ahead = 3}) async* {
+    final running = Queue<Future<T>>();
+    var next = 0;
+    while (next < count || running.isNotEmpty) {
+      while (next < count && running.length < ahead) {
+        final job = start(next++);
+        unawaited(job.then((_) {}, onError: (Object _) {})); // its error is heard when it comes up
+        running.add(job);
+      }
+      yield await running.removeFirst();
+    }
   }
 
   void dispose() {
