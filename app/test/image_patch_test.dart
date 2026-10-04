@@ -7,6 +7,7 @@ import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
+import 'package:curated_score/video_export.dart';
 import 'package:archive/archive.dart' show ArchiveFile, ZipDecoder, ZipEncoder, getCrc32;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -81,6 +82,29 @@ void main() {
     });
     expect(c.images.patches, isEmpty);
     expect(c.canUndo, isFalse);
+    c.dispose();
+  });
+
+  testWidgets('a video export keeps drawing its images while the project is closed', (tester) async {
+    await open(tester);
+    c.images.enabled = true;
+    await tester.runAsync(() => c.images.add(ImageKind.raster, png, quarter: 3, top: 2));
+    final art = c.scene!.patches.single.art as RasterArt;
+    final export = VideoExport.of(c);
+    await tester.runAsync(c.close);
+    expect(art.image.debugDisposed, isFalse, reason: 'the export still draws it');
+    export.dispose();
+    expect(art.image.debugDisposed, isTrue, reason: 'let go with the export');
+
+    // Held by nothing: let go when the project closes.
+    await tester.runAsync(() async {
+      await c.openFile(demoScore.path);
+      await c.images.add(ImageKind.raster, png, quarter: 3, top: 2);
+    });
+    final next = c.scene!.patches.single.art as RasterArt;
+    VideoExport.of(c).dispose();
+    await tester.runAsync(c.close);
+    expect(next.image.debugDisposed, isTrue);
     c.dispose();
   });
 

@@ -48,7 +48,9 @@ changing how a score is engraved, what a project stores, or how edits are made.
 curation, the sync and the time alone; nothing accumulates between frames. That is what lets
 the preview scrub freely, and what video export reuses: frame *i* is `renderFrame(i / fps)`,
 the same painting offscreen. `VideoExport` works on its own scene and copies of the curation
-and sync, so something the scene shows must be copied in `VideoExport.of` too (as `names` is).
+and sync, so something the scene shows must be copied in `VideoExport.of` too (as `names` is);
+the decoded images it shares are held (`ImageEditing.hold`) until it is disposed, since the
+menu bar can close the project under the export dialog.
 A video has any ratio (`VideoRatio`: a preset or one typed, 1:4 to 4:1, chosen in the
 toolbar beside the frame toggle, which choosing one turns on); its size
 (`VideoResolution`, "1080p") is its short side in pixels. It is laid out like a preview

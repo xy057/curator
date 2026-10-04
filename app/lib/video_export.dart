@@ -267,7 +267,7 @@ class VideoExportCancelled implements Exception {
 /// nothing done in the editor meanwhile can change a video half written. Make one per export
 /// dialog; [dispose] it when done.
 class VideoExport {
-  VideoExport._(this._scene, this._curation, this._sync, {required this.duration, required this.audio});
+  VideoExport._(this._scene, this._curation, this._sync, this._releaseImages, {required this.duration, required this.audio});
 
   /// Takes what [editor] has open now. The editor must have a score.
   factory VideoExport.of(EditorController editor) {
@@ -284,8 +284,12 @@ class VideoExport {
       ..scrollFollow = editor.scrollFollow
       ..patches = editor.scene!.patches // none while Attach Image is off
       ..setTimeline(timeline);
-    return VideoExport._(scene, copy, timeline, duration: editor.playback.duration, audio: editor.track?.path);
+    return VideoExport._(scene, copy, timeline, editor.images.hold(),
+        duration: editor.playback.duration, audio: editor.track?.path);
   }
+
+  /// Lets go of the editor's images this export draws (see [ImageEditing.hold]).
+  final VoidCallback _releaseImages;
 
   final CuratedScene _scene;
   final Curation _curation;
@@ -435,6 +439,7 @@ class VideoExport {
     _scene.dispose();
     _curation.dispose();
     _sync.dispose();
+    _releaseImages();
   }
 
   /// What to tell someone who needs FFmpeg to export a video, for their platform.

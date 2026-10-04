@@ -163,9 +163,33 @@ class ImageEditing {
     _patches = const [];
     _deselect();
     _images.clear();
-    _arts.values.forEach(_dispose);
+    if (_holds > 0) {
+      _released.addAll(_arts.values);
+    } else {
+      _arts.values.forEach(_dispose);
+    }
     _arts.clear();
   }
+
+  /// Keeps every image drawn now from being let go (a video export draws them while the
+  /// project may be closed or another opened) until the returned function is called.
+  VoidCallback hold() {
+    _holds++;
+    var held = true;
+    return () {
+      if (!held) return;
+      held = false;
+      if (--_holds == 0) {
+        _released.forEach(_dispose);
+        _released.clear();
+      }
+    };
+  }
+
+  int _holds = 0;
+
+  /// Closed with their project while held: let go when nothing holds them.
+  final _released = <PatchArt>[];
 
   static void _dispose(PatchArt art) => switch (art) {
         RasterArt() => art.dispose(),
