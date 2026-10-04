@@ -105,4 +105,13 @@ void main() {
     expect(thick.engraving.measures.length, plain.engraving.measures.length);
     expect(thick.engraving.commandFloats, isNot(plain.engraving.commandFloats));
   });
+
+  test('NaN and infinity are no value for a number (they passed clamping, or failed to round)', () {
+    final integer = EngraveOption.byKey('measureMinWidth')!, number = EngraveOption.byKey('spacingLinear')!;
+    for (final bad in [double.nan, double.infinity, double.negativeInfinity]) {
+      expect(integer.coerce(bad), isNull, reason: '$bad');
+      expect(number.coerce(bad), isNull, reason: '$bad');
+    }
+    expect(integer.coerce(99.4), 30);
+  });
 }

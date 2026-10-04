@@ -41,10 +41,11 @@ class EngraveOption {
   /// The name inside `engravingDefaults`, or null for a top-level option.
   String? get smuflKey => key.startsWith(_smufl) ? key.substring(_smufl.length) : null;
 
-  /// [value] as this option takes it (clamped into range), or null when it can't be.
+  /// [value] as this option takes it (clamped into range), or null when it can't be (NaN and
+  /// infinity are no value: one would pass through clamping, the other not round).
   Object? coerce(Object? value) => switch (kind) {
-        EngraveOptionKind.number when value is num => value.toDouble().clamp(min!, max!).toDouble(),
-        EngraveOptionKind.integer when value is num => value.round().clamp(min!, max!).toInt(),
+        EngraveOptionKind.number when value is num && value.isFinite => value.toDouble().clamp(min!, max!).toDouble(),
+        EngraveOptionKind.integer when value is num && value.isFinite => value.round().clamp(min!, max!).toInt(),
         EngraveOptionKind.toggle when value is bool => value,
         EngraveOptionKind.choice when value is String && choices.contains(value) => value,
         _ => null,
