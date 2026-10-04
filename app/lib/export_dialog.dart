@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 import 'app_settings.dart';
+import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
 import 'media_converter.dart';
@@ -61,8 +62,8 @@ class _ExportDialogState extends State<_ExportDialog> {
       suggestedName: '${widget.suggestedName}.mp4',
     );
     if (location == null || !mounted) return;
-    var path = location.path;
-    if (!path.toLowerCase().endsWith('.mp4')) path += '.mp4';
+    final path = await confirmSavePath(context, location.path, 'mp4');
+    if (path == null || !mounted) return;
     setState(() {
       _stage = _Stage.writing;
       _output = path;

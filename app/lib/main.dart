@@ -253,10 +253,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       acceptedTypeGroups: const [_projectTypes],
       suggestedName: document.suggestedFileName,
     );
-    if (location == null) return false;
-    var path = location.path;
-    if (!path.toLowerCase().endsWith('.${ProjectFile.extension}')) path += '.${ProjectFile.extension}';
-    return _write(path);
+    if (location == null || !mounted) return false;
+    final path = await confirmSavePath(context, location.path, ProjectFile.extension);
+    return path != null && await _write(path);
   }
 
   /// With no score open, or the demo, there is nothing to save: says so instead of saving.

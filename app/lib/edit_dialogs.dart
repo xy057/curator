@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -533,4 +534,28 @@ class _VideoRatioDialogState extends State<_VideoRatioDialog> {
       ],
     );
   }
+}
+
+/// [path] ending `.<extension>`, and whether it was added: a save panel asked about the name as
+/// typed, so a file with the added extension was never offered to be replaced.
+(String, bool) withExtension(String path, String extension) =>
+    path.toLowerCase().endsWith('.${extension.toLowerCase()}') ? (path, false) : ('$path.$extension', true);
+
+/// Where to save what the save panel chose ([path]), with its [extension]: when adding it names
+/// a file already there, asks before replacing it (the panel didn't). Null: don't save.
+Future<String?> confirmSavePath(BuildContext context, String path, String extension) async {
+  final (full, added) = withExtension(path, extension);
+  if (!added || !File(full).existsSync()) return full;
+  final name = full.split(RegExp(r'[/\\]')).last;
+  final replace = await showAppDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Replace “$name”?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Replace')),
+      ],
+    ),
+  );
+  return replace == true ? full : null;
 }
