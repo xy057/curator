@@ -7,7 +7,7 @@ import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
-import 'package:archive/archive.dart' show getCrc32;
+import 'package:archive/archive.dart' show ArchiveFile, ZipDecoder, ZipEncoder, getCrc32;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
@@ -112,6 +112,10 @@ void main() {
     final opened = await tester.runAsync(() async {
       await ProjectFile.write(path,
           ProjectContents(scoreName: 'demo.musicxml', scoreBytes: demoScore.readAsBytesSync(), state: state));
+      // An unreadable image no patch shows is never read: the project still opens.
+      final zip = ZipDecoder().decodeBytes(File(path).readAsBytesSync())
+        ..add(ArchiveFile.bytes('images/junk.png', Uint8List.fromList([1, 2, 3])));
+      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(zip));
       return ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
     });
     expect(opened!.state.patches, state.patches);
@@ -139,6 +143,12 @@ void main() {
       throwsA(isA<FormatException>()),
     );
     expect(ProjectState.fromJson(const {}, savedVersion: 7).patches, isEmpty, reason: 'older projects have none');
+    expect(
+      ProjectState.fromJson(state({'image': 'a.png', 'quarter': 0, 'top': 0, 'width': 1, 'height': 1}),
+          images: {'a.png': image, 'b.png': PatchImage('b.png', ImageKind.raster, png)}).images.keys,
+      ['a.png'],
+      reason: 'an image on no patch is left out',
+    );
   });
 
   testWidgets('an image too big to decode is refused, and a big one is scaled down', (tester) async {

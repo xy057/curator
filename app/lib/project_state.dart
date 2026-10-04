@@ -110,7 +110,8 @@ class ProjectState {
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
   /// names the damaged field.
-  /// [images] are the image files the project holds (see [images]); [fontFiles] its music
+  /// [images] are the image files the project holds (see [images]; those not on the score
+  /// are left out); [fontFiles] its music
   /// fonts' files and metadata, by name (see [fonts]).
   factory ProjectState.fromJson(Map<String, Object?> json,
       {int savedVersion = version,
@@ -127,6 +128,9 @@ class ProjectState {
     final curation = r.child('curation');
     final sync = r.child('sync');
     final view = r.child('view');
+    final patches = [
+      for (final (i, patch) in r.list('patches').indexed) _patch(JsonReader(patch, '${r.where}.patches[$i]'), images),
+    ];
     return ProjectState(
       lanes: curation.isAbsent('lanes')
           ? null
@@ -177,10 +181,8 @@ class ProjectState {
         for (final (i, id) in r.list('partOrder').indexed)
           id is String ? id : throw FormatException('The project is damaged: ${r.where}.partOrder[$i] is not text.'),
       ],
-      patches: [
-        for (final (i, patch) in r.list('patches').indexed) _patch(JsonReader(patch, '${r.where}.patches[$i]'), images),
-      ],
-      images: images,
+      patches: patches,
+      images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
       fonts: _fonts(r.child('fonts'), fontFiles),
       view: ViewState(
         staffSpace: view.number('staffSpace'),

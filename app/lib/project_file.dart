@@ -162,14 +162,19 @@ abstract final class ProjectFile {
         );
       }
 
+      final stateJson = manifest.map('state');
       return OpenedProject(
         scoreName: score.string('name', required: true)!,
         scoreBytes: scoreFile.content,
-        state: ProjectState.fromJson(manifest.map('state'), savedVersion: version, images: {
-          for (final file in archive.files)
-            if (file.isFile && file.name.startsWith('images/'))
-              if (PatchImage.kindOfId(file.name.substring(7)) case final kind?)
-                file.name.substring(7): PatchImage(file.name.substring(7), kind, file.content),
+        // Only the images on the score are read (and so decoded): any others are left in the zip.
+        state: ProjectState.fromJson(stateJson, savedVersion: version, images: {
+          for (final id in {
+            if (stateJson['patches'] case final List patches)
+              for (final p in patches)
+                if (p case {'image': final String id}) id,
+          })
+            if ((PatchImage.kindOfId(id), archive.findFile('images/$id')) case (final kind?, final file?) when file.isFile)
+              id: PatchImage(id, kind, file.content),
         }, fontFiles: {
           for (final file in archive.files)
             if (file.isFile && file.name.startsWith('fonts/') && file.name.endsWith('.font'))

@@ -113,7 +113,8 @@ frozen zone and the pointer (`ScoreRenderer.paint`'s `overlay`), the same in a v
 click selects one, a drag moves it, a corner resizes it keeping its shape; double-click (or
 right-click ▸ Crop) and the handles crop it instead, the whole image shown faintly behind.
 Every change is an Undo step (`patches` in `EditState`); a project keeps them in
-`state.patches` and each image file, byte for byte, as `images/<id>` (format 8). While the
+`state.patches` and each image file, byte for byte, as `images/<id>` (format 8); opening
+reads only the files a patch shows. While the
 switch is off the images stay in the project but are not drawn, exported or editable
 (`ImageEditing.enabled`). Decoding is bounded (`PatchImage.decode`), so a small file can't
 take gigabytes: a file over 64 MB, or a PNG / JPEG over 64 megapixels (one inside an SVG
