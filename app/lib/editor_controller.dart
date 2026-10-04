@@ -82,8 +82,8 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// For the parts ([Playback], [LaneEditing], [SyncEditing]), which can't call the protected
-  /// [notifyListeners] themselves.
+  /// For the parts ([Playback], [LaneEditing], [SyncEditing], [ImageEditing]), which can't
+  /// call the protected [notifyListeners] themselves.
   void _changed() => notifyListeners();
 
   // MARK: Loading
@@ -672,8 +672,7 @@ class EditorController extends ChangeNotifier {
           ? anchors.delete()
           : lanes.delete();
 
-  // One history for the whole document: lanes, sync, names, texts, condensing, the instruments'
-  // order and the transition. After
+  // One history for the whole document: every edit a project saves ([EditState]). After
   // every change the document's state is compared with the last one recorded; a difference
   // is one Undo step. A gesture (a drag) records only when it ends.
 
