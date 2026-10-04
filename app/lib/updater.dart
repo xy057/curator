@@ -52,10 +52,13 @@ class Version implements Comparable<Version> {
 /// The newest release on GitHub, and its download for this platform (null when it has none).
 @immutable
 class Release {
-  const Release({required this.version, required this.pageUrl, this.download, this.downloadSize});
+  const Release({required this.version, required this.pageUrl, this.download, this.downloadSize, this.platform = ''});
 
   /// Reads a GitHub API release (`GET /repos/…/releases/latest`); null when it has no version.
-  static Release? fromJson(Object? json, {String platform = ''}) {
+  /// Its addresses are taken only when they are https on github.com, or on [origin] (the
+  /// endpoint asked, a local server in tests): the download is saved and the page opened, so
+  /// an answer can't send either anywhere else.
+  static Release? fromJson(Object? json, {String platform = '', Uri? origin}) {
     if (json is! Map) return null;
     final version = Version.tryParse('${json['tag_name']}');
     if (version == null) return null;
@@ -63,11 +66,21 @@ class Release {
     // The workflow names downloads `Curator-<version>-<platform>.zip`; nothing else (a checksum
     // beside it, another platform's) is this platform's download.
     final asset = assets.where((a) => '${a['name']}'.toLowerCase().endsWith('-$platform.zip')).firstOrNull;
+    Uri? trusted(Object? url) {
+      final uri = url is String ? Uri.tryParse(url) : null;
+      if (uri == null) return null;
+      final github = uri.scheme == 'https' && uri.host == 'github.com';
+      final local = origin != null && uri.hasAuthority && uri.origin == origin.origin;
+      return github || local ? uri : null;
+    }
+
+    final size = asset?['size'];
     return Release(
       version: version,
-      pageUrl: '${json['html_url'] ?? '$repositoryUrl/releases'}',
-      download: asset == null ? null : Uri.tryParse('${asset['browser_download_url']}'),
-      downloadSize: asset?['size'] as int?,
+      pageUrl: '${trusted(json['html_url']) ?? '$repositoryUrl/releases'}',
+      download: asset == null ? null : trusted(asset['browser_download_url']),
+      downloadSize: size is int && size > 0 ? size : null,
+      platform: platform,
     );
   }
 
@@ -75,8 +88,15 @@ class Release {
   final String pageUrl;
   final Uri? download;
   final int? downloadSize;
+  final String platform;
 
-  String get fileName => download?.pathSegments.last ?? 'Curator-$version.zip';
+  /// The download's own name when it is a plain one (`Curator-1.2.3-macos.zip`); otherwise
+  /// (a folder in it, `..`, a name for another kind of file) the name the workflow gives it.
+  String get fileName {
+    final name = download?.pathSegments.lastOrNull ?? '';
+    if (RegExp(r'^[A-Za-z0-9][A-Za-z0-9._+-]{0,99}\.zip$').hasMatch(name)) return name;
+    return 'Curator-$version${platform.isEmpty ? '' : '-$platform'}.zip';
+  }
 }
 
 /// Where an update check or download has got to.
@@ -169,7 +189,7 @@ class Updater extends ChangeNotifier {
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException('GitHub answered ${response.statusCode}');
       }
-      final release = Release.fromJson(jsonDecode(body), platform: platform);
+      final release = Release.fromJson(jsonDecode(body), platform: platform, origin: api);
       if (release == null) throw const FormatException('The latest release has no version');
       if (release.version > Version.current) {
         _set = UpdateAvailable(release);
