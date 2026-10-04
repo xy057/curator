@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' show Rect;
+import 'dart:typed_data';
+import 'dart:ui' show Rect, Size;
 
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
+import 'package:archive/archive.dart' show getCrc32;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
@@ -13,6 +15,27 @@ import 'demo_project.dart';
 /// 4 × 2 red pixels.
 final png = base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAYAAAB/qH1jAAAAEklEQVR4nGP4z8DwHxkzoAsAAA8hD/EEN8afAAAAAElFTkSuQmCC');
 final svg = utf8.encode('<svg xmlns="http://www.w3.org/2000/svg" width="30" height="10"><rect width="30" height="10" fill="blue"/></svg>');
+
+/// A plain grey PNG of [width] × [height] (8-bit grey, or 1-bit: far smaller), compressed
+/// as any PNG is: a few kilobytes even when huge.
+Uint8List greyPng(int width, int height, {bool oneBit = false}) {
+  List<int> chunk(String type, List<int> data) {
+    final body = [...ascii.encode(type), ...data];
+    final crc = getCrc32(body);
+    int b(int v, int s) => (v >> s) & 0xff;
+    return [b(data.length, 24), b(data.length, 16), b(data.length, 8), b(data.length, 0), ...body, b(crc, 24), b(crc, 16), b(crc, 8), b(crc, 0)];
+  }
+
+  int b(int v, int s) => (v >> s) & 0xff;
+  final row = 1 + (oneBit ? (width + 7) ~/ 8 : width);
+  final raw = Uint8List(row * height); // filter 0, all black
+  return Uint8List.fromList([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ...chunk('IHDR', [b(width, 24), b(width, 16), b(width, 8), b(width, 0), b(height, 24), b(height, 16), b(height, 8), b(height, 0), oneBit ? 1 : 8, 0, 0, 0, 0]),
+    ...chunk('IDAT', zlib.encode(raw)),
+    ...chunk('IEND', const []),
+  ]);
+}
 
 void main() {
   late EditorController c;
@@ -116,6 +139,32 @@ void main() {
       throwsA(isA<FormatException>()),
     );
     expect(ProjectState.fromJson(const {}, savedVersion: 7).patches, isEmpty, reason: 'older projects have none');
+  });
+
+  testWidgets('an image too big to decode is refused, and a big one is scaled down', (tester) async {
+    final bomb = greyPng(9000, 9000, oneBit: true); // 81 megapixels, about 10 KB
+    expect(bomb.length, lessThan(100000));
+    Future<Object?> decodeError(PatchImage image) => tester.runAsync<Object?>(() async {
+          try {
+            await image.decode();
+            return null;
+          } catch (e) {
+            return e;
+          }
+        });
+
+    expect(await decodeError(PatchImage('a.png', ImageKind.raster, bomb)),
+        isA<FormatException>().having((e) => e.message, 'message', 'The image is too big.'));
+    final inSvg = utf8.encode('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="10" height="10">'
+        '<image width="10" height="10" xlink:href="data:image/png;base64,${base64Encode(bomb)}"/></svg>');
+    expect(await decodeError(PatchImage('a.svg', ImageKind.vector, inSvg)),
+        isA<FormatException>().having((e) => e.message, 'message', 'The image is too big.'));
+    expect(await decodeError(PatchImage('a.png', ImageKind.raster, Uint8List(PatchImage.maxBytes + 1))),
+        isA<FormatException>().having((e) => e.message, 'message', 'The image is too big.'));
+
+    final art = await tester.runAsync(() => PatchImage('b.png', ImageKind.raster, greyPng(8192, 16)).decode()) as RasterArt;
+    expect(art.size, const Size(4096, 8), reason: 'scaled to the longest side kept, its shape kept');
+    art.dispose();
   });
 
   test('SVG text is told from other text', () {

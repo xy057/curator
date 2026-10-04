@@ -115,7 +115,10 @@ right-click ▸ Crop) and the handles crop it instead, the whole image shown fai
 Every change is an Undo step (`patches` in `EditState`); a project keeps them in
 `state.patches` and each image file, byte for byte, as `images/<id>` (format 8). While the
 switch is off the images stay in the project but are not drawn, exported or editable
-(`ImageEditing.enabled`).
+(`ImageEditing.enabled`). Decoding is bounded (`PatchImage.decode`), so a small file can't
+take gigabytes: a file over 64 MB, or a PNG / JPEG over 64 megapixels (one inside an SVG
+too, read from its header before anything is decoded), is refused; one longer than 4096
+pixels is kept at 4096.
 
 **Lanes are painted, not cut.** Drawing adds a region and merges it with what it touches;
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip

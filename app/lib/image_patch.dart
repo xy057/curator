@@ -54,26 +54,93 @@ class PatchImage {
   /// The kind of a saved image, from its id's file type; null when it is neither.
   static ImageKind? kindOfId(String id) => ImageKind.ofPath(id);
 
-  /// Draws the image. Throws a [FormatException] when the bytes are not an image of [kind].
+  /// The largest image file taken, bytes.
+  static const maxBytes = 64 << 20;
+
+  /// The most pixels a PNG or JPEG may have (one in an SVG too): decoding takes 4 bytes a
+  /// pixel, so a small file of a huge plain image could take gigabytes.
+  static const maxPixels = 64000000;
+
+  /// The longest side a PNG or JPEG is kept at; a bigger one is scaled down to it (sharp
+  /// enough for a 4K video).
+  static const maxSide = 4096;
+
+  /// Draws the image. Throws a [FormatException] when the bytes are not an image of [kind],
+  /// or one too big.
   Future<PatchArt> decode() async {
+    if (bytes.length > maxBytes) throw const FormatException('The image is too big.');
     try {
-      return switch (kind) {
-        ImageKind.vector => VectorArt(await vg.loadPicture(SvgBytesLoader(bytes), null)),
-        ImageKind.raster => RasterArt(await _decodeRaster(bytes)),
-      };
+      switch (kind) {
+        case ImageKind.vector:
+          await _checkEmbedded(bytes);
+          return VectorArt(await vg.loadPicture(SvgBytesLoader(bytes), null));
+        case ImageKind.raster:
+          return RasterArt(await _decodeRaster(bytes));
+      }
+    } on _TooBig {
+      throw const FormatException('The image is too big.');
     } catch (e) {
       throw FormatException('This is not ${kind == ImageKind.vector ? 'an SVG' : 'a PNG or JPEG'} image that can be read.');
     }
   }
 
+  /// The size of the PNG or JPEG in [bytes], read from its header (nothing is decoded).
+  static Future<ui.ImageDescriptor> _describe(Uint8List bytes) async {
+    final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+    try {
+      final descriptor = await ui.ImageDescriptor.encoded(buffer);
+      if (descriptor.width * descriptor.height > maxPixels) {
+        descriptor.dispose();
+        throw const _TooBig();
+      }
+      return descriptor;
+    } finally {
+      buffer.dispose();
+    }
+  }
+
   static Future<ui.Image> _decodeRaster(Uint8List bytes) async {
-    final codec = await ui.instantiateImageCodec(bytes);
+    final descriptor = await _describe(bytes);
+    final w = descriptor.width, h = descriptor.height, scale = math.min(1.0, maxSide / math.max(w, h));
+    final codec = await descriptor.instantiateCodec(
+        targetWidth: scale < 1 ? math.max(1, (w * scale).round()) : null,
+        targetHeight: scale < 1 ? math.max(1, (h * scale).round()) : null);
     try {
       return (await codec.getNextFrame()).image;
     } finally {
       codec.dispose();
+      descriptor.dispose();
     }
   }
+
+  /// SVG may carry PNGs and JPEGs of its own (base64 `data:` URLs), which flutter_svg decodes
+  /// whole: each is held to [maxPixels] too.
+  static Future<void> _checkEmbedded(Uint8List svg) async {
+    final text = utf8.decode(svg, allowMalformed: true);
+    for (final m in _embedded.allMatches(text)) {
+      final Uint8List data;
+      try {
+        data = base64Decode(m[1]!.replaceAll(RegExp(r'\s'), ''));
+      } on FormatException {
+        continue; // not drawn either
+      }
+      final ui.ImageDescriptor descriptor;
+      try {
+        descriptor = await _describe(data);
+      } on _TooBig {
+        rethrow;
+      } catch (_) {
+        continue; // not an image flutter_svg draws
+      }
+      descriptor.dispose();
+    }
+  }
+
+  static final _embedded = RegExp(r'data:image/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=\s]+)', caseSensitive: false);
+}
+
+class _TooBig implements Exception {
+  const _TooBig();
 }
 
 /// A PNG or JPEG, drawn smoothly at any size.
