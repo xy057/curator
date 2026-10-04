@@ -24,6 +24,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `curated_scene.dart` | `LoadedScore` (engraved, ready) and `CuratedScene`: one frame is `paint(time)` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
+| `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
 
 **`app/`** is the editor around it:
 
@@ -140,8 +141,8 @@ and transitions only the edges selected. An edge with its own transition shows i
 read the models (`curation`, `sync`) to draw them.
 
 **One Undo for the whole document.** After every change the controller compares the
-document's `EditState` (lanes, transition, anchors, lead-in, names, text edits) with the last
-one recorded; a difference is one step. A gesture is one step: wrap it in `beginEdit` /
+document's `EditState` (everything a project saves but the view: lanes, transition, sync,
+MIDI, names, texts, condensing, order, images, fonts) with the last one recorded; a difference is one step. A gesture is one step: wrap it in `beginEdit` /
 `endEdit`. The models keep no history of their own. View settings (staff size, grid, playhead)
 are not edits.
 
@@ -302,9 +303,12 @@ on Windows wherever the registry says that folder now is): it never replaces the
   each with its switch (and "All" when there are several). Everything the extension adds (menu items, toolbar buttons, drop targets, shortcuts,
   what it draws or exports) works only while its switch is on, and is hidden or inert otherwise.
   **Attach Image** (`AppSettings.attachImage`) is the first one.
-- **Something a project saves**: a field in `ProjectState` (and `EditState` if Undo should
-  cover it), written in `toJson`, read in `fromJson`; bump the version with a migration if
-  older files need converting.
+- **Something a project saves**: a field in `ProjectState`, written in `toJson`, read in
+  `fromJson`, filled in `EditorController.projectState` and taken on when a project opens;
+  bump the version with a migration (even one that changes nothing). If Undo should cover it
+  (every edit should), it is also a field of `EditState` (with its `==`), and the controller
+  fills it in `_editState` and puts it back in `_restore`. If it changes what is drawn, copy
+  it in `VideoExport.of` too.
 - **A Verovio change**: edit `third_party/verovio`, then
   `git -C packages/score_engine/third_party/verovio diff > patches/verovio-curated-score.patch`,
   then `make setup` (it re-applies the patches from a clean tree, and records that it did).
