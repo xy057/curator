@@ -84,8 +84,8 @@ abstract final class ProjectFile {
       // Only the images still on the score (Undo keeps the rest while the project is open).
       for (final id in {for (final p in c.state.patches) p.image}) {
         final image = c.state.images[id];
-        if (image == null) throw FileSystemException('An image on the score is missing', id);
-        zip.add(ArchiveFile.bytes('images/${_safeName(id)}', image.bytes)..compression = image.kind == ImageKind.vector ? CompressionType.deflate : CompressionType.none);
+        if (image == null || !PatchImage.isId(id)) throw FileSystemException('An image on the score is missing', id);
+        zip.add(ArchiveFile.bytes('images/$id', image.bytes)..compression = image.kind == ImageKind.vector ? CompressionType.deflate : CompressionType.none);
       }
       final music = c.state.fonts.music;
       if (music.file case final file?) {

@@ -234,6 +234,9 @@ class ProjectState {
 
   static ImagePatch _patch(JsonReader r, Map<String, PatchImage> images) {
     final image = r.string('image', required: true)!;
+    // Saved as images/<id> as it is: a name that would change there (a/b.png, a:b.png) would
+    // leave the patch without its image when opened again.
+    if (!PatchImage.isId(image)) throw FormatException('The project is damaged: the image of ${r.where} is not a file name.');
     if (!images.containsKey(image)) throw FormatException('The project is damaged: the image of ${r.where} is missing.');
     double size(String key) {
       final v = r.number(key, required: true)!;

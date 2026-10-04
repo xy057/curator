@@ -54,6 +54,11 @@ class PatchImage {
   /// The kind of a saved image, from its id's file type; null when it is neither.
   static ImageKind? kindOfId(String id) => ImageKind.ofPath(id);
 
+  /// Whether [id] can be one: a plain file name (letters, digits, `-`, `_`, `.`, not
+  /// starting with a dot) of a known file type, the same in a zip and on every file system.
+  static bool isId(String id) => id.length <= 100 && _id.hasMatch(id) && kindOfId(id) != null;
+  static final _id = RegExp(r'^[A-Za-z0-9_-][A-Za-z0-9._-]*$');
+
   /// The largest image file taken, bytes.
   static const maxBytes = 64 << 20;
 

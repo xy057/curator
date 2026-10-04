@@ -142,6 +142,15 @@ void main() {
           images: {'a.png': image}),
       throwsA(isA<FormatException>()),
     );
+    for (final id in ['a:b.png', 'a/b.png', '../a.png', '.png', 'a.gif']) {
+      expect(
+        () => ProjectState.fromJson(state({'image': id, 'quarter': 0, 'top': 0, 'width': 1, 'height': 1}),
+            images: {id: PatchImage(id, ImageKind.raster, png)}),
+        throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('not a file name'))),
+        reason: '$id would be saved under another name',
+      );
+    }
+    expect(PatchImage.isId(PatchImage.create(ImageKind.vector, svg, extension: 'SVG').id), isTrue);
     expect(ProjectState.fromJson(const {}, savedVersion: 7).patches, isEmpty, reason: 'older projects have none');
     expect(
       ProjectState.fromJson(state({'image': 'a.png', 'quarter': 0, 'top': 0, 'width': 1, 'height': 1}),
