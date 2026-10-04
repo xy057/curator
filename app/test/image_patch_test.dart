@@ -57,6 +57,11 @@ void main() {
     expect(c.scene!.patches, hasLength(1));
     expect(c.images.selected, 0, reason: 'a new image is selected');
 
+    await tester.runAsync(() => c.images.add(ImageKind.raster, Uint8List.fromList(png), quarter: 9, top: 2));
+    expect(c.images.patches[1].image, c.images.patches[0].image, reason: 'the same file again is the same image');
+    expect(c.projectState.images, hasLength(1));
+    c.images.remove(1);
+
     c.images.enabled = false;
     expect(c.scene!.patches, isEmpty, reason: 'hidden, so not exported either');
     expect(c.images.selected, isNull);

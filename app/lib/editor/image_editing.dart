@@ -70,10 +70,12 @@ class ImageEditing {
   /// when the bytes are not such an image.
   Future<void> add(ImageKind kind, Uint8List bytes, {required double quarter, required double top, String extension = ''}) async {
     if (!_enabled || _c._score == null) return;
-    final image = PatchImage.create(kind, bytes, extension: extension), document = _document;
-    final art = await image.decode();
+    // The same file again is the same image: the project keeps it once.
+    final same = _images.values.where((i) => i.kind == kind && _arts.containsKey(i.id) && listEquals(i.bytes, bytes)).firstOrNull;
+    final image = same ?? PatchImage.create(kind, bytes, extension: extension), document = _document;
+    final art = same != null ? _arts[same.id]! : await image.decode();
     // Closed (another maybe opened) or switched off meanwhile: not for what is open now.
-    if (document != _document || !_enabled || _c._score == null) return _dispose(art);
+    if (document != _document || !_enabled || _c._score == null) return same == null ? _dispose(art) : null;
     _images[image.id] = image;
     _arts[image.id] = art;
     final aspect = art.size.width / art.size.height;
