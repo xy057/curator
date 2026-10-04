@@ -280,8 +280,10 @@ additive meter). `Samples/` is for trying things by hand only.
 Run workflow, or `gh workflow run release.yml`). It builds side by side with `make build` on
 macOS and `flutter build windows` on Windows (Verovio fetched and patched by hand there: no
 `make`), zips each as `Curator-<version>-<macos|windows>.zip` (the Windows zip carries the
-Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built, where the
-version is `app/pubspec.yaml`'s. To release again, bump that version and `appVersion` in
+Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built and
+`make check` has passed on macOS (the tests don't run on Windows), where the version is
+`app/pubspec.yaml`'s. Its actions are pinned to commits, not tags; only the job that publishes
+may write to the repository. To release again, bump that version and `appVersion` in
 `updater.dart` together (`updater_test.dart` checks they match); a version already released
 stops the run before it builds. The app finds its download by that name (the asset whose
 name ends `-macos.zip` or `-windows.zip`; the launch notice stays quiet when there is none), so
