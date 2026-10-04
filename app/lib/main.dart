@@ -98,7 +98,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   late final updater = widget.updater ?? Updater();
   late final document = ProjectDocument(controller, settings)..onAutosaveError = _autosaveFailed;
   late final _lifecycle = AppLifecycleListener(onExitRequested: _exitRequested);
-  bool _dragging = false;
+  /// Where a file being dragged over the window would go; null: none is.
+  _DropArea? _drop;
+  _DropArea _lastDrop = _DropArea.home; // the hint's text while it fades out
+  final _scoreView = GlobalKey<ScoreViewState>(), _timeline = GlobalKey(), _dropStack = GlobalKey();
   double _timelineHeight = 300;
 
   static const _scoreExtensions = ['musicxml', 'xml', 'mxl'];
@@ -411,7 +414,63 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (problem != null && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(problem)));
   }
 
-  void _dropped(String path) {
+  /// A drop goes by where it lands: with no score open anything opens; over the score it is
+  /// an image; over the timeline, the Instruments tab opens a project or score and the Audio
+  /// tab takes a MIDI tempo map or a recording.
+  _DropArea _areaAt(Offset global) {
+    if (controller.score == null) return _DropArea.home;
+    final timelineTop = _top(_timeline);
+    if (timelineTop != null && global.dy >= timelineTop) {
+      return controller.tab == BottomTab.audio ? _DropArea.audio : _DropArea.project;
+    }
+    return _DropArea.image;
+  }
+
+  /// The top of [key]'s widget in the window.
+  static double? _top(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    return box == null || !box.hasSize ? null : box.localToGlobal(Offset.zero).dy;
+  }
+
+  void _dragAt(Offset global) {
+    final area = _areaAt(global);
+    if (area != _drop) setState(() => _drop = _lastDrop = area);
+  }
+
+  /// Where the drop hint for [area] is drawn, in the window's page; null: all of it.
+  Rect? _dropRect(_DropArea area) {
+    final stack = _dropStack.currentContext?.findRenderObject() as RenderBox?, top = _top(_timeline);
+    if (area == _DropArea.home || stack == null || !stack.hasSize || top == null) return null;
+    final split = stack.globalToLocal(Offset(0, top)).dy;
+    return area == _DropArea.image
+        ? Rect.fromLTRB(0, 0, stack.size.width, split)
+        : Rect.fromLTRB(0, split, stack.size.width, stack.size.height);
+  }
+
+  void _dropped(String path, _DropArea area, Offset global) {
+    switch (area) {
+      case _DropArea.image:
+        _scoreView.currentState?.dropImage(path, global);
+      case _DropArea.project:
+        if (MediaFormats.isMidi(path) || MediaFormats.isRecording(path)) {
+          _snack('Drop it on the Audio tab.');
+        } else {
+          _openPath(path);
+        }
+      case _DropArea.audio:
+        if (MediaFormats.isMidi(path)) {
+          _guard(() => controller.loadMidiTempo(path), title: 'Could not use the MIDI file');
+        } else if (MediaFormats.isRecording(path)) {
+          _guard(() => controller.loadAudio(path), title: 'Could not load the recording');
+        } else {
+          _snack('Not a MIDI file or a recording.');
+        }
+      case _DropArea.home:
+        _droppedHome(path);
+    }
+  }
+
+  void _droppedHome(String path) {
     if (MediaFormats.isMidi(path)) {
       if (controller.score == null) {
         _snack('Open a score first, then add its MIDI tempo map.');
@@ -499,16 +558,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         child: Focus(
           autofocus: true,
           child: DropTarget(
-            onDragEntered: (_) => setState(() => _dragging = true),
-            onDragExited: (_) => setState(() => _dragging = false),
+            onDragEntered: (d) => _dragAt(d.globalPosition),
+            onDragUpdated: (d) => _dragAt(d.globalPosition),
+            onDragExited: (_) => setState(() => _drop = null),
             onDragDone: (details) {
-              setState(() => _dragging = false);
-              if (details.files.isNotEmpty) _dropped(details.files.first.path);
+              final area = _areaAt(details.globalPosition);
+              setState(() => _drop = null);
+              if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
             },
             child: ListenableBuilder(
               listenable: Listenable.merge([controller, document, settings]),
               builder: (context, _) => Scaffold(
                 body: Stack(
+                  key: _dropStack,
                   children: [
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 320),
@@ -538,7 +600,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                             ),
                     ),
                     _Busy(visible: controller.isLoading, message: 'Engraving…'),
-                    _DropHint(visible: _dragging),
+                    _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: settings.attachImage),
                   ],
                 ),
               ),
@@ -606,6 +668,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             onClose: _close,
           ),
           Expanded(child: ScoreView(
+            key: _scoreView,
             controller: controller,
             aspectRatio: settings.previewVideoFrame ? settings.videoFormat.aspectRatio : null,
           )),
@@ -613,6 +676,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             onDrag: (dy) => setState(() => _timelineHeight = (timelineHeight - dy).clamp(_minTimeline, maxTimeline)),
           ),
           SizedBox(
+            key: _timeline,
             height: timelineHeight,
             // Working in the timeline leaves the image selected in the score.
             child: Listener(
@@ -704,14 +768,29 @@ class _Busy extends StatelessWidget {
 }
 
 /// Shown while a file is dragged over the window.
+/// Where a dropped file goes (see [_HomePageState._areaAt]).
+enum _DropArea { home, image, project, audio }
+
 class _DropHint extends StatelessWidget {
-  const _DropHint({required this.visible});
+  const _DropHint({required this.area, required this.visible, required this.rect, required this.attachImage});
+  final _DropArea area;
   final bool visible;
+
+  /// Where it is drawn; null: the whole page.
+  final Rect? rect;
+  final bool attachImage;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return IgnorePointer(
+    final (icon, title, detail) = switch (area) {
+      _DropArea.home => (Icons.file_download_outlined, 'Drop to open', 'A project, a MusicXML score, or a recording for the open score'),
+      _DropArea.project => (Icons.file_download_outlined, 'Drop to open', 'A project or a MusicXML score'),
+      _DropArea.audio => (Icons.graphic_eq_rounded, 'Drop to add', 'A MIDI tempo map or a recording'),
+      _DropArea.image when attachImage => (Icons.image_outlined, 'Drop to add an image', 'SVG, PNG or JPEG'),
+      _DropArea.image => (Icons.image_not_supported_outlined, 'Attach Image is off', 'Settings ▸ Extension'),
+    };
+    final hint = IgnorePointer(
       child: AnimatedOpacity(
         opacity: visible ? 1 : 0,
         duration: const Duration(milliseconds: 160),
@@ -728,17 +807,18 @@ class _DropHint extends StatelessWidget {
             ),
             child: Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.file_download_outlined, size: 40, color: colors.accentStrong),
+                Icon(icon, size: 40, color: colors.accentStrong),
                 const SizedBox(height: 10),
-                Text('Drop to open', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: colors.text)),
+                Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: colors.text)),
                 const SizedBox(height: 4),
-                Text('A project, a MusicXML score, or a recording for the open score',
-                    style: TextStyle(fontSize: 12.5, color: colors.textMuted)),
+                Text(detail, style: TextStyle(fontSize: 12.5, color: colors.textMuted)),
               ]),
             ),
           ),
         ),
       ),
     );
+    final r = rect;
+    return r == null ? Positioned.fill(child: hint) : Positioned.fromRect(rect: r, child: hint);
   }
 }

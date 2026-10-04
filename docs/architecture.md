@@ -93,7 +93,7 @@ which a warp doesn't interrupt, so the tempo runs on through a jump. Changing a 
 the anchors after it (up to the next warp) with it, keeping their times (`SyncMap.setJump`).
 Anchors are kept in time order, each arriving further on than the one before went on from.
 
-**A MIDI file can stand in for the anchors.** Dropping a `.mid` (or the Audio tab's MIDI
+**A MIDI file can stand in for the anchors.** Dropping a `.mid` on the Audio tab (or its MIDI
 button) reads its tempo map (`MidiTempoMap.read`: tempo changes only; the beats still come
 from the score) and the sync follows it: the file's start is bar 1 (or its upbeat), sounding
 at Starts at, and `MidiTempoMap.anchors` puts an anchor at each change of tempo and at the
@@ -107,7 +107,8 @@ back when the MIDI goes. Using or dropping one is an edit (`midi` in `EditState`
 
 **An image scrolls with the score** (the Attach Image extension). Right-click the preview ▸
 Add Image… (an SVG, drawn as vectors, or a PNG / JPEG: the file's type says which), or Paste (⌘V: a PNG, SVG text, or a copied
-file), puts one where it was clicked (⌘V: at the pointer). An `ImagePatch` pins its left edge
+file), puts one where it was clicked (⌘V: at the pointer); a file dropped on the score, where
+it is dropped (`ScoreViewState.dropImage`). An `ImagePatch` pins its left edge
 to a score quarter (so re-engraving keeps it at its bar) and gives its top below the frame's
 top and its size in staff spaces (it grows with the score size); `crop` is the part of the
 image shown, in fractions. The scene draws them over the music and under the names, the
@@ -126,6 +127,12 @@ take gigabytes: a file over 64 MB, or a PNG / JPEG over 64 megapixels (one insid
 too, read from its header before anything is decoded), is refused; one longer than 4096
 pixels is kept at 4096. An SVG with no viewBox and no width and height (flutter_svg refuses
 it; a browser draws it) is given the box around what it draws.
+
+**A drop goes by where it lands** (`_HomePageState._areaAt`; the hint covers only that
+area and says what it takes). With no score open, anything opens (as File ▸ Open). Above
+the timeline, it is always an image (Attach Image; while that is off, it says so). On the
+timeline, the Instruments tab opens a project or a score, and the Audio tab takes a MIDI
+tempo map or a recording.
 
 **Lanes are painted, not cut.** Drawing adds a region and merges it with what it touches;
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip

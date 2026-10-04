@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart';
@@ -27,6 +28,7 @@ import 'video_export.dart';
 /// With Attach Image on (Settings ▸ Extension), right-click adds an image (an SVG, PNG or
 /// JPEG file, or the clipboard's) where it was clicked; click one to select it, drag it to move it, drag a
 /// corner to resize it; double-click it (or right-click ▸ Crop) and the handles crop it.
+/// A file dropped on it is added as an image where it is dropped ([ScoreViewState.dropImage]).
 class ScoreView extends StatefulWidget {
   const ScoreView({super.key, required this.controller, this.aspectRatio});
   final EditorController controller;
@@ -35,10 +37,10 @@ class ScoreView extends StatefulWidget {
   final double? aspectRatio;
 
   @override
-  State<ScoreView> createState() => _ScoreViewState();
+  State<ScoreView> createState() => ScoreViewState();
 }
 
-class _ScoreViewState extends State<ScoreView> {
+class ScoreViewState extends State<ScoreView> {
   EditorController get c => widget.controller;
 
   /// The text being edited in place, and where it is drawn (layout points, see [VideoFrame]).
@@ -254,6 +256,29 @@ class _ScoreViewState extends State<ScoreView> {
     }
   }
 
+  /// The frame as last laid out.
+  VideoFrame? _frame;
+
+  /// Adds the image file at [path] where it was dropped ([global]: a point in the window),
+  /// its top-left corner there; says why when it can't.
+  Future<void> dropImage(String path, Offset global) async {
+    final scene = c.scene, frame = _frame, box = context.findRenderObject() as RenderBox?;
+    if (scene == null || frame == null || box == null) return;
+    if (!c.images.enabled) return _say('Attach Image is off.');
+    final kind = ImageKind.ofPath(path);
+    if (kind == null) return _say('Not an SVG, PNG or JPEG.');
+    final r = frame.rect, local = box.globalToLocal(global);
+    final p = frame.toLayout(Offset(local.dx.clamp(r.left, r.right), local.dy.clamp(r.top, r.bottom)));
+    try {
+      await c.images.add(kind, await File(path).readAsBytes(),
+          quarter: scene.quarterAtFrameX(p.dx, c.playback.time.value, frame.layout),
+          top: p.dy / scene.style.staffSpace,
+          extension: path.split('.').last);
+    } catch (e) {
+      _say('Could not add the image: ${describeError(e)}');
+    }
+  }
+
   void _say(String message) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -266,6 +291,7 @@ class _ScoreViewState extends State<ScoreView> {
       final frame = aspectRatio == null
           ? VideoFrame.fill(constraints.biggest)
           : VideoFrame.fit(constraints.biggest, aspectRatio, devicePixelRatio: devicePixelRatio);
+      _frame = frame;
       final colors = context.colors;
       final editing = _editing;
       final editRect = editing == null ? null : frame.toView(editing.rect);
