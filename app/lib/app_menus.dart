@@ -21,6 +21,11 @@ class AppMenus extends StatelessWidget {
     this.onAddRecording,
     this.onExportVideo,
     this.onClose,
+    this.onUndo,
+    this.onRedo,
+    this.onPaste,
+    this.onDelete,
+    this.onSelectAll,
   });
 
   /// Open…: a project, or a score to start one from.
@@ -46,6 +51,13 @@ class AppMenus extends StatelessWidget {
 
   /// File ▸ Export Video…; null (greyed out) while nothing is open.
   final VoidCallback? onExportVideo;
+
+  /// Edit menu; each null (greyed out) when it has nothing to do.
+  final VoidCallback? onUndo;
+  final VoidCallback? onRedo;
+  final VoidCallback? onPaste;
+  final VoidCallback? onDelete;
+  final VoidCallback? onSelectAll;
 
   static bool get _mac => defaultTargetPlatform == TargetPlatform.macOS;
 
@@ -97,6 +109,27 @@ class AppMenus extends StatelessWidget {
             PlatformMenuItemGroup(members: [
               PlatformMenuItem(label: 'Settings…', shortcut: _key(LogicalKeyboardKey.comma), onSelected: onSettings),
             ]),
+        ]),
+        PlatformMenu(label: 'Edit', menus: [
+          PlatformMenuItemGroup(members: [
+            PlatformMenuItem(label: 'Undo', shortcut: _key(LogicalKeyboardKey.keyZ), onSelected: onUndo),
+            PlatformMenuItem(
+              label: 'Redo',
+              shortcut: _mac
+                  ? _key(LogicalKeyboardKey.keyZ, shift: true)
+                  : const SingleActivator(LogicalKeyboardKey.keyY, control: true),
+              onSelected: onRedo,
+            ),
+          ]),
+          PlatformMenuItemGroup(members: [
+            PlatformMenuItem(label: 'Paste', shortcut: _key(LogicalKeyboardKey.keyV), onSelected: onPaste),
+            PlatformMenuItem(
+              label: 'Delete',
+              shortcut: SingleActivator(_mac ? LogicalKeyboardKey.backspace : LogicalKeyboardKey.delete),
+              onSelected: onDelete,
+            ),
+            PlatformMenuItem(label: 'Select All', shortcut: _key(LogicalKeyboardKey.keyA), onSelected: onSelectAll),
+          ]),
         ]),
         PlatformMenu(label: 'Score', menus: [
           PlatformMenuItem(label: 'Edit Texts…', onSelected: onEditTexts),

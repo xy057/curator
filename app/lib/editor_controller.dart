@@ -681,6 +681,10 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether Delete has anything to remove.
+  bool get canDelete =>
+      images._selected != null || (_tab == BottomTab.audio ? anchors.selected.isNotEmpty : lanes.selected.isNotEmpty);
+
   /// Delete: removes what is selected in the tab that is showing.
   /// A selected image goes first.
   void deleteSelection() => images._selected != null
