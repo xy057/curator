@@ -523,14 +523,21 @@ class _StartFieldState extends State<_StartField> {
   final _text = TextEditingController();
   final _focus = FocusNode();
 
-  /// What had the keyboard before the field took it, given back on Enter.
+  /// What had the keyboard before the field took it (by a click, Tab or otherwise), given back on Enter.
   FocusNode? _before;
+
+  void _track() {
+    final now = FocusManager.instance.primaryFocus;
+    if (now != _focus) _before = now;
+  }
 
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_show);
     _focus.addListener(_show);
+    FocusManager.instance.addListener(_track);
+    _track();
     _show();
   }
 
@@ -547,6 +554,7 @@ class _StartFieldState extends State<_StartField> {
   @override
   void dispose() {
     widget.controller.removeListener(_show);
+    FocusManager.instance.removeListener(_track);
     _text.dispose();
     _focus.dispose();
     super.dispose();
@@ -564,7 +572,6 @@ class _StartFieldState extends State<_StartField> {
   /// would leave it on the route's scope, above them, and Space, T, ⌘Z… would stop working.
   void _leave() {
     final before = _before;
-    _before = null;
     if (before != null && before.context != null && before.canRequestFocus) {
       before.requestFocus();
     } else {
@@ -582,34 +589,29 @@ class _StartFieldState extends State<_StartField> {
         SizedBox(
           width: 64,
           height: 28,
-          child: Listener(
-            onPointerDown: (_) {
-              if (!_focus.hasFocus) _before = FocusManager.instance.primaryFocus;
-            },
-            child: TextField(
-              controller: _text,
-              focusNode: _focus,
-              style: TextStyle(fontSize: 12, color: context.colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
-              textAlign: TextAlign.right,
-              decoration: InputDecoration(
-                isDense: true,
-                suffixText: 's',
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: context.colors.line),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: context.colors.accent, width: 1.5),
-                ),
+          child: TextField(
+            controller: _text,
+            focusNode: _focus,
+            style: TextStyle(fontSize: 12, color: context.colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
+            textAlign: TextAlign.right,
+            decoration: InputDecoration(
+              isDense: true,
+              suffixText: 's',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: context.colors.line),
               ),
-              onSubmitted: (v) {
-                final seconds = double.tryParse(v);
-                if (seconds != null) widget.controller.anchors.setStart(seconds);
-                _leave();
-              },
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: context.colors.accent, width: 1.5),
+              ),
             ),
+            onSubmitted: (v) {
+              final seconds = double.tryParse(v);
+              if (seconds != null) widget.controller.anchors.setStart(seconds);
+              _leave();
+            },
           ),
         ),
       ]),

@@ -114,5 +114,22 @@ void main() {
     await tester.pump();
     expect(c.playback.isPlaying, isTrue);
     c.playback.pause();
+    await tester.pumpAndSettle();
+
+    // Reached with Tab, not a click: the same.
+    bool typing() => FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+    for (var i = 0; i < 100 && !typing(); i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+    }
+    expect(tester.state<EditableTextState>(find.descendant(of: field, matching: find.byType(EditableText))).widget.focusNode.hasFocus, isTrue);
+    await tester.enterText(field, '2');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(c.sync!.startSeconds, 2);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    expect(c.playback.isPlaying, isTrue);
+    c.playback.pause();
   });
 }
