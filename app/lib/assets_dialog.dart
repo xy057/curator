@@ -7,7 +7,8 @@ import 'image_patch.dart';
 import 'ui_kit.dart';
 
 /// The images the project keeps (Attach Image), each with where it is used: a use's bar
-/// locates it, Remove takes the image off the score everywhere (one Undo step).
+/// locates it, Remove takes the image off the score everywhere (one Undo step). Below them
+/// the unused ones (removed, kept for Undo), which Purge unused lets go of.
 Future<void> showAssetsDialog(BuildContext context, EditorController c) =>
     showAppDialog<void>(context: context, builder: (context) => AssetsDialog(controller: c));
 
@@ -20,28 +21,45 @@ class AssetsDialog extends StatelessWidget {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        final stored = controller.score == null ? const <PatchImage>[] : controller.images.stored;
+        final open = controller.score != null;
+        final stored = open ? controller.images.stored : const <PatchImage>[];
+        final unused = open ? controller.images.unused : const <PatchImage>[];
+        final muted = TextStyle(color: context.colors.textMuted);
         return AlertDialog(
           title: const Text('Assets'),
           content: SizedBox(
             width: 480,
             height: 360,
-            child: stored.isEmpty
-                ? Center(child: Text('No images', style: TextStyle(color: context.colors.textMuted)))
-                : ListView.separated(
-                    itemCount: stored.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, i) => _AssetRow(controller: controller, image: stored[i]),
-                  ),
+            child: stored.isEmpty && unused.isEmpty
+                ? Center(child: Text('No images', style: muted))
+                : ListView(children: [
+                    for (final (i, image) in stored.indexed) ...[
+                      if (i > 0) const Divider(height: 1),
+                      _AssetRow(controller: controller, image: image),
+                    ],
+                    if (unused.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(top: stored.isEmpty ? 0 : 16, bottom: 4),
+                        child: Text('Unused', style: muted.copyWith(fontSize: 12, fontWeight: FontWeight.w600)),
+                      ),
+                    for (final (i, image) in unused.indexed) ...[
+                      if (i > 0) const Divider(height: 1),
+                      _AssetRow(controller: controller, image: image),
+                    ],
+                  ]),
           ),
-          actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
+          actions: [
+            TextButton(onPressed: unused.isEmpty ? null : controller.images.purgeUnused, child: const Text('Purge unused')),
+            FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+          ],
         );
       },
     );
   }
 }
 
-/// One image: its thumbnail, kind and size, its uses (each a bar), and Remove.
+/// One image: its thumbnail, kind and size, its uses (each a bar), and Remove (none when it
+/// is unused).
 class _AssetRow extends StatelessWidget {
   const _AssetRow({required this.controller, required this.image});
   final EditorController controller;
@@ -93,7 +111,8 @@ class _AssetRow extends StatelessWidget {
             ]),
           ]),
         ),
-        ToolbarButton(icon: Icons.delete_outline_rounded, tooltip: 'Remove', onPressed: () => images.removeImage(image.id)),
+        if (uses.isNotEmpty)
+          ToolbarButton(icon: Icons.delete_outline_rounded, tooltip: 'Remove', onPressed: () => images.removeImage(image.id)),
       ]),
     );
   }

@@ -33,7 +33,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
 | `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image) |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
-| `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove |
+| `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Purge unused |
 | `fonts_dialog.dart` | Score ▸ Fonts…: the music and text font a project is engraved in |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned); Undo's snapshots |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -128,6 +128,10 @@ keeps (`ImageEditing.stored`: those a patch shows), each with its uses as bars: 
 locates it (`ImageEditing.locate`: the playhead goes to where its left edge sounds, first
 pass, and it is selected), and Remove takes every patch of that image off the score in one
 Undo step (`ImageEditing.removeImage`).
+Below them are the unused ones (`ImageEditing.unused`: removed while the project is open,
+kept so Undo can bring them back; never saved). Purge unused lets go of them and rewrites
+the Undo history without their patches (`EditHistory.rewrite`), so every other edit of
+those steps can still be undone, and a step that only added or removed one is dropped.
 Every change is an Undo step (`patches` in `EditState`); a project keeps them in
 `state.patches` and each image file, byte for byte, as `images/<id>` (format 8); opening
 reads only the files a patch shows. While the

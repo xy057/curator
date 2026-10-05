@@ -55,6 +55,22 @@ class EditState {
       listEquals(patches, other.patches) &&
       fonts == other.fonts;
 
+  /// This state with [patches] instead of its own.
+  EditState withPatches(List<ImagePatch> patches) => EditState(
+        lanes: lanes,
+        transition: transition,
+        anchors: anchors,
+        leadIn: leadIn,
+        midi: midi,
+        partNames: partNames,
+        textEdits: textEdits,
+        condensed: condensed,
+        pairs: pairs,
+        partOrder: partOrder,
+        patches: patches,
+        fonts: fonts,
+      );
+
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes.length, anchors.length, partNames.length, textEdits.length);
 }
@@ -94,6 +110,29 @@ class EditHistory {
     if (_redo.isEmpty) return null;
     _undo.add(current);
     return _redo.removeLast();
+  }
+
+  /// Changes every state kept by [change] (from [current], the state now, which it leaves
+  /// as it is); a step that then changes nothing is dropped.
+  void rewrite(EditState current, EditState Function(EditState) change) {
+    List<EditState> changed(List<EditState> steps) {
+      final kept = <EditState>[];
+      var next = current;
+      for (final state in steps.reversed.map(change)) {
+        if (state == next) continue;
+        kept.add(state);
+        next = state;
+      }
+      return kept.reversed.toList();
+    }
+
+    final undo = changed(_undo), redo = changed(_redo);
+    _undo
+      ..clear()
+      ..addAll(undo);
+    _redo
+      ..clear()
+      ..addAll(redo);
   }
 
   void clear() {

@@ -14,7 +14,7 @@ import 'image_patch_test.dart' show png, svg;
 import 'test_fonts.dart';
 
 void main() {
-  testWidgets('Manage assets lists the images kept, locates each use and removes an image everywhere', (tester) async {
+  testWidgets('Manage assets lists the images kept, locates each use, removes an image everywhere and purges unused ones', (tester) async {
     await tester.runAsync(loadTestFonts);
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
@@ -29,6 +29,18 @@ void main() {
       await tester.pump();
     }
     await tester.pump(const Duration(milliseconds: 500));
+
+    final dir = Platform.environment['SCREENSHOT_DIR'];
+    Future<void> shot(String name) async {
+      if (dir == null) return;
+      await tester.runAsync(() async {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.ancestor(of: find.byType(AssetsDialog), matching: find.byType(RepaintBoundary)).last);
+        final image = await boundary.toImage(pixelRatio: 2);
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        File('$dir/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
+      });
+    }
 
     final button = find.byTooltip('Manage assets…');
     expect(button, findsNothing, reason: 'Attach Image is off');
@@ -54,16 +66,7 @@ void main() {
     for (final bar in ['Bar 5', 'Bar 11', 'Bar 2']) {
       expect(find.text(bar), findsOneWidget);
     }
-    final dir = Platform.environment['SCREENSHOT_DIR'];
-    if (dir != null) {
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(
-            find.ancestor(of: find.byType(AssetsDialog), matching: find.byType(RepaintBoundary)).last);
-        final image = await boundary.toImage(pixelRatio: 2);
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/assets-dialog.png').writeAsBytesSync(bytes!.buffer.asUint8List());
-      });
-    }
+    await shot('assets-dialog');
 
     // A use's bar: the playhead goes where it reaches the pointer, and it is selected.
     await tester.tap(find.text('Bar 11'));
@@ -85,5 +88,40 @@ void main() {
     c.undo();
     expect(c.images.patches, hasLength(3));
     expect(c.images.stored, hasLength(2));
+
+    // Removed, the SVG is unused: listed under Unused (kept for Undo) until purged.
+    final svgId = c.images.stored.firstWhere((i) => i.id.endsWith('.svg')).id;
+    c.images.removeImage(svgId);
+    final png0 = c.images.patches.single;
+    c.images.update(0, png0.copyWith(quarter: 6)); // an edit that isn't the SVG's
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.text('Unused'), findsOneWidget);
+    await shot('assets-unused');
+    expect(find.textContaining('SVG · '), findsOneWidget);
+    expect(find.byTooltip('Remove'), findsOneWidget, reason: 'only the PNG is on the score');
+    expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Purge unused')).onPressed, isNotNull);
+
+    await tester.tap(find.text('Purge unused'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unused'), findsNothing);
+    expect(find.textContaining('SVG · '), findsNothing);
+    expect(c.images.unused, isEmpty);
+    expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Purge unused')).onPressed, isNull);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+
+    // Undo keeps every other edit but never brings the SVG back.
+    c.undo();
+    expect(c.images.patches.single, png0, reason: 'the PNG move is undone');
+    while (c.canUndo) {
+      c.undo();
+      expect(c.images.patches.every((p) => p.image.endsWith('.png')), isTrue);
+    }
+    expect(c.images.patches, isEmpty, reason: 'back to before the PNG was added');
+    while (c.canRedo) {
+      c.redo();
+    }
+    expect(c.images.patches.single.quarter, 6);
   });
 }

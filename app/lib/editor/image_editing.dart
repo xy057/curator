@@ -135,6 +135,29 @@ class ImageEditing {
 
   PatchArt? artOfImage(String id) => _arts[id];
 
+  /// The image files no patch shows: removed while the project is open, kept so Undo can
+  /// bring them back. Never saved.
+  List<PatchImage> get unused => [
+        for (final image in _images.values)
+          if (!_patches.any((p) => p.image == image.id)) image,
+      ];
+
+  /// Lets go of [unused]: Undo no longer brings back the patches that showed them (every
+  /// other edit of those steps stays).
+  void purgeUnused() {
+    final gone = {for (final image in unused) image.id};
+    if (gone.isEmpty) return;
+    for (final id in gone) {
+      _images.remove(id);
+      if (_arts.remove(id) case final art?) _letGo(art);
+    }
+    List<ImagePatch> kept(List<ImagePatch> patches) =>
+        patches.any((p) => gone.contains(p.image)) ? List.unmodifiable(patches.where((p) => !gone.contains(p.image))) : patches;
+    _c._history.rewrite(_c._editState, (state) => state.withPatches(kept(state.patches)));
+    if (_c._committed case final committed?) _c._committed = committed.withPatches(kept(committed.patches));
+    _c._changed();
+  }
+
   /// Removes every patch showing image [id]: one Undo step.
   void removeImage(String id) {
     if (!_enabled || !_patches.any((p) => p.image == id)) return;
@@ -197,13 +220,12 @@ class ImageEditing {
     _patches = const [];
     _deselect();
     _images.clear();
-    if (_holds > 0) {
-      _released.addAll(_arts.values);
-    } else {
-      _arts.values.forEach(_dispose);
-    }
+    _arts.values.forEach(_letGo);
     _arts.clear();
   }
+
+  /// Disposes [art], or after the last [hold] while one is held.
+  void _letGo(PatchArt art) => _holds > 0 ? _released.add(art) : _dispose(art);
 
   /// Keeps every image drawn now from being let go (a video export draws them while the
   /// project may be closed or another opened) until the returned function is called.
