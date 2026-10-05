@@ -238,8 +238,9 @@ Change both sides together.
 **Verovio is pinned and patched.** `make setup` clones the tagged release and applies
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
-keep their written key), MusicXML direction ids (so texts can be edited), and a log per
-thread (engravings run side by side on isolates, each reading its own). Mark changes in
+keep their written key), MusicXML direction ids (so texts can be edited), cancelling naturals
+at a key change to C (a key change was applied twice, the second time cancelling itself), and a
+log per thread (engravings run side by side on isolates, each reading its own). Mark changes in
 Verovio's code with `[curated-score patch]`.
 
 **Engraving options: offered ones only, the layout ones fixed.** The bridge

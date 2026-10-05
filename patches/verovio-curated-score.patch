@@ -1,3 +1,16 @@
+diff --git a/include/vrv/drawinginterface.h b/include/vrv/drawinginterface.h
+index 221244d..0647ae4 100644
+--- a/include/vrv/drawinginterface.h
++++ b/include/vrv/drawinginterface.h
+@@ -339,6 +339,8 @@ private:
+     Clef m_currentClef;
+     /** The key signature */
+     KeySig m_currentKeySig;
++    /** [curated-score patch] The key signature it was set from, so setting it again keeps the cancellation */
++    const KeySig *m_currentKeySigSource;
+     /** The mensur */
+     Mensur m_currentMensur;
+     /** The meter signature (time signature) */
 diff --git a/include/vrv/vrv.h b/include/vrv/vrv.h
 index d8070ce..a35e805 100644
 --- a/include/vrv/vrv.h
@@ -21,6 +34,29 @@ index d8070ce..a35e805 100644
  
  /**
   * Functions for logging in milliseconds the elapsed time of an
+diff --git a/src/drawinginterface.cpp b/src/drawinginterface.cpp
+index 8a0ed02..131e979 100644
+--- a/src/drawinginterface.cpp
++++ b/src/drawinginterface.cpp
+@@ -595,6 +595,7 @@ void StaffDefDrawingInterface::Reset()
+ {
+     m_currentClef.Reset();
+     m_currentKeySig.Reset();
++    m_currentKeySigSource = NULL;
+     m_currentMensur.Reset();
+     m_currentMeterSig.Reset();
+     m_currentMeterSigGrp.Reset();
+@@ -626,6 +627,10 @@ void StaffDefDrawingInterface::SetCurrentClef(const Clef *clef)
+ 
+ void StaffDefDrawingInterface::SetCurrentKeySig(const KeySig *keySig)
+ {
++    // [curated-score patch] A key change in a <scoreDef> is set from the scoreDef and again from its
++    // <staffDef>: the second time would take the new key as the one to cancel (no naturals for C).
++    if (keySig && keySig == m_currentKeySigSource) return;
++    m_currentKeySigSource = keySig;
+     if (keySig) {
+         const bool ignoreCancel
+             = (m_currentKeySig.HasNonAttribKeyAccidChildren() || keySig->HasNonAttribKeyAccidChildren());
 diff --git a/src/iomusxml.cpp b/src/iomusxml.cpp
 index f20540d..930ae65 100644
 --- a/src/iomusxml.cpp

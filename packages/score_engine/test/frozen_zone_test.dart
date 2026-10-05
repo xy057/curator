@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
+import 'package:score_engine/src/engraving.dart';
 
 import 'demo_score.dart';
 
@@ -41,8 +42,25 @@ void main() {
     expect(stateAt('Trumpet in B♭ 1', 29).key?.fifths, -2);
   });
 
-  test('a change to no key signature takes over the zone too, though nothing is drawn for it', () async {
-    // B major from bar 5, then C major at bar 17, as a piece going atonal: no cancelling naturals.
+  test('a change to C major draws a natural for each accidental it cancels, in the scrolling score', () async {
+    // B major from bar 5, then C major at bar 17: Oboe 1 drops five sharps, the clarinets
+    // (written D major at both ends of the piece, C♯ major between) only those beyond two.
+    final changes = await LoadedScore.load(demoScoreWithKeyChanges({5: 5, 17: 0}));
+    final data = changes.engraving;
+    List<int> glyphs(String part, int fifths) {
+      final n = changes.metadata.parts.firstWhere((p) => p.name == part).staffNumbers.first;
+      final sig = data.signatures.whereType<KeySignature>().lastWhere((k) => k.staff == n && k.fifths == fifths);
+      return [for (var i = sig.commandStart; i < sig.commandStart + sig.commandCount; i++) data.commandInts[i * Cmd.words + Cmd.codepoint]];
+    }
+
+    const natural = 0xE261, sharp = 0xE262;
+    expect(glyphs('Oboe 1', 0), List.filled(5, natural));
+    expect(glyphs('Violin I', 0), List.filled(5, natural));
+    expect(glyphs('Clarinet in B♭ 1', 2), List.filled(2, sharp), reason: 'fewer sharps cancel nothing unless the score asks');
+  });
+
+  test('a change to no key signature takes over the zone too, though only naturals are drawn for it', () async {
+    // B major from bar 5, then C major at bar 17.
     final changes = await LoadedScore.load(demoScoreWithKeyChanges({5: 5, 17: 0}));
     final scene = CuratedScene(changes);
     int? fifths(String part, int bar) {

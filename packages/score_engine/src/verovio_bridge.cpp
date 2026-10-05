@@ -542,8 +542,9 @@ private:
             found = true;
         }
         // A key signature can draw nothing and still change the key in force: a change to C major
-        // or an atonal key (Verovio draws no cancelling naturals there), or a hidden one. It is
-        // recorded where it stands, as no accidentals: what the score shows from there on.
+        // with nothing to cancel, or a hidden one. It is recorded where it stands, as no
+        // accidentals: what the score shows from there on. (A change to C major draws only its
+        // cancelling naturals, recorded as fifths 0 too.)
         const bool emptyKey = !found && object->Is(KEYSIG);
         if (emptyKey) sig.x = float(vrv_cast<const KeySig *>(object)->GetDrawingX());
         if ((!found && !emptyKey) || sig.staff <= 0) return;
