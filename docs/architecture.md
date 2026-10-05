@@ -71,6 +71,10 @@ window's size never changes what the score shows. Hit tests go through `VideoFra
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back
 from the barline. Snapping, tapping, the tempo lane and every
 `12.2` position (`BeatGrid.format` / `parse`) go through it.
+So does Go to: a click on the toolbar's time or bar.beat (or ⌘G) types where to go,
+a bar (`12`, `12.2`: where it first sounds) or a time (`1:10.5`, `1:02:03`), read by
+`Playback.goTo`. Closing it hands the keyboard back to what had it, or the window's
+shortcuts would stop (focus falls to the route's scope, above them).
 
 **The scroll follows the beats, the notes, or a blend.** `ScrollMap.follow` (Settings ▸
 Animation ▸ Scrolling, `AppSettings.scrollFollow`, app-wide, 0.4 by default, copied into video export) runs

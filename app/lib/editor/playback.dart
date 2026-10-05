@@ -75,6 +75,36 @@ class Playback {
 
   void skip(double seconds) => seek(time.value + seconds);
 
+  /// Moves the playhead to [text]: a bar ("12", "12.2", as [BeatGrid.parse] reads it; where it
+  /// first sounds) or a time ("1:10", "1:10.5", "1:02:03"). False when it is neither.
+  bool goTo(String text) {
+    final seconds = secondsOf(text);
+    if (seconds == null) return false;
+    seek(seconds);
+    _editor.viewport.follow(time.value);
+    return true;
+  }
+
+  /// When [goTo]'s [text] sounds; null when it is no bar or time.
+  double? secondsOf(String text) {
+    if (_editor.score == null) return null;
+    if (_clockOf(text) case final seconds?) return seconds;
+    final quarter = _editor.beats.parse(text);
+    if (quarter == null) return null;
+    final timeline = _editor.timeline;
+    return timeline.timesOf(quarter).firstOrNull?.seconds ?? timeline.secondsAtQuarter(quarter);
+  }
+
+  /// "m:ss", "m:ss.f" or "h:mm:ss" in seconds.
+  static double? _clockOf(String text) {
+    final match = RegExp(r'^\s*(?:(\d+):)?(\d+):(\d+(?:\.\d*)?)\s*$').firstMatch(text);
+    if (match == null) return null;
+    final hours = match[1] == null ? 0 : int.parse(match[1]!);
+    final minutes = int.parse(match[2]!), seconds = double.parse(match[3]!);
+    if (seconds >= 60 || (match[1] != null && minutes >= 60)) return null;
+    return hours * 3600.0 + minutes * 60 + seconds;
+  }
+
   // MARK: Frame loop
 
   bool _dirty = true;

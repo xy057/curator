@@ -523,11 +523,21 @@ class _StartFieldState extends State<_StartField> {
   final _text = TextEditingController();
   final _focus = FocusNode();
 
+  /// What had the keyboard before the field took it (by a click, Tab or otherwise), given back on Enter.
+  FocusNode? _before;
+
+  void _track() {
+    final now = FocusManager.instance.primaryFocus;
+    if (now != _focus) _before = now;
+  }
+
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_show);
     _focus.addListener(_show);
+    FocusManager.instance.addListener(_track);
+    _track();
     _show();
   }
 
@@ -544,6 +554,7 @@ class _StartFieldState extends State<_StartField> {
   @override
   void dispose() {
     widget.controller.removeListener(_show);
+    FocusManager.instance.removeListener(_track);
     _text.dispose();
     _focus.dispose();
     super.dispose();
@@ -555,6 +566,17 @@ class _StartFieldState extends State<_StartField> {
     if (sync == null || _focus.hasFocus) return;
     final text = sync.startSeconds.toStringAsFixed(2);
     if (_text.text != text) _text.text = text;
+  }
+
+  /// Gives the keyboard back to what had it (the window, under its shortcuts); a bare unfocus
+  /// would leave it on the route's scope, above them, and Space, T, ⌘Z… would stop working.
+  void _leave() {
+    final before = _before;
+    if (before != null && before.context != null && before.canRequestFocus) {
+      before.requestFocus();
+    } else {
+      _focus.unfocus();
+    }
   }
 
   @override
@@ -588,7 +610,7 @@ class _StartFieldState extends State<_StartField> {
             onSubmitted: (v) {
               final seconds = double.tryParse(v);
               if (seconds != null) widget.controller.anchors.setStart(seconds);
-              _focus.unfocus();
+              _leave();
             },
           ),
         ),
