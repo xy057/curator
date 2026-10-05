@@ -118,6 +118,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// Whether the demo is open: Save and Save As are off for it.
   final _isSample = ValueNotifier(false);
 
+  /// What the Edit menu can do; the menus rebuild when it changes, not on every edit.
+  final _edit = ValueNotifier((undo: false, redo: false, paste: false, delete: false));
+
   @override
   void initState() {
     super.initState();
@@ -148,7 +151,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     ));
   }
 
-  void _scoreChanged() => _hasScore.value = controller.score != null;
+  void _scoreChanged() {
+    final open = controller.score != null;
+    _hasScore.value = open;
+    _edit.value = (
+      undo: controller.canUndo,
+      redo: controller.canRedo,
+      paste: open && controller.images.enabled,
+      delete: open && controller.canDelete,
+    );
+  }
 
   /// Settings ▸ Advanced ▸ Engrave Options: what is open is engraved again with them.
   void _engravingChanged() => controller.engravingOptions = settings.engravingOptions;
@@ -183,6 +195,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     updater.removeListener(_launchCheckAnswered);
     _hasScore.dispose();
     _isSample.dispose();
+    _edit.dispose();
     _lifecycle.dispose();
     document.dispose();
     controller.dispose();
@@ -539,24 +552,34 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     // The menus follow the recent files and whether a score is open; the page below them is
     // built once and passed through.
     return ListenableBuilder(
-      listenable: Listenable.merge([settings, _hasScore, _isSample]),
-      builder: (context, page) => AppMenus(
-        onOpen: _open,
-        // Enabled but for the demo: Save explains when there is nothing to save.
-        onSave: _isSample.value ? null : _save,
-        onSaveAs: _isSample.value ? null : _saveAs,
-        onSettings: _settings,
-        recentFiles: settings.recentFiles,
-        onOpenRecent: _openPath,
-        onClearRecent: settings.clearRecent,
-        onClose: _hasScore.value ? _close : null,
-        onEditTexts: _hasScore.value ? _editTexts : null,
-        onCondensing: _hasScore.value ? _condensing : null,
-        onFonts: _hasScore.value ? _fonts : null,
-        onAddRecording: _hasScore.value ? _addRecording : null,
-        onExportVideo: _hasScore.value ? _exportVideo : null,
-        child: page!,
-      ),
+      listenable: Listenable.merge([settings, _hasScore, _isSample, _edit]),
+      builder: (context, page) {
+        // Edit acts on the score, so not while a text field or a dialog has the keyboard:
+        // a key the field leaves unused would otherwise reach the menu.
+        final edit = !_typing && (ModalRoute.of(context)?.isCurrent ?? true) ? _edit.value : null;
+        return AppMenus(
+          onOpen: _open,
+          // Enabled but for the demo: Save explains when there is nothing to save.
+          onSave: _isSample.value ? null : _save,
+          onSaveAs: _isSample.value ? null : _saveAs,
+          onSettings: _settings,
+          recentFiles: settings.recentFiles,
+          onOpenRecent: _openPath,
+          onClearRecent: settings.clearRecent,
+          onClose: _hasScore.value ? _close : null,
+          onEditTexts: _hasScore.value ? _editTexts : null,
+          onCondensing: _hasScore.value ? _condensing : null,
+          onFonts: _hasScore.value ? _fonts : null,
+          onAddRecording: _hasScore.value ? _addRecording : null,
+          onExportVideo: _hasScore.value ? _exportVideo : null,
+          onUndo: edit != null && edit.undo ? controller.undo : null,
+          onRedo: edit != null && edit.redo ? controller.redo : null,
+          onPaste: edit != null && edit.paste ? _pasteImage : null,
+          onDelete: edit != null && edit.delete ? controller.deleteSelection : null,
+          onSelectAll: edit != null && _hasScore.value ? _selectAll : null,
+          child: page!,
+        );
+      },
       child: CallbackShortcuts(
         bindings: _typing ? const {} : _bindings,
         child: Focus(

@@ -67,4 +67,63 @@ void main() {
     });
     expect(file.existsSync(), isTrue);
   });
+
+  testWidgets('Edit greys out what has nothing to do', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const CuratedScoreApp());
+    final state = tester.state(find.byType(HomePage)) as dynamic;
+    final c = state.controller as EditorController;
+
+    AppMenus menus() => tester.widget<AppMenus>(find.byType(AppMenus));
+
+    // Nothing open: nothing to edit.
+    expect(menus().onUndo, isNull);
+    expect(menus().onRedo, isNull);
+    expect(menus().onPaste, isNull);
+    expect(menus().onDelete, isNull);
+    expect(menus().onSelectAll, isNull);
+
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    expect(menus().onUndo, isNull);
+    expect(menus().onRedo, isNull);
+    expect(menus().onDelete, isNull);
+    expect(menus().onSelectAll, isNotNull);
+
+    // Through the menu bar: Select All, Delete, then Undo and Redo.
+    Future<void> choose(String label) async {
+      await tester.tap(find.text('Edit'));
+      await tester.pump();
+      final item = tester.widget<MenuItemButton>(find.widgetWithText(MenuItemButton, label));
+      expect(item.onPressed, isNotNull, reason: label);
+      await tester.tap(find.widgetWithText(MenuItemButton, label));
+      await tester.pump(); // the menu closes, then the item runs
+      await tester.pump();
+    }
+
+    await choose('Select All');
+    expect(menus().onDelete, isNotNull);
+    await choose('Delete');
+    expect(menus().onUndo, isNotNull);
+    expect(menus().onRedo, isNull);
+    await choose('Undo');
+    expect(menus().onUndo, isNull);
+    expect(menus().onRedo, isNotNull);
+    await choose('Redo');
+    expect(menus().onRedo, isNull);
+
+    // Paste follows Attach Image's switch.
+    expect(menus().onPaste, isNull);
+    c.images.enabled = true;
+    await tester.pump();
+    expect(menus().onPaste, isNotNull);
+
+    // A dialog over the page has the keyboard: Edit is off under it.
+    showDialog<void>(context: tester.element(find.byType(HomePage)), builder: (_) => const Text('dialog'));
+    await tester.pump();
+    expect(menus().onUndo, isNull);
+    expect(menus().onSelectAll, isNull);
+  });
 }
