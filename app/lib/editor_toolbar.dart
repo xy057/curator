@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 import 'assets_dialog.dart';
@@ -22,6 +23,7 @@ class EditorToolbar extends StatelessWidget {
     required this.videoRatio,
     required this.onVideoRatio,
     required this.onClose,
+    this.readout,
   });
   final EditorController controller;
   final ProjectDocument document;
@@ -36,6 +38,9 @@ class EditorToolbar extends StatelessWidget {
   final VideoRatio videoRatio;
   final ValueChanged<VideoRatio> onVideoRatio;
   final VoidCallback onClose;
+
+  /// The time readout, which ⌘G opens to type where to go.
+  final GlobalKey<TimeReadoutState>? readout;
 
   static const height = 46.0;
 
@@ -62,7 +67,7 @@ class EditorToolbar extends StatelessWidget {
         const SizedBox(width: 2),
         _PlayButton(controller: c),
         const SizedBox(width: 12),
-        _TimeReadout(controller: c),
+        TimeReadout(key: readout, controller: c),
         const Spacer(),
         _SavingIndicator(document: document),
         ToolbarButton(
@@ -211,10 +216,40 @@ class _PlayButton extends StatelessWidget {
   }
 }
 
-/// "1:10.0 / 1:31.4" and the bar.beat sounding now.
-class _TimeReadout extends StatelessWidget {
-  const _TimeReadout({required this.controller});
+/// "1:10.0 / 1:31.4" and the bar.beat sounding now. A click on either (or ⌘G: [edit]) types
+/// where to go instead: a bar or a time ([Playback.goTo]).
+class TimeReadout extends StatefulWidget {
+  const TimeReadout({super.key, required this.controller});
   final EditorController controller;
+
+  @override
+  State<TimeReadout> createState() => TimeReadoutState();
+}
+
+class TimeReadoutState extends State<TimeReadout> {
+  final _field = TextEditingController();
+  final _focus = FocusNode();
+  bool _editing = false;
+  bool _wrong = false;
+
+  /// What had the keyboard before the field: it gets it back, so the window's shortcuts
+  /// (Space, ⌘G…) work again.
+  FocusNode? _before;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus) _close();
+    });
+  }
+
+  @override
+  void dispose() {
+    _field.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
 
   static String _clock(double seconds) {
     final s = seconds.clamp(0, 359999);
@@ -222,41 +257,130 @@ class _TimeReadout extends StatelessWidget {
     return '${s ~/ 60}:${(s.floor() % 60).toString().padLeft(2, '0')}.$tenths';
   }
 
+  /// The beat sounding now, counted the way the time signature beats (6/8: two dotted crotchets).
+  String _position(double time) {
+    final c = widget.controller;
+    if (c.score == null) return '1.1';
+    final q = c.timeline.quarterAtSeconds(time).clamp(0.0, c.timeline.measureStarts.last);
+    return c.beats.format(c.beats.beatAt(q.toDouble()).start);
+  }
+
+  /// Opens the field, holding the bar.beat sounding now (or the [time]), all selected.
+  void edit({bool time = false}) {
+    if (widget.controller.score == null) return;
+    final now = widget.controller.playback.time.value;
+    if (!_editing) _before = FocusManager.instance.primaryFocus;
+    _field.text = time ? _clock(now) : _position(now);
+    _field.selection = TextSelection(baseOffset: 0, extentOffset: _field.text.length);
+    setState(() {
+      _editing = true;
+      _wrong = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+  }
+
+  void _submit() {
+    if (!widget.controller.playback.goTo(_field.text)) {
+      setState(() => _wrong = true);
+      _focus.requestFocus();
+      return;
+    }
+    _leave();
+  }
+
+  void _leave() {
+    final before = _before;
+    if (before != null && before.context != null && before.canRequestFocus) {
+      before.requestFocus();
+    } else {
+      _focus.unfocus();
+    }
+  }
+
+  void _close() {
+    _before = null;
+    if (_editing && mounted) setState(() => _editing = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final mono = TextStyle(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, color: colors.text);
+    if (_editing) return _input(colors, mono);
+    final playback = widget.controller.playback;
     return ValueListenableBuilder<double>(
-      valueListenable: controller.playback.time,
-      builder: (context, time, _) {
-        // The beat sounding now, counted the way the time signature beats (6/8: two dotted crotchets).
-        var position = '1.1';
-        if (controller.score != null) {
-          final q = controller.timeline.quarterAtSeconds(time).clamp(0.0, controller.timeline.measureStarts.last);
-          final beats = controller.beats;
-          position = beats.format(beats.beatAt(q.toDouble()).start);
-        }
-        return Row(mainAxisSize: MainAxisSize.min, children: [
-          Text.rich(TextSpan(children: [
+      valueListenable: playback.time,
+      builder: (context, time, _) => Row(mainAxisSize: MainAxisSize.min, children: [
+        _Clickable(
+          tip: 'Go to time (${shortcut('⌘G')})',
+          onTap: () => edit(time: true),
+          child: Text.rich(TextSpan(children: [
             TextSpan(text: _clock(time), style: mono.copyWith(fontWeight: FontWeight.w500)),
-            TextSpan(text: '  /  ${_clock(controller.playback.duration)}', style: mono.copyWith(color: colors.textMuted)),
+            TextSpan(text: '  /  ${_clock(playback.duration)}', style: mono.copyWith(color: colors.textMuted)),
           ])),
-          const SizedBox(width: 10),
-          Tip(
-            message: 'Bar.beat',
-            child: Container(
-              height: 24,
-              constraints: const BoxConstraints(minWidth: 52),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: colors.accentWash, borderRadius: BorderRadius.circular(6), border: Border.all(color: colors.line)),
-              child: Text(position, style: mono.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: colors.text)),
-            ),
+        ),
+        const SizedBox(width: 10),
+        _Clickable(
+          tip: 'Go to bar (${shortcut('⌘G')})',
+          onTap: edit,
+          child: Container(
+            height: 24,
+            constraints: const BoxConstraints(minWidth: 52),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: colors.accentWash, borderRadius: BorderRadius.circular(6), border: Border.all(color: colors.line)),
+            child: Text(_position(time), style: mono.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: colors.text)),
           ),
-        ]);
-      },
+        ),
+      ]),
     );
   }
+
+  Widget _input(AppColors colors, TextStyle mono) {
+    OutlineInputBorder border(Color color) =>
+        OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: color));
+    return CallbackShortcuts(
+      bindings: {const SingleActivator(LogicalKeyboardKey.escape): _leave},
+      child: SizedBox(
+        width: 160,
+        height: 26,
+        child: TextField(
+          controller: _field,
+          focusNode: _focus,
+          style: mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500),
+          onChanged: (_) {
+            if (_wrong) setState(() => _wrong = false);
+          },
+          onSubmitted: (_) => _submit(),
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: 'Bar or m:ss',
+            hintStyle: mono.copyWith(fontSize: 12.5, color: colors.textMuted),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            enabledBorder: border(_wrong ? Theme.of(context).colorScheme.error : colors.line),
+            focusedBorder: border(_wrong ? Theme.of(context).colorScheme.error : colors.accent),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A readout that types where to go when clicked.
+class _Clickable extends StatelessWidget {
+  const _Clickable({required this.tip, required this.onTap, required this.child});
+  final String tip;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Tip(
+        message: tip,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.text,
+          child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: onTap, child: child),
+        ),
+      );
 }
 
 /// A quiet "Saving…" while a save (or autosave) runs.

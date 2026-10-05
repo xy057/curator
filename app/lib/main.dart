@@ -392,6 +392,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (_curating) controller.lanes.selectAll();
   }
 
+  final _readout = GlobalKey<TimeReadoutState>();
+
+  void _goTo() => _readout.currentState?.edit();
+
   void _escape() {
     if (controller.anchors.tapArmed) {
       controller.anchors.tapArmed = false;
@@ -627,6 +631,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         const SingleActivator(LogicalKeyboardKey.keyA, meta: true): _selectAll,
         const SingleActivator(LogicalKeyboardKey.keyA, control: true): _selectAll,
         const SingleActivator(LogicalKeyboardKey.home): () => controller.playback.seek(0),
+        // Go to a bar or a time: the toolbar's readout, typed.
+        const SingleActivator(LogicalKeyboardKey.keyG, meta: true): _goTo,
+        const SingleActivator(LogicalKeyboardKey.keyG, control: true): _goTo,
         const SingleActivator(LogicalKeyboardKey.delete): controller.deleteSelection,
         const SingleActivator(LogicalKeyboardKey.backspace): controller.deleteSelection,
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): controller.undo,
@@ -666,6 +673,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               ..videoRatio = r
               ..previewVideoFrame = true,
             onClose: _close,
+            readout: _readout,
           ),
           Expanded(child: ScoreView(
             key: _scoreView,
