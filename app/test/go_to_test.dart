@@ -84,4 +84,35 @@ void main() {
     expect(c.playback.isPlaying, isTrue);
     c.playback.pause();
   });
+
+  testWidgets('after Starts at is typed, the keyboard goes back to what had it: Space plays', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory()..addRecent(demoProject.absolute.path);
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Try the sample'));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    for (var i = 0; i < 100 && c.score == null; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.graphic_eq_rounded));
+    await tester.pumpAndSettle();
+
+    final field = find.descendant(of: find.byTooltip('Silence before bar 1 (s)'), matching: find.byType(TextField));
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    await tester.enterText(field, '1.5');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(c.sync!.startSeconds, 1.5);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    expect(c.playback.isPlaying, isTrue);
+    c.playback.pause();
+  });
 }
