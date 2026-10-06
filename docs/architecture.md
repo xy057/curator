@@ -406,7 +406,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
   bump the version with a migration (even one that changes nothing). If Undo should cover it
   (every edit should), it is also a field of `EditState` (with its `==`), and the controller
   fills it in `_editState` and puts it back in `_restore`. If it changes what is drawn, copy
-  it in `VideoExport.of` too.
+  it in `VideoExport.of` too, and set it in `test/export_parity_test.dart`, which checks that
+  a video frame is the preview's.
 - **A Verovio change**: edit `third_party/verovio`, then
   `git -C packages/score_engine/third_party/verovio diff > patches/verovio-curated-score.patch`,
   then `make setup` (it re-applies the patches from a clean tree, and records that it did).
