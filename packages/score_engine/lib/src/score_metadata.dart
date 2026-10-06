@@ -8,6 +8,7 @@ import 'package:xml/xml.dart';
 
 import 'beat_grid.dart';
 import 'engraving.dart';
+import 'zip_entries.dart';
 
 enum InstrumentFamily {
   woodwinds('Woodwinds'),
@@ -241,12 +242,22 @@ String prettyInstrumentName(String raw) {
 }
 
 abstract final class ScoreFile {
+  /// The most MusicXML a score may unpack to (an .mxl, or the score in a project): many times
+  /// the largest real score, and a limit on what a damaged or hostile file can take.
+  static const maxBytes = 256 << 20;
+
   /// Reads .musicxml / .xml directly and unpacks compressed .mxl archives.
   static Future<String> readMusicXML(String path) async => decodeMusicXML(await File(path).readAsBytes());
 
   /// The same for a file's bytes (e.g. the source score stored inside a project).
   static String decodeMusicXML(Uint8List bytes) {
-    if (bytes.length > 4 && bytes[0] == 0x50 && bytes[1] == 0x4B) return _fromMxl(bytes);
+    if (bytes.length > 4 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
+      try {
+        return _fromMxl(bytes);
+      } on FormatException catch (e) {
+        throw EngraveException('The .mxl archive could not be read: ${e.message}');
+      }
+    }
     if (bytes.length > 2 && ((bytes[0] == 0xFF && bytes[1] == 0xFE) || (bytes[0] == 0xFE && bytes[1] == 0xFF))) {
       throw EngraveException('UTF-16 MusicXML is not supported yet; save the file as UTF-8.');
     }
@@ -258,7 +269,7 @@ abstract final class ScoreFile {
     String? rootPath;
     final container = archive.findFile('META-INF/container.xml');
     if (container != null) {
-      final xml = XmlDocument.parse(utf8.decode(container.content as List<int>));
+      final xml = XmlDocument.parse(utf8.decode(ZipEntries.read(container, limit: 1 << 20), allowMalformed: true));
       rootPath = xml.findAllElements('rootfile').firstOrNull?.getAttribute('full-path');
     }
     rootPath ??= archive.files
@@ -267,7 +278,7 @@ abstract final class ScoreFile {
             orElse: () => '');
     final file = archive.findFile(rootPath);
     if (file == null) throw EngraveException('No score was found inside the .mxl archive.');
-    return utf8.decode(file.content as List<int>, allowMalformed: true);
+    return utf8.decode(ZipEntries.read(file, limit: maxBytes), allowMalformed: true);
   }
 }
 

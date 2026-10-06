@@ -81,6 +81,112 @@ void main() {
     expect(opened.media!.missingPath, '${dir.path}/one/take.wav');
   });
 
+  test('a linked recording on another computer is never looked for', () async {
+    for (final local in [r'C:\Music\take.wav', 'D:/take.wav', '/Users/me/take.wav', '/Volumes/Disk/take.wav', '/network.wav']) {
+      expect(ProjectFile.isLocalPath(local), isTrue, reason: local);
+    }
+    for (final remote in [
+      r'\\server\share\take.wav',
+      r'\\?\UNC\server\share\take.wav',
+      r'\??\UNC\server\share\take.wav',
+      '//server/share/take.wav',
+      '/net/server/take.wav',
+      '/NET/server/take.wav',
+      '/Network/Servers/take.wav',
+      'take.wav',
+    ]) {
+      expect(ProjectFile.isLocalPath(remote), isFalse, reason: remote);
+    }
+
+    final path = '${dir.path}/remote.ccs';
+    File(path).writeAsBytesSync(ZipEncoder().encodeBytes(Archive()
+      ..add(ArchiveFile.string('project.json', jsonEncode({
+        'format': ProjectFile.mimeType,
+        'version': ProjectFile.formatVersion,
+        'score': {'name': 'S.musicxml', 'entry': 'score/S.musicxml'},
+        'media': {'name': 'take.wav', 'path': r'\\server\share\take.wav'},
+        'state': const ProjectState().toJson(),
+      })))
+      ..add(ArchiveFile.string('score/S.musicxml', '<score-partwise/>'))));
+    final media = (await ProjectFile.read(path, mediaDirectory: '${dir.path}/m')).media!;
+    expect(media.path, isNull);
+    expect(media.originalPath, isNull);
+  });
+
+  test('a link reaches only a recording, wherever it is', () async {
+    Directory('${dir.path}/projects/p').createSync(recursive: true);
+    File('${dir.path}/secret.txt').writeAsStringSync('not a recording');
+    final take = recording('take.wav');
+    Future<String?> open(Map<String, Object?> media) async {
+      final path = '${dir.path}/projects/p/link.ccs';
+      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(Archive()
+        ..add(ArchiveFile.string('project.json', jsonEncode({
+          'format': ProjectFile.mimeType,
+          'version': ProjectFile.formatVersion,
+          'score': {'name': 'S.musicxml', 'entry': 'score/S.musicxml'},
+          'media': media,
+          'state': const ProjectState().toJson(),
+        })))
+        ..add(ArchiveFile.string('score/S.musicxml', '<score-partwise/>'))));
+      return (await ProjectFile.read(path, mediaDirectory: '${dir.path}/m')).media!.path;
+    }
+
+    expect(await open({'name': 'take.wav', 'relativePath': '../../take.wav'}), endsWith('take.wav'));
+    expect(await open({'name': 'take.wav', 'path': take.path}), take.path);
+    expect(await open({'name': 'secret.wav', 'relativePath': '../../secret.txt'}), isNull);
+    expect(await open({'name': 'secret.wav', 'path': '${dir.path}/secret.txt'}), isNull);
+  });
+
+  test('an embedded recording is unpacked only under a recording\'s name', () async {
+    final path = '${dir.path}/named.ccs';
+    File(path).writeAsBytesSync(ZipEncoder().encodeBytes(Archive()
+      ..add(ArchiveFile.string('project.json', jsonEncode({
+        'format': ProjectFile.mimeType,
+        'version': ProjectFile.formatVersion,
+        'score': {'name': 'S.musicxml', 'entry': 'score/S.musicxml'},
+        'media': {'name': 'take.m3u8', 'entry': 'media/take.m3u8'},
+        'state': const ProjectState().toJson(),
+      })))
+      ..add(ArchiveFile.string('score/S.musicxml', '<score-partwise/>'))
+      ..add(ArchiveFile.string('media/take.m3u8', '#EXTM3U\n'))));
+    final media = (await ProjectFile.read(path, mediaDirectory: '${dir.path}/m')).media!;
+    expect(media.path, isNull);
+    expect(Directory('${dir.path}/m').existsSync(), isFalse, reason: 'nothing unpacked');
+  });
+
+  test('what a project unpacks is limited, and only what it uses is unpacked', () async {
+    String project(String name, Map<String, Object?> manifest, List<ArchiveFile> files) {
+      final path = '${dir.path}/$name.ccs';
+      final archive = Archive()
+        ..add(ArchiveFile.string('project.json', jsonEncode({
+          'format': ProjectFile.mimeType,
+          'version': ProjectFile.formatVersion,
+          'score': {'name': 'S.musicxml', 'entry': 'score/S.musicxml'},
+          'state': const ProjectState().toJson(),
+          ...manifest,
+        })))
+        ..add(ArchiveFile.string('score/S.musicxml', '<score-partwise/>'));
+      files.forEach(archive.add);
+      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(archive));
+      return path;
+    }
+
+    // Zeros: a few hundred KB in the zip, past any limit unpacked.
+    ArchiveFile bomb(String name) =>
+        ArchiveFile.bytes(name, Uint8List(ProjectFile.maxFontBytes * 2 + 1))..compression = CompressionType.deflate;
+
+    final unusedFont = project('font', {}, [bomb('fonts/Junk.font')]);
+    expect((await ProjectFile.read(unusedFont, mediaDirectory: '${dir.path}/m1')).state.fonts.music, MusicFont.bravura);
+
+    final media = project('media', {'media': {'name': 'take.wav', 'entry': 'media/take.wav'}}, [bomb('media/take.wav')]);
+    await expectLater(ProjectFile.read(media, mediaDirectory: '${dir.path}/m2'), throwsFormatException);
+    final unpacked = File('${dir.path}/m2/take.wav');
+    expect(unpacked.existsSync() ? unpacked.lengthSync() : 0, lessThanOrEqualTo(4 * File(media).lengthSync() + (64 << 20)));
+
+    final manifest = project('manifest', {'padding': ' ' * (ProjectFile.maxManifestBytes + 1)}, []);
+    await expectLater(ProjectFile.read(manifest, mediaDirectory: '${dir.path}/m3'), throwsFormatException);
+  });
+
   test('a failed save leaves the previous file untouched', () async {
     final path = '${dir.path}/safe.ccs';
     await ProjectFile.write(path, contents());

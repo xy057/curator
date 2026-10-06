@@ -25,6 +25,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
+| `zip_entries.dart` | `ZipEntries`: an entry of someone else's zip (a project, an .mxl), its bytes counted as they unpack and refused past a limit |
 
 **`app/`** is the editor around it:
 
