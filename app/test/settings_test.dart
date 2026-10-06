@@ -8,7 +8,7 @@ import 'package:curated_score/settings_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:score_engine/score_engine.dart' show EngraveOption;
+import 'package:score_engine/score_engine.dart' show CaptionCountdown, CaptionPosition, EngraveOption;
 
 import 'test_fonts.dart';
 
@@ -81,9 +81,9 @@ void main() {
     expect(find.text('Attach Image  1.0'), findsOneWidget, reason: 'its version after its name');
     expect(find.text(AppExtension.attachImage.summary), findsOneWidget);
     expect(find.text('Captions  1.0'), findsOneWidget);
-    for (final gear in tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, Icons.settings_outlined))) {
-      expect(gear.onPressed, isNull, reason: 'no settings of their own yet');
-    }
+    final gears = tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, Icons.settings_outlined)).toList();
+    expect(gears.first.onPressed, isNull, reason: 'Attach Image has no settings of its own yet');
+    expect(gears.last.onPressed, isNotNull, reason: 'Captions has');
     expect(settings.attachImage, isFalse, reason: 'extensions start off');
     expect(settings.captions, isFalse);
     await tester.tap(find.byType(Switch).first);
@@ -91,6 +91,19 @@ void main() {
     expect(settings.attachImage, isTrue);
     expect(settings.captions, isFalse, reason: 'each its own switch');
     await shot(tester, 'settings-extension');
+
+    // Captions' own settings: how captions look.
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.settings_outlined).last);
+    await tester.pumpAndSettle();
+    expect(find.text('Countdown'), findsOneWidget);
+    await tester.tap(find.text('Ring'));
+    await tester.tap(find.text('Top'));
+    await tester.pumpAndSettle();
+    expect(settings.captionCountdown, CaptionCountdown.ring);
+    expect(settings.captionPosition, CaptionPosition.top);
+    await shot(tester, 'settings-captions');
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('search finds items on every page', (tester) async {

@@ -353,7 +353,7 @@ class CuratedScene {
   }
 
   StackMetrics _metrics(ui.Size size) => StackMetrics(
-        availableHeight: (size.height - 2 * verticalMargin - (captions.isEmpty ? 0 : CaptionBar.reserve)).clamp(0, double.infinity),
+        availableHeight: (size.height - 2 * verticalMargin - _captionReserve).clamp(0, double.infinity),
         minGap: minGap,
         maxGap: maxGap,
       );
@@ -361,7 +361,7 @@ class CuratedScene {
   /// The layout plan for this curation and frame size, rebuilt only when either changes.
   SpacingPlan _planFor(Curation curation, ui.Size size) {
     final key =
-        (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, captions.isEmpty);
+        (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve);
     if (_plan == null || _planKey != key) {
       final pointerX = renderer.pointerX(size.width);
       _plan = SpacingPlan.build(
@@ -465,7 +465,16 @@ class CuratedScene {
     _spansKey = null;
   }
 
-  late final _captionBar = CaptionBar(_style.textFontFamily);
+  /// How captions look; a change only redraws.
+  CaptionStyle get captionStyle => _captionBar.style;
+  set captionStyle(CaptionStyle value) {
+    if (value != _captionBar.style) _captionBar = CaptionBar(_style.textFontFamily, value);
+  }
+
+  late CaptionBar _captionBar = CaptionBar(_style.textFontFamily);
+
+  /// Room the staves leave for the caption bar: none without captions.
+  double get _captionReserve => captions.isEmpty ? 0 : _captionBar.reserve;
   Object? _spansKey;
   List<CaptionSpan> _spans = const [];
 
@@ -542,7 +551,8 @@ class CuratedScene {
   ({List<StaffPlacement> placements, List<StaffLabel> labels, List<StaffBrace> braces}) layoutAt(
       double time, Curation curation, ui.Size size) {
     final visibility = _visibilityAt(time, curation);
-    final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin];
+    final above = captionStyle.position == CaptionPosition.top ? _captionReserve : 0.0;
+    final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin + above];
     final parts = {for (final p in score.metadata.parts) p.id: p};
 
     final placements = <StaffPlacement>[];

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/foundation.dart';
-import 'package:score_engine/score_engine.dart' show EngravingOptions;
+import 'package:score_engine/score_engine.dart' show CaptionCountdown, CaptionPosition, CaptionSize, EngravingOptions;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
@@ -29,6 +29,11 @@ class AppSettings extends ChangeNotifier {
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
         _attachImage = _prefs?.getBool(_attachImageKey) ?? false,
         _captions = _prefs?.getBool(_captionsKey) ?? false,
+        _captionFont = _prefs?.getString(_captionFontKey) ?? '',
+        _captionPosition = CaptionPosition.values.asNameMap()[_prefs?.getString(_captionPositionKey)] ?? CaptionPosition.bottom,
+        _captionCountdown =
+            CaptionCountdown.values.asNameMap()[_prefs?.getString(_captionCountdownKey)] ?? CaptionCountdown.line,
+        _captionSize = CaptionSize.values.asNameMap()[_prefs?.getString(_captionSizeKey)] ?? CaptionSize.medium,
         _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false;
 
   /// Defaults, kept in memory only (tests, or when there is no preferences store).
@@ -51,6 +56,8 @@ class AppSettings extends ChangeNotifier {
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame';
   static const _attachImageKey = 'attachImage', _captionsKey = 'captions';
+  static const _captionFontKey = 'captionFont', _captionPositionKey = 'captionPosition';
+  static const _captionCountdownKey = 'captionCountdown', _captionSizeKey = 'captionSize';
   static const defaultAutosave = Duration(minutes: 2);
 
   /// Choices offered for autosave; [Duration.zero] turns it off.
@@ -229,6 +236,45 @@ class AppSettings extends ChangeNotifier {
     if (value == _captions) return;
     _captions = value;
     _prefs?.setBool(_captionsKey, value);
+    notifyListeners();
+  }
+
+  /// The Captions extension's own settings (its settings button), for every project.
+  /// The font captions are drawn in when a project doesn't choose one: a text font family,
+  /// or '' for the score's own text font.
+  String get captionFont => _captionFont;
+  String _captionFont;
+  set captionFont(String value) {
+    if (value == _captionFont) return;
+    _captionFont = value;
+    _prefs?.setString(_captionFontKey, value);
+    notifyListeners();
+  }
+
+  CaptionPosition get captionPosition => _captionPosition;
+  CaptionPosition _captionPosition;
+  set captionPosition(CaptionPosition value) {
+    if (value == _captionPosition) return;
+    _captionPosition = value;
+    _prefs?.setString(_captionPositionKey, value.name);
+    notifyListeners();
+  }
+
+  CaptionCountdown get captionCountdown => _captionCountdown;
+  CaptionCountdown _captionCountdown;
+  set captionCountdown(CaptionCountdown value) {
+    if (value == _captionCountdown) return;
+    _captionCountdown = value;
+    _prefs?.setString(_captionCountdownKey, value.name);
+    notifyListeners();
+  }
+
+  CaptionSize get captionSize => _captionSize;
+  CaptionSize _captionSize;
+  set captionSize(CaptionSize value) {
+    if (value == _captionSize) return;
+    _captionSize = value;
+    _prefs?.setString(_captionSizeKey, value.name);
     notifyListeners();
   }
 

@@ -36,6 +36,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/caption_editing.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image); captions (Captions) |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Purge unused |
+| `caption_settings.dart` | Settings ▸ Extension ▸ Captions' own settings: font, position, countdown, size, with a preview |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `fonts_dialog.dart` | Score ▸ Fonts…: the music and text font a project is engraved in |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned); Undo's snapshots |
@@ -169,6 +170,17 @@ the next starts). The scene draws it in `CaptionBar` under the staves, which lea
 and under it a hairline as wide as the text that draws in to its middle as the caption's time
 runs out; it rises 4 points into place as it fades in over `CaptionBar.fade`, and fades out
 as its time ends. It is part of `paint`, so the preview and a video show the same.
+How it looks is a `CaptionStyle` (`CuratedScene.captionStyle`, copied into video export): its
+font, position (`CaptionPosition`: under the staves or above them, which then sit lower by
+the bar's room), countdown (`CaptionCountdown`: the hairline, a ring left of the text that
+empties clockwise, or none) and size (`CaptionSize`; the room grows with it). Position,
+countdown and size are the app's (the extension's settings button; `AppSettings.caption*`,
+not edits). The font is the project's when it has one (Score ▸ Fonts… ▸ Caption, shown while
+the switch is on: an edit, saved as `fonts.caption` from format 12), else the app's ('' is the
+score's text font); an installed family is read and registered before it is drawn
+(`CaptionEditing._applyStyle`, the latest call winning), and one not installed here falls back
+to the score's text font, the choice kept. A style change repaints by marking playback dirty:
+the preview repaints only when asked.
 Right-click the preview ▸ Add Caption… starts one on the beat where it was clicked, four bars
 long or up to the next caption (`CaptionEditing.draft`); double-click the caption showing (or
 right-click it) to change it; an empty text removes it.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
+import 'caption_settings.dart';
 import 'editor_controller.dart';
 import 'ui_kit.dart';
 
@@ -27,9 +28,9 @@ enum AppExtension {
 
   /// The extension's own settings, in a dialog from its row's settings button (greyed out
   /// while this is null).
-  WidgetBuilder? get settings => switch (this) {
+  Widget Function(BuildContext context, AppSettings settings)? get settings => switch (this) {
         attachImage => null,
-        captions => null,
+        captions => (context, settings) => CaptionSettings(settings: settings),
       };
 
   bool isOn(AppSettings settings) => switch (this) {
@@ -45,7 +46,7 @@ enum AppExtension {
   /// The extensions what [controller] has open uses (images on the score…).
   static List<AppExtension> usedBy(EditorController controller) => [
         if (controller.images.patches.isNotEmpty) attachImage,
-        if (controller.captions.captions.isNotEmpty) captions,
+        if (controller.captions.captions.isNotEmpty || controller.captions.font != null) captions,
       ];
 }
 

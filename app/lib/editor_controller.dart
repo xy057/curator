@@ -167,7 +167,7 @@ class EditorController extends ChangeNotifier {
     _fonts = state.fonts;
     if (!_fonts.music.isBundled && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
     images._load(state.patches, state.images, arts);
-    captions._load(state.captions);
+    captions._load(state.captions, state.captionFont);
     _midi = state.midi;
     _tapped = state.midi != null ? state.anchors : const [];
     _sync = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
@@ -255,7 +255,8 @@ class EditorController extends ChangeNotifier {
       ..partOrder = _partOrder
       ..scrollFollow = _scrollFollow
       ..patches = images._scenePatches
-      ..captions = captions._sceneCaptions;
+      ..captions = captions._sceneCaptions
+      ..captionStyle = captions._style;
     if (_sync != null) scene.setTimeline(_sync!);
     return scene;
   }
@@ -732,6 +733,7 @@ class EditorController extends ChangeNotifier {
         partOrder: _partOrder,
         patches: images._patches,
         captions: captions._captions,
+        captionFont: captions._font,
         fonts: _fonts,
       );
 
@@ -797,7 +799,7 @@ class EditorController extends ChangeNotifier {
       _partOrder = state.partOrder;
       _scene?.partOrder = _partOrder;
       images._restore(state.patches);
-      captions._restore(state.captions);
+      captions._restore(state.captions, state.captionFont);
     } finally {
       _restoring = false;
     }
@@ -834,6 +836,7 @@ class EditorController extends ChangeNotifier {
         patches: images._patches,
         images: images._used,
         captions: captions._captions,
+        captionFont: captions._font,
         fonts: _fonts,
         view: ViewState(
           staffSpace: _staffSpace,

@@ -184,7 +184,7 @@ final _categories = <_Category>[
         e.label,
         (_) => e.summary,
         (c) => Row(mainAxisSize: MainAxisSize.min, children: [
-          _ExtensionSettingsButton(e),
+          _ExtensionSettingsButton(e, c.settings),
           const SizedBox(width: 6),
           Switch(value: e.isOn(c.settings), onChanged: (v) => e.set(c.settings, v)),
         ]),
@@ -785,8 +785,9 @@ class _UpdateControl extends StatelessWidget {
 
 /// Opens [extension]'s own settings; greyed out when it has none.
 class _ExtensionSettingsButton extends StatelessWidget {
-  const _ExtensionSettingsButton(this.extension);
+  const _ExtensionSettingsButton(this.extension, this.settings);
   final AppExtension extension;
+  final AppSettings settings;
 
   @override
   Widget build(BuildContext context) {
@@ -803,7 +804,7 @@ class _ExtensionSettingsButton extends StatelessWidget {
                   context: context,
                   builder: (context) => AlertDialog(
                     title: Text(extension.label),
-                    content: Builder(builder: page),
+                    content: Builder(builder: (context) => page(context, settings)),
                     actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
                   ),
                 ),

@@ -42,12 +42,13 @@ class ProjectState {
     this.patches = const [],
     this.images = const {},
     this.captions = const [],
+    this.captionFont,
     this.fonts = ScoreFonts.standard,
     this.view = const ViewState(),
   });
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 11;
+  static const version = 12;
 
   /// When each instrument is shown, with each region's own properties; null when the project
   /// has none saved (they are then filled from where each part plays).
@@ -93,6 +94,9 @@ class ProjectState {
   /// Captions under the score (Captions), in the order they were added.
   final List<Caption> captions;
 
+  /// The font captions are drawn in (a text font family); null: the app's (Settings).
+  final String? captionFont;
+
   /// The music and text fonts the score is engraved in. A music font the user added travels
   /// with the project (`fonts/<name>.font` and its SMuFL metadata, `fonts/<name>.json`).
   final ScoreFonts fonts;
@@ -112,6 +116,7 @@ class ProjectState {
     8: (state) => state, // fonts came in 9: none saved is Bravura and Academico
     9: (state) => state, // an image's ink came in 10: none is its own colours
     10: (state) => state, // captions came in 11: none
+    11: (state) => state, // a caption font came in 12: none is the app's
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -192,6 +197,10 @@ class ProjectState {
       captions: [
         for (final (i, caption) in r.list('captions').indexed) _caption(JsonReader(caption, '${r.where}.captions[$i]')),
       ],
+      captionFont: switch (r.child('fonts').string('caption')) {
+        final f? when f.trim().isEmpty => throw FormatException('The project is damaged: ${r.where}.fonts.caption is empty.'),
+        final f => f,
+      },
       fonts: _fonts(r.child('fonts'), fontFiles),
       view: ViewState(
         staffSpace: view.number('staffSpace'),
@@ -291,10 +300,11 @@ class ProjectState {
   }
 
   Map<String, Object?> toJson() => {
-        if (fonts != ScoreFonts.standard)
+        if (fonts != ScoreFonts.standard || captionFont != null)
           'fonts': {
             if (fonts.music != MusicFont.bravura) 'music': fonts.music.name,
             if (fonts.text != TextFonts.academico) 'text': fonts.text,
+            'caption': ?captionFont,
           },
         'textEdits': textEdits,
         'condensed': [...condensed],
