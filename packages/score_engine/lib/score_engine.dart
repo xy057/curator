@@ -9,7 +9,7 @@ export 'src/curated_scene.dart';
 export 'src/curation.dart';
 export 'src/display_list.dart' show RenderStyle;
 export 'src/engraving.dart'
-    show ClefShape, ClefSignature, EngraveException, EngravingData, KeySignature, MeasureLayout, Signature, StaffInfo, TimeSignature;
+    show ClefShape, ClefSignature, EngraveException, EngravingData, KeySignature, MeasureLayout, Signature, StaffInfo, TimeSignature, verovioVersion;
 export 'src/engraving_options.dart';
 export 'src/font_files.dart';
 export 'src/frozen_zone.dart';

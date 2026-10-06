@@ -106,6 +106,8 @@ final class VBOnset extends Struct {
 
 @Native<Int32 Function(Int32)>()
 external int vb_struct_size(int which);
+@Native<Pointer<Utf8> Function()>()
+external Pointer<Utf8> vb_version();
 @Native<Pointer<VBEngraver> Function(Pointer<Utf8>)>()
 external Pointer<VBEngraver> vb_engraver_create(Pointer<Utf8> resourcePath);
 @Native<Void Function(Pointer<VBEngraver>)>()

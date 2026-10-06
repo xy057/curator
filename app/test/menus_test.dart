@@ -6,6 +6,7 @@ import 'package:curated_score/app_menus.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/project_document.dart';
+import 'package:curated_score/updater.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -125,5 +126,19 @@ void main() {
     await tester.pump();
     expect(menus().onUndo, isNull);
     expect(menus().onSelectAll, isNull);
+  });
+
+  testWidgets('About Curator opens Settings ▸ About', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const CuratedScoreApp());
+
+    await tester.tap(find.text('Help'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(MenuItemButton, 'About Curator'));
+    await tester.pumpAndSettle();
+    expect(find.text('Version $appVersion'), findsOneWidget);
+    expect(find.textContaining('Verovio'), findsOneWidget);
   });
 }

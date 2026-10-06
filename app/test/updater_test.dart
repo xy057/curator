@@ -61,9 +61,11 @@ class _FakeGitHub {
 }
 
 void main() {
-  test('appVersion is the version in pubspec.yaml', () {
+  test('appVersion and appBuild are the version in pubspec.yaml', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
-    expect(RegExp(r'^version: *([\d.]+)', multiLine: true).firstMatch(pubspec)![1], appVersion);
+    final version = RegExp(r'^version: *([\d.]+)\+(\d+)', multiLine: true).firstMatch(pubspec)!;
+    expect(version[1], appVersion);
+    expect(int.parse(version[2]!), appBuild);
   });
 
   test('versions compare number by number', () {
@@ -199,7 +201,7 @@ void main() {
     });
   });
 
-  testWidgets('Settings ▸ Update shows the version, the changelog and the repository, and checks', (tester) async {
+  testWidgets('Settings ▸ About shows the version and build, the changelog and the repository, and checks', (tester) async {
     final settings = AppSettings.memory();
     final updater = Updater(api: Uri.parse('http://127.0.0.1:1/latest'));
     final shots = Platform.environment['SCREENSHOT_DIR'];
@@ -212,7 +214,7 @@ void main() {
       builder: (context, child) => RepaintBoundary(child: child),
       home: Builder(
         builder: (context) => TextButton(
-          onPressed: () => showSettingsDialog(context, settings, updater: updater, page: 'Update'),
+          onPressed: () => showSettingsDialog(context, settings, updater: updater, page: 'About'),
           child: const Text('open'),
         ),
       ),
@@ -221,13 +223,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Version $appVersion'), findsOneWidget);
-    expect(find.text('github.com/xy057/curator'), findsOneWidget);
-    expect(find.text('0x57.cc/xylabs-changelog'), findsOneWidget);
+    expect(find.text('Build $appBuild'), findsOneWidget);
+    expect(find.text('Source code'), findsOneWidget);
+    expect(find.text('Changelog'), findsOneWidget);
     if (shots != null) {
+      await tester.runAsync(() => precacheImage(const AssetImage('assets/icon/app_icon.png'), tester.element(find.byType(Image))));
+      await tester.pump();
       await tester.runAsync(() async {
         final boundary = tester.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first);
         final png = await (await boundary.toImage(pixelRatio: 2)).toByteData(format: ui.ImageByteFormat.png);
-        File('$shots/settings-update.png').writeAsBytesSync(png!.buffer.asUint8List());
+        File('$shots/settings-about.png').writeAsBytesSync(png!.buffer.asUint8List());
       });
     }
 

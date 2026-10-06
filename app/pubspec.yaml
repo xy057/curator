@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.3.0+17
+version: 0.3.0+18
 
 environment:
   sdk: ^3.13.4
@@ -29,3 +29,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/demo/ # the sample project behind "Try the sample" (and every test)
+    - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one)

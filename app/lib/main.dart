@@ -54,7 +54,7 @@ class CuratedScoreApp extends StatefulWidget {
   /// Stored preferences; in-memory defaults when not given (tests).
   final AppSettings? settings;
 
-  /// Settings ▸ Update; one that hasn't checked yet when not given (tests).
+  /// Settings ▸ About; one that hasn't checked yet when not given (tests).
   final Updater? updater;
 
   @override
@@ -136,9 +136,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     WindowChrome.listenForOpenedFiles((paths) => _openPath(paths.first));
   }
 
-  /// The check made at launch (Settings ▸ Update ▸ Check at launch) says so when there is a
+  /// The check made at launch (Settings ▸ About ▸ Check at launch) says so when there is a
   /// newer version for this system, once; failures, and a release without this system's
-  /// download, stay quiet. Later checks are the Update page's to show.
+  /// download, stay quiet. Later checks are the About page's to show.
   void _launchCheckAnswered() {
     final status = updater.status;
     if (status is UpdateIdle || status is UpdateChecking) return;
@@ -147,7 +147,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       duration: const Duration(seconds: 10),
       content: Text('Curator ${status.release.version} is out.'),
-      action: SnackBarAction(label: 'Update…', onPressed: () => _settings(page: 'Update')),
+      action: SnackBarAction(label: 'Update…', onPressed: () => _settings(page: 'About')),
     ));
   }
 
@@ -563,6 +563,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onSave: _isSample.value ? null : _save,
           onSaveAs: _isSample.value ? null : _saveAs,
           onSettings: _settings,
+          onAbout: () => _settings(page: 'About'),
           recentFiles: settings.recentFiles,
           onOpenRecent: _openPath,
           onClearRecent: settings.clearRecent,

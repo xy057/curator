@@ -696,6 +696,14 @@ bool vb_engraver_render(VBEngraver *engraver)
     return ok;
 }
 
+const char *vb_version(void)
+{
+    // Not vrv::GetVersion(): it appends the git commit, "[undefined]" in a build from a tarball or
+    // a shallow clone like ours.
+    static const std::string version = StringFormat("%d.%d.%d%s", VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION, VERSION_DEV ? "-dev" : "");
+    return version.c_str();
+}
+
 const char *vb_engraver_available_options(VBEngraver *engraver)
 {
     engraver->log = engraver->toolkit.GetAvailableOptions();

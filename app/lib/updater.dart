@@ -8,8 +8,18 @@ import 'package:flutter/foundation.dart';
 /// equal). The Release workflow tags each release `v` + this.
 const appVersion = '0.3.0';
 
+/// This build's number: what follows `+` in pubspec.yaml's `version` (a test keeps them equal).
+const appBuild = 18;
+
+/// The commit this app was built from (`make run`, `make build` and the Release workflow pass
+/// it); empty for a plain `flutter run`.
+const appCommit = String.fromEnvironment('CURATOR_COMMIT');
+
 /// Where the source and the releases live.
 const repositoryUrl = 'https://github.com/xy057/curator';
+
+/// The license (GPL-3.0).
+const licenseUrl = '$repositoryUrl/blob/main/LICENSE';
 
 /// What changed in each version.
 const changelogUrl = 'https://0x57.cc/xylabs-changelog#curator';
@@ -144,7 +154,7 @@ class UpdateFailed extends UpdateStatus {
   final Release? release;
 }
 
-/// Settings ▸ Update: asks GitHub for the latest release and downloads it to the Downloads
+/// Settings ▸ About: asks GitHub for the latest release and downloads it to the Downloads
 /// folder. It never replaces the running app; the user unzips what it downloaded.
 class Updater extends ChangeNotifier {
   Updater({Uri? api, this._downloads, String? platform})

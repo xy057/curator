@@ -142,7 +142,7 @@ jobs:
       - name: Build
         # The build hook runs CMake with Visual Studio for the engine (Verovio) as it goes.
         working-directory: app
-        run: flutter build windows --release
+        run: flutter build windows --release --dart-define=CURATOR_COMMIT=$(git rev-parse --short HEAD)
 
       - name: Package
         shell: pwsh
