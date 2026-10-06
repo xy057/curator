@@ -1,4 +1,5 @@
-// Renders the whole window offscreen to a PNG for visual review.
+// A tour of the editor's views, which must all draw without an error; with SCREENSHOT_DIR set,
+// each is saved as a PNG of the whole window for visual review.
 // Run: SCREENSHOT_DIR=/some/dir flutter test test/app_screenshot_test.dart
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -11,6 +12,7 @@ import 'package:curated_score/score_view.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -20,13 +22,13 @@ import 'test_fonts.dart';
 void main() {
   testWidgets('home screen with the sample score and timeline', (tester) async {
     final dir = Platform.environment['SCREENSHOT_DIR'];
-    if (dir == null) return;
     await tester.runAsync(loadTestFonts);
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
 
     Future<void> shot(String name) async {
+      if (dir == null) return;
       await tester.runAsync(() async {
         final boundary = tester.renderObject<RenderRepaintBoundary>(
             find.ancestor(of: find.byType(Scaffold), matching: find.byType(RepaintBoundary)).first);
@@ -133,9 +135,8 @@ void main() {
     controller.undo();
   });
 
-  testWidgets('double-clicking a score text edits it in place', (tester) async {
+  testWidgets('double-clicking a score text edits it in place: Enter changes it, Escape leaves it', (tester) async {
     final dir = Platform.environment['SCREENSHOT_DIR'];
-    if (dir == null) return;
     await tester.runAsync(loadTestFonts);
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
@@ -160,28 +161,66 @@ void main() {
     final box = tester.getRect(find.byType(ScoreView));
     final frame = VideoFrame.fit(box.size, VideoFormat.of(VideoResolution.hd1080, fps: 30).aspectRatio,
         devicePixelRatio: tester.view.devicePixelRatio);
-    Offset? target;
-    for (var y = 0.0; y < frame.layout.height && target == null; y += 4) {
-      for (var x = 140.0; x < frame.layout.width && target == null; x += 6) {
-        final hit =
-            controller.scene!.textAt(Offset(x, y), controller.playback.time.value, controller.curation!, frame.layout);
-        if (hit?.id == vivo.id) target = frame.toView(hit!.rect).center;
+    Future<void> doubleClickVivo() async {
+      Offset? target;
+      for (var y = 0.0; y < frame.layout.height && target == null; y += 4) {
+        for (var x = 140.0; x < frame.layout.width && target == null; x += 6) {
+          final hit =
+              controller.scene!.textAt(Offset(x, y), controller.playback.time.value, controller.curation!, frame.layout);
+          if (hit?.id == vivo.id) target = frame.toView(hit!.rect).center;
+        }
       }
+      expect(target, isNotNull);
+      await tester.tapAt(box.topLeft + target!);
+      await tester.pump(const Duration(milliseconds: 60));
+      await tester.tapAt(box.topLeft + target);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
     }
-    expect(target, isNotNull);
-    await tester.tapAt(box.topLeft + target!);
-    await tester.pump(const Duration(milliseconds: 60));
-    await tester.tapAt(box.topLeft + target);
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump();
-    expect(find.byType(TextField), findsWidgets);
 
-    await tester.runAsync(() async {
-      final boundary = tester.renderObject<RenderRepaintBoundary>(
-          find.ancestor(of: find.byType(Scaffold), matching: find.byType(RepaintBoundary)).first);
-      final image = await boundary.toImage(pixelRatio: 2);
-      final png = await image.toByteData(format: ui.ImageByteFormat.png);
-      File('$dir/app-edit-text.png').writeAsBytesSync(png!.buffer.asUint8List());
-    });
+    Future<void> engraved() async {
+      while (controller.isReengraving) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+      }
+      await tester.pump();
+    }
+
+    final field = find.descendant(of: find.byType(ScoreView), matching: find.byType(TextField));
+    await doubleClickVivo();
+    expect(field, findsOneWidget);
+    expect(tester.widget<TextField>(field).controller!.text, 'Vivo');
+
+    if (dir != null) {
+      await tester.runAsync(() async {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.ancestor(of: find.byType(Scaffold), matching: find.byType(RepaintBoundary)).first);
+        final image = await boundary.toImage(pixelRatio: 2);
+        final png = await image.toByteData(format: ui.ImageByteFormat.png);
+        File('$dir/app-edit-text.png').writeAsBytesSync(png!.buffer.asUint8List());
+      });
+    }
+
+    // Enter: the text is changed, re-engraved, and one Undo step.
+    await tester.enterText(field, 'Presto');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    await engraved();
+    expect(field, findsNothing);
+    expect(controller.textById(vivo.id)!.current, 'Presto');
+
+    // Escape: nothing changes.
+    await doubleClickVivo();
+    expect(tester.widget<TextField>(field).controller!.text, 'Presto');
+    await tester.enterText(field, 'Largo');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    await engraved();
+    expect(field, findsNothing);
+    expect(controller.textById(vivo.id)!.current, 'Presto');
+
+    controller.undo();
+    await engraved();
+    expect(controller.textById(vivo.id)!.current, 'Vivo');
   });
 }
