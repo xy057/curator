@@ -81,6 +81,38 @@ void main() {
     expect(opened.media!.missingPath, '${dir.path}/one/take.wav');
   });
 
+  test('a linked recording on another computer is never looked for', () async {
+    for (final local in [r'C:\Music\take.wav', 'D:/take.wav', '/Users/me/take.wav', '/Volumes/Disk/take.wav', '/network.wav']) {
+      expect(ProjectFile.isLocalPath(local), isTrue, reason: local);
+    }
+    for (final remote in [
+      r'\\server\share\take.wav',
+      r'\\?\UNC\server\share\take.wav',
+      r'\??\UNC\server\share\take.wav',
+      '//server/share/take.wav',
+      '/net/server/take.wav',
+      '/NET/server/take.wav',
+      '/Network/Servers/take.wav',
+      'take.wav',
+    ]) {
+      expect(ProjectFile.isLocalPath(remote), isFalse, reason: remote);
+    }
+
+    final path = '${dir.path}/remote.ccs';
+    File(path).writeAsBytesSync(ZipEncoder().encodeBytes(Archive()
+      ..add(ArchiveFile.string('project.json', jsonEncode({
+        'format': ProjectFile.mimeType,
+        'version': ProjectFile.formatVersion,
+        'score': {'name': 'S.musicxml', 'entry': 'score/S.musicxml'},
+        'media': {'name': 'take.wav', 'path': r'\\server\share\take.wav'},
+        'state': const ProjectState().toJson(),
+      })))
+      ..add(ArchiveFile.string('score/S.musicxml', '<score-partwise/>'))));
+    final media = (await ProjectFile.read(path, mediaDirectory: '${dir.path}/m')).media!;
+    expect(media.path, isNull);
+    expect(media.originalPath, isNull);
+  });
+
   test('a failed save leaves the previous file untouched', () async {
     final path = '${dir.path}/safe.ccs';
     await ProjectFile.write(path, contents());

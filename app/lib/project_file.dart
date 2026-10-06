@@ -140,7 +140,7 @@ abstract final class ProjectFile {
         final entry = m.string('entry');
         final candidates = [
           if (relative != null) _join(File(path).parent.path, relative),
-          ?original,
+          if (original != null && isLocalPath(original)) original,
         ];
         final linked = candidates.where((p) => File(p).existsSync()).firstOrNull;
         String? playable;
@@ -194,6 +194,18 @@ abstract final class ProjectFile {
   static String _safeName(String name) {
     final cleaned = name.replaceAll(RegExp(r'[/\\:*?"<>|\x00-\x1f]'), '_').trim();
     return cleaned.isEmpty ? 'file' : cleaned;
+  }
+
+  /// Whether [path] is an absolute path on this computer's own disks: `C:\…`, or `/…` but not
+  /// `//server/…` or macOS's `/net` and `/Network` (which mount other computers). Only looking
+  /// for a file elsewhere already connects there, and Windows signs in to a share as the user,
+  /// so the location a project gives is used only when it is local.
+  static bool isLocalPath(String path) {
+    if (RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path)) return true;
+    final lower = path.toLowerCase();
+    return path.startsWith('/') &&
+        !path.startsWith('//') &&
+        !RegExp(r'^/(net|network)(/|$)').hasMatch(lower);
   }
 
   static String _join(String dir, String name) => '$dir${Platform.pathSeparator}$name';
