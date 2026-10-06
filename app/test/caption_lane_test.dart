@@ -7,6 +7,7 @@ import 'package:curated_score/captions_dialog.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/lanes_common.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/project_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -178,5 +179,94 @@ void main() {
     expect(c.captions.selected, 0);
     c.deleteSelection();
     expect(c.captions.captions, isEmpty);
+  });
+
+  testWidgets('captions never overlap: drawing, moving and trimming stop at the next; the dialog and the sheet say so',
+      (tester) async {
+    await tester.runAsync(loadTestFonts);
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory()..captions = true;
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Try the sample'));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    for (var i = 0; i < 100 && c.score == null; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    final bar = c.score!.timeline.measureStarts;
+    final lane = tester.getRect(find.byType(CaptionLane));
+    Offset at(double quarter) =>
+        Offset(lane.left + kLaneHeaderWidth + c.viewport.x(c.timeline.secondsAtQuarter(quarter)), lane.center.dy);
+    c.captions.add(Caption(bar[4], bar[6], 'B'));
+
+    // Draw across B: it stops where B starts.
+    c.lanes.tool = LaneTool.draw;
+    await tester.dragFrom(at(bar[1] + 0.1), at(bar[8] + 0.1) - at(bar[1] + 0.1));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Text'), 'A');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.pumpAndSettle();
+    expect(c.captions.captions, [Caption(bar[4], bar[6], 'B'), Caption(bar[1], bar[4], 'A')]);
+
+    // Drawing inside B draws nothing.
+    await tester.dragFrom(at(bar[5]), at(bar[7]) - at(bar[5]));
+    await tester.pumpAndSettle();
+    expect(find.text('Add Caption'), findsNothing);
+
+    // Moved on, A stays clear of B; moved back it goes. Its end trims no further than B.
+    c.lanes.tool = LaneTool.select;
+    await tester.dragFrom(at(bar[2]), at(bar[5]) - at(bar[2]));
+    await tester.pumpAndSettle();
+    expect(c.captions.captions.last, Caption(bar[1], bar[4], 'A'));
+    await tester.dragFrom(at(bar[3]), at(bar[2]) - at(bar[3]));
+    await tester.pumpAndSettle();
+    expect(c.captions.captions.last, Caption(bar[0], bar[3], 'A'));
+    await tester.tapAt(at(bar[10])); // elsewhere first: not a double-click
+    await tester.pumpAndSettle();
+    await tester.dragFrom(at(bar[3]) - const Offset(1, 0), at(bar[7]) - at(bar[3]));
+    await tester.pumpAndSettle();
+    expect(c.captions.captions.last, Caption(bar[0], bar[4], 'A'));
+
+    // Its dialog won't run it into B.
+    await tester.tapAt(at(bar[1]));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(at(bar[1]));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Until'), '6');
+    await tester.pump();
+    expect(find.text('Another caption is there'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Apply')).onPressed, isNull);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    // Nor will the sheet.
+    final name = tester.getCenter(find.text('Captions').first);
+    await tester.tapAt(name);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(name);
+    await tester.pumpAndSettle();
+    final texts = find.descendant(of: find.byType(CaptionsDialog), matching: find.byType(TextField));
+    await tester.enterText(texts.at(1), '6');
+    await tester.pump();
+    expect(find.textContaining('2: Overlaps row 1'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Done')).onPressed, isNull);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    // However they come, one shows at a time: the earlier ends where the next starts.
+    c.captions.add(Caption(bar[5], bar[10], 'C'));
+    expect(c.captions.captions.firstWhere((x) => x.text == 'B'), Caption(bar[4], bar[5], 'B'));
+    final read = ProjectState.fromJson({
+      'captions': [
+        {'start': 0, 'end': 16, 'text': 'A'},
+        {'start': 4, 'end': 8, 'text': 'B'},
+      ],
+    });
+    expect(read.captions, const [Caption(0, 4, 'A'), Caption(4, 8, 'B')]);
   });
 }

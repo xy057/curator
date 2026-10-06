@@ -107,16 +107,20 @@ class CaptionEditing {
   /// How long a new caption lasts when nothing follows it, in bars.
   static const defaultBars = 4;
 
-  /// A new caption from the beat at score quarter [quarter]: [defaultBars] bars, or up to
-  /// the next caption.
-  Caption draft(double quarter) {
-    final beats = _c.beats, q = quarter.clamp(0.0, beats.totalQuarters), m = beats.measureAt(q);
-    final start = beats.beatsIn(m).lastWhere((b) => b <= q + 1e-9, orElse: () => beats.measureStarts[m]);
-    var end = beats.measureStarts[math.min(m + defaultBars, beats.measureStarts.length - 1)];
-    for (final c in _captions) {
-      if (c.start > start + 1e-9 && c.start < end) end = c.start;
+  /// A new caption from the beat at score quarter [quarter] (or the end of the caption there),
+  /// among [among] (the captions by default): [defaultBars] bars, or up to the next caption.
+  /// Null when there's no room.
+  Caption? draft(double quarter, [List<Caption>? among]) {
+    among ??= _captions;
+    final beats = _c.beats, total = beats.totalQuarters, q = quarter.clamp(0.0, total), m = beats.measureAt(q);
+    var start = beats.beatsIn(m).lastWhere((b) => b <= q + 1e-9, orElse: () => beats.measureStarts[m]);
+    for (final c in [...among]..sort((a, b) => a.start.compareTo(b.start))) {
+      if (start >= c.start - 1e-9 && start < c.end - 1e-9) start = c.end;
     }
-    return Caption(start, math.max(end, start + 1e-3), '');
+    final room = captionRoom(among, start, total);
+    if (room == null) return null;
+    final end = math.min(beats.measureStarts[math.min(beats.measureAt(start) + defaultBars, beats.measureStarts.length - 1)], room.to);
+    return end - start < 1e-3 ? null : Caption(start, end, '');
   }
 
   /// The caption showing at [seconds] (an index into [captions]); null: none.
@@ -160,8 +164,11 @@ class CaptionEditing {
 
   Caption _tidy(Caption c) => c.copyWith(text: c.text.trim());
 
+  /// Kept apart: one shows at a time ([separateCaptions]).
   void _set(List<Caption> captions) {
-    _captions = List.unmodifiable(captions);
+    final apart = separateCaptions(captions);
+    if (apart.length != captions.length) _selected = null;
+    _captions = List.unmodifiable(apart);
     _show();
     _c._edited();
     _c._changed();

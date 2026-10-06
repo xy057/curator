@@ -27,14 +27,63 @@ class Caption {
 /// seconds, once for every pass that plays it.
 typedef CaptionSpan = ({int caption, double start, double end});
 
-/// The captions in time: each as often as its music sounds, in order, a caption cut short
-/// where the next one starts (one shows at a time).
+/// [captions] with none overlapping (one shows at a time), in their order: one running into the
+/// next by start (the later of two starting together) ends where that one starts, and one left
+/// with no length goes.
+List<Caption> separateCaptions(List<Caption> captions) {
+  final order = [for (var i = 0; i < captions.length; i++) i]..sort((a, b) {
+      final by = captions[a].start.compareTo(captions[b].start);
+      return by != 0 ? by : a.compareTo(b);
+    });
+  final ends = [for (final c in captions) c.end];
+  for (var k = 0; k + 1 < order.length; k++) {
+    final i = order[k];
+    ends[i] = math.min(ends[i], captions[order[k + 1]].start);
+  }
+  return [
+    for (final (i, c) in captions.indexed)
+      if (ends[i] - c.start > 1e-9) ends[i] == c.end ? c : c.copyWith(end: ends[i]),
+  ];
+}
+
+/// The free stretch around score quarter [at] among [captions] (leaving out caption [except]):
+/// from the end of the one before (or 0) to the start of the one after (or [total]). Null when
+/// [at] is inside one (its start included).
+({double from, double to})? captionRoom(List<Caption> captions, double at, double total, {int? except}) {
+  var from = 0.0, to = total;
+  for (final (i, c) in captions.indexed) {
+    if (i == except) continue;
+    if (at >= c.start - 1e-9 && at < c.end - 1e-9) return null;
+    if (c.end <= at + 1e-9) {
+      from = math.max(from, c.end);
+    } else {
+      to = math.min(to, c.start);
+    }
+  }
+  return (from: from, to: to);
+}
+
+/// The caption (an index into [captions], other than [except]) that [start]–[end] runs into;
+/// null when it runs into none.
+int? captionOverlapping(List<Caption> captions, double start, double end, {int? except}) {
+  for (final (i, c) in captions.indexed) {
+    if (i != except && c.start < end - 1e-9 && c.end > start + 1e-9) return i;
+  }
+  return null;
+}
+
+/// The captions in time: each as often as its music sounds, in order. Captions don't overlap
+/// ([separateCaptions]); should two spans meet anyway, the earlier ends where the later starts
+/// (of two starting together, the later caption shows).
 List<CaptionSpan> captionSpans(List<Caption> captions, ScoreTimeline timeline) {
   final spans = <CaptionSpan>[
     for (final (i, c) in captions.indexed)
       if (c.text.trim().isNotEmpty)
         for (final s in timeline.spans(c.start, c.end)) (caption: i, start: s.startSeconds, end: s.endSeconds),
-  ]..sort((a, b) => a.start.compareTo(b.start));
+  ]..sort((a, b) {
+      final by = a.start.compareTo(b.start);
+      return by != 0 ? by : a.caption.compareTo(b.caption);
+    });
   return [
     for (final (i, s) in spans.indexed)
       if (i + 1 < spans.length && spans[i + 1].start < s.end)

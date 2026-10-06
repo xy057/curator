@@ -260,7 +260,11 @@ class ScoreViewState extends State<ScoreView> {
       ],
       if (c.captions.enabled)
         MenuItemButton(
-            onPressed: () => showCaptionDialog(context, c, draft: c.captions.draft(at.quarter)), child: const Text('Add Caption…')),
+            onPressed: switch (c.captions.draft(at.quarter)) {
+              final draft? => () => showCaptionDialog(context, c, draft: draft),
+              null => null, // no room: the captions there run on to the end
+            },
+            child: const Text('Add Caption…')),
     ];
   }
 

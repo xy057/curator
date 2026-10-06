@@ -194,9 +194,10 @@ class ProjectState {
       ],
       patches: patches,
       images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
-      captions: [
+      // Kept apart (those saved before captions couldn't overlap show as they did).
+      captions: separateCaptions([
         for (final (i, caption) in r.list('captions').indexed) _caption(JsonReader(caption, '${r.where}.captions[$i]')),
-      ],
+      ]),
       captionFont: switch (r.child('fonts').string('caption')) {
         final f? when f.trim().isEmpty => throw FormatException('The project is damaged: ${r.where}.fonts.caption is empty.'),
         final f => f,
