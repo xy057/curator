@@ -197,13 +197,17 @@ abstract final class VideoEncoder {
   }
 
   /// The arguments for FFmpeg: [format]'s frames as raw RGBA on stdin, the sound from
-  /// [audio] (none: a silent video), [seconds] long, written as MP4 to [output].
+  /// [audio] (none: a silent video) from [audioStart] seconds in, [seconds] long, written as
+  /// MP4 to [output]. A sound cut short at either end fades over a few milliseconds, so it
+  /// doesn't click.
   static List<String> arguments({
     required String encoder,
     required VideoFormat format,
     required double seconds,
     required String output,
     String? audio,
+    double audioStart = 0,
+    bool cutEnd = false,
   }) {
     final fps = format.fps;
     // Hardware and OpenH264 encoders take a bit rate: 0.12 bits a pixel is ample for ink on paper.
@@ -211,7 +215,7 @@ abstract final class VideoEncoder {
     return [
       '-hide_banner', '-loglevel', 'error', '-y',
       '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', '${format.width}x${format.height}', '-framerate', '$fps', '-i', '-',
-      if (audio != null) ...['-i', audio],
+      if (audio != null) ...[if (audioStart > 0) ...['-ss', audioStart.toStringAsFixed(6)], '-i', audio],
       '-map', '0:v:0',
       if (audio != null) ...['-map', '1:a:0'],
       // RGB to 4:2:0 with the HD colour matrix, and tagged so players decode it the same way.
@@ -224,12 +228,20 @@ abstract final class VideoEncoder {
       },
       '-g', '${fps * 2}', // a keyframe every 2 s: quick seeking, and what streaming sites like
       '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-color_range', 'tv',
+      if (audio != null && (audioStart > 0 || cutEnd))
+        ...['-af', [
+          if (audioStart > 0) 'afade=t=in:d=$_declick',
+          if (cutEnd) 'afade=t=out:st=${math.max(0, seconds - _declick).toStringAsFixed(6)}:d=$_declick',
+        ].join(',')],
       if (audio != null) ...['-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2'],
       '-t', seconds.toStringAsFixed(6), // the frames' length: a longer recording is cut there
       '-movflags', '+faststart',
       '-f', 'mp4', output,
     ];
   }
+
+  /// Seconds of fade where a sound is cut.
+  static const _declick = 0.01;
 }
 
 /// Where an export has got to.
@@ -298,6 +310,31 @@ class VideoExport {
   /// Seconds of video: the whole recording or the whole piece, as playback runs.
   final double duration;
 
+  /// Bars in the score, numbered from 1 as Go to counts them.
+  int get bars => _sync.measureStarts.length - 1;
+
+  /// The stretch of the video bars [first]…[last] cover: from when [first] first sounds to
+  /// when [last] next ends after that (a repeat's first time, if it has one). Bar 1 starts at
+  /// the very beginning, and the last bar runs to [duration], so all of them is the whole
+  /// video. Null when they aren't bars, or [last] comes before [first].
+  ({double start, double end})? barRange(int first, int last) {
+    if (first < 1 || last < first || last > bars) return null;
+    final starts = _sync.measureStarts;
+    final start = first == 1 ? 0.0 : _sync.spans(starts[first - 1], starts[first]).firstOrNull?.startSeconds;
+    if (start == null) return null;
+    final end = last == bars
+        ? duration
+        : _sync.spans(starts[last - 1], starts[last]).map((s) => s.endSeconds).where((e) => e > start + 1e-6).firstOrNull;
+    if (end == null || end <= start) return null;
+    return (start: start, end: math.min(end, duration));
+  }
+
+  /// The bar and beat sounding at [seconds], as the toolbar writes them ("12.2").
+  String barBeatAt(double seconds) {
+    final (:measure, :beat) = _scene.score.beats.position(_sync.quarterAtSeconds(seconds) + 1e-9);
+    return '${measure + 1}.${beat.floor() + 1}';
+  }
+
   /// The recording's audio file; null for a silent video.
   final String? audio;
 
@@ -341,13 +378,15 @@ class VideoExport {
     _process?.kill();
   }
 
-  /// Writes the video to [output] (an .mp4), reporting each frame to [onProgress]. [to]
-  /// ends it early (tests). The file appears only once complete; a failed or cancelled
-  /// export leaves nothing behind (and an older file of that name as it was).
+  /// Writes the video to [output] (an .mp4), reporting each frame to [onProgress]: the
+  /// playback from [from] to [to] seconds (default: all of it; see [barRange]). The file
+  /// appears only once complete; a failed or cancelled export leaves nothing behind (and an
+  /// older file of that name as it was).
   Future<void> write(
     String output, {
     required VideoFormat format,
     void Function(ExportProgress progress)? onProgress,
+    double from = 0,
     double? to,
     String? ffmpeg,
   }) async {
@@ -361,13 +400,19 @@ class VideoExport {
           'This FFmpeg cannot write H.264 video. Install a full build of FFmpeg (with libx264).');
     }
 
-    final seconds = to ?? duration;
-    final frames = format.frameCount(seconds);
+    final end = to ?? duration;
+    final frames = format.frameCount(end - from);
     final partial = '$output.part';
     final process = _process = await Process.start(
       ffmpeg,
       VideoEncoder.arguments(
-          encoder: encoder, format: format, seconds: frames / format.fps, output: partial, audio: audio),
+          encoder: encoder,
+          format: format,
+          seconds: frames / format.fps,
+          output: partial,
+          audio: audio,
+          audioStart: from,
+          cutEnd: end < duration - 1e-6),
     );
     final errors = StringBuffer();
     final stderr = process.stderr.transform(const Utf8Decoder(allowMalformed: true)).forEach(errors.write);
@@ -381,7 +426,7 @@ class VideoExport {
       var i = 0;
       await for (final pixels in inOrder(frames, (i) {
         final image = _scene.renderFrame(format.width, format.height,
-            time: format.timeOf(i),
+            time: from + format.timeOf(i),
             curation: _curation,
             devicePixelRatio: format.devicePixelRatio,
             end: duration,

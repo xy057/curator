@@ -104,6 +104,17 @@ Encoders:
       expect(args.where((a) => a == '-i'), hasLength(1));
       expect(args, isNot(contains('-c:a')));
     });
+
+    test('a range: the sound starts where the video does, and fades in a blink where it is cut', () {
+      final line = VideoEncoder.arguments(
+              encoder: 'libx264', format: format, seconds: 4, output: 'o', audio: 'take.flac', audioStart: 10, cutEnd: true)
+          .join(' ');
+      expect(line, contains('-ss 10.000000 -i take.flac'));
+      expect(line, contains('-af afade=t=in:d=0.01,afade=t=out:st=3.990000:d=0.01'));
+      final whole = VideoEncoder.arguments(encoder: 'libx264', format: format, seconds: 4, output: 'o', audio: 'take.flac');
+      expect(whole, isNot(contains('-ss')));
+      expect(whole, isNot(contains('-af')));
+    });
   });
 
   test('every size frames the score alike: 1080p is the 540-point layout at 2 pixels a point', () {
@@ -243,6 +254,36 @@ Encoders:
       expect(File(out).lengthSync(), greaterThan(0));
       expect(export.duration, c.playback.duration);
     }, skip: skip);
+
+    test('bars A–B: from where A first sounds to where B ends; all of them is the whole video', () {
+      final export = VideoExport.of(c);
+      addTearDown(export.dispose);
+      expect(export.bars, 44);
+      expect(export.barRange(1, 44), (start: 0.0, end: export.duration));
+      final r = export.barRange(5, 12)!;
+      final timeline = c.timeline, starts = timeline.measureStarts;
+      expect(r.start, closeTo(timeline.secondsAtQuarter(starts[4]), 1e-9));
+      expect(r.end, closeTo(timeline.secondsAtQuarter(starts[12]), 1e-9));
+      expect(export.barBeatAt(r.start + 1e-6), '5.1');
+      expect(export.barRange(12, 5), isNull);
+      expect(export.barRange(0, 5), isNull);
+      expect(export.barRange(1, 45), isNull);
+    });
+
+    test('a range of bars is written from its start, as long as it is', () async {
+      await useRecording(demoRecording.path);
+      final export = VideoExport.of(c);
+      addTearDown(export.dispose);
+      final r = export.barRange(5, 6)!;
+      final out = '${dir.path}/bars.mp4';
+      final seen = <int>[];
+      await export.write(out, format: small, from: r.start, to: r.end, onProgress: (p) => seen.add(p.frames));
+      expect(seen.last, small.frameCount(r.end - r.start));
+      if (ffprobe == null || !File(ffprobe).existsSync()) return;
+      final p = await Process.run(ffprobe, ['-v', 'error', '-of', 'json', '-show_format', out]);
+      final info = jsonDecode('${p.stdout}') as Map<String, dynamic>;
+      expect(double.parse(info['format']['duration'] as String), closeTo(r.end - r.start, 0.15));
+    }, skip: skip, timeout: const Timeout(Duration(minutes: 2)));
 
     test('the export condenses the pairs the editor did when it started', () {
       c.setCondensed(['cond-P2-P3'], on: true);
