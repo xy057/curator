@@ -53,11 +53,12 @@ void main() {
     expect(c.condensed, {'cond-P2-P3'});
 
     // Flute 1 + Oboe 1.
-    await tester.tap(find.text('Player').first);
+    final players = find.byType(DropdownButton<String>);
+    await tester.tap(players.first);
     await settle();
     await tester.tap(find.text('Flute 1').last);
     await settle();
-    await tester.tap(find.text('Player'));
+    await tester.tap(players.last);
     await settle();
     await tester.tap(find.text('Oboe 1').last);
     await settle();
