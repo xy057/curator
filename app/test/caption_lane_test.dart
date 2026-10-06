@@ -5,6 +5,7 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/caption_lane.dart';
 import 'package:curated_score/captions_dialog.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/lanes_common.dart';
 import 'package:curated_score/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -106,5 +107,76 @@ void main() {
     expect(c.captions.captions.last.start, bar[12], reason: 'the new row follows the last');
     c.undo();
     expect([for (final x in c.captions.captions) x.text], ['Strings alone', 'The horns answer'], reason: 'one step');
+  });
+
+  testWidgets('captions are regions in their lane: drawn, moved, trimmed, double-clicked, deleted and erased', (tester) async {
+    await tester.runAsync(loadTestFonts);
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory()..captions = true;
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Try the sample'));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    for (var i = 0; i < 100 && c.score == null; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    final bar = c.score!.timeline.measureStarts;
+    final lane = tester.getRect(find.byType(CaptionLane));
+    Offset at(double quarter) =>
+        Offset(lane.left + kLaneHeaderWidth + c.viewport.x(c.timeline.secondsAtQuarter(quarter)), lane.center.dy);
+
+    // Draw: drag bars 3–7, type the text.
+    c.lanes.tool = LaneTool.draw;
+    await tester.dragFrom(at(bar[2] + 0.1), at(bar[6] + 0.1) - at(bar[2] + 0.1));
+    await tester.pumpAndSettle();
+    expect(find.text('Add Caption'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Text'), 'Oboe');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.pumpAndSettle();
+    expect(c.captions.captions.single, Caption(bar[2], bar[6], 'Oboe'));
+
+    // Select: move it a bar on (snapped), one Undo step.
+    c.lanes.tool = LaneTool.select;
+    await tester.dragFrom(at(bar[4]), at(bar[5]) - at(bar[4]));
+    await tester.pumpAndSettle();
+    expect(c.captions.captions.single, Caption(bar[3], bar[7], 'Oboe'));
+    expect(c.captions.selected, 0);
+
+    // Trim its end back to bar 7.
+    await tester.dragFrom(at(bar[7]) - const Offset(1, 0), at(bar[6]) - at(bar[7]));
+    await tester.pumpAndSettle();
+    expect(c.captions.captions.single, Caption(bar[3], bar[6], 'Oboe'));
+
+    // Double-click it: its dialog.
+    await tester.tapAt(at(bar[4]));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(at(bar[4]));
+    await tester.pumpAndSettle();
+    expect(find.text('Caption'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Text'), 'Oboe solo');
+    await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
+    await tester.pumpAndSettle();
+    expect(c.captions.captions.single.text, 'Oboe solo');
+
+    // Erase its middle bar: two, each with the text.
+    c.lanes.tool = LaneTool.erase;
+    await tester.dragFrom(at(bar[4] + 0.1), at(bar[5] - 0.1) - at(bar[4] + 0.1));
+    await tester.pumpAndSettle();
+    expect(c.captions.captions, [Caption(bar[3], bar[4], 'Oboe solo'), Caption(bar[5], bar[6], 'Oboe solo')]);
+    c.undo();
+    expect(c.captions.captions.single, Caption(bar[3], bar[6], 'Oboe solo'), reason: 'one step');
+
+    // Delete removes the selected one.
+    c.lanes.tool = LaneTool.select;
+    await tester.tapAt(at(bar[4]));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(c.captions.selected, 0);
+    c.deleteSelection();
+    expect(c.captions.captions, isEmpty);
   });
 }

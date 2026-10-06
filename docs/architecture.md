@@ -173,9 +173,13 @@ Right-click the preview ▸ Add Caption… starts one on the beat where it was c
 long or up to the next caption (`CaptionEditing.draft`); double-click the caption showing (or
 right-click it) to change it; an empty text removes it.
 While the switch is on, the Captions lane (`CaptionLane`) is pinned under the bar ruler in
-both tabs: never scrolled with the instruments, moved or unpinned, so it has no ⋯ menu. It
-draws what shows (`captionSpans`), a click on empty space moves the playhead, and a
-double-click opens the Captions sheet (`CaptionsDialog`): a row per caption, From / Until /
+both tabs: never scrolled with the instruments, moved or unpinned, so it has no ⋯ menu. Its
+captions are regions, edited as the instruments' are with the Instruments tab's tool (the
+Audio tab only selects): Draw drags out a stretch and asks for its text (nothing is added
+until it has one), Select moves one, trims an edge, selects it for Delete
+(`CaptionEditing.selected`, cleared by a click in any other lane) and double-clicked opens
+its dialog, Erase cuts captions back or in two; edges snap as the lanes' do, and a drag is
+one Undo step. A double-click on the lane's name opens the Captions sheet (`CaptionsDialog`): a row per caption, From / Until /
 Text cells, Tab across and ↑ / ↓ / Enter down the column, Add, ×; Done applies it all as one
 Undo step (`CaptionEditing.replaceAll`). A cell's widgets never change while typing (a
 row's problem shows by the buttons, not around the row), or the cell would lose the keyboard. Every change is an Undo step

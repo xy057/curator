@@ -680,8 +680,15 @@ class EditorController extends ChangeNotifier {
 
   /// Nothing selected in either tab.
   void clearSelection() {
-    if (lanes._selected.isEmpty && lanes._lanes.isEmpty && anchors._selected.isEmpty && images._selected == null) return;
+    if (lanes._selected.isEmpty &&
+        lanes._lanes.isEmpty &&
+        anchors._selected.isEmpty &&
+        images._selected == null &&
+        captions._selected == null) {
+      return;
+    }
     images._deselect();
+    captions._selected = null;
     lanes._clear();
     anchors._selected = {};
     notifyListeners();
@@ -689,13 +696,15 @@ class EditorController extends ChangeNotifier {
 
   /// Whether Delete has anything to remove.
   bool get canDelete =>
-      images._selected != null || (_tab == BottomTab.audio ? anchors.selected.isNotEmpty : lanes.selected.isNotEmpty);
+      images._selected != null || captions._selected != null || (_tab == BottomTab.audio ? anchors.selected.isNotEmpty : lanes.selected.isNotEmpty);
 
   /// Delete: removes what is selected in the tab that is showing.
-  /// A selected image goes first.
+  /// A selected image goes first, then a selected caption.
   void deleteSelection() => images._selected != null
       ? images.remove()
-      : _tab == BottomTab.audio
+      : captions._selected != null
+          ? captions.remove()
+          : _tab == BottomTab.audio
           ? anchors.delete()
           : lanes.delete();
 

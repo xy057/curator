@@ -13,6 +13,7 @@ class CaptionEditing {
   set enabled(bool value) {
     if (value == _enabled) return;
     _enabled = value;
+    if (!value) _selected = null;
     _show();
     _c._changed();
   }
@@ -20,6 +21,17 @@ class CaptionEditing {
   /// In the order they were added.
   List<Caption> get captions => _captions;
   List<Caption> _captions = const [];
+
+  /// The selected caption (an index into [captions], in the Captions lane); null: none.
+  int? get selected => _selected;
+  int? _selected;
+
+  void select(int? index) {
+    if (!_enabled || (index != null && (index < 0 || index >= _captions.length))) index = null;
+    if (index == _selected) return;
+    _selected = index;
+    _c._changed();
+  }
 
   /// How long a new caption lasts when nothing follows it, in bars.
   static const defaultBars = 4;
@@ -57,17 +69,21 @@ class CaptionEditing {
     _set([..._captions]..[index] = next);
   }
 
-  /// Replaces every caption at once (the Captions sheet): one Undo step. Those with an empty
-  /// text are left out.
+  /// Replaces every caption at once (the Captions sheet, erasing): one Undo step, or part of
+  /// a gesture. Those with an empty text are left out.
   void replaceAll(List<Caption> captions) {
     if (!_enabled || _c._score == null) return;
     final next = [for (final c in captions) if (c.text.trim().isNotEmpty) _tidy(c)];
     if (listEquals(next, _captions)) return;
+    _selected = null;
     _set(next);
   }
 
-  void remove(int index) {
-    if (!_enabled || index < 0 || index >= _captions.length) return;
+  /// Removes caption [index] (the selected one by default).
+  void remove([int? index]) {
+    index ??= _selected;
+    if (!_enabled || index == null || index < 0 || index >= _captions.length) return;
+    _selected = null;
     _set([..._captions]..removeAt(index));
   }
 
@@ -90,8 +106,12 @@ class CaptionEditing {
   /// After Undo / Redo.
   void _restore(List<Caption> captions) {
     _captions = captions;
+    _selected = null;
     _show();
   }
 
-  void _reset() => _captions = const [];
+  void _reset() {
+    _captions = const [];
+    _selected = null;
+  }
 }

@@ -384,6 +384,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   }
 
   void _onDown(PointerDownEvent e) {
+    c.captions.select(null); // the Delete key goes to what was clicked here
     if (e.buttons != kPrimaryButton) return;
     final keys = HardwareKeyboard.instance;
     final curation = c.curation!;
