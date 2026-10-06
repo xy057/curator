@@ -164,8 +164,11 @@ it; a browser draws it) is given the box around what it draws.
 
 **A caption shows under the score** (the Captions extension). A `Caption` is a text and
 the score quarters it runs between, so it stays with its bars when the sync changes and shows
-once for every pass that plays them (`captionSpans`: one at a time, a caption cut short where
-the next starts). The scene draws it in `CaptionBar` under the staves, which leave
+once for every pass that plays them (`captionSpans`). Captions never overlap, so one shows at
+a time: every edit keeps them apart (`separateCaptions` in `CaptionEditing._set`, and on
+reading a project, an earlier one ending where the next starts), and the editors stop at the
+free stretch around a caption (`captionRoom`; the dialogs flag one running into another,
+`captionOverlapping`). The scene draws it in `CaptionBar` under the staves, which leave
 `CaptionBar.reserve` for it while there are any: the text centred in the score's text font,
 and under it a hairline as wide as the text that draws in to its middle as the caption's time
 runs out; it rises 4 points into place as it fades in over `CaptionBar.fade`, and fades out
@@ -181,8 +184,9 @@ score's text font); an installed family is read and registered before it is draw
 (`CaptionEditing._applyStyle`, the latest call winning), and one not installed here falls back
 to the score's text font, the choice kept. A style change repaints by marking playback dirty:
 the preview repaints only when asked.
-Right-click the preview ▸ Add Caption… starts one on the beat where it was clicked, four bars
-long or up to the next caption (`CaptionEditing.draft`); double-click the caption showing (or
+Right-click the preview ▸ Add Caption… starts one on the beat where it was clicked (or
+where the caption there ends), four bars long or up to the next caption (`CaptionEditing.draft`;
+greyed out without room); double-click the caption showing (or
 right-click it) to change it; an empty text removes it.
 While the switch is on, the Captions lane (`CaptionLane`) is pinned under the bar ruler in
 both tabs: never scrolled with the instruments, moved or unpinned, so it has no ⋯ menu. Its

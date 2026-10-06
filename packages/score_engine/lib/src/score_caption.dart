@@ -27,14 +27,63 @@ class Caption {
 /// seconds, once for every pass that plays it.
 typedef CaptionSpan = ({int caption, double start, double end});
 
-/// The captions in time: each as often as its music sounds, in order, a caption cut short
-/// where the next one starts (one shows at a time).
+/// [captions] with none overlapping (one shows at a time), in their order: one running into the
+/// next by start (the later of two starting together) ends where that one starts, and one left
+/// with no length goes.
+List<Caption> separateCaptions(List<Caption> captions) {
+  final order = [for (var i = 0; i < captions.length; i++) i]..sort((a, b) {
+      final by = captions[a].start.compareTo(captions[b].start);
+      return by != 0 ? by : a.compareTo(b);
+    });
+  final ends = [for (final c in captions) c.end];
+  for (var k = 0; k + 1 < order.length; k++) {
+    final i = order[k];
+    ends[i] = math.min(ends[i], captions[order[k + 1]].start);
+  }
+  return [
+    for (final (i, c) in captions.indexed)
+      if (ends[i] - c.start > 1e-9) ends[i] == c.end ? c : c.copyWith(end: ends[i]),
+  ];
+}
+
+/// The free stretch around score quarter [at] among [captions] (leaving out caption [except]):
+/// from the end of the one before (or 0) to the start of the one after (or [total]). Null when
+/// [at] is inside one (its start included).
+({double from, double to})? captionRoom(List<Caption> captions, double at, double total, {int? except}) {
+  var from = 0.0, to = total;
+  for (final (i, c) in captions.indexed) {
+    if (i == except) continue;
+    if (at >= c.start - 1e-9 && at < c.end - 1e-9) return null;
+    if (c.end <= at + 1e-9) {
+      from = math.max(from, c.end);
+    } else {
+      to = math.min(to, c.start);
+    }
+  }
+  return (from: from, to: to);
+}
+
+/// The caption (an index into [captions], other than [except]) that [start]–[end] runs into;
+/// null when it runs into none.
+int? captionOverlapping(List<Caption> captions, double start, double end, {int? except}) {
+  for (final (i, c) in captions.indexed) {
+    if (i != except && c.start < end - 1e-9 && c.end > start + 1e-9) return i;
+  }
+  return null;
+}
+
+/// The captions in time: each as often as its music sounds, in order. Captions don't overlap
+/// ([separateCaptions]); should two spans meet anyway, the earlier ends where the later starts
+/// (of two starting together, the later caption shows).
 List<CaptionSpan> captionSpans(List<Caption> captions, ScoreTimeline timeline) {
   final spans = <CaptionSpan>[
     for (final (i, c) in captions.indexed)
       if (c.text.trim().isNotEmpty)
         for (final s in timeline.spans(c.start, c.end)) (caption: i, start: s.startSeconds, end: s.endSeconds),
-  ]..sort((a, b) => a.start.compareTo(b.start));
+  ]..sort((a, b) {
+      final by = a.start.compareTo(b.start);
+      return by != 0 ? by : a.caption.compareTo(b.caption);
+    });
   return [
     for (final (i, s) in spans.indexed)
       if (i + 1 < spans.length && spans[i + 1].start < s.end)
@@ -107,10 +156,13 @@ class CaptionBar {
   /// Space either side of the text, and the widest it gets.
   static const _side = 24.0, _maxWidth = 560.0;
 
-  final _paragraphs = <(String, double), ui.Paragraph>{};
+  /// Each text laid out, with its first line's height (where the ring sits).
+  final _paragraphs = <(String, double), ({ui.Paragraph p, double firstLine})>{};
 
-  ui.Paragraph _paragraph(String text, double width) => _paragraphs.putIfAbsent((text, width), () {
-        if (_paragraphs.length > 64) _paragraphs.clear();
+  ui.Paragraph _paragraph(String text, double width) => _laidOut(text, width).p;
+
+  ({ui.Paragraph p, double firstLine}) _laidOut(String text, double width) => _paragraphs.putIfAbsent((text, width), () {
+        if (_paragraphs.length > 64) _clear();
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
           fontFamily: _family,
           fontSize: fontSize,
@@ -121,8 +173,19 @@ class CaptionBar {
         ))
           ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: 0.15))
           ..addText(text.trim());
-        return builder.build()..layout(ui.ParagraphConstraints(width: width));
+        final p = builder.build()..layout(ui.ParagraphConstraints(width: width));
+        return (p: p, firstLine: p.computeLineMetrics().firstOrNull?.height ?? p.height);
       });
+
+  void _clear() {
+    for (final laid in _paragraphs.values) {
+      laid.p.dispose();
+    }
+    _paragraphs.clear();
+  }
+
+  /// Frees the texts laid out; the bar can't be drawn after.
+  void dispose() => _clear();
 
   double _width(ui.Size size) => math.min(size.width - 2 * _side, _maxWidth);
 
@@ -147,16 +210,18 @@ class CaptionBar {
       final into = ((time - s.start) / fade).clamp(0.0, 1.0), left = ((s.end - time) / fade).clamp(0.0, 1.0);
       final opacity = ease(math.min(into, left));
       if (opacity <= 0.001) continue;
-      final p = _paragraph(captions[s.caption].text, _width(size));
+      final (:p, :firstLine) = _laidOut(captions[s.caption].text, _width(size));
       final (:top, :line) = _place(p, size);
       // It comes in from the frame's edge side: up from below, down from above.
       final rise = (1 - ease(into)) * 4 * (style.position == CaptionPosition.top ? -1 : 1);
-      final cx = size.width / 2;
-      canvas.saveLayer(null,
+      final cx = size.width / 2, at = ui.Offset(cx - p.width / 2, top + rise);
+      // The layer (to tint and fade the text) only as big as the text, not the frame: a full
+      // frame offscreen each frame is costly at 4K. A little over, for glyphs that overhang.
+      canvas.saveLayer((at & ui.Size(p.width, p.height)).inflate(4),
           ui.Paint()
             ..color = ui.Color.fromRGBO(0, 0, 0, opacity)
             ..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn));
-      canvas.drawParagraph(p, ui.Offset(cx - p.width / 2, top + rise));
+      canvas.drawParagraph(p, at);
       canvas.restore();
 
       final remaining = ((s.end - time) / (s.end - s.start)).clamp(0.0, 1.0);
@@ -175,8 +240,8 @@ class CaptionBar {
           }
         case CaptionCountdown.ring:
           // A small ring left of the first line, emptying clockwise from the top.
-          final r = fontSize * 0.36, firstLine = p.computeLineMetrics().firstOrNull;
-          final centre = ui.Offset(cx - p.longestLine / 2 - r - 10, top + rise + (firstLine?.height ?? p.height) / 2);
+          final r = fontSize * 0.36;
+          final centre = ui.Offset(cx - p.longestLine / 2 - r - 10, top + rise + firstLine / 2);
           canvas.drawCircle(centre, r, stroke..color = track);
           if (remaining > 0) {
             canvas.drawArc(ui.Rect.fromCircle(center: centre, radius: r), -math.pi / 2, 2 * math.pi * remaining, false,

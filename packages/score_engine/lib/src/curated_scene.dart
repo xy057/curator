@@ -468,7 +468,9 @@ class CuratedScene {
   /// How captions look; a change only redraws.
   CaptionStyle get captionStyle => _captionBar.style;
   set captionStyle(CaptionStyle value) {
-    if (value != _captionBar.style) _captionBar = CaptionBar(_style.textFontFamily, value);
+    if (value == _captionBar.style) return;
+    _captionBar.dispose();
+    _captionBar = CaptionBar(_style.textFontFamily, value);
   }
 
   late CaptionBar _captionBar = CaptionBar(_style.textFontFamily);
@@ -649,5 +651,6 @@ class CuratedScene {
   void dispose() {
     renderer.dispose();
     display.dispose();
+    _captionBar.dispose();
   }
 }

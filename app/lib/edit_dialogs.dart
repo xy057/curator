@@ -348,7 +348,7 @@ class _RegionDialogState extends State<_RegionDialog> {
 /// ([draft]) or caption [index]. An empty text removes it.
 Future<void> showCaptionDialog(BuildContext context, EditorController c, {int? index, Caption? draft}) async {
   final caption = index != null ? c.captions.captions[index] : draft!;
-  final result = await showAppDialog<Caption>(context: context, builder: (context) => _CaptionDialog(controller: c, caption: caption, isNew: index == null));
+  final result = await showAppDialog<Caption>(context: context, builder: (context) => _CaptionDialog(controller: c, caption: caption, index: index));
   if (result == null) return;
   if (index == null) {
     c.captions.add(result);
@@ -358,10 +358,13 @@ Future<void> showCaptionDialog(BuildContext context, EditorController c, {int? i
 }
 
 class _CaptionDialog extends StatefulWidget {
-  const _CaptionDialog({required this.controller, required this.caption, required this.isNew});
+  const _CaptionDialog({required this.controller, required this.caption, this.index});
   final EditorController controller;
   final Caption caption;
-  final bool isNew;
+
+  /// The caption changed; null: a new one.
+  final int? index;
+  bool get isNew => index == null;
 
   @override
   State<_CaptionDialog> createState() => _CaptionDialogState();
@@ -391,7 +394,9 @@ class _CaptionDialogState extends State<_CaptionDialog> {
         ? 'Type a bar, or bar.beat — e.g. 12 or 12.3'
         : b <= a
             ? 'It has to end after it starts'
-            : widget.isNew && _text.text.trim().isEmpty
+            : captionOverlapping(widget.controller.captions.captions, a, b, except: widget.index) != null
+                ? 'Another caption is there'
+                : widget.isNew && _text.text.trim().isEmpty
                 ? ''
                 : null;
     void save() {

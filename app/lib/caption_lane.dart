@@ -65,7 +65,30 @@ class _CaptionLaneState extends State<CaptionLane> {
   @override
   void dispose() {
     _band.dispose();
+    _clearLabels();
     super.dispose();
+  }
+
+  /// Captions' texts as laid out in the lane, kept: playback repaints it every frame.
+  final _labels = <(String, double, Color), TextPainter>{};
+
+  TextPainter _label(String text, double maxWidth, Color color) {
+    final key = (text, maxWidth, color);
+    if (_labels[key] case final label?) return label;
+    if (_labels.length >= 64) _clearLabels();
+    return _labels[key] = TextPainter(
+      text: TextSpan(text: text, style: TextStyle(fontSize: 11, color: color)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: maxWidth);
+  }
+
+  void _clearLabels() {
+    for (final label in _labels.values) {
+      label.dispose();
+    }
+    _labels.clear();
   }
 
   /// The tool a drag uses: the Instruments tab's, ⌥ swapping as in the lanes; the Audio tab
@@ -185,8 +208,11 @@ class _CaptionLaneState extends State<CaptionLane> {
       case _Kind.scrub:
         c.playback.seek(c.viewport.seconds(p.dx).clamp(0.0, c.playback.duration));
       case _Kind.draw:
-        final edge = _snap(q, drag.pass);
-        _band.value = (q0: math.min(drag.downQ, edge), q1: math.max(drag.downQ, edge), draw: true);
+        // Up to the captions either side: one shows at a time.
+        final edge = _snap(q, drag.pass), room = _room(drag.from, drag.downQ + (edge < drag.downQ ? -1e-6 : 1e-6));
+        _band.value = room == null
+            ? null
+            : (q0: math.max(math.min(drag.downQ, edge), room.from), q1: math.min(math.max(drag.downQ, edge), room.to), draw: true);
       case _Kind.erase:
         final edge = _snap(q, drag.pass);
         final band = (q0: math.min(drag.downQ, edge), q1: math.max(drag.downQ, edge), draw: false);
@@ -194,13 +220,17 @@ class _CaptionLaneState extends State<CaptionLane> {
         c.captions.replaceAll(_erased(drag.from, band.q0, band.q1));
       case _Kind.move || _Kind.start || _Kind.end:
         if (!drag.moved) return;
-        final was = drag.from[drag.index!];
+        // Never into the captions either side.
+        final was = drag.from[drag.index!], room = _room(drag.from, was.start, except: drag.index)!;
         final next = switch (drag.kind) {
-          _Kind.start => was.copyWith(start: math.min(_snap(was.start + q - drag.downQ, drag.pass), was.end - _minLength)),
-          _Kind.end => was.copyWith(end: math.max(_snap(was.end + q - drag.downQ, drag.pass), was.start + _minLength)),
+          _Kind.start => was.copyWith(
+              start: _snap(was.start + q - drag.downQ, drag.pass).clamp(room.from, math.max(room.from, was.end - _minLength)).toDouble()),
+          _Kind.end => was.copyWith(
+              end: _snap(was.end + q - drag.downQ, drag.pass).clamp(math.min(room.to, was.start + _minLength), room.to).toDouble()),
           _ => () {
               final length = was.end - was.start;
-              final start = _snap(was.start + q - drag.downQ, drag.pass).clamp(0.0, math.max(0.0, _total - length)).toDouble();
+              final start =
+                  _snap(was.start + q - drag.downQ, drag.pass).clamp(room.from, math.max(room.from, room.to - length)).toDouble();
               return was.copyWith(start: start, end: start + length);
             }(),
         };
@@ -216,10 +246,14 @@ class _CaptionLaneState extends State<CaptionLane> {
     if (drag == null) return;
     switch (drag.kind) {
       case _Kind.draw:
-        // A click draws one beat (one bar zoomed out), from the beat clicked.
-        final q0 = band != null && band.q1 - band.q0 > 1e-9 ? band.q0 : _beatAt(drag.downQ, drag.pass).$1;
-        final q1 = band != null && band.q1 - band.q0 > 1e-9 ? band.q1 : _beatAt(drag.downQ, drag.pass).$2;
-        showCaptionDialog(context, c, draft: Caption(q0, q1, ''));
+        // A click draws one beat (one bar zoomed out), from the beat clicked, as far as there's room.
+        var (q0, q1) = band != null && band.q1 - band.q0 > 1e-9 ? (band.q0, band.q1) : _beatAt(drag.downQ, drag.pass);
+        if (band == null || band.q1 - band.q0 <= 1e-9) {
+          final room = _room(drag.from, _q(drag.downAt.dx, pass: drag.pass));
+          if (room == null) return;
+          (q0, q1) = (math.max(q0, room.from), math.min(q1, room.to));
+        }
+        if (q1 - q0 > 1e-9) showCaptionDialog(context, c, draft: Caption(q0, q1, ''));
       case _Kind.erase:
         if (band == null || band.q1 - band.q0 <= 1e-9) {
           // A click erases the beat (bar) under it.
@@ -231,6 +265,25 @@ class _CaptionLaneState extends State<CaptionLane> {
         c.endEdit();
         setState(() => _cursor = SystemMouseCursors.grab);
       case _Kind.scrub:
+        break;
+    }
+  }
+
+  /// The free stretch around [q] (leaving out caption [except]); null inside a caption.
+  ({double from, double to})? _room(List<Caption> captions, double q, {int? except}) =>
+      captionRoom(captions, q.clamp(0.0, _total), _total, except: except);
+
+  /// The system took the pointer: nothing is drawn (no dialog); what a drag changed so far
+  /// stays, as one Undo step.
+  void _onCancel(PointerCancelEvent e) {
+    final drag = _drag;
+    _drag = null;
+    _band.value = null;
+    switch (drag?.kind) {
+      case _Kind.erase || _Kind.move || _Kind.start || _Kind.end:
+        c.endEdit();
+        if (_cursor == SystemMouseCursors.grabbing) setState(() => _cursor = SystemMouseCursors.grab);
+      case _Kind.draw || _Kind.scrub || null:
         break;
     }
   }
@@ -260,9 +313,9 @@ class _CaptionLaneState extends State<CaptionLane> {
 
   void _onNameUp(PointerUpEvent e) {
     final last = _lastNameClick;
-    final double = last != null && e.timeStamp - last < const Duration(milliseconds: 350);
-    _lastNameClick = double ? null : e.timeStamp;
-    if (double) showCaptionsDialog(context, c);
+    final second = last != null && e.timeStamp - last < const Duration(milliseconds: 350);
+    _lastNameClick = second ? null : e.timeStamp;
+    if (second) showCaptionsDialog(context, c);
   }
 
   @override
@@ -295,7 +348,7 @@ class _CaptionLaneState extends State<CaptionLane> {
               onPointerDown: _onDown,
               onPointerMove: _onMove,
               onPointerUp: _onUp,
-              onPointerCancel: _onUp,
+              onPointerCancel: _onCancel,
               child: DecoratedBox(
                 decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.line))),
                 child: CustomPaint(
@@ -344,14 +397,9 @@ class _CaptionLanePainter extends CustomPainter {
             ..color = on ? colors.accentStrong : colors.textMuted.withValues(alpha: 0.5),
         );
         if (x1 - x0 < 16) continue;
-        final text = TextPainter(
-          text: TextSpan(text: cap.text, style: TextStyle(fontSize: 11, color: on ? colors.surface : colors.text)),
-          textDirection: TextDirection.ltr,
-          maxLines: 1,
-          ellipsis: '…',
-        )..layout(maxWidth: x1 - x0 - 12);
+        // Whole points, so a scroll (which moves both ends) finds the same one.
+        final text = s._label(cap.text, (x1 - x0 - 12).floorToDouble(), on ? colors.surface : colors.text);
         text.paint(canvas, Offset(x0 + 6, rect.center.dy - text.height / 2));
-        text.dispose();
       }
     }
     final band = s._band.value;

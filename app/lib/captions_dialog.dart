@@ -28,13 +28,15 @@ class CaptionsDialog extends StatefulWidget {
 }
 
 /// One caption's cells. [caption] is what it was (or was drafted as): a cell still showing
-/// its edge as written keeps that edge exactly, as in the region dialog.
+/// its edge as written keeps that edge exactly, as in the region dialog. [index] is where it
+/// is among the captions; null: added here.
 class _Row {
-  _Row(this.caption, BeatGrid beats)
+  _Row(this.caption, BeatGrid beats, [this.index])
       : from = TextEditingController(text: beats.format(caption.start)),
         to = TextEditingController(text: beats.format(caption.end)),
         text = TextEditingController(text: caption.text);
   final Caption caption;
+  final int? index;
   final TextEditingController from, to, text;
   final focus = [FocusNode(), FocusNode(), FocusNode()];
 
@@ -61,7 +63,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
     super.initState();
     final captions = c.captions.captions;
     final order = [for (var i = 0; i < captions.length; i++) i]..sort((a, b) => captions[a].start.compareTo(captions[b].start));
-    _rows = [for (final i in order) _Row(captions[i], _beats)];
+    _rows = [for (final i in order) _Row(captions[i], _beats, i)];
     final at = widget.focus == null ? -1 : order.indexOf(widget.focus!);
     if (at >= 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _focusCell(at, 2));
@@ -81,12 +83,25 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
   double? _start(_Row r) => _read(r.from, r.caption.start);
   double? _end(_Row r) => _read(r.to, r.caption.end);
 
-  /// What's wrong with row [r]'s timing; null when nothing is.
-  String? _problem(_Row r) {
-    final a = _start(r), b = _end(r);
-    if (a == null || b == null) return 'Type a bar, or bar.beat — e.g. 12 or 12.3';
-    if (b <= a) return 'It has to end after it starts';
-    return null;
+  /// What's wrong with each row's timing (null: nothing). Rows can't overlap (one caption
+  /// shows at a time): sorted by start, one running into the next is flagged.
+  List<String?> _problems() {
+    final times = [for (final r in _rows) (_start(r), _end(r))];
+    final problems = [
+      for (final (a, b) in times)
+        a == null || b == null
+            ? 'Type a bar, or bar.beat — e.g. 12 or 12.3'
+            : b <= a
+                ? 'It has to end after it starts'
+                : null,
+    ];
+    final order = [for (var i = 0; i < _rows.length; i++) if (problems[i] == null) i]
+      ..sort((x, y) => times[x].$1!.compareTo(times[y].$1!));
+    for (var k = 0; k + 1 < order.length; k++) {
+      final i = order[k], j = order[k + 1];
+      if (times[i].$2! > times[j].$1! + 1e-9) problems[j] = 'Overlaps row ${i + 1}';
+    }
+    return problems;
   }
 
   void _focusCell(int row, int column) {
@@ -103,11 +118,16 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
   }
 
   /// A new row after the last caption (or from the playhead when there is none), its text to type.
+  /// It fits among the rows as they are here (not the captions as they were).
   void _add() {
+    final rows = [
+      for (final r in _rows)
+        if ((_start(r), _end(r)) case (final a?, final b?) when b > a) Caption(a, b, ''),
+    ];
     final last = _rows.isEmpty ? null : _end(_rows.last);
-    final draft = last != null && last < _beats.totalQuarters - 1e-9
-        ? c.captions.draft(last)
-        : c.captions.draft(c.timeline.quarterAtSeconds(c.playback.time.value));
+    final draft = (last != null && last < _beats.totalQuarters - 1e-9 ? c.captions.draft(last, rows) : null) ??
+        c.captions.draft(c.timeline.quarterAtSeconds(c.playback.time.value), rows);
+    if (draft == null) return;
     setState(() => _rows.add(_Row(draft, _beats)));
     WidgetsBinding.instance.addPostFrameCallback((_) => _focusCell(_rows.length - 1, 2));
   }
@@ -115,16 +135,21 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
   void _remove(int i) => setState(() => _rows.removeAt(i).dispose());
 
   void _done() {
-    if (_rows.any((r) => _problem(r) != null)) return;
-    Navigator.pop(context, [for (final r in _rows) Caption(_start(r)!, _end(r)!, r.text.text)]);
+    if (_problems().any((p) => p != null)) return;
+    // In the captions' own order (new ones last), so a sheet left as it was changes nothing.
+    final kept = [for (final r in _rows) if (r.index != null) r]..sort((a, b) => a.index!.compareTo(b.index!));
+    Navigator.pop(context, [
+      for (final r in [...kept, ..._rows.where((r) => r.index == null)]) Caption(_start(r)!, _end(r)!, r.text.text),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final problems = _problems();
     final problem = [
-      for (final (i, r) in _rows.indexed)
-        if (_problem(r) case final p?) '${i + 1}: $p',
+      for (final (i, p) in problems.indexed)
+        if (p != null) '${i + 1}: $p',
     ].firstOrNull;
     final invalid = problem != null;
     final header = TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: colors.textMuted);
@@ -159,7 +184,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
                     shrinkWrap: true,
                     itemCount: _rows.length,
                     itemExtent: _rowHeight,
-                    itemBuilder: (context, i) => _row(context, i),
+                    itemBuilder: (context, i) => _row(context, i, problems[i]),
                   ),
           ),
           const SizedBox(height: 8),
@@ -187,12 +212,13 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
 
   static Widget _pad(Widget child) => Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: child);
 
-  Widget _row(BuildContext context, int i) {
+  Widget _row(BuildContext context, int i, String? problem) {
     final colors = context.colors;
     final r = _rows[i];
-    final problem = _problem(r);
     final a = _start(r), b = _end(r);
-    bool bad(int column) => problem != null && (column == 0 ? a == null : b == null || (a != null && b <= a));
+    // The cells at fault: a bar that isn't one, an end too soon, or (an overlap) the start.
+    bool bad(int column) =>
+        problem != null && (column == 0 ? a == null || (b != null && b > a) : b == null || (a != null && b <= a));
 
     Widget cell(int column, TextEditingController field) {
       final error = column < 2 && bad(column);
