@@ -103,7 +103,7 @@ class EditorToolbar extends StatelessWidget {
           selected: videoFrame,
           onPressed: () => onVideoFrame(!videoFrame),
         ),
-        _RatioMenu(ratio: videoRatio, onSelected: onVideoRatio),
+        RatioMenu(ratio: videoRatio, onSelected: onVideoRatio),
         const ToolbarDivider(),
         Tip(
           message: 'Score size',
@@ -133,8 +133,8 @@ class EditorToolbar extends StatelessWidget {
 }
 
 /// The video's ratio: "16:9 ▾", a preset or Custom… (any ratio, typed).
-class _RatioMenu extends StatelessWidget {
-  const _RatioMenu({required this.ratio, required this.onSelected});
+class RatioMenu extends StatelessWidget {
+  const RatioMenu({super.key, required this.ratio, required this.onSelected});
   final VideoRatio ratio;
   final ValueChanged<VideoRatio> onSelected;
 
