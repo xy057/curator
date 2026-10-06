@@ -146,7 +146,8 @@ abstract final class ProjectFile {
         // Only a recording: whatever else a project names is never opened.
         final linked = candidates.where((p) => MediaFormats.isRecording(p) && File(p).existsSync()).firstOrNull;
         String? playable;
-        if (entry != null) {
+        // Unpacked only under a recording's name: what it is called decides what reads it.
+        if (entry != null && MediaFormats.isRecording(name)) {
           final file = archive.findFile(entry);
           if (file != null) {
             Directory(mediaDirectory).createSync(recursive: true);

@@ -215,7 +215,7 @@ abstract final class VideoEncoder {
     return [
       '-hide_banner', '-loglevel', 'error', '-y',
       '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', '${format.width}x${format.height}', '-framerate', '$fps', '-i', '-',
-      if (audio != null) ...[if (audioStart > 0) ...['-ss', audioStart.toStringAsFixed(6)], '-i', audio],
+      if (audio != null) ...[...MediaFormats.ffmpegReaders, if (audioStart > 0) ...['-ss', audioStart.toStringAsFixed(6)], '-i', audio],
       '-map', '0:v:0',
       if (audio != null) ...['-map', '1:a:0'],
       // RGB to 4:2:0 with the HD colour matrix, and tagged so players decode it the same way.

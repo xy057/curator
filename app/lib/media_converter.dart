@@ -20,6 +20,11 @@ abstract final class MediaFormats {
   static bool isVideo(String path) => video.contains(extensionOf(path));
   static bool isRecording(String path) => all.contains(extensionOf(path));
 
+  /// FFmpeg's readers for [all] (`mov,mp4,…` is one reader, by FFmpeg's name for it). Given
+  /// before a recording's `-i`, FFmpeg reads it with one of these or not at all: never as a
+  /// playlist or anything else that would have it open other files or addresses.
+  static const ffmpegReaders = ['-format_whitelist', 'mov,mp4,m4a,3gp,3g2,mj2,matroska,webm,avi,aac,aiff,caf,mp3,wav,flac,ogg'];
+
   /// MIDI files: not a recording, but a tempo map the sync can follow.
   static const midi = {'mid', 'midi', 'smf', 'rmi'};
   static bool isMidi(String path) => midi.contains(extensionOf(path));
@@ -62,7 +67,7 @@ abstract final class MediaConverter {
 
   /// FFmpeg: the first sound track only (no video), as FLAC, overwriting, never waiting for input.
   static List<String> ffmpegArguments(String input, String output) =>
-      ['-nostdin', '-hide_banner', '-loglevel', 'error', '-y', '-i', input, '-map', '0:a:0', '-vn', '-c:a', 'flac', output];
+      ['-nostdin', '-hide_banner', '-loglevel', 'error', '-y', ...MediaFormats.ffmpegReaders, '-i', input, '-map', '0:a:0', '-vn', '-c:a', 'flac', output];
 
   /// Where FFmpeg is, or null. A GUI app doesn't see the PATH a terminal has (macOS), and on
   /// Windows a fresh `winget install` only reaches new processes' PATH, so the usual install

@@ -137,6 +137,23 @@ void main() {
     expect(await open({'name': 'secret.wav', 'path': '${dir.path}/secret.txt'}), isNull);
   });
 
+  test('an embedded recording is unpacked only under a recording\'s name', () async {
+    final path = '${dir.path}/named.ccs';
+    File(path).writeAsBytesSync(ZipEncoder().encodeBytes(Archive()
+      ..add(ArchiveFile.string('project.json', jsonEncode({
+        'format': ProjectFile.mimeType,
+        'version': ProjectFile.formatVersion,
+        'score': {'name': 'S.musicxml', 'entry': 'score/S.musicxml'},
+        'media': {'name': 'take.m3u8', 'entry': 'media/take.m3u8'},
+        'state': const ProjectState().toJson(),
+      })))
+      ..add(ArchiveFile.string('score/S.musicxml', '<score-partwise/>'))
+      ..add(ArchiveFile.string('media/take.m3u8', '#EXTM3U\n'))));
+    final media = (await ProjectFile.read(path, mediaDirectory: '${dir.path}/m')).media!;
+    expect(media.path, isNull);
+    expect(Directory('${dir.path}/m').existsSync(), isFalse, reason: 'nothing unpacked');
+  });
+
   test('a failed save leaves the previous file untouched', () async {
     final path = '${dir.path}/safe.ccs';
     await ProjectFile.write(path, contents());
