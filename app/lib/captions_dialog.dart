@@ -28,13 +28,15 @@ class CaptionsDialog extends StatefulWidget {
 }
 
 /// One caption's cells. [caption] is what it was (or was drafted as): a cell still showing
-/// its edge as written keeps that edge exactly, as in the region dialog.
+/// its edge as written keeps that edge exactly, as in the region dialog. [index] is where it
+/// is among the captions; null: added here.
 class _Row {
-  _Row(this.caption, BeatGrid beats)
+  _Row(this.caption, BeatGrid beats, [this.index])
       : from = TextEditingController(text: beats.format(caption.start)),
         to = TextEditingController(text: beats.format(caption.end)),
         text = TextEditingController(text: caption.text);
   final Caption caption;
+  final int? index;
   final TextEditingController from, to, text;
   final focus = [FocusNode(), FocusNode(), FocusNode()];
 
@@ -61,7 +63,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
     super.initState();
     final captions = c.captions.captions;
     final order = [for (var i = 0; i < captions.length; i++) i]..sort((a, b) => captions[a].start.compareTo(captions[b].start));
-    _rows = [for (final i in order) _Row(captions[i], _beats)];
+    _rows = [for (final i in order) _Row(captions[i], _beats, i)];
     final at = widget.focus == null ? -1 : order.indexOf(widget.focus!);
     if (at >= 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _focusCell(at, 2));
@@ -129,7 +131,11 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
 
   void _done() {
     if (_problems().any((p) => p != null)) return;
-    Navigator.pop(context, [for (final r in _rows) Caption(_start(r)!, _end(r)!, r.text.text)]);
+    // In the captions' own order (new ones last), so a sheet left as it was changes nothing.
+    final kept = [for (final r in _rows) if (r.index != null) r]..sort((a, b) => a.index!.compareTo(b.index!));
+    Navigator.pop(context, [
+      for (final r in [...kept, ..._rows.where((r) => r.index == null)]) Caption(_start(r)!, _end(r)!, r.text.text),
+    ]);
   }
 
   @override

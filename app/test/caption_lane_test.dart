@@ -108,6 +108,16 @@ void main() {
     expect(c.captions.captions.last.start, bar[12], reason: 'the new row follows the last');
     c.undo();
     expect([for (final x in c.captions.captions) x.text], ['Strings alone', 'The horns answer'], reason: 'one step');
+
+    // Done on a sheet left as it was changes nothing (rows show by start; the captions keep their order).
+    await tester.tapAt(name);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(name);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+    await tester.pumpAndSettle();
+    expect([for (final x in c.captions.captions) x.text], ['Strings alone', 'The horns answer']);
+    expect(c.canRedo, isTrue, reason: 'no Undo step');
   });
 
   testWidgets('captions are regions in their lane: drawn, moved, trimmed, double-clicked, deleted and erased', (tester) async {
