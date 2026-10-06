@@ -654,6 +654,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         const SingleActivator(LogicalKeyboardKey.keyA, meta: true): _selectAll,
         const SingleActivator(LogicalKeyboardKey.keyA, control: true): _selectAll,
         const SingleActivator(LogicalKeyboardKey.home): () => controller.playback.seek(0),
+        const SingleActivator(LogicalKeyboardKey.end): () => controller.playback.seek(controller.playback.duration),
         // Go to a bar or a time: the toolbar's readout, typed.
         const SingleActivator(LogicalKeyboardKey.keyG, meta: true): _goTo,
         const SingleActivator(LogicalKeyboardKey.keyG, control: true): _goTo,
