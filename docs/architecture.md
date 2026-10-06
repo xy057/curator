@@ -36,6 +36,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/caption_editing.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image); captions (Captions) |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Purge unused |
+| `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `fonts_dialog.dart` | Score ▸ Fonts…: the music and text font a project is engraved in |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned); Undo's snapshots |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -170,7 +171,14 @@ runs out; it rises 4 points into place as it fades in over `CaptionBar.fade`, an
 as its time ends. It is part of `paint`, so the preview and a video show the same.
 Right-click the preview ▸ Add Caption… starts one on the beat where it was clicked, four bars
 long or up to the next caption (`CaptionEditing.draft`); double-click the caption showing (or
-right-click it) to change it; an empty text removes it. Every change is an Undo step
+right-click it) to change it; an empty text removes it.
+While the switch is on, the Captions lane (`CaptionLane`) is pinned under the bar ruler in
+both tabs: never scrolled with the instruments, moved or unpinned, so it has no ⋯ menu. It
+draws what shows (`captionSpans`), a click on empty space moves the playhead, and a
+double-click opens the Captions sheet (`CaptionsDialog`): a row per caption, From / Until /
+Text cells, Tab across and ↑ / ↓ / Enter down the column, Add, ×; Done applies it all as one
+Undo step (`CaptionEditing.replaceAll`). A cell's widgets never change while typing (a
+row's problem shows by the buttons, not around the row), or the cell would lose the keyboard. Every change is an Undo step
 (`captions` in `EditState`); a project keeps them in `state.captions` (format 11). While the
 switch is off they stay in the project but are not drawn, exported or editable.
 

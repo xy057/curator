@@ -57,6 +57,15 @@ class CaptionEditing {
     _set([..._captions]..[index] = next);
   }
 
+  /// Replaces every caption at once (the Captions sheet): one Undo step. Those with an empty
+  /// text are left out.
+  void replaceAll(List<Caption> captions) {
+    if (!_enabled || _c._score == null) return;
+    final next = [for (final c in captions) if (c.text.trim().isNotEmpty) _tidy(c)];
+    if (listEquals(next, _captions)) return;
+    _set(next);
+  }
+
   void remove(int index) {
     if (!_enabled || index < 0 || index >= _captions.length) return;
     _set([..._captions]..removeAt(index));
