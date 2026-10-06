@@ -65,7 +65,8 @@ class CaptionEditing {
   int _styleGeneration = 0;
 
   /// Works out [style] (an installed family is read and registered first) and gives it to the
-  /// scene. The latest call wins.
+  /// scene. The latest call wins. Never throws (it isn't awaited): a family that can't be read
+  /// is drawn as one not installed.
   Future<void> _applyStyle() async {
     final generation = ++_styleGeneration, name = effectiveFont;
     String? family;
@@ -73,12 +74,16 @@ class CaptionEditing {
     if (name == TextFonts.academico) {
       family = TextFonts.familyOf(name);
     } else if (name.isNotEmpty) {
-      final faces = await TextFonts.faces(name);
-      if (faces == null) {
-        found = false;
-      } else {
-        await TextFonts.load(name, faces);
-        family = TextFonts.familyOf(name);
+      try {
+        final faces = await TextFonts.faces(name);
+        if (faces == null) {
+          found = false;
+        } else {
+          await TextFonts.load(name, faces);
+          family = TextFonts.familyOf(name);
+        }
+      } catch (_) {
+        found = false; // its files can't be read: as if not installed
       }
     }
     if (generation != _styleGeneration) return;
