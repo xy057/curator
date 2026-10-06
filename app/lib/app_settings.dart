@@ -21,9 +21,9 @@ class AppSettings extends ChangeNotifier {
         _scrollFollow = (_prefs?.getDouble(_scrollFollowKey) ?? defaultScrollFollow).clamp(0.0, 1.0),
         _recent = List.unmodifiable(_prefs?.getStringList(_recentKey) ?? const <String>[]),
         _videoResolution =
-            VideoResolution.values.asNameMap()[_prefs?.getString(_videoResolutionKey)] ?? VideoResolution.hd1080,
+            VideoResolution.values.asNameMap()[_prefs?.getString(_videoResolutionKey)] ?? defaultVideoResolution,
         _videoRatio = VideoRatio.parse(_prefs?.getString(_videoRatioKey) ?? '') ?? VideoRatio.widescreen,
-        _videoFps = _prefs?.getInt(_videoFpsKey) ?? 30,
+        _videoFps = _prefs?.getInt(_videoFpsKey) ?? defaultVideoFps,
         _videoPaper = VideoPaper.values.asNameMap()[_prefs?.getString(_videoPaperKey)] ?? VideoPaper.light,
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
@@ -153,6 +153,9 @@ class AppSettings extends ChangeNotifier {
 
   // MARK: Export Video (the choices made last time)
 
+  /// What a video is until changed: 1080p at 30 frames a second.
+  static const defaultVideoResolution = VideoResolution.hd1080, defaultVideoFps = 30;
+
   VideoResolution get videoResolution => _videoResolution;
   VideoResolution _videoResolution;
   set videoResolution(VideoResolution value) {
@@ -177,7 +180,7 @@ class AppSettings extends ChangeNotifier {
       VideoFormat.of(videoResolution, ratio: videoRatio, fps: videoFps, paper: videoPaper);
 
   /// Frames a second, one of [VideoFormat.frameRates].
-  int get videoFps => VideoFormat.frameRates.contains(_videoFps) ? _videoFps : 30;
+  int get videoFps => VideoFormat.frameRates.contains(_videoFps) ? _videoFps : defaultVideoFps;
   int _videoFps;
   set videoFps(int value) {
     if (value == _videoFps) return;

@@ -56,7 +56,7 @@ void main() {
     String field(String label) =>
         tester.widget<TextField>(find.widgetWithText(TextField, label)).controller!.text;
     expect((field('From bar'), field('To bar')), ('1', '44'));
-    bool canRestore() => tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.restart_alt_rounded)).onPressed != null;
+    bool canRestore() => tester.widget<IconButton>(find.ancestor(of: find.byTooltip('Whole piece'), matching: find.byType(IconButton))).onPressed != null;
     expect(canRestore(), isFalse);
     String length() => tester.widget<Text>(find.textContaining(' frames')).data!.split(' · ').first;
     final whole = length();
@@ -68,6 +68,17 @@ void main() {
     expect((settings.videoResolution, settings.videoFps, settings.videoPaper),
         (VideoResolution.uhd2160, 60, VideoPaper.dark));
     expect(find.textContaining('3840 × 2160'), findsOneWidget);
+
+    // Remembered, with a way back to 1080p at 30.
+    final reset = find.byTooltip('1080p · 30 fps');
+    await tester.tap(reset);
+    await tester.pump();
+    expect((settings.videoResolution, settings.videoFps), (VideoResolution.hd1080, 30));
+    expect(tester.widget<IconButton>(find.ancestor(of: reset, matching: find.byType(IconButton))).onPressed, isNull,
+        reason: 'nothing to reset');
+    await tester.tap(find.text('4K'));
+    await tester.tap(find.text('60'));
+    await tester.pump();
 
     // The ratio is the toolbar's; the dialog says which.
     expect(find.textContaining('16:9 · 3840 × 2160'), findsOneWidget);

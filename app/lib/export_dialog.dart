@@ -83,6 +83,13 @@ class _ExportDialogState extends State<_ExportDialog> {
         _export.showBars(1, _export.bars);
       });
 
+  bool get _defaultVideo =>
+      _settings.videoResolution == AppSettings.defaultVideoResolution && _settings.videoFps == AppSettings.defaultVideoFps;
+
+  void _setDefaultVideo() => setState(() => _settings
+    ..videoResolution = AppSettings.defaultVideoResolution
+    ..videoFps = AppSettings.defaultVideoFps);
+
   /// The bars typed changed: the still shows them as the video will.
   void _barsChanged({bool start = false}) => setState(() {
         if (_export.showBars(_first, _last) && start) _still = _export.span.start; // show where it starts
@@ -277,7 +284,18 @@ class _ExportDialogState extends State<_ExportDialog> {
               ),
             ]),
             const SizedBox(height: 20),
-            const _Heading('Video'),
+            _Heading(
+              'Video',
+              // Back to 1080p at 30; its room is kept so the rows don't move.
+              trailing: Visibility.maintain(
+                visible: !_defaultVideo,
+                child: ToolbarButton(
+                  icon: Icons.restart_alt_rounded,
+                  tooltip: '1080p · 30 fps',
+                  onPressed: _defaultVideo ? null : _setDefaultVideo,
+                ),
+              ),
+            ),
             _Row(
               label: 'Ratio',
               child: RatioMenu(ratio: _settings.videoRatio, onSelected: (r) => setState(() => _settings.videoRatio = r)),
@@ -449,15 +467,25 @@ class _Row extends StatelessWidget {
       );
 }
 
-/// A group's name: "Bars", "Video".
+/// A group's name: "Bars", "Video"; [trailing] at its far end.
 class _Heading extends StatelessWidget {
-  const _Heading(this.text);
+  const _Heading(this.text, {this.trailing});
   final String text;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.colors.textMuted)),
+        child: SizedBox(
+          height: 20,
+          child: Row(children: [
+            Expanded(
+              child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.colors.textMuted)),
+            ),
+            // A button keeps its 32 points, overhanging the heading's line rather than pushing the rows down.
+            if (trailing case final t?) SizedBox(width: 32, child: OverflowBox(maxHeight: 32, child: t)),
+          ]),
+        ),
       );
 }
 
