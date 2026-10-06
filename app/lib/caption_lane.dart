@@ -65,7 +65,30 @@ class _CaptionLaneState extends State<CaptionLane> {
   @override
   void dispose() {
     _band.dispose();
+    _clearLabels();
     super.dispose();
+  }
+
+  /// Captions' texts as laid out in the lane, kept: playback repaints it every frame.
+  final _labels = <(String, double, Color), TextPainter>{};
+
+  TextPainter _label(String text, double maxWidth, Color color) {
+    final key = (text, maxWidth, color);
+    if (_labels[key] case final label?) return label;
+    if (_labels.length >= 64) _clearLabels();
+    return _labels[key] = TextPainter(
+      text: TextSpan(text: text, style: TextStyle(fontSize: 11, color: color)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: maxWidth);
+  }
+
+  void _clearLabels() {
+    for (final label in _labels.values) {
+      label.dispose();
+    }
+    _labels.clear();
   }
 
   /// The tool a drag uses: the Instruments tab's, ⌥ swapping as in the lanes; the Audio tab
@@ -374,14 +397,9 @@ class _CaptionLanePainter extends CustomPainter {
             ..color = on ? colors.accentStrong : colors.textMuted.withValues(alpha: 0.5),
         );
         if (x1 - x0 < 16) continue;
-        final text = TextPainter(
-          text: TextSpan(text: cap.text, style: TextStyle(fontSize: 11, color: on ? colors.surface : colors.text)),
-          textDirection: TextDirection.ltr,
-          maxLines: 1,
-          ellipsis: '…',
-        )..layout(maxWidth: x1 - x0 - 12);
+        // Whole points, so a scroll (which moves both ends) finds the same one.
+        final text = s._label(cap.text, (x1 - x0 - 12).floorToDouble(), on ? colors.surface : colors.text);
         text.paint(canvas, Offset(x0 + 6, rect.center.dy - text.height / 2));
-        text.dispose();
       }
     }
     final band = s._band.value;
