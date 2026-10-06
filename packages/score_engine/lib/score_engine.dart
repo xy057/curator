@@ -22,3 +22,4 @@ export 'src/scroll_map.dart';
 export 'src/spacing_plan.dart';
 export 'src/staff_stack.dart';
 export 'src/sync_map.dart';
+export 'src/zip_entries.dart';

@@ -154,6 +154,39 @@ void main() {
     expect(Directory('${dir.path}/m').existsSync(), isFalse, reason: 'nothing unpacked');
   });
 
+  test('what a project unpacks is limited, and only what it uses is unpacked', () async {
+    String project(String name, Map<String, Object?> manifest, List<ArchiveFile> files) {
+      final path = '${dir.path}/$name.ccs';
+      final archive = Archive()
+        ..add(ArchiveFile.string('project.json', jsonEncode({
+          'format': ProjectFile.mimeType,
+          'version': ProjectFile.formatVersion,
+          'score': {'name': 'S.musicxml', 'entry': 'score/S.musicxml'},
+          'state': const ProjectState().toJson(),
+          ...manifest,
+        })))
+        ..add(ArchiveFile.string('score/S.musicxml', '<score-partwise/>'));
+      files.forEach(archive.add);
+      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(archive));
+      return path;
+    }
+
+    // Zeros: a few hundred KB in the zip, past any limit unpacked.
+    ArchiveFile bomb(String name) =>
+        ArchiveFile.bytes(name, Uint8List(ProjectFile.maxFontBytes * 2 + 1))..compression = CompressionType.deflate;
+
+    final unusedFont = project('font', {}, [bomb('fonts/Junk.font')]);
+    expect((await ProjectFile.read(unusedFont, mediaDirectory: '${dir.path}/m1')).state.fonts.music, MusicFont.bravura);
+
+    final media = project('media', {'media': {'name': 'take.wav', 'entry': 'media/take.wav'}}, [bomb('media/take.wav')]);
+    await expectLater(ProjectFile.read(media, mediaDirectory: '${dir.path}/m2'), throwsFormatException);
+    final unpacked = File('${dir.path}/m2/take.wav');
+    expect(unpacked.existsSync() ? unpacked.lengthSync() : 0, lessThanOrEqualTo(4 * File(media).lengthSync() + (64 << 20)));
+
+    final manifest = project('manifest', {'padding': ' ' * (ProjectFile.maxManifestBytes + 1)}, []);
+    await expectLater(ProjectFile.read(manifest, mediaDirectory: '${dir.path}/m3'), throwsFormatException);
+  });
+
   test('a failed save leaves the previous file untouched', () async {
     final path = '${dir.path}/safe.ccs';
     await ProjectFile.write(path, contents());

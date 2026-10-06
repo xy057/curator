@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
+import 'package:score_engine/score_engine.dart' show ScoreFile, ZipEntries;
 
 import 'image_patch.dart';
 import 'media_converter.dart';
@@ -35,6 +36,11 @@ abstract final class ProjectFile {
   static const extension = 'ccs';
   static const mimeType = 'application/x-curated-score';
   static const formatVersion = ProjectState.version;
+
+  /// The most a project's project.json, and an added font (or its metadata), may unpack to.
+  /// What a project unpacks is counted as it comes ([ZipEntries]): a damaged or hostile file
+  /// can't fill the memory or the disk.
+  static const maxManifestBytes = 64 << 20, maxFontBytes = 64 << 20;
 
   /// Writes a project. The archive is built next to [path] and moved into place at the end,
   /// so a failed save (or a crash during an autosave) never damages the previous file.
@@ -121,7 +127,7 @@ abstract final class ProjectFile {
       final archive = ZipDecoder().decodeStream(input);
       final manifestFile = archive.findFile('project.json');
       if (manifestFile == null) throw const FormatException('This is not a Curator project.');
-      final manifest = JsonReader(jsonDecode(utf8.decode(manifestFile.content)), 'project');
+      final manifest = JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: maxManifestBytes))), 'project');
       if (manifest.string('format') != mimeType) throw const FormatException('This is not a Curator project.');
       final version = manifest.number('version')?.toInt() ?? 0;
       if (version > formatVersion) {
@@ -153,8 +159,12 @@ abstract final class ProjectFile {
             Directory(mediaDirectory).createSync(recursive: true);
             playable = _join(mediaDirectory, _safeName(name));
             final out = OutputFileStream(playable);
-            file.writeContent(out);
-            out.closeSync();
+            try {
+              // Stored as it is (see [_write]), so never much more than the project itself.
+              ZipEntries.write(file, out.writeBytes, limit: 4 * File(path).lengthSync() + (64 << 20));
+            } finally {
+              out.closeSync();
+            }
           }
         }
         media = ProjectMediaLocation(
@@ -168,7 +178,7 @@ abstract final class ProjectFile {
       final stateJson = manifest.map('state');
       return OpenedProject(
         scoreName: score.string('name', required: true)!,
-        scoreBytes: scoreFile.content,
+        scoreBytes: ZipEntries.read(scoreFile, limit: ScoreFile.maxBytes),
         // Only the images on the score are read (and so decoded): any others are left in the zip.
         state: ProjectState.fromJson(stateJson, savedVersion: version, images: {
           for (final id in {
@@ -177,13 +187,17 @@ abstract final class ProjectFile {
                 if (p case {'image': final String id}) id,
           })
             if ((PatchImage.kindOfId(id), archive.findFile('images/$id')) case (final kind?, final file?) when file.isFile)
-              id: PatchImage(id, kind, file.content),
+              id: PatchImage(id, kind, ZipEntries.read(file, limit: PatchImage.maxBytes)),
         }, fontFiles: {
-          for (final file in archive.files)
-            if (file.isFile && file.name.startsWith('fonts/') && file.name.endsWith('.font'))
-              file.name.substring(6, file.name.length - 5): (
-                file: file.content,
-                metadata: archive.findFile('${file.name.substring(0, file.name.length - 5)}.json')?.content,
+          // Only the music font the score is engraved in.
+          if (stateJson['fonts'] case {'music': final String name})
+            if (archive.findFile('fonts/$name.font') case final file? when file.isFile)
+              name: (
+                file: ZipEntries.read(file, limit: maxFontBytes),
+                metadata: switch (archive.findFile('fonts/$name.json')) {
+                  final json? => ZipEntries.read(json, limit: maxFontBytes),
+                  null => null,
+                },
               ),
         }),
         media: media,
