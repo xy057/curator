@@ -174,10 +174,21 @@ void main() {
 
     // Delete removes the selected one.
     c.lanes.tool = LaneTool.select;
-    await tester.tapAt(at(bar[4]));
+    await tester.tapAt(at(bar[5])); // not where the erase began: no double-click
     await tester.pump(const Duration(milliseconds: 500));
     expect(c.captions.selected, 0);
+    expect(find.byType(AlertDialog), findsNothing);
     c.deleteSelection();
+    expect(c.captions.captions, isEmpty);
+
+    // A drawing the system cancels asks for nothing.
+    c.lanes.tool = LaneTool.draw;
+    final gesture = await tester.startGesture(at(bar[2] + 0.1));
+    await gesture.moveTo(at(bar[5] + 0.1));
+    await tester.pump();
+    await gesture.cancel();
+    await tester.pumpAndSettle();
+    expect(find.text('Add Caption'), findsNothing);
     expect(c.captions.captions, isEmpty);
   });
 

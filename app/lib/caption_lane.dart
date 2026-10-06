@@ -250,6 +250,21 @@ class _CaptionLaneState extends State<CaptionLane> {
   ({double from, double to})? _room(List<Caption> captions, double q, {int? except}) =>
       captionRoom(captions, q.clamp(0.0, _total), _total, except: except);
 
+  /// The system took the pointer: nothing is drawn (no dialog); what a drag changed so far
+  /// stays, as one Undo step.
+  void _onCancel(PointerCancelEvent e) {
+    final drag = _drag;
+    _drag = null;
+    _band.value = null;
+    switch (drag?.kind) {
+      case _Kind.erase || _Kind.move || _Kind.start || _Kind.end:
+        c.endEdit();
+        if (_cursor == SystemMouseCursors.grabbing) setState(() => _cursor = SystemMouseCursors.grab);
+      case _Kind.draw || _Kind.scrub || null:
+        break;
+    }
+  }
+
   /// The beat at [q] as it sounds in [pass], or its bar when beats are too close on screen.
   (double, double) _beatAt(double q, int pass) {
     q = q.clamp(0.0, _total - 1e-9);
@@ -310,7 +325,7 @@ class _CaptionLaneState extends State<CaptionLane> {
               onPointerDown: _onDown,
               onPointerMove: _onMove,
               onPointerUp: _onUp,
-              onPointerCancel: _onUp,
+              onPointerCancel: _onCancel,
               child: DecoratedBox(
                 decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.line))),
                 child: CustomPaint(
