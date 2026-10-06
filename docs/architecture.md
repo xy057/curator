@@ -24,6 +24,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `curated_scene.dart` | `LoadedScore` (engraved, ready) and `CuratedScene`: one frame is `paint(time)` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
+| `score_caption.dart` | Captions (`Caption`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
 | `zip_entries.dart` | `ZipEntries`: an entry of someone else's zip (a project, an .mxl), its bytes counted as they unpack and refused past a limit |
 
@@ -32,7 +33,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
-| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image) |
+| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/caption_editing.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image); captions (Captions) |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Purge unused |
 | `fonts_dialog.dart` | Score ▸ Fonts…: the music and text font a project is engraved in |
@@ -158,6 +159,20 @@ take gigabytes: a file over 64 MB, or a PNG / JPEG over 64 megapixels (one insid
 too, read from its header before anything is decoded), is refused; one longer than 4096
 pixels is kept at 4096. An SVG with no viewBox and no width and height (flutter_svg refuses
 it; a browser draws it) is given the box around what it draws.
+
+**A caption shows under the score** (the Captions extension). A `Caption` is a text and
+the score quarters it runs between, so it stays with its bars when the sync changes and shows
+once for every pass that plays them (`captionSpans`: one at a time, a caption cut short where
+the next starts). The scene draws it in `CaptionBar` under the staves, which leave
+`CaptionBar.reserve` for it while there are any: the text centred in the score's text font,
+and under it a hairline as wide as the text that draws in to its middle as the caption's time
+runs out; it rises 4 points into place as it fades in over `CaptionBar.fade`, and fades out
+as its time ends. It is part of `paint`, so the preview and a video show the same.
+Right-click the preview ▸ Add Caption… starts one on the beat where it was clicked, four bars
+long or up to the next caption (`CaptionEditing.draft`); double-click the caption showing (or
+right-click it) to change it; an empty text removes it. Every change is an Undo step
+(`captions` in `EditState`); a project keeps them in `state.captions` (format 11). While the
+switch is off they stay in the project but are not drawn, exported or editable.
 
 **A drop goes by where it lands** (`_HomePageState._areaAt`; the hint covers only that
 area and says what it takes). With no score open, anything opens (as File ▸ Open). Above
@@ -356,7 +371,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
   project uses it: opening a project that uses extensions that are off shows them in a dialog,
   each with its switch (and "All" when there are several). Everything the extension adds (menu items, toolbar buttons, drop targets, shortcuts,
   what it draws or exports) works only while its switch is on, and is hidden or inert otherwise.
-  **Attach Image** (`AppSettings.attachImage`) is the first one.
+  **Attach Image** (`AppSettings.attachImage`) is the first one, **Captions**
+  (`AppSettings.captions`) the second.
 - **Something a project saves**: a field in `ProjectState`, written in `toJson`, read in
   `fromJson`, filled in `EditorController.projectState` and taken on when a project opens;
   bump the version with a migration (even one that changes nothing). If Undo should cover it

@@ -243,6 +243,7 @@ class ProjectDocument extends ChangeNotifier {
     controller.defaultTransition = settings.transition;
     controller.scrollFollow = settings.scrollFollow;
     controller.images.enabled = settings.attachImage;
+    controller.captions.enabled = settings.captions;
     if (settings.autosave != _autosaveInterval) _restartAutosave();
   }
 

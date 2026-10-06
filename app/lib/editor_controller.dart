@@ -13,6 +13,7 @@ import 'image_patch.dart';
 import 'project_state.dart';
 import 'time_viewport.dart';
 
+part 'editor/caption_editing.dart';
 part 'editor/image_editing.dart';
 part 'editor/lane_editing.dart';
 part 'editor/playback.dart';
@@ -28,7 +29,8 @@ enum BottomTab { instruments, audio }
 ///  * [playback]: the clock, play / pause / seek;
 ///  * [lanes]: editing in the Instruments tab (tools, the region selection, tidying);
 ///  * [anchors]: editing in the Audio tab (tapping, the anchor selection);
-///  * [images]: images on the score (the Attach Image extension).
+///  * [images]: images on the score (the Attach Image extension);
+///  * [captions]: captions under the score (the Captions extension).
 ///
 /// All of them notify through this controller, so a widget listens to one thing.
 class EditorController extends ChangeNotifier {
@@ -40,6 +42,7 @@ class EditorController extends ChangeNotifier {
   late final lanes = LaneEditing._(this);
   late final anchors = SyncEditing._(this);
   late final images = ImageEditing._(this);
+  late final captions = CaptionEditing._(this);
 
   /// Zoom and scroll shared by both tabs of the bottom panel.
   final viewport = TimeViewport();
@@ -82,7 +85,7 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// For the parts ([Playback], [LaneEditing], [SyncEditing], [ImageEditing]), which can't
+  /// For the parts ([Playback], [LaneEditing], [SyncEditing], [ImageEditing], [CaptionEditing]), which can't
   /// call the protected [notifyListeners] themselves.
   void _changed() => notifyListeners();
 
@@ -164,6 +167,7 @@ class EditorController extends ChangeNotifier {
     _fonts = state.fonts;
     if (!_fonts.music.isBundled && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
     images._load(state.patches, state.images, arts);
+    captions._load(state.captions);
     _midi = state.midi;
     _tapped = state.midi != null ? state.anchors : const [];
     _sync = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
@@ -206,6 +210,7 @@ class EditorController extends ChangeNotifier {
     anchors._reset();
     lanes._reset();
     images._reset();
+    captions._reset();
     _scene?.dispose();
     _scene = null;
     _curation?.removeListener(_edited);
@@ -249,7 +254,8 @@ class EditorController extends ChangeNotifier {
       ..condensed = _condensed
       ..partOrder = _partOrder
       ..scrollFollow = _scrollFollow
-      ..patches = images._scenePatches;
+      ..patches = images._scenePatches
+      ..captions = captions._sceneCaptions;
     if (_sync != null) scene.setTimeline(_sync!);
     return scene;
   }
@@ -716,6 +722,7 @@ class EditorController extends ChangeNotifier {
         pairs: _pairs,
         partOrder: _partOrder,
         patches: images._patches,
+        captions: captions._captions,
         fonts: _fonts,
       );
 
@@ -781,6 +788,7 @@ class EditorController extends ChangeNotifier {
       _partOrder = state.partOrder;
       _scene?.partOrder = _partOrder;
       images._restore(state.patches);
+      captions._restore(state.captions);
     } finally {
       _restoring = false;
     }
@@ -816,6 +824,7 @@ class EditorController extends ChangeNotifier {
         partOrder: isScoreOrder ? const [] : _partOrder,
         patches: images._patches,
         images: images._used,
+        captions: captions._captions,
         fonts: _fonts,
         view: ViewState(
           staffSpace: _staffSpace,

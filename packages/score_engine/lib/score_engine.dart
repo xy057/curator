@@ -15,6 +15,7 @@ export 'src/font_files.dart';
 export 'src/frozen_zone.dart';
 export 'src/midi_tempo.dart';
 export 'src/score_metadata.dart';
+export 'src/score_caption.dart' show Caption, CaptionBar, CaptionSpan, captionSpans;
 export 'src/score_fonts.dart';
 export 'src/score_patch.dart';
 export 'src/score_text.dart';

@@ -41,12 +41,13 @@ class ProjectState {
     this.partOrder = const [],
     this.patches = const [],
     this.images = const {},
+    this.captions = const [],
     this.fonts = ScoreFonts.standard,
     this.view = const ViewState(),
   });
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 10;
+  static const version = 11;
 
   /// When each instrument is shown, with each region's own properties; null when the project
   /// has none saved (they are then filled from where each part plays).
@@ -89,6 +90,9 @@ class ProjectState {
   /// keeps each as `images/<id>`.
   final Map<String, PatchImage> images;
 
+  /// Captions under the score (Captions), in the order they were added.
+  final List<Caption> captions;
+
   /// The music and text fonts the score is engraved in. A music font the user added travels
   /// with the project (`fonts/<name>.font` and its SMuFL metadata, `fonts/<name>.json`).
   final ScoreFonts fonts;
@@ -107,6 +111,7 @@ class ProjectState {
     7: (state) => state, // images on the score came in 8: none
     8: (state) => state, // fonts came in 9: none saved is Bravura and Academico
     9: (state) => state, // an image's ink came in 10: none is its own colours
+    10: (state) => state, // captions came in 11: none
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -184,6 +189,9 @@ class ProjectState {
       ],
       patches: patches,
       images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
+      captions: [
+        for (final (i, caption) in r.list('captions').indexed) _caption(JsonReader(caption, '${r.where}.captions[$i]')),
+      ],
       fonts: _fonts(r.child('fonts'), fontFiles),
       view: ViewState(
         staffSpace: view.number('staffSpace'),
@@ -257,6 +265,13 @@ class ProjectState {
         image: image, quarter: quarter, top: top, width: size('width'), height: size('height'), crop: crop, ink: r.boolean('ink') ?? false);
   }
 
+  static Caption _caption(JsonReader r) {
+    final start = r.number('start', required: true)!, end = r.number('end', required: true)!;
+    if (start < 0) throw FormatException('The project is damaged: ${r.where} starts before the score.');
+    if (end <= start) throw FormatException('The project is damaged: ${r.where} ends before it starts.');
+    return Caption(start, end, r.string('text', required: true)!);
+  }
+
   /// The longest a staff may take to glide in or out, seconds (far more than any dialog offers).
   static const maxTransition = 60.0;
 
@@ -296,6 +311,9 @@ class ProjectState {
               if (p.crop != ImagePatch.full) 'crop': [p.crop.left, p.crop.top, p.crop.right, p.crop.bottom],
               if (p.ink) 'ink': true,
             },
+        ],
+        'captions': [
+          for (final c in captions) {'start': c.start, 'end': c.end, 'text': c.text},
         ],
         'partNames': {
           for (final MapEntry(key: id, value: p) in partNames.entries) id: {'name': p.name, 'abbreviation': p.abbreviation},

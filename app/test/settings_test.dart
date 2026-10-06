@@ -80,12 +80,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Attach Image  1.0'), findsOneWidget, reason: 'its version after its name');
     expect(find.text(AppExtension.attachImage.summary), findsOneWidget);
-    final gear = tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.settings_outlined));
-    expect(gear.onPressed, isNull, reason: 'no settings of its own yet');
+    expect(find.text('Captions  1.0'), findsOneWidget);
+    for (final gear in tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, Icons.settings_outlined))) {
+      expect(gear.onPressed, isNull, reason: 'no settings of their own yet');
+    }
     expect(settings.attachImage, isFalse, reason: 'extensions start off');
-    await tester.tap(find.byType(Switch));
+    expect(settings.captions, isFalse);
+    await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
     expect(settings.attachImage, isTrue);
+    expect(settings.captions, isFalse, reason: 'each its own switch');
     await shot(tester, 'settings-extension');
   });
 

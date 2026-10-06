@@ -296,6 +296,7 @@ class VideoExport {
       ..partOrder = editor.partOrder
       ..scrollFollow = editor.scrollFollow
       ..patches = editor.scene!.patches // none while Attach Image is off
+      ..captions = editor.scene!.captions // none while Captions is off
       ..setTimeline(timeline);
     return VideoExport._(scene, copy, timeline, editor.images.hold(),
         duration: editor.playback.duration, audio: editor.track?.path);

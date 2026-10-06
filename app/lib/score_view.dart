@@ -29,6 +29,9 @@ import 'video_export.dart';
 /// JPEG file, or the clipboard's) where it was clicked; click one to select it, drag it to move it, drag a
 /// corner to resize it; double-click it (or right-click ▸ Crop) and the handles crop it.
 /// A file dropped on it is added as an image where it is dropped ([ScoreViewState.dropImage]).
+///
+/// With Captions on, right-click ▸ Add Caption… adds one from where it was clicked;
+/// double-click the caption showing (or right-click it) to change or remove it.
 class ScoreView extends StatefulWidget {
   const ScoreView({super.key, required this.controller, this.aspectRatio});
   final EditorController controller;
@@ -66,6 +69,10 @@ class ScoreViewState extends State<ScoreView> {
       c.images.select(i, crop: !(c.images.selected == i && c.images.cropping));
       return;
     }
+    if (_captionAt(p, frame) case final i?) {
+      showCaptionDialog(context, c, index: i);
+      return;
+    }
 
     final partId = scene.partLabelAt(p, c.playback.time.value, curation, size);
     if (partId != null) {
@@ -99,8 +106,16 @@ class ScoreViewState extends State<ScoreView> {
 
   final _menu = MenuController();
 
-  /// Where the context menu was opened: the patch there, or the place a new image goes.
-  ({int? patch, double quarter, double top})? _menuAt;
+  /// Where the context menu was opened: the patch or caption there, or the place a new
+  /// image or caption goes.
+  ({int? patch, int? caption, double quarter, double top})? _menuAt;
+
+  /// The caption under [p] (layout points), when its text shows there.
+  int? _captionAt(Offset p, VideoFrame frame) {
+    final scene = c.scene, i = c.captions.at(c.playback.time.value);
+    if (scene == null || i == null) return null;
+    return scene.captionRect(i, frame.layout).inflate(6).contains(p) ? i : null;
+  }
 
   _PatchDrag? _drag;
   MouseCursor _cursor = MouseCursor.defer;
@@ -192,12 +207,13 @@ class ScoreViewState extends State<ScoreView> {
 
   void _openMenu(TapUpDetails d, VideoFrame frame) {
     final scene = c.scene;
-    if (!c.images.enabled || scene == null || !frame.rect.contains(d.localPosition)) return;
+    if (!(c.images.enabled || c.captions.enabled) || scene == null || !frame.rect.contains(d.localPosition)) return;
     final p = frame.toLayout(d.localPosition);
-    final hit = _patchAt(p, frame);
+    final hit = _patchAt(p, frame), caption = hit == null ? _captionAt(p, frame) : null;
     if (hit != null && hit != c.images.selected) c.images.select(hit);
     setState(() => _menuAt = (
           patch: hit,
+          caption: caption,
           quarter: scene.quarterAtFrameX(p.dx, c.playback.time.value, frame.layout),
           top: p.dy / scene.style.staffSpace,
         ));
@@ -225,19 +241,31 @@ class ScoreViewState extends State<ScoreView> {
         ),
       ];
     }
+    if (at.caption case final i?) {
+      if (i >= c.captions.captions.length) return const [];
+      return [
+        MenuItemButton(onPressed: () => showCaptionDialog(context, c, index: i), child: const Text('Edit Caption…')),
+        MenuItemButton(onPressed: () => c.captions.remove(i), child: const Text('Remove Caption')),
+      ];
+    }
     final mac = defaultTargetPlatform == TargetPlatform.macOS;
     return [
-      MenuItemButton(onPressed: () => _addFromFile(at), child: const Text('Add Image…')),
-      MenuItemButton(
-        onPressed: () => _paste(at),
-        shortcut: SingleActivator(LogicalKeyboardKey.keyV, meta: mac, control: !mac),
-        child: const Text('Paste'),
-      ),
+      if (c.images.enabled) ...[
+        MenuItemButton(onPressed: () => _addFromFile(at), child: const Text('Add Image…')),
+        MenuItemButton(
+          onPressed: () => _paste(at),
+          shortcut: SingleActivator(LogicalKeyboardKey.keyV, meta: mac, control: !mac),
+          child: const Text('Paste'),
+        ),
+      ],
+      if (c.captions.enabled)
+        MenuItemButton(
+            onPressed: () => showCaptionDialog(context, c, draft: c.captions.draft(at.quarter)), child: const Text('Add Caption…')),
     ];
   }
 
   /// An SVG (drawn as vectors) or a PNG / JPEG: the file's type says which.
-  Future<void> _addFromFile(({int? patch, double quarter, double top}) at) async {
+  Future<void> _addFromFile(({int? patch, int? caption, double quarter, double top}) at) async {
     final file = await openFile(acceptedTypeGroups: [ImageKind.types]);
     final kind = file == null ? null : ImageKind.ofPath(file.name);
     if (file == null || kind == null) return;
@@ -248,7 +276,7 @@ class ScoreViewState extends State<ScoreView> {
     }
   }
 
-  Future<void> _paste(({int? patch, double quarter, double top}) at) async {
+  Future<void> _paste(({int? patch, int? caption, double quarter, double top}) at) async {
     try {
       if (!await c.images.paste(quarter: at.quarter, top: at.top)) _say('No image to paste.');
     } catch (e) {

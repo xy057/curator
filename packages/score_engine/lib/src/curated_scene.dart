@@ -13,6 +13,7 @@ import 'frozen_zone.dart';
 import 'beat_grid.dart';
 import 'curation.dart';
 import 'score_fonts.dart';
+import 'score_caption.dart';
 import 'score_metadata.dart';
 import 'score_patch.dart';
 import 'score_renderer.dart';
@@ -352,7 +353,7 @@ class CuratedScene {
   }
 
   StackMetrics _metrics(ui.Size size) => StackMetrics(
-        availableHeight: (size.height - 2 * verticalMargin).clamp(0, double.infinity),
+        availableHeight: (size.height - 2 * verticalMargin - (captions.isEmpty ? 0 : CaptionBar.reserve)).clamp(0, double.infinity),
         minGap: minGap,
         maxGap: maxGap,
       );
@@ -360,7 +361,7 @@ class CuratedScene {
   /// The layout plan for this curation and frame size, rebuilt only when either changes.
   SpacingPlan _planFor(Curation curation, ui.Size size) {
     final key =
-        (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion);
+        (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, captions.isEmpty);
     if (_plan == null || _planKey != key) {
       final pointerX = renderer.pointerX(size.width);
       _plan = SpacingPlan.build(
@@ -443,6 +444,7 @@ class CuratedScene {
                 }
                 canvas.restore();
               });
+    if (captions.isNotEmpty) _captionBar.paint(canvas, size, time, _captionSpans, captions, ink ?? style.ink);
     final faded = ((time - (end - fadeOut)) / fadeOut).clamp(0.0, 1.0);
     if (faded > 0) {
       // Eased, so it leaves gently and settles into the paper.
@@ -450,6 +452,43 @@ class CuratedScene {
       canvas.drawRect(ui.Offset.zero & size, ui.Paint()..color = (paper ?? style.paper).withValues(alpha: a));
     }
   }
+
+  // MARK: Captions
+
+  /// Captions shown in a bar under the staves (the Captions extension), which leave room for
+  /// it while there are any.
+  List<Caption> get captions => _captions;
+  List<Caption> _captions = const [];
+  set captions(List<Caption> value) {
+    if (listEquals(value, _captions)) return;
+    _captions = List.unmodifiable(value);
+    _spansKey = null;
+  }
+
+  late final _captionBar = CaptionBar(_style.textFontFamily);
+  Object? _spansKey;
+  List<CaptionSpan> _spans = const [];
+
+  /// When each caption shows, following the timeline.
+  List<CaptionSpan> get _captionSpans {
+    final key = (_captions, _timelineVersion, timeline);
+    if (_spansKey != key) {
+      _spans = captionSpans(_captions, timeline);
+      _spansKey = key;
+    }
+    return _spans;
+  }
+
+  /// The caption showing at [time] (an index into [captions]); null: none.
+  int? captionShowingAt(double time) {
+    for (final s in _captionSpans) {
+      if (time >= s.start && time < s.end) return s.caption;
+    }
+    return null;
+  }
+
+  /// Where caption [index]'s text is drawn in a frame of [size] (points).
+  ui.Rect captionRect(int index, ui.Size size) => _captionBar.rectOf(_captions[index].text, size);
 
   // MARK: Images
 

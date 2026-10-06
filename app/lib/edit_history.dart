@@ -21,6 +21,7 @@ class EditState {
     required this.pairs,
     required this.partOrder,
     this.patches = const [],
+    this.captions = const [],
     this.fonts = ScoreFonts.standard,
   });
 
@@ -37,6 +38,7 @@ class EditState {
   final List<PlayerPair> pairs;
   final List<String> partOrder;
   final List<ImagePatch> patches;
+  final List<Caption> captions;
   final ScoreFonts fonts;
 
   @override
@@ -53,6 +55,7 @@ class EditState {
       listEquals(pairs, other.pairs) &&
       listEquals(partOrder, other.partOrder) &&
       listEquals(patches, other.patches) &&
+      listEquals(captions, other.captions) &&
       fonts == other.fonts;
 
   /// This state with [patches] instead of its own.
@@ -68,6 +71,7 @@ class EditState {
         pairs: pairs,
         partOrder: partOrder,
         patches: patches,
+        captions: captions,
         fonts: fonts,
       );
 

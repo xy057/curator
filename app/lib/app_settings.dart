@@ -28,6 +28,7 @@ class AppSettings extends ChangeNotifier {
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
         _attachImage = _prefs?.getBool(_attachImageKey) ?? false,
+        _captions = _prefs?.getBool(_captionsKey) ?? false,
         _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false;
 
   /// Defaults, kept in memory only (tests, or when there is no preferences store).
@@ -49,7 +50,7 @@ class AppSettings extends ChangeNotifier {
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame';
-  static const _attachImageKey = 'attachImage';
+  static const _attachImageKey = 'attachImage', _captionsKey = 'captions';
   static const defaultAutosave = Duration(minutes: 2);
 
   /// Choices offered for autosave; [Duration.zero] turns it off.
@@ -218,6 +219,16 @@ class AppSettings extends ChangeNotifier {
     if (value == _attachImage) return;
     _attachImage = value;
     _prefs?.setBool(_attachImageKey, value);
+    notifyListeners();
+  }
+
+  /// The Captions extension. Off by default; everything it adds works only while it is on.
+  bool get captions => _captions;
+  bool _captions;
+  set captions(bool value) {
+    if (value == _captions) return;
+    _captions = value;
+    _prefs?.setBool(_captionsKey, value);
     notifyListeners();
   }
 
