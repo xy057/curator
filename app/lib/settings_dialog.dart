@@ -63,15 +63,13 @@ class _Item {
 }
 
 class _Category {
-  _Category(this.label, this.icon, List<_Item> items, {this.empty}) : sections = [(null, items)];
-
-  /// A page of items in groups, each under a small heading.
-  _Category.sections(this.label, this.icon, this.sections) : empty = null;
-
+  const _Category(this.label, this.icon, this.items, {this.empty, this.page});
   final String label;
   final IconData icon;
-  final List<(String?, List<_Item>)> sections;
-  List<_Item> get items => [for (final (_, items) in sections) ...items];
+  final List<_Item> items;
+
+  /// A page of its own in place of the rows of [items], which then only answer the search.
+  final Widget Function(_Context)? page;
 
   /// Shown in place of the items while there are none.
   final String? empty;
@@ -210,47 +208,31 @@ final _categories = <_Category>[
       keywords: 'engrave engraving verovio options spacing slur tie beam stem thickness margin bar number lyric',
     ),
   ]),
-  _Category.sections('About', Icons.info_outline_rounded, [
-    ('Curator', [
-      _Item(
-        'Version',
-        null,
-        (_) => Row(mainAxisSize: MainAxisSize.min, children: [
-          _Value(_versionText),
-          const _CopyButton(),
-        ]),
-        keywords: 'version build number commit about copy',
-      ),
-      _Item('Verovio', null, (_) => _Value(verovioVersion), keywords: 'engraver engine library about'),
-      _Item('System', null, (_) => _Value(_systemText), keywords: 'os macos windows linux architecture about'),
-      _Item('License', null, (_) => const _Link(licenseUrl, label: 'GPL-3.0'), keywords: 'license gpl copyright about'),
-    ]),
-    ('Updates', [
-      _Item(
-        'Latest version',
-        (c) => _updateHelp(c.updater.status),
-        (c) => _UpdateControl(updater: c.updater),
-        keywords: 'update download release new version check',
-      ),
-      _Item(
-        'Check at launch',
-        (_) => 'Asks GitHub for a newer version each time the app starts.',
-        (c) => Switch(value: c.settings.checkForUpdates, onChanged: (v) => c.settings.checkForUpdates = v),
-        keywords: 'update automatic startup',
-      ),
-      _Item(
-        'Changelog',
-        null,
-        (_) => const _Link(changelogUrl),
-        keywords: 'changelog changes release notes what\'s new history website open',
-      ),
-      _Item(
-        'Source code',
-        null,
-        (_) => const _Link(repositoryUrl),
-        keywords: 'github repository repo source code website open',
-      ),
-    ]),
+  // The page is _AboutPage; these rows are what the search finds.
+  _Category('About', Icons.info_outline_rounded, page: (c) => _AboutPage(c), [
+    _Item(
+      'Version',
+      null,
+      (_) => Row(mainAxisSize: MainAxisSize.min, children: [_Value(_versionText), const _CopyButton()]),
+      keywords: 'version build number commit about copy',
+    ),
+    _Item(
+      'Updates',
+      (c) => _updateHelp(c.updater.status),
+      (c) => _UpdateControl(updater: c.updater),
+      keywords: 'update download release new version check latest',
+    ),
+    _Item(
+      'Check at launch',
+      (_) => 'Asks GitHub for a newer version each time the app starts.',
+      (c) => _launchSwitch(c),
+      keywords: 'update automatic startup',
+    ),
+    _Item('Changelog', null, (_) => const _Link(changelogUrl), keywords: 'changelog changes release notes what\'s new history website open'),
+    _Item('Source code', null, (_) => const _Link(repositoryUrl), keywords: 'github repository repo source code website open'),
+    _Item('License', null, (_) => const _Link(licenseUrl, label: 'GPL-3.0'), keywords: 'license gpl copyright about'),
+    _Item('Verovio', null, (_) => _Value(verovioVersion), keywords: 'engraver engine library about'),
+    _Item('System', null, (_) => _Value(_systemText), keywords: 'os macos windows linux architecture about'),
   ]),
 ];
 
@@ -269,6 +251,9 @@ Future<bool> _confirmEngraving(BuildContext context) async {
   );
   return go ?? false;
 }
+
+Widget _launchSwitch(_Context c) =>
+    Switch(value: c.settings.checkForUpdates, onChanged: (v) => c.settings.checkForUpdates = v);
 
 /// `0.3.0 (17)`, then the commit when the build knows it.
 String get _versionText => '$appVersion ($appBuild)${appCommit.isEmpty ? '' : ' · $appCommit'}';
@@ -420,14 +405,13 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     final matches = _matches;
     final cat = _categories[_page];
     final Widget page;
-    if (matches == null) {
+    if (matches == null && cat.page != null) {
+      page = KeyedSubtree(key: ValueKey(_page), child: cat.page!(_ctx));
+    } else if (matches == null) {
       page = _Page(
         key: ValueKey(_page),
         empty: cat.empty,
-        groups: [
-          for (final (heading, items) in cat.sections)
-            if (items.isNotEmpty) (heading, [for (final item in items) _row(item)]),
-        ],
+        groups: [if (cat.items.isNotEmpty) (null, [for (final item in cat.items) _row(item)])],
       );
     } else {
       // One group per page, in sidebar order, each under its page's name.
@@ -883,4 +867,94 @@ class _CopyButtonState extends State<_CopyButton> {
           icon: Icon(_copied ? Icons.check_rounded : Icons.copy_rounded),
         ),
       );
+}
+
+/// Settings ▸ About: the icon, name and build up top, the updates under them, then the links;
+/// Verovio and the system at the foot.
+class _AboutPage extends StatelessWidget {
+  const _AboutPage(this.c);
+  final _Context c;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final muted = TextStyle(fontSize: 12, color: colors.textMuted);
+    return LayoutBuilder(
+      builder: (context, box) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 14),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight - 34),
+          child: IntrinsicHeight(
+            child: Column(children: [
+              Image.asset(
+                'assets/icon/app_icon.png',
+                width: 76,
+                height: 76,
+                filterQuality: FilterQuality.medium,
+                errorBuilder: (_, _, _) => Icon(Icons.music_note_rounded, size: 64, color: colors.accent),
+              ),
+              const SizedBox(height: 6),
+              Text('Curator', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: colors.text)),
+              const SizedBox(height: 2),
+              Text('Version $appVersion', style: TextStyle(fontSize: 13, color: colors.textMuted)),
+              const SizedBox(height: 10),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                _Pill('Build $appBuild'),
+                if (appCommit.isNotEmpty) ...[const SizedBox(width: 6), _Pill(appCommit, mono: true)],
+                const SizedBox(width: 2),
+                const _CopyButton(),
+              ]),
+              const SizedBox(height: 18),
+              DecoratedBox(
+                decoration: BoxDecoration(color: _groupColor(colors), borderRadius: BorderRadius.circular(10)),
+                child: Column(children: [
+                  _SettingRow(
+                    title: 'Updates',
+                    help: _updateHelp(c.updater.status),
+                    control: _UpdateControl(updater: c.updater),
+                  ),
+                  Divider(height: 1, indent: 14, endIndent: 14, color: colors.line),
+                  _SettingRow(title: 'Check at launch', help: null, control: _launchSwitch(c)),
+                ]),
+              ),
+              const SizedBox(height: 6),
+              const Wrap(alignment: WrapAlignment.center, spacing: 4, children: [
+                _Link(changelogUrl, label: 'Changelog'),
+                _Link(repositoryUrl, label: 'Source code'),
+                _Link(licenseUrl, label: 'License (GPL-3.0)'),
+              ]),
+              const Spacer(),
+              const SizedBox(height: 6),
+              SelectableText('Verovio $verovioVersion  ·  $_systemText', textAlign: TextAlign.center, style: muted),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small rounded label: the build, the commit.
+class _Pill extends StatelessWidget {
+  const _Pill(this.text, {this.mono = false});
+  final String text;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(color: _groupColor(colors), borderRadius: BorderRadius.circular(20)),
+      child: SelectableText(
+        text,
+        style: TextStyle(
+          fontSize: 11.5,
+          color: colors.textMuted,
+          fontFamily: mono ? 'Menlo' : null,
+          fontFamilyFallback: mono ? const ['Consolas', 'monospace'] : null,
+        ),
+      ),
+    );
+  }
 }

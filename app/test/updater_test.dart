@@ -222,10 +222,13 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('$appVersion ($appBuild)'), findsOneWidget);
-    expect(find.text('github.com/xy057/curator'), findsOneWidget);
-    expect(find.text('0x57.cc/xylabs-changelog'), findsOneWidget);
+    expect(find.text('Version $appVersion'), findsOneWidget);
+    expect(find.text('Build $appBuild'), findsOneWidget);
+    expect(find.text('Source code'), findsOneWidget);
+    expect(find.text('Changelog'), findsOneWidget);
     if (shots != null) {
+      await tester.runAsync(() => precacheImage(const AssetImage('assets/icon/app_icon.png'), tester.element(find.byType(Image))));
+      await tester.pump();
       await tester.runAsync(() async {
         final boundary = tester.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first);
         final png = await (await boundary.toImage(pixelRatio: 2)).toByteData(format: ui.ImageByteFormat.png);

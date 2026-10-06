@@ -29,3 +29,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/demo/ # the sample project behind "Try the sample" (and every test)
+    - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one)

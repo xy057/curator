@@ -6,6 +6,7 @@ import 'package:curated_score/app_menus.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/project_document.dart';
+import 'package:curated_score/updater.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -137,7 +138,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.widgetWithText(MenuItemButton, 'About Curator'));
     await tester.pumpAndSettle();
-    expect(find.text('Verovio'), findsOneWidget);
-    expect(find.text('Latest version'), findsOneWidget);
+    expect(find.text('Version $appVersion'), findsOneWidget);
+    expect(find.textContaining('Verovio'), findsOneWidget);
   });
 }
