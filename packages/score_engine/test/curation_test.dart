@@ -118,6 +118,27 @@ void main() {
     expect(c.edgesInSeconds(timeline), [(seconds: 2.0, transition: 0.4)]); // the piece's own ends don't move anything
   });
 
+  test('bars cut out of the piece start with their staves in place and end with no fade', () {
+    // Bars 3–5 (quarters 8–20, 4–10 s), as if the piece were only those.
+    final clip = ClippedTimeline(timeline, firstPass: 0, start: 8, lastPass: 0, end: 20);
+    final c = Curation(['enters', 'leaves', 'stays', 'later'])
+      ..transition = 0.4
+      ..addRegion('enters', const Region(8, 16)) // enters on bar 3
+      ..addRegion('leaves', const Region(0, 8)) // leaves on bar 3
+      ..addRegion('stays', const Region(12, 20)) // to the end of bar 5
+      ..addRegion('later', const Region(12, 16)); // bar 4 only: fades as ever
+    double v(String id, double t, ScoreTimeline tl) => c.visibilityAt(t, tl)[id]!;
+    expect(v('enters', 4, timeline), closeTo(0.5, 1e-9));
+    expect(v('leaves', 4, timeline), closeTo(0.5, 1e-9));
+    expect((v('enters', 4, clip), v('leaves', 4, clip)), (1, 0), reason: 'nothing under way at the start');
+    expect(v('stays', 10, timeline), closeTo(0.5, 1e-9));
+    expect(v('stays', 10, clip), 1, reason: 'the cut end is the end: no fade');
+    expect(v('later', 6, clip), closeTo(0.5, 1e-9));
+    expect(clip.endSeconds, 10);
+    expect(clip.passes, [const ScorePass(8, 20)]);
+    expect(c.edgesInSeconds(clip).map((e) => e.seconds).toList()..sort(), [6, 6, 8, 8]);
+  });
+
   test('a warp shows a lane again when the music comes round again, with no dip across the jump', () {
     // 8 bars of 4/4 at ♩ = 120 (2 s a bar); after bar 4 (8 s) back to bar 1.
     final sync = SyncMap(measureStarts: [for (var i = 0; i <= 8; i++) i * 4.0], defaultTempo: 120)

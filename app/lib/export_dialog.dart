@@ -80,11 +80,16 @@ class _ExportDialogState extends State<_ExportDialog> {
   void _setWhole() => setState(() {
         _from.text = '1';
         _to.text = '${_export.bars}';
+        _export.showBars(1, _export.bars);
+      });
+
+  /// The bars typed changed: the still shows them as the video will.
+  void _barsChanged({bool start = false}) => setState(() {
+        if (_export.showBars(_first, _last) && start) _still = _export.span.start; // show where it starts
       });
 
   Future<void> _start() async {
-    final range = _range;
-    if (range == null) return;
+    if (_range == null) return;
     final location = await getSaveLocation(
       acceptedTypeGroups: const [XTypeGroup(label: 'MP4 video', extensions: ['mp4'])],
       suggestedName: '${widget.suggestedName}${_whole ? '' : ' (bars $_first–$_last)'}.mp4',
@@ -98,7 +103,7 @@ class _ExportDialogState extends State<_ExportDialog> {
       _progress = null;
     });
     try {
-      await _export.write(path, format: _format, ffmpeg: _ffmpeg, from: range.start, to: range.end, onProgress: (p) {
+      await _export.write(path, format: _format, ffmpeg: _ffmpeg, onProgress: (p) {
         if (mounted) setState(() => _progress = p);
       });
       if (mounted) setState(() => _stage = _Stage.done);
@@ -184,7 +189,7 @@ class _ExportDialogState extends State<_ExportDialog> {
     final colors = context.colors;
     final c = widget.controller;
     final format = _format;
-    final range = _range ?? (start: 0.0, end: _export.duration);
+    final range = _export.span; // the bars last shown, while those typed aren't a range
     final still = _still.clamp(range.start, range.end);
     final figures = TextStyle(fontSize: 12.5, color: colors.textMuted, fontFeatures: const [FontFeature.tabularFigures()]);
     final segments = ButtonStyle(
@@ -247,9 +252,7 @@ class _ExportDialogState extends State<_ExportDialog> {
                   label: 'From bar',
                   controller: _from,
                   wrong: firstWrong,
-                  onChanged: () => setState(() {
-                    if (_range case final r?) _still = r.start; // show where it starts
-                  }),
+                  onChanged: () => _barsChanged(start: true),
                   onSubmitted: _ffmpeg == null ? null : _start,
                 ),
               ),
@@ -262,7 +265,7 @@ class _ExportDialogState extends State<_ExportDialog> {
                   label: 'To bar',
                   controller: _to,
                   wrong: lastWrong,
-                  onChanged: () => setState(() {}),
+                  onChanged: _barsChanged,
                   onSubmitted: _ffmpeg == null ? null : _start,
                 ),
               ),

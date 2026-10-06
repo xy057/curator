@@ -18,7 +18,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump) |
 | `midi_tempo.dart` | A Standard MIDI File's tempo map (Set Tempo events only), and the anchors that make a `SyncMap` follow it |
-| `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend |
+| `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend; `ClippedTimeline`, part of a performance as if it were all |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready) and `CuratedScene`: one frame is `paint(time)` |
@@ -54,11 +54,16 @@ and sync, so something the scene shows must be copied in `VideoExport.of` too (a
 the decoded images it shares are held (`ImageEditing.hold`) until it is disposed, since the
 menu bar can close the project under the export dialog.
 A video is the whole piece unless the dialog's From bar / To bar say otherwise
-(`VideoExport.barRange`, never saved): from where the first bar first sounds to where the last
-next ends after that (a repeat's first time), bar 1 from time 0 and the last bar to the end,
-so all the bars are exactly the whole video. Its frames are `renderFrame(from + i / fps)`, the
-sound is read from `from` (`-ss`), and a cut end fades over 10 ms so it doesn't click; a video
-cut short of the end doesn't fade to paper.
+(`VideoExport.showBars`, never saved), and then it is made as if the score were only those
+bars: the export's scene follows a `ClippedTimeline`, the performance with its passes cut from
+where the first bar first sounds to where the last next ends after that (a repeat's first
+time). Times stay the performance's; everything that reads the passes takes the cut for the
+score's ends, so the scroll comes to rest after the last bar and the frame fades to paper
+(`CuratedScene.endOf`), and a lane shown at the first bar is shown from the start, with no
+transition under way there. The music either side is still engraved, so the frame shows it.
+Bar 1 starts at time 0 and the last bar runs to the end, so all the bars are exactly the whole
+video. Frames are `renderFrame(start + i / fps)`; the sound is read from the start (`-ss`,
+fading in over 10 ms) and fades out over the settle after the last bar.
 The end is a function of time too: after the final barline the score eases to rest over
 `ScrollMap.settle` seconds (its last bars stay on screen), and the frame fades to paper over the
 last `CuratedScene.fadeOut` seconds before `paint`'s `end` (the playback's duration: the piece's

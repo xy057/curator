@@ -9,6 +9,7 @@ import 'package:curated_score/media_converter.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/painting.dart' show Size;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 
@@ -105,12 +106,13 @@ Encoders:
       expect(args, isNot(contains('-c:a')));
     });
 
-    test('a range: the sound starts where the video does, and fades in a blink where it is cut', () {
+    test('a range: the sound starts where the video does, fading in a blink, and fades out as asked', () {
       final line = VideoEncoder.arguments(
-              encoder: 'libx264', format: format, seconds: 4, output: 'o', audio: 'take.flac', audioStart: 10, cutEnd: true)
+              encoder: 'libx264', format: format, seconds: 8, output: 'o', audio: 'take.flac', audioStart: 10,
+              fadeOut: (at: 4, length: 2.5))
           .join(' ');
       expect(line, contains('-ss 10.000000 -i take.flac'));
-      expect(line, contains('-af afade=t=in:d=0.01,afade=t=out:st=3.990000:d=0.01'));
+      expect(line, contains('-af afade=t=in:d=0.01,afade=t=out:st=4.000000:d=2.500000'));
       final whole = VideoEncoder.arguments(encoder: 'libx264', format: format, seconds: 4, output: 'o', audio: 'take.flac');
       expect(whole, isNot(contains('-ss')));
       expect(whole, isNot(contains('-af')));
@@ -255,15 +257,21 @@ Encoders:
       expect(export.duration, c.playback.duration);
     }, skip: skip);
 
-    test('bars A–B: from where A first sounds to where B ends; all of them is the whole video', () {
+    test('bars A–B: from where A first sounds to where B ends, then the ending; all of them is the whole video', () {
       final export = VideoExport.of(c);
       addTearDown(export.dispose);
       expect(export.bars, 44);
       expect(export.barRange(1, 44), (start: 0.0, end: export.duration));
+      expect(export.span, (start: 0.0, end: export.duration));
       final r = export.barRange(5, 12)!;
       final timeline = c.timeline, starts = timeline.measureStarts;
       expect(r.start, closeTo(timeline.secondsAtQuarter(starts[4]), 1e-9));
-      expect(r.end, closeTo(timeline.secondsAtQuarter(starts[12]), 1e-9));
+      expect(r.end, closeTo(timeline.secondsAtQuarter(starts[12]) + ScrollMap.settle + CuratedScene.fadeOut, 1e-9),
+          reason: 'B ends as the piece does: the score comes to rest, then fades');
+      expect(export.showBars(5, 12), isTrue);
+      expect(export.span, r);
+      expect(export.showBars(12, 5), isFalse);
+      expect(export.span, r, reason: 'a wrong range changes nothing');
       expect(export.barBeatAt(r.start + 1e-6), '5.1');
       expect(export.barRange(12, 5), isNull);
       expect(export.barRange(0, 5), isNull);
@@ -274,10 +282,11 @@ Encoders:
       await useRecording(demoRecording.path);
       final export = VideoExport.of(c);
       addTearDown(export.dispose);
-      final r = export.barRange(5, 6)!;
+      export.showBars(5, 6);
+      final r = export.span;
       final out = '${dir.path}/bars.mp4';
       final seen = <int>[];
-      await export.write(out, format: small, from: r.start, to: r.end, onProgress: (p) => seen.add(p.frames));
+      await export.write(out, format: small, onProgress: (p) => seen.add(p.frames));
       expect(seen.last, small.frameCount(r.end - r.start));
       if (ffprobe == null || !File(ffprobe).existsSync()) return;
       final p = await Process.run(ffprobe, ['-v', 'error', '-of', 'json', '-show_format', out]);
