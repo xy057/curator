@@ -12,6 +12,7 @@ class AppMenus extends StatelessWidget {
     required this.onSaveAs,
     required this.onSettings,
     required this.child,
+    this.onAbout,
     this.recentFiles = const [],
     this.onOpenRecent,
     this.onClearRecent,
@@ -34,6 +35,9 @@ class AppMenus extends StatelessWidget {
   final VoidCallback? onSaveAs;
   final VoidCallback? onSettings;
   final Widget child;
+
+  /// About Curator: the app menu on macOS (in place of the standard panel), Help elsewhere.
+  final VoidCallback? onAbout;
 
   /// File ▸ Open Recent, most recent first.
   final List<String> recentFiles;
@@ -68,8 +72,9 @@ class AppMenus extends StatelessWidget {
   List<PlatformMenuItem> get _menus => [
         if (_mac)
           PlatformMenu(label: 'Curator', menus: [
-            if (PlatformProvidedMenuItem.hasMenu(PlatformProvidedMenuItemType.about))
-              const PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.about),
+            PlatformMenuItemGroup(members: [
+              PlatformMenuItem(label: 'About Curator', onSelected: onAbout),
+            ]),
             PlatformMenuItemGroup(members: [
               PlatformMenuItem(label: 'Settings…', shortcut: _key(LogicalKeyboardKey.comma), onSelected: onSettings),
             ]),
@@ -145,6 +150,10 @@ class AppMenus extends StatelessWidget {
             ]),
             PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.toggleFullScreen),
             PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.arrangeWindowsInFront),
+          ]),
+        if (!_mac)
+          PlatformMenu(label: 'Help', menus: [
+            PlatformMenuItem(label: 'About Curator', onSelected: onAbout),
           ]),
       ];
 

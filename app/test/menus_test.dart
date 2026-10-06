@@ -126,4 +126,18 @@ void main() {
     expect(menus().onUndo, isNull);
     expect(menus().onSelectAll, isNull);
   });
+
+  testWidgets('About Curator opens Settings ▸ About', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const CuratedScoreApp());
+
+    await tester.tap(find.text('Help'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(MenuItemButton, 'About Curator'));
+    await tester.pumpAndSettle();
+    expect(find.text('Verovio'), findsOneWidget);
+    expect(find.text('Latest version'), findsOneWidget);
+  });
 }

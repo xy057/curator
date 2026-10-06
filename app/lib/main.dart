@@ -563,6 +563,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onSave: _isSample.value ? null : _save,
           onSaveAs: _isSample.value ? null : _saveAs,
           onSettings: _settings,
+          onAbout: () => _settings(page: 'About'),
           recentFiles: settings.recentFiles,
           onOpenRecent: _openPath,
           onClearRecent: settings.clearRecent,
