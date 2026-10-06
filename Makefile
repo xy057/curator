@@ -4,6 +4,8 @@ VEROVIO_DIR := packages/score_engine/third_party/verovio
 # Written after the patches are applied; hook/build.dart refuses to build when a patch is newer.
 VEROVIO_STAMP := $(VEROVIO_DIR)/.curated-score-patched
 PATCHES := $(sort $(wildcard patches/*.patch))
+# Shown in Settings ▸ About.
+COMMIT := --dart-define=CURATOR_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null)
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
@@ -34,11 +36,11 @@ $(VEROVIO_STAMP): $(VEROVIO_DIR)/src/toolkit.cpp $(PATCHES)
 	touch $@
 
 run: setup
-	cd app && flutter run -d macos
+	cd app && flutter run -d macos $(COMMIT)
 
 # What the Release workflow (.github/workflows/release.yml) builds and zips.
 build: setup
-	cd app && flutter build macos --release
+	cd app && flutter build macos --release $(COMMIT)
 
 # Every test runs on the bundled demo project (app/assets/demo), so a fresh clone can run them all.
 test: setup

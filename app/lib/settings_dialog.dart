@@ -1,6 +1,9 @@
+import 'dart:ffi' show Abi;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:score_engine/score_engine.dart' show verovioVersion;
 
 import 'app_colors.dart';
 import 'app_extensions.dart';
@@ -60,10 +63,15 @@ class _Item {
 }
 
 class _Category {
-  const _Category(this.label, this.icon, this.items, {this.empty});
+  _Category(this.label, this.icon, List<_Item> items, {this.empty}) : sections = [(null, items)];
+
+  /// A page of items in groups, each under a small heading.
+  _Category.sections(this.label, this.icon, this.sections) : empty = null;
+
   final String label;
   final IconData icon;
-  final List<_Item> items;
+  final List<(String?, List<_Item>)> sections;
+  List<_Item> get items => [for (final (_, items) in sections) ...items];
 
   /// Shown in place of the items while there are none.
   final String? empty;
@@ -202,31 +210,47 @@ final _categories = <_Category>[
       keywords: 'engrave engraving verovio options spacing slur tie beam stem thickness margin bar number lyric',
     ),
   ]),
-  _Category('Update', Icons.system_update_alt_rounded, [
-    _Item(
-      'Version $appVersion',
-      (c) => _updateHelp(c.updater.status),
-      (c) => _UpdateControl(updater: c.updater),
-      keywords: 'update download release new version check',
-    ),
-    _Item(
-      'Check at launch',
-      (_) => 'Asks GitHub for a newer version each time the app starts.',
-      (c) => Switch(value: c.settings.checkForUpdates, onChanged: (v) => c.settings.checkForUpdates = v),
-      keywords: 'update automatic startup',
-    ),
-    _Item(
-      'Changelog',
-      null,
-      (_) => const _Link(changelogUrl),
-      keywords: 'changelog changes release notes what\'s new history website open',
-    ),
-    _Item(
-      'Source code',
-      null,
-      (_) => const _Link(repositoryUrl),
-      keywords: 'github repository repo source code website open',
-    ),
+  _Category.sections('About', Icons.info_outline_rounded, [
+    ('Curator', [
+      _Item(
+        'Version',
+        null,
+        (_) => Row(mainAxisSize: MainAxisSize.min, children: [
+          _Value(_versionText),
+          const _CopyButton(),
+        ]),
+        keywords: 'version build number commit about copy',
+      ),
+      _Item('Verovio', null, (_) => _Value(verovioVersion), keywords: 'engraver engine library about'),
+      _Item('System', null, (_) => _Value(_systemText), keywords: 'os macos windows linux architecture about'),
+      _Item('License', null, (_) => const _Link(licenseUrl, label: 'GPL-3.0'), keywords: 'license gpl copyright about'),
+    ]),
+    ('Updates', [
+      _Item(
+        'Latest version',
+        (c) => _updateHelp(c.updater.status),
+        (c) => _UpdateControl(updater: c.updater),
+        keywords: 'update download release new version check',
+      ),
+      _Item(
+        'Check at launch',
+        (_) => 'Asks GitHub for a newer version each time the app starts.',
+        (c) => Switch(value: c.settings.checkForUpdates, onChanged: (v) => c.settings.checkForUpdates = v),
+        keywords: 'update automatic startup',
+      ),
+      _Item(
+        'Changelog',
+        null,
+        (_) => const _Link(changelogUrl),
+        keywords: 'changelog changes release notes what\'s new history website open',
+      ),
+      _Item(
+        'Source code',
+        null,
+        (_) => const _Link(repositoryUrl),
+        keywords: 'github repository repo source code website open',
+      ),
+    ]),
   ]),
 ];
 
@@ -246,8 +270,21 @@ Future<bool> _confirmEngraving(BuildContext context) async {
   return go ?? false;
 }
 
+/// `0.3.0 (17)`, then the commit when the build knows it.
+String get _versionText => '$appVersion ($appBuild)${appCommit.isEmpty ? '' : ' · $appCommit'}';
+
+/// `macOS 15.6 (24G84) · arm64`.
+String get _systemText {
+  final name = switch (Platform.operatingSystem) { 'macos' => 'macOS', 'windows' => 'Windows', 'linux' => 'Linux', final os => os };
+  final version = Platform.operatingSystemVersion.replaceFirst(RegExp(r'^Version '), '').replaceFirst('(Build ', '(');
+  return '$name $version · ${Abi.current().toString().split('_').last}';
+}
+
+/// What Copy puts on the clipboard: everything a bug report needs to say which build it is.
+String get aboutText => 'Curator $_versionText\nVerovio $verovioVersion\n$_systemText';
+
 String _updateHelp(UpdateStatus status) => switch (status) {
-      UpdateIdle() => 'Curator, from GitHub.',
+      UpdateIdle() => 'From GitHub.',
       UpdateChecking() => 'Asking GitHub…',
       UpToDate() => 'This is the latest version.',
       UpdateAvailable(:final release) when release.download == null =>
@@ -387,7 +424,10 @@ class _SettingsWindowState extends State<_SettingsWindow> {
       page = _Page(
         key: ValueKey(_page),
         empty: cat.empty,
-        groups: [if (cat.items.isNotEmpty) (null, [for (final item in cat.items) _row(item)])],
+        groups: [
+          for (final (heading, items) in cat.sections)
+            if (items.isNotEmpty) (heading, [for (final item in items) _row(item)]),
+        ],
       );
     } else {
       // One group per page, in sidebar order, each under its page's name.
@@ -791,15 +831,56 @@ class _ExtensionSettingsButton extends StatelessWidget {
 
 /// An address that opens in the browser, shown without its scheme or `#` part.
 class _Link extends StatelessWidget {
-  const _Link(this.url);
+  const _Link(this.url, {this.label});
   final String url;
+  final String? label;
 
   @override
   Widget build(BuildContext context) => Tip(
         message: 'Open in the browser',
         child: TextButton(
           onPressed: () => openInBrowser(url),
-          child: Text(url.replaceFirst('https://', '').split('#').first, style: const TextStyle(fontSize: 13)),
+          child: Text(label ?? url.replaceFirst('https://', '').split('#').first, style: const TextStyle(fontSize: 13)),
+        ),
+      );
+}
+
+/// A read-only value, selectable so it can be copied.
+class _Value extends StatelessWidget {
+  const _Value(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) =>
+      SelectableText(text, style: TextStyle(fontSize: 13, color: context.colors.textMuted));
+}
+
+/// Copies [aboutText]; a check for a moment after.
+class _CopyButton extends StatefulWidget {
+  const _CopyButton();
+
+  @override
+  State<_CopyButton> createState() => _CopyButtonState();
+}
+
+class _CopyButtonState extends State<_CopyButton> {
+  bool _copied = false;
+
+  @override
+  Widget build(BuildContext context) => Tip(
+        message: 'Copy',
+        child: IconButton(
+          iconSize: 16,
+          visualDensity: VisualDensity.compact,
+          color: context.colors.textMuted,
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: aboutText));
+            if (!mounted) return;
+            setState(() => _copied = true);
+            await Future<void>.delayed(const Duration(milliseconds: 1500));
+            if (mounted) setState(() => _copied = false);
+          },
+          icon: Icon(_copied ? Icons.check_rounded : Icons.copy_rounded),
         ),
       );
 }
