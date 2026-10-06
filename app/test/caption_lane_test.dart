@@ -276,6 +276,16 @@ void main() {
     await tester.pump();
     expect(find.textContaining('2: Overlaps row 1'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Done')).onPressed, isNull);
+
+    // A row added fits among the rows as they are: A moved to bar 9 here, the new one stops there.
+    await tester.enterText(texts.at(0), '9');
+    await tester.enterText(texts.at(1), '10');
+    await tester.pump();
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(texts.at(6)).controller!.text, '7.1');
+    expect(tester.widget<TextField>(texts.at(7)).controller!.text, '9.1');
+    expect(find.textContaining('Overlaps'), findsNothing);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 

@@ -118,10 +118,15 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
   }
 
   /// A new row after the last caption (or from the playhead when there is none), its text to type.
+  /// It fits among the rows as they are here (not the captions as they were).
   void _add() {
+    final rows = [
+      for (final r in _rows)
+        if ((_start(r), _end(r)) case (final a?, final b?) when b > a) Caption(a, b, ''),
+    ];
     final last = _rows.isEmpty ? null : _end(_rows.last);
-    final draft = (last != null && last < _beats.totalQuarters - 1e-9 ? c.captions.draft(last) : null) ??
-        c.captions.draft(c.timeline.quarterAtSeconds(c.playback.time.value));
+    final draft = (last != null && last < _beats.totalQuarters - 1e-9 ? c.captions.draft(last, rows) : null) ??
+        c.captions.draft(c.timeline.quarterAtSeconds(c.playback.time.value), rows);
     if (draft == null) return;
     setState(() => _rows.add(_Row(draft, _beats)));
     WidgetsBinding.instance.addPostFrameCallback((_) => _focusCell(_rows.length - 1, 2));
