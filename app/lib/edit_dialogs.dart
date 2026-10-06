@@ -344,6 +344,113 @@ class _RegionDialogState extends State<_RegionDialog> {
   }
 }
 
+/// A caption's text and when it shows, as bar or bar.beat ("12" or "12.3"): a new one
+/// ([draft]) or caption [index]. An empty text removes it.
+Future<void> showCaptionDialog(BuildContext context, EditorController c, {int? index, Caption? draft}) async {
+  final caption = index != null ? c.captions.captions[index] : draft!;
+  final result = await showAppDialog<Caption>(context: context, builder: (context) => _CaptionDialog(controller: c, caption: caption, isNew: index == null));
+  if (result == null) return;
+  if (index == null) {
+    c.captions.add(result);
+  } else {
+    c.captions.update(index, result);
+  }
+}
+
+class _CaptionDialog extends StatefulWidget {
+  const _CaptionDialog({required this.controller, required this.caption, required this.isNew});
+  final EditorController controller;
+  final Caption caption;
+  final bool isNew;
+
+  @override
+  State<_CaptionDialog> createState() => _CaptionDialogState();
+}
+
+class _CaptionDialogState extends State<_CaptionDialog> {
+  BeatGrid get _beats => widget.controller.beats;
+  late final _text = TextEditingController(text: widget.caption.text);
+  late final _from = TextEditingController(text: _beats.format(widget.caption.start));
+  late final _to = TextEditingController(text: _beats.format(widget.caption.end));
+
+  @override
+  void dispose() {
+    _text.dispose();
+    _from.dispose();
+    _to.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // As in the region dialog: a field as shown is the caption's own edge, not its rounding.
+    double? read(TextEditingController field, double edge) =>
+        field.text == _beats.format(edge) ? edge : _beats.parse(field.text);
+    final a = read(_from, widget.caption.start), b = read(_to, widget.caption.end);
+    final error = a == null || b == null
+        ? 'Type a bar, or bar.beat — e.g. 12 or 12.3'
+        : b <= a
+            ? 'It has to end after it starts'
+            : widget.isNew && _text.text.trim().isEmpty
+                ? ''
+                : null;
+    void save() {
+      if (error == null) Navigator.pop(context, Caption(a!, b!, _text.text));
+    }
+
+    return AlertDialog(
+      title: Text(widget.isNew ? 'Add Caption' : 'Caption'),
+      content: SizedBox(
+        width: 400,
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          TextField(
+            controller: _text,
+            autofocus: true,
+            maxLength: 160,
+            decoration: const InputDecoration(labelText: 'Text', counterText: ''),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => save(),
+          ),
+          const SizedBox(height: 12),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: TextField(
+                controller: _from,
+                decoration: const InputDecoration(labelText: 'From'),
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => save(),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextField(
+                controller: _to,
+                decoration: const InputDecoration(labelText: 'Until'),
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => save(),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+      actions: [
+        if (error != null && error.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Text(error, style: TextStyle(fontSize: 12, color: context.colors.erase)),
+          ),
+        if (!widget.isNew)
+          TextButton(
+            onPressed: () => Navigator.pop(context, widget.caption.copyWith(text: '')),
+            child: const Text('Remove'),
+          ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(onPressed: error == null ? save : null, child: Text(widget.isNew ? 'Add' : 'Apply')),
+      ],
+    );
+  }
+}
+
 /// How long a region's staff glides at one edge: the project's transition (null, whatever it
 /// becomes in Settings ▸ Animation) or one of the usual lengths.
 class _TransitionField extends StatelessWidget {

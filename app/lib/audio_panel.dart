@@ -87,6 +87,7 @@ class _AudioLanesState extends State<AudioLanes> {
   }
 
   void _onDown(PointerDownEvent e) {
+    c.captions.select(null); // the Delete key goes to what was clicked here
     if (e.buttons != kPrimaryButton) return;
     final keys = HardwareKeyboard.instance;
     final x = e.localPosition.dx;

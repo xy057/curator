@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_settings.dart';
+import 'caption_settings.dart';
 import 'editor_controller.dart';
 import 'ui_kit.dart';
 
@@ -8,7 +9,9 @@ import 'ui_kit.dart';
 /// app (not per project), off by default; what it adds works only while it is on.
 enum AppExtension {
   attachImage('Attach Image', Icons.image_outlined, '1.0', 'Images on the score, scrolling with it.',
-      'image picture photo svg png jpg');
+      'image picture photo svg png jpg'),
+  captions('Captions', Icons.subtitles_outlined, '1.0', 'Timed text under the score.',
+      'caption subtitle commentary note text');
 
   const AppExtension(this.label, this.icon, this.version, this.summary, this.keywords);
   final String label;
@@ -25,21 +28,25 @@ enum AppExtension {
 
   /// The extension's own settings, in a dialog from its row's settings button (greyed out
   /// while this is null).
-  WidgetBuilder? get settings => switch (this) {
+  Widget Function(BuildContext context, AppSettings settings)? get settings => switch (this) {
         attachImage => null,
+        captions => (context, settings) => CaptionSettings(settings: settings),
       };
 
   bool isOn(AppSettings settings) => switch (this) {
         attachImage => settings.attachImage,
+        captions => settings.captions,
       };
 
   void set(AppSettings settings, bool on) => switch (this) {
         attachImage => settings.attachImage = on,
+        captions => settings.captions = on,
       };
 
   /// The extensions what [controller] has open uses (images on the score…).
   static List<AppExtension> usedBy(EditorController controller) => [
         if (controller.images.patches.isNotEmpty) attachImage,
+        if (controller.captions.captions.isNotEmpty || controller.captions.font != null) captions,
       ];
 }
 

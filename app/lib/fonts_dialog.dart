@@ -8,8 +8,9 @@ import 'error_text.dart';
 import 'ui_kit.dart';
 
 /// Score ▸ Fonts…: the music font (a bundled SMuFL font, one installed with SMuFL metadata, or
-/// a file) and the text font (Academico or any installed family) the score is engraved in.
-/// Every choice is made at once, as its own Undo step.
+/// a file) and the text font (Academico or any installed family) the score is engraved in;
+/// with Captions on, the font its captions are drawn in (Default: the app's, Settings ▸
+/// Extension ▸ Captions). Every choice is made at once, as its own Undo step.
 Future<void> showFontsDialog(BuildContext context, EditorController c) => showAppDialog<void>(
   context: context,
   builder: (context) => _FontsDialog(controller: c),
@@ -95,7 +96,7 @@ class _FontsDialogState extends State<_FontsDialog> {
         Widget row(String label, Widget field) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(children: [
-                SizedBox(width: 56, child: Text(label)),
+                SizedBox(width: 64, child: Text(label)),
                 Expanded(child: field),
               ]),
             );
@@ -141,6 +142,26 @@ class _FontsDialogState extends State<_FontsDialog> {
                     },
                   ),
                 ),
+                if (c.captions.enabled)
+                  row(
+                    'Caption',
+                    DropdownMenu<String>(
+                      key: ValueKey((c.captions.font, texts.length)),
+                      expandedInsets: EdgeInsets.zero,
+                      initialSelection: c.captions.font ?? '',
+                      enableFilter: true,
+                      requestFocusOnTap: true,
+                      menuHeight: 320,
+                      errorText: c.captions.fontFound ? null : 'Not installed',
+                      dropdownMenuEntries: [
+                        const DropdownMenuEntry(value: '', label: 'Default'),
+                        for (final f in texts) DropdownMenuEntry(value: f, label: f),
+                      ],
+                      onSelected: (f) {
+                        if (f != null) c.captions.setFont(f.isEmpty ? null : f);
+                      },
+                    ),
+                  ),
                 if (_error != null) Text(_error!, style: TextStyle(fontSize: 12, color: colors.erase)),
               ],
             ),
