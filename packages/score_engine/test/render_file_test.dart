@@ -21,13 +21,12 @@ void main() {
   final out = Platform.environment['SNAPSHOT_DIR'] ?? Directory.systemTemp.path;
 
   test('render ${file ?? '(set SCORE_FILE)'}', () async {
-    if (file == null) return;
     await _font('packages/score_engine/Bravura', ['assets/fonts/Bravura.otf']);
     final academico = Directory('assets/fonts').listSync().whereType<File>().where((f) => f.path.contains('Academico'));
     if (academico.isNotEmpty) await _font('packages/score_engine/Academico', [for (final f in academico) f.path]);
 
     final stopwatch = Stopwatch()..start();
-    final score = await LoadedScore.open(file);
+    final score = await LoadedScore.open(file!);
     // ignore: avoid_print
     print('${score.metadata.parts.length} parts, ${score.engraving.measures.length} measures, '
         '${score.duration.toStringAsFixed(1)} s, engraved in ${stopwatch.elapsedMilliseconds} ms');
@@ -54,5 +53,5 @@ void main() {
       File('$out/${name}_${t.toStringAsFixed(0)}.png').writeAsBytesSync(png!.buffer.asUint8List());
     }
     scene.dispose();
-  }, timeout: const Timeout(Duration(minutes: 3)));
+  }, skip: file == null ? 'set SCORE_FILE to render a score' : false, timeout: const Timeout(Duration(minutes: 3)));
 }
