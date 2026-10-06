@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 
 import 'image_patch.dart';
+import 'media_converter.dart';
 import 'project_state.dart';
 
 /// How a project keeps its recording.
@@ -42,7 +43,7 @@ abstract final class ProjectFile {
 
   /// Reads a project. An embedded recording is unpacked into [mediaDirectory]; a linked one
   /// is looked for next to the project first (so a folder can be moved as a whole), then at
-  /// its original location.
+  /// its original location, and only when it is a recording ([MediaFormats]).
   static Future<OpenedProject> read(String path, {required String mediaDirectory}) =>
       Isolate.run(() => _read(path, mediaDirectory));
 
@@ -142,7 +143,8 @@ abstract final class ProjectFile {
           if (relative != null) _join(File(path).parent.path, relative),
           if (original != null && isLocalPath(original)) original,
         ];
-        final linked = candidates.where((p) => File(p).existsSync()).firstOrNull;
+        // Only a recording: whatever else a project names is never opened.
+        final linked = candidates.where((p) => MediaFormats.isRecording(p) && File(p).existsSync()).firstOrNull;
         String? playable;
         if (entry != null) {
           final file = archive.findFile(entry);

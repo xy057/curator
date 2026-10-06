@@ -113,6 +113,30 @@ void main() {
     expect(media.originalPath, isNull);
   });
 
+  test('a link reaches only a recording, wherever it is', () async {
+    Directory('${dir.path}/projects/p').createSync(recursive: true);
+    File('${dir.path}/secret.txt').writeAsStringSync('not a recording');
+    final take = recording('take.wav');
+    Future<String?> open(Map<String, Object?> media) async {
+      final path = '${dir.path}/projects/p/link.ccs';
+      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(Archive()
+        ..add(ArchiveFile.string('project.json', jsonEncode({
+          'format': ProjectFile.mimeType,
+          'version': ProjectFile.formatVersion,
+          'score': {'name': 'S.musicxml', 'entry': 'score/S.musicxml'},
+          'media': media,
+          'state': const ProjectState().toJson(),
+        })))
+        ..add(ArchiveFile.string('score/S.musicxml', '<score-partwise/>'))));
+      return (await ProjectFile.read(path, mediaDirectory: '${dir.path}/m')).media!.path;
+    }
+
+    expect(await open({'name': 'take.wav', 'relativePath': '../../take.wav'}), endsWith('take.wav'));
+    expect(await open({'name': 'take.wav', 'path': take.path}), take.path);
+    expect(await open({'name': 'secret.wav', 'relativePath': '../../secret.txt'}), isNull);
+    expect(await open({'name': 'secret.wav', 'path': '${dir.path}/secret.txt'}), isNull);
+  });
+
   test('a failed save leaves the previous file untouched', () async {
     final path = '${dir.path}/safe.ccs';
     await ProjectFile.write(path, contents());
