@@ -156,10 +156,13 @@ class CaptionBar {
   /// Space either side of the text, and the widest it gets.
   static const _side = 24.0, _maxWidth = 560.0;
 
-  final _paragraphs = <(String, double), ui.Paragraph>{};
+  /// Each text laid out, with its first line's height (where the ring sits).
+  final _paragraphs = <(String, double), ({ui.Paragraph p, double firstLine})>{};
 
-  ui.Paragraph _paragraph(String text, double width) => _paragraphs.putIfAbsent((text, width), () {
-        if (_paragraphs.length > 64) _paragraphs.clear();
+  ui.Paragraph _paragraph(String text, double width) => _laidOut(text, width).p;
+
+  ({ui.Paragraph p, double firstLine}) _laidOut(String text, double width) => _paragraphs.putIfAbsent((text, width), () {
+        if (_paragraphs.length > 64) _clear();
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
           fontFamily: _family,
           fontSize: fontSize,
@@ -170,8 +173,19 @@ class CaptionBar {
         ))
           ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: 0.15))
           ..addText(text.trim());
-        return builder.build()..layout(ui.ParagraphConstraints(width: width));
+        final p = builder.build()..layout(ui.ParagraphConstraints(width: width));
+        return (p: p, firstLine: p.computeLineMetrics().firstOrNull?.height ?? p.height);
       });
+
+  void _clear() {
+    for (final laid in _paragraphs.values) {
+      laid.p.dispose();
+    }
+    _paragraphs.clear();
+  }
+
+  /// Frees the texts laid out; the bar can't be drawn after.
+  void dispose() => _clear();
 
   double _width(ui.Size size) => math.min(size.width - 2 * _side, _maxWidth);
 
@@ -196,7 +210,7 @@ class CaptionBar {
       final into = ((time - s.start) / fade).clamp(0.0, 1.0), left = ((s.end - time) / fade).clamp(0.0, 1.0);
       final opacity = ease(math.min(into, left));
       if (opacity <= 0.001) continue;
-      final p = _paragraph(captions[s.caption].text, _width(size));
+      final (:p, :firstLine) = _laidOut(captions[s.caption].text, _width(size));
       final (:top, :line) = _place(p, size);
       // It comes in from the frame's edge side: up from below, down from above.
       final rise = (1 - ease(into)) * 4 * (style.position == CaptionPosition.top ? -1 : 1);
@@ -226,8 +240,8 @@ class CaptionBar {
           }
         case CaptionCountdown.ring:
           // A small ring left of the first line, emptying clockwise from the top.
-          final r = fontSize * 0.36, firstLine = p.computeLineMetrics().firstOrNull;
-          final centre = ui.Offset(cx - p.longestLine / 2 - r - 10, top + rise + (firstLine?.height ?? p.height) / 2);
+          final r = fontSize * 0.36;
+          final centre = ui.Offset(cx - p.longestLine / 2 - r - 10, top + rise + firstLine / 2);
           canvas.drawCircle(centre, r, stroke..color = track);
           if (remaining > 0) {
             canvas.drawArc(ui.Rect.fromCircle(center: centre, radius: r), -math.pi / 2, 2 * math.pi * remaining, false,

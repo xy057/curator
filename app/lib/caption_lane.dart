@@ -313,9 +313,9 @@ class _CaptionLaneState extends State<CaptionLane> {
 
   void _onNameUp(PointerUpEvent e) {
     final last = _lastNameClick;
-    final double = last != null && e.timeStamp - last < const Duration(milliseconds: 350);
-    _lastNameClick = double ? null : e.timeStamp;
-    if (double) showCaptionsDialog(context, c);
+    final second = last != null && e.timeStamp - last < const Duration(milliseconds: 350);
+    _lastNameClick = second ? null : e.timeStamp;
+    if (second) showCaptionsDialog(context, c);
   }
 
   @override
