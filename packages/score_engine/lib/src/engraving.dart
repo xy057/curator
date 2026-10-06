@@ -187,6 +187,9 @@ class EngravingData {
   int get commandCount => commandInts.length ~/ Cmd.words;
 }
 
+/// The Verovio this engine was built with, e.g. `6.3.0`.
+String get verovioVersion => vb_version().toDartString();
+
 abstract final class Engraver {
   /// Engraves MusicXML into one endless system. Runs on a background isolate.
   /// [resourceDirectory] must contain Verovio's font metrics (`Bravura.xml`, `text/`…).

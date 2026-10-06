@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 import 'package:score_engine/src/engraving.dart' show Engraver;
@@ -5,6 +7,11 @@ import 'package:score_engine/src/engraving.dart' show Engraver;
 import 'demo_score.dart';
 
 void main() {
+  test('verovioVersion is the Verovio the Makefile pins', () {
+    final tag = RegExp(r'^VEROVIO_TAG := version-(\S+)', multiLine: true).firstMatch(File('../../Makefile').readAsStringSync())![1]!;
+    expect(verovioVersion, tag);
+  });
+
   test('every option is one Verovio has, with its type, range and choices', () {
     final groups = Engraver.availableOptions(resourceDirectory: engineResourceDirectory())['groups'] as Map;
     final verovio = <String, Map>{
