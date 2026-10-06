@@ -1,21 +1,25 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 import 'app_settings.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
+import 'editor_toolbar.dart';
 import 'error_text.dart';
 import 'media_converter.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
 
-/// File ▸ Export Video… (⌘E): a still of the video at the playhead (at the ratio chosen in
-/// the toolbar), its size, frame rate, paper and score size; then where to save it, and
-/// progress until it is written.
+/// File ▸ Export Video… (⌘E): on the left a still of the video (at the playhead, or any time
+/// in the range: a slider scrubs it); on the right the bars to export (the whole piece unless
+/// changed), the ratio (the toolbar's), size, frame rate, paper and score size. Then where to
+/// save it, and progress until it is written.
 /// [suggestedName] is the file name offered (without extension).
 Future<void> showExportDialog(BuildContext context, EditorController controller, AppSettings settings,
     {required String suggestedName}) {
@@ -44,6 +48,13 @@ class _ExportDialogState extends State<_ExportDialog> {
   final _ffmpeg = MediaConverter.findFfmpeg();
   AppSettings get _settings => widget.settings;
 
+  // The bars to export: the whole piece until changed.
+  late final _from = TextEditingController(text: '1');
+  late final _to = TextEditingController(text: '${_export.bars}');
+
+  /// The time the still shows, kept inside the range.
+  late double _still = widget.controller.playback.time.value;
+
   var _stage = _Stage.setup;
   ExportProgress? _progress;
   String? _output, _error;
@@ -51,15 +62,44 @@ class _ExportDialogState extends State<_ExportDialog> {
   @override
   void dispose() {
     _export.dispose();
+    _from.dispose();
+    _to.dispose();
     super.dispose();
   }
 
   VideoFormat get _format => _settings.videoFormat;
 
+  int get _first => int.tryParse(_from.text) ?? 0;
+  int get _last => int.tryParse(_to.text) ?? 0;
+
+  /// The seconds the bars typed cover; null while they aren't a range.
+  ({double start, double end})? get _range => _export.barRange(_first, _last);
+
+  bool get _whole => _first == 1 && _last == _export.bars;
+
+  void _setWhole() => setState(() {
+        _from.text = '1';
+        _to.text = '${_export.bars}';
+        _export.showBars(1, _export.bars);
+      });
+
+  bool get _defaultVideo =>
+      _settings.videoResolution == AppSettings.defaultVideoResolution && _settings.videoFps == AppSettings.defaultVideoFps;
+
+  void _setDefaultVideo() => setState(() => _settings
+    ..videoResolution = AppSettings.defaultVideoResolution
+    ..videoFps = AppSettings.defaultVideoFps);
+
+  /// The bars typed changed: the still shows them as the video will.
+  void _barsChanged({bool start = false}) => setState(() {
+        if (_export.showBars(_first, _last) && start) _still = _export.span.start; // show where it starts
+      });
+
   Future<void> _start() async {
+    if (_range == null) return;
     final location = await getSaveLocation(
       acceptedTypeGroups: const [XTypeGroup(label: 'MP4 video', extensions: ['mp4'])],
-      suggestedName: '${widget.suggestedName}.mp4',
+      suggestedName: '${widget.suggestedName}${_whole ? '' : ' (bars $_first–$_last)'}.mp4',
     );
     if (location == null || !mounted) return;
     final path = await confirmSavePath(context, location.path, 'mp4');
@@ -88,126 +128,235 @@ class _ExportDialogState extends State<_ExportDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      scrollable: true, // a short window scrolls the dialog rather than cutting it off
-      title: Text(switch (_stage) {
-        _Stage.setup => 'Export Video',
-        _Stage.writing => 'Exporting Video…',
-        _Stage.done => 'Video Exported',
-        _Stage.failed => 'The Video Could Not Be Exported',
-      }),
-      content: SizedBox(
-        width: 520,
-        child: AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: switch (_stage) {
-            _Stage.setup => _setup(context),
-            _Stage.writing => _writing(context),
-            _Stage.done => _done(context),
-            _Stage.failed => SingleChildScrollView(child: SelectableText(_error ?? '')),
-          },
-        ),
+    final colors = context.colors;
+    final setup = _stage == _Stage.setup;
+    return Dialog(
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: setup ? 840 : 480,
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+            child: Text(
+              switch (_stage) {
+                _Stage.setup => 'Export Video',
+                _Stage.writing => 'Exporting Video…',
+                _Stage.done => 'Video Exported',
+                _Stage.failed => 'The Video Could Not Be Exported',
+              },
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: colors.text),
+            ),
+          ),
+          Flexible(
+            // A short window scrolls the dialog rather than cutting it off.
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: switch (_stage) {
+                _Stage.setup => _setup(context),
+                _Stage.writing => _writing(context),
+                _Stage.done => _done(context),
+                _Stage.failed => SelectableText(_error ?? ''),
+              },
+            ),
+          ),
+          if (setup) Divider(height: 1, color: colors.line, indent: 24, endIndent: 24),
+          Padding(
+            padding: EdgeInsets.fromLTRB(24, setup ? 14 : 20, 20, 18),
+            child: Row(children: [
+              Expanded(child: setup ? _summary(context) : const SizedBox()),
+              const SizedBox(width: 12),
+              ...switch (_stage) {
+                _Stage.setup => [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                    const SizedBox(width: 8),
+                    FilledButton(onPressed: _ffmpeg == null || _range == null ? null : _start, child: const Text('Export…')),
+                  ],
+                _Stage.writing => [TextButton(onPressed: _export.cancel, child: const Text('Cancel'))],
+                _Stage.done => [
+                    TextButton(onPressed: () => revealInFileManager(_output!), child: Text(_revealLabel)),
+                    const SizedBox(width: 8),
+                    FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+                  ],
+                _Stage.failed => [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                    const SizedBox(width: 8),
+                    FilledButton(onPressed: () => setState(() => _stage = _Stage.setup), child: const Text('Back')),
+                  ],
+              },
+            ]),
+          ),
+        ]),
       ),
-      actions: switch (_stage) {
-        _Stage.setup => [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            FilledButton(onPressed: _ffmpeg == null ? null : _start, child: const Text('Export…')),
-          ],
-        _Stage.writing => [TextButton(onPressed: _export.cancel, child: const Text('Cancel'))],
-        _Stage.done => [
-            TextButton(onPressed: () => revealInFileManager(_output!), child: Text(_revealLabel)),
-            FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
-          ],
-        _Stage.failed => [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-            FilledButton(onPressed: () => setState(() => _stage = _Stage.setup), child: const Text('Back')),
-          ],
-      },
     );
   }
+
+  static const _previewWidth = 420.0;
 
   Widget _setup(BuildContext context) {
     final colors = context.colors;
     final c = widget.controller;
     final format = _format;
-    final track = c.track;
-    final muted = TextStyle(fontSize: 12.5, color: colors.textMuted);
+    final range = _export.span; // the bars last shown, while those typed aren't a range
+    final still = _still.clamp(range.start, range.end);
+    final figures = TextStyle(fontSize: 12.5, color: colors.textMuted, fontFeatures: const [FontFeature.tabularFigures()]);
+    final segments = ButtonStyle(
+      visualDensity: VisualDensity.compact,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6)),
+      textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 13)),
+    );
+    final firstWrong = _first < 1 || _first > _export.bars, lastWrong = !firstWrong && _range == null;
+
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      // The frame at the playhead, as the video will show it: in a 16:9 box whatever the
-      // ratio, so a tall one doesn't stretch the dialog, and the controls stay put.
-      SizedBox(
-        height: 520 / VideoRatio.widescreen.value,
-        child: Center(
-          child: AspectRatio(
-            aspectRatio: format.aspectRatio,
-            child: DecoratedBox(
-              decoration: BoxDecoration(border: Border.all(color: colors.line)),
-              child: CustomPaint(
-                painter: _StillPainter(_export, time: c.playback.time.value, paper: format.paper,
-                    devicePixelRatio: MediaQuery.devicePixelRatioOf(context)),
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(
+          width: _previewWidth,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // The frame as the video will show it: in a 16:9 box whatever the ratio, so a tall
+            // one doesn't stretch the dialog, and the controls stay put.
+            Container(
+              height: _previewWidth / VideoRatio.widescreen.value,
+              decoration: BoxDecoration(color: colors.accentWash, borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.all(8),
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: format.aspectRatio,
+                  child: DecoratedBox(
+                    position: DecorationPosition.foreground,
+                    decoration: BoxDecoration(border: Border.all(color: colors.line)),
+                    child: CustomPaint(
+                      painter: _StillPainter(_export, time: still, paper: format.paper,
+                          devicePixelRatio: MediaQuery.devicePixelRatioOf(context)),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 6),
+            Row(children: [
+              SizedBox(width: 44, child: Text(_export.barBeatAt(still), style: figures)),
+              Expanded(
+                child: OverlaySemantics(
+                  child: Slider(
+                    value: still,
+                    min: range.start,
+                    max: math.max(range.end, range.start + 1e-3),
+                    onChanged: _range == null ? null : (v) => setState(() => _still = v),
+                  ),
+                ),
+              ),
+              SizedBox(width: 44, child: Text(_clock(still), style: figures, textAlign: TextAlign.right)),
+            ]),
+          ]),
         ),
-      ),
-      const SizedBox(height: 4),
-      Text('At the playhead (${_clock(c.playback.time.value)})', style: muted, textAlign: TextAlign.center),
-      const SizedBox(height: 14),
-      _Row(
-        label: 'Size',
-        child: SegmentedButton<VideoResolution>(
-          showSelectedIcon: false,
-          segments: [for (final r in VideoResolution.values) ButtonSegment(value: r, label: Text(r.label))],
-          selected: {_settings.videoResolution},
-          onSelectionChanged: (s) => setState(() => _settings.videoResolution = s.single),
+        const SizedBox(width: 28),
+        Expanded(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const _Heading('Bars'),
+            Row(children: [
+              Expanded(
+                child: _BarField(
+                  label: 'From bar',
+                  controller: _from,
+                  wrong: firstWrong,
+                  onChanged: () => _barsChanged(start: true),
+                  onSubmitted: _ffmpeg == null ? null : _start,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text('–', style: TextStyle(color: colors.textMuted)),
+              ),
+              Expanded(
+                child: _BarField(
+                  label: 'To bar',
+                  controller: _to,
+                  wrong: lastWrong,
+                  onChanged: _barsChanged,
+                  onSubmitted: _ffmpeg == null ? null : _start,
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Back to the whole piece; its room is kept so the fields don't jump.
+              Visibility.maintain(
+                visible: !_whole,
+                child: ToolbarButton(icon: Icons.restart_alt_rounded, tooltip: 'Whole piece', onPressed: _whole ? null : _setWhole),
+              ),
+            ]),
+            const SizedBox(height: 20),
+            _Heading(
+              'Video',
+              // Back to 1080p at 30; its room is kept so the rows don't move.
+              trailing: Visibility.maintain(
+                visible: !_defaultVideo,
+                child: ToolbarButton(
+                  icon: Icons.restart_alt_rounded,
+                  tooltip: '1080p · 30 fps',
+                  onPressed: _defaultVideo ? null : _setDefaultVideo,
+                ),
+              ),
+            ),
+            _Row(
+              label: 'Ratio',
+              child: RatioMenu(ratio: _settings.videoRatio, onSelected: (r) => setState(() => _settings.videoRatio = r)),
+            ),
+            _Row(
+              label: 'Size',
+              child: SegmentedButton<VideoResolution>(
+                style: segments,
+                expandedInsets: EdgeInsets.zero,
+                showSelectedIcon: false,
+                segments: [for (final r in VideoResolution.values) ButtonSegment(value: r, label: Text(r.label))],
+                selected: {_settings.videoResolution},
+                onSelectionChanged: (s) => setState(() => _settings.videoResolution = s.single),
+              ),
+            ),
+            _Row(
+              label: 'Frame rate',
+              child: SegmentedButton<int>(
+                style: segments,
+                expandedInsets: EdgeInsets.zero,
+                showSelectedIcon: false,
+                segments: [for (final f in VideoFormat.frameRates) ButtonSegment(value: f, label: Text('$f'))],
+                selected: {_settings.videoFps},
+                onSelectionChanged: (s) => setState(() => _settings.videoFps = s.single),
+              ),
+            ),
+            _Row(
+              label: 'Paper',
+              child: SegmentedButton<VideoPaper>(
+                style: segments,
+                expandedInsets: EdgeInsets.zero,
+                showSelectedIcon: false,
+                segments: [for (final p in VideoPaper.values) ButtonSegment(value: p, label: Text(p.label))],
+                selected: {_settings.videoPaper},
+                onSelectionChanged: (s) => setState(() => _settings.videoPaper = s.single),
+              ),
+            ),
+            _Row(
+              label: 'Score size',
+              // The project's score size (the toolbar's slider): the video frames it like the editor.
+              child: OverlaySemantics(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(overlayShape: const RoundSliderOverlayShape(overlayRadius: 14)),
+                  child: Slider(
+                    value: c.staffSpace,
+                    min: EditorController.minStaffSpace,
+                    max: EditorController.maxStaffSpace,
+                    divisions: 14,
+                    label: c.staffSpace.toStringAsFixed(1),
+                    onChanged: (v) => setState(() {
+                      c.setStaffSpace(v, dragging: true);
+                      _export.staffSpace = c.staffSpace;
+                    }),
+                    onChangeEnd: c.setStaffSpace,
+                  ),
+                ),
+              ),
+            ),
+          ]),
         ),
-      ),
-      _Row(
-        label: 'Frame rate',
-        child: SegmentedButton<int>(
-          showSelectedIcon: false,
-          segments: [for (final f in VideoFormat.frameRates) ButtonSegment(value: f, label: Text('$f'))],
-          selected: {_settings.videoFps},
-          onSelectionChanged: (s) => setState(() => _settings.videoFps = s.single),
-        ),
-      ),
-      _Row(
-        label: 'Paper',
-        child: SegmentedButton<VideoPaper>(
-          showSelectedIcon: false,
-          segments: [for (final p in VideoPaper.values) ButtonSegment(value: p, label: Text(p.label))],
-          selected: {_settings.videoPaper},
-          onSelectionChanged: (s) => setState(() => _settings.videoPaper = s.single),
-        ),
-      ),
-      _Row(
-        label: 'Score size',
-        // The project's score size (the toolbar's slider): the video frames it like the editor.
-        child: OverlaySemantics(
-          child: Slider(
-            value: c.staffSpace,
-            min: EditorController.minStaffSpace,
-            max: EditorController.maxStaffSpace,
-            divisions: 14,
-            label: c.staffSpace.toStringAsFixed(1),
-            onChanged: (v) => setState(() {
-              c.setStaffSpace(v, dragging: true);
-              _export.staffSpace = c.staffSpace;
-            }),
-            onChangeEnd: c.setStaffSpace,
-          ),
-        ),
-      ),
-      const SizedBox(height: 6),
-      Text(
-        '${_clock(_export.duration)} · ${_settings.videoRatio.label} · ${format.width} × ${format.height} · '
-        '${_count(format.frameCount(_export.duration))} frames · MP4 (H.264, AAC): plays anywhere',
-        style: muted,
-      ),
-      const SizedBox(height: 2),
-      Text(track == null ? 'No recording: the video will be silent.' : 'Sound: ${track.name}', style: muted),
+      ]),
       if (_ffmpeg == null) ...[
         const SizedBox(height: 12),
         Container(
@@ -216,6 +365,33 @@ class _ExportDialogState extends State<_ExportDialog> {
           child: SelectableText(VideoExport.missingFfmpegForVideo(), style: TextStyle(fontSize: 12.5, color: colors.text)),
         ),
       ],
+      const SizedBox(height: 16),
+    ]);
+  }
+
+  /// What comes out: its length, shape, pixels, frames and sound.
+  Widget _summary(BuildContext context) {
+    final colors = context.colors;
+    final format = _format, range = _range, track = widget.controller.track;
+    final muted = TextStyle(fontSize: 12.5, color: colors.textMuted, fontFeatures: const [FontFeature.tabularFigures()]);
+    final length = range == null ? null : range.end - range.start;
+    return Row(children: [
+      Flexible(
+        child: Text(
+          [
+            length == null ? '–' : _clock(length),
+            _settings.videoRatio.label,
+            '${format.width} × ${format.height}',
+            if (length != null) '${_count(format.frameCount(length))} frames',
+          ].join(' · '),
+          style: muted,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      const SizedBox(width: 14),
+      Icon(track == null ? Icons.volume_off_rounded : Icons.music_note_rounded, size: 15, color: colors.textMuted),
+      const SizedBox(width: 4),
+      Flexible(child: Text(track?.name ?? 'Silent', style: muted, overflow: TextOverflow.ellipsis)),
     ]);
   }
 
@@ -225,7 +401,7 @@ class _ExportDialogState extends State<_ExportDialog> {
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(_basename(_output!)),
       const SizedBox(height: 12),
-      LinearProgressIndicator(value: p?.fraction),
+      ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: p?.fraction, minHeight: 6)),
       const SizedBox(height: 8),
       Text(
         p == null
@@ -285,10 +461,78 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(children: [
-          SizedBox(width: 92, child: Text(label, style: TextStyle(color: context.colors.textMuted))),
+          SizedBox(width: 80, child: Text(label, style: TextStyle(fontSize: 13, color: context.colors.textMuted))),
           Expanded(child: Align(alignment: Alignment.centerLeft, child: child)),
         ]),
       );
+}
+
+/// A group's name: "Bars", "Video"; [trailing] at its far end.
+class _Heading extends StatelessWidget {
+  const _Heading(this.text, {this.trailing});
+  final String text;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: SizedBox(
+          height: 20,
+          child: Row(children: [
+            Expanded(
+              child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.colors.textMuted)),
+            ),
+            // A button keeps its 32 points, overhanging the heading's line rather than pushing the rows down.
+            if (trailing case final t?) SizedBox(width: 32, child: OverflowBox(maxHeight: 32, child: t)),
+          ]),
+        ),
+      );
+}
+
+/// A bar number, typed; red while it isn't one the range can take.
+class _BarField extends StatelessWidget {
+  const _BarField({
+    required this.label,
+    required this.controller,
+    required this.wrong,
+    required this.onChanged,
+    required this.onSubmitted,
+  });
+  final String label;
+  final TextEditingController controller;
+  final bool wrong;
+  final VoidCallback onChanged;
+  final VoidCallback? onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final error = Theme.of(context).colorScheme.error;
+    OutlineInputBorder border(Color color, [double width = 1]) =>
+        OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: color, width: width));
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(5)],
+      style: const TextStyle(fontSize: 14, fontFeatures: [FontFeature.tabularFigures()]),
+      onChanged: (_) => onChanged(),
+      onSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
+      onTap: () => controller.selection = TextSelection(baseOffset: 0, extentOffset: controller.text.length),
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        enabledBorder: border(wrong ? error : colors.line),
+        focusedBorder: border(wrong ? error : colors.accent, 1.5),
+        floatingLabelStyle: WidgetStateTextStyle.resolveWith((states) => TextStyle(
+            color: wrong
+                ? error
+                : states.contains(WidgetState.focused)
+                    ? colors.accentStrong
+                    : colors.textMuted)),
+      ),
+    );
+  }
 }
 
 class _StillPainter extends CustomPainter {

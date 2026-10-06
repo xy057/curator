@@ -197,13 +197,17 @@ abstract final class VideoEncoder {
   }
 
   /// The arguments for FFmpeg: [format]'s frames as raw RGBA on stdin, the sound from
-  /// [audio] (none: a silent video), [seconds] long, written as MP4 to [output].
+  /// [audio] (none: a silent video) from [audioStart] seconds in, [seconds] long, written as
+  /// MP4 to [output]. A sound cut into at the start fades in over a few milliseconds, so it
+  /// doesn't click; [fadeOut] fades it out (seconds into the video, and how long).
   static List<String> arguments({
     required String encoder,
     required VideoFormat format,
     required double seconds,
     required String output,
     String? audio,
+    double audioStart = 0,
+    ({double at, double length})? fadeOut,
   }) {
     final fps = format.fps;
     // Hardware and OpenH264 encoders take a bit rate: 0.12 bits a pixel is ample for ink on paper.
@@ -211,7 +215,7 @@ abstract final class VideoEncoder {
     return [
       '-hide_banner', '-loglevel', 'error', '-y',
       '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', '${format.width}x${format.height}', '-framerate', '$fps', '-i', '-',
-      if (audio != null) ...['-i', audio],
+      if (audio != null) ...[if (audioStart > 0) ...['-ss', audioStart.toStringAsFixed(6)], '-i', audio],
       '-map', '0:v:0',
       if (audio != null) ...['-map', '1:a:0'],
       // RGB to 4:2:0 with the HD colour matrix, and tagged so players decode it the same way.
@@ -224,12 +228,21 @@ abstract final class VideoEncoder {
       },
       '-g', '${fps * 2}', // a keyframe every 2 s: quick seeking, and what streaming sites like
       '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-color_range', 'tv',
+      if (audio != null && (audioStart > 0 || fadeOut != null))
+        ...['-af', [
+          if (audioStart > 0) 'afade=t=in:d=$declick',
+          if (fadeOut != null)
+            'afade=t=out:st=${math.max(0, fadeOut.at).toStringAsFixed(6)}:d=${fadeOut.length.toStringAsFixed(6)}',
+        ].join(',')],
       if (audio != null) ...['-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2'],
       '-t', seconds.toStringAsFixed(6), // the frames' length: a longer recording is cut there
       '-movflags', '+faststart',
       '-f', 'mp4', output,
     ];
   }
+
+  /// Seconds of fade where a sound is cut.
+  static const declick = 0.01;
 }
 
 /// Where an export has got to.
@@ -298,6 +311,59 @@ class VideoExport {
   /// Seconds of video: the whole recording or the whole piece, as playback runs.
   final double duration;
 
+  /// Bars in the score, numbered from 1 as Go to counts them.
+  int get bars => _sync.measureStarts.length - 1;
+
+  /// Bars [first]…[last] as a performance of their own (see [ClippedTimeline]): from where
+  /// [first] first sounds to where [last] next ends after that (a repeat's first time, if it
+  /// has one). The video runs from that start (bar 1: from the very beginning) through the
+  /// end's settle and fade ([CuratedScene.endOf]); the last bar runs to [duration], so all of
+  /// them is the whole video. Null when they aren't bars, or [last] comes before [first].
+  ({ScoreTimeline timeline, double start, double musicEnd, double end})? _clip(int first, int last) {
+    if (first < 1 || last < first || last > bars) return null;
+    if (first == 1 && last == bars) return (timeline: _sync, start: 0, musicEnd: duration, end: duration);
+    final starts = _sync.measureStarts;
+    final from = _sync.spans(starts[first - 1], starts[first]).firstOrNull;
+    if (from == null) return null;
+    final start = first == 1 ? 0.0 : from.startSeconds;
+    final to = _sync.spans(starts[last - 1], starts[last]).where((s) => s.endSeconds > from.startSeconds + 1e-6).firstOrNull;
+    if (to == null) return null;
+    final clip = ClippedTimeline(_sync, firstPass: from.pass, start: from.start, lastPass: to.pass, end: to.end);
+    final end = last == bars ? duration : CuratedScene.endOf(clip);
+    return (timeline: clip, start: start, musicEnd: to.endSeconds, end: end);
+  }
+
+  /// The seconds of video bars [first]…[last] make (see [showBars]); null when they aren't a range.
+  ({double start, double end})? barRange(int first, int last) {
+    final c = _clip(first, last);
+    return c == null ? null : (start: c.start, end: c.end);
+  }
+
+  /// Makes the video bars [first]…[last] only, as if the score were only those: it starts at
+  /// [first] with the staves shown there already in place (no transition under way), and ends
+  /// at [last] the way the piece ends, coming to rest and fading to paper. The music either
+  /// side is still drawn. False (and nothing changed) when they aren't a range.
+  bool showBars(int first, int last) {
+    final c = _clip(first, last);
+    if (c == null) return false;
+    if (_shown != (first, last)) _scene.setTimeline(c.timeline);
+    _shown = (first, last);
+    span = (start: c.start, end: c.end);
+    _musicEnd = c.musicEnd;
+    return true;
+  }
+
+  /// The seconds of playback the video shows: all of it unless [showBars] says otherwise.
+  late ({double start, double end}) span = (start: 0, end: duration);
+  late double _musicEnd = duration;
+  late (int, int) _shown = (1, bars);
+
+  /// The bar and beat sounding at [seconds], as the toolbar writes them ("12.2").
+  String barBeatAt(double seconds) {
+    final (:measure, :beat) = _scene.score.beats.position(_sync.quarterAtSeconds(seconds) + 1e-9);
+    return '${measure + 1}.${beat.floor() + 1}';
+  }
+
   /// The recording's audio file; null for a silent video.
   final String? audio;
 
@@ -324,7 +390,7 @@ class VideoExport {
         time: time,
         curation: _curation,
         devicePixelRatio: devicePixelRatio * scale,
-        end: duration,
+        end: span.end,
         paper: paper.paper,
         ink: paper.ink);
     canvas.restore();
@@ -341,13 +407,16 @@ class VideoExport {
     _process?.kill();
   }
 
-  /// Writes the video to [output] (an .mp4), reporting each frame to [onProgress]. [to]
-  /// ends it early (tests). The file appears only once complete; a failed or cancelled
-  /// export leaves nothing behind (and an older file of that name as it was).
+  /// Writes the video to [output] (an .mp4), reporting each frame to [onProgress]: the
+  /// playback from [from] to [to] seconds (default: the [span]). The sound of bars cut off
+  /// at the end ([showBars]) fades out as the score comes to rest. The file
+  /// appears only once complete; a failed or cancelled export leaves nothing behind (and an
+  /// older file of that name as it was).
   Future<void> write(
     String output, {
     required VideoFormat format,
     void Function(ExportProgress progress)? onProgress,
+    double? from,
     double? to,
     String? ffmpeg,
   }) async {
@@ -361,13 +430,24 @@ class VideoExport {
           'This FFmpeg cannot write H.264 video. Install a full build of FFmpeg (with libx264).');
     }
 
-    final seconds = to ?? duration;
-    final frames = format.frameCount(seconds);
+    final start = from ?? span.start, end = to ?? span.end;
+    final frames = format.frameCount(end - start);
+    final fadeOut = _musicEnd < end - 1e-6
+        ? (at: _musicEnd - start, length: ScrollMap.settle)
+        : end < duration - 1e-6
+            ? (at: end - start - VideoEncoder.declick, length: VideoEncoder.declick)
+            : null;
     final partial = '$output.part';
     final process = _process = await Process.start(
       ffmpeg,
       VideoEncoder.arguments(
-          encoder: encoder, format: format, seconds: frames / format.fps, output: partial, audio: audio),
+          encoder: encoder,
+          format: format,
+          seconds: frames / format.fps,
+          output: partial,
+          audio: audio,
+          audioStart: start,
+          fadeOut: fadeOut),
     );
     final errors = StringBuffer();
     final stderr = process.stderr.transform(const Utf8Decoder(allowMalformed: true)).forEach(errors.write);
@@ -381,10 +461,10 @@ class VideoExport {
       var i = 0;
       await for (final pixels in inOrder(frames, (i) {
         final image = _scene.renderFrame(format.width, format.height,
-            time: format.timeOf(i),
+            time: start + format.timeOf(i),
             curation: _curation,
             devicePixelRatio: format.devicePixelRatio,
-            end: duration,
+            end: span.end,
             paper: format.paper.paper,
             ink: format.paper.ink);
         return image.toByteData(format: ui.ImageByteFormat.rawRgba).whenComplete(image.dispose);

@@ -131,6 +131,47 @@ class ConstantTempoTimeline implements ScoreTimeline {
   }
 }
 
+/// Part of a performance, as if it were all there is: from score quarter [start] in pass
+/// [firstPass] to [end] in pass [lastPass] of [whole]. Times stay the performance's own; only
+/// the passes are cut, so what reads them treats the cut as the score's ends: the scroll comes
+/// to rest after [end] ([ScrollMap.settle]), and a lane shown at [start] is shown from the
+/// beginning, with no transition there (see [Curation.visibilityAt]). The music either side
+/// is still engraved, so the frame shows it.
+class ClippedTimeline implements ScoreTimeline {
+  ClippedTimeline(this.whole, {required this.firstPass, required this.start, required this.lastPass, required this.end})
+      : assert(firstPass <= lastPass && lastPass < whole.passes.length) {
+    final all = whole.passes;
+    passes = List.unmodifiable([
+      for (var k = firstPass; k <= lastPass; k++)
+        ScorePass(k == firstPass ? start : all[k].start, k == lastPass ? end : all[k].end),
+    ]);
+  }
+
+  final ScoreTimeline whole;
+  final int firstPass, lastPass;
+  final double start, end;
+
+  @override
+  List<double> get measureStarts => whole.measureStarts;
+
+  @override
+  late final List<ScorePass> passes;
+
+  int _pass(int k) => firstPass + k.clamp(0, lastPass - firstPass);
+
+  @override
+  int passAt(double seconds) => (whole.passAt(seconds) - firstPass).clamp(0, lastPass - firstPass);
+
+  @override
+  double secondsAtQuarter(double quarter, {int pass = 0}) => whole.secondsAtQuarter(quarter, pass: _pass(pass));
+
+  @override
+  double quarterAtSeconds(double seconds) => whole.quarterAtSeconds(seconds);
+
+  @override
+  double secondsAt(MusicalPosition position, {int pass = 0}) => whole.secondsAt(position, pass: _pass(pass));
+}
+
 /// Playback time → the score x that sits under the fixed pointer.
 ///
 /// Two ways to scroll, and any blend of them ([follow], 0–1):

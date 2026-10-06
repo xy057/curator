@@ -18,7 +18,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump) |
 | `midi_tempo.dart` | A Standard MIDI File's tempo map (Set Tempo events only), and the anchors that make a `SyncMap` follow it |
-| `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend |
+| `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend; `ClippedTimeline`, part of a performance as if it were all |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready) and `CuratedScene`: one frame is `paint(time)` |
@@ -38,7 +38,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned); Undo's snapshots |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
-| `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as H.264/AAC MP4; the dialog |
+| `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as H.264/AAC MP4; the dialog (a still to scrub, bars, ratio, size, frame rate, paper, score size) |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `updater.dart` | Settings ▸ Update: `appVersion`, the latest GitHub release, its download into Downloads |
 | `app_menus.dart` | The menu bar (native on macOS): File, Edit, Score. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu |
@@ -53,6 +53,17 @@ the same painting offscreen. `VideoExport` works on its own scene and copies of 
 and sync, so something the scene shows must be copied in `VideoExport.of` too (as `names` is);
 the decoded images it shares are held (`ImageEditing.hold`) until it is disposed, since the
 menu bar can close the project under the export dialog.
+A video is the whole piece unless the dialog's From bar / To bar say otherwise
+(`VideoExport.showBars`, never saved), and then it is made as if the score were only those
+bars: the export's scene follows a `ClippedTimeline`, the performance with its passes cut from
+where the first bar first sounds to where the last next ends after that (a repeat's first
+time). Times stay the performance's; everything that reads the passes takes the cut for the
+score's ends, so the scroll comes to rest after the last bar and the frame fades to paper
+(`CuratedScene.endOf`), and a lane shown at the first bar is shown from the start, with no
+transition under way there. The music either side is still engraved, so the frame shows it.
+Bar 1 starts at time 0 and the last bar runs to the end, so all the bars are exactly the whole
+video. Frames are `renderFrame(start + i / fps)`; the sound is read from the start (`-ss`,
+fading in over 10 ms) and fades out over the settle after the last bar.
 The end is a function of time too: after the final barline the score eases to rest over
 `ScrollMap.settle` seconds (its last bars stay on screen), and the frame fades to paper over the
 last `CuratedScene.fadeOut` seconds before `paint`'s `end` (the playback's duration: the piece's

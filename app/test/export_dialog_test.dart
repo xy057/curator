@@ -1,5 +1,5 @@
 // File ▸ Export Video…: greyed out until a score is open; the dialog shows the frame at the
-// playhead and remembers its choices. SCREENSHOT_DIR=/some/dir also saves it as a PNG.
+// playhead, exports the whole piece unless bars are typed, and remembers its choices. SCREENSHOT_DIR=/some/dir also saves it as a PNG.
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -15,7 +15,7 @@ import 'demo_project.dart';
 import 'test_fonts.dart';
 
 void main() {
-  testWidgets('Export Video… offers size, frame rate, paper and score size', (tester) async {
+  testWidgets('Export Video… offers bars, ratio, size, frame rate, paper and score size', (tester) async {
     await tester.runAsync(loadTestFonts);
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
@@ -46,9 +46,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Export Video'), findsOneWidget);
-    expect(find.text('At the playhead (1:10)'), findsOneWidget);
+    Finder inDialog(String text) => find.descendant(of: find.byType(Dialog), matching: find.text(text));
+    expect(inDialog('1:10'), findsOneWidget, reason: 'the still is at the playhead');
+    expect(inDialog('37.1'), findsOneWidget);
     expect(find.textContaining('1920 × 1080'), findsOneWidget);
-    expect(find.text('No recording: the video will be silent.'), findsOneWidget);
+    expect(find.text('Silent'), findsOneWidget);
+
+    // The whole piece unless changed.
+    String field(String label) =>
+        tester.widget<TextField>(find.widgetWithText(TextField, label)).controller!.text;
+    expect((field('From bar'), field('To bar')), ('1', '44'));
+    bool canRestore() => tester.widget<IconButton>(find.ancestor(of: find.byTooltip('Whole piece'), matching: find.byType(IconButton))).onPressed != null;
+    expect(canRestore(), isFalse);
+    String length() => tester.widget<Text>(find.textContaining(' frames')).data!.split(' · ').first;
+    final whole = length();
 
     await tester.tap(find.text('4K'));
     await tester.tap(find.text('60'));
@@ -58,14 +69,40 @@ void main() {
         (VideoResolution.uhd2160, 60, VideoPaper.dark));
     expect(find.textContaining('3840 × 2160'), findsOneWidget);
 
+    // Remembered, with a way back to 1080p at 30.
+    final reset = find.byTooltip('1080p · 30 fps');
+    await tester.tap(reset);
+    await tester.pump();
+    expect((settings.videoResolution, settings.videoFps), (VideoResolution.hd1080, 30));
+    expect(tester.widget<IconButton>(find.ancestor(of: reset, matching: find.byType(IconButton))).onPressed, isNull,
+        reason: 'nothing to reset');
+    await tester.tap(find.text('4K'));
+    await tester.tap(find.text('60'));
+    await tester.pump();
+
     // The ratio is the toolbar's; the dialog says which.
     expect(find.textContaining('16:9 · 3840 × 2160'), findsOneWidget);
+
+    // Bars 5–12: shorter, and the still moves to bar 5; a range backwards can't be exported.
+    await tester.enterText(find.widgetWithText(TextField, 'From bar'), '5');
+    await tester.enterText(find.widgetWithText(TextField, 'To bar'), '12');
+    await tester.pump();
+    expect(inDialog('5.1'), findsOneWidget);
+    expect(length(), isNot(whole));
+    expect(canRestore(), isTrue);
+    await tester.enterText(find.widgetWithText(TextField, 'To bar'), '4');
+    await tester.pump();
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Export…')).onPressed, isNull);
+    await tester.tap(find.byTooltip('Whole piece'));
+    await tester.pump();
+    expect((field('From bar'), field('To bar')), ('1', '44'));
+    expect(length(), whole);
 
     final dir = Platform.environment['SCREENSHOT_DIR'];
     if (dir != null) {
       await tester.pump(const Duration(milliseconds: 300));
       await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(find.ancestor(of: find.byType(AlertDialog), matching: find.byType(RepaintBoundary)).last);
+        final boundary = tester.renderObject<RenderRepaintBoundary>(find.ancestor(of: find.byType(Dialog), matching: find.byType(RepaintBoundary)).last);
         final image = await boundary.toImage(pixelRatio: 2);
         final png = await image.toByteData(format: ui.ImageByteFormat.png);
         File('$dir/export-dialog.png').writeAsBytesSync(png!.buffer.asUint8List());
