@@ -200,12 +200,14 @@ class CaptionBar {
       final (:top, :line) = _place(p, size);
       // It comes in from the frame's edge side: up from below, down from above.
       final rise = (1 - ease(into)) * 4 * (style.position == CaptionPosition.top ? -1 : 1);
-      final cx = size.width / 2;
-      canvas.saveLayer(null,
+      final cx = size.width / 2, at = ui.Offset(cx - p.width / 2, top + rise);
+      // The layer (to tint and fade the text) only as big as the text, not the frame: a full
+      // frame offscreen each frame is costly at 4K. A little over, for glyphs that overhang.
+      canvas.saveLayer((at & ui.Size(p.width, p.height)).inflate(4),
           ui.Paint()
             ..color = ui.Color.fromRGBO(0, 0, 0, opacity)
             ..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn));
-      canvas.drawParagraph(p, ui.Offset(cx - p.width / 2, top + rise));
+      canvas.drawParagraph(p, at);
       canvas.restore();
 
       final remaining = ((s.end - time) / (s.end - s.start)).clamp(0.0, 1.0);
