@@ -364,7 +364,9 @@ and at start-up it sweeps folders whose lock is free (their app crashed).
 **Tests run on the demo.** Every test uses `app/assets/demo/WI275 - 01 Intro.ccs` (a 44-bar
 6/8 orchestral intro with its recording and curation), so a fresh clone runs them all. The
 engine tests build variants of it where they need something it lacks (a key change, an
-additive meter). `Samples/` is for trying things by hand only.
+additive meter). `Samples/` is for trying things by hand only. A test's tap that something
+else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app as built
+(opening a window): what only a bundle has, its native library and resources, is checked there.
 
 ## Releasing
 
@@ -372,8 +374,10 @@ additive meter). `Samples/` is for trying things by hand only.
 Run workflow, or `gh workflow run release.yml`). It builds side by side with `make build` on
 macOS and `flutter build windows` on Windows (Verovio fetched and patched by hand there: no
 `make`), zips each as `Curator-<version>-<macos|windows>.zip` (the Windows zip carries the
-Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built and
-`make check` has passed on macOS (the tests don't run on Windows), where the version is
+Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built and run
+the smoke test (`app/integration_test/app_smoke_test.dart`, `make smoke`: the app as built opens
+the sample, engraves, draws and exports), and `make check` has passed on macOS (the other tests
+don't run on Windows), where the version is
 `app/pubspec.yaml`'s. Its actions are pinned to commits, not tags; only the job that publishes
 may write to the repository. To release again, bump that version and `appVersion` in
 `updater.dart` together (`updater_test.dart` checks they match); a version already released

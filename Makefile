@@ -9,7 +9,7 @@ COMMIT := --dart-define=CURATOR_COMMIT=$(shell git rev-parse --short HEAD 2>/dev
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
-.PHONY: help setup run build test check doctor clean
+.PHONY: help setup run build test check smoke doctor clean
 
 help:
 	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG), get Dart packages"
@@ -17,6 +17,7 @@ help:
 	@echo "make build   – build the release app (app/build/macos/Build/Products/Release)"
 	@echo "make test    – run the engine and app tests (builds the native engine on first run)"
 	@echo "make check   – analyze both packages, then run every test"
+	@echo "make smoke   – build the app and run it: open the sample, engrave, draw, export (opens a window)"
 	@echo "make doctor  – check that the required tools are installed"
 	@echo "make clean   – remove build outputs"
 
@@ -51,6 +52,10 @@ check: setup
 	cd packages/score_engine && flutter analyze
 	cd app && flutter analyze
 	$(MAKE) test
+
+# The app as built, not the test runner: integration_test/app_smoke_test.dart.
+smoke: setup
+	cd app && flutter test integration_test -d macos
 
 doctor:
 	@xcodebuild -license check >/dev/null 2>&1 && echo "✓ Xcode ready" \
