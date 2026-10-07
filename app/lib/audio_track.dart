@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -205,4 +206,69 @@ class AudioEngine {
 
   /// Current position in the recording, or null when nothing is playing.
   double? get position => _valid ? SoLoud.instance.getPosition(_handle!).inMicroseconds / 1e6 : null;
+
+  // MARK: Metronome
+
+  /// The metronome's two clicks (a bar's first beat, the others), made once, on first use.
+  Future<({AudioSource accent, AudioSource beat})>? _clicks;
+
+  /// Stands in for the sound in tests: called with each click instead.
+  @visibleForTesting
+  void Function({required bool accent})? debugClick;
+
+  /// Loads the clicks ahead of the first beat, so it isn't late.
+  void prepareClicks() {
+    if (debugClick != null) return;
+    _clicks ??= () async {
+      await _ensureInitialized();
+      return (
+        accent: await SoLoud.instance.loadMem('click-accent.wav', clickWav(1760)),
+        beat: await SoLoud.instance.loadMem('click-beat.wav', clickWav(1320)),
+      );
+    }();
+    _clicks!.ignore();
+  }
+
+  /// One click now, at full speed whatever the playback's; none while the clicks are loading.
+  void click({required bool accent}) {
+    if (debugClick case final debug?) return debug(accent: accent);
+    prepareClicks();
+    unawaited(_clicks!.then((clicks) {
+      SoLoud.instance.play(accent ? clicks.accent : clicks.beat, volume: 0.6);
+    }, onError: (_) {}));
+  }
+
+  /// A 16-bit mono WAV: a sine at [hertz] struck and dying away over 40 ms.
+  @visibleForTesting
+  static Uint8List clickWav(double hertz) {
+    const rate = 44100, length = rate * 40 ~/ 1000;
+    final data = ByteData(44 + length * 2);
+    void text(int at, String s) {
+      for (var i = 0; i < s.length; i++) {
+        data.setUint8(at + i, s.codeUnitAt(i));
+      }
+    }
+
+    text(0, 'RIFF');
+    data.setUint32(4, 36 + length * 2, Endian.little);
+    text(8, 'WAVE');
+    text(12, 'fmt ');
+    data
+      ..setUint32(16, 16, Endian.little)
+      ..setUint16(20, 1, Endian.little) // PCM
+      ..setUint16(22, 1, Endian.little) // mono
+      ..setUint32(24, rate, Endian.little)
+      ..setUint32(28, rate * 2, Endian.little)
+      ..setUint16(32, 2, Endian.little)
+      ..setUint16(34, 16, Endian.little);
+    text(36, 'data');
+    data.setUint32(40, length * 2, Endian.little);
+    for (var i = 0; i < length; i++) {
+      final t = i / rate;
+      final attack = math.min(1.0, t / 0.001);
+      final v = math.sin(2 * math.pi * hertz * t) * attack * math.exp(-t / 0.008);
+      data.setInt16(44 + i * 2, (v * 32767).round(), Endian.little);
+    }
+    return data.buffer.asUint8List();
+  }
 }
