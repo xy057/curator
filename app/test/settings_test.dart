@@ -106,6 +106,30 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('the window\'s outline cross-fades with the theme, in step with the other lines', (tester) async {
+    await open(tester);
+    await tester.tap(find.text('Appearance'));
+    await tester.pumpAndSettle();
+    final window = tester.getRect(find.byType(Material).at(2));
+    final theme = tester.getRect(find.byType(SegmentedButton<ThemeMode>));
+    Future<(int, int)> outlines() async => (await tester.runAsync(() async {
+          // At the view's 2× pixels: the window's left edge, and the theme switch's top edge.
+          final image = await tester.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first).toImage(pixelRatio: 2);
+          final data = (await image.toByteData())!;
+          int at(double x, double y) => data.getUint32(((y * 2).floor() * image.width + (x * 2).floor()) * 4);
+          return (at(window.left, window.center.dy), at(theme.left + 30, theme.top + 4));
+        }))!;
+    final (lightWindow, lightSwitch) = await outlines();
+    expect(lightWindow, lightSwitch);
+
+    await tester.tap(find.text('Dark'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100)); // halfway through the theme's cross-fade
+    final (midWindow, midSwitch) = await outlines();
+    expect(midSwitch, isNot(lightSwitch));
+    expect(midWindow, midSwitch);
+  });
+
   testWidgets('search finds items on every page', (tester) async {
     await open(tester);
     await tester.enterText(find.byType(TextField), 'link');
