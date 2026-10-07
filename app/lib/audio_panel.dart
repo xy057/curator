@@ -636,27 +636,28 @@ class _StartFieldState extends State<_StartField> {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.start_rounded, size: 17, color: context.colors.textMuted),
         const SizedBox(width: 4),
+        // Shaped as the time readout's field.
         SizedBox(
           width: 64,
-          height: 28,
+          height: 26,
           child: CallbackShortcuts(
             bindings: {const SingleActivator(LogicalKeyboardKey.escape): _cancel},
             child: TextField(
               controller: _text,
               focusNode: _focus,
-              style: TextStyle(fontSize: 12, color: context.colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
+              style: TextStyle(fontSize: 12.5, color: context.colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
               textAlign: TextAlign.right,
               decoration: InputDecoration(
                 isDense: true,
                 suffixText: 's',
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   borderSide: BorderSide(color: context.colors.line),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: context.colors.accent, width: 1.5),
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: context.colors.accent),
                 ),
               ),
               onSubmitted: (_) {
