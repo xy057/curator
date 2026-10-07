@@ -187,6 +187,7 @@ class ScoreSwap {
         captions: separateCaptions(captions),
         captionFont: state.captionFont,
         fonts: state.fonts,
+        engraving: state.engraving,
         view: state.view,
       ),
       lost: (

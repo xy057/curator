@@ -16,8 +16,8 @@ class AppMenus extends StatelessWidget {
     this.recentFiles = const [],
     this.onOpenRecent,
     this.onClearRecent,
+    this.onProjectSettings,
     this.onCondensing,
-    this.onFonts,
     this.onAddRecording,
     this.onReplaceScore,
     this.onExportVideo,
@@ -49,9 +49,11 @@ class AppMenus extends StatelessWidget {
   /// File ▸ Close: back to the start screen; null (greyed out) while nothing is open.
   final VoidCallback? onClose;
 
+  /// Score ▸ Project Settings… (⇧⌘,); null (greyed out) while nothing is open.
+  final VoidCallback? onProjectSettings;
+
   /// Score menu; null (greyed out) while nothing is open.
   final VoidCallback? onCondensing;
-  final VoidCallback? onFonts;
   final VoidCallback? onAddRecording;
   final VoidCallback? onReplaceScore;
 
@@ -114,10 +116,10 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(label: 'Export Video…', shortcut: _key(LogicalKeyboardKey.keyE), onSelected: onExportVideo),
           ]),
-          if (!_mac)
-            PlatformMenuItemGroup(members: [
-              PlatformMenuItem(label: 'Settings…', shortcut: _key(LogicalKeyboardKey.comma), onSelected: onSettings),
-            ]),
+          // The app's settings; on macOS the Curator menu has them too, with the shortcut.
+          PlatformMenuItemGroup(members: [
+            PlatformMenuItem(label: 'Settings…', shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
+          ]),
         ]),
         PlatformMenu(label: 'Edit', menus: [
           PlatformMenuItemGroup(members: [
@@ -144,9 +146,14 @@ class AppMenus extends StatelessWidget {
         ]),
         PlatformMenu(label: 'Score', menus: [
           PlatformMenuItem(label: 'Condensing…', onSelected: onCondensing),
-          PlatformMenuItem(label: 'Fonts…', onSelected: onFonts),
           PlatformMenuItem(label: 'Add Recording…', onSelected: onAddRecording),
           PlatformMenuItem(label: 'Replace Score…', onSelected: onReplaceScore),
+          PlatformMenuItemGroup(members: [
+            PlatformMenuItem(
+                label: 'Project Settings…',
+                shortcut: _key(LogicalKeyboardKey.comma, shift: true),
+                onSelected: onProjectSettings),
+          ]),
         ]),
         if (_mac)
           const PlatformMenu(label: 'Window', menus: [

@@ -161,7 +161,9 @@ class EngraveOption {
   ];
 }
 
-/// The user's engraving options: only those changed from the house style.
+/// The user's engraving options: only those changed from the house style. The app's keep
+/// only values other than the default; a project's ([keepDefault]) keep every value set, so
+/// one set back to the house style's still wins [over] the app's.
 class EngravingOptions {
   const EngravingOptions() : overrides = const {};
   EngravingOptions._(Map<String, Object> overrides) : overrides = Map.unmodifiable(overrides);
@@ -175,21 +177,26 @@ class EngravingOptions {
 
   bool isChanged(EngraveOption option) => overrides.containsKey(option.key);
 
-  /// With [option] set to [value]; its default (or null) removes the override.
-  EngravingOptions withValue(EngraveOption option, Object? value) {
+  /// With [option] set to [value]; null removes the override, and so does its default
+  /// unless [keepDefault].
+  EngravingOptions withValue(EngraveOption option, Object? value, {bool keepDefault = false}) {
     final v = option.coerce(value);
     final next = {...overrides}..remove(option.key);
-    if (v != null && v != option.defaultValue) next[option.key] = v;
+    if (v != null && (keepDefault || v != option.defaultValue)) next[option.key] = v;
     return EngravingOptions._(next);
   }
 
+  /// These options set over [base]'s: each of [base]'s unless set here.
+  EngravingOptions over(EngravingOptions base) =>
+      isEmpty ? base : EngravingOptions._({...base.overrides, ...overrides});
+
   /// Read back from [toJson], dropping anything unknown or out of place.
-  factory EngravingOptions.fromJson(Object? json) {
+  factory EngravingOptions.fromJson(Object? json, {bool keepDefault = false}) {
     var options = const EngravingOptions();
     if (json is! Map) return options;
     for (final MapEntry(:key, :value) in json.entries) {
       final option = key is String ? EngraveOption.byKey(key) : null;
-      if (option != null) options = options.withValue(option, value);
+      if (option != null) options = options.withValue(option, value, keepDefault: keepDefault);
     }
     return options;
   }

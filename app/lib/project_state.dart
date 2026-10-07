@@ -44,11 +44,12 @@ class ProjectState {
     this.captions = const [],
     this.captionFont,
     this.fonts = ScoreFonts.standard,
+    this.engraving = const EngravingOptions(),
     this.view = const ViewState(),
   });
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 12;
+  static const version = 13;
 
   /// When each instrument is shown, with each region's own properties; null when the project
   /// has none saved (they are then filled from where each part plays).
@@ -101,6 +102,9 @@ class ProjectState {
   /// with the project (`fonts/<name>.font` and its SMuFL metadata, `fonts/<name>.json`).
   final ScoreFonts fonts;
 
+  /// The engraving options this project sets over the app's (Project Settings ▸ Engraving).
+  final EngravingOptions engraving;
+
   final ViewState view;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
@@ -117,6 +121,7 @@ class ProjectState {
     9: (state) => state, // an image's ink came in 10: none is its own colours
     10: (state) => state, // captions came in 11: none
     11: (state) => state, // a caption font came in 12: none is the app's
+    12: (state) => state, // a project's engraving options came in 13: none, the app's
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -203,6 +208,8 @@ class ProjectState {
         final f => f,
       },
       fonts: _fonts(r.child('fonts'), fontFiles),
+      // An option this version doesn't know (or no longer offers) is left out, as the app's are.
+      engraving: EngravingOptions.fromJson(r.map('engraving'), keepDefault: true),
       view: ViewState(
         staffSpace: view.number('staffSpace'),
         grid: switch (view.string('grid')) {
@@ -307,6 +314,7 @@ class ProjectState {
             if (fonts.text != TextFonts.academico) 'text': fonts.text,
             'caption': ?captionFont,
           },
+        if (!engraving.isEmpty) 'engraving': engraving.toJson(),
         'textEdits': textEdits,
         'condensed': [...condensed],
         'pairs': [for (final p in pairs) p.partIds],

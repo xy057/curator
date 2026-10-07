@@ -358,7 +358,7 @@ class _CaptionDialogState extends State<_CaptionDialog> {
 }
 
 /// How long a region's staff glides at one edge: the project's transition (null, whatever it
-/// becomes in Settings ▸ Animation) or one of the usual lengths.
+/// becomes in Project Settings ▸ Animation) or one of the usual lengths.
 class _TransitionField extends StatelessWidget {
   const _TransitionField({required this.label, required this.value, required this.project, required this.onChanged});
   final String label;

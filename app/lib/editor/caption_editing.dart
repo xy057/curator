@@ -21,7 +21,7 @@ class CaptionEditing {
 
   // MARK: Look
 
-  /// The font captions are drawn in, chosen for this project (Score ▸ Fonts…): a text font
+  /// The font captions are drawn in, chosen for this project (Project Settings ▸ Fonts): a text font
   /// family; null: the app's ([defaultFont]). An edit.
   String? get font => _font;
   String? _font;

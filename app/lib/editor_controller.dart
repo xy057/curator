@@ -129,7 +129,8 @@ class EditorController extends ChangeNotifier {
     String? mediaPath,
     String? mediaOriginal,
   }) async {
-    final score = await _engrave(scoreBytes, textEdits: state.textEdits, pairs: state.pairs, fonts: state.fonts);
+    final score = await _engrave(scoreBytes,
+        textEdits: state.textEdits, pairs: state.pairs, fonts: state.fonts, engraving: state.engraving);
     final arts = await ImageEditing._decodeAll(state.images);
     await _install(name, scoreBytes, score, state, arts: arts);
     if (mediaPath == null) return null;
@@ -158,7 +159,8 @@ class EditorController extends ChangeNotifier {
       textsBefore: before.texts,
       textsAfter: PreparedScore.prepare(ScoreMetadata.parse(xml), const {}).texts,
     );
-    final score = await _engrave(bytes, textEdits: swap.textEdits(_textEdits), pairs: swap.pairs(_pairs), fonts: _fonts);
+    final score = await _engrave(bytes,
+        textEdits: swap.textEdits(_textEdits), pairs: swap.pairs(_pairs), fonts: _fonts, engraving: _projectEngraving);
     if (_score != before) throw StateError('Another score was opened meanwhile.');
     final state = projectState;
     final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
@@ -190,12 +192,13 @@ class EditorController extends ChangeNotifier {
   Future<LoadedScore> _engrave(Uint8List bytes,
       {Map<String, String> textEdits = const {},
       List<PlayerPair> pairs = const [],
-      ScoreFonts fonts = ScoreFonts.standard}) async {
+      ScoreFonts fonts = ScoreFonts.standard,
+      EngravingOptions engraving = const EngravingOptions()}) async {
     _loading = true;
     notifyListeners();
     try {
       return await LoadedScore.load(ScoreFile.decodeMusicXML(bytes),
-          textEdits: textEdits, pairs: pairs, fonts: fonts, options: _engravingOptions);
+          textEdits: textEdits, pairs: pairs, fonts: fonts, options: engraving.over(_engravingOptions));
     } finally {
       _loading = false;
       if (!_disposed) notifyListeners();
@@ -227,6 +230,7 @@ class EditorController extends ChangeNotifier {
     _condensed = Set.unmodifiable({for (final g in condensable) if (state.condensed.contains(g.id)) g.id});
     _partOrder = CuratedScene.orderedPartIds(score.metadata.parts, state.partOrder);
     _fonts = state.fonts;
+    _projectEngraving = state.engraving;
     if (!_fonts.music.isBundled && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
     images._load(state.patches, state.images, arts);
     captions._load(state.captions, state.captionFont);
@@ -293,6 +297,7 @@ class EditorController extends ChangeNotifier {
     _pairs = const [];
     _partOrder = const [];
     _fonts = ScoreFonts.standard;
+    _projectEngraving = const EngravingOptions();
     _tab = BottomTab.instruments;
   }
 
@@ -359,7 +364,7 @@ class EditorController extends ChangeNotifier {
   bool get isReengraving => _reengraving || _preparingFonts > 0;
   int _preparingFonts = 0;
 
-  /// The Verovio options scores are engraved with (Settings ▸ Advanced, for every score). Not
+  /// The Verovio options scores are engraved with (Settings ▸ Advanced, for every project; under [projectEngraving]). Not
   /// an edit: changing them re-engraves what is open, and the project stays as it was.
   EngravingOptions get engravingOptions => _engravingOptions;
   EngravingOptions _engravingOptions = const EngravingOptions();
@@ -367,6 +372,22 @@ class EditorController extends ChangeNotifier {
     if (value == _engravingOptions) return;
     _engravingOptions = value;
     if (_score != null) unawaited(_reengrave());
+  }
+
+  /// The options this project sets over [engravingOptions] (Project Settings ▸ Engraving):
+  /// an edit, saved with the project.
+  EngravingOptions get projectEngraving => _projectEngraving;
+  EngravingOptions _projectEngraving = const EngravingOptions();
+
+  /// Engraves the score with [options] over the app's: one Undo step. The future completes
+  /// when it is engraved.
+  Future<void> setProjectEngraving(EngravingOptions options) async {
+    if (_score == null || options == _projectEngraving) return;
+    _projectEngraving = options;
+    final engraved = _reengrave();
+    _edited(); // one Undo step, right away
+    notifyListeners();
+    await engraved;
   }
 
   /// Changes score texts (id → new text; '' removes it; null restores the original) and
@@ -422,7 +443,8 @@ class EditorController extends ChangeNotifier {
   @protected
   @visibleForTesting
   Future<LoadedScore> engraveAgain(LoadedScore score) =>
-      score.withEdits(textEdits: _textEdits, pairs: _pairs, fonts: _fonts, options: _engravingOptions);
+      score.withEdits(
+          textEdits: _textEdits, pairs: _pairs, fonts: _fonts, options: _projectEngraving.over(_engravingOptions));
 
   /// Why the latest re-engraving failed, the score showing as it was before; null once one
   /// succeeds. Undo can step back from the edit that caused it.
@@ -444,7 +466,7 @@ class EditorController extends ChangeNotifier {
 
   ScoreFonts _fonts = ScoreFonts.standard;
 
-  /// The music and text fonts the score is engraved in (Score ▸ Fonts…). The engraving
+  /// The music and text fonts the score is engraved in (Project Settings ▸ Fonts). The engraving
   /// catches up a moment later ([isReengraving]).
   ScoreFonts get fonts => _fonts;
 
@@ -797,6 +819,7 @@ class EditorController extends ChangeNotifier {
         captions: captions._captions,
         captionFont: captions._font,
         fonts: _fonts,
+        engraving: _projectEngraving,
       );
 
   /// How many steps Undo can go back.
@@ -843,11 +866,14 @@ class EditorController extends ChangeNotifier {
     if (state == null || _score == null) return;
     _restoring = true;
     try {
-      final reengrave =
-          !mapEquals(state.textEdits, _textEdits) || !listEquals(state.pairs, _pairs) || state.fonts != _fonts;
+      final reengrave = !mapEquals(state.textEdits, _textEdits) ||
+          !listEquals(state.pairs, _pairs) ||
+          state.fonts != _fonts ||
+          state.engraving != _projectEngraving;
       _textEdits = state.textEdits;
       _pairs = state.pairs;
       _fonts = state.fonts;
+      _projectEngraving = state.engraving;
       _condensed = state.condensed;
       _scene?.condensed = _condensed;
       if (reengrave) unawaited(_reengrave());
@@ -901,6 +927,7 @@ class EditorController extends ChangeNotifier {
         captions: captions._captions,
         captionFont: captions._font,
         fonts: _fonts,
+        engraving: _projectEngraving,
         view: ViewState(
           staffSpace: _staffSpace,
           grid: anchors.grid,

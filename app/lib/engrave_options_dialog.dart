@@ -11,16 +11,21 @@ import 'ui_kit.dart';
 /// Settings ▸ Advanced ▸ Engrave Option: every Verovio option that is safe to change
 /// ([EngraveOption.all]) by its code name, for those who know Verovio. A change is saved at
 /// once (for every score) and re-engraves the open score, shown beside the list.
-Future<void> showEngraveOptionsDialog(BuildContext context, AppSettings settings, {EditorController? controller}) =>
+///
+/// With [project] (Project Settings ▸ Advanced), the open project's own, over the app's: each
+/// change an edit, a reset going back to the app's value.
+Future<void> showEngraveOptionsDialog(BuildContext context, AppSettings settings,
+        {EditorController? controller, bool project = false}) =>
     showAppDialog<void>(
       context: context,
-      builder: (context) => _EngraveOptionsDialog(settings: settings, controller: controller),
+      builder: (context) => _EngraveOptionsDialog(settings: settings, controller: controller, project: project),
     );
 
 class _EngraveOptionsDialog extends StatefulWidget {
-  const _EngraveOptionsDialog({required this.settings, this.controller});
+  const _EngraveOptionsDialog({required this.settings, this.controller, required this.project});
   final AppSettings settings;
   final EditorController? controller;
+  final bool project;
 
   @override
   State<_EngraveOptionsDialog> createState() => _EngraveOptionsDialogState();
@@ -33,6 +38,17 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
   late double _time = widget.controller?.playback.time.value ?? 0;
 
   AppSettings get settings => widget.settings;
+  bool get project => widget.project && widget.controller != null;
+
+  /// The options this dialog changes: the project's, or the app's.
+  EngravingOptions get _own => project ? widget.controller!.projectEngraving : settings.engravingOptions;
+  set _own(EngravingOptions options) {
+    if (project) {
+      widget.controller!.setProjectEngraving(options);
+    } else {
+      settings.engravingOptions = options;
+    }
+  }
 
   @override
   void dispose() {
@@ -70,7 +86,8 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
 
   Widget _list(BuildContext context) {
     final colors = context.colors;
-    final options = settings.engravingOptions;
+    final own = _own, base = settings.engravingOptions;
+    final options = project ? own.over(base) : own;
     final q = _search.text.trim().toLowerCase();
     final shown = [for (final o in EngraveOption.all) if (o.key.toLowerCase().contains(q)) o];
     final border = OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: colors.line));
@@ -99,7 +116,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
           IconButton(
             icon: const Icon(Icons.restart_alt_rounded, size: 18),
             tooltip: 'Reset all',
-            onPressed: options.isEmpty ? null : () => settings.engravingOptions = const EngravingOptions(),
+            onPressed: own.isEmpty ? null : () => _own = const EngravingOptions(),
           ),
           IconButton(
             icon: const Icon(Icons.close_rounded, size: 18),
@@ -118,8 +135,10 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
             return _OptionRow(
               option: option,
               value: options.valueOf(option),
-              changed: options.isChanged(option),
-              onChanged: (v) => settings.engravingOptions = settings.engravingOptions.withValue(option, v),
+              changed: own.isChanged(option),
+              // The house style's, or in a project the app's.
+              base: project ? 'app ${formatOptionValue(base.valueOf(option))}' : 'default ${formatOptionValue(option.defaultValue)}',
+              onChanged: (v) => _own = _own.withValue(option, v, keepDefault: project),
             );
           },
         ),
@@ -194,10 +213,14 @@ class _PreviewPainter extends CustomPainter {
 
 /// One option: its code name, its value, and a reset once changed.
 class _OptionRow extends StatelessWidget {
-  const _OptionRow({required this.option, required this.value, required this.changed, required this.onChanged});
+  const _OptionRow(
+      {required this.option, required this.value, required this.changed, required this.base, required this.onChanged});
   final EngraveOption option;
   final Object value;
   final bool changed;
+
+  /// What a reset goes back to, as the hover text says it ("default 0.62").
+  final String base;
   final ValueChanged<Object?> onChanged;
 
   @override
@@ -229,7 +252,7 @@ class _OptionRow extends StatelessWidget {
       child: Row(children: [
         Expanded(
           child: Tip(
-            message: '${range}default ${formatOptionValue(option.defaultValue)}',
+            message: '$range$base',
             waitDuration: const Duration(milliseconds: 500),
             child: Text(
               option.key,

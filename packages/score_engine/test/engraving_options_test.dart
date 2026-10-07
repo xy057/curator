@@ -95,6 +95,19 @@ void main() {
     expect(options.isEmpty, isTrue);
   });
 
+  test("a project's options win over the app's, one set back to the default too", () {
+    final curve = EngraveOption.byKey('slurCurveFactor')!, spacing = EngraveOption.byKey('spacingLinear')!;
+    final app = const EngravingOptions().withValue(curve, 3).withValue(spacing, 0.8);
+    final project = const EngravingOptions().withValue(curve, curve.defaultValue, keepDefault: true);
+    expect(project.isChanged(curve), isTrue);
+    final both = project.over(app);
+    expect(both.valueOf(curve), curve.defaultValue);
+    expect(both.valueOf(spacing), 0.8);
+    expect(const EngravingOptions().over(app), app);
+    expect(EngravingOptions.fromJson(project.toJson(), keepDefault: true), project);
+    expect(EngravingOptions.fromJson(project.toJson()).isEmpty, isTrue);
+  });
+
   test('options restyle the engraving but keep its bars', () async {
     final xml = demoScore();
     final plain = await LoadedScore.load(xml);
