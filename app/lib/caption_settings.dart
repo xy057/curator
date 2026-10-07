@@ -5,7 +5,7 @@ import 'app_colors.dart';
 import 'app_settings.dart';
 
 /// Settings ▸ Extension ▸ Captions ▸ settings: how captions look in every project. A project
-/// may choose its own font (Score ▸ Fonts…).
+/// may choose its own font (Project Settings ▸ Fonts).
 class CaptionSettings extends StatefulWidget {
   const CaptionSettings({super.key, required this.settings});
   final AppSettings settings;

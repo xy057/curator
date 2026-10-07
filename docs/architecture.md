@@ -10,7 +10,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `src/verovio_bridge.cpp` | A Verovio device context that records drawing calls (paths, glyphs, text) per staff, plus measures, onsets and clef/key/time signatures, behind a C API |
-| `engraving_options.dart` | The Verovio options the user may change (Settings ▸ Advanced ▸ Engrave Option, by code name) and the house style's values for them |
+| `engraving_options.dart` | The Verovio options the user may change (Settings ▸ Advanced ▸ Engrave Option, by code name; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
 | `lib/src/native/bindings.dart`, `engraving.dart` | FFI bindings; `Engraver.engrave` runs Verovio on an isolate and copies everything into plain Dart data (`EngravingData`) |
 | `score_metadata.dart`, `score_text.dart` | What the MusicXML says: parts, staves, meters, where each part plays; the editable texts, with text edits applied before engraving |
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
@@ -38,7 +38,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Purge unused |
 | `caption_settings.dart` | Settings ▸ Extension ▸ Captions' own settings: font, position, countdown, size, with a preview |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
-| `fonts_dialog.dart` | Score ▸ Fonts…: the music and text font a project is engraved in |
+| `settings_dialog.dart` | Settings… (⌘,, the app's) and File ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
+| `font_settings.dart` | Project Settings ▸ Fonts: the music and text font a project is engraved in, and its caption font |
 | `score_replacement.dart` | Score ▸ Replace Score…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned); Undo's snapshots |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -179,7 +180,7 @@ font, position (`CaptionPosition`: under the staves or above them, which then si
 the bar's room), countdown (`CaptionCountdown`: the hairline, a ring left of the text that
 empties clockwise, or none) and size (`CaptionSize`; the room grows with it). Position,
 countdown and size are the app's (the extension's settings button; `AppSettings.caption*`,
-not edits). The font is the project's when it has one (Score ▸ Fonts… ▸ Caption, shown while
+not edits). The font is the project's when it has one (Project Settings ▸ Fonts ▸ Caption, shown while
 the switch is on: an edit, saved as `fonts.caption` from format 12), else the app's ('' is the
 score's text font); an installed family is read and registered before it is drawn
 (`CaptionEditing._applyStyle`, the latest call winning), and one not installed here falls back
@@ -254,7 +255,7 @@ a `Select` (ui_kit.dart) only when what they show changes; painters listen for t
 
 **One Undo for the whole document.** After every change the controller compares the
 document's `EditState` (everything a project saves but the view: lanes, transition, sync,
-MIDI, names, texts, condensing, order, images, fonts) with the last one recorded; a difference is one step. A gesture is one step: wrap it in `beginEdit` /
+MIDI, names, texts, condensing, order, images, fonts, engraving options) with the last one recorded; a difference is one step. A gesture is one step: wrap it in `beginEdit` /
 `endEdit`. The models keep no history of their own. View settings (staff size, grid, playhead)
 are not edits.
 
@@ -337,9 +338,12 @@ Verovio's code with `[curated-score patch]`.
 **Engraving options: offered ones only, the layout ones fixed.** The bridge
 (`vb_engraver_create`) fixes what the curated view relies on: one endless system (`breaks`
 none), no header, footer or page margins, `scale` 100. Dart then sends every option in
-`EngraveOption.all`, with the house style's value unless the user changed it (Settings ▸
-Advanced, app-wide, in `AppSettings`; not part of a project, not an edit), so the house style
-lives in that list alone. Only its options are ever sent, so none of the fixed ones can be
+`EngraveOption.all`, with the house style's value unless the user changed it, so the house
+style lives in that list alone. They are set twice over: the app's (Settings ▸ Advanced, in
+`AppSettings`; not part of a project, not an edit), and the open project's over them (Project
+Settings ▸ Advanced, `EditorController.projectEngraving`: an edit, saved as `state.engraving`
+from format 13). A project's keep a value set back to the house style's (`keepDefault`), so
+it still wins over the app's; a reset there goes back to the app's value. Only its options are ever sent, so none of the fixed ones can be
 overridden; none may change the bars or the staves (`expand`, `transpose`, `mdiv*` stay out).
 Their types, ranges and choices are checked against Verovio's own list
 (`Engraver.availableOptions`); an out-of-range value would be dropped by Verovio without a
@@ -374,7 +378,7 @@ semantics (`alwaysIncludeSemantics: true`). `test/accessibility_tree_test.dart` 
 update through a model of the engine's tree (`test/accessibility_mirror.dart`).
 
 **Fonts: engraving and drawing agree.** Verovio lays out with the metrics of the same fonts
-the renderer draws. A project chooses its fonts (Score ▸ Fonts…, `ScoreFonts`: an edit,
+the renderer draws. A project chooses its fonts (Project Settings ▸ Fonts, `ScoreFonts`: an edit,
 `fonts` in `EditState`, saved from format 9; changing it re-engraves, as a text edit does).
 Music: a bundled SMuFL font (Bravura, Leland, Petaluma, Leipzig, Gootville: each an OTF in
 pubspec and Verovio's own metrics in `assets/verovio/<Name>.xml`; Leipzig's are there anyway
@@ -438,7 +442,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
 ## Adding things
 
 - **A setting**: an `_Item` in `settings_dialog.dart`'s `_categories`, backed by a field in
-  `AppSettings`. Settings of first-party components that are not part of the main work
+  `AppSettings`; a project's own, in `_projectCategories`, backed by an edit (see *Something a
+  project saves*), so Settings holds only what is the same for every project. Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extension**.
 - **An extension**: a value of `AppExtension` (`app_extensions.dart`: its name, icon, version,
   one-line summary, search words, its own settings (`settings`, a dialog's content, or null)
