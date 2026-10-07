@@ -11,7 +11,6 @@ import 'package:curated_score/edit_dialogs.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/engrave_options_dialog.dart';
 import 'package:curated_score/export_dialog.dart';
-import 'package:curated_score/fonts_dialog.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/score_view.dart';
@@ -124,10 +123,12 @@ void main() {
     final dialogs = <String, void Function()>{
       'Export Video': () => showExportDialog(context(), c, settings, suggestedName: 'Demo'),
       'Engrave Option': () => showEngraveOptionsDialog(context(), settings, controller: c),
+      "The project's Engrave Option": () => showEngraveOptionsDialog(context(), settings, controller: c, project: true),
       'Condensing': () => showCondensingDialog(context(), c),
       'Rename': () => showRenameDialog(context(), c, c.score!.metadata.parts.first),
       'Warp': () => showAnchorDialog(context(), beats: c.beats, quarter: 9, jumpTo: 0, warp: true),
       'Settings': () => showSettingsDialog(context(), settings, controller: c),
+      'Project Settings': () => showProjectSettingsDialog(context(), settings, c),
     };
     Future<void> openEach(Map<String, void Function()> dialogs) async {
       for (final MapEntry(key: name, value: open) in dialogs.entries) {
@@ -163,7 +164,7 @@ void main() {
       'Add Caption': () => showCaptionDialog(context(), c, draft: Caption(bar[6], bar[8], '')),
       'Captions': () => showCaptionsDialog(context(), c),
       'Manage assets': () => showAssetsDialog(context(), c),
-      'Fonts': () => showFontsDialog(context(), c),
+      'Project Settings ▸ Fonts': () => showProjectSettingsDialog(context(), settings, c, page: 'Fonts'),
       'Captions settings': () => showAppDialog<void>(
           context: context(),
           builder: (context) => AlertDialog(content: Builder(builder: (context) => AppExtension.captions.settings!(context, settings)))),

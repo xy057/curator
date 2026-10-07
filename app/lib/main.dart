@@ -24,7 +24,6 @@ import 'edit_dialogs.dart';
 import 'editor_toolbar.dart';
 import 'error_text.dart';
 import 'export_dialog.dart';
-import 'fonts_dialog.dart';
 import 'home_screen.dart';
 import 'media_converter.dart';
 import 'project_document.dart';
@@ -686,7 +685,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   void _condensing() => showCondensingDialog(context, controller);
-  void _fonts() => showFontsDialog(context, controller);
+  void _projectSettings() => showProjectSettingsDialog(context, settings, controller);
   void _addRecording() => pickAudio(context, controller);
 
   /// Score ▸ Replace Score…: another score file under this project's edits and recording;
@@ -736,8 +735,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onOpenRecent: _openPath,
           onClearRecent: settings.clearRecent,
           onClose: _hasScore.value ? _close : null,
+          onProjectSettings: _hasScore.value ? _projectSettings : null,
           onCondensing: _hasScore.value ? _condensing : null,
-          onFonts: _hasScore.value ? _fonts : null,
           onAddRecording: _hasScore.value ? _addRecording : null,
           onReplaceScore: _hasScore.value ? _replaceScore : null,
           onExportVideo: _canExport.value ? _exportVideo : null,

@@ -5,10 +5,10 @@ import 'dart:ui' as ui;
 import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
-import 'package:curated_score/fonts_dialog.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:curated_score/score_view.dart';
+import 'package:curated_score/settings_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,7 +17,7 @@ import 'package:score_engine/score_engine.dart';
 import 'test_fonts.dart';
 
 void main() {
-  testWidgets('Captions settings style every project; Score ▸ Fonts… has a caption font while Captions is on', (tester) async {
+  testWidgets('Captions settings style every project; Project Settings ▸ Fonts has a caption font while Captions is on', (tester) async {
     await tester.runAsync(loadTestFonts);
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
@@ -54,10 +54,10 @@ void main() {
     await tester.runAsync(TextFonts.installed);
 
     // Off: no caption font.
-    unawaited(showFontsDialog(tester.element(find.byType(HomePage)), c));
+    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
     await settle();
     expect(find.text('Caption'), findsNothing);
-    Navigator.of(tester.element(find.text('Fonts'))).pop();
+    Navigator.of(tester.element(find.text('Music'))).pop();
     await settle();
 
     settings.captions = true;
@@ -83,7 +83,7 @@ void main() {
     await shot('caption-top-ring', find.byType(ScoreView));
 
     // The project's own font, an Undo step, saved.
-    unawaited(showFontsDialog(tester.element(find.byType(HomePage)), c));
+    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
     await settle();
     expect(find.text('Caption'), findsOneWidget);
     await tester.tap(find.byType(DropdownMenu<String>).last);
@@ -92,8 +92,8 @@ void main() {
     await settle();
     expect(c.captions.font, TextFonts.academico);
     expect(c.scene!.captionStyle.fontFamily, TextFonts.familyOf(TextFonts.academico));
-    await shot('fonts-caption', find.byType(AlertDialog));
-    Navigator.of(tester.element(find.text('Fonts'))).pop();
+    await shot('fonts-caption', find.text('Music'));
+    Navigator.of(tester.element(find.text('Music'))).pop();
     await settle();
     expect(ProjectState.fromJson(c.projectState.toJson()).captionFont, TextFonts.academico);
     expect(AppExtension.usedBy(c), [AppExtension.captions]);

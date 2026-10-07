@@ -70,8 +70,8 @@ void main() {
     await tester.tap(find.text('Animation'));
     await tester.pumpAndSettle();
     expect(find.text('Staff transition'), findsOneWidget);
-    expect(find.textContaining('Open a project'), findsOneWidget, reason: 'the project\'s own needs a project');
-    await tester.tap(find.text('0.3 s')); // For new projects
+    expect(find.text('For new projects.'), findsOneWidget, reason: "a project's own is in Project Settings");
+    await tester.tap(find.text('0.3 s'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('0.8 s').last);
     await tester.pumpAndSettle();

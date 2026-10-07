@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show verovioVersion;
+import 'package:score_engine/score_engine.dart' show EngravingOptions, verovioVersion;
 
 import 'app_colors.dart';
 import 'app_extensions.dart';
@@ -11,11 +11,13 @@ import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'engrave_options_dialog.dart';
 import 'export_dialog.dart' show revealInFileManager;
+import 'font_settings.dart';
 import 'project_file.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
 
-/// Settings… (⌘,): categories on the left, each a page of items on the right.
+/// Settings… (⌘,): the app's, for every project. Categories on the left, each a page of
+/// items on the right.
 ///
 /// Adding a setting is one [_Item] in [_categories]; adding a page is one [_Category]. The
 /// search field filters items across every page. [page] (a category's label) opens that page.
@@ -26,18 +28,39 @@ Future<void> showSettingsDialog(
   Updater? updater,
   String? page,
 }) =>
-    showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Close settings',
-      barrierColor: Colors.black.withValues(alpha: 0.2),
-      transitionDuration: const Duration(milliseconds: 160),
-      pageBuilder: (context, _, _) => _SettingsWindow(
+    _showWindow(
+      context,
+      _SettingsWindow(
+        kind: _Window.app,
         settings: settings,
         controller: controller,
         updater: updater ?? Updater(),
         page: page,
       ),
+    );
+
+/// File ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
+/// ([_projectCategories]). Each change is an edit: an Undo step, saved with the project.
+Future<void> showProjectSettingsDialog(BuildContext context, AppSettings settings, EditorController controller,
+        {String? page}) =>
+    _showWindow(
+      context,
+      _SettingsWindow(
+        kind: _Window.project,
+        settings: settings,
+        controller: controller,
+        updater: Updater(), // nothing here asks it
+        page: page,
+      ),
+    );
+
+Future<void> _showWindow(BuildContext context, _SettingsWindow window) => showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close settings',
+      barrierColor: Colors.black.withValues(alpha: 0.2),
+      transitionDuration: const Duration(milliseconds: 160),
+      pageBuilder: (context, _, _) => window,
       transitionBuilder: (context, animation, _, child) {
         final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeOutCubic.flipped);
         return FadeTransition(
@@ -48,10 +71,21 @@ Future<void> showSettingsDialog(
       },
     );
 
+/// Which settings a window shows: the app's or the open project's.
+enum _Window {
+  app,
+  project;
+
+  List<_Category> get categories => this == app ? _categories : _projectCategories;
+}
+
 /// One setting: a title and help on the left, its control on the right.
 class _Item {
-  const _Item(this.title, this.help, this.control, {this.note, this.keywords = ''});
+  const _Item(this.title, this.help, this.control, {this.note, this.keywords = '', this.shown});
   final String title;
+
+  /// Whether it is offered now (on its page and in the search); null: always.
+  final bool Function(_Context)? shown;
 
   /// Small and muted after the title (a version).
   final String? note;
@@ -128,20 +162,9 @@ final _categories = <_Category>[
   _Category('Animation', Icons.animation_rounded, [
     _Item(
       'Staff transition',
-      (c) => c.controller?.curation == null
-          ? 'Open a project to set how its staves glide in and out.'
-          : 'How long a staff takes to glide in or out, in this project. Regions can have their own: select them and pick one in the Instruments tab, or double-click one.',
-      (c) => _TransitionPicker(
-        value: c.controller?.curation?.transition,
-        onChanged: (s) => c.controller?.setTransition(s),
-      ),
-      keywords: 'fade duration enter leave project',
-    ),
-    _Item(
-      'For new projects',
-      (_) => 'What a newly imported score starts with.',
+      (_) => 'For new projects.',
       (c) => _TransitionPicker(value: c.settings.transition, onChanged: (s) => c.settings.transition = s),
-      keywords: 'fade duration enter leave default',
+      keywords: 'fade duration enter leave glide default',
     ),
     _Item(
       'Scrolling',
@@ -195,17 +218,9 @@ final _categories = <_Category>[
   _Category('Advanced', Icons.build_outlined, [
     _Item(
       'Engraving',
-      null,
-      (c) => Builder(
-        builder: (context) => OutlinedButton(
-          onPressed: () async {
-            if (!await _confirmEngraving(context) || !context.mounted) return;
-            showEngraveOptionsDialog(context, c.settings, controller: c.controller);
-          },
-          child: const Text('Engrave Option'),
-        ),
-      ),
-      keywords: 'engrave engraving verovio options spacing slur tie beam stem thickness margin bar number lyric',
+      (c) => _changedText(c.settings.engravingOptions, 'Every project.'),
+      (c) => _EngraveOptionButton(c, project: false),
+      keywords: _engravingKeywords,
     ),
   ]),
   // The page is _AboutPage; these rows are what the search finds.
@@ -235,6 +250,62 @@ final _categories = <_Category>[
     _Item('System', null, (_) => _Value(_systemText), keywords: 'os macos windows linux architecture about'),
   ]),
 ];
+
+/// The open project's settings (File ▸ Project Settings…): each change an edit.
+final _projectCategories = <_Category>[
+  _Category('Animation', Icons.animation_rounded, [
+    _Item(
+      'Staff transition',
+      (_) => 'Regions can have their own.',
+      (c) => _TransitionPicker(value: c.controller?.curation?.transition, onChanged: (s) => c.controller?.setTransition(s)),
+      keywords: 'fade duration enter leave glide',
+    ),
+  ]),
+  _Category('Fonts', Icons.text_fields_rounded, [
+    _Item('Music', null, (c) => MusicFontPicker(controller: c.controller!), keywords: 'font smufl bravura leland petaluma notation'),
+    _Item('Text', null, (c) => TextFontPicker(controller: c.controller!), keywords: 'font academico family typeface'),
+    _Item(
+      'Caption',
+      null,
+      (c) => TextFontPicker(controller: c.controller!, caption: true),
+      shown: (c) => c.controller!.captions.enabled,
+      keywords: 'font captions family typeface',
+    ),
+  ]),
+  _Category('Advanced', Icons.build_outlined, [
+    _Item(
+      'Engraving',
+      (c) => _changedText(c.controller!.projectEngraving, 'Over the app’s.'),
+      (c) => _EngraveOptionButton(c, project: true),
+      keywords: _engravingKeywords,
+    ),
+  ]),
+];
+
+const _engravingKeywords = 'engrave engraving verovio options spacing slur tie beam stem thickness margin bar number lyric';
+
+/// How many of [options] are set, or [none] while there are none.
+String _changedText(EngravingOptions options, String none) => switch (options.overrides.length) {
+      0 => none,
+      1 => '1 changed.',
+      final n => '$n changed.',
+    };
+
+/// Opens the engraving options, the app's or the project's, after the warning.
+class _EngraveOptionButton extends StatelessWidget {
+  const _EngraveOptionButton(this.c, {required this.project});
+  final _Context c;
+  final bool project;
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton(
+        onPressed: () async {
+          if (!await _confirmEngraving(context) || !context.mounted) return;
+          showEngraveOptionsDialog(context, c.settings, controller: c.controller, project: project);
+        },
+        child: const Text('Engrave Option'),
+      );
+}
 
 /// Asked each time before the engraving options open: their values go straight to Verovio.
 Future<bool> _confirmEngraving(BuildContext context) async {
@@ -289,7 +360,8 @@ String _autosaveLabel(Duration d) => switch (d) {
     };
 
 class _SettingsWindow extends StatefulWidget {
-  const _SettingsWindow({required this.settings, this.controller, required this.updater, this.page});
+  const _SettingsWindow({required this.kind, required this.settings, this.controller, required this.updater, this.page});
+  final _Window kind;
   final AppSettings settings;
   final EditorController? controller;
   final Updater updater;
@@ -300,12 +372,16 @@ class _SettingsWindow extends StatefulWidget {
 }
 
 class _SettingsWindowState extends State<_SettingsWindow> {
-  static int _lastPage = 0; // reopens where it was left
+  static final _lastPages = <_Window, int>{}; // each window reopens where it was left
+  late final _categories = widget.kind.categories;
   late int _page = _lastPage = switch (_categories.indexWhere((c) => c.label == widget.page)) {
     -1 => _lastPage,
     final i => i,
   };
   final _search = TextEditingController();
+
+  int get _lastPage => _lastPages[widget.kind] ?? 0;
+  set _lastPage(int page) => _lastPages[widget.kind] = page;
 
   @override
   void dispose() {
@@ -321,10 +397,21 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     if (q.isEmpty) return null;
     return [
       for (final cat in _categories)
-        for (final item in cat.items)
+        for (final item in _shownItems(cat))
           if ('${cat.label} ${item.title} ${item.keywords} ${item.help?.call(_ctx) ?? ''}'.toLowerCase().contains(q)) (cat, item),
     ];
   }
+
+  /// The project closed under it (the menu bar works while it is open): it closes too.
+  bool get _closed {
+    if (widget.kind != _Window.project || widget.controller?.score != null) return false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && ModalRoute.of(context)?.isCurrent == true) Navigator.pop(context);
+    });
+    return true;
+  }
+
+  Iterable<_Item> _shownItems(_Category cat) => cat.items.where((item) => item.shown?.call(_ctx) ?? true);
 
   @override
   Widget build(BuildContext context) {
@@ -344,11 +431,13 @@ class _SettingsWindowState extends State<_SettingsWindow> {
           clipBehavior: Clip.antiAlias,
           child: ListenableBuilder(
             listenable: Listenable.merge([widget.settings, _search, widget.updater, ?widget.controller]),
-            builder: (context, _) => Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              _sidebar(context),
-              VerticalDivider(width: 1, color: colors.line),
-              Expanded(child: _content(context)),
-            ]),
+            builder: (context, _) => _closed
+                ? const SizedBox.shrink()
+                : Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    _sidebar(context),
+                    VerticalDivider(width: 1, color: colors.line),
+                    Expanded(child: _content(context)),
+                  ]),
           ),
         ),
       ),
@@ -398,7 +487,12 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         const Spacer(),
         Padding(
           padding: const EdgeInsets.only(left: 8),
-          child: Text('Curator $appVersion', style: TextStyle(fontSize: 11, color: colors.textMuted)),
+          child: Text(
+            widget.kind == _Window.project ? widget.controller?.fileName ?? '' : 'Curator $appVersion',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: colors.textMuted),
+          ),
         ),
       ]),
     );
@@ -414,13 +508,17 @@ class _SettingsWindowState extends State<_SettingsWindow> {
       page = _Page(
         key: ValueKey(_page),
         empty: cat.empty,
-        groups: [if (cat.items.isNotEmpty) (null, [for (final item in cat.items) _row(item)])],
+        groups: [if (_shownItems(cat).isNotEmpty) (null, [for (final item in _shownItems(cat)) _row(item)])],
       );
     } else {
       // One group per page, in sidebar order, each under its page's name.
       page = _Page(
         key: const ValueKey('search'),
-        empty: matches.isEmpty ? 'Try another word, such as “theme” or “update”.' : null,
+        empty: matches.isEmpty
+            ? widget.kind == _Window.project
+                ? 'Try another word, such as “font” or “transition”.'
+                : 'Try another word, such as “theme” or “update”.'
+            : null,
         groups: [
           for (final c in _categories)
             if (matches.where((m) => m.$1 == c).toList() case final inCat when inCat.isNotEmpty)
@@ -445,6 +543,11 @@ class _SettingsWindowState extends State<_SettingsWindow> {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text),
             ),
           ),
+          if (widget.kind == _Window.project && (widget.controller?.isReengraving ?? false))
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
           IconButton(
             tooltip: 'Close',
             iconSize: 18,
