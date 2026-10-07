@@ -337,6 +337,9 @@ class _SettingsWindowState extends State<_SettingsWindow> {
           color: Theme.of(context).dialogTheme.backgroundColor,
           elevation: 16,
           shadowColor: Colors.black.withValues(alpha: 0.14),
+          // Its outline follows the theme's cross-fade frame by frame, as every other line does: a
+          // Material's own shape animation would chase each frame and finish late.
+          animationDuration: Duration.zero,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.line)),
           clipBehavior: Clip.antiAlias,
           child: ListenableBuilder(
