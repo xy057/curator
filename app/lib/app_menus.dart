@@ -49,7 +49,8 @@ class AppMenus extends StatelessWidget {
   /// File ▸ Close: back to the start screen; null (greyed out) while nothing is open.
   final VoidCallback? onClose;
 
-  /// File ▸ Project Settings… (⇧⌘,); null (greyed out) while nothing is open.
+  /// File ▸ Project Settings… (⇧⌘,), and at the foot of the Score menu; null (greyed out)
+  /// while nothing is open.
   final VoidCallback? onProjectSettings;
 
   /// Score menu; null (greyed out) while nothing is open.
@@ -151,6 +152,10 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItem(label: 'Condensing…', onSelected: onCondensing),
           PlatformMenuItem(label: 'Add Recording…', onSelected: onAddRecording),
           PlatformMenuItem(label: 'Replace Score…', onSelected: onReplaceScore),
+          // Also here, where the project's other commands are; the shortcut is File's.
+          PlatformMenuItemGroup(members: [
+            PlatformMenuItem(label: 'Project Settings…', onSelected: onProjectSettings),
+          ]),
         ]),
         if (_mac)
           const PlatformMenu(label: 'Window', menus: [

@@ -8,6 +8,7 @@ import 'package:curated_score/main.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:curated_score/updater.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart' show EngraveOption, EngravingOptions;
 
@@ -157,6 +158,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Version $appVersion'), findsOneWidget);
     expect(find.textContaining('Verovio'), findsOneWidget);
+  });
+
+  testWidgets('Score ▸ Project Settings… opens the project\'s settings, greyed out with nothing open', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const CuratedScoreApp());
+    Finder item() => find.widgetWithText(MenuItemButton, 'Project Settings…');
+
+    await tester.tap(find.text('Score'));
+    await tester.pump();
+    expect(item(), findsNWidgets(1));
+    expect(tester.widget<MenuItemButton>(item()).onPressed, isNull);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(item(), findsNothing);
+
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 150)); // the cross-fade into the editor
+    }
+    await tester.tap(find.text('Score'));
+    await tester.pump();
+    await tester.tap(item());
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    expect(find.text('Staff transition'), findsOneWidget);
   });
 
   testWidgets('Export Video is greyed out in the menu while the score is engraved again, as the toolbar button is', (tester) async {
