@@ -546,7 +546,7 @@ class _StartFieldState extends State<_StartField> {
   void initState() {
     super.initState();
     widget.controller.addListener(_show);
-    _focus.addListener(_show);
+    _focus.addListener(_focusChanged);
     FocusManager.instance.addListener(_track);
     _track();
     _show();
@@ -569,6 +569,19 @@ class _StartFieldState extends State<_StartField> {
     _text.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  /// Leaving the field (a click elsewhere, Tab) sets what was typed, as Enter does.
+  void _focusChanged() {
+    if (!_focus.hasFocus) _apply();
+    _show();
+  }
+
+  void _apply() {
+    final seconds = double.tryParse(_text.text), sync = widget.controller.sync;
+    if (seconds != null && sync != null && _text.text != sync.startSeconds.toStringAsFixed(2)) {
+      widget.controller.anchors.setStart(seconds);
+    }
   }
 
   /// Shows the start as it is now, unless it is being typed.
@@ -618,9 +631,8 @@ class _StartFieldState extends State<_StartField> {
                 borderSide: BorderSide(color: context.colors.accent, width: 1.5),
               ),
             ),
-            onSubmitted: (v) {
-              final seconds = double.tryParse(v);
-              if (seconds != null) widget.controller.anchors.setStart(seconds);
+            onSubmitted: (_) {
+              _apply();
               _leave();
             },
           ),

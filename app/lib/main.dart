@@ -324,6 +324,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _isSample.dispose();
     _edit.dispose();
     _shown.dispose();
+    _keys.dispose();
     _lifecycle.dispose();
     document.dispose();
     controller.dispose();
@@ -332,6 +333,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   /// While a text field has focus, keys go to it (Space, T, arrows…), not to the shortcuts.
   bool _typing = false;
+
+  /// Where the window's shortcuts listen: the keyboard comes back here from a field.
+  final _keys = FocusNode(debugLabel: 'Window shortcuts');
 
   void _focusChanged() {
     final typing =
@@ -729,55 +733,66 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       child: CallbackShortcuts(
         bindings: _typing ? const {} : _bindings,
         child: Focus(
+          focusNode: _keys,
           autofocus: true,
-          child: DropTarget(
-            onDragEntered: (d) => _dragAt(d.globalPosition),
-            onDragUpdated: (d) => _dragAt(d.globalPosition),
-            onDragExited: (_) => setState(() => _drop = null),
-            onDragDone: (details) {
-              final area = _areaAt(details.globalPosition);
-              setState(() => _drop = null);
-              if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
+          // A click outside a field of the window's (the time, Starts at) hands the keyboard
+          // back to its shortcuts, not to the route above them, where Space, T, ⌘Z… would stop.
+          child: Actions(
+            actions: {
+              EditableTextTapOutsideIntent: CallbackAction<EditableTextTapOutsideIntent>(onInvoke: (intent) {
+                if (intent.focusNode.hasFocus) _keys.requestFocus();
+                return null;
+              }),
             },
-            // Rebuilt when a score opens or closes, not at every edit: the toolbar, the score and
-            // the timeline each follow what they show.
-            child: Select(
-              listenable: Listenable.merge([controller, _shown]),
-              select: () => (score: controller.score, loading: controller.isLoading, shown: _shown.value),
-              builder: (context, _) => Scaffold(
-                body: Stack(
-                  key: _dropStack,
-                  children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 320),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      // Semantics stay through the fade (see showAppDialog: the size slider).
-                      transitionBuilder: (child, animation) => FadeTransition(
-                        opacity: animation,
-                        alwaysIncludeSemantics: true,
-                        child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(animation), child: child),
+            child: DropTarget(
+              onDragEntered: (d) => _dragAt(d.globalPosition),
+              onDragUpdated: (d) => _dragAt(d.globalPosition),
+              onDragExited: (_) => setState(() => _drop = null),
+              onDragDone: (details) {
+                final area = _areaAt(details.globalPosition);
+                setState(() => _drop = null);
+                if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
+              },
+              // Rebuilt when a score opens or closes, not at every edit: the toolbar, the score and
+              // the timeline each follow what they show.
+              child: Select(
+                listenable: Listenable.merge([controller, _shown]),
+                select: () => (score: controller.score, loading: controller.isLoading, shown: _shown.value),
+                builder: (context, _) => Scaffold(
+                  body: Stack(
+                    key: _dropStack,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 320),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        // Semantics stay through the fade (see showAppDialog: the size slider).
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          alwaysIncludeSemantics: true,
+                          child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(animation), child: child),
+                        ),
+                        child: controller.score == null
+                            ? HomeScreen(
+                                key: const ValueKey('home'),
+                                recentFiles: settings.recentFiles,
+                                onOpen: _open,
+                                onOpenRecent: _openPath,
+                                onRemoveRecent: settings.removeRecent,
+                                onClearRecent: settings.clearRecent,
+                                onOpenSample: _openSample,
+                              )
+                            : KeyedSubtree(
+                                key: const ValueKey('editor'),
+                                child: _editorSnapshot != null
+                                    ? RawImage(image: _editorSnapshot, fit: BoxFit.fill)
+                                    : RepaintBoundary(key: _editorKey, child: _editor(context)),
+                              ),
                       ),
-                      child: controller.score == null
-                          ? HomeScreen(
-                              key: const ValueKey('home'),
-                              recentFiles: settings.recentFiles,
-                              onOpen: _open,
-                              onOpenRecent: _openPath,
-                              onRemoveRecent: settings.removeRecent,
-                              onClearRecent: settings.clearRecent,
-                              onOpenSample: _openSample,
-                            )
-                          : KeyedSubtree(
-                              key: const ValueKey('editor'),
-                              child: _editorSnapshot != null
-                                  ? RawImage(image: _editorSnapshot, fit: BoxFit.fill)
-                                  : RepaintBoundary(key: _editorKey, child: _editor(context)),
-                            ),
-                    ),
-                    _Busy(visible: controller.isLoading, message: 'Engraving…'),
-                    _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: settings.attachImage),
-                  ],
+                      _Busy(visible: controller.isLoading, message: 'Engraving…'),
+                      _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: settings.attachImage),
+                    ],
+                  ),
                 ),
               ),
             ),
