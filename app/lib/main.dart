@@ -534,6 +534,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     snapshot?.dispose();
   }
 
+  /// Score ▸ Edit Texts… (deprecated: only in the menu, no longer on the toolbar).
   void _editTexts() => showTextsDialog(context, controller);
   void _condensing() => showCondensingDialog(context, controller);
   void _fonts() => showFontsDialog(context, controller);
@@ -707,7 +708,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           EditorToolbar(
             controller: controller,
             document: document,
-            onEditTexts: _editTexts,
             onExportVideo: _exportVideo,
             videoFrame: settings.previewVideoFrame,
             onVideoFrame: (on) => settings.previewVideoFrame = on,

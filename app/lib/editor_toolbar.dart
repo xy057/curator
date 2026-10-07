@@ -16,7 +16,6 @@ class EditorToolbar extends StatelessWidget {
     super.key,
     required this.controller,
     required this.document,
-    required this.onEditTexts,
     required this.onExportVideo,
     required this.videoFrame,
     required this.onVideoFrame,
@@ -27,7 +26,6 @@ class EditorToolbar extends StatelessWidget {
   });
   final EditorController controller;
   final ProjectDocument document;
-  final VoidCallback onEditTexts;
   final VoidCallback onExportVideo;
 
   /// Whether the score shows the video's frame rather than filling the window.
@@ -81,11 +79,6 @@ class EditorToolbar extends StatelessWidget {
           onPressed: c.canRedo ? c.redo : null,
         ),
         const ToolbarDivider(),
-        ToolbarButton(
-          icon: Icons.edit_note_rounded,
-          tooltip: 'Score texts…',
-          onPressed: c.isReengraving ? null : onEditTexts,
-        ),
         if (c.images.enabled)
           ToolbarButton(
             icon: Icons.photo_library_outlined,

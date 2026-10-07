@@ -229,6 +229,11 @@ selects the region (`RegionEdges.both`), a click on an edge only that edge
 (`LaneEditing.selection`); moving and deleting take the regions, trimming (a drag, `[`/`]`)
 and transitions only the edges selected. An edge with its own transition shows it beside it.
 
+**Editing the score's texts is deprecated.** Score ▸ Edit Texts… and a double-click on a
+text in the score still change them (`EditorController.editTexts`), but the toolbar no longer
+offers it; add nothing new to it. Text edits stay part of a project (`textEdits`), so files
+that have them open and engrave as before; removing the feature must keep reading them.
+
 **Widgets change the document only through `EditorController`** (and its parts). They may
 read the models (`curation`, `sync`) to draw them.
 
