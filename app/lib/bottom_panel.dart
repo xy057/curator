@@ -19,7 +19,20 @@ class BottomPanel extends StatelessWidget {
   static const _switch = Duration(milliseconds: 220);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Select(
+        listenable: controller,
+        select: () => (
+          score: controller.score,
+          curation: controller.curation,
+          sync: controller.sync,
+          tab: controller.tab,
+          captions: controller.captions.enabled,
+          duration: controller.playback.duration,
+        ),
+        builder: (context, _) => _panel(context),
+      );
+
+  Widget _panel(BuildContext context) {
     final c = controller;
     if (c.score == null || c.curation == null || c.sync == null) return const SizedBox.shrink();
     final audio = c.tab == BottomTab.audio;

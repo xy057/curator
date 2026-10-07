@@ -565,8 +565,25 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     setState(() => _cursor = SystemMouseCursors.basic);
   }
 
+  /// The lanes shown (their ids): the panel is as tall as they are.
+  List<String> get _laneIds => [for (final p in c.laneParts) p.id];
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Select(
+        listenable: c,
+        select: () => (curation: c.curation, lanes: _laneIds),
+        equals: (a, b) => a.curation == b.curation && listEquals(a.lanes, b.lanes),
+        builder: (context, _) => _lanes(context),
+      );
+
+  /// What a lane's name shows: the lanes, their names and which are selected.
+  ({List<String> ids, List<String> names, Set<String> selected}) get _headerState => (
+        ids: [for (final p in parts) p.id],
+        names: [for (final p in parts) c.laneName(p)],
+        selected: c.lanes.selectedPartIds,
+      );
+
+  Widget _lanes(BuildContext context) {
     final curation = c.curation;
     if (c.score == null || curation == null) return const SizedBox.shrink();
     return SingleChildScrollView(
@@ -580,10 +597,14 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
             width: kLaneHeaderWidth,
             child: MouseRegion(
               cursor: _lifted != null ? SystemMouseCursors.grabbing : MouseCursor.defer,
-              child: ListenableBuilder(
+              // Not at every move of a drag in the lanes: only when a name, the order or the
+              // lanes selected change (or this state does, moving a lane).
+              child: Select(
                 listenable: Listenable.merge([c, curation]),
-                builder: (context, _) {
-                  final selectedLanes = c.lanes.selectedPartIds;
+                select: () => _headerState,
+                equals: (a, b) => listEquals(a.ids, b.ids) && listEquals(a.names, b.names) && setEquals(a.selected, b.selected),
+                builder: (context, shown) {
+                  final selectedLanes = shown.selected;
                   final hovered = _hoverGroup;
                   final blocks = _heldBlocks(kLaneHeaderWidth);
                   Widget header(int i) {

@@ -241,6 +241,9 @@ Replace Score carries them over. A double-click on a text does nothing
 
 **Widgets change the document only through `EditorController`** (and its parts). They may
 read the models (`curation`, `sync`) to draw them.
+The controller notifies at every move of a drag, so nothing large rebuilds on it wholesale: the
+page, the toolbar, the score view, the bottom panel, the lanes and their names each rebuild through
+a `Select` (ui_kit.dart) only when what they show changes; painters listen for themselves.
 
 **One Undo for the whole document.** After every change the controller compares the
 document's `EditState` (everything a project saves but the view: lanes, transition, sync,

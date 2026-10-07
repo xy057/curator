@@ -13,6 +13,7 @@ import 'editor_controller.dart';
 import 'edit_dialogs.dart';
 import 'error_text.dart';
 import 'image_patch.dart';
+import 'ui_kit.dart';
 import 'video_export.dart';
 
 /// The curated score preview, drawn by CuratedScene.paint: a frame is a function of the
@@ -283,7 +284,22 @@ class ScoreViewState extends State<ScoreView> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Select(
+        listenable: c,
+        select: () => (
+          scene: c.scene,
+          images: c.images.enabled,
+          selected: c.images.selected,
+          cropping: c.images.cropping,
+          patches: c.images.patches,
+          captions: c.captions.enabled,
+          captionList: c.captions.captions,
+          reengraving: c.isReengraving,
+        ),
+        builder: (context, _) => _view(context),
+      );
+
+  Widget _view(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
       final aspectRatio = widget.aspectRatio;

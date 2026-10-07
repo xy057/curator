@@ -43,7 +43,20 @@ class EditorToolbar extends StatelessWidget {
   static const height = 46.0;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Select(
+        listenable: controller,
+        select: () => (
+          undo: controller.canUndo,
+          redo: controller.canRedo,
+          playing: controller.playback.isPlaying,
+          images: controller.images.enabled,
+          reengraving: controller.isReengraving,
+          staffSpace: controller.staffSpace,
+        ),
+        builder: (context, _) => _bar(context),
+      );
+
+  Widget _bar(BuildContext context) {
     final c = controller;
     final colors = context.colors;
     return Container(
@@ -384,10 +397,13 @@ class _SavingIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return FadeSlideSwitcher(
+    return Select(
+      listenable: document,
+      select: () => document.isSaving,
+      builder: (context, saving) => FadeSlideSwitcher(
       alignment: Alignment.centerRight,
       offset: const Offset(0, 0.3),
-      child: !document.isSaving
+      child: !saving
           ? const SizedBox.shrink()
           : Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -397,6 +413,7 @@ class _SavingIndicator extends StatelessWidget {
                 Text('Saving…', style: TextStyle(fontSize: 12, color: colors.textMuted)),
               ]),
             ),
+      ),
     );
   }
 }

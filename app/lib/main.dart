@@ -739,8 +739,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               setState(() => _drop = null);
               if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
             },
-            child: ListenableBuilder(
-              listenable: Listenable.merge([controller, document, _shown]),
+            // Rebuilt when a score opens or closes, not at every edit: the toolbar, the score and
+            // the timeline each follow what they show.
+            child: Select(
+              listenable: Listenable.merge([controller, _shown]),
+              select: () => (score: controller.score, loading: controller.isLoading, shown: _shown.value),
               builder: (context, _) => Scaffold(
                 body: Stack(
                   key: _dropStack,

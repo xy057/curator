@@ -278,3 +278,52 @@ class BelowValueIndicatorShape extends SliderComponentShape {
     canvas.restore();
   }
 }
+
+/// Rebuilds with what [select] reads from [listenable] when that changes ([equals], by
+/// default ==), not at every notification: an editor notifies at every move of a drag, and
+/// most of the window shows nothing that moved.
+class Select<T> extends StatefulWidget {
+  const Select({super.key, required this.listenable, required this.select, required this.builder, this.equals});
+  final Listenable listenable;
+  final T Function() select;
+  final Widget Function(BuildContext context, T value) builder;
+  final bool Function(T a, T b)? equals;
+
+  @override
+  State<Select<T>> createState() => _SelectState<T>();
+}
+
+class _SelectState<T> extends State<Select<T>> {
+  late T _value = widget.select();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.listenable.addListener(_changed);
+  }
+
+  @override
+  void didUpdateWidget(Select<T> old) {
+    super.didUpdateWidget(old);
+    if (old.listenable != widget.listenable) {
+      old.listenable.removeListener(_changed);
+      widget.listenable.addListener(_changed);
+    }
+    _value = widget.select(); // built again by its parent: read afresh
+  }
+
+  @override
+  void dispose() {
+    widget.listenable.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    final value = widget.select();
+    if (widget.equals?.call(value, _value) ?? value == _value) return;
+    setState(() => _value = value);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _value);
+}

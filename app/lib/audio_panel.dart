@@ -208,7 +208,13 @@ class _AudioLanesState extends State<AudioLanes> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Select(
+        listenable: c,
+        select: () => (sync: c.sync, midi: c.midiTempo, track: c.track, loading: c.isLoadingAudio),
+        builder: (context, _) => _lanes(context),
+      );
+
+  Widget _lanes(BuildContext context) {
     if (c.midiTempo case final midi?) return _midiLanes(context, midi);
     final track = c.track;
     final colors = context.colors;
