@@ -690,8 +690,9 @@ class _AnchorPainter extends CustomPainter {
     for (final (i, a) in sync.anchors.indexed) {
       final x = v.x(a.seconds);
       if (x < -20 || x > size.width + 20) continue;
+      // The colour says whether it is selected; a warp says so by its ring and label.
       final selected = c.anchors.selected.contains(i);
-      final color = selected || a.isWarp ? colors.accentStrong : colors.accent;
+      final color = selected ? colors.accentStrong : colors.accent;
       final y = size.height / 2 + 4;
       final diamond = Path()
         ..moveTo(x, y - 6)
@@ -723,7 +724,7 @@ class _AnchorPainter extends CustomPainter {
           text: label,
           style: TextStyle(
             fontSize: 10.5,
-            color: selected || a.isWarp ? colors.accentStrong : colors.textMuted,
+            color: selected ? colors.accentStrong : a.isWarp ? colors.text : colors.textMuted,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -799,7 +800,7 @@ class _WaveformPainter extends CustomPainter {
       canvas.drawRect(
         Rect.fromLTWH(x - width / 2, 0, width, size.height),
         Paint()
-          ..color = c.anchors.selected.contains(i) || a.isWarp ? colors.accentStrong : colors.accent.withValues(alpha: 0.7),
+          ..color = c.anchors.selected.contains(i) ? colors.accentStrong : colors.accent.withValues(alpha: 0.7),
       );
     }
     _paintMarquee(canvas, size, c, colors, marquee.value);
