@@ -85,6 +85,39 @@ void main() {
     expect(c.score!.options.valueOf(spacing), 0.9);
   });
 
+  test("the project's engraving options win over the app's, and are an edit Undo steps through", () async {
+    Future<void> engraved() async {
+      while (c.isReengraving) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    final spacing = EngraveOption.byKey('spacingLinear')!, curve = EngraveOption.byKey('slurCurveFactor')!;
+    c.engravingOptions = const EngravingOptions().withValue(spacing, 0.9).withValue(curve, 2);
+    await engraved();
+    final revision = c.editRevision.value;
+    await c.setProjectEngraving(const EngravingOptions().withValue(spacing, 0.7));
+    await engraved();
+    expect(c.score!.options.valueOf(spacing), 0.7);
+    expect(c.score!.options.valueOf(curve), 2, reason: "the app's, where the project sets none");
+    expect(c.editRevision.value, greaterThan(revision));
+    expect(c.projectState.engraving, c.projectEngraving);
+
+    c.undo();
+    await engraved();
+    expect(c.projectEngraving.isEmpty, isTrue);
+    expect(c.score!.options.valueOf(spacing), 0.9);
+    c.redo();
+    await engraved();
+    expect(c.score!.options.valueOf(spacing), 0.7);
+
+    // The app's change under it shows only where the project sets nothing.
+    c.engravingOptions = const EngravingOptions().withValue(spacing, 0.5).withValue(curve, 3);
+    await engraved();
+    expect(c.score!.options.valueOf(spacing), 0.7);
+    expect(c.score!.options.valueOf(curve), 3);
+  });
+
   test('resizing the score keeps its engraving, and a slider drag is one change', () {
     final display = c.scene!.display;
     final revision = c.editRevision.value;

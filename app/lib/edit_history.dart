@@ -24,6 +24,7 @@ class EditState {
     this.captions = const [],
     this.captionFont,
     this.fonts = ScoreFonts.standard,
+    this.engraving = const EngravingOptions(),
   });
 
   final Map<String, List<Region>> lanes;
@@ -45,6 +46,9 @@ class EditState {
   final String? captionFont;
   final ScoreFonts fonts;
 
+  /// The project's own engraving options, over the app's.
+  final EngravingOptions engraving;
+
   @override
   bool operator ==(Object other) =>
       other is EditState &&
@@ -61,7 +65,8 @@ class EditState {
       listEquals(patches, other.patches) &&
       listEquals(captions, other.captions) &&
       captionFont == other.captionFont &&
-      fonts == other.fonts;
+      fonts == other.fonts &&
+      engraving == other.engraving;
 
   /// This state with [patches] instead of its own.
   EditState withPatches(List<ImagePatch> patches) => EditState(
@@ -79,6 +84,7 @@ class EditState {
         captions: captions,
         captionFont: captionFont,
         fonts: fonts,
+        engraving: engraving,
       );
 
   @override

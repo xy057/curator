@@ -265,11 +265,22 @@ void main() {
     expect(() => ProjectState.fromJson({'fonts': {'music': 'Gone'}}), throwsA(isA<FormatException>()));
   });
 
+  test("a project keeps its own engraving options, one set back to the default too; older ones have none", () {
+    final curve = EngraveOption.byKey('slurCurveFactor')!, spacing = EngraveOption.byKey('spacingLinear')!;
+    final options = const EngravingOptions().withValue(curve, 2).withValue(spacing, spacing.defaultValue, keepDefault: true);
+    final json = jsonDecode(jsonEncode(ProjectState(engraving: options).toJson())) as Map<String, Object?>;
+    expect(json['engraving'], {'slurCurveFactor': 2, 'spacingLinear': spacing.defaultValue});
+    expect(ProjectState.fromJson(json).engraving, options);
+    expect(const ProjectState().toJson().containsKey('engraving'), isFalse);
+    expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 12).engraving.isEmpty, isTrue);
+    expect(() => ProjectState.fromJson({'engraving': 'wide'}), throwsA(isA<FormatException>()));
+  });
+
   test('a project from before condensing opens with nothing condensed', () {
     final state = ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 1);
     expect(state.condensed, isEmpty);
     expect(state.pairs, isEmpty);
-    expect(ProjectState.version, 12);
+    expect(ProjectState.version, 13);
     expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).pairs, isEmpty);
   });
 
