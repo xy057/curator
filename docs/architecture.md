@@ -334,8 +334,15 @@ word. Changing them re-engraves the open score, as a text edit does.
 
 **Colours are chosen when drawing.** The engraving is recorded as ink only; the renderer
 tints tiles, names and the frozen zone with the ink colour as it composites them
-(`paint(paper:, ink:)`), so a theme change (or its cross-fade) never re-rasterises anything.
+(`paint(paper:, ink:)`), so a theme change never re-rasterises anything.
 The app passes the theme's `scorePaper` / `scoreInk`.
+
+**A change of appearance cross-fades over a still.** The theme (light, dark, accent) changes at
+once, and a still of the window as it was (`_StillBoundary`, taken from its last painted layer)
+fades out over it. A lerped theme would rebuild every widget that reads it on every frame of the
+fade, too slow with many lanes. A Material animates a change of its shape on its own, behind the
+still: one with an outline sets `animationDuration: Duration.zero`, or (a popup menu, which can't)
+takes `_SteadyBorder`.
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that

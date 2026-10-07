@@ -25,6 +25,7 @@ void main() {
         theme: AppColors.theme(accent: settings.accent),
         darkTheme: AppColors.theme(accent: settings.accent, brightness: Brightness.dark),
         themeMode: settings.themeMode,
+        themeAnimationDuration: Duration.zero, // as the app: the window cross-fades over a still instead
         builder: (context, child) => RepaintBoundary(child: child),
         home: Builder(
           builder: (context) => Scaffold(
@@ -106,7 +107,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('the window\'s outline cross-fades with the theme, in step with the other lines', (tester) async {
+  testWidgets('the window\'s outline changes with the theme at once, as the other lines do', (tester) async {
     await open(tester);
     await tester.tap(find.text('Appearance'));
     await tester.pumpAndSettle();
@@ -124,13 +125,12 @@ void main() {
 
     await tester.tap(find.text('Dark'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100)); // halfway through the theme's cross-fade
-    final (midWindow, midSwitch) = await outlines();
-    expect(midSwitch, isNot(lightSwitch));
-    expect(midWindow, midSwitch);
+    final (darkWindow, darkSwitch) = await outlines();
+    expect(darkSwitch, isNot(lightSwitch));
+    expect(darkWindow, darkSwitch, reason: 'not on a Material\'s own shape animation');
   });
 
-  testWidgets('a popup menu\'s outline cross-fades with the theme, in step with the other lines', (tester) async {
+  testWidgets('a popup menu\'s outline changes with the theme at once, as the other lines do', (tester) async {
     final mode = ValueNotifier(ThemeMode.light);
     tester.view.physicalSize = const Size(800, 600);
     tester.view.devicePixelRatio = 2;
@@ -141,6 +141,7 @@ void main() {
         theme: AppColors.theme(),
         darkTheme: AppColors.theme(brightness: Brightness.dark),
         themeMode: themeMode,
+        themeAnimationDuration: Duration.zero,
         builder: (context, child) => RepaintBoundary(child: child),
         home: Builder(
           builder: (context) => Scaffold(
@@ -165,18 +166,14 @@ void main() {
     final (lightMenu, lightLine) = await outlines();
     expect(lightMenu, lightLine);
 
-    // A Material starts its own shape tween over at each new frame of the theme, at its last
-    // outline, so the menu's is a frame behind: in step, not finishing on its own time.
+    // The frame the theme changes in, a Material's shape tween starts over and shows where it was;
+    // the app's window has its still over that frame. From the next, the new outline.
     mode.value = ThemeMode.dark;
     await tester.pump();
-    var previousLine = lightLine;
-    for (var frame = 0; frame < 6; frame++) {
-      await tester.pump(const Duration(milliseconds: 16));
-      final (menuNow, lineNow) = await outlines();
-      expect(lineNow, isNot(previousLine));
-      expect(menuNow, previousLine);
-      previousLine = lineNow;
-    }
+    await tester.pump(const Duration(milliseconds: 16));
+    final (darkMenu, darkLine) = await outlines();
+    expect(darkLine, isNot(lightLine));
+    expect(darkMenu, darkLine, reason: 'not on the menu\'s own shape animation');
   });
 
   testWidgets('search finds items on every page', (tester) async {

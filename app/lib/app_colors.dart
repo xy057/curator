@@ -181,7 +181,7 @@ class AppColors extends ThemeExtension<AppColors> {
       popupMenuTheme: PopupMenuThemeData(
         color: dark ? const Color(0xFF26292E) : c.surface,
         surfaceTintColor: Colors.transparent,
-        shape: _CrossFadingBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: c.line)),
+        shape: _SteadyBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: c.line)),
       ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, width: 520),
     );
@@ -216,27 +216,14 @@ class AppColors extends ThemeExtension<AppColors> {
   }
 }
 
-/// An outline that follows the theme's cross-fade. A Material animates a change of its shape on its
-/// own, so its outline would chase each frame of the cross-fade and finish late; where it cannot be
-/// told not to (a popup menu), this shape takes each frame as it comes, a frame behind (the
-/// Material's tween starts over at its last outline). Between the two themes it lerps as a
-/// [RoundedRectangleBorder] does.
-class _CrossFadingBorder extends RoundedRectangleBorder {
-  const _CrossFadingBorder({super.side, super.borderRadius, this.crossFading = false});
-
-  /// A frame of the cross-fade, which a Material takes as is.
-  final bool crossFading;
+/// An outline a Material shows as given. A Material animates a change of its shape on its own, so
+/// at a change of theme its outline would trail the window's cross-fade; where it cannot be told
+/// not to (a popup menu), this shape takes the new outline at once.
+class _SteadyBorder extends RoundedRectangleBorder {
+  const _SteadyBorder({super.side, super.borderRadius});
 
   @override
-  ShapeBorder? lerpFrom(ShapeBorder? a, double t) {
-    if (crossFading) return this;
-    if (a is! RoundedRectangleBorder) return super.lerpFrom(a, t);
-    return _CrossFadingBorder(
-      side: BorderSide.lerp(a.side, side, t),
-      borderRadius: BorderRadiusGeometry.lerp(a.borderRadius, borderRadius, t)!,
-      crossFading: true,
-    );
-  }
+  ShapeBorder? lerpFrom(ShapeBorder? a, double t) => this;
 }
 
 extension AppColorsContext on BuildContext {
