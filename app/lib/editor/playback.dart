@@ -53,7 +53,7 @@ class Playback {
     _wake();
     _playAnchor = _now;
     _timeAnchor = time.value;
-    _audio.play(time.value);
+    if (!_scrubbing) _audio.play(time.value);
     _editor._changed();
   }
 
@@ -74,6 +74,29 @@ class Playback {
   }
 
   void skip(double seconds) => seek(time.value + seconds);
+
+  bool _scrubbing = false;
+
+  /// A drag along the timeline (the ruler, a lane): the playhead follows the pointer and,
+  /// playing, the music waits for it to be let go ([endScrub]) and goes on from there: the
+  /// recording starts again once, not at every move.
+  void scrub(double seconds) {
+    if (!_scrubbing && _playing) _audio.stop();
+    _scrubbing = true;
+    time.value = seconds.clamp(0, math.max(0, duration));
+    _playAnchor = _now;
+    _timeAnchor = time.value;
+    _markDirty();
+  }
+
+  /// The drag of [scrub] is over: playing, the music goes on from where it was let go.
+  void endScrub() {
+    if (!_scrubbing) return;
+    _scrubbing = false;
+    _playAnchor = _now;
+    _timeAnchor = time.value;
+    if (_playing) _audio.play(time.value);
+  }
 
   /// Moves the playhead to [text]: a bar ("12", "12.2", as [BeatGrid.parse] reads it; where it
   /// first sounds) or a time ("1:10", "1:10.5", "1:02:03"). False when it is neither.
@@ -121,7 +144,7 @@ class Playback {
 
   void _onTick(Duration _) {
     final elapsed = _now;
-    if (_playing) {
+    if (_playing && !_scrubbing) {
       var t = _timeAnchor + (elapsed - _playAnchor).inMicroseconds / 1e6 * _audio.speed;
       // Follow the audio engine's clock: jump if far off, otherwise glide towards it.
       final heard = _audio.position;

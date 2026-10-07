@@ -129,7 +129,7 @@ class _AudioLanesState extends State<AudioLanes> {
     } else {
       c.anchors.select(null);
       _scrubbing = true;
-      c.playback.seek(seconds);
+      c.playback.scrub(seconds);
     }
   }
 
@@ -143,7 +143,7 @@ class _AudioLanesState extends State<AudioLanes> {
       _marquee.value = (_marquee.value!.$1, seconds);
       c.anchors.selectBetween(_marquee.value!.$1, seconds, keep: _marqueeKeep);
     } else if (_scrubbing) {
-      c.playback.seek(seconds);
+      c.playback.scrub(seconds);
     }
   }
 
@@ -158,6 +158,7 @@ class _AudioLanesState extends State<AudioLanes> {
       setState(() => _cursor = SystemMouseCursors.basic);
     }
     _marquee.value = null;
+    if (_scrubbing) c.playback.endScrub();
     _scrubbing = false;
   }
 
@@ -176,7 +177,7 @@ class _AudioLanesState extends State<AudioLanes> {
   Widget _midiLanes(BuildContext context, MidiTempoMap midi) {
     final colors = context.colors;
     final repaint = Listenable.merge([c.viewport, sync, c]);
-    void seek(PointerEvent e) => c.playback.seek(c.viewport.seconds(e.localPosition.dx));
+    void seek(PointerEvent e) => c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
     return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SizedBox(
         width: kLaneHeaderWidth,
@@ -198,6 +199,8 @@ class _AudioLanesState extends State<AudioLanes> {
         child: Listener(
           onPointerDown: (e) => e.buttons == kPrimaryButton ? seek(e) : null,
           onPointerMove: (e) => e.buttons == kPrimaryButton ? seek(e) : null,
+          onPointerUp: (_) => c.playback.endScrub(),
+          onPointerCancel: (_) => c.playback.endScrub(),
           child: WithPlayhead(
             controller: c,
             child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint, large: true)),

@@ -185,7 +185,7 @@ class _CaptionLaneState extends State<CaptionLane> {
     if (hit == null) {
       c.clearSelection();
       _drag = _Drag(_Kind.scrub, downAt: p, downQ: q, pass: pass);
-      c.playback.seek(c.viewport.seconds(p.dx).clamp(0.0, c.playback.duration));
+      c.playback.scrub(c.viewport.seconds(p.dx));
       return;
     }
     c.clearSelection();
@@ -206,7 +206,7 @@ class _CaptionLaneState extends State<CaptionLane> {
     drag.moved |= (p - drag.downAt).distance >= 3;
     switch (drag.kind) {
       case _Kind.scrub:
-        c.playback.seek(c.viewport.seconds(p.dx).clamp(0.0, c.playback.duration));
+        c.playback.scrub(c.viewport.seconds(p.dx));
       case _Kind.draw:
         // Up to the captions either side: one shows at a time.
         final edge = _snap(q, drag.pass), room = _room(drag.from, drag.downQ + (edge < drag.downQ ? -1e-6 : 1e-6));
@@ -265,7 +265,7 @@ class _CaptionLaneState extends State<CaptionLane> {
         c.endEdit();
         setState(() => _cursor = SystemMouseCursors.grab);
       case _Kind.scrub:
-        break;
+        c.playback.endScrub();
     }
   }
 
@@ -283,7 +283,9 @@ class _CaptionLaneState extends State<CaptionLane> {
       case _Kind.erase || _Kind.move || _Kind.start || _Kind.end:
         c.endEdit();
         if (_cursor == SystemMouseCursors.grabbing) setState(() => _cursor = SystemMouseCursors.grab);
-      case _Kind.draw || _Kind.scrub || null:
+      case _Kind.scrub:
+        c.playback.endScrub();
+      case _Kind.draw || null:
         break;
     }
   }

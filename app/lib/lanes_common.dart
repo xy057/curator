@@ -99,9 +99,11 @@ class BarRuler extends StatelessWidget {
           child: Listener(
             onPointerDown: (e) {
               c.clearSelection();
-              c.playback.seek(c.viewport.seconds(e.localPosition.dx));
+              c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
             },
-            onPointerMove: (e) => c.playback.seek(c.viewport.seconds(e.localPosition.dx)),
+            onPointerMove: (e) => c.playback.scrub(c.viewport.seconds(e.localPosition.dx)),
+            onPointerUp: (_) => c.playback.endScrub(),
+            onPointerCancel: (_) => c.playback.endScrub(),
             child: WithPlayhead(
               controller: c,
               handle: true,

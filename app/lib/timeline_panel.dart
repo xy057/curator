@@ -453,7 +453,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     } else {
       c.clearSelection();
       _drag = _Drag(_DragKind.scrub, downAt: p, downQ: q, pass: pass);
-      c.playback.seek(c.viewport.seconds(p.dx));
+      c.playback.scrub(c.viewport.seconds(p.dx));
     }
   }
 
@@ -465,7 +465,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     drag.moved |= (p - drag.downAt).distance >= 3;
     switch (drag.kind) {
       case _DragKind.scrub:
-        c.playback.seek(c.viewport.seconds(p.dx));
+        c.playback.scrub(c.viewport.seconds(p.dx));
       case _DragKind.paint:
         final edge = _snap(q, drag.pass);
         _paint(drag, math.min(drag.downQ, edge), math.max(drag.downQ, edge), _laneIndex(p));
@@ -543,6 +543,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     final drag = _drag;
     _drag = null;
     _band.value = null;
+    if (drag?.kind == _DragKind.scrub) c.playback.endScrub();
     if (drag == null || drag.kind == _DragKind.scrub || drag.kind == _DragKind.marquee) return;
     if (drag.kind == _DragKind.paint && !drag.moved) {
       // A click draws (or erases) the beat under the pointer, or the bar when zoomed out.

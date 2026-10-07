@@ -45,4 +45,29 @@ void main() {
     await tester.pumpAndSettle();
     await check(['_AnchorPainter', '_WaveformPainter', '_TempoPainter', '_RulerPainter']);
   });
+
+  testWidgets('scrubbing while playing holds the music at the pointer and goes on from where it is let go', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump(const Duration(milliseconds: 200));
+    final p = c.playback..play();
+    await tester.pump(const Duration(milliseconds: 100));
+    p.scrub(10);
+    p.scrub(12);
+    // The clock is real time (a Stopwatch), not the test's.
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(p.time.value, 12, reason: 'held where the pointer is');
+    expect(p.isPlaying, isTrue);
+    p.endScrub();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(p.time.value, greaterThan(12.1), reason: 'goes on from there');
+    p.pause();
+  });
 }
+
