@@ -997,7 +997,7 @@ class _DropHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final (icon, title, detail) = switch (area) {
-      _DropArea.home => (Icons.file_download_outlined, 'Drop to open', 'A project, a MusicXML score, or a recording for the open score'),
+      _DropArea.home => (Icons.file_download_outlined, 'Drop to open', 'A project or a MusicXML score'),
       _DropArea.project => (Icons.file_download_outlined, 'Drop to open', 'A project or a MusicXML score'),
       _DropArea.audio => (Icons.graphic_eq_rounded, 'Drop to add', 'A MIDI tempo map or a recording'),
       _DropArea.image when attachImage => (Icons.image_outlined, 'Drop to add an image', 'SVG, PNG or JPEG'),
