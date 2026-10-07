@@ -124,6 +124,10 @@ void main() {
     await tester.pump();
     expect(c.curation!.lane(ids[3]), [Region(bars[4], bars[7])]);
     expect(c.curation!.lane(ids[4]), [Region(bars[4], bars[7])]);
+    // Let go, the cursor says what is under the pointer: the edge just trimmed, not the arrow.
+    final lanesCursor = find.descendant(
+        of: find.byType(InstrumentLanes), matching: find.byWidgetPredicate((w) => w is MouseRegion && w.onHover != null));
+    expect(tester.widget<MouseRegion>(lanesCursor.first).cursor, SystemMouseCursors.resizeLeftRight);
 
     // Each gesture was one undo step.
     c.undo();

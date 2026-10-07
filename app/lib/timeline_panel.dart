@@ -385,14 +385,19 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   // MARK: Pointer handling
 
   void _onHover(PointerHoverEvent e) {
+    final cursor = _cursorAt(e.localPosition);
+    if (cursor != _cursor) setState(() => _cursor = cursor);
+  }
+
+  /// The cursor over [p]: what a drag from there would do.
+  MouseCursor _cursorAt(Offset p) {
     final tool = _tool;
-    final hit = tool == LaneTool.select ? _hit(e.localPosition) : null;
-    final cursor = switch (hit?.kind) {
+    final hit = tool == LaneTool.select ? _hit(p) : null;
+    return switch (hit?.kind) {
       _DragKind.resizeStart || _DragKind.resizeEnd => SystemMouseCursors.resizeLeftRight,
       _DragKind.move => SystemMouseCursors.grab,
       _ => tool == LaneTool.select ? SystemMouseCursors.basic : SystemMouseCursors.precise,
     };
-    if (cursor != _cursor) setState(() => _cursor = cursor);
   }
 
   void _onDown(PointerDownEvent e) {
@@ -568,7 +573,8 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     } else {
       c.lanes.reselect(selected);
     }
-    setState(() => _cursor = SystemMouseCursors.basic);
+    // What is under the pointer now (a region let go of: the open hand), as the Captions lane does.
+    setState(() => _cursor = _cursorAt(e.localPosition));
   }
 
   /// The lanes shown (their ids): the panel is as tall as they are.
