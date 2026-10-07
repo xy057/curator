@@ -97,11 +97,15 @@ class BarRuler extends StatelessWidget {
         ),
         Expanded(
           child: Listener(
+            // The primary button only, as in the lanes: a right-click leaves the playhead be.
             onPointerDown: (e) {
+              if (e.buttons != kPrimaryButton) return;
               c.clearSelection();
               c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
             },
-            onPointerMove: (e) => c.playback.scrub(c.viewport.seconds(e.localPosition.dx)),
+            onPointerMove: (e) {
+              if (e.buttons == kPrimaryButton) c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
+            },
             onPointerUp: (_) => c.playback.endScrub(),
             onPointerCancel: (_) => c.playback.endScrub(),
             child: WithPlayhead(

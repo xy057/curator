@@ -2,7 +2,9 @@
 // lanes, the ruler or the audio lanes under it.
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/lanes_common.dart';
 import 'package:curated_score/main.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -68,6 +70,24 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
     expect(p.time.value, greaterThan(12.1), reason: 'goes on from there');
     p.pause();
+  });
+
+  testWidgets('the ruler moves the playhead with the primary button only, as the lanes do', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump(const Duration(milliseconds: 200));
+    final ruler = tester.getRect(find.byType(BarRuler));
+    final at = Offset(ruler.left + kLaneHeaderWidth + 300, ruler.center.dy);
+    await tester.tapAt(at, buttons: kSecondaryButton, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(c.playback.time.value, 0);
+    await tester.tapAt(at, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(c.playback.time.value, greaterThan(0));
   });
 }
 
