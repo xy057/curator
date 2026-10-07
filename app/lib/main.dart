@@ -61,12 +61,74 @@ class CuratedScoreApp extends StatefulWidget {
   State<CuratedScoreApp> createState() => _CuratedScoreAppState();
 }
 
-class _CuratedScoreAppState extends State<CuratedScoreApp> {
+class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final settings = widget.settings ?? AppSettings.memory();
+
+  // Appearance changes cross-fade: the theme changes at once, under a still of the window as it
+  // was, which fades out. A lerped theme would rebuild every widget on every frame of the fade.
+  final _windowKey = GlobalKey();
+  final _before = ValueNotifier<ui.Image?>(null);
+  late final _fade = AnimationController(vsync: this, duration: const Duration(milliseconds: 280))
+    ..addStatusListener((status) {
+      if (status == AnimationStatus.completed) _showBefore(null);
+    });
+  late (Brightness, AccentColor) _appearance;
+
+  (Brightness, AccentColor) get _currentAppearance => (
+        switch (settings.themeMode) {
+          ThemeMode.light => Brightness.light,
+          ThemeMode.dark => Brightness.dark,
+          ThemeMode.system => WidgetsBinding.instance.platformDispatcher.platformBrightness,
+        },
+        settings.accent,
+      );
+
+  @override
+  void initState() {
+    super.initState();
+    _appearance = _currentAppearance;
+    settings.addListener(_appearanceChanged);
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangePlatformBrightness() => _appearanceChanged();
+
+  /// Before the window rebuilds in the new theme: a still of it as it is, to fade out over it.
+  void _appearanceChanged() {
+    final appearance = _currentAppearance;
+    if (appearance == _appearance) return;
+    _appearance = appearance;
+    final boundary = _windowKey.currentContext?.findRenderObject() as _RenderStillBoundary?;
+    final still = boundary?.still(View.of(context).devicePixelRatio);
+    if (still == null) return;
+    _showBefore(still);
+    _fade.forward(from: 0);
+  }
+
+  // Not a setState: only the still changes, and the rest of the window must not rebuild for it.
+  void _showBefore(ui.Image? image) {
+    final old = _before.value;
+    _before.value = image;
+    // Painted until the next frame; let go of it after that.
+    if (old != null) WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+  }
+
+  @override
+  void dispose() {
+    settings.removeListener(_appearanceChanged);
+    WidgetsBinding.instance.removeObserver(this);
+    _fade.dispose();
+    _before.value?.dispose();
+    _before.dispose();
+    super.dispose();
+  }
+
+  // The same widget each build: a change of settings rebuilds only what reads them (or the theme).
+  late final _home = HomePage(settings: settings, updater: widget.updater);
 
   @override
   Widget build(BuildContext context) {
-    // Appearance changes cross-fade: the theme (and the palette in it) lerps.
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) => MaterialApp(
@@ -75,12 +137,45 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> {
         theme: AppColors.theme(accent: settings.accent, brightness: Brightness.light),
         darkTheme: AppColors.theme(accent: settings.accent, brightness: Brightness.dark),
         themeMode: settings.themeMode,
-        themeAnimationDuration: const Duration(milliseconds: 280),
-        themeAnimationCurve: Curves.easeInOut,
-        home: HomePage(settings: settings, updater: widget.updater),
+        themeAnimationDuration: Duration.zero,
+        // The still fades over everything, open menus and dialogs too, and is part of the next still.
+        builder: (context, child) => _StillBoundary(
+          key: _windowKey,
+          child: Stack(fit: StackFit.expand, children: [
+            child!,
+            ValueListenableBuilder(
+              valueListenable: _before,
+              builder: (context, before, _) => before == null
+                  ? const SizedBox.shrink()
+                  : IgnorePointer(
+                      child: FadeTransition(
+                        opacity: ReverseAnimation(CurvedAnimation(parent: _fade, curve: Curves.easeInOut)),
+                        child: RawImage(image: before, fit: BoxFit.fill),
+                      ),
+                    ),
+            ),
+          ]),
+        ),
+        home: _home,
       ),
     );
   }
+}
+
+/// A repaint boundary that hands over what it last painted, even with a repaint pending (a click
+/// on the theme switch has just left one).
+class _StillBoundary extends RepaintBoundary {
+  const _StillBoundary({super.key, super.child});
+
+  @override
+  RenderRepaintBoundary createRenderObject(BuildContext context) => _RenderStillBoundary();
+}
+
+class _RenderStillBoundary extends RenderRepaintBoundary {
+  ui.Image? still(double pixelRatio) => switch (layer) {
+        final OffsetLayer layer when hasSize => layer.toImageSync(Offset.zero & size, pixelRatio: pixelRatio),
+        _ => null,
+      };
 }
 
 class HomePage extends StatefulWidget {
