@@ -51,6 +51,7 @@ class EditorToolbar extends StatelessWidget {
           undo: controller.canUndo,
           redo: controller.canRedo,
           playing: controller.playback.isPlaying,
+          metronome: controller.playback.metronome,
           images: controller.images.enabled,
           reengraving: controller.isReengraving,
           staffSpace: controller.staffSpace,
@@ -79,6 +80,13 @@ class EditorToolbar extends StatelessWidget {
         ),
         const SizedBox(width: 2),
         _PlayButton(controller: c),
+        const SizedBox(width: 2),
+        ToolbarButton(
+          glyph: const _MetronomeGlyph(),
+          tooltip: 'Metronome (C)',
+          selected: c.playback.metronome,
+          onPressed: () => c.playback.metronome = !c.playback.metronome,
+        ),
         const SizedBox(width: 12),
         TimeReadout(key: readout, controller: c),
         const Spacer(),
@@ -225,6 +233,48 @@ class _PlayButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A metronome: its case and the pendulum swung to the right.
+class _MetronomeGlyph extends StatelessWidget {
+  const _MetronomeGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = IconTheme.of(context);
+    final size = icon.size ?? 18;
+    return CustomPaint(size: Size.square(size), painter: _MetronomePainter(icon.color ?? context.colors.text));
+  }
+}
+
+class _MetronomePainter extends CustomPainter {
+  const _MetronomePainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 24);
+    final line = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(
+        Path()
+          ..moveTo(9.5, 3.5)
+          ..lineTo(14.5, 3.5)
+          ..lineTo(19, 20.5)
+          ..lineTo(5, 20.5)
+          ..close(),
+        line);
+    canvas.drawLine(const Offset(7, 16), const Offset(17, 16), line);
+    canvas.drawLine(const Offset(12, 16), const Offset(17.5, 6), line);
+    canvas.drawCircle(const Offset(15.6, 9.5), 1.6, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_MetronomePainter old) => old.color != color;
 }
 
 /// "1:10.0 / 1:31.4" and the bar.beat sounding now. A click on either (or ⌘G: [edit]) types

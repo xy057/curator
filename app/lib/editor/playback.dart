@@ -53,6 +53,7 @@ class Playback {
     _wake();
     _playAnchor = _now;
     _timeAnchor = time.value;
+    _ranFrom(time.value);
     if (!_scrubbing) _audio.play(time.value);
     _editor._changed();
   }
@@ -65,10 +66,56 @@ class Playback {
 
   void togglePlay() => _playing ? pause() : play();
 
+  // MARK: Metronome
+
+  /// Clicks every beat while playing (C, or the toolbar), the bar's first louder: an aid for
+  /// aligning the tempo. Neither saved nor an edit.
+  bool get metronome => _metronome;
+  bool _metronome = false;
+  set metronome(bool on) {
+    if (on == _metronome) return;
+    _metronome = on;
+    _ranFrom(time.value);
+    if (on) _audio.prepareClicks();
+    _editor._changed();
+  }
+
+  /// The beat last clicked (or reached without a click), and the pass it was in.
+  ({int pass, double beat})? _clicked;
+
+  /// Where the clock was at the last frame, or ran on from (a play, a seek): a beat begun
+  /// since was crossed, and clicks, even in a late frame; one begun before was sought into.
+  double _clickedTo = 0;
+
+  void _ranFrom(double t) {
+    _clicked = null;
+    _clickedTo = t;
+  }
+
+  void _clickAt(double t) {
+    if (_editor.score == null) return;
+    // The clock corrected back towards the audio's: what it crosses again has clicked.
+    if (t < _clickedTo) return;
+    final from = _clickedTo;
+    _clickedTo = t;
+    final timeline = _editor.timeline, beats = _editor.beats;
+    final q = timeline.quarterAtSeconds(t);
+    if (q < -1e-9 || q >= beats.totalQuarters) {
+      _clicked = null;
+      return;
+    }
+    final now = (pass: timeline.passAt(t), beat: beats.beatAt(q).start);
+    if (now == _clicked) return;
+    _clicked = now;
+    if (timeline.secondsAtQuarter(now.beat, pass: now.pass) < from - 1e-6) return;
+    _audio.click(accent: now.beat == beats.measureStarts[beats.measureAt(now.beat)]);
+  }
+
   void seek(double seconds) {
     time.value = seconds.clamp(0, math.max(0, duration));
     _playAnchor = _now;
     _timeAnchor = time.value;
+    _ranFrom(time.value);
     if (_playing) _audio.play(time.value);
     _markDirty();
   }
@@ -93,6 +140,7 @@ class Playback {
   void endScrub() {
     if (!_scrubbing) return;
     _scrubbing = false;
+    _ranFrom(time.value);
     _playAnchor = _now;
     _timeAnchor = time.value;
     if (_playing) _audio.play(time.value);
@@ -165,6 +213,7 @@ class Playback {
         time.value = t;
       }
       _editor.viewport.follow(time.value);
+      if (_metronome && _playing) _clickAt(time.value);
       _dirty = true;
     }
     if (_dirty) {

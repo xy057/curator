@@ -85,14 +85,18 @@ class _DialogRoute<T> extends DialogRoute<T> {
 class ToolbarButton extends StatelessWidget {
   const ToolbarButton({
     super.key,
-    required this.icon,
+    this.icon,
+    this.glyph,
     required this.tooltip,
     required this.onPressed,
     this.selected = false,
     this.color,
-  });
+  }) : assert((icon == null) != (glyph == null));
 
-  final IconData icon;
+  final IconData? icon;
+
+  /// Drawn instead of an [icon] (none fits), in the [IconTheme]'s colour and size.
+  final Widget? glyph;
   final String tooltip;
   final VoidCallback? onPressed;
   final bool selected;
@@ -117,7 +121,7 @@ class ToolbarButton extends StatelessWidget {
           backgroundColor: selected ? colors.accentSoft : null,
           animationDuration: const Duration(milliseconds: 150),
         ),
-        icon: Icon(icon),
+        icon: glyph ?? Icon(icon),
       ),
     );
   }
