@@ -63,7 +63,6 @@ jobs:
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
@@ -73,7 +72,6 @@ jobs:
         run: |
           brew install ccache
           ccache --max-size=500M
-          ccache --zero-stats
 
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -87,9 +85,6 @@ jobs:
         # a first build with "could not build module 'flutter_soloud'" and passed on the next,
         # so a failed build is tried once more (it is incremental).
         run: make build || make build
-
-      - name: ccache hits
-        run: ccache --show-stats
 
       # What `make check` runs, on the commit being released: the analyzer and every test (on the
       # bundled demo). FFmpeg makes the video tests write real videos instead of skipping.
@@ -129,7 +124,6 @@ jobs:
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
