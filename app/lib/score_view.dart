@@ -23,8 +23,8 @@ import 'video_export.dart';
 /// laid out like the video and scaled to fit ([VideoFrame]), so resizing the window never
 /// changes what the score shows.
 ///
-/// Double-click a text (tempo mark, "arco", "dolce"…) to edit it in place — Enter saves,
-/// Esc cancels, an empty text removes it. Double-click an instrument name to rename it.
+/// Double-click an instrument name to rename it (a text does nothing: editing the score's
+/// texts is deprecated, see docs/architecture.md).
 ///
 /// With Attach Image on (Settings ▸ Extension), right-click adds an image (an SVG, PNG or
 /// JPEG file, or the clipboard's) where it was clicked; click one to select it, drag it to move it, drag a
