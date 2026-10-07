@@ -46,18 +46,6 @@ class ScoreView extends StatefulWidget {
 class ScoreViewState extends State<ScoreView> {
   EditorController get c => widget.controller;
 
-  /// The text being edited in place, and where it is drawn (layout points, see [VideoFrame]).
-  ({String id, Rect rect})? _editing;
-  final _field = TextEditingController();
-  final _focus = FocusNode();
-
-  @override
-  void dispose() {
-    _field.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
   void _onDoubleTap(TapDownDetails details, VideoFrame frame) {
     final scene = c.scene, curation = c.curation;
     if (scene == null || curation == null) return;
@@ -75,32 +63,11 @@ class ScoreViewState extends State<ScoreView> {
     }
 
     final partId = scene.partLabelAt(p, c.playback.time.value, curation, size);
-    if (partId != null) {
-      // A shared staff's name follows its players' (renamed in their lanes).
-      final part = c.score!.metadata.parts.where((x) => x.id == partId).firstOrNull;
-      if (part != null) showRenameDialog(context, c, part);
-      return;
-    }
-
-    final hit = scene.textAt(p, c.playback.time.value, curation, size);
-    final text = hit == null ? null : c.textById(hit.id);
-    if (hit == null || text == null) return;
-    c.playback.pause();
-    _field.text = text.current;
-    _field.selection = TextSelection(baseOffset: 0, extentOffset: _field.text.length);
-    setState(() => _editing = hit);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+    if (partId == null) return;
+    // A shared staff's name follows its players' (renamed in their lanes).
+    final part = c.score!.metadata.parts.where((x) => x.id == partId).firstOrNull;
+    if (part != null) showRenameDialog(context, c, part);
   }
-
-  void _commit() {
-    final editing = _editing;
-    if (editing == null) return;
-    setState(() => _editing = null);
-    final current = c.textById(editing.id)?.current;
-    if (_field.text != current) c.editText(editing.id, _field.text);
-  }
-
-  void _cancel() => setState(() => _editing = null);
 
   // MARK: Images (Attach Image)
 
@@ -325,8 +292,6 @@ class ScoreViewState extends State<ScoreView> {
           : VideoFrame.fit(constraints.biggest, aspectRatio, devicePixelRatio: devicePixelRatio);
       _frame = frame;
       final colors = context.colors;
-      final editing = _editing;
-      final editRect = editing == null ? null : frame.toView(editing.rect);
       return Stack(children: [
         Positioned.fill(child: ColoredBox(color: aspectRatio == null ? colors.scorePaper : colors.surface)),
         Positioned.fromRect(
@@ -373,23 +338,6 @@ class ScoreViewState extends State<ScoreView> {
             ),
           ),
         ),
-        if (editing != null && editRect != null)
-          Positioned(
-            left: math.max(4, editRect.left - 8),
-            top: math.max(4, editRect.center.dy - 18),
-            width: math.max(editRect.width + 60, 200),
-            child: _InlineEditor(
-              fontFamily: c.score!.textFontFamily,
-              controller: _field,
-              focus: _focus,
-              onCommit: _commit,
-              onCancel: _cancel,
-              onRevert: () {
-                final original = c.textById(editing.id)?.original.text;
-                if (original != null) _field.text = original;
-              },
-            ),
-          ),
         if (c.isReengraving)
           Positioned(
             right: 12,
@@ -402,68 +350,6 @@ class ScoreViewState extends State<ScoreView> {
           ),
       ]);
     });
-  }
-}
-
-class _InlineEditor extends StatelessWidget {
-  const _InlineEditor({
-    required this.fontFamily,
-    required this.controller,
-    required this.focus,
-    required this.onCommit,
-    required this.onCancel,
-    required this.onRevert,
-  });
-  /// The score's text font.
-  final String fontFamily;
-  final TextEditingController controller;
-  final FocusNode focus;
-  final VoidCallback onCommit;
-  final VoidCallback onCancel;
-  final VoidCallback onRevert;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Material(
-      elevation: 4,
-      shadowColor: colors.accentStrong.withValues(alpha: 0.35),
-      borderRadius: BorderRadius.circular(8),
-      color: colors.scorePaper,
-      child: CallbackShortcuts(
-        bindings: {const SingleActivator(LogicalKeyboardKey.escape): onCancel},
-        child: Row(children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              focusNode: focus,
-              // The score's own text font and ink: the edit looks like the text it becomes.
-              style: TextStyle(fontFamily: fontFamily, fontSize: 16, color: colors.scoreInk),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                hintText: 'Empty removes the text',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: colors.accent),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: colors.accentStrong, width: 1.5),
-                ),
-              ),
-              onSubmitted: (_) => onCommit(),
-              onTapOutside: (_) => onCommit(),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Revert',
-            icon: Icon(Icons.history, size: 18, color: colors.textMuted),
-            onPressed: onRevert,
-          ),
-        ]),
-      ),
-    );
   }
 }
 

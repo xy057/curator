@@ -125,7 +125,6 @@ void main() {
       'Export Video': () => showExportDialog(context(), c, settings, suggestedName: 'Demo'),
       'Engrave Option': () => showEngraveOptionsDialog(context(), settings, controller: c),
       'Condensing': () => showCondensingDialog(context(), c),
-      'Edit Texts': () => showTextsDialog(context(), c),
       'Rename': () => showRenameDialog(context(), c, c.score!.metadata.parts.first),
       'Warp': () => showAnchorDialog(context(), beats: c.beats, quarter: 9, jumpTo: 0, warp: true),
       'Settings': () => showSettingsDialog(context(), settings, controller: c),

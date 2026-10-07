@@ -16,7 +16,6 @@ class AppMenus extends StatelessWidget {
     this.recentFiles = const [],
     this.onOpenRecent,
     this.onClearRecent,
-    this.onEditTexts,
     this.onCondensing,
     this.onFonts,
     this.onAddRecording,
@@ -49,7 +48,6 @@ class AppMenus extends StatelessWidget {
   final VoidCallback? onClose;
 
   /// Score menu; null (greyed out) while nothing is open.
-  final VoidCallback? onEditTexts;
   final VoidCallback? onCondensing;
   final VoidCallback? onFonts;
   final VoidCallback? onAddRecording;
@@ -139,7 +137,6 @@ class AppMenus extends StatelessWidget {
           ]),
         ]),
         PlatformMenu(label: 'Score', menus: [
-          PlatformMenuItem(label: 'Edit Texts…', onSelected: onEditTexts),
           PlatformMenuItem(label: 'Condensing…', onSelected: onCondensing),
           PlatformMenuItem(label: 'Fonts…', onSelected: onFonts),
           PlatformMenuItem(label: 'Add Recording…', onSelected: onAddRecording),
