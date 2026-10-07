@@ -71,6 +71,13 @@ void main() {
     expect(c.curation!.lane(ids[0]), isEmpty);
     expect(c.curation!.lane(ids[5]), isEmpty);
 
+    // A click the system takes back (the pointer cancelled) draws nothing.
+    final before = c.curation!.lane(ids[7]);
+    g = await tester.startGesture(at(7, bars[9]));
+    await g.cancel();
+    await tester.pump();
+    expect(c.curation!.lane(ids[7]), before);
+
     // Erase (E): zoomed out too far to tell beats apart, a click hides one bar, splitting the region.
     final fitted = c.viewport.pxPerSec;
     c.viewport.zoom(0.25, 0);

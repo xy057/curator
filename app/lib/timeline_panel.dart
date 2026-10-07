@@ -544,13 +544,15 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
 
   int _row(String partId) => parts.indexWhere((p) => p.id == partId);
 
-  void _onUp(PointerEvent e) {
+  /// The drag is over: let go, or [cancelled] (the system took the pointer), when what it
+  /// changed so far stays, as one Undo step, but a click draws nothing (as in the Captions lane).
+  void _onUp(PointerEvent e, {bool cancelled = false}) {
     final drag = _drag;
     _drag = null;
     _band.value = null;
     if (drag?.kind == _DragKind.scrub) c.playback.endScrub();
     if (drag == null || drag.kind == _DragKind.scrub || drag.kind == _DragKind.marquee) return;
-    if (drag.kind == _DragKind.paint && !drag.moved) {
+    if (drag.kind == _DragKind.paint && !drag.moved && !cancelled) {
       // A click draws (or erases) the beat under the pointer, or the bar when zoomed out.
       final starts = tl.measureStarts;
       final q = _q(drag.downAt.dx).clamp(0.0, _totalQuarters).toDouble();
@@ -685,7 +687,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                 onPointerDown: _onDown,
                 onPointerMove: _onMove,
                 onPointerUp: _onUp,
-                onPointerCancel: _onUp,
+                onPointerCancel: (e) => _onUp(e, cancelled: true),
                 child: WithPlayhead(
                   controller: c,
                   child: CustomPaint(
