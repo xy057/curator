@@ -38,7 +38,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Purge unused |
 | `caption_settings.dart` | Settings ▸ Extension ▸ Captions' own settings: font, position, countdown, size, with a preview |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
-| `settings_dialog.dart` | Settings… (⌘,, the app's) and File ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
+| `settings_dialog.dart` | Settings… (⌘,, the app's) and Score ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Fonts: the music and text font a project is engraved in, and its caption font |
 | `score_replacement.dart` | Score ▸ Replace Score…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned); Undo's snapshots |
@@ -47,7 +47,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as H.264/AAC MP4; the dialog (a still to scrub, bars, ratio, size, frame rate, paper, score size) |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
-| `app_menus.dart` | The menu bar (native on macOS): File, Edit, Score. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu |
+| `app_menus.dart` | The menu bar (native on macOS): File (Settings… at its foot, on macOS too), Edit, Score (Project Settings… at its foot). Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
 ## Rules

@@ -1,4 +1,4 @@
-// Drives File ▸ Project Settings… with real taps: its Fonts page and Undo through font
+// Drives Score ▸ Project Settings… with real taps: its Fonts page and Undo through font
 // changes, the staff transition, and the project's own engraving options.
 // With SCREENSHOT_DIR set, also saves a PNG of the Fonts page for visual review.
 import 'dart:async';

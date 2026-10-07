@@ -49,8 +49,7 @@ class AppMenus extends StatelessWidget {
   /// File ▸ Close: back to the start screen; null (greyed out) while nothing is open.
   final VoidCallback? onClose;
 
-  /// File ▸ Project Settings… (⇧⌘,), and at the foot of the Score menu; null (greyed out)
-  /// while nothing is open.
+  /// Score ▸ Project Settings… (⇧⌘,); null (greyed out) while nothing is open.
   final VoidCallback? onProjectSettings;
 
   /// Score menu; null (greyed out) while nothing is open.
@@ -117,12 +116,9 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(label: 'Export Video…', shortcut: _key(LogicalKeyboardKey.keyE), onSelected: onExportVideo),
           ]),
+          // The app's settings; on macOS the Curator menu has them too, with the shortcut.
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(
-                label: 'Project Settings…',
-                shortcut: _key(LogicalKeyboardKey.comma, shift: true),
-                onSelected: onProjectSettings),
-            if (!_mac) PlatformMenuItem(label: 'Settings…', shortcut: _key(LogicalKeyboardKey.comma), onSelected: onSettings),
+            PlatformMenuItem(label: 'Settings…', shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
           ]),
         ]),
         PlatformMenu(label: 'Edit', menus: [
@@ -152,9 +148,11 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItem(label: 'Condensing…', onSelected: onCondensing),
           PlatformMenuItem(label: 'Add Recording…', onSelected: onAddRecording),
           PlatformMenuItem(label: 'Replace Score…', onSelected: onReplaceScore),
-          // Also here, where the project's other commands are; the shortcut is File's.
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Project Settings…', onSelected: onProjectSettings),
+            PlatformMenuItem(
+                label: 'Project Settings…',
+                shortcut: _key(LogicalKeyboardKey.comma, shift: true),
+                onSelected: onProjectSettings),
           ]),
         ]),
         if (_mac)

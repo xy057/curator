@@ -160,7 +160,7 @@ void main() {
     expect(find.textContaining('Verovio'), findsOneWidget);
   });
 
-  testWidgets('Score ▸ Project Settings… opens the project\'s settings, greyed out with nothing open', (tester) async {
+  testWidgets('Score ▸ Project Settings… opens the project\'s settings, greyed out with nothing open; File has the app\'s', (tester) async {
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
@@ -187,6 +187,20 @@ void main() {
       await tester.pump(const Duration(milliseconds: 150));
     }
     expect(find.text('Staff transition'), findsOneWidget);
+    expect(find.text('Engraving'), findsNothing, reason: 'the first page, not Advanced');
+    await tester.tap(find.byTooltip('Close'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+
+    await tester.tap(find.text('File'));
+    await tester.pump();
+    expect(item(), findsNothing, reason: 'Project Settings… is in the Score menu only');
+    await tester.tap(find.widgetWithText(MenuItemButton, 'Settings…'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    expect(find.text('Appearance'), findsOneWidget, reason: "the app's settings");
   });
 
   testWidgets('Export Video is greyed out in the menu while the score is engraved again, as the toolbar button is', (tester) async {

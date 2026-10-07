@@ -39,7 +39,7 @@ Future<void> showSettingsDialog(
       ),
     );
 
-/// File ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
+/// Score ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
 /// ([_projectCategories]). Each change is an edit: an Undo step, saved with the project.
 Future<void> showProjectSettingsDialog(BuildContext context, AppSettings settings, EditorController controller,
         {String? page}) =>
@@ -251,7 +251,7 @@ final _categories = <_Category>[
   ]),
 ];
 
-/// The open project's settings (File ▸ Project Settings…): each change an edit.
+/// The open project's settings (Score ▸ Project Settings…): each change an edit.
 final _projectCategories = <_Category>[
   _Category('Animation', Icons.animation_rounded, [
     _Item(
