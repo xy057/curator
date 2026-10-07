@@ -236,7 +236,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   final _isSample = ValueNotifier(false);
 
   /// What the Edit menu can do; the menus rebuild when it changes, not on every edit.
-  final _edit = ValueNotifier((undo: false, redo: false, paste: false, delete: false));
+  final _edit = ValueNotifier((undo: false, redo: false, copy: false, paste: false, delete: false));
 
   /// The settings the page shows: it rebuilds when one of them changes, not at every change of
   /// settings (a slider in Settings changes them many times a second).
@@ -289,7 +289,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _edit.value = (
       undo: controller.canUndo,
       redo: controller.canRedo,
-      paste: open && controller.images.enabled,
+      copy: open && controller.tab == BottomTab.instruments && controller.lanes.selected.isNotEmpty,
+      paste: open && (controller.images.enabled || (controller.tab == BottomTab.instruments && controller.lanes.canPaste)),
       delete: open && controller.canDelete,
     );
   }
@@ -559,6 +560,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
+  void _copy() {
+    if (_curating) controller.lanes.copy();
+  }
+
+  void _cut() {
+    if (_curating) controller.lanes.cut();
+  }
+
+  /// Paste: regions copied in the Instruments tab, while it shows; else Attach Image's image.
+  void _paste() => _curating && controller.lanes.canPaste ? controller.lanes.paste() : _pasteImage();
+
   Future<void> _pasteImage() async {
     if (!controller.images.enabled || controller.score == null) return;
     String? problem;
@@ -731,7 +743,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onExportVideo: _canExport.value ? _exportVideo : null,
           onUndo: edit != null && edit.undo ? controller.undo : null,
           onRedo: edit != null && edit.redo ? controller.redo : null,
-          onPaste: edit != null && edit.paste ? _pasteImage : null,
+          onCut: edit != null && edit.copy ? _cut : null,
+          onCopy: edit != null && edit.copy ? _copy : null,
+          onPaste: edit != null && edit.paste ? _paste : null,
           onDelete: edit != null && edit.delete ? controller.deleteSelection : null,
           onSelectAll: edit != null && _hasScore.value ? _selectAll : null,
           child: page!,
@@ -836,9 +850,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): controller.undo,
         const SingleActivator(LogicalKeyboardKey.keyY, control: true): controller.redo,
         const SingleActivator(LogicalKeyboardKey.escape): _escape,
-        // Attach Image: the clipboard's image, at the pointer.
-        const SingleActivator(LogicalKeyboardKey.keyV, meta: true): _pasteImage,
-        const SingleActivator(LogicalKeyboardKey.keyV, control: true): _pasteImage,
+        // Instruments tab: the selected regions. Paste: those, or Attach Image's image at the pointer.
+        const SingleActivator(LogicalKeyboardKey.keyC, meta: true): _copy,
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true): _copy,
+        const SingleActivator(LogicalKeyboardKey.keyX, meta: true): _cut,
+        const SingleActivator(LogicalKeyboardKey.keyX, control: true): _cut,
+        const SingleActivator(LogicalKeyboardKey.keyV, meta: true): _paste,
+        const SingleActivator(LogicalKeyboardKey.keyV, control: true): _paste,
         // Instruments tab: tools, and trimming the selected regions to the playhead.
         const SingleActivator(LogicalKeyboardKey.keyV): () => _tool(LaneTool.select),
         const SingleActivator(LogicalKeyboardKey.keyD): () => _tool(LaneTool.draw),

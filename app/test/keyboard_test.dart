@@ -1,6 +1,6 @@
 // The window's keyboard shortcuts (HomePage's bindings): tools, nudging and trimming in the
 // Instruments tab; tap mode, nudging and re-barring anchors, and W in the Audio tab; moving the
-// playhead; Escape; Undo and Redo; pasting an image.
+// playhead; Escape; Undo and Redo; Cut, Copy and Paste of regions; pasting an image.
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
@@ -78,6 +78,19 @@ void main() {
     c.lanes.select('P1', c.curation!.lane('P1').single);
     await press(tester, LogicalKeyboardKey.escape);
     expect(c.lanes.selected, isEmpty, reason: 'Escape lets go of the selection');
+
+    // Cut, then paste at the playhead; Copy leaves the region.
+    c.lanes.select('P1', c.curation!.lane('P1').single);
+    await press(tester, LogicalKeyboardKey.keyX, holding: LogicalKeyboardKey.controlLeft);
+    expect(c.curation!.lane('P1'), isEmpty);
+    c.playback.seek(c.timeline.secondsAtQuarter(starts[10]));
+    await press(tester, LogicalKeyboardKey.keyV, holding: LogicalKeyboardKey.controlLeft);
+    expect(c.curation!.lane('P1'), [Region(starts[10], starts[14])]);
+    await press(tester, LogicalKeyboardKey.keyC, holding: LogicalKeyboardKey.controlLeft);
+    expect(c.curation!.lane('P1'), [Region(starts[10], starts[14])]);
+    c.playback.seek(c.timeline.secondsAtQuarter(starts[20]));
+    await press(tester, LogicalKeyboardKey.keyV, holding: LogicalKeyboardKey.controlLeft);
+    expect(c.curation!.lane('P1'), [Region(starts[10], starts[14]), Region(starts[20], starts[24])]);
   });
 
   testWidgets('the playhead: Home, End, ← and → skip (⇧ less), Enter plays', (tester) async {
