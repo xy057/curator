@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -43,7 +45,20 @@ class EditorToolbar extends StatelessWidget {
   static const height = 46.0;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Select(
+        listenable: controller,
+        select: () => (
+          undo: controller.canUndo,
+          redo: controller.canRedo,
+          playing: controller.playback.isPlaying,
+          images: controller.images.enabled,
+          reengraving: controller.isReengraving,
+          staffSpace: controller.staffSpace,
+        ),
+        builder: (context, _) => _bar(context),
+      );
+
+  Widget _bar(BuildContext context) {
     final c = controller;
     final colors = context.colors;
     return Container(
@@ -179,10 +194,13 @@ class _PlayButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final playing = controller.playback.isPlaying;
+    // Light: white on the strong accent; dark: the dark surface on the (light) accent. White
+    // on the plain accent was faint (sky, amber).
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Tip(
       message: playing ? 'Pause (Space)' : 'Play (Space)',
       child: Material(
-        color: colors.accent,
+        color: dark ? colors.accent : colors.accentStrong,
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -199,7 +217,7 @@ class _PlayButton extends StatelessWidget {
                 playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 key: ValueKey(playing),
                 size: 20,
-                color: Colors.white,
+                color: dark ? colors.surface : Colors.white,
               ),
             ),
           ),
@@ -376,10 +394,46 @@ class _Clickable extends StatelessWidget {
       );
 }
 
-/// A quiet "Saving…" while a save (or autosave) runs.
-class _SavingIndicator extends StatelessWidget {
+/// A quiet "Saving…" while a save (or autosave) runs, once it has run a moment: a quick
+/// autosave shows nothing, rather than a flicker.
+class _SavingIndicator extends StatefulWidget {
   const _SavingIndicator({required this.document});
   final ProjectDocument document;
+
+  @override
+  State<_SavingIndicator> createState() => _SavingIndicatorState();
+}
+
+class _SavingIndicatorState extends State<_SavingIndicator> {
+  static const _after = Duration(milliseconds: 400);
+  Timer? _timer;
+  bool _shown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.document.addListener(_changed);
+    _changed();
+  }
+
+  @override
+  void dispose() {
+    widget.document.removeListener(_changed);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _changed() {
+    if (widget.document.isSaving) {
+      _timer ??= Timer(_after, () {
+        if (mounted) setState(() => _shown = true);
+      });
+    } else {
+      _timer?.cancel();
+      _timer = null;
+      if (_shown) setState(() => _shown = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -387,7 +441,7 @@ class _SavingIndicator extends StatelessWidget {
     return FadeSlideSwitcher(
       alignment: Alignment.centerRight,
       offset: const Offset(0, 0.3),
-      child: !document.isSaving
+      child: !_shown
           ? const SizedBox.shrink()
           : Padding(
               padding: const EdgeInsets.only(right: 12),

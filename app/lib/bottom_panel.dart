@@ -19,7 +19,20 @@ class BottomPanel extends StatelessWidget {
   static const _switch = Duration(milliseconds: 220);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Select(
+        listenable: controller,
+        select: () => (
+          score: controller.score,
+          curation: controller.curation,
+          sync: controller.sync,
+          tab: controller.tab,
+          captions: controller.captions.enabled,
+          duration: controller.playback.duration,
+        ),
+        builder: (context, _) => _panel(context),
+      );
+
+  Widget _panel(BuildContext context) {
     final c = controller;
     if (c.score == null || c.curation == null || c.sync == null) return const SizedBox.shrink();
     final audio = c.tab == BottomTab.audio;
@@ -50,7 +63,7 @@ class BottomPanel extends StatelessWidget {
             const ToolbarDivider(),
             // In a narrow window only Fit stays: pinch or ⌘-scroll zoom anyway.
             if (MediaQuery.sizeOf(context).width >= 1100) ...[
-              ToolbarButton(icon: Icons.zoom_out_rounded, tooltip: 'Zoom out (${shortcut('⌘-scroll')})', onPressed: () => c.viewport.zoom(1 / 1.5)),
+              ToolbarButton(icon: Icons.zoom_out_rounded, tooltip: 'Zoom out (${shortcut('⌘-scroll')} or pinch)', onPressed: () => c.viewport.zoom(1 / 1.5)),
               ToolbarButton(icon: Icons.zoom_in_rounded, tooltip: 'Zoom in (${shortcut('⌘-scroll')} or pinch)', onPressed: () => c.viewport.zoom(1.5)),
             ],
             ToolbarButton(
@@ -141,7 +154,7 @@ class _TabSwitch extends StatelessWidget {
                 child: SizedBox.square(
                   dimension: size,
                   child: TweenAnimationBuilder<Color?>(
-                    duration: const Duration(milliseconds: 200),
+                    duration: stateDuration(const Duration(milliseconds: 200)),
                     tween: ColorTween(end: tab == value ? colors.accentStrong : colors.textMuted),
                     builder: (context, color, _) => Icon(icon, size: 18, color: color),
                   ),

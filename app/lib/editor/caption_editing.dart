@@ -131,7 +131,7 @@ class CaptionEditing {
   /// The caption showing at [seconds] (an index into [captions]); null: none.
   int? at(double seconds) {
     if (!_enabled) return null;
-    return _c._scene?.captionShowingAt(seconds);
+    return _c.scene?.captionShowingAt(seconds);
   }
 
   /// Adds [caption]. One Undo step.

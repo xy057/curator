@@ -82,7 +82,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
 
   /// ⌘ (Ctrl) held: scrolling zooms the time axis (see [ViewportGestures]), so the lanes
   /// must not scroll vertically at the same time.
-  bool _zooming = false;
+  final _zooming = ValueNotifier(false);
 
   @override
   void initState() {
@@ -93,8 +93,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   }
 
   bool _onKey(KeyEvent _) {
-    final zooming = isZoomModifierPressed;
-    if (zooming != _zooming && mounted) setState(() => _zooming = zooming);
+    if (mounted) _zooming.value = isZoomModifierPressed;
     return false; // only watching: the key still goes to the shortcuts
   }
 
@@ -121,6 +120,10 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   final _rowY = <String, double>{};
   late final Ticker _motion;
   Duration _lastTick = Duration.zero;
+
+  /// A frame of lanes moving: the names and the lanes are drawn again where they now are,
+  /// and nothing else is built.
+  final _frame = RepaintSignal();
 
   /// The top of lane [i] as drawn now.
   double _rowTop(int i) => _rowY[parts[i].id] ?? i * _laneHeight;
@@ -272,7 +275,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
       _rowY.clear();
       _motion.stop();
     }
-    setState(() {});
+    _frame.ping();
   }
 
   /// Near the top or bottom of the panel the lanes scroll, for a lane that goes further: the
@@ -297,6 +300,8 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     HardwareKeyboard.instance.removeHandler(_onKey);
     _vScroll.dispose();
     _band.dispose();
+    _zooming.dispose();
+    _frame.dispose();
     super.dispose();
   }
 
@@ -342,6 +347,13 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
 
   int _laneIndex(Offset p) => (p.dy / _laneHeight).floor().clamp(0, parts.length - 1);
 
+  /// The part of the lanes scrolled into view (from their top): what is worth painting.
+  ({double top, double bottom}) get _inView {
+    if (!_vScroll.hasClients || !_vScroll.position.hasContentDimensions) return (top: 0, bottom: double.infinity);
+    final p = _vScroll.position;
+    return (top: p.pixels, bottom: p.pixels + p.viewportDimension);
+  }
+
   // MARK: Hit testing
 
   ({RegionRef ref, _DragKind kind})? _hit(Offset p) {
@@ -373,14 +385,19 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   // MARK: Pointer handling
 
   void _onHover(PointerHoverEvent e) {
+    final cursor = _cursorAt(e.localPosition);
+    if (cursor != _cursor) setState(() => _cursor = cursor);
+  }
+
+  /// The cursor over [p]: what a drag from there would do.
+  MouseCursor _cursorAt(Offset p) {
     final tool = _tool;
-    final hit = tool == LaneTool.select ? _hit(e.localPosition) : null;
-    final cursor = switch (hit?.kind) {
+    final hit = tool == LaneTool.select ? _hit(p) : null;
+    return switch (hit?.kind) {
       _DragKind.resizeStart || _DragKind.resizeEnd => SystemMouseCursors.resizeLeftRight,
       _DragKind.move => SystemMouseCursors.grab,
       _ => tool == LaneTool.select ? SystemMouseCursors.basic : SystemMouseCursors.precise,
     };
-    if (cursor != _cursor) setState(() => _cursor = cursor);
   }
 
   void _onDown(PointerDownEvent e) {
@@ -441,7 +458,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     } else {
       c.clearSelection();
       _drag = _Drag(_DragKind.scrub, downAt: p, downQ: q, pass: pass);
-      c.playback.seek(c.viewport.seconds(p.dx));
+      c.playback.scrub(c.viewport.seconds(p.dx));
     }
   }
 
@@ -453,7 +470,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     drag.moved |= (p - drag.downAt).distance >= 3;
     switch (drag.kind) {
       case _DragKind.scrub:
-        c.playback.seek(c.viewport.seconds(p.dx));
+        c.playback.scrub(c.viewport.seconds(p.dx));
       case _DragKind.paint:
         final edge = _snap(q, drag.pass);
         _paint(drag, math.min(drag.downQ, edge), math.max(drag.downQ, edge), _laneIndex(p));
@@ -527,12 +544,15 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
 
   int _row(String partId) => parts.indexWhere((p) => p.id == partId);
 
-  void _onUp(PointerEvent e) {
+  /// The drag is over: let go, or [cancelled] (the system took the pointer), when what it
+  /// changed so far stays, as one Undo step, but a click draws nothing (as in the Captions lane).
+  void _onUp(PointerEvent e, {bool cancelled = false}) {
     final drag = _drag;
     _drag = null;
     _band.value = null;
+    if (drag?.kind == _DragKind.scrub) c.playback.endScrub();
     if (drag == null || drag.kind == _DragKind.scrub || drag.kind == _DragKind.marquee) return;
-    if (drag.kind == _DragKind.paint && !drag.moved) {
+    if (drag.kind == _DragKind.paint && !drag.moved && !cancelled) {
       // A click draws (or erases) the beat under the pointer, or the bar when zoomed out.
       final starts = tl.measureStarts;
       final q = _q(drag.downAt.dx).clamp(0.0, _totalQuarters).toDouble();
@@ -555,17 +575,74 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     } else {
       c.lanes.reselect(selected);
     }
-    setState(() => _cursor = SystemMouseCursors.basic);
+    // What is under the pointer now (a region let go of: the open hand), as the Captions lane does.
+    setState(() => _cursor = _cursorAt(e.localPosition));
   }
 
+  /// The lanes shown (their ids): the panel is as tall as they are.
+  List<String> get _laneIds => [for (final p in c.laneParts) p.id];
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Select(
+        listenable: c,
+        select: () => (curation: c.curation, lanes: _laneIds),
+        equals: (a, b) => a.curation == b.curation && listEquals(a.lanes, b.lanes),
+        builder: (context, _) => _lanes(context),
+      );
+
+  /// What a lane's name shows: the lanes, their names and which are selected.
+  ({List<String> ids, List<String> names, Set<String> selected}) get _headerState => (
+        ids: [for (final p in parts) p.id],
+        names: [for (final p in parts) c.laneName(p)],
+        selected: c.lanes.selectedPartIds,
+      );
+
+  /// The lanes' [names] where they are drawn now (moving, while a lane is held).
+  Widget _names(BuildContext context, Map<String, Widget> names) {
+    final blocks = _heldBlocks(kLaneHeaderWidth);
+    // Keyed, so each name keeps its hover and the held one its gesture as they move.
+    Widget name(int i) => Positioned(
+          key: ValueKey(parts[i].id),
+          top: _rowTop(i),
+          left: 0,
+          right: 0,
+          height: _laneHeight,
+          child: names[parts[i].id]!,
+        );
+    bool held(int i) => _held.contains(parts[i].id);
+    return SizedBox(
+      key: _headersKey,
+      height: parts.length * _laneHeight,
+      child: Stack(clipBehavior: Clip.none, children: [
+        for (var i = 0; i < parts.length; i++)
+          if (!held(i)) name(i),
+        // The held names float above the others as one block, on one shadow.
+        for (final block in blocks)
+          Positioned.fromRect(
+            rect: block,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: context.colors.surface, boxShadow: _liftShadow(context.colors)),
+              ),
+            ),
+          ),
+        for (var i = 0; i < parts.length; i++)
+          if (held(i)) name(i),
+      ]),
+    );
+  }
+
+  Widget _lanes(BuildContext context) {
     final curation = c.curation;
     if (c.score == null || curation == null) return const SizedBox.shrink();
-    return SingleChildScrollView(
-      key: _viewportKey,
-      controller: _vScroll,
-      physics: _zooming ? const NeverScrollableScrollPhysics() : null,
+    return ValueListenableBuilder(
+      valueListenable: _zooming,
+      builder: (context, zooming, lanes) => SingleChildScrollView(
+        key: _viewportKey,
+        controller: _vScroll,
+        physics: zooming ? const NeverScrollableScrollPhysics() : null,
+        child: lanes,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -573,22 +650,19 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
             width: kLaneHeaderWidth,
             child: MouseRegion(
               cursor: _lifted != null ? SystemMouseCursors.grabbing : MouseCursor.defer,
-              child: ListenableBuilder(
+              // Not at every move of a drag in the lanes: only when a name, the order or the
+              // lanes selected change (or this state does, moving a lane).
+              child: Select(
                 listenable: Listenable.merge([c, curation]),
-                builder: (context, _) {
-                  final selectedLanes = c.lanes.selectedPartIds;
+                select: () => _headerState,
+                equals: (a, b) => listEquals(a.ids, b.ids) && listEquals(a.names, b.names) && setEquals(a.selected, b.selected),
+                builder: (context, shown) {
+                  final selectedLanes = shown.selected;
                   final hovered = _hoverGroup;
-                  final blocks = _heldBlocks(kLaneHeaderWidth);
-                  Widget header(int i) {
-                    final part = parts[i];
-                    // Keyed, so each name keeps its hover and the held one its gesture as they move.
-                    return Positioned(
-                      key: ValueKey(part.id),
-                      top: _rowTop(i),
-                      left: 0,
-                      right: 0,
-                      height: _laneHeight,
-                      child: _LaneHeader(
+                  // Built once here: a frame of lanes moving only moves them.
+                  final names = {
+                    for (final part in parts)
+                      part.id: _LaneHeader(
                         controller: c,
                         part: part,
                         selected: selectedLanes.contains(part.id),
@@ -599,30 +673,8 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                         onDrag: _dragLifted,
                         onDrop: _dropLifted,
                       ),
-                    );
-                  }
-
-                  bool held(int i) => _held.contains(parts[i].id);
-                  return SizedBox(
-                    key: _headersKey,
-                    height: parts.length * _laneHeight,
-                    child: Stack(clipBehavior: Clip.none, children: [
-                      for (var i = 0; i < parts.length; i++)
-                        if (!held(i)) header(i),
-                      // The held names float above the others as one block, on one shadow.
-                      for (final block in blocks)
-                        Positioned.fromRect(
-                          rect: block,
-                          child: IgnorePointer(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(color: context.colors.surface, boxShadow: _liftShadow(context.colors)),
-                            ),
-                          ),
-                        ),
-                      for (var i = 0; i < parts.length; i++)
-                        if (held(i)) header(i),
-                    ]),
-                  );
+                  };
+                  return ListenableBuilder(listenable: _frame, builder: (context, _) => _names(context, names));
                 },
               ),
             ),
@@ -635,10 +687,13 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                 onPointerDown: _onDown,
                 onPointerMove: _onMove,
                 onPointerUp: _onUp,
-                onPointerCancel: _onUp,
-                child: CustomPaint(
-                  size: Size(double.infinity, parts.length * _laneHeight),
-                  painter: _LanesPainter(this, context.colors, Listenable.merge([c.playback.time, curation, c.viewport, c, _band])),
+                onPointerCancel: (e) => _onUp(e, cancelled: true),
+                child: WithPlayhead(
+                  controller: c,
+                  child: CustomPaint(
+                    size: Size(double.infinity, parts.length * _laneHeight),
+                    painter: _LanesPainter(this, context.colors, Listenable.merge([curation, c.viewport, c, _band, _vScroll, _frame])),
+                  ),
                 ),
               ),
             ),
@@ -679,18 +734,7 @@ class InstrumentsToolbar extends StatelessWidget {
                 ToolbarButton(icon: icon, tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
             ]),
             const SizedBox(width: 10),
-            Expanded(
-              child: FadeSlideSwitcher(
-                child: status == null
-                    ? const SizedBox.shrink()
-                    : Text(
-                        status,
-                        key: ValueKey(status),
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: context.colors.textMuted),
-                      ),
-              ),
-            ),
+            Expanded(child: FadingText(status, style: TextStyle(fontSize: 12, color: context.colors.textMuted))),
             FadeSlideSwitcher(
               alignment: Alignment.centerRight,
               child: selected.isEmpty
@@ -770,32 +814,35 @@ class _TidyMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final where = lanes == 0 ? 'all lanes' : '$lanes selected ${lanes == 1 ? 'lane' : 'lanes'}';
     String bars(double n) => n == 1 ? '1 bar' : '${n.toStringAsFixed(0)} bars';
-    return PopupMenuButton<void Function()>(
-      tooltip: 'Tidy $where',
-      iconSize: 18,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 280),
-      style: IconButton.styleFrom(
-        fixedSize: const Size(32, 32),
-        minimumSize: const Size(32, 32),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    // Its tooltip is an overlay: a semantics node of its own (see OverlaySemantics).
+    return OverlaySemantics(
+      child: PopupMenuButton<void Function()>(
+        tooltip: 'Tidy $where',
+        iconSize: 18,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 280),
+        style: IconButton.styleFrom(
+          fixedSize: const Size(32, 32),
+          minimumSize: const Size(32, 32),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        icon: const Icon(Icons.cleaning_services_outlined),
+        onSelected: (action) => action(),
+        itemBuilder: (context) => [
+          PopupMenuItem(enabled: false, height: 28, child: Text('Tidy $where', style: const TextStyle(fontSize: 12))),
+          for (final n in const [1.0, 2.0, 4.0])
+            PopupMenuItem(
+              value: () => controller.lanes.fillGaps(n),
+              child: Text('Keep shown through rests of up to ${bars(n)}'),
+            ),
+          const PopupMenuDivider(),
+          for (final n in const [1.0, 2.0])
+            PopupMenuItem(
+              value: () => controller.lanes.removeShort(n),
+              child: Text('Remove regions shorter than ${bars(n)}'),
+            ),
+        ],
       ),
-      icon: const Icon(Icons.cleaning_services_outlined),
-      onSelected: (action) => action(),
-      itemBuilder: (context) => [
-        PopupMenuItem(enabled: false, height: 28, child: Text('Tidy $where', style: const TextStyle(fontSize: 12))),
-        for (final n in const [1.0, 2.0, 4.0])
-          PopupMenuItem(
-            value: () => controller.lanes.fillGaps(n),
-            child: Text('Keep shown through rests of up to ${bars(n)}'),
-          ),
-        const PopupMenuDivider(),
-        for (final n in const [1.0, 2.0])
-          PopupMenuItem(
-            value: () => controller.lanes.removeShort(n),
-            child: Text('Remove regions shorter than ${bars(n)}'),
-          ),
-      ],
     );
   }
 }
@@ -855,6 +902,8 @@ class _TransitionMenu extends StatelessWidget {
 /// What a lane's ⋯ menu offers.
 enum _LaneAction {
   rename('Rename…'),
+  renameFirst('Rename…'), // a condensed pair's lane: one player, or the other (named in the menu)
+  renameSecond('Rename…'),
   select('Select all in lane'),
   copy('Copy lane to…'),
   showThroughout('Show throughout'),
@@ -929,6 +978,10 @@ class _LaneHeaderState extends State<_LaneHeader> {
     switch (action) {
       case _LaneAction.rename:
         showRenameDialog(context, controller, part);
+      case _LaneAction.renameFirst || _LaneAction.renameSecond:
+        final group = controller.condensedGroupOf(part.id)!;
+        final id = action == _LaneAction.renameFirst ? group.first : group.second;
+        showRenameDialog(context, controller, controller.score!.metadata.parts.firstWhere((p) => p.id == id));
       case _LaneAction.select:
         lanes.selectLane(part.id);
       case _LaneAction.copy:
@@ -953,17 +1006,21 @@ class _LaneHeaderState extends State<_LaneHeader> {
     PopupMenuItem<_LaneAction> item(_LaneAction a) => PopupMenuItem(value: a, child: Text(a.label));
     final group = controller.condensedGroupOf(part.id);
     final condensed = group != null;
-    final menu = PopupMenuButton<_LaneAction>(
+    final menu = OverlaySemantics(
+      child: PopupMenuButton<_LaneAction>(
         tooltip: 'Lane options',
         padding: EdgeInsets.zero,
         iconSize: 16,
         icon: Icon(Icons.more_horiz, color: context.colors.textMuted),
         onSelected: (action) => _run(context, action),
         itemBuilder: (context) => [
-          if (!condensed) ...[
+          // A pair's lane names both players: each is renamed on its own, as on its own staff.
+          if (group case final group?) ...[
+            PopupMenuItem(value: _LaneAction.renameFirst, child: Text('Rename ${controller.partNameOf(group.first)}…')),
+            PopupMenuItem(value: _LaneAction.renameSecond, child: Text('Rename ${controller.partNameOf(group.second)}…')),
+          ] else
             item(_LaneAction.rename),
-            const PopupMenuDivider(),
-          ],
+          const PopupMenuDivider(),
           item(_LaneAction.select),
           item(_LaneAction.copy),
           const PopupMenuDivider(),
@@ -975,6 +1032,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
           item(_LaneAction.moveToBottom),
           if (!controller.isScoreOrder) item(_LaneAction.scoreOrder),
         ],
+      ),
     );
     final colors = context.colors;
     final label = LaneLabel(
@@ -1030,10 +1088,14 @@ class _LanesPainter extends CustomPainter {
     canvas.clipRect(Offset.zero & size);
     final c = s.c;
     final parts = s.parts;
+    // Only the lanes in view: a score has many, and the canvas is as tall as all of them.
+    final view = s._inView;
+    bool shown(double top) => top + _laneHeight > view.top && top < view.bottom;
 
     // The stripes stay put; each lane's content is drawn at its own top, which moves while a
     // lane is being moved (see _InstrumentLanesState._tick).
     for (var i = 0; i < parts.length; i++) {
+      if (!shown(i * _laneHeight)) continue;
       canvas.drawRect(Rect.fromLTWH(0, i * _laneHeight, size.width, _laneHeight),
           Paint()..color = i.isEven ? colors.surface : colors.accentWash);
     }
@@ -1049,7 +1111,7 @@ class _LanesPainter extends CustomPainter {
 
     bool held(int i) => s._held.contains(parts[i].id);
     for (var i = 0; i < parts.length; i++) {
-      if (!held(i)) _paintLane(canvas, size, i, s._rowTop(i));
+      if (!held(i) && shown(s._rowTop(i))) _paintLane(canvas, size, i, s._rowTop(i));
     }
     final blocks = s._heldBlocks(size.width);
     if (blocks.isNotEmpty) {
@@ -1082,7 +1144,6 @@ class _LanesPainter extends CustomPainter {
         );
       }
     }
-    paintPlayhead(canvas, size, c, colors);
   }
 
   /// Lane [i]'s content with its top at [top]: where the part plays, and its regions.

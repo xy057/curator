@@ -57,7 +57,20 @@ class EditorController extends ChangeNotifier {
   double _staffSpace = 9;
 
   LoadedScore? get score => _score;
-  CuratedScene? get scene => _scene;
+  CuratedScene? get scene {
+    _applyTimeline();
+    return _scene;
+  }
+
+  /// The sync changed since the scene last followed it: an anchor dragged changes it at every
+  /// move, and the scene follows once, when next asked (painting, once a frame).
+  bool _timelineStale = false;
+
+  void _applyTimeline() {
+    if (!_timelineStale) return;
+    _timelineStale = false;
+    if (_sync case final sync?) _scene?.setTimeline(sync);
+  }
 
   /// When each instrument is shown. Edited in the Instruments tab; read by the preview.
   Curation? get curation => _curation;
@@ -294,7 +307,7 @@ class EditorController extends ChangeNotifier {
     if (value == _scrollFollow) return;
     _scrollFollow = value;
     _scene?.scrollFollow = value;
-    notifyListeners();
+    playback._markDirty(); // only the score shows it: nothing to rebuild
   }
 
   CuratedScene _makeScene(LoadedScore score) {
@@ -617,7 +630,7 @@ class EditorController extends ChangeNotifier {
   void setTransition(double seconds) => _curation?.transition = seconds;
 
   void _syncChanged() {
-    _scene?.setTimeline(_sync!);
+    _timelineStale = true;
     _edited();
     notifyListeners();
   }
@@ -789,6 +802,7 @@ class EditorController extends ChangeNotifier {
   /// How many steps Undo can go back.
   int get undoLimit => _history.limit;
   set undoLimit(int value) {
+    if (value == _history.limit) return;
     _history.limit = value;
     notifyListeners();
   }

@@ -129,7 +129,7 @@ class _AudioLanesState extends State<AudioLanes> {
     } else {
       c.anchors.select(null);
       _scrubbing = true;
-      c.playback.seek(seconds);
+      c.playback.scrub(seconds);
     }
   }
 
@@ -143,7 +143,7 @@ class _AudioLanesState extends State<AudioLanes> {
       _marquee.value = (_marquee.value!.$1, seconds);
       c.anchors.selectBetween(_marquee.value!.$1, seconds, keep: _marqueeKeep);
     } else if (_scrubbing) {
-      c.playback.seek(seconds);
+      c.playback.scrub(seconds);
     }
   }
 
@@ -158,6 +158,7 @@ class _AudioLanesState extends State<AudioLanes> {
       setState(() => _cursor = SystemMouseCursors.basic);
     }
     _marquee.value = null;
+    if (_scrubbing) c.playback.endScrub();
     _scrubbing = false;
   }
 
@@ -175,8 +176,8 @@ class _AudioLanesState extends State<AudioLanes> {
   /// The MIDI tempo map in place of the anchors, the waveform and the tempo lane.
   Widget _midiLanes(BuildContext context, MidiTempoMap midi) {
     final colors = context.colors;
-    final repaint = Listenable.merge([c.playback.time, c.viewport, sync, c]);
-    void seek(PointerEvent e) => c.playback.seek(c.viewport.seconds(e.localPosition.dx));
+    final repaint = Listenable.merge([c.viewport, sync, c]);
+    void seek(PointerEvent e) => c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
     return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SizedBox(
         width: kLaneHeaderWidth,
@@ -198,18 +199,29 @@ class _AudioLanesState extends State<AudioLanes> {
         child: Listener(
           onPointerDown: (e) => e.buttons == kPrimaryButton ? seek(e) : null,
           onPointerMove: (e) => e.buttons == kPrimaryButton ? seek(e) : null,
-          child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint, large: true)),
+          onPointerUp: (_) => c.playback.endScrub(),
+          onPointerCancel: (_) => c.playback.endScrub(),
+          child: WithPlayhead(
+            controller: c,
+            child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint, large: true)),
+          ),
         ),
       ),
     ]);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Select(
+        listenable: c,
+        select: () => (sync: c.sync, midi: c.midiTempo, track: c.track, loading: c.isLoadingAudio),
+        builder: (context, _) => _lanes(context),
+      );
+
+  Widget _lanes(BuildContext context) {
     if (c.midiTempo case final midi?) return _midiLanes(context, midi);
     final track = c.track;
     final colors = context.colors;
-    final repaint = Listenable.merge([c.playback.time, c.viewport, sync, c, _marquee]);
+    final repaint = Listenable.merge([c.viewport, sync, c, _marquee]);
     final lanes = MouseRegion(
       cursor: _cursor,
       onHover: _onHover,
@@ -218,7 +230,8 @@ class _AudioLanesState extends State<AudioLanes> {
         onPointerMove: _onMove,
         onPointerUp: _onUp,
         onPointerCancel: _onUp,
-        child: Column(children: [
+        // One playhead through the three lanes.
+        child: WithPlayhead(controller: c, child: Column(children: [
           SizedBox(
             height: _anchorLaneHeight,
             child: CustomPaint(size: Size.infinite, painter: _AnchorPainter(c, colors, _marquee, repaint)),
@@ -231,8 +244,7 @@ class _AudioLanesState extends State<AudioLanes> {
                   child: Text(
                     c.isLoadingAudio
                         ? 'Reading the recording…'
-                        : 'Load a recording (or drop it here) to see its waveform. You can also tap along without one, '
-                            'or drop a MIDI file to follow its tempo map.',
+                        : 'Drop a recording or a MIDI file',
                     style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                 ),
@@ -242,7 +254,7 @@ class _AudioLanesState extends State<AudioLanes> {
             height: _tempoLaneHeight,
             child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint)),
           ),
-        ]),
+        ])),
       ),
     );
 
@@ -318,7 +330,6 @@ class AudioToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final sync = c.sync!;
-    final colors = context.colors;
     return ListenableBuilder(
       listenable: Listenable.merge([sync, c]),
       builder: (context, _) => Row(children: [
@@ -363,26 +374,7 @@ class AudioToolbar extends StatelessWidget {
           ),
         ],
         const ToolbarDivider(),
-        Tip(
-          message: 'Playback speed',
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.speed_rounded, size: 17, color: colors.textMuted),
-            const SizedBox(width: 2),
-            DropdownButton<double>(
-              value: c.playback.speed,
-              isDense: true,
-              underline: const SizedBox.shrink(),
-              focusColor: Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              icon: Icon(Icons.expand_more_rounded, size: 16, color: colors.textMuted),
-              items: [
-                for (final s in const [0.5, 0.75, 1.0])
-                  DropdownMenuItem(value: s, child: Text('${(s * 100).round()}%', style: TextStyle(fontSize: 12, color: colors.text))),
-              ],
-              onChanged: (s) => c.playback.speed = s ?? 1,
-            ),
-          ]),
-        ),
+        _SpeedMenu(controller: c),
         const SizedBox(width: 8),
         _StartField(controller: c),
         const Spacer(),
@@ -415,6 +407,42 @@ class AudioToolbar extends StatelessWidget {
   }
 }
 
+/// Playback speed: "100% ▾", a menu as the video ratio and the transition are.
+class _SpeedMenu extends StatelessWidget {
+  const _SpeedMenu({required this.controller});
+  final EditorController controller;
+
+  static String _label(double speed) => '${(speed * 100).round()}%';
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final speed = controller.playback.speed;
+    return OverlaySemantics(
+      child: PopupMenuButton<double>(
+        tooltip: 'Playback speed',
+        position: PopupMenuPosition.under,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.only(left: 6, right: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onSelected: (s) => controller.playback.speed = s,
+        itemBuilder: (context) => [
+          for (final s in const [0.5, 0.75, 1.0]) CheckedPopupMenuItem(value: s, checked: s == speed, child: Text(_label(s))),
+        ],
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.speed_rounded, size: 16, color: colors.textMuted),
+          const SizedBox(width: 5),
+          Text(_label(speed),
+              style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
+          Icon(Icons.arrow_drop_down_rounded, size: 18, color: colors.textMuted),
+        ]),
+      ),
+    );
+  }
+}
+
 /// Tap mode (T): a record-like toggle that breathes while armed.
 class _TapButton extends StatelessWidget {
   const _TapButton({required this.controller});
@@ -429,7 +457,7 @@ class _TapButton extends StatelessWidget {
           ? 'Space marks · T or Esc stops'
           : 'Tap anchors (T)',
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: stateDuration(const Duration(milliseconds: 200)),
         curve: Curves.easeOut,
         height: 32,
         padding: EdgeInsets.symmetric(horizontal: c.anchors.tapArmed ? 8 : 0),
@@ -471,7 +499,7 @@ class _TextToggle extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       onTap: onPressed,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: stateDuration(const Duration(milliseconds: 150)),
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 9),
         alignment: Alignment.center,
@@ -536,7 +564,7 @@ class _StartFieldState extends State<_StartField> {
   void initState() {
     super.initState();
     widget.controller.addListener(_show);
-    _focus.addListener(_show);
+    _focus.addListener(_focusChanged);
     FocusManager.instance.addListener(_track);
     _track();
     _show();
@@ -561,6 +589,19 @@ class _StartFieldState extends State<_StartField> {
     super.dispose();
   }
 
+  /// Leaving the field (a click elsewhere, Tab) sets what was typed, as Enter does.
+  void _focusChanged() {
+    if (!_focus.hasFocus) _apply();
+    _show();
+  }
+
+  void _apply() {
+    final seconds = double.tryParse(_text.text), sync = widget.controller.sync;
+    if (seconds != null && sync != null && _text.text != sync.startSeconds.toStringAsFixed(2)) {
+      widget.controller.anchors.setStart(seconds);
+    }
+  }
+
   /// Shows the start as it is now, unless it is being typed.
   void _show() {
     final sync = widget.controller.sync;
@@ -580,6 +621,13 @@ class _StartFieldState extends State<_StartField> {
     }
   }
 
+  /// Escape: leaves the field as it was, keeping nothing typed (as the time readout does).
+  void _cancel() {
+    final sync = widget.controller.sync;
+    if (sync != null) _text.text = sync.startSeconds.toStringAsFixed(2);
+    _leave();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Tip(
@@ -587,32 +635,35 @@ class _StartFieldState extends State<_StartField> {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.start_rounded, size: 17, color: context.colors.textMuted),
         const SizedBox(width: 4),
+        // Shaped as the time readout's field.
         SizedBox(
           width: 64,
-          height: 28,
-          child: TextField(
-            controller: _text,
-            focusNode: _focus,
-            style: TextStyle(fontSize: 12, color: context.colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
-            textAlign: TextAlign.right,
-            decoration: InputDecoration(
-              isDense: true,
-              suffixText: 's',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: context.colors.line),
+          height: 26,
+          child: CallbackShortcuts(
+            bindings: {const SingleActivator(LogicalKeyboardKey.escape): _cancel},
+            child: TextField(
+              controller: _text,
+              focusNode: _focus,
+              style: TextStyle(fontSize: 12.5, color: context.colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
+              textAlign: TextAlign.right,
+              decoration: InputDecoration(
+                isDense: true,
+                suffixText: 's',
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: context.colors.line),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: context.colors.accent),
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: context.colors.accent, width: 1.5),
-              ),
+              onSubmitted: (_) {
+                _apply();
+                _leave();
+              },
             ),
-            onSubmitted: (v) {
-              final seconds = double.tryParse(v);
-              if (seconds != null) widget.controller.anchors.setStart(seconds);
-              _leave();
-            },
           ),
         ),
       ]),
@@ -627,12 +678,13 @@ void _paintMarquee(Canvas canvas, Size size, EditorController c, AppColors color
   if (marquee == null) return;
   final x0 = c.viewport.x(marquee.$1), x1 = c.viewport.x(marquee.$2);
   final rect = Rect.fromLTRB(math.min(x0, x1), 0, math.max(x0, x1), size.height);
-  canvas.drawRect(rect, Paint()..color = colors.accent.withValues(alpha: 0.12));
+  // As the Instruments tab draws its box.
+  canvas.drawRect(rect, Paint()..color = colors.accentStrong.withValues(alpha: 0.08));
   canvas.drawRect(
     rect,
     Paint()
       ..style = PaintingStyle.stroke
-      ..color = colors.accent.withValues(alpha: 0.6),
+      ..color = colors.accentStrong.withValues(alpha: 0.6),
   );
 }
 
@@ -654,8 +706,9 @@ class _AnchorPainter extends CustomPainter {
     for (final (i, a) in sync.anchors.indexed) {
       final x = v.x(a.seconds);
       if (x < -20 || x > size.width + 20) continue;
+      // The colour says whether it is selected; a warp says so by its ring and label.
       final selected = c.anchors.selected.contains(i);
-      final color = selected || a.isWarp ? colors.accentStrong : colors.accent;
+      final color = selected ? colors.accentStrong : colors.accent;
       final y = size.height / 2 + 4;
       final diamond = Path()
         ..moveTo(x, y - 6)
@@ -687,7 +740,7 @@ class _AnchorPainter extends CustomPainter {
           text: label,
           style: TextStyle(
             fontSize: 10.5,
-            color: selected || a.isWarp ? colors.accentStrong : colors.textMuted,
+            color: selected ? colors.accentStrong : a.isWarp ? colors.text : colors.textMuted,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -699,7 +752,6 @@ class _AnchorPainter extends CustomPainter {
       }
       tp.dispose();
     }
-    paintPlayhead(canvas, size, c, colors);
   }
 
   @override
@@ -764,11 +816,10 @@ class _WaveformPainter extends CustomPainter {
       canvas.drawRect(
         Rect.fromLTWH(x - width / 2, 0, width, size.height),
         Paint()
-          ..color = c.anchors.selected.contains(i) || a.isWarp ? colors.accentStrong : colors.accent.withValues(alpha: 0.7),
+          ..color = c.anchors.selected.contains(i) ? colors.accentStrong : colors.accent.withValues(alpha: 0.7),
       );
     }
     _paintMarquee(canvas, size, c, colors, marquee.value);
-    paintPlayhead(canvas, size, c, colors);
   }
 
   @override
@@ -872,7 +923,6 @@ class _TempoPainter extends CustomPainter {
       }
       previous = Offset(x1, yy);
     }
-    paintPlayhead(canvas, size, c, colors);
   }
 
   @override

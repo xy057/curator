@@ -520,7 +520,7 @@ class _SidebarTileState extends State<_SidebarTile> {
             behavior: HitTestBehavior.opaque,
             onTap: widget.onTap,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
+              duration: stateDuration(const Duration(milliseconds: 120)),
               curve: Curves.easeOut,
               height: 30,
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -683,7 +683,7 @@ class _AccentPicker extends StatelessWidget {
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
+                duration: stateDuration(const Duration(milliseconds: 120)),
                 curve: Curves.easeOut,
                 width: 24,
                 height: 24,

@@ -71,6 +71,13 @@ void main() {
     expect(c.curation!.lane(ids[0]), isEmpty);
     expect(c.curation!.lane(ids[5]), isEmpty);
 
+    // A click the system takes back (the pointer cancelled) draws nothing.
+    final before = c.curation!.lane(ids[7]);
+    g = await tester.startGesture(at(7, bars[9]));
+    await g.cancel();
+    await tester.pump();
+    expect(c.curation!.lane(ids[7]), before);
+
     // Erase (E): zoomed out too far to tell beats apart, a click hides one bar, splitting the region.
     final fitted = c.viewport.pxPerSec;
     c.viewport.zoom(0.25, 0);
@@ -124,6 +131,10 @@ void main() {
     await tester.pump();
     expect(c.curation!.lane(ids[3]), [Region(bars[4], bars[7])]);
     expect(c.curation!.lane(ids[4]), [Region(bars[4], bars[7])]);
+    // Let go, the cursor says what is under the pointer: the edge just trimmed, not the arrow.
+    final lanesCursor = find.descendant(
+        of: find.byType(InstrumentLanes), matching: find.byWidgetPredicate((w) => w is MouseRegion && w.onHover != null));
+    expect(tester.widget<MouseRegion>(lanesCursor.first).cursor, SystemMouseCursors.resizeLeftRight);
 
     // Each gesture was one undo step.
     c.undo();
@@ -200,6 +211,11 @@ void main() {
     final piccolo = tester.getTopLeft(find.text('Piccolo')).dy;
     await tester.pump(const Duration(milliseconds: 16));
     expect(tester.getTopLeft(find.text('Piccolo')).dy, lessThan(piccolo), reason: 'sliding up, not jumping');
+    // A frame of the slide moves the names; it builds none of them again.
+    final header = find.ancestor(of: find.text('Piccolo'), matching: find.byWidgetPredicate((w) => w.runtimeType.toString() == '_LaneHeader'));
+    final built = tester.widget(header);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(tester.widget(header), same(built));
     await tester.pump(const Duration(milliseconds: 400));
     await _shot(tester, dir, 'lanes-moving');
     await g.moveBy(const Offset(0, -40));

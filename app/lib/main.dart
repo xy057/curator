@@ -34,6 +34,7 @@ import 'score_view.dart';
 import 'settings_dialog.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
+import 'video_export.dart';
 import 'window_chrome.dart';
 
 Future<void> main() async {
@@ -99,6 +100,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
     final appearance = _currentAppearance;
     if (appearance == _appearance) return;
     _appearance = appearance;
+    appearanceChanging(); // before the window rebuilds in it
     final boundary = _windowKey.currentContext?.findRenderObject() as _RenderStillBoundary?;
     final still = boundary?.still(View.of(context).devicePixelRatio);
     if (still == null) return;
@@ -127,37 +129,53 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
   // The same widget each build: a change of settings rebuilds only what reads them (or the theme).
   late final _home = HomePage(settings: settings, updater: widget.updater);
 
+  // Built once per accent: a new ThemeData never equals the last (its extensions and button
+  // styles compare by identity), so one per build would rebuild every widget that reads the
+  // theme at any change of settings, each tick of a slider among them.
+  AccentColor? _themesAccent;
+  late ThemeData _light, _dark;
+
+  void _buildThemes() {
+    if (_themesAccent == settings.accent) return;
+    _themesAccent = settings.accent;
+    _light = AppColors.theme(accent: settings.accent, brightness: Brightness.light);
+    _dark = AppColors.theme(accent: settings.accent, brightness: Brightness.dark);
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: settings,
-      builder: (context, _) => MaterialApp(
-        title: 'Curator',
-        debugShowCheckedModeBanner: false,
-        theme: AppColors.theme(accent: settings.accent, brightness: Brightness.light),
-        darkTheme: AppColors.theme(accent: settings.accent, brightness: Brightness.dark),
-        themeMode: settings.themeMode,
-        themeAnimationDuration: Duration.zero,
-        // The still fades over everything, open menus and dialogs too, and is part of the next still.
-        builder: (context, child) => _StillBoundary(
-          key: _windowKey,
-          child: Stack(fit: StackFit.expand, children: [
-            child!,
-            ValueListenableBuilder(
-              valueListenable: _before,
-              builder: (context, before, _) => before == null
-                  ? const SizedBox.shrink()
-                  : IgnorePointer(
-                      child: FadeTransition(
-                        opacity: ReverseAnimation(CurvedAnimation(parent: _fade, curve: Curves.easeInOut)),
-                        child: RawImage(image: before, fit: BoxFit.fill),
+      builder: (context, _) {
+        _buildThemes();
+        return MaterialApp(
+          title: 'Curator',
+          debugShowCheckedModeBanner: false,
+          theme: _light,
+          darkTheme: _dark,
+          themeMode: settings.themeMode,
+          themeAnimationDuration: Duration.zero,
+          // The still fades over everything, open menus and dialogs too, and is part of the next still.
+          builder: (context, child) => _StillBoundary(
+            key: _windowKey,
+            child: Stack(fit: StackFit.expand, children: [
+              child!,
+              ValueListenableBuilder(
+                valueListenable: _before,
+                builder: (context, before, _) => before == null
+                    ? const SizedBox.shrink()
+                    : IgnorePointer(
+                        child: FadeTransition(
+                          opacity: ReverseAnimation(CurvedAnimation(parent: _fade, curve: Curves.easeInOut)),
+                          child: RawImage(image: before, fit: BoxFit.fill),
+                        ),
                       ),
-                    ),
-            ),
-          ]),
-        ),
-        home: _home,
-      ),
+              ),
+            ]),
+          ),
+          home: _home,
+        );
+      },
     );
   }
 }
@@ -210,11 +228,28 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// Whether a score is open: the menus' Score items follow it.
   final _hasScore = ValueNotifier(false);
 
+  /// Whether a video can be made now: not while the score is engraved again (the toolbar's
+  /// button is greyed out then too).
+  final _canExport = ValueNotifier(false);
+
   /// Whether the demo is open: Save and Save As are off for it.
   final _isSample = ValueNotifier(false);
 
   /// What the Edit menu can do; the menus rebuild when it changes, not on every edit.
   final _edit = ValueNotifier((undo: false, redo: false, paste: false, delete: false));
+
+  /// The settings the page shows: it rebuilds when one of them changes, not at every change of
+  /// settings (a slider in Settings changes them many times a second).
+  late final _shown = ValueNotifier(_shownSettings);
+
+  ({List<String> recent, bool attachImage, bool videoFrame, VideoRatio videoRatio}) get _shownSettings => (
+        recent: settings.recentFiles,
+        attachImage: settings.attachImage,
+        videoFrame: settings.previewVideoFrame,
+        videoRatio: settings.videoRatio,
+      );
+
+  void _settingsChanged() => _shown.value = _shownSettings;
 
   @override
   void initState() {
@@ -225,6 +260,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     controller.addListener(_scoreChanged);
     controller.engravingFailure.addListener(_engravingFailed);
     settings.addListener(_engravingChanged);
+    settings.addListener(_settingsChanged);
     _engravingChanged();
     _lifecycle; // start listening for Quit
     updater.addListener(_launchCheckAnswered);
@@ -249,6 +285,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _scoreChanged() {
     final open = controller.score != null;
     _hasScore.value = open;
+    _canExport.value = open && !controller.isReengraving;
     _edit.value = (
       undo: controller.canUndo,
       redo: controller.canRedo,
@@ -287,10 +324,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     controller.removeListener(_scoreChanged);
     controller.engravingFailure.removeListener(_engravingFailed);
     settings.removeListener(_engravingChanged);
+    settings.removeListener(_settingsChanged);
     updater.removeListener(_launchCheckAnswered);
     _hasScore.dispose();
+    _canExport.dispose();
     _isSample.dispose();
     _edit.dispose();
+    _shown.dispose();
+    _keys.dispose();
     _lifecycle.dispose();
     document.dispose();
     controller.dispose();
@@ -299,6 +340,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   /// While a text field has focus, keys go to it (Space, T, arrows…), not to the shortcuts.
   bool _typing = false;
+
+  /// Where the window's shortcuts listen: the keyboard comes back here from a field.
+  final _keys = FocusNode(debugLabel: 'Window shortcuts');
 
   void _focusChanged() {
     final typing =
@@ -664,7 +708,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     // The menus follow the recent files and whether a score is open; the page below them is
     // built once and passed through.
     return ListenableBuilder(
-      listenable: Listenable.merge([settings, _hasScore, _isSample, _edit]),
+      listenable: Listenable.merge([_shown, _hasScore, _canExport, _isSample, _edit]),
       builder: (context, page) {
         // Edit acts on the score, so not while a text field or a dialog has the keyboard:
         // a key the field leaves unused would otherwise reach the menu.
@@ -684,7 +728,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onFonts: _hasScore.value ? _fonts : null,
           onAddRecording: _hasScore.value ? _addRecording : null,
           onReplaceScore: _hasScore.value ? _replaceScore : null,
-          onExportVideo: _hasScore.value ? _exportVideo : null,
+          onExportVideo: _canExport.value ? _exportVideo : null,
           onUndo: edit != null && edit.undo ? controller.undo : null,
           onRedo: edit != null && edit.redo ? controller.redo : null,
           onPaste: edit != null && edit.paste ? _pasteImage : null,
@@ -696,52 +740,66 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       child: CallbackShortcuts(
         bindings: _typing ? const {} : _bindings,
         child: Focus(
+          focusNode: _keys,
           autofocus: true,
-          child: DropTarget(
-            onDragEntered: (d) => _dragAt(d.globalPosition),
-            onDragUpdated: (d) => _dragAt(d.globalPosition),
-            onDragExited: (_) => setState(() => _drop = null),
-            onDragDone: (details) {
-              final area = _areaAt(details.globalPosition);
-              setState(() => _drop = null);
-              if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
+          // A click outside a field of the window's (the time, Starts at) hands the keyboard
+          // back to its shortcuts, not to the route above them, where Space, T, ⌘Z… would stop.
+          child: Actions(
+            actions: {
+              EditableTextTapOutsideIntent: CallbackAction<EditableTextTapOutsideIntent>(onInvoke: (intent) {
+                if (intent.focusNode.hasFocus) _keys.requestFocus();
+                return null;
+              }),
             },
-            child: ListenableBuilder(
-              listenable: Listenable.merge([controller, document, settings]),
-              builder: (context, _) => Scaffold(
-                body: Stack(
-                  key: _dropStack,
-                  children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 320),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      // Semantics stay through the fade (see showAppDialog: the size slider).
-                      transitionBuilder: (child, animation) => FadeTransition(
-                        opacity: animation,
-                        alwaysIncludeSemantics: true,
-                        child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(animation), child: child),
+            child: DropTarget(
+              onDragEntered: (d) => _dragAt(d.globalPosition),
+              onDragUpdated: (d) => _dragAt(d.globalPosition),
+              onDragExited: (_) => setState(() => _drop = null),
+              onDragDone: (details) {
+                final area = _areaAt(details.globalPosition);
+                setState(() => _drop = null);
+                if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
+              },
+              // Rebuilt when a score opens or closes, not at every edit: the toolbar, the score and
+              // the timeline each follow what they show.
+              child: Select(
+                listenable: Listenable.merge([controller, _shown]),
+                select: () => (score: controller.score, loading: controller.isLoading, shown: _shown.value),
+                builder: (context, _) => Scaffold(
+                  body: Stack(
+                    key: _dropStack,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 320),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        // Semantics stay through the fade (see showAppDialog: the size slider).
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          alwaysIncludeSemantics: true,
+                          child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(animation), child: child),
+                        ),
+                        child: controller.score == null
+                            ? HomeScreen(
+                                key: const ValueKey('home'),
+                                recentFiles: settings.recentFiles,
+                                onOpen: _open,
+                                onOpenRecent: _openPath,
+                                onRemoveRecent: settings.removeRecent,
+                                onClearRecent: settings.clearRecent,
+                                onOpenSample: _openSample,
+                              )
+                            : KeyedSubtree(
+                                key: const ValueKey('editor'),
+                                child: _editorSnapshot != null
+                                    ? RawImage(image: _editorSnapshot, fit: BoxFit.fill)
+                                    : RepaintBoundary(key: _editorKey, child: _editor(context)),
+                              ),
                       ),
-                      child: controller.score == null
-                          ? HomeScreen(
-                              key: const ValueKey('home'),
-                              recentFiles: settings.recentFiles,
-                              onOpen: _open,
-                              onOpenRecent: _openPath,
-                              onRemoveRecent: settings.removeRecent,
-                              onClearRecent: settings.clearRecent,
-                              onOpenSample: _openSample,
-                            )
-                          : KeyedSubtree(
-                              key: const ValueKey('editor'),
-                              child: _editorSnapshot != null
-                                  ? RawImage(image: _editorSnapshot, fit: BoxFit.fill)
-                                  : RepaintBoundary(key: _editorKey, child: _editor(context)),
-                            ),
-                    ),
-                    _Busy(visible: controller.isLoading, message: 'Engraving…'),
-                    _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: settings.attachImage),
-                  ],
+                      _Busy(visible: controller.isLoading, message: 'Engraving…'),
+                      _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: settings.attachImage),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -861,7 +919,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
         onVerticalDragCancel: () => setState(() => _dragging = false),
         onVerticalDragUpdate: (d) => widget.onDrag(d.delta.dy),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: stateDuration(const Duration(milliseconds: 150)),
           height: 7,
           decoration: BoxDecoration(
             color: active ? colors.accentWash : colors.surface,
@@ -869,7 +927,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
           ),
           alignment: Alignment.center,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: stateDuration(const Duration(milliseconds: 150)),
             width: active ? 44 : 32,
             height: 3,
             decoration: BoxDecoration(
@@ -883,19 +941,36 @@ class _ResizeHandleState extends State<_ResizeHandle> {
   }
 }
 
-/// A veil with a spinner while a score is engraved; fades in and out.
-class _Busy extends StatelessWidget {
+/// A veil with a spinner while a score is engraved; fades in and out (then lets go of the
+/// spinner, which would otherwise turn on unseen).
+class _Busy extends StatefulWidget {
   const _Busy({required this.visible, required this.message});
   final bool visible;
   final String message;
 
   @override
+  State<_Busy> createState() => _BusyState();
+}
+
+class _BusyState extends State<_Busy> {
+  late bool _built = widget.visible; // until it has faded out
+
+  @override
+  void didUpdateWidget(_Busy old) {
+    super.didUpdateWidget(old);
+    if (widget.visible) _built = true;
+  }
+
+  @override
   Widget build(BuildContext context) => IgnorePointer(
-        ignoring: !visible,
+        ignoring: !widget.visible,
         child: AnimatedOpacity(
-          opacity: visible ? 1 : 0,
+          opacity: widget.visible ? 1 : 0,
           duration: const Duration(milliseconds: 200),
-          child: !visible
+          onEnd: () {
+            if (!widget.visible && mounted) setState(() => _built = false);
+          },
+          child: !_built
               ? const SizedBox.expand()
               : ColoredBox(
                   color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.75),
@@ -903,7 +978,7 @@ class _Busy extends StatelessWidget {
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       const SizedBox.square(dimension: 28, child: CircularProgressIndicator(strokeWidth: 2.5)),
                       const SizedBox(height: 14),
-                      Text(message, style: TextStyle(color: context.colors.textMuted)),
+                      Text(widget.message, style: TextStyle(color: context.colors.textMuted)),
                     ]),
                   ),
                 ),
@@ -928,7 +1003,7 @@ class _DropHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final (icon, title, detail) = switch (area) {
-      _DropArea.home => (Icons.file_download_outlined, 'Drop to open', 'A project, a MusicXML score, or a recording for the open score'),
+      _DropArea.home => (Icons.file_download_outlined, 'Drop to open', 'A project or a MusicXML score'),
       _DropArea.project => (Icons.file_download_outlined, 'Drop to open', 'A project or a MusicXML score'),
       _DropArea.audio => (Icons.graphic_eq_rounded, 'Drop to add', 'A MIDI tempo map or a recording'),
       _DropArea.image when attachImage => (Icons.image_outlined, 'Drop to add an image', 'SVG, PNG or JPEG'),

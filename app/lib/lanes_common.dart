@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'ui_kit.dart';
 import 'editor_controller.dart';
 
 /// Width of the name column on the left of every lane (both tabs, so time lines up).
@@ -97,14 +98,24 @@ class BarRuler extends StatelessWidget {
         ),
         Expanded(
           child: Listener(
+            // The primary button only, as in the lanes: a right-click leaves the playhead be.
             onPointerDown: (e) {
+              if (e.buttons != kPrimaryButton) return;
               c.clearSelection();
-              c.playback.seek(c.viewport.seconds(e.localPosition.dx));
+              c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
             },
-            onPointerMove: (e) => c.playback.seek(c.viewport.seconds(e.localPosition.dx)),
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: _RulerPainter(c, colors),
+            onPointerMove: (e) {
+              if (e.buttons == kPrimaryButton) c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
+            },
+            onPointerUp: (_) => c.playback.endScrub(),
+            onPointerCancel: (_) => c.playback.endScrub(),
+            child: WithPlayhead(
+              controller: c,
+              handle: true,
+              child: CustomPaint(
+                size: Size.infinite,
+                painter: _RulerPainter(c, colors),
+              ),
             ),
           ),
         ),
@@ -114,7 +125,7 @@ class BarRuler extends StatelessWidget {
 }
 
 class _RulerPainter extends CustomPainter {
-  _RulerPainter(this.c, this.colors) : super(repaint: Listenable.merge([c.playback.time, c.viewport, c]));
+  _RulerPainter(this.c, this.colors) : super(repaint: Listenable.merge([c.viewport, c]));
   final EditorController c;
   final AppColors colors;
 
@@ -151,15 +162,54 @@ class _RulerPainter extends CustomPainter {
         }
       }
     }
-    paintPlayhead(canvas, size, c, colors, handle: true);
   }
 
   @override
   bool shouldRepaint(_RulerPainter old) => true;
 }
 
+/// [child] (a lane's painting) with the playhead over it, on a layer of its own: playback
+/// moves the playhead every frame and repaints only it, never the lanes under it.
+class WithPlayhead extends StatelessWidget {
+  const WithPlayhead({super.key, required this.controller, required this.child, this.handle = false});
+  final EditorController controller;
+  final Widget child;
+
+  /// The ruler's: a handle at the bottom instead of a line.
+  final bool handle;
+
+  @override
+  Widget build(BuildContext context) => Stack(fit: StackFit.passthrough, children: [
+        RepaintBoundary(child: child),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: RepaintBoundary(
+              child: CustomPaint(painter: _PlayheadPainter(controller, context.colors, handle: handle)),
+            ),
+          ),
+        ),
+      ]);
+}
+
+class _PlayheadPainter extends CustomPainter {
+  _PlayheadPainter(this.c, this.colors, {required this.handle}) : super(repaint: Listenable.merge([c.playback.time, c.viewport]));
+  final EditorController c;
+  final AppColors colors;
+  final bool handle;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (c.score == null) return;
+    canvas.clipRect(Offset.zero & size);
+    _paintPlayhead(canvas, size, c, colors, handle: handle);
+  }
+
+  @override
+  bool shouldRepaint(_PlayheadPainter old) => old.c != c || old.colors != colors || old.handle != handle;
+}
+
 /// The playhead line (and a handle at the bottom of the ruler).
-void paintPlayhead(Canvas canvas, Size size, EditorController c, AppColors colors, {bool handle = false}) {
+void _paintPlayhead(Canvas canvas, Size size, EditorController c, AppColors colors, {bool handle = false}) {
   final px = c.viewport.x(c.playback.time.value);
   if (handle) {
     final path = Path()
@@ -238,7 +288,7 @@ class LaneLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
+        duration: stateDuration(const Duration(milliseconds: 120)),
         height: height,
         padding: const EdgeInsets.only(left: 12),
         decoration: BoxDecoration(

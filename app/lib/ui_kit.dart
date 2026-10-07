@@ -278,3 +278,93 @@ class BelowValueIndicatorShape extends SliderComponentShape {
     canvas.restore();
   }
 }
+
+/// Rebuilds with what [select] reads from [listenable] when that changes ([equals], by
+/// default ==), not at every notification: an editor notifies at every move of a drag, and
+/// most of the window shows nothing that moved.
+class Select<T> extends StatefulWidget {
+  const Select({super.key, required this.listenable, required this.select, required this.builder, this.equals});
+  final Listenable listenable;
+  final T Function() select;
+  final Widget Function(BuildContext context, T value) builder;
+  final bool Function(T a, T b)? equals;
+
+  @override
+  State<Select<T>> createState() => _SelectState<T>();
+}
+
+class _SelectState<T> extends State<Select<T>> {
+  late T _value = widget.select();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.listenable.addListener(_changed);
+  }
+
+  @override
+  void didUpdateWidget(Select<T> old) {
+    super.didUpdateWidget(old);
+    if (old.listenable != widget.listenable) {
+      old.listenable.removeListener(_changed);
+      widget.listenable.addListener(_changed);
+    }
+    _value = widget.select(); // built again by its parent: read afresh
+  }
+
+  @override
+  void dispose() {
+    widget.listenable.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    final value = widget.select();
+    if (widget.equals?.call(value, _value) ?? value == _value) return;
+    setState(() => _value = value);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _value);
+}
+
+/// A line of text that fades in when there is some and out when there is none, and otherwise
+/// changes at once: a status that changes at every move of a drag must not flicker.
+class FadingText extends StatefulWidget {
+  const FadingText(this.text, {super.key, this.style});
+  final String? text;
+  final TextStyle? style;
+
+  @override
+  State<FadingText> createState() => _FadingTextState();
+}
+
+class _FadingTextState extends State<FadingText> {
+  late String _shown = widget.text ?? ''; // the last text, while it fades out
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.text case final text?) _shown = text;
+    return AnimatedOpacity(
+      opacity: widget.text == null ? 0 : 1,
+      duration: const Duration(milliseconds: 180),
+      alwaysIncludeSemantics: true,
+      child: Text(_shown, overflow: TextOverflow.ellipsis, maxLines: 1, style: widget.style),
+    );
+  }
+}
+
+/// True during the frame the appearance (light / dark, accent) changes.
+bool _appearanceChanging = false;
+
+/// The window's appearance is about to change (main.dart): for that frame, [stateDuration]s
+/// are none.
+void appearanceChanging() {
+  _appearanceChanging = true;
+  WidgetsBinding.instance.addPostFrameCallback((_) => _appearanceChanging = false);
+}
+
+/// How long a widget's own change of colour (a hover, a selection) takes: [duration], but none
+/// in the frame the theme changes. The window shows that change by fading a still of itself
+/// out over it; a colour animated under the still would trail it, and rebuild every frame.
+Duration stateDuration(Duration duration) => _appearanceChanging ? Duration.zero : duration;

@@ -213,6 +213,9 @@ tempo map or a recording.
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip
 the staff's fade. During a drag regions may overlap (`Curation.updateLanes`); `normalize`
 merges them when the drag ends.
+The playhead is a layer of its own over every lane (`WithPlayhead`): playback moves it every frame
+and repaints only it, so a lane's painter listens to edits and the viewport, never to the time. The
+Instruments tab paints only the lanes scrolled into view.
 
 **A region carries its properties.** Besides its bounds a region has properties of its own
 (so far its transitions: how long its staff glides in at its start, `Region.transitionIn`, and
@@ -238,6 +241,9 @@ Replace Score carries them over. A double-click on a text does nothing
 
 **Widgets change the document only through `EditorController`** (and its parts). They may
 read the models (`curation`, `sync`) to draw them.
+The controller notifies at every move of a drag, so nothing large rebuilds on it wholesale: the
+page, the toolbar, the score view, the bottom panel, the lanes and their names each rebuild through
+a `Select` (ui_kit.dart) only when what they show changes; painters listen for themselves.
 
 **One Undo for the whole document.** After every change the controller compares the
 document's `EditState` (everything a project saves but the view: lanes, transition, sync,
@@ -342,7 +348,11 @@ once, and a still of the window as it was (`_StillBoundary`, taken from its last
 fades out over it. A lerped theme would rebuild every widget that reads it on every frame of the
 fade, too slow with many lanes. A Material animates a change of its shape on its own, behind the
 still: one with an outline sets `animationDuration: Duration.zero`, or (a popup menu, which can't)
-takes `_SteadyBorder`.
+takes `_SteadyBorder`. A widget's own colour animation (a hover, a selection) takes `stateDuration`, which is none in
+the frame the appearance changes, so it doesn't trail the cross-fade either.
+The two themes are built once per accent (`_CuratedScoreAppState._buildThemes`): a new
+`ThemeData` never equals the last, so one built per change of settings would rebuild every widget
+that reads it. The page, likewise, rebuilds only for the settings it shows (`_HomePageState._shown`).
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that
