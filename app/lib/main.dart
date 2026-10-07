@@ -539,6 +539,24 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _fonts() => showFontsDialog(context, controller);
   void _addRecording() => pickAudio(context, controller);
 
+  /// Score ▸ Replace Score…: another score file under this project's edits and recording;
+  /// asks first when the two differ.
+  Future<void> _replaceScore() async {
+    final file = await openFile(acceptedTypeGroups: const [_scoreTypes]);
+    if (file == null || !mounted) return;
+    await _guard(() async {
+      final replacement = await document.prepareReplacement(file.path);
+      if (!mounted) return;
+      if (replacement.differences.isNotEmpty &&
+          !await confirmReplaceScore(context, replacement.name, replacement.differences)) {
+        return;
+      }
+      await document.replaceScore(replacement);
+      final warnings = replacement.score.warnings;
+      if (warnings.isNotEmpty && mounted) await showImportWarnings(context, replacement.name, warnings);
+    });
+  }
+
   /// File ▸ Export Video… (⌘E): offers the project's (or the score's) name for the video.
   void _exportVideo() {
     if (controller.score == null || controller.isReengraving) return;
@@ -572,6 +590,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onCondensing: _hasScore.value ? _condensing : null,
           onFonts: _hasScore.value ? _fonts : null,
           onAddRecording: _hasScore.value ? _addRecording : null,
+          onReplaceScore: _hasScore.value ? _replaceScore : null,
           onExportVideo: _hasScore.value ? _exportVideo : null,
           onUndo: edit != null && edit.undo ? controller.undo : null,
           onRedo: edit != null && edit.redo ? controller.redo : null,
