@@ -82,7 +82,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
 
   /// ⌘ (Ctrl) held: scrolling zooms the time axis (see [ViewportGestures]), so the lanes
   /// must not scroll vertically at the same time.
-  bool _zooming = false;
+  final _zooming = ValueNotifier(false);
 
   @override
   void initState() {
@@ -93,8 +93,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   }
 
   bool _onKey(KeyEvent _) {
-    final zooming = isZoomModifierPressed;
-    if (zooming != _zooming && mounted) setState(() => _zooming = zooming);
+    if (mounted) _zooming.value = isZoomModifierPressed;
     return false; // only watching: the key still goes to the shortcuts
   }
 
@@ -121,6 +120,10 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
   final _rowY = <String, double>{};
   late final Ticker _motion;
   Duration _lastTick = Duration.zero;
+
+  /// A frame of lanes moving: the names and the lanes are drawn again where they now are,
+  /// and nothing else is built.
+  final _frame = RepaintSignal();
 
   /// The top of lane [i] as drawn now.
   double _rowTop(int i) => _rowY[parts[i].id] ?? i * _laneHeight;
@@ -272,7 +275,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
       _rowY.clear();
       _motion.stop();
     }
-    setState(() {});
+    _frame.ping();
   }
 
   /// Near the top or bottom of the panel the lanes scroll, for a lane that goes further: the
@@ -297,6 +300,8 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
     HardwareKeyboard.instance.removeHandler(_onKey);
     _vScroll.dispose();
     _band.dispose();
+    _zooming.dispose();
+    _frame.dispose();
     super.dispose();
   }
 
@@ -583,13 +588,52 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
         selected: c.lanes.selectedPartIds,
       );
 
+  /// The lanes' [names] where they are drawn now (moving, while a lane is held).
+  Widget _names(BuildContext context, Map<String, Widget> names) {
+    final blocks = _heldBlocks(kLaneHeaderWidth);
+    // Keyed, so each name keeps its hover and the held one its gesture as they move.
+    Widget name(int i) => Positioned(
+          key: ValueKey(parts[i].id),
+          top: _rowTop(i),
+          left: 0,
+          right: 0,
+          height: _laneHeight,
+          child: names[parts[i].id]!,
+        );
+    bool held(int i) => _held.contains(parts[i].id);
+    return SizedBox(
+      key: _headersKey,
+      height: parts.length * _laneHeight,
+      child: Stack(clipBehavior: Clip.none, children: [
+        for (var i = 0; i < parts.length; i++)
+          if (!held(i)) name(i),
+        // The held names float above the others as one block, on one shadow.
+        for (final block in blocks)
+          Positioned.fromRect(
+            rect: block,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: context.colors.surface, boxShadow: _liftShadow(context.colors)),
+              ),
+            ),
+          ),
+        for (var i = 0; i < parts.length; i++)
+          if (held(i)) name(i),
+      ]),
+    );
+  }
+
   Widget _lanes(BuildContext context) {
     final curation = c.curation;
     if (c.score == null || curation == null) return const SizedBox.shrink();
-    return SingleChildScrollView(
-      key: _viewportKey,
-      controller: _vScroll,
-      physics: _zooming ? const NeverScrollableScrollPhysics() : null,
+    return ValueListenableBuilder(
+      valueListenable: _zooming,
+      builder: (context, zooming, lanes) => SingleChildScrollView(
+        key: _viewportKey,
+        controller: _vScroll,
+        physics: zooming ? const NeverScrollableScrollPhysics() : null,
+        child: lanes,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -606,17 +650,10 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                 builder: (context, shown) {
                   final selectedLanes = shown.selected;
                   final hovered = _hoverGroup;
-                  final blocks = _heldBlocks(kLaneHeaderWidth);
-                  Widget header(int i) {
-                    final part = parts[i];
-                    // Keyed, so each name keeps its hover and the held one its gesture as they move.
-                    return Positioned(
-                      key: ValueKey(part.id),
-                      top: _rowTop(i),
-                      left: 0,
-                      right: 0,
-                      height: _laneHeight,
-                      child: _LaneHeader(
+                  // Built once here: a frame of lanes moving only moves them.
+                  final names = {
+                    for (final part in parts)
+                      part.id: _LaneHeader(
                         controller: c,
                         part: part,
                         selected: selectedLanes.contains(part.id),
@@ -627,30 +664,8 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                         onDrag: _dragLifted,
                         onDrop: _dropLifted,
                       ),
-                    );
-                  }
-
-                  bool held(int i) => _held.contains(parts[i].id);
-                  return SizedBox(
-                    key: _headersKey,
-                    height: parts.length * _laneHeight,
-                    child: Stack(clipBehavior: Clip.none, children: [
-                      for (var i = 0; i < parts.length; i++)
-                        if (!held(i)) header(i),
-                      // The held names float above the others as one block, on one shadow.
-                      for (final block in blocks)
-                        Positioned.fromRect(
-                          rect: block,
-                          child: IgnorePointer(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(color: context.colors.surface, boxShadow: _liftShadow(context.colors)),
-                            ),
-                          ),
-                        ),
-                      for (var i = 0; i < parts.length; i++)
-                        if (held(i)) header(i),
-                    ]),
-                  );
+                  };
+                  return ListenableBuilder(listenable: _frame, builder: (context, _) => _names(context, names));
                 },
               ),
             ),
@@ -668,7 +683,7 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                   controller: c,
                   child: CustomPaint(
                     size: Size(double.infinity, parts.length * _laneHeight),
-                    painter: _LanesPainter(this, context.colors, Listenable.merge([curation, c.viewport, c, _band, _vScroll])),
+                    painter: _LanesPainter(this, context.colors, Listenable.merge([curation, c.viewport, c, _band, _vScroll, _frame])),
                   ),
                 ),
               ),

@@ -200,6 +200,11 @@ void main() {
     final piccolo = tester.getTopLeft(find.text('Piccolo')).dy;
     await tester.pump(const Duration(milliseconds: 16));
     expect(tester.getTopLeft(find.text('Piccolo')).dy, lessThan(piccolo), reason: 'sliding up, not jumping');
+    // A frame of the slide moves the names; it builds none of them again.
+    final header = find.ancestor(of: find.text('Piccolo'), matching: find.byWidgetPredicate((w) => w.runtimeType.toString() == '_LaneHeader'));
+    final built = tester.widget(header);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(tester.widget(header), same(built));
     await tester.pump(const Duration(milliseconds: 400));
     await _shot(tester, dir, 'lanes-moving');
     await g.moveBy(const Offset(0, -40));
