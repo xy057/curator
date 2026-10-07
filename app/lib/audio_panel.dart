@@ -244,8 +244,7 @@ class _AudioLanesState extends State<AudioLanes> {
                   child: Text(
                     c.isLoadingAudio
                         ? 'Reading the recording…'
-                        : 'Load a recording (or drop it here) to see its waveform. You can also tap along without one, '
-                            'or drop a MIDI file to follow its tempo map.',
+                        : 'Drop a recording or a MIDI file',
                     style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                 ),
