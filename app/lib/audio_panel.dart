@@ -603,6 +603,13 @@ class _StartFieldState extends State<_StartField> {
     }
   }
 
+  /// Escape: leaves the field as it was, keeping nothing typed (as the time readout does).
+  void _cancel() {
+    final sync = widget.controller.sync;
+    if (sync != null) _text.text = sync.startSeconds.toStringAsFixed(2);
+    _leave();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Tip(
@@ -613,28 +620,31 @@ class _StartFieldState extends State<_StartField> {
         SizedBox(
           width: 64,
           height: 28,
-          child: TextField(
-            controller: _text,
-            focusNode: _focus,
-            style: TextStyle(fontSize: 12, color: context.colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
-            textAlign: TextAlign.right,
-            decoration: InputDecoration(
-              isDense: true,
-              suffixText: 's',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: context.colors.line),
+          child: CallbackShortcuts(
+            bindings: {const SingleActivator(LogicalKeyboardKey.escape): _cancel},
+            child: TextField(
+              controller: _text,
+              focusNode: _focus,
+              style: TextStyle(fontSize: 12, color: context.colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
+              textAlign: TextAlign.right,
+              decoration: InputDecoration(
+                isDense: true,
+                suffixText: 's',
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: context.colors.line),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: context.colors.accent, width: 1.5),
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: context.colors.accent, width: 1.5),
-              ),
+              onSubmitted: (_) {
+                _apply();
+                _leave();
+              },
             ),
-            onSubmitted: (_) {
-              _apply();
-              _leave();
-            },
           ),
         ),
       ]),

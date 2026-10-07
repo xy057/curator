@@ -160,6 +160,20 @@ void main() {
     c.playback.pause();
     await tester.pumpAndSettle();
 
+    // Escape leaves Starts at as it was, and the shortcuts work.
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    await tester.enterText(field, '9');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(c.sync!.startSeconds, 1.25);
+    expect(tester.widget<TextField>(field).controller!.text, '1.25');
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    expect(c.playback.isPlaying, isTrue);
+    c.playback.pause();
+    await tester.pumpAndSettle();
+
     // The readout: a click away cancels it, and the shortcuts work.
     await tester.tap(find.text('1.1'));
     await tester.pumpAndSettle();
