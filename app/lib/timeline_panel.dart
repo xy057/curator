@@ -902,6 +902,8 @@ class _TransitionMenu extends StatelessWidget {
 /// What a lane's ⋯ menu offers.
 enum _LaneAction {
   rename('Rename…'),
+  renameFirst('Rename…'), // a condensed pair's lane: one player, or the other (named in the menu)
+  renameSecond('Rename…'),
   select('Select all in lane'),
   copy('Copy lane to…'),
   showThroughout('Show throughout'),
@@ -976,6 +978,10 @@ class _LaneHeaderState extends State<_LaneHeader> {
     switch (action) {
       case _LaneAction.rename:
         showRenameDialog(context, controller, part);
+      case _LaneAction.renameFirst || _LaneAction.renameSecond:
+        final group = controller.condensedGroupOf(part.id)!;
+        final id = action == _LaneAction.renameFirst ? group.first : group.second;
+        showRenameDialog(context, controller, controller.score!.metadata.parts.firstWhere((p) => p.id == id));
       case _LaneAction.select:
         lanes.selectLane(part.id);
       case _LaneAction.copy:
@@ -1008,10 +1014,13 @@ class _LaneHeaderState extends State<_LaneHeader> {
         icon: Icon(Icons.more_horiz, color: context.colors.textMuted),
         onSelected: (action) => _run(context, action),
         itemBuilder: (context) => [
-          if (!condensed) ...[
+          // A pair's lane names both players: each is renamed on its own, as on its own staff.
+          if (group case final group?) ...[
+            PopupMenuItem(value: _LaneAction.renameFirst, child: Text('Rename ${controller.partNameOf(group.first)}…')),
+            PopupMenuItem(value: _LaneAction.renameSecond, child: Text('Rename ${controller.partNameOf(group.second)}…')),
+          ] else
             item(_LaneAction.rename),
-            const PopupMenuDivider(),
-          ],
+          const PopupMenuDivider(),
           item(_LaneAction.select),
           item(_LaneAction.copy),
           const PopupMenuDivider(),

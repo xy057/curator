@@ -142,4 +142,25 @@ void main() {
     c.undo();
     expect(c.curation!.lane('P17'), hasLength(2));
   });
+
+  testWidgets("a condensed pair's lane menu renames each player on its own", (tester) async {
+    await open(tester);
+    final pair = c.condensable.first;
+    c.setCondensed([pair.id], on: true);
+    await settle(tester);
+    final second = c.score!.metadata.parts.firstWhere((p) => p.id == pair.second);
+    final lane = find.ancestor(of: find.text(c.pairName(pair)), matching: find.byWidgetPredicate((w) => w.runtimeType.toString() == '_LaneHeader'));
+    await tester.tap(find.descendant(of: lane, matching: find.byTooltip('Lane options')));
+    await settle(tester);
+    expect(find.text('Rename ${c.partNameOf(pair.first)}…'), findsOneWidget);
+    await tester.tap(find.text('Rename ${c.partNameOf(pair.second)}…'));
+    await settle(tester);
+    expect(find.text('Rename instrument'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Alto Flute');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
+    await settle(tester);
+    expect(c.partName(second), 'Alto Flute');
+  });
 }
+
