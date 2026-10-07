@@ -411,11 +411,21 @@ void main() {
     // ignore: avoid_print
     print('30 frames recorded in ${stopwatch.elapsedMilliseconds} ms (first frame includes tile rasterising)');
 
+    // Every staff shown: the whole frame, mostly paper, with plenty of ink.
+    expect((image.width, image.height), (3200, 1800));
+    final pixels = (await image.toByteData())!;
+    var inked = 0;
+    for (var i = 0; i < pixels.lengthInBytes; i += 4) {
+      if (pixels.getUint8(i) < 128) inked++;
+    }
+    expect(inked / (image.width * image.height), allOf(greaterThan(0.01), lessThan(0.5)));
+
     final dir = Platform.environment['SCORE_SNAPSHOT_DIR'];
     if (dir != null) {
       final png = await image.toByteData(format: ui.ImageByteFormat.png);
       File('$dir/flutter-frame.png').writeAsBytesSync(png!.buffer.asUint8List());
     }
+    image.dispose();
     scene.dispose();
   });
 }

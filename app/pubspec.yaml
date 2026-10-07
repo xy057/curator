@@ -23,6 +23,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test: # the smoke test of the built app (integration_test/, `make smoke`)
+    sdk: flutter
   flutter_lints: ^6.0.0
 
 flutter:

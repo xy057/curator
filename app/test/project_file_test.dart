@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/media_converter.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:curated_score/project_file.dart';
@@ -14,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
+import 'image_patch_test.dart' show png;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -347,6 +349,19 @@ void main() {
       c.setStaffSpace(11);
       c.setCondensed(['cond-P2-P3'], on: true);
       await c.addPair('P6', 'P12'); // Clarinet 1 + Trumpet 1
+      final vivo = c.score!.texts.firstWhere((t) => t.text == 'Vivo');
+      await c.editText(vivo.id, 'Presto');
+      c.moveLane('P17', 0);
+      final starts = c.score!.timeline.measureStarts;
+      c.sync!.addAnchor(SyncAnchor(starts[8], 20, jumpTo: starts[4])); // a warp: back to bar 5
+      c.useMidiTempo(MidiTempoMap('tempo.mid', const [(quarter: 0, quartersPerMinute: 96), (quarter: 24, quartersPerMinute: 80)]));
+      await c.setFonts(const ScoreFonts(music: MusicFont.leland));
+      c.images.enabled = true;
+      c.captions.enabled = true;
+      await c.images.add(ImageKind.raster, png, quarter: starts[2], top: 2);
+      c.images.update(0, c.images.patches[0].copyWith(ink: true));
+      c.captions.add(Caption(starts[1], starts[5], 'The horns answer'));
+      c.captions.setFont(TextFonts.academico);
       final saved = c.projectState;
 
       final path = '${dir.path}/round.ccs';
@@ -365,6 +380,15 @@ void main() {
       expect(c2.pairs, const [PlayerPair('P6', 'P12')]);
       expect(c2.score!.condensed.map((g) => g.id), contains('cond-P6-P12'));
       expect(c2.scene!.condensed, {'cond-P2-P3', 'cond-P6-P12'});
+      expect(c2.textById(vivo.id)!.current, 'Presto');
+      expect(c2.partOrder.first, 'P17');
+      expect(c2.midiTempo!.name, 'tempo.mid');
+      expect(c2.projectState.anchors.where((a) => a.isWarp), hasLength(1), reason: 'the anchors kept behind the MIDI file');
+      expect(c2.score!.fonts.music, MusicFont.leland);
+      expect(c2.images.patches.single.ink, isTrue);
+      expect(c2.images.stored, hasLength(1), reason: 'the image file travels in the project');
+      expect(c2.captions.captions, [Caption(starts[1], starts[5], 'The horns answer')]);
+      expect(c2.captions.font, TextFonts.academico);
       expect(c2.source!.bytes, demoScore.readAsBytesSync());
       expect(doc2.isDirty, isFalse);
       expect(doc2.title, 'round.ccs');

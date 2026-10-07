@@ -8,8 +8,8 @@
 # A version that is already released stops the run before anything is built.
 #
 #
-# Both systems build side by side; the release is published only when both have built (and the
-# macOS job's tests have passed), so a release always has both downloads.
+# Both systems build side by side; the release is published only when both have built and run
+# the smoke test (and the macOS job's tests have passed), so a release always has both downloads.
 #
 # Every action is pinned to a commit (its tag in a comment): a tag can be moved, a commit can't.
 # To update one, look up the new tag's commit (`git ls-remote --tags https://github.com/<action>`). The app's updater finds its own by the name:
@@ -57,7 +57,7 @@ jobs:
   macos:
     needs: version
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
@@ -98,6 +98,10 @@ jobs:
           brew install ffmpeg
           make check
 
+      # The app itself, built and run: the sample opens, engraves, draws and exports.
+      - name: Smoke test
+        run: make smoke
+
       - name: Package
         run: |
           app=$(find app/build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
@@ -113,7 +117,7 @@ jobs:
   windows:
     needs: version
     runs-on: windows-2022
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash # Git Bash: the same commands as on macOS
@@ -143,6 +147,12 @@ jobs:
         # The build hook runs CMake with Visual Studio for the engine (Verovio) as it goes.
         working-directory: app
         run: flutter build windows --release --dart-define=CURATOR_COMMIT=$(git rev-parse --short HEAD)
+
+      # The tests don't run on Windows, but the app is run once: the sample opens, engraves and
+      # draws (integration_test/app_smoke_test.dart; a debug build, so the engine is built again).
+      - name: Smoke test
+        working-directory: app
+        run: flutter test integration_test -d windows
 
       - name: Package
         shell: pwsh

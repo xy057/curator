@@ -24,7 +24,7 @@ void main() {
     Future<void> menu(String item) async {
       await tester.tap(find.byTooltip('Video ratio'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(item).last);
+      await tester.tap(find.ancestor(of: find.text(item).last, matching: find.byType(CheckedPopupMenuItem<VideoRatio>)));
       await tester.pumpAndSettle();
     }
 

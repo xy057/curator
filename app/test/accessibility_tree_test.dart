@@ -1,22 +1,31 @@
 // The desktop engine accepts every semantics update the app sends: hovering each tooltip,
-// opening and closing a project, a popup menu and each dialog, frame by frame. A rejected
+// opening and closing a project, a popup menu and each dialog (the extensions' too), frame by frame. A rejected
 // update logs "Failed to update ui::AXTree" in `make run` and breaks VoiceOver's view of the
 // window for good (see accessibility_mirror.dart).
+import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/assets_dialog.dart';
+import 'package:curated_score/captions_dialog.dart';
 import 'package:curated_score/condensing_dialog.dart';
 import 'package:curated_score/edit_dialogs.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/engrave_options_dialog.dart';
 import 'package:curated_score/export_dialog.dart';
+import 'package:curated_score/fonts_dialog.dart';
+import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/score_view.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:score_engine/score_engine.dart';
 
 import 'accessibility_mirror.dart';
 import 'demo_project.dart';
+import 'image_patch_test.dart' show png;
 
 void main() {
   final binding = AccessibilityMirrorBinding();
@@ -121,14 +130,45 @@ void main() {
       'Warp': () => showAnchorDialog(context(), beats: c.beats, quarter: 9, jumpTo: 0, warp: true),
       'Settings': () => showSettingsDialog(context(), settings, controller: c),
     };
-    for (final MapEntry(key: name, value: open) in dialogs.entries) {
-      open();
-      await frames('opening $name');
-      final dialog = find.byWidgetPredicate((w) => w is Dialog || w.runtimeType.toString() == '_SettingsWindow').last;
-      await hoverTooltips(name, dialog);
-      Navigator.of(tester.element(dialog)).pop();
-      await frames('closing $name');
+    Future<void> openEach(Map<String, void Function()> dialogs) async {
+      for (final MapEntry(key: name, value: open) in dialogs.entries) {
+        open();
+        await frames('opening $name');
+        final dialog = find.byWidgetPredicate((w) => w is Dialog || w.runtimeType.toString() == '_SettingsWindow').last;
+        await hoverTooltips(name, dialog);
+        Navigator.of(tester.element(dialog)).pop();
+        await frames('closing $name');
+      }
     }
+
+    await openEach(dialogs);
+
+    // The extensions: the Captions lane, Attach Image's toolbar, the score's menu, their dialogs.
+    settings
+      ..attachImage = true
+      ..captions = true;
+    await frames('turning the extensions on');
+    final bar = c.score!.timeline.measureStarts;
+    c.captions.add(Caption(bar[0], bar[4], 'The horns answer'));
+    await tester.runAsync(() => c.images.add(ImageKind.raster, png, quarter: bar[1], top: 2));
+    c.tab = BottomTab.instruments;
+    await frames('adding a caption and an image');
+    await hoverTooltips('extensions');
+    final score = tester.getRect(find.byType(ScoreView));
+    await tester.tapAt(score.center, buttons: kSecondaryButton);
+    await frames("opening the score's menu");
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await frames("closing the score's menu");
+    await openEach({
+      'Caption': () => showCaptionDialog(context(), c, index: 0),
+      'Add Caption': () => showCaptionDialog(context(), c, draft: Caption(bar[6], bar[8], '')),
+      'Captions': () => showCaptionsDialog(context(), c),
+      'Manage assets': () => showAssetsDialog(context(), c),
+      'Fonts': () => showFontsDialog(context(), c),
+      'Captions settings': () => showAppDialog<void>(
+          context: context(),
+          builder: (context) => AlertDialog(content: Builder(builder: (context) => AppExtension.captions.settings!(context, settings)))),
+    });
 
     await tester.tap(find.byTooltip('Close project (Ctrl+W)'));
     await frames('closing the project');

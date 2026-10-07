@@ -364,7 +364,9 @@ and at start-up it sweeps folders whose lock is free (their app crashed).
 **Tests run on the demo.** Every test uses `app/assets/demo/WI275 - 01 Intro.ccs` (a 44-bar
 6/8 orchestral intro with its recording and curation), so a fresh clone runs them all. The
 engine tests build variants of it where they need something it lacks (a key change, an
-additive meter). `Samples/` is for trying things by hand only.
+additive meter). `Samples/` is for trying things by hand only. A test's tap that something
+else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app as built
+(opening a window): what only a bundle has, its native library and resources, is checked there.
 
 ## Releasing
 
@@ -372,8 +374,10 @@ additive meter). `Samples/` is for trying things by hand only.
 Run workflow, or `gh workflow run release.yml`). It builds side by side with `make build` on
 macOS and `flutter build windows` on Windows (Verovio fetched and patched by hand there: no
 `make`), zips each as `Curator-<version>-<macos|windows>.zip` (the Windows zip carries the
-Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built and
-`make check` has passed on macOS (the tests don't run on Windows), where the version is
+Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built and run
+the smoke test (`app/integration_test/app_smoke_test.dart`, `make smoke`: the app as built opens
+the sample, engraves, draws and exports), and `make check` has passed on macOS (the other tests
+don't run on Windows), where the version is
 `app/pubspec.yaml`'s. Its actions are pinned to commits, not tags; only the job that publishes
 may write to the repository. To release again, bump that version and `appVersion` in
 `updater.dart` together (`updater_test.dart` checks they match); a version already released
@@ -406,7 +410,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
   bump the version with a migration (even one that changes nothing). If Undo should cover it
   (every edit should), it is also a field of `EditState` (with its `==`), and the controller
   fills it in `_editState` and puts it back in `_restore`. If it changes what is drawn, copy
-  it in `VideoExport.of` too.
+  it in `VideoExport.of` too, and set it in `test/export_parity_test.dart`, which checks that
+  a video frame is the preview's.
 - **A Verovio change**: edit `third_party/verovio`, then
   `git -C packages/score_engine/third_party/verovio diff > patches/verovio-curated-score.patch`,
   then `make setup` (it re-applies the patches from a clean tree, and records that it did).

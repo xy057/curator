@@ -393,9 +393,8 @@ ${parts.values.join()}</score-partwise>''');
     });
 
 
-    test('renders (set SNAPSHOT_DIR to save frames)', () async {
-      final out = Platform.environment['SNAPSHOT_DIR'];
-      if (out == null) return;
+    final out = Platform.environment['SNAPSHOT_DIR'];
+    test('renders frames into SNAPSHOT_DIR', () async {
       final curation = Curation(score.metadata.parts.map((p) => p.id));
       for (final p in score.metadata.parts.take(13)) {
         curation.setLane(p.id, [Region(0, score.timeline.measureStarts.last)]);
@@ -412,7 +411,7 @@ ${parts.values.join()}</score-partwise>''');
         File('$out/condensed-bar$bar.png').writeAsBytesSync(png!.buffer.asUint8List());
       }
       scene.dispose();
-    });
+    }, skip: out == null ? 'set SNAPSHOT_DIR to save frames' : false);
   });
 
   test('a part with no usable divisions (0, negative) is still read, and still condenses', () async {
