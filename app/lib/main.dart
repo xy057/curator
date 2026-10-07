@@ -228,6 +228,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// Whether a score is open: the menus' Score items follow it.
   final _hasScore = ValueNotifier(false);
 
+  /// Whether a video can be made now: not while the score is engraved again (the toolbar's
+  /// button is greyed out then too).
+  final _canExport = ValueNotifier(false);
+
   /// Whether the demo is open: Save and Save As are off for it.
   final _isSample = ValueNotifier(false);
 
@@ -281,6 +285,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _scoreChanged() {
     final open = controller.score != null;
     _hasScore.value = open;
+    _canExport.value = open && !controller.isReengraving;
     _edit.value = (
       undo: controller.canUndo,
       redo: controller.canRedo,
@@ -322,6 +327,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     settings.removeListener(_settingsChanged);
     updater.removeListener(_launchCheckAnswered);
     _hasScore.dispose();
+    _canExport.dispose();
     _isSample.dispose();
     _edit.dispose();
     _shown.dispose();
@@ -702,7 +708,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     // The menus follow the recent files and whether a score is open; the page below them is
     // built once and passed through.
     return ListenableBuilder(
-      listenable: Listenable.merge([_shown, _hasScore, _isSample, _edit]),
+      listenable: Listenable.merge([_shown, _hasScore, _canExport, _isSample, _edit]),
       builder: (context, page) {
         // Edit acts on the score, so not while a text field or a dialog has the keyboard:
         // a key the field leaves unused would otherwise reach the menu.
@@ -722,7 +728,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onFonts: _hasScore.value ? _fonts : null,
           onAddRecording: _hasScore.value ? _addRecording : null,
           onReplaceScore: _hasScore.value ? _replaceScore : null,
-          onExportVideo: _hasScore.value ? _exportVideo : null,
+          onExportVideo: _canExport.value ? _exportVideo : null,
           onUndo: edit != null && edit.undo ? controller.undo : null,
           onRedo: edit != null && edit.redo ? controller.redo : null,
           onPaste: edit != null && edit.paste ? _pasteImage : null,
