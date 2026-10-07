@@ -194,10 +194,13 @@ class _PlayButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final playing = controller.playback.isPlaying;
+    // Light: white on the strong accent; dark: the dark surface on the (light) accent. White
+    // on the plain accent was faint (sky, amber).
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Tip(
       message: playing ? 'Pause (Space)' : 'Play (Space)',
       child: Material(
-        color: colors.accent,
+        color: dark ? colors.accent : colors.accentStrong,
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -214,7 +217,7 @@ class _PlayButton extends StatelessWidget {
                 playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 key: ValueKey(playing),
                 size: 20,
-                color: Colors.white,
+                color: dark ? colors.surface : Colors.white,
               ),
             ),
           ),
