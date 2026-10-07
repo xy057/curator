@@ -509,6 +509,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     controller.anchors.tapArmed = !controller.anchors.tapArmed;
   }
 
+  void _toggleMetronome() {
+    if (controller.score == null) return;
+    controller.playback.metronome = !controller.playback.metronome;
+  }
+
   /// W: make the selected anchor a warp, or add one at the playhead (in the Audio tab).
   void _warp() {
     if (controller.score == null) return;
@@ -829,6 +834,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         const SingleActivator(LogicalKeyboardKey.numpadEnter): controller.playback.togglePlay,
         const SingleActivator(LogicalKeyboardKey.keyT): _toggleTapMode,
         const SingleActivator(LogicalKeyboardKey.keyW): _warp,
+        const SingleActivator(LogicalKeyboardKey.keyC): _toggleMetronome,
         const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _arrow(-1, fine: false),
         const SingleActivator(LogicalKeyboardKey.arrowRight): () => _arrow(1, fine: false),
         const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () => _arrow(-1, fine: true),

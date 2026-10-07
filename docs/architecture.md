@@ -108,6 +108,14 @@ between, x is the weighted mean of the two curves: both put every beat on time a
 back, so the blend does too. The anchors are read when the map is built; changing `follow`
 (`withFollow`) reuses them, and each curve is solved once, when first used.
 
+**The metronome clicks the beats as they sound** (C, or the toolbar's button by Play; an aid
+for aligning the tempo, `Playback.metronome`: neither saved, an edit, nor in a video). Each frame
+while playing, the beat sounding (`BeatGrid.beatAt`, per pass, so a repeat clicks again) clicks
+once if it began since the last frame's time: a late frame still clicks, a seek into a beat
+doesn't. The bar's first beat is higher. The clicks are WAVs made in memory
+(`AudioEngine.clickWav`) and play through SoLoud beside the recording, at full speed whatever
+the playback's; tests take them through `AudioEngine.debugClick`.
+
 **A place in the score can sound more than once.** A warp is an anchor that jumps: the
 score arrives at `quarter` and, at that same moment, goes on from `jumpTo` (back for a
 repeat, on to a coda). The performance is then a list of `ScoreTimeline.passes`, stretches
