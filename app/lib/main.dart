@@ -34,6 +34,7 @@ import 'score_view.dart';
 import 'settings_dialog.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
+import 'video_export.dart';
 import 'window_chrome.dart';
 
 Future<void> main() async {
@@ -127,37 +128,53 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
   // The same widget each build: a change of settings rebuilds only what reads them (or the theme).
   late final _home = HomePage(settings: settings, updater: widget.updater);
 
+  // Built once per accent: a new ThemeData never equals the last (its extensions and button
+  // styles compare by identity), so one per build would rebuild every widget that reads the
+  // theme at any change of settings, each tick of a slider among them.
+  AccentColor? _themesAccent;
+  late ThemeData _light, _dark;
+
+  void _buildThemes() {
+    if (_themesAccent == settings.accent) return;
+    _themesAccent = settings.accent;
+    _light = AppColors.theme(accent: settings.accent, brightness: Brightness.light);
+    _dark = AppColors.theme(accent: settings.accent, brightness: Brightness.dark);
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: settings,
-      builder: (context, _) => MaterialApp(
-        title: 'Curator',
-        debugShowCheckedModeBanner: false,
-        theme: AppColors.theme(accent: settings.accent, brightness: Brightness.light),
-        darkTheme: AppColors.theme(accent: settings.accent, brightness: Brightness.dark),
-        themeMode: settings.themeMode,
-        themeAnimationDuration: Duration.zero,
-        // The still fades over everything, open menus and dialogs too, and is part of the next still.
-        builder: (context, child) => _StillBoundary(
-          key: _windowKey,
-          child: Stack(fit: StackFit.expand, children: [
-            child!,
-            ValueListenableBuilder(
-              valueListenable: _before,
-              builder: (context, before, _) => before == null
-                  ? const SizedBox.shrink()
-                  : IgnorePointer(
-                      child: FadeTransition(
-                        opacity: ReverseAnimation(CurvedAnimation(parent: _fade, curve: Curves.easeInOut)),
-                        child: RawImage(image: before, fit: BoxFit.fill),
+      builder: (context, _) {
+        _buildThemes();
+        return MaterialApp(
+          title: 'Curator',
+          debugShowCheckedModeBanner: false,
+          theme: _light,
+          darkTheme: _dark,
+          themeMode: settings.themeMode,
+          themeAnimationDuration: Duration.zero,
+          // The still fades over everything, open menus and dialogs too, and is part of the next still.
+          builder: (context, child) => _StillBoundary(
+            key: _windowKey,
+            child: Stack(fit: StackFit.expand, children: [
+              child!,
+              ValueListenableBuilder(
+                valueListenable: _before,
+                builder: (context, before, _) => before == null
+                    ? const SizedBox.shrink()
+                    : IgnorePointer(
+                        child: FadeTransition(
+                          opacity: ReverseAnimation(CurvedAnimation(parent: _fade, curve: Curves.easeInOut)),
+                          child: RawImage(image: before, fit: BoxFit.fill),
+                        ),
                       ),
-                    ),
-            ),
-          ]),
-        ),
-        home: _home,
-      ),
+              ),
+            ]),
+          ),
+          home: _home,
+        );
+      },
     );
   }
 }
@@ -216,6 +233,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// What the Edit menu can do; the menus rebuild when it changes, not on every edit.
   final _edit = ValueNotifier((undo: false, redo: false, paste: false, delete: false));
 
+  /// The settings the page shows: it rebuilds when one of them changes, not at every change of
+  /// settings (a slider in Settings changes them many times a second).
+  late final _shown = ValueNotifier(_shownSettings);
+
+  ({List<String> recent, bool attachImage, bool videoFrame, VideoRatio videoRatio}) get _shownSettings => (
+        recent: settings.recentFiles,
+        attachImage: settings.attachImage,
+        videoFrame: settings.previewVideoFrame,
+        videoRatio: settings.videoRatio,
+      );
+
+  void _settingsChanged() => _shown.value = _shownSettings;
+
   @override
   void initState() {
     super.initState();
@@ -225,6 +255,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     controller.addListener(_scoreChanged);
     controller.engravingFailure.addListener(_engravingFailed);
     settings.addListener(_engravingChanged);
+    settings.addListener(_settingsChanged);
     _engravingChanged();
     _lifecycle; // start listening for Quit
     updater.addListener(_launchCheckAnswered);
@@ -287,10 +318,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     controller.removeListener(_scoreChanged);
     controller.engravingFailure.removeListener(_engravingFailed);
     settings.removeListener(_engravingChanged);
+    settings.removeListener(_settingsChanged);
     updater.removeListener(_launchCheckAnswered);
     _hasScore.dispose();
     _isSample.dispose();
     _edit.dispose();
+    _shown.dispose();
     _lifecycle.dispose();
     document.dispose();
     controller.dispose();
@@ -664,7 +697,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     // The menus follow the recent files and whether a score is open; the page below them is
     // built once and passed through.
     return ListenableBuilder(
-      listenable: Listenable.merge([settings, _hasScore, _isSample, _edit]),
+      listenable: Listenable.merge([_shown, _hasScore, _isSample, _edit]),
       builder: (context, page) {
         // Edit acts on the score, so not while a text field or a dialog has the keyboard:
         // a key the field leaves unused would otherwise reach the menu.
@@ -707,7 +740,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
             },
             child: ListenableBuilder(
-              listenable: Listenable.merge([controller, document, settings]),
+              listenable: Listenable.merge([controller, document, _shown]),
               builder: (context, _) => Scaffold(
                 body: Stack(
                   key: _dropStack,

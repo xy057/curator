@@ -343,6 +343,9 @@ fades out over it. A lerped theme would rebuild every widget that reads it on ev
 fade, too slow with many lanes. A Material animates a change of its shape on its own, behind the
 still: one with an outline sets `animationDuration: Duration.zero`, or (a popup menu, which can't)
 takes `_SteadyBorder`.
+The two themes are built once per accent (`_CuratedScoreAppState._buildThemes`): a new
+`ThemeData` never equals the last, so one built per change of settings would rebuild every widget
+that reads it. The page, likewise, rebuilds only for the settings it shows (`_HomePageState._shown`).
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that

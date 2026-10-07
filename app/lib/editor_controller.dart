@@ -294,7 +294,7 @@ class EditorController extends ChangeNotifier {
     if (value == _scrollFollow) return;
     _scrollFollow = value;
     _scene?.scrollFollow = value;
-    notifyListeners();
+    playback._markDirty(); // only the score shows it: nothing to rebuild
   }
 
   CuratedScene _makeScene(LoadedScore score) {
@@ -789,6 +789,7 @@ class EditorController extends ChangeNotifier {
   /// How many steps Undo can go back.
   int get undoLimit => _history.limit;
   set undoLimit(int value) {
+    if (value == _history.limit) return;
     _history.limit = value;
     notifyListeners();
   }
