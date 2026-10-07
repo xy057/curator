@@ -92,7 +92,7 @@ class ImageEditing {
   /// at score quarter [quarter] (by default the one under the pointer now) and [top] staff
   /// spaces down. False when there is no image to paste.
   Future<bool> paste({double? quarter, double top = 4}) async {
-    final scene = _c._scene;
+    final scene = _c.scene;
     if (!_enabled || scene == null) return false;
     final image = await readClipboardImage();
     if (image == null) return false;

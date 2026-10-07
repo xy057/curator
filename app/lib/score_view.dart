@@ -287,7 +287,7 @@ class ScoreViewState extends State<ScoreView> {
   Widget build(BuildContext context) => Select(
         listenable: c,
         select: () => (
-          scene: c.scene,
+          score: c.score, // and with it the scene
           images: c.images.enabled,
           selected: c.images.selected,
           cropping: c.images.cropping,
