@@ -116,8 +116,24 @@ void main() {
     await choose('Redo');
     expect(menus().onRedo, isNull);
 
-    // Paste follows Attach Image's switch.
+    // Cut and Copy take selected regions; Paste then puts them back in.
+    expect(menus().onCopy, isNull);
+    expect(menus().onCut, isNull);
     expect(menus().onPaste, isNull);
+    await choose('Undo'); // the regions deleted above
+    await choose('Select All');
+    expect(menus().onCopy, isNotNull);
+    await choose('Cut');
+    expect(c.curation!.partIds.every((id) => c.curation!.lane(id).isEmpty), isTrue);
+    expect(menus().onCopy, isNull, reason: 'nothing selected after a cut');
+    await choose('Paste');
+    expect(c.curation!.partIds.any((id) => c.curation!.lane(id).isNotEmpty), isTrue);
+    c.tab = BottomTab.audio;
+    await tester.pump();
+    expect(menus().onPaste, isNull, reason: 'regions go only into the Instruments tab');
+    expect(menus().onCopy, isNull);
+
+    // Elsewhere Paste follows Attach Image's switch.
     c.images.enabled = true;
     await tester.pump();
     expect(menus().onPaste, isNotNull);

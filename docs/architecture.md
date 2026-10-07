@@ -231,6 +231,13 @@ toolbar (`LaneEditing.setTransition`). A selection is of edges: a click in a reg
 selects the region (`RegionEdges.both`), a click on an edge only that edge
 (`LaneEditing.selection`); moving and deleting take the regions, trimming (a drag, `[`/`]`)
 and transitions only the edges selected. An edge with its own transition shows it beside it.
+Cut and Copy (Edit, ⌘X / ⌘C) take the selected regions whole, with their properties, into the
+app's own clipboard (`LaneEditing.copied`, kept across projects; the system's holds Attach
+Image's images): each lane's regions from the first one's start, and its row below the top lane
+copied. Paste (⌘V, in the Instruments tab while regions are copied; elsewhere an image) puts
+them in from the beat nearest the playhead, merged as drawing merges: the top row into the top
+lane selected and the rest as far below it, or with nothing selected each into its own lane
+(`LaneEditing.paste`); a row past the bottom lane is left out, and the piece's end cuts them.
 
 **Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
 dialog or double-click changes a text any more; add nothing to it. The engine and the

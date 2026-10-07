@@ -17,6 +17,10 @@ enum LaneTool {
 /// A region together with the lane it is in.
 typedef RegionRef = ({String partId, Region region});
 
+/// One lane of copied regions: the lane they came from, its [row] below the top lane copied,
+/// and the regions with their bounds measured from the first one's start.
+typedef CopiedLane = ({String partId, int row, List<Region> regions});
+
 /// Which edges of a selected region are selected: [both] when the region itself is (clicked
 /// in its middle), or the one clicked on. Its transition there is what the toolbar sets.
 enum RegionEdges {
@@ -293,6 +297,75 @@ class LaneEditing {
     _editSelected((_, _) => null);
     _selected = {};
     _editor._changed();
+  }
+
+  // MARK: Copy and paste
+
+  /// What Copy or Cut took, lane by lane; kept when another project opens. The app's own,
+  /// not the system clipboard's (that holds images for Attach Image).
+  List<CopiedLane> get copied => _copied;
+  List<CopiedLane> _copied = const [];
+
+  /// Whether Paste has regions to put in.
+  bool get canPaste => _copied.isNotEmpty;
+
+  /// Copy: the selected regions, whole (with their transitions) whatever edge is selected,
+  /// and how far apart their lanes are.
+  void copy() {
+    final selected = _valid.keys;
+    if (selected.isEmpty) return;
+    final ids = [for (final p in _editor.laneParts) p.id];
+    final start = selected.map((r) => r.region.start).reduce(math.min);
+    final lanes = {for (final r in selected) r.partId}.toList()..sort((a, b) => ids.indexOf(a).compareTo(ids.indexOf(b)));
+    final top = ids.indexOf(lanes.first);
+    _copied = [
+      for (final id in lanes)
+        (
+          partId: id,
+          row: ids.indexOf(id) - top,
+          regions: [
+            for (final r in selected.where((r) => r.partId == id).map((r) => r.region).toList()..sort((a, b) => a.start.compareTo(b.start)))
+              r.withBounds(r.start - start, r.end - start),
+          ],
+        ),
+    ];
+    _editor._changed();
+  }
+
+  /// Cut: Copy, then Delete.
+  void cut() {
+    copy();
+    delete();
+  }
+
+  /// Paste: the copied regions from the beat nearest the playhead, merged with what the lanes
+  /// hold, and selected. The top lane copied goes into the top lane selected, the rest as far
+  /// below it as they were (any past the bottom lane are left out); with nothing selected,
+  /// each into the lane it came from (from another score: from the top lane). Cut off at the
+  /// end of the piece.
+  void paste() {
+    final curation = _curation, sync = _editor._sync;
+    if (curation == null || sync == null || _copied.isEmpty) return;
+    final ids = [for (final p in _editor.laneParts) p.id];
+    final into = [for (final id in selectedPartIds) ids.indexOf(id)];
+    final top = into.isNotEmpty ? into.reduce(math.min) : (_copied.any((l) => ids.contains(l.partId)) ? null : 0);
+    final at = sync.nearestGrid(_editor.timeline.quarterAtSeconds(_editor.playback.time.value), SyncGrid.beat);
+    final end = _editor.timeline.measureStarts.last;
+    final placed = <RegionRef>[];
+    for (final lane in _copied) {
+      final id = top == null ? (ids.contains(lane.partId) ? lane.partId : null) : ids.elementAtOrNull(top + lane.row);
+      if (id == null) continue;
+      for (final r in lane.regions) {
+        final to = math.min(at + r.end, end);
+        if (to - (at + r.start) > 1e-9) placed.add((partId: id, region: r.withBounds(at + r.start, to)));
+      }
+    }
+    if (placed.isEmpty) return;
+    curation.setLanes({
+      for (final id in {for (final p in placed) p.partId})
+        id: [...curation.lane(id), for (final p in placed) if (p.partId == id) p.region],
+    });
+    reselect({for (final p in placed) p: RegionEdges.both});
   }
 
   /// A drag's live state of the lanes (between [EditorController.beginEdit] and

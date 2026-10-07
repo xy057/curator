@@ -24,6 +24,8 @@ class AppMenus extends StatelessWidget {
     this.onClose,
     this.onUndo,
     this.onRedo,
+    this.onCut,
+    this.onCopy,
     this.onPaste,
     this.onDelete,
     this.onSelectAll,
@@ -59,6 +61,8 @@ class AppMenus extends StatelessWidget {
   /// Edit menu; each null (greyed out) when it has nothing to do.
   final VoidCallback? onUndo;
   final VoidCallback? onRedo;
+  final VoidCallback? onCut;
+  final VoidCallback? onCopy;
   final VoidCallback? onPaste;
   final VoidCallback? onDelete;
   final VoidCallback? onSelectAll;
@@ -127,6 +131,8 @@ class AppMenus extends StatelessWidget {
             ),
           ]),
           PlatformMenuItemGroup(members: [
+            PlatformMenuItem(label: 'Cut', shortcut: _key(LogicalKeyboardKey.keyX), onSelected: onCut),
+            PlatformMenuItem(label: 'Copy', shortcut: _key(LogicalKeyboardKey.keyC), onSelected: onCopy),
             PlatformMenuItem(label: 'Paste', shortcut: _key(LogicalKeyboardKey.keyV), onSelected: onPaste),
             PlatformMenuItem(
               label: 'Delete',
