@@ -342,6 +342,13 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
 
   int _laneIndex(Offset p) => (p.dy / _laneHeight).floor().clamp(0, parts.length - 1);
 
+  /// The part of the lanes scrolled into view (from their top): what is worth painting.
+  ({double top, double bottom}) get _inView {
+    if (!_vScroll.hasClients || !_vScroll.position.hasContentDimensions) return (top: 0, bottom: double.infinity);
+    final p = _vScroll.position;
+    return (top: p.pixels, bottom: p.pixels + p.viewportDimension);
+  }
+
   // MARK: Hit testing
 
   ({RegionRef ref, _DragKind kind})? _hit(Offset p) {
@@ -636,9 +643,12 @@ class _InstrumentLanesState extends State<InstrumentLanes> with SingleTickerProv
                 onPointerMove: _onMove,
                 onPointerUp: _onUp,
                 onPointerCancel: _onUp,
-                child: CustomPaint(
-                  size: Size(double.infinity, parts.length * _laneHeight),
-                  painter: _LanesPainter(this, context.colors, Listenable.merge([c.playback.time, curation, c.viewport, c, _band])),
+                child: WithPlayhead(
+                  controller: c,
+                  child: CustomPaint(
+                    size: Size(double.infinity, parts.length * _laneHeight),
+                    painter: _LanesPainter(this, context.colors, Listenable.merge([curation, c.viewport, c, _band, _vScroll])),
+                  ),
                 ),
               ),
             ),
@@ -1030,10 +1040,14 @@ class _LanesPainter extends CustomPainter {
     canvas.clipRect(Offset.zero & size);
     final c = s.c;
     final parts = s.parts;
+    // Only the lanes in view: a score has many, and the canvas is as tall as all of them.
+    final view = s._inView;
+    bool shown(double top) => top + _laneHeight > view.top && top < view.bottom;
 
     // The stripes stay put; each lane's content is drawn at its own top, which moves while a
     // lane is being moved (see _InstrumentLanesState._tick).
     for (var i = 0; i < parts.length; i++) {
+      if (!shown(i * _laneHeight)) continue;
       canvas.drawRect(Rect.fromLTWH(0, i * _laneHeight, size.width, _laneHeight),
           Paint()..color = i.isEven ? colors.surface : colors.accentWash);
     }
@@ -1049,7 +1063,7 @@ class _LanesPainter extends CustomPainter {
 
     bool held(int i) => s._held.contains(parts[i].id);
     for (var i = 0; i < parts.length; i++) {
-      if (!held(i)) _paintLane(canvas, size, i, s._rowTop(i));
+      if (!held(i) && shown(s._rowTop(i))) _paintLane(canvas, size, i, s._rowTop(i));
     }
     final blocks = s._heldBlocks(size.width);
     if (blocks.isNotEmpty) {
@@ -1082,7 +1096,6 @@ class _LanesPainter extends CustomPainter {
         );
       }
     }
-    paintPlayhead(canvas, size, c, colors);
   }
 
   /// Lane [i]'s content with its top at [top]: where the part plays, and its regions.

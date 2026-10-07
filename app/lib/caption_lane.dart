@@ -351,9 +351,12 @@ class _CaptionLaneState extends State<CaptionLane> {
               onPointerCancel: _onCancel,
               child: DecoratedBox(
                 decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.line))),
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: _CaptionLanePainter(this, colors, Listenable.merge([c, c.playback.time, c.viewport, _band])),
+                child: WithPlayhead(
+                  controller: c,
+                  child: CustomPaint(
+                    size: Size.infinite,
+                    painter: _CaptionLanePainter(this, colors, Listenable.merge([c, c.viewport, _band])),
+                  ),
                 ),
               ),
             ),
@@ -416,7 +419,6 @@ class _CaptionLanePainter extends CustomPainter {
         );
       }
     }
-    paintPlayhead(canvas, size, c, colors);
   }
 
   @override

@@ -175,7 +175,7 @@ class _AudioLanesState extends State<AudioLanes> {
   /// The MIDI tempo map in place of the anchors, the waveform and the tempo lane.
   Widget _midiLanes(BuildContext context, MidiTempoMap midi) {
     final colors = context.colors;
-    final repaint = Listenable.merge([c.playback.time, c.viewport, sync, c]);
+    final repaint = Listenable.merge([c.viewport, sync, c]);
     void seek(PointerEvent e) => c.playback.seek(c.viewport.seconds(e.localPosition.dx));
     return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SizedBox(
@@ -198,7 +198,10 @@ class _AudioLanesState extends State<AudioLanes> {
         child: Listener(
           onPointerDown: (e) => e.buttons == kPrimaryButton ? seek(e) : null,
           onPointerMove: (e) => e.buttons == kPrimaryButton ? seek(e) : null,
-          child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint, large: true)),
+          child: WithPlayhead(
+            controller: c,
+            child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint, large: true)),
+          ),
         ),
       ),
     ]);
@@ -209,7 +212,7 @@ class _AudioLanesState extends State<AudioLanes> {
     if (c.midiTempo case final midi?) return _midiLanes(context, midi);
     final track = c.track;
     final colors = context.colors;
-    final repaint = Listenable.merge([c.playback.time, c.viewport, sync, c, _marquee]);
+    final repaint = Listenable.merge([c.viewport, sync, c, _marquee]);
     final lanes = MouseRegion(
       cursor: _cursor,
       onHover: _onHover,
@@ -218,7 +221,8 @@ class _AudioLanesState extends State<AudioLanes> {
         onPointerMove: _onMove,
         onPointerUp: _onUp,
         onPointerCancel: _onUp,
-        child: Column(children: [
+        // One playhead through the three lanes.
+        child: WithPlayhead(controller: c, child: Column(children: [
           SizedBox(
             height: _anchorLaneHeight,
             child: CustomPaint(size: Size.infinite, painter: _AnchorPainter(c, colors, _marquee, repaint)),
@@ -242,7 +246,7 @@ class _AudioLanesState extends State<AudioLanes> {
             height: _tempoLaneHeight,
             child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint)),
           ),
-        ]),
+        ])),
       ),
     );
 
@@ -699,7 +703,6 @@ class _AnchorPainter extends CustomPainter {
       }
       tp.dispose();
     }
-    paintPlayhead(canvas, size, c, colors);
   }
 
   @override
@@ -768,7 +771,6 @@ class _WaveformPainter extends CustomPainter {
       );
     }
     _paintMarquee(canvas, size, c, colors, marquee.value);
-    paintPlayhead(canvas, size, c, colors);
   }
 
   @override
@@ -872,7 +874,6 @@ class _TempoPainter extends CustomPainter {
       }
       previous = Offset(x1, yy);
     }
-    paintPlayhead(canvas, size, c, colors);
   }
 
   @override

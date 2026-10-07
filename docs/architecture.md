@@ -213,6 +213,9 @@ tempo map or a recording.
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip
 the staff's fade. During a drag regions may overlap (`Curation.updateLanes`); `normalize`
 merges them when the drag ends.
+The playhead is a layer of its own over every lane (`WithPlayhead`): playback moves it every frame
+and repaints only it, so a lane's painter listens to edits and the viewport, never to the time. The
+Instruments tab paints only the lanes scrolled into view.
 
 **A region carries its properties.** Besides its bounds a region has properties of its own
 (so far its transitions: how long its staff glides in at its start, `Region.transitionIn`, and
