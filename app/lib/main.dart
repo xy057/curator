@@ -934,19 +934,36 @@ class _ResizeHandleState extends State<_ResizeHandle> {
   }
 }
 
-/// A veil with a spinner while a score is engraved; fades in and out.
-class _Busy extends StatelessWidget {
+/// A veil with a spinner while a score is engraved; fades in and out (then lets go of the
+/// spinner, which would otherwise turn on unseen).
+class _Busy extends StatefulWidget {
   const _Busy({required this.visible, required this.message});
   final bool visible;
   final String message;
 
   @override
+  State<_Busy> createState() => _BusyState();
+}
+
+class _BusyState extends State<_Busy> {
+  late bool _built = widget.visible; // until it has faded out
+
+  @override
+  void didUpdateWidget(_Busy old) {
+    super.didUpdateWidget(old);
+    if (widget.visible) _built = true;
+  }
+
+  @override
   Widget build(BuildContext context) => IgnorePointer(
-        ignoring: !visible,
+        ignoring: !widget.visible,
         child: AnimatedOpacity(
-          opacity: visible ? 1 : 0,
+          opacity: widget.visible ? 1 : 0,
           duration: const Duration(milliseconds: 200),
-          child: !visible
+          onEnd: () {
+            if (!widget.visible && mounted) setState(() => _built = false);
+          },
+          child: !_built
               ? const SizedBox.expand()
               : ColoredBox(
                   color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.75),
@@ -954,7 +971,7 @@ class _Busy extends StatelessWidget {
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       const SizedBox.square(dimension: 28, child: CircularProgressIndicator(strokeWidth: 2.5)),
                       const SizedBox(height: 14),
-                      Text(message, style: TextStyle(color: context.colors.textMuted)),
+                      Text(widget.message, style: TextStyle(color: context.colors.textMuted)),
                     ]),
                   ),
                 ),
