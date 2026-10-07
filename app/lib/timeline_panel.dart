@@ -710,18 +710,7 @@ class InstrumentsToolbar extends StatelessWidget {
                 ToolbarButton(icon: icon, tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
             ]),
             const SizedBox(width: 10),
-            Expanded(
-              child: FadeSlideSwitcher(
-                child: status == null
-                    ? const SizedBox.shrink()
-                    : Text(
-                        status,
-                        key: ValueKey(status),
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: context.colors.textMuted),
-                      ),
-              ),
-            ),
+            Expanded(child: FadingText(status, style: TextStyle(fontSize: 12, color: context.colors.textMuted))),
             FadeSlideSwitcher(
               alignment: Alignment.centerRight,
               child: selected.isEmpty

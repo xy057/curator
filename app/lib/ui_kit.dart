@@ -327,3 +327,29 @@ class _SelectState<T> extends State<Select<T>> {
   @override
   Widget build(BuildContext context) => widget.builder(context, _value);
 }
+
+/// A line of text that fades in when there is some and out when there is none, and otherwise
+/// changes at once: a status that changes at every move of a drag must not flicker.
+class FadingText extends StatefulWidget {
+  const FadingText(this.text, {super.key, this.style});
+  final String? text;
+  final TextStyle? style;
+
+  @override
+  State<FadingText> createState() => _FadingTextState();
+}
+
+class _FadingTextState extends State<FadingText> {
+  late String _shown = widget.text ?? ''; // the last text, while it fades out
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.text case final text?) _shown = text;
+    return AnimatedOpacity(
+      opacity: widget.text == null ? 0 : 1,
+      duration: const Duration(milliseconds: 180),
+      alwaysIncludeSemantics: true,
+      child: Text(_shown, overflow: TextOverflow.ellipsis, maxLines: 1, style: widget.style),
+    );
+  }
+}

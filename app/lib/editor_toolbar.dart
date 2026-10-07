@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -389,21 +391,54 @@ class _Clickable extends StatelessWidget {
       );
 }
 
-/// A quiet "Saving…" while a save (or autosave) runs.
-class _SavingIndicator extends StatelessWidget {
+/// A quiet "Saving…" while a save (or autosave) runs, once it has run a moment: a quick
+/// autosave shows nothing, rather than a flicker.
+class _SavingIndicator extends StatefulWidget {
   const _SavingIndicator({required this.document});
   final ProjectDocument document;
 
   @override
+  State<_SavingIndicator> createState() => _SavingIndicatorState();
+}
+
+class _SavingIndicatorState extends State<_SavingIndicator> {
+  static const _after = Duration(milliseconds: 400);
+  Timer? _timer;
+  bool _shown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.document.addListener(_changed);
+    _changed();
+  }
+
+  @override
+  void dispose() {
+    widget.document.removeListener(_changed);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _changed() {
+    if (widget.document.isSaving) {
+      _timer ??= Timer(_after, () {
+        if (mounted) setState(() => _shown = true);
+      });
+    } else {
+      _timer?.cancel();
+      _timer = null;
+      if (_shown) setState(() => _shown = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Select(
-      listenable: document,
-      select: () => document.isSaving,
-      builder: (context, saving) => FadeSlideSwitcher(
+    return FadeSlideSwitcher(
       alignment: Alignment.centerRight,
       offset: const Offset(0, 0.3),
-      child: !saving
+      child: !_shown
           ? const SizedBox.shrink()
           : Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -413,7 +448,6 @@ class _SavingIndicator extends StatelessWidget {
                 Text('Saving…', style: TextStyle(fontSize: 12, color: colors.textMuted)),
               ]),
             ),
-      ),
     );
   }
 }
