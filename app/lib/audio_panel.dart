@@ -662,12 +662,13 @@ void _paintMarquee(Canvas canvas, Size size, EditorController c, AppColors color
   if (marquee == null) return;
   final x0 = c.viewport.x(marquee.$1), x1 = c.viewport.x(marquee.$2);
   final rect = Rect.fromLTRB(math.min(x0, x1), 0, math.max(x0, x1), size.height);
-  canvas.drawRect(rect, Paint()..color = colors.accent.withValues(alpha: 0.12));
+  // As the Instruments tab draws its box.
+  canvas.drawRect(rect, Paint()..color = colors.accentStrong.withValues(alpha: 0.08));
   canvas.drawRect(
     rect,
     Paint()
       ..style = PaintingStyle.stroke
-      ..color = colors.accent.withValues(alpha: 0.6),
+      ..color = colors.accentStrong.withValues(alpha: 0.6),
   );
 }
 
