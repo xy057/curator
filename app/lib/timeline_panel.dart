@@ -814,32 +814,35 @@ class _TidyMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final where = lanes == 0 ? 'all lanes' : '$lanes selected ${lanes == 1 ? 'lane' : 'lanes'}';
     String bars(double n) => n == 1 ? '1 bar' : '${n.toStringAsFixed(0)} bars';
-    return PopupMenuButton<void Function()>(
-      tooltip: 'Tidy $where',
-      iconSize: 18,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 280),
-      style: IconButton.styleFrom(
-        fixedSize: const Size(32, 32),
-        minimumSize: const Size(32, 32),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    // Its tooltip is an overlay: a semantics node of its own (see OverlaySemantics).
+    return OverlaySemantics(
+      child: PopupMenuButton<void Function()>(
+        tooltip: 'Tidy $where',
+        iconSize: 18,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 280),
+        style: IconButton.styleFrom(
+          fixedSize: const Size(32, 32),
+          minimumSize: const Size(32, 32),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        icon: const Icon(Icons.cleaning_services_outlined),
+        onSelected: (action) => action(),
+        itemBuilder: (context) => [
+          PopupMenuItem(enabled: false, height: 28, child: Text('Tidy $where', style: const TextStyle(fontSize: 12))),
+          for (final n in const [1.0, 2.0, 4.0])
+            PopupMenuItem(
+              value: () => controller.lanes.fillGaps(n),
+              child: Text('Keep shown through rests of up to ${bars(n)}'),
+            ),
+          const PopupMenuDivider(),
+          for (final n in const [1.0, 2.0])
+            PopupMenuItem(
+              value: () => controller.lanes.removeShort(n),
+              child: Text('Remove regions shorter than ${bars(n)}'),
+            ),
+        ],
       ),
-      icon: const Icon(Icons.cleaning_services_outlined),
-      onSelected: (action) => action(),
-      itemBuilder: (context) => [
-        PopupMenuItem(enabled: false, height: 28, child: Text('Tidy $where', style: const TextStyle(fontSize: 12))),
-        for (final n in const [1.0, 2.0, 4.0])
-          PopupMenuItem(
-            value: () => controller.lanes.fillGaps(n),
-            child: Text('Keep shown through rests of up to ${bars(n)}'),
-          ),
-        const PopupMenuDivider(),
-        for (final n in const [1.0, 2.0])
-          PopupMenuItem(
-            value: () => controller.lanes.removeShort(n),
-            child: Text('Remove regions shorter than ${bars(n)}'),
-          ),
-      ],
     );
   }
 }
@@ -997,7 +1000,8 @@ class _LaneHeaderState extends State<_LaneHeader> {
     PopupMenuItem<_LaneAction> item(_LaneAction a) => PopupMenuItem(value: a, child: Text(a.label));
     final group = controller.condensedGroupOf(part.id);
     final condensed = group != null;
-    final menu = PopupMenuButton<_LaneAction>(
+    final menu = OverlaySemantics(
+      child: PopupMenuButton<_LaneAction>(
         tooltip: 'Lane options',
         padding: EdgeInsets.zero,
         iconSize: 16,
@@ -1019,6 +1023,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
           item(_LaneAction.moveToBottom),
           if (!controller.isScoreOrder) item(_LaneAction.scoreOrder),
         ],
+      ),
     );
     final colors = context.colors;
     final label = LaneLabel(
