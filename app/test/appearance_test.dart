@@ -65,4 +65,27 @@ void main() {
     await tester.pump();
     expect(tester.widget(scaffold), isNot(same(built)));
   });
+
+  testWidgets("a widget's own colour animations take the new theme at once, under the window's cross-fade", (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory()..themeMode = ThemeMode.light;
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pumpAndSettle();
+    // The divider above the timeline: an AnimatedContainer in the surface colour.
+    final handle = find.descendant(
+        of: find.byWidgetPredicate((w) => w.runtimeType.toString() == '_ResizeHandle'), matching: find.byType(DecoratedBox));
+    Color? color() => (tester.widget<DecoratedBox>(handle.first).decoration as BoxDecoration).color;
+    expect(color(), AppColors.of(settings.accent, Brightness.light).surface);
+
+    settings.themeMode = ThemeMode.dark;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(color(), AppColors.of(settings.accent, Brightness.dark).surface);
+    await tester.pumpAndSettle();
+  });
 }
+

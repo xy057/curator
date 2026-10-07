@@ -353,3 +353,18 @@ class _FadingTextState extends State<FadingText> {
     );
   }
 }
+
+/// True during the frame the appearance (light / dark, accent) changes.
+bool _appearanceChanging = false;
+
+/// The window's appearance is about to change (main.dart): for that frame, [stateDuration]s
+/// are none.
+void appearanceChanging() {
+  _appearanceChanging = true;
+  WidgetsBinding.instance.addPostFrameCallback((_) => _appearanceChanging = false);
+}
+
+/// How long a widget's own change of colour (a hover, a selection) takes: [duration], but none
+/// in the frame the theme changes. The window shows that change by fading a still of itself
+/// out over it; a colour animated under the still would trail it, and rebuild every frame.
+Duration stateDuration(Duration duration) => _appearanceChanging ? Duration.zero : duration;

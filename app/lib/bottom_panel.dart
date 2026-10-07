@@ -154,7 +154,7 @@ class _TabSwitch extends StatelessWidget {
                 child: SizedBox.square(
                   dimension: size,
                   child: TweenAnimationBuilder<Color?>(
-                    duration: const Duration(milliseconds: 200),
+                    duration: stateDuration(const Duration(milliseconds: 200)),
                     tween: ColorTween(end: tab == value ? colors.accentStrong : colors.textMuted),
                     builder: (context, color, _) => Icon(icon, size: 18, color: color),
                   ),

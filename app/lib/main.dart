@@ -100,6 +100,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
     final appearance = _currentAppearance;
     if (appearance == _appearance) return;
     _appearance = appearance;
+    appearanceChanging(); // before the window rebuilds in it
     final boundary = _windowKey.currentContext?.findRenderObject() as _RenderStillBoundary?;
     final still = boundary?.still(View.of(context).devicePixelRatio);
     if (still == null) return;
@@ -912,7 +913,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
         onVerticalDragCancel: () => setState(() => _dragging = false),
         onVerticalDragUpdate: (d) => widget.onDrag(d.delta.dy),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: stateDuration(const Duration(milliseconds: 150)),
           height: 7,
           decoration: BoxDecoration(
             color: active ? colors.accentWash : colors.surface,
@@ -920,7 +921,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
           ),
           alignment: Alignment.center,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: stateDuration(const Duration(milliseconds: 150)),
             width: active ? 44 : 32,
             height: 3,
             decoration: BoxDecoration(

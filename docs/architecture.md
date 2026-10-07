@@ -348,7 +348,8 @@ once, and a still of the window as it was (`_StillBoundary`, taken from its last
 fades out over it. A lerped theme would rebuild every widget that reads it on every frame of the
 fade, too slow with many lanes. A Material animates a change of its shape on its own, behind the
 still: one with an outline sets `animationDuration: Duration.zero`, or (a popup menu, which can't)
-takes `_SteadyBorder`.
+takes `_SteadyBorder`. A widget's own colour animation (a hover, a selection) takes `stateDuration`, which is none in
+the frame the appearance changes, so it doesn't trail the cross-fade either.
 The two themes are built once per accent (`_CuratedScoreAppState._buildThemes`): a new
 `ThemeData` never equals the last, so one built per change of settings would rebuild every widget
 that reads it. The page, likewise, rebuilds only for the settings it shows (`_HomePageState._shown`).

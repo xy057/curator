@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'ui_kit.dart';
 import 'editor_controller.dart';
 
 /// Width of the name column on the left of every lane (both tabs, so time lines up).
@@ -287,7 +288,7 @@ class LaneLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
+        duration: stateDuration(const Duration(milliseconds: 120)),
         height: height,
         padding: const EdgeInsets.only(left: 12),
         decoration: BoxDecoration(

@@ -211,7 +211,7 @@ class _RecentRowState extends State<_RecentRow> {
         behavior: HitTestBehavior.opaque,
         onTap: _exists ? widget.onOpen : null,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          duration: stateDuration(const Duration(milliseconds: 120)),
           color: _hover && _exists ? colors.accentWash : Colors.transparent,
           padding: const EdgeInsets.fromLTRB(12, 9, 6, 9),
           child: Row(children: [
