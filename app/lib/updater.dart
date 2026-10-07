@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 
 /// This build's version: `version` in pubspec.yaml without the build number (a test keeps them
 /// equal). The Release workflow tags each release `v` + this.
-const appVersion = '0.3.0';
+const appVersion = '0.4.0';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (a test keeps them equal).
 const appBuild = 32;
