@@ -130,6 +130,55 @@ void main() {
     expect(midWindow, midSwitch);
   });
 
+  testWidgets('a popup menu\'s outline cross-fades with the theme, in step with the other lines', (tester) async {
+    final mode = ValueNotifier(ThemeMode.light);
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(ValueListenableBuilder(
+      valueListenable: mode,
+      builder: (context, themeMode, _) => MaterialApp(
+        theme: AppColors.theme(),
+        darkTheme: AppColors.theme(brightness: Brightness.dark),
+        themeMode: themeMode,
+        builder: (context, child) => RepaintBoundary(child: child),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Column(children: [
+              Container(key: const Key('line'), width: 100, height: 40, decoration: BoxDecoration(border: Border.all(color: context.colors.line))),
+              PopupMenuButton<int>(itemBuilder: (_) => const [PopupMenuItem(value: 1, child: Text('One'))]),
+            ]),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.byType(PopupMenuButton<int>));
+    await tester.pumpAndSettle();
+    final menu = tester.getRect(find.ancestor(of: find.text('One'), matching: find.byType(Material)).first);
+    final line = tester.getRect(find.byKey(const Key('line')));
+    Future<(int, int)> outlines() async => (await tester.runAsync(() async {
+          final image = await tester.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first).toImage(pixelRatio: 2);
+          final data = (await image.toByteData())!;
+          int at(double x, double y) => data.getUint32(((y * 2).floor() * image.width + (x * 2).floor()) * 4);
+          return (at(menu.left, menu.center.dy), at(line.left, line.center.dy));
+        }))!;
+    final (lightMenu, lightLine) = await outlines();
+    expect(lightMenu, lightLine);
+
+    // A Material starts its own shape tween over at each new frame of the theme, at its last
+    // outline, so the menu's is a frame behind: in step, not finishing on its own time.
+    mode.value = ThemeMode.dark;
+    await tester.pump();
+    var previousLine = lightLine;
+    for (var frame = 0; frame < 6; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final (menuNow, lineNow) = await outlines();
+      expect(lineNow, isNot(previousLine));
+      expect(menuNow, previousLine);
+      previousLine = lineNow;
+    }
+  });
+
   testWidgets('search finds items on every page', (tester) async {
     await open(tester);
     await tester.enterText(find.byType(TextField), 'link');
