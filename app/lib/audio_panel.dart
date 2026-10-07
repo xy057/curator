@@ -331,7 +331,6 @@ class AudioToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final sync = c.sync!;
-    final colors = context.colors;
     return ListenableBuilder(
       listenable: Listenable.merge([sync, c]),
       builder: (context, _) => Row(children: [
@@ -376,26 +375,7 @@ class AudioToolbar extends StatelessWidget {
           ),
         ],
         const ToolbarDivider(),
-        Tip(
-          message: 'Playback speed',
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.speed_rounded, size: 17, color: colors.textMuted),
-            const SizedBox(width: 2),
-            DropdownButton<double>(
-              value: c.playback.speed,
-              isDense: true,
-              underline: const SizedBox.shrink(),
-              focusColor: Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              icon: Icon(Icons.expand_more_rounded, size: 16, color: colors.textMuted),
-              items: [
-                for (final s in const [0.5, 0.75, 1.0])
-                  DropdownMenuItem(value: s, child: Text('${(s * 100).round()}%', style: TextStyle(fontSize: 12, color: colors.text))),
-              ],
-              onChanged: (s) => c.playback.speed = s ?? 1,
-            ),
-          ]),
-        ),
+        _SpeedMenu(controller: c),
         const SizedBox(width: 8),
         _StartField(controller: c),
         const Spacer(),
@@ -424,6 +404,42 @@ class AudioToolbar extends StatelessWidget {
             onPressed: sync.anchors.isEmpty ? null : c.anchors.clear,
           ),
       ]),
+    );
+  }
+}
+
+/// Playback speed: "100% ▾", a menu as the video ratio and the transition are.
+class _SpeedMenu extends StatelessWidget {
+  const _SpeedMenu({required this.controller});
+  final EditorController controller;
+
+  static String _label(double speed) => '${(speed * 100).round()}%';
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final speed = controller.playback.speed;
+    return OverlaySemantics(
+      child: PopupMenuButton<double>(
+        tooltip: 'Playback speed',
+        position: PopupMenuPosition.under,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.only(left: 6, right: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onSelected: (s) => controller.playback.speed = s,
+        itemBuilder: (context) => [
+          for (final s in const [0.5, 0.75, 1.0]) CheckedPopupMenuItem(value: s, checked: s == speed, child: Text(_label(s))),
+        ],
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.speed_rounded, size: 16, color: colors.textMuted),
+          const SizedBox(width: 5),
+          Text(_label(speed),
+              style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
+          Icon(Icons.arrow_drop_down_rounded, size: 18, color: colors.textMuted),
+        ]),
+      ),
     );
   }
 }
