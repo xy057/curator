@@ -534,7 +534,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     snapshot?.dispose();
   }
 
-  void _editTexts() => showTextsDialog(context, controller);
   void _condensing() => showCondensingDialog(context, controller);
   void _fonts() => showFontsDialog(context, controller);
   void _addRecording() => pickAudio(context, controller);
@@ -586,7 +585,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onOpenRecent: _openPath,
           onClearRecent: settings.clearRecent,
           onClose: _hasScore.value ? _close : null,
-          onEditTexts: _hasScore.value ? _editTexts : null,
           onCondensing: _hasScore.value ? _condensing : null,
           onFonts: _hasScore.value ? _fonts : null,
           onAddRecording: _hasScore.value ? _addRecording : null,
@@ -707,7 +705,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           EditorToolbar(
             controller: controller,
             document: document,
-            onEditTexts: _editTexts,
             onExportVideo: _exportVideo,
             videoFrame: settings.previewVideoFrame,
             onVideoFrame: (on) => settings.previewVideoFrame = on,

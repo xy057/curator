@@ -1,7 +1,6 @@
 // The dialogs and menus around the lanes and the score, used as a user would: Rename, Edit
 // Texts, a lane's ⋯ menu (and Copy lane to…), Tidy, and a double-click on a name in the score.
 import 'package:curated_score/app_settings.dart';
-import 'package:curated_score/edit_dialogs.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/score_view.dart';
@@ -31,14 +30,6 @@ void main() {
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 150));
     }
-  }
-
-  Future<void> engraved(WidgetTester tester) async {
-    while (c.isReengraving) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
-      await tester.pump();
-    }
-    await settle(tester);
   }
 
   /// Chooses [item] from the first lane's ⋯ menu.
@@ -90,30 +81,6 @@ void main() {
     expect(tester.widget<TextField>(find.widgetWithText(TextField, 'Name')).controller!.text, c.partName(part));
     await tester.tap(find.text('Cancel'));
     await settle(tester);
-  });
-
-  testWidgets('Edit Texts: search, change one, Apply re-engraves it', (tester) async {
-    await open(tester);
-    final vivo = c.score!.texts.firstWhere((t) => t.text == 'Vivo');
-    showTextsDialog(tester.element(find.byType(HomePage)), c);
-    await settle(tester);
-    final search = find.widgetWithText(TextField, 'Search text or instrument (e.g. "arco")');
-    await tester.enterText(search, 'no such text');
-    await tester.pump();
-    expect(find.text('No texts found'), findsOneWidget);
-    await tester.enterText(search, 'vivo');
-    await tester.pump();
-    final row = find.descendant(of: find.byType(Dialog), matching: find.byType(TextField)).last;
-    expect(tester.widget<TextField>(row).controller!.text, 'Vivo');
-    await tester.enterText(row, 'Allegro');
-    await tester.pump();
-    expect(find.byTooltip('Back to "Vivo"'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
-    await engraved(tester);
-    expect(c.textById(vivo.id)!.current, 'Allegro');
-    c.undo();
-    await engraved(tester);
-    expect(c.textById(vivo.id)!.current, 'Vivo');
   });
 
   testWidgets("a lane's menu: select, clear, show throughout, auto-curate, copy, move, score order", (tester) async {

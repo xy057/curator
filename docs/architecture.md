@@ -229,6 +229,13 @@ selects the region (`RegionEdges.both`), a click on an edge only that edge
 (`LaneEditing.selection`); moving and deleting take the regions, trimming (a drag, `[`/`]`)
 and transitions only the edges selected. An edge with its own transition shows it beside it.
 
+**Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
+dialog or double-click changes a text any more; add nothing to it. The engine and the
+controller keep it (`EditorController.editTexts`, `textEdits` in `EditState` and the project),
+so projects with text edits still open and engrave as saved, Undo steps through them, and
+Replace Score carries them over. A double-click on a text does nothing
+(`test/app_screenshot_test.dart` checks it).
+
 **Widgets change the document only through `EditorController`** (and its parts). They may
 read the models (`curation`, `sync`) to draw them.
 
