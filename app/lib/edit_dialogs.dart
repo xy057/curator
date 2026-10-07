@@ -7,6 +7,7 @@ import 'package:score_engine/score_engine.dart';
 import 'app_colors.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
+import 'score_replacement.dart' show ScoreSwap;
 import 'ui_kit.dart';
 import 'video_export.dart';
 
@@ -23,26 +24,60 @@ Future<void> showImportWarnings(BuildContext context, String fileName, List<Stri
                 ? 'This was left out or isn’t supported:'
                 : 'These ${warnings.length} things were left out or aren’t supported:'),
             const SizedBox(height: 12),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 320),
-              child: SelectionArea(
-                child: ListView(shrinkWrap: true, children: [
-                  for (final warning in warnings)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('•  ', style: TextStyle(color: context.colors.textMuted)),
-                        Expanded(child: Text(warning, style: const TextStyle(fontSize: 13))),
-                      ]),
-                    ),
-                ]),
-              ),
-            ),
+            _Bullets(warnings),
           ]),
         ),
         actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
       ),
     );
+
+/// Score ▸ Replace Score…, when the new file differs from the open one ([differences], as
+/// [ScoreSwap.differences] gives them): true to replace anyway.
+Future<bool> confirmReplaceScore(BuildContext context, String fileName, List<String> differences) async =>
+    await showAppDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Replace with “$fileName”?'),
+        content: SizedBox(
+          width: 460,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('The scores differ:'),
+            const SizedBox(height: 12),
+            _Bullets(differences),
+            const SizedBox(height: 12),
+            Text('Can’t be undone.', style: TextStyle(color: context.colors.textMuted)),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Replace')),
+        ],
+      ),
+    ) ??
+    false;
+
+/// One line per item, selectable, scrolling past a few.
+class _Bullets extends StatelessWidget {
+  const _Bullets(this.lines);
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 320),
+        child: SelectionArea(
+          child: ListView(shrinkWrap: true, children: [
+            for (final line in lines)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('•  ', style: TextStyle(color: context.colors.textMuted)),
+                  Expanded(child: Text(line, style: const TextStyle(fontSize: 13))),
+                ]),
+              ),
+          ]),
+        ),
+      );
+}
 
 /// Rename an instrument: the full name and the short name used when space is tight.
 Future<void> showRenameDialog(BuildContext context, EditorController c, ScorePart part) =>

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'project_file.dart';
+import 'score_replacement.dart';
 import 'scratch_space.dart';
 
 /// The demo project, bundled with the app.
@@ -130,6 +131,16 @@ class ProjectDocument extends ChangeNotifier {
     _markSaved(controller.editRevision.value);
     settings.addRecent(path);
   });
+
+  /// Score ▸ Replace Score…: the score file at [path], engraved with this project's edits
+  /// carried over (see [EditorController.prepareReplacement]); nothing changes yet.
+  Future<ScoreReplacement> prepareReplacement(String path) =>
+      _oneAtATime(() => controller.prepareReplacement(path));
+
+  /// Puts [replacement] in place of the score: the project, its path and recording stay,
+  /// with unsaved changes.
+  Future<void> replaceScore(ScoreReplacement replacement) =>
+      _oneAtATime(() => controller.replaceScore(replacement));
 
   /// Opens the demo project to try things in; it can't be saved ([isSample]). Returns the
   /// same as [open].

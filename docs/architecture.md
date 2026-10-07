@@ -39,6 +39,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `caption_settings.dart` | Settings ▸ Extension ▸ Captions' own settings: font, position, countdown, size, with a preview |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `fonts_dialog.dart` | Score ▸ Fonts…: the music and text font a project is engraved in |
+| `score_replacement.dart` | Score ▸ Replace Score…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned); Undo's snapshots |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
@@ -274,6 +275,20 @@ in the project from format 5, empty for the score's order); the lanes follow it
 then engraved, and only then swapped in, in one synchronous step. If anything before the swap
 fails, what was open stays open, with its path — so a later save can't write one project
 over another. A recording that fails to load is reported, not fatal.
+
+**Replacing the score keeps the project.** Score ▸ Replace Score… engraves another score
+file with the project's edits carried over to it (`EditorController.prepareReplacement`,
+`ScoreSwap`), and only then swaps it in, like opening, keeping the recording, the path and
+the view (`replaceScore`). Instruments are matched by id and name, then by name (an
+instrument added above renumbers the rest), then by id (renamed); lanes, names, pairs,
+condensing and order follow them, and an instrument only in the new file is curated as on
+import. Positions (regions, anchors and warps, images, captions) keep their bar and their
+distance into it, no further than its end; a barline stays that barline. A text edit follows
+its text: the same instrument, words and kind, by id, else in the same bar (ids the app gives
+in document order shift). What has no place (past the new last bar, a removed instrument's
+text) is dropped. When the files differ (instruments, bars, time signatures, bar lengths,
+tempo, edits lost) a dialog lists it before anything changes. Undo starts again from the
+replacement: its steps were of the old file.
 
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;

@@ -11,6 +11,7 @@ import 'edit_history.dart';
 import 'error_text.dart';
 import 'image_patch.dart';
 import 'project_state.dart';
+import 'score_replacement.dart';
 import 'time_viewport.dart';
 
 part 'editor/caption_editing.dart';
@@ -130,6 +131,48 @@ class EditorController extends ChangeNotifier {
     }
   }
 
+  /// Score ▸ Replace Score…: engraves the score file at [path] with this project's edits
+  /// carried over to it ([ScoreSwap]), and says what differs. Nothing changes until
+  /// [replaceScore].
+  Future<ScoreReplacement> prepareReplacement(String path) async {
+    final before = _score!;
+    final bytes = await File(path).readAsBytes();
+    final xml = ScoreFile.decodeMusicXML(bytes);
+    final metadata = ScoreMetadata.read(xml);
+    final swap = ScoreSwap(
+      before: before.metadata,
+      after: metadata,
+      textsBefore: before.texts,
+      textsAfter: PreparedScore.prepare(ScoreMetadata.parse(xml), const {}).texts,
+    );
+    final score = await _engrave(bytes, textEdits: swap.textEdits(_textEdits), pairs: swap.pairs(_pairs), fonts: _fonts);
+    if (_score != before) throw StateError('Another score was opened meanwhile.');
+    final state = projectState;
+    final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
+    final (state: carried, :lost) =
+        swap.carry(state, condensable: condensable, measuresBefore: measures.before, measuresAfter: measures.after);
+    return ScoreReplacement(
+      name: path.split(RegExp(r'[/\\]')).last,
+      bytes: bytes,
+      score: score,
+      state: carried,
+      differences: swap.differences(
+          measuresBefore: measures.before, measuresAfter: measures.after, edits: _textEdits, lost: lost),
+      replacing: before,
+    );
+  }
+
+  /// Puts [replacement] in place of the score, keeping the recording; Undo starts again from
+  /// here. Does nothing if another score was opened since it was made.
+  Future<void> replaceScore(ScoreReplacement replacement) async {
+    if (replacement.replacing != _score) return;
+    final arts = await ImageEditing._decodeAll(replacement.state.images);
+    if (replacement.replacing != _score) return arts.values.forEach(ImageEditing._dispose);
+    await _install(replacement.name, replacement.bytes, replacement.score, replacement.state,
+        arts: arts, keepRecording: true);
+    _edited(); // unsaved
+  }
+
   /// Engraves a score (the slow part, and the one that can fail) without touching what is open.
   Future<LoadedScore> _engrave(Uint8List bytes,
       {Map<String, String> textEdits = const {},
@@ -146,14 +189,20 @@ class EditorController extends ChangeNotifier {
     }
   }
 
-  /// Replaces what is open with [score] and the edits and view in [state], all at once.
-  /// Nothing in here fails, so a project is never left half open.
+  /// Replaces what is open with [score] and the edits and view in [state], all at once
+  /// (the recording too, unless [keepRecording]). Nothing in here fails, so a project is
+  /// never left half open.
   Future<void> _install(String name, Uint8List bytes, LoadedScore score, ProjectState state,
-      {Map<String, PatchArt> arts = const {}}) async {
+      {Map<String, PatchArt> arts = const {}, bool keepRecording = false}) async {
     if (_disposed) return arts.values.forEach(ImageEditing._dispose); // the window closed while engraving
     playback.pause();
-    await audio.unload();
+    final mediaOriginal = _mediaOriginal, tab = _tab;
+    if (!keepRecording) await audio.unload();
     _closeDocument();
+    if (keepRecording) {
+      _mediaOriginal = mediaOriginal;
+      _tab = tab;
+    }
     final view = state.view;
     _score = score;
     _source = (name: name, bytes: bytes);

@@ -20,6 +20,7 @@ class AppMenus extends StatelessWidget {
     this.onCondensing,
     this.onFonts,
     this.onAddRecording,
+    this.onReplaceScore,
     this.onExportVideo,
     this.onClose,
     this.onUndo,
@@ -52,6 +53,7 @@ class AppMenus extends StatelessWidget {
   final VoidCallback? onCondensing;
   final VoidCallback? onFonts;
   final VoidCallback? onAddRecording;
+  final VoidCallback? onReplaceScore;
 
   /// File ▸ Export Video…; null (greyed out) while nothing is open.
   final VoidCallback? onExportVideo;
@@ -141,6 +143,7 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItem(label: 'Condensing…', onSelected: onCondensing),
           PlatformMenuItem(label: 'Fonts…', onSelected: onFonts),
           PlatformMenuItem(label: 'Add Recording…', onSelected: onAddRecording),
+          PlatformMenuItem(label: 'Replace Score…', onSelected: onReplaceScore),
         ]),
         if (_mac)
           const PlatformMenu(label: 'Window', menus: [
