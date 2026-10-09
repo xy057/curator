@@ -307,6 +307,19 @@ void main() {
     });
   });
 
+  test('listeners never see a score half open: with a score, its curation, sync and scene are there too', () async {
+    final half = <String>[];
+    void check() {
+      if (c.score != null && (c.curation == null || c.sync == null || c.scene == null)) half.add('${c.fileName}');
+    }
+
+    c.addListener(check);
+    addTearDown(() => c.removeListener(check));
+    await c.openFile(demoScore.path);
+    await c.openProject(name: 'demo.musicxml', scoreBytes: demoScore.readAsBytesSync(), state: const ProjectState());
+    expect(half, isEmpty);
+  });
+
   test('a project still opening when its window closes stops there: its recording is never loaded', () async {
     final closing = EditorController(vsync: const TestVSync());
     final opening = closing.openProject(
