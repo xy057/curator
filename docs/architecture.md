@@ -402,7 +402,7 @@ from those very files, registered under a family of its own (`TextFonts.load`, "
 what was measured. Verovio reads every font's metrics
 from one resource folder, the text font's always as `text/Times*.xml`, so for anything but a
 bundled music font with Academico, `FontResources.prepare` writes a folder of its own (in the
-scratch space, once per pair of fonts), measuring the font files with stb_truetype
+scratch space, once per pair of fonts, and again when the system's temp cleanup has emptied it), measuring the font files with stb_truetype
 (`vb_measure_font`: tight ink boxes from the outlines, and advances; `src/stb_truetype.h`,
 vendored, public domain / MIT). stb_truetype trusts its fonts, and a project brings its own
 music font, so our copy is changed (its "CURATOR CHANGES" note): every read is checked against
