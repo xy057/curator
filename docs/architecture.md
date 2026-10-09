@@ -224,6 +224,11 @@ tempo map or a recording.
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip
 the staff's fade. During a drag regions may overlap (`Curation.updateLanes`); `normalize`
 merges them when the drag ends.
+A drag in the timeline measures from where it began in the score or the recording (kept at the
+press), never from a point on the screen: the view pages on under it while playing
+(`TimeViewport.follow`). One the system cancels (the pointer taken) keeps what it changed so far
+as one Undo step and starts nothing new (a Draw click, a caption's dialog); a lane held by its
+name goes back to its place.
 The playhead is a layer of its own over every lane (`WithPlayhead`): playback moves it every frame
 and repaints only it, so a lane's painter listens to edits and the viewport, never to the time. The
 Instruments tab paints only the lanes scrolled into view.
@@ -305,7 +310,10 @@ in the project from format 5, empty for the score's order); the lanes follow it
 **Opening is all or nothing.** A project is read and validated (`ProjectState.fromJson`),
 then engraved, and only then swapped in, in one synchronous step. If anything before the swap
 fails, what was open stays open, with its path — so a later save can't write one project
-over another. A recording that fails to load is reported, not fatal.
+over another. A recording that fails to load is reported, not fatal. Listeners never see it
+half done: `_install` sets every part before anything notifies (captions last, as working out
+their style can notify at once), and a controller disposed while engraving takes nothing on,
+its recording included.
 
 **Replacing the score keeps the project.** Score ▸ Replace Score… engraves another score
 file with the project's edits carried over to it (`EditorController.prepareReplacement`,
@@ -411,7 +419,8 @@ music font, so our copy is changed (its "CURATOR CHANGES" note): every read is c
 the font file's bytes (`InFont` in `font_metrics.cpp`), and composite glyphs nest only so deep.
 Keep those changes when updating it; a test measures a font made to break it. A font that
 can't be read is never taken on (`EditorController.setFonts` prepares it first,
-`LoadedScore.prepareFonts`), so a project never saves one it couldn't open with. A text font not installed here falls back to Academico, the
+`LoadedScore.prepareFonts`), so a project never saves one it couldn't open with; its picker says
+why under the field. A text font not installed here falls back to Academico, the
 choice kept (`LoadedScore.textFontFound`). A glyph a music font lacks is laid out and drawn in
 Bravura (`fontFallback`, `RenderStyle.musicFontFallback`). The frozen zone still spaces its
 clef and time signature by Bravura's proportions.
