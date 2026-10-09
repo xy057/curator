@@ -120,6 +120,18 @@ mixin _LaneMoving on _LaneGeometry, SingleTickerProviderStateMixin<InstrumentLan
     _animate(); // the held lanes settle into their places
   }
 
+  /// The system took the pointer from the held name: nothing moves, and the held lanes go
+  /// back to their places.
+  void _cancelLifted() {
+    if (_lifted == null) return;
+    setState(() {
+      _lifted = null;
+      _held = const [];
+      _reordered = null;
+    });
+    _animate();
+  }
+
   void _animate() {
     if (_motion.isActive) return;
     _lastTick = Duration.zero;
