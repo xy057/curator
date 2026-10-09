@@ -306,8 +306,9 @@ abstract final class FontResources {
     final key = MusicFont._fnv(utf8.encode(
         '${music.name}|${music._digest}|$text|$base|${[for (final f in (faces ?? const {}).values) '${f.path}:${f.index}']}'));
     final dir = Directory('$work/fonts-${key.toRadixString(16)}');
-    final done = File('${dir.path}/.done');
-    if (done.existsSync()) return (directory: dir.path, textFound: done.readAsStringSync() == 'text');
+    if (_complete(dir.path, music)) {
+      return (directory: dir.path, textFound: File('${dir.path}/.done').readAsStringSync() == 'text');
+    }
 
     // Written aside and moved in at once, so an engraving running beside this one never reads
     // half a folder.
@@ -339,10 +340,23 @@ abstract final class FontResources {
         }
       }
       File('${draft.path}/.done').writeAsStringSync(textFound ? 'text' : 'missing');
-      try {
-        draft.renameSync(dir.path);
-      } on FileSystemException {
-        draft.deleteSync(recursive: true); // another engraving wrote it first
+      for (var retried = false;; retried = true) {
+        try {
+          draft.renameSync(dir.path);
+          break;
+        } on FileSystemException {
+          if (_complete(dir.path, music)) {
+            draft.deleteSync(recursive: true); // another engraving wrote it first
+            break;
+          }
+          if (retried) rethrow;
+          // What's there is left over: the system's temp cleanup empties folders it keeps.
+          try {
+            dir.deleteSync(recursive: true);
+          } on FileSystemException {
+            // another engraving cleared it first
+          }
+        }
       }
     } catch (_) {
       if (draft.existsSync()) draft.deleteSync(recursive: true);
@@ -350,6 +364,12 @@ abstract final class FontResources {
     }
     return (directory: dir.path, textFound: textFound);
   }
+
+  /// Whether [directory] has every file engraving in [music] reads, written to the end.
+  static bool _complete(String directory, MusicFont music) =>
+      File('$directory/.done').existsSync() &&
+      {'Bravura', 'Leipzig', music.name}.every((name) => File('$directory/$name.xml').existsSync()) &&
+      _textStyles.keys.every((file) => File('$directory/text/$file.xml').existsSync());
 
   /// Verovio text metrics (`text/Times*.xml`) for a font [face], for the characters the
   /// [reference] file has (its `c` is each character's UTF-8 bytes, in hex); null when the

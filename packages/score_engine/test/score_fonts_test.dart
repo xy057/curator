@@ -212,6 +212,24 @@ void main() {
     expect(score.textFontFamily, 'packages/score_engine/Academico');
   });
 
+  test('writes a folder again when what was cached has been emptied', () {
+    const fonts = ScoreFonts(music: MusicFont.leland, text: 'No Such Font 12345');
+    final first = FontResources.prepare(fonts, base: 'assets/verovio', work: work.path);
+    expect(File('${first.directory}/Leland.xml').existsSync(), isTrue);
+    // As the system's temp cleanup leaves it: the files gone, the folders kept.
+    for (final file in Directory(first.directory).listSync(recursive: true).whereType<File>()) {
+      file.deleteSync();
+    }
+    expect(Directory('${first.directory}/text').existsSync(), isTrue);
+
+    final again = FontResources.prepare(fonts, base: 'assets/verovio', work: work.path);
+    expect(again, first);
+    for (final name in ['.done', 'Bravura.xml', 'Leipzig.xml', 'Leland.xml', 'text/Times.xml', 'text/Times-bold-italic.xml']) {
+      expect(File('${again.directory}/$name').existsSync(), isTrue, reason: name);
+    }
+    expect(work.listSync().where((e) => e.path.startsWith('${first.directory}.')), isEmpty, reason: 'no draft left');
+  });
+
   test('engraves with a SMuFL font the user added, under its own name', () async {
     FontResources.workDirectory = work.path;
     addTearDown(() => FontResources.workDirectory = null);
