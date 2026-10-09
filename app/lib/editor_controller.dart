@@ -234,7 +234,6 @@ class EditorController extends ChangeNotifier {
     _projectEngraving = edits.engraving;
     if (!_fonts.music.isBundled && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
     images._load(edits.patches, state.images, arts);
-    captions._load(edits.captions, edits.captionFont);
     _midi = edits.midi;
     _tapped = edits.midi != null ? edits.anchors : const [];
     _sync = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
@@ -248,6 +247,8 @@ class EditorController extends ChangeNotifier {
     _joinLanes();
     _curation!.addListener(_edited);
     _scene = _makeScene(score);
+    // Last: working out their style can notify at once, and listeners must find all of it open.
+    captions._load(edits.captions, edits.captionFont);
     _history.clear();
     _committed = _editState; // a fresh document: nothing to undo
     anchors._restoreView(view);
