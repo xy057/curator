@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/project_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -304,6 +305,15 @@ void main() {
       expect(c.curation!.lane(ids[2]), [Region(bars[1], bars[3] + 2)]);
       expect(c.lanes.selected.single.region, Region(bars[1], bars[3] + 2));
     });
+  });
+
+  test('a project still opening when its window closes stops there: its recording is never loaded', () async {
+    final closing = EditorController(vsync: const TestVSync());
+    final opening = closing.openProject(
+        name: 'demo.musicxml', scoreBytes: demoScore.readAsBytesSync(), state: const ProjectState(), mediaPath: demoRecording.path);
+    closing.dispose(); // while engraving
+    expect(await opening, isNull);
+    expect(closing.track, isNull);
   });
 
   test("an edit that can't be engraved keeps the score as it was, says why, and Undo steps back", () async {
