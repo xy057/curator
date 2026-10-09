@@ -79,8 +79,8 @@ void main() {
     await c.loadMidiTempo(_midiFile().path);
     final json = jsonDecode(jsonEncode(c.projectState.toJson())) as Map<String, Object?>;
     final state = ProjectState.fromJson(json);
-    expect(state.midi, c.midiTempo);
-    expect(state.anchors, const [SyncAnchor(0, 2), SyncAnchor(6, 5)]);
+    expect(state.edits.midi, c.midiTempo);
+    expect(state.edits.anchors, const [SyncAnchor(0, 2), SyncAnchor(6, 5)]);
 
     final other = EditorController(vsync: const TestVSync());
     addTearDown(other.dispose);
@@ -89,7 +89,7 @@ void main() {
     other.useMidiTempo(null);
     expect(other.sync!.anchors, const [SyncAnchor(0, 2), SyncAnchor(6, 5)]);
 
-    expect(ProjectState.fromJson({'sync': {'anchors': <Object?>[]}}, savedVersion: 6).midi, isNull);
+    expect(ProjectState.fromJson({'sync': {'anchors': <Object?>[]}}, savedVersion: 6).edits.midi, isNull);
     expect(() => ProjectState.fromJson({'sync': {'midi': {'tempos': [[1, 90]]}}}), throwsFormatException);
   });
 

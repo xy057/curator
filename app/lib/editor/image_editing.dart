@@ -153,8 +153,8 @@ class ImageEditing {
     }
     List<ImagePatch> kept(List<ImagePatch> patches) =>
         patches.any((p) => gone.contains(p.image)) ? List.unmodifiable(patches.where((p) => !gone.contains(p.image))) : patches;
-    _c._history.rewrite(_c._editState, (state) => state.withPatches(kept(state.patches)));
-    if (_c._committed case final committed?) _c._committed = committed.withPatches(kept(committed.patches));
+    _c._history.rewrite(_c._editState, (state) => state.copyWith(patches: kept(state.patches)));
+    if (_c._committed case final committed?) _c._committed = committed.copyWith(patches: kept(committed.patches));
     _c._changed();
   }
 

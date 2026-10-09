@@ -27,7 +27,7 @@ void main() {
   ProjectContents contents({ProjectMedia? media}) => ProjectContents(
         scoreName: 'Score.musicxml',
         scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
-        state: const ProjectState(textEdits: {'d1': 'hello'}),
+        state: const ProjectState(edits: EditState(textEdits: {'d1': 'hello'})),
         media: media,
       );
 
@@ -45,7 +45,7 @@ void main() {
     final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
     expect(opened.scoreName, 'Score.musicxml');
     expect(utf8.decode(opened.scoreBytes), '<score-partwise/>');
-    expect(opened.state.textEdits, {'d1': 'hello'});
+    expect(opened.state.edits.textEdits, {'d1': 'hello'});
     expect(opened.media, isNull);
   });
 
@@ -178,7 +178,7 @@ void main() {
         ArchiveFile.bytes(name, Uint8List(ProjectFile.maxFontBytes * 2 + 1))..compression = CompressionType.deflate;
 
     final unusedFont = project('font', {}, [bomb('fonts/Junk.font')]);
-    expect((await ProjectFile.read(unusedFont, mediaDirectory: '${dir.path}/m1')).state.fonts.music, MusicFont.bravura);
+    expect((await ProjectFile.read(unusedFont, mediaDirectory: '${dir.path}/m1')).state.edits.fonts.music, MusicFont.bravura);
 
     final media = project('media', {'media': {'name': 'take.wav', 'entry': 'media/take.wav'}}, [bomb('media/take.wav')]);
     await expectLater(ProjectFile.read(media, mediaDirectory: '${dir.path}/m2'), throwsFormatException);
@@ -206,7 +206,7 @@ void main() {
 
   test('a damaged project says which field is wrong', () {
     ProjectState read(Map<String, Object?> json) => ProjectState.fromJson(json);
-    expect(read(const {}).lanes, isNull, reason: 'nothing saved: the lanes are auto-curated');
+    expect(read(const {}).edits.lanes, isNull, reason: 'nothing saved: the lanes are auto-curated');
     Matcher damaged(String where) => throwsA(isA<FormatException>().having((e) => e.message, 'message', contains(where)));
     expect(() => read({'partNames': {'P1': 5}}), damaged('state.partNames.P1 is not an object'));
     expect(() => read({'sync': {'anchors': [{'quarter': 0, 'seconds': 'soon'}]}}), damaged('state.sync.anchors[0].seconds is not a number'));
@@ -230,14 +230,14 @@ void main() {
 
   test('a project claiming a format before the first is read as the first, at once', () {
     final clock = Stopwatch()..start();
-    expect(ProjectState.fromJson(const {}, savedVersion: -1000000000).pairs, isEmpty);
+    expect(ProjectState.fromJson(const {}, savedVersion: -1000000000).edits.pairs, isEmpty);
     expect(clock.elapsed, lessThan(const Duration(seconds: 1)));
   });
 
   test('the instruments\' order is saved when moved; older projects keep the score\'s', () {
-    final json = jsonDecode(jsonEncode(const ProjectState(partOrder: ['P17', 'P1']).toJson())) as Map<String, Object?>;
-    expect(ProjectState.fromJson(json).partOrder, ['P17', 'P1']);
-    expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 4).partOrder, isEmpty);
+    final json = jsonDecode(jsonEncode(const ProjectState(edits: EditState(partOrder: ['P17', 'P1'])).toJson())) as Map<String, Object?>;
+    expect(ProjectState.fromJson(json).edits.partOrder, ['P17', 'P1']);
+    expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 4).edits.partOrder, isEmpty);
   });
 
   test('a project keeps its fonts, and an added music font travels inside it', () async {
@@ -249,64 +249,64 @@ void main() {
         ProjectContents(
           scoreName: 'Score.musicxml',
           scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
-          state: ProjectState(fonts: ScoreFonts(music: added, text: 'Helvetica')),
+          state: ProjectState(edits: EditState(fonts: ScoreFonts(music: added, text: 'Helvetica'))),
         ));
     final archive = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
     expect(archive.findFile('fonts/My Leland.font')!.content, leland);
     expect(archive.findFile('fonts/My Leland.json'), isNotNull);
     final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
-    expect(opened.state.fonts, ScoreFonts(music: added, text: 'Helvetica'));
+    expect(opened.state.edits.fonts, ScoreFonts(music: added, text: 'Helvetica'));
 
-    final bundled = jsonDecode(jsonEncode(const ProjectState(fonts: ScoreFonts(music: MusicFont.petaluma)).toJson()));
+    final bundled = jsonDecode(jsonEncode(const ProjectState(edits: EditState(fonts: ScoreFonts(music: MusicFont.petaluma))).toJson()));
     expect(bundled['fonts'], {'music': 'Petaluma'}, reason: 'a bundled font is saved by name only');
-    expect(ProjectState.fromJson(bundled as Map<String, Object?>).fonts, const ScoreFonts(music: MusicFont.petaluma));
+    expect(ProjectState.fromJson(bundled as Map<String, Object?>).edits.fonts, const ScoreFonts(music: MusicFont.petaluma));
     expect(const ProjectState().toJson().containsKey('fonts'), isFalse);
-    expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 8).fonts, ScoreFonts.standard);
+    expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 8).edits.fonts, ScoreFonts.standard);
     expect(() => ProjectState.fromJson({'fonts': {'music': 'Gone'}}), throwsA(isA<FormatException>()));
   });
 
   test("a project keeps its own engraving options, one set back to the default too; older ones have none", () {
     final curve = EngraveOption.byKey('slurCurveFactor')!, spacing = EngraveOption.byKey('spacingLinear')!;
     final options = const EngravingOptions().withValue(curve, 2).withValue(spacing, spacing.defaultValue, keepDefault: true);
-    final json = jsonDecode(jsonEncode(ProjectState(engraving: options).toJson())) as Map<String, Object?>;
+    final json = jsonDecode(jsonEncode(ProjectState(edits: EditState(engraving: options)).toJson())) as Map<String, Object?>;
     expect(json['engraving'], {'slurCurveFactor': 2, 'spacingLinear': spacing.defaultValue});
-    expect(ProjectState.fromJson(json).engraving, options);
+    expect(ProjectState.fromJson(json).edits.engraving, options);
     expect(const ProjectState().toJson().containsKey('engraving'), isFalse);
-    expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 12).engraving.isEmpty, isTrue);
+    expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 12).edits.engraving.isEmpty, isTrue);
     expect(() => ProjectState.fromJson({'engraving': 'wide'}), throwsA(isA<FormatException>()));
   });
 
   test('a project from before condensing opens with nothing condensed', () {
     final state = ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 1);
-    expect(state.condensed, isEmpty);
-    expect(state.pairs, isEmpty);
+    expect(state.edits.condensed, isEmpty);
+    expect(state.edits.pairs, isEmpty);
     expect(ProjectState.version, 13);
-    expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).pairs, isEmpty);
+    expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).edits.pairs, isEmpty);
   });
 
   test('a region is saved with its own transitions; one without, and older projects\' regions, use the project\'s', () {
     const lanes = {'P1': [Region(0, 4, transitionIn: 1.2), Region(8, 12), Region(14, 16, transitionIn: 0.5, transitionOut: 2)]};
-    final json = jsonDecode(jsonEncode(const ProjectState(lanes: lanes).toJson())) as Map<String, Object?>;
+    final json = jsonDecode(jsonEncode(const ProjectState(edits: EditState(lanes: lanes)).toJson())) as Map<String, Object?>;
     expect(((json['curation'] as Map)['lanes'] as Map)['P1'], [
       {'start': 0, 'end': 4, 'transitionIn': 1.2},
       {'start': 8, 'end': 12},
       {'start': 14, 'end': 16, 'transitionIn': 0.5, 'transitionOut': 2},
     ]);
-    expect(ProjectState.fromJson(json).lanes, lanes);
+    expect(ProjectState.fromJson(json).edits.lanes, lanes);
     final old = ProjectState.fromJson({'curation': {'lanes': {'P1': [{'start': 0, 'end': 4}]}}}, savedVersion: 5);
-    expect(old.lanes!['P1']!.single.hasDefaultProperties, isTrue);
+    expect(old.edits.lanes!['P1']!.single.hasDefaultProperties, isTrue);
   });
 
   test('warps are saved with their jump; plain anchors without one', () {
     const anchors = [SyncAnchor(0, 1), SyncAnchor(24, 10, jumpTo: 0), SyncAnchor(6, 13)];
-    final json = jsonDecode(jsonEncode(const ProjectState(anchors: anchors).toJson())) as Map<String, Object?>;
+    final json = jsonDecode(jsonEncode(const ProjectState(edits: EditState(anchors: anchors)).toJson())) as Map<String, Object?>;
     expect((json['sync'] as Map)['anchors'], [
       {'quarter': 0, 'seconds': 1},
       {'quarter': 24, 'seconds': 10, 'jumpTo': 0},
       {'quarter': 6, 'seconds': 13},
     ]);
-    expect(ProjectState.fromJson(json).anchors, anchors);
-    expect(ProjectState.fromJson({'sync': {'anchors': [{'quarter': 0, 'seconds': 1}]}}, savedVersion: 3).anchors.single.isWarp, isFalse);
+    expect(ProjectState.fromJson(json).edits.anchors, anchors);
+    expect(ProjectState.fromJson({'sync': {'anchors': [{'quarter': 0, 'seconds': 1}]}}, savedVersion: 3).edits.anchors.single.isWarp, isFalse);
   });
 
   test('a project that is not ours, or from the future, is refused', () async {
@@ -394,7 +394,7 @@ void main() {
       expect(c2.textById(vivo.id)!.current, 'Presto');
       expect(c2.partOrder.first, 'P17');
       expect(c2.midiTempo!.name, 'tempo.mid');
-      expect(c2.projectState.anchors.where((a) => a.isWarp), hasLength(1), reason: 'the anchors kept behind the MIDI file');
+      expect(c2.projectState.edits.anchors.where((a) => a.isWarp), hasLength(1), reason: 'the anchors kept behind the MIDI file');
       expect(c2.score!.fonts.music, MusicFont.leland);
       expect(c2.images.patches.single.ink, isTrue);
       expect(c2.images.stored, hasLength(1), reason: 'the image file travels in the project');
@@ -428,7 +428,7 @@ void main() {
       // An edit and an autosave now still write A's own project to A.
       c.curation!.clearAll();
       await doc.autosave();
-      expect((await ProjectFile.read(a, mediaDirectory: '${dir.path}/m')).state.lanes!.values.every((l) => l.isEmpty), isTrue);
+      expect((await ProjectFile.read(a, mediaDirectory: '${dir.path}/m')).state.edits.lanes!.values.every((l) => l.isEmpty), isTrue);
     });
 
     test('opens asked for at once run one after the other; an autosave meanwhile waits for them', () async {
@@ -540,7 +540,7 @@ void main() {
       await doc.autosave();
       expect(doc.isDirty, isFalse);
       final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/m');
-      expect(opened.state.lanes![c.score!.metadata.parts.first.id], [const Region(0, 8)]);
+      expect(opened.state.edits.lanes![c.score!.metadata.parts.first.id], [const Region(0, 8)]);
     });
   });
 }

@@ -42,7 +42,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Score ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Fonts: the music and text font a project is engraved in, and its caption font |
 | `score_replacement.dart` | Score ▸ Replace Score…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
-| `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned); Undo's snapshots |
+| `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned): its edits (`EditState`, also Undo's snapshots), image files and view; Undo and Redo |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as H.264/AAC MP4; the dialog (a still to scrub, bars, ratio, size, frame rate, paper, score size) |
@@ -466,13 +466,14 @@ on Windows wherever the registry says that folder now is): it never replaces the
   what it draws or exports) works only while its switch is on, and is hidden or inert otherwise.
   **Attach Image** (`AppSettings.attachImage`) is the first one, **Captions**
   (`AppSettings.captions`) the second.
-- **Something a project saves**: a field in `ProjectState`, written in `toJson`, read in
-  `fromJson`, filled in `EditorController.projectState` and taken on when a project opens;
-  bump the version with a migration (even one that changes nothing). If Undo should cover it
-  (every edit should), it is also a field of `EditState` (with its `==`), and the controller
-  fills it in `_editState` and puts it back in `_restore`. If it changes what is drawn, copy
-  it in `VideoExport.of` too, and set it in `test/export_parity_test.dart`, which checks that
-  a video frame is the preview's.
+- **Something a project saves**: a field of `EditState` (with its `==` and `copyWith`),
+  written in `ProjectState.toJson` and read in `fromJson`; bump the version with a migration
+  (even one that changes nothing). The controller fills it in `_editState` (which is also what
+  a project saves, `EditorController.projectState`), takes it on when a project opens
+  (`_install`) and puts it back in `_restore` (Undo). Replace Score carries it as it is unless
+  `ScoreSwap.carry` maps it (a part id or a position). Only the view (`ViewState`) is saved
+  without being an edit. If it changes what is drawn, copy it in `VideoExport.of` too, and set
+  it in `test/export_parity_test.dart`, which checks that a video frame is the preview's.
 - **A Verovio change**: edit `third_party/verovio`, then
   `git -C packages/score_engine/third_party/verovio diff > patches/verovio-curated-score.patch`,
   then `make setup` (it re-applies the patches from a clean tree, and records that it did).

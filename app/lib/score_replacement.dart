@@ -118,6 +118,7 @@ class ScoreSwap {
     required List<double> measuresBefore,
     required List<double> measuresAfter,
   }) {
+    final edits = state.edits;
     double? at(double q) => quarterAt(q, measuresBefore, measuresAfter);
 
     /// A stretch's new bounds: cut at the new end; null when nothing of it is left.
@@ -128,7 +129,7 @@ class ScoreSwap {
 
     var lostRegions = 0;
     Map<String, List<Region>>? lanes;
-    if (state.lanes case final old?) {
+    if (edits.lanes case final old?) {
       lanes = {};
       for (final MapEntry(key: id, value: lane) in old.entries) {
         final to = parts[id];
@@ -146,18 +147,18 @@ class ScoreSwap {
     }
 
     final anchors = <SyncAnchor>[];
-    for (final a in state.anchors) {
+    for (final a in edits.anchors) {
       final q = at(a.quarter), jump = a.jumpTo == null ? null : at(a.jumpTo!);
       if (q != null && (a.jumpTo == null) == (jump == null)) anchors.add(SyncAnchor(q, a.seconds, jumpTo: jump));
     }
 
     final patches = [
-      for (final p in state.patches)
+      for (final p in edits.patches)
         if (at(p.quarter) case final q?) p.copyWith(quarter: q),
     ];
 
     final captions = [
-      for (final c in state.captions)
+      for (final c in edits.captions)
         if (span(c.start, c.end) case (final s, final e)) Caption(s, e, c.text),
     ];
 
@@ -172,29 +173,27 @@ class ScoreSwap {
 
     return (
       state: ProjectState(
-        lanes: lanes,
-        transition: state.transition,
-        anchors: anchors,
-        leadIn: state.leadIn,
-        midi: state.midi,
-        partNames: {for (final MapEntry(key: id, value: name) in state.partNames.entries) ?parts[id]: name},
-        textEdits: textEdits(state.textEdits),
-        condensed: {for (final id in state.condensed) ?condensedId(id)},
-        pairs: pairs(state.pairs),
-        partOrder: [for (final id in state.partOrder) ?parts[id]],
-        patches: patches,
+        // What has no part id or position (the transition, the tempo track's start, fonts…)
+        // stays as it is.
+        edits: edits.copyWith(
+          lanes: lanes,
+          anchors: anchors,
+          partNames: {for (final MapEntry(key: id, value: name) in edits.partNames.entries) ?parts[id]: name},
+          textEdits: textEdits(edits.textEdits),
+          condensed: {for (final id in edits.condensed) ?condensedId(id)},
+          pairs: pairs(edits.pairs),
+          partOrder: [for (final id in edits.partOrder) ?parts[id]],
+          patches: patches,
+          captions: separateCaptions(captions),
+        ),
         images: {for (final p in patches) p.image: state.images[p.image]!},
-        captions: separateCaptions(captions),
-        captionFont: state.captionFont,
-        fonts: state.fonts,
-        engraving: state.engraving,
         view: state.view,
       ),
       lost: (
         regions: lostRegions,
-        anchors: state.anchors.length - anchors.length,
-        captions: state.captions.length - captions.length,
-        images: state.patches.length - patches.length,
+        anchors: edits.anchors.length - anchors.length,
+        captions: edits.captions.length - captions.length,
+        images: edits.patches.length - patches.length,
       ),
     );
   }

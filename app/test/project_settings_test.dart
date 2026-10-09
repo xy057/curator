@@ -68,7 +68,7 @@ void main() {
     await engraved();
     expect(c.fonts, const ScoreFonts(music: MusicFont.leland, text: 'Helvetica'));
     expect(c.score!.textFontFamily, 'Curator text Helvetica');
-    expect(c.projectState.fonts, c.fonts);
+    expect(c.projectState.edits.fonts, c.fonts);
     final dir = Platform.environment['SCREENSHOT_DIR'];
     if (dir != null) {
       await tester.runAsync(loadTestFonts);
