@@ -62,6 +62,10 @@ class _AudioLanesState extends State<AudioLanes> {
 
   Duration _lastDown = Duration.zero;
   Offset _lastDownAt = Offset.zero;
+
+  /// Where the pointer was (in seconds) when the current drag began: kept, as the view may
+  /// scroll under the drag (it follows the playhead).
+  double _downSeconds = 0;
   MouseCursor _cursor = SystemMouseCursors.basic;
 
   @override
@@ -97,6 +101,7 @@ class _AudioLanesState extends State<AudioLanes> {
         (e.localPosition - _lastDownAt).distance < 6;
     _lastDown = e.timeStamp;
     _lastDownAt = e.localPosition;
+    _downSeconds = seconds;
 
     if (hit != null) {
       if (isCommandPressed) {
@@ -137,7 +142,7 @@ class _AudioLanesState extends State<AudioLanes> {
     final seconds = c.viewport.seconds(e.localPosition.dx);
     final from = _dragFrom, grabbed = _grabbed;
     if (from != null && grabbed != null) {
-      final delta = _snapToOnset(seconds - (_lastDownSeconds - from[grabbed].seconds)) - from[grabbed].seconds;
+      final delta = _snapToOnset(seconds - (_downSeconds - from[grabbed].seconds)) - from[grabbed].seconds;
       c.anchors.drag(delta, from: from);
     } else if (_marquee.value != null) {
       _marquee.value = (_marquee.value!.$1, seconds);
@@ -146,9 +151,6 @@ class _AudioLanesState extends State<AudioLanes> {
       c.playback.scrub(seconds);
     }
   }
-
-  /// Where the pointer was (in seconds) when the current drag began.
-  double get _lastDownSeconds => c.viewport.seconds(_lastDownAt.dx);
 
   void _onUp(PointerEvent e) {
     if (_dragFrom != null) {
