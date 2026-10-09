@@ -117,4 +117,38 @@ void main() {
     expect(c.anchors.selected, {sync.anchors.indexOf(tapped)});
     await tester.pump(const Duration(milliseconds: 400));
   });
+
+  testWidgets('a dragged anchor stays under the pointer when the view scrolls under it', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    c.audio.debugTrack = AudioTrack.forTesting(name: 'take.flac', length: 30, waveform: (await tester.runAsync(() => oneNote(25)))!);
+    c.tab = BottomTab.audio;
+    final sync = c.sync!, starts = sync.measureStarts;
+    sync.load([for (var bar = 0; bar < 6; bar++) SyncAnchor(starts[bar], 1.0 + bar * 2)]); // bars 1–6, every 2 s
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 200)); // past the tab's transition
+    }
+
+    Rect lanes() => tester.getRect(find.byType(AudioLanes));
+    double x(double seconds) => lanes().left + kLaneHeaderWidth + c.viewport.x(seconds);
+    final g = await tester.startGesture(Offset(x(5), lanes().top + 15)); // anchor 2
+    await g.moveTo(Offset(x(5.5), lanes().top + 15));
+    await tester.pump();
+    expect(sync.anchors[2].seconds, closeTo(5.5, 0.02));
+    // The view pages on (as it follows the playhead): the same point on screen is later now.
+    final origin = c.viewport.origin;
+    c.viewport.pan(c.viewport.pxPerSec);
+    final later = c.viewport.origin - origin;
+    expect(later, greaterThan(0.5));
+    await g.moveBy(const Offset(1, 0));
+    await tester.pump();
+    final under = c.viewport.seconds(c.viewport.x(5.5 + later) + 1);
+    expect(sync.anchors[2].seconds, closeTo(under, 0.02), reason: 'still under the pointer');
+    await g.up();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
 }
