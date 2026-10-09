@@ -185,6 +185,7 @@ class _InstrumentLanesState extends State<InstrumentLanes>
                         onLift: (global) => _lift(part.id, global),
                         onDrag: _dragLifted,
                         onDrop: _dropLifted,
+                        onCancel: _cancelLifted,
                       ),
                   };
                   return ListenableBuilder(listenable: _frame, builder: (context, _) => _names(context, names));

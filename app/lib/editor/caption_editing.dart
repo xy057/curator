@@ -187,6 +187,7 @@ class CaptionEditing {
   void _load(List<Caption> captions, String? font) {
     _captions = List.unmodifiable(captions);
     _font = font;
+    _show();
     _applyStyle();
   }
 
