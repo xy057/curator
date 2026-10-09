@@ -5,8 +5,10 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/font_settings.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:flutter/material.dart';
@@ -182,4 +184,43 @@ void main() {
     await settle();
     expect(find.text('1 changed.'), findsNothing);
   });
+
+  testWidgets("a text font that can't be read changes nothing, and the picker says why", (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final c = _UnreadableTextFonts();
+    addTearDown(c.dispose);
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.runAsync(TextFonts.installed); // read on another isolate
+    await tester.pumpWidget(MaterialApp(
+      theme: AppColors.theme(accent: AccentColor.sky, brightness: Brightness.light),
+      home: Scaffold(body: Center(child: TextFontPicker(controller: c))),
+    ));
+    Future<void> settle() async {
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 150));
+      }
+    }
+
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero)); // the picker's list of installed fonts
+    await settle();
+    await tester.enterText(find.byType(DropdownMenu<String>), 'Helvet');
+    await settle();
+    await tester.tap(find.text('Helvetica').last);
+    await settle();
+    expect(c.fonts, ScoreFonts.standard);
+    expect(find.text('Helvetica: its files could not be read.'), findsOneWidget);
+  });
+}
+
+/// A controller for which every text font but Academico fails, as one whose files can't be read.
+class _UnreadableTextFonts extends EditorController {
+  _UnreadableTextFonts() : super(vsync: const TestVSync());
+
+  @override
+  Future<void> setFonts(ScoreFonts fonts) async {
+    if (fonts.text != TextFonts.academico) throw FormatException('${fonts.text}: its files could not be read.');
+    return super.setFonts(fonts);
+  }
 }

@@ -150,6 +150,17 @@ class TextFontPicker extends StatefulWidget {
 class _TextFontPickerState extends State<TextFontPicker> {
   EditorController get c => widget.controller;
   var _installed = const <String>[];
+  String? _error;
+
+  /// A family that can't be read changes nothing, and says why (as the music font does).
+  Future<void> _choose(String family) async {
+    setState(() => _error = null);
+    try {
+      await c.setFonts(c.fonts.copyWith(text: family));
+    } catch (e) {
+      if (mounted) setState(() => _error = describeError(e));
+    }
+  }
 
   @override
   void initState() {
@@ -188,7 +199,7 @@ class _TextFontPickerState extends State<TextFontPicker> {
               enableFilter: true,
               requestFocusOnTap: true,
               menuHeight: 320,
-              errorText: missing,
+              errorText: widget.caption ? missing : _error ?? missing,
               dropdownMenuEntries: [
                 if (widget.caption) const DropdownMenuEntry(value: '', label: 'Default'),
                 for (final f in texts) DropdownMenuEntry(value: f, label: f),
@@ -198,7 +209,7 @@ class _TextFontPickerState extends State<TextFontPicker> {
                 if (widget.caption) {
                   c.captions.setFont(f.isEmpty ? null : f);
                 } else {
-                  c.setFonts(c.fonts.copyWith(text: f));
+                  _choose(f);
                 }
               },
             ),
