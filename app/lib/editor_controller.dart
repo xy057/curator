@@ -134,7 +134,7 @@ class EditorController extends ChangeNotifier {
         textEdits: edits.textEdits, pairs: edits.pairs, fonts: edits.fonts, engraving: edits.engraving);
     final arts = await ImageEditing._decodeAll(state.images);
     await _install(name, scoreBytes, score, state, arts: arts);
-    if (mediaPath == null) return null;
+    if (mediaPath == null || _disposed) return null; // nothing to play it in: the window closed
     try {
       await loadAudio(mediaPath, temporary: true, originalPath: mediaOriginal);
       return null;
