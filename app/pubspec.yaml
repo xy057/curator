@@ -14,8 +14,8 @@ dependencies:
   archive: ^4.3.0 # .ccs projects are zip archives
   desktop_drop: ^0.8.4 # drop a project, score or recording on the window
   file_selector: ^1.1.0 # Open…, Save As…, Add Recording…
-  flutter_soloud: ^5.1.2 # playback; its position is the master clock
-  shared_preferences: ^2.5.5 # Settings and Open Recent
+  flutter_soloud: ^5.1.6 # playback; its position is the master clock
+  shared_preferences: ^2.5.6 # Settings and Open Recent
   flutter_svg: ^2.3.0
   vector_graphics_compiler: ^1.1.0 # what an SVG with no size of its own draws (Attach Image)
   pasteboard: ^0.5.0
