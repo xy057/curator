@@ -101,7 +101,7 @@ void main() {
     expect(c.score!.options.valueOf(spacing), 0.7);
     expect(c.score!.options.valueOf(curve), 2, reason: "the app's, where the project sets none");
     expect(c.editRevision.value, greaterThan(revision));
-    expect(c.projectState.engraving, c.projectEngraving);
+    expect(c.projectState.edits.engraving, c.projectEngraving);
 
     c.undo();
     await engraved();

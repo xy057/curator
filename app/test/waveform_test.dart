@@ -18,7 +18,7 @@ void main() {
     final project = await ProjectFile.read(demoProject.path, mediaDirectory: Directory.systemTemp.createTempSync('demo-').path);
     score = await LoadedScore.load(ScoreFile.decodeMusicXML(project.scoreBytes));
     demo = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo!, beats: score.beats)
-      ..load(project.state.anchors, leadIn: project.state.leadIn);
+      ..load(project.state.edits.anchors, leadIn: project.state.edits.leadIn);
   });
 
   final noDecoder = Platform.isMacOS ? false : 'the demo recording is decoded with afconvert (macOS)';

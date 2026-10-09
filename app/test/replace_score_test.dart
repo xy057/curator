@@ -90,16 +90,21 @@ void main() {
       final after = _score([_part('P1', 'Horn'), _part('P2', 'Flute'), _part('P3', 'Oboe')]);
       const measuresBefore = <double>[0, 3, 6, 9, 12], measuresAfter = <double>[0, 3, 6, 9];
       final project = ProjectState(
-        lanes: {
-          'P1': [const Region(0, 4, transitionIn: 1), const Region(10, 11)],
-          'P2': [const Region(4, 12)],
-        },
-        anchors: const [SyncAnchor(3, 2), SyncAnchor(6, 4, jumpTo: 0), SyncAnchor(10, 9)],
-        partNames: const {'P2': (name: 'Hautbois', abbreviation: 'Hb.')},
-        partOrder: const ['P2', 'P1'],
-        pairs: const [PlayerPair('P1', 'P2')],
-        condensed: {const PlayerPair('P1', 'P2').id},
-        captions: const [Caption(1, 4, 'A'), Caption(8, 12, 'B'), Caption(10, 11, 'C')],
+        edits: EditState(
+          lanes: {
+            'P1': [const Region(0, 4, transitionIn: 1), const Region(10, 11)],
+            'P2': [const Region(4, 12)],
+          },
+          anchors: const [SyncAnchor(3, 2), SyncAnchor(6, 4, jumpTo: 0), SyncAnchor(10, 9)],
+          partNames: const {'P2': (name: 'Hautbois', abbreviation: 'Hb.')},
+          partOrder: const ['P2', 'P1'],
+          pairs: const [PlayerPair('P1', 'P2')],
+          condensed: {const PlayerPair('P1', 'P2').id},
+          captions: const [Caption(1, 4, 'A'), Caption(8, 12, 'B'), Caption(10, 11, 'C')],
+          transition: 0.8,
+          leadIn: 1.5,
+          captionFont: 'Helvetica',
+        ),
       );
       final swap = _swap(before, after);
       final (:state, :lost) = swap.carry(
@@ -109,20 +114,22 @@ void main() {
         measuresAfter: measuresAfter,
       );
 
-      expect(state.lanes!['P2'], [const Region(0, 4, transitionIn: 1)]);
-      expect(state.lanes!['P3'], [const Region(4, 9)], reason: 'cut at the new end');
+      expect(state.edits.lanes!['P2'], [const Region(0, 4, transitionIn: 1)]);
+      expect(state.edits.lanes!['P3'], [const Region(4, 9)], reason: 'cut at the new end');
       expect(
-        state.lanes!['P1'],
+        state.edits.lanes!['P1'],
         Curation.autoCuratedLanes(['P1'], after.activeMeasures, measuresAfter)['P1'],
         reason: 'a new instrument is curated as on import',
       );
-      expect(state.anchors, const [SyncAnchor(3, 2), SyncAnchor(6, 4, jumpTo: 0)]);
-      expect(state.partNames, {'P3': (name: 'Hautbois', abbreviation: 'Hb.')});
-      expect(state.partOrder, ['P3', 'P2']);
-      expect(state.pairs, const [PlayerPair('P2', 'P3')]);
-      expect(state.condensed, {const PlayerPair('P2', 'P3').id});
-      expect(state.captions, const [Caption(1, 4, 'A'), Caption(8, 9, 'B')]);
+      expect(state.edits.anchors, const [SyncAnchor(3, 2), SyncAnchor(6, 4, jumpTo: 0)]);
+      expect(state.edits.partNames, {'P3': (name: 'Hautbois', abbreviation: 'Hb.')});
+      expect(state.edits.partOrder, ['P3', 'P2']);
+      expect(state.edits.pairs, const [PlayerPair('P2', 'P3')]);
+      expect(state.edits.condensed, {const PlayerPair('P2', 'P3').id});
+      expect(state.edits.captions, const [Caption(1, 4, 'A'), Caption(8, 9, 'B')]);
       expect(lost, (regions: 1, anchors: 1, captions: 1, images: 0));
+      // What has no part id or position stays as it was.
+      expect((state.edits.transition, state.edits.leadIn, state.edits.captionFont), (0.8, 1.5, 'Helvetica'));
 
       expect(
         swap.differences(measuresBefore: measuresBefore, measuresAfter: measuresAfter, edits: const {}, lost: lost),

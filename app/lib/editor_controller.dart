@@ -129,8 +129,9 @@ class EditorController extends ChangeNotifier {
     String? mediaPath,
     String? mediaOriginal,
   }) async {
+    final edits = state.edits;
     final score = await _engrave(scoreBytes,
-        textEdits: state.textEdits, pairs: state.pairs, fonts: state.fonts, engraving: state.engraving);
+        textEdits: edits.textEdits, pairs: edits.pairs, fonts: edits.fonts, engraving: edits.engraving);
     final arts = await ImageEditing._decodeAll(state.images);
     await _install(name, scoreBytes, score, state, arts: arts);
     if (mediaPath == null) return null;
@@ -219,31 +220,31 @@ class EditorController extends ChangeNotifier {
       _mediaOriginal = mediaOriginal;
       _tab = tab;
     }
-    final view = state.view;
+    final edits = state.edits, view = state.view;
     _score = score;
     _source = (name: name, bytes: bytes);
     _fileName = name;
     _staffSpace = (view.staffSpace ?? _staffSpace).clamp(minStaffSpace, maxStaffSpace);
-    _partNames = Map.unmodifiable(state.partNames);
-    _textEdits = Map.unmodifiable(state.textEdits);
-    _pairs = List.unmodifiable({for (final p in state.pairs) ?score.condensing.pair(p.first, p.second)});
-    _condensed = Set.unmodifiable({for (final g in condensable) if (state.condensed.contains(g.id)) g.id});
-    _partOrder = CuratedScene.orderedPartIds(score.metadata.parts, state.partOrder);
-    _fonts = state.fonts;
-    _projectEngraving = state.engraving;
+    _partNames = Map.unmodifiable(edits.partNames);
+    _textEdits = Map.unmodifiable(edits.textEdits);
+    _pairs = List.unmodifiable({for (final p in edits.pairs) ?score.condensing.pair(p.first, p.second)});
+    _condensed = Set.unmodifiable({for (final g in condensable) if (edits.condensed.contains(g.id)) g.id});
+    _partOrder = CuratedScene.orderedPartIds(score.metadata.parts, edits.partOrder);
+    _fonts = edits.fonts;
+    _projectEngraving = edits.engraving;
     if (!_fonts.music.isBundled && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
-    images._load(state.patches, state.images, arts);
-    captions._load(state.captions, state.captionFont);
-    _midi = state.midi;
-    _tapped = state.midi != null ? state.anchors : const [];
+    images._load(edits.patches, state.images, arts);
+    captions._load(edits.captions, edits.captionFont);
+    _midi = edits.midi;
+    _tapped = edits.midi != null ? edits.anchors : const [];
     _sync = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
-      ..load(_midi?.anchors(start: state.leadIn, totalQuarters: score.timeline.measureStarts.last) ?? state.anchors,
-          leadIn: state.leadIn)
+      ..load(_midi?.anchors(start: edits.leadIn, totalQuarters: score.timeline.measureStarts.last) ?? edits.anchors,
+          leadIn: edits.leadIn)
       ..addListener(_syncChanged);
     final parts = [for (final p in score.metadata.parts) p.id];
     _curation = Curation(parts)
-      ..load(state.lanes ?? Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
-          transition: state.transition ?? defaultTransition);
+      ..load(edits.lanes ?? Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
+          transition: edits.transition ?? defaultTransition);
     _joinLanes();
     _curation!.addListener(_edited);
     _scene = _makeScene(score);
@@ -878,7 +879,7 @@ class EditorController extends ChangeNotifier {
       _scene?.condensed = _condensed;
       if (reengrave) unawaited(_reengrave());
       _joinLanes(); // before the lanes, which fit it
-      _curation!.load(state.lanes, transition: state.transition);
+      _curation!.load(state.lanes!, transition: state.transition!); // Undo's states have both
       _midi = state.midi;
       _tapped = state.midi != null ? state.anchors : const [];
       _sync!.load(_midi?.anchors(start: state.leadIn, totalQuarters: _sync!.totalQuarters) ?? state.anchors,
@@ -912,22 +913,8 @@ class EditorController extends ChangeNotifier {
 
   /// Every edit made in the app, and the view: what a project stores next to the source score.
   ProjectState get projectState => ProjectState(
-        lanes: _curation!.lanes,
-        transition: _curation!.transition,
-        anchors: _ownAnchors,
-        leadIn: _sync!.leadIn,
-        midi: _midi,
-        partNames: _partNames,
-        textEdits: _textEdits,
-        condensed: _condensed,
-        pairs: _pairs,
-        partOrder: isScoreOrder ? const [] : _partOrder,
-        patches: images._patches,
+        edits: isScoreOrder ? _editState.copyWith(partOrder: const []) : _editState,
         images: images._used,
-        captions: captions._captions,
-        captionFont: captions._font,
-        fonts: _fonts,
-        engraving: _projectEngraving,
         view: ViewState(
           staffSpace: _staffSpace,
           grid: anchors.grid,

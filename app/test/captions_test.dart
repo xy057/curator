@@ -94,7 +94,7 @@ void main() {
 
     // Saved and read back.
     final state = ProjectState.fromJson(c.projectState.toJson());
-    expect(state.captions, c.captions.captions);
+    expect(state.edits.captions, c.captions.captions);
     expect(AppExtension.usedBy(c), [AppExtension.captions]);
 
     // Off: kept, not drawn.
