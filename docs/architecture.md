@@ -34,6 +34,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 |---|---|
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
 | `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/caption_editing.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image); captions (Captions) |
+| `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Purge unused |
 | `caption_settings.dart` | Settings ▸ Extension ▸ Captions' own settings: font, position, countdown, size, with a preview |
