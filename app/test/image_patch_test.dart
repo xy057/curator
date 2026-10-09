@@ -67,7 +67,7 @@ void main() {
     expect(c.images.selected, isNull);
     c.images.remove(0);
     expect(c.images.patches, hasLength(1), reason: 'and kept in the project');
-    expect(c.projectState.patches, hasLength(1));
+    expect(c.projectState.edits.patches, hasLength(1));
     c.dispose();
   });
 
@@ -176,7 +176,7 @@ void main() {
     c.images.update(1, c.images.patches[1].copyWith(crop: const Rect.fromLTRB(0, 0.5, 0.5, 1), ink: true));
     c.images.remove(0); // its file is left out of the save
     final state = c.projectState;
-    expect(state.images.keys, [state.patches.single.image]);
+    expect(state.images.keys, [state.edits.patches.single.image]);
 
     final dir = Directory.systemTemp.createTempSync('ccs-images-');
     addTearDown(() => dir.deleteSync(recursive: true));
@@ -190,13 +190,13 @@ void main() {
       File(path).writeAsBytesSync(ZipEncoder().encodeBytes(zip));
       return ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
     });
-    expect(opened!.state.patches, state.patches);
+    expect(opened!.state.edits.patches, state.edits.patches);
     expect(opened.state.images.values.single.bytes, svg);
 
     final again = EditorController(vsync: const TestVSync())..images.enabled = true;
     await tester.runAsync(
         () => again.openProject(name: 'demo.musicxml', scoreBytes: opened.scoreBytes, state: opened.state));
-    expect(again.images.patches, state.patches);
+    expect(again.images.patches, state.edits.patches);
     expect(again.scene!.patches.single.crop, const Rect.fromLTRB(0, 0.5, 0.5, 1));
     expect(again.scene!.patches.single.ink, isTrue);
     again.dispose();
@@ -224,7 +224,7 @@ void main() {
       );
     }
     expect(PatchImage.isId(PatchImage.create(ImageKind.vector, svg, extension: 'SVG').id), isTrue);
-    expect(ProjectState.fromJson(const {}, savedVersion: 7).patches, isEmpty, reason: 'older projects have none');
+    expect(ProjectState.fromJson(const {}, savedVersion: 7).edits.patches, isEmpty, reason: 'older projects have none');
     expect(
       ProjectState.fromJson(state({'image': 'a.png', 'quarter': 0, 'top': 0, 'width': 1, 'height': 1}),
           images: {'a.png': image, 'b.png': PatchImage('b.png', ImageKind.raster, png)}).images.keys,

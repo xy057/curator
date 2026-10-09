@@ -298,6 +298,6 @@ void main() {
         {'start': 4, 'end': 8, 'text': 'B'},
       ],
     });
-    expect(read.captions, const [Caption(0, 4, 'A'), Caption(4, 8, 'B')]);
+    expect(read.edits.captions, const [Caption(0, 4, 'A'), Caption(4, 8, 'B')]);
   });
 }
