@@ -300,6 +300,38 @@ void main() {
     expect(c.isScoreOrder, isTrue);
   });
 
+  testWidgets('a held name the system takes the pointer from goes back to its place', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const CuratedScoreApp());
+    final state = tester.state(find.byType(HomePage)) as dynamic;
+    final c = state.controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    await tester.pump();
+
+    final piccolo = tester.getCenter(find.text('Piccolo'));
+    final g = await tester.startGesture(piccolo, kind: PointerDeviceKind.mouse);
+    await tester.pump(const Duration(milliseconds: 600)); // held: the lane lifts
+    await g.moveBy(const Offset(0, 3 * 26.0));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await g.cancel();
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 16)); // frames: it slides back
+    }
+    bool lifted() => tester
+        .widgetList(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_LaneHeader'))
+        .any((w) => (w as dynamic).lifted as bool);
+    expect(lifted(), isFalse, reason: 'nothing is held any more');
+    expect(c.isScoreOrder, isTrue, reason: 'it was never let go');
+    final second = find.text(c.laneName(c.laneParts[1]));
+    expect(tester.getCenter(second).dy - tester.getCenter(find.text('Piccolo')).dy, closeTo(26, 1e-6), reason: 'back in its place');
+    expect(tester.binding.hasScheduledFrame, isFalse, reason: 'no lanes left moving');
+  });
+
   testWidgets('dragging regions moves them freely across lanes as well as along them', (tester) async {
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;

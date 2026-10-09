@@ -29,6 +29,7 @@ class _LaneHeader extends StatefulWidget {
     required this.onLift,
     required this.onDrag,
     required this.onDrop,
+    required this.onCancel,
   });
   final EditorController controller;
   final ScorePart part;
@@ -42,6 +43,9 @@ class _LaneHeader extends StatefulWidget {
   final bool lifted;
   final void Function(Offset global) onLift, onDrag;
   final VoidCallback onDrop;
+
+  /// The system took the pointer while it was held: the lane goes back.
+  final VoidCallback onCancel;
 
   @override
   State<_LaneHeader> createState() => _LaneHeaderState();
@@ -163,6 +167,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
           onLongPressStart: (d) => widget.onLift(d.globalPosition),
           onLongPressMoveUpdate: (d) => widget.onDrag(d.globalPosition),
           onLongPressEnd: (_) => widget.onDrop(),
+          onLongPressCancel: widget.onCancel,
           child: Text(controller.laneName(part)),
         ),
       ),
