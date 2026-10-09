@@ -5,6 +5,7 @@ import 'audio_panel.dart';
 import 'caption_lane.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
+import 'instruments_toolbar.dart';
 import 'timeline_panel.dart';
 import 'ui_kit.dart';
 

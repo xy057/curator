@@ -58,7 +58,7 @@ void main() {
     c.moveLane('P17', 0); // Violin I to the top
     expect(c.laneParts.first.name, 'Violin I');
     expect(c.scene!.partOrder, ['P17', ...scoreOrder.where((id) => id != 'P17')]);
-    expect(c.projectState.partOrder.first, 'P17');
+    expect(c.projectState.edits.partOrder.first, 'P17');
     c.moveLane('P1', c.laneParts.length - 1); // the piccolo to the bottom
     expect(c.laneParts.last.id, 'P1');
     c.moveLane('P1', c.laneParts.length - 1); // already there: nothing to undo
@@ -68,7 +68,7 @@ void main() {
     c.undo();
     expect(c.isScoreOrder, isTrue);
     expect(c.scene!.partOrder, scoreOrder);
-    expect(c.projectState.partOrder, isEmpty, reason: 'the score order is not saved');
+    expect(c.projectState.edits.partOrder, isEmpty, reason: 'the score order is not saved');
     expect(c.canUndo, isFalse);
 
     // A condensed pair is one lane, and moves as one.
@@ -169,7 +169,7 @@ void main() {
     final broken = MusicFont.added(family: 'Broken', file: Uint8List.fromList(List.filled(64, 7)));
     await expectLater(c.setFonts(c.fonts.copyWith(music: broken)), throwsFormatException);
     expect(c.fonts, ScoreFonts.standard);
-    expect(c.projectState.fonts, ScoreFonts.standard);
+    expect(c.projectState.edits.fonts, ScoreFonts.standard);
     expect(c.addedFonts, isEmpty);
     expect(c.canUndo, isFalse);
   });

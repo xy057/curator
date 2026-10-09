@@ -20,15 +20,11 @@ class ViewState {
   final double? time;
 }
 
-/// Everything a project stores besides the score and the recording (`project.json` →
-/// `state`): the edits, and the view. Reading it checks every field, so a damaged file says
-/// what is wrong instead of failing somewhere later.
-///
-/// The JSON is written by [toJson] for [ProjectState.version]. Files from older versions
-/// go through [_migrations] first, one version at a time.
+/// The edits a project saves (everything but its image files and the view), at one moment:
+/// what Undo steps through, and the heart of [ProjectState].
 @immutable
-class ProjectState {
-  const ProjectState({
+class EditState {
+  const EditState({
     this.lanes,
     this.transition,
     this.anchors = const [],
@@ -40,23 +36,18 @@ class ProjectState {
     this.pairs = const [],
     this.partOrder = const [],
     this.patches = const [],
-    this.images = const {},
     this.captions = const [],
     this.captionFont,
     this.fonts = ScoreFonts.standard,
     this.engraving = const EngravingOptions(),
-    this.view = const ViewState(),
   });
 
-  /// The version [toJson] writes (the project file's format version).
-  static const version = 13;
-
   /// When each instrument is shown, with each region's own properties; null when the project
-  /// has none saved (they are then filled from where each part plays).
+  /// has none saved (they are then filled from where each part plays). Never null in Undo.
   final Map<String, List<Region>>? lanes;
 
   /// Seconds for a staff to enter or leave where its region doesn't set its own; null: the
-  /// default for new projects.
+  /// default for new projects. Never null in Undo.
   final double? transition;
 
   /// The tempo track: where the score is pinned to the recording (warps among them), and the
@@ -88,10 +79,6 @@ class ProjectState {
   /// Images on the score (Attach Image), bottom to top.
   final List<ImagePatch> patches;
 
-  /// The image files [patches] show, by [PatchImage.id]. Not in the JSON: the project file
-  /// keeps each as `images/<id>`.
-  final Map<String, PatchImage> images;
-
   /// Captions under the score (Captions), in the order they were added.
   final List<Caption> captions;
 
@@ -105,7 +92,88 @@ class ProjectState {
   /// The engraving options this project sets over the app's (Project Settings ▸ Engraving).
   final EngravingOptions engraving;
 
+  @override
+  bool operator ==(Object other) =>
+      other is EditState &&
+      transition == other.transition &&
+      leadIn == other.leadIn &&
+      midi == other.midi &&
+      switch ((lanes, other.lanes)) {
+        (final a?, final b?) => Curation.sameLanes(a, b),
+        (final a, final b) => a == b,
+      } &&
+      listEquals(anchors, other.anchors) &&
+      mapEquals(partNames, other.partNames) &&
+      mapEquals(textEdits, other.textEdits) &&
+      setEquals(condensed, other.condensed) &&
+      listEquals(pairs, other.pairs) &&
+      listEquals(partOrder, other.partOrder) &&
+      listEquals(patches, other.patches) &&
+      listEquals(captions, other.captions) &&
+      captionFont == other.captionFont &&
+      fonts == other.fonts &&
+      engraving == other.engraving;
+
+  @override
+  int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
+
+  /// This state with the fields given instead of its own.
+  EditState copyWith({
+    Map<String, List<Region>>? lanes,
+    double? transition,
+    List<SyncAnchor>? anchors,
+    double? leadIn,
+    MidiTempoMap? midi,
+    Map<String, PartName>? partNames,
+    Map<String, String>? textEdits,
+    Set<String>? condensed,
+    List<PlayerPair>? pairs,
+    List<String>? partOrder,
+    List<ImagePatch>? patches,
+    List<Caption>? captions,
+    String? captionFont,
+    ScoreFonts? fonts,
+    EngravingOptions? engraving,
+  }) =>
+      EditState(
+        lanes: lanes ?? this.lanes,
+        transition: transition ?? this.transition,
+        anchors: anchors ?? this.anchors,
+        leadIn: leadIn ?? this.leadIn,
+        midi: midi ?? this.midi,
+        partNames: partNames ?? this.partNames,
+        textEdits: textEdits ?? this.textEdits,
+        condensed: condensed ?? this.condensed,
+        pairs: pairs ?? this.pairs,
+        partOrder: partOrder ?? this.partOrder,
+        patches: patches ?? this.patches,
+        captions: captions ?? this.captions,
+        captionFont: captionFont ?? this.captionFont,
+        fonts: fonts ?? this.fonts,
+        engraving: engraving ?? this.engraving,
+      );
+}
+
+/// Everything a project stores besides the score and the recording (`project.json` →
+/// `state`): the edits, the image files they show, and the view. Reading it checks every
+/// field, so a damaged file says what is wrong instead of failing somewhere later.
+///
+/// The JSON is written by [toJson] for [ProjectState.version]. Files from older versions
+/// go through [_migrations] first, one version at a time.
+@immutable
+class ProjectState {
+  const ProjectState({this.edits = const EditState(), this.images = const {}, this.view = const ViewState()});
+
+  final EditState edits;
+
+  /// The image files [EditState.patches] show, by [PatchImage.id]. Not in the JSON: the
+  /// project file keeps each as `images/<id>`.
+  final Map<String, PatchImage> images;
+
   final ViewState view;
+
+  /// The version [toJson] writes (the project file's format version).
+  static const version = 13;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version].
@@ -148,68 +216,70 @@ class ProjectState {
       for (final (i, patch) in r.list('patches').indexed) _patch(JsonReader(patch, '${r.where}.patches[$i]'), images),
     ];
     return ProjectState(
-      lanes: curation.isAbsent('lanes')
-          ? null
-          : {
-              for (final MapEntry(key: id, value: lane) in curation.map('lanes').entries)
-                id: [
-                  for (final (i, region) in JsonReader.listAt(lane, '${curation.where}.lanes.$id').indexed)
-                    _region(JsonReader(region, '${curation.where}.lanes.$id[$i]')),
-                ],
+      edits: EditState(
+        lanes: curation.isAbsent('lanes')
+            ? null
+            : {
+                for (final MapEntry(key: id, value: lane) in curation.map('lanes').entries)
+                  id: [
+                    for (final (i, region) in JsonReader.listAt(lane, '${curation.where}.lanes.$id').indexed)
+                      _region(JsonReader(region, '${curation.where}.lanes.$id[$i]')),
+                  ],
+              },
+        transition: switch (curation.number('transition')) {
+          final s? when s < 0 || s > maxTransition =>
+            throw FormatException('The project is damaged: ${curation.where}.transition is not a length of time.'),
+          final s => s,
+        },
+        anchors: [
+          for (final (i, anchor) in sync.list('anchors').indexed)
+            () {
+              final a = JsonReader(anchor, '${sync.where}.anchors[$i]');
+              return SyncAnchor(a.number('quarter', required: true)!, a.number('seconds', required: true)!,
+                  jumpTo: a.number('jumpTo'));
+            }(),
+        ]..sort((a, b) => a.seconds.compareTo(b.seconds)),
+        leadIn: sync.number('leadIn') ?? 0,
+        midi: sync.isAbsent('midi') ? null : _midi(sync.child('midi')),
+        partNames: {
+          for (final id in r.map('partNames').keys)
+            id: () {
+              final p = r.child('partNames').child(id);
+              return (name: p.string('name', required: true)!, abbreviation: p.string('abbreviation') ?? '');
+            }(),
+        },
+        textEdits: {
+          for (final id in r.map('textEdits').keys) id: r.child('textEdits').string(id, required: true)!,
+        },
+        condensed: {
+          for (final (i, id) in r.list('condensed').indexed)
+            id is String ? id : throw FormatException('The project is damaged: ${r.where}.condensed[$i] is not text.'),
+        },
+        pairs: [
+          for (final (i, pair) in r.list('pairs').indexed)
+            switch (pair) {
+              [final String a, final String b] when a != b => PlayerPair(a, b),
+              _ => throw FormatException('The project is damaged: ${r.where}.pairs[$i] is not two part ids.'),
             },
-      transition: switch (curation.number('transition')) {
-        final s? when s < 0 || s > maxTransition =>
-          throw FormatException('The project is damaged: ${curation.where}.transition is not a length of time.'),
-        final s => s,
-      },
-      anchors: [
-        for (final (i, anchor) in sync.list('anchors').indexed)
-          () {
-            final a = JsonReader(anchor, '${sync.where}.anchors[$i]');
-            return SyncAnchor(a.number('quarter', required: true)!, a.number('seconds', required: true)!,
-                jumpTo: a.number('jumpTo'));
-          }(),
-      ]..sort((a, b) => a.seconds.compareTo(b.seconds)),
-      leadIn: sync.number('leadIn') ?? 0,
-      midi: sync.isAbsent('midi') ? null : _midi(sync.child('midi')),
-      partNames: {
-        for (final id in r.map('partNames').keys)
-          id: () {
-            final p = r.child('partNames').child(id);
-            return (name: p.string('name', required: true)!, abbreviation: p.string('abbreviation') ?? '');
-          }(),
-      },
-      textEdits: {
-        for (final id in r.map('textEdits').keys) id: r.child('textEdits').string(id, required: true)!,
-      },
-      condensed: {
-        for (final (i, id) in r.list('condensed').indexed)
-          id is String ? id : throw FormatException('The project is damaged: ${r.where}.condensed[$i] is not text.'),
-      },
-      pairs: [
-        for (final (i, pair) in r.list('pairs').indexed)
-          switch (pair) {
-            [final String a, final String b] when a != b => PlayerPair(a, b),
-            _ => throw FormatException('The project is damaged: ${r.where}.pairs[$i] is not two part ids.'),
-          },
-      ],
-      partOrder: [
-        for (final (i, id) in r.list('partOrder').indexed)
-          id is String ? id : throw FormatException('The project is damaged: ${r.where}.partOrder[$i] is not text.'),
-      ],
-      patches: patches,
+        ],
+        partOrder: [
+          for (final (i, id) in r.list('partOrder').indexed)
+            id is String ? id : throw FormatException('The project is damaged: ${r.where}.partOrder[$i] is not text.'),
+        ],
+        patches: patches,
+        // Kept apart (those saved before captions couldn't overlap show as they did).
+        captions: separateCaptions([
+          for (final (i, caption) in r.list('captions').indexed) _caption(JsonReader(caption, '${r.where}.captions[$i]')),
+        ]),
+        captionFont: switch (r.child('fonts').string('caption')) {
+          final f? when f.trim().isEmpty => throw FormatException('The project is damaged: ${r.where}.fonts.caption is empty.'),
+          final f => f,
+        },
+        fonts: _fonts(r.child('fonts'), fontFiles),
+        // An option this version doesn't know (or no longer offers) is left out, as the app's are.
+        engraving: EngravingOptions.fromJson(r.map('engraving'), keepDefault: true),
+      ),
       images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
-      // Kept apart (those saved before captions couldn't overlap show as they did).
-      captions: separateCaptions([
-        for (final (i, caption) in r.list('captions').indexed) _caption(JsonReader(caption, '${r.where}.captions[$i]')),
-      ]),
-      captionFont: switch (r.child('fonts').string('caption')) {
-        final f? when f.trim().isEmpty => throw FormatException('The project is damaged: ${r.where}.fonts.caption is empty.'),
-        final f => f,
-      },
-      fonts: _fonts(r.child('fonts'), fontFiles),
-      // An option this version doesn't know (or no longer offers) is left out, as the app's are.
-      engraving: EngravingOptions.fromJson(r.map('engraving'), keepDefault: true),
       view: ViewState(
         staffSpace: view.number('staffSpace'),
         grid: switch (view.string('grid')) {
@@ -307,61 +377,65 @@ class ProjectState {
     return Region(start, end, transitionIn: seconds('transitionIn'), transitionOut: seconds('transitionOut'));
   }
 
-  Map<String, Object?> toJson() => {
-        if (fonts != ScoreFonts.standard || captionFont != null)
-          'fonts': {
-            if (fonts.music != MusicFont.bravura) 'music': fonts.music.name,
-            if (fonts.text != TextFonts.academico) 'text': fonts.text,
-            'caption': ?captionFont,
+  Map<String, Object?> toJson() {
+    final EditState(:lanes, :transition, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
+        :patches, :captions, :captionFont, :fonts, :engraving) = edits;
+    return {
+      if (fonts != ScoreFonts.standard || captionFont != null)
+        'fonts': {
+          if (fonts.music != MusicFont.bravura) 'music': fonts.music.name,
+          if (fonts.text != TextFonts.academico) 'text': fonts.text,
+          'caption': ?captionFont,
+        },
+      if (!engraving.isEmpty) 'engraving': engraving.toJson(),
+      'textEdits': textEdits,
+      'condensed': [...condensed],
+      'pairs': [for (final p in pairs) p.partIds],
+      'partOrder': partOrder,
+      'patches': [
+        for (final p in patches)
+          {
+            'image': p.image,
+            'quarter': p.quarter,
+            'top': p.top,
+            'width': p.width,
+            'height': p.height,
+            if (p.crop != ImagePatch.full) 'crop': [p.crop.left, p.crop.top, p.crop.right, p.crop.bottom],
+            if (p.ink) 'ink': true,
           },
-        if (!engraving.isEmpty) 'engraving': engraving.toJson(),
-        'textEdits': textEdits,
-        'condensed': [...condensed],
-        'pairs': [for (final p in pairs) p.partIds],
-        'partOrder': partOrder,
-        'patches': [
-          for (final p in patches)
-            {
-              'image': p.image,
-              'quarter': p.quarter,
-              'top': p.top,
-              'width': p.width,
-              'height': p.height,
-              if (p.crop != ImagePatch.full) 'crop': [p.crop.left, p.crop.top, p.crop.right, p.crop.bottom],
-              if (p.ink) 'ink': true,
-            },
-        ],
-        'captions': [
-          for (final c in captions) {'start': c.start, 'end': c.end, 'text': c.text},
-        ],
-        'partNames': {
-          for (final MapEntry(key: id, value: p) in partNames.entries) id: {'name': p.name, 'abbreviation': p.abbreviation},
+      ],
+      'captions': [
+        for (final c in captions) {'start': c.start, 'end': c.end, 'text': c.text},
+      ],
+      'partNames': {
+        for (final MapEntry(key: id, value: p) in partNames.entries) id: {'name': p.name, 'abbreviation': p.abbreviation},
+      },
+      'curation': {
+        'transition': ?transition,
+        'lanes': {
+          for (final MapEntry(key: id, value: lane) in (lanes ?? const <String, List<Region>>{}).entries)
+            id: [for (final r in lane) {'start': r.start, 'end': r.end, 'transitionIn': ?r.transitionIn, 'transitionOut': ?r.transitionOut}],
         },
-        'curation': {
-          'transition': ?transition,
-          'lanes': {
-            for (final MapEntry(key: id, value: lane) in (lanes ?? const <String, List<Region>>{}).entries)
-              id: [for (final r in lane) {'start': r.start, 'end': r.end, 'transitionIn': ?r.transitionIn, 'transitionOut': ?r.transitionOut}],
+      },
+      'sync': {
+        'leadIn': leadIn,
+        if (midi case final midi?)
+          'midi': {
+            'name': midi.name,
+            'tempos': [for (final t in midi.tempos) [t.quarter, t.quartersPerMinute]],
           },
-        },
-        'sync': {
-          'leadIn': leadIn,
-          if (midi case final midi?)
-            'midi': {
-              'name': midi.name,
-              'tempos': [for (final t in midi.tempos) [t.quarter, t.quartersPerMinute]],
-            },
-          'anchors': [
-            for (final a in anchors) {'quarter': a.quarter, 'seconds': a.seconds, 'jumpTo': ?a.jumpTo},
-          ],
-        },
-        'view': {
-          'staffSpace': ?view.staffSpace,
-          'grid': ?view.grid?.name,
-          'snapTapsToOnsets': ?view.snapTapsToOnsets,
-          'time': ?view.time,
-        },
-      };
+        'anchors': [
+          for (final a in anchors) {'quarter': a.quarter, 'seconds': a.seconds, 'jumpTo': ?a.jumpTo},
+        ],
+      },
+      'view': {
+        'staffSpace': ?view.staffSpace,
+        'grid': ?view.grid?.name,
+        'snapTapsToOnsets': ?view.snapTapsToOnsets,
+        'time': ?view.time,
+      },
+    };
+  }
 }
 
 /// Typed access to one object of a project's JSON, with its path for error messages

@@ -89,12 +89,12 @@ abstract final class ProjectFile {
       zip.add(ArchiveFile.string('project.json', const JsonEncoder.withIndent(' ').convert(manifest)));
       zip.add(ArchiveFile.bytes(scoreEntry, c.scoreBytes));
       // Only the images still on the score (Undo keeps the rest while the project is open).
-      for (final id in {for (final p in c.state.patches) p.image}) {
+      for (final id in {for (final p in c.state.edits.patches) p.image}) {
         final image = c.state.images[id];
         if (image == null || !PatchImage.isId(id)) throw FileSystemException('An image on the score is missing', id);
         zip.add(ArchiveFile.bytes('images/$id', image.bytes)..compression = image.kind == ImageKind.vector ? CompressionType.deflate : CompressionType.none);
       }
-      final music = c.state.fonts.music;
+      final music = c.state.edits.fonts.music;
       if (music.file case final file?) {
         zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.font', file));
         if (music.metadata case final metadata?) zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.json', metadata));

@@ -95,7 +95,7 @@ void main() {
     await shot('fonts-caption', find.text('Music'));
     Navigator.of(tester.element(find.text('Music'))).pop();
     await settle();
-    expect(ProjectState.fromJson(c.projectState.toJson()).captionFont, TextFonts.academico);
+    expect(ProjectState.fromJson(c.projectState.toJson()).edits.captionFont, TextFonts.academico);
     expect(AppExtension.usedBy(c), [AppExtension.captions]);
     c.undo();
     await settle();
