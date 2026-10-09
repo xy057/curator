@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import 'package:curated_score/edit_dialogs.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/instruments_toolbar.dart';
 import 'package:curated_score/timeline_panel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
