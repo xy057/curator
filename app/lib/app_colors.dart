@@ -66,7 +66,9 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.scorePaper,
     required this.scoreInk,
     Color? chrome,
-  }) : chrome = chrome ?? surface;
+    Color? well,
+  })  : chrome = chrome ?? surface,
+        well = well ?? accentWash;
 
   /// The palette for [style]; [UiStyle.classic] by default, as video export draws in it.
   factory AppColors.of(AccentColor accent, Brightness brightness, [UiStyle style = UiStyle.classic]) {
@@ -129,11 +131,14 @@ class AppColors extends ThemeExtension<AppColors> {
         accent: a,
         accentStrong: accent.strong,
         accentSoft: mix(surface, 0.2),
-        accentWash: const Color(0xFFF5F5F7),
+        // Nearly all white: the chrome and the lane stripes a whisper off it, hairlines doing the
+        // separating.
+        accentWash: const Color(0xFFFBFBFC),
         surface: surface,
-        chrome: const Color(0xFFF0F0F2),
-        line: const Color(0xFFDDDDE1),
-        grid: const Color(0xFFEDEDF0),
+        chrome: const Color(0xFFFAFAFB),
+        well: const Color(0xFFF2F2F4),
+        line: const Color(0xFFE3E3E7),
+        grid: const Color(0xFFF0F0F3),
         activity: const Color(0xFFD2D2D7),
         text: const Color(0xFF1D1D1F),
         textMuted: const Color(0xFF6E6E73),
@@ -152,6 +157,7 @@ class AppColors extends ThemeExtension<AppColors> {
       accentStrong: Color.lerp(a, Colors.white, 0.28)!,
       accentSoft: mix(surface, 0.3),
       accentWash: const Color(0xFF232325),
+      well: const Color(0xFF232325),
       surface: surface,
       chrome: const Color(0xFF2A2A2D),
       line: const Color(0xFF38383C),
@@ -194,6 +200,9 @@ class AppColors extends ThemeExtension<AppColors> {
 
   /// Behind toolbars and sidebars: [surface] in the classic style, a step off it in the refined.
   final Color chrome;
+
+  /// The recess of a segmented control, the chosen segment raised out of it.
+  final Color well;
 
   /// A solid accent for white to read on (the default button, a selected sidebar row): the
   /// strong shade, darkened where it is light (amber, and every accent's dark-theme shade).
@@ -344,7 +353,7 @@ class AppColors extends ThemeExtension<AppColors> {
       side: WidgetStatePropertyAll(BorderSide(color: c.line)),
       backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected)
           ? (dark ? const Color(0xFF4A4A4F) : Colors.white)
-          : (dark ? const Color(0xFF232325) : const Color(0xFFE8E8EB))),
+          : c.well),
       foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
           ? c.textMuted.withValues(alpha: 0.5)
           : s.contains(WidgetState.selected)
@@ -508,6 +517,7 @@ class AppColors extends ThemeExtension<AppColors> {
       scorePaper: l(scorePaper, other.scorePaper),
       scoreInk: l(scoreInk, other.scoreInk),
       chrome: l(chrome, other.chrome),
+      well: l(well, other.well),
     );
   }
 }

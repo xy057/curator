@@ -500,7 +500,7 @@ class _TextToggle extends StatelessWidget {
     // Refined: on, the same neutral pressed fill as a toolbar button, the text not tinted.
     final refined = isRefined(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final on = refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.07) : colors.accentSoft;
+    final on = refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05) : colors.accentSoft;
     final radius = BorderRadius.circular(refined ? 5 : 8);
     return InkWell(
       borderRadius: radius,

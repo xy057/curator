@@ -616,11 +616,16 @@ class _SettingsWindowState extends State<_SettingsWindow> {
       key: ObjectKey(item), title: item.title, note: item.note, help: item.help?.call(_ctx), control: item.control(_ctx));
 }
 
-/// The sidebar's neutral tint: a step off the dialog's surface, without the accent.
-Color _sidebarColor(AppColors colors) => Color.lerp(colors.surface, colors.line, 0.32)!;
+/// The sidebar's neutral tint: a step off the dialog's surface, without the accent; in the
+/// refined light theme the (nearly white) chrome.
+Color _sidebarColor(AppColors colors) =>
+    _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.32)!;
+
+bool _lightChrome(AppColors colors) => colors.chrome != colors.surface && colors.surface.computeLuminance() > 0.5;
 
 /// A group's fill: a lighter step than the sidebar, so the groups sit on the page without borders.
-Color _groupColor(AppColors colors) => Color.lerp(colors.surface, colors.line, 0.22)!;
+Color _groupColor(AppColors colors) =>
+    _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.22)!;
 
 class _SidebarTile extends StatefulWidget {
   const _SidebarTile({required this.icon, required this.label, required this.selected, required this.onTap});

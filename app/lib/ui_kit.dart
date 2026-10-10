@@ -126,7 +126,7 @@ class ToolbarButton extends StatelessWidget {
         style: IconButton.styleFrom(
           foregroundColor: selected ? (refined && dark ? colors.accent : colors.accentStrong) : (color ?? colors.text),
           backgroundColor: selected
-              ? (refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.07) : colors.accentSoft)
+              ? (refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05) : colors.accentSoft)
               : null,
           shape: refined ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)) : null,
           animationDuration: const Duration(milliseconds: 150),

@@ -127,7 +127,7 @@ class _TabSwitch extends StatelessWidget {
     final refined = isRefined(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final size = refined ? 26.0 : 32.0;
-    final well = refined ? (dark ? const Color(0xFF232325) : const Color(0xFFE8E8EB)) : colors.accentWash;
+    final well = colors.well;
     final knob = refined && dark ? const Color(0xFF4A4A4F) : colors.surface;
     final chosen = refined ? colors.text : colors.accentStrong;
     final index = _tabs.indexWhere((t) => t.$1 == value);
