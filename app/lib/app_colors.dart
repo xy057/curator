@@ -274,7 +274,40 @@ class AppColors extends ThemeExtension<AppColors> {
       animationDuration: quick,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
+    final strong = dark ? c.accent : c.accentStrong;
+    final outline = dark ? const Color(0xFF5A6068) : const Color(0xFFB4BEC9);
     return theme.copyWith(
+      // A slider's knob: white with a hairline and a soft shadow, no halo while dragged, no dots
+      // along the track for its steps.
+      sliderTheme: theme.sliderTheme.copyWith(
+        thumbShape: _KnobThumbShape(outline: outline),
+        tickMarkShape: SliderTickMarkShape.noTickMark,
+        overlayColor: Colors.transparent,
+        trackHeight: 4,
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4))),
+        side: WidgetStateBorderSide.resolveWith((s) =>
+            s.contains(WidgetState.selected) ? BorderSide.none : BorderSide(color: outline, width: 1.5)),
+        fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? strong : null),
+        checkColor: WidgetStatePropertyAll(dark ? c.surface : Colors.white),
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        splashRadius: 0,
+        visualDensity: VisualDensity.compact,
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: strong,
+        linearTrackColor: c.line,
+        linearMinHeight: 4,
+        borderRadius: const BorderRadius.all(Radius.circular(2)),
+        circularTrackColor: Colors.transparent,
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        thickness: const WidgetStatePropertyAll(6),
+        radius: const Radius.circular(3),
+        thumbColor: WidgetStateProperty.resolveWith(
+            (s) => c.textMuted.withValues(alpha: s.contains(WidgetState.dragged) ? 0.6 : s.contains(WidgetState.hovered) ? 0.45 : 0.3)),
+      ),
       filledButtonTheme: FilledButtonThemeData(style: filled),
       elevatedButtonTheme: ElevatedButtonThemeData(style: filled),
       outlinedButtonTheme: OutlinedButtonThemeData(style: outlined),
@@ -320,6 +353,40 @@ class AppColors extends ThemeExtension<AppColors> {
       scorePaper: l(scorePaper, other.scorePaper),
       scoreInk: l(scoreInk, other.scoreInk),
     );
+  }
+}
+
+/// [UiStyle.refined]'s slider knob: a white disc with a hairline outline and a soft shadow, the
+/// same size pressed or not (its value shows in the bubble instead).
+class _KnobThumbShape extends SliderComponentShape {
+  const _KnobThumbShape({required this.outline});
+  final Color outline;
+  static const _radius = 8.0;
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => const Size.fromRadius(_radius);
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final canvas = context.canvas;
+    final enabled = enableAnimation.value;
+    canvas.drawCircle(center.translate(0, 0.8), _radius,
+        Paint()..color = Color.fromRGBO(0, 0, 0, 0.22 * enabled)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5));
+    canvas.drawCircle(center, _radius, Paint()..color = Color.lerp(outline, Colors.white, 0.4 + 0.6 * enabled)!);
+    canvas.drawCircle(center, _radius - 0.5, Paint()..color = outline..style = PaintingStyle.stroke..strokeWidth = 1);
   }
 }
 
