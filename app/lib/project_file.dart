@@ -28,7 +28,7 @@ enum MediaStorage {
 ///     media/<name>      the recording, when it is embedded
 ///     images/<id>       each image on the score (Attach Image), byte for byte
 ///     fonts/<name>.font an added music font the score is engraved in, and its SMuFL
-///     fonts/<name>.json metadata (if it has some)
+///     fonts/<name>.json metadata (if it has some); neither when it isn't embedded
 ///
 /// Everything the app changes (curation, sync, texts, names…) lives in project.json, so
 /// the source score is never rewritten.
@@ -95,7 +95,7 @@ abstract final class ProjectFile {
         zip.add(ArchiveFile.bytes('images/$id', image.bytes)..compression = image.kind == ImageKind.vector ? CompressionType.deflate : CompressionType.none);
       }
       final music = c.state.edits.fonts.music;
-      if (music.file case final file?) {
+      if (music.file case final file? when c.state.edits.embedFont) {
         zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.font', file));
         if (music.metadata case final metadata?) zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.json', metadata));
       }

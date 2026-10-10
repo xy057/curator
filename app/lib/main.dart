@@ -370,6 +370,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (path.toLowerCase().endsWith('.${ProjectFile.extension}')) {
       await _guard(() async {
         final problem = await document.open(path);
+        if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name);
         if (problem != null && mounted) _recordingProblem(problem);
         if (mounted) await promptForExtensions(context, settings, controller);
       }, title: 'Could not open the project');
@@ -392,6 +393,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       duration: const Duration(seconds: 12),
       content: Text(message),
       action: SnackBarAction(label: 'Locate…', onPressed: () => pickAudio(context, controller)),
+    ));
+  }
+
+  /// The project's music font isn't embedded, nor installed here: Bravura stands in until it is
+  /// closed (dismissed by the user).
+  void _fontMissing(String name) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      persist: true,
+      showCloseIcon: true,
+      content: Text('Font “$name” not found. Shown in Bravura.'),
     ));
   }
 

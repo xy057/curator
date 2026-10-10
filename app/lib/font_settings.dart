@@ -1,5 +1,6 @@
 /// Project Settings ▸ Fonts: the music font (a bundled SMuFL font, one installed with SMuFL
-/// metadata, or a file) and the text font (Academico or any installed family) the score is
+/// metadata, or another: a file while it is embedded, else one chosen in the system's own font
+/// picker) and whether it is embedded, and the text font (Academico or any installed family) the score is
 /// engraved in; with Captions on, the font its captions are drawn in (Default: the app's,
 /// Settings ▸ Extension ▸ Captions). Every choice is made at once, as its own Undo step.
 ///
@@ -9,6 +10,7 @@ library;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
@@ -97,11 +99,8 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
     setState(() => _error = null);
     try {
       if (name == _other) {
-        final file = await openFile(acceptedTypeGroups: const [
-          XTypeGroup(label: 'Fonts', extensions: ['otf', 'ttf'], uniformTypeIdentifiers: ['public.opentype-font', 'public.truetype-ttf-font']),
-        ]);
-        if (file == null) return;
-        await c.setFonts(c.fonts.copyWith(music: await MusicFont.read(file.path)));
+        final font = c.embedFont ? await _pickFile() : await _pickInstalled();
+        if (font != null) await c.setFonts(c.fonts.copyWith(music: font));
         return;
       }
       final choice = _choices.firstWhere((m) => m.name == name);
@@ -111,6 +110,31 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
       if (mounted) setState(() => _error = describeError(e));
     }
   }
+
+  /// An embedded font: any font file.
+  Future<MusicFont?> _pickFile() async {
+    final file = await openFile(acceptedTypeGroups: const [
+      XTypeGroup(label: 'Fonts', extensions: ['otf', 'ttf'], uniformTypeIdentifiers: ['public.opentype-font', 'public.truetype-ttf-font']),
+    ]);
+    return file == null ? null : MusicFont.read(file.path);
+  }
+
+  /// A font that isn't embedded: one installed, from the system's font picker (a file where
+  /// there is none), so it can be found by name where the project opens.
+  Future<MusicFont?> _pickInstalled() async {
+    final String? family;
+    try {
+      family = await _systemFonts.invokeMethod<String>('pickFont', {'family': c.fonts.music.name});
+    } on MissingPluginException {
+      return _pickFile(); // no picker here (Linux, tests)
+    }
+    if (family == null || family.isEmpty) return null;
+    return await MusicFont.findInstalled(family) ?? (throw FormatException('$family not found.'));
+  }
+
+  /// The system's font picker (the runners: macOS's Fonts panel, Windows' Font dialog): the
+  /// family chosen, null when none was.
+  static const _systemFonts = MethodChannel('curated_score/fonts');
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -126,7 +150,7 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
             selectedTrailingIcon: _arrow(context),
             initialSelection: c.fonts.music.name,
             requestFocusOnTap: false,
-            errorText: _error,
+            errorText: _error ?? (c.fonts.music.isMissing ? 'Not installed' : null),
             dropdownMenuEntries: [
               for (final m in _choices) DropdownMenuEntry(value: m.name, label: m.name),
               const DropdownMenuEntry(value: _other, label: 'Other…'),
@@ -215,5 +239,17 @@ class _TextFontPickerState extends State<TextFontPicker> {
             ),
           );
         },
+      );
+}
+
+/// Whether the music font is saved inside the project.
+class EmbedFontSwitch extends StatelessWidget {
+  const EmbedFontSwitch({super.key, required this.controller});
+  final EditorController controller;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) => Switch(value: controller.embedFont, onChanged: (v) => controller.embedFont = v),
       );
 }

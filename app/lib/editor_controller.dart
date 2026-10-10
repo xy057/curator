@@ -129,7 +129,14 @@ class EditorController extends ChangeNotifier {
     String? mediaPath,
     String? mediaOriginal,
   }) async {
-    final edits = state.edits;
+    var edits = state.edits;
+    // A font the project only names is looked for here; not found, Bravura stands in.
+    if (edits.fonts.music.isMissing) {
+      if (await MusicFont.findInstalled(edits.fonts.music.name) case final found?) {
+        edits = edits.copyWith(fonts: edits.fonts.copyWith(music: found));
+        state = ProjectState(edits: edits, images: state.images, view: state.view);
+      }
+    }
     final score = await _engrave(scoreBytes,
         textEdits: edits.textEdits, pairs: edits.pairs, fonts: edits.fonts, engraving: edits.engraving);
     final arts = await ImageEditing._decodeAll(state.images);
@@ -231,6 +238,7 @@ class EditorController extends ChangeNotifier {
     _condensed = Set.unmodifiable({for (final g in condensable) if (edits.condensed.contains(g.id)) g.id});
     _partOrder = CuratedScene.orderedPartIds(score.metadata.parts, edits.partOrder);
     _fonts = edits.fonts;
+    _embedFont = edits.embedFont;
     _projectEngraving = edits.engraving;
     if (!_fonts.music.isBundled && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
     images._load(edits.patches, state.images, arts);
@@ -299,6 +307,7 @@ class EditorController extends ChangeNotifier {
     _pairs = const [];
     _partOrder = const [];
     _fonts = ScoreFonts.standard;
+    _embedFont = true;
     _projectEngraving = const EngravingOptions();
     _tab = BottomTab.instruments;
   }
@@ -498,6 +507,18 @@ class EditorController extends ChangeNotifier {
     _edited(); // one Undo step, right away
     notifyListeners();
     await engraved;
+  }
+
+  /// Whether an added music font is saved inside the project (Project Settings ▸ Fonts): an
+  /// edit. Off, only its name is saved and the font is looked for where the project opens.
+  bool get embedFont => _embedFont;
+  bool _embedFont = true;
+
+  set embedFont(bool value) {
+    if (value == _embedFont || _score == null) return;
+    _embedFont = value;
+    _edited();
+    notifyListeners();
   }
 
   // MARK: Condensing
@@ -821,6 +842,7 @@ class EditorController extends ChangeNotifier {
         captions: captions._captions,
         captionFont: captions._font,
         fonts: _fonts,
+        embedFont: _embedFont,
         engraving: _projectEngraving,
       );
 
@@ -875,6 +897,7 @@ class EditorController extends ChangeNotifier {
       _textEdits = state.textEdits;
       _pairs = state.pairs;
       _fonts = state.fonts;
+      _embedFont = state.embedFont;
       _projectEngraving = state.engraving;
       _condensed = state.condensed;
       _scene?.condensed = _condensed;

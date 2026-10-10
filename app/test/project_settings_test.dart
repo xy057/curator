@@ -13,6 +13,7 @@ import 'package:curated_score/main.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -212,6 +213,59 @@ void main() {
     expect(c.fonts, ScoreFonts.standard);
     expect(find.text('Helvetica: its files could not be read.'), findsOneWidget);
   });
+
+  testWidgets("with the font not embedded, Other… asks the system's font picker; turning it off is an Undo step",
+      (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final c = EditorController(vsync: const TestVSync());
+    addTearDown(c.dispose);
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    final asked = <Object?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('curated_score/fonts'), (call) async {
+      asked.add(call.arguments);
+      return call.method == 'pickFont' ? 'Helvetica' : null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('curated_score/fonts'), null));
+    await tester.pumpWidget(MaterialApp(
+      theme: AppColors.theme(accent: AccentColor.sky, brightness: Brightness.light),
+      home: Scaffold(body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        MusicFontPicker(controller: c),
+        EmbedFontSwitch(controller: c),
+      ]))),
+    ));
+    Future<void> settle() async {
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 150));
+      }
+    }
+
+    expect(c.embedFont, isTrue);
+    await tester.tap(find.byType(Switch));
+    await settle();
+    expect(c.embedFont, isFalse);
+    expect(c.projectState.edits.embedFont, isFalse);
+
+    await tester.tap(find.byType(DropdownMenu<String>));
+    await settle();
+    await tester.tap(find.text('Other…').last);
+    // Read from the installed font, then engraved.
+    for (var i = 0; i < 500 && (c.fonts.music.name != 'Helvetica' || c.isReengraving); i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    await settle();
+    expect(asked, [{'family': 'Bravura'}], reason: 'the picker starts at the font in use');
+    expect(c.fonts.music.file, isNotNull);
+
+    c.undo();
+    expect(c.fonts.music, MusicFont.bravura);
+    c.undo();
+    expect(c.embedFont, isTrue);
+    await settle();
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+  }, skip: !Platform.isMacOS); // Helvetica is installed on macOS
 }
 
 /// A controller for which every text font but Academico fails, as one whose files can't be read.
