@@ -6,6 +6,7 @@ import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/updater.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -236,7 +237,7 @@ void main() {
       });
     }
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(AppSwitch));
     expect(settings.checkForUpdates, isFalse);
 
     // Nothing listens on port 1 (and widget tests answer every request with 400 anyway).

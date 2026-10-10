@@ -5,6 +5,7 @@ import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -93,7 +94,7 @@ void main() {
     expect(gears.last.onPressed, isNotNull, reason: 'Captions has');
     expect(settings.attachImage, isFalse, reason: 'extensions start off');
     expect(settings.captions, isFalse);
-    await tester.tap(find.byType(Switch).first);
+    await tester.tap(find.byType(AppSwitch).first);
     await tester.pumpAndSettle();
     expect(settings.attachImage, isTrue);
     expect(settings.captions, isFalse, reason: 'each its own switch');

@@ -11,6 +11,7 @@ import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/font_settings.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -256,7 +257,7 @@ void main() {
     expect(c.embedFont, isTrue);
     expect(find.text('Embed font'), findsOneWidget);
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(AppSwitch));
     await settle();
     expect(c.embedFont, isFalse);
 
@@ -312,7 +313,7 @@ void main() {
     await settle();
     expect(settings.musicFont, 'Helvetica');
     expect(find.text('Embed font'), findsOneWidget);
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(AppSwitch));
     await settle();
     expect(settings.embedFont, isFalse);
     await tester.enterText(find.byType(DropdownMenu<String>).last, 'Helvet');

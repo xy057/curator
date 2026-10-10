@@ -233,7 +233,7 @@ final _categories = <_Category>[
         (c) => Row(mainAxisSize: MainAxisSize.min, children: [
           _ExtensionSettingsButton(e, c.settings),
           const SizedBox(width: 6),
-          Switch(value: e.isOn(c.settings), onChanged: (v) => e.set(c.settings, v)),
+          AppSwitch(value: e.isOn(c.settings), onChanged: (v) => e.set(c.settings, v)),
         ]),
         note: e.version,
         keywords: '${e.keywords} extension',
@@ -355,7 +355,7 @@ Future<bool> _confirmEngraving(BuildContext context) async {
 }
 
 Widget _launchSwitch(_Context c) =>
-    Switch(value: c.settings.checkForUpdates, onChanged: (v) => c.settings.checkForUpdates = v);
+    AppSwitch(value: c.settings.checkForUpdates, onChanged: (v) => c.settings.checkForUpdates = v);
 
 /// `0.3.0 (17)`, then the commit when the build knows it.
 String get _versionText => '$appVersion ($appBuild)${appCommit.isEmpty ? '' : ' · $appCommit'}';
