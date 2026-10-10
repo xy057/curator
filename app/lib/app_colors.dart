@@ -195,6 +195,13 @@ class AppColors extends ThemeExtension<AppColors> {
   /// Behind toolbars and sidebars: [surface] in the classic style, a step off it in the refined.
   final Color chrome;
 
+  /// A solid accent for white to read on (the default button, a selected sidebar row): the
+  /// strong shade, darkened where it is light (amber, and every accent's dark-theme shade).
+  Color get accentFill {
+    final hsl = HSLColor.fromColor(accentStrong);
+    return hsl.withLightness(hsl.lightness.clamp(0, 0.42)).toColor();
+  }
+
   static ThemeData theme({
     AccentColor accent = AccentColor.sky,
     Brightness brightness = Brightness.light,
@@ -298,10 +305,8 @@ class AppColors extends ThemeExtension<AppColors> {
       visualDensity: VisualDensity.standard,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
-    // The default action: the accent's strong shade, dark enough for white to read on it
-    // (amber's isn't), darkened while pressed, as a desktop button is.
-    final hsl = HSLColor.fromColor(accent.strong);
-    final fill = hsl.withLightness(hsl.lightness.clamp(0, 0.42)).toColor();
+    // The default action: white on the accent, darkened while pressed, as a desktop button is.
+    final fill = c.accentFill;
     final filled = button.copyWith(
       backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
           ? c.textMuted.withValues(alpha: 0.18)

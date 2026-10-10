@@ -640,8 +640,11 @@ class _SidebarTileState extends State<_SidebarTile> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final selected = widget.selected;
-    // Raised off the sidebar: white on the light grey, a lighter grey on the dark one.
+    // Raised off the sidebar: white on the light grey, a lighter grey on the dark one; in the
+    // refined style a solid accent row with white text, as a desktop source list's.
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final refined = isRefined(context);
+    final solid = refined && selected;
     return Padding(
       padding: const EdgeInsets.only(bottom: 1),
       child: Semantics(
@@ -660,28 +663,30 @@ class _SidebarTileState extends State<_SidebarTile> {
               height: 30,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                color: selected
+                color: solid
+                    ? colors.accentFill
+                    : selected
                     ? (dark ? colors.line : colors.surface)
                     : _hover
                         ? colors.line.withValues(alpha: 0.45)
                         : colors.line.withValues(alpha: 0),
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: BorderRadius.circular(refined ? 5 : 7),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: selected && !dark ? 0.06 : 0),
+                    color: Colors.black.withValues(alpha: selected && !dark && !refined ? 0.06 : 0),
                     blurRadius: 2,
                     offset: const Offset(0, 1),
                   ),
                 ],
               ),
               child: Row(children: [
-                Icon(widget.icon, size: 16, color: selected ? colors.accentStrong : colors.textMuted),
+                Icon(widget.icon, size: 16, color: solid ? Colors.white : selected ? colors.accentStrong : colors.textMuted),
                 const SizedBox(width: 10),
                 Text(widget.label,
                     style: TextStyle(
                       fontSize: 13,
-                      color: colors.text,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: solid ? Colors.white : colors.text,
+                      fontWeight: selected && !refined ? FontWeight.w600 : FontWeight.w400,
                     )),
               ]),
             ),
