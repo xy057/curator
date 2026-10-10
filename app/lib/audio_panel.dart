@@ -497,20 +497,25 @@ class _TextToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // Refined: on, the same neutral pressed fill as a toolbar button, the text not tinted.
+    final refined = isRefined(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final on = refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.07) : colors.accentSoft;
+    final radius = BorderRadius.circular(refined ? 5 : 8);
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: radius,
       onTap: onPressed,
       child: AnimatedContainer(
         duration: stateDuration(const Duration(milliseconds: 150)),
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 9),
         alignment: Alignment.center,
-        decoration: BoxDecoration(color: selected ? colors.accentSoft : Colors.transparent, borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: selected ? on : Colors.transparent, borderRadius: radius),
         child: Text(label,
             style: TextStyle(
               fontSize: 12,
               fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              color: selected ? colors.accentStrong : colors.textMuted,
+              color: selected ? (refined ? colors.text : colors.accentStrong) : colors.textMuted,
             )),
       ),
     );
