@@ -282,12 +282,12 @@ class AppColors extends ThemeExtension<AppColors> {
     // inherited): a button lerps its label from one style to the other when the style changes,
     // and two text styles lerp only when both inherit or neither does.
     final type = theme.typography.englishLike.merge(theme.textTheme);
-    // Buttons: square-cornered, as tall as a field, the label in a medium weight.
-    const shape = WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(7))));
+    // Buttons: 28 px, a 5 px corner, the label in a medium weight, as a desktop app's.
+    const shape = WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5))));
     final label = WidgetStatePropertyAll(
-        type.labelLarge!.copyWith(fontSize: 13.5, fontWeight: FontWeight.w500, letterSpacing: 0));
-    const size = WidgetStatePropertyAll(Size(64, 32));
-    const padding = WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14));
+        type.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0));
+    const size = WidgetStatePropertyAll(Size(64, 28));
+    const padding = WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12));
     const quick = Duration(milliseconds: 120);
     final button = ButtonStyle(
       shape: shape,
@@ -320,35 +320,54 @@ class AppColors extends ThemeExtension<AppColors> {
           (s) => s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.5) : c.text),
       side: WidgetStatePropertyAll(BorderSide(color: dark ? const Color(0xFF4A4A4F) : const Color(0xFFCFCFD4))),
     );
+    // A secondary action (Cancel, an inline action): plain text that a hover puts on a tint.
     final text = button.copyWith(
-      foregroundColor: WidgetStateProperty.resolveWith((s) =>
-          s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.5) : (dark ? c.accent : c.accentStrong)),
+      foregroundColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.5) : c.text),
       padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
     );
-    final segment = theme.segmentedButtonTheme.style!.copyWith(
+    // A segmented control as on a desktop: a recessed well, the chosen segment raised out of it
+    // in the window's own colour (not tinted with the accent).
+    final segment = ButtonStyle(
       shape: shape,
       textStyle: label,
-      minimumSize: const WidgetStatePropertyAll(Size(0, 30)),
+      minimumSize: const WidgetStatePropertyAll(Size(0, 26)),
+      padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
       animationDuration: quick,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      side: WidgetStatePropertyAll(BorderSide(color: c.line)),
+      backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected)
+          ? (dark ? const Color(0xFF4A4A4F) : Colors.white)
+          : (dark ? const Color(0xFF232325) : const Color(0xFFE8E8EB))),
+      foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
+          ? c.textMuted.withValues(alpha: 0.5)
+          : s.contains(WidgetState.selected)
+              ? c.text
+              : c.textMuted),
+      iconColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? c.text : c.textMuted),
+      iconSize: const WidgetStatePropertyAll(15),
     );
     final strong = dark ? c.accent : c.accentStrong;
     // Dialogs and menus: in the dark, a step lighter than the window, as raised things are.
     final raised = dark ? const Color(0xFF2C2C2F) : c.surface;
     const fields = InputDecorationThemeData(
       isDense: true,
-      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(7))),
+      contentPadding: EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(5))),
     );
     final menu = MenuStyle(
       backgroundColor: WidgetStatePropertyAll(raised),
       surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
-      elevation: const WidgetStatePropertyAll(6),
+      elevation: const WidgetStatePropertyAll(8),
       shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: dark ? 0.5 : 0.25)),
-      padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
-      shape: WidgetStatePropertyAll(_SteadyBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: c.line))),
+      padding: const WidgetStatePropertyAll(EdgeInsets.all(5)),
+      shape: WidgetStatePropertyAll(_SteadyBorder(borderRadius: BorderRadius.circular(7), side: BorderSide(color: c.line))),
     );
     final outline = dark ? const Color(0xFF5C5C62) : const Color(0xFFB8B8BE);
+    // A desktop's type scale: 13 px body text, titles a little larger and semibold.
+    TextStyle? sized(TextStyle? style, double size, [FontWeight? weight]) =>
+        style?.copyWith(fontSize: size, fontWeight: weight, letterSpacing: 0, height: style.height == null ? null : 1.3);
     TextStyle? tight(TextStyle? style) => style?.copyWith(letterSpacing: 0);
     final t = theme.textTheme;
     return theme.copyWith(
@@ -358,6 +377,9 @@ class AppColors extends ThemeExtension<AppColors> {
         outline: dark ? const Color(0xFF4A4A4F) : const Color(0xFFC4C4CA),
       ),
       tooltipTheme: theme.tooltipTheme.copyWith(
+        // Inherited, as the classic one is: the two lerp into each other.
+        textStyle: TextStyle(fontSize: 11.5, color: dark ? c.surface : Colors.white),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
           color: dark ? const Color(0xFFE8E8EA) : const Color(0xE81D1D1F),
           borderRadius: BorderRadius.circular(5),
@@ -372,16 +394,16 @@ class AppColors extends ThemeExtension<AppColors> {
         displaySmall: tight(t.displaySmall),
         headlineLarge: tight(t.headlineLarge),
         headlineMedium: tight(t.headlineMedium),
-        headlineSmall: tight(t.headlineSmall),
-        titleLarge: tight(t.titleLarge),
-        titleMedium: tight(t.titleMedium),
-        titleSmall: tight(t.titleSmall),
-        bodyLarge: tight(t.bodyLarge),
-        bodyMedium: tight(t.bodyMedium),
-        bodySmall: tight(t.bodySmall),
-        labelLarge: tight(t.labelLarge),
-        labelMedium: tight(t.labelMedium),
-        labelSmall: tight(t.labelSmall),
+        headlineSmall: sized(t.headlineSmall, 20, FontWeight.w600),
+        titleLarge: sized(t.titleLarge, 16, FontWeight.w600),
+        titleMedium: sized(t.titleMedium, 14, FontWeight.w600),
+        titleSmall: sized(t.titleSmall, 13, FontWeight.w600),
+        bodyLarge: sized(t.bodyLarge, 14),
+        bodyMedium: sized(t.bodyMedium, 13),
+        bodySmall: sized(t.bodySmall, 11.5),
+        labelLarge: sized(t.labelLarge, 13, FontWeight.w500),
+        labelMedium: sized(t.labelMedium, 12, FontWeight.w500),
+        labelSmall: sized(t.labelSmall, 11, FontWeight.w500),
       ),
       // A pointer, not a finger: no control padded out to 48 px.
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -394,7 +416,7 @@ class AppColors extends ThemeExtension<AppColors> {
         trackHeight: 4,
       ),
       checkboxTheme: CheckboxThemeData(
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4))),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(3))),
         side: WidgetStateBorderSide.resolveWith((s) =>
             s.contains(WidgetState.selected) ? BorderSide.none : BorderSide(color: outline, width: 1.5)),
         fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? strong : null),
@@ -423,15 +445,15 @@ class AppColors extends ThemeExtension<AppColors> {
       menuTheme: MenuThemeData(style: menu),
       dropdownMenuTheme: DropdownMenuThemeData(
         menuStyle: menu,
-        textStyle: type.bodyMedium!.copyWith(fontSize: 13.5, letterSpacing: 0),
+        textStyle: type.bodyMedium!.copyWith(fontSize: 13, letterSpacing: 0),
         inputDecorationTheme: fields,
       ),
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(64, 30)),
-          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
-          shape: const WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5)))),
-          textStyle: WidgetStatePropertyAll(type.bodyMedium!.copyWith(fontSize: 13.5, letterSpacing: 0)),
+          minimumSize: const WidgetStatePropertyAll(Size(64, 26)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
+          shape: const WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4)))),
+          textStyle: WidgetStatePropertyAll(type.bodyMedium!.copyWith(fontSize: 13, letterSpacing: 0)),
           visualDensity: VisualDensity.compact,
         ),
       ),
@@ -442,10 +464,10 @@ class AppColors extends ThemeExtension<AppColors> {
       segmentedButtonTheme: SegmentedButtonThemeData(style: segment),
       dialogTheme: theme.dialogTheme.copyWith(
         backgroundColor: raised,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        titleTextStyle: type.titleLarge!.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: c.text, letterSpacing: 0),
-        contentTextStyle: type.bodyMedium!.copyWith(fontSize: 14, height: 1.4, color: c.text, letterSpacing: 0),
-        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: dark ? c.line : Colors.transparent)),
+        titleTextStyle: type.titleLarge!.copyWith(fontSize: 15, fontWeight: FontWeight.w600, color: c.text, letterSpacing: 0),
+        contentTextStyle: type.bodyMedium!.copyWith(fontSize: 13, height: 1.4, color: c.text, letterSpacing: 0),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       ),
       splashFactory: NoSplash.splashFactory,
       splashColor: Colors.transparent,
