@@ -289,7 +289,28 @@ class AppColors extends ThemeExtension<AppColors> {
       shape: WidgetStatePropertyAll(_SteadyBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: c.line))),
     );
     final outline = dark ? const Color(0xFF5A6068) : const Color(0xFFB4BEC9);
+    TextStyle? tight(TextStyle? style) => style?.copyWith(letterSpacing: 0);
+    final t = theme.textTheme;
     return theme.copyWith(
+      // Text set as the platform sets it: Material's tracking (up to 0.5 px between letters,
+      // for small phone text) reads loose on a desktop.
+      textTheme: t.copyWith(
+        displayLarge: tight(t.displayLarge),
+        displayMedium: tight(t.displayMedium),
+        displaySmall: tight(t.displaySmall),
+        headlineLarge: tight(t.headlineLarge),
+        headlineMedium: tight(t.headlineMedium),
+        headlineSmall: tight(t.headlineSmall),
+        titleLarge: tight(t.titleLarge),
+        titleMedium: tight(t.titleMedium),
+        titleSmall: tight(t.titleSmall),
+        bodyLarge: tight(t.bodyLarge),
+        bodyMedium: tight(t.bodyMedium),
+        bodySmall: tight(t.bodySmall),
+        labelLarge: tight(t.labelLarge),
+        labelMedium: tight(t.labelMedium),
+        labelSmall: tight(t.labelSmall),
+      ),
       // A pointer, not a finger: no control padded out to 48 px.
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       // A slider's knob: white with a hairline and a soft shadow, no halo while dragged, no dots

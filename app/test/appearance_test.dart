@@ -96,5 +96,21 @@ void main() {
     expect(color(), AppColors.of(settings.accent, Brightness.dark).surface);
     await tester.pumpAndSettle();
   });
-}
 
+  test('Refined sets a desktop theme over Classic, which stays Material as it was', () {
+    for (final brightness in Brightness.values) {
+      final refined = AppColors.theme(brightness: brightness);
+      final classic = AppColors.theme(brightness: brightness, style: UiStyle.classic);
+      expect(refined.textTheme.bodyMedium!.letterSpacing, 0);
+      expect(classic.textTheme.bodyMedium!.letterSpacing, isNot(0));
+      expect(refined.materialTapTargetSize, MaterialTapTargetSize.shrinkWrap);
+      expect(classic.materialTapTargetSize, MaterialTapTargetSize.padded);
+      expect(refined.sliderTheme.overlayColor, Colors.transparent, reason: 'no halo');
+      expect(classic.sliderTheme.overlayColor, isNull);
+      expect(refined.filledButtonTheme.style!.shape!.resolve({}), isA<RoundedRectangleBorder>());
+      expect(classic.filledButtonTheme.style, isNull);
+      expect(refined.inputDecorationTheme.isDense, isTrue);
+      expect(classic.inputDecorationTheme.isDense, isFalse);
+    }
+  });
+}
