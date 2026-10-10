@@ -92,6 +92,7 @@ class BarRuler extends StatelessWidget {
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.only(left: 12),
           decoration: BoxDecoration(
+            color: colors.chrome,
             border: Border(bottom: BorderSide(color: colors.line), right: BorderSide(color: colors.line)),
           ),
           child: Text('Bar', style: TextStyle(fontSize: 11, color: colors.textMuted)),
@@ -134,7 +135,7 @@ class _RulerPainter extends CustomPainter {
     if (c.score == null) return;
     final v = c.viewport, tl = c.timeline;
     canvas.clipRect(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, Paint()..color = colors.surface);
+    canvas.drawRect(Offset.zero & size, Paint()..color = colors.chrome);
     canvas.drawLine(Offset(0, size.height - 0.5), Offset(size.width, size.height - 0.5), Paint()..color = colors.line);
 
     final starts = tl.measureStarts;
@@ -276,7 +277,8 @@ void paintBarGrid(Canvas canvas, Size size, EditorController c, AppColors colors
   }
 }
 
-/// A lane's name cell in the left column.
+/// A lane's name cell in the left column: on the [AppColors.chrome] (in the refined style a
+/// column apart from the lanes, as a desktop editor's track headers are), [color] over it.
 class LaneLabel extends StatelessWidget {
   const LaneLabel({super.key, required this.height, required this.child, this.trailing, this.color});
   final double height;
@@ -292,8 +294,8 @@ class LaneLabel extends StatelessWidget {
         height: height,
         padding: const EdgeInsets.only(left: 12),
         decoration: BoxDecoration(
-          color: color,
-          border: Border(right: BorderSide(color: colors.line), bottom: BorderSide(color: colors.grid)),
+          color: Color.alphaBlend(color ?? Colors.transparent, colors.chrome.withValues(alpha: isRefined(context) ? 1 : 0)),
+          border: Border(right: BorderSide(color: colors.line), bottom: BorderSide(color: isRefined(context) ? colors.line : colors.grid)),
         ),
         child: Row(children: [
           Expanded(

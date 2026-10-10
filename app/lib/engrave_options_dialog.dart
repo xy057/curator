@@ -231,7 +231,7 @@ class _OptionRow extends StatelessWidget {
         _NumberField(option: option, value: value as num, onChanged: onChanged),
       EngraveOptionKind.toggle => SizedBox(
           height: 28,
-          child: FittedBox(child: Switch(value: value as bool, onChanged: onChanged)),
+          child: AppSwitch(value: value as bool, onChanged: onChanged),
         ),
       EngraveOptionKind.choice => DropdownButton<String>(
           value: value as String,

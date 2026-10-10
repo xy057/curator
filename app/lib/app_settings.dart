@@ -18,6 +18,7 @@ class AppSettings extends ChangeNotifier {
         _undoSteps = _prefs?.getInt(_undoKey) ?? defaultUndoSteps,
         _themeMode = ThemeMode.values.asNameMap()[_prefs?.getString(_themeKey)] ?? ThemeMode.system,
         _accent = AccentColor.values.asNameMap()[_prefs?.getString(_accentKey)] ?? AccentColor.sky,
+        _uiStyle = UiStyle.values.asNameMap()[_prefs?.getString(_uiStyleKey)] ?? UiStyle.refined,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
         _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,
@@ -55,6 +56,7 @@ class AppSettings extends ChangeNotifier {
 
   static const _autosaveKey = 'autosaveSeconds', _mediaKey = 'mediaStorage', _undoKey = 'undoSteps';
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
+  static const _uiStyleKey = 'uiStyle';
   static const _scrollFollowKey = 'scrollFollow';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
@@ -129,6 +131,16 @@ class AppSettings extends ChangeNotifier {
     if (value == _accent) return;
     _accent = value;
     _prefs?.setString(_accentKey, value.name);
+    notifyListeners();
+  }
+
+  /// How the controls look: quiet desktop ones, or Material's as before.
+  UiStyle get uiStyle => _uiStyle;
+  UiStyle _uiStyle;
+  set uiStyle(UiStyle value) {
+    if (value == _uiStyle) return;
+    _uiStyle = value;
+    _prefs?.setString(_uiStyleKey, value.name);
     notifyListeners();
   }
 

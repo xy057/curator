@@ -42,9 +42,9 @@ class BottomPanel extends StatelessWidget {
       color: colors.surface,
       child: Column(children: [
         Container(
-          height: 40,
+          height: isRefined(context) ? 36 : 40,
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.line))),
+          decoration: BoxDecoration(color: colors.chrome, border: Border(bottom: BorderSide(color: colors.line))),
           child: Row(children: [
             _TabSwitch(value: c.tab, onChanged: (tab) => c.tab = tab),
             const ToolbarDivider(),
@@ -123,11 +123,18 @@ class _TabSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    const size = 32.0;
+    // Refined: smaller, in the segmented controls' well, the chosen icon in the text colour.
+    final refined = isRefined(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final size = refined ? 26.0 : 32.0;
+    final well = colors.well;
+    final knob = refined && dark ? const Color(0xFF4A4A4F) : colors.surface;
+    final chosen = refined ? colors.text : colors.accentStrong;
     final index = _tabs.indexWhere((t) => t.$1 == value);
     return Container(
       padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(color: colors.accentWash, border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+          color: well, border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(refined ? 7 : 10)),
       child: Stack(children: [
         AnimatedPositioned(
           duration: const Duration(milliseconds: 220),
@@ -138,8 +145,8 @@ class _TabSwitch extends StatelessWidget {
           height: size,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: BorderRadius.circular(8),
+              color: knob,
+              borderRadius: BorderRadius.circular(refined ? 5 : 8),
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 3, offset: const Offset(0, 1))],
               border: Border.all(color: colors.line),
             ),
@@ -150,14 +157,14 @@ class _TabSwitch extends StatelessWidget {
             Tip(
               message: tip,
               child: InkWell(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(refined ? 5 : 8),
                 onTap: () => onChanged(tab),
                 child: SizedBox.square(
                   dimension: size,
                   child: TweenAnimationBuilder<Color?>(
                     duration: stateDuration(const Duration(milliseconds: 200)),
-                    tween: ColorTween(end: tab == value ? colors.accentStrong : colors.textMuted),
-                    builder: (context, color, _) => Icon(icon, size: 18, color: color),
+                    tween: ColorTween(end: tab == value ? chosen : colors.textMuted),
+                    builder: (context, color, _) => Icon(icon, size: refined ? 16 : 18, color: color),
                   ),
                 ),
               ),

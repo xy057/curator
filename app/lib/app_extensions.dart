@@ -70,6 +70,12 @@ class ExtensionsDialog extends StatelessWidget {
       listenable: settings,
       builder: (context, _) {
         final allOn = extensions.every((e) => e.isOn(settings));
+        void setAll(bool on) {
+          for (final e in extensions) {
+            e.set(settings, on);
+          }
+        }
+
         return AlertDialog(
           title: const Text('Extensions in this project'),
           contentPadding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
@@ -77,15 +83,11 @@ class ExtensionsDialog extends StatelessWidget {
             width: 360,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (extensions.length > 1) ...[
-                SwitchListTile(
+                ListTile(
                   dense: true,
                   title: const Text('All', style: TextStyle(fontWeight: FontWeight.w600)),
-                  value: allOn,
-                  onChanged: (on) {
-                    for (final e in extensions) {
-                      e.set(settings, on);
-                    }
-                  },
+                  trailing: AppSwitch(value: allOn, onChanged: setAll),
+                  onTap: () => setAll(!allOn),
                 ),
                 const Divider(height: 1),
               ],
@@ -96,12 +98,12 @@ class ExtensionsDialog extends StatelessWidget {
                   itemExtent: 44,
                   itemBuilder: (context, i) {
                     final e = extensions[i];
-                    return SwitchListTile(
+                    return ListTile(
                       dense: true,
-                      secondary: Icon(e.icon, size: 18),
+                      leading: Icon(e.icon, size: 18),
                       title: Text(e.label),
-                      value: e.isOn(settings),
-                      onChanged: (on) => e.set(settings, on),
+                      trailing: AppSwitch(value: e.isOn(settings), onChanged: (on) => e.set(settings, on)),
+                      onTap: () => e.set(settings, !e.isOn(settings)),
                     );
                   },
                 ),

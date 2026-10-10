@@ -5,6 +5,7 @@ import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,6 +67,12 @@ void main() {
     expect(settings.themeMode, ThemeMode.dark);
     expect(settings.accent, AccentColor.rose);
     await shot(tester, 'settings-appearance-dark');
+    await tester.tap(find.text('Classic'));
+    await tester.pumpAndSettle();
+    expect(settings.uiStyle, UiStyle.classic);
+    await tester.tap(find.text('Refined'));
+    await tester.pumpAndSettle();
+    expect(settings.uiStyle, UiStyle.refined);
 
     await tester.tap(find.text('Animation'));
     await tester.pumpAndSettle();
@@ -87,7 +94,7 @@ void main() {
     expect(gears.last.onPressed, isNotNull, reason: 'Captions has');
     expect(settings.attachImage, isFalse, reason: 'extensions start off');
     expect(settings.captions, isFalse);
-    await tester.tap(find.byType(Switch).first);
+    await tester.tap(find.byType(AppSwitch).first);
     await tester.pumpAndSettle();
     expect(settings.attachImage, isTrue);
     expect(settings.captions, isFalse, reason: 'each its own switch');
@@ -118,7 +125,7 @@ void main() {
           final image = await tester.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first).toImage(pixelRatio: 2);
           final data = (await image.toByteData())!;
           int at(double x, double y) => data.getUint32(((y * 2).floor() * image.width + (x * 2).floor()) * 4);
-          return (at(window.left, window.center.dy), at(theme.left + 30, theme.top + 4));
+          return (at(window.left, window.center.dy), at(theme.left + 30, theme.top + 0.25));
         }))!;
     final (lightWindow, lightSwitch) = await outlines();
     expect(lightWindow, lightSwitch);

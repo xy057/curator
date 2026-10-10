@@ -20,6 +20,7 @@ import 'app_colors.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
+import 'ui_kit.dart';
 
 const _fieldWidth = 230.0;
 
@@ -313,7 +314,7 @@ class EmbedFontSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: (controller ?? settings)!,
-        builder: (context, _) => Switch(
+        builder: (context, _) => AppSwitch(
           value: controller?.embedFont ?? settings!.embedFont,
           onChanged: (v) => controller != null ? controller!.embedFont = v : settings!.embedFont = v,
         ),

@@ -81,7 +81,11 @@ class _DialogRoute<T> extends DialogRoute<T> {
   }
 }
 
-/// The compact icon button used in every toolbar: 32 × 32, its label in the tooltip.
+/// Whether the theme is [UiStyle.refined] (a theme without an [AppStyle] is: it's the default).
+bool isRefined(BuildContext context) => Theme.of(context).extension<AppStyle>()?.style != UiStyle.classic;
+
+/// The compact icon button used in every toolbar: 32 × 32, its label in the tooltip; in
+/// [UiStyle.refined] 28 × 28, and when selected a neutral pressed fill under an accent icon.
 class ToolbarButton extends StatelessWidget {
   const ToolbarButton({
     super.key,
@@ -107,18 +111,24 @@ class ToolbarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final refined = isRefined(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final size = refined ? 28.0 : 32.0;
     return OverlaySemantics(
       child: IconButton(
         tooltip: tooltip,
         onPressed: onPressed,
         isSelected: selected,
-        iconSize: 18,
+        iconSize: refined ? 16 : 18,
         visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+        constraints: BoxConstraints.tightFor(width: size, height: size),
         padding: EdgeInsets.zero,
         style: IconButton.styleFrom(
-          foregroundColor: selected ? colors.accentStrong : (color ?? colors.text),
-          backgroundColor: selected ? colors.accentSoft : null,
+          foregroundColor: selected ? (refined && dark ? colors.accent : colors.accentStrong) : (color ?? colors.text),
+          backgroundColor: selected
+              ? (refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05) : colors.accentSoft)
+              : null,
+          shape: refined ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)) : null,
           animationDuration: const Duration(milliseconds: 150),
         ),
         icon: glyph ?? Icon(icon),
@@ -137,7 +147,7 @@ class ToolGroup extends StatelessWidget {
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
           border: Border.all(color: context.colors.line),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(isRefined(context) ? 7 : 10),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: children),
       );
@@ -372,3 +382,100 @@ void appearanceChanging() {
 /// in the frame the theme changes. The window shows that change by fading a still of itself
 /// out over it; a colour animated under the still would trail it, and rebuild every frame.
 Duration stateDuration(Duration duration) => _appearanceChanging ? Duration.zero : duration;
+
+/// The app's on/off switch: always use it rather than [Switch]. In [UiStyle.refined] a small
+/// track with a white knob that slides, drawn alike on every platform; in [UiStyle.classic]
+/// Material's [Switch].
+class AppSwitch extends StatefulWidget {
+  const AppSwitch({super.key, required this.value, required this.onChanged});
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  static const size = Size(34, 20);
+
+  @override
+  State<AppSwitch> createState() => _AppSwitchState();
+}
+
+class _AppSwitchState extends State<AppSwitch> {
+  bool _hovered = false, _focused = false;
+
+  void _toggle() => widget.onChanged?.call(!widget.value);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (!isRefined(context)) {
+      return Switch(value: widget.value, onChanged: widget.onChanged);
+    }
+    // The app's palette, or where there is none (a dialog shown on its own) the theme's.
+    final colors = theme.extension<AppColors>();
+    final dark = theme.brightness == Brightness.dark;
+    final enabled = widget.onChanged != null;
+    final accent = colors?.accent ?? theme.colorScheme.primary;
+    final on = dark ? accent : (colors?.accentStrong ?? accent);
+    final off = dark ? const Color(0xFF4A4F57) : const Color(0xFFD5DAE0);
+    final hoverShade = (dark ? Colors.white : Colors.black).withValues(alpha: _hovered && enabled ? 0.07 : 0);
+    return Semantics(
+      toggled: widget.value,
+      enabled: enabled,
+      onTap: enabled ? _toggle : null,
+      child: FocusableActionDetector(
+        enabled: enabled,
+        mouseCursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+        onShowHoverHighlight: (v) => setState(() => _hovered = v),
+        onShowFocusHighlight: (v) => setState(() => _focused = v),
+        actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _toggle())},
+        child: GestureDetector(
+          onTap: enabled ? _toggle : null,
+          child: Opacity(
+            opacity: enabled ? 1 : 0.45,
+            // The tap area is a little larger than the track, as a Material switch's is.
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(end: widget.value ? 1 : 0),
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOutCubic,
+                builder: (context, t, _) => CustomPaint(
+                  size: AppSwitch.size,
+                  painter: _SwitchPainter(
+                    t: t,
+                    track: Color.alphaBlend(hoverShade, Color.lerp(off, on, t)!),
+                    focus: _focused ? accent.withValues(alpha: 0.45) : null,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SwitchPainter extends CustomPainter {
+  _SwitchPainter({required this.t, required this.track, required this.focus});
+  final double t;
+  final Color track;
+  final Color? focus;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = size.height / 2;
+    final rect = RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(r));
+    if (focus case final focus?) {
+      canvas.drawRRect(rect.inflate(2.5), Paint()..color = focus..style = PaintingStyle.stroke..strokeWidth = 2);
+    }
+    canvas.drawRRect(rect, Paint()..color = track);
+    const inset = 2.0;
+    final knob = Offset(r + (size.width - 2 * r) * t, r);
+    final knobRadius = r - inset;
+    canvas.drawCircle(knob.translate(0, 0.6), knobRadius + 0.3,
+        Paint()..color = const Color(0x40000000)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2));
+    canvas.drawCircle(knob, knobRadius, Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(_SwitchPainter old) => old.t != t || old.track != track || old.focus != focus;
+}

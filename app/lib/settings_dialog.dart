@@ -158,6 +158,17 @@ final _categories = <_Category>[
       (c) => _AccentPicker(settings: c.settings),
       keywords: 'color colour scheme',
     ),
+    _Item(
+      'Style',
+      null,
+      (c) => SegmentedButton<UiStyle>(
+        showSelectedIcon: false,
+        segments: [for (final s in UiStyle.values) ButtonSegment(value: s, label: Text(s.label))],
+        selected: {c.settings.uiStyle},
+        onSelectionChanged: (s) => c.settings.uiStyle = s.single,
+      ),
+      keywords: 'look controls switch button material classic refined theme',
+    ),
   ]),
   _Category('Animation', Icons.animation_rounded, [
     _Item(
@@ -222,7 +233,7 @@ final _categories = <_Category>[
         (c) => Row(mainAxisSize: MainAxisSize.min, children: [
           _ExtensionSettingsButton(e, c.settings),
           const SizedBox(width: 6),
-          Switch(value: e.isOn(c.settings), onChanged: (v) => e.set(c.settings, v)),
+          AppSwitch(value: e.isOn(c.settings), onChanged: (v) => e.set(c.settings, v)),
         ]),
         note: e.version,
         keywords: '${e.keywords} extension',
@@ -344,7 +355,7 @@ Future<bool> _confirmEngraving(BuildContext context) async {
 }
 
 Widget _launchSwitch(_Context c) =>
-    Switch(value: c.settings.checkForUpdates, onChanged: (v) => c.settings.checkForUpdates = v);
+    AppSwitch(value: c.settings.checkForUpdates, onChanged: (v) => c.settings.checkForUpdates = v);
 
 /// `0.3.0 (17)`, then the commit when the build knows it.
 String get _versionText => '$appVersion ($appBuild)${appCommit.isEmpty ? '' : ' · $appCommit'}';
@@ -605,11 +616,16 @@ class _SettingsWindowState extends State<_SettingsWindow> {
       key: ObjectKey(item), title: item.title, note: item.note, help: item.help?.call(_ctx), control: item.control(_ctx));
 }
 
-/// The sidebar's neutral tint: a step off the dialog's surface, without the accent.
-Color _sidebarColor(AppColors colors) => Color.lerp(colors.surface, colors.line, 0.32)!;
+/// The sidebar's neutral tint: a step off the dialog's surface, without the accent; in the
+/// refined light theme the (nearly white) chrome.
+Color _sidebarColor(AppColors colors) =>
+    _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.32)!;
+
+bool _lightChrome(AppColors colors) => colors.chrome != colors.surface && colors.surface.computeLuminance() > 0.5;
 
 /// A group's fill: a lighter step than the sidebar, so the groups sit on the page without borders.
-Color _groupColor(AppColors colors) => Color.lerp(colors.surface, colors.line, 0.22)!;
+Color _groupColor(AppColors colors) =>
+    _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.22)!;
 
 class _SidebarTile extends StatefulWidget {
   const _SidebarTile({required this.icon, required this.label, required this.selected, required this.onTap});
@@ -629,8 +645,11 @@ class _SidebarTileState extends State<_SidebarTile> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final selected = widget.selected;
-    // Raised off the sidebar: white on the light grey, a lighter grey on the dark one.
+    // Raised off the sidebar: white on the light grey, a lighter grey on the dark one; in the
+    // refined style a solid accent row with white text, as a desktop source list's.
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final refined = isRefined(context);
+    final solid = refined && selected;
     return Padding(
       padding: const EdgeInsets.only(bottom: 1),
       child: Semantics(
@@ -649,28 +668,30 @@ class _SidebarTileState extends State<_SidebarTile> {
               height: 30,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                color: selected
+                color: solid
+                    ? colors.accentFill
+                    : selected
                     ? (dark ? colors.line : colors.surface)
                     : _hover
                         ? colors.line.withValues(alpha: 0.45)
                         : colors.line.withValues(alpha: 0),
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: BorderRadius.circular(refined ? 5 : 7),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: selected && !dark ? 0.06 : 0),
+                    color: Colors.black.withValues(alpha: selected && !dark && !refined ? 0.06 : 0),
                     blurRadius: 2,
                     offset: const Offset(0, 1),
                   ),
                 ],
               ),
               child: Row(children: [
-                Icon(widget.icon, size: 16, color: selected ? colors.accentStrong : colors.textMuted),
+                Icon(widget.icon, size: 16, color: solid ? Colors.white : selected ? colors.accentStrong : colors.textMuted),
                 const SizedBox(width: 10),
                 Text(widget.label,
                     style: TextStyle(
                       fontSize: 13,
-                      color: colors.text,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: solid ? Colors.white : colors.text,
+                      fontWeight: selected && !refined ? FontWeight.w600 : FontWeight.w400,
                     )),
               ]),
             ),

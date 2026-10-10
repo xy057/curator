@@ -2,6 +2,7 @@ import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -38,7 +39,7 @@ void main() {
     expect(find.text('Extensions in this project'), findsOneWidget);
     expect(find.text('Attach Image'), findsOneWidget);
     expect(find.text('All'), findsNothing, reason: 'one extension needs no "All"');
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(AppSwitch));
     await tester.pumpAndSettle();
     expect(settings.attachImage, isTrue, reason: 'a global setting, not the project\'s');
     await tester.tap(find.text('Done'));

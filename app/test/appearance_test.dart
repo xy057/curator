@@ -36,6 +36,15 @@ void main() {
     expect(find.byType(RawImage), findsNWidgets(images + 1), reason: 'an accent cross-fades too');
     await tester.pumpAndSettle();
 
+    expect(theme().extension<AppStyle>()!.style, UiStyle.refined, reason: 'the default');
+    expect(theme().splashFactory, NoSplash.splashFactory, reason: 'a press tints, no ripple');
+    settings.uiStyle = UiStyle.classic;
+    await tester.pump();
+    expect(find.byType(RawImage), findsNWidgets(images + 1), reason: 'a style cross-fades too');
+    expect(theme().extension<AppStyle>()!.style, UiStyle.classic);
+    expect(theme().splashFactory, InkSparkle.splashFactory, reason: 'Material, as it was');
+    await tester.pumpAndSettle();
+
     final before = theme();
     settings.undoSteps = AppSettings.undoStepChoices.last;
     await tester.pump();
@@ -75,17 +84,38 @@ void main() {
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));
     await tester.pumpAndSettle();
-    // The divider above the timeline: an AnimatedContainer in the surface colour.
+    // The divider above the timeline: an AnimatedContainer in the chrome colour.
     final handle = find.descendant(
         of: find.byWidgetPredicate((w) => w.runtimeType.toString() == '_ResizeHandle'), matching: find.byType(DecoratedBox));
     Color? color() => (tester.widget<DecoratedBox>(handle.first).decoration as BoxDecoration).color;
-    expect(color(), AppColors.of(settings.accent, Brightness.light).surface);
+    expect(color(), AppColors.of(settings.accent, Brightness.light, settings.uiStyle).chrome);
 
     settings.themeMode = ThemeMode.dark;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 16));
-    expect(color(), AppColors.of(settings.accent, Brightness.dark).surface);
+    expect(color(), AppColors.of(settings.accent, Brightness.dark, settings.uiStyle).chrome);
     await tester.pumpAndSettle();
   });
-}
 
+  test('Refined sets a desktop theme over Classic, which stays Material as it was', () {
+    for (final brightness in Brightness.values) {
+      final refined = AppColors.theme(brightness: brightness);
+      final classic = AppColors.theme(brightness: brightness, style: UiStyle.classic);
+      expect(refined.textTheme.bodyMedium!.letterSpacing, 0);
+      expect(classic.textTheme.bodyMedium!.letterSpacing, isNot(0));
+      expect(refined.materialTapTargetSize, MaterialTapTargetSize.shrinkWrap);
+      expect(classic.materialTapTargetSize, MaterialTapTargetSize.padded);
+      expect(refined.sliderTheme.overlayColor, Colors.transparent, reason: 'no halo');
+      expect(classic.sliderTheme.overlayColor, isNull);
+      expect(refined.filledButtonTheme.style!.shape!.resolve({}), isA<RoundedRectangleBorder>());
+      expect(classic.filledButtonTheme.style, isNull);
+      expect(refined.inputDecorationTheme.isDense, isTrue);
+      final r = refined.extension<AppColors>()!, cl = classic.extension<AppColors>()!;
+      expect(r.chrome, isNot(r.surface), reason: 'toolbars a step off the work area');
+      expect(cl.chrome, cl.surface);
+      expect(r.line, AppColors.of(AccentColor.rose, brightness, UiStyle.refined).line, reason: 'greys without the accent');
+      expect(cl.line, isNot(AppColors.of(AccentColor.rose, brightness).line));
+      expect(classic.inputDecorationTheme.isDense, isFalse);
+    }
+  });
+}
