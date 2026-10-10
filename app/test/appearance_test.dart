@@ -84,16 +84,16 @@ void main() {
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));
     await tester.pumpAndSettle();
-    // The divider above the timeline: an AnimatedContainer in the surface colour.
+    // The divider above the timeline: an AnimatedContainer in the chrome colour.
     final handle = find.descendant(
         of: find.byWidgetPredicate((w) => w.runtimeType.toString() == '_ResizeHandle'), matching: find.byType(DecoratedBox));
     Color? color() => (tester.widget<DecoratedBox>(handle.first).decoration as BoxDecoration).color;
-    expect(color(), AppColors.of(settings.accent, Brightness.light).surface);
+    expect(color(), AppColors.of(settings.accent, Brightness.light, settings.uiStyle).chrome);
 
     settings.themeMode = ThemeMode.dark;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 16));
-    expect(color(), AppColors.of(settings.accent, Brightness.dark).surface);
+    expect(color(), AppColors.of(settings.accent, Brightness.dark, settings.uiStyle).chrome);
     await tester.pumpAndSettle();
   });
 
@@ -110,6 +110,11 @@ void main() {
       expect(refined.filledButtonTheme.style!.shape!.resolve({}), isA<RoundedRectangleBorder>());
       expect(classic.filledButtonTheme.style, isNull);
       expect(refined.inputDecorationTheme.isDense, isTrue);
+      final r = refined.extension<AppColors>()!, cl = classic.extension<AppColors>()!;
+      expect(r.chrome, isNot(r.surface), reason: 'toolbars a step off the work area');
+      expect(cl.chrome, cl.surface);
+      expect(r.line, AppColors.of(AccentColor.rose, brightness, UiStyle.refined).line, reason: 'greys without the accent');
+      expect(cl.line, isNot(AppColors.of(AccentColor.rose, brightness).line));
       expect(classic.inputDecorationTheme.isDense, isFalse);
     }
   });

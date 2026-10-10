@@ -65,7 +65,7 @@ class EditorToolbar extends StatelessWidget {
     return Container(
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(color: colors.surface, border: Border(bottom: BorderSide(color: colors.line))),
+      decoration: BoxDecoration(color: colors.chrome, border: Border(bottom: BorderSide(color: colors.line))),
       child: Row(children: [
         ToolbarButton(
           icon: Icons.home_outlined,

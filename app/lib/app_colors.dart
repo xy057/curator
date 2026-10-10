@@ -65,9 +65,12 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.onset,
     required this.scorePaper,
     required this.scoreInk,
-  });
+    Color? chrome,
+  }) : chrome = chrome ?? surface;
 
-  factory AppColors.of(AccentColor accent, Brightness brightness) {
+  /// The palette for [style]; [UiStyle.classic] by default, as video export draws in it.
+  factory AppColors.of(AccentColor accent, Brightness brightness, [UiStyle style = UiStyle.classic]) {
+    if (style == UiStyle.refined) return AppColors._refinedOf(accent, brightness);
     final a = accent.color;
     Color mix(Color base, double t) => Color.lerp(base, a, t)!;
     if (brightness == Brightness.light) {
@@ -114,6 +117,58 @@ class AppColors extends ThemeExtension<AppColors> {
     );
   }
 
+  /// [UiStyle.refined]'s palette: neutral greys (the classic one mixes the accent into every
+  /// line and wash), neutral text, and a [chrome] tone for toolbars and sidebars around the
+  /// white (or dark) work area. The accent is left for what is selected or on.
+  factory AppColors._refinedOf(AccentColor accent, Brightness brightness) {
+    final a = accent.color;
+    Color mix(Color base, double t) => Color.lerp(base, a, t)!;
+    if (brightness == Brightness.light) {
+      const surface = Color(0xFFFFFFFF);
+      return AppColors(
+        accent: a,
+        accentStrong: accent.strong,
+        accentSoft: mix(surface, 0.2),
+        accentWash: const Color(0xFFF5F5F7),
+        surface: surface,
+        chrome: const Color(0xFFF0F0F2),
+        line: const Color(0xFFDDDDE1),
+        grid: const Color(0xFFEDEDF0),
+        activity: const Color(0xFFD2D2D7),
+        text: const Color(0xFF1D1D1F),
+        textMuted: const Color(0xFF6E6E73),
+        erase: const Color(0xFFD9534F),
+        recording: const Color(0xFFC62828),
+        recordingWash: const Color(0xFFFFF4F3),
+        waveform: mix(surface, 0.62),
+        onset: const Color(0xFFA1A1A6),
+        scorePaper: const Color(0xFFFFFFFF),
+        scoreInk: const Color(0xFF14171A),
+      );
+    }
+    const surface = Color(0xFF1E1E20);
+    return AppColors(
+      accent: a,
+      accentStrong: Color.lerp(a, Colors.white, 0.28)!,
+      accentSoft: mix(surface, 0.3),
+      accentWash: const Color(0xFF232325),
+      surface: surface,
+      chrome: const Color(0xFF2A2A2D),
+      line: const Color(0xFF38383C),
+      grid: const Color(0xFF29292C),
+      activity: const Color(0xFF4A4A4F),
+      text: const Color(0xFFE8E8EA),
+      textMuted: const Color(0xFF98989E),
+      erase: const Color(0xFFEF6B66),
+      recording: const Color(0xFFFF6B63),
+      recordingWash: const Color(0xFF3A2322),
+      waveform: mix(surface, 0.7),
+      onset: const Color(0xFF6C6C72),
+      scorePaper: const Color(0xFF17191C),
+      scoreInk: const Color(0xFFE3E4E0),
+    );
+  }
+
   final Color accent;
   final Color accentStrong;
   final Color accentSoft;
@@ -137,12 +192,15 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color scorePaper;
   final Color scoreInk;
 
+  /// Behind toolbars and sidebars: [surface] in the classic style, a step off it in the refined.
+  final Color chrome;
+
   static ThemeData theme({
     AccentColor accent = AccentColor.sky,
     Brightness brightness = Brightness.light,
     UiStyle style = UiStyle.refined,
   }) {
-    final c = AppColors.of(accent, brightness);
+    final c = AppColors.of(accent, brightness, style);
     final dark = brightness == Brightness.dark;
     final scheme = ColorScheme.fromSeed(seedColor: accent.color, brightness: brightness).copyWith(
       primary: dark ? c.accent : c.accentStrong,
@@ -260,7 +318,7 @@ class AppColors extends ThemeExtension<AppColors> {
     final outlined = button.copyWith(
       foregroundColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.5) : c.text),
-      side: WidgetStatePropertyAll(BorderSide(color: dark ? const Color(0xFF4A4F57) : const Color(0xFFCDD4DC))),
+      side: WidgetStatePropertyAll(BorderSide(color: dark ? const Color(0xFF4A4A4F) : const Color(0xFFCFCFD4))),
     );
     final text = button.copyWith(
       foregroundColor: WidgetStateProperty.resolveWith((s) =>
@@ -275,23 +333,37 @@ class AppColors extends ThemeExtension<AppColors> {
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
     final strong = dark ? c.accent : c.accentStrong;
+    // Dialogs and menus: in the dark, a step lighter than the window, as raised things are.
+    final raised = dark ? const Color(0xFF2C2C2F) : c.surface;
     const fields = InputDecorationThemeData(
       isDense: true,
       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(7))),
     );
     final menu = MenuStyle(
-      backgroundColor: WidgetStatePropertyAll(dark ? const Color(0xFF26292E) : c.surface),
+      backgroundColor: WidgetStatePropertyAll(raised),
       surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
       elevation: const WidgetStatePropertyAll(6),
       shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: dark ? 0.5 : 0.25)),
       padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
       shape: WidgetStatePropertyAll(_SteadyBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: c.line))),
     );
-    final outline = dark ? const Color(0xFF5A6068) : const Color(0xFFB4BEC9);
+    final outline = dark ? const Color(0xFF5C5C62) : const Color(0xFFB8B8BE);
     TextStyle? tight(TextStyle? style) => style?.copyWith(letterSpacing: 0);
     final t = theme.textTheme;
     return theme.copyWith(
+      colorScheme: theme.colorScheme.copyWith(
+        surfaceContainerHigh: raised,
+        surfaceContainerHighest: dark ? const Color(0xFF323236) : c.accentWash,
+        outline: dark ? const Color(0xFF4A4A4F) : const Color(0xFFC4C4CA),
+      ),
+      tooltipTheme: theme.tooltipTheme.copyWith(
+        decoration: BoxDecoration(
+          color: dark ? const Color(0xFFE8E8EA) : const Color(0xE81D1D1F),
+          borderRadius: BorderRadius.circular(5),
+        ),
+      ),
+      popupMenuTheme: theme.popupMenuTheme.copyWith(color: raised),
       // Text set as the platform sets it: Material's tracking (up to 0.5 px between letters,
       // for small phone text) reads loose on a desktop.
       textTheme: t.copyWith(
@@ -369,6 +441,7 @@ class AppColors extends ThemeExtension<AppColors> {
       textButtonTheme: TextButtonThemeData(style: text),
       segmentedButtonTheme: SegmentedButtonThemeData(style: segment),
       dialogTheme: theme.dialogTheme.copyWith(
+        backgroundColor: raised,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         titleTextStyle: type.titleLarge!.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: c.text, letterSpacing: 0),
         contentTextStyle: type.bodyMedium!.copyWith(fontSize: 14, height: 1.4, color: c.text, letterSpacing: 0),
@@ -407,6 +480,7 @@ class AppColors extends ThemeExtension<AppColors> {
       onset: l(onset, other.onset),
       scorePaper: l(scorePaper, other.scorePaper),
       scoreInk: l(scoreInk, other.scoreInk),
+      chrome: l(chrome, other.chrome),
     );
   }
 }

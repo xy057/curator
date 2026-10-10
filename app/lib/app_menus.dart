@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'app_colors.dart';
+
 /// The menu bar: native on macOS, a Material menu bar at the top of the window elsewhere.
 /// Both are built from the same [PlatformMenu] description.
 class AppMenus extends StatelessWidget {
@@ -186,7 +188,8 @@ class AppMenus extends StatelessWidget {
             Expanded(
               child: MenuBar(
                 style: MenuStyle(
-                  backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surface),
+                  backgroundColor: WidgetStatePropertyAll(
+                      Theme.of(context).extension<AppColors>()?.chrome ?? Theme.of(context).colorScheme.surface),
                   elevation: const WidgetStatePropertyAll(0),
                   shape: const WidgetStatePropertyAll(RoundedRectangleBorder()),
                   padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6)),

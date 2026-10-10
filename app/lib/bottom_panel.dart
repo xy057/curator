@@ -44,7 +44,7 @@ class BottomPanel extends StatelessWidget {
         Container(
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.line))),
+          decoration: BoxDecoration(color: colors.chrome, border: Border(bottom: BorderSide(color: colors.line))),
           child: Row(children: [
             _TabSwitch(value: c.tab, onChanged: (tab) => c.tab = tab),
             const ToolbarDivider(),

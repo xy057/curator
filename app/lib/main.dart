@@ -958,7 +958,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
           duration: stateDuration(const Duration(milliseconds: 150)),
           height: 7,
           decoration: BoxDecoration(
-            color: active ? colors.accentWash : colors.surface,
+            color: active ? colors.accentWash : colors.chrome,
             border: Border(top: BorderSide(color: colors.line)),
           ),
           alignment: Alignment.center,
