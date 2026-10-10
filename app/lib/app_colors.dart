@@ -214,13 +214,78 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, width: 520),
     );
-    return style == UiStyle.refined ? _refined(theme, c, dark) : theme;
+    return style == UiStyle.refined ? _refined(theme, accent, c, dark) : theme;
   }
 
   /// [UiStyle.refined] over the classic theme: what a desktop app does, not a phone. A press
   /// shows as a tint, not a ripple, and a hover as a fainter one.
-  static ThemeData _refined(ThemeData theme, AppColors c, bool dark) {
+  static ThemeData _refined(ThemeData theme, AccentColor accent, AppColors c, bool dark) {
+    // Text styles as Theme.of gives them (merged with the typography's geometry, not
+    // inherited): a button lerps its label from one style to the other when the style changes,
+    // and two text styles lerp only when both inherit or neither does.
+    final type = theme.typography.englishLike.merge(theme.textTheme);
+    // Buttons: square-cornered, as tall as a field, the label in a medium weight.
+    const shape = WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(7))));
+    final label = WidgetStatePropertyAll(
+        type.labelLarge!.copyWith(fontSize: 13.5, fontWeight: FontWeight.w500, letterSpacing: 0));
+    const size = WidgetStatePropertyAll(Size(64, 32));
+    const padding = WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14));
+    const quick = Duration(milliseconds: 120);
+    final button = ButtonStyle(
+      shape: shape,
+      textStyle: label,
+      minimumSize: size,
+      padding: padding,
+      animationDuration: quick,
+      visualDensity: VisualDensity.standard,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+    // The default action: the accent's strong shade, dark enough for white to read on it
+    // (amber's isn't), darkened while pressed, as a desktop button is.
+    final hsl = HSLColor.fromColor(accent.strong);
+    final fill = hsl.withLightness(hsl.lightness.clamp(0, 0.42)).toColor();
+    final filled = button.copyWith(
+      backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
+          ? c.textMuted.withValues(alpha: 0.18)
+          : fill),
+      foregroundColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.6) : Colors.white),
+      overlayColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.pressed)
+          ? Colors.black.withValues(alpha: 0.14)
+          : s.contains(WidgetState.hovered)
+              ? Colors.white.withValues(alpha: 0.08)
+              : null),
+      elevation: const WidgetStatePropertyAll(0),
+    );
+    final outlined = button.copyWith(
+      foregroundColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.5) : c.text),
+      side: WidgetStatePropertyAll(BorderSide(color: dark ? const Color(0xFF4A4F57) : const Color(0xFFCDD4DC))),
+    );
+    final text = button.copyWith(
+      foregroundColor: WidgetStateProperty.resolveWith((s) =>
+          s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.5) : (dark ? c.accent : c.accentStrong)),
+      padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
+    );
+    final segment = theme.segmentedButtonTheme.style!.copyWith(
+      shape: shape,
+      textStyle: label,
+      minimumSize: const WidgetStatePropertyAll(Size(0, 30)),
+      animationDuration: quick,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
     return theme.copyWith(
+      filledButtonTheme: FilledButtonThemeData(style: filled),
+      elevatedButtonTheme: ElevatedButtonThemeData(style: filled),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: outlined),
+      textButtonTheme: TextButtonThemeData(style: text),
+      segmentedButtonTheme: SegmentedButtonThemeData(style: segment),
+      dialogTheme: theme.dialogTheme.copyWith(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        titleTextStyle: type.titleLarge!.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: c.text, letterSpacing: 0),
+        contentTextStyle: type.bodyMedium!.copyWith(fontSize: 14, height: 1.4, color: c.text, letterSpacing: 0),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+      ),
       splashFactory: NoSplash.splashFactory,
       splashColor: Colors.transparent,
       hoverColor: c.text.withValues(alpha: dark ? 0.06 : 0.045),

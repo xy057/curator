@@ -125,7 +125,7 @@ void main() {
           final image = await tester.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first).toImage(pixelRatio: 2);
           final data = (await image.toByteData())!;
           int at(double x, double y) => data.getUint32(((y * 2).floor() * image.width + (x * 2).floor()) * 4);
-          return (at(window.left, window.center.dy), at(theme.left + 30, theme.top + 4));
+          return (at(window.left, window.center.dy), at(theme.left + 30, theme.top + 0.25));
         }))!;
     final (lightWindow, lightSwitch) = await outlines();
     expect(lightWindow, lightSwitch);
