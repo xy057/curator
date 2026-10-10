@@ -275,8 +275,23 @@ class AppColors extends ThemeExtension<AppColors> {
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
     final strong = dark ? c.accent : c.accentStrong;
+    const fields = InputDecorationThemeData(
+      isDense: true,
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(7))),
+    );
+    final menu = MenuStyle(
+      backgroundColor: WidgetStatePropertyAll(dark ? const Color(0xFF26292E) : c.surface),
+      surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+      elevation: const WidgetStatePropertyAll(6),
+      shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: dark ? 0.5 : 0.25)),
+      padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
+      shape: WidgetStatePropertyAll(_SteadyBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: c.line))),
+    );
     final outline = dark ? const Color(0xFF5A6068) : const Color(0xFFB4BEC9);
     return theme.copyWith(
+      // A pointer, not a finger: no control padded out to 48 px.
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       // A slider's knob: white with a hairline and a soft shadow, no halo while dragged, no dots
       // along the track for its steps.
       sliderTheme: theme.sliderTheme.copyWith(
@@ -307,6 +322,25 @@ class AppColors extends ThemeExtension<AppColors> {
         radius: const Radius.circular(3),
         thumbColor: WidgetStateProperty.resolveWith(
             (s) => c.textMuted.withValues(alpha: s.contains(WidgetState.dragged) ? 0.6 : s.contains(WidgetState.hovered) ? 0.45 : 0.3)),
+      ),
+      // Fields: a compact box, as the app's own fields (the time field, Export's) already are.
+      // Only the outline's shape: a state's border here would win over a field's own `border`.
+      inputDecorationTheme: fields,
+      // Menus: a small radius, rows as tall as a desktop menu's.
+      menuTheme: MenuThemeData(style: menu),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        menuStyle: menu,
+        textStyle: type.bodyMedium!.copyWith(fontSize: 13.5, letterSpacing: 0),
+        inputDecorationTheme: fields,
+      ),
+      menuButtonTheme: MenuButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(64, 30)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
+          shape: const WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5)))),
+          textStyle: WidgetStatePropertyAll(type.bodyMedium!.copyWith(fontSize: 13.5, letterSpacing: 0)),
+          visualDensity: VisualDensity.compact,
+        ),
       ),
       filledButtonTheme: FilledButtonThemeData(style: filled),
       elevatedButtonTheme: ElevatedButtonThemeData(style: filled),
