@@ -379,9 +379,18 @@ fade, too slow with many lanes. A Material animates a change of its shape on its
 still: one with an outline sets `animationDuration: Duration.zero`, or (a popup menu, which can't)
 takes `_SteadyBorder`. A widget's own colour animation (a hover, a selection) takes `stateDuration`, which is none in
 the frame the appearance changes, so it doesn't trail the cross-fade either.
-The two themes are built once per accent (`_CuratedScoreAppState._buildThemes`): a new
+The two themes are built once per accent and style (`_CuratedScoreAppState._buildThemes`): a new
 `ThemeData` never equals the last, so one built per change of settings would rebuild every widget
 that reads it. The page, likewise, rebuilds only for the settings it shows (`_HomePageState._shown`).
+
+**Two styles, one look on every platform.** Settings ▸ Appearance ▸ Style (`AppSettings.uiStyle`):
+Refined, the default, is `AppColors._refined` laid over Classic, Material's theme as it was: no
+ripple, square-cornered buttons and fields, a knob slider, no 48 px touch targets, no letter
+spacing. Neither follows the platform (no `.adaptive` or Cupertino widgets), so macOS and
+Windows match. A widget that draws its own control for Refined reads `AppStyle` from the theme;
+`AppSwitch` (ui_kit.dart) is the only one: always use it, never `Switch`. Text styles set in the
+refined theme are merged with the typography's geometry as `Theme.of` gives them, since a button
+lerps its label between the two styles and two text styles lerp only when both inherit or neither.
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that
