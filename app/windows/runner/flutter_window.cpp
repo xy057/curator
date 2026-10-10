@@ -1,12 +1,15 @@
 #include "flutter_window.h"
 
 #include <flutter/standard_method_codec.h>
+#include <commdlg.h>
 #include <flutter_windows.h>
 
+#include <cwchar>
 #include <optional>
 #include <string>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "utils.h"
 
 namespace {
 
@@ -69,6 +72,47 @@ bool FlutterWindow::OnCreate() {
           }
         }
         result->Success();
+      });
+
+  // The Font dialog, starting at the font in use: answers the family chosen, or null.
+  font_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "curated_score/fonts",
+          &flutter::StandardMethodCodec::GetInstance());
+  font_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        if (call.method_name() != "pickFont") {
+          result->NotImplemented();
+          return;
+        }
+        LOGFONTW font = {};
+        font.lfCharSet = DEFAULT_CHARSET;
+        DWORD flags = CF_SCREENFONTS | CF_NOSIZESEL | CF_NOSTYLESEL |
+                      CF_NOSCRIPTSEL | CF_NOVERTFONTS;
+        if (const auto* args = std::get_if<flutter::EncodableMap>(call.arguments())) {
+          auto family = args->find(flutter::EncodableValue("family"));
+          if (family != args->end()) {
+            if (const auto* text = std::get_if<std::string>(&family->second)) {
+              std::wstring name = Utf16FromUtf8(*text);
+              if (!name.empty() && name.size() < LF_FACESIZE) {
+                wcsncpy_s(font.lfFaceName, name.c_str(), _TRUNCATE);
+                flags |= CF_INITTOLOGFONTSTRUCT;
+              }
+            }
+          }
+        }
+        CHOOSEFONTW dialog = {};
+        dialog.lStructSize = sizeof(dialog);
+        dialog.hwndOwner = GetHandle();
+        dialog.lpLogFont = &font;
+        dialog.Flags = flags;
+        if (::ChooseFontW(&dialog) && font.lfFaceName[0] != L'\0') {
+          result->Success(flutter::EncodableValue(Utf8FromUtf16(font.lfFaceName)));
+        } else {
+          result->Success();
+        }
       });
 
   SetChildContent(flutter_controller_->view()->GetNativeWindow());

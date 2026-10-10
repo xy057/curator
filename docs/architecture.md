@@ -403,6 +403,13 @@ pubspec and Verovio's own metrics in `assets/verovio/<Name>.xml`; Leipzig's are 
 because Verovio always loads them), one installed with SMuFL metadata
 (in a SMuFL folder, where the specification puts them on each platform: `FontFiles.smuflFolders`), or a file the user picks (`MusicFont.added`:
 travels in the project as `fonts/<name>.font` and `.json`; registered for drawing by `load`).
+With Embed font off (`EditState.embedFont`, saved as `fonts.embed: false` from format 14) only
+its name is saved, and Other… asks the system's font picker (the runners' `curated_score/fonts`
+channel: macOS's Fonts panel, answered when it closes; Windows' Font dialog; a file elsewhere)
+for an installed family instead of a file. Opening such a project looks the name up
+(`MusicFont.findInstalled`: a SMuFL folder, else a family); not found, it is
+`MusicFont.missing`: engraved and drawn in Bravura, the choice kept and saved again, and the
+window says so once (a snack bar the user closes).
 Text: Academico (metrics written under Verovio's `Times*` names by
 `Tools/make_text_metrics.swift`) or any installed family. The app finds installed fonts itself,
 the same way on every platform: it reads the `name` and `OS/2` tables of every file in the

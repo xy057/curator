@@ -39,6 +39,7 @@ class EditState {
     this.captions = const [],
     this.captionFont,
     this.fonts = ScoreFonts.standard,
+    this.embedFont = true,
     this.engraving = const EngravingOptions(),
   });
 
@@ -89,6 +90,10 @@ class EditState {
   /// with the project (`fonts/<name>.font` and its SMuFL metadata, `fonts/<name>.json`).
   final ScoreFonts fonts;
 
+  /// Whether an added music font travels with the project; false: only its name is saved, and
+  /// it is looked for among the fonts installed where the project opens.
+  final bool embedFont;
+
   /// The engraving options this project sets over the app's (Project Settings ▸ Engraving).
   final EngravingOptions engraving;
 
@@ -112,6 +117,7 @@ class EditState {
       listEquals(captions, other.captions) &&
       captionFont == other.captionFont &&
       fonts == other.fonts &&
+      embedFont == other.embedFont &&
       engraving == other.engraving;
 
   @override
@@ -133,6 +139,7 @@ class EditState {
     List<Caption>? captions,
     String? captionFont,
     ScoreFonts? fonts,
+    bool? embedFont,
     EngravingOptions? engraving,
   }) =>
       EditState(
@@ -150,6 +157,7 @@ class EditState {
         captions: captions ?? this.captions,
         captionFont: captionFont ?? this.captionFont,
         fonts: fonts ?? this.fonts,
+        embedFont: embedFont ?? this.embedFont,
         engraving: engraving ?? this.engraving,
       );
 }
@@ -173,7 +181,7 @@ class ProjectState {
   final ViewState view;
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 13;
+  static const version = 14;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version].
@@ -190,6 +198,7 @@ class ProjectState {
     10: (state) => state, // captions came in 11: none
     11: (state) => state, // a caption font came in 12: none is the app's
     12: (state) => state, // a project's engraving options came in 13: none, the app's
+    13: (state) => state, // not embedding a font came in 14: every added font embedded
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -276,6 +285,7 @@ class ProjectState {
           final f => f,
         },
         fonts: _fonts(r.child('fonts'), fontFiles),
+        embedFont: r.child('fonts').boolean('embed') ?? true,
         // An option this version doesn't know (or no longer offers) is left out, as the app's are.
         engraving: EngravingOptions.fromJson(r.map('engraving'), keepDefault: true),
       ),
@@ -302,6 +312,7 @@ class ProjectState {
         null => MusicFont.bravura,
         final name => MusicFont.bundledNamed(name) ??
             switch (files[name]) {
+              null when r.boolean('embed') == false => MusicFont.missing(name), // looked for when it opens
               null => throw FormatException('The project is damaged: the music font $name is missing.'),
               final f => MusicFont.added(family: name, file: f.file, metadata: f.metadata),
             },
@@ -379,13 +390,16 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :patches, :captions, :captionFont, :fonts, :engraving) = edits;
+        :patches, :captions, :captionFont, :fonts, :embedFont, :engraving) = edits;
+    // A missing font can't be embedded: it is looked for again next time.
+    final embedded = embedFont && !fonts.music.isMissing;
     return {
-      if (fonts != ScoreFonts.standard || captionFont != null)
+      if (fonts != ScoreFonts.standard || captionFont != null || !embedded)
         'fonts': {
           if (fonts.music != MusicFont.bravura) 'music': fonts.music.name,
           if (fonts.text != TextFonts.academico) 'text': fonts.text,
           'caption': ?captionFont,
+          if (!embedded) 'embed': false,
         },
       if (!engraving.isEmpty) 'engraving': engraving.toJson(),
       'textEdits': textEdits,

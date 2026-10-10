@@ -33,6 +33,9 @@ class FlutterWindow : public Win32Window {
 
   // Sets the window title from Dart (window_chrome.dart).
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> window_channel_;
+
+  // The system's Font dialog, for a music font that isn't embedded (font_settings.dart).
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> font_channel_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

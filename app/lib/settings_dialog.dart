@@ -263,6 +263,7 @@ final _projectCategories = <_Category>[
   ]),
   _Category('Fonts', Icons.text_fields_rounded, [
     _Item('Music', null, (c) => MusicFontPicker(controller: c.controller!), keywords: 'font smufl bravura leland petaluma notation'),
+    _Item('Embed font', null, (c) => EmbedFontSwitch(controller: c.controller!), keywords: 'font embed include file installed'),
     _Item('Text', null, (c) => TextFontPicker(controller: c.controller!), keywords: 'font academico family typeface'),
     _Item(
       'Caption',
