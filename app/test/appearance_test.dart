@@ -36,6 +36,15 @@ void main() {
     expect(find.byType(RawImage), findsNWidgets(images + 1), reason: 'an accent cross-fades too');
     await tester.pumpAndSettle();
 
+    expect(theme().extension<AppStyle>()!.style, UiStyle.refined, reason: 'the default');
+    expect(theme().splashFactory, NoSplash.splashFactory, reason: 'a press tints, no ripple');
+    settings.uiStyle = UiStyle.classic;
+    await tester.pump();
+    expect(find.byType(RawImage), findsNWidgets(images + 1), reason: 'a style cross-fades too');
+    expect(theme().extension<AppStyle>()!.style, UiStyle.classic);
+    expect(theme().splashFactory, InkSparkle.splashFactory, reason: 'Material, as it was');
+    await tester.pumpAndSettle();
+
     final before = theme();
     settings.undoSteps = AppSettings.undoStepChoices.last;
     await tester.pump();

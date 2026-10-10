@@ -66,6 +66,12 @@ void main() {
     expect(settings.themeMode, ThemeMode.dark);
     expect(settings.accent, AccentColor.rose);
     await shot(tester, 'settings-appearance-dark');
+    await tester.tap(find.text('Classic'));
+    await tester.pumpAndSettle();
+    expect(settings.uiStyle, UiStyle.classic);
+    await tester.tap(find.text('Refined'));
+    await tester.pumpAndSettle();
+    expect(settings.uiStyle, UiStyle.refined);
 
     await tester.tap(find.text('Animation'));
     await tester.pumpAndSettle();

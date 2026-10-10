@@ -18,6 +18,31 @@ enum AccentColor {
   final Color strong;
 }
 
+/// How the controls look (Settings ▸ Appearance ▸ Style), the same on every platform.
+enum UiStyle {
+  /// Quiet desktop controls: no ripples, a small switch, square-cornered buttons.
+  refined('Refined'),
+
+  /// Material's controls, as the app first had them.
+  classic('Classic');
+
+  const UiStyle(this.label);
+  final String label;
+}
+
+/// The [UiStyle] a theme was built in, for widgets that draw their own controls ([AppSwitch]).
+@immutable
+class AppStyle extends ThemeExtension<AppStyle> {
+  const AppStyle(this.style);
+  final UiStyle style;
+
+  @override
+  AppStyle copyWith() => this;
+
+  @override
+  AppStyle lerp(AppStyle? other, double t) => t < 0.5 || other == null ? this : other;
+}
+
 /// The app's palette: a clean surface with one accent colour, in a light and a dark variant.
 /// Read it with `context.colors`; painters receive it from the widget that builds them.
 @immutable
@@ -112,7 +137,11 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color scorePaper;
   final Color scoreInk;
 
-  static ThemeData theme({AccentColor accent = AccentColor.sky, Brightness brightness = Brightness.light}) {
+  static ThemeData theme({
+    AccentColor accent = AccentColor.sky,
+    Brightness brightness = Brightness.light,
+    UiStyle style = UiStyle.refined,
+  }) {
     final c = AppColors.of(accent, brightness);
     final dark = brightness == Brightness.dark;
     final scheme = ColorScheme.fromSeed(seedColor: accent.color, brightness: brightness).copyWith(
@@ -130,14 +159,14 @@ class AppColors extends ThemeExtension<AppColors> {
       outline: dark ? const Color(0xFF4A4F57) : const Color(0xFFBFC8D2),
       outlineVariant: c.line,
     );
-    return ThemeData(
+    final theme = ThemeData(
       colorScheme: scheme,
       brightness: brightness,
       scaffoldBackgroundColor: c.surface,
       canvasColor: c.surface,
       dividerColor: c.line,
       visualDensity: VisualDensity.compact,
-      extensions: [c],
+      extensions: [c, AppStyle(style)],
       splashFactory: InkSparkle.splashFactory,
       dividerTheme: DividerThemeData(color: c.line, space: 1, thickness: 1),
       sliderTheme: SliderThemeData(
@@ -184,6 +213,19 @@ class AppColors extends ThemeExtension<AppColors> {
         shape: _SteadyBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: c.line)),
       ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, width: 520),
+    );
+    return style == UiStyle.refined ? _refined(theme, c, dark) : theme;
+  }
+
+  /// [UiStyle.refined] over the classic theme: what a desktop app does, not a phone. A press
+  /// shows as a tint, not a ripple, and a hover as a fainter one.
+  static ThemeData _refined(ThemeData theme, AppColors c, bool dark) {
+    return theme.copyWith(
+      splashFactory: NoSplash.splashFactory,
+      splashColor: Colors.transparent,
+      hoverColor: c.text.withValues(alpha: dark ? 0.06 : 0.045),
+      highlightColor: c.text.withValues(alpha: dark ? 0.1 : 0.08),
+      focusColor: c.accent.withValues(alpha: 0.14),
     );
   }
 

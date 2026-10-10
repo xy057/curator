@@ -158,6 +158,17 @@ final _categories = <_Category>[
       (c) => _AccentPicker(settings: c.settings),
       keywords: 'color colour scheme',
     ),
+    _Item(
+      'Style',
+      null,
+      (c) => SegmentedButton<UiStyle>(
+        showSelectedIcon: false,
+        segments: [for (final s in UiStyle.values) ButtonSegment(value: s, label: Text(s.label))],
+        selected: {c.settings.uiStyle},
+        onSelectionChanged: (s) => c.settings.uiStyle = s.single,
+      ),
+      keywords: 'look controls switch button material classic refined theme',
+    ),
   ]),
   _Category('Animation', Icons.animation_rounded, [
     _Item(
