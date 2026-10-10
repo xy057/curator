@@ -27,6 +27,43 @@ final class DocumentOpener: NSObject, FlutterAppLifecycleDelegate {
   }
 }
 
+/// The system's Fonts panel, for a music font that isn't embedded (font_settings.dart, the
+/// `curated_score/fonts` channel). The panel stays open beside the window, as it does in every
+/// app; the family chosen in it is answered when it closes (nil when none was).
+final class FontPicker: NSObject {
+  private var result: FlutterResult?
+  private var start: NSFont?
+  private var chosen: String?
+
+  func pick(family: String?, result: @escaping FlutterResult) {
+    self.result?(nil) // an earlier pick still open: it ends here
+    self.result = result
+    chosen = nil
+    let manager = NSFontManager.shared
+    start = family.flatMap { manager.font(withFamily: $0, traits: [], weight: 5, size: 24) } ?? NSFont.systemFont(ofSize: 24)
+    manager.target = self
+    manager.action = #selector(changeFont(_:))
+    manager.setSelectedFont(start!, isMultiple: false)
+    let panel = manager.fontPanel(true)!
+    NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: nil)
+    NotificationCenter.default.addObserver(self, selector: #selector(panelClosed(_:)), name: NSWindow.willCloseNotification, object: panel)
+    panel.makeKeyAndOrderFront(nil)
+  }
+
+  @objc func changeFont(_ sender: Any?) {
+    guard let manager = sender as? NSFontManager, let start = start else { return }
+    let family = manager.convert(start).familyName
+    chosen = family == start.familyName ? nil : family
+  }
+
+  @objc private func panelClosed(_ notification: Notification) {
+    NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: nil)
+    if NSFontManager.shared.target === self { NSFontManager.shared.target = nil }
+    result?(chosen)
+    result = nil
+  }
+}
+
 class MainFlutterWindow: NSWindow {
   /// Below this the editor's panels would overflow (WindowChrome.minimumSize in Dart).
   static let minimumSize = NSSize(width: 960, height: 620)
@@ -38,6 +75,8 @@ class MainFlutterWindow: NSWindow {
   private static let frameName = "Curator"
 
   private var windowChannel: FlutterMethodChannel?
+  private var fontChannel: FlutterMethodChannel?
+  private let fontPicker = FontPicker()
   private let opener = DocumentOpener()
 
   override func awakeFromNib() {
@@ -78,6 +117,17 @@ class MainFlutterWindow: NSWindow {
       result(nil)
     }
     windowChannel = channel
+
+    let fonts = FlutterMethodChannel(
+      name: "curated_score/fonts", binaryMessenger: flutterViewController.engine.binaryMessenger)
+    fonts.setMethodCallHandler { [weak self] call, result in
+      guard let self = self, call.method == "pickFont" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      self.fontPicker.pick(family: (call.arguments as? [String: Any])?["family"] as? String, result: result)
+    }
+    fontChannel = fonts
     opener.channel = channel
     (NSApp.delegate as? FlutterAppDelegate)?.addApplicationLifecycleDelegate(opener)
 

@@ -2,7 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/foundation.dart';
-import 'package:score_engine/score_engine.dart' show CaptionCountdown, CaptionPosition, CaptionSize, EngravingOptions;
+import 'package:score_engine/score_engine.dart'
+    show CaptionCountdown, CaptionPosition, CaptionSize, EngravingOptions, MusicFont, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
@@ -18,6 +19,9 @@ class AppSettings extends ChangeNotifier {
         _themeMode = ThemeMode.values.asNameMap()[_prefs?.getString(_themeKey)] ?? ThemeMode.system,
         _accent = AccentColor.values.asNameMap()[_prefs?.getString(_accentKey)] ?? AccentColor.sky,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
+        _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
+        _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,
+        _embedFont = _prefs?.getBool(_embedFontKey) ?? true,
         _scrollFollow = (_prefs?.getDouble(_scrollFollowKey) ?? defaultScrollFollow).clamp(0.0, 1.0),
         _recent = List.unmodifiable(_prefs?.getStringList(_recentKey) ?? const <String>[]),
         _videoResolution =
@@ -52,6 +56,7 @@ class AppSettings extends ChangeNotifier {
   static const _autosaveKey = 'autosaveSeconds', _mediaKey = 'mediaStorage', _undoKey = 'undoSteps';
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
   static const _scrollFollowKey = 'scrollFollow';
+  static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame';
@@ -141,6 +146,39 @@ class AppSettings extends ChangeNotifier {
     if (value == _transition) return;
     _transition = value;
     _prefs?.setDouble(_transitionKey, value);
+    notifyListeners();
+  }
+
+  // MARK: Fonts
+
+  /// The music font new projects start with, by name: a bundled one or one installed here
+  /// (each project saves its own; one not installed where a score is imported is Bravura).
+  String get musicFont => _musicFont;
+  String _musicFont;
+  set musicFont(String value) {
+    if (value == _musicFont || value.trim().isEmpty) return;
+    _musicFont = value;
+    _prefs?.setString(_musicFontKey, value);
+    notifyListeners();
+  }
+
+  /// The text font family new projects start with (one not installed is Academico).
+  String get textFont => _textFont;
+  String _textFont;
+  set textFont(String value) {
+    if (value == _textFont || value.trim().isEmpty) return;
+    _textFont = value;
+    _prefs?.setString(_textFontKey, value);
+    notifyListeners();
+  }
+
+  /// Whether new projects embed their music font (Project Settings ▸ Fonts ▸ Embed font).
+  bool get embedFont => _embedFont;
+  bool _embedFont;
+  set embedFont(bool value) {
+    if (value == _embedFont) return;
+    _embedFont = value;
+    _prefs?.setBool(_embedFontKey, value);
     notifyListeners();
   }
 

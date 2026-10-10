@@ -13,6 +13,7 @@ import 'package:curated_score/main.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -212,6 +213,137 @@ void main() {
     expect(c.fonts, ScoreFonts.standard);
     expect(find.text('Helvetica: its files could not be read.'), findsOneWidget);
   });
+
+  testWidgets('Installed Font… asks the system font picker; then Embed font shows, and each change is an Undo step',
+      (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory();
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    final state = tester.state(find.byType(HomePage)) as dynamic;
+    final c = state.controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    await tester.pump();
+    final asked = <Object?>[];
+    _mockSystemPicker(tester, (family) {
+      asked.add(family);
+      return 'Helvetica';
+    });
+    Future<void> settle() async {
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 150));
+      }
+    }
+
+    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
+    await settle();
+    expect(find.text('Embed font'), findsNothing, reason: 'a bundled font is in every copy of the app');
+
+    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await settle();
+    expect(find.text('Font File…'), findsWidgets);
+    await tester.tap(find.text('Installed Font…').last);
+    // Read from the installed font, then engraved.
+    for (var i = 0; i < 500 && (c.fonts.music.name != 'Helvetica' || c.isReengraving); i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    await settle();
+    expect(asked, ['Bravura'], reason: 'the picker starts at the font in use');
+    expect(c.fonts.music.file, isNotNull);
+    expect(c.embedFont, isTrue);
+    expect(find.text('Embed font'), findsOneWidget);
+
+    await tester.tap(find.byType(Switch));
+    await settle();
+    expect(c.embedFont, isFalse);
+
+    c.undo();
+    expect(c.embedFont, isTrue);
+    c.undo();
+    expect(c.fonts.music, MusicFont.bravura);
+    await settle();
+    expect(find.text('Embed font'), findsNothing);
+
+    // A font file is embedded with it, in the same step (elsewhere it can't be found by name).
+    c.embedFont = false;
+    await tester.runAsync(() => c.setFonts(const ScoreFonts(music: MusicFont.leland), embed: true));
+    expect((c.fonts.music, c.embedFont), (MusicFont.leland, true));
+    c.undo();
+    expect((c.fonts.music, c.embedFont), (MusicFont.bravura, false));
+  }, skip: !Platform.isMacOS); // Helvetica is installed on macOS
+
+  testWidgets('Settings ▸ Fonts sets the fonts new projects start with', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory();
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    final state = tester.state(find.byType(HomePage)) as dynamic;
+    final c = state.controller as EditorController;
+    _mockSystemPicker(tester, (_) => 'Helvetica');
+    Future<void> settle() async {
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 150));
+      }
+    }
+
+    unawaited(showSettingsDialog(tester.element(find.byType(HomePage)), settings, page: 'Fonts'));
+    await tester.runAsync(TextFonts.installed); // read on another isolate
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero)); // the pickers' lists of installed fonts
+    await settle();
+    expect(find.text('Embed font'), findsNothing);
+    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await settle();
+    expect(find.text('Font File…'), findsNothing, reason: 'the app keeps no font file');
+    await tester.tap(find.text('Leland').last);
+    await settle();
+    expect(settings.musicFont, 'Leland');
+
+    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await settle();
+    await tester.tap(find.text('Installed Font…').last);
+    for (var i = 0; i < 200 && settings.musicFont != 'Helvetica'; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    await settle();
+    expect(settings.musicFont, 'Helvetica');
+    expect(find.text('Embed font'), findsOneWidget);
+    await tester.tap(find.byType(Switch));
+    await settle();
+    expect(settings.embedFont, isFalse);
+    await tester.enterText(find.byType(DropdownMenu<String>).last, 'Helvet');
+    await settle();
+    await tester.tap(find.text('Helvetica').last);
+    await settle();
+    expect(settings.textFont, 'Helvetica');
+
+    // A score imported now starts with them.
+    expect(c.newProjectFonts, (music: 'Helvetica', text: 'Helvetica', embed: false));
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    expect(c.fonts.music.name, 'Helvetica');
+    expect(c.fonts.text, 'Helvetica');
+    expect(c.embedFont, isFalse);
+    expect(c.canUndo, isFalse, reason: 'where it starts, not an edit');
+
+    // One not installed here: Bravura and Academico.
+    c.newProjectFonts = (music: 'No Such Font', text: 'No Such Family', embed: true);
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    expect(c.fonts, ScoreFonts.standard);
+  }, skip: !Platform.isMacOS); // Helvetica is installed on macOS
+}
+
+/// Answers the system font picker (the `curated_score/fonts` channel) with [answer].
+void _mockSystemPicker(WidgetTester tester, String? Function(String? family) answer) {
+  const channel = MethodChannel('curated_score/fonts');
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+    if (call.method != 'pickFont') return null;
+    return answer((call.arguments as Map)['family'] as String?);
+  });
+  addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
 }
 
 /// A controller for which every text font but Academico fails, as one whose files can't be read.
@@ -219,8 +351,8 @@ class _UnreadableTextFonts extends EditorController {
   _UnreadableTextFonts() : super(vsync: const TestVSync());
 
   @override
-  Future<void> setFonts(ScoreFonts fonts) async {
+  Future<void> setFonts(ScoreFonts fonts, {bool? embed}) async {
     if (fonts.text != TextFonts.academico) throw FormatException('${fonts.text}: its files could not be read.');
-    return super.setFonts(fonts);
+    return super.setFonts(fonts, embed: embed);
   }
 }

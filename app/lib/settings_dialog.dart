@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show EngravingOptions, verovioVersion;
+import 'package:score_engine/score_engine.dart' show EngravingOptions, MusicFont, verovioVersion;
 
 import 'app_colors.dart';
 import 'app_extensions.dart';
@@ -178,6 +178,19 @@ final _categories = <_Category>[
       keywords: 'scroll speed smooth snap note beat follow onset glide motion pointer',
     ),
   ]),
+  _Category('Fonts', Icons.text_fields_rounded, [
+    _Item('Music', (_) => 'For new projects.', (c) => MusicFontPicker.forNewProjects(settings: c.settings),
+        keywords: 'font smufl bravura leland petaluma notation default'),
+    _Item(
+      'Embed font',
+      (_) => 'For new projects.',
+      (c) => EmbedFontSwitch.forNewProjects(settings: c.settings),
+      shown: (c) => MusicFont.bundledNamed(c.settings.musicFont) == null,
+      keywords: 'font embed include file installed default',
+    ),
+    _Item('Text', (_) => 'For new projects.', (c) => TextFontPicker.forNewProjects(settings: c.settings),
+        keywords: 'font academico family typeface default'),
+  ]),
   _Category('Recording', Icons.graphic_eq_rounded, [
     _Item(
       'Save the recording',
@@ -263,6 +276,13 @@ final _projectCategories = <_Category>[
   ]),
   _Category('Fonts', Icons.text_fields_rounded, [
     _Item('Music', null, (c) => MusicFontPicker(controller: c.controller!), keywords: 'font smufl bravura leland petaluma notation'),
+    _Item(
+      'Embed font',
+      null,
+      (c) => EmbedFontSwitch(controller: c.controller!),
+      shown: (c) => !c.controller!.fonts.music.isBundled, // a bundled one is in every copy of the app
+      keywords: 'font embed include file installed',
+    ),
     _Item('Text', null, (c) => TextFontPicker(controller: c.controller!), keywords: 'font academico family typeface'),
     _Item(
       'Caption',
@@ -580,8 +600,9 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     ]);
   }
 
-  Widget _row(_Item item) =>
-      _SettingRow(title: item.title, note: item.note, help: item.help?.call(_ctx), control: item.control(_ctx));
+  // Keyed, so a control keeps its state when a row above it comes or goes (`shown`).
+  Widget _row(_Item item) => _SettingRow(
+      key: ObjectKey(item), title: item.title, note: item.note, help: item.help?.call(_ctx), control: item.control(_ctx));
 }
 
 /// The sidebar's neutral tint: a step off the dialog's surface, without the accent.
@@ -701,7 +722,7 @@ class _Page extends StatelessWidget {
 }
 
 class _SettingRow extends StatelessWidget {
-  const _SettingRow({required this.title, this.note, required this.help, required this.control});
+  const _SettingRow({super.key, required this.title, this.note, required this.help, required this.control});
   final String title;
   final String? note;
   final String? help;
