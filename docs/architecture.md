@@ -384,9 +384,13 @@ The two themes are built once per accent and style (`_CuratedScoreAppState._buil
 that reads it. The page, likewise, rebuilds only for the settings it shows (`_HomePageState._shown`).
 
 **Two styles, one look on every platform.** Settings ▸ Appearance ▸ Style (`AppSettings.uiStyle`):
-Refined, the default, is `AppColors._refined` laid over Classic, Material's theme as it was: no
-ripple, square-cornered buttons and fields, a knob slider, no 48 px touch targets, no letter
-spacing. Neither follows the platform (no `.adaptive` or Cupertino widgets), so macOS and
+Refined, the default, is `AppColors._refined` laid over Classic, Material's theme as it was: a
+desktop editor's look. Its palette (`AppColors._refinedOf`) has neutral greys, with no accent mixed
+in, and a `chrome` tone behind toolbars, the lane-name column and the ruler (`chrome` is `surface` in
+Classic). Controls are 28 px with 5 px corners on a 13 px type scale. Segmented controls are a well
+with the chosen segment raised, there are no ripples or 48 px touch targets, and the play button is
+a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
+tab switch, the Settings sidebar, lane labels). Video export draws in the classic palette. Neither follows the platform (no `.adaptive` or Cupertino widgets), so macOS and
 Windows match. A widget that draws its own control for Refined reads `AppStyle` from the theme;
 `AppSwitch` (ui_kit.dart) is the only one: always use it, never `Switch`. Text styles set in the
 refined theme are merged with the typography's geometry as `Theme.of` gives them, since a button
