@@ -887,7 +887,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   Widget _editor(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      final maxTimeline = math.max(_minTimeline, constraints.maxHeight - EditorToolbar.height - _minScore);
+      final maxTimeline = math.max(_minTimeline, constraints.maxHeight - EditorToolbar.heightOf(context) - _minScore);
       final timelineHeight = _timelineHeight.clamp(_minTimeline, maxTimeline);
       return Column(
         children: [

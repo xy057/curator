@@ -44,6 +44,9 @@ class EditorToolbar extends StatelessWidget {
 
   static const height = 46.0;
 
+  /// [height], or in [UiStyle.refined] a desktop toolbar's.
+  static double heightOf(BuildContext context) => isRefined(context) ? 38 : height;
+
   @override
   Widget build(BuildContext context) => Select(
         listenable: controller,
@@ -63,7 +66,7 @@ class EditorToolbar extends StatelessWidget {
     final c = controller;
     final colors = context.colors;
     return Container(
-      height: height,
+      height: heightOf(context),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(color: colors.chrome, border: Border(bottom: BorderSide(color: colors.line))),
       child: Row(children: [
@@ -202,9 +205,19 @@ class _PlayButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final playing = controller.playback.isPlaying;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    // Refined: a transport button like the others, its icon in the accent.
+    if (isRefined(context)) {
+      return ToolbarButton(
+        icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+        tooltip: playing ? 'Pause (Space)' : 'Play (Space)',
+        color: dark ? colors.accent : colors.accentStrong,
+        selected: playing,
+        onPressed: controller.playback.togglePlay,
+      );
+    }
     // Light: white on the strong accent; dark: the dark surface on the (light) accent. White
     // on the plain accent was faint (sky, amber).
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return Tip(
       message: playing ? 'Pause (Space)' : 'Play (Space)',
       child: Material(

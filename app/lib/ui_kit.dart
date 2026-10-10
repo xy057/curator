@@ -81,7 +81,11 @@ class _DialogRoute<T> extends DialogRoute<T> {
   }
 }
 
-/// The compact icon button used in every toolbar: 32 × 32, its label in the tooltip.
+/// Whether the theme is [UiStyle.refined] (a theme without an [AppStyle] is: it's the default).
+bool isRefined(BuildContext context) => Theme.of(context).extension<AppStyle>()?.style != UiStyle.classic;
+
+/// The compact icon button used in every toolbar: 32 × 32, its label in the tooltip; in
+/// [UiStyle.refined] 28 × 28, and when selected a neutral pressed fill under an accent icon.
 class ToolbarButton extends StatelessWidget {
   const ToolbarButton({
     super.key,
@@ -107,18 +111,24 @@ class ToolbarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final refined = isRefined(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final size = refined ? 28.0 : 32.0;
     return OverlaySemantics(
       child: IconButton(
         tooltip: tooltip,
         onPressed: onPressed,
         isSelected: selected,
-        iconSize: 18,
+        iconSize: refined ? 16 : 18,
         visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+        constraints: BoxConstraints.tightFor(width: size, height: size),
         padding: EdgeInsets.zero,
         style: IconButton.styleFrom(
-          foregroundColor: selected ? colors.accentStrong : (color ?? colors.text),
-          backgroundColor: selected ? colors.accentSoft : null,
+          foregroundColor: selected ? (refined && dark ? colors.accent : colors.accentStrong) : (color ?? colors.text),
+          backgroundColor: selected
+              ? (refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.07) : colors.accentSoft)
+              : null,
+          shape: refined ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)) : null,
           animationDuration: const Duration(milliseconds: 150),
         ),
         icon: glyph ?? Icon(icon),
@@ -137,7 +147,7 @@ class ToolGroup extends StatelessWidget {
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
           border: Border.all(color: context.colors.line),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(isRefined(context) ? 7 : 10),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: children),
       );
@@ -395,7 +405,7 @@ class _AppSwitchState extends State<AppSwitch> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (theme.extension<AppStyle>()?.style == UiStyle.classic) {
+    if (!isRefined(context)) {
       return Switch(value: widget.value, onChanged: widget.onChanged);
     }
     // The app's palette, or where there is none (a dialog shown on its own) the theme's.
