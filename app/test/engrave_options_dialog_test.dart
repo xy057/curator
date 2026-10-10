@@ -1,4 +1,4 @@
-// Settings ▸ Advanced ▸ Engrave Option with a score open: the preview beside the list shows
+// Settings ▸ Engraving ▸ Engrave Option with a score open: the preview beside the list shows
 // the score engraved again after each change. With SCREENSHOT_DIR set, saves PNGs.
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -6,6 +6,8 @@ import 'dart:ui' as ui;
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/engrave_options_dialog.dart';
+import 'package:curated_score/engraving_settings.dart';
+import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -85,5 +87,22 @@ void main() {
     await settle();
     expect(c.playback.time.value, 20);
     expect(settings.engravingOptions.valueOf(EngraveOption.byKey('spacingLinear')!), 0.95);
+    Navigator.pop(tester.element(find.byType(Dialog)));
+    await settle();
+
+    // Settings ▸ Engraving shows the same preview above its sliders.
+    showSettingsDialog(tester.element(find.byType(HomePage)), settings, controller: c, page: 'Engraving');
+    await settle();
+    final pagePreview = find.descendant(of: find.byType(EngravingPreview), matching: find.byType(CustomPaint));
+    expect(pagePreview, findsWidgets);
+    if (dir != null) {
+      await tester.runAsync(() async {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.ancestor(of: find.byType(EngravingPreview), matching: find.byType(RepaintBoundary)).last);
+        final image = await boundary.toImage(pixelRatio: 1);
+        final png = await image.toByteData(format: ui.ImageByteFormat.png);
+        File('$dir/settings-engraving-preview.png').writeAsBytesSync(png!.buffer.asUint8List());
+      });
+    }
   });
 }

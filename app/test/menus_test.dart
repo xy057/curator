@@ -187,7 +187,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 150));
     }
     expect(find.text('Staff transition'), findsOneWidget);
-    expect(find.text('Engraving'), findsNothing, reason: 'the first page, not Advanced');
+    expect(find.text('Note spacing'), findsNothing, reason: 'the first page, not Engraving');
     await tester.tap(find.byTooltip('Close'));
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 150));

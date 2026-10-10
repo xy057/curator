@@ -400,7 +400,7 @@ class EditorController extends ChangeNotifier {
   bool get isReengraving => _reengraving || _preparingFonts > 0;
   int _preparingFonts = 0;
 
-  /// The Verovio options scores are engraved with (Settings ▸ Advanced, for every project; under [projectEngraving]). Not
+  /// The Verovio options scores are engraved with (Settings ▸ Engraving, for every project; under [projectEngraving]). Not
   /// an edit: changing them re-engraves what is open, and the project stays as it was.
   EngravingOptions get engravingOptions => _engravingOptions;
   EngravingOptions _engravingOptions = const EngravingOptions();

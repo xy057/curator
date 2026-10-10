@@ -148,11 +148,16 @@ void main() {
     await settle();
     expect(c.curation!.transition, transition);
 
-    // Advanced ▸ Engraving: the project's own options, over the app's.
-    await tester.tap(find.text('Advanced'));
+    // Engraving: the project's own options, over the app's.
+    await tester.tap(find.text('Engraving').first);
     await settle();
+    final noteSpacing = find.ancestor(of: find.text('Note spacing'), matching: find.byType(Row)).first;
+    expect(find.descendant(of: noteSpacing, matching: find.text('0.9')), findsOneWidget, reason: "the app's");
+    await tester.scrollUntilVisible(find.text('Open…'), 100, scrollable: find.byType(Scrollable).last);
+    await tester.ensureVisible(find.text('Open…'));
+    await tester.pumpAndSettle();
     expect(find.text('Over the app’s.'), findsOneWidget);
-    await tester.tap(find.text('Engrave Option'));
+    await tester.tap(find.text('Open…'));
     await settle();
     await tester.tap(find.text('Continue'));
     await settle();
@@ -169,7 +174,7 @@ void main() {
     expect(c.score!.options.valueOf(spacing), 0.7);
 
     // Reset: back to the app's, an Undo step.
-    await tester.tap(find.byTooltip('Reset'));
+    await tester.tap(find.byTooltip('Reset').last);
     await tester.pump();
     await engraved();
     expect(c.projectEngraving.isEmpty, isTrue);

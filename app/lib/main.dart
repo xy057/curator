@@ -296,7 +296,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  /// Settings ▸ Advanced ▸ Engrave Options: what is open is engraved again with them.
+  /// Settings ▸ Engraving: what is open is engraved again with them.
   void _engravingChanged() => controller.engravingOptions = settings.engravingOptions;
   void _sampleChanged() => _isSample.value = document.isSample;
 
