@@ -105,4 +105,55 @@ void main() {
       });
     }
   });
+
+  testWidgets('with nothing open, the Engraving page previews the demo, engraved with the app\'s options',
+      (tester) async {
+    final dir = Platform.environment['SCREENSHOT_DIR'];
+    if (dir != null) await tester.runAsync(loadTestFonts);
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory();
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    expect(c.score, isNull);
+
+    showSettingsDialog(tester.element(find.byType(HomePage)), settings, controller: c, page: 'Engraving');
+    EditorController demo() => tester.widget<EngravingPreview>(find.byType(EngravingPreview)).controller;
+    for (var i = 0; i < 200 && find.byType(EngravingPreview).evaluate().isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    expect(find.byType(EngravingPreview), findsOneWidget, reason: 'the demo, engraved');
+    expect(demo(), isNot(c));
+    expect(c.score, isNull, reason: 'nothing opened in the window');
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 150)); // the window's fade
+    }
+    if (dir != null) {
+      await tester.runAsync(() async {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.ancestor(of: find.byType(EngravingPreview), matching: find.byType(RepaintBoundary)).last);
+        final image = await boundary.toImage(pixelRatio: 1);
+        final png = await image.toByteData(format: ui.ImageByteFormat.png);
+        File('$dir/settings-engraving-demo.png').writeAsBytesSync(png!.buffer.asUint8List());
+      });
+    }
+
+    final width = demo().score!.engraving.width;
+    settings.engravingOptions = const EngravingOptions().withValue(EngraveOption.byKey('spacingLinear')!, 0.95);
+    await tester.pump();
+    while (demo().isReengraving) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    expect(demo().score!.engraving.width, greaterThan(width));
+    expect(demo().projectEngraving.isEmpty, isTrue, reason: "the app's options, not an edit");
+
+    Navigator.pop(tester.element(find.byType(EngravingPreview)));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    expect(find.byType(EngravingPreview), findsNothing);
+  });
 }

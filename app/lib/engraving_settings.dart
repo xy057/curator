@@ -1,11 +1,16 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
+import 'project_document.dart' show sampleProjectAsset;
+import 'project_file.dart';
+import 'scratch_space.dart';
 import 'ui_kit.dart';
 
 /// The engraving options most scores want changed, by plain name: the Engraving page of
@@ -177,6 +182,76 @@ String formatOptionValue(Object value) => switch (value) {
       bool() => value ? 'on' : 'off',
       _ => '$value',
     };
+
+/// [EngravingPreview] of the open score, or with none the bundled demo, engraved on its own
+/// with the app's options (and again whenever they change) for as long as this is shown.
+class EngravingPreviewHost extends StatefulWidget {
+  const EngravingPreviewHost({super.key, required this.settings, this.controller, this.scale = 1});
+  final AppSettings settings;
+  final EditorController? controller;
+  final double scale;
+
+  @override
+  State<EngravingPreviewHost> createState() => _EngravingPreviewHostState();
+}
+
+class _EngravingPreviewHostState extends State<EngravingPreviewHost> with TickerProviderStateMixin {
+  EditorController? _demo;
+  bool _failed = false;
+
+  /// Where the demo has music on most staves.
+  static const _demoTime = 20.0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.settings.addListener(_optionsChanged);
+    if (!EngravingPreview.canShow(widget.controller)) _loadDemo();
+  }
+
+  Future<void> _loadDemo() async {
+    final demo = _demo = EditorController(vsync: this)..engravingOptions = widget.settings.engravingOptions;
+    final folder = ScratchSpace.folder('engraving-preview');
+    try {
+      final data = await rootBundle.load(sampleProjectAsset);
+      final file = File('${folder.path}${Platform.pathSeparator}demo.ccs');
+      await file.writeAsBytes(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+      final project = await ProjectFile.read(file.path, mediaDirectory: folder.path);
+      if (!mounted) return;
+      // No recording: the preview never plays.
+      await demo.openProject(name: project.scoreName, scoreBytes: project.scoreBytes, state: project.state);
+      demo.playback.time.value = _demoTime;
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    } finally {
+      ScratchSpace.release(folder);
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _optionsChanged() => _demo?.engravingOptions = widget.settings.engravingOptions;
+
+  @override
+  void dispose() {
+    widget.settings.removeListener(_optionsChanged);
+    _demo?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final open = widget.controller;
+    if (EngravingPreview.canShow(open)) return EngravingPreview(controller: open!, scale: widget.scale);
+    final demo = _demo;
+    if (_failed || demo == null) return const SizedBox.shrink();
+    return ListenableBuilder(
+      listenable: demo,
+      builder: (context, _) => EngravingPreview.canShow(demo)
+          ? EngravingPreview(controller: demo, scale: widget.scale)
+          : ColoredBox(color: context.colors.scorePaper), // blank paper while it engraves
+    );
+  }
+}
 
 /// The open score as engraved, at the playhead until scrubbed: drawn as the score view and a
 /// video frame draw it, again whenever it is re-engraved.

@@ -11,8 +11,8 @@ import 'ui_kit.dart';
 
 /// Engrave Option (at the foot of the Engraving page, after a warning): every Verovio option
 /// that is safe to change ([EngraveOption.all]) by its code name, for those who know Verovio.
-/// A change is saved at once (for every score) and re-engraves the open score, shown beside
-/// the list.
+/// A change is saved at once (for every score) and re-engraves the open score (or the demo),
+/// shown beside the list.
 ///
 /// With [project] (Project Settings ▸ Engraving), the open project's own, over the app's: each
 /// change an edit, a reset going back to the app's value.
@@ -54,16 +54,14 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
       child: ListenableBuilder(
         listenable: Listenable.merge([target.settings, _search, ?c]),
         builder: (context, _) {
-          final preview = EngravingPreview.canShow(c);
           return SizedBox(
-            width: preview ? math.min(1200, size.width - 64) : 400,
+            width: math.min(1200, size.width - 64),
             height: (size.height - 64).clamp(360, 760),
             child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               SizedBox(width: 400, child: _list(context)),
-              if (preview) ...[
-                VerticalDivider(width: 1, color: colors.line),
-                Expanded(child: EngravingPreview(controller: c!)),
-              ],
+              VerticalDivider(width: 1, color: colors.line),
+              // The open score, or the demo.
+              Expanded(child: EngravingPreviewHost(settings: target.settings, controller: c)),
             ]),
           );
         },

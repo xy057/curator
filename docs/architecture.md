@@ -368,7 +368,8 @@ Their types, ranges and choices are checked against Verovio's own list
 word. Changing them re-engraves the open score, as a text edit does.
 The Engraving page offers the options most scores want changed (`EngravingSetting.all`, in
 `engraving_settings.dart`: a plain name, a heading, a slider step) as sliders and switches under a
-half-size preview of the open score; a slider sets its option only when let go, so a drag is one
+half-size preview of the open score (with none, `EngravingPreviewHost` engraves the bundled demo in a
+controller of its own, with the app's options, for as long as the preview is shown); a slider sets its option only when let go, so a drag is one
 engraving and, in a project, one Undo step. Every option, by code name, stays behind its last row,
 Engrave Option, after a warning. Both read and write through `EngravingTarget` (the app's, or the
 project's over them), which shows a line thickness left unset as the open score's font's own.

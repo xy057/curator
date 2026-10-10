@@ -307,16 +307,15 @@ final _projectCategories = <_Category>[
 ];
 
 /// Engraving: the options most scores want changed ([EngravingSetting.all]) under a preview
-/// of the open score, and every other one in Engrave Option, by code name. The app's apply to
+/// of the open score (or the demo), and every other one in Engrave Option, by code name. The app's apply to
 /// every project; a project's over them.
 _Category _engravingCategory({required bool project}) {
   EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller, project: project);
   return _Category(
     'Engraving',
     Icons.music_note_outlined,
-    header: (c) => EngravingPreview.canShow(c.controller)
-        ? SizedBox(height: 170, child: EngravingPreview(controller: c.controller!, scale: 0.5))
-        : null,
+    header: (c) => SizedBox(
+        height: 170, child: EngravingPreviewHost(settings: c.settings, controller: c.controller, scale: 0.5)),
     [
       for (final s in EngravingSetting.all)
         _Item(
