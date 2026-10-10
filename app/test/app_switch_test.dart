@@ -29,7 +29,7 @@ void main() {
     await tester.tap(find.byType(AppSwitch));
     await tester.pumpAndSettle();
     expect(on.value, isTrue);
-    expect(tester.getSemantics(find.byType(AppSwitch)), containsSemantics(hasToggledState: true, isToggled: true));
+    expect(tester.getSemantics(find.byType(AppSwitch)), isSemantics(isToggled: true));
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab); // focus it
     await tester.pump();
