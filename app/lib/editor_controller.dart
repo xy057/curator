@@ -113,8 +113,33 @@ class EditorController extends ChangeNotifier {
   /// was open stays open.
   Future<void> openFile(String path) async {
     final bytes = await File(path).readAsBytes();
-    final score = await _engrave(bytes);
-    await _install(path.split(RegExp(r'[/\\]')).last, bytes, score, const ProjectState());
+    var edits = await _newProjectEdits();
+    LoadedScore score;
+    try {
+      score = await _engrave(bytes, fonts: edits.fonts);
+    } on FormatException {
+      if (edits.fonts == ScoreFonts.standard) rethrow;
+      score = await _engrave(bytes); // a default font that can't be read: the standard ones
+      edits = edits.copyWith(fonts: ScoreFonts.standard);
+    }
+    await _install(path.split(RegExp(r'[/\\]')).last, bytes, score, ProjectState(edits: edits));
+  }
+
+  /// The fonts a newly imported score starts with (Settings ▸ Fonts), by name.
+  ({String music, String text, bool embed}) newProjectFonts =
+      (music: MusicFont.bravura.name, text: TextFonts.academico, embed: true);
+
+  /// [newProjectFonts] as found here: one not installed is Bravura or Academico.
+  Future<EditState> _newProjectEdits() async {
+    final wanted = newProjectFonts;
+    var music = MusicFont.bravura;
+    try {
+      music = await MusicFont.findInstalled(wanted.music) ?? MusicFont.bravura;
+    } on Exception {
+      // not readable: Bravura
+    }
+    final text = wanted.text == TextFonts.academico || await TextFonts.faces(wanted.text) != null ? wanted.text : TextFonts.academico;
+    return EditState(fonts: ScoreFonts(music: music, text: text), embedFont: wanted.embed);
   }
 
   /// Opens a saved project: the source score with its edits, then the recording at
@@ -129,7 +154,14 @@ class EditorController extends ChangeNotifier {
     String? mediaPath,
     String? mediaOriginal,
   }) async {
-    final edits = state.edits;
+    var edits = state.edits;
+    // A font the project only names is looked for here; not found, Bravura stands in.
+    if (edits.fonts.music.isMissing) {
+      if (await MusicFont.findInstalled(edits.fonts.music.name) case final found?) {
+        edits = edits.copyWith(fonts: edits.fonts.copyWith(music: found));
+        state = ProjectState(edits: edits, images: state.images, view: state.view);
+      }
+    }
     final score = await _engrave(scoreBytes,
         textEdits: edits.textEdits, pairs: edits.pairs, fonts: edits.fonts, engraving: edits.engraving);
     final arts = await ImageEditing._decodeAll(state.images);
@@ -231,6 +263,7 @@ class EditorController extends ChangeNotifier {
     _condensed = Set.unmodifiable({for (final g in condensable) if (edits.condensed.contains(g.id)) g.id});
     _partOrder = CuratedScene.orderedPartIds(score.metadata.parts, edits.partOrder);
     _fonts = edits.fonts;
+    _embedFont = edits.embedFont;
     _projectEngraving = edits.engraving;
     if (!_fonts.music.isBundled && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
     images._load(edits.patches, state.images, arts);
@@ -299,6 +332,7 @@ class EditorController extends ChangeNotifier {
     _pairs = const [];
     _partOrder = const [];
     _fonts = ScoreFonts.standard;
+    _embedFont = true;
     _projectEngraving = const EngravingOptions();
     _tab = BottomTab.instruments;
   }
@@ -480,9 +514,15 @@ class EditorController extends ChangeNotifier {
   /// Engraves the score in [fonts]: one Undo step. The future completes when it is engraved.
   /// A font that can't be read throws, and changes nothing: a project never keeps a font it
   /// couldn't be engraved in (it would not open again).
-  Future<void> setFonts(ScoreFonts fonts) async {
+  ///
+  /// With [embed], whether the font is embedded is set too, in the same step.
+  Future<void> setFonts(ScoreFonts fonts, {bool? embed}) async {
     final score = _score;
-    if (score == null || fonts == _fonts) return;
+    if (score == null) return;
+    if (fonts == _fonts) {
+      if (embed != null) embedFont = embed;
+      return;
+    }
     _preparingFonts++;
     notifyListeners();
     try {
@@ -494,10 +534,23 @@ class EditorController extends ChangeNotifier {
     if (_score != score || fonts == _fonts) return; // closed, or another score opened, meanwhile
     if (!fonts.music.isBundled && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
     _fonts = fonts;
+    if (embed != null) _embedFont = embed;
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
     notifyListeners();
     await engraved;
+  }
+
+  /// Whether an added music font is saved inside the project (Project Settings ▸ Fonts): an
+  /// edit. Off, only its name is saved and the font is looked for where the project opens.
+  bool get embedFont => _embedFont;
+  bool _embedFont = true;
+
+  set embedFont(bool value) {
+    if (value == _embedFont || _score == null) return;
+    _embedFont = value;
+    _edited();
+    notifyListeners();
   }
 
   // MARK: Condensing
@@ -821,6 +874,7 @@ class EditorController extends ChangeNotifier {
         captions: captions._captions,
         captionFont: captions._font,
         fonts: _fonts,
+        embedFont: _embedFont,
         engraving: _projectEngraving,
       );
 
@@ -875,6 +929,7 @@ class EditorController extends ChangeNotifier {
       _textEdits = state.textEdits;
       _pairs = state.pairs;
       _fonts = state.fonts;
+      _embedFont = state.embedFont;
       _projectEngraving = state.engraving;
       _condensed = state.condensed;
       _scene?.condensed = _condensed;

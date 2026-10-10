@@ -265,6 +265,32 @@ void main() {
     expect(() => ProjectState.fromJson({'fonts': {'music': 'Gone'}}), throwsA(isA<FormatException>()));
   });
 
+  test("a font that isn't embedded is saved by name only; where it isn't installed it is missing, the choice kept", () async {
+    final leland = File('../packages/score_engine/assets/fonts/Leland.otf').readAsBytesSync();
+    final added = MusicFont.added(family: 'My Leland', file: leland, metadata: utf8.encode('{"fontName": "My Leland"}'));
+    final path = '${dir.path}/linked.ccs';
+    await ProjectFile.write(
+        path,
+        ProjectContents(
+          scoreName: 'Score.musicxml',
+          scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
+          state: ProjectState(edits: EditState(fonts: ScoreFonts(music: added), embedFont: false)),
+        ));
+    final archive = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
+    expect(archive.files.where((f) => f.name.startsWith('fonts/')), isEmpty);
+    final opened = (await ProjectFile.read(path, mediaDirectory: '${dir.path}/media')).state;
+    expect(opened.edits.fonts.music, const MusicFont.missing('My Leland'));
+    expect(opened.edits.fonts.music.isBundled, isFalse);
+    expect(opened.edits.embedFont, isFalse);
+    expect(opened.toJson()['fonts'], {'music': 'My Leland', 'embed': false}, reason: 'saved again, it is still named');
+
+    // Embedding switched on can't embed a missing font: it is still only named.
+    final json = ProjectState(edits: opened.edits.copyWith(embedFont: true)).toJson();
+    expect(json['fonts'], {'music': 'My Leland', 'embed': false});
+    expect(const ProjectState(edits: EditState(embedFont: false)).toJson()['fonts'], {'embed': false});
+    expect(ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 13).edits.embedFont, isTrue);
+  });
+
   test("a project keeps its own engraving options, one set back to the default too; older ones have none", () {
     final curve = EngraveOption.byKey('slurCurveFactor')!, spacing = EngraveOption.byKey('spacingLinear')!;
     final options = const EngravingOptions().withValue(curve, 2).withValue(spacing, spacing.defaultValue, keepDefault: true);
@@ -280,7 +306,7 @@ void main() {
     final state = ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 1);
     expect(state.edits.condensed, isEmpty);
     expect(state.edits.pairs, isEmpty);
-    expect(ProjectState.version, 13);
+    expect(ProjectState.version, 14);
     expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).edits.pairs, isEmpty);
   });
 
@@ -405,6 +431,32 @@ void main() {
       expect(doc2.title, 'round.ccs');
       expect(c2.canUndo, isFalse, reason: 'a freshly opened project has no history');
     });
+
+    test("a font that isn't embedded is found where it is installed; else Bravura stands in, the choice kept", () async {
+      Future<void> saveNaming(String name, String path) => ProjectFile.write(
+          path,
+          ProjectContents(
+            scoreName: 'Score.musicxml',
+            scoreBytes: demoScore.readAsBytesSync(),
+            state: ProjectState(edits: EditState(fonts: ScoreFonts(music: MusicFont.missing(name)), embedFont: false)),
+          ));
+      await saveNaming('Helvetica', '${dir.path}/installed.ccs');
+      await doc.open('${dir.path}/installed.ccs');
+      expect(c.fonts.music.name, 'Helvetica');
+      expect(c.fonts.music.file, isNotNull, reason: 'read from the installed font');
+      expect(c.score!.musicFontFound, isTrue);
+      expect(c.embedFont, isFalse);
+
+      await saveNaming('No Such Font', '${dir.path}/missing.ccs');
+      await doc.open('${dir.path}/missing.ccs');
+      expect(c.fonts.music, const MusicFont.missing('No Such Font'));
+      expect(c.score!.musicFontFound, isFalse);
+      expect(c.score!.musicFontFamily, MusicFont.bravura.family);
+      expect(doc.isDirty, isFalse);
+      await doc.save('${dir.path}/again.ccs');
+      final again = await ProjectFile.read('${dir.path}/again.ccs', mediaDirectory: '${dir.path}/m2');
+      expect(again.state.edits.fonts.music, const MusicFont.missing('No Such Font'));
+    }, skip: Platform.isMacOS ? false : 'Helvetica is installed on macOS');
 
     test('a project that fails to open leaves the open one exactly as it was', () async {
       // B: readable as a zip, but its state is damaged. A is the project that is open.

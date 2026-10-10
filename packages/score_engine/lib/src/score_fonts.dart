@@ -19,9 +19,19 @@ class MusicFont {
   const MusicFont._(this.name, this._defaults)
       : file = null,
         metadata = null,
+        isMissing = false,
         _digest = 0;
 
-  const MusicFont._added(this.name, Uint8List this.file, this.metadata, this._defaults, this._digest);
+  const MusicFont._added(this.name, Uint8List this.file, this.metadata, this._defaults, this._digest) : isMissing = false;
+
+  /// A font a project names but doesn't carry, not installed here: the score is engraved and
+  /// drawn in Bravura, the choice kept.
+  const MusicFont.missing(this.name)
+      : file = null,
+        metadata = null,
+        isMissing = true,
+        _defaults = const {},
+        _digest = 0;
 
   /// A font the user adds: its file (OTF or TTF) and the SMuFL metadata published with it
   /// (`<name>_metadata.json`: anchors and engraving defaults; without it glyphs are placed by
@@ -92,6 +102,21 @@ class MusicFont {
       }
     }
     return found.values.toList()..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
+
+  /// The font installed here as [name] (a bundled one's name gives it): a SMuFL font by its
+  /// folder, else a family. Null when there is none.
+  static Future<MusicFont?> findInstalled(String name) async {
+    if (bundledNamed(name) case final bundled?) return bundled;
+    final key = name.toLowerCase();
+    if ((await installed()).where((i) => i.name.toLowerCase() == key).firstOrNull case final smufl?) {
+      return readFace(smufl.face, metadataPath: smufl.metadata);
+    }
+    final fonts = await FontFiles.installed;
+    final family = fonts.keys.where((f) => f.toLowerCase() == key).firstOrNull;
+    if (family == null) return null;
+    final face = FontFiles.pick(fonts[family]!, bold: false, italic: false);
+    return face == null ? null : readFace(face);
   }
 
   static String? _metadataIn(String folder) {
@@ -180,17 +205,24 @@ class MusicFont {
   final Map<String, double> _defaults;
   final int _digest;
 
-  bool get isBundled => file == null;
+  /// True for a [MusicFont.missing] one.
+  final bool isMissing;
+
+  bool get isBundled => file == null && !isMissing;
 
   /// SMuFL engraving defaults (staff spaces): the font's own, Bravura's where it has none.
   Map<String, double> get engravingDefaults => {...bravura._defaults, ..._defaults};
 
   /// The family the renderer draws it with (an added one's is registered by [load]).
-  String get family => isBundled ? 'packages/score_engine/$name' : 'Curator $name ${_digest.toRadixString(16)}';
+  String get family => isMissing
+      ? bravura.family
+      : isBundled
+          ? 'packages/score_engine/$name'
+          : 'Curator $name ${_digest.toRadixString(16)}';
 
   /// Makes an added font drawable (bundled ones always are).
   Future<void> load() async {
-    if (isBundled || !_loaded.add(family)) return;
+    if (file == null || !_loaded.add(family)) return;
     await ui.loadFontFromList(file!, fontFamily: family);
   }
 
@@ -198,13 +230,17 @@ class MusicFont {
 
   @override
   bool operator ==(Object other) =>
-      other is MusicFont && other.name == name && other._digest == _digest && other.file?.length == file?.length;
+      other is MusicFont &&
+      other.name == name &&
+      other._digest == _digest &&
+      other.isMissing == isMissing &&
+      other.file?.length == file?.length;
 
   @override
   int get hashCode => Object.hash(name, _digest);
 
   @override
-  String toString() => 'MusicFont($name)';
+  String toString() => 'MusicFont($name${isMissing ? ', missing' : ''})';
 
   /// FNV-1a: tells two added files apart without keeping a copy to compare.
   static int _fnv(Uint8List bytes) {
@@ -299,7 +335,7 @@ abstract final class FontResources {
   /// it off the UI isolate.
   static ({String directory, bool textFound}) prepare(ScoreFonts fonts,
       {required String base, String? work, Map<String, FontFace>? textFaces}) {
-    final music = fonts.music, text = fonts.text;
+    final music = fonts.music.isMissing ? MusicFont.bravura : fonts.music, text = fonts.text;
     if (music.isBundled && text == TextFonts.academico) return (directory: base, textFound: true);
     work ??= workDirectory ?? '${Directory.systemTemp.path}/curated-score-fonts';
     final faces = text == TextFonts.academico ? null : textFaces;

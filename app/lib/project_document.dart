@@ -252,6 +252,7 @@ class ProjectDocument extends ChangeNotifier {
   void _settingsChanged() {
     controller.undoLimit = settings.undoSteps;
     controller.defaultTransition = settings.transition;
+    controller.newProjectFonts = (music: settings.musicFont, text: settings.textFont, embed: settings.embedFont);
     controller.scrollFollow = settings.scrollFollow;
     controller.images.enabled = settings.attachImage;
     controller.captions.enabled = settings.captions;

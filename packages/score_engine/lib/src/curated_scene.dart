@@ -58,6 +58,9 @@ class LoadedScore {
   /// False when [fonts]' text font isn't installed here: Academico stands in for it.
   final bool textFontFound;
 
+  /// False when [fonts]' music font isn't here ([MusicFont.missing]): Bravura stands in for it.
+  bool get musicFontFound => !fonts.music.isMissing;
+
   /// The families the renderer draws it with.
   String get musicFontFamily => fonts.music.family;
   String get textFontFamily => TextFonts.familyOf(textFontFound ? fonts.text : TextFonts.academico);
@@ -99,7 +102,7 @@ class LoadedScore {
     final engraving = await Engraver.engrave(
       prepared.musicXML,
       resourceDirectory: resources.directory,
-      font: fonts.music,
+      font: fonts.music.isMissing ? MusicFont.bravura : fonts.music,
       options: options,
     );
     final timeline = ConstantTempoTimeline(engraving.measures,
