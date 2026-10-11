@@ -129,6 +129,8 @@ void main() {
       'Warp': () => showAnchorDialog(context(), beats: c.beats, quarter: 9, jumpTo: 0, warp: true),
       'Settings': () => showSettingsDialog(context(), settings, controller: c),
       'Project Settings': () => showProjectSettingsDialog(context(), settings, c),
+      'Engraving': () => showSettingsDialog(context(), settings, controller: c, page: 'Engraving'),
+      "The project's Engraving": () => showProjectSettingsDialog(context(), settings, c, page: 'Engraving'),
     };
     Future<void> openEach(Map<String, void Function()> dialogs) async {
       for (final MapEntry(key: name, value: open) in dialogs.entries) {

@@ -10,6 +10,7 @@ import 'app_extensions.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'engrave_options_dialog.dart';
+import 'engraving_settings.dart';
 import 'export_dialog.dart' show revealInFileManager;
 import 'font_settings.dart';
 import 'project_file.dart';
@@ -81,8 +82,11 @@ enum _Window {
 
 /// One setting: a title and help on the left, its control on the right.
 class _Item {
-  const _Item(this.title, this.help, this.control, {this.note, this.keywords = '', this.shown});
+  const _Item(this.title, this.help, this.control, {this.note, this.keywords = '', this.shown, this.group});
   final String title;
+
+  /// The heading it is under on its page; items in a row with the same one share a group.
+  final String? group;
 
   /// Whether it is offered now (on its page and in the search); null: always.
   final bool Function(_Context)? shown;
@@ -97,10 +101,13 @@ class _Item {
 }
 
 class _Category {
-  const _Category(this.label, this.icon, this.items, {this.empty, this.page});
+  const _Category(this.label, this.icon, this.items, {this.empty, this.page, this.header});
   final String label;
   final IconData icon;
   final List<_Item> items;
+
+  /// Above the page's rows, staying put while they scroll; null for none.
+  final Widget? Function(_Context)? header;
 
   /// A page of its own in place of the rows of [items], which then only answer the search.
   final Widget Function(_Context)? page;
@@ -202,6 +209,7 @@ final _categories = <_Category>[
     _Item('Text', (_) => 'For new projects.', (c) => TextFontPicker.forNewProjects(settings: c.settings),
         keywords: 'font academico family typeface default'),
   ]),
+  _engravingCategory(project: false),
   _Category('Recording', Icons.graphic_eq_rounded, [
     _Item(
       'Save the recording',
@@ -239,14 +247,6 @@ final _categories = <_Category>[
         keywords: '${e.keywords} extension',
       ),
   ], empty: 'No extensions yet.'),
-  _Category('Advanced', Icons.build_outlined, [
-    _Item(
-      'Engraving',
-      (c) => _changedText(c.settings.engravingOptions, 'Every project.'),
-      (c) => _EngraveOptionButton(c, project: false),
-      keywords: _engravingKeywords,
-    ),
-  ]),
   // The page is _AboutPage; these rows are what the search finds.
   _Category('About', Icons.info_outline_rounded, page: (c) => _AboutPage(c), [
     _Item(
@@ -303,17 +303,39 @@ final _projectCategories = <_Category>[
       keywords: 'font captions family typeface',
     ),
   ]),
-  _Category('Advanced', Icons.build_outlined, [
-    _Item(
-      'Engraving',
-      (c) => _changedText(c.controller!.projectEngraving, 'Over the app’s.'),
-      (c) => _EngraveOptionButton(c, project: true),
-      keywords: _engravingKeywords,
-    ),
-  ]),
+  _engravingCategory(project: true),
 ];
 
-const _engravingKeywords = 'engrave engraving verovio options spacing slur tie beam stem thickness margin bar number lyric';
+/// Engraving: the options most scores want changed ([EngravingSetting.all]) under a preview
+/// of the open score (or the demo), and every other one in Engrave Option, by code name. The app's apply to
+/// every project; a project's over them.
+_Category _engravingCategory({required bool project}) {
+  EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller, project: project);
+  return _Category(
+    'Engraving',
+    Icons.music_note_outlined,
+    header: (c) => SizedBox(
+        height: 170, child: EngravingPreviewHost(settings: c.settings, controller: c.controller, scale: 0.5)),
+    [
+      for (final s in EngravingSetting.all)
+        _Item(
+          s.title,
+          null,
+          (c) => EngravingControl(target: target(c), setting: s),
+          group: s.group,
+          keywords: 'engrave engraving ${s.group} ${s.keywords} ${s.key}',
+        ),
+      _Item(
+        'Engrave Option',
+        (c) => _changedText(target(c).own, project ? 'Over the app’s.' : 'Every project.'),
+        (c) => _EngraveOptionButton(c, project: project),
+        group: 'All options',
+        keywords: 'engrave engraving verovio advanced expert options code spacing slur tie beam stem '
+            'thickness margin bar number lyric',
+      ),
+    ],
+  );
+}
 
 /// How many of [options] are set, or [none] while there are none.
 String _changedText(EngravingOptions options, String none) => switch (options.overrides.length) {
@@ -334,7 +356,7 @@ class _EngraveOptionButton extends StatelessWidget {
           if (!await _confirmEngraving(context) || !context.mounted) return;
           showEngraveOptionsDialog(context, c.settings, controller: c.controller, project: project);
         },
-        child: const Text('Engrave Option'),
+        child: const Text('Open…'),
       );
 }
 
@@ -532,15 +554,24 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   Widget _content(BuildContext context) {
     final matches = _matches;
     final cat = _categories[_page];
-    final Widget page;
+    Widget page;
     if (matches == null && cat.page != null) {
       page = KeyedSubtree(key: ValueKey(_page), child: cat.page!(_ctx));
     } else if (matches == null) {
-      page = _Page(
-        key: ValueKey(_page),
-        empty: cat.empty,
-        groups: [if (_shownItems(cat).isNotEmpty) (null, [for (final item in _shownItems(cat)) _row(item)])],
-      );
+      final groups = <(String?, List<Widget>)>[];
+      for (final item in _shownItems(cat)) {
+        if (groups.isEmpty || groups.last.$1 != item.group) groups.add((item.group, []));
+        groups.last.$2.add(_row(item));
+      }
+      page = _Page(key: ValueKey(_page), empty: cat.empty, groups: groups);
+      if (cat.header?.call(_ctx) case final header?) {
+        final colors = context.colors;
+        page = Column(key: ValueKey(_page), crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          header,
+          Divider(height: 1, color: colors.line),
+          Expanded(child: page),
+        ]);
+      }
     } else {
       // One group per page, in sidebar order, each under its page's name.
       page = _Page(

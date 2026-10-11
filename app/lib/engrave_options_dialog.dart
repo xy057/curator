@@ -6,26 +6,27 @@ import 'package:score_engine/score_engine.dart';
 import 'app_colors.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
+import 'engraving_settings.dart';
 import 'ui_kit.dart';
 
-/// Settings ▸ Advanced ▸ Engrave Option: every Verovio option that is safe to change
-/// ([EngraveOption.all]) by its code name, for those who know Verovio. A change is saved at
-/// once (for every score) and re-engraves the open score, shown beside the list.
+/// Engrave Option (at the foot of the Engraving page, after a warning): every Verovio option
+/// that is safe to change ([EngraveOption.all]) by its code name, for those who know Verovio.
+/// A change is saved at once (for every score) and re-engraves the open score (or the demo),
+/// shown beside the list.
 ///
-/// With [project] (Project Settings ▸ Advanced), the open project's own, over the app's: each
+/// With [project] (Project Settings ▸ Engraving), the open project's own, over the app's: each
 /// change an edit, a reset going back to the app's value.
 Future<void> showEngraveOptionsDialog(BuildContext context, AppSettings settings,
         {EditorController? controller, bool project = false}) =>
     showAppDialog<void>(
       context: context,
-      builder: (context) => _EngraveOptionsDialog(settings: settings, controller: controller, project: project),
+      builder: (context) =>
+          _EngraveOptionsDialog(target: EngravingTarget(settings, controller, project: project)),
     );
 
 class _EngraveOptionsDialog extends StatefulWidget {
-  const _EngraveOptionsDialog({required this.settings, this.controller, required this.project});
-  final AppSettings settings;
-  final EditorController? controller;
-  final bool project;
+  const _EngraveOptionsDialog({required this.target});
+  final EngravingTarget target;
 
   @override
   State<_EngraveOptionsDialog> createState() => _EngraveOptionsDialogState();
@@ -34,21 +35,7 @@ class _EngraveOptionsDialog extends StatefulWidget {
 class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
   final _search = TextEditingController();
 
-  /// Where the preview shows the score: the playhead's time until scrubbed.
-  late double _time = widget.controller?.playback.time.value ?? 0;
-
-  AppSettings get settings => widget.settings;
-  bool get project => widget.project && widget.controller != null;
-
-  /// The options this dialog changes: the project's, or the app's.
-  EngravingOptions get _own => project ? widget.controller!.projectEngraving : settings.engravingOptions;
-  set _own(EngravingOptions options) {
-    if (project) {
-      widget.controller!.setProjectEngraving(options);
-    } else {
-      settings.engravingOptions = options;
-    }
-  }
+  EngravingTarget get target => widget.target;
 
   @override
   void dispose() {
@@ -60,23 +47,21 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final size = MediaQuery.sizeOf(context);
+    final c = target.controller;
     return Dialog(
       clipBehavior: Clip.antiAlias,
       insetPadding: const EdgeInsets.all(32),
       child: ListenableBuilder(
-        listenable: Listenable.merge([settings, _search, ?widget.controller]),
+        listenable: Listenable.merge([target.settings, _search, ?c]),
         builder: (context, _) {
-          final c = widget.controller;
-          final preview = c?.scene != null && c?.curation != null;
           return SizedBox(
-            width: preview ? math.min(1200, size.width - 64) : 400,
+            width: math.min(1200, size.width - 64),
             height: (size.height - 64).clamp(360, 760),
             child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               SizedBox(width: 400, child: _list(context)),
-              if (preview) ...[
-                VerticalDivider(width: 1, color: colors.line),
-                Expanded(child: _preview(context, c!)),
-              ],
+              VerticalDivider(width: 1, color: colors.line),
+              // The open score, or the demo.
+              Expanded(child: EngravingPreviewHost(settings: target.settings, controller: c)),
             ]),
           );
         },
@@ -86,8 +71,6 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
 
   Widget _list(BuildContext context) {
     final colors = context.colors;
-    final own = _own, base = settings.engravingOptions;
-    final options = project ? own.over(base) : own;
     final q = _search.text.trim().toLowerCase();
     final shown = [for (final o in EngraveOption.all) if (o.key.toLowerCase().contains(q)) o];
     final border = OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: colors.line));
@@ -116,7 +99,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
           IconButton(
             icon: const Icon(Icons.restart_alt_rounded, size: 18),
             tooltip: 'Reset all',
-            onPressed: own.isEmpty ? null : () => _own = const EngravingOptions(),
+            onPressed: target.own.isEmpty ? null : () => target.own = const EngravingOptions(),
           ),
           IconButton(
             icon: const Icon(Icons.close_rounded, size: 18),
@@ -134,81 +117,17 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
             final option = shown[i];
             return _OptionRow(
               option: option,
-              value: options.valueOf(option),
-              changed: own.isChanged(option),
+              value: target.valueOf(option),
+              changed: target.isChanged(option),
               // The house style's, or in a project the app's.
-              base: project ? 'app ${formatOptionValue(base.valueOf(option))}' : 'default ${formatOptionValue(option.defaultValue)}',
-              onChanged: (v) => _own = _own.withValue(option, v, keepDefault: project),
+              base: '${target.project ? 'app' : 'default'} ${formatOptionValue(target.baseOf(option))}',
+              onChanged: (v) => target.set(option, v),
             );
           },
         ),
       ),
     ]);
   }
-
-  Widget _preview(BuildContext context, EditorController c) {
-    final colors = context.colors;
-    final duration = c.playback.duration;
-    final time = _time.clamp(0.0, math.max(duration, 0.0)).toDouble();
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Expanded(
-        child: Stack(children: [
-          Positioned.fill(
-            child: RepaintBoundary(
-              child: CustomPaint(
-                painter: _PreviewPainter(c.scene!, c.curation!, time, MediaQuery.devicePixelRatioOf(context),
-                    colors.scorePaper, colors.scoreInk),
-              ),
-            ),
-          ),
-          if (c.isReengraving)
-            const Positioned(
-              right: 12,
-              top: 12,
-              child: SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-            ),
-        ]),
-      ),
-      Divider(height: 1, color: colors.line),
-      SizedBox(
-        height: 36,
-        child: OverlaySemantics(
-          child: Slider(
-            value: time,
-            max: math.max(duration, 0.001),
-            onChanged: (t) => setState(() => _time = t),
-          ),
-        ),
-      ),
-    ]);
-  }
-}
-
-/// The open score at [time], drawn as the score view and a video frame draw it.
-class _PreviewPainter extends CustomPainter {
-  _PreviewPainter(this.scene, this.curation, this.time, this.devicePixelRatio, this.paper, this.ink);
-  final CuratedScene scene;
-  final Curation curation;
-  final double time;
-  final double devicePixelRatio;
-  final Color paper, ink;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.clipRect(Offset.zero & size);
-    canvas.drawColor(paper, BlendMode.src);
-    scene.paint(canvas, size,
-        time: time, curation: curation, devicePixelRatio: devicePixelRatio, paper: paper, ink: ink);
-  }
-
-  @override
-  bool shouldRepaint(_PreviewPainter old) =>
-      old.scene != scene ||
-      old.curation != curation ||
-      old.time != time ||
-      old.devicePixelRatio != devicePixelRatio ||
-      old.paper != paper ||
-      old.ink != ink;
 }
 
 /// One option: its code name, its value, and a reset once changed.
@@ -284,14 +203,6 @@ class _OptionRow extends StatelessWidget {
     );
   }
 }
-
-/// A value as the list shows it: numbers without trailing zeros.
-String formatOptionValue(Object value) => switch (value) {
-      int() => '$value',
-      double() => value.toStringAsFixed(3).replaceFirst(RegExp(r'\.?0+$'), ''),
-      bool() => value ? 'on' : 'off',
-      _ => '$value',
-    };
 
 /// A number typed in: taken (and clamped into range) on Return or when focus leaves; anything
 /// unreadable puts the value back.

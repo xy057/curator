@@ -10,7 +10,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `src/verovio_bridge.cpp` | A Verovio device context that records drawing calls (paths, glyphs, text) per staff, plus measures, onsets and clef/key/time signatures, behind a C API |
-| `engraving_options.dart` | The Verovio options the user may change (Settings ▸ Advanced ▸ Engrave Option, by code name; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
+| `engraving_options.dart` | The Verovio options the user may change (Settings ▸ Engraving: the common ones by plain name, every one in Engrave Option by code name; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
 | `lib/src/native/bindings.dart`, `engraving.dart` | FFI bindings; `Engraver.engrave` runs Verovio on an isolate and copies everything into plain Dart data (`EngravingData`) |
 | `score_metadata.dart`, `score_text.dart` | What the MusicXML says: parts, staves, meters, where each part plays; the editable texts, with text edits applied before engraving |
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
@@ -357,15 +357,22 @@ Verovio's code with `[curated-score patch]`.
 (`vb_engraver_create`) fixes what the curated view relies on: one endless system (`breaks`
 none), no header, footer or page margins, `scale` 100. Dart then sends every option in
 `EngraveOption.all`, with the house style's value unless the user changed it, so the house
-style lives in that list alone. They are set twice over: the app's (Settings ▸ Advanced, in
+style lives in that list alone. They are set twice over: the app's (Settings ▸ Engraving, in
 `AppSettings`; not part of a project, not an edit), and the open project's over them (Project
-Settings ▸ Advanced, `EditorController.projectEngraving`: an edit, saved as `state.engraving`
+Settings ▸ Engraving, `EditorController.projectEngraving`: an edit, saved as `state.engraving`
 from format 13). A project's keep a value set back to the house style's (`keepDefault`), so
 it still wins over the app's; a reset there goes back to the app's value. Only its options are ever sent, so none of the fixed ones can be
 overridden; none may change the bars or the staves (`expand`, `transpose`, `mdiv*` stay out).
 Their types, ranges and choices are checked against Verovio's own list
 (`Engraver.availableOptions`); an out-of-range value would be dropped by Verovio without a
 word. Changing them re-engraves the open score, as a text edit does.
+The Engraving page offers the options most scores want changed (`EngravingSetting.all`, in
+`engraving_settings.dart`: a plain name, a heading, a slider step) as sliders and switches under a
+half-size preview of the open score (with none, `EngravingPreviewHost` engraves the bundled demo in a
+controller of its own, with the app's options, for as long as the preview is shown); a slider sets its option only when let go, so a drag is one
+engraving and, in a project, one Undo step. Every option, by code name, stays behind its last row,
+Engrave Option, after a warning. Both read and write through `EngravingTarget` (the app's, or the
+project's over them), which shows a line thickness left unset as the open score's font's own.
 
 **Colours are chosen when drawing.** The engraving is recorded as ink only; the renderer
 tints tiles, names and the frozen zone with the ink colour as it composites them

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/engraving_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
@@ -197,13 +198,54 @@ void main() {
     expect(find.text('No matching settings'), findsOneWidget);
   });
 
-  testWidgets('Advanced ▸ Engrave Option lists every safe option by code name, sorted, and changes them', (tester) async {
+  testWidgets('Engraving sets the common options by plain name, a slider or switch each', (tester) async {
     final settings = await open(tester);
-    await tester.tap(find.text('Advanced'));
+    await tester.tap(find.text('Engraving').first);
     await tester.pumpAndSettle();
-    await shot(tester, 'settings-advanced');
+    await shot(tester, 'settings-engraving');
+    expect(find.text('Spacing'), findsOneWidget);
+    expect(find.text('Line thickness'), findsOneWidget);
+    expect(find.text('Note spacing'), findsOneWidget);
+    expect(find.text('spacingLinear'), findsNothing, reason: 'code names only in Engrave Option');
 
-    await tester.tap(find.text('Engrave Option'));
+    // A slider sets its option once let go: one change, snapped to its step.
+    final spacing = EngraveOption.byKey('spacingLinear')!;
+    final row = find.ancestor(of: find.text('Note spacing'), matching: find.byType(Row)).first;
+    final slider = find.descendant(of: row, matching: find.byType(Slider));
+    await tester.drag(slider, const Offset(40, 0));
+    await tester.pumpAndSettle();
+    final value = settings.engravingOptions.valueOf(spacing) as double;
+    expect(value, greaterThan(0.62));
+    expect((value * 100).roundToDouble() / 100, value, reason: 'a step of 0.01');
+    expect(find.descendant(of: row, matching: find.text(formatOptionValue(value))), findsOneWidget);
+    await shot(tester, 'settings-engraving-changed');
+
+    await tester.tap(find.descendant(of: row, matching: find.byTooltip('Reset')));
+    await tester.pumpAndSettle();
+    expect(settings.engravingOptions.isEmpty, isTrue);
+
+    // A switch.
+    final even = EngraveOption.byKey('evenNoteSpacing')!;
+    final evenRow = find.ancestor(of: find.text('Even spacing'), matching: find.byType(Row)).first;
+    await tester.tap(find.descendant(of: evenRow, matching: find.byType(AppSwitch)));
+    await tester.pumpAndSettle();
+    expect(settings.engravingOptions.valueOf(even), isTrue);
+
+    // The search finds them by plain or code name.
+    await tester.enterText(find.byType(TextField), 'stemThickness');
+    await tester.pumpAndSettle();
+    expect(find.text('Stems'), findsOneWidget);
+  });
+
+  testWidgets('Engraving ▸ Engrave Option lists every safe option by code name, sorted, and changes them', (tester) async {
+    final settings = await open(tester);
+    await tester.tap(find.text('Engraving').first);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Open…'), 100, scrollable: find.byType(Scrollable).last);
+    await tester.ensureVisible(find.text('Open…'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Open…'));
     await tester.pumpAndSettle();
     await shot(tester, 'engrave-warning');
     await tester.tap(find.text('Continue'));
@@ -237,19 +279,20 @@ void main() {
     expect(settings.engravingOptions.valueOf(curve), 5.0);
     await shot(tester, 'engrave-options-changed');
 
-    await tester.tap(find.byTooltip('Reset'));
+    await tester.tap(find.byTooltip('Reset').last);
     await tester.pumpAndSettle();
     expect(settings.engravingOptions.isEmpty, isTrue);
     expect(find.text('Engrave Options'), findsNothing, reason: 'no title, no help: code names only');
   });
 
-  testWidgets('Advanced ▸ Engrave Option warns first; Cancel leaves the options closed', (tester) async {
+  testWidgets('Engraving ▸ Engrave Option warns first; Cancel leaves the options closed', (tester) async {
     await open(tester);
-    if (find.text('Engrave Option').evaluate().isEmpty) {
-      await tester.tap(find.text('Advanced')); // the dialog reopens on the page it was left on
-      await tester.pumpAndSettle();
-    }
-    await tester.tap(find.text('Engrave Option'));
+    await tester.tap(find.text('Engraving').first);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Open…'), 100, scrollable: find.byType(Scrollable).last);
+    await tester.ensureVisible(find.text('Open…'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open…'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Editing these values might generate unintended results and errors'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Search'), findsOneWidget, reason: 'only the settings search is open');
@@ -258,6 +301,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Editing these values'), findsNothing);
     expect(find.widgetWithText(TextField, 'Search'), findsOneWidget, reason: 'no engraving list opened');
-    expect(find.text('Engrave Option'), findsOneWidget, reason: 'back on the Advanced page');
+    expect(find.text('Engrave Option'), findsOneWidget, reason: 'back on the Engraving page');
   });
 }
