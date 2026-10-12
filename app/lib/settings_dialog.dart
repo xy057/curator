@@ -826,17 +826,13 @@ class _Dropdown<T> extends StatelessWidget {
       height: 32,
       padding: const EdgeInsets.only(left: 10, right: 4),
       decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(8)),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: value,
-          isDense: true,
-          borderRadius: BorderRadius.circular(10),
-          focusColor: Colors.transparent,
-          icon: Icon(Icons.unfold_more_rounded, size: 16, color: colors.textMuted),
-          style: TextStyle(fontSize: 13, color: colors.text),
-          onChanged: (v) => v == null ? null : onChanged(v),
-          items: [for (final v in values) DropdownMenuItem(value: v, child: Text(label(v)))],
-        ),
+      child: AppDropdown<T>(
+        value: value,
+        dense: true,
+        icon: Icon(Icons.unfold_more_rounded, size: 16, color: colors.textMuted),
+        style: TextStyle(fontSize: 13, color: colors.text),
+        onChanged: (v) => v == null ? null : onChanged(v),
+        items: [for (final v in values) DropdownMenuItem(value: v, child: Text(label(v)))],
       ),
     );
   }

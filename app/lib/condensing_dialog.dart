@@ -59,9 +59,10 @@ class _CondensingDialogState extends State<_CondensingDialog> {
         final seconds = _first == null ? const <String>[] : _free(_first);
         if (!seconds.contains(_second)) _second = null;
 
-        DropdownButton<String> choose(String hint, String? value, List<String> ids, ValueChanged<String?> onChanged) =>
-            DropdownButton<String>(
+        AppDropdown<String> choose(String hint, String? value, List<String> ids, ValueChanged<String?> onChanged) =>
+            AppDropdown<String>(
               isExpanded: true,
+              boxed: true,
               hint: Text(hint),
               value: value,
               items: [for (final id in ids) DropdownMenuItem(value: id, child: Text(c.partNameOf(id)))],

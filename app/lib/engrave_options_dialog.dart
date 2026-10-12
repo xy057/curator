@@ -152,10 +152,9 @@ class _OptionRow extends StatelessWidget {
           height: 28,
           child: AppSwitch(value: value as bool, onChanged: onChanged),
         ),
-      EngraveOptionKind.choice => DropdownButton<String>(
+      EngraveOptionKind.choice => AppDropdown<String>(
           value: value as String,
-          isDense: true,
-          underline: const SizedBox.shrink(),
+          dense: true,
           style: TextStyle(fontSize: 12.5, color: colors.text),
           items: [for (final c in option.choices) DropdownMenuItem(value: c, child: Text(c))],
           onChanged: onChanged,

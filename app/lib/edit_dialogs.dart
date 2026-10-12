@@ -367,8 +367,8 @@ class _TransitionField extends StatelessWidget {
   final ValueChanged<double?> onChanged;
 
   @override
-  Widget build(BuildContext context) => DropdownButtonFormField<double?>(
-        initialValue: value,
+  Widget build(BuildContext context) => AppDropdown<double?>(
+        value: value,
         isExpanded: true,
         decoration: InputDecoration(labelText: label),
         items: [

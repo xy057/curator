@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -53,7 +54,7 @@ void main() {
     expect(c.condensed, {'cond-P2-P3'});
 
     // Flute 1 + Oboe 1.
-    final players = find.byType(DropdownButton<String>);
+    final players = find.byType(AppDropdown<String>);
     await tester.tap(players.first);
     await settle();
     await tester.tap(find.text('Flute 1').last);

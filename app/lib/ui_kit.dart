@@ -89,8 +89,11 @@ bool isRefined(BuildContext context) => Theme.of(context).extension<AppStyle>()?
 const menuOpenDuration = Duration(milliseconds: 90);
 const menuCloseDuration = Duration(milliseconds: 60);
 
+/// A row of a [UiStyle.refined] menu (the material ones are 48 px; a macOS menu's are 22).
+const refinedMenuRow = 22.0;
+
 /// A popup menu's row: 48 px in [UiStyle.classic], a desktop menu's in [UiStyle.refined].
-double menuRowHeight(BuildContext context) => isRefined(context) ? 28 : kMinInteractiveDimension;
+double menuRowHeight(BuildContext context) => isRefined(context) ? refinedMenuRow : kMinInteractiveDimension;
 
 const _refinedItemPadding = EdgeInsets.symmetric(horizontal: 10);
 
@@ -178,6 +181,174 @@ class AppPopupMenuButton<T> extends StatelessWidget {
             )
           : null,
       child: child,
+    );
+  }
+}
+
+/// A select for the app. [UiStyle.classic] is the material [DropdownButton] (a field, with
+/// [decoration]); [UiStyle.refined] is a field that opens a menu of [MenuItemButton]s at once,
+/// its rows 22 px, not the material dropdown's 48 px and 300 ms.
+///
+/// With a [decoration] it is a labelled field. Without, it is bare: [boxed] outlines it (the
+/// material one underlines it), and [icon] replaces its arrow.
+class AppDropdown<T> extends StatefulWidget {
+  const AppDropdown({
+    super.key,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.hint,
+    this.isExpanded = false,
+    this.dense = false,
+    this.boxed = false,
+    this.decoration,
+    this.icon,
+    this.style,
+  });
+
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+
+  /// What a choice does; null disables the select.
+  final ValueChanged<T?>? onChanged;
+
+  /// Shown when no item has [value].
+  final Widget? hint;
+  final bool isExpanded;
+  final bool dense;
+  final bool boxed;
+  final InputDecoration? decoration;
+  final Widget? icon;
+  final TextStyle? style;
+
+  @override
+  State<AppDropdown<T>> createState() => _AppDropdownState<T>();
+}
+
+class _AppDropdownState<T> extends State<AppDropdown<T>> {
+  final _menu = MenuController();
+  final _focus = FocusNode();
+  double _width = 0;
+  bool _open = false;
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    if (_menu.isOpen) return _menu.close();
+    _width = (context.findRenderObject() as RenderBox).size.width;
+    _menu.open();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final w = widget;
+    if (!isRefined(context)) {
+      if (w.decoration != null) {
+        return DropdownButtonFormField<T>(
+          initialValue: w.value,
+          isExpanded: w.isExpanded,
+          decoration: w.decoration!,
+          items: w.items,
+          onChanged: w.onChanged,
+        );
+      }
+      return DropdownButton<T>(
+        value: w.value,
+        hint: w.hint,
+        isExpanded: w.isExpanded,
+        isDense: w.dense,
+        icon: w.icon ?? const Icon(Icons.arrow_drop_down),
+        style: w.style,
+        focusColor: Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        underline: w.boxed ? null : const SizedBox.shrink(),
+        items: w.items,
+        onChanged: w.onChanged,
+      );
+    }
+    final colors = context.colors;
+    final theme = Theme.of(context);
+    final enabled = w.onChanged != null;
+    final selected = w.items.where((item) => item.value == w.value).firstOrNull;
+    final style = (w.style ?? theme.textTheme.bodyMedium!)
+        .copyWith(color: enabled ? (w.style?.color ?? colors.text) : colors.textMuted.withValues(alpha: 0.6));
+    Widget label = DefaultTextStyle.merge(
+      style: style,
+      overflow: TextOverflow.ellipsis,
+      child: selected?.child ?? w.hint ?? const SizedBox.shrink(),
+    );
+    final arrow = IconTheme.merge(
+      data: IconThemeData(size: 16, color: colors.textMuted),
+      child: w.icon ?? const Icon(Icons.unfold_more_rounded),
+    );
+    Widget field = Row(mainAxisSize: w.isExpanded ? MainAxisSize.max : MainAxisSize.min, children: [
+      if (w.isExpanded) Expanded(child: label) else Flexible(child: label),
+      const SizedBox(width: 4),
+      arrow,
+    ]);
+    if (w.decoration != null) {
+      field = InputDecorator(
+        decoration: w.decoration!,
+        isFocused: _open,
+        isEmpty: selected == null && w.hint == null,
+        child: field,
+      );
+    } else if (w.boxed) {
+      field = Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: _open ? colors.accent : colors.line),
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: field,
+      );
+    } else {
+      field = Padding(padding: EdgeInsets.symmetric(vertical: w.dense ? 2 : 4), child: field);
+    }
+    return MenuAnchor(
+      controller: _menu,
+      childFocusNode: _focus,
+      crossAxisUnconstrained: false,
+      onOpen: () => setState(() => _open = true),
+      onClose: () => setState(() => _open = false),
+      alignmentOffset: const Offset(0, 2),
+      style: MenuStyle(
+        visualDensity: VisualDensity.standard, // compact would take 8 px off the width
+        minimumSize: WidgetStatePropertyAll(Size(_width, 0)),
+        maximumSize: const WidgetStatePropertyAll(Size(double.infinity, 320)),
+      ),
+      menuChildren: [
+        for (final item in w.items)
+          MenuItemButton(
+            style: MenuItemButton.styleFrom(
+              minimumSize: const Size(0, refinedMenuRow),
+              visualDensity: VisualDensity.standard,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: item.enabled
+                ? () {
+                    item.onTap?.call();
+                    w.onChanged?.call(item.value);
+                  }
+                : null,
+            leadingIcon: SizedBox(
+              width: 16,
+              child: item.value == w.value ? Icon(Icons.done, size: 16, color: colors.text) : null,
+            ),
+            child: item.child,
+          ),
+      ],
+      child: InkWell(
+        focusNode: _focus,
+        onTap: enabled ? _toggle : null,
+        borderRadius: BorderRadius.circular(5),
+        child: field,
+      ),
     );
   }
 }
