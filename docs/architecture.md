@@ -410,6 +410,13 @@ an `AppPopupMenuButton` filled with `menuItem` / `checkedMenuItem` / `menuDivide
 `PopupMenuButton` or `DropdownButton`, and a duration written for the classic style goes through
 `motion`.
 
+Dialogs are laid out for Refined by `dialog_kit.dart`: `AppDialog` (title, a body that scrolls
+in a short window, a footer with `leading` buttons, a `status` and the `actions`; the material
+`AlertDialog` in Classic), `AppTextField` (28 px, its label over it), `AppCheckRow` (26 px) and
+`AppChip`. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
+(tests find it with `appField(label)`), a select an `AppDropdown(label: …)`. `Export` and
+`Engrave Option` are `Dialog`s of their own, in the same measures.
+
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that
 overlay hangs from the widget that shows it. Flutter loses the link when two such widgets
