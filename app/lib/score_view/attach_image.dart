@@ -101,7 +101,7 @@ mixin _AttachImage on State<ScoreView> {
     try {
       await c.images.add(kind, await file.readAsBytes(), quarter: at.quarter, top: at.top, extension: file.name.split('.').last);
     } catch (e) {
-      _say('Could not add the image: ${describeError(e)}');
+      _say('Couldn’t add the image. ${describeError(e)}');
     }
   }
 
@@ -109,7 +109,7 @@ mixin _AttachImage on State<ScoreView> {
     try {
       if (!await c.images.paste(quarter: at.quarter, top: at.top)) _say('No image to paste.');
     } catch (e) {
-      _say('Could not paste the image: ${describeError(e)}');
+      _say('Couldn’t paste the image. ${describeError(e)}');
     }
   }
 
@@ -123,7 +123,7 @@ mixin _AttachImage on State<ScoreView> {
     if (scene == null || frame == null || box == null) return;
     if (!c.images.enabled) return _say('Attach Image is off.');
     final kind = ImageKind.ofPath(path);
-    if (kind == null) return _say('Not an SVG, PNG or JPEG.');
+    if (kind == null) return _say('Drop an SVG, PNG, or JPEG.');
     final r = frame.rect, local = box.globalToLocal(global);
     final p = frame.toLayout(Offset(local.dx.clamp(r.left, r.right), local.dy.clamp(r.top, r.bottom)));
     try {
@@ -132,7 +132,7 @@ mixin _AttachImage on State<ScoreView> {
           top: p.dy / scene.style.staffSpace,
           extension: path.split('.').last);
     } catch (e) {
-      _say('Could not add the image: ${describeError(e)}');
+      _say('Couldn’t add the image. ${describeError(e)}');
     }
   }
 

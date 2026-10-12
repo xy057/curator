@@ -300,12 +300,12 @@ Future<void> _editAnchor(BuildContext context, EditorController c, int index, {b
   final set = await showAnchorDialog(context, beats: sync.beats, quarter: a.quarter, jumpTo: a.jumpTo, warp: warp);
   if (set == null || !context.mounted || index >= sync.anchors.length) return;
   if (!c.anchors.setAnchor(index, set.quarter, jumpTo: set.jumpTo)) {
-    _refused(context, set.jumpTo == a.jumpTo ? '${sync.beats.format(set.quarter)} would cross a neighbouring anchor.' : null);
+    _refused(context, set.jumpTo == a.jumpTo ? 'Choose a position between the neighboring anchors.' : null);
   }
 }
 
 void _refused(BuildContext context, String? why) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text(why ?? 'That would put anchors out of order, or the ones after the jump past the end of the score.')));
+    content: Text(why ?? 'This jump would put anchors out of order or past the end of the score.')));
 
 /// Warp (W): makes the selected anchor jump (back for a repeat, on to a coda), or adds a
 /// warp at the playhead, on the bar (or beat) sounding there.
@@ -530,7 +530,7 @@ Future<void> pickAudio(BuildContext context, EditorController c) async {
     await c.loadAudio(file.path);
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not load the recording: ${describeError(e)}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t load the recording. ${describeError(e)}')));
     }
   }
 }
@@ -542,7 +542,7 @@ Future<void> pickMidi(BuildContext context, EditorController c) async {
     await c.loadMidiTempo(file.path);
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not use the MIDI file: ${describeError(e)}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t use the MIDI file. ${describeError(e)}')));
     }
   }
 }

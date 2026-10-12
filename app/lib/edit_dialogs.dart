@@ -193,9 +193,9 @@ class _RegionDialogState extends State<_RegionDialog> {
         field.text == _beats.format(edge) ? edge : _beats.parse(field.text);
     final a = read(_from, widget.ref.region.start), b = read(_to, widget.ref.region.end);
     final error = a == null || b == null
-        ? 'Type a bar, or bar.beat — e.g. 12 or 12.3'
+        ? 'Enter a bar or bar.beat, like 12 or 12.3'
         : b <= a
-            ? 'It has to end after it starts'
+            ? 'Set Until after From'
             : null;
     void save() {
       if (error == null) Navigator.pop(context, Region(a!, b!, transitionIn: _in, transitionOut: _out));
@@ -290,11 +290,11 @@ class _CaptionDialogState extends State<_CaptionDialog> {
         field.text == _beats.format(edge) ? edge : _beats.parse(field.text);
     final a = read(_from, widget.caption.start), b = read(_to, widget.caption.end);
     final error = a == null || b == null
-        ? 'Type a bar, or bar.beat — e.g. 12 or 12.3'
+        ? 'Enter a bar or bar.beat, like 12 or 12.3'
         : b <= a
-            ? 'It has to end after it starts'
+            ? 'Set Until after From'
             : captionOverlapping(widget.controller.captions.captions, a, b, except: widget.index) != null
-                ? 'Another caption is there'
+                ? 'Overlaps another caption'
                 : widget.isNew && _text.text.trim().isEmpty
                 ? ''
                 : null;

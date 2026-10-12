@@ -75,7 +75,7 @@ void main() {
     expect(rect.topLeft.dy, closeTo(spot.dy, 0.5));
 
     await drop(midi, spot);
-    sees('Not an SVG, PNG or JPEG.');
+    sees('Drop an SVG, PNG, or JPEG.');
     settings.attachImage = false;
     await tester.pump();
     await drop(png, spot);
@@ -88,7 +88,7 @@ void main() {
     c.tab = BottomTab.audio;
     await tester.pump();
     await drop(png, timeline);
-    sees('Not a MIDI file or a recording.');
+    sees('Drop a MIDI file or a recording.');
     await drag(timeline);
     expect(find.text('A MIDI tempo map or a recording'), findsOneWidget);
     await channel('exited', const <double>[]);

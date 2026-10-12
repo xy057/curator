@@ -246,13 +246,13 @@ void main() {
         });
 
     expect(await decodeError(PatchImage('a.png', ImageKind.raster, bomb)),
-        isA<FormatException>().having((e) => e.message, 'message', 'The image is too big.'));
+        isA<FormatException>().having((e) => e.message, 'message', 'Use an image under 64 MB.'));
     final inSvg = utf8.encode('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="10" height="10">'
         '<image width="10" height="10" xlink:href="data:image/png;base64,${base64Encode(bomb)}"/></svg>');
     expect(await decodeError(PatchImage('a.svg', ImageKind.vector, inSvg)),
-        isA<FormatException>().having((e) => e.message, 'message', 'The image is too big.'));
+        isA<FormatException>().having((e) => e.message, 'message', 'Use an image under 64 MB.'));
     expect(await decodeError(PatchImage('a.png', ImageKind.raster, Uint8List(PatchImage.maxBytes + 1))),
-        isA<FormatException>().having((e) => e.message, 'message', 'The image is too big.'));
+        isA<FormatException>().having((e) => e.message, 'message', 'Use an image under 64 MB.'));
 
     final art = await tester.runAsync(() => PatchImage('b.png', ImageKind.raster, greyPng(8192, 16)).decode()) as RasterArt;
     expect(art.size, const Size(4096, 8), reason: 'scaled to the longest side kept, its shape kept');
@@ -275,7 +275,7 @@ void main() {
     expect((blank as VectorArt).size, const Size(300, 150), reason: "a browser's size");
     blank.dispose();
     expect(await decode('<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"><rect width="3" height="1"/></svg>'),
-        isA<FormatException>().having((e) => e.message, 'message', 'The SVG has no size.'));
+        isA<FormatException>().having((e) => e.message, 'message', 'This SVG has no width or height.'));
   });
 
   test('SVG text is told from other text', () {

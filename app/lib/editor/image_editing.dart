@@ -188,7 +188,7 @@ class ImageEditing {
       }
     } catch (_) {
       arts.values.forEach(_dispose);
-      throw const FormatException('An image in the project could not be read.');
+      throw const FormatException('Couldn’t read an image in the project.');
     }
     return arts;
   }

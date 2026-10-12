@@ -171,7 +171,7 @@ class EditorController extends ChangeNotifier {
       await loadAudio(mediaPath, temporary: true, originalPath: mediaOriginal);
       return null;
     } catch (e) {
-      return 'The recording could not be loaded:\n${describeError(e)}';
+      return 'Couldn’t load the recording.\n${describeError(e)}';
     } finally {
       _tab = BottomTab.instruments;
       notifyListeners();

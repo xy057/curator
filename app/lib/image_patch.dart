@@ -75,7 +75,7 @@ class PatchImage {
   /// Draws the image. Throws a [FormatException] when the bytes are not an image of [kind],
   /// or one too big.
   Future<PatchArt> decode() async {
-    if (bytes.length > maxBytes) throw const FormatException('The image is too big.');
+    if (bytes.length > maxBytes) throw const FormatException('Use an image under 64 MB.');
     try {
       switch (kind) {
         case ImageKind.vector:
@@ -83,7 +83,7 @@ class PatchImage {
           final info = await vg.loadPicture(SvgBytesLoader(await _sized(bytes)), null);
           if (info.size.isEmpty) {
             info.picture.dispose();
-            throw const _Refused('The SVG has no size.');
+            throw const _Refused('This SVG has no width or height.');
           }
           return VectorArt(info);
         case ImageKind.raster:
@@ -92,7 +92,7 @@ class PatchImage {
     } on _Refused catch (e) {
       throw FormatException(e.message);
     } catch (e) {
-      throw FormatException('This is not ${kind == ImageKind.vector ? 'an SVG' : 'a PNG or JPEG'} image that can be read.');
+      throw FormatException('Couldn’t read this ${kind == ImageKind.vector ? 'SVG' : 'PNG or JPEG'}.');
     }
   }
 
@@ -190,7 +190,7 @@ class PatchImage {
 
 class _Refused implements Exception {
   const _Refused(this.message);
-  const _Refused.tooBig() : message = 'The image is too big.';
+  const _Refused.tooBig() : message = 'Use an image under 64 MB.';
   final String message;
 }
 

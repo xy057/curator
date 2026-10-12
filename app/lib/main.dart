@@ -376,7 +376,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name);
         if (problem != null && mounted) _recordingProblem(problem);
         if (mounted) await promptForExtensions(context, settings, controller);
-      }, title: 'Could not open the project');
+      }, title: 'Couldn’t Open Project');
     } else {
       await _guard(() async {
         await document.importScore(path);
@@ -414,7 +414,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     await _guard(() async {
       final problem = await document.openSample();
       if (problem != null && mounted) _recordingProblem(problem);
-    }, title: 'Could not open the sample');
+    }, title: 'Couldn’t Open Sample');
   }
 
   /// Save (⌘S). Returns false when nothing was saved (cancelled or failed). Saves even
@@ -441,8 +441,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (controller.score != null && !document.isSample) return true;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(document.isSample
-            ? 'The demo can’t be saved: import a score to start a project of your own.'
-            : 'Nothing to save yet: open a project or import a score first.')));
+            ? 'The sample can’t be saved. Open a score to start a project.'
+            : 'Nothing to save. Open a project or score first.')));
     return false;
   }
 
@@ -451,13 +451,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     await _guard(() async {
       await document.save(path);
       saved = true;
-    }, title: 'Could not save the project');
+    }, title: 'Couldn’t Save Project');
     return saved;
   }
 
   void _autosaveFailed(Object error) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Autosave failed: ${describeError(error)}')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t autosave. ${describeError(error)}')));
   }
 
   /// Before replacing the project: offers to save unsaved changes. False: stay.
@@ -488,7 +488,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _settings({String? page}) =>
       showSettingsDialog(context, settings, controller: controller, updater: updater, page: page);
 
-  Future<void> _guard(Future<void> Function() action, {String title = 'Could not open the score'}) async {
+  Future<void> _guard(Future<void> Function() action, {String title = 'Couldn’t Open Score'}) async {
     try {
       await action();
     } catch (e) {
@@ -595,7 +595,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     try {
       if (!await controller.images.paste()) problem = 'No image to paste.';
     } catch (e) {
-      problem = 'Could not paste the image: ${describeError(e)}';
+      problem = 'Couldn’t paste the image. ${describeError(e)}';
     }
     if (problem != null && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(problem)));
   }
@@ -645,11 +645,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         }
       case _DropArea.audio:
         if (MediaFormats.isMidi(path)) {
-          _guard(() => controller.loadMidiTempo(path), title: 'Could not use the MIDI file');
+          _guard(() => controller.loadMidiTempo(path), title: 'Couldn’t Use MIDI File');
         } else if (MediaFormats.isRecording(path)) {
-          _guard(() => controller.loadAudio(path), title: 'Could not load the recording');
+          _guard(() => controller.loadAudio(path), title: 'Couldn’t Load Recording');
         } else {
-          _snack('Not a MIDI file or a recording.');
+          _snack('Drop a MIDI file or a recording.');
         }
       case _DropArea.home:
         _droppedHome(path);
@@ -661,13 +661,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       if (controller.score == null) {
         _snack('Open a score first, then add its MIDI tempo map.');
       } else {
-        _guard(() => controller.loadMidiTempo(path), title: 'Could not use the MIDI file');
+        _guard(() => controller.loadMidiTempo(path), title: 'Couldn’t Use MIDI File');
       }
     } else if (MediaFormats.isRecording(path)) {
       if (controller.score == null) {
         _snack('Open a score first, then add its recording.');
       } else {
-        _guard(() => controller.loadAudio(path), title: 'Could not load the recording');
+        _guard(() => controller.loadAudio(path), title: 'Couldn’t Load Recording');
       }
     } else {
       _openPath(path);

@@ -198,7 +198,7 @@ void main() {
       final u = updater();
       await github.close();
       await u.check();
-      expect((u.status as UpdateFailed).message, 'No connection to GitHub.');
+      expect((u.status as UpdateFailed).message, 'Can’t connect to GitHub. Check your internet connection.');
     });
   });
 

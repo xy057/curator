@@ -84,7 +84,7 @@ void main() {
     await tester.enterText(texts.at(0), 'x');
     await tester.pump();
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Done')).onPressed, isNull);
-    expect(find.textContaining('1: Type a bar'), findsOneWidget);
+    expect(find.textContaining('1: Enter a bar'), findsOneWidget);
     await tester.enterText(texts.at(0), '2');
     await tester.enterText(texts.at(2), 'Horns');
     await tester.pump();
@@ -262,7 +262,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(appField('Until'), '6');
     await tester.pump();
-    expect(find.text('Another caption is there'), findsOneWidget);
+    expect(find.text('Overlaps another caption'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Apply')).onPressed, isNull);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
@@ -276,7 +276,7 @@ void main() {
     final texts = find.descendant(of: find.byType(CaptionsDialog), matching: find.byType(TextField));
     await tester.enterText(texts.at(1), '6');
     await tester.pump();
-    expect(find.textContaining('2: Overlaps row 1'), findsOneWidget);
+    expect(find.textContaining('2: Overlaps the caption in row 1'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Done')).onPressed, isNull);
 
     // A row added fits among the rows as they are: A moved to bar 9 here, the new one stops there.
