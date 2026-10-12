@@ -402,13 +402,16 @@ Windows match. A widget that draws its own control for Refined reads `AppStyle` 
 `AppSwitch` (ui_kit.dart) is the only one: always use it, never `Switch`. Text styles set in the
 refined theme are merged with the typography's geometry as `Theme.of` gives them, since a button
 lerps its label between the two styles and two text styles lerp only when both inherit or neither.
-Refined is agile: a menu opens in 190 ms (the material ones take 300) with 22 px rows, not 48,
-and other motion runs at about three quarters of the classic time (`motion(context, classicMs)`). Flutter fixes
-a popup menu's and a dropdown's timing and row height in the widget, not the theme, so a menu is
-an `AppPopupMenuButton` filled with `menuItem` / `checkedMenuItem` / `menuDivider`, a select an
-`AppDropdown` (a `MenuAnchor` whose rows fade in over 150 ms, in Refined; the material one in Classic), never
-`PopupMenuButton` or `DropdownButton`, and a duration written for the classic style goes through
-`motion`.
+Refined is agile: a menu opens in 190 ms (the material ones take 300) with 22 px rows, not 48 (a
+`MenuItemButton`'s too, by the theme; the Windows/Linux menu bar keeps its own buttons' height), and
+other motion runs at about three quarters of the classic time (`motion(context, classicMs)`).
+Flutter fixes a popup menu's and a dropdown's timing and row height in the widget, not the theme,
+so `menu_kit.dart` has them: a menu is an `AppPopupMenuButton` filled with `menuItem` /
+`checkedMenuItem` / `menuDivider`, a select an `AppDropdown` (in Refined a `MenuAnchor` whose bare
+panel holds a card of the theme's menu style, so the card and its rows fade in together; the
+material one in Classic), never `PopupMenuButton` or `DropdownButton`; and a duration written for
+the classic style goes through `motion`. A theme without an `AppStyle` (a bare `MaterialApp` in a
+test) is not Refined: the material widgets are used.
 
 Dialogs are laid out for Refined by `dialog_kit.dart`: `AppDialog` (title, a body that scrolls
 in a short window, a footer with `leading` buttons, a `status` and the `actions`; the material
