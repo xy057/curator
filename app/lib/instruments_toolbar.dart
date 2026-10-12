@@ -133,7 +133,7 @@ class _TidyMenu extends StatelessWidget {
         icon: const Icon(Icons.cleaning_services_outlined),
         onSelected: (action) => action(),
         itemBuilder: (context) => [
-          PopupMenuItem(enabled: false, height: 28, child: Text('Tidy $where', style: const TextStyle(fontSize: 12))),
+          menuHeader(context, 'Tidy $where'),
           for (final n in const [1.0, 2.0, 4.0])
             menuItem(
               context,

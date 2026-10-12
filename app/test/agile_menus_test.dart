@@ -19,6 +19,7 @@ void main() {
           builder: (context) => AppPopupMenuButton<int>(
             tooltip: 'Menu',
             itemBuilder: (context) => [
+              menuHeader(context, 'Heading'),
               menuItem(context, value: 1, child: const Text('One')),
               menuDivider(context),
               checkedMenuItem(context, value: 2, checked: true, child: const Text('Two')),
@@ -29,9 +30,14 @@ void main() {
       await tester.tap(find.byTooltip('Menu'));
       await tester.pumpAndSettle();
       final items = find.byWidgetPredicate((w) => w is PopupMenuItem<int>);
-      expect(items, findsNWidgets(2));
-      for (final item in items.evaluate()) {
+      expect(items, findsNWidgets(3));
+      for (final item in items.evaluate().skip(1)) {
         expect(item.size!.height, rows);
+      }
+      if (style == UiStyle.refined) {
+        expect(items.evaluate().first.size!.height, rows, reason: 'the heading is a row of the menu');
+        expect(tester.getRect(find.text('Heading')).left, tester.getRect(find.text('One')).left,
+            reason: "the heading's text is on the items' edge");
       }
     });
   }

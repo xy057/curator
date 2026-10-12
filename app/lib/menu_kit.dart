@@ -26,6 +26,14 @@ PopupMenuItem<T> menuItem<T>(BuildContext context, {T? value, bool enabled = tru
       child: child,
     );
 
+/// A menu's heading: a muted row that can't be chosen, its text on the same edge as the items'.
+PopupMenuItem<T> menuHeader<T>(BuildContext context, String text) => PopupMenuItem<T>(
+      enabled: false,
+      height: isRefined(context) ? refinedMenuRow : 28,
+      padding: isRefined(context) ? _refinedItemPadding : null,
+      child: Text(text, style: const TextStyle(fontSize: 12)),
+    );
+
 /// A [PopupMenuDivider] with the space of a [menuRowHeight]'s row.
 PopupMenuDivider menuDivider(BuildContext context) => PopupMenuDivider(height: isRefined(context) ? 9 : 16);
 
