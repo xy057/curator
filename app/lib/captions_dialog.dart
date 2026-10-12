@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
-import 'editor_controller.dart';
 import 'dialog_kit.dart';
+import 'editor_controller.dart';
 import 'ui_kit.dart';
 
 /// The Captions sheet (double-click the Captions lane): every caption as a row of From, Until
@@ -153,12 +153,12 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
         if (p != null) '${i + 1}: $p',
     ].firstOrNull;
     final invalid = problem != null;
-    final header = TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: colors.textMuted);
+    final header = TextStyle(fontSize: isRefined(context) ? 12.5 : 11.5, fontWeight: FontWeight.w600, color: colors.textMuted);
     return AppDialog(
       title: const Text('Captions'),
       contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       content: SizedBox(
-        width: 640,
+        width: dialogWidth(context, 640),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           DecoratedBox(
             decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.line))),
@@ -194,7 +194,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
       actionsPadding: const EdgeInsets.fromLTRB(16, 8, 24, 20),
       divided: true,
       leading: [TextButton.icon(onPressed: _add, icon: const Icon(Icons.add, size: 18), label: const Text('Add'))],
-      status: problem == null ? null : Text(problem, style: TextStyle(fontSize: 12, color: colors.erase), overflow: TextOverflow.ellipsis),
+      status: problem == null ? null : Text(problem, style: TextStyle(color: colors.erase), overflow: TextOverflow.ellipsis),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(onPressed: invalid ? null : _done, child: const Text('Done')),
@@ -206,6 +206,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
 
   Widget _row(BuildContext context, int i, String? problem) {
     final colors = context.colors;
+    final size = isRefined(context) ? 14.0 : 13.0; // a dialog's text
     final r = _rows[i];
     final a = _start(r), b = _end(r);
     // The cells at fault: a bar that isn't one, an end too soon, or (an overlap) the start.
@@ -229,14 +230,14 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
             controller: field,
             focusNode: r.focus[column],
             maxLength: column == 2 ? 160 : null,
-            style: TextStyle(fontSize: 13, color: error ? colors.erase : colors.text),
+            style: TextStyle(fontSize: size, color: error ? colors.erase : colors.text),
             decoration: InputDecoration(
               isDense: true,
               counterText: '',
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
               hintText: column == 2 ? 'Empty: removed' : null,
-              hintStyle: TextStyle(fontSize: 13, color: colors.textMuted.withValues(alpha: 0.6)),
+              hintStyle: TextStyle(fontSize: size, color: colors.textMuted.withValues(alpha: 0.6)),
             ),
             onChanged: (_) => setState(() {}),
             onSubmitted: (_) => _focusCell(i + 1, column),

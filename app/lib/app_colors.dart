@@ -482,9 +482,9 @@ class AppColors extends ThemeExtension<AppColors> {
       segmentedButtonTheme: SegmentedButtonThemeData(style: segment),
       dialogTheme: theme.dialogTheme.copyWith(
         backgroundColor: raised,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: dark ? c.line : Colors.transparent)),
-        titleTextStyle: type.titleLarge!.copyWith(fontSize: 15, fontWeight: FontWeight.w600, color: c.text, letterSpacing: 0),
-        contentTextStyle: type.bodyMedium!.copyWith(fontSize: 13, height: 1.4, color: c.text, letterSpacing: 0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: dark ? c.line : Colors.transparent)),
+        titleTextStyle: type.titleLarge!.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: c.text, letterSpacing: 0),
+        contentTextStyle: type.bodyMedium!.copyWith(fontSize: 14, height: 1.45, color: c.text, letterSpacing: 0),
         actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       ),
       splashFactory: NoSplash.splashFactory,

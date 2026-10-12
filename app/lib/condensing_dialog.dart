@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
-import 'editor_controller.dart';
 import 'dialog_kit.dart';
+import 'editor_controller.dart';
 import 'ui_kit.dart';
 
 /// Score ▸ Condensing…, as in Dorico (Layout Options ▸ Condensing and Edit Condensing Groups):
@@ -53,7 +53,8 @@ class _CondensingDialogState extends State<_CondensingDialog> {
       builder: (context, _) {
         if (c.score == null) return const SizedBox.shrink();
         final colors = context.colors;
-        final muted = TextStyle(fontSize: 12, color: colors.textMuted);
+        final refined = isRefined(context);
+        final muted = TextStyle(fontSize: refined ? 13 : 12, color: colors.textMuted);
         final pairs = c.condensable;
         final firsts = _free();
         if (!firsts.contains(_first)) _first = null;
@@ -80,12 +81,12 @@ class _CondensingDialogState extends State<_CondensingDialog> {
         return AppDialog(
           title: const Text('Condensing'),
           content: SizedBox(
-            width: 440,
+            width: dialogWidth(context, 440),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ticked pairs share one staff while both players are shown.', style: muted),
+                Text('Ticked pairs share one staff.', style: muted),
                 const SizedBox(height: 8),
                 if (pairs.isEmpty)
                   Padding(
@@ -125,7 +126,8 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                 ],
                 if (firsts.isNotEmpty) ...[
                   Divider(height: isRefined(context) ? 20 : 24),
-                  Text('Add a pair', style: Theme.of(context).textTheme.titleSmall),
+                  Text('Add a pair',
+                      style: refined ? const TextStyle(fontSize: 14, fontWeight: FontWeight.w600) : Theme.of(context).textTheme.titleSmall),
                   SizedBox(height: isRefined(context) ? 6 : 0),
                   Row(
                     children: [
@@ -139,7 +141,13 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                       Expanded(child: choose('Player', _second, seconds, (id) => setState(() => _second = id))),
                       const SizedBox(width: 12),
                       isRefined(context)
-                          ? OutlinedButton(onPressed: _first != null && _second != null ? _add : null, child: const Text('Add'))
+                          ? OutlinedButton(
+                              // As tall as the fields beside it.
+                              style: dialogButtonStyle(context)
+                                  .copyWith(minimumSize: const WidgetStatePropertyAll(Size(76, 36))),
+                              onPressed: _first != null && _second != null ? _add : null,
+                              child: const Text('Add'),
+                            )
                           : FilledButton.tonal(onPressed: _first != null && _second != null ? _add : null, child: const Text('Add')),
                     ],
                   ),

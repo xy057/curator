@@ -289,7 +289,9 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
     final theme = Theme.of(context);
     final enabled = w.onChanged != null;
     final selected = w.items.where((item) => item.value == w.value).firstOrNull;
-    final style = (w.style ?? theme.textTheme.bodyMedium!)
+    // In a dialog (boxed, labelled) it is the dialog's size: 36 px, 14 px text.
+    final inDialog = w.boxed || w.label != null;
+    final style = (w.style ?? theme.textTheme.bodyMedium!.copyWith(fontSize: inDialog ? 14 : 13))
         .copyWith(color: enabled ? (w.style?.color ?? colors.text) : colors.textMuted.withValues(alpha: 0.6));
     Widget label = DefaultTextStyle.merge(
       style: style,
@@ -297,7 +299,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
       child: selected?.child ?? w.hint ?? const SizedBox.shrink(),
     );
     final arrow = IconTheme.merge(
-      data: IconThemeData(size: 16, color: colors.textMuted),
+      data: IconThemeData(size: inDialog ? 18 : 16, color: colors.textMuted),
       child: w.icon ?? const Icon(Icons.unfold_more_rounded),
     );
     Widget field = Row(mainAxisSize: w.isExpanded ? MainAxisSize.max : MainAxisSize.min, children: [
@@ -305,13 +307,13 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
       const SizedBox(width: 4),
       arrow,
     ]);
-    if (w.boxed || w.label != null) {
+    if (inDialog) {
       field = Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          border: Border.all(color: _open ? colors.accent : colors.line),
-          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: _open ? colors.accent : colors.line, width: _open ? 1.5 : 1),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: field,
       );
@@ -363,8 +365,8 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
     if (w.label == null) return menu;
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Text(w.label!, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: colors.textMuted)),
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(w.label!, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.textMuted)),
       ),
       menu,
     ]);

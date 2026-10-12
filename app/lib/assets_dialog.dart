@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'image_patch.dart';
-import 'dialog_kit.dart';
 import 'ui_kit.dart';
 
 /// The images the project keeps (Attach Image), each with where it is used: a use's bar
@@ -29,7 +29,7 @@ class AssetsDialog extends StatelessWidget {
         return AppDialog(
           title: const Text('Assets'),
           content: SizedBox(
-            width: 480,
+            width: dialogWidth(context, 480),
             height: stored.isEmpty && unused.isEmpty && isRefined(context) ? 96 : 360,
             child: stored.isEmpty && unused.isEmpty
                 ? Center(child: Text('No images', style: muted))

@@ -8,13 +8,13 @@ import 'package:score_engine/score_engine.dart' show EngravingOptions, MusicFont
 import 'app_colors.dart';
 import 'app_extensions.dart';
 import 'app_settings.dart';
+import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'engrave_options_dialog.dart';
 import 'engraving_settings.dart';
 import 'export_dialog.dart' show revealInFileManager;
 import 'font_settings.dart';
 import 'project_file.dart';
-import 'dialog_kit.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
 

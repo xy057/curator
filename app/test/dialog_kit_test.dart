@@ -78,7 +78,7 @@ void main() {
     expect(find.byType(AlertDialog), findsOneWidget);
   });
 
-  testWidgets('refined: a text field is 28 px with its label over it, and a bad one is outlined in red', (tester) async {
+  testWidgets('refined: a text field is 36 px with its label over it, and a bad one is outlined in red', (tester) async {
     final text = TextEditingController(text: '12');
     addTearDown(text.dispose);
     for (final bad in [false, true]) {
@@ -86,14 +86,14 @@ void main() {
         theme: _theme(UiStyle.refined),
         home: Scaffold(body: Center(child: SizedBox(width: 200, child: AppTextField(controller: text, label: 'Bar', bad: bad)))),
       ));
-      expect(tester.getSize(find.byType(TextField)).height, 28);
+      expect(tester.getSize(find.byType(TextField)).height, 36);
       expect(tester.getRect(find.text('Bar')).bottom, lessThanOrEqualTo(tester.getRect(find.byType(TextField)).top));
       final border = tester.widget<TextField>(find.byType(TextField)).decoration!.enabledBorder as OutlineInputBorder;
       expect(border.borderSide.color == _theme(UiStyle.refined).extension<AppColors>()!.erase, bad);
     }
   });
 
-  testWidgets('refined: a check row is 26 px and toggles by its label; classic is the material list tile', (tester) async {
+  testWidgets('refined: a check row is 34 px and toggles by its label; classic is the material list tile', (tester) async {
     bool? value = false;
     for (final style in [UiStyle.refined, UiStyle.classic]) {
       await tester.pumpWidget(MaterialApp(
@@ -102,10 +102,19 @@ void main() {
       ));
       await tester.pumpAndSettle();
       expect(find.byType(CheckboxListTile), style == UiStyle.classic ? findsOneWidget : findsNothing);
-      if (style == UiStyle.refined) expect(tester.getSize(find.byType(AppCheckRow)).height, 26);
+      if (style == UiStyle.refined) expect(tester.getSize(find.byType(AppCheckRow)).height, 34);
       value = null;
       await tester.tap(find.text('Flute'));
       expect(value, isTrue, reason: style.name);
     }
+  });
+
+  testWidgets('refined: the footer buttons are 34 px, a dialog\'s, not the toolbar\'s 28', (tester) async {
+    await tester.pumpWidget(_app(
+      UiStyle.refined,
+      AppDialog(title: const Text('T'), actions: [FilledButton(onPressed: () {}, child: const Text('OK'))]),
+    ));
+    await _open(tester);
+    expect(tester.getSize(find.byType(FilledButton)).height, 34);
   });
 }

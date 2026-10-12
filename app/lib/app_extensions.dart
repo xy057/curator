@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'app_colors.dart';
 import 'app_settings.dart';
 import 'caption_settings.dart';
-import 'editor_controller.dart';
 import 'dialog_kit.dart';
+import 'editor_controller.dart';
 import 'ui_kit.dart';
 
 /// The optional first-party components (Settings ▸ Extension). Each is a switch for the whole
@@ -82,14 +83,13 @@ class ExtensionsDialog extends StatelessWidget {
           contentPadding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
           divided: true,
           content: SizedBox(
-            width: 360,
+            width: dialogWidth(context, 360),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (extensions.length > 1) ...[
-                ListTile(
-                  dense: true,
-                  title: const Text('All', style: TextStyle(fontWeight: FontWeight.w600)),
-                  trailing: AppSwitch(value: allOn, onChanged: setAll),
-                  onTap: () => setAll(!allOn),
+                _SwitchRow(
+                  label: const Text('All', style: TextStyle(fontWeight: FontWeight.w600)),
+                  value: allOn,
+                  onChanged: setAll,
                 ),
                 const Divider(height: 1),
               ],
@@ -97,15 +97,14 @@ class ExtensionsDialog extends StatelessWidget {
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: extensions.length,
-                  itemExtent: isRefined(context) ? 34 : 44,
+                  itemExtent: isRefinedDialog(context) ? 40 : 44,
                   itemBuilder: (context, i) {
                     final e = extensions[i];
-                    return ListTile(
-                      dense: true,
-                      leading: Icon(e.icon, size: 18),
-                      title: Text(e.label),
-                      trailing: AppSwitch(value: e.isOn(settings), onChanged: (on) => e.set(settings, on)),
-                      onTap: () => e.set(settings, !e.isOn(settings)),
+                    return _SwitchRow(
+                      icon: e.icon,
+                      label: Text(e.label),
+                      value: e.isOn(settings),
+                      onChanged: (on) => e.set(settings, on),
                     );
                   },
                 ),
@@ -115,6 +114,44 @@ class ExtensionsDialog extends StatelessWidget {
           actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
         );
       },
+    );
+  }
+}
+
+/// A row with a switch, turned by a click anywhere on it: a list tile in [UiStyle.classic], a
+/// 40 px row in [UiStyle.refined].
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({this.icon, required this.label, required this.value, required this.onChanged});
+  final IconData? icon;
+  final Widget label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final control = AppSwitch(value: value, onChanged: onChanged);
+    if (!isRefinedDialog(context)) {
+      return ListTile(
+        dense: true,
+        leading: icon == null ? null : Icon(icon, size: 18),
+        title: label,
+        trailing: control,
+        onTap: () => onChanged(!value),
+      );
+    }
+    return InkWell(
+      borderRadius: BorderRadius.circular(7),
+      onTap: () => onChanged(!value),
+      child: SizedBox(
+        height: 40,
+        child: Row(children: [
+          const SizedBox(width: 8),
+          if (icon != null) ...[Icon(icon, size: 18, color: context.colors.textMuted), const SizedBox(width: 12)],
+          Expanded(child: DefaultTextStyle.merge(style: const TextStyle(fontSize: 14), child: label)),
+          control,
+          const SizedBox(width: 4),
+        ]),
+      ),
     );
   }
 }
