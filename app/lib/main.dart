@@ -887,42 +887,44 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   static const _minTimeline = 150.0, _minScore = 180.0;
 
   Widget _editor(BuildContext context) {
+    // Built here, not in the layout builder: resizing the window lays them out again, the
+    // same widgets, without rebuilding them at every step of the drag.
+    final toolbar = EditorToolbar(
+      controller: controller,
+      document: document,
+      onExportVideo: _exportVideo,
+      videoFrame: settings.previewVideoFrame,
+      onVideoFrame: (on) => settings.previewVideoFrame = on,
+      videoRatio: settings.videoRatio,
+      // Choosing a ratio shows it.
+      onVideoRatio: (r) => settings
+        ..videoRatio = r
+        ..previewVideoFrame = true,
+      onClose: _close,
+      readout: _readout,
+    );
+    final score = Expanded(child: ScoreView(
+      key: _scoreView,
+      controller: controller,
+      aspectRatio: settings.previewVideoFrame ? settings.videoFormat.aspectRatio : null,
+    ));
+    // Working in the timeline leaves the image selected in the score.
+    final timeline = Listener(
+      onPointerDown: (_) => controller.images.select(null),
+      child: BottomPanel(controller: controller),
+    );
+    final toolbarHeight = EditorToolbar.heightOf(context);
     return LayoutBuilder(builder: (context, constraints) {
-      final maxTimeline = math.max(_minTimeline, constraints.maxHeight - EditorToolbar.heightOf(context) - _minScore);
+      final maxTimeline = math.max(_minTimeline, constraints.maxHeight - toolbarHeight - _minScore);
       final timelineHeight = _timelineHeight.clamp(_minTimeline, maxTimeline);
       return Column(
         children: [
-          EditorToolbar(
-            controller: controller,
-            document: document,
-            onExportVideo: _exportVideo,
-            videoFrame: settings.previewVideoFrame,
-            onVideoFrame: (on) => settings.previewVideoFrame = on,
-            videoRatio: settings.videoRatio,
-            // Choosing a ratio shows it.
-            onVideoRatio: (r) => settings
-              ..videoRatio = r
-              ..previewVideoFrame = true,
-            onClose: _close,
-            readout: _readout,
-          ),
-          Expanded(child: ScoreView(
-            key: _scoreView,
-            controller: controller,
-            aspectRatio: settings.previewVideoFrame ? settings.videoFormat.aspectRatio : null,
-          )),
+          toolbar,
+          score,
           _ResizeHandle(
             onDrag: (dy) => setState(() => _timelineHeight = (timelineHeight - dy).clamp(_minTimeline, maxTimeline)),
           ),
-          SizedBox(
-            key: _timeline,
-            height: timelineHeight,
-            // Working in the timeline leaves the image selected in the score.
-            child: Listener(
-              onPointerDown: (_) => controller.images.select(null),
-              child: BottomPanel(controller: controller),
-            ),
-          ),
+          SizedBox(key: _timeline, height: timelineHeight, child: timeline),
         ],
       );
     });

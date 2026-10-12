@@ -62,11 +62,7 @@ class BottomPanel extends StatelessWidget {
               ),
             ),
             const ToolbarDivider(),
-            // In a narrow window only Fit stays: pinch or ⌘-scroll zoom anyway.
-            if (MediaQuery.sizeOf(context).width >= 1100) ...[
-              ToolbarButton(icon: Icons.zoom_out_rounded, tooltip: 'Zoom out (${shortcut('⌘-scroll')} or pinch)', onPressed: () => c.viewport.zoom(1 / 1.5)),
-              ToolbarButton(icon: Icons.zoom_in_rounded, tooltip: 'Zoom in (${shortcut('⌘-scroll')} or pinch)', onPressed: () => c.viewport.zoom(1.5)),
-            ],
+            _ZoomButtons(controller: c),
             ToolbarButton(
               icon: Icons.fit_screen_outlined,
               tooltip: 'Fit',
@@ -75,9 +71,11 @@ class BottomPanel extends StatelessWidget {
           ]),
         ),
         Expanded(
-          child: LayoutBuilder(builder: (context, constraints) {
-            c.viewport.setWidth(constraints.maxWidth - kLaneHeaderWidth, c.playback.duration);
-            return ViewportGestures(
+          // The same lanes at every width: resizing the window lays them out again (their
+          // painters read the viewport as they paint) without rebuilding them.
+          child: _Width(
+            onWidth: (width) => c.viewport.setWidth(width - kLaneHeaderWidth, c.playback.duration),
+            child: ViewportGestures(
               controller: c,
               child: Column(children: [
                 BarRuler(controller: c),
@@ -101,12 +99,43 @@ class BottomPanel extends StatelessWidget {
                   ),
                 ),
               ]),
-            );
-          }),
+            ),
+          ),
         ),
       ]),
     );
   }
+}
+
+/// Zoom out and in: in a narrow window only Fit stays (pinch or ⌘-scroll zoom anyway). On
+/// its own, so a resize rebuilds only these.
+class _ZoomButtons extends StatelessWidget {
+  const _ZoomButtons({required this.controller});
+  final EditorController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 1100) return const SizedBox.shrink();
+    final v = controller.viewport;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      ToolbarButton(icon: Icons.zoom_out_rounded, tooltip: 'Zoom out (${shortcut('⌘-scroll')} or pinch)', onPressed: () => v.zoom(1 / 1.5)),
+      ToolbarButton(icon: Icons.zoom_in_rounded, tooltip: 'Zoom in (${shortcut('⌘-scroll')} or pinch)', onPressed: () => v.zoom(1.5)),
+    ]);
+  }
+}
+
+/// Tells [onWidth] the width it is laid out at, before its child is laid out, and builds
+/// nothing for it.
+class _Width extends StatelessWidget {
+  const _Width({required this.onWidth, required this.child});
+  final ValueChanged<double> onWidth;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
+        onWidth(constraints.maxWidth);
+        return child;
+      });
 }
 
 /// Instruments | Audio, as two icons with a highlight that slides between them.
