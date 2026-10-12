@@ -162,7 +162,7 @@ final _categories = <_Category>[
       keywords: 'dark light mode colour color',
     ),
     _Item(
-      'Accent colour',
+      'Accent color',
       null,
       (c) => _AccentPicker(settings: c.settings),
       keywords: 'color colour scheme',
