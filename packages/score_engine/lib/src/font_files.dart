@@ -2,8 +2,10 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-/// One face of a font file (a .ttc holds several).
-typedef FontFace = ({String path, int index, String family, int weight, bool italic});
+/// One face of a font file (a .ttc holds several). [family] is its typographic family (name
+/// id 16, as macOS names it); [legacyFamily] the family Windows' Font dialog names it by (id 1:
+/// a weight's own family, like "Foo Light"), the same when the font has no id 16.
+typedef FontFace = ({String path, int index, String family, String legacyFamily, int weight, bool italic});
 
 /// Reading font files without asking the system: which families and faces a file holds (its
 /// `name` and `OS/2` tables), the fonts installed in the platform's font folders, and one face
@@ -72,6 +74,20 @@ abstract final class FontFiles {
       }
     }
     return families;
+  }
+
+  /// The faces of [fonts] (as [scan] gives them) in the family [name], ignoring case: its
+  /// typographic family, else a weight's legacy one (Windows' Font dialog answers "Foo Light"
+  /// for Foo's light face). Null when there are none.
+  static List<FontFace>? named(Map<String, List<FontFace>> fonts, String name) {
+    final key = name.toLowerCase();
+    if (fonts.keys.where((f) => f.toLowerCase() == key).firstOrNull case final family?) return fonts[family];
+    final legacy = [
+      for (final faces in fonts.values)
+        for (final f in faces)
+          if (f.legacyFamily.toLowerCase() == key) f,
+    ];
+    return legacy.isEmpty ? null : legacy;
   }
 
   /// The faces in the font file at [path]; none when it isn't a font.
@@ -161,7 +177,8 @@ abstract final class FontFiles {
     final name = tables['name'];
     if (name == null) return null;
     final names = _names(_read(file, name.$1, name.$2));
-    final family = names[16] ?? names[1] ?? '';
+    final legacy = names[1] ?? names[16] ?? '';
+    final family = names[16] ?? legacy;
     final subfamily = (names[17] ?? names[2] ?? '').toLowerCase();
     var weight = subfamily.contains('bold') ? 700 : 400;
     var italic = subfamily.contains('italic') || subfamily.contains('oblique');
@@ -171,7 +188,7 @@ abstract final class FontFiles {
       final selection = os2.getUint16(62);
       italic = selection & 0x201 != 0; // ITALIC or OBLIQUE
     }
-    return (path: path, index: index, family: family.trim(), weight: weight, italic: italic);
+    return (path: path, index: index, family: family.trim(), legacyFamily: legacy.trim(), weight: weight, italic: italic);
   }
 
   /// The `name` table's strings by name id, in English where there is a choice.

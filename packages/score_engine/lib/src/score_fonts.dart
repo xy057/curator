@@ -105,17 +105,15 @@ class MusicFont {
   }
 
   /// The font installed here as [name] (a bundled one's name gives it): a SMuFL font by its
-  /// folder, else a family. Null when there is none.
+  /// folder, else a family (or a weight's family, as Windows names it). Null when there is none.
   static Future<MusicFont?> findInstalled(String name) async {
     if (bundledNamed(name) case final bundled?) return bundled;
     final key = name.toLowerCase();
     if ((await installed()).where((i) => i.name.toLowerCase() == key).firstOrNull case final smufl?) {
       return readFace(smufl.face, metadataPath: smufl.metadata);
     }
-    final fonts = await FontFiles.installed;
-    final family = fonts.keys.where((f) => f.toLowerCase() == key).firstOrNull;
-    if (family == null) return null;
-    final face = FontFiles.pick(fonts[family]!, bold: false, italic: false);
+    final faces = FontFiles.named(await FontFiles.installed, name);
+    final face = faces == null ? null : FontFiles.pick(faces, bold: false, italic: false);
     return face == null ? null : readFace(face);
   }
 

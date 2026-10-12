@@ -156,8 +156,21 @@ void main() {
     expect(FontFiles.scan([dir.path]).keys.toSet(), {'Leland', 'Academico'});
   });
 
+  test("a family is found by its typographic name, or a weight's legacy one (as Windows' Font dialog names it)", () {
+    FontFace face(String family, String legacy, int weight) =>
+        (path: '$legacy.otf', index: 0, family: family, legacyFamily: legacy, weight: weight, italic: false);
+    final fonts = {
+      'Foo': [face('Foo', 'Foo', 400), face('Foo', 'Foo Light', 300)],
+      'Bar': [face('Bar', 'Bar', 400)],
+    };
+    expect(FontFiles.named(fonts, 'foo'), hasLength(2));
+    expect(FontFiles.named(fonts, 'Foo Light')!.single.weight, 300);
+    expect(FontFiles.named(fonts, 'Baz'), isNull);
+    expect(FontFiles.faces('assets/fonts/Leland.otf').single.legacyFamily, 'Leland');
+  });
+
   test('measures a text font from its file', () {
-    final bold = (path: 'assets/fonts/Academico-Bold.otf', index: 0, family: 'Academico', weight: 700, italic: false);
+    final bold = (path: 'assets/fonts/Academico-Bold.otf', index: 0, family: 'Academico', legacyFamily: 'Academico', weight: 700, italic: false);
     final ours = boxes(FontResources.textMetrics(bold, reference: times)!);
     final tool = boxes(File('assets/verovio/text/Times-bold.xml').readAsStringSync());
     expect(ours.keys.toSet(), tool.keys.toSet());
@@ -166,7 +179,7 @@ void main() {
         expect(ours[c]![i], closeTo(tool[c]![i], 1.5), reason: 'as make_text_metrics.swift measured $c with CoreText');
       }
     }
-    expect(FontResources.textMetrics((path: 'missing.otf', index: 0, family: 'x', weight: 400, italic: false), reference: times),
+    expect(FontResources.textMetrics((path: 'missing.otf', index: 0, family: 'x', legacyFamily: 'x', weight: 400, italic: false), reference: times),
         isNull);
   });
 
