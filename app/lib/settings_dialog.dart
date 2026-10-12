@@ -396,11 +396,11 @@ String get aboutText => 'Curator $_versionText\nVerovio $verovioVersion\n$_syste
 
 String _updateHelp(UpdateStatus status) => switch (status) {
       UpdateIdle() => 'From GitHub.',
-      UpdateChecking() => 'Asking GitHub…',
-      UpToDate() => 'This is the latest version.',
+      UpdateChecking() => 'Checking…',
+      UpToDate() => 'Curator is up to date.',
       UpdateAvailable(:final release) when release.download == null =>
-        '${release.version} is out, but not for this system yet.',
-      UpdateAvailable(:final release) => '${release.version} is out.',
+        'Curator ${release.version} is available, but not yet for this system.',
+      UpdateAvailable(:final release) => 'Curator ${release.version} is available.',
       UpdateDownloading(:final release) => 'Downloading ${release.version}…',
       UpdateDownloaded(:final path) => 'Saved “${path.split(RegExp(r'[/\\]')).last}”. '
           '${Platform.isWindows ? 'Close Curator, then replace its folder with the unzipped one.' : 'Unzip it and replace this app with it.'}',

@@ -279,7 +279,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (status is! UpdateAvailable || status.release.download == null || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       duration: const Duration(seconds: 10),
-      content: Text('Curator ${status.release.version} is out.'),
+      content: Text('Curator ${status.release.version} is available.'),
       action: SnackBarAction(label: 'Update…', onPressed: () => _settings(page: 'About')),
     ));
   }
