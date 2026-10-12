@@ -95,6 +95,22 @@ void main() {
     expect(c.condensed, {'cond-P2-P3'});
   });
 
+  test('the lanes and pairs are worked out once until something they come from changes (the lanes read them at every paint)', () {
+    final lanes = c.laneParts, pairs = c.condensable;
+    expect(c.laneParts, same(lanes));
+    expect(c.condensable, same(pairs));
+    c.setCondensed(['cond-P2-P3'], on: true);
+    expect(c.laneParts, isNot(same(lanes)));
+    expect(c.laneParts.map((p) => p.id), isNot(contains('P3')));
+    expect(c.condensable, same(pairs), reason: 'condensing a pair makes no new one');
+    c.moveLane('P17', 0);
+    expect(c.laneParts.first.id, 'P17');
+    c.undo();
+    c.undo();
+    expect(c.laneParts.map((p) => p.id), [for (final p in lanes) p.id]);
+    expect(() => c.laneParts.add(lanes.first), throwsUnsupportedError);
+  });
+
   test("the user's pairs: each made or removed in one step, engraved, and first over built-in ones", () async {
     Future<void> engraved() async {
       while (c.isReengraving) {

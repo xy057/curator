@@ -76,26 +76,13 @@ class _LanesPainter extends CustomPainter {
   void _paintLane(Canvas canvas, Size size, int i, double top) {
     final c = s.c;
     final parts = s.parts;
-    final starts = s.tl.measureStarts;
 
     // Where each part actually plays (either player, for a condensed pair): a thin hint along
     // the bottom of its lane, one unbroken line for each run of bars the part plays in.
     final activity = Paint()..color = colors.activity;
-    final playing = s.score.metadata.activeMeasures;
-    final ids = c.condensedGroupOf(parts[i].id)?.partIds ?? [parts[i].id];
-    final lists = [for (final id in ids) playing[id] ?? const <bool>[]];
-    final active = [
-      for (var m = 0; m < lists.map((l) => l.length).reduce(math.max); m++) lists.any((l) => l.elementAtOrNull(m) == true),
-    ];
     final y = top + _laneHeight - 5;
-    final bars = math.min(active.length, starts.length - 1);
-    for (var m = 0; m < bars; m++) {
-      if (!active[m]) continue;
-      final first = m;
-      while (m + 1 < bars && active[m + 1]) {
-        m++;
-      }
-      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(starts[first], starts[m + 1])) {
+    for (final (q0, q1) in s._activity(parts[i].id)) {
+      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(q0, q1)) {
         if (x1 < 0 || x0 > size.width) continue;
         canvas.drawRRect(RRect.fromLTRBR(x0 + 1, y, x1 - 1, y + 2, const Radius.circular(1)), activity);
       }

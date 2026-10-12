@@ -249,6 +249,37 @@ mixin _LaneGeometry on State<InstrumentLanes> {
     }
   }
 
+  /// Where the part of lane [partId] plays (either player, for a condensed pair): one stretch
+  /// of score quarters for each run of bars it plays in. Worked out once for each score and
+  /// pair, not at every paint.
+  List<(double, double)> _activity(String partId) {
+    if (!identical(_activityScore, score)) {
+      _activityScore = score;
+      _activityRuns.clear();
+    }
+    final ids = c.condensedGroupOf(partId)?.partIds ?? [partId];
+    return _activityRuns[ids.join('\u0000')] ??= () {
+      final starts = tl.measureStarts;
+      final playing = score.metadata.activeMeasures;
+      final lists = [for (final id in ids) playing[id] ?? const <bool>[]];
+      final bars = math.min(lists.map((l) => l.length).reduce(math.max), starts.length - 1);
+      bool active(int m) => lists.any((l) => l.elementAtOrNull(m) == true);
+      final runs = <(double, double)>[];
+      for (var m = 0; m < bars; m++) {
+        if (!active(m)) continue;
+        final first = m;
+        while (m + 1 < bars && active(m + 1)) {
+          m++;
+        }
+        runs.add((starts[first], starts[m + 1]));
+      }
+      return List<(double, double)>.unmodifiable(runs);
+    }();
+  }
+
+  LoadedScore? _activityScore;
+  final _activityRuns = <String, List<(double, double)>>{};
+
   /// The score position under [x]; with [pass], kept inside that pass (a drag stays in the
   /// pass it began in, rather than leaping with a warp).
   double _q(double x, {int? pass}) {

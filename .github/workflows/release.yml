@@ -192,7 +192,7 @@ jobs:
           **Windows:** unzip and run `Curator\curator.exe`. The app isn't signed, so SmartScreen
           may warn the first time: click **More info ▸ Run anyway**.
 
-          Later updates can be downloaded from inside the app: **Settings ▸ Update**.
+          Later updates can be downloaded from inside the app: **Settings ▸ About**.
           Find full changelog at: https://0x57.cc/xylabs-changelog#curator
           EOF
           gh release create "v$VERSION" Curator-*.zip \
