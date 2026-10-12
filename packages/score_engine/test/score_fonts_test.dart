@@ -169,6 +169,19 @@ void main() {
     expect(FontFiles.faces('assets/fonts/Leland.otf').single.legacyFamily, 'Leland');
   });
 
+  test("a family whose name a file name can't have is found by the name its font goes by", () {
+    final file = File('assets/fonts/Leland.otf').readAsBytesSync();
+    final font = MusicFont.added(family: 'Foo.Std ♯', file: file);
+    expect(font.name, 'Foo_Std _');
+    expect(MusicFont.isNamed('Foo.Std ♯', font.name), isTrue);
+    expect(MusicFont.isNamed('Foo Std', font.name), isFalse);
+    final fonts = {
+      'Foo.Std ♯': [(path: 'f.otf', index: 0, family: 'Foo.Std ♯', legacyFamily: 'Foo.Std ♯', weight: 400, italic: false)],
+    };
+    expect(FontFiles.named(fonts, font.name, same: MusicFont.isNamed), hasLength(1));
+    expect(FontFiles.named(fonts, font.name), isNull, reason: 'compared as is, the names differ');
+  });
+
   test('measures a text font from its file', () {
     final bold = (path: 'assets/fonts/Academico-Bold.otf', index: 0, family: 'Academico', legacyFamily: 'Academico', weight: 700, italic: false);
     final ours = boxes(FontResources.textMetrics(bold, reference: times)!);

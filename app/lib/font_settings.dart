@@ -100,11 +100,11 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
 
   bool get _missing {
     if (c case final c?) return c.fonts.music.isMissing;
-    final name = _current.toLowerCase(), families = _families;
+    final families = _families;
     return families != null &&
         MusicFont.bundledNamed(_current) == null &&
-        !_installed.any((i) => i.name.toLowerCase() == name) &&
-        !families.any((f) => f.toLowerCase() == name);
+        !_installed.any((i) => MusicFont.isNamed(i.name, _current)) &&
+        !families.any((f) => MusicFont.isNamed(f, _current));
   }
 
   List<_MusicChoice> get _choices {
@@ -114,10 +114,10 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
       for (final i in _installed)
         (
           name: i.name,
-          font: added.where((f) => f.name == i.name).firstOrNull,
+          font: added.where((f) => MusicFont.isNamed(i.name, f.name)).firstOrNull,
           installed: (face: i.face, metadata: i.metadata),
         ),
-      for (final f in added.where((f) => !_installed.any((i) => i.name == f.name))) (name: f.name, font: f, installed: null),
+      for (final f in added.where((f) => !_installed.any((i) => MusicFont.isNamed(i.name, f.name)))) (name: f.name, font: f, installed: null),
     ];
     // One picked in the system's font picker, so the field shows it.
     if (!choices.any((m) => m.name == _current)) choices.add((name: _current, font: null, installed: null));

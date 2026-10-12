@@ -78,14 +78,15 @@ abstract final class FontFiles {
 
   /// The faces of [fonts] (as [scan] gives them) in the family [name], ignoring case: its
   /// typographic family, else a weight's legacy one (Windows' Font dialog answers "Foo Light"
-  /// for Foo's light face). Null when there are none.
-  static List<FontFace>? named(Map<String, List<FontFace>> fonts, String name) {
-    final key = name.toLowerCase();
-    if (fonts.keys.where((f) => f.toLowerCase() == key).firstOrNull case final family?) return fonts[family];
+  /// for Foo's light face). Null when there are none. [same] tells a family is [name]'s.
+  static List<FontFace>? named(Map<String, List<FontFace>> fonts, String name,
+      {bool Function(String family, String name)? same}) {
+    same ??= (family, name) => family.toLowerCase() == name.toLowerCase();
+    if (fonts.keys.where((f) => same!(f, name)).firstOrNull case final family?) return fonts[family];
     final legacy = [
       for (final faces in fonts.values)
         for (final f in faces)
-          if (f.legacyFamily.toLowerCase() == key) f,
+          if (same(f.legacyFamily, name)) f,
     ];
     return legacy.isEmpty ? null : legacy;
   }

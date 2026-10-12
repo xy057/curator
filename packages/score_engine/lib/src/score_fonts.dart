@@ -56,14 +56,21 @@ class MusicFont {
         }
       }
     }
-    // Verovio finds a font's metrics by its name, as a file name.
-    name = name.replaceAll(RegExp(r'[^A-Za-z0-9 _\-]'), '_').trim();
+    name = nameFor(name);
     if (name.isEmpty) throw const FormatException('The font has no name.');
     if (bundled.any((f) => f.name.toLowerCase() == name.toLowerCase()) || name.toLowerCase() == 'leipzig') {
       throw FormatException('$name is already added.');
     }
     return MusicFont._added(name, file, metadata, Map.unmodifiable(defaults), _fnv(file) ^ _fnv(metadata ?? Uint8List(0)));
   }
+
+  /// The name a font called [family] goes by: Verovio finds a font's metrics by its name, as a
+  /// file name, so characters a file name can't safely have are `_`. Compare an installed
+  /// family with a [name] through it, as [findInstalled] does.
+  static String nameFor(String family) => family.replaceAll(RegExp(r'[^A-Za-z0-9 _\-]'), '_').trim();
+
+  /// Whether [family] (as installed) is the font named [name] here, ignoring case.
+  static bool isNamed(String family, String name) => nameFor(family).toLowerCase() == nameFor(name).toLowerCase();
 
   /// Reads the font file at [path] (its first face) and finds its SMuFL metadata: as for
   /// [readFace]. Throws a [FormatException] when it isn't a font.
@@ -106,13 +113,13 @@ class MusicFont {
 
   /// The font installed here as [name] (a bundled one's name gives it): a SMuFL font by its
   /// folder, else a family (or a weight's family, as Windows names it). Null when there is none.
+  /// [name] may be one's [nameFor]: a family with characters a file name can't have is found.
   static Future<MusicFont?> findInstalled(String name) async {
     if (bundledNamed(name) case final bundled?) return bundled;
-    final key = name.toLowerCase();
-    if ((await installed()).where((i) => i.name.toLowerCase() == key).firstOrNull case final smufl?) {
+    if ((await installed()).where((i) => isNamed(i.name, name)).firstOrNull case final smufl?) {
       return readFace(smufl.face, metadataPath: smufl.metadata);
     }
-    final faces = FontFiles.named(await FontFiles.installed, name);
+    final faces = FontFiles.named(await FontFiles.installed, name, same: isNamed);
     final face = faces == null ? null : FontFiles.pick(faces, bold: false, italic: false);
     return face == null ? null : readFace(face);
   }
