@@ -1,7 +1,7 @@
 part of '../editor_controller.dart';
 
 /// Captions under the score (the Captions extension): adding, changing and removing them.
-/// Nothing here works, and no caption is drawn, while [enabled] is off (Settings ▸ Extension
+/// Nothing here works, and no caption is drawn, while [enabled] is off (Settings ▸ Extensions
 /// ▸ Captions); the captions stay in the project.
 class CaptionEditing {
   CaptionEditing._(this._c);
@@ -34,7 +34,7 @@ class CaptionEditing {
     _c._changed();
   }
 
-  /// The app's caption font when a project chooses none (Settings ▸ Extension ▸ Captions):
+  /// The app's caption font when a project chooses none (Settings ▸ Extensions ▸ Captions):
   /// a family, or '' for the score's text font.
   String get defaultFont => _defaultFont;
   String _defaultFont = '';

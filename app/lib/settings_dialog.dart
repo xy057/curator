@@ -189,8 +189,8 @@ final _categories = <_Category>[
     _Item(
       'Scrolling',
       (c) => switch (c.settings.scrollFollow) {
-        0 => 'Glides from beat to beat, as before 0.2: the speed changes only with the tempo.',
-        1 => 'Every note is under the pointer exactly as it sounds: slower through long notes, quicker through runs.',
+        0 => 'Glides from beat to beat: the speed changes only with the tempo.',
+        1 => 'Every note is under the playhead exactly as it sounds: slower through long notes, quicker through runs.',
         _ => 'A blend: the beats land on time, and the speed follows the notes '
             '${(c.settings.scrollFollow * 100).round()}% of the way.',
       },
@@ -235,7 +235,7 @@ final _categories = <_Category>[
   // lower priority, each one optional.
   // Each one is a switch for the whole app (AppExtension), off by default; what it adds
   // works only while it is on.
-  _Category('Extension', Icons.extension_outlined, [
+  _Category('Extensions', Icons.extension_outlined, [
     for (final e in AppExtension.values)
       _Item(
         e.label,

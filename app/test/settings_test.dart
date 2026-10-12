@@ -85,7 +85,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(settings.transition, 0.8);
 
-    await tester.tap(find.text('Extension'));
+    await tester.tap(find.text('Extensions'));
     await tester.pumpAndSettle();
     expect(find.text('Attach Image  1.0'), findsOneWidget, reason: 'its version after its name');
     expect(find.text(AppExtension.attachImage.summary), findsOneWidget);

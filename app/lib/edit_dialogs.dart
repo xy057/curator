@@ -228,9 +228,9 @@ class _RegionDialogState extends State<_RegionDialog> {
           ]),
           const SizedBox(height: 16),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(child: _TransitionField(label: 'Glides in over', value: _in, project: c.curation!.transition, onChanged: (s) => setState(() => _in = s))),
+            Expanded(child: _TransitionField(label: 'Transition in', value: _in, project: c.curation!.transition, onChanged: (s) => setState(() => _in = s))),
             const SizedBox(width: 16),
-            Expanded(child: _TransitionField(label: 'Glides out over', value: _out, project: c.curation!.transition, onChanged: (s) => setState(() => _out = s))),
+            Expanded(child: _TransitionField(label: 'Transition out', value: _out, project: c.curation!.transition, onChanged: (s) => setState(() => _out = s))),
           ]),
         ]),
       ),

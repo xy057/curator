@@ -1044,7 +1044,7 @@ class _DropHint extends StatelessWidget {
       _DropArea.project => (Icons.file_download_outlined, 'Drop to open', 'A project or a MusicXML score'),
       _DropArea.audio => (Icons.graphic_eq_rounded, 'Drop to add', 'A MIDI tempo map or a recording'),
       _DropArea.image when attachImage => (Icons.image_outlined, 'Drop to add an image', 'SVG, PNG or JPEG'),
-      _DropArea.image => (Icons.image_not_supported_outlined, 'Attach Image is off', 'Settings ▸ Extension'),
+      _DropArea.image => (Icons.image_not_supported_outlined, 'Attach Image is off', 'Turn on in Settings ▸ Extensions'),
     };
     final hint = IgnorePointer(
       child: AnimatedOpacity(

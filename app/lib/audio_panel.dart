@@ -339,13 +339,13 @@ class AudioToolbar extends StatelessWidget {
         ToolbarButton(
           icon: c.track == null ? Icons.audio_file_outlined : Icons.change_circle_outlined,
           tooltip: c.track == null
-              ? 'Load recording… (or drop it here)'
+              ? 'Add Recording… (or drop one here)'
               : 'Replace recording…\n${c.track!.name}',
           onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
         ),
         ToolbarButton(
           icon: Icons.piano_outlined,
-          tooltip: c.midiTempo == null ? 'Tempo from MIDI… (or drop it here)' : 'Stop following ${c.midiTempo!.name}',
+          tooltip: c.midiTempo == null ? 'Add MIDI Tempo Map… (or drop one here)' : 'Stop following ${c.midiTempo!.name}',
           selected: c.usesMidiTempo,
           onPressed: () => c.usesMidiTempo ? c.useMidiTempo(null) : pickMidi(context, c),
         ),
@@ -360,7 +360,7 @@ class AudioToolbar extends StatelessWidget {
           ),
           const ToolbarDivider(),
           Tip(
-            message: 'Step for taps, ${shortcut('⌥-click')} and ↑/↓',
+            message: 'Step for taps, ${shortcut('Option-click', 'Alt+click')}, and ↑/↓',
             child: ToolGroup(children: [
               for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
                 _TextToggle(label: label, selected: c.anchors.grid == grid, onPressed: () => c.anchors.grid = grid),

@@ -98,7 +98,7 @@ class _AssetRow extends StatelessWidget {
             Wrap(spacing: 2, children: [
               for (final i in uses)
                 Tip(
-                  message: 'Locate',
+                  message: 'Show in Score',
                   child: TextButton(
                     style: TextButton.styleFrom(
                         minimumSize: const Size(0, 26), padding: const EdgeInsets.symmetric(horizontal: 6), visualDensity: VisualDensity.compact),

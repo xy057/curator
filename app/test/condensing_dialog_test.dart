@@ -85,7 +85,7 @@ void main() {
     expect(c.score!.condensed.map((g) => g.id), contains('cond-P2-P4'));
 
     // Removing it brings the built-in pairs back.
-    await tester.tap(find.byTooltip('Remove this pair'));
+    await tester.tap(find.byTooltip('Remove pair'));
     await tester.pump();
     await engraved();
     await settle();
