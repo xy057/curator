@@ -431,7 +431,8 @@ outlined by `DialogButtons` so their edge, not their label, is on it; groups of 
 text both start `fieldInset` (10 px) in from the border, so an `AppTextField`'s outline has no
 label gap and an `AppDropdown` draws its border over itself; a menu's heading is a `menuHeader`,
 on its items' edge. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
-(tests find it with `appField(label)`), a select an `AppDropdown(label: …)`. `Export` and
+(tests find it with `appField(label)`), a select an `AppDropdown(label: …)`, and one that filters as it is
+typed in (a long font list) a `DropdownMenu` built through `dialogMenuField`. `Export` and
 `Engraving options` are `Dialog`s of their own, in the same measures.
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their

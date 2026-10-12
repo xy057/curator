@@ -3,6 +3,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'app_settings.dart';
+import 'dialog_kit.dart';
 
 /// Settings ▸ Extensions ▸ Captions ▸ settings: how captions look in every project. A project
 /// may choose its own font (Project Settings ▸ Fonts).
@@ -50,20 +51,27 @@ class _CaptionSettingsState extends State<CaptionSettings> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             row(
               'Font',
-              DropdownMenu<String>(
-                key: ValueKey((s.captionFont, families.length)),
-                expandedInsets: EdgeInsets.zero,
-                initialSelection: s.captionFont,
-                enableFilter: true,
-                requestFocusOnTap: true,
-                menuHeight: 320,
-                dropdownMenuEntries: [
-                  const DropdownMenuEntry(value: '', label: 'Score text'),
-                  for (final f in families) DropdownMenuEntry(value: f, label: f),
-                ],
-                onSelected: (f) {
-                  if (f != null) s.captionFont = f;
-                },
+              dialogMenuField(
+                context,
+                menu: (decoration, textStyle, arrow) => DropdownMenu<String>(
+                  key: ValueKey((s.captionFont, families.length)),
+                  expandedInsets: EdgeInsets.zero,
+                  inputDecorationTheme: decoration,
+                  textStyle: textStyle,
+                  trailingIcon: arrow,
+                  selectedTrailingIcon: arrow,
+                  initialSelection: s.captionFont,
+                  enableFilter: true,
+                  requestFocusOnTap: true,
+                  menuHeight: 320,
+                  dropdownMenuEntries: [
+                    const DropdownMenuEntry(value: '', label: 'Score text'),
+                    for (final f in families) DropdownMenuEntry(value: f, label: f),
+                  ],
+                  onSelected: (f) {
+                    if (f != null) s.captionFont = f;
+                  },
+                ),
               ),
             ),
             row('Position', segments(s.captionPosition, const [(CaptionPosition.bottom, 'Bottom'), (CaptionPosition.top, 'Top')], (v) => s.captionPosition = v)),

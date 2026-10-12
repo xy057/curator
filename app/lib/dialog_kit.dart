@@ -261,6 +261,44 @@ class AppTextField extends StatelessWidget {
   }
 }
 
+/// A [DropdownMenu] (a select that filters as it is typed in) as a dialog's field: in
+/// [UiStyle.refined] an [AppTextField]'s measures, 36 px and 14 px text, with the select's
+/// arrow; [UiStyle.classic] keeps the material one. Build the menu with the [decoration],
+/// [textStyle] and [arrow] given.
+Widget dialogMenuField(
+  BuildContext context, {
+  required Widget Function(InputDecorationTheme? decoration, TextStyle? textStyle, Widget? arrow) menu,
+}) {
+  if (!isRefined(context)) return menu(null, null, null);
+  final colors = context.colors;
+  OutlineInputBorder border(Color color, [double width = 1]) => OutlineInputBorder(
+      gapPadding: 0, borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: color, width: width));
+  return IconButtonTheme(
+    // The menu's arrow button no bigger than the field, so it sits in its middle.
+    data: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(24, 24),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ),
+    ),
+    child: menu(
+      InputDecorationTheme(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: fieldInset, vertical: 8),
+        constraints: const BoxConstraints.tightFor(height: _fieldHeight),
+        suffixIconConstraints: const BoxConstraints.tightFor(width: _fieldHeight, height: _fieldHeight),
+        border: border(colors.line),
+        enabledBorder: border(colors.line),
+        focusedBorder: border(colors.accent, 1.5),
+      ),
+      const TextStyle(fontSize: 14),
+      Icon(Icons.unfold_more_rounded, size: 16, color: colors.textMuted),
+    ),
+  );
+}
+
 /// A row of a list of choices: a checkbox and its [label], a [trailing] widget at the right.
 /// [UiStyle.classic] is the material [CheckboxListTile]; [UiStyle.refined] a 34 px row.
 class AppCheckRow extends StatelessWidget {
