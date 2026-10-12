@@ -271,7 +271,10 @@ Resizing the window rebuilds nothing either: a layout builder returns children b
 (the same widgets, so only laid out again), and only what changes with the window's size reads
 `MediaQuery.sizeOf` (`test/resize_rebuild_test.dart`). The score's `SpacingPlan` and
 `KeyColumnPlan` are made again at each new size, so they work a segment's keyframe out only when a
-frame first needs it.
+frame first needs it. The lanes repaint at every frame of playback and read the controller for
+each lane, so what they read is kept until what it comes from is replaced: `laneParts` and
+`condensable` (the score, order, pairs and condensed set are always replaced, never changed in
+place), and each lane's runs of bars played (`_activity`, per score and pair).
 
 **One Undo for the whole document.** After every change the controller compares the
 document's `EditState` (everything a project saves but the view: lanes, transition, sync,

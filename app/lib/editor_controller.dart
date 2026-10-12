@@ -573,7 +573,19 @@ class EditorController extends ChangeNotifier {
   /// The pairs of players that can share a staff: the score's own (Flute 1 and 2, Horn 3
   /// and 4…) and those the user made ([pairs]), which win over them. Known at once; the
   /// shared staff of a new pair is engraved a moment later ([isReengraving]).
-  List<PlayerPair> get condensable => _score?.condensing.pairs(_pairs) ?? const [];
+  ///
+  /// Worked out once for each score and [pairs] (both are replaced, never changed): the lanes
+  /// ask for every instrument at every paint, through [condensedGroupOf] and [laneParts].
+  List<PlayerPair> get condensable {
+    final score = _score;
+    if (score == null) return const [];
+    if (_condensable case (final s, final p, final pairs) when identical(s, score) && identical(p, _pairs)) return pairs;
+    final pairs = List<PlayerPair>.unmodifiable(score.condensing.pairs(_pairs));
+    _condensable = (score, _pairs, pairs);
+    return pairs;
+  }
+
+  (LoadedScore, List<PlayerPair>, List<PlayerPair>)? _condensable;
 
   /// The pairs the user made (Flute 1 + Oboe 1), in score order.
   List<PlayerPair> get pairs => _pairs;
@@ -632,13 +644,25 @@ class EditorController extends ChangeNotifier {
   /// One lane per instrument, top to bottom as in the preview ([partOrder]), except that a
   /// condensed pair is one lane: its first player's, standing for both (the second's always
   /// holds the same regions).
+  ///
+  /// Worked out again only when the score, the order, the pairs or what is condensed is
+  /// replaced (none is ever changed in place): the lanes read it for every lane they paint.
   List<ScorePart> get laneParts {
+    final key = (_score, _partOrder, _condensed, condensable);
+    if (_laneParts case (final k, final lanes) when identical(k.$1, key.$1) && identical(k.$2, key.$2) &&
+        identical(k.$3, key.$3) && identical(k.$4, key.$4)) {
+      return lanes;
+    }
     final parts = {for (final p in _score?.metadata.parts ?? const <ScorePart>[]) p.id: p};
-    return [
+    final lanes = List<ScorePart>.unmodifiable([
       for (final id in _partOrder)
         if (condensedGroupOf(id)?.partIds.last != id) parts[id]!,
-    ];
+    ]);
+    _laneParts = (key, lanes);
+    return lanes;
   }
+
+  ((LoadedScore?, List<String>, Set<String>, List<PlayerPair>), List<ScorePart>)? _laneParts;
 
   // MARK: Instrument order
 
