@@ -10,26 +10,31 @@ import 'package:xml/xml.dart';
 import 'font_files.dart';
 import 'native/bindings.dart';
 
+/// What a [MusicFont] is: bundled with the app, added (its file kept with the project), or
+/// missing (a project names it, without its file, and it isn't installed here).
+enum MusicFontKind { bundled, added, missing }
+
 /// A SMuFL music font: one of the bundled ones, or one the user added (its file kept with the
-/// project). Verovio lays out with its metrics and the renderer draws the same font, so
+/// project), or one a project names that isn't here ([MusicFontKind]). Verovio lays out with its metrics and the renderer draws the same font, so
 /// engraving and drawing agree. Adding a bundled one means its OTF (pubspec fonts), its
 /// Verovio metrics (`assets/verovio/Name.xml`) and its engraving defaults here.
 @immutable
 class MusicFont {
   const MusicFont._(this.name, this._defaults)
-      : file = null,
+      : kind = MusicFontKind.bundled,
+        file = null,
         metadata = null,
-        isMissing = false,
         _digest = 0;
 
-  const MusicFont._added(this.name, Uint8List this.file, this.metadata, this._defaults, this._digest) : isMissing = false;
+  const MusicFont._added(this.name, Uint8List this.file, this.metadata, this._defaults, this._digest)
+      : kind = MusicFontKind.added;
 
   /// A font a project names but doesn't carry, not installed here: the score is engraved and
   /// drawn in Bravura, the choice kept.
   const MusicFont.missing(this.name)
-      : file = null,
+      : kind = MusicFontKind.missing,
+        file = null,
         metadata = null,
-        isMissing = true,
         _defaults = const {},
         _digest = 0;
 
@@ -210,24 +215,27 @@ class MusicFont {
   final Map<String, double> _defaults;
   final int _digest;
 
-  /// True for a [MusicFont.missing] one.
-  final bool isMissing;
+  final MusicFontKind kind;
 
-  bool get isBundled => file == null && !isMissing;
+  bool get isBundled => kind == MusicFontKind.bundled;
+  bool get isAdded => kind == MusicFontKind.added;
+
+  /// A [MusicFont.missing] one.
+  bool get isMissing => kind == MusicFontKind.missing;
 
   /// SMuFL engraving defaults (staff spaces): the font's own, Bravura's where it has none.
   Map<String, double> get engravingDefaults => {...bravura._defaults, ..._defaults};
 
   /// The family the renderer draws it with (an added one's is registered by [load]).
-  String get family => isMissing
-      ? bravura.family
-      : isBundled
-          ? 'packages/score_engine/$name'
-          : 'Curator $name ${_digest.toRadixString(16)}';
+  String get family => switch (kind) {
+        MusicFontKind.bundled => 'packages/score_engine/$name',
+        MusicFontKind.added => 'Curator $name ${_digest.toRadixString(16)}',
+        MusicFontKind.missing => bravura.family,
+      };
 
   /// Makes an added font drawable (bundled ones always are).
   Future<void> load() async {
-    if (file == null || !_loaded.add(family)) return;
+    if (!isAdded || !_loaded.add(family)) return;
     await ui.loadFontFromList(file!, fontFamily: family);
   }
 
@@ -238,7 +246,7 @@ class MusicFont {
       other is MusicFont &&
       other.name == name &&
       other._digest == _digest &&
-      other.isMissing == isMissing &&
+      other.kind == kind &&
       other.file?.length == file?.length;
 
   @override

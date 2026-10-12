@@ -469,6 +469,8 @@ void main() {
       c.lookUpMusicFont = (name) => throw FileSystemException('Couldn’t read the font', name);
       await doc.open('${dir.path}/damaged.ccs');
       expect(c.fonts.music, const MusicFont.missing('Damaged'));
+      expect(c.fonts.music.kind, MusicFontKind.missing);
+      expect(c.addedFonts, isEmpty, reason: 'nothing to offer: only its name came');
       expect(c.score!.musicFontFamily, MusicFont.bravura.family);
       expect(doc.isDirty, isFalse);
 

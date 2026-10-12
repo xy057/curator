@@ -274,7 +274,7 @@ class EditorController extends ChangeNotifier {
     _fonts = edits.fonts;
     _embedFont = edits.embedFont;
     _projectEngraving = edits.engraving;
-    if (!_fonts.music.isBundled && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
+    if (_fonts.music.isAdded && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
     images._load(edits.patches, state.images, arts);
     _midi = edits.midi;
     _tapped = edits.midi != null ? edits.anchors : const [];
@@ -541,7 +541,7 @@ class EditorController extends ChangeNotifier {
       if (!_disposed) notifyListeners();
     }
     if (_score != score || fonts == _fonts) return; // closed, or another score opened, meanwhile
-    if (!fonts.music.isBundled && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
+    if (fonts.music.isAdded && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
     _fonts = fonts;
     if (embed != null) _embedFont = embed;
     if (!canEmbedFont) _embedFont = false; // as it will be saved
