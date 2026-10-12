@@ -23,7 +23,8 @@ typedef PlannedStaff = ({int staffIndex, String partId});
 /// next over the edge's transition time (its region's; the longest where edges coincide). A
 /// staff that enters grows out of the gap it will occupy; one that leaves closes into its
 /// gap; one that takes over from its twin (condensing) swaps with it in place. Per frame this
-/// is a lookup and a blend.
+/// is a lookup and a blend. A keyframe is worked out the first time a frame needs it, so a
+/// new plan (the window resized, a lane edited) costs only the segments drawn.
 class SpacingPlan {
   SpacingPlan._(this._bounds, this._keyframes);
 
@@ -58,8 +59,7 @@ class SpacingPlan {
     final unitTwins = {for (final MapEntry(:key, :value) in twins.entries) unitOf[key]: [for (final j in value) unitOf[j]]};
 
     final bounds = _Bounds.of(edges, scrollMap.duration, transition);
-    final keyframes = <List<double>>[];
-    for (var i = 0; i + 1 < bounds.length; i++) {
+    return SpacingPlan._(bounds, _Keyframes(bounds.length - 1, (i) {
       final middle = (bounds.at[i] + bounds.at[i + 1]) / 2;
       // Everything on screen from a little before the segment starts to a little after it ends
       // (on both sides of a warp, when one jumps in between).
@@ -87,13 +87,12 @@ class SpacingPlan {
           }(),
       ];
       final tops = _parkHidden(StaffStack.layout(slots, metrics), slots, shown, metrics, unitTwins);
-      keyframes.add([for (final (k, u) in unitOf.indexed) tops[u] + offsets[k]]);
-    }
-    return SpacingPlan._(bounds, keyframes);
+      return [for (final (k, u) in unitOf.indexed) tops[u] + offsets[k]];
+    }));
   }
 
   final _Bounds _bounds;
-  final List<List<double>> _keyframes; // [segment][staff in order]: top line, logical pixels
+  final _Keyframes _keyframes; // [segment][staff in order]: top line, logical pixels
 
   /// Top line of every planned staff at playback time [t], logical pixels from the top of
   /// the available area. Hidden staves report where they would appear.
@@ -101,7 +100,7 @@ class SpacingPlan {
 
   /// The keyframe of the segment of [bounds] around [t], blended towards the neighbouring
   /// keyframe inside the transition window of the nearer bound (each bound has its own).
-  static List<double> _blendAt(_Bounds bounds, List<List<double>> keyframes, double t) {
+  static List<double> _blendAt(_Bounds bounds, _Keyframes keyframes, double t) {
     final i = segmentAt(bounds.length, t, (i) => bounds.at[i]).clamp(0, keyframes.length - 1);
     final own = keyframes[i];
     final start = bounds.at[i], end = bounds.at[i + 1];
@@ -163,6 +162,16 @@ class SpacingPlan {
   static double _smooth(double x) => x * x * (3 - 2 * x);
 }
 
+/// A plan's keyframes, one per segment, each worked out the first time it is asked for.
+class _Keyframes {
+  _Keyframes(int length, this._compute) : _done = List.filled(length, null);
+  final List<double> Function(int segment) _compute;
+  final List<List<double>?> _done;
+
+  int get length => _done.length;
+  List<double> operator [](int segment) => _done[segment] ??= _compute(segment);
+}
+
 /// Where a plan's segments meet, in playback time, each with the seconds it glides over: from
 /// 5 s before the performance to 5 s after it, where edges fall together the longest of their
 /// transitions.
@@ -206,7 +215,7 @@ class _Bounds {
 /// The zone's right edge moves as the column changes, so which key it shows depends on its
 /// width. The plan never asks: it looks at every key the edge could meet at any width, from
 /// the narrowest zone ([minReach]) to the widest ([maxReach]), score distances left of the
-/// pointer.
+/// pointer. Keyframes are worked out as [SpacingPlan]'s are, when first needed.
 class KeyColumnPlan {
   KeyColumnPlan._(this._bounds, this._keyframes);
 
@@ -237,8 +246,7 @@ class KeyColumnPlan {
     ];
     final bounds = _Bounds.of([...edges, for (final t in keyBounds) (seconds: t, transition: transition)], scrollMap.duration, transition);
 
-    final keyframes = <List<double>>[];
-    for (var i = 0; i + 1 < bounds.length; i++) {
+    return KeyColumnPlan._(bounds, _Keyframes(bounds.length - 1, (i) {
       final middle = (bounds.at[i] + bounds.at[i + 1]) / 2;
       var column = 0.0;
       for (final (:min, :max) in scrollMap.xStretches(bounds.at[i] - bounds.transition[i] / 2, bounds.at[i + 1] + bounds.transition[i + 1] / 2)) {
@@ -247,13 +255,12 @@ class KeyColumnPlan {
           column = math.max(column, zone.keyColumnIn(staves[s.staffIndex].info.n, min - minReach, max - maxReach));
         }
       }
-      keyframes.add([column]);
-    }
-    return KeyColumnPlan._(bounds, keyframes);
+      return [column];
+    }));
   }
 
   final _Bounds _bounds;
-  final List<List<double>> _keyframes; // [segment][0]: key column, staff spaces
+  final _Keyframes _keyframes; // [segment][0]: key column, staff spaces
 
   /// The key column's width at playback time [t], in staff spaces.
   double columnAt(double t) => SpacingPlan._blendAt(_bounds, _keyframes, t).first;
