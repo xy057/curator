@@ -468,11 +468,13 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(0, 26)),
+          // 22 px rows, as a popup menu's and a desktop menu's.
+          minimumSize: const WidgetStatePropertyAll(Size(0, 22)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8)),
           shape: const WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4)))),
           textStyle: WidgetStatePropertyAll(type.bodyMedium!.copyWith(fontSize: 13, letterSpacing: 0)),
-          visualDensity: VisualDensity.compact,
+          visualDensity: VisualDensity.standard,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(style: filled),
