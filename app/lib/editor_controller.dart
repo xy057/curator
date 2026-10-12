@@ -132,15 +132,24 @@ class EditorController extends ChangeNotifier {
   /// [newProjectFonts] as found here: one not installed is Bravura or Academico.
   Future<EditState> _newProjectEdits() async {
     final wanted = newProjectFonts;
-    var music = MusicFont.bravura;
-    try {
-      music = await MusicFont.findInstalled(wanted.music) ?? MusicFont.bravura;
-    } on Exception {
-      // not readable: Bravura
-    }
+    final music = await findInstalledMusicFont(wanted.music) ?? MusicFont.bravura;
     final text = wanted.text == TextFonts.academico || await TextFonts.faces(wanted.text) != null ? wanted.text : TextFonts.academico;
     return EditState(fonts: ScoreFonts(music: music, text: text), embedFont: wanted.embed);
   }
+
+  /// The music font installed here as [name]; null when there is none, or it can't be read
+  /// (Bravura stands in, as for one not installed).
+  Future<MusicFont?> findInstalledMusicFont(String name) async {
+    try {
+      return await lookUpMusicFont(name);
+    } on Exception {
+      return null;
+    }
+  }
+
+  /// How [findInstalledMusicFont] reads one: a test's stands in for a damaged font.
+  @visibleForTesting
+  Future<MusicFont?> Function(String name) lookUpMusicFont = MusicFont.findInstalled;
 
   /// Opens a saved project: the source score with its edits, then the recording at
   /// [mediaPath] (if any; [mediaOriginal] is its own file, when it still exists).
@@ -157,7 +166,7 @@ class EditorController extends ChangeNotifier {
     var edits = state.edits;
     // A font the project only names is looked for here; not found, Bravura stands in.
     if (edits.fonts.music.isMissing) {
-      if (await MusicFont.findInstalled(edits.fonts.music.name) case final found?) {
+      if (await findInstalledMusicFont(edits.fonts.music.name) case final found?) {
         edits = edits.copyWith(fonts: edits.fonts.copyWith(music: found));
         state = ProjectState(edits: edits, images: state.images, view: state.view);
       }

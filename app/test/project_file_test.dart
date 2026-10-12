@@ -458,6 +458,21 @@ void main() {
       expect(again.state.edits.fonts.music, const MusicFont.missing('No Such Font'));
     }, skip: Platform.isMacOS ? false : 'Helvetica is installed on macOS');
 
+    test("a font that isn't embedded and can't be read where it is installed: Bravura stands in, the project opens", () async {
+      await ProjectFile.write(
+          '${dir.path}/damaged.ccs',
+          ProjectContents(
+            scoreName: 'Score.musicxml',
+            scoreBytes: demoScore.readAsBytesSync(),
+            state: const ProjectState(edits: EditState(fonts: ScoreFonts(music: MusicFont.missing('Damaged')), embedFont: false)),
+          ));
+      c.lookUpMusicFont = (name) => throw FileSystemException('Couldn’t read the font', name);
+      await doc.open('${dir.path}/damaged.ccs');
+      expect(c.fonts.music, const MusicFont.missing('Damaged'));
+      expect(c.score!.musicFontFamily, MusicFont.bravura.family);
+      expect(doc.isDirty, isFalse);
+    });
+
     test('a project that fails to open leaves the open one exactly as it was', () async {
       // B: readable as a zip, but its state is damaged. A is the project that is open.
       final a = '${dir.path}/A.ccs', b = '${dir.path}/B.ccs';
