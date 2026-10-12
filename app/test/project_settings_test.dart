@@ -10,6 +10,7 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/font_settings.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/menu_kit.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
@@ -55,7 +56,7 @@ void main() {
     expect(find.text('Caption'), findsNothing, reason: 'Captions is off');
 
     // Music: Leland, from the list.
-    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await tester.tap(find.byType(AppDropdown<String>).first);
     await settle();
     await tester.tap(find.text('Leland').last);
     await settle();
@@ -247,7 +248,7 @@ void main() {
     await settle();
     expect(find.text('Embed font'), findsNothing, reason: 'a bundled font is in every copy of the app');
 
-    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await tester.tap(find.byType(AppDropdown<String>).first);
     await settle();
     expect(find.text('Font File…'), findsWidgets);
     await tester.tap(find.text('Installed Font…').last);
@@ -305,7 +306,7 @@ void main() {
 
     unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
     await settle();
-    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await tester.tap(find.byType(AppDropdown<String>).first);
     await settle();
     await tester.tap(find.text('Installed Font…').last);
     await settle();
@@ -345,14 +346,14 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(Duration.zero)); // the pickers' lists of installed fonts
     await settle();
     expect(find.text('Embed font'), findsNothing);
-    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await tester.tap(find.byType(AppDropdown<String>).first);
     await settle();
     expect(find.text('Font File…'), findsNothing, reason: 'the app keeps no font file');
     await tester.tap(find.text('Leland').last);
     await settle();
     expect(settings.musicFont, 'Leland');
 
-    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await tester.tap(find.byType(AppDropdown<String>).first);
     await settle();
     await tester.tap(find.text('Installed Font…').last);
     for (var i = 0; i < 200 && settings.musicFont != 'Helvetica'; i++) {

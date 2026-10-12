@@ -822,22 +822,11 @@ class _Dropdown<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Container(
-      height: 32,
-      padding: const EdgeInsets.only(left: 10, right: 4),
-      decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(8)),
-      child: AppDropdown<T>(
+  Widget build(BuildContext context) => SettingsDropdown<T>(
         value: value,
-        dense: true,
-        icon: Icon(Icons.unfold_more_rounded, size: 16, color: colors.textMuted),
-        style: TextStyle(fontSize: 13, color: colors.text),
-        onChanged: (v) => v == null ? null : onChanged(v),
+        onChanged: onChanged,
         items: [for (final v in values) DropdownMenuItem(value: v, child: Text(label(v)))],
-      ),
-    );
-  }
+      );
 }
 
 /// A row of colour swatches; the chosen one is ringed.

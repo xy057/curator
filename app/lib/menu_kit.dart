@@ -287,6 +287,50 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
   }
 }
 
+/// A select as Settings shows one: an [AppDropdown] in a 32 px field with a border, and under
+/// it [error] when there is one.
+class SettingsDropdown<T> extends StatelessWidget {
+  const SettingsDropdown(
+      {super.key, required this.value, required this.items, required this.onChanged, this.width, this.error});
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T>? onChanged;
+
+  /// The field's width; null: its value's.
+  final double? width;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final onChanged = this.onChanged;
+    final field = Container(
+      height: 32,
+      width: width,
+      padding: const EdgeInsets.only(left: 10, right: 4),
+      decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(8)),
+      child: AppDropdown<T>(
+        value: value,
+        dense: true,
+        isExpanded: width != null,
+        icon: Icon(Icons.unfold_more_rounded, size: 16, color: colors.textMuted),
+        style: TextStyle(fontSize: 13, color: colors.text),
+        onChanged: onChanged == null ? null : (v) => v == null ? null : onChanged(v),
+        items: items,
+      ),
+    );
+    final error = this.error;
+    if (error == null) return field;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      field,
+      Padding(
+        padding: const EdgeInsets.only(left: 10, top: 4),
+        child: Text(error, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.error)),
+      ),
+    ]);
+  }
+}
+
 /// The menu of an [AppDropdown]: the theme's menu panel, at least [minWidth] wide and at most
 /// 320 px tall (it scrolls), fading in and settling 4 px down over [menuOpenDuration].
 class _MenuCard extends StatelessWidget {

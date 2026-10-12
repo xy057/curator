@@ -20,6 +20,7 @@ import 'app_colors.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 const _fieldWidth = 230.0;
@@ -190,30 +191,17 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: (c ?? widget.settings)!,
-        builder: (context, _) {
-          final choices = _choices;
-          return _field(
-            context,
-            DropdownMenu<String>(
-              key: ValueKey((_current, c?.fonts.music, choices.length)), // shows an Undo's font, and the list once read
-              expandedInsets: EdgeInsets.zero,
-              inputDecorationTheme: _compact(context),
-              textStyle: _text,
-              trailingIcon: _arrow(context),
-              selectedTrailingIcon: _arrow(context),
-              initialSelection: _current,
-              requestFocusOnTap: false,
-              menuHeight: 360,
-              errorText: _error ?? (_missing ? 'Not installed' : null),
-              dropdownMenuEntries: [
-                for (final m in choices) DropdownMenuEntry(value: m.name, label: m.name),
-                const DropdownMenuEntry(value: _installedFont, label: 'Installed Font…'),
-                if (c != null) const DropdownMenuEntry(value: _fontFile, label: 'Font File…'),
-              ],
-              onSelected: _choose,
-            ),
-          );
-        },
+        builder: (context, _) => SettingsDropdown<String>(
+          value: _current,
+          width: _fieldWidth,
+          error: _error ?? (_missing ? 'Not installed' : null),
+          onChanged: _choose,
+          items: [
+            for (final m in _choices) DropdownMenuItem(value: m.name, child: Text(m.name)),
+            const DropdownMenuItem(value: _installedFont, child: Text('Installed Font…')),
+            if (c != null) const DropdownMenuItem(value: _fontFile, child: Text('Font File…')),
+          ],
+        ),
       );
 }
 
