@@ -405,7 +405,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       persist: true,
       showCloseIcon: true,
-      content: Text('Font “$name” not found. Shown in Bravura.'),
+      content: Text('Font “$name” isn’t installed. Showing Bravura.'),
     ));
   }
 
@@ -639,7 +639,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         _scoreView.currentState?.dropImage(path, global);
       case _DropArea.project:
         if (MediaFormats.isMidi(path) || MediaFormats.isRecording(path)) {
-          _snack('Drop it on the Audio tab.');
+          _snack('Drop recordings and MIDI files on the Audio tab.');
         } else {
           _openPath(path);
         }

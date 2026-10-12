@@ -135,7 +135,7 @@ final _categories = <_Category>[
     ),
     _Item(
       'Undo history',
-      (_) => 'Every edit in a project: lanes, sync, names, texts.',
+      (_) => 'Per project.',
       (c) => _Dropdown<int>(
         value: c.settings.undoSteps,
         values: AppSettings.undoStepChoices,
@@ -409,9 +409,9 @@ String _updateHelp(UpdateStatus status) => switch (status) {
 
 String _autosaveLabel(Duration d) => switch (d) {
       Duration.zero => 'Off',
-      Duration(inMinutes: 0, :final inSeconds) => 'Every $inSeconds s',
+      Duration(inMinutes: 0, :final inSeconds) => 'Every $inSeconds seconds',
       Duration(inMinutes: 1) => 'Every minute',
-      Duration(:final inMinutes) => 'Every $inMinutes min',
+      Duration(:final inMinutes) => 'Every $inMinutes minutes',
     };
 
 class _SettingsWindow extends StatefulWidget {

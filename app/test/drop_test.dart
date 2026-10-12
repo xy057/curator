@@ -84,7 +84,7 @@ void main() {
 
     // On the timeline: the Instruments tab opens a project or score, the Audio tab takes MIDI.
     await drop(midi, timeline);
-    sees('Drop it on the Audio tab.');
+    sees('Drop recordings and MIDI files on the Audio tab.');
     c.tab = BottomTab.audio;
     await tester.pump();
     await drop(png, timeline);

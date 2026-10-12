@@ -398,7 +398,7 @@ Future<void> showCopyLaneDialog(BuildContext context, EditorController c, ScoreP
           ]),
         ),
         divided: true,
-        status: Text('Replaces their regions', style: TextStyle(color: context.colors.textMuted)),
+        status: Text('Replaces the chosen lanes’ regions', style: TextStyle(color: context.colors.textMuted)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           FilledButton(onPressed: chosen.isEmpty ? null : () => Navigator.pop(context, true), child: const Text('Copy')),

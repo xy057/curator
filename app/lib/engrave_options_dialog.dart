@@ -121,7 +121,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
               value: target.valueOf(option),
               changed: target.isChanged(option),
               // The house style's, or in a project the app's.
-              base: '${target.project ? 'app' : 'default'} ${formatOptionValue(target.baseOf(option))}',
+              base: '${target.project ? 'app' : 'default'}: ${formatOptionValue(target.baseOf(option))}',
               onChanged: (v) => target.set(option, v),
             );
           },
