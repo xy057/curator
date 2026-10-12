@@ -126,23 +126,31 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
 
   Future<void> _choose(String? name) async {
     setState(() => _error = null);
+    // The project the choice is for: a picker answers late (macOS's Fonts panel when it closes,
+    // which may be after these settings closed and another project opened).
+    final source = c?.source;
+    Future<void> apply(MusicFont font, {bool file = false}) async {
+      if (c != null && (!mounted || !identical(c!.source, source))) return;
+      await _apply(font, file: file);
+    }
+
     try {
       switch (name) {
         case null:
           return;
         case _installedFont:
-          if (await _pickInstalled() case final font?) await _apply(font);
+          if (await _pickInstalled() case final font?) await apply(font);
         case _fontFile:
-          if (await _pickFile() case final font?) await _apply(font, file: true);
+          if (await _pickFile() case final font?) await apply(font, file: true);
         default:
           final choice = _choices.firstWhere((m) => m.name == name);
-          if (c == null) return await _apply(MusicFont.missing(choice.name)); // kept by name only
+          if (c == null) return await apply(MusicFont.missing(choice.name)); // kept by name only
           final font = choice.font ??
               switch (choice.installed) {
                 final i? => await MusicFont.readFace(i.face, metadataPath: i.metadata),
                 null => await MusicFont.findInstalled(choice.name) ?? (throw FormatException('${choice.name} not found.')),
               };
-          await _apply(font);
+          await apply(font);
       }
     } catch (e) {
       if (mounted) setState(() => _error = describeError(e));

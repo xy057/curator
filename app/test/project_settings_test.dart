@@ -281,6 +281,50 @@ void main() {
     expect((c.fonts.music, c.embedFont), (MusicFont.bravura, false));
   }, skip: !Platform.isMacOS); // Helvetica is installed on macOS
 
+  testWidgets("a font the system picker answers after Project Settings closed doesn't change the project open then",
+      (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory();
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    final state = tester.state(find.byType(HomePage)) as dynamic;
+    final c = state.controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    await tester.pump();
+    final answer = Completer<String?>();
+    const channel = MethodChannel('curated_score/fonts');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) => answer.future);
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+    Future<void> settle() async {
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 150));
+      }
+    }
+
+    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
+    await settle();
+    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await settle();
+    await tester.tap(find.text('Installed Font…').last);
+    await settle();
+    // The panel stays open; the settings close, and another score opens.
+    Navigator.of(tester.element(find.byType(MusicFontPicker))).pop();
+    await settle();
+    expect(find.byType(MusicFontPicker), findsNothing);
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+
+    answer.complete('Leland');
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    expect(c.fonts, ScoreFonts.standard);
+    expect(c.canUndo, isFalse);
+  });
+
   testWidgets('Settings ▸ Fonts sets the fonts new projects start with', (tester) async {
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
