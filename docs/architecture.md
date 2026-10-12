@@ -422,7 +422,10 @@ since it is read and filled in: an 18 px title, 14 px text, 36 px fields, 34 px 
 Everything in a dialog starts and ends on that 24 px edge: the title, the content, a check row's
 box (no inset), and the footer's buttons, whose secondary ones (Cancel, an extra action) are
 outlined by `DialogButtons` so their edge, not their label, is on it; groups of fields are
-`dialogGap` apart. Export's footer uses `DialogButtons` too. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
+`dialogGap` apart. Export's footer uses `DialogButtons` too. Inside a field, typed and chosen
+text both start `fieldInset` (10 px) in from the border, so an `AppTextField`'s outline has no
+label gap and an `AppDropdown` draws its border over itself; a menu's heading is a `menuHeader`,
+on its items' edge. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
 (tests find it with `appField(label)`), a select an `AppDropdown(label: …)`. `Export` and
 `Engrave Option` are `Dialog`s of their own, in the same measures.
 
