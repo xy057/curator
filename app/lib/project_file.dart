@@ -126,9 +126,9 @@ abstract final class ProjectFile {
     try {
       final archive = ZipDecoder().decodeStream(input);
       final manifestFile = archive.findFile('project.json');
-      if (manifestFile == null) throw const FormatException('This is not a Curator project.');
+      if (manifestFile == null) throw const FormatException('This isn’t a Curator project.');
       final manifest = JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: maxManifestBytes))), 'project');
-      if (manifest.string('format') != mimeType) throw const FormatException('This is not a Curator project.');
+      if (manifest.string('format') != mimeType) throw const FormatException('This isn’t a Curator project.');
       final version = manifest.number('version')?.toInt() ?? 0;
       if (version > formatVersion) {
         throw const FormatException('This project needs a newer version of Curator. Update to open it.');

@@ -34,7 +34,7 @@ class MidiTempoMap {
   factory MidiTempoMap.read(Uint8List bytes, {String name = ''}) {
     var data = ByteData.sublistView(bytes);
     if (_tag(data, 0) == 'RIFF' && _tag(data, 8) == 'RMID') data = _riffData(data);
-    if (_tag(data, 0) != 'MThd' || data.lengthInBytes < 14) throw const FormatException('This is not a MIDI file.');
+    if (_tag(data, 0) != 'MThd' || data.lengthInBytes < 14) throw const FormatException('This isn’t a MIDI file.');
     final headerLength = data.getUint32(4);
     final format = data.getUint16(8), division = data.getUint16(12);
     if (division & 0x8000 != 0) throw const FormatException('This MIDI file counts time in SMPTE frames, so it has no tempo map.');

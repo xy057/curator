@@ -115,7 +115,7 @@ class ScoreMetadata {
     try {
       return XmlDocument.parse(musicXML);
     } on XmlException catch (e) {
-      throw EngraveException('This is not a valid MusicXML file (${e.message}).');
+      throw EngraveException('This isn’t a valid MusicXML file (${e.message}).');
     }
   }
 
@@ -255,7 +255,7 @@ abstract final class ScoreFile {
       try {
         return _fromMxl(bytes);
       } on FormatException catch (e) {
-        throw EngraveException('The .mxl archive could not be read: ${e.message}');
+        throw EngraveException('Couldn’t read the .mxl archive: ${e.message}');
       }
     }
     if (bytes.length > 2 && ((bytes[0] == 0xFF && bytes[1] == 0xFE) || (bytes[0] == 0xFE && bytes[1] == 0xFF))) {

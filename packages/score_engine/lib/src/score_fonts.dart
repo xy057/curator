@@ -358,7 +358,7 @@ abstract final class FontResources {
       if (!music.isBundled) {
         final fontFile = File('${draft.path}/${music.name}.font')..writeAsBytesSync(music.file!);
         final xml = smuflMetrics(music, fontFile.path, bravura: File('$base/Bravura.xml').readAsStringSync());
-        if (xml == null) throw const FormatException('The music font could not be read.');
+        if (xml == null) throw const FormatException('Couldn’t read the music font.');
         File('${draft.path}/${music.name}.xml').writeAsStringSync(xml);
         fontFile.deleteSync();
       }
