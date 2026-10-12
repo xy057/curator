@@ -471,6 +471,16 @@ void main() {
       expect(c.fonts.music, const MusicFont.missing('Damaged'));
       expect(c.score!.musicFontFamily, MusicFont.bravura.family);
       expect(doc.isDirty, isFalse);
+
+      // Nothing to embed: the switch stays off, as the project is saved.
+      expect(c.canEmbedFont, isFalse);
+      c.embedFont = true;
+      expect(c.embedFont, isFalse);
+      expect(doc.isDirty, isFalse);
+      await c.setFonts(const ScoreFonts(music: MusicFont.leland), embed: true);
+      expect((c.embedFont, c.canEmbedFont), (true, true));
+      await c.setFonts(const ScoreFonts(music: MusicFont.missing('Damaged')));
+      expect(c.embedFont, isFalse, reason: 'chosen again, the missing font is still only named');
     });
 
     test('a project that fails to open leaves the open one exactly as it was', () async {

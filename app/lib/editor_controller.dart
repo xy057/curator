@@ -544,6 +544,7 @@ class EditorController extends ChangeNotifier {
     if (!fonts.music.isBundled && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
     _fonts = fonts;
     if (embed != null) _embedFont = embed;
+    if (!canEmbedFont) _embedFont = false; // as it will be saved
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
     notifyListeners();
@@ -552,11 +553,14 @@ class EditorController extends ChangeNotifier {
 
   /// Whether an added music font is saved inside the project (Project Settings ▸ Fonts): an
   /// edit. Off, only its name is saved and the font is looked for where the project opens.
+  /// A missing font has nothing to embed: it can't be switched on ([canEmbedFont]).
   bool get embedFont => _embedFont;
   bool _embedFont = true;
 
+  bool get canEmbedFont => !_fonts.music.isMissing;
+
   set embedFont(bool value) {
-    if (value == _embedFont || _score == null) return;
+    if (value == _embedFont || _score == null || (value && !canEmbedFont)) return;
     _embedFont = value;
     _edited();
     notifyListeners();

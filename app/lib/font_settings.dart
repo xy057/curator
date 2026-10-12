@@ -316,7 +316,10 @@ class EmbedFontSwitch extends StatelessWidget {
         listenable: (controller ?? settings)!,
         builder: (context, _) => AppSwitch(
           value: controller?.embedFont ?? settings!.embedFont,
-          onChanged: (v) => controller != null ? controller!.embedFont = v : settings!.embedFont = v,
+          // A missing font can't be embedded: shown off and disabled, as it will be saved.
+          onChanged: controller?.canEmbedFont == false
+              ? null
+              : (v) => controller != null ? controller!.embedFont = v : settings!.embedFont = v,
         ),
       );
 }
