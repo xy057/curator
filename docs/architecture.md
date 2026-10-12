@@ -455,9 +455,14 @@ closes, Windows' Font dialog; a file where there is none) and Font File…. Embe
 (`EditState.embedFont`, saved as `fonts.embed: false` from format 14) shows only for a font
 that isn't bundled; a font file turns it on in the same step (elsewhere it couldn't be found by
 name). Off, only the name is saved; opening such a project looks it up
-(`MusicFont.findInstalled`: a SMuFL folder, else a family); not found, it is
-`MusicFont.missing`: engraved and drawn in Bravura, the choice kept and saved again, and the
-window says so once (a snack bar the user closes). Settings ▸ Fonts holds what new projects
+(`EditorController.findInstalledMusicFont` → `MusicFont.findInstalled`: a SMuFL folder, else a
+family by its typographic name or a weight's legacy one, as Windows' Font dialog answers
+"Foo Light"; compared through `MusicFont.nameFor`, the file-safe name a font goes by). Not
+found, or found but unreadable, it is `MusicFont.missing` (`MusicFontKind`: bundled, added,
+missing): engraved and drawn in Bravura, the choice kept and saved again, Embed font off and
+disabled (nothing to embed), and the window says so once (a snack bar the user closes). The
+pickers set a `FontTarget`: `ProjectFonts` (edits) or `NewProjectFonts` (Settings, by name); a
+late answer from the system picker applies only to the project it was chosen for. Settings ▸ Fonts holds what new projects
 start with (`AppSettings.musicFont`/`textFont`/`embedFont`, by name: installed fonts only;
 `EditorController.newProjectFonts`); one not installed where a score is imported is Bravura or
 Academico. Settings rows are keyed by item, so a control keeps its state when a `shown` row

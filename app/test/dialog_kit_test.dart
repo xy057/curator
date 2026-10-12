@@ -172,4 +172,28 @@ void main() {
     expect(tester.getRect(find.byType(EditableText)).left, fieldInset);
     expect(tester.getRect(find.text('1 bar')).left, fieldInset);
   });
+
+  testWidgets('classic: a labelled select shows a value set from outside (an Undo, its dialog)', (tester) async {
+    var value = 1;
+    late StateSetter setOuter;
+    await tester.pumpWidget(MaterialApp(
+      theme: _theme(UiStyle.classic),
+      home: Scaffold(
+        body: StatefulBuilder(builder: (context, setState) {
+          setOuter = setState;
+          return AppDropdown<int>(
+            label: 'Count',
+            value: value,
+            items: const [DropdownMenuItem(value: 1, child: Text('One')), DropdownMenuItem(value: 2, child: Text('Two'))],
+            onChanged: (v) => setState(() => value = v!),
+          );
+        }),
+      ),
+    ));
+    expect(find.text('One'), findsOneWidget);
+    setOuter(() => value = 2);
+    await tester.pumpAndSettle();
+    expect(find.text('Two'), findsOneWidget);
+    expect(find.text('One'), findsNothing);
+  });
 }

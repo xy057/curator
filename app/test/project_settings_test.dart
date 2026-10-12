@@ -10,6 +10,7 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/font_settings.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/menu_kit.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
@@ -55,7 +56,7 @@ void main() {
     expect(find.text('Caption'), findsNothing, reason: 'Captions is off');
 
     // Music: Leland, from the list.
-    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await tester.tap(find.byType(AppDropdown<String>).first);
     await settle();
     await tester.tap(find.text('Leland').last);
     await settle();
@@ -247,7 +248,7 @@ void main() {
     await settle();
     expect(find.text('Embed font'), findsNothing, reason: 'a bundled font is in every copy of the app');
 
-    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await tester.tap(find.byType(AppDropdown<String>).first);
     await settle();
     expect(find.text('Font File…'), findsWidgets);
     await tester.tap(find.text('Installed Font…').last);
@@ -281,6 +282,74 @@ void main() {
     expect((c.fonts.music, c.embedFont), (MusicFont.bravura, false));
   }, skip: !Platform.isMacOS); // Helvetica is installed on macOS
 
+  testWidgets('Project Settings closes when the project closes under it (the menu bar works while it is open)',
+      (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory();
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    expect(find.byType(MusicFontPicker), findsOneWidget);
+
+    await tester.runAsync(c.close);
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    expect(find.text('Fonts'), findsNothing, reason: 'the window closed');
+    expect(find.byType(HomePage), findsOneWidget);
+  });
+
+  testWidgets("a font the system picker answers after Project Settings closed doesn't change the project open then",
+      (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory();
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    final state = tester.state(find.byType(HomePage)) as dynamic;
+    final c = state.controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    await tester.pump();
+    final answer = Completer<String?>();
+    const channel = MethodChannel('curated_score/fonts');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) => answer.future);
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+    Future<void> settle() async {
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 150));
+      }
+    }
+
+    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
+    await settle();
+    await tester.tap(find.byType(AppDropdown<String>).first);
+    await settle();
+    await tester.tap(find.text('Installed Font…').last);
+    await settle();
+    // The panel stays open; the settings close, and another score opens.
+    Navigator.of(tester.element(find.byType(MusicFontPicker))).pop();
+    await settle();
+    expect(find.byType(MusicFontPicker), findsNothing);
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+
+    answer.complete('Leland');
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    expect(c.fonts, ScoreFonts.standard);
+    expect(c.canUndo, isFalse);
+  });
+
   testWidgets('Settings ▸ Fonts sets the fonts new projects start with', (tester) async {
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
@@ -301,14 +370,14 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(Duration.zero)); // the pickers' lists of installed fonts
     await settle();
     expect(find.text('Embed font'), findsNothing);
-    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await tester.tap(find.byType(AppDropdown<String>).first);
     await settle();
     expect(find.text('Font File…'), findsNothing, reason: 'the app keeps no font file');
     await tester.tap(find.text('Leland').last);
     await settle();
     expect(settings.musicFont, 'Leland');
 
-    await tester.tap(find.byType(DropdownMenu<String>).first);
+    await tester.tap(find.byType(AppDropdown<String>).first);
     await settle();
     await tester.tap(find.text('Installed Font…').last);
     for (var i = 0; i < 200 && settings.musicFont != 'Helvetica'; i++) {

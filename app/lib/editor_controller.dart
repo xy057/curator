@@ -132,15 +132,24 @@ class EditorController extends ChangeNotifier {
   /// [newProjectFonts] as found here: one not installed is Bravura or Academico.
   Future<EditState> _newProjectEdits() async {
     final wanted = newProjectFonts;
-    var music = MusicFont.bravura;
-    try {
-      music = await MusicFont.findInstalled(wanted.music) ?? MusicFont.bravura;
-    } on Exception {
-      // not readable: Bravura
-    }
+    final music = await findInstalledMusicFont(wanted.music) ?? MusicFont.bravura;
     final text = wanted.text == TextFonts.academico || await TextFonts.faces(wanted.text) != null ? wanted.text : TextFonts.academico;
     return EditState(fonts: ScoreFonts(music: music, text: text), embedFont: wanted.embed);
   }
+
+  /// The music font installed here as [name]; null when there is none, or it can't be read
+  /// (Bravura stands in, as for one not installed).
+  Future<MusicFont?> findInstalledMusicFont(String name) async {
+    try {
+      return await lookUpMusicFont(name);
+    } on Exception {
+      return null;
+    }
+  }
+
+  /// How [findInstalledMusicFont] reads one: a test's stands in for a damaged font.
+  @visibleForTesting
+  Future<MusicFont?> Function(String name) lookUpMusicFont = MusicFont.findInstalled;
 
   /// Opens a saved project: the source score with its edits, then the recording at
   /// [mediaPath] (if any; [mediaOriginal] is its own file, when it still exists).
@@ -157,7 +166,7 @@ class EditorController extends ChangeNotifier {
     var edits = state.edits;
     // A font the project only names is looked for here; not found, Bravura stands in.
     if (edits.fonts.music.isMissing) {
-      if (await MusicFont.findInstalled(edits.fonts.music.name) case final found?) {
+      if (await findInstalledMusicFont(edits.fonts.music.name) case final found?) {
         edits = edits.copyWith(fonts: edits.fonts.copyWith(music: found));
         state = ProjectState(edits: edits, images: state.images, view: state.view);
       }
@@ -265,7 +274,7 @@ class EditorController extends ChangeNotifier {
     _fonts = edits.fonts;
     _embedFont = edits.embedFont;
     _projectEngraving = edits.engraving;
-    if (!_fonts.music.isBundled && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
+    if (_fonts.music.isAdded && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
     images._load(edits.patches, state.images, arts);
     _midi = edits.midi;
     _tapped = edits.midi != null ? edits.anchors : const [];
@@ -532,9 +541,10 @@ class EditorController extends ChangeNotifier {
       if (!_disposed) notifyListeners();
     }
     if (_score != score || fonts == _fonts) return; // closed, or another score opened, meanwhile
-    if (!fonts.music.isBundled && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
+    if (fonts.music.isAdded && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
     _fonts = fonts;
     if (embed != null) _embedFont = embed;
+    if (!canEmbedFont) _embedFont = false; // as it will be saved
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
     notifyListeners();
@@ -543,11 +553,14 @@ class EditorController extends ChangeNotifier {
 
   /// Whether an added music font is saved inside the project (Project Settings ▸ Fonts): an
   /// edit. Off, only its name is saved and the font is looked for where the project opens.
+  /// A missing font has nothing to embed: it can't be switched on ([canEmbedFont]).
   bool get embedFont => _embedFont;
   bool _embedFont = true;
 
+  bool get canEmbedFont => !_fonts.music.isMissing;
+
   set embedFont(bool value) {
-    if (value == _embedFont || _score == null) return;
+    if (value == _embedFont || _score == null || (value && !canEmbedFont)) return;
     _embedFont = value;
     _edited();
     notifyListeners();
