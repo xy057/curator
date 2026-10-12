@@ -37,7 +37,7 @@ void main() {
       ..captions = true));
     await tester.pump(const Duration(seconds: 1));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
-    await tester.tap(find.text('Try the sample'));
+    await tester.tap(find.text('Open Sample'));
     for (var i = 0; i < 300 && c.score == null; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
       await tester.pump();

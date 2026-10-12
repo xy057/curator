@@ -43,7 +43,7 @@ void main() {
     await tester.tap(find.widgetWithText(MenuItemButton, 'Save'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.textContaining('Nothing to save yet'), findsOneWidget);
+    expect(find.textContaining('Nothing to save.'), findsOneWidget);
 
     // A score loaded without anything rebuilding the page around the menus.
     await tester.runAsync(() => c.openFile(demoScore.path));

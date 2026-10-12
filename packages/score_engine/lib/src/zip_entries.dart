@@ -23,7 +23,7 @@ abstract final class ZipEntries {
   /// would be more than [limit] (the pieces before it have been handed over).
   static void write(ArchiveFile file, void Function(Uint8List bytes) add, {required int limit}) {
     final zip = file.rawContent;
-    if (!file.isFile || zip is! ZipFile) throw FormatException('${file.name} is not a file.');
+    if (!file.isFile || zip is! ZipFile) throw FormatException('${file.name} isn’t a file.');
     if (file.size > limit) throw _tooBig(file);
     var total = 0;
     void counted(List<int> bytes) {
@@ -47,7 +47,7 @@ abstract final class ZipEntries {
           }
           inflate.close();
         case CompressionType.bzip2:
-          throw FormatException('${file.name} is compressed in a way Curator does not read.');
+          throw FormatException('${file.name} uses compression Curator can’t read.');
       }
     } finally {
       raw.setPosition(start);

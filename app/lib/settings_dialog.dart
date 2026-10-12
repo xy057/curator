@@ -135,7 +135,7 @@ final _categories = <_Category>[
     ),
     _Item(
       'Undo history',
-      (_) => 'Every edit in a project: lanes, sync, names, texts.',
+      (_) => 'Per project.',
       (c) => _Dropdown<int>(
         value: c.settings.undoSteps,
         values: AppSettings.undoStepChoices,
@@ -162,7 +162,7 @@ final _categories = <_Category>[
       keywords: 'dark light mode colour color',
     ),
     _Item(
-      'Accent colour',
+      'Accent color',
       null,
       (c) => _AccentPicker(settings: c.settings),
       keywords: 'color colour scheme',
@@ -189,8 +189,8 @@ final _categories = <_Category>[
     _Item(
       'Scrolling',
       (c) => switch (c.settings.scrollFollow) {
-        0 => 'Glides from beat to beat, as before 0.2: the speed changes only with the tempo.',
-        1 => 'Every note is under the pointer exactly as it sounds: slower through long notes, quicker through runs.',
+        0 => 'Glides from beat to beat: the speed changes only with the tempo.',
+        1 => 'Every note is under the playhead exactly as it sounds: slower through long notes, quicker through runs.',
         _ => 'A blend: the beats land on time, and the speed follows the notes '
             '${(c.settings.scrollFollow * 100).round()}% of the way.',
       },
@@ -235,7 +235,7 @@ final _categories = <_Category>[
   // lower priority, each one optional.
   // Each one is a switch for the whole app (AppExtension), off by default; what it adds
   // works only while it is on.
-  _Category('Extension', Icons.extension_outlined, [
+  _Category('Extensions', Icons.extension_outlined, [
     for (final e in AppExtension.values)
       _Item(
         e.label,
@@ -309,7 +309,7 @@ final _projectCategories = <_Category>[
 ];
 
 /// Engraving: the options most scores want changed ([EngravingSetting.all]) under a preview
-/// of the open score (or the demo), and every other one in Engrave Option, by code name. The app's apply to
+/// of the open score (or the demo), and every other one in Engraving options, by code name. The app's apply to
 /// every project; a project's over them.
 _Category _engravingCategory({required bool project}) {
   EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller, project: project);
@@ -328,8 +328,8 @@ _Category _engravingCategory({required bool project}) {
           keywords: 'engrave engraving ${s.group} ${s.keywords} ${s.key}',
         ),
       _Item(
-        'Engrave Option',
-        (c) => _changedText(target(c).own, project ? 'Over the app’s.' : 'Every project.'),
+        'Engraving options',
+        (c) => _changedText(target(c).own, project ? 'Overrides the app’s.' : 'Every project.'),
         (c) => _EngraveOptionButton(c, project: project),
         group: 'All options',
         keywords: 'engrave engraving verovio advanced expert options code spacing slur tie beam stem '
@@ -367,8 +367,8 @@ Future<bool> _confirmEngraving(BuildContext context) async {
   final go = await showAppDialog<bool>(
     context: context,
     builder: (context) => AppDialog(
-      title: const Text('Advanced engraving'),
-      content: const Text('Editing these values might generate unintended results and errors. Use cautiously.'),
+      title: const Text('Advanced Engraving'),
+      content: const Text('Some values can break the layout or stop engraving.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continue')),
@@ -396,11 +396,11 @@ String get aboutText => 'Curator $_versionText\nVerovio $verovioVersion\n$_syste
 
 String _updateHelp(UpdateStatus status) => switch (status) {
       UpdateIdle() => 'From GitHub.',
-      UpdateChecking() => 'Asking GitHub…',
-      UpToDate() => 'This is the latest version.',
+      UpdateChecking() => 'Checking…',
+      UpToDate() => 'Curator is up to date.',
       UpdateAvailable(:final release) when release.download == null =>
-        '${release.version} is out, but not for this system yet.',
-      UpdateAvailable(:final release) => '${release.version} is out.',
+        'Curator ${release.version} is available, but not yet for this system.',
+      UpdateAvailable(:final release) => 'Curator ${release.version} is available.',
       UpdateDownloading(:final release) => 'Downloading ${release.version}…',
       UpdateDownloaded(:final path) => 'Saved “${path.split(RegExp(r'[/\\]')).last}”. '
           '${Platform.isWindows ? 'Close Curator, then replace its folder with the unzipped one.' : 'Unzip it and replace this app with it.'}',
@@ -409,9 +409,9 @@ String _updateHelp(UpdateStatus status) => switch (status) {
 
 String _autosaveLabel(Duration d) => switch (d) {
       Duration.zero => 'Off',
-      Duration(inMinutes: 0, :final inSeconds) => 'Every $inSeconds s',
+      Duration(inMinutes: 0, :final inSeconds) => 'Every $inSeconds seconds',
       Duration(inMinutes: 1) => 'Every minute',
-      Duration(:final inMinutes) => 'Every $inMinutes min',
+      Duration(:final inMinutes) => 'Every $inMinutes minutes',
     };
 
 class _SettingsWindow extends StatefulWidget {

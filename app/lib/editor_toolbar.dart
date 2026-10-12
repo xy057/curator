@@ -79,7 +79,7 @@ class EditorToolbar extends StatelessWidget {
         const ToolbarDivider(),
         ToolbarButton(
           icon: Icons.skip_previous_rounded,
-          tooltip: 'To start (Home)',
+          tooltip: 'Go to start (Home)',
           onPressed: () => c.playback.seek(0),
         ),
         const SizedBox(width: 2),

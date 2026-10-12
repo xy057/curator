@@ -10,7 +10,7 @@ import 'engraving_settings.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
 
-/// Engrave Option (at the foot of the Engraving page, after a warning): every Verovio option
+/// Engraving options (at the foot of the Engraving page, after a warning): every Verovio option
 /// that is safe to change ([EngraveOption.all]) by its code name, for those who know Verovio.
 /// A change is saved at once (for every score) and re-engraves the open score (or the demo),
 /// shown beside the list.
@@ -99,7 +99,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
           ),
           IconButton(
             icon: const Icon(Icons.restart_alt_rounded, size: 18),
-            tooltip: 'Reset all',
+            tooltip: 'Reset All',
             onPressed: target.own.isEmpty ? null : () => target.own = const EngravingOptions(),
           ),
           IconButton(
@@ -121,7 +121,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
               value: target.valueOf(option),
               changed: target.isChanged(option),
               // The house style's, or in a project the app's.
-              base: '${target.project ? 'app' : 'default'} ${formatOptionValue(target.baseOf(option))}',
+              base: '${target.project ? 'app' : 'default'}: ${formatOptionValue(target.baseOf(option))}',
               onChanged: (v) => target.set(option, v),
             );
           },

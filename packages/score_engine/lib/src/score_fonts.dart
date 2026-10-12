@@ -60,7 +60,7 @@ class MusicFont {
     name = name.replaceAll(RegExp(r'[^A-Za-z0-9 _\-]'), '_').trim();
     if (name.isEmpty) throw const FormatException('The font has no name.');
     if (bundled.any((f) => f.name.toLowerCase() == name.toLowerCase()) || name.toLowerCase() == 'leipzig') {
-      throw FormatException('$name is already included.');
+      throw FormatException('$name is already added.');
     }
     return MusicFont._added(name, file, metadata, Map.unmodifiable(defaults), _fnv(file) ^ _fnv(metadata ?? Uint8List(0)));
   }
@@ -68,7 +68,7 @@ class MusicFont {
   /// Reads the font file at [path] (its first face) and finds its SMuFL metadata: as for
   /// [readFace]. Throws a [FormatException] when it isn't a font.
   static Future<MusicFont> read(String path, {String? metadataPath}) async {
-    final face = FontFiles.faces(path).firstOrNull ?? (throw const FormatException('Not a font.'));
+    final face = FontFiles.faces(path).firstOrNull ?? (throw const FormatException('This isn’t a font file.'));
     return readFace(face, metadataPath: metadataPath);
   }
 
@@ -358,7 +358,7 @@ abstract final class FontResources {
       if (!music.isBundled) {
         final fontFile = File('${draft.path}/${music.name}.font')..writeAsBytesSync(music.file!);
         final xml = smuflMetrics(music, fontFile.path, bravura: File('$base/Bravura.xml').readAsStringSync());
-        if (xml == null) throw const FormatException('The music font could not be read.');
+        if (xml == null) throw const FormatException('Couldn’t read the music font.');
         File('${draft.path}/${music.name}.xml').writeAsStringSync(xml);
         fontFile.deleteSync();
       }

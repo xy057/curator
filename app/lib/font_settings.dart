@@ -2,7 +2,7 @@
 /// metadata, another installed one from the system's own font picker, or a font file) and
 /// whether it is embedded, and the text font (Academico or any installed family) the score is
 /// engraved in; with Captions on, the font its captions are drawn in (Default: the app's,
-/// Settings ▸ Extension ▸ Captions). Every choice is made at once, as its own Undo step.
+/// Settings ▸ Extensions ▸ Captions). Every choice is made at once, as its own Undo step.
 ///
 /// Settings ▸ Fonts: the same pickers (`forNewProjects`) for the fonts new projects start
 /// with, by name: installed fonts only, as the app keeps no font file.

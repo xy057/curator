@@ -207,7 +207,7 @@ abstract final class Engraver {
   /// checked against.
   static Map<String, Object?> availableOptions({required String resourceDirectory}) => using((arena) {
         final engraver = vb_engraver_create(resourceDirectory.toNativeUtf8(allocator: arena));
-        if (engraver == nullptr) throw EngraveException('Could not start the engraver.');
+        if (engraver == nullptr) throw EngraveException('Couldn’t start the engraver.');
         try {
           return jsonDecode(vb_engraver_available_options(engraver).toDartString()) as Map<String, Object?>;
         } finally {
@@ -222,16 +222,16 @@ abstract final class Engraver {
     }
     return using((arena) {
       final engraver = vb_engraver_create(resourceDirectory.toNativeUtf8(allocator: arena));
-      if (engraver == nullptr) throw EngraveException('Could not start the engraver.');
+      if (engraver == nullptr) throw EngraveException('Couldn’t start the engraver.');
       try {
         if (!vb_engraver_set_options(engraver, optionsJson.toNativeUtf8(allocator: arena))) {
           throw EngraveException('The engraving options were refused.\n${vb_engraver_log(engraver).toDartString()}');
         }
         if (!vb_engraver_load_data(engraver, musicXML.toNativeUtf8(allocator: arena))) {
-          throw EngraveException('The score could not be read.\n${vb_engraver_log(engraver).toDartString()}');
+          throw EngraveException('Couldn’t read the score.\n${vb_engraver_log(engraver).toDartString()}');
         }
         if (!vb_engraver_render(engraver)) {
-          throw EngraveException('The score could not be engraved.\n${vb_engraver_log(engraver).toDartString()}');
+          throw EngraveException('Couldn’t engrave the score.\n${vb_engraver_log(engraver).toDartString()}');
         }
         return _copy(engraver, warnings: logMessages(vb_engraver_log(engraver).toDartString()));
       } finally {

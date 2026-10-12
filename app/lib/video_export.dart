@@ -429,7 +429,7 @@ class VideoExport {
     final encoder = await VideoEncoder.probe(ffmpeg);
     if (encoder == null) {
       throw const VideoExportException(
-          'This FFmpeg cannot write H.264 video. Install a full build of FFmpeg (with libx264).');
+          'This FFmpeg can’t write H.264 video. Install a full build (with libx264).');
     }
 
     final start = from ?? span.start, end = to ?? span.end;
@@ -492,7 +492,7 @@ class VideoExport {
     if (_cancelled || code != 0 || failure != null) {
       if (part.existsSync()) part.deleteSync();
       if (_cancelled) throw const VideoExportCancelled();
-      if (code != 0) throw VideoExportException('FFmpeg could not write the video.\n${_lastLines('$errors')}');
+      if (code != 0) throw VideoExportException('FFmpeg couldn’t write the video.\n${_lastLines('$errors')}');
       Error.throwWithStackTrace(failure!.$1, failure.$2);
     }
     final target = File(output);
@@ -528,7 +528,7 @@ class VideoExport {
 
   /// What to tell someone who needs FFmpeg to export a video, for their platform.
   static String missingFfmpegForVideo() =>
-      MediaConverter.missingFfmpegHelp(lead: 'Exporting a video needs FFmpeg (free). Install it once, then export again:');
+      MediaConverter.missingFfmpegHelp(lead: 'To export video, install FFmpeg (free), then export again:');
 
   static String _lastLines(String text) => text.trim().split('\n').reversed.take(4).toList().reversed.join('\n');
 }

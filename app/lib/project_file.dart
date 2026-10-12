@@ -61,7 +61,7 @@ abstract final class ProjectFile {
     } else {
       mediaEntry = null;
       if (media != null && media.originalPath == null) {
-        throw FileSystemException('The recording has no file of its own to link to; embed it instead', media.name);
+        throw FileSystemException('“${media.name}” can’t be linked. Choose Embed in Settings ▸ Recording');
       }
     }
     final scoreEntry = 'score/${_safeName(c.scoreName)}';
@@ -102,7 +102,7 @@ abstract final class ProjectFile {
       if (mediaEntry != null) {
         final source = media!.embedFrom;
         if (source == null || !File(source).existsSync()) {
-          throw FileSystemException('The recording to embed was not found', source);
+          throw FileSystemException('Can’t find the recording to embed', source);
         }
         mediaStream = InputFileStream(source);
         // Audio and video are compressed already; deflating them again only costs time.
@@ -126,12 +126,12 @@ abstract final class ProjectFile {
     try {
       final archive = ZipDecoder().decodeStream(input);
       final manifestFile = archive.findFile('project.json');
-      if (manifestFile == null) throw const FormatException('This is not a Curator project.');
+      if (manifestFile == null) throw const FormatException('This isn’t a Curator project.');
       final manifest = JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: maxManifestBytes))), 'project');
-      if (manifest.string('format') != mimeType) throw const FormatException('This is not a Curator project.');
+      if (manifest.string('format') != mimeType) throw const FormatException('This isn’t a Curator project.');
       final version = manifest.number('version')?.toInt() ?? 0;
       if (version > formatVersion) {
-        throw const FormatException('This project was saved by a newer version of Curator.');
+        throw const FormatException('This project needs a newer version of Curator. Update to open it.');
       }
 
       final score = manifest.child('score');

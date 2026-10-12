@@ -5,14 +5,14 @@ enum _LaneAction {
   rename('Rename…'),
   renameFirst('Rename…'), // a condensed pair's lane: one player, or the other (named in the menu)
   renameSecond('Rename…'),
-  select('Select all in lane'),
-  copy('Copy lane to…'),
-  showThroughout('Show throughout'),
-  autoCurate('Auto-curate this lane'),
-  clear('Clear lane'),
-  moveToTop('Move to top'),
-  moveToBottom('Move to bottom'),
-  scoreOrder('Restore score order');
+  select('Select All in Lane'),
+  copy('Copy Lane To…'),
+  showThroughout('Show Throughout'),
+  autoCurate('Auto-Curate Lane'),
+  clear('Clear Lane'),
+  moveToTop('Move to Top'),
+  moveToBottom('Move to Bottom'),
+  scoreOrder('Restore Score Order');
 
   const _LaneAction(this.label);
   final String label;

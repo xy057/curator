@@ -26,7 +26,7 @@ void main() {
     final settings = AppSettings.memory()..attachImage = true;
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('Try the sample'));
+    await tester.tap(find.text('Open Sample'));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     for (var i = 0; i < 100 && c.score == null; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
@@ -75,7 +75,7 @@ void main() {
     expect(rect.topLeft.dy, closeTo(spot.dy, 0.5));
 
     await drop(midi, spot);
-    sees('Not an SVG, PNG or JPEG.');
+    sees('Drop an SVG, PNG, or JPEG.');
     settings.attachImage = false;
     await tester.pump();
     await drop(png, spot);
@@ -84,11 +84,11 @@ void main() {
 
     // On the timeline: the Instruments tab opens a project or score, the Audio tab takes MIDI.
     await drop(midi, timeline);
-    sees('Drop it on the Audio tab.');
+    sees('Drop recordings and MIDI files on the Audio tab.');
     c.tab = BottomTab.audio;
     await tester.pump();
     await drop(png, timeline);
-    sees('Not a MIDI file or a recording.');
+    sees('Drop a MIDI file or a recording.');
     await drag(timeline);
     expect(find.text('A MIDI tempo map or a recording'), findsOneWidget);
     await channel('exited', const <double>[]);

@@ -9,7 +9,7 @@ import 'ui_kit.dart';
 
 /// The images the project keeps (Attach Image), each with where it is used: a use's bar
 /// locates it, Remove takes the image off the score everywhere (one Undo step). Below them
-/// the unused ones (removed, kept for Undo), which Purge unused lets go of.
+/// the unused ones (removed, kept for Undo), which Remove Unused lets go of.
 Future<void> showAssetsDialog(BuildContext context, EditorController c) =>
     showAppDialog<void>(context: context, builder: (context) => AssetsDialog(controller: c));
 
@@ -50,7 +50,7 @@ class AssetsDialog extends StatelessWidget {
                   ]),
           ),
           divided: true,
-          leading: [TextButton(onPressed: unused.isEmpty ? null : controller.images.purgeUnused, child: const Text('Purge unused'))],
+          leading: [TextButton(onPressed: unused.isEmpty ? null : controller.images.purgeUnused, child: const Text('Remove Unused'))],
           actions: [
             FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
           ],
@@ -98,7 +98,7 @@ class _AssetRow extends StatelessWidget {
             Wrap(spacing: 2, children: [
               for (final i in uses)
                 Tip(
-                  message: 'Locate',
+                  message: 'Show in Score',
                   child: TextButton(
                     style: TextButton.styleFrom(
                         minimumSize: const Size(0, 26), padding: const EdgeInsets.symmetric(horizontal: 6), visualDensity: VisualDensity.compact),

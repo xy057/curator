@@ -2,7 +2,7 @@ part of '../editor_controller.dart';
 
 /// Images on the score (the Attach Image extension): adding them, the selection, moving,
 /// resizing, cropping and removing. Nothing here works, and no image is drawn, while
-/// [enabled] is off (Settings ▸ Extension ▸ Attach Image); the images stay in the project.
+/// [enabled] is off (Settings ▸ Extensions ▸ Attach Image); the images stay in the project.
 class ImageEditing {
   ImageEditing._(this._c);
   final EditorController _c;
@@ -188,7 +188,7 @@ class ImageEditing {
       }
     } catch (_) {
       arts.values.forEach(_dispose);
-      throw const FormatException('An image in the project could not be read.');
+      throw const FormatException('Couldn’t read an image in the project.');
     }
     return arts;
   }

@@ -107,7 +107,7 @@ class ProjectDocument extends ChangeNotifier {
         mediaOriginal: project.media?.originalPath,
       );
       final missing = project.media?.missingPath;
-      recordingProblem = problem ?? (missing == null ? null : 'The linked recording was not found:\n$missing');
+      recordingProblem = problem ?? (missing == null ? null : 'Can’t find the linked recording:\n$missing');
     } catch (_) {
       ScratchSpace.release(mediaDirectory);
       rethrow;
@@ -178,7 +178,7 @@ class ProjectDocument extends ChangeNotifier {
 
   /// One save at a time ([_oneAtATime]); each picks up the edits made until it starts.
   Future<void> _save(String? path) async {
-    if (_isSample) throw StateError('The demo can’t be saved.');
+    if (_isSample) throw StateError('The sample can’t be saved.');
     final target = path ?? _path;
     if (target == null) throw StateError('The project has not been saved yet: choose where to save it.');
     final completer = Completer<void>();

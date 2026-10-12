@@ -97,7 +97,7 @@ void main() {
     await hoverTooltips('home');
 
     // Opening cross-fades the home screen into the editor, which has the score size slider.
-    await tester.tap(find.text('Try the sample'));
+    await tester.tap(find.text('Open Sample'));
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
     for (var i = 0; i < 100 && c.score == null; i++) {
@@ -122,8 +122,8 @@ void main() {
     BuildContext context() => tester.element(find.byType(HomePage));
     final dialogs = <String, void Function()>{
       'Export Video': () => showExportDialog(context(), c, settings, suggestedName: 'Demo'),
-      'Engrave Option': () => showEngraveOptionsDialog(context(), settings, controller: c),
-      "The project's Engrave Option": () => showEngraveOptionsDialog(context(), settings, controller: c, project: true),
+      'Engraving options': () => showEngraveOptionsDialog(context(), settings, controller: c),
+      "The project's Engraving options": () => showEngraveOptionsDialog(context(), settings, controller: c, project: true),
       'Condensing': () => showCondensingDialog(context(), c),
       'Rename': () => showRenameDialog(context(), c, c.score!.metadata.parts.first),
       'Warp': () => showAnchorDialog(context(), beats: c.beats, quarter: 9, jumpTo: 0, warp: true),

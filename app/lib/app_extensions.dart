@@ -7,10 +7,10 @@ import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'ui_kit.dart';
 
-/// The optional first-party components (Settings ▸ Extension). Each is a switch for the whole
+/// The optional first-party components (Settings ▸ Extensions). Each is a switch for the whole
 /// app (not per project), off by default; what it adds works only while it is on.
 enum AppExtension {
-  attachImage('Attach Image', Icons.image_outlined, '1.0', 'Images on the score, scrolling with it.',
+  attachImage('Attach Image', Icons.image_outlined, '1.0', 'Images that scroll with the score.',
       'image picture photo svg png jpg'),
   captions('Captions', Icons.subtitles_outlined, '1.0', 'Timed text under the score.',
       'caption subtitle commentary note text');

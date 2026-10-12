@@ -363,7 +363,7 @@ class _FailingEngraver extends EditorController {
 
   @override
   Future<LoadedScore> engraveAgain(LoadedScore score) async {
-    if (fail) throw EngraveException('The score could not be engraved.');
+    if (fail) throw EngraveException('Couldn’t engrave the score.');
     return super.engraveAgain(score);
   }
 }

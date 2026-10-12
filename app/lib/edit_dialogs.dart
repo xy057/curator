@@ -23,8 +23,8 @@ Future<void> showImportWarnings(BuildContext context, String fileName, List<Stri
           width: dialogWidth(context, 460),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(warnings.length == 1
-                ? 'This was left out or isn’t supported:'
-                : 'These ${warnings.length} things were left out or aren’t supported:'),
+                ? 'Not supported:'
+                : '${warnings.length} items not supported:'),
             const SizedBox(height: 12),
             _Bullets(warnings),
           ]),
@@ -47,7 +47,7 @@ Future<bool> confirmReplaceScore(BuildContext context, String fileName, List<Str
             const SizedBox(height: 12),
             _Bullets(differences),
             const SizedBox(height: 12),
-            Text('Can’t be undone.', style: TextStyle(color: context.colors.textMuted)),
+            Text('You can’t undo this action.', style: TextStyle(color: context.colors.textMuted)),
           ]),
         ),
         actions: [
@@ -122,7 +122,7 @@ class _RenameDialogState extends State<_RenameDialog> {
   @override
   Widget build(BuildContext context) {
     return AppDialog(
-      title: const Text('Rename instrument'),
+      title: const Text('Rename Instrument'),
       content: SizedBox(
         width: dialogWidth(context, 360),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -145,7 +145,7 @@ class _RenameDialogState extends State<_RenameDialog> {
           ]),
         ]),
       ),
-      leading: [TextButton(onPressed: () => _rename(reset: true), child: const Text('Use name from file'))],
+      leading: [TextButton(onPressed: () => _rename(reset: true), child: const Text('Use Name from File'))],
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(onPressed: _rename, child: const Text('Rename')),
@@ -193,9 +193,9 @@ class _RegionDialogState extends State<_RegionDialog> {
         field.text == _beats.format(edge) ? edge : _beats.parse(field.text);
     final a = read(_from, widget.ref.region.start), b = read(_to, widget.ref.region.end);
     final error = a == null || b == null
-        ? 'Type a bar, or bar.beat — e.g. 12 or 12.3'
+        ? 'Enter a bar or bar.beat, like 12 or 12.3'
         : b <= a
-            ? 'It has to end after it starts'
+            ? 'Set Until after From'
             : null;
     void save() {
       if (error == null) Navigator.pop(context, Region(a!, b!, transitionIn: _in, transitionOut: _out));
@@ -228,9 +228,9 @@ class _RegionDialogState extends State<_RegionDialog> {
           ]),
           const SizedBox(height: 16),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(child: _TransitionField(label: 'Glides in over', value: _in, project: c.curation!.transition, onChanged: (s) => setState(() => _in = s))),
+            Expanded(child: _TransitionField(label: 'Transition in', value: _in, project: c.curation!.transition, onChanged: (s) => setState(() => _in = s))),
             const SizedBox(width: 16),
-            Expanded(child: _TransitionField(label: 'Glides out over', value: _out, project: c.curation!.transition, onChanged: (s) => setState(() => _out = s))),
+            Expanded(child: _TransitionField(label: 'Transition out', value: _out, project: c.curation!.transition, onChanged: (s) => setState(() => _out = s))),
           ]),
         ]),
       ),
@@ -290,11 +290,11 @@ class _CaptionDialogState extends State<_CaptionDialog> {
         field.text == _beats.format(edge) ? edge : _beats.parse(field.text);
     final a = read(_from, widget.caption.start), b = read(_to, widget.caption.end);
     final error = a == null || b == null
-        ? 'Type a bar, or bar.beat — e.g. 12 or 12.3'
+        ? 'Enter a bar or bar.beat, like 12 or 12.3'
         : b <= a
-            ? 'It has to end after it starts'
+            ? 'Set Until after From'
             : captionOverlapping(widget.controller.captions.captions, a, b, except: widget.index) != null
-                ? 'Another caption is there'
+                ? 'Overlaps another caption'
                 : widget.isNew && _text.text.trim().isEmpty
                 ? ''
                 : null;
@@ -398,7 +398,7 @@ Future<void> showCopyLaneDialog(BuildContext context, EditorController c, ScoreP
           ]),
         ),
         divided: true,
-        status: Text('Replaces their regions', style: TextStyle(color: context.colors.textMuted)),
+        status: Text('Replaces the chosen lanes’ regions', style: TextStyle(color: context.colors.textMuted)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           FilledButton(onPressed: chosen.isEmpty ? null : () => Navigator.pop(context, true), child: const Text('Copy')),
@@ -558,7 +558,7 @@ Future<String?> confirmSavePath(BuildContext context, String path, String extens
   final replace = await showAppDialog<bool>(
     context: context,
     builder: (context) => AppDialog(
-      title: Text('Replace “$name”?'),
+      title: Text('“$name” already exists. Do you want to replace it?'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Replace')),

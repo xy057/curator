@@ -143,7 +143,7 @@ abstract final class FontFiles {
   static ByteData _read(RandomAccessFile file, int offset, int length) {
     file.setPositionSync(offset);
     final bytes = file.readSync(length);
-    if (bytes.length < length) throw const FormatException('Short font file.');
+    if (bytes.length < length) throw const FormatException('This font file is incomplete.');
     return ByteData.sublistView(bytes);
   }
 

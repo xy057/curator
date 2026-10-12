@@ -91,16 +91,16 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
     final problems = [
       for (final (a, b) in times)
         a == null || b == null
-            ? 'Type a bar, or bar.beat — e.g. 12 or 12.3'
+            ? 'Enter a bar or bar.beat, like 12 or 12.3'
             : b <= a
-                ? 'It has to end after it starts'
+                ? 'Set Until after From'
                 : null,
     ];
     final order = [for (var i = 0; i < _rows.length; i++) if (problems[i] == null) i]
       ..sort((x, y) => times[x].$1!.compareTo(times[y].$1!));
     for (var k = 0; k + 1 < order.length; k++) {
       final i = order[k], j = order[k + 1];
-      if (times[i].$2! > times[j].$1! + 1e-9) problems[j] = 'Overlaps row ${i + 1}';
+      if (times[i].$2! > times[j].$1! + 1e-9) problems[j] = 'Overlaps the caption in row ${i + 1}';
     }
     return problems;
   }
@@ -236,7 +236,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
               counterText: '',
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-              hintText: column == 2 ? 'Empty: removed' : null,
+              hintText: column == 2 ? 'Leave empty to remove' : null,
               hintStyle: TextStyle(fontSize: size, color: colors.textMuted.withValues(alpha: 0.6)),
             ),
             onChanged: (_) => setState(() {}),

@@ -271,7 +271,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Replace with “Intro v2.musicxml”?'), findsOneWidget);
     expect(find.text('Bars: 44 → 43'), findsOneWidget);
-    expect(find.text('Can’t be undone.'), findsOneWidget);
+    expect(find.text('You can’t undo this action.'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(await answer, isFalse);

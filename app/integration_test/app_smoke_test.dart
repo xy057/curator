@@ -37,7 +37,7 @@ void main() {
       expect(done(), isTrue, reason: what);
     }
 
-    await tester.tap(find.text('Try the sample'));
+    await tester.tap(find.text('Open Sample'));
     await waitFor(() => c.score != null && !c.isLoadingAudio, 'the sample opens');
     expect(c.score!.engraving.measures, hasLength(44));
     expect(c.score!.warnings, isEmpty);

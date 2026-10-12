@@ -41,7 +41,7 @@ void main() {
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
     await shot('home');
-    await tester.tap(find.text('Try the sample'));
+    await tester.tap(find.text('Open Sample'));
     final state = tester.state(find.byType(HomePage)) as dynamic;
     for (var i = 0; i < 100 && state.controller.score == null; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));

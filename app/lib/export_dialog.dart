@@ -143,7 +143,7 @@ class _ExportDialogState extends State<_ExportDialog> {
                 _Stage.setup => 'Export Video',
                 _Stage.writing => 'Exporting Video…',
                 _Stage.done => 'Video Exported',
-                _Stage.failed => 'The Video Could Not Be Exported',
+                _Stage.failed => 'Couldn’t Export Video',
               },
               style: isRefined(context)
                   ? Theme.of(context).dialogTheme.titleTextStyle
@@ -438,7 +438,7 @@ class _ExportDialogState extends State<_ExportDialog> {
   }
 
   static String _remaining(Duration d) =>
-      d.inSeconds < 60 ? '${d.inSeconds} s' : '${(d.inSeconds / 60).ceil()} min';
+      d.inSeconds < 60 ? '${d.inSeconds} seconds' : '${(d.inSeconds / 60).ceil()} minutes';
 
   static String _count(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+$)'), (_) => ',');
 }

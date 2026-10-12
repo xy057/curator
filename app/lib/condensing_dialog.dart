@@ -87,12 +87,12 @@ class _CondensingDialogState extends State<_CondensingDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ticked pairs share one staff.', style: muted),
+                Text('Selected pairs share a staff.', style: muted),
                 const SizedBox(height: 8),
                 if (pairs.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(firsts.isEmpty ? 'No players in this score can share a staff.' : 'No pairs yet: add one below.'),
+                    child: Text(firsts.isEmpty ? 'No players in this score can share a staff.' : 'No pairs. Add one below.'),
                   )
                 else ...[
                   if (pairs.length > 1)
@@ -116,7 +116,7 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                             trailing: c.pairs.contains(pair)
                                 ? ToolbarButton(
                                     icon: Icons.close_rounded,
-                                    tooltip: 'Remove this pair',
+                                    tooltip: 'Remove pair',
                                     onPressed: () => c.removePair(pair),
                                   )
                                 : null,

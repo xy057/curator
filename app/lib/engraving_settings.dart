@@ -14,7 +14,7 @@ import 'scratch_space.dart';
 import 'ui_kit.dart';
 
 /// The engraving options most scores want changed, by plain name: the Engraving page of
-/// Settings and of Project Settings. Every other one is in Engrave Option, by code name.
+/// Settings and of Project Settings. Every other one is in Engraving options, by code name.
 class EngravingSetting {
   const EngravingSetting(this.group, this.title, this.key, {this.step = 1, this.keywords = ''});
 

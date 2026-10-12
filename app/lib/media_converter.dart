@@ -62,7 +62,7 @@ abstract final class MediaConverter {
       if (r.exitCode == 0) return output;
       problems.add('ffmpeg: ${_lastLines('${r.stderr}')}');
     }
-    throw MediaConversionException('The sound could not be read from this file.\n${problems.join('\n')}', input);
+    throw MediaConversionException('Couldn’t read audio from this file.\n${problems.join('\n')}', input);
   }
 
   /// FFmpeg: the first sound track only (no video), as FLAC, overwriting, never waiting for input.
@@ -108,7 +108,7 @@ abstract final class MediaConverter {
 
   /// What to tell someone who needs FFmpeg, for their platform: [lead], then how to install it.
   static String missingFfmpegHelp({
-    String lead = 'Videos and AAC/M4A audio need FFmpeg (free). Install it once, then load the recording again:',
+    String lead = 'Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:',
     bool? windows,
     bool? linux,
   }) {

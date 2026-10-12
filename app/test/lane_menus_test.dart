@@ -47,7 +47,7 @@ void main() {
     await open(tester);
     final piccolo = c.score!.metadata.parts.first;
     await laneMenu(tester, 'Rename…');
-    expect(find.text('Rename instrument'), findsOneWidget);
+    expect(find.text('Rename Instrument'), findsOneWidget);
     await tester.enterText(appField('Name'), 'Flute in B');
     await tester.tap(find.widgetWithText(AppChip, '♭'));
     await tester.enterText(appField('Short name'), 'Fl.');
@@ -63,8 +63,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tapAt(name);
     await settle(tester);
-    expect(find.text('Rename instrument'), findsOneWidget);
-    await tester.tap(find.text('Use name from file'));
+    expect(find.text('Rename Instrument'), findsOneWidget);
+    await tester.tap(find.text('Use Name from File'));
     await settle(tester);
     expect(c.partName(piccolo), 'Piccolo');
   });
@@ -78,7 +78,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tapAt(at);
     await settle(tester);
-    expect(find.text('Rename instrument'), findsOneWidget);
+    expect(find.text('Rename Instrument'), findsOneWidget);
     final part = c.score!.metadata.parts.firstWhere((p) => p.id == label.partId);
     expect(tester.widget<TextField>(appField('Name')).controller!.text, c.partName(part));
     await tester.tap(find.text('Cancel'));
@@ -90,19 +90,19 @@ void main() {
     final parts = c.score!.metadata.parts;
     final end = c.score!.timeline.measureStarts.last;
 
-    await laneMenu(tester, 'Clear lane');
+    await laneMenu(tester, 'Clear Lane');
     expect(c.curation!.lane('P1'), isEmpty);
-    await laneMenu(tester, 'Show throughout');
+    await laneMenu(tester, 'Show Throughout');
     expect(c.curation!.lane('P1'), [Region(0, end)]);
-    await laneMenu(tester, 'Auto-curate this lane');
+    await laneMenu(tester, 'Auto-Curate Lane');
     expect(c.curation!.lane('P1'), isNot([Region(0, end)]), reason: 'only where it plays');
     expect(c.curation!.lane('P1'), isNotEmpty);
-    await laneMenu(tester, 'Select all in lane');
+    await laneMenu(tester, 'Select All in Lane');
     expect(c.lanes.selectedPartIds, {'P1'});
     expect(c.lanes.selected, hasLength(c.curation!.lane('P1').length));
 
     // Copy lane to…: Flute 1.
-    await laneMenu(tester, 'Copy lane to…');
+    await laneMenu(tester, 'Copy Lane To…');
     expect(find.text('Copy ${c.laneName(parts.first)} to…'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Copy')).onPressed, isNull, reason: 'none chosen');
     await tester.tap(find.widgetWithText(AppCheckRow, c.laneName(parts[1])));
@@ -111,12 +111,12 @@ void main() {
     await settle(tester);
     expect(c.curation!.lane('P2'), c.curation!.lane('P1'));
 
-    await laneMenu(tester, 'Move to bottom');
+    await laneMenu(tester, 'Move to Bottom');
     expect(c.laneParts.last.id, 'P1');
     expect(c.isScoreOrder, isFalse);
-    await laneMenu(tester, 'Move to top'); // Flute 1, now first
+    await laneMenu(tester, 'Move to Top'); // Flute 1, now first
     expect(c.laneParts.first.id, 'P2');
-    await laneMenu(tester, 'Restore score order');
+    await laneMenu(tester, 'Restore Score Order');
     expect(c.isScoreOrder, isTrue);
   });
 
@@ -137,9 +137,9 @@ void main() {
       await settle(tester);
     }
 
-    await tidy('Keep shown through rests of up to 2 bars');
+    await tidy('Bridge Rests Up to 2 Bars');
     expect(c.curation!.lane('P17'), [Region(0, starts[5]), Region(starts[10], starts[10] + 1.5)]);
-    await tidy('Remove regions shorter than 1 bar');
+    await tidy('Remove Regions Shorter Than 1 Bar');
     expect(c.curation!.lane('P17'), [Region(0, starts[5])]);
     c.undo();
     expect(c.curation!.lane('P17'), hasLength(2));
@@ -157,7 +157,7 @@ void main() {
     expect(find.text('Rename ${c.partNameOf(pair.first)}…'), findsOneWidget);
     await tester.tap(find.text('Rename ${c.partNameOf(pair.second)}…'));
     await settle(tester);
-    expect(find.text('Rename instrument'), findsOneWidget);
+    expect(find.text('Rename Instrument'), findsOneWidget);
     await tester.enterText(appField('Name'), 'Alto Flute');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Rename'));

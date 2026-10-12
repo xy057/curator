@@ -10,7 +10,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `src/verovio_bridge.cpp` | A Verovio device context that records drawing calls (paths, glyphs, text) per staff, plus measures, onsets and clef/key/time signatures, behind a C API |
-| `engraving_options.dart` | The Verovio options the user may change (Settings ▸ Engraving: the common ones by plain name, every one in Engrave Option by code name; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
+| `engraving_options.dart` | The Verovio options the user may change (Settings ▸ Engraving: the common ones by plain name, every one in Engraving options by code name; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
 | `lib/src/native/bindings.dart`, `engraving.dart` | FFI bindings; `Engraver.engrave` runs Verovio on an isolate and copies everything into plain Dart data (`EngravingData`) |
 | `score_metadata.dart`, `score_text.dart` | What the MusicXML says: parts, staves, meters, where each part plays; the editable texts, with text edits applied before engraving |
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
@@ -36,8 +36,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/caption_editing.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image); captions (Captions) |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
-| `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Purge unused |
-| `caption_settings.dart` | Settings ▸ Extension ▸ Captions' own settings: font, position, countdown, size, with a preview |
+| `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
+| `caption_settings.dart` | Settings ▸ Extensions ▸ Captions' own settings: font, position, countdown, size, with a preview |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Score ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Fonts: the music and text font a project is engraved in, and its caption font |
@@ -161,7 +161,7 @@ locates it (`ImageEditing.locate`: the playhead goes to where its left edge soun
 pass, and it is selected), and Remove takes every patch of that image off the score in one
 Undo step (`ImageEditing.removeImage`).
 Below them are the unused ones (`ImageEditing.unused`: removed while the project is open,
-kept so Undo can bring them back; never saved). Purge unused lets go of them and rewrites
+kept so Undo can bring them back; never saved). Remove Unused lets go of them and rewrites
 the Undo history without their patches (`EditHistory.rewrite`), so every other edit of
 those steps can still be undone, and a step that only added or removed one is dropped.
 Every change is an Undo step (`patches` in `EditState`); a project keeps them in
@@ -371,7 +371,7 @@ The Engraving page offers the options most scores want changed (`EngravingSettin
 half-size preview of the open score (with none, `EngravingPreviewHost` engraves the bundled demo in a
 controller of its own, with the app's options, for as long as the preview is shown); a slider sets its option only when let go, so a drag is one
 engraving and, in a project, one Undo step. Every option, by code name, stays behind its last row,
-Engrave Option, after a warning. Both read and write through `EngravingTarget` (the app's, or the
+Engraving options, after a warning. Both read and write through `EngravingTarget` (the app's, or the
 project's over them), which shows a line thickness left unset as the open score's font's own.
 
 **Colours are chosen when drawing.** The engraving is recorded as ink only; the renderer
@@ -427,7 +427,7 @@ text both start `fieldInset` (10 px) in from the border, so an `AppTextField`'s 
 label gap and an `AppDropdown` draws its border over itself; a menu's heading is a `menuHeader`,
 on its items' edge. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
 (tests find it with `appField(label)`), a select an `AppDropdown(label: …)`. `Export` and
-`Engrave Option` are `Dialog`s of their own, in the same measures.
+`Engraving options` are `Dialog`s of their own, in the same measures.
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that
@@ -522,10 +522,10 @@ on Windows wherever the registry says that folder now is): it never replaces the
 - **A setting**: an `_Item` in `settings_dialog.dart`'s `_categories`, backed by a field in
   `AppSettings`; a project's own, in `_projectCategories`, backed by an edit (see *Something a
   project saves*), so Settings holds only what is the same for every project. Settings of first-party components that are not part of the main work
-  (import, curate, sync, export) and matter less go under **Extension**.
+  (import, curate, sync, export) and matter less go under **Extensions**.
 - **An extension**: a value of `AppExtension` (`app_extensions.dart`: its name, icon, version,
   one-line summary, search words, its own settings (`settings`, a dialog's content, or null)
-  and its switch, a `bool` in `AppSettings`), which the Extension page lists: name and
+  and its switch, a `bool` in `AppSettings`), which the Extensions page lists: name and
   version, the summary under them, a settings button (greyed out without settings) and the
   switch. The switch
   is the app's, never a project's, and off by default. Say in `AppExtension.usedBy` when an open
@@ -534,6 +534,13 @@ on Windows wherever the registry says that folder now is): it never replaces the
   what it draws or exports) works only while its switch is on, and is hidden or inert otherwise.
   **Attach Image** (`AppSettings.attachImage`) is the first one, **Captions**
   (`AppSettings.captions`) the second.
+- **Interface text** follows Apple's HIG *Writing*, in US English: Title Case for menu items,
+  buttons and dialog titles that are fragments ("Copy Lane To…", "Couldn’t Export Video"),
+  sentence case for tooltips, labels, help lines and messages; an ellipsis only where more
+  input follows. A failure says "Couldn’t …" and, where there is one, the fix ("Use an image
+  under 64 MB"), never blame or "we". Contractions; seconds and minutes spelled out in
+  sentences; no "e.g.". One word per thing: the playhead (never the pointer), the sample,
+  open (a score), add (a recording, a MIDI tempo map), transition, Extensions.
 - **Something a project saves**: a field of `EditState` (with its `==` and `copyWith`),
   written in `ProjectState.toJson` and read in `fromJson`; bump the version with a migration
   (even one that changes nothing). The controller fills it in `_editState` (which is also what

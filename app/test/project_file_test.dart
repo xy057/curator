@@ -521,7 +521,7 @@ void main() {
         ),
       );
       final problem = await doc.open(path);
-      expect(problem, contains('could not be loaded'));
+      expect(problem, contains('Couldn’t load the recording'));
       expect(doc.path, path);
       expect(c.fileName, 'Intro.musicxml');
       expect(c.track, isNull);

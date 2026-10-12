@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart';
 const appVersion = '0.4.0';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (a test keeps them equal).
-const appBuild = 43;
+const appBuild = 44;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
@@ -198,7 +198,7 @@ class Updater extends ChangeNotifier {
         return null;
       }
       if (response.statusCode != HttpStatus.ok) {
-        throw HttpException('GitHub answered ${response.statusCode}');
+        throw HttpException('GitHub returned an error (${response.statusCode})');
       }
       final release = Release.fromJson(jsonDecode(body), platform: platform, origin: api);
       if (release == null) throw const FormatException('The latest release has no version');
@@ -224,7 +224,7 @@ class Updater extends ChangeNotifier {
     File? part;
     try {
       final response = await (await client.getUrl(url).timeout(_timeout)).close().timeout(_timeout);
-      if (response.statusCode != HttpStatus.ok) throw HttpException('GitHub answered ${response.statusCode}');
+      if (response.statusCode != HttpStatus.ok) throw HttpException('GitHub returned an error (${response.statusCode})');
       final total = response.contentLength > 0 ? response.contentLength : release.downloadSize;
       final target = _freeName(downloadsFolder, release.fileName);
       part = File('$target.part');
@@ -303,11 +303,11 @@ class Updater extends ChangeNotifier {
   }
 
   static String _describe(Object e) => switch (e) {
-        SocketException() || HandshakeException() => 'No connection to GitHub.',
-        TimeoutException() => 'GitHub didn’t answer in time.',
+        SocketException() || HandshakeException() => 'Can’t connect to GitHub. Check your internet connection.',
+        TimeoutException() => 'GitHub didn’t respond. Try again later.',
         HttpException(:final message) => '$message.',
         FileSystemException(:final path) => 'Couldn’t write ${path ?? 'the download'}.',
-        _ => 'Couldn’t read GitHub’s answer.',
+        _ => 'Couldn’t read GitHub’s response.',
       };
 }
 
