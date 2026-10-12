@@ -267,6 +267,11 @@ read the models (`curation`, `sync`) to draw them.
 The controller notifies at every move of a drag, so nothing large rebuilds on it wholesale: the
 page, the toolbar, the score view, the bottom panel, the lanes and their names each rebuild through
 a `Select` (ui_kit.dart) only when what they show changes; painters listen for themselves.
+Resizing the window rebuilds nothing either: a layout builder returns children built outside it
+(the same widgets, so only laid out again), and only what changes with the window's size reads
+`MediaQuery.sizeOf` (`test/resize_rebuild_test.dart`). The score's `SpacingPlan` and
+`KeyColumnPlan` are made again at each new size, so they work a segment's keyframe out only when a
+frame first needs it.
 
 **One Undo for the whole document.** After every change the controller compares the
 document's `EditState` (everything a project saves but the view: lanes, transition, sync,
