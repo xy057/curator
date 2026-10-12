@@ -115,7 +115,7 @@ class MidiTempoMap {
       }
       at += 8 + length + (length & 1);
     }
-    throw const FormatException('This RIFF file holds no MIDI.');
+    throw const FormatException('This RIFF file has no MIDI data.');
   }
 
   /// Every Set Tempo event in the track between [at] and [end]: its tick and microseconds a

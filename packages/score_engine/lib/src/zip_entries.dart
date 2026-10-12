@@ -47,7 +47,7 @@ abstract final class ZipEntries {
           }
           inflate.close();
         case CompressionType.bzip2:
-          throw FormatException('${file.name} is compressed in a way Curator does not read.');
+          throw FormatException('${file.name} uses compression Curator can’t read.');
       }
     } finally {
       raw.setPosition(start);
