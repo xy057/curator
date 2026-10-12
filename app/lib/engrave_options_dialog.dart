@@ -99,7 +99,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
           ),
           IconButton(
             icon: const Icon(Icons.restart_alt_rounded, size: 18),
-            tooltip: 'Reset all',
+            tooltip: 'Reset All',
             onPressed: target.own.isEmpty ? null : () => target.own = const EngravingOptions(),
           ),
           IconButton(

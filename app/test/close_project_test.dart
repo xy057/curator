@@ -26,7 +26,7 @@ void main() {
     final document = state.document as ProjectDocument;
 
     Future<void> openSample() async {
-      await tester.tap(find.text('Try the sample'));
+      await tester.tap(find.text('Open Sample'));
 
       for (var i = 0; i < 300 && c.score == null; i++) {
         await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));

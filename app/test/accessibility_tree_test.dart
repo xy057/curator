@@ -97,7 +97,7 @@ void main() {
     await hoverTooltips('home');
 
     // Opening cross-fades the home screen into the editor, which has the score size slider.
-    await tester.tap(find.text('Try the sample'));
+    await tester.tap(find.text('Open Sample'));
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
     for (var i = 0; i < 100 && c.score == null; i++) {

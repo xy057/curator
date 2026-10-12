@@ -367,7 +367,7 @@ Future<bool> _confirmEngraving(BuildContext context) async {
   final go = await showAppDialog<bool>(
     context: context,
     builder: (context) => AppDialog(
-      title: const Text('Advanced engraving'),
+      title: const Text('Advanced Engraving'),
       content: const Text('Editing these values might generate unintended results and errors. Use cautiously.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),

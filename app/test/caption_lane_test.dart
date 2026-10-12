@@ -40,7 +40,7 @@ void main() {
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('Try the sample'));
+    await tester.tap(find.text('Open Sample'));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     for (var i = 0; i < 100 && c.score == null; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
@@ -130,7 +130,7 @@ void main() {
     final settings = AppSettings.memory()..captions = true;
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('Try the sample'));
+    await tester.tap(find.text('Open Sample'));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     for (var i = 0; i < 100 && c.score == null; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
@@ -213,7 +213,7 @@ void main() {
     final settings = AppSettings.memory()..captions = true;
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('Try the sample'));
+    await tester.tap(find.text('Open Sample'));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     for (var i = 0; i < 100 && c.score == null; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));

@@ -143,7 +143,7 @@ class _ExportDialogState extends State<_ExportDialog> {
                 _Stage.setup => 'Export Video',
                 _Stage.writing => 'Exporting Video…',
                 _Stage.done => 'Video Exported',
-                _Stage.failed => 'The Video Could Not Be Exported',
+                _Stage.failed => 'Couldn’t Export Video',
               },
               style: isRefined(context)
                   ? Theme.of(context).dialogTheme.titleTextStyle

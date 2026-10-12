@@ -122,7 +122,7 @@ class _RenameDialogState extends State<_RenameDialog> {
   @override
   Widget build(BuildContext context) {
     return AppDialog(
-      title: const Text('Rename instrument'),
+      title: const Text('Rename Instrument'),
       content: SizedBox(
         width: dialogWidth(context, 360),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -145,7 +145,7 @@ class _RenameDialogState extends State<_RenameDialog> {
           ]),
         ]),
       ),
-      leading: [TextButton(onPressed: () => _rename(reset: true), child: const Text('Use name from file'))],
+      leading: [TextButton(onPressed: () => _rename(reset: true), child: const Text('Use Name from File'))],
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(onPressed: _rename, child: const Text('Rename')),

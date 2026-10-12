@@ -22,7 +22,7 @@ void main() {
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('Try the sample'));
+    await tester.tap(find.text('Open Sample'));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     for (var i = 0; i < 100 && c.score == null; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
@@ -100,14 +100,14 @@ void main() {
     await shot('assets-unused');
     expect(find.textContaining('SVG · '), findsOneWidget);
     expect(find.byTooltip('Remove'), findsOneWidget, reason: 'only the PNG is on the score');
-    expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Purge unused')).onPressed, isNotNull);
+    expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Remove Unused')).onPressed, isNotNull);
 
-    await tester.tap(find.text('Purge unused'));
+    await tester.tap(find.text('Remove Unused'));
     await tester.pumpAndSettle();
     expect(find.text('Unused'), findsNothing);
     expect(find.textContaining('SVG · '), findsNothing);
     expect(c.images.unused, isEmpty);
-    expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Purge unused')).onPressed, isNull);
+    expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Remove Unused')).onPressed, isNull);
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
 

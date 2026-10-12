@@ -87,7 +87,7 @@ class HomeScreen extends StatelessWidget {
                     OutlinedButton.icon(
                       onPressed: onOpenSample,
                       icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
-                      label: const Text('Try the sample'),
+                      label: const Text('Open Sample'),
                     ),
                   ],
                 ),

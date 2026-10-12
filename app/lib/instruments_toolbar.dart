@@ -117,7 +117,7 @@ class _TidyMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final where = lanes == 0 ? 'all lanes' : '$lanes selected ${lanes == 1 ? 'lane' : 'lanes'}';
-    String bars(double n) => n == 1 ? '1 bar' : '${n.toStringAsFixed(0)} bars';
+    String bars(double n) => n == 1 ? '1 Bar' : '${n.toStringAsFixed(0)} Bars';
     // Its tooltip is an overlay: a semantics node of its own (see OverlaySemantics).
     return OverlaySemantics(
       child: AppPopupMenuButton<void Function()>(
@@ -133,19 +133,19 @@ class _TidyMenu extends StatelessWidget {
         icon: const Icon(Icons.cleaning_services_outlined),
         onSelected: (action) => action(),
         itemBuilder: (context) => [
-          menuHeader(context, 'Tidy $where'),
+          menuHeader(context, lanes == 0 ? 'Tidy All Lanes' : 'Tidy $lanes Selected ${lanes == 1 ? 'Lane' : 'Lanes'}'),
           for (final n in const [1.0, 2.0, 4.0])
             menuItem(
               context,
               value: () => controller.lanes.fillGaps(n),
-              child: Text('Keep shown through rests of up to ${bars(n)}'),
+              child: Text('Bridge Rests Up to ${bars(n)}'),
             ),
           menuDivider(context),
           for (final n in const [1.0, 2.0])
             menuItem(
               context,
               value: () => controller.lanes.removeShort(n),
-              child: Text('Remove regions shorter than ${bars(n)}'),
+              child: Text('Remove Regions Shorter Than ${bars(n)}'),
             ),
         ],
       ),
