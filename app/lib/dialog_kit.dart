@@ -217,8 +217,10 @@ class AppTextField extends StatelessWidget {
     }
     final colors = context.colors;
     final error = colors.erase;
+    // No gap: it is room for a floating label (the label is over the field), and it moves the
+    // text 4 px further in than [fieldInset].
     OutlineInputBorder border(Color color, [double width = 1]) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: color, width: width));
+        gapPadding: 0, borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: color, width: width));
     final field = SizedBox(
         height: _fieldHeight,
         child: TextField(
@@ -228,13 +230,14 @@ class AppTextField extends StatelessWidget {
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
           onTap: onTap,
-          style: const TextStyle(fontSize: 14, fontFeatures: [FontFeature.tabularFigures()]),
+          // Proportional figures: a tabular 1 stands in a wide slot, its text looking indented.
+          style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
             isDense: true,
             hintText: hint,
             hintStyle: TextStyle(fontSize: 14, color: colors.textMuted.withValues(alpha: 0.6)),
             counterText: '',
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(horizontal: fieldInset, vertical: 8),
             enabledBorder: border(bad ? error : colors.line),
             focusedBorder: border(bad ? error : colors.accent, 1.5),
             border: border(colors.line),

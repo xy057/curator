@@ -2,6 +2,7 @@
 // material AlertDialog stays for Classic.
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/dialog_kit.dart';
+import 'package:curated_score/menu_kit.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -145,5 +146,30 @@ void main() {
     expect(tester.getRect(find.byType(FilledButton)).right, content.right);
     final footer = Theme.of(tester.element(find.text('Cancel'))).textButtonTheme.style!;
     expect(footer.side?.resolve(const {}), isNotNull, reason: 'a text button in the footer is outlined, so its edge shows');
+  });
+
+  testWidgets('refined: typed and chosen text start one inset in from their borders', (tester) async {
+    final text = TextEditingController(text: '16:9');
+    addTearDown(text.dispose);
+    await tester.pumpWidget(MaterialApp(
+      theme: _theme(UiStyle.refined),
+      home: Scaffold(
+        body: SizedBox(
+          width: 300,
+          child: Column(children: [
+            AppTextField(controller: text, label: 'Ratio'),
+            AppDropdown<int>(
+              label: 'Choice',
+              isExpanded: true,
+              value: 1,
+              items: const [DropdownMenuItem(value: 1, child: Text('1 bar'))],
+              onChanged: (_) {},
+            ),
+          ]),
+        ),
+      ),
+    ));
+    expect(tester.getRect(find.byType(EditableText)).left, fieldInset);
+    expect(tester.getRect(find.text('1 bar')).left, fieldInset);
   });
 }

@@ -100,6 +100,10 @@ bool isRefined(BuildContext context) => Theme.of(context).extension<AppStyle>()?
 Duration motion(BuildContext context, int classic) =>
     Duration(milliseconds: isRefined(context) ? (classic * 0.775).round() : classic);
 
+/// How far a [UiStyle.refined] field's text is in from its border: the same in a text field
+/// and a select, so what is typed and what is chosen start at one place under their labels.
+const fieldInset = 10.0;
+
 /// A field with its [label] over it: how [UiStyle.refined]'s dialogs label their fields.
 class FieldLabel extends StatelessWidget {
   const FieldLabel({super.key, required this.label, required this.child});

@@ -223,8 +223,10 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
     if (inDialog) {
       field = Container(
         height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
+        padding: const EdgeInsets.symmetric(horizontal: fieldInset),
+        // Over the field, not around it: a border in the decoration adds its width to the
+        // padding, moving the text off [fieldInset] (and half a pixel more when open).
+        foregroundDecoration: BoxDecoration(
           border: Border.all(color: _open ? colors.accent : colors.line, width: _open ? 1.5 : 1),
           borderRadius: BorderRadius.circular(8),
         ),
