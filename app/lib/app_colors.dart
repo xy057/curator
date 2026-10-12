@@ -304,7 +304,7 @@ class AppColors extends ThemeExtension<AppColors> {
         type.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0));
     const size = WidgetStatePropertyAll(Size(64, 28));
     const padding = WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12));
-    const quick = Duration(milliseconds: 120);
+    const quick = Duration(milliseconds: 70);
     final button = ButtonStyle(
       shape: shape,
       textStyle: label,

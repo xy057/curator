@@ -137,7 +137,7 @@ class _TabSwitch extends StatelessWidget {
           color: well, border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(refined ? 7 : 10)),
       child: Stack(children: [
         AnimatedPositioned(
-          duration: const Duration(milliseconds: 220),
+          duration: motion(context, 220),
           curve: Curves.easeOutCubic,
           left: index * size,
           top: 0,
@@ -162,7 +162,7 @@ class _TabSwitch extends StatelessWidget {
                 child: SizedBox.square(
                   dimension: size,
                   child: TweenAnimationBuilder<Color?>(
-                    duration: stateDuration(const Duration(milliseconds: 200)),
+                    duration: stateDuration(motion(context, 200)),
                     tween: ColorTween(end: tab == value ? chosen : colors.textMuted),
                     builder: (context, color, _) => Icon(icon, size: refined ? 16 : 18, color: color),
                   ),

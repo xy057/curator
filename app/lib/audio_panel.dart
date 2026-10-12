@@ -459,7 +459,7 @@ class _TapButton extends StatelessWidget {
           ? 'Space marks · T or Esc stops'
           : 'Tap anchors (T)',
       child: AnimatedContainer(
-        duration: stateDuration(const Duration(milliseconds: 200)),
+        duration: stateDuration(motion(context, 200)),
         curve: Curves.easeOut,
         height: 32,
         padding: EdgeInsets.symmetric(horizontal: c.anchors.tapArmed ? 8 : 0),
@@ -506,7 +506,7 @@ class _TextToggle extends StatelessWidget {
       borderRadius: radius,
       onTap: onPressed,
       child: AnimatedContainer(
-        duration: stateDuration(const Duration(milliseconds: 150)),
+        duration: stateDuration(motion(context, 150)),
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 9),
         alignment: Alignment.center,

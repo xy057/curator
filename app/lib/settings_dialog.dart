@@ -60,7 +60,7 @@ Future<void> _showWindow(BuildContext context, _SettingsWindow window) => showGe
       barrierDismissible: true,
       barrierLabel: 'Close settings',
       barrierColor: Colors.black.withValues(alpha: 0.2),
-      transitionDuration: const Duration(milliseconds: 160),
+      transitionDuration: motion(context, 160),
       pageBuilder: (context, _, _) => window,
       transitionBuilder: (context, animation, _, child) {
         final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeOutCubic.flipped);
@@ -623,8 +623,8 @@ class _SettingsWindowState extends State<_SettingsWindow> {
       Divider(height: 1, color: colors.line),
       Expanded(
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 160),
-          reverseDuration: const Duration(milliseconds: 90),
+          duration: motion(context, 160),
+          reverseDuration: motion(context, 90),
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeOut,
           transitionBuilder: (child, animation) => FadeTransition(
@@ -694,7 +694,7 @@ class _SidebarTileState extends State<_SidebarTile> {
             behavior: HitTestBehavior.opaque,
             onTap: widget.onTap,
             child: AnimatedContainer(
-              duration: stateDuration(const Duration(milliseconds: 120)),
+              duration: stateDuration(motion(context, 120)),
               curve: Curves.easeOut,
               height: 30,
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -797,7 +797,7 @@ class _SettingRow extends StatelessWidget {
               if (help != null) ...[
                 const SizedBox(height: 2),
                 AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 120),
+                  duration: motion(context, 120),
                   layoutBuilder: (current, previous) => Stack(alignment: Alignment.topLeft, children: [...previous, ?current]),
                   child: Text(help!, key: ValueKey(help), style: TextStyle(fontSize: 12, height: 1.35, color: colors.textMuted)),
                 ),
@@ -855,7 +855,7 @@ class _AccentPicker extends StatelessWidget {
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: AnimatedContainer(
-                duration: stateDuration(const Duration(milliseconds: 120)),
+                duration: stateDuration(motion(context, 120)),
                 curve: Curves.easeOut,
                 width: 24,
                 height: 24,
@@ -954,7 +954,7 @@ class _UpdateControl extends StatelessWidget {
       UpdateFailed(release: final release?) =>
         OutlinedButton(onPressed: () => updater.download(release), child: const Text('Try Again')),
     };
-    return AnimatedSwitcher(duration: const Duration(milliseconds: 120), child: control);
+    return AnimatedSwitcher(duration: motion(context, 120), child: control);
   }
 }
 

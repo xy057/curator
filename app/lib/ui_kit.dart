@@ -66,12 +66,23 @@ Future<T?> showAppDialog<T>({required BuildContext context, required WidgetBuild
     builder: builder,
     barrierDismissible: barrierDismissible,
     themes: InheritedTheme.capture(from: context, to: navigator.context),
+    duration: motion(context, 150),
   ));
 }
 
 class _DialogRoute<T> extends DialogRoute<T> {
-  _DialogRoute({required super.context, required super.builder, super.barrierDismissible, super.themes})
-      : super(traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop);
+  _DialogRoute({
+    required super.context,
+    required super.builder,
+    super.barrierDismissible,
+    super.themes,
+    required this.duration,
+  }) : super(traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop);
+
+  final Duration duration;
+
+  @override
+  Duration get transitionDuration => duration;
 
   @override
   Widget buildTransitions(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
@@ -84,6 +95,10 @@ class _DialogRoute<T> extends DialogRoute<T> {
 
 /// Whether the theme is [UiStyle.refined] (a theme without an [AppStyle] is: it's the default).
 bool isRefined(BuildContext context) => Theme.of(context).extension<AppStyle>()?.style != UiStyle.classic;
+
+/// [classic] milliseconds of motion, as [UiStyle.refined] has it: a desktop's, about half as long.
+Duration motion(BuildContext context, int classic) =>
+    Duration(milliseconds: isRefined(context) ? (classic * 0.55).round() : classic);
 
 /// How long a [UiStyle.refined] menu takes to open, and to close.
 const menuOpenDuration = Duration(milliseconds: 90);
@@ -398,7 +413,7 @@ class ToolbarButton extends StatelessWidget {
               ? (refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05) : colors.accentSoft)
               : null,
           shape: refined ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)) : null,
-          animationDuration: const Duration(milliseconds: 150),
+          animationDuration: motion(context, 150),
         ),
         icon: glyph ?? Icon(icon),
       ),
@@ -488,11 +503,11 @@ class FadeSlideSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedSize(
-        duration: const Duration(milliseconds: 180),
+        duration: motion(context, 180),
         curve: Curves.easeOutCubic,
         alignment: alignment,
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
+          duration: motion(context, 180),
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
           layoutBuilder: (current, previous) => Stack(alignment: alignment, children: [...previous, ?current]),
@@ -630,7 +645,7 @@ class _FadingTextState extends State<FadingText> {
     if (widget.text case final text?) _shown = text;
     return AnimatedOpacity(
       opacity: widget.text == null ? 0 : 1,
-      duration: const Duration(milliseconds: 180),
+      duration: motion(context, 180),
       alwaysIncludeSemantics: true,
       child: Text(_shown, overflow: TextOverflow.ellipsis, maxLines: 1, style: widget.style),
     );
@@ -704,7 +719,7 @@ class _AppSwitchState extends State<AppSwitch> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: TweenAnimationBuilder<double>(
                 tween: Tween(end: widget.value ? 1 : 0),
-                duration: const Duration(milliseconds: 160),
+                duration: motion(context, 160),
                 curve: Curves.easeOutCubic,
                 builder: (context, t, _) => CustomPaint(
                   size: AppSwitch.size,

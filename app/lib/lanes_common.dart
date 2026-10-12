@@ -290,7 +290,7 @@ class LaneLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return AnimatedContainer(
-        duration: stateDuration(const Duration(milliseconds: 120)),
+        duration: stateDuration(motion(context, 120)),
         height: height,
         padding: const EdgeInsets.only(left: 12),
         decoration: BoxDecoration(

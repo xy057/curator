@@ -801,7 +801,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     key: _dropStack,
                     children: [
                       AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 320),
+                        duration: motion(context, 320),
                         switchInCurve: Curves.easeOutCubic,
                         switchOutCurve: Curves.easeInCubic,
                         // Semantics stay through the fade (see showAppDialog: the size slider).
@@ -955,7 +955,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
         onVerticalDragCancel: () => setState(() => _dragging = false),
         onVerticalDragUpdate: (d) => widget.onDrag(d.delta.dy),
         child: AnimatedContainer(
-          duration: stateDuration(const Duration(milliseconds: 150)),
+          duration: stateDuration(motion(context, 150)),
           height: 7,
           decoration: BoxDecoration(
             color: active ? colors.accentWash : colors.chrome,
@@ -963,7 +963,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
           ),
           alignment: Alignment.center,
           child: AnimatedContainer(
-            duration: stateDuration(const Duration(milliseconds: 150)),
+            duration: stateDuration(motion(context, 150)),
             width: active ? 44 : 32,
             height: 3,
             decoration: BoxDecoration(
@@ -1002,7 +1002,7 @@ class _BusyState extends State<_Busy> {
         ignoring: !widget.visible,
         child: AnimatedOpacity(
           opacity: widget.visible ? 1 : 0,
-          duration: const Duration(milliseconds: 200),
+          duration: motion(context, 200),
           onEnd: () {
             if (!widget.visible && mounted) setState(() => _built = false);
           },
@@ -1048,10 +1048,10 @@ class _DropHint extends StatelessWidget {
     final hint = IgnorePointer(
       child: AnimatedOpacity(
         opacity: visible ? 1 : 0,
-        duration: const Duration(milliseconds: 160),
+        duration: motion(context, 160),
         child: AnimatedScale(
           scale: visible ? 1 : 0.98,
-          duration: const Duration(milliseconds: 200),
+          duration: motion(context, 200),
           curve: Curves.easeOutCubic,
           child: Container(
             margin: const EdgeInsets.all(14),

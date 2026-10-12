@@ -402,6 +402,13 @@ Windows match. A widget that draws its own control for Refined reads `AppStyle` 
 `AppSwitch` (ui_kit.dart) is the only one: always use it, never `Switch`. Text styles set in the
 refined theme are merged with the typography's geometry as `Theme.of` gives them, since a button
 lerps its label between the two styles and two text styles lerp only when both inherit or neither.
+Refined is agile: a menu opens in 90 ms (the material ones take 300) with 22 px rows, not 48,
+and other motion runs at about half the classic time (`motion(context, classicMs)`). Flutter fixes
+a popup menu's and a dropdown's timing and row height in the widget, not the theme, so a menu is
+an `AppPopupMenuButton` filled with `menuItem` / `checkedMenuItem` / `menuDivider`, a select an
+`AppDropdown` (a `MenuAnchor`, opening at once, in Refined; the material one in Classic), never
+`PopupMenuButton` or `DropdownButton`, and a duration written for the classic style goes through
+`motion`.
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that

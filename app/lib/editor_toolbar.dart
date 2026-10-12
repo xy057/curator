@@ -229,7 +229,7 @@ class _PlayButton extends StatelessWidget {
           child: SizedBox.square(
             dimension: 32,
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 160),
+              duration: motion(context, 160),
               transitionBuilder: (child, animation) => ScaleTransition(
                 scale: Tween(begin: 0.6, end: 1.0).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutBack)),
                 child: FadeTransition(opacity: animation, child: child),

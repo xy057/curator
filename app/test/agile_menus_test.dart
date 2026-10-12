@@ -112,4 +112,35 @@ void main() {
       expect(find.byType(MenuAnchor), findsNothing);
     });
   });
+
+  testWidgets('refined motion is about half as long; a dialog is open in 90 ms', (tester) async {
+    late BuildContext refined, classic;
+    await tester.pumpWidget(_app(UiStyle.refined, Builder(builder: (context) {
+      refined = context;
+      return const SizedBox();
+    })));
+    await tester.pumpAndSettle();
+    expect(motion(refined, 120), const Duration(milliseconds: 66));
+    await tester.pumpWidget(_app(UiStyle.classic, Builder(builder: (context) {
+      classic = context;
+      return const SizedBox();
+    })));
+    await tester.pumpAndSettle(); // the theme changes over a moment
+    expect(motion(classic, 120), const Duration(milliseconds: 120));
+
+    for (final style in [UiStyle.refined, UiStyle.classic]) {
+      await tester.pumpWidget(_app(style, Builder(builder: (context) => TextButton(
+            onPressed: () => showAppDialog<void>(context: context, builder: (_) => const AlertDialog(title: Text('Hi'))),
+            child: const Text('Open'),
+          ))));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.hasRunningAnimations, style == UiStyle.classic, reason: style.name);
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+    }
+  });
 }
