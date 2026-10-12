@@ -7,6 +7,7 @@ import 'app_colors.dart';
 import 'assets_dialog.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
+import 'menu_kit.dart';
 import 'project_document.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';

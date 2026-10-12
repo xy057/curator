@@ -5,6 +5,7 @@ import 'app_colors.dart';
 import 'app_settings.dart';
 import 'condensing_dialog.dart';
 import 'editor_controller.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 /// Instruments tab tools (right of the tab switch). Every button explains itself on hover.

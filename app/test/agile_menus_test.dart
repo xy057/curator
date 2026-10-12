@@ -1,5 +1,6 @@
 // Refined menus are agile: they open in 190 ms (the material ones take 300) and their rows are a desktop menu's, not 48 px.
 import 'package:curated_score/app_colors.dart';
+import 'package:curated_score/menu_kit.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -72,7 +73,7 @@ void main() {
           ),
         );
 
-    testWidgets('refined: opens under the field, as wide as it, with 22 px rows', (tester) async {
+    testWidgets('refined: opens under the field, as wide as it; boxed (a dialog field), its rows are 30 px', (tester) async {
       int? chosen;
       await tester.pumpWidget(select(UiStyle.refined, (v) => chosen = v));
       final field = tester.getRect(find.byType(AppDropdown<int>));
@@ -82,7 +83,7 @@ void main() {
       final row = find.widgetWithText(MenuItemButton, 'Item 3');
       expect(row, findsOneWidget);
       final rect = tester.getRect(row);
-      expect(rect.height, 22);
+      expect(rect.height, 30);
       expect(rect.left, greaterThanOrEqualTo(field.left));
       expect(tester.getRect(find.byType(MenuItemButton).first).top, greaterThanOrEqualTo(field.bottom));
       expect(tester.getRect(find.byType(MenuItemButton).first).top - field.bottom, lessThan(12));
@@ -92,6 +93,21 @@ void main() {
       await tester.pumpAndSettle();
       expect(chosen, 3);
       expect(find.byType(MenuItemButton), findsNothing, reason: 'a choice closes it');
+    });
+
+    testWidgets('refined: the whole menu, its card with its rows, fades in over 190 ms', (tester) async {
+      await tester.pumpWidget(select(UiStyle.refined, (_) {}));
+      await tester.tap(find.byType(AppDropdown<int>));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      // The nearest fade over a row; the card (a Material with the menu's shape) is under it too.
+      final fade = find.ancestor(of: find.byType(MenuItemButton).first, matching: find.byType(Opacity)).first;
+      double opacity() => tester.widget<Opacity>(fade).opacity;
+      final card = find.descendant(of: fade, matching: find.byWidgetPredicate((w) => w is Material && w.shape != null));
+      expect(card, findsWidgets);
+      expect(opacity(), inExclusiveRange(0, 1));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(opacity(), 1);
     });
 
     testWidgets('refined: shows the chosen item, or the hint; a null onChanged does not open', (tester) async {

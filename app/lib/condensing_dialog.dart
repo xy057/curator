@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 /// Score ▸ Condensing…, as in Dorico (Layout Options ▸ Condensing and Edit Condensing Groups):
@@ -125,10 +126,10 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                   ),
                 ],
                 if (firsts.isNotEmpty) ...[
-                  Divider(height: isRefined(context) ? 20 : 24),
+                  Divider(height: refined ? 20 : 24),
                   Text('Add a pair',
                       style: refined ? const TextStyle(fontSize: 14, fontWeight: FontWeight.w600) : Theme.of(context).textTheme.titleSmall),
-                  SizedBox(height: isRefined(context) ? 6 : 0),
+                  SizedBox(height: refined ? 6 : 0),
                   Row(
                     children: [
                       Expanded(
@@ -140,7 +141,7 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                       Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('with', style: muted)),
                       Expanded(child: choose('Player', _second, seconds, (id) => setState(() => _second = id))),
                       const SizedBox(width: 12),
-                      isRefined(context)
+                      refined
                           ? OutlinedButton(
                               // As tall as the fields beside it.
                               style: dialogButtonStyle(context)

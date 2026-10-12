@@ -4,17 +4,16 @@ import 'package:flutter/services.dart';
 import 'app_colors.dart';
 import 'ui_kit.dart';
 
-/// [UiStyle.refined], and the theme has the app's palette (a bare [MaterialApp] hasn't: the
-/// material widgets then).
-bool isRefinedDialog(BuildContext context) => isRefined(context) && Theme.of(context).extension<AppColors>() != null;
-
 /// A dialog's own measures in [UiStyle.refined]: roomier than the toolbars' (28 px controls, 13 px
 /// text), since a dialog is read and filled in, not scanned.
-const _fieldHeight = 36.0, _rowHeight = 34.0, _buttonHeight = 34.0, _pad = 24.0;
+const _fieldHeight = 36.0, _buttonHeight = 34.0, _pad = 24.0;
+
+/// An [AppCheckRow]'s height in [UiStyle.refined]: a list in a dialog is this many rows tall.
+const dialogRowHeight = 34.0;
 
 /// A dialog body's width: [classic] px in [UiStyle.classic], a fifth more in [UiStyle.refined],
 /// whose padding and text are larger.
-double dialogWidth(BuildContext context, double classic) => isRefinedDialog(context) ? (classic * 1.2).roundToDouble() : classic;
+double dialogWidth(BuildContext context, double classic) => isRefined(context) ? (classic * 1.2).roundToDouble() : classic;
 
 /// A dialog for the app: always use it rather than [AlertDialog].
 ///
@@ -48,7 +47,7 @@ class AppDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!isRefinedDialog(context)) {
+    if (!isRefined(context)) {
       return AlertDialog(
         title: title,
         content: content,
@@ -56,24 +55,14 @@ class AppDialog extends StatelessWidget {
         actionsPadding: actionsPadding,
         actions: [
           if (leading.isEmpty) ...[
-            if (status != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: DefaultTextStyle.merge(style: const TextStyle(fontSize: 12), child: status!),
-              ),
+            if (status != null) _status(12, const EdgeInsets.only(right: 8)),
             ...actions,
           ] else
             // The material actions are all at the right: a row of them spreads leading to the left.
             Row(children: [
               ...leading,
               const Spacer(),
-              if (status != null)
-                Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: DefaultTextStyle.merge(style: const TextStyle(fontSize: 12), child: status!),
-                  ),
-                ),
+              if (status != null) Flexible(child: _status(12, const EdgeInsets.only(right: 8))),
               for (final (i, action) in actions.indexed) ...[if (i > 0) const SizedBox(width: 8), action],
             ]),
         ],
@@ -82,6 +71,7 @@ class AppDialog extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = context.colors;
     final dialog = theme.dialogTheme;
+    final buttons = dialogButtonStyle(context);
     return Dialog(
       insetPadding: const EdgeInsets.all(32),
       clipBehavior: Clip.antiAlias,
@@ -106,22 +96,16 @@ class AppDialog extends StatelessWidget {
             // The footer's buttons are the dialog's size, not the toolbar's.
             Theme(
               data: theme.copyWith(
-                textButtonTheme: TextButtonThemeData(style: dialogButtonStyle(context).merge(theme.textButtonTheme.style)),
-                filledButtonTheme: FilledButtonThemeData(style: dialogButtonStyle(context).merge(theme.filledButtonTheme.style)),
-                outlinedButtonTheme: OutlinedButtonThemeData(style: dialogButtonStyle(context).merge(theme.outlinedButtonTheme.style)),
+                textButtonTheme: TextButtonThemeData(style: buttons.merge(theme.textButtonTheme.style)),
+                filledButtonTheme: FilledButtonThemeData(style: buttons.merge(theme.filledButtonTheme.style)),
+                outlinedButtonTheme: OutlinedButtonThemeData(style: buttons.merge(theme.outlinedButtonTheme.style)),
               ),
               child: Padding(
                 padding: EdgeInsets.fromLTRB(_pad - 8, divided ? 14 : 0, _pad - 8, 20),
                 child: Row(children: [
                   ...leading,
                   if (status != null)
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.only(left: leading.isEmpty ? 8 : 12, right: 12),
-                        child: DefaultTextStyle.merge(
-                            style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis, child: status!),
-                      ),
-                    )
+                    Expanded(child: _status(13, EdgeInsets.only(left: leading.isEmpty ? 8 : 12, right: 12)))
                   else
                     const Spacer(),
                   for (final (i, action) in actions.indexed) ...[if (i > 0) const SizedBox(width: 10), action],
@@ -133,6 +117,12 @@ class AppDialog extends StatelessWidget {
       ),
     );
   }
+
+  /// The [status], in [size] px text, cut short to one line.
+  Widget _status(double size, EdgeInsets padding) => Padding(
+        padding: padding,
+        child: DefaultTextStyle.merge(style: TextStyle(fontSize: size), overflow: TextOverflow.ellipsis, child: status!),
+      );
 }
 
 /// A dialog's button: 34 px, its label 14 px (the theme's, which names the font).
@@ -178,9 +168,7 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final error = colors.erase;
-    if (!isRefinedDialog(context)) {
+    if (!isRefined(context)) {
       return TextField(
         controller: controller,
         autofocus: autofocus,
@@ -200,14 +188,11 @@ class AppTextField extends StatelessWidget {
         onSubmitted: onSubmitted,
       );
     }
+    final colors = context.colors;
+    final error = colors.erase;
     OutlineInputBorder border(Color color, [double width = 1]) => OutlineInputBorder(
         borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: color, width: width));
-    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.textMuted)),
-      ),
-      SizedBox(
+    final field = SizedBox(
         height: _fieldHeight,
         child: TextField(
           controller: controller,
@@ -230,13 +215,19 @@ class AppTextField extends StatelessWidget {
           onChanged: onChanged,
           onSubmitted: onSubmitted,
         ),
-      ),
-      if (helper != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 5),
-          child: Text(helper!, style: TextStyle(fontSize: 12.5, color: colors.textMuted)),
-        ),
-    ]);
+      );
+    return FieldLabel(
+      label: label,
+      child: helper == null
+          ? field
+          : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              field,
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Text(helper!, style: TextStyle(fontSize: 12.5, color: colors.textMuted)),
+              ),
+            ]),
+    );
   }
 }
 
@@ -268,7 +259,7 @@ class AppCheckRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = bold ? const TextStyle(fontWeight: FontWeight.w600) : null;
-    if (!isRefinedDialog(context)) {
+    if (!isRefined(context)) {
       return CheckboxListTile(
         dense: true,
         contentPadding: indent ? null : EdgeInsets.zero,
@@ -282,9 +273,10 @@ class AppCheckRow extends StatelessWidget {
     }
     return InkWell(
       borderRadius: BorderRadius.circular(7),
-      onTap: () => onChanged(tristate ? (value == null ? true : (value! ? false : null)) : !(value ?? false)),
+      // As a checkbox goes: off, on, then (tristate) the middle, then off.
+      onTap: () => onChanged(switch (value) { false => true, true => tristate ? null : false, null => false }),
       child: SizedBox(
-        height: _rowHeight,
+        height: dialogRowHeight,
         child: Row(children: [
           const SizedBox(width: 6),
           IgnorePointer(child: Checkbox(tristate: tristate, value: value, onChanged: (_) {})),
@@ -306,7 +298,7 @@ class AppChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!isRefinedDialog(context)) return ActionChip(label: Text(label), tooltip: tooltip, onPressed: onPressed);
+    if (!isRefined(context)) return ActionChip(label: Text(label), tooltip: tooltip, onPressed: onPressed);
     return Tip(
       message: tooltip,
       child: InkWell(
@@ -314,7 +306,7 @@ class AppChip extends StatelessWidget {
         onTap: onPressed,
         child: Container(
           width: 40,
-          height: _rowHeight,
+          height: dialogRowHeight,
           alignment: Alignment.center,
           decoration: BoxDecoration(border: Border.all(color: context.colors.line), borderRadius: BorderRadius.circular(8)),
           child: Text(label, style: const TextStyle(fontSize: 16)),

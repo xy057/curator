@@ -14,6 +14,7 @@ import 'engrave_options_dialog.dart';
 import 'engraving_settings.dart';
 import 'export_dialog.dart' show revealInFileManager;
 import 'font_settings.dart';
+import 'menu_kit.dart';
 import 'project_file.dart';
 import 'ui_kit.dart';
 import 'updater.dart';

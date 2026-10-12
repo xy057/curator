@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
 import 'app_colors.dart';
 
@@ -93,284 +92,29 @@ class _DialogRoute<T> extends DialogRoute<T> {
   }
 }
 
-/// Whether the theme is [UiStyle.refined] (a theme without an [AppStyle] is: it's the default).
-bool isRefined(BuildContext context) => Theme.of(context).extension<AppStyle>()?.style != UiStyle.classic;
+/// Whether the theme is [UiStyle.refined]. A theme without an [AppStyle] (a bare [MaterialApp]'s,
+/// which hasn't the app's palette either) is not: the material widgets are used there.
+bool isRefined(BuildContext context) => Theme.of(context).extension<AppStyle>()?.style == UiStyle.refined;
 
 /// [classic] milliseconds of motion, as [UiStyle.refined] has it: a desktop's, about three quarters as long.
 Duration motion(BuildContext context, int classic) =>
     Duration(milliseconds: isRefined(context) ? (classic * 0.775).round() : classic);
 
-/// How long a [UiStyle.refined] menu takes to open, and to close.
-const menuOpenDuration = Duration(milliseconds: 190);
-const menuCloseDuration = Duration(milliseconds: 120);
-
-/// A row of a [UiStyle.refined] menu (the material ones are 48 px; a macOS menu's are 22).
-const refinedMenuRow = 22.0;
-
-/// A popup menu's row: 48 px in [UiStyle.classic], a desktop menu's in [UiStyle.refined].
-double menuRowHeight(BuildContext context) => isRefined(context) ? refinedMenuRow : kMinInteractiveDimension;
-
-const _refinedItemPadding = EdgeInsets.symmetric(horizontal: 8);
-
-/// A [PopupMenuItem] at [menuRowHeight]. Use it, not the item itself, in a menu.
-PopupMenuItem<T> menuItem<T>(BuildContext context, {T? value, bool enabled = true, required Widget child}) =>
-    PopupMenuItem<T>(
-      value: value,
-      enabled: enabled,
-      height: menuRowHeight(context),
-      padding: isRefined(context) ? _refinedItemPadding : null,
-      child: child,
-    );
-
-/// A [PopupMenuDivider] with the space of a [menuRowHeight]'s row.
-PopupMenuDivider menuDivider(BuildContext context) => PopupMenuDivider(height: isRefined(context) ? 9 : 16);
-
-/// A checked item at [menuRowHeight]. [UiStyle.refined] draws its own: the material one is a
-/// list tile, 40 px at the least however its theme is set.
-PopupMenuItem<T> checkedMenuItem<T>(BuildContext context,
-    {required T value, required bool checked, required Widget child}) {
-  if (!isRefined(context)) return CheckedPopupMenuItem<T>(value: value, checked: checked, child: child);
-  return PopupMenuItem<T>(
-    value: value,
-    height: menuRowHeight(context),
-    padding: _refinedItemPadding,
-    child: Semantics(
-      role: SemanticsRole.menuItemCheckbox,
-      checked: checked,
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        SizedBox(width: 16, child: checked ? const Icon(Icons.done, size: 16) : null),
-        const SizedBox(width: 6),
-        child,
-      ]),
-    ),
-  );
-}
-
-/// A [PopupMenuButton] that opens in [menuOpenDuration] and shuts in [menuCloseDuration] in
-/// [UiStyle.refined] (the material menu takes 300 ms), its rows set close. Fill it with
-/// [menuItem] and [checkedMenuItem].
-class AppPopupMenuButton<T> extends StatelessWidget {
-  const AppPopupMenuButton({
-    super.key,
-    required this.itemBuilder,
-    this.onSelected,
-    this.tooltip,
-    this.position,
-    this.style,
-    this.icon,
-    this.iconSize,
-    this.padding = const EdgeInsets.all(8),
-    this.constraints,
-    this.child,
-  });
-
-  final PopupMenuItemBuilder<T> itemBuilder;
-  final PopupMenuItemSelected<T>? onSelected;
-  final String? tooltip;
-  final PopupMenuPosition? position;
-  final ButtonStyle? style;
-  final Widget? icon;
-  final double? iconSize;
-  final EdgeInsetsGeometry padding;
-  final BoxConstraints? constraints;
-  final Widget? child;
+/// A field with its [label] over it: how [UiStyle.refined]'s dialogs label their fields.
+class FieldLabel extends StatelessWidget {
+  const FieldLabel({super.key, required this.label, required this.child});
+  final String label;
+  final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<T>(
-      itemBuilder: itemBuilder,
-      onSelected: onSelected,
-      tooltip: tooltip,
-      position: position,
-      style: style,
-      icon: icon,
-      iconSize: iconSize,
-      padding: padding,
-      constraints: constraints,
-      popUpAnimationStyle: isRefined(context)
-          ? AnimationStyle(
-              duration: menuOpenDuration,
-              reverseDuration: menuCloseDuration,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeIn,
-            )
-          : null,
-      child: child,
-    );
-  }
-}
-
-/// A select for the app. [UiStyle.classic] is the material [DropdownButton] (a field, with
-/// [decoration]); [UiStyle.refined] is a field that opens a menu of [MenuItemButton]s at once,
-/// its rows 22 px, not the material dropdown's 48 px and 300 ms.
-///
-/// With a [label] it is a labelled field (the label over it in Refined). Without, it is bare:
-/// [boxed] outlines it (the material one underlines it), and [icon] replaces its arrow.
-class AppDropdown<T> extends StatefulWidget {
-  const AppDropdown({
-    super.key,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-    this.hint,
-    this.isExpanded = false,
-    this.dense = false,
-    this.boxed = false,
-    this.label,
-    this.icon,
-    this.style,
-  });
-
-  final T? value;
-  final List<DropdownMenuItem<T>> items;
-
-  /// What a choice does; null disables the select.
-  final ValueChanged<T?>? onChanged;
-
-  /// Shown when no item has [value].
-  final Widget? hint;
-  final bool isExpanded;
-  final bool dense;
-  final bool boxed;
-  final String? label;
-  final Widget? icon;
-  final TextStyle? style;
-
-  @override
-  State<AppDropdown<T>> createState() => _AppDropdownState<T>();
-}
-
-class _AppDropdownState<T> extends State<AppDropdown<T>> {
-  final _menu = MenuController();
-  final _focus = FocusNode();
-  double _width = 0;
-  bool _open = false;
-
-  @override
-  void dispose() {
-    _focus.dispose();
-    super.dispose();
-  }
-
-  void _toggle() {
-    if (_menu.isOpen) return _menu.close();
-    _width = (context.findRenderObject() as RenderBox).size.width;
-    _menu.open();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final w = widget;
-    if (!isRefined(context)) {
-      if (w.label != null) {
-        return DropdownButtonFormField<T>(
-          initialValue: w.value,
-          isExpanded: w.isExpanded,
-          decoration: InputDecoration(labelText: w.label),
-          items: w.items,
-          onChanged: w.onChanged,
-        );
-      }
-      return DropdownButton<T>(
-        value: w.value,
-        hint: w.hint,
-        isExpanded: w.isExpanded,
-        isDense: w.dense,
-        icon: w.icon ?? const Icon(Icons.arrow_drop_down),
-        style: w.style,
-        focusColor: Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        underline: w.boxed ? null : const SizedBox.shrink(),
-        items: w.items,
-        onChanged: w.onChanged,
-      );
-    }
-    final colors = context.colors;
-    final theme = Theme.of(context);
-    final enabled = w.onChanged != null;
-    final selected = w.items.where((item) => item.value == w.value).firstOrNull;
-    // In a dialog (boxed, labelled) it is the dialog's size: 36 px, 14 px text.
-    final inDialog = w.boxed || w.label != null;
-    final style = (w.style ?? theme.textTheme.bodyMedium!.copyWith(fontSize: inDialog ? 14 : 13))
-        .copyWith(color: enabled ? (w.style?.color ?? colors.text) : colors.textMuted.withValues(alpha: 0.6));
-    Widget label = DefaultTextStyle.merge(
-      style: style,
-      overflow: TextOverflow.ellipsis,
-      child: selected?.child ?? w.hint ?? const SizedBox.shrink(),
-    );
-    final arrow = IconTheme.merge(
-      data: IconThemeData(size: inDialog ? 18 : 16, color: colors.textMuted),
-      child: w.icon ?? const Icon(Icons.unfold_more_rounded),
-    );
-    Widget field = Row(mainAxisSize: w.isExpanded ? MainAxisSize.max : MainAxisSize.min, children: [
-      if (w.isExpanded) Expanded(child: label) else Flexible(child: label),
-      const SizedBox(width: 4),
-      arrow,
-    ]);
-    if (inDialog) {
-      field = Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: _open ? colors.accent : colors.line, width: _open ? 1.5 : 1),
-          borderRadius: BorderRadius.circular(8),
+  Widget build(BuildContext context) =>
+      Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.colors.textMuted)),
         ),
-        child: field,
-      );
-    } else {
-      field = Padding(padding: EdgeInsets.symmetric(vertical: w.dense ? 2 : 4), child: field);
-    }
-    final menu = MenuAnchor(
-      controller: _menu,
-      childFocusNode: _focus,
-      crossAxisUnconstrained: false,
-      onOpen: () => setState(() => _open = true),
-      onClose: () => setState(() => _open = false),
-      alignmentOffset: const Offset(0, 2),
-      style: MenuStyle(
-        visualDensity: VisualDensity.standard, // compact would take 8 px off the width
-        minimumSize: WidgetStatePropertyAll(Size(_width, 0)),
-        maximumSize: const WidgetStatePropertyAll(Size(double.infinity, 320)),
-      ),
-      menuChildren: [
-        for (final item in w.items)
-          _FadeIn(
-            child: MenuItemButton(
-              style: MenuItemButton.styleFrom(
-                minimumSize: const Size(0, refinedMenuRow),
-                visualDensity: VisualDensity.standard,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              onPressed: item.enabled
-                  ? () {
-                      item.onTap?.call();
-                      w.onChanged?.call(item.value);
-                    }
-                  : null,
-              leadingIcon: SizedBox(
-                width: 16,
-                child: item.value == w.value ? Icon(Icons.done, size: 16, color: colors.text) : null,
-              ),
-              child: item.child,
-            ),
-          ),
-      ],
-      child: InkWell(
-        focusNode: _focus,
-        onTap: enabled ? _toggle : null,
-        borderRadius: BorderRadius.circular(5),
-        child: field,
-      ),
-    );
-    if (w.label == null) return menu;
-    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(w.label!, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.textMuted)),
-      ),
-      menu,
-    ]);
-  }
+        child,
+      ]);
 }
 
 /// The compact icon button used in every toolbar: 32 × 32, its label in the tooltip; in
@@ -767,19 +511,4 @@ class _SwitchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SwitchPainter old) => old.t != t || old.track != track || old.focus != focus;
-}
-
-/// Fades in [child] as it first appears: what the rows of an [AppDropdown]'s menu do on opening.
-class _FadeIn extends StatelessWidget {
-  const _FadeIn({required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        builder: (context, opacity, child) => Opacity(opacity: opacity, child: child),
-        child: child,
-      );
 }

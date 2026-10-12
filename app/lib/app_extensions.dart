@@ -97,7 +97,7 @@ class ExtensionsDialog extends StatelessWidget {
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: extensions.length,
-                  itemExtent: isRefinedDialog(context) ? 40 : 44,
+                  itemExtent: isRefined(context) ? 40 : 44,
                   itemBuilder: (context, i) {
                     final e = extensions[i];
                     return _SwitchRow(
@@ -130,7 +130,7 @@ class _SwitchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final control = AppSwitch(value: value, onChanged: onChanged);
-    if (!isRefinedDialog(context)) {
+    if (!isRefined(context)) {
       return ListTile(
         dense: true,
         leading: icon == null ? null : Icon(icon, size: 18),

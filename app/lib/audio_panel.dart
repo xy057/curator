@@ -8,11 +8,12 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
-import 'editor_controller.dart';
 import 'edit_dialogs.dart';
+import 'editor_controller.dart';
 import 'error_text.dart';
 import 'lanes_common.dart';
 import 'media_converter.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 /// Recordings: audio, or a video whose sound is taken out of it.

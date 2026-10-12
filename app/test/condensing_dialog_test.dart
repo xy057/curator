@@ -6,7 +6,7 @@ import 'dart:ui' as ui;
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/dialog_kit.dart';
-import 'package:curated_score/ui_kit.dart';
+import 'package:curated_score/menu_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';

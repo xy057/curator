@@ -7,6 +7,7 @@ import 'app_colors.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'engraving_settings.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 /// Engrave Option (at the foot of the Engraving page, after a warning): every Verovio option
