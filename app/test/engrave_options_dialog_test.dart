@@ -1,4 +1,4 @@
-// Settings ▸ Engraving ▸ Engrave Option with a score open: the preview beside the list shows
+// Settings ▸ Engraving ▸ Engraving options with a score open: the preview beside the list shows
 // the score engraved again after each change. With SCREENSHOT_DIR set, saves PNGs.
 import 'dart:io';
 import 'dart:ui' as ui;

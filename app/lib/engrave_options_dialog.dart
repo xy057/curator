@@ -10,7 +10,7 @@ import 'engraving_settings.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
 
-/// Engrave Option (at the foot of the Engraving page, after a warning): every Verovio option
+/// Engraving options (at the foot of the Engraving page, after a warning): every Verovio option
 /// that is safe to change ([EngraveOption.all]) by its code name, for those who know Verovio.
 /// A change is saved at once (for every score) and re-engraves the open score (or the demo),
 /// shown beside the list.

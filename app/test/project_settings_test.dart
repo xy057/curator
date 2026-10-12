@@ -156,7 +156,7 @@ void main() {
     await tester.scrollUntilVisible(find.text('Open…'), 100, scrollable: find.byType(Scrollable).last);
     await tester.ensureVisible(find.text('Open…'));
     await tester.pumpAndSettle();
-    expect(find.text('Over the app’s.'), findsOneWidget);
+    expect(find.text('Overrides the app’s.'), findsOneWidget);
     await tester.tap(find.text('Open…'));
     await settle();
     await tester.tap(find.text('Continue'));

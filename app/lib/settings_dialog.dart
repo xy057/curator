@@ -309,7 +309,7 @@ final _projectCategories = <_Category>[
 ];
 
 /// Engraving: the options most scores want changed ([EngravingSetting.all]) under a preview
-/// of the open score (or the demo), and every other one in Engrave Option, by code name. The app's apply to
+/// of the open score (or the demo), and every other one in Engraving options, by code name. The app's apply to
 /// every project; a project's over them.
 _Category _engravingCategory({required bool project}) {
   EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller, project: project);
@@ -328,8 +328,8 @@ _Category _engravingCategory({required bool project}) {
           keywords: 'engrave engraving ${s.group} ${s.keywords} ${s.key}',
         ),
       _Item(
-        'Engrave Option',
-        (c) => _changedText(target(c).own, project ? 'Over the app’s.' : 'Every project.'),
+        'Engraving options',
+        (c) => _changedText(target(c).own, project ? 'Overrides the app’s.' : 'Every project.'),
         (c) => _EngraveOptionButton(c, project: project),
         group: 'All options',
         keywords: 'engrave engraving verovio advanced expert options code spacing slur tie beam stem '

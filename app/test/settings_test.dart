@@ -206,7 +206,7 @@ void main() {
     expect(find.text('Spacing'), findsOneWidget);
     expect(find.text('Line thickness'), findsOneWidget);
     expect(find.text('Note spacing'), findsOneWidget);
-    expect(find.text('spacingLinear'), findsNothing, reason: 'code names only in Engrave Option');
+    expect(find.text('spacingLinear'), findsNothing, reason: 'code names only in Engraving options');
 
     // A slider sets its option once let go: one change, snapped to its step.
     final spacing = EngraveOption.byKey('spacingLinear')!;
@@ -237,7 +237,7 @@ void main() {
     expect(find.text('Stems'), findsOneWidget);
   });
 
-  testWidgets('Engraving ▸ Engrave Option lists every safe option by code name, sorted, and changes them', (tester) async {
+  testWidgets('Engraving ▸ Engraving options lists every safe option by code name, sorted, and changes them', (tester) async {
     final settings = await open(tester);
     await tester.tap(find.text('Engraving').first);
     await tester.pumpAndSettle();
@@ -285,7 +285,7 @@ void main() {
     expect(find.text('Engrave Options'), findsNothing, reason: 'no title, no help: code names only');
   });
 
-  testWidgets('Engraving ▸ Engrave Option warns first; Cancel leaves the options closed', (tester) async {
+  testWidgets('Engraving ▸ Engraving options warns first; Cancel leaves the options closed', (tester) async {
     await open(tester);
     await tester.tap(find.text('Engraving').first);
     await tester.pumpAndSettle();
@@ -301,6 +301,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Editing these values'), findsNothing);
     expect(find.widgetWithText(TextField, 'Search'), findsOneWidget, reason: 'no engraving list opened');
-    expect(find.text('Engrave Option'), findsOneWidget, reason: 'back on the Engraving page');
+    expect(find.text('Engraving options'), findsOneWidget, reason: 'back on the Engraving page');
   });
 }
