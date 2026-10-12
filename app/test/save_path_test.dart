@@ -26,7 +26,7 @@ void main() {
       final answer = tester.runAsync(() => confirmSavePath(context, path, 'mp4'));
       await tester.pumpAndSettle();
       if (press != null) {
-        expect(find.text('Replace “Song.mp4”?'), findsOneWidget);
+        expect(find.text('“Song.mp4” already exists. Do you want to replace it?'), findsOneWidget);
         await tester.tap(find.text(press));
         await tester.pumpAndSettle();
       }

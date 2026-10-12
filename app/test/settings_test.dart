@@ -294,7 +294,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open…'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Editing these values might generate unintended results and errors'), findsOneWidget);
+    expect(find.textContaining('Some values can break the layout'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Search'), findsOneWidget, reason: 'only the settings search is open');
 
     await tester.tap(find.text('Cancel'));

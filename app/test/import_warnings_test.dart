@@ -41,7 +41,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Some of “Harp.musicxml” isn’t shown'), findsOneWidget);
-    expect(find.text('These 2 things were left out or aren’t supported:'), findsOneWidget);
+    expect(find.text('2 items not supported:'), findsOneWidget);
     expect(find.text("Unsupported direction-type 'harp-pedals'"), findsOneWidget);
 
     if (dir != null) {

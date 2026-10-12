@@ -23,8 +23,8 @@ Future<void> showImportWarnings(BuildContext context, String fileName, List<Stri
           width: dialogWidth(context, 460),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(warnings.length == 1
-                ? 'This was left out or isn’t supported:'
-                : 'These ${warnings.length} things were left out or aren’t supported:'),
+                ? 'Not supported:'
+                : '${warnings.length} items not supported:'),
             const SizedBox(height: 12),
             _Bullets(warnings),
           ]),
@@ -47,7 +47,7 @@ Future<bool> confirmReplaceScore(BuildContext context, String fileName, List<Str
             const SizedBox(height: 12),
             _Bullets(differences),
             const SizedBox(height: 12),
-            Text('Can’t be undone.', style: TextStyle(color: context.colors.textMuted)),
+            Text('You can’t undo this action.', style: TextStyle(color: context.colors.textMuted)),
           ]),
         ),
         actions: [
@@ -558,7 +558,7 @@ Future<String?> confirmSavePath(BuildContext context, String path, String extens
   final replace = await showAppDialog<bool>(
     context: context,
     builder: (context) => AppDialog(
-      title: Text('Replace “$name”?'),
+      title: Text('“$name” already exists. Do you want to replace it?'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Replace')),

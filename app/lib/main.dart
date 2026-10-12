@@ -466,12 +466,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final choice = await showAppDialog<String>(
       context: context,
       builder: (context) => AppDialog(
-        title: Text('Save changes to “${document.title}”?'),
+        title: Text('Do you want to save the changes to “${document.title}”?'),
         content: const Text('Your changes will be lost if you don’t save them.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, 'discard'), child: const Text('Don’t Save')),
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, 'save'), child: const Text('Save…')),
+          FilledButton(onPressed: () => Navigator.pop(context, 'save'), child: Text(document.path == null ? 'Save…' : 'Save')),
         ],
       ),
     );

@@ -70,7 +70,7 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.textContaining('Save changes'), findsNothing);
+    expect(find.textContaining('save the changes'), findsNothing);
     expect(c.score, isNull);
     expect(document.isSample, isFalse);
 
@@ -83,7 +83,7 @@ void main() {
     expect(document.isDirty, isTrue);
     await close();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.textContaining('Save changes'), findsOneWidget);
+    expect(find.textContaining('save the changes'), findsOneWidget);
     await tester.tap(find.text('Don’t Save'));
     for (var i = 0; i < 10; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
