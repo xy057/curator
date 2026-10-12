@@ -19,8 +19,9 @@ import 'app_settings.dart';
 import 'audio_panel.dart';
 import 'bottom_panel.dart';
 import 'condensing_dialog.dart';
-import 'editor_controller.dart';
+import 'dialog_kit.dart';
 import 'edit_dialogs.dart';
+import 'editor_controller.dart';
 import 'editor_toolbar.dart';
 import 'error_text.dart';
 import 'export_dialog.dart';
@@ -28,8 +29,8 @@ import 'home_screen.dart';
 import 'media_converter.dart';
 import 'project_document.dart';
 import 'project_file.dart';
-import 'scratch_space.dart';
 import 'score_view.dart';
+import 'scratch_space.dart';
 import 'settings_dialog.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
@@ -464,7 +465,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (!document.isDirty) return true;
     final choice = await showAppDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppDialog(
         title: Text('Save changes to “${document.title}”?'),
         content: const Text('Your changes will be lost if you don’t save them.'),
         actions: [
@@ -494,7 +495,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       if (!mounted) return;
       showAppDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (context) => AppDialog(
           title: Text(title),
           content: SingleChildScrollView(child: Text(describeError(e))),
           actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
@@ -801,7 +802,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     key: _dropStack,
                     children: [
                       AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 320),
+                        duration: motion(context, 320),
                         switchInCurve: Curves.easeOutCubic,
                         switchOutCurve: Curves.easeInCubic,
                         // Semantics stay through the fade (see showAppDialog: the size slider).
@@ -955,7 +956,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
         onVerticalDragCancel: () => setState(() => _dragging = false),
         onVerticalDragUpdate: (d) => widget.onDrag(d.delta.dy),
         child: AnimatedContainer(
-          duration: stateDuration(const Duration(milliseconds: 150)),
+          duration: stateDuration(motion(context, 150)),
           height: 7,
           decoration: BoxDecoration(
             color: active ? colors.accentWash : colors.chrome,
@@ -963,7 +964,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
           ),
           alignment: Alignment.center,
           child: AnimatedContainer(
-            duration: stateDuration(const Duration(milliseconds: 150)),
+            duration: stateDuration(motion(context, 150)),
             width: active ? 44 : 32,
             height: 3,
             decoration: BoxDecoration(
@@ -1002,7 +1003,7 @@ class _BusyState extends State<_Busy> {
         ignoring: !widget.visible,
         child: AnimatedOpacity(
           opacity: widget.visible ? 1 : 0,
-          duration: const Duration(milliseconds: 200),
+          duration: motion(context, 200),
           onEnd: () {
             if (!widget.visible && mounted) setState(() => _built = false);
           },
@@ -1048,10 +1049,10 @@ class _DropHint extends StatelessWidget {
     final hint = IgnorePointer(
       child: AnimatedOpacity(
         opacity: visible ? 1 : 0,
-        duration: const Duration(milliseconds: 160),
+        duration: motion(context, 160),
         child: AnimatedScale(
           scale: visible ? 1 : 0.98,
-          duration: const Duration(milliseconds: 200),
+          duration: motion(context, 200),
           curve: Curves.easeOutCubic,
           child: Container(
             margin: const EdgeInsets.all(14),

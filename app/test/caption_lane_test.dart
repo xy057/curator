@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/caption_lane.dart';
 import 'package:curated_score/captions_dialog.dart';
+import 'package:curated_score/dialog_kit.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/lanes_common.dart';
 import 'package:curated_score/main.dart';
@@ -15,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'test_fonts.dart';
+import 'finders.dart';
 
 void main() {
   testWidgets('the Captions lane is pinned in both tabs; double-click opens the sheet, which edits them all as one step',
@@ -145,7 +147,7 @@ void main() {
     await tester.dragFrom(at(bar[2] + 0.1), at(bar[6] + 0.1) - at(bar[2] + 0.1));
     await tester.pumpAndSettle();
     expect(find.text('Add Caption'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, 'Text'), 'Oboe');
+    await tester.enterText(appField('Text'), 'Oboe');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Add'));
     await tester.pumpAndSettle();
@@ -169,7 +171,7 @@ void main() {
     await tester.tapAt(at(bar[4]));
     await tester.pumpAndSettle();
     expect(find.text('Caption'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, 'Text'), 'Oboe solo');
+    await tester.enterText(appField('Text'), 'Oboe solo');
     await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
     await tester.pumpAndSettle();
     expect(c.captions.captions.single.text, 'Oboe solo');
@@ -187,7 +189,7 @@ void main() {
     await tester.tapAt(at(bar[5])); // not where the erase began: no double-click
     await tester.pump(const Duration(milliseconds: 500));
     expect(c.captions.selected, 0);
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(AppDialog), findsNothing);
     c.deleteSelection();
     expect(c.captions.captions, isEmpty);
 
@@ -228,7 +230,7 @@ void main() {
     c.lanes.tool = LaneTool.draw;
     await tester.dragFrom(at(bar[1] + 0.1), at(bar[8] + 0.1) - at(bar[1] + 0.1));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'Text'), 'A');
+    await tester.enterText(appField('Text'), 'A');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Add'));
     await tester.pumpAndSettle();
@@ -258,7 +260,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tapAt(at(bar[1]));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'Until'), '6');
+    await tester.enterText(appField('Until'), '6');
     await tester.pump();
     expect(find.text('Another caption is there'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Apply')).onPressed, isNull);

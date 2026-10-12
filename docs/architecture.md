@@ -402,6 +402,32 @@ Windows match. A widget that draws its own control for Refined reads `AppStyle` 
 `AppSwitch` (ui_kit.dart) is the only one: always use it, never `Switch`. Text styles set in the
 refined theme are merged with the typography's geometry as `Theme.of` gives them, since a button
 lerps its label between the two styles and two text styles lerp only when both inherit or neither.
+Refined is agile: a menu opens in 190 ms (the material ones take 300) with 22 px rows, not 48 (a
+`MenuItemButton`'s too, by the theme; the Windows/Linux menu bar keeps its own buttons' height), and
+other motion runs at about three quarters of the classic time (`motion(context, classicMs)`).
+Flutter fixes a popup menu's and a dropdown's timing and row height in the widget, not the theme,
+so `menu_kit.dart` has them: a menu is an `AppPopupMenuButton` filled with `menuItem` /
+`checkedMenuItem` / `menuDivider`, a select an `AppDropdown` (in Refined a `MenuAnchor` whose bare
+panel holds a card of the theme's menu style, so the card and its rows fade in together; the
+material one in Classic), never `PopupMenuButton` or `DropdownButton`; and a duration written for
+the classic style goes through `motion`. A theme without an `AppStyle` (a bare `MaterialApp` in a
+test) is not Refined: the material widgets are used.
+
+Dialogs are laid out for Refined by `dialog_kit.dart`: `AppDialog` (title, a body that scrolls
+in a short window, a footer with `leading` buttons, a `status` and the `actions`; the material
+`AlertDialog` in Classic), `AppTextField` (its label over it), `AppCheckRow` and `AppChip`.
+A dialog has measures of its own, roomier than the toolbars' (which are 28 px with 13 px text)
+since it is read and filled in: an 18 px title, 14 px text, 36 px fields, 34 px rows and buttons,
+24 px padding, a 14 px corner, and a body a fifth wider than Classic's (`dialogWidth`).
+Everything in a dialog starts and ends on that 24 px edge: the title, the content, a check row's
+box (no inset), and the footer's buttons, whose secondary ones (Cancel, an extra action) are
+outlined by `DialogButtons` so their edge, not their label, is on it; groups of fields are
+`dialogGap` apart. Export's footer uses `DialogButtons` too. Inside a field, typed and chosen
+text both start `fieldInset` (10 px) in from the border, so an `AppTextField`'s outline has no
+label gap and an `AppDropdown` draws its border over itself; a menu's heading is a `menuHeader`,
+on its items' edge. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
+(tests find it with `appField(label)`), a select an `AppDropdown(label: …)`. `Export` and
+`Engrave Option` are `Dialog`s of their own, in the same measures.
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that

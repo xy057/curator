@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
+import 'finders.dart';
 
 void main() {
   late EditorController c;
@@ -144,8 +145,8 @@ void main() {
     c.anchors.select(3);
     await press(tester, LogicalKeyboardKey.keyW);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.widgetWithText(TextField, 'Jump to'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, 'Jump to'), '2');
+    expect(appField('Jump to'), findsOneWidget);
+    await tester.enterText(appField('Jump to'), '2');
     await tester.pump();
     expect(find.text('Warp'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Set'));

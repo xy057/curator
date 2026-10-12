@@ -304,7 +304,7 @@ class AppColors extends ThemeExtension<AppColors> {
         type.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0));
     const size = WidgetStatePropertyAll(Size(64, 28));
     const padding = WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12));
-    const quick = Duration(milliseconds: 120);
+    const quick = Duration(milliseconds: 95);
     final button = ButtonStyle(
       shape: shape,
       textStyle: label,
@@ -375,8 +375,8 @@ class AppColors extends ThemeExtension<AppColors> {
       surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
       elevation: const WidgetStatePropertyAll(8),
       shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: dark ? 0.5 : 0.25)),
-      padding: const WidgetStatePropertyAll(EdgeInsets.all(5)),
-      shape: WidgetStatePropertyAll(_SteadyBorder(borderRadius: BorderRadius.circular(7), side: BorderSide(color: c.line))),
+      padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
+      shape: WidgetStatePropertyAll(_SteadyBorder(borderRadius: BorderRadius.circular(6), side: BorderSide(color: c.line))),
     );
     final outline = dark ? const Color(0xFF5C5C62) : const Color(0xFFB8B8BE);
     // A desktop's type scale: 13 px body text, titles a little larger and semibold.
@@ -399,7 +399,11 @@ class AppColors extends ThemeExtension<AppColors> {
           borderRadius: BorderRadius.circular(5),
         ),
       ),
-      popupMenuTheme: theme.popupMenuTheme.copyWith(color: raised),
+      popupMenuTheme: theme.popupMenuTheme.copyWith(
+        color: raised,
+        menuPadding: const EdgeInsets.all(4),
+        shape: _SteadyBorder(borderRadius: BorderRadius.circular(6), side: BorderSide(color: c.line)),
+      ),
       // Text set as the platform sets it: Material's tracking (up to 0.5 px between letters,
       // for small phone text) reads loose on a desktop.
       textTheme: t.copyWith(
@@ -464,11 +468,13 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(64, 26)),
-          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
+          // 22 px rows, as a popup menu's and a desktop menu's.
+          minimumSize: const WidgetStatePropertyAll(Size(0, 22)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8)),
           shape: const WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4)))),
           textStyle: WidgetStatePropertyAll(type.bodyMedium!.copyWith(fontSize: 13, letterSpacing: 0)),
-          visualDensity: VisualDensity.compact,
+          visualDensity: VisualDensity.standard,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(style: filled),
@@ -478,9 +484,9 @@ class AppColors extends ThemeExtension<AppColors> {
       segmentedButtonTheme: SegmentedButtonThemeData(style: segment),
       dialogTheme: theme.dialogTheme.copyWith(
         backgroundColor: raised,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: dark ? c.line : Colors.transparent)),
-        titleTextStyle: type.titleLarge!.copyWith(fontSize: 15, fontWeight: FontWeight.w600, color: c.text, letterSpacing: 0),
-        contentTextStyle: type.bodyMedium!.copyWith(fontSize: 13, height: 1.4, color: c.text, letterSpacing: 0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: dark ? c.line : Colors.transparent)),
+        titleTextStyle: type.titleLarge!.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: c.text, letterSpacing: 0),
+        contentTextStyle: type.bodyMedium!.copyWith(fontSize: 14, height: 1.45, color: c.text, letterSpacing: 0),
         actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       ),
       splashFactory: NoSplash.splashFactory,

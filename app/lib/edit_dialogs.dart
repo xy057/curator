@@ -6,7 +6,9 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'app_settings.dart';
+import 'dialog_kit.dart';
 import 'editor_controller.dart';
+import 'menu_kit.dart';
 import 'score_replacement.dart' show ScoreSwap;
 import 'ui_kit.dart';
 import 'video_export.dart';
@@ -15,10 +17,10 @@ import 'video_export.dart';
 /// [LoadedScore.warnings] gives them), so the score isn't silently shown incomplete.
 Future<void> showImportWarnings(BuildContext context, String fileName, List<String> warnings) => showAppDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppDialog(
         title: Text('Some of “$fileName” isn’t shown'),
         content: SizedBox(
-          width: 460,
+          width: dialogWidth(context, 460),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(warnings.length == 1
                 ? 'This was left out or isn’t supported:'
@@ -36,10 +38,10 @@ Future<void> showImportWarnings(BuildContext context, String fileName, List<Stri
 Future<bool> confirmReplaceScore(BuildContext context, String fileName, List<String> differences) async =>
     await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppDialog(
         title: Text('Replace with “$fileName”?'),
         content: SizedBox(
-          width: 460,
+          width: dialogWidth(context, 460),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('The scores differ:'),
             const SizedBox(height: 12),
@@ -119,32 +121,32 @@ class _RenameDialogState extends State<_RenameDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    return AppDialog(
       title: const Text('Rename instrument'),
       content: SizedBox(
-        width: 360,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
+        width: dialogWidth(context, 360),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          AppTextField(
             controller: _name,
+            label: 'Name',
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'Name', helperText: 'e.g. "Clarinet in B♭ 1"'),
             onSubmitted: (_) => _rename(),
           ),
-          const SizedBox(height: 12),
-          TextField(
+          SizedBox(height: dialogGap(context)),
+          AppTextField(
             controller: _short,
-            decoration: const InputDecoration(labelText: 'Short name', helperText: 'Used when the full name does not fit'),
+            label: 'Short name',
             onSubmitted: (_) => _rename(),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: dialogGap(context)),
           Wrap(spacing: 6, children: [
             for (final symbol in const ['♭', '♯', '♮'])
-              ActionChip(label: Text(symbol), tooltip: 'Insert $symbol', onPressed: () => _insert(symbol)),
+              AppChip(label: symbol, tooltip: 'Insert $symbol', onPressed: () => _insert(symbol)),
           ]),
         ]),
       ),
+      leading: [TextButton(onPressed: () => _rename(reset: true), child: const Text('Use name from file'))],
       actions: [
-        TextButton(onPressed: () => _rename(reset: true), child: const Text('Use name from file')),
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(onPressed: _rename, child: const Text('Rename')),
       ],
@@ -199,26 +201,26 @@ class _RegionDialogState extends State<_RegionDialog> {
       if (error == null) Navigator.pop(context, Region(a!, b!, transitionIn: _in, transitionOut: _out));
     }
 
-    return AlertDialog(
+    return AppDialog(
       title: Text('Show ${c.laneName(part)}'),
       content: SizedBox(
-        width: 320,
+        width: dialogWidth(context, 320),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
-              child: TextField(
+              child: AppTextField(
                 controller: _from,
+                label: 'From',
                 autofocus: true,
-                decoration: const InputDecoration(labelText: 'From'),
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => save(),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: TextField(
+              child: AppTextField(
                 controller: _to,
-                decoration: const InputDecoration(labelText: 'Until', helperText: 'Hidden again from here'),
+                label: 'Until',
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => save(),
               ),
@@ -232,12 +234,8 @@ class _RegionDialogState extends State<_RegionDialog> {
           ]),
         ]),
       ),
+      status: error == null ? null : Text(error, style: TextStyle(color: context.colors.erase)),
       actions: [
-        if (error != null)
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Text(error, style: TextStyle(fontSize: 12, color: context.colors.erase)),
-          ),
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(onPressed: error == null ? save : null, child: const Text('Apply')),
       ],
@@ -304,34 +302,34 @@ class _CaptionDialogState extends State<_CaptionDialog> {
       if (error == null) Navigator.pop(context, Caption(a!, b!, _text.text));
     }
 
-    return AlertDialog(
+    return AppDialog(
       title: Text(widget.isNew ? 'Add Caption' : 'Caption'),
       content: SizedBox(
-        width: 400,
+        width: dialogWidth(context, 400),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          TextField(
+          AppTextField(
             controller: _text,
+            label: 'Text',
             autofocus: true,
             maxLength: 160,
-            decoration: const InputDecoration(labelText: 'Text', counterText: ''),
             onChanged: (_) => setState(() {}),
             onSubmitted: (_) => save(),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: dialogGap(context)),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
-              child: TextField(
+              child: AppTextField(
                 controller: _from,
-                decoration: const InputDecoration(labelText: 'From'),
+                label: 'From',
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => save(),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: TextField(
+              child: AppTextField(
                 controller: _to,
-                decoration: const InputDecoration(labelText: 'Until'),
+                label: 'Until',
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => save(),
               ),
@@ -339,17 +337,15 @@ class _CaptionDialogState extends State<_CaptionDialog> {
           ]),
         ]),
       ),
-      actions: [
-        if (error != null && error.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Text(error, style: TextStyle(fontSize: 12, color: context.colors.erase)),
-          ),
+      status: error == null || error.isEmpty ? null : Text(error, style: TextStyle(color: context.colors.erase)),
+      leading: [
         if (!widget.isNew)
           TextButton(
             onPressed: () => Navigator.pop(context, widget.caption.copyWith(text: '')),
             child: const Text('Remove'),
           ),
+      ],
+      actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(onPressed: error == null ? save : null, child: Text(widget.isNew ? 'Add' : 'Apply')),
       ],
@@ -367,10 +363,10 @@ class _TransitionField extends StatelessWidget {
   final ValueChanged<double?> onChanged;
 
   @override
-  Widget build(BuildContext context) => DropdownButtonFormField<double?>(
-        initialValue: value,
+  Widget build(BuildContext context) => AppDropdown<double?>(
+        value: value,
         isExpanded: true,
-        decoration: InputDecoration(labelText: label),
+        label: label,
         items: [
           DropdownMenuItem(value: null, child: Text("Project's ($project s)")),
           for (final s in {...AppSettings.transitionChoices, ?value}.toList()..sort()) DropdownMenuItem(value: s, child: Text('$s s')),
@@ -386,27 +382,24 @@ Future<void> showCopyLaneDialog(BuildContext context, EditorController c, ScoreP
   final ok = await showAppDialog<bool>(
     context: context,
     builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
+      builder: (context, setState) => AppDialog(
         title: Text('Copy ${c.laneName(from)} to…'),
         content: SizedBox(
-          width: 360,
-          height: math.min(420, others.length * 40.0 + 8),
+          width: dialogWidth(context, 360),
+          height: math.min(420, others.length * (isRefined(context) ? dialogRowHeight : 40.0) + 8),
           child: ListView(children: [
             for (final part in others)
-              CheckboxListTile(
-                dense: true,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(c.laneName(part)),
+              AppCheckRow(
+                indent: true,
+                label: c.laneName(part),
                 value: chosen.contains(part.id),
                 onChanged: (on) => setState(() => on! ? chosen.add(part.id) : chosen.remove(part.id)),
               ),
           ]),
         ),
+        divided: true,
+        status: Text('Replaces their regions', style: TextStyle(color: context.colors.textMuted)),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Text('Replaces what those lanes show', style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
-          ),
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           FilledButton(onPressed: chosen.isEmpty ? null : () => Navigator.pop(context, true), child: const Text('Copy')),
         ],
@@ -458,28 +451,33 @@ class _AnchorDialogState extends State<_AnchorDialog> {
     }
 
     // A bad entry is outlined in red (no message): Set stays off until both read as bars.
-    InputDecoration field(String label, {required bool bad, String? hint}) => InputDecoration(
-        labelText: label, hintText: hint, errorText: bad ? '' : null, errorStyle: const TextStyle(height: 0, fontSize: 0));
-    return AlertDialog(
+    return AppDialog(
       title: Text(plain ? 'Anchor' : 'Warp'),
       content: SizedBox(
-        width: 240,
-        child: Row(children: [
+        width: dialogWidth(context, 240),
+        // The arrow is level with the fields, not their labels over them (Refined).
+        child: Row(crossAxisAlignment: isRefined(context) ? CrossAxisAlignment.end : CrossAxisAlignment.center, children: [
           Expanded(
-            child: TextField(
+            child: AppTextField(
               controller: _position,
+              label: 'At',
+              bad: q == null,
               autofocus: !widget.warp,
-              decoration: field('At', bad: q == null),
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => save(),
             ),
           ),
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_forward_rounded, size: 18)),
+          Padding(
+            padding: EdgeInsets.fromLTRB(10, 0, 10, isRefined(context) ? 10 : 0),
+            child: const Icon(Icons.arrow_forward_rounded, size: 18),
+          ),
           Expanded(
-            child: TextField(
+            child: AppTextField(
               controller: _jump,
+              label: 'Jump to',
+              hint: 'none',
+              bad: nowhere || (!plain && jump == null),
               autofocus: widget.warp,
-              decoration: field('Jump to', bad: nowhere || (!plain && jump == null), hint: 'none'),
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => save(),
             ),
@@ -524,19 +522,16 @@ class _VideoRatioDialogState extends State<_VideoRatioDialog> {
     }
 
     // A bad entry is outlined in red (no message): Set stays off until it reads as a ratio.
-    return AlertDialog(
+    return AppDialog(
       title: const Text('Video Ratio'),
       content: SizedBox(
-        width: 240,
-        child: TextField(
+        width: dialogWidth(context, 240),
+        child: AppTextField(
           controller: _text,
+          label: 'Width : height',
+          hint: '2.39:1',
+          bad: ratio == null,
           autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Width : height',
-            hintText: '2.39:1',
-            errorText: ratio == null ? '' : null,
-            errorStyle: const TextStyle(height: 0, fontSize: 0),
-          ),
           onChanged: (_) => setState(() {}),
           onSubmitted: (_) => save(),
         ),
@@ -562,7 +557,7 @@ Future<String?> confirmSavePath(BuildContext context, String path, String extens
   final name = full.split(RegExp(r'[/\\]')).last;
   final replace = await showAppDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (context) => AppDialog(
       title: Text('Replace “$name”?'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),

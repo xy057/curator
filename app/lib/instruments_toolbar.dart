@@ -5,6 +5,7 @@ import 'app_colors.dart';
 import 'app_settings.dart';
 import 'condensing_dialog.dart';
 import 'editor_controller.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 /// Instruments tab tools (right of the tab switch). Every button explains itself on hover.
@@ -119,7 +120,7 @@ class _TidyMenu extends StatelessWidget {
     String bars(double n) => n == 1 ? '1 bar' : '${n.toStringAsFixed(0)} bars';
     // Its tooltip is an overlay: a semantics node of its own (see OverlaySemantics).
     return OverlaySemantics(
-      child: PopupMenuButton<void Function()>(
+      child: AppPopupMenuButton<void Function()>(
         tooltip: 'Tidy $where',
         iconSize: 18,
         padding: EdgeInsets.zero,
@@ -132,15 +133,17 @@ class _TidyMenu extends StatelessWidget {
         icon: const Icon(Icons.cleaning_services_outlined),
         onSelected: (action) => action(),
         itemBuilder: (context) => [
-          PopupMenuItem(enabled: false, height: 28, child: Text('Tidy $where', style: const TextStyle(fontSize: 12))),
+          menuHeader(context, 'Tidy $where'),
           for (final n in const [1.0, 2.0, 4.0])
-            PopupMenuItem(
+            menuItem(
+              context,
               value: () => controller.lanes.fillGaps(n),
               child: Text('Keep shown through rests of up to ${bars(n)}'),
             ),
-          const PopupMenuDivider(),
+          menuDivider(context),
           for (final n in const [1.0, 2.0])
-            PopupMenuItem(
+            menuItem(
+              context,
               value: () => controller.lanes.removeShort(n),
               child: Text('Remove regions shorter than ${bars(n)}'),
             ),
@@ -171,7 +174,7 @@ class _TransitionMenu extends StatelessWidget {
       _ => ('Mixed', 'mixed'),
     };
     return OverlaySemantics(
-      child: PopupMenuButton<double>(
+      child: AppPopupMenuButton<double>(
         tooltip: 'Transition ($tip)',
         position: PopupMenuPosition.under,
         style: TextButton.styleFrom(
@@ -181,11 +184,11 @@ class _TransitionMenu extends StatelessWidget {
         ),
         onSelected: (s) => controller.lanes.setTransition(s == _project ? null : s),
         itemBuilder: (context) => [
-          CheckedPopupMenuItem(
+          checkedMenuItem(context,
               value: _project, checked: values.length == 1 && value == null, child: Text("Project's ($project s)")),
-          const PopupMenuDivider(),
+          menuDivider(context),
           for (final s in {...AppSettings.transitionChoices, for (final v in values) ?v}.toList()..sort())
-            CheckedPopupMenuItem(value: s, checked: values.length == 1 && value == s, child: Text('$s s')),
+            checkedMenuItem(context, value: s, checked: values.length == 1 && value == s, child: Text('$s s')),
         ],
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.animation_rounded, size: 16, color: colors.textMuted),

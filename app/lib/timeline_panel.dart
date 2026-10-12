@@ -8,9 +8,10 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
-import 'editor_controller.dart';
 import 'edit_dialogs.dart';
+import 'editor_controller.dart';
 import 'lanes_common.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 part 'instrument_lanes/lane_header.dart';

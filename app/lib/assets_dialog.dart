@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'image_patch.dart';
 import 'ui_kit.dart';
@@ -25,11 +26,11 @@ class AssetsDialog extends StatelessWidget {
         final stored = open ? controller.images.stored : const <PatchImage>[];
         final unused = open ? controller.images.unused : const <PatchImage>[];
         final muted = TextStyle(color: context.colors.textMuted);
-        return AlertDialog(
+        return AppDialog(
           title: const Text('Assets'),
           content: SizedBox(
-            width: 480,
-            height: 360,
+            width: dialogWidth(context, 480),
+            height: stored.isEmpty && unused.isEmpty && isRefined(context) ? 96 : 360,
             child: stored.isEmpty && unused.isEmpty
                 ? Center(child: Text('No images', style: muted))
                 : ListView(children: [
@@ -48,8 +49,9 @@ class AssetsDialog extends StatelessWidget {
                     ],
                   ]),
           ),
+          divided: true,
+          leading: [TextButton(onPressed: unused.isEmpty ? null : controller.images.purgeUnused, child: const Text('Purge unused'))],
           actions: [
-            TextButton(onPressed: unused.isEmpty ? null : controller.images.purgeUnused, child: const Text('Purge unused')),
             FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
           ],
         );

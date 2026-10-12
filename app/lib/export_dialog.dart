@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 import 'app_settings.dart';
+import 'dialog_kit.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'editor_toolbar.dart';
@@ -144,7 +145,9 @@ class _ExportDialogState extends State<_ExportDialog> {
                 _Stage.done => 'Video Exported',
                 _Stage.failed => 'The Video Could Not Be Exported',
               },
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: colors.text),
+              style: isRefined(context)
+                  ? Theme.of(context).dialogTheme.titleTextStyle
+                  : TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: colors.text),
             ),
           ),
           Flexible(
@@ -160,30 +163,33 @@ class _ExportDialogState extends State<_ExportDialog> {
             ),
           ),
           if (setup) Divider(height: 1, color: colors.line, indent: 24, endIndent: 24),
-          Padding(
-            padding: EdgeInsets.fromLTRB(24, setup ? 14 : 20, 20, 18),
-            child: Row(children: [
-              Expanded(child: setup ? _summary(context) : const SizedBox()),
-              const SizedBox(width: 12),
-              ...switch (_stage) {
-                _Stage.setup => [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                    const SizedBox(width: 8),
-                    FilledButton(onPressed: _ffmpeg == null || _range == null ? null : _start, child: const Text('Export…')),
-                  ],
-                _Stage.writing => [TextButton(onPressed: _export.cancel, child: const Text('Cancel'))],
-                _Stage.done => [
-                    TextButton(onPressed: () => revealInFileManager(_output!), child: Text(_revealLabel)),
-                    const SizedBox(width: 8),
-                    FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
-                  ],
-                _Stage.failed => [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-                    const SizedBox(width: 8),
-                    FilledButton(onPressed: () => setState(() => _stage = _Stage.setup), child: const Text('Back')),
-                  ],
-              },
-            ]),
+          DialogButtons(
+            child: Padding(
+              // Refined: the buttons' edges on the content's, 24 px in.
+              padding: EdgeInsets.fromLTRB(24, setup ? 14 : 20, isRefined(context) ? 24 : 20, isRefined(context) ? 20 : 18),
+              child: Row(children: [
+                Expanded(child: setup ? _summary(context) : const SizedBox()),
+                const SizedBox(width: 12),
+                ...switch (_stage) {
+                  _Stage.setup => [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                      const SizedBox(width: 8),
+                      FilledButton(onPressed: _ffmpeg == null || _range == null ? null : _start, child: const Text('Export…')),
+                    ],
+                  _Stage.writing => [TextButton(onPressed: _export.cancel, child: const Text('Cancel'))],
+                  _Stage.done => [
+                      TextButton(onPressed: () => revealInFileManager(_output!), child: Text(_revealLabel)),
+                      const SizedBox(width: 8),
+                      FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+                    ],
+                  _Stage.failed => [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                      const SizedBox(width: 8),
+                      FilledButton(onPressed: () => setState(() => _stage = _Stage.setup), child: const Text('Back')),
+                    ],
+                },
+              ]),
+            ),
           ),
         ]),
       ),
@@ -507,6 +513,18 @@ class _BarField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (isRefined(context)) {
+      return AppTextField(
+        label: label,
+        controller: controller,
+        bad: wrong,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(5)],
+        onChanged: (_) => onChanged(),
+        onSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
+        onTap: () => controller.selection = TextSelection(baseOffset: 0, extentOffset: controller.text.length),
+      );
+    }
     final error = Theme.of(context).colorScheme.error;
     OutlineInputBorder border(Color color, [double width = 1]) =>
         OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: color, width: width));

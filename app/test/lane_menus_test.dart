@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
+import 'finders.dart';
+import 'package:curated_score/dialog_kit.dart';
 
 void main() {
   late EditorController c;
@@ -46,9 +48,9 @@ void main() {
     final piccolo = c.score!.metadata.parts.first;
     await laneMenu(tester, 'Rename…');
     expect(find.text('Rename instrument'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Flute in B');
-    await tester.tap(find.widgetWithText(ActionChip, '♭'));
-    await tester.enterText(find.widgetWithText(TextField, 'Short name'), 'Fl.');
+    await tester.enterText(appField('Name'), 'Flute in B');
+    await tester.tap(find.widgetWithText(AppChip, '♭'));
+    await tester.enterText(appField('Short name'), 'Fl.');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
     await settle(tester);
@@ -78,7 +80,7 @@ void main() {
     await settle(tester);
     expect(find.text('Rename instrument'), findsOneWidget);
     final part = c.score!.metadata.parts.firstWhere((p) => p.id == label.partId);
-    expect(tester.widget<TextField>(find.widgetWithText(TextField, 'Name')).controller!.text, c.partName(part));
+    expect(tester.widget<TextField>(appField('Name')).controller!.text, c.partName(part));
     await tester.tap(find.text('Cancel'));
     await settle(tester);
   });
@@ -103,7 +105,7 @@ void main() {
     await laneMenu(tester, 'Copy lane to…');
     expect(find.text('Copy ${c.laneName(parts.first)} to…'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Copy')).onPressed, isNull, reason: 'none chosen');
-    await tester.tap(find.widgetWithText(CheckboxListTile, c.laneName(parts[1])));
+    await tester.tap(find.widgetWithText(AppCheckRow, c.laneName(parts[1])));
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Copy'));
     await settle(tester);
@@ -156,7 +158,7 @@ void main() {
     await tester.tap(find.text('Rename ${c.partNameOf(pair.second)}…'));
     await settle(tester);
     expect(find.text('Rename instrument'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Alto Flute');
+    await tester.enterText(appField('Name'), 'Alto Flute');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
     await settle(tester);

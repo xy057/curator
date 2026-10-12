@@ -5,6 +5,8 @@ import 'dart:ui' as ui;
 
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/dialog_kit.dart';
+import 'package:curated_score/menu_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -43,8 +45,8 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.merge_type_rounded));
     await settle();
-    final dialog = find.byType(AlertDialog);
-    expect(find.descendant(of: dialog, matching: find.byType(CheckboxListTile)), findsNWidgets(7)); // "All pairs" and 6
+    final dialog = find.byType(AppDialog);
+    expect(find.descendant(of: dialog, matching: find.byType(AppCheckRow)), findsNWidgets(7)); // "All pairs" and 6
     expect(find.text('Flute 1.2'), findsOneWidget);
 
     // A built-in pair's box condenses it.
@@ -53,7 +55,7 @@ void main() {
     expect(c.condensed, {'cond-P2-P3'});
 
     // Flute 1 + Oboe 1.
-    final players = find.byType(DropdownButton<String>);
+    final players = find.byType(AppDropdown<String>);
     await tester.tap(players.first);
     await settle();
     await tester.tap(find.text('Flute 1').last);
@@ -63,7 +65,7 @@ void main() {
     await tester.tap(find.text('Oboe 1').last);
     await settle();
     expect(find.text('Flute 1.2 and Oboe 1.2 will be split.'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Add'));
     await tester.pump();
     expect(c.pairs, const [PlayerPair('P2', 'P4')]);
     await engraved();

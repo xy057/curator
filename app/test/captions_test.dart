@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'test_fonts.dart';
+import 'finders.dart';
 
 void main() {
   testWidgets('Captions: added from the score\'s menu, shown in the bar, edited, undone and saved', (tester) async {
@@ -62,7 +63,7 @@ void main() {
     await tester.tap(find.text('Add Caption…'));
     await tester.pumpAndSettle();
     expect(find.text('Add Caption'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, 'Text'), 'The horns answer, softly');
+    await tester.enterText(appField('Text'), 'The horns answer, softly');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Add'));
     await tester.pumpAndSettle();
@@ -87,7 +88,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Caption'), findsOneWidget);
     await shot('caption-dialog');
-    await tester.enterText(find.widgetWithText(TextField, 'Text'), 'Horns');
+    await tester.enterText(appField('Text'), 'Horns');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     expect(c.captions.captions.single.text, 'Horns');

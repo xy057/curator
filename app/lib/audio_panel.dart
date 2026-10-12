@@ -8,11 +8,12 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
-import 'editor_controller.dart';
 import 'edit_dialogs.dart';
+import 'editor_controller.dart';
 import 'error_text.dart';
 import 'lanes_common.dart';
 import 'media_converter.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 /// Recordings: audio, or a video whose sound is taken out of it.
@@ -421,7 +422,7 @@ class _SpeedMenu extends StatelessWidget {
     final colors = context.colors;
     final speed = controller.playback.speed;
     return OverlaySemantics(
-      child: PopupMenuButton<double>(
+      child: AppPopupMenuButton<double>(
         tooltip: 'Playback speed',
         position: PopupMenuPosition.under,
         style: TextButton.styleFrom(
@@ -431,7 +432,7 @@ class _SpeedMenu extends StatelessWidget {
         ),
         onSelected: (s) => controller.playback.speed = s,
         itemBuilder: (context) => [
-          for (final s in const [0.5, 0.75, 1.0]) CheckedPopupMenuItem(value: s, checked: s == speed, child: Text(_label(s))),
+          for (final s in const [0.5, 0.75, 1.0]) checkedMenuItem(context, value: s, checked: s == speed, child: Text(_label(s))),
         ],
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.speed_rounded, size: 16, color: colors.textMuted),
@@ -459,7 +460,7 @@ class _TapButton extends StatelessWidget {
           ? 'Space marks · T or Esc stops'
           : 'Tap anchors (T)',
       child: AnimatedContainer(
-        duration: stateDuration(const Duration(milliseconds: 200)),
+        duration: stateDuration(motion(context, 200)),
         curve: Curves.easeOut,
         height: 32,
         padding: EdgeInsets.symmetric(horizontal: c.anchors.tapArmed ? 8 : 0),
@@ -506,7 +507,7 @@ class _TextToggle extends StatelessWidget {
       borderRadius: radius,
       onTap: onPressed,
       child: AnimatedContainer(
-        duration: stateDuration(const Duration(milliseconds: 150)),
+        duration: stateDuration(motion(context, 150)),
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 9),
         alignment: Alignment.center,

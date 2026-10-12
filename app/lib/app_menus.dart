@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
+import 'ui_kit.dart';
 
 /// The menu bar: native on macOS, a Material menu bar at the top of the window elsewhere.
 /// Both are built from the same [PlatformMenu] description.
@@ -194,7 +195,8 @@ class AppMenus extends StatelessWidget {
                   shape: const WidgetStatePropertyAll(RoundedRectangleBorder()),
                   padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6)),
                 ),
-                children: _material(menus),
+                // The bar's own buttons keep their height; the theme's 22 px rows are its menus'.
+                children: _material(menus, bar: isRefined(context) ? _barButton : null),
               ),
             ),
           ]),
@@ -216,10 +218,18 @@ class AppMenus extends StatelessWidget {
     }
   }
 
-  static List<Widget> _material(List<PlatformMenuItem> items) => [
+  static const _barButton = ButtonStyle(
+    minimumSize: WidgetStatePropertyAll(Size(0, 26)),
+    visualDensity: VisualDensity.compact,
+  );
+
+  /// [items] as material menus; [bar], the style of the top level's buttons (a menu bar's).
+  static List<Widget> _material(List<PlatformMenuItem> items, {ButtonStyle? bar}) => [
         for (final (i, item) in items.indexed)
           ...switch (item) {
-            PlatformMenu(:final label, :final menus) => [SubmenuButton(menuChildren: _material(menus), child: Text(label))],
+            PlatformMenu(:final label, :final menus) => [
+                SubmenuButton(style: bar, menuChildren: _material(menus), child: Text(label)),
+              ],
             PlatformMenuItemGroup(:final members) => [if (i > 0) const Divider(height: 1), ..._material(members)],
             PlatformProvidedMenuItem() => const <Widget>[],
             _ => [

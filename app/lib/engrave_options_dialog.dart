@@ -7,6 +7,7 @@ import 'app_colors.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'engraving_settings.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 /// Engrave Option (at the foot of the Engraving page, after a warning): every Verovio option
@@ -152,10 +153,9 @@ class _OptionRow extends StatelessWidget {
           height: 28,
           child: AppSwitch(value: value as bool, onChanged: onChanged),
         ),
-      EngraveOptionKind.choice => DropdownButton<String>(
+      EngraveOptionKind.choice => AppDropdown<String>(
           value: value as String,
-          isDense: true,
-          underline: const SizedBox.shrink(),
+          dense: true,
           style: TextStyle(fontSize: 12.5, color: colors.text),
           items: [for (final c in option.choices) DropdownMenuItem(value: c, child: Text(c))],
           onChanged: onChanged,
