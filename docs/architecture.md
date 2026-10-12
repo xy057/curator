@@ -418,7 +418,11 @@ in a short window, a footer with `leading` buttons, a `status` and the `actions`
 `AlertDialog` in Classic), `AppTextField` (its label over it), `AppCheckRow` and `AppChip`.
 A dialog has measures of its own, roomier than the toolbars' (which are 28 px with 13 px text)
 since it is read and filled in: an 18 px title, 14 px text, 36 px fields, 34 px rows and buttons,
-24 px padding, a 14 px corner, and a body a fifth wider than Classic's (`dialogWidth`). A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
+24 px padding, a 14 px corner, and a body a fifth wider than Classic's (`dialogWidth`).
+Everything in a dialog starts and ends on that 24 px edge: the title, the content, a check row's
+box (no inset), and the footer's buttons, whose secondary ones (Cancel, an extra action) are
+outlined by `DialogButtons` so their edge, not their label, is on it; groups of fields are
+`dialogGap` apart. Export's footer uses `DialogButtons` too. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
 (tests find it with `appField(label)`), a select an `AppDropdown(label: …)`. `Export` and
 `Engrave Option` are `Dialog`s of their own, in the same measures.
 
