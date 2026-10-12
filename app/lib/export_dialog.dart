@@ -163,30 +163,33 @@ class _ExportDialogState extends State<_ExportDialog> {
             ),
           ),
           if (setup) Divider(height: 1, color: colors.line, indent: 24, endIndent: 24),
-          Padding(
-            padding: EdgeInsets.fromLTRB(24, setup ? 14 : 20, 20, 18),
-            child: Row(children: [
-              Expanded(child: setup ? _summary(context) : const SizedBox()),
-              const SizedBox(width: 12),
-              ...switch (_stage) {
-                _Stage.setup => [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                    const SizedBox(width: 8),
-                    FilledButton(onPressed: _ffmpeg == null || _range == null ? null : _start, child: const Text('Export…')),
-                  ],
-                _Stage.writing => [TextButton(onPressed: _export.cancel, child: const Text('Cancel'))],
-                _Stage.done => [
-                    TextButton(onPressed: () => revealInFileManager(_output!), child: Text(_revealLabel)),
-                    const SizedBox(width: 8),
-                    FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
-                  ],
-                _Stage.failed => [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-                    const SizedBox(width: 8),
-                    FilledButton(onPressed: () => setState(() => _stage = _Stage.setup), child: const Text('Back')),
-                  ],
-              },
-            ]),
+          DialogButtons(
+            child: Padding(
+              // Refined: the buttons' edges on the content's, 24 px in.
+              padding: EdgeInsets.fromLTRB(24, setup ? 14 : 20, isRefined(context) ? 24 : 20, isRefined(context) ? 20 : 18),
+              child: Row(children: [
+                Expanded(child: setup ? _summary(context) : const SizedBox()),
+                const SizedBox(width: 12),
+                ...switch (_stage) {
+                  _Stage.setup => [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                      const SizedBox(width: 8),
+                      FilledButton(onPressed: _ffmpeg == null || _range == null ? null : _start, child: const Text('Export…')),
+                    ],
+                  _Stage.writing => [TextButton(onPressed: _export.cancel, child: const Text('Cancel'))],
+                  _Stage.done => [
+                      TextButton(onPressed: () => revealInFileManager(_output!), child: Text(_revealLabel)),
+                      const SizedBox(width: 8),
+                      FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+                    ],
+                  _Stage.failed => [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                      const SizedBox(width: 8),
+                      FilledButton(onPressed: () => setState(() => _stage = _Stage.setup), child: const Text('Back')),
+                    ],
+                },
+              ]),
+            ),
           ),
         ]),
       ),

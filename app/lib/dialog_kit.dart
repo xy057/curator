@@ -8,6 +8,10 @@ import 'ui_kit.dart';
 /// text), since a dialog is read and filled in, not scanned.
 const _fieldHeight = 36.0, _buttonHeight = 34.0, _pad = 24.0;
 
+/// The space between a dialog's groups of fields: 16 px in [UiStyle.refined] (a field is 36,
+/// its label over it), the material dialogs' 12 in [UiStyle.classic].
+double dialogGap(BuildContext context) => isRefined(context) ? 16 : 12;
+
 /// An [AppCheckRow]'s height in [UiStyle.refined]: a list in a dialog is this many rows tall.
 const dialogRowHeight = 34.0;
 
@@ -71,7 +75,6 @@ class AppDialog extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = context.colors;
     final dialog = theme.dialogTheme;
-    final buttons = dialogButtonStyle(context);
     return Dialog(
       insetPadding: const EdgeInsets.all(32),
       clipBehavior: Clip.antiAlias,
@@ -93,22 +96,16 @@ class AppDialog extends StatelessWidget {
             else
               const SizedBox(height: 12),
             if (divided) Divider(height: 1, color: colors.line),
-            // The footer's buttons are the dialog's size, not the toolbar's.
-            Theme(
-              data: theme.copyWith(
-                textButtonTheme: TextButtonThemeData(style: buttons.merge(theme.textButtonTheme.style)),
-                filledButtonTheme: FilledButtonThemeData(style: buttons.merge(theme.filledButtonTheme.style)),
-                outlinedButtonTheme: OutlinedButtonThemeData(style: buttons.merge(theme.outlinedButtonTheme.style)),
-              ),
+            DialogButtons(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(_pad - 8, divided ? 14 : 0, _pad - 8, 20),
+                padding: EdgeInsets.fromLTRB(_pad, divided ? 16 : 0, _pad, 20),
                 child: Row(children: [
                   ...leading,
                   if (status != null)
-                    Expanded(child: _status(13, EdgeInsets.only(left: leading.isEmpty ? 8 : 12, right: 12)))
+                    Expanded(child: _status(13, EdgeInsets.only(left: leading.isEmpty ? 0 : 12, right: 12)))
                   else
                     const Spacer(),
-                  for (final (i, action) in actions.indexed) ...[if (i > 0) const SizedBox(width: 10), action],
+                  for (final (i, action) in actions.indexed) ...[if (i > 0) const SizedBox(width: 8), action],
                 ]),
               ),
             ),
@@ -132,6 +129,36 @@ ButtonStyle dialogButtonStyle(BuildContext context) => ButtonStyle(
       textStyle: WidgetStatePropertyAll(
           Theme.of(context).textTheme.labelLarge!.copyWith(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0)),
     );
+
+/// A dialog's footer buttons in [UiStyle.refined]: [dialogButtonStyle]'s size, and a text button
+/// (Cancel, an extra action) outlined, so every button's edge, not its label, is where the
+/// dialog's content starts and ends.
+class DialogButtons extends StatelessWidget {
+  const DialogButtons({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isRefined(context)) return child;
+    final theme = Theme.of(context);
+    final colors = context.colors;
+    final size = dialogButtonStyle(context);
+    final outlined = size.merge(theme.outlinedButtonTheme.style);
+    return Theme(
+      data: theme.copyWith(
+        textButtonTheme: TextButtonThemeData(
+          style: outlined.copyWith(
+            side: WidgetStateProperty.resolveWith((s) => BorderSide(
+                color: s.contains(WidgetState.disabled) ? colors.line.withValues(alpha: 0.6) : colors.line)),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(style: size.merge(theme.filledButtonTheme.style)),
+        outlinedButtonTheme: OutlinedButtonThemeData(style: outlined),
+      ),
+      child: child,
+    );
+  }
+}
 
 /// A text field for a dialog. [UiStyle.classic] is the material outlined field with a floating
 /// [label]; [UiStyle.refined] a 36 px field under its label, a [helper] beneath it.
@@ -271,16 +298,20 @@ class AppCheckRow extends StatelessWidget {
         secondary: trailing,
       );
     }
+    // Flush with the dialog's other content: no inset, and no hover tint that would need one.
     return InkWell(
-      borderRadius: BorderRadius.circular(7),
+      hoverColor: Colors.transparent,
+      highlightColor: Colors.transparent,
       // As a checkbox goes: off, on, then (tristate) the middle, then off.
       onTap: () => onChanged(switch (value) { false => true, true => tristate ? null : false, null => false }),
       child: SizedBox(
         height: dialogRowHeight,
         child: Row(children: [
-          const SizedBox(width: 6),
-          IgnorePointer(child: Checkbox(tristate: tristate, value: value, onChanged: (_) {})),
-          const SizedBox(width: 8),
+          SizedBox.square(
+            dimension: 18,
+            child: IgnorePointer(child: Checkbox(tristate: tristate, value: value, onChanged: (_) {})),
+          ),
+          const SizedBox(width: 10),
           Expanded(child: Text(label, style: style, overflow: TextOverflow.ellipsis)),
           ?trailing,
         ]),

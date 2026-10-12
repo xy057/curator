@@ -132,13 +132,13 @@ class _RenameDialogState extends State<_RenameDialog> {
             autofocus: true,
             onSubmitted: (_) => _rename(),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: dialogGap(context)),
           AppTextField(
             controller: _short,
             label: 'Short name',
             onSubmitted: (_) => _rename(),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: dialogGap(context)),
           Wrap(spacing: 6, children: [
             for (final symbol in const ['♭', '♯', '♮'])
               AppChip(label: symbol, tooltip: 'Insert $symbol', onPressed: () => _insert(symbol)),
@@ -315,7 +315,7 @@ class _CaptionDialogState extends State<_CaptionDialog> {
             onChanged: (_) => setState(() {}),
             onSubmitted: (_) => save(),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: dialogGap(context)),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
               child: AppTextField(

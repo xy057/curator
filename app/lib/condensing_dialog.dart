@@ -138,7 +138,7 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                           _second = null;
                         })),
                       ),
-                      Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('with', style: muted)),
+                      Padding(padding: EdgeInsets.symmetric(horizontal: refined ? 12 : 10), child: Text('with', style: muted)),
                       Expanded(child: choose('Player', _second, seconds, (id) => setState(() => _second = id))),
                       const SizedBox(width: 12),
                       refined

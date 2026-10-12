@@ -139,17 +139,16 @@ class _SwitchRow extends StatelessWidget {
         onTap: () => onChanged(!value),
       );
     }
+    // Flush with the dialog's other content, as its check rows are.
     return InkWell(
-      borderRadius: BorderRadius.circular(7),
+      hoverColor: Colors.transparent,
+      highlightColor: Colors.transparent,
       onTap: () => onChanged(!value),
       child: SizedBox(
         height: 40,
-        child: Row(children: [
-          const SizedBox(width: 8),
-          if (icon != null) ...[Icon(icon, size: 18, color: context.colors.textMuted), const SizedBox(width: 12)],
+        child: Row(children: [ ...[Icon(icon, size: 18, color: context.colors.textMuted), const SizedBox(width: 12)],
           Expanded(child: DefaultTextStyle.merge(style: const TextStyle(fontSize: 14), child: label)),
           control,
-          const SizedBox(width: 4),
         ]),
       ),
     );

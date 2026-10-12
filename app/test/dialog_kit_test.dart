@@ -117,4 +117,33 @@ void main() {
     await _open(tester);
     expect(tester.getSize(find.byType(FilledButton)).height, 34);
   });
+
+  testWidgets('refined: content, check rows and footer buttons share one left and one right edge', (tester) async {
+    await tester.pumpWidget(_app(
+      UiStyle.refined,
+      AppDialog(
+        title: const Text('Title'),
+        content: SizedBox(
+          width: 360,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            AppCheckRow(value: true, label: 'Row', onChanged: (_) {}),
+            const SizedBox(key: Key('content'), height: 10, width: double.infinity),
+          ]),
+        ),
+        leading: [TextButton(onPressed: () {}, child: const Text('Extra'))],
+        actions: [
+          TextButton(onPressed: () {}, child: const Text('Cancel')),
+          FilledButton(onPressed: () {}, child: const Text('OK')),
+        ],
+      ),
+    ));
+    await _open(tester);
+    final content = tester.getRect(find.byKey(const Key('content')));
+    expect(tester.getRect(find.text('Title')).left, content.left);
+    expect(tester.getRect(find.byType(Checkbox)).left, content.left, reason: 'no inset on a check row');
+    expect(tester.getRect(find.widgetWithText(TextButton, 'Extra')).left, content.left);
+    expect(tester.getRect(find.byType(FilledButton)).right, content.right);
+    final footer = Theme.of(tester.element(find.text('Cancel'))).textButtonTheme.style!;
+    expect(footer.side?.resolve(const {}), isNotNull, reason: 'a text button in the footer is outlined, so its edge shows');
+  });
 }
