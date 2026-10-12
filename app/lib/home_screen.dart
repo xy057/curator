@@ -40,19 +40,12 @@ class HomeScreen extends StatelessWidget {
             children: [
               _Entrance(
                 delay: 0,
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [colors.accent, colors.accentStrong],
-                    ),
-                    boxShadow: [BoxShadow(color: colors.accent.withValues(alpha: 0.35), blurRadius: 18, offset: const Offset(0, 6))],
-                  ),
-                  child: const Icon(Icons.library_music_rounded, size: 34, color: Colors.white),
+                child: Image.asset(
+                  'assets/icon/app_icon.png',
+                  width: 80,
+                  height: 80,
+                  filterQuality: FilterQuality.medium,
+                  errorBuilder: (_, _, _) => Icon(Icons.music_note_rounded, size: 64, color: colors.accent),
                 ),
               ),
               const SizedBox(height: 18),
