@@ -165,7 +165,7 @@ class RatioMenu extends StatelessWidget {
     final colors = context.colors;
     final custom = !VideoRatio.presets.contains(ratio);
     return OverlaySemantics(
-      child: PopupMenuButton<VideoRatio>(
+      child: AppPopupMenuButton<VideoRatio>(
         tooltip: 'Video ratio',
         position: PopupMenuPosition.under,
         style: TextButton.styleFrom(
@@ -180,9 +180,9 @@ class RatioMenu extends StatelessWidget {
         },
         itemBuilder: (context) => [
           for (final r in VideoRatio.presets)
-            CheckedPopupMenuItem(value: r, checked: r == ratio, child: Text(r.label)),
-          const PopupMenuDivider(),
-          CheckedPopupMenuItem(
+            checkedMenuItem(context, value: r, checked: r == ratio, child: Text(r.label)),
+          menuDivider(context),
+          checkedMenuItem(context,
               value: _custom, checked: custom, child: Text(custom ? 'Custom (${ratio.label})…' : 'Custom…')),
         ],
         child: Row(mainAxisSize: MainAxisSize.min, children: [

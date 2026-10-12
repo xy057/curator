@@ -421,7 +421,7 @@ class _SpeedMenu extends StatelessWidget {
     final colors = context.colors;
     final speed = controller.playback.speed;
     return OverlaySemantics(
-      child: PopupMenuButton<double>(
+      child: AppPopupMenuButton<double>(
         tooltip: 'Playback speed',
         position: PopupMenuPosition.under,
         style: TextButton.styleFrom(
@@ -431,7 +431,7 @@ class _SpeedMenu extends StatelessWidget {
         ),
         onSelected: (s) => controller.playback.speed = s,
         itemBuilder: (context) => [
-          for (final s in const [0.5, 0.75, 1.0]) CheckedPopupMenuItem(value: s, checked: s == speed, child: Text(_label(s))),
+          for (final s in const [0.5, 0.75, 1.0]) checkedMenuItem(context, value: s, checked: s == speed, child: Text(_label(s))),
         ],
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.speed_rounded, size: 16, color: colors.textMuted),

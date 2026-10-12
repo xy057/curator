@@ -519,7 +519,7 @@ void main() {
     expect(find.descendant(of: menu, matching: find.text('Mixed')), findsOneWidget);
     await tester.tap(menu);
     await tester.pumpAndSettle();
-    Finder item(Finder text) => find.ancestor(of: text, matching: find.byType(CheckedPopupMenuItem<double>));
+    Finder item(Finder text) => find.ancestor(of: text, matching: find.byType(PopupMenuItem<double>));
     await tester.tap(item(find.text('0.8 s')));
     await tester.pumpAndSettle();
     expect(c.curation!.lane(ids[1]), [a.withTransition(0.8)]);

@@ -108,11 +108,12 @@ class _LaneHeaderState extends State<_LaneHeader> {
 
   @override
   Widget build(BuildContext context) {
-    PopupMenuItem<_LaneAction> item(_LaneAction a) => PopupMenuItem(value: a, child: Text(a.label));
+    PopupMenuItem<_LaneAction> item(BuildContext context, _LaneAction a) =>
+        menuItem(context, value: a, child: Text(a.label));
     final group = controller.condensedGroupOf(part.id);
     final condensed = group != null;
     final menu = OverlaySemantics(
-      child: PopupMenuButton<_LaneAction>(
+      child: AppPopupMenuButton<_LaneAction>(
         tooltip: 'Lane options',
         padding: EdgeInsets.zero,
         iconSize: 16,
@@ -121,21 +122,21 @@ class _LaneHeaderState extends State<_LaneHeader> {
         itemBuilder: (context) => [
           // A pair's lane names both players: each is renamed on its own, as on its own staff.
           if (group case final group?) ...[
-            PopupMenuItem(value: _LaneAction.renameFirst, child: Text('Rename ${controller.partNameOf(group.first)}…')),
-            PopupMenuItem(value: _LaneAction.renameSecond, child: Text('Rename ${controller.partNameOf(group.second)}…')),
+            menuItem(context, value: _LaneAction.renameFirst, child: Text('Rename ${controller.partNameOf(group.first)}…')),
+            menuItem(context, value: _LaneAction.renameSecond, child: Text('Rename ${controller.partNameOf(group.second)}…')),
           ] else
-            item(_LaneAction.rename),
-          const PopupMenuDivider(),
-          item(_LaneAction.select),
-          item(_LaneAction.copy),
-          const PopupMenuDivider(),
-          item(_LaneAction.showThroughout),
-          item(_LaneAction.autoCurate),
-          item(_LaneAction.clear),
-          const PopupMenuDivider(),
-          item(_LaneAction.moveToTop),
-          item(_LaneAction.moveToBottom),
-          if (!controller.isScoreOrder) item(_LaneAction.scoreOrder),
+            item(context, _LaneAction.rename),
+          menuDivider(context),
+          item(context, _LaneAction.select),
+          item(context, _LaneAction.copy),
+          menuDivider(context),
+          item(context, _LaneAction.showThroughout),
+          item(context, _LaneAction.autoCurate),
+          item(context, _LaneAction.clear),
+          menuDivider(context),
+          item(context, _LaneAction.moveToTop),
+          item(context, _LaneAction.moveToBottom),
+          if (!controller.isScoreOrder) item(context, _LaneAction.scoreOrder),
         ],
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import 'app_colors.dart';
 
@@ -83,6 +84,103 @@ class _DialogRoute<T> extends DialogRoute<T> {
 
 /// Whether the theme is [UiStyle.refined] (a theme without an [AppStyle] is: it's the default).
 bool isRefined(BuildContext context) => Theme.of(context).extension<AppStyle>()?.style != UiStyle.classic;
+
+/// How long a [UiStyle.refined] menu takes to open, and to close.
+const menuOpenDuration = Duration(milliseconds: 90);
+const menuCloseDuration = Duration(milliseconds: 60);
+
+/// A popup menu's row: 48 px in [UiStyle.classic], a desktop menu's in [UiStyle.refined].
+double menuRowHeight(BuildContext context) => isRefined(context) ? 28 : kMinInteractiveDimension;
+
+const _refinedItemPadding = EdgeInsets.symmetric(horizontal: 10);
+
+/// A [PopupMenuItem] at [menuRowHeight]. Use it, not the item itself, in a menu.
+PopupMenuItem<T> menuItem<T>(BuildContext context, {T? value, bool enabled = true, required Widget child}) =>
+    PopupMenuItem<T>(
+      value: value,
+      enabled: enabled,
+      height: menuRowHeight(context),
+      padding: isRefined(context) ? _refinedItemPadding : null,
+      child: child,
+    );
+
+/// A [PopupMenuDivider] with the space of a [menuRowHeight]'s row.
+PopupMenuDivider menuDivider(BuildContext context) => PopupMenuDivider(height: isRefined(context) ? 9 : 16);
+
+/// A checked item at [menuRowHeight]. [UiStyle.refined] draws its own: the material one is a
+/// list tile, 40 px at the least however its theme is set.
+PopupMenuItem<T> checkedMenuItem<T>(BuildContext context,
+    {required T value, required bool checked, required Widget child}) {
+  if (!isRefined(context)) return CheckedPopupMenuItem<T>(value: value, checked: checked, child: child);
+  return PopupMenuItem<T>(
+    value: value,
+    height: menuRowHeight(context),
+    padding: _refinedItemPadding,
+    child: Semantics(
+      role: SemanticsRole.menuItemCheckbox,
+      checked: checked,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        SizedBox(width: 16, child: checked ? const Icon(Icons.done, size: 16) : null),
+        const SizedBox(width: 6),
+        child,
+      ]),
+    ),
+  );
+}
+
+/// A [PopupMenuButton] that opens in [menuOpenDuration] and shuts in [menuCloseDuration] in
+/// [UiStyle.refined] (the material menu takes 300 ms), its rows set close. Fill it with
+/// [menuItem] and [checkedMenuItem].
+class AppPopupMenuButton<T> extends StatelessWidget {
+  const AppPopupMenuButton({
+    super.key,
+    required this.itemBuilder,
+    this.onSelected,
+    this.tooltip,
+    this.position,
+    this.style,
+    this.icon,
+    this.iconSize,
+    this.padding = const EdgeInsets.all(8),
+    this.constraints,
+    this.child,
+  });
+
+  final PopupMenuItemBuilder<T> itemBuilder;
+  final PopupMenuItemSelected<T>? onSelected;
+  final String? tooltip;
+  final PopupMenuPosition? position;
+  final ButtonStyle? style;
+  final Widget? icon;
+  final double? iconSize;
+  final EdgeInsetsGeometry padding;
+  final BoxConstraints? constraints;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<T>(
+      itemBuilder: itemBuilder,
+      onSelected: onSelected,
+      tooltip: tooltip,
+      position: position,
+      style: style,
+      icon: icon,
+      iconSize: iconSize,
+      padding: padding,
+      constraints: constraints,
+      popUpAnimationStyle: isRefined(context)
+          ? AnimationStyle(
+              duration: menuOpenDuration,
+              reverseDuration: menuCloseDuration,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeIn,
+            )
+          : null,
+      child: child,
+    );
+  }
+}
 
 /// The compact icon button used in every toolbar: 32 × 32, its label in the tooltip; in
 /// [UiStyle.refined] 28 × 28, and when selected a neutral pressed fill under an accent icon.

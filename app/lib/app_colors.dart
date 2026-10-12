@@ -399,7 +399,11 @@ class AppColors extends ThemeExtension<AppColors> {
           borderRadius: BorderRadius.circular(5),
         ),
       ),
-      popupMenuTheme: theme.popupMenuTheme.copyWith(color: raised),
+      popupMenuTheme: theme.popupMenuTheme.copyWith(
+        color: raised,
+        menuPadding: const EdgeInsets.all(4),
+        shape: _SteadyBorder(borderRadius: BorderRadius.circular(7), side: BorderSide(color: c.line)),
+      ),
       // Text set as the platform sets it: Material's tracking (up to 0.5 px between letters,
       // for small phone text) reads loose on a desktop.
       textTheme: t.copyWith(
