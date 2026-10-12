@@ -440,6 +440,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
 
   @override
   void dispose() {
+    widget.controller?.removeListener(_controllerChanged);
     _search.dispose();
     super.dispose();
   }
@@ -457,13 +458,32 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     ];
   }
 
-  /// The project closed under it (the menu bar works while it is open): it closes too.
-  bool get _closed {
-    if (widget.kind != _Window.project || widget.controller?.score != null) return false;
+  /// The project closed under it (the menu bar works while it is open): it closes too
+  /// ([_controllerChanged]), showing nothing meanwhile.
+  bool get _closed => widget.kind == _Window.project && widget.controller?.score == null;
+  bool _closing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?.addListener(_controllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(_SettingsWindow old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      old.controller?.removeListener(_controllerChanged);
+      widget.controller?.addListener(_controllerChanged);
+    }
+  }
+
+  void _controllerChanged() {
+    if (!_closed || _closing) return;
+    _closing = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && ModalRoute.of(context)?.isCurrent == true) Navigator.pop(context);
     });
-    return true;
   }
 
   Iterable<_Item> _shownItems(_Category cat) => cat.items.where((item) => item.shown?.call(_ctx) ?? true);

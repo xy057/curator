@@ -282,6 +282,30 @@ void main() {
     expect((c.fonts.music, c.embedFont), (MusicFont.bravura, false));
   }, skip: !Platform.isMacOS); // Helvetica is installed on macOS
 
+  testWidgets('Project Settings closes when the project closes under it (the menu bar works while it is open)',
+      (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory();
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    expect(find.byType(MusicFontPicker), findsOneWidget);
+
+    await tester.runAsync(c.close);
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    expect(find.text('Fonts'), findsNothing, reason: 'the window closed');
+    expect(find.byType(HomePage), findsOneWidget);
+  });
+
   testWidgets("a font the system picker answers after Project Settings closed doesn't change the project open then",
       (tester) async {
     tester.view.physicalSize = const Size(2880, 1800);
