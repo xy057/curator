@@ -375,8 +375,8 @@ class AppColors extends ThemeExtension<AppColors> {
       surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
       elevation: const WidgetStatePropertyAll(8),
       shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: dark ? 0.5 : 0.25)),
-      padding: const WidgetStatePropertyAll(EdgeInsets.all(5)),
-      shape: WidgetStatePropertyAll(_SteadyBorder(borderRadius: BorderRadius.circular(7), side: BorderSide(color: c.line))),
+      padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
+      shape: WidgetStatePropertyAll(_SteadyBorder(borderRadius: BorderRadius.circular(6), side: BorderSide(color: c.line))),
     );
     final outline = dark ? const Color(0xFF5C5C62) : const Color(0xFFB8B8BE);
     // A desktop's type scale: 13 px body text, titles a little larger and semibold.
@@ -402,7 +402,7 @@ class AppColors extends ThemeExtension<AppColors> {
       popupMenuTheme: theme.popupMenuTheme.copyWith(
         color: raised,
         menuPadding: const EdgeInsets.all(4),
-        shape: _SteadyBorder(borderRadius: BorderRadius.circular(7), side: BorderSide(color: c.line)),
+        shape: _SteadyBorder(borderRadius: BorderRadius.circular(6), side: BorderSide(color: c.line)),
       ),
       // Text set as the platform sets it: Material's tracking (up to 0.5 px between letters,
       // for small phone text) reads loose on a desktop.
@@ -468,8 +468,8 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(64, 26)),
-          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
+          minimumSize: const WidgetStatePropertyAll(Size(0, 26)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8)),
           shape: const WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4)))),
           textStyle: WidgetStatePropertyAll(type.bodyMedium!.copyWith(fontSize: 13, letterSpacing: 0)),
           visualDensity: VisualDensity.compact,

@@ -95,7 +95,7 @@ const refinedMenuRow = 22.0;
 /// A popup menu's row: 48 px in [UiStyle.classic], a desktop menu's in [UiStyle.refined].
 double menuRowHeight(BuildContext context) => isRefined(context) ? refinedMenuRow : kMinInteractiveDimension;
 
-const _refinedItemPadding = EdgeInsets.symmetric(horizontal: 10);
+const _refinedItemPadding = EdgeInsets.symmetric(horizontal: 8);
 
 /// A [PopupMenuItem] at [menuRowHeight]. Use it, not the item itself, in a menu.
 PopupMenuItem<T> menuItem<T>(BuildContext context, {T? value, bool enabled = true, required Widget child}) =>
