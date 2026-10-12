@@ -46,7 +46,7 @@ abstract final class ZipEntries {
             inflate.add(raw.readBytes(math.min(_chunk, raw.length)).toUint8List());
           }
           inflate.close();
-        case CompressionType.bzip2:
+        case CompressionType.bzip2 || CompressionType.zstd:
           throw FormatException('${file.name} uses compression Curator can’t read.');
       }
     } finally {
