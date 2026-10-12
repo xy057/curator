@@ -6,6 +6,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
+import 'dialog_kit.dart';
 import 'ui_kit.dart';
 
 /// The Captions sheet (double-click the Captions lane): every caption as a row of From, Until
@@ -153,7 +154,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
     ].firstOrNull;
     final invalid = problem != null;
     final header = TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: colors.textMuted);
-    return AlertDialog(
+    return AppDialog(
       title: const Text('Captions'),
       contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       content: SizedBox(
@@ -191,21 +192,12 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
         ]),
       ),
       actionsPadding: const EdgeInsets.fromLTRB(16, 8, 24, 20),
+      divided: true,
+      leading: [TextButton.icon(onPressed: _add, icon: const Icon(Icons.add, size: 18), label: const Text('Add'))],
+      status: problem == null ? null : Text(problem, style: TextStyle(fontSize: 12, color: colors.erase), overflow: TextOverflow.ellipsis),
       actions: [
-        Row(children: [
-          TextButton.icon(onPressed: _add, icon: const Icon(Icons.add, size: 18), label: const Text('Add')),
-          const Spacer(),
-          if (problem != null)
-            Flexible(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text(problem, style: TextStyle(fontSize: 12, color: colors.erase), overflow: TextOverflow.ellipsis),
-              ),
-            ),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          const SizedBox(width: 8),
-          FilledButton(onPressed: invalid ? null : _done, child: const Text('Done')),
-        ]),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(onPressed: invalid ? null : _done, child: const Text('Done')),
       ],
     );
   }

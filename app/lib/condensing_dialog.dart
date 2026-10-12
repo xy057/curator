@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
+import 'dialog_kit.dart';
 import 'ui_kit.dart';
 
 /// Score ▸ Condensing…, as in Dorico (Layout Options ▸ Condensing and Edit Condensing Groups):
@@ -76,7 +77,7 @@ class _CondensingDialogState extends State<_CondensingDialog> {
         ];
         final condensed = pairs.where((p) => c.condensed.contains(p.id)).length;
 
-        return AlertDialog(
+        return AppDialog(
           title: const Text('Condensing'),
           content: SizedBox(
             width: 440,
@@ -93,14 +94,12 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                   )
                 else ...[
                   if (pairs.length > 1)
-                    CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      controlAffinity: ListTileControlAffinity.leading,
+                    AppCheckRow(
                       tristate: true,
+                      bold: true,
                       value: condensed == 0 ? false : (condensed == pairs.length ? true : null),
                       onChanged: (_) => c.setCondensed([for (final p in pairs) p.id], on: condensed < pairs.length),
-                      title: const Text('All pairs', style: TextStyle(fontWeight: FontWeight.w600)),
+                      label: 'All pairs',
                     ),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 300),
@@ -108,16 +107,13 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                       shrinkWrap: true,
                       children: [
                         for (final pair in pairs)
-                          CheckboxListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            controlAffinity: ListTileControlAffinity.leading,
+                          AppCheckRow(
                             value: c.condensed.contains(pair.id),
                             onChanged: (on) => c.setCondensed([pair.id], on: on!),
-                            title: Text(c.pairName(pair)),
-                            secondary: c.pairs.contains(pair)
-                                ? IconButton(
-                                    icon: const Icon(Icons.close_rounded, size: 18),
+                            label: c.pairName(pair),
+                            trailing: c.pairs.contains(pair)
+                                ? ToolbarButton(
+                                    icon: Icons.close_rounded,
                                     tooltip: 'Remove this pair',
                                     onPressed: () => c.removePair(pair),
                                   )
@@ -128,8 +124,9 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                   ),
                 ],
                 if (firsts.isNotEmpty) ...[
-                  const Divider(height: 24),
+                  Divider(height: isRefined(context) ? 20 : 24),
                   Text('Add a pair', style: Theme.of(context).textTheme.titleSmall),
+                  SizedBox(height: isRefined(context) ? 6 : 0),
                   Row(
                     children: [
                       Expanded(
@@ -141,7 +138,9 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                       Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('with', style: muted)),
                       Expanded(child: choose('Player', _second, seconds, (id) => setState(() => _second = id))),
                       const SizedBox(width: 12),
-                      FilledButton.tonal(onPressed: _first != null && _second != null ? _add : null, child: const Text('Add')),
+                      isRefined(context)
+                          ? OutlinedButton(onPressed: _first != null && _second != null ? _add : null, child: const Text('Add'))
+                          : FilledButton.tonal(onPressed: _first != null && _second != null ? _add : null, child: const Text('Add')),
                     ],
                   ),
                   if (split.isNotEmpty) ...[
@@ -149,19 +148,19 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                     Text('${split.map(c.pairName).join(' and ')} will be split.', style: muted),
                   ],
                 ],
-                if (c.isReengraving) ...[
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2)),
-                      const SizedBox(width: 8),
-                      Text('Engraving the new staff…', style: muted),
-                    ],
-                  ),
-                ],
               ],
             ),
           ),
+          divided: true,
+          status: c.isReengraving
+              ? Row(
+                  children: [
+                    const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                    const SizedBox(width: 8),
+                    Text('Engraving the new staff…', style: muted),
+                  ],
+                )
+              : null,
           actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
         );
       },

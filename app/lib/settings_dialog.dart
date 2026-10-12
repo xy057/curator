@@ -14,6 +14,7 @@ import 'engraving_settings.dart';
 import 'export_dialog.dart' show revealInFileManager;
 import 'font_settings.dart';
 import 'project_file.dart';
+import 'dialog_kit.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
 
@@ -364,7 +365,7 @@ class _EngraveOptionButton extends StatelessWidget {
 Future<bool> _confirmEngraving(BuildContext context) async {
   final go = await showAppDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (context) => AppDialog(
       title: const Text('Advanced engraving'),
       content: const Text('Editing these values might generate unintended results and errors. Use cautiously.'),
       actions: [
@@ -977,7 +978,7 @@ class _ExtensionSettingsButton extends StatelessWidget {
             ? null
             : () => showAppDialog<void>(
                   context: context,
-                  builder: (context) => AlertDialog(
+                  builder: (context) => AppDialog(
                     title: Text(extension.label),
                     content: Builder(builder: (context) => page(context, settings)),
                     actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],

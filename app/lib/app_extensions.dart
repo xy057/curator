@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_settings.dart';
 import 'caption_settings.dart';
 import 'editor_controller.dart';
+import 'dialog_kit.dart';
 import 'ui_kit.dart';
 
 /// The optional first-party components (Settings ▸ Extension). Each is a switch for the whole
@@ -76,9 +77,10 @@ class ExtensionsDialog extends StatelessWidget {
           }
         }
 
-        return AlertDialog(
+        return AppDialog(
           title: const Text('Extensions in this project'),
           contentPadding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+          divided: true,
           content: SizedBox(
             width: 360,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -95,7 +97,7 @@ class ExtensionsDialog extends StatelessWidget {
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: extensions.length,
-                  itemExtent: 44,
+                  itemExtent: isRefined(context) ? 34 : 44,
                   itemBuilder: (context, i) {
                     final e = extensions[i];
                     return ListTile(

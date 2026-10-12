@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
 import 'test_fonts.dart';
+import 'finders.dart';
 
 void main() {
   testWidgets('Export Video… offers bars, ratio, size, frame rate, paper and score size', (tester) async {
@@ -54,7 +55,7 @@ void main() {
 
     // The whole piece unless changed.
     String field(String label) =>
-        tester.widget<TextField>(find.widgetWithText(TextField, label)).controller!.text;
+        tester.widget<TextField>(appField(label)).controller!.text;
     expect((field('From bar'), field('To bar')), ('1', '44'));
     bool canRestore() => tester.widget<IconButton>(find.ancestor(of: find.byTooltip('Whole piece'), matching: find.byType(IconButton))).onPressed != null;
     expect(canRestore(), isFalse);
@@ -84,13 +85,13 @@ void main() {
     expect(find.textContaining('16:9 · 3840 × 2160'), findsOneWidget);
 
     // Bars 5–12: shorter, and the still moves to bar 5; a range backwards can't be exported.
-    await tester.enterText(find.widgetWithText(TextField, 'From bar'), '5');
-    await tester.enterText(find.widgetWithText(TextField, 'To bar'), '12');
+    await tester.enterText(appField('From bar'), '5');
+    await tester.enterText(appField('To bar'), '12');
     await tester.pump();
     expect(inDialog('5.1'), findsOneWidget);
     expect(length(), isNot(whole));
     expect(canRestore(), isTrue);
-    await tester.enterText(find.widgetWithText(TextField, 'To bar'), '4');
+    await tester.enterText(appField('To bar'), '4');
     await tester.pump();
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Export…')).onPressed, isNull);
     await tester.tap(find.byTooltip('Whole piece'));

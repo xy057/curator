@@ -31,6 +31,7 @@ import 'project_file.dart';
 import 'scratch_space.dart';
 import 'score_view.dart';
 import 'settings_dialog.dart';
+import 'dialog_kit.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
 import 'video_export.dart';
@@ -464,7 +465,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (!document.isDirty) return true;
     final choice = await showAppDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppDialog(
         title: Text('Save changes to “${document.title}”?'),
         content: const Text('Your changes will be lost if you don’t save them.'),
         actions: [
@@ -494,7 +495,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       if (!mounted) return;
       showAppDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (context) => AppDialog(
           title: Text(title),
           content: SingleChildScrollView(child: Text(describeError(e))),
           actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],

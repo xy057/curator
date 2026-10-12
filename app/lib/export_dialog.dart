@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 import 'app_settings.dart';
+import 'dialog_kit.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'editor_toolbar.dart';
@@ -144,7 +145,9 @@ class _ExportDialogState extends State<_ExportDialog> {
                 _Stage.done => 'Video Exported',
                 _Stage.failed => 'The Video Could Not Be Exported',
               },
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: colors.text),
+              style: isRefined(context)
+                  ? Theme.of(context).dialogTheme.titleTextStyle
+                  : TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: colors.text),
             ),
           ),
           Flexible(
@@ -507,6 +510,18 @@ class _BarField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (isRefined(context)) {
+      return AppTextField(
+        label: label,
+        controller: controller,
+        bad: wrong,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(5)],
+        onChanged: (_) => onChanged(),
+        onSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
+        onTap: () => controller.selection = TextSelection(baseOffset: 0, extentOffset: controller.text.length),
+      );
+    }
     final error = Theme.of(context).colorScheme.error;
     OutlineInputBorder border(Color color, [double width = 1]) =>
         OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: color, width: width));

@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
+import 'finders.dart';
 
 /// 30 s of silence with one note starting at [onset] seconds, 1000 samples a second.
 Future<Waveform> oneNote(double onset) {
@@ -99,7 +100,7 @@ void main() {
     await tester.tapAt(anchor(3));
     await tester.pumpAndSettle();
     expect(find.text('Anchor'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextField, 'At'), '4.2');
+    await tester.enterText(appField('At'), '4.2');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Set'));
     await tester.pumpAndSettle();

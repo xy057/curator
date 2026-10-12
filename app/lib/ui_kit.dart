@@ -204,8 +204,8 @@ class AppPopupMenuButton<T> extends StatelessWidget {
 /// [decoration]); [UiStyle.refined] is a field that opens a menu of [MenuItemButton]s at once,
 /// its rows 22 px, not the material dropdown's 48 px and 300 ms.
 ///
-/// With a [decoration] it is a labelled field. Without, it is bare: [boxed] outlines it (the
-/// material one underlines it), and [icon] replaces its arrow.
+/// With a [label] it is a labelled field (the label over it in Refined). Without, it is bare:
+/// [boxed] outlines it (the material one underlines it), and [icon] replaces its arrow.
 class AppDropdown<T> extends StatefulWidget {
   const AppDropdown({
     super.key,
@@ -216,7 +216,7 @@ class AppDropdown<T> extends StatefulWidget {
     this.isExpanded = false,
     this.dense = false,
     this.boxed = false,
-    this.decoration,
+    this.label,
     this.icon,
     this.style,
   });
@@ -232,7 +232,7 @@ class AppDropdown<T> extends StatefulWidget {
   final bool isExpanded;
   final bool dense;
   final bool boxed;
-  final InputDecoration? decoration;
+  final String? label;
   final Widget? icon;
   final TextStyle? style;
 
@@ -262,11 +262,11 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
   Widget build(BuildContext context) {
     final w = widget;
     if (!isRefined(context)) {
-      if (w.decoration != null) {
+      if (w.label != null) {
         return DropdownButtonFormField<T>(
           initialValue: w.value,
           isExpanded: w.isExpanded,
-          decoration: w.decoration!,
+          decoration: InputDecoration(labelText: w.label),
           items: w.items,
           onChanged: w.onChanged,
         );
@@ -305,14 +305,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
       const SizedBox(width: 4),
       arrow,
     ]);
-    if (w.decoration != null) {
-      field = InputDecorator(
-        decoration: w.decoration!,
-        isFocused: _open,
-        isEmpty: selected == null && w.hint == null,
-        child: field,
-      );
-    } else if (w.boxed) {
+    if (w.boxed || w.label != null) {
       field = Container(
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -325,7 +318,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
     } else {
       field = Padding(padding: EdgeInsets.symmetric(vertical: w.dense ? 2 : 4), child: field);
     }
-    return MenuAnchor(
+    final menu = MenuAnchor(
       controller: _menu,
       childFocusNode: _focus,
       crossAxisUnconstrained: false,
@@ -367,6 +360,14 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
         child: field,
       ),
     );
+    if (w.label == null) return menu;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(w.label!, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: colors.textMuted)),
+      ),
+      menu,
+    ]);
   }
 }
 
