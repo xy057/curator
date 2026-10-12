@@ -150,10 +150,49 @@ void main() {
     expect(demo().score!.engraving.width, greaterThan(width));
     expect(demo().projectEngraving.isEmpty, isTrue, reason: "the app's options, not an edit");
 
+    // A score opened meanwhile (the menu bar works) is previewed instead; closed, the demo again.
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+    expect(demo(), c);
+    await tester.runAsync(c.close);
+    await tester.pump();
+    for (var i = 0; i < 200 && (find.byType(EngravingPreview).evaluate().isEmpty || demo() == c); i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    expect(demo(), isNot(c), reason: 'the demo again');
+
     Navigator.pop(tester.element(find.byType(EngravingPreview)));
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 150));
     }
     expect(find.byType(EngravingPreview), findsNothing);
+  });
+
+  testWidgets('the project closed while the Engraving page shows it: the demo is previewed instead', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory();
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    await tester.pump();
+
+    showSettingsDialog(tester.element(find.byType(HomePage)), settings, controller: c, page: 'Engraving');
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    EditorController shown() => tester.widget<EngravingPreview>(find.byType(EngravingPreview)).controller;
+    expect(shown(), c);
+
+    await tester.runAsync(c.close);
+    await tester.pump();
+    for (var i = 0; i < 200 && find.byType(EngravingPreview).evaluate().isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    expect(find.byType(EngravingPreview), findsOneWidget, reason: 'the demo, engraved');
+    expect(shown(), isNot(c));
   });
 }

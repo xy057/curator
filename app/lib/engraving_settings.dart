@@ -184,7 +184,8 @@ String formatOptionValue(Object value) => switch (value) {
     };
 
 /// [EngravingPreview] of the open score, or with none the bundled demo, engraved on its own
-/// with the app's options (and again whenever they change) for as long as this is shown.
+/// with the app's options (and again whenever they change) for as long as this is shown and
+/// nothing is open: a project opening or closing meanwhile (the menu bar works) switches.
 class EngravingPreviewHost extends StatefulWidget {
   const EngravingPreviewHost({super.key, required this.settings, this.controller, this.scale = 1});
   final AppSettings settings;
@@ -206,27 +207,55 @@ class _EngravingPreviewHostState extends State<EngravingPreviewHost> with Ticker
   void initState() {
     super.initState();
     widget.settings.addListener(_optionsChanged);
-    if (!EngravingPreview.canShow(widget.controller)) _loadDemo();
+    widget.controller?.addListener(_openChanged);
+    _openChanged();
+  }
+
+  @override
+  void didUpdateWidget(EngravingPreviewHost old) {
+    super.didUpdateWidget(old);
+    if (old.settings != widget.settings) {
+      old.settings.removeListener(_optionsChanged);
+      widget.settings.addListener(_optionsChanged);
+      _optionsChanged();
+    }
+    if (old.controller != widget.controller) {
+      old.controller?.removeListener(_openChanged);
+      widget.controller?.addListener(_openChanged);
+      _openChanged();
+    }
+  }
+
+  /// The demo while nothing is open, and only then.
+  void _openChanged() {
+    final open = EngravingPreview.canShow(widget.controller);
+    if (open && _demo != null) {
+      _demo!.dispose();
+      setState(() => _demo = null);
+    } else if (!open && _demo == null && !_failed && !(widget.controller?.isLoading ?? false)) {
+      _loadDemo();
+    }
   }
 
   Future<void> _loadDemo() async {
     final demo = _demo = EditorController(vsync: this)..engravingOptions = widget.settings.engravingOptions;
+    bool current() => mounted && identical(_demo, demo); // not let go meanwhile (a score opened)
     final folder = ScratchSpace.folder('engraving-preview');
     try {
       final data = await rootBundle.load(sampleProjectAsset);
       final file = File('${folder.path}${Platform.pathSeparator}demo.ccs');
       await file.writeAsBytes(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
       final project = await ProjectFile.read(file.path, mediaDirectory: folder.path);
-      if (!mounted) return;
+      if (!current()) return;
       // No recording: the preview never plays.
       await demo.openProject(name: project.scoreName, scoreBytes: project.scoreBytes, state: project.state);
-      demo.playback.time.value = _demoTime;
+      if (current()) demo.playback.time.value = _demoTime;
     } catch (_) {
-      if (mounted) setState(() => _failed = true);
+      if (current()) setState(() => _failed = true);
     } finally {
       ScratchSpace.release(folder);
     }
-    if (mounted) setState(() {});
+    if (current()) setState(() {});
   }
 
   void _optionsChanged() => _demo?.engravingOptions = widget.settings.engravingOptions;
@@ -234,6 +263,7 @@ class _EngravingPreviewHostState extends State<EngravingPreviewHost> with Ticker
   @override
   void dispose() {
     widget.settings.removeListener(_optionsChanged);
+    widget.controller?.removeListener(_openChanged);
     _demo?.dispose();
     super.dispose();
   }
