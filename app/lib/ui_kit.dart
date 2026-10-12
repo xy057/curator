@@ -96,13 +96,13 @@ class _DialogRoute<T> extends DialogRoute<T> {
 /// Whether the theme is [UiStyle.refined] (a theme without an [AppStyle] is: it's the default).
 bool isRefined(BuildContext context) => Theme.of(context).extension<AppStyle>()?.style != UiStyle.classic;
 
-/// [classic] milliseconds of motion, as [UiStyle.refined] has it: a desktop's, about half as long.
+/// [classic] milliseconds of motion, as [UiStyle.refined] has it: a desktop's, about three quarters as long.
 Duration motion(BuildContext context, int classic) =>
-    Duration(milliseconds: isRefined(context) ? (classic * 0.55).round() : classic);
+    Duration(milliseconds: isRefined(context) ? (classic * 0.775).round() : classic);
 
 /// How long a [UiStyle.refined] menu takes to open, and to close.
-const menuOpenDuration = Duration(milliseconds: 90);
-const menuCloseDuration = Duration(milliseconds: 60);
+const menuOpenDuration = Duration(milliseconds: 190);
+const menuCloseDuration = Duration(milliseconds: 120);
 
 /// A row of a [UiStyle.refined] menu (the material ones are 48 px; a macOS menu's are 22).
 const refinedMenuRow = 22.0;
@@ -339,23 +339,25 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
       ),
       menuChildren: [
         for (final item in w.items)
-          MenuItemButton(
-            style: MenuItemButton.styleFrom(
-              minimumSize: const Size(0, refinedMenuRow),
-              visualDensity: VisualDensity.standard,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          _FadeIn(
+            child: MenuItemButton(
+              style: MenuItemButton.styleFrom(
+                minimumSize: const Size(0, refinedMenuRow),
+                visualDensity: VisualDensity.standard,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: item.enabled
+                  ? () {
+                      item.onTap?.call();
+                      w.onChanged?.call(item.value);
+                    }
+                  : null,
+              leadingIcon: SizedBox(
+                width: 16,
+                child: item.value == w.value ? Icon(Icons.done, size: 16, color: colors.text) : null,
+              ),
+              child: item.child,
             ),
-            onPressed: item.enabled
-                ? () {
-                    item.onTap?.call();
-                    w.onChanged?.call(item.value);
-                  }
-                : null,
-            leadingIcon: SizedBox(
-              width: 16,
-              child: item.value == w.value ? Icon(Icons.done, size: 16, color: colors.text) : null,
-            ),
-            child: item.child,
           ),
       ],
       child: InkWell(
@@ -762,4 +764,19 @@ class _SwitchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SwitchPainter old) => old.t != t || old.track != track || old.focus != focus;
+}
+
+/// Fades in [child] as it first appears: what the rows of an [AppDropdown]'s menu do on opening.
+class _FadeIn extends StatelessWidget {
+  const _FadeIn({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        builder: (context, opacity, child) => Opacity(opacity: opacity, child: child),
+        child: child,
+      );
 }

@@ -1,4 +1,4 @@
-// Refined menus are agile: they open in 90 ms and their rows are a desktop menu's, not 48 px.
+// Refined menus are agile: they open in 190 ms (the material ones take 300) and their rows are a desktop menu's, not 48 px.
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
@@ -35,7 +35,7 @@ void main() {
     });
   }
 
-  testWidgets('refined: a popup menu is open in 90 ms, the classic one is not', (tester) async {
+  testWidgets('a popup menu opens in 190 ms in refined, 300 ms in classic', (tester) async {
     for (final style in [UiStyle.refined, UiStyle.classic]) {
       await tester.pumpWidget(_app(
         style,
@@ -47,7 +47,9 @@ void main() {
       await tester.tap(find.byTooltip('Menu'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(tester.hasRunningAnimations, style == UiStyle.classic, reason: style.name);
+      expect(tester.hasRunningAnimations, isTrue, reason: '${style.name}: still opening, so the motion shows');
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.hasRunningAnimations, style == UiStyle.classic, reason: '${style.name} at 200 ms');
       await tester.pumpAndSettle();
       await tester.tapAt(const Offset(700, 500)); // the barrier
       await tester.pumpAndSettle();
@@ -70,7 +72,7 @@ void main() {
           ),
         );
 
-    testWidgets('refined: opens at once under the field, as wide as it, with 22 px rows', (tester) async {
+    testWidgets('refined: opens under the field, as wide as it, with 22 px rows', (tester) async {
       int? chosen;
       await tester.pumpWidget(select(UiStyle.refined, (v) => chosen = v));
       final field = tester.getRect(find.byType(AppDropdown<int>));
@@ -113,14 +115,14 @@ void main() {
     });
   });
 
-  testWidgets('refined motion is about half as long; a dialog is open in 90 ms', (tester) async {
+  testWidgets('refined motion is about three quarters as long; a dialog is open in 120 ms', (tester) async {
     late BuildContext refined, classic;
     await tester.pumpWidget(_app(UiStyle.refined, Builder(builder: (context) {
       refined = context;
       return const SizedBox();
     })));
     await tester.pumpAndSettle();
-    expect(motion(refined, 120), const Duration(milliseconds: 66));
+    expect(motion(refined, 120), const Duration(milliseconds: 93));
     await tester.pumpWidget(_app(UiStyle.classic, Builder(builder: (context) {
       classic = context;
       return const SizedBox();
@@ -137,7 +139,9 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(tester.hasRunningAnimations, style == UiStyle.classic, reason: style.name);
+      expect(tester.hasRunningAnimations, isTrue, reason: style.name);
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(tester.hasRunningAnimations, style == UiStyle.classic, reason: '${style.name} at 130 ms');
       await tester.pumpAndSettle();
       await tester.tapAt(const Offset(5, 5));
       await tester.pumpAndSettle();
