@@ -61,6 +61,85 @@ Widget _field(BuildContext context, Widget menu) => SizedBox(
 /// The other settings' dropdown arrow.
 Widget _arrow(BuildContext context) => Icon(Icons.unfold_more_rounded, size: 16, color: context.colors.textMuted);
 
+/// The fonts a picker sets: the open project's ([ProjectFonts], each change an edit), or the
+/// ones new projects start with ([NewProjectFonts], by name: the app keeps no font file).
+sealed class FontTarget {
+  const FontTarget();
+  factory FontTarget.of(EditorController? controller, AppSettings? settings) =>
+      controller != null ? ProjectFonts(controller) : NewProjectFonts(settings!);
+
+  Listenable get listenable;
+
+  /// The music font's name.
+  String get music;
+
+  /// What a choice is made for: a picker that answers late applies its choice only while this
+  /// is the same (a project opened meanwhile isn't).
+  Object? get session;
+
+  /// Sets the music font; [file]: one from a font file, embedded (elsewhere it can't be found
+  /// by its name).
+  Future<void> setMusic(MusicFont font, {bool file = false});
+
+  String get text;
+  Future<void> setText(String family);
+
+  bool get embed;
+  set embed(bool value);
+
+  /// Whether [embed] can be switched on: a missing font has nothing to embed.
+  bool get canEmbed;
+}
+
+final class ProjectFonts extends FontTarget {
+  const ProjectFonts(this.controller);
+  final EditorController controller;
+
+  @override
+  Listenable get listenable => controller;
+  @override
+  String get music => controller.fonts.music.name;
+  @override
+  Object? get session => controller.source;
+  @override
+  Future<void> setMusic(MusicFont font, {bool file = false}) =>
+      controller.setFonts(controller.fonts.copyWith(music: font), embed: file ? true : null);
+  @override
+  String get text => controller.fonts.text;
+  @override
+  Future<void> setText(String family) => controller.setFonts(controller.fonts.copyWith(text: family));
+  @override
+  bool get embed => controller.embedFont;
+  @override
+  set embed(bool value) => controller.embedFont = value;
+  @override
+  bool get canEmbed => controller.canEmbedFont;
+}
+
+final class NewProjectFonts extends FontTarget {
+  const NewProjectFonts(this.settings);
+  final AppSettings settings;
+
+  @override
+  Listenable get listenable => settings;
+  @override
+  String get music => settings.musicFont;
+  @override
+  Object? get session => settings;
+  @override
+  Future<void> setMusic(MusicFont font, {bool file = false}) async => settings.musicFont = font.name;
+  @override
+  String get text => settings.textFont;
+  @override
+  Future<void> setText(String family) async => settings.textFont = family;
+  @override
+  bool get embed => settings.embedFont;
+  @override
+  set embed(bool value) => settings.embedFont = value;
+  @override
+  bool get canEmbed => true;
+}
+
 /// A music font offered: one ready to use, one installed (read when chosen), or a file to pick.
 typedef _MusicChoice = ({String name, MusicFont? font, ({FontFace face, String metadata})? installed});
 
@@ -77,7 +156,7 @@ class MusicFontPicker extends StatefulWidget {
 }
 
 class _MusicFontPickerState extends State<MusicFontPicker> {
-  EditorController? get c => widget.controller;
+  FontTarget get _target => FontTarget.of(widget.controller, widget.settings);
   var _installed = const <({String name, FontFace face, String metadata})>[];
   List<String>? _families; // read for the new projects' font, to tell whether it is here
   String? _error;
@@ -90,26 +169,30 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
     MusicFont.installed().then((fonts) {
       if (mounted) setState(() => _installed = fonts);
     });
-    if (c == null) {
+    if (_target is NewProjectFonts) {
       TextFonts.installed().then((families) {
         if (mounted) setState(() => _families = families);
       });
     }
   }
 
-  String get _current => c?.fonts.music.name ?? widget.settings!.musicFont;
-
   bool get _missing {
-    if (c case final c?) return c.fonts.music.isMissing;
-    final families = _families;
-    return families != null &&
-        MusicFont.bundledNamed(_current) == null &&
-        !_installed.any((i) => MusicFont.isNamed(i.name, _current)) &&
-        !families.any((f) => MusicFont.isNamed(f, _current));
+    final name = _target.music;
+    return switch (_target) {
+      ProjectFonts(:final controller) => controller.fonts.music.isMissing,
+      NewProjectFonts() => _families != null &&
+          MusicFont.bundledNamed(name) == null &&
+          !_installed.any((i) => MusicFont.isNamed(i.name, name)) &&
+          !_families!.any((f) => MusicFont.isNamed(f, name)),
+    };
   }
 
   List<_MusicChoice> get _choices {
-    final added = c?.addedFonts ?? const <MusicFont>[];
+    final added = switch (_target) {
+      ProjectFonts(:final controller) => controller.addedFonts,
+      NewProjectFonts() => const <MusicFont>[],
+    };
+    final current = _target.music;
     final choices = [
       for (final f in MusicFont.bundled) (name: f.name, font: f, installed: null),
       for (final i in _installed)
@@ -121,7 +204,7 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
       for (final f in added.where((f) => !_installed.any((i) => MusicFont.isNamed(i.name, f.name)))) (name: f.name, font: f, installed: null),
     ];
     // One picked in the system's font picker, so the field shows it.
-    if (!choices.any((m) => m.name == _current)) choices.add((name: _current, font: null, installed: null));
+    if (!choices.any((m) => m.name == current)) choices.add((name: current, font: null, installed: null));
     return choices;
   }
 
@@ -129,10 +212,10 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
     setState(() => _error = null);
     // The project the choice is for: a picker answers late (macOS's Fonts panel when it closes,
     // which may be after these settings closed and another project opened).
-    final source = c?.source;
+    final target = _target, session = target.session;
     Future<void> apply(MusicFont font, {bool file = false}) async {
-      if (c != null && (!mounted || !identical(c!.source, source))) return;
-      await _apply(font, file: file);
+      if (target is ProjectFonts && (!mounted || !identical(target.session, session))) return;
+      await target.setMusic(font, file: file);
     }
 
     try {
@@ -145,7 +228,7 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
           if (await _pickFile() case final font?) await apply(font, file: true);
         default:
           final choice = _choices.firstWhere((m) => m.name == name);
-          if (c == null) return await apply(MusicFont.missing(choice.name)); // kept by name only
+          if (target is NewProjectFonts) return await apply(MusicFont.missing(choice.name)); // kept by name only
           final font = choice.font ??
               switch (choice.installed) {
                 final i? => await MusicFont.readFace(i.face, metadataPath: i.metadata),
@@ -156,12 +239,6 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
     } catch (e) {
       if (mounted) setState(() => _error = describeError(e));
     }
-  }
-
-  /// A file is embedded: elsewhere it can't be found by its name.
-  Future<void> _apply(MusicFont font, {bool file = false}) async {
-    if (c case final c?) return c.setFonts(c.fonts.copyWith(music: font), embed: file ? true : null);
-    widget.settings!.musicFont = font.name;
   }
 
   Future<MusicFont?> _pickFile() async {
@@ -176,7 +253,7 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
   Future<MusicFont?> _pickInstalled() async {
     final String? family;
     try {
-      family = await _systemFonts.invokeMethod<String>('pickFont', {'family': _current});
+      family = await _systemFonts.invokeMethod<String>('pickFont', {'family': _target.music});
     } on MissingPluginException {
       return _pickFile(); // no picker here (Linux, tests)
     }
@@ -190,16 +267,17 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-        listenable: (c ?? widget.settings)!,
+        listenable: _target.listenable,
         builder: (context, _) => SettingsDropdown<String>(
-          value: _current,
+          value: _target.music,
           width: _fieldWidth,
           error: _error ?? (_missing ? 'Not installed' : null),
           onChanged: _choose,
           items: [
             for (final m in _choices) DropdownMenuItem(value: m.name, child: Text(m.name)),
             const DropdownMenuItem(value: _installedFont, child: Text('Installed Font…')),
-            if (c != null) const DropdownMenuItem(value: _fontFile, child: Text('Font File…')),
+            // Only a project keeps a font file.
+            if (_target is ProjectFonts) const DropdownMenuItem(value: _fontFile, child: Text('Font File…')),
           ],
         ),
       );
@@ -221,7 +299,7 @@ class TextFontPicker extends StatefulWidget {
 }
 
 class _TextFontPickerState extends State<TextFontPicker> {
-  EditorController? get c => widget.controller;
+  FontTarget get _target => FontTarget.of(widget.controller, widget.settings);
   List<String>? _installed;
   String? _error;
 
@@ -229,7 +307,7 @@ class _TextFontPickerState extends State<TextFontPicker> {
   Future<void> _choose(String family) async {
     setState(() => _error = null);
     try {
-      await c!.setFonts(c!.fonts.copyWith(text: family));
+      await _target.setText(family);
     } catch (e) {
       if (mounted) setState(() => _error = describeError(e));
     }
@@ -245,25 +323,26 @@ class _TextFontPickerState extends State<TextFontPicker> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-        listenable: (c ?? widget.settings)!,
+        listenable: _target.listenable,
         builder: (context, _) {
           final installed = _installed ?? const <String>[];
           final texts = [TextFonts.academico, ...installed.where((f) => f != TextFonts.academico)];
           final String value;
           final String? missing;
-          if (c case final c?) {
-            final score = c.score;
-            if (score == null) return const SizedBox.shrink();
-            if (widget.caption) {
-              value = c.captions.font ?? '';
-              missing = c.captions.fontFound ? null : 'Not installed';
-            } else {
-              value = c.fonts.text;
-              missing = c.fonts.text != score.fonts.text || score.textFontFound ? null : 'Not installed';
-            }
-          } else {
-            value = widget.settings!.textFont;
-            missing = _installed == null || texts.contains(value) ? null : 'Not installed';
+          switch (_target) {
+            case ProjectFonts(:final controller):
+              final score = controller.score;
+              if (score == null) return const SizedBox.shrink();
+              if (widget.caption) {
+                value = controller.captions.font ?? '';
+                missing = controller.captions.fontFound ? null : 'Not installed';
+              } else {
+                value = controller.fonts.text;
+                missing = value != score.fonts.text || score.textFontFound ? null : 'Not installed';
+              }
+            case NewProjectFonts(:final settings):
+              value = settings.textFont;
+              missing = _installed == null || texts.contains(value) ? null : 'Not installed';
           }
           return _field(
             context,
@@ -285,10 +364,8 @@ class _TextFontPickerState extends State<TextFontPicker> {
               ],
               onSelected: (f) {
                 if (f == null) return;
-                if (c == null) {
-                  widget.settings!.textFont = f;
-                } else if (widget.caption) {
-                  c!.captions.setFont(f.isEmpty ? null : f);
+                if (widget.caption) {
+                  widget.controller!.captions.setFont(f.isEmpty ? null : f);
                 } else {
                   _choose(f);
                 }
@@ -308,14 +385,15 @@ class EmbedFontSwitch extends StatelessWidget {
   final AppSettings? settings;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-        listenable: (controller ?? settings)!,
-        builder: (context, _) => AppSwitch(
-          value: controller?.embedFont ?? settings!.embedFont,
-          // A missing font can't be embedded: shown off and disabled, as it will be saved.
-          onChanged: controller?.canEmbedFont == false
-              ? null
-              : (v) => controller != null ? controller!.embedFont = v : settings!.embedFont = v,
-        ),
-      );
+  Widget build(BuildContext context) {
+    final target = FontTarget.of(controller, settings);
+    return ListenableBuilder(
+      listenable: target.listenable,
+      builder: (context, _) => AppSwitch(
+        value: target.embed,
+        // A missing font can't be embedded: shown off and disabled, as it will be saved.
+        onChanged: target.canEmbed ? (v) => target.embed = v : null,
+      ),
+    );
+  }
 }
