@@ -16,7 +16,7 @@ import 'test_fonts.dart';
 import 'finders.dart';
 
 void main() {
-  testWidgets('Export Video… offers bars, ratio, size, frame rate, paper and score size', (tester) async {
+  testWidgets('Export Video… offers bars, format, ratio, size, frame rate, paper and score size', (tester) async {
     await tester.runAsync(loadTestFonts);
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
@@ -70,11 +70,22 @@ void main() {
         (VideoResolution.uhd2160, 60, VideoPaper.dark));
     expect(find.textContaining('3840 × 2160'), findsOneWidget);
 
-    // Remembered, with a way back to 1080p at 30.
-    final reset = find.byTooltip('1080p · 30 fps');
+    // Any format: MP4 unless changed.
+    expect(find.text('MP4 (H.264)'), findsOneWidget);
+    await tester.tap(find.byTooltip('Video format'));
+    await tester.pumpAndSettle();
+    expect(find.text('WebM (VP9)'), findsOneWidget);
+    expect(find.text('PNG Sequence'), findsOneWidget);
+    await tester.tap(find.text('MOV (ProRes)'));
+    await tester.pumpAndSettle();
+    expect(settings.videoCodec, VideoCodec.prores);
+    expect(find.text('MOV (ProRes)'), findsOneWidget);
+
+    // Remembered, with a way back to an MP4, 1080p at 30.
+    final reset = find.byTooltip('MP4 · 1080p · 30 fps');
     await tester.tap(reset);
     await tester.pump();
-    expect((settings.videoResolution, settings.videoFps), (VideoResolution.hd1080, 30));
+    expect((settings.videoCodec, settings.videoResolution, settings.videoFps), (VideoCodec.h264, VideoResolution.hd1080, 30));
     expect(tester.widget<IconButton>(find.ancestor(of: reset, matching: find.byType(IconButton))).onPressed, isNull,
         reason: 'nothing to reset');
     await tester.tap(find.text('4K'));

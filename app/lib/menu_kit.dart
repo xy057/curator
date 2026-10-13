@@ -40,10 +40,13 @@ PopupMenuDivider menuDivider(BuildContext context) => PopupMenuDivider(height: i
 /// A checked item at [menuRowHeight]. [UiStyle.refined] draws its own: the material one is a
 /// list tile, 40 px at the least however its theme is set.
 PopupMenuItem<T> checkedMenuItem<T>(BuildContext context,
-    {required T value, required bool checked, required Widget child}) {
-  if (!isRefined(context)) return CheckedPopupMenuItem<T>(value: value, checked: checked, child: child);
+    {required T value, required bool checked, bool enabled = true, required Widget child}) {
+  if (!isRefined(context)) {
+    return CheckedPopupMenuItem<T>(value: value, checked: checked, enabled: enabled, child: child);
+  }
   return PopupMenuItem<T>(
     value: value,
+    enabled: enabled,
     height: menuRowHeight(context),
     padding: _refinedItemPadding,
     child: Semantics(

@@ -30,6 +30,7 @@ class AppSettings extends ChangeNotifier {
         _videoRatio = VideoRatio.parse(_prefs?.getString(_videoRatioKey) ?? '') ?? VideoRatio.widescreen,
         _videoFps = _prefs?.getInt(_videoFpsKey) ?? defaultVideoFps,
         _videoPaper = VideoPaper.values.asNameMap()[_prefs?.getString(_videoPaperKey)] ?? VideoPaper.light,
+        _videoCodec = VideoCodec.values.asNameMap()[_prefs?.getString(_videoCodecKey)] ?? defaultVideoCodec,
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
         _attachImage = _prefs?.getBool(_attachImageKey) ?? false,
@@ -61,7 +62,7 @@ class AppSettings extends ChangeNotifier {
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
-  static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame';
+  static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _attachImageKey = 'attachImage', _captionsKey = 'captions';
   static const _captionFontKey = 'captionFont', _captionPositionKey = 'captionPosition';
   static const _captionCountdownKey = 'captionCountdown', _captionSizeKey = 'captionSize';
@@ -211,8 +212,19 @@ class AppSettings extends ChangeNotifier {
 
   // MARK: Export Video (the choices made last time)
 
-  /// What a video is until changed: 1080p at 30 frames a second.
+  /// What a video is until changed: an MP4 (H.264), 1080p at 30 frames a second.
   static const defaultVideoResolution = VideoResolution.hd1080, defaultVideoFps = 30;
+  static const defaultVideoCodec = VideoCodec.h264;
+
+  /// What the video is written as.
+  VideoCodec get videoCodec => _videoCodec;
+  VideoCodec _videoCodec;
+  set videoCodec(VideoCodec value) {
+    if (value == _videoCodec) return;
+    _videoCodec = value;
+    _prefs?.setString(_videoCodecKey, value.name);
+    notifyListeners();
+  }
 
   VideoResolution get videoResolution => _videoResolution;
   VideoResolution _videoResolution;
@@ -235,7 +247,7 @@ class AppSettings extends ChangeNotifier {
 
   /// The video these choices make; the preview's frame is its [VideoFormat.aspectRatio].
   VideoFormat get videoFormat =>
-      VideoFormat.of(videoResolution, ratio: videoRatio, fps: videoFps, paper: videoPaper);
+      VideoFormat.of(videoResolution, ratio: videoRatio, fps: videoFps, paper: videoPaper, codec: videoCodec);
 
   /// Frames a second, one of [VideoFormat.frameRates].
   int get videoFps => VideoFormat.frameRates.contains(_videoFps) ? _videoFps : defaultVideoFps;

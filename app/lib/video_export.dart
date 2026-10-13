@@ -118,6 +118,48 @@ class VideoFrame {
       rect.left + r.left * scale, rect.top + r.top * scale, r.width * scale, r.height * scale);
 }
 
+/// What a video is written as: a container and codec FFmpeg writes it with, or PNG images, one
+/// a frame, in a folder. Some keep a transparent background ([alpha]).
+enum VideoCodec {
+  h264('MP4 (H.264)', 'mp4', 'MP4 video', ['libx264', 'h264_videotoolbox', 'h264_mf', 'libopenh264']),
+  hevc('MP4 (HEVC)', 'mp4', 'MP4 video', ['libx265', 'hevc_videotoolbox', 'hevc_mf']),
+  prores('MOV (ProRes)', 'mov', 'QuickTime movie', ['prores_ks', 'prores_aw'], alpha: true),
+  vp9('WebM (VP9)', 'webm', 'WebM video', ['libvpx-vp9'], alpha: true),
+  png('PNG Sequence', '', 'Folder', ['png'], alpha: true);
+
+  const VideoCodec(this.label, this.extension, this.typeLabel, this.encoders, {this.alpha = false});
+  final String label;
+
+  /// The file's extension; none for [png], whose frames go in a folder of that name.
+  final String extension;
+
+  /// What a save panel calls the file.
+  final String typeLabel;
+
+  /// FFmpeg's encoders for it, best first. libx264, libx265 and libvpx-vp9 are in most builds;
+  /// the others are the platforms' own, for builds without them.
+  final List<String> encoders;
+
+  /// Whether it can keep a transparent background.
+  final bool alpha;
+
+  /// Whether its frames are images in a folder rather than one file.
+  bool get isSequence => this == png;
+
+  /// Whether it has a sound track.
+  bool get hasSound => !isSequence;
+
+  /// The most pixels a frame may have: H.264's and HEVC's highest level (6.2) stop at about
+  /// 35.6 megapixels (8K is 33.2); the others go as far as a frame can be drawn ([maxSide]).
+  int get maxPixels => this == h264 || this == hevc ? 139264 * 256 : maxSide * maxSide;
+
+  /// The longest side a frame can be drawn at (the GPU's largest texture).
+  static const maxSide = 16384;
+
+  /// Whether a frame of [width] × [height] can be written.
+  bool fits(int width, int height) => math.max(width, height) <= maxSide && width * height <= maxPixels;
+}
+
 /// Light (black on white, the engraving's own colours) or dark paper, as in the app's themes.
 enum VideoPaper {
   light('Light'),
@@ -131,20 +173,45 @@ enum VideoPaper {
   ui.Color get ink => _colors.scoreInk;
 }
 
-/// What a video looks like: its pixel size, frames a second and paper.
+/// What a video looks like: its pixel size, frames a second and paper, and what it is written
+/// as.
 @immutable
 class VideoFormat {
-  const VideoFormat({required this.width, required this.height, required this.fps, this.paper = VideoPaper.light})
-      : assert(width % 2 == 0 && height % 2 == 0, 'H.264 in 4:2:0 needs even sizes');
+  const VideoFormat({
+    required this.width,
+    required this.height,
+    required this.fps,
+    this.paper = VideoPaper.light,
+    this.codec = VideoCodec.h264,
+    this.transparent = false,
+  }) : assert(width % 2 == 0 && height % 2 == 0, 'H.264 in 4:2:0 needs even sizes');
 
   factory VideoFormat.of(VideoResolution resolution,
-      {VideoRatio ratio = VideoRatio.widescreen, required int fps, VideoPaper paper = VideoPaper.light}) {
+      {VideoRatio ratio = VideoRatio.widescreen,
+      required int fps,
+      VideoPaper paper = VideoPaper.light,
+      VideoCodec codec = VideoCodec.h264,
+      bool transparent = false}) {
     final (:width, :height) = resolution.size(ratio);
-    return VideoFormat(width: width, height: height, fps: fps, paper: paper);
+    return VideoFormat(width: width, height: height, fps: fps, paper: paper, codec: codec, transparent: transparent);
   }
 
   final int width, height, fps;
   final VideoPaper paper;
+  final VideoCodec codec;
+
+  /// No paper behind the score, only its ink (the [paper] says which colour), where the
+  /// [codec] can keep it ([hasAlpha]).
+  final bool transparent;
+
+  /// Whether the frames are see-through where there is no ink.
+  bool get hasAlpha => transparent && codec.alpha;
+
+  /// The colour the frame is drawn on: the paper's, or none.
+  ui.Color get paperColor => hasAlpha ? paper.paper.withValues(alpha: 0) : paper.paper;
+
+  /// Whether the [codec] can write frames this size.
+  bool get fits => codec.fits(width, height);
 
   /// Width over height, of the pixels themselves (the ratio, rounded to even pixels).
   double get aspectRatio => width / height;
@@ -171,35 +238,45 @@ class VideoFormat {
   double timeOf(int index) => index / fps;
 }
 
-/// Writing the video with FFmpeg, on every platform: raw frames go in through a pipe, an MP4
-/// comes out that plays anywhere (QuickTime, Windows, browsers, phones, YouTube): H.264 High
-/// profile in 4:2:0 with BT.709 colour, AAC-LC stereo audio at 48 kHz, the index up front so it
-/// streams.
+/// Writing the video with FFmpeg, on every platform: raw frames go in through a pipe, and out
+/// comes, by [VideoFormat.codec]:
+/// - MP4 that plays anywhere (QuickTime, Windows, browsers, phones, YouTube): H.264 High
+///   profile, or HEVC (tagged `hvc1`, as Apple's players want it), in 4:2:0, with AAC-LC stereo
+///   audio at 48 kHz and the index up front so it streams;
+/// - MOV with ProRes 422 HQ, or 4444 with its alpha when transparent, and 24-bit PCM sound,
+///   for editing;
+/// - WebM with VP9 (4:2:0, with alpha when transparent) and Opus sound, for the web;
+/// - PNG images, one a frame, numbered, without sound.
+/// All in BT.709 colour, tagged so players decode it as written.
 abstract final class VideoEncoder {
-  /// H.264 encoders in order of preference. libx264 is in most builds (Homebrew, Gyan's
-  /// Windows builds, Linux distributions); the others are the platforms' own, for FFmpeg
-  /// builds without it.
-  static const preferred = ['libx264', 'h264_videotoolbox', 'h264_mf', 'libopenh264'];
+  /// The encoders in `ffmpeg -encoders` [listing].
+  static Set<String> listed(String listing) => {
+        for (final line in const LineSplitter().convert(listing))
+          if (RegExp(r'^\s*V\S{5}\s+(\S+)').firstMatch(line) case final m?) m[1]!,
+      };
 
-  /// The best H.264 encoder in `ffmpeg -encoders` [listing], or null if it has none.
-  static String? pick(String listing) {
-    final available = {
-      for (final line in const LineSplitter().convert(listing))
-        if (RegExp(r'^\s*V\S{5}\s+(\S+)').firstMatch(line) case final m?) m[1]!,
-    };
-    return preferred.where(available.contains).firstOrNull;
+  /// The best encoder for [codec] in `ffmpeg -encoders` [listing], or null if it has none.
+  static String? pick(String listing, [VideoCodec codec = VideoCodec.h264]) =>
+      codec.encoders.where(listed(listing).contains).firstOrNull;
+
+  /// The encoders [ffmpeg] has; empty if it can't say.
+  static Future<Set<String>> probeAll(String ffmpeg) async {
+    final r = await Process.run(ffmpeg, ['-hide_banner', '-encoders']);
+    return r.exitCode == 0 ? listed('${r.stdout}') : const {};
   }
 
-  /// Asks [ffmpeg] which H.264 encoder it has.
-  static Future<String?> probe(String ffmpeg) async {
-    final r = await Process.run(ffmpeg, ['-hide_banner', '-encoders']);
-    return r.exitCode == 0 ? pick('${r.stdout}') : null;
+  /// Asks [ffmpeg] which encoder for [codec] it has.
+  static Future<String?> probe(String ffmpeg, [VideoCodec codec = VideoCodec.h264]) async {
+    final have = await probeAll(ffmpeg);
+    return codec.encoders.where(have.contains).firstOrNull;
   }
 
   /// The arguments for FFmpeg: [format]'s frames as raw RGBA on stdin, the sound from
-  /// [audio] (none: a silent video) from [audioStart] seconds in, [seconds] long, written as
-  /// MP4 to [output]. A sound cut into at the start fades in over a few milliseconds, so it
-  /// doesn't click; [fadeOut] fades it out (seconds into the video, and how long).
+  /// [audio] (none: a silent video) from [audioStart] seconds in, [seconds] long, written to
+  /// [output] (for a [VideoCodec.isSequence], a file name pattern such as `take %05d.png`;
+  /// its frames have no sound). A sound cut into at the start fades in over a few
+  /// milliseconds, so it doesn't click; [fadeOut] fades it out (seconds into the video, and
+  /// how long).
   static List<String> arguments({
     required String encoder,
     required VideoFormat format,
@@ -209,36 +286,81 @@ abstract final class VideoEncoder {
     double audioStart = 0,
     ({double at, double length})? fadeOut,
   }) {
-    final fps = format.fps;
-    // Hardware and OpenH264 encoders take a bit rate: 0.12 bits a pixel is ample for ink on paper.
-    final kbps = (format.width * format.height * fps * 0.12 / 1000).round();
+    final fps = format.fps, codec = format.codec, alpha = format.hasAlpha;
+    if (!codec.hasSound) audio = null;
+    // Hardware and OpenH264 encoders take a bit rate: 0.12 bits a pixel is ample for ink on paper
+    // (HEVC needs about two thirds of H.264's).
+    final kbps = (format.width * format.height * fps * (codec == VideoCodec.hevc ? 0.08 : 0.12) / 1000).round();
+    final pixels = switch (codec) {
+      VideoCodec.h264 || VideoCodec.hevc => 'yuv420p',
+      VideoCodec.prores => alpha ? 'yuva444p10le' : 'yuv422p10le',
+      VideoCodec.vp9 => alpha ? 'yuva420p' : 'yuv420p',
+      VideoCodec.png => alpha ? 'rgba' : 'rgb24',
+    };
     return [
       '-hide_banner', '-loglevel', 'error', '-y',
       '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', '${format.width}x${format.height}', '-framerate', '$fps', '-i', '-',
       if (audio != null) ...[...MediaFormats.ffmpegReaders, if (audioStart > 0) ...['-ss', audioStart.toStringAsFixed(6)], '-i', audio],
       '-map', '0:v:0',
       if (audio != null) ...['-map', '1:a:0'],
-      // RGB to 4:2:0 with the HD colour matrix, and tagged so players decode it the same way.
-      '-vf', 'scale=out_color_matrix=bt709:out_range=tv,format=yuv420p',
+      // RGB to YUV with the HD colour matrix, and tagged so players decode it the same way.
+      '-vf', codec.isSequence ? 'format=$pixels' : 'scale=out_color_matrix=bt709:out_range=tv,format=$pixels',
       '-c:v', encoder,
       ...switch (encoder) {
         'libx264' => ['-preset', 'medium', '-crf', '18', '-profile:v', 'high'],
         'h264_videotoolbox' => ['-b:v', '${kbps}k', '-profile:v', 'high', '-allow_sw', '1'],
+        'libx265' => ['-preset', 'medium', '-crf', '20', '-tag:v', 'hvc1', '-x265-params', 'log-level=error'],
+        'hevc_videotoolbox' => ['-b:v', '${kbps}k', '-tag:v', 'hvc1', '-allow_sw', '1'],
+        'hevc_mf' => ['-b:v', '${kbps}k', '-tag:v', 'hvc1'],
+        // 4444 keeps the alpha (16 bits of it); 422 HQ otherwise. "apl0" as Apple's own files say.
+        'prores_ks' => ['-profile:v', alpha ? '4444' : 'hq', if (alpha) ...['-alpha_bits', '16'], '-vendor', 'apl0'],
+        'prores_aw' => ['-profile:v', alpha ? '4444' : 'hq', '-vendor', 'apl0'],
+        // Constant quality; alt-ref frames drop the alpha in older libvpx.
+        'libvpx-vp9' => [
+            '-crf', '30', '-b:v', '0', '-deadline', 'good', '-cpu-used', '2', '-row-mt', '1',
+            if (alpha) ...['-auto-alt-ref', '0'],
+          ],
+        'png' => const <String>[],
         _ => ['-b:v', '${kbps}k'],
       },
-      '-g', '${fps * 2}', // a keyframe every 2 s: quick seeking, and what streaming sites like
-      '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-color_range', 'tv',
+      if (!codec.isSequence) ...[
+        '-g', '${fps * 2}', // a keyframe every 2 s: quick seeking, and what streaming sites like
+        '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-color_range', 'tv',
+      ],
       if (audio != null && (audioStart > 0 || fadeOut != null))
         ...['-af', [
           if (audioStart > 0) 'afade=t=in:d=$declick',
           if (fadeOut != null)
             'afade=t=out:st=${math.max(0, fadeOut.at).toStringAsFixed(6)}:d=${fadeOut.length.toStringAsFixed(6)}',
         ].join(',')],
-      if (audio != null) ...['-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2'],
+      if (audio != null) ...[
+        ...switch (codec) {
+          VideoCodec.prores => ['-c:a', 'pcm_s24le'],
+          VideoCodec.vp9 => ['-c:a', 'libopus', '-b:a', '192k'],
+          _ => ['-c:a', 'aac', '-b:a', '192k'],
+        },
+        '-ar', '48000', '-ac', '2',
+      ],
       '-t', seconds.toStringAsFixed(6), // the frames' length: a longer recording is cut there
-      '-movflags', '+faststart',
-      '-f', 'mp4', output,
+      ...switch (codec) {
+        VideoCodec.h264 || VideoCodec.hevc => ['-movflags', '+faststart', '-f', 'mp4'],
+        VideoCodec.prores => ['-movflags', '+faststart', '-f', 'mov'],
+        VideoCodec.vp9 => ['-f', 'webm'],
+        VideoCodec.png => ['-f', 'image2', '-start_number', '1'],
+      },
+      output,
     ];
+  }
+
+  /// What a sequence of [frames] frames in a folder named [name] calls them, for FFmpeg:
+  /// "name %05d.png", numbered from 1 with as many digits as the last needs (at least 5).
+  static String framePattern(String name, int frames) => '$name %0${math.max(5, '$frames'.length)}d.png';
+
+  /// Whether every file in [folder] is a frame [framePattern] names for a folder named [name]
+  /// (an earlier export, which a new one may replace).
+  static bool onlyFrames(Directory folder, String name) {
+    final frame = RegExp('^${RegExp.escape(name)} \\d{5,}\\.png\$');
+    return folder.listSync().every((e) => e is File && frame.hasMatch(e.uri.pathSegments.last));
   }
 
   /// Seconds of fade where a sound is cut.
@@ -409,11 +531,13 @@ class VideoExport {
     _process?.kill();
   }
 
-  /// Writes the video to [output] (an .mp4), reporting each frame to [onProgress]: the
+  /// Writes the video to [output] (a file with the [VideoFormat.codec]'s extension; for a
+  /// sequence, the folder its frames go in), reporting each frame to [onProgress]: the
   /// playback from [from] to [to] seconds (default: the [span]). The sound of bars cut off
-  /// at the end ([showBars]) fades out as the score comes to rest. The file
+  /// at the end ([showBars]) fades out as the score comes to rest. The file (or folder)
   /// appears only once complete; a failed or cancelled export leaves nothing behind (and an
-  /// older file of that name as it was).
+  /// older file of that name as it was). A folder is only replaced if it holds nothing but
+  /// an earlier export's frames.
   Future<void> write(
     String output, {
     required VideoFormat format,
@@ -426,10 +550,18 @@ class VideoExport {
     _cancelled = false; // a cancelled export before this one doesn't stop it
     ffmpeg ??= MediaConverter.findFfmpeg();
     if (ffmpeg == null) throw VideoExportException(missingFfmpegForVideo());
-    final encoder = await VideoEncoder.probe(ffmpeg);
+    final codec = format.codec;
+    final encoder = await VideoEncoder.probe(ffmpeg, codec);
     if (encoder == null) {
-      throw const VideoExportException(
-          'This FFmpeg can’t write H.264 video. Install a full build (with libx264).');
+      throw VideoExportException(
+          'This FFmpeg can’t write ${codec.label}. Install a full build (with ${codec.encoders.first}).');
+    }
+    if (!format.fits) {
+      throw VideoExportException('${codec.label} can’t be ${format.width} × ${format.height}. Choose a smaller size.');
+    }
+    final name = output.split(RegExp(r'[/\\]')).last;
+    if (codec.isSequence && Directory(output).existsSync() && !VideoEncoder.onlyFrames(Directory(output), name)) {
+      throw VideoExportException('“$name” already holds other files. Choose another name.');
     }
 
     final start = from ?? span.start, end = to ?? span.end;
@@ -440,13 +572,18 @@ class VideoExport {
             ? (at: end - start - VideoEncoder.declick, length: VideoEncoder.declick)
             : null;
     final partial = '$output.part';
+    if (codec.isSequence) {
+      final folder = Directory(partial);
+      if (folder.existsSync()) folder.deleteSync(recursive: true); // an export that never finished
+      folder.createSync(recursive: true);
+    }
     final process = _process = await Process.start(
       ffmpeg,
       VideoEncoder.arguments(
           encoder: encoder,
           format: format,
           seconds: frames / format.fps,
-          output: partial,
+          output: codec.isSequence ? '$partial/${VideoEncoder.framePattern(name, frames)}' : partial,
           audio: audio,
           audioStart: start,
           fadeOut: fadeOut),
@@ -467,9 +604,12 @@ class VideoExport {
             curation: _curation,
             devicePixelRatio: format.devicePixelRatio,
             end: span.end,
-            paper: format.paper.paper,
+            paper: format.paperColor,
             ink: format.paper.ink);
-        return image.toByteData(format: ui.ImageByteFormat.rawRgba).whenComplete(image.dispose);
+        // FFmpeg's RGBA is straight; Flutter's is premultiplied, the same only where it is opaque.
+        return image
+            .toByteData(format: format.hasAlpha ? ui.ImageByteFormat.rawStraightRgba : ui.ImageByteFormat.rawRgba)
+            .whenComplete(image.dispose);
       })) {
         if (_cancelled) break;
         process.stdin.add(pixels!.buffer.asUint8List(pixels.offsetInBytes, pixels.lengthInBytes));
@@ -488,15 +628,27 @@ class VideoExport {
     await stderr;
     _process = null;
 
-    final part = File(partial);
+    final FileSystemEntity part = codec.isSequence ? Directory(partial) : File(partial);
     if (_cancelled || code != 0 || failure != null) {
-      if (part.existsSync()) part.deleteSync();
+      if (part.existsSync()) part.deleteSync(recursive: true);
       if (_cancelled) throw const VideoExportCancelled();
       if (code != 0) throw VideoExportException('FFmpeg couldn’t write the video.\n${_lastLines('$errors')}');
       Error.throwWithStackTrace(failure!.$1, failure.$2);
     }
-    final target = File(output);
-    if (target.existsSync()) target.deleteSync();
+    switch (FileSystemEntity.typeSync(output)) {
+      case FileSystemEntityType.directory:
+        // Checked before it began; an earlier export's frames only.
+        if (codec.isSequence && VideoEncoder.onlyFrames(Directory(output), name)) {
+          Directory(output).deleteSync(recursive: true);
+        } else {
+          part.deleteSync(recursive: true);
+          throw VideoExportException('“$name” already holds other files. Choose another name.');
+        }
+      case FileSystemEntityType.notFound:
+        break;
+      default:
+        File(output).deleteSync();
+    }
     part.renameSync(output);
   }
 

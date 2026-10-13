@@ -14,12 +14,13 @@ import 'editor_controller.dart';
 import 'editor_toolbar.dart';
 import 'error_text.dart';
 import 'media_converter.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
 
 /// File ▸ Export Video… (⌘E): on the left a still of the video (at the playhead, or any time
 /// in the range: a slider scrubs it); on the right the bars to export (the whole piece unless
-/// changed), the ratio (the toolbar's), size, frame rate, paper and score size. Then where to
+/// changed), the format, the ratio (the toolbar's), size, frame rate, paper and score size. Then where to
 /// save it, and progress until it is written.
 /// [suggestedName] is the file name offered (without extension).
 Future<void> showExportDialog(BuildContext context, EditorController controller, AppSettings settings,
@@ -60,6 +61,25 @@ class _ExportDialogState extends State<_ExportDialog> {
   ExportProgress? _progress;
   String? _output, _error;
 
+  /// The encoders this FFmpeg has; null until it has said (every format offered meanwhile).
+  Set<String>? _encoders;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_ffmpeg case final ffmpeg?) {
+      VideoEncoder.probeAll(ffmpeg).then((e) {
+        if (mounted && e.isNotEmpty) setState(() => _encoders = e);
+      }, onError: (Object _) {}); // can't say: the export says so if it can't
+    }
+  }
+
+  /// Whether this FFmpeg can write [codec] (yes until it has said).
+  bool _canWrite(VideoCodec codec) => _encoders?.intersection(codec.encoders.toSet()).isNotEmpty ?? true;
+
+  /// Whether the video as chosen can be written.
+  bool get _writable => _ffmpeg != null && _range != null && _canWrite(_format.codec) && _format.fits;
+
   @override
   void dispose() {
     _export.dispose();
@@ -85,9 +105,12 @@ class _ExportDialogState extends State<_ExportDialog> {
       });
 
   bool get _defaultVideo =>
-      _settings.videoResolution == AppSettings.defaultVideoResolution && _settings.videoFps == AppSettings.defaultVideoFps;
+      _settings.videoCodec == AppSettings.defaultVideoCodec &&
+      _settings.videoResolution == AppSettings.defaultVideoResolution &&
+      _settings.videoFps == AppSettings.defaultVideoFps;
 
   void _setDefaultVideo() => setState(() => _settings
+    ..videoCodec = AppSettings.defaultVideoCodec
     ..videoResolution = AppSettings.defaultVideoResolution
     ..videoFps = AppSettings.defaultVideoFps);
 
@@ -97,13 +120,16 @@ class _ExportDialogState extends State<_ExportDialog> {
       });
 
   Future<void> _start() async {
-    if (_range == null) return;
+    if (!_writable) return;
+    final codec = _format.codec, name = '${widget.suggestedName}${_whole ? '' : ' (bars $_first–$_last)'}';
     final location = await getSaveLocation(
-      acceptedTypeGroups: const [XTypeGroup(label: 'MP4 video', extensions: ['mp4'])],
-      suggestedName: '${widget.suggestedName}${_whole ? '' : ' (bars $_first–$_last)'}.mp4',
+      acceptedTypeGroups: [if (!codec.isSequence) XTypeGroup(label: codec.typeLabel, extensions: [codec.extension])],
+      suggestedName: codec.isSequence ? name : '$name.${codec.extension}',
     );
     if (location == null || !mounted) return;
-    final path = await confirmSavePath(context, location.path, 'mp4');
+    // A sequence is a folder: the panel has asked about one of that name, and the export
+    // replaces only an earlier export's frames.
+    final path = codec.isSequence ? location.path : await confirmSavePath(context, location.path, codec.extension);
     if (path == null || !mounted) return;
     setState(() {
       _stage = _Stage.writing;
@@ -174,7 +200,7 @@ class _ExportDialogState extends State<_ExportDialog> {
                   _Stage.setup => [
                       TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
                       const SizedBox(width: 8),
-                      FilledButton(onPressed: _ffmpeg == null || _range == null ? null : _start, child: const Text('Export…')),
+                      FilledButton(onPressed: _writable ? _start : null, child: const Text('Export…')),
                     ],
                   _Stage.writing => [TextButton(onPressed: _export.cancel, child: const Text('Cancel'))],
                   _Stage.done => [
@@ -292,14 +318,25 @@ class _ExportDialogState extends State<_ExportDialog> {
             const SizedBox(height: 20),
             _Heading(
               'Video',
-              // Back to 1080p at 30; its room is kept so the rows don't move.
+              // Back to an MP4, 1080p at 30; its room is kept so the rows don't move.
               trailing: Visibility.maintain(
                 visible: !_defaultVideo,
                 child: ToolbarButton(
                   icon: Icons.restart_alt_rounded,
-                  tooltip: '1080p · 30 fps',
+                  tooltip: 'MP4 · 1080p · 30 fps',
                   onPressed: _defaultVideo ? null : _setDefaultVideo,
                 ),
+              ),
+            ),
+            _Row(
+              label: 'Format',
+              child: _Choice<VideoCodec>(
+                tooltip: 'Video format',
+                value: format.codec,
+                label: format.codec.label,
+                bad: !_canWrite(format.codec),
+                items: [for (final c in VideoCodec.values) (c, c.label, _canWrite(c))],
+                onSelected: (c) => setState(() => _settings.videoCodec = c),
               ),
             ),
             _Row(
@@ -378,7 +415,8 @@ class _ExportDialogState extends State<_ExportDialog> {
   /// What comes out: its length, shape, pixels, frames and sound.
   Widget _summary(BuildContext context) {
     final colors = context.colors;
-    final format = _format, range = _range, track = widget.controller.track;
+    final format = _format, range = _range;
+    final sound = format.codec.hasSound ? widget.controller.track : null; // a sequence's frames have none
     final muted = TextStyle(fontSize: 12.5, color: colors.textMuted, fontFeatures: const [FontFeature.tabularFigures()]);
     final length = range == null ? null : range.end - range.start;
     return Row(children: [
@@ -395,9 +433,9 @@ class _ExportDialogState extends State<_ExportDialog> {
         ),
       ),
       const SizedBox(width: 14),
-      Icon(track == null ? Icons.volume_off_rounded : Icons.music_note_rounded, size: 15, color: colors.textMuted),
+      Icon(sound == null ? Icons.volume_off_rounded : Icons.music_note_rounded, size: 15, color: colors.textMuted),
       const SizedBox(width: 4),
-      Flexible(child: Text(track?.name ?? 'Silent', style: muted, overflow: TextOverflow.ellipsis)),
+      Flexible(child: Text(sound?.name ?? 'Silent', style: muted, overflow: TextOverflow.ellipsis)),
     ]);
   }
 
@@ -455,6 +493,54 @@ Future<void> revealInFileManager(String path) async {
     }
   } on ProcessException {
     // no file manager to show it in: the dialog has already said where it is
+  }
+}
+
+/// A choice among [items] (a value, its name, whether it can be chosen), shown as [label], in
+/// red when [bad]: the ratio's look, for the rows beside it.
+class _Choice<T> extends StatelessWidget {
+  const _Choice({
+    required this.tooltip,
+    required this.value,
+    required this.label,
+    required this.items,
+    required this.onSelected,
+    this.bad = false,
+  });
+  final String tooltip;
+  final T value;
+  final String label;
+  final List<(T, String, bool)> items;
+  final ValueChanged<T> onSelected;
+  final bool bad;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return OverlaySemantics(
+      child: AppPopupMenuButton<T>(
+        tooltip: tooltip,
+        position: PopupMenuPosition.under,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.only(left: 8, right: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onSelected: onSelected,
+        itemBuilder: (context) => [
+          for (final (v, name, enabled) in items)
+            checkedMenuItem(context, value: v, checked: v == value, enabled: enabled, child: Text(name)),
+        ],
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12.5,
+                  color: bad ? Theme.of(context).colorScheme.error : colors.text,
+                  fontFeatures: const [FontFeature.tabularFigures()])),
+          Icon(Icons.arrow_drop_down_rounded, size: 18, color: colors.textMuted),
+        ]),
+      ),
+    );
   }
 }
 
