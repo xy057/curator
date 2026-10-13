@@ -406,6 +406,10 @@ class CuratedScene {
     return _keyPlan?.columnAt(time) ?? 0;
   }
 
+  /// Prepares the GPU for frames on see-through paper (see [ScoreRenderer.warmUp]); call it
+  /// once while nothing moves.
+  static Future<void> warmUp() => ScoreRenderer.warmUp();
+
   /// How long the frame takes to fade to paper before the [paint]'s `end`.
   static const fadeOut = 1.5;
 

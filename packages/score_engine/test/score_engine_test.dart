@@ -153,6 +153,11 @@ void main() {
         reason: 'nothing left at the end');
   });
 
+  test('the see-through cut-out can be drawn ahead of time, once and again harmlessly', () async {
+    await CuratedScene.warmUp();
+    await CuratedScene.warmUp();
+  });
+
   test('the scroll speed follows the notes, smoothly, even at one tempo', () {
     final map = score.scrollMap;
     final times = map.times, xs = map.xs;

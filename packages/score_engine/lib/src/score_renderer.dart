@@ -203,6 +203,27 @@ class ScoreRenderer {
     );
   }
 
+  /// Cuts see-through paper's header out once, tiny and offscreen ([paint] on paper that isn't
+  /// opaque), so the GPU has made what that needs before a frame does: the first frame to do it
+  /// (turning a video's background transparent) took some 60 ms, a dropped frame and the engine's
+  /// "Reported frame time is older than the last one". Call it while nothing moves; once is enough.
+  static Future<void> warmUp() async {
+    if (_warm) return;
+    _warm = true;
+    const size = ui.Size(_fade * 2, 8);
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder)..saveLayer(ui.Offset.zero & size, ui.Paint());
+    canvas.drawRect(ui.Offset.zero & size, ui.Paint()..color = const ui.Color(0xFF000000));
+    _coverHeader(canvas, size, 1, ui.Paint()..blendMode = ui.BlendMode.dstOut, const ui.Color(0xFF000000));
+    canvas.restore();
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size.width.toInt(), size.height.toInt());
+    picture.dispose();
+    image.dispose();
+  }
+
+  static bool _warm = false;
+
   /// Releases the tile images, the name labels and the frozen zone's glyphs.
   void dispose() {
     _dropTiles();
@@ -298,7 +319,7 @@ class ScoreRenderer {
 
   /// Covers the names' and frozen zone's room left of [left] with [paint] in [color], and the
   /// [_fade] after it with [color] fading out.
-  void _coverHeader(ui.Canvas canvas, ui.Size size, double left, ui.Paint paint, ui.Color color) {
+  static void _coverHeader(ui.Canvas canvas, ui.Size size, double left, ui.Paint paint, ui.Color color) {
     canvas.drawRect(ui.Rect.fromLTWH(0, 0, left, size.height), paint..color = color);
     canvas.drawRect(
       ui.Rect.fromLTWH(left, 0, _fade, size.height),
