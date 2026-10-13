@@ -28,7 +28,8 @@ class AppSettings extends ChangeNotifier {
         _videoResolution =
             VideoResolution.values.asNameMap()[_prefs?.getString(_videoResolutionKey)] ?? defaultVideoResolution,
         _videoRatio = VideoRatio.parse(_prefs?.getString(_videoRatioKey) ?? '') ?? VideoRatio.widescreen,
-        _videoFps = _prefs?.getInt(_videoFpsKey) ?? defaultVideoFps,
+        // Whole numbers until build 49 (24 and 25 were offered then: kept, as typed rates).
+        _videoFps = _readFps(_prefs),
         _videoPaper = VideoPaper.values.asNameMap()[_prefs?.getString(_videoPaperKey)] ?? VideoPaper.light,
         _videoCodec = VideoCodec.values.asNameMap()[_prefs?.getString(_videoCodecKey)] ?? defaultVideoCodec,
         _videoTransparent = _prefs?.getBool(_videoTransparentKey) ?? false,
@@ -64,7 +65,15 @@ class AppSettings extends ChangeNotifier {
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
-  static const _videoTransparentKey = 'videoTransparent';
+  static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
+
+  static double _readFps(SharedPreferences? prefs) {
+    try {
+      return prefs?.getDouble(_videoFrameRateKey) ?? prefs?.getInt(_videoFpsKey)?.toDouble() ?? defaultVideoFps;
+    } catch (_) {
+      return defaultVideoFps; // not a number
+    }
+  }
   static const _attachImageKey = 'attachImage', _captionsKey = 'captions';
   static const _captionFontKey = 'captionFont', _captionPositionKey = 'captionPosition';
   static const _captionCountdownKey = 'captionCountdown', _captionSizeKey = 'captionSize';
@@ -215,7 +224,7 @@ class AppSettings extends ChangeNotifier {
   // MARK: Export Video (the choices made last time)
 
   /// What a video is until changed: an MP4 (H.264), 1080p at 30 frames a second.
-  static const defaultVideoResolution = VideoResolution.hd1080, defaultVideoFps = 30;
+  static const defaultVideoResolution = VideoResolution.hd1080, defaultVideoFps = 30.0;
   static const defaultVideoCodec = VideoCodec.h264;
 
   /// What the video is written as.
@@ -262,13 +271,14 @@ class AppSettings extends ChangeNotifier {
   VideoFormat get videoFormat =>
       VideoFormat.of(videoResolution, ratio: videoRatio, fps: videoFps, paper: videoPaper, codec: videoCodec, transparent: videoTransparent);
 
-  /// Frames a second, one of [VideoFormat.frameRates].
-  int get videoFps => VideoFormat.frameRates.contains(_videoFps) ? _videoFps : defaultVideoFps;
-  int _videoFps;
-  set videoFps(int value) {
-    if (value == _videoFps) return;
+  /// Frames a second: one of [VideoFormat.frameRates] or one typed, [VideoFormat.minFps] to
+  /// [VideoFormat.maxFps].
+  double get videoFps => _videoFps >= VideoFormat.minFps && _videoFps <= VideoFormat.maxFps ? _videoFps : defaultVideoFps;
+  double _videoFps;
+  set videoFps(double value) {
+    if (value == _videoFps || !value.isFinite) return;
     _videoFps = value;
-    _prefs?.setInt(_videoFpsKey, value);
+    _prefs?.setDouble(_videoFrameRateKey, value);
     notifyListeners();
   }
 

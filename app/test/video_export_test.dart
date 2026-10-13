@@ -206,6 +206,26 @@ Encoders:
     });
   });
 
+  test('frame rates: 30 to 120 offered, any from 1 to 240 typed; the broadcast ones exact', () {
+    expect(VideoFormat.frameRates, [30, 50, 60, 90, 120]);
+    expect(VideoFormat.parseRate('25'), 25);
+    expect(VideoFormat.parseRate(' 29,97 '), 30000 / 1001);
+    expect(VideoFormat.parseRate('23.976'), 24000 / 1001);
+    expect(VideoFormat.parseRate('24000/1001'), 24000 / 1001);
+    expect(VideoFormat.parseRate('12.5'), 12.5);
+    for (final bad in ['', 'fast', '0', '0.5', '241', '-30', '30/0', '1/2/3', 'NaN']) {
+      expect(VideoFormat.parseRate(bad), isNull, reason: bad);
+    }
+    expect([for (final f in [30.0, 24000 / 1001, 30000 / 1001, 12.5]) VideoFormat.rateLabel(f)], ['30', '23.976', '29.97', '12.5']);
+    expect([for (final f in [120.0, 24000 / 1001, 12.5]) VideoFormat.rateArgument(f)], ['120', '24000/1001', '12.5']);
+
+    final ntsc = VideoFormat(width: 2, height: 2, fps: 30000 / 1001);
+    expect(ntsc.frameCount(1001 / 3), 10000, reason: '1001/3 s at 29.97: exactly 10,000 frames, none extra');
+    final line = VideoEncoder.arguments(encoder: 'libx264', format: ntsc, seconds: 1, output: 'o').join(' ');
+    expect(line, contains('-framerate 30000/1001'));
+    expect(line, contains('-g 60'));
+  });
+
   test('every size frames the score alike: 1080p is the 540-point layout at 2 pixels a point', () {
     expect(VideoFormat.of(VideoResolution.hd1080, fps: 30).devicePixelRatio, 2);
     expect(VideoFormat.of(VideoResolution.uhd2160, fps: 30).devicePixelRatio, 4);

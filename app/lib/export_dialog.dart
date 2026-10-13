@@ -363,11 +363,11 @@ class _ExportDialogState extends State<_ExportDialog> {
             ),
             _Row(
               label: 'Frame rate',
-              child: SegmentedButton<int>(
+              child: SegmentedButton<double>(
                 style: segments,
                 expandedInsets: EdgeInsets.zero,
                 showSelectedIcon: false,
-                segments: [for (final f in VideoFormat.frameRates) ButtonSegment(value: f, label: Text('$f'))],
+                segments: [for (final f in VideoFormat.frameRates) ButtonSegment(value: f, label: Text(VideoFormat.rateLabel(f)))],
                 selected: {_settings.videoFps},
                 onSelectionChanged: (s) => setState(() => _settings.videoFps = s.single),
               ),

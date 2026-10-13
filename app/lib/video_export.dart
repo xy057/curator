@@ -191,7 +191,7 @@ class VideoFormat {
 
   factory VideoFormat.of(VideoResolution resolution,
       {VideoRatio ratio = VideoRatio.widescreen,
-      required int fps,
+      required double fps,
       VideoPaper paper = VideoPaper.light,
       VideoCodec codec = VideoCodec.h264,
       bool transparent = false}) {
@@ -199,7 +199,11 @@ class VideoFormat {
     return VideoFormat(width: width, height: height, fps: fps, paper: paper, codec: codec, transparent: transparent);
   }
 
-  final int width, height, fps;
+  final int width, height;
+
+  /// Frames a second: one of [frameRates], or any between [minFps] and [maxFps] ("23.976" is
+  /// 24000 / 1001, see [parseRate]).
+  final double fps;
   final VideoPaper paper;
   final VideoCodec codec;
 
@@ -219,7 +223,34 @@ class VideoFormat {
   /// Width over height, of the pixels themselves (the ratio, rounded to even pixels).
   double get aspectRatio => width / height;
 
-  static const frameRates = [24, 25, 30, 50, 60];
+  static const frameRates = <double>[30, 50, 60, 90, 120];
+  static const minFps = 1.0, maxFps = 240.0;
+
+  /// A frame rate as people write it: "30", "59.94", "23.976".
+  static String rateLabel(double fps) => fps.toStringAsFixed(3).replaceFirst(RegExp(r'\.?0+$'), '');
+
+  /// Reads a frame rate typed as "25", "29.97" (or "29,97") or "30000/1001"; a rate within a
+  /// thousandth of one of the broadcast rates (23.976, 29.97, 59.94, 119.88) is that rate
+  /// exactly, n × 1000 / 1001. Null if it isn't one between [minFps] and [maxFps].
+  static double? parseRate(String text) {
+    final parts = text.trim().replaceAll(',', '.').split(RegExp(r'\s*/\s*'));
+    if (parts.length > 2) return null;
+    final n = double.tryParse(parts.first), d = parts.length == 2 ? double.tryParse(parts.last) : 1.0;
+    if (n == null || d == null || d <= 0 || !n.isFinite || !d.isFinite) return null;
+    var fps = n / d;
+    if (fps < minFps - 1e-9 || fps > maxFps + 1e-9) return null;
+    final whole = (fps * 1001 / 1000).roundToDouble();
+    if (fps != fps.roundToDouble() && (fps - whole * 1000 / 1001).abs() < 1e-3) fps = whole * 1000 / 1001;
+    return fps;
+  }
+
+  /// [fps] as FFmpeg takes it: a whole number, n × 1000 / 1001 as that fraction, else decimals.
+  static String rateArgument(double fps) {
+    if (fps == fps.roundToDouble()) return '${fps.round()}';
+    final whole = (fps * 1001 / 1000).round();
+    if ((fps - whole * 1000 / 1001).abs() < 1e-9) return '${whole * 1000}/1001';
+    return '$fps';
+  }
 
   /// The short side, in points, of the preview a frame is laid out like (the height of a
   /// wide video). The score size (the staff space) means the same here as in the editor,
@@ -302,7 +333,7 @@ abstract final class VideoEncoder {
     };
     return [
       '-hide_banner', '-loglevel', 'error', '-y',
-      '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', '${format.width}x${format.height}', '-framerate', '$fps', '-i', '-',
+      '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', '${format.width}x${format.height}', '-framerate', VideoFormat.rateArgument(fps), '-i', '-',
       if (audio != null) ...[...MediaFormats.ffmpegReaders, if (audioStart > 0) ...['-ss', audioStart.toStringAsFixed(6)], '-i', audio],
       '-map', '0:v:0',
       if (audio != null) ...['-map', '1:a:0'],
@@ -327,7 +358,7 @@ abstract final class VideoEncoder {
         _ => ['-b:v', '${kbps}k'],
       },
       if (!codec.isSequence) ...[
-        '-g', '${fps * 2}', // a keyframe every 2 s: quick seeking, and what streaming sites like
+        '-g', '${(fps * 2).round()}', // a keyframe every 2 s: quick seeking, and what streaming sites like
         '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-color_range', 'tv',
       ],
       if (audio != null && (audioStart > 0 || fadeOut != null))
