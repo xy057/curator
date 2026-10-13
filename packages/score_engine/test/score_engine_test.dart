@@ -117,6 +117,42 @@ void main() {
     expect(await inked(end), 0, reason: 'only paper');
   });
 
+  test('on see-through paper a frame is the paper\'s frame without the paper, and fades out to nothing', () async {
+    final scene = CuratedScene(score);
+    addTearDown(scene.dispose);
+    final c = Curation(score.metadata.parts.map((p) => p.id));
+    for (final p in score.metadata.parts.skip(15)) {
+      c.setLane(p.id, [Region(0, score.timeline.measureStarts.last)]);
+    }
+    final end = CuratedScene.endOf(score.timeline);
+    const clear = ui.Color(0x00FFFFFF), white = ui.Color(0xFFFFFFFF);
+    Future<ByteData> frame(double t, ui.Color paper) async {
+      final image = scene.renderFrame(800, 450, time: t, curation: c, devicePixelRatio: 1, end: end, paper: paper);
+      final pixels = (await image.toByteData())!; // premultiplied
+      image.dispose();
+      return pixels;
+    }
+
+    // Laid on white, it is the frame drawn on white: the music under the names is cut out, not shown.
+    for (final t in [30.0, end - CuratedScene.fadeOut / 2]) {
+      final [see, on] = [await frame(t, clear), await frame(t, white)];
+      var worst = 0, open = 0;
+      for (var i = 0; i < see.lengthInBytes; i += 4) {
+        final a = see.getUint8(i + 3);
+        if (a == 0) open++;
+        for (var k = 0; k < 3; k++) {
+          final d = (see.getUint8(i + k) + 255 - a - on.getUint8(i + k)).abs();
+          if (d > worst) worst = d;
+        }
+      }
+      expect(worst, lessThanOrEqualTo(3), reason: 'at $t s');
+      expect(open, greaterThan(see.lengthInBytes / 4 / 2), reason: 'mostly see-through at $t s');
+    }
+    final last = await frame(end, clear);
+    expect([for (var i = 3; i < last.lengthInBytes; i += 4) last.getUint8(i)].every((a) => a == 0), isTrue,
+        reason: 'nothing left at the end');
+  });
+
   test('the scroll speed follows the notes, smoothly, even at one tempo', () {
     final map = score.scrollMap;
     final times = map.times, xs = map.xs;

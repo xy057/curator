@@ -415,7 +415,7 @@ class CuratedScene {
 
   /// Draws the frame at [time]. [paper] and [ink] override the style's colours (a dark
   /// theme); changing them costs nothing (see ScoreRenderer). Over the last [fadeOut]
-  /// seconds before [end] everything fades to paper.
+  /// seconds before [end] everything fades to paper (on see-through paper, out to nothing).
   void paint(ui.Canvas canvas, ui.Size size,
       {required double time,
       required Curation curation,
@@ -425,6 +425,13 @@ class CuratedScene {
       ui.Color? ink}) {
     final frame = layoutAt(time, curation, size);
     final scrollX = scrollMap.xAt(time);
+    final paperColor = paper ?? style.paper;
+    final faded = ((time - (end - fadeOut)) / fadeOut).clamp(0.0, 1.0);
+    // Eased, so it leaves gently and settles into the paper.
+    final fade = faded * faded * (3 - 2 * faded);
+    // Paper painted over see-through paper would show nothing: the whole frame fades instead.
+    final fadeLayer = fade > 0 && paperColor.a < 1;
+    if (fadeLayer) canvas.saveLayer(ui.Offset.zero & size, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, 1 - fade));
     renderer.paint(canvas, size,
         scrollX: scrollX,
         placements: frame.placements,
@@ -448,11 +455,10 @@ class CuratedScene {
                 canvas.restore();
               });
     if (captions.isNotEmpty) _captionBar.paint(canvas, size, time, _captionSpans, captions, ink ?? style.ink);
-    final faded = ((time - (end - fadeOut)) / fadeOut).clamp(0.0, 1.0);
-    if (faded > 0) {
-      // Eased, so it leaves gently and settles into the paper.
-      final a = faded * faded * (3 - 2 * faded);
-      canvas.drawRect(ui.Offset.zero & size, ui.Paint()..color = (paper ?? style.paper).withValues(alpha: a));
+    if (fadeLayer) {
+      canvas.restore();
+    } else if (fade > 0) {
+      canvas.drawRect(ui.Offset.zero & size, ui.Paint()..color = paperColor.withValues(alpha: fade));
     }
   }
 
