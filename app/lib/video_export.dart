@@ -504,9 +504,10 @@ class VideoExport {
   double get staffSpace => _scene.style.staffSpace;
   set staffSpace(double value) => _scene.setStaffSpace(value);
 
-  /// Draws the frame at [time] into [size] (points), for a still preview in the dialog.
+  /// Draws the frame at [time] into [size] (points), for a still preview in the dialog;
+  /// [transparent]: without the paper, its ink only.
   void paintPreview(ui.Canvas canvas, ui.Size size,
-      {required double time, required VideoPaper paper, required double devicePixelRatio}) {
+      {required double time, required VideoPaper paper, bool transparent = false, required double devicePixelRatio}) {
     // Laid out like the video (layoutShortSide points on the short side), scaled to fit.
     final scale = size.shortestSide / VideoFormat.layoutShortSide;
     canvas
@@ -518,7 +519,7 @@ class VideoExport {
         curation: _curation,
         devicePixelRatio: devicePixelRatio * scale,
         end: span.end,
-        paper: paper.paper,
+        paper: transparent ? paper.paper.withValues(alpha: 0) : paper.paper,
         ink: paper.ink);
     canvas.restore();
   }

@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -22,6 +23,19 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
     final settings = AppSettings.memory();
+    Future<void> shoot(String name) async {
+      final dir = Platform.environment['SCREENSHOT_DIR'];
+      if (dir == null) return;
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.runAsync(() async {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.ancestor(of: find.byType(Dialog), matching: find.byType(RepaintBoundary)).last);
+        final image = await boundary.toImage(pixelRatio: 2);
+        final png = await image.toByteData(format: ui.ImageByteFormat.png);
+        File('$dir/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
+      });
+    }
+
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
@@ -88,11 +102,24 @@ void main() {
     expect(settings.videoCodec, VideoCodec.prores);
     expect(find.text('MOV (ProRes)'), findsOneWidget);
 
+    // A transparent background where the format keeps one: the still shows it on a checkerboard.
+    AppSwitch transparent() =>
+        tester.widget<AppSwitch>(find.descendant(of: find.byType(Dialog), matching: find.byType(AppSwitch)));
+    expect(transparent().onChanged, isNotNull);
+    await tester.tap(find.byType(AppSwitch).last);
+    await tester.pump();
+    expect(settings.videoTransparent, isTrue);
+    expect(settings.videoFormat.hasAlpha, isTrue);
+    expect(transparent().value, isTrue);
+    await shoot('export-dialog-transparent');
+
     // Remembered, with a way back to an MP4, 1080p at 30.
     final reset = find.byTooltip('MP4 · 1080p · 30 fps');
     await tester.tap(reset);
     await tester.pump();
     expect((settings.videoCodec, settings.videoResolution, settings.videoFps), (VideoCodec.h264, VideoResolution.hd1080, 30));
+    expect((transparent().value, transparent().onChanged), (false, null), reason: 'an MP4 is always on paper');
+    expect(find.byTooltip('MOV, WebM or PNG only'), findsOneWidget);
     expect(tester.widget<IconButton>(find.ancestor(of: reset, matching: find.byType(IconButton))).onPressed, isNull,
         reason: 'nothing to reset');
     await size('4K');
@@ -134,16 +161,7 @@ void main() {
     expect((field('From bar'), field('To bar')), ('1', '44'));
     expect(length(), whole);
 
-    final dir = Platform.environment['SCREENSHOT_DIR'];
-    if (dir != null) {
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(find.ancestor(of: find.byType(Dialog), matching: find.byType(RepaintBoundary)).last);
-        final image = await boundary.toImage(pixelRatio: 2);
-        final png = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/export-dialog.png').writeAsBytesSync(png!.buffer.asUint8List());
-      });
-    }
+    await shoot('export-dialog');
 
     // The score size is the project's: the editor follows it.
     final before = c.staffSpace;

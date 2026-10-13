@@ -31,6 +31,7 @@ class AppSettings extends ChangeNotifier {
         _videoFps = _prefs?.getInt(_videoFpsKey) ?? defaultVideoFps,
         _videoPaper = VideoPaper.values.asNameMap()[_prefs?.getString(_videoPaperKey)] ?? VideoPaper.light,
         _videoCodec = VideoCodec.values.asNameMap()[_prefs?.getString(_videoCodecKey)] ?? defaultVideoCodec,
+        _videoTransparent = _prefs?.getBool(_videoTransparentKey) ?? false,
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
         _attachImage = _prefs?.getBool(_attachImageKey) ?? false,
@@ -63,6 +64,7 @@ class AppSettings extends ChangeNotifier {
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
+  static const _videoTransparentKey = 'videoTransparent';
   static const _attachImageKey = 'attachImage', _captionsKey = 'captions';
   static const _captionFontKey = 'captionFont', _captionPositionKey = 'captionPosition';
   static const _captionCountdownKey = 'captionCountdown', _captionSizeKey = 'captionSize';
@@ -245,9 +247,20 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// No paper behind the score, where the [videoCodec] keeps it ([VideoCodec.alpha]); the
+  /// [videoPaper] then says which ink. Off by default.
+  bool get videoTransparent => _videoTransparent;
+  bool _videoTransparent;
+  set videoTransparent(bool value) {
+    if (value == _videoTransparent) return;
+    _videoTransparent = value;
+    _prefs?.setBool(_videoTransparentKey, value);
+    notifyListeners();
+  }
+
   /// The video these choices make; the preview's frame is its [VideoFormat.aspectRatio].
   VideoFormat get videoFormat =>
-      VideoFormat.of(videoResolution, ratio: videoRatio, fps: videoFps, paper: videoPaper, codec: videoCodec);
+      VideoFormat.of(videoResolution, ratio: videoRatio, fps: videoFps, paper: videoPaper, codec: videoCodec, transparent: videoTransparent);
 
   /// Frames a second, one of [VideoFormat.frameRates].
   int get videoFps => VideoFormat.frameRates.contains(_videoFps) ? _videoFps : defaultVideoFps;

@@ -20,7 +20,8 @@ import 'video_export.dart';
 
 /// File ▸ Export Video… (⌘E): on the left a still of the video (at the playhead, or any time
 /// in the range: a slider scrubs it); on the right the bars to export (the whole piece unless
-/// changed), the format, the ratio (the toolbar's), size, frame rate, paper and score size. Then where to
+/// changed), the format, the ratio (the toolbar's), size, frame rate, paper (or none: a
+/// transparent background, in the formats that keep one) and score size. Then where to
 /// save it, and progress until it is written.
 /// [suggestedName] is the file name offered (without extension).
 Future<void> showExportDialog(BuildContext context, EditorController controller, AppSettings settings,
@@ -257,8 +258,10 @@ class _ExportDialogState extends State<_ExportDialog> {
                     position: DecorationPosition.foreground,
                     decoration: BoxDecoration(border: Border.all(color: colors.line)),
                     child: CustomPaint(
-                      painter: _StillPainter(_export, time: still, paper: format.paper,
-                          devicePixelRatio: MediaQuery.devicePixelRatioOf(context)),
+                      // A see-through frame on a checkerboard, toned like its paper so the ink shows.
+                      painter: format.hasAlpha ? _Checkerboard(format.paper) : null,
+                      foregroundPainter: _StillPainter(_export, time: still, paper: format.paper,
+                          transparent: format.hasAlpha, devicePixelRatio: MediaQuery.devicePixelRatioOf(context)),
                     ),
                   ),
                 ),
@@ -379,6 +382,12 @@ class _ExportDialogState extends State<_ExportDialog> {
                 selected: {_settings.videoPaper},
                 onSelectionChanged: (s) => setState(() => _settings.videoPaper = s.single),
               ),
+            ),
+            _Row(
+              label: 'Transparent',
+              child: format.codec.alpha
+                  ? AppSwitch(value: format.hasAlpha, onChanged: (v) => setState(() => _settings.videoTransparent = v))
+                  : const Tip(message: 'MOV, WebM or PNG only', child: AppSwitch(value: false, onChanged: null)),
             ),
             _Row(
               label: 'Score size',
@@ -644,17 +653,45 @@ class _BarField extends StatelessWidget {
 }
 
 class _StillPainter extends CustomPainter {
-  _StillPainter(this.export, {required this.time, required this.paper, required this.devicePixelRatio});
+  _StillPainter(this.export,
+      {required this.time, required this.paper, required this.transparent, required this.devicePixelRatio});
   final VideoExport export;
   final double time;
   final VideoPaper paper;
+  final bool transparent;
   final double devicePixelRatio;
 
   @override
-  void paint(Canvas canvas, Size size) =>
-      export.paintPreview(canvas, size, time: time, paper: paper, devicePixelRatio: devicePixelRatio);
+  void paint(Canvas canvas, Size size) => export.paintPreview(canvas, size,
+      time: time, paper: paper, transparent: transparent, devicePixelRatio: devicePixelRatio);
 
   // The score size changes the export's scene in place, so every rebuild repaints.
   @override
   bool shouldRepaint(_StillPainter old) => true;
+}
+
+/// The usual sign of "nothing here": squares in the [paper]'s colour and a shade off it.
+class _Checkerboard extends CustomPainter {
+  _Checkerboard(this.paper);
+  final VideoPaper paper;
+
+  static const _square = 8.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final base = paper.paper;
+    final shade = Color.lerp(base, paper.ink, 0.1)!;
+    canvas
+      ..clipRect(Offset.zero & size)
+      ..drawColor(base, BlendMode.src);
+    final square = Paint()..color = shade;
+    for (var y = 0; y * _square < size.height; y++) {
+      for (var x = y.isOdd ? 1 : 0; x * _square < size.width; x += 2) {
+        canvas.drawRect(Rect.fromLTWH(x * _square, y * _square, _square, _square), square);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_Checkerboard old) => old.paper != paper;
 }
