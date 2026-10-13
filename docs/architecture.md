@@ -45,7 +45,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned): its edits (`EditState`, also Undo's snapshots), image files and view; Undo and Redo |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
-| `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as H.264/AAC MP4; the dialog (a still to scrub, bars, ratio, size, frame rate, paper, score size) |
+| `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still follows the frames |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
 | `app_menus.dart` | The menu bar (native on macOS): File (Settings… at its foot, on macOS too), Edit, Score (Project Settings… at its foot). Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu |
@@ -86,6 +86,20 @@ the window by default; the toolbar's frame toggle (`AppSettings.previewVideoFram
 that frame too: `ScoreView` letterboxes `AppSettings.videoFormat`'s aspect ratio, laid out
 the same way and scaled to fit (`VideoFrame.fit`; filling is `VideoFrame.fill`), so the
 window's size never changes what the score shows. Hit tests go through `VideoFrame.toLayout`.
+What a video is written as is a `VideoCodec` (Export's Format, `AppSettings.videoCodec`): its
+FFmpeg encoders best first (the dialog asks FFmpeg which it has, `VideoEncoder.probeAll`, and greys
+out the rest), its container and sound. A PNG sequence is a folder of numbered frames without
+sound, written as `<name>.part` and renamed; an existing folder is replaced only if it holds
+nothing but frames of that name (`VideoEncoder.onlyFrames`), never anything else. Sizes run 480p
+to 8K; H.264 and HEVC stop at level 6.2's pixels (`VideoCodec.fits`: 8K only near 16:9), every
+format at the 16384-pixel side a frame can be drawn at.
+A transparent video (`AppSettings.videoTransparent`, only where `VideoCodec.alpha`:
+ProRes 4444, VP9 with alpha, RGBA PNG) is drawn on paper of alpha 0 (`VideoFormat.paperColor`),
+the paper choosing the ink. The renderer can't hide the music under the names by painting paper
+over it then, so on see-through paper the music goes on a layer of its own and that part is cut
+out (`dstOut`); the ending fades the whole frame out on a layer instead of painting paper on it.
+Its frames are read back as `rawStraightRgba` (Flutter's `rawRgba` is premultiplied, FFmpeg's
+`rgba` straight); the dialog's still shows it on a checkerboard toned like the paper.
 
 **Beats come from `BeatGrid`, never "a quarter note".** Compound meters beat in dotted notes
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back

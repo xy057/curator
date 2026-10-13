@@ -121,6 +121,10 @@ class ScoreRenderer {
     // Everything recorded is ink; this recolours it, keeping its coverage (anti-aliasing).
     final inkFilter = ui.ColorFilter.mode(ink ?? style.ink, ui.BlendMode.srcIn);
     canvas.drawRect(ui.Offset.zero & size, ui.Paint()..color = paperColor);
+    // See-through paper (a video with a transparent background) can't hide the music under the
+    // names by covering it: the music goes on a layer of its own and that part is cut out of it.
+    final clear = paperColor.a < 1;
+    if (clear) canvas.saveLayer(ui.Offset.zero & size, ui.Paint());
 
     // Snap the scroll to whole device pixels: tiles then land on the pixel grid, the ink stays
     // crisp like print, and neighbouring tiles meet without seams.
@@ -153,8 +157,12 @@ class ScoreRenderer {
 
     // Over the music, under the names, the frozen zone and the pointer (images on the score).
     overlay?.call(canvas, musicLeft);
+    if (clear) {
+      _coverHeader(canvas, size, musicLeft, ui.Paint()..blendMode = ui.BlendMode.dstOut, const ui.Color(0xFF000000));
+      canvas.restore();
+    }
 
-    _paintHeader(canvas, size, labels, musicLeft, paperColor, inkFilter);
+    _paintHeader(canvas, size, labels, musicLeft, clear ? null : paperColor, inkFilter);
     final zone = frozen;
     if (zone != null) {
       canvas.saveLayer(ui.Offset.zero & size, ui.Paint()..colorFilter = inkFilter);
@@ -194,6 +202,27 @@ class ScoreRenderer {
       ui.Paint()..color = style.pointer,
     );
   }
+
+  /// Cuts see-through paper's header out once, tiny and offscreen ([paint] on paper that isn't
+  /// opaque), so the GPU has made what that needs before a frame does: the first frame to do it
+  /// (turning a video's background transparent) took some 60 ms, a dropped frame and the engine's
+  /// "Reported frame time is older than the last one". Call it while nothing moves; once is enough.
+  static Future<void> warmUp() async {
+    if (_warm) return;
+    _warm = true;
+    const size = ui.Size(_fade * 2, 8);
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder)..saveLayer(ui.Offset.zero & size, ui.Paint());
+    canvas.drawRect(ui.Offset.zero & size, ui.Paint()..color = const ui.Color(0xFF000000));
+    _coverHeader(canvas, size, 1, ui.Paint()..blendMode = ui.BlendMode.dstOut, const ui.Color(0xFF000000));
+    canvas.restore();
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size.width.toInt(), size.height.toInt());
+    picture.dispose();
+    image.dispose();
+  }
+
+  static bool _warm = false;
 
   /// Releases the tile images, the name labels and the frozen zone's glyphs.
   void dispose() {
@@ -288,19 +317,26 @@ class ScoreRenderer {
 
   final _labelCache = <String, ui.Paragraph>{};
 
-  void _paintHeader(
-      ui.Canvas canvas, ui.Size size, List<StaffLabel> labels, double left, ui.Color paper, ui.ColorFilter ink) {
-    // Names and the frozen zone sit on paper; the music fades out as it slides underneath.
-    canvas.drawRect(ui.Rect.fromLTWH(0, 0, left, size.height), ui.Paint()..color = paper);
+  /// Covers the names' and frozen zone's room left of [left] with [paint] in [color], and the
+  /// [_fade] after it with [color] fading out.
+  static void _coverHeader(ui.Canvas canvas, ui.Size size, double left, ui.Paint paint, ui.Color color) {
+    canvas.drawRect(ui.Rect.fromLTWH(0, 0, left, size.height), paint..color = color);
     canvas.drawRect(
       ui.Rect.fromLTWH(left, 0, _fade, size.height),
-      ui.Paint()
+      paint
         ..shader = ui.Gradient.linear(
           ui.Offset(left, 0),
           ui.Offset(left + _fade, 0),
-          [paper, paper.withValues(alpha: 0)],
+          [color, color.withValues(alpha: 0)],
         ),
     );
+  }
+
+  /// [paper]: null when the music under the header was cut out instead (see-through paper).
+  void _paintHeader(
+      ui.Canvas canvas, ui.Size size, List<StaffLabel> labels, double left, ui.Color? paper, ui.ColorFilter ink) {
+    // Names and the frozen zone sit on paper; the music fades out as it slides underneath.
+    if (paper != null) _coverHeader(canvas, size, left, ui.Paint(), paper);
     for (final label in labels) {
       if (label.opacity <= 0.001) continue;
       final width = style.headerWidth - 18;

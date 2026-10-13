@@ -267,6 +267,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _lifecycle; // start listening for Quit
     updater.addListener(_launchCheckAnswered);
     WindowChrome.listenForOpenedFiles((paths) => _openPath(paths.first));
+    // Once, after the window's first frame, not when a video's background is first made
+    // transparent. (Not an idle task: one waits while anything animates, re-arming a timer on
+    // every turn of the event loop, which spun and, in widget tests, filled memory.)
+    WidgetsBinding.instance.addPostFrameCallback((_) => CuratedScene.warmUp());
   }
 
   /// The check made at launch (Settings ▸ About ▸ Check at launch) says so when there is a

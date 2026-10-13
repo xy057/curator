@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
@@ -32,6 +33,22 @@ Encoders:
     test('else the platform\'s own: VideoToolbox (macOS), Media Foundation (Windows)', () {
       expect(VideoEncoder.pick(listing.replaceAll(' libx264 ', ' libx265 ')), 'h264_videotoolbox');
       expect(VideoEncoder.pick(' V....D h264_mf  H264 via MediaFoundation\n'), 'h264_mf');
+    });
+
+    test('each format has its own: libx265 or VideoToolbox for HEVC, prores_ks, libvpx-vp9, png', () {
+      const more = '''
+ V....D libx265              libx265 H.265 / HEVC (codec hevc)
+ V....D hevc_videotoolbox    VideoToolbox H.265 Encoder (codec hevc)
+ VFS... prores_ks            Apple ProRes (iCodec Pro) (codec prores)
+ V....D libvpx-vp9           libvpx VP9 (codec vp9)
+ VF...D png                  PNG (Portable Network Graphics) image
+''';
+      expect(VideoEncoder.pick(listing + more, VideoCodec.hevc), 'libx265');
+      expect(VideoEncoder.pick(listing + more.replaceAll(' libx265 ', ' x '), VideoCodec.hevc), 'hevc_videotoolbox');
+      expect(VideoEncoder.pick(listing + more, VideoCodec.prores), 'prores_ks');
+      expect(VideoEncoder.pick(listing + more, VideoCodec.vp9), 'libvpx-vp9');
+      expect(VideoEncoder.pick(listing + more, VideoCodec.png), 'png');
+      expect(VideoEncoder.pick(listing, VideoCodec.vp9), isNull);
     });
 
     test('none: null (audio encoders and the legend don\'t count)', () {
@@ -119,12 +136,103 @@ Encoders:
     });
   });
 
+  group('formats', () {
+    String line(VideoCodec codec, String encoder, {bool transparent = false, String? audio = 'take.flac'}) =>
+        VideoEncoder.arguments(
+                encoder: encoder,
+                format: VideoFormat(width: 1920, height: 1080, fps: 30, codec: codec, transparent: transparent),
+                seconds: 2,
+                output: 'out',
+                audio: audio)
+            .join(' ');
+
+    test('HEVC: an MP4 tagged hvc1, so QuickTime and Apple devices play it', () {
+      final l = line(VideoCodec.hevc, 'libx265');
+      expect(l, contains('format=yuv420p'));
+      expect(l, contains('-c:v libx265 -preset medium -crf 20 -tag:v hvc1'));
+      expect(l, contains('-c:a aac'));
+      expect(l, endsWith('-movflags +faststart -f mp4 out'));
+    });
+
+    test('ProRes: 422 HQ in a MOV with PCM sound; 4444 with its alpha when transparent', () {
+      final opaque = line(VideoCodec.prores, 'prores_ks');
+      expect(opaque, contains('format=yuv422p10le'));
+      expect(opaque, contains('-c:v prores_ks -profile:v hq -vendor apl0'));
+      expect(opaque, contains('-c:a pcm_s24le -ar 48000 -ac 2'));
+      expect(opaque, endsWith('-f mov out'));
+      final clear = line(VideoCodec.prores, 'prores_ks', transparent: true);
+      expect(clear, contains('format=yuva444p10le'));
+      expect(clear, contains('-profile:v 4444 -alpha_bits 16'));
+    });
+
+    test('VP9: a WebM with Opus sound; with alpha when transparent', () {
+      final opaque = line(VideoCodec.vp9, 'libvpx-vp9');
+      expect(opaque, contains('format=yuv420p'));
+      expect(opaque, contains('-c:v libvpx-vp9 -crf 30 -b:v 0'));
+      expect(opaque, isNot(contains('-auto-alt-ref')));
+      expect(opaque, contains('-c:a libopus'));
+      expect(opaque, endsWith('-f webm out'));
+      final clear = line(VideoCodec.vp9, 'libvpx-vp9', transparent: true);
+      expect(clear, contains('format=yuva420p'));
+      expect(clear, contains('-auto-alt-ref 0'));
+    });
+
+    test('PNG: numbered images, RGB or RGBA, never a sound', () {
+      final opaque = line(VideoCodec.png, 'png');
+      expect(opaque, contains('-vf format=rgb24 -c:v png'));
+      expect(opaque, isNot(contains('take.flac')));
+      expect(opaque, isNot(contains('bt709')));
+      expect(opaque, endsWith('-f image2 -start_number 1 out'));
+      expect(line(VideoCodec.png, 'png', transparent: true), contains('-vf format=rgba'));
+      expect(VideoEncoder.framePattern('Take', 900), 'Take %05d.png');
+      expect(VideoEncoder.framePattern('Take', 216000), 'Take %06d.png');
+    });
+
+    test('transparent only where the format keeps it: an MP4 is always on paper', () {
+      const mp4 = VideoFormat(width: 2, height: 2, fps: 30, transparent: true);
+      expect(mp4.hasAlpha, isFalse);
+      expect(mp4.paperColor, VideoPaper.light.paper);
+      expect(line(VideoCodec.h264, 'libx264', transparent: true), contains('format=yuv420p'));
+      const mov = VideoFormat(width: 2, height: 2, fps: 30, codec: VideoCodec.prores, transparent: true);
+      expect(mov.hasAlpha, isTrue);
+      expect(mov.paperColor.a, 0);
+    });
+
+    test('H.264 and HEVC stop at their highest level\'s pixels; the others at the longest side drawn', () {
+      expect(VideoCodec.h264.fits(7680, 4320), isTrue, reason: '8K');
+      expect(VideoCodec.h264.fits(10080, 4320), isFalse, reason: '8K at 21:9');
+      expect(VideoCodec.prores.fits(10080, 4320), isTrue);
+      expect(VideoCodec.prores.fits(17280, 4320), isFalse);
+    });
+  });
+
+  test('frame rates: 30 to 120 offered, any from 1 to 240 typed; the broadcast ones exact', () {
+    expect(VideoFormat.frameRates, [30, 50, 60, 90, 120]);
+    expect(VideoFormat.parseRate('25'), 25);
+    expect(VideoFormat.parseRate(' 29,97 '), 30000 / 1001);
+    expect(VideoFormat.parseRate('23.976'), 24000 / 1001);
+    expect(VideoFormat.parseRate('24000/1001'), 24000 / 1001);
+    expect(VideoFormat.parseRate('12.5'), 12.5);
+    for (final bad in ['', 'fast', '0', '0.5', '241', '-30', '30/0', '1/2/3', 'NaN']) {
+      expect(VideoFormat.parseRate(bad), isNull, reason: bad);
+    }
+    expect([for (final f in [30.0, 24000 / 1001, 30000 / 1001, 12.5]) VideoFormat.rateLabel(f)], ['30', '23.976', '29.97', '12.5']);
+    expect([for (final f in [120.0, 24000 / 1001, 12.5]) VideoFormat.rateArgument(f)], ['120', '24000/1001', '12.5']);
+
+    final ntsc = VideoFormat(width: 2, height: 2, fps: 30000 / 1001);
+    expect(ntsc.frameCount(1001 / 3), 10000, reason: '1001/3 s at 29.97: exactly 10,000 frames, none extra');
+    final line = VideoEncoder.arguments(encoder: 'libx264', format: ntsc, seconds: 1, output: 'o').join(' ');
+    expect(line, contains('-framerate 30000/1001'));
+    expect(line, contains('-g 60'));
+  });
+
   test('every size frames the score alike: 1080p is the 540-point layout at 2 pixels a point', () {
     expect(VideoFormat.of(VideoResolution.hd1080, fps: 30).devicePixelRatio, 2);
     expect(VideoFormat.of(VideoResolution.uhd2160, fps: 30).devicePixelRatio, 4);
     for (final r in VideoResolution.values) {
       final f = VideoFormat.of(r, fps: 30);
-      expect(f.width / f.devicePixelRatio, 960);
+      // 480p: 853⅓ pixels wide, rounded to an even 854.
+      expect(f.width / f.devicePixelRatio, closeTo(960, 1), reason: r.label);
     }
     const format = VideoFormat(width: 320, height: 180, fps: 25);
     expect(format.frameCount(2), 50);
@@ -292,6 +400,67 @@ Encoders:
       final p = await Process.run(ffprobe, ['-v', 'error', '-of', 'json', '-show_format', out]);
       final info = jsonDecode('${p.stdout}') as Map<String, dynamic>;
       expect(double.parse(info['format']['duration'] as String), closeTo(r.end - r.start, 0.15));
+    }, skip: skip, timeout: const Timeout(Duration(minutes: 2)));
+
+    Future<List<Map<String, dynamic>>> streams(String path) async {
+      final r = await Process.run(ffprobe!, [
+        '-v', 'error', '-of', 'json', '-show_entries', 'stream=codec_name,codec_tag_string,pix_fmt,width,height:stream_tags=alpha_mode', path,
+      ]);
+      return ((jsonDecode('${r.stdout}') as Map<String, dynamic>)['streams'] as List).cast<Map<String, dynamic>>();
+    }
+
+    for (final (codec, name, alpha) in [
+      (VideoCodec.hevc, 'hevc', false),
+      (VideoCodec.prores, 'prores', true),
+      (VideoCodec.vp9, 'vp9', true),
+    ]) {
+      test('${codec.label}: written with its sound${alpha ? ', and with alpha when transparent' : ''}', () async {
+        final encoder = await VideoEncoder.probe(ffmpeg!, codec);
+        if (encoder == null) return markTestSkipped('this FFmpeg has no ${codec.encoders.first}');
+        await useRecording(demoRecording.path);
+        final export = VideoExport.of(c);
+        addTearDown(export.dispose);
+        for (final transparent in [false, if (alpha) true]) {
+          final out = '${dir.path}/demo $transparent.${codec.extension}';
+          await export.write(out,
+              format: VideoFormat(width: 320, height: 180, fps: 10, codec: codec, transparent: transparent), to: 0.5);
+          if (ffprobe == null || !File(ffprobe).existsSync()) continue;
+          final [video, audio] = await streams(out);
+          expect(video, containsPair('codec_name', name));
+          expect((video['width'], video['height']), (320, 180));
+          expect(audio['codec_name'], isNotNull);
+          if (codec == VideoCodec.hevc) expect(video, containsPair('codec_tag_string', 'hvc1'));
+          if (codec == VideoCodec.prores) expect(video['pix_fmt'], transparent ? 'yuva444p12le' : 'yuv422p10le');
+          // WebM keeps VP9's alpha in a side stream the container marks.
+          if (codec == VideoCodec.vp9 && transparent) expect(video['tags'], containsPair('alpha_mode', '1'));
+        }
+      }, skip: skip, timeout: const Timeout(Duration(minutes: 2)));
+    }
+
+    test('a PNG sequence: a folder of numbered frames, see-through where there is no ink', () async {
+      final export = VideoExport.of(c);
+      addTearDown(export.dispose);
+      final out = '${dir.path}/Demo';
+      const format = VideoFormat(width: 320, height: 180, fps: 10, codec: VideoCodec.png, transparent: true);
+      await export.write(out, format: format, to: 0.5);
+      final files = Directory(out).listSync().map((f) => f.uri.pathSegments.last).toList()..sort();
+      expect(files, [for (var i = 1; i <= 5; i++) 'Demo 0000$i.png']);
+      expect(Directory('$out.part').existsSync(), isFalse);
+      final bytes = File('$out/Demo 00001.png').readAsBytesSync();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final image = (await codec.getNextFrame()).image;
+      final rgba = (await image.toByteData(format: ui.ImageByteFormat.rawStraightRgba))!;
+      final alphas = {for (var i = 3; i < rgba.lengthInBytes; i += 4) rgba.getUint8(i)};
+      expect(alphas, containsAll([0, 255]), reason: 'clear paper, solid ink');
+
+      // Again: an earlier export's frames are replaced; a folder with anything else isn't touched.
+      await export.write(out, format: format, to: 0.3);
+      expect(Directory(out).listSync(), hasLength(3));
+      File('$out/notes.txt').writeAsStringSync('mine');
+      await expectLater(export.write(out, format: format, to: 0.3),
+          throwsA(isA<VideoExportException>().having((e) => e.message, 'message', contains('other files'))));
+      expect(File('$out/notes.txt').readAsStringSync(), 'mine');
+      expect(Directory(out).listSync(), hasLength(4));
     }, skip: skip, timeout: const Timeout(Duration(minutes: 2)));
 
     test('the export condenses the pairs the editor did when it started', () {

@@ -163,7 +163,8 @@ class DialogButtons extends StatelessWidget {
 /// A text field for a dialog. [UiStyle.classic] is the material outlined field with a floating
 /// [label]; [UiStyle.refined] a 36 px field under its label, a [helper] beneath it.
 ///
-/// [bad] outlines it in red with no message: the usual way to say a field doesn't read yet.
+/// [bad] outlines it in red with no message: the usual way to say a field doesn't read yet. An
+/// empty [label] draws none (a field in a row that names it).
 class AppTextField extends StatelessWidget {
   const AppTextField({
     super.key,
@@ -179,9 +180,11 @@ class AppTextField extends StatelessWidget {
     this.onChanged,
     this.onSubmitted,
     this.onTap,
+    this.focusNode,
   });
 
   final TextEditingController controller;
+  final FocusNode? focusNode;
   final String label;
   final String? hint, helper;
   final bool bad;
@@ -198,13 +201,14 @@ class AppTextField extends StatelessWidget {
     if (!isRefined(context)) {
       return TextField(
         controller: controller,
+        focusNode: focusNode,
         autofocus: autofocus,
         maxLength: maxLength,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         onTap: onTap,
         decoration: InputDecoration(
-          labelText: label,
+          labelText: label.isEmpty ? null : label,
           hintText: hint,
           helperText: helper,
           counterText: maxLength == null ? null : '',
@@ -225,6 +229,7 @@ class AppTextField extends StatelessWidget {
         height: _fieldHeight,
         child: TextField(
           controller: controller,
+          focusNode: focusNode,
           autofocus: autofocus,
           maxLength: maxLength,
           keyboardType: keyboardType,
@@ -246,6 +251,7 @@ class AppTextField extends StatelessWidget {
           onSubmitted: onSubmitted,
         ),
       );
+    if (label.isEmpty && helper == null) return field;
     return FieldLabel(
       label: label,
       child: helper == null
