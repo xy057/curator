@@ -514,6 +514,20 @@ class VideoExport {
   /// The seconds of playback the video shows: all of it unless [showBars] says otherwise.
   late ({double start, double end}) span = (start: 0, end: duration);
   late double _musicEnd = duration;
+
+  /// Where the [span]'s music ends: after it the score comes to rest and fades.
+  double get musicEnd => _musicEnd;
+
+  /// When each bar first sounds, bar 1 first (at 0, as [barRange] starts it); a bar never
+  /// played is where the one before it is.
+  late final List<double> barStarts = () {
+    final starts = _sync.measureStarts, out = <double>[];
+    for (var i = 0; i < bars; i++) {
+      final at = i == 0 ? 0.0 : _sync.spans(starts[i], starts[i + 1]).firstOrNull?.startSeconds;
+      out.add(at ?? out.last);
+    }
+    return List<double>.unmodifiable(out);
+  }();
   late (int, int) _shown = (1, bars);
 
   /// The bar and beat sounding at [seconds], as the toolbar writes them ("12.2").
