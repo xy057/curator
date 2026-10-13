@@ -211,7 +211,8 @@ Encoders:
     expect(VideoFormat.of(VideoResolution.uhd2160, fps: 30).devicePixelRatio, 4);
     for (final r in VideoResolution.values) {
       final f = VideoFormat.of(r, fps: 30);
-      expect(f.width / f.devicePixelRatio, 960);
+      // 480p: 853⅓ pixels wide, rounded to an even 854.
+      expect(f.width / f.devicePixelRatio, closeTo(960, 1), reason: r.label);
     }
     const format = VideoFormat(width: 320, height: 180, fps: 25);
     expect(format.frameCount(2), 50);

@@ -345,13 +345,17 @@ class _ExportDialogState extends State<_ExportDialog> {
             ),
             _Row(
               label: 'Size',
-              child: SegmentedButton<VideoResolution>(
-                style: segments,
-                expandedInsets: EdgeInsets.zero,
-                showSelectedIcon: false,
-                segments: [for (final r in VideoResolution.values) ButtonSegment(value: r, label: Text(r.label))],
-                selected: {_settings.videoResolution},
-                onSelectionChanged: (s) => setState(() => _settings.videoResolution = s.single),
+              // Those too big for the format at this ratio can't be chosen (8K H.264 wider than 16:9).
+              child: _Choice<VideoResolution>(
+                tooltip: 'Video size',
+                value: _settings.videoResolution,
+                label: _settings.videoResolution.label,
+                bad: !format.fits,
+                items: [
+                  for (final r in VideoResolution.values)
+                    (r, r.label, format.codec.fits(r.size(_settings.videoRatio).width, r.size(_settings.videoRatio).height)),
+                ],
+                onSelected: (r) => setState(() => _settings.videoResolution = r),
               ),
             ),
             _Row(

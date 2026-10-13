@@ -17,10 +17,12 @@ import 'media_converter.dart';
 /// [VideoFormat.layoutShortSide] points on its short side, so they all frame the score the
 /// same way; bigger ones are only sharper.
 enum VideoResolution {
+  sd480(480, '480p'),
   hd720(720, '720p'),
   hd1080(1080, '1080p'),
   qhd1440(1440, '1440p'),
-  uhd2160(2160, '4K');
+  uhd2160(2160, '4K'),
+  uhd4320(4320, '8K');
 
   const VideoResolution(this.shortSide, this.label);
   final int shortSide;
@@ -36,7 +38,8 @@ enum VideoResolution {
 }
 
 /// A video's shape, width : height: one of the [presets], or any the user types between
-/// [min] and [max] (1:4 to 4:1; wider would be more pixels than H.264 allows at 4K).
+/// [min] and [max] (1:4 to 4:1; wider would be more pixels than H.264 allows at 4K; at 8K it
+/// allows only shapes near 16:9, see [VideoCodec.fits]).
 @immutable
 class VideoRatio {
   const VideoRatio(this.width, this.height);

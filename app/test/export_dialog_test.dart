@@ -62,7 +62,14 @@ void main() {
     String length() => tester.widget<Text>(find.textContaining(' frames')).data!.split(' · ').first;
     final whole = length();
 
-    await tester.tap(find.text('4K'));
+    Future<void> size(String label) async {
+      await tester.tap(find.byTooltip('Video size'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label).last);
+      await tester.pumpAndSettle();
+    }
+
+    await size('4K');
     await tester.tap(find.text('60'));
     await tester.tap(find.text('Dark'));
     await tester.pump();
@@ -88,9 +95,26 @@ void main() {
     expect((settings.videoCodec, settings.videoResolution, settings.videoFps), (VideoCodec.h264, VideoResolution.hd1080, 30));
     expect(tester.widget<IconButton>(find.ancestor(of: reset, matching: find.byType(IconButton))).onPressed, isNull,
         reason: 'nothing to reset');
-    await tester.tap(find.text('4K'));
+    await size('4K');
     await tester.tap(find.text('60'));
     await tester.pump();
+
+    // From 480p to 8K; 8K H.264 only as wide as about 16:9, so at 21:9 it can't be chosen.
+    await size('8K');
+    expect(find.textContaining('7680 × 4320'), findsOneWidget);
+    settings.videoRatio = const VideoRatio(21, 9);
+    await tester.pump();
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Export…')).onPressed, isNull,
+        reason: 'too many pixels for H.264');
+    await tester.tap(find.byTooltip('Video size'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<PopupMenuItem<VideoResolution>>(find.widgetWithText(PopupMenuItem<VideoResolution>, '8K')).enabled,
+        isFalse);
+    await tester.tap(find.text('480p').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('1120 × 480'), findsOneWidget);
+    settings.videoRatio = VideoRatio.widescreen;
+    await size('4K');
 
     // The ratio is the toolbar's; the dialog says which.
     expect(find.textContaining('16:9 · 3840 × 2160'), findsOneWidget);
