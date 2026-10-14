@@ -154,10 +154,12 @@ reads the sync (scroll, timeline, video export) then works unchanged. While it d
 anchors are derived: `SyncEditing` edits no anchor (its `_sync` is null), tapping is off, and
 the Audio tab draws the tempo map large instead of the anchors and the waveform. The map
 itself is edited there, as a sequencer's tempo track: a change dragged (up and down its tempo,
-sideways its place, snapped to beats), the step after it dragged for its tempo only, ⌥-drag
-drawing a step a beat (`MidiTempoMap.drawn`: the last drawn holds to the next change), Delete
-removing the selected change (`anchors.selected` holds tempo indices then). Each makes a new
-map (`moved` / `drawn` / `removed`) that `EditorController.editMidiTempo` follows from the same
+sideways its place, snapped to beats), the step after it dragged for its tempo only, ⌥-click
+on the line adding a change at the nearest beat (`inserted`: kept though it repeats the tempo,
+a point to drag), ⌥-drag drawing a step a beat (`MidiTempoMap.drawn`: the last drawn holds to
+the next change; only the stretch drawn loses repeats), Delete removing the selected change
+(`anchors.selected` holds tempo indices then). Each makes a new map (`moved` / `inserted` /
+`drawn` / `removed`) that `EditorController.editMidiTempo` follows from the same
 start; the lane's scale is held while a gesture lasts, so it doesn't re-fit under the pointer. The anchors
 set by hand are kept behind it (`EditorController._tapped`, saved as `sync.anchors`) and come
 back when the MIDI goes. Using or dropping one is an edit (`midi` in `EditState`, and

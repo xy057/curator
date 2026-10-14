@@ -100,9 +100,17 @@ void main() {
       expect(map.drawn([t(4, 120)], until: 5).tempos, map.tempos, reason: 'the tempo it had: nothing added');
     });
 
-    test('removing keeps the first change and drops repeats', () {
+    test('removing keeps the first change, and the others as they are', () {
       expect(map.removed({0, 1}).tempos, [t(0, 120), t(16, 90)]);
-      expect(MidiTempoMap('', [t(0, 90), t(4, 60), t(8, 90)]).removed({1}).tempos, [t(0, 90)]);
+      expect(MidiTempoMap('', [t(0, 90), t(4, 60), t(8, 90)]).removed({1}).tempos, [t(0, 90), t(8, 90)]);
+    });
+
+    test('inserting keeps the tempo there, as a change of its own', () {
+      expect(map.inserted(12).tempos, [t(0, 120), t(8, 60), t(12, 60), t(16, 90)]);
+      expect(map.inserted(8), map, reason: 'already a change there');
+      expect(map.inserted(0), map);
+      final kept = map.inserted(4).drawn([t(10, 70)], until: 11);
+      expect(kept.tempos, contains(t(4, 120)), reason: 'drawing elsewhere keeps it');
     });
   });
 }

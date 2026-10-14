@@ -260,8 +260,8 @@ class _AudioLanesState extends State<AudioLanes> {
 /// The MIDI tempo map in place of the anchors, the waveform and the tempo lane, edited as a
 /// sequencer's tempo track is: drag a change (up and down its tempo, sideways its place,
 /// snapped to beats; ⌘ = free, to a tenth of a beat a minute), or the step after it for its
-/// tempo only; ⌥-drag draws a step a beat; Delete removes the selected change. A click
-/// elsewhere moves the playhead.
+/// tempo only; ⌥-click on the line adds a change at the nearest beat, ⌥-drag draws a step a
+/// beat; Delete removes the selected change. A click elsewhere moves the playhead.
 class _MidiTempoLane extends StatefulWidget {
   const _MidiTempoLane({required this.controller, required this.name});
   final EditorController controller;
@@ -289,7 +289,9 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
   double _downBpm = 0;
 
   // Drawing over [_drawFrom]: the beats drawn (beats a minute by beat start), and the last point.
+  // [_inserting]: ⌥ went down on the line, which put a change there; moving draws instead.
   MidiTempoMap? _drawFrom;
+  bool _inserting = false;
   final _drawn = SplayTreeMap<double, double>();
   (double quarter, double bpm)? _last;
 
@@ -333,15 +335,28 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
     c.captions.select(null); // the Delete key goes to what was clicked here
     final midi = c.midiTempo;
     if (e.buttons != kPrimaryButton || midi == null) return;
-    final hit = HardwareKeyboard.instance.isAltPressed ? null : _hit(e.localPosition);
+    final hit = _hit(e.localPosition);
     if (HardwareKeyboard.instance.isAltPressed) {
-      c.anchors.select(null);
       c.beginEdit();
       _scale.value = _currentScale;
       _drawFrom = midi;
       _drawn.clear();
       _last = null;
-      _draw(e.localPosition);
+      _down = e.localPosition;
+      _inserting = hit != null;
+      if (_inserting) {
+        // On the line: a change at the beat nearest, keeping its tempo; drawing once it moves.
+        final sync = c.sync!;
+        var quarter = midi.quarterAt(c.viewport.seconds(e.localPosition.dx) - sync.startSeconds);
+        if (!isCommandPressed) quarter = sync.nearestGrid(quarter, SyncGrid.beat);
+        final inserted = quarter < sync.totalQuarters ? midi.inserted(quarter) : midi;
+        c.editMidiTempo(inserted);
+        final index = inserted.tempos.indexWhere((t) => t.quarter == quarter);
+        c.anchors.select(index < 0 ? null : index);
+      } else {
+        c.anchors.select(null);
+        _draw(e.localPosition);
+      }
     } else if (hit != null) {
       c.anchors.select(hit.index);
       c.beginEdit();
@@ -363,6 +378,12 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
   void _onMove(PointerMoveEvent e) {
     final p = e.localPosition;
     if (_drawFrom != null) {
+      if (_inserting) {
+        if ((p - _down).distance <= 4) return;
+        _inserting = false;
+        c.anchors.select(null);
+        _draw(_down);
+      }
       _draw(p);
     } else if (_from case final from?) {
       final scale = _scale.value!, t = from.tempos[_index];
@@ -439,7 +460,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Tip(message: 'Beats per minute\n${shortcut('⌥ draw · ⌘ no snap')}', child: const Text('MIDI tempo')),
+              Tip(message: 'Beats per minute\n${shortcut('⌥ add, draw · ⌘ no snap')}', child: const Text('MIDI tempo')),
               Text(widget.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textMuted)),
               if (c.track case final track?)
                 Text('♪ ${track.name}', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textMuted)),

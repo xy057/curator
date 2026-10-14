@@ -84,6 +84,22 @@ void main() {
     expect(c.midiTempo, original, reason: 'one Undo step');
     await tester.pump(const Duration(milliseconds: 400));
 
+    // ⌥-click on the line adds a change at the nearest beat, keeping the tempo there; it is
+    // selected and dragged as any other.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.tapAt(Offset(x(6.2), y(90)));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo!.tempos, [_t(0, 135), _t(6, 135), _t(12, 90)]);
+    expect(c.anchors.selected, {1});
+    await tester.dragFrom(Offset(x(6), y(90)), Offset(0, y(80) - y(90)));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo!.tempos, [_t(0, 135), _t(6, 120), _t(12, 90)]);
+    c.undo();
+    c.undo();
+    expect(c.midiTempo, original, reason: 'adding and dragging: an Undo step each');
+    await tester.pump(const Duration(milliseconds: 400));
+
     // A click selects a change, Delete removes it; a click off the line moves the playhead.
     await tester.tapAt(Offset(x(12), y(60)));
     await tester.pump(const Duration(milliseconds: 400));

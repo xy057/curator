@@ -107,28 +107,38 @@ class MidiTempoMap {
     return MidiTempoMap(name, [...tempos]..[index] = (quarter: quarter, quartersPerMinute: quartersPerMinute));
   }
 
+  /// A change at [quarter] keeping the tempo there (a point to drag from), kept although it
+  /// repeats the tempo before it. The map as it is when a change is already there, or
+  /// [quarter] is before the start.
+  MidiTempoMap inserted(double quarter) {
+    if (!(quarter > 0) || tempos.any((t) => t.quarter == quarter)) return this;
+    final at = tempos.lastWhere((t) => t.quarter < quarter);
+    return MidiTempoMap(name, [...tempos, (quarter: quarter, quartersPerMinute: at.quartersPerMinute)]
+      ..sort((a, b) => a.quarter.compareTo(b.quarter)));
+  }
+
   /// [changes] (in order) drawn over the changes from the first of them up to [until], as a
   /// sequencer's draw tool does: the last drawn tempo then holds to the next change after it.
+  /// Drawn changes repeating the tempo before them are left out, as is a change at [until]
+  /// repeating the last drawn; changes elsewhere stay as they are.
   MidiTempoMap drawn(List<MidiTempo> changes, {required double until}) {
     if (changes.isEmpty) return this;
     final from = changes.first.quarter;
-    return _tidy([
+    final all = [
       for (final t in tempos)
         if (t.quarter < from || t.quarter >= until) t,
       ...changes,
-    ]..sort((a, b) => a.quarter.compareTo(b.quarter)));
+    ]..sort((a, b) => a.quarter.compareTo(b.quarter));
+    return MidiTempoMap(name, [
+      for (final (i, t) in all.indexed)
+        if (i == 0 || t.quarter < from || t.quarter > until || t.quartersPerMinute != all[i - 1].quartersPerMinute) t,
+    ]);
   }
 
   /// Without the changes at [indices] (the first, at quarter 0, always stays).
-  MidiTempoMap removed(Set<int> indices) => _tidy([
+  MidiTempoMap removed(Set<int> indices) => MidiTempoMap(name, [
         for (final (i, t) in tempos.indexed)
           if (i == 0 || !indices.contains(i)) t,
-      ]);
-
-  /// [changes] without those repeating the tempo before them.
-  MidiTempoMap _tidy(List<MidiTempo> changes) => MidiTempoMap(name, [
-        for (final (i, t) in changes.indexed)
-          if (i == 0 || t.quartersPerMinute != changes[i - 1].quartersPerMinute) t,
       ]);
 
   /// The anchors that make a [SyncMap] follow this tempo map exactly, with the file's start
