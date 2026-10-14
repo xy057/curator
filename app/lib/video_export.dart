@@ -392,11 +392,18 @@ abstract final class VideoEncoder {
   static String _literal(String text) => text.replaceAll('%', '%%');
 
   /// Whether every file in [folder] is a frame [framePattern] names for a folder named [name]
-  /// (an earlier export, which a new one may replace).
+  /// (an earlier export, which a new one may replace), or what the system leaves in a folder
+  /// looked at (Finder's `.DS_Store`, Explorer's `Thumbs.db` and `desktop.ini`, a frame's `._`
+  /// twin on a disk that isn't the Mac's own).
   static bool onlyFrames(Directory folder, String name) {
-    final frame = RegExp('^${RegExp.escape(name)} \\d{5,}\\.png\$');
-    return folder.listSync().every((e) => e is File && frame.hasMatch(e.uri.pathSegments.last));
+    final frame = RegExp('^(\\._)?${RegExp.escape(name)} \\d{5,}\\.png\$');
+    return folder.listSync().every((e) {
+      final file = e.uri.pathSegments.last;
+      return e is File && (frame.hasMatch(file) || _systemFiles.contains(file));
+    });
   }
+
+  static const _systemFiles = {'.DS_Store', 'Thumbs.db', 'desktop.ini'};
 
   /// Seconds of fade where a sound is cut.
   static const declick = 0.01;
@@ -587,10 +594,12 @@ class VideoExport {
   /// at the end ([showBars]) fades out as the score comes to rest. The file (or folder)
   /// appears only once complete; a failed or cancelled export leaves nothing behind (and an
   /// older file of that name as it was). A folder is only replaced if it holds nothing but
-  /// an earlier export's frames. [onFrame] gets each frame as drawn, to show (its own handle:
+  /// an earlier export's frames; one that gains other files while the video is written keeps
+  /// them, and the video goes beside it instead ("Take 2"). Returns where the video went.
+  /// [onFrame] gets each frame as drawn, to show (its own handle:
   /// it disposes it), so nothing need draw the scene again at another size meanwhile, which
   /// would make the renderer draw its tiles again for every frame.
-  Future<void> write(
+  Future<String> write(
     String output, {
     required VideoFormat format,
     void Function(ExportProgress progress)? onProgress,
@@ -689,21 +698,34 @@ class VideoExport {
       if (code != 0) throw VideoExportException('FFmpeg couldn’t write the video.\n${_lastLines('$errors')}');
       Error.throwWithStackTrace(failure!.$1, failure.$2);
     }
+    var target = output;
     switch (FileSystemEntity.typeSync(output)) {
       case FileSystemEntityType.directory:
-        // Checked before it began; an earlier export's frames only.
+        // Checked before it began, but something may have been put in it since: a finished
+        // video isn't thrown away for that, it goes beside it.
         if (codec.isSequence && VideoEncoder.onlyFrames(Directory(output), name)) {
           Directory(output).deleteSync(recursive: true);
         } else {
-          part.deleteSync(recursive: true);
-          throw VideoExportException('“$name” already holds other files. Choose another name.');
+          target = _besides(output, file: !codec.isSequence);
         }
       case FileSystemEntityType.notFound:
         break;
       default:
         File(output).deleteSync();
     }
-    part.renameSync(output);
+    part.renameSync(target);
+    return target;
+  }
+
+  /// [path] with the first number that names nothing added to its name, before the extension
+  /// of a [file]: "Take 2", "Take 2.mp4" (a folder has none: "Op. 9 2").
+  static String _besides(String path, {required bool file}) {
+    final slash = path.lastIndexOf(RegExp(r'[/\\]')), dot = path.lastIndexOf('.');
+    final cut = file && dot > slash + 1 ? dot : path.length;
+    for (var i = 2;; i++) {
+      final free = '${path.substring(0, cut)} $i${path.substring(cut)}';
+      if (FileSystemEntity.typeSync(free) == FileSystemEntityType.notFound) return free;
+    }
   }
 
   /// The results of jobs `0 … count - 1`, in order, with up to [ahead] of them started while

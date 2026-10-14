@@ -473,14 +473,27 @@ Encoders:
       final alphas = {for (var i = 3; i < rgba.lengthInBytes; i += 4) rgba.getUint8(i)};
       expect(alphas, containsAll([0, 255]), reason: 'clear paper, solid ink');
 
-      // Again: an earlier export's frames are replaced; a folder with anything else isn't touched.
-      await export.write(out, format: format, to: 0.3);
+      // Again: an earlier export's frames are replaced, though Finder or Explorer has looked in;
+      // a folder with anything else isn't touched.
+      File('$out/.DS_Store').writeAsStringSync('');
+      File('$out/Thumbs.db').writeAsStringSync('');
+      expect(await export.write(out, format: format, to: 0.3), out);
       expect(Directory(out).listSync(), hasLength(3));
       File('$out/notes.txt').writeAsStringSync('mine');
       await expectLater(export.write(out, format: format, to: 0.3),
           throwsA(isA<VideoExportException>().having((e) => e.message, 'message', contains('other files'))));
       expect(File('$out/notes.txt').readAsStringSync(), 'mine');
       expect(Directory(out).listSync(), hasLength(4));
+
+      // Something put in the folder while the frames are written: they go beside it, not away.
+      File('$out/notes.txt').deleteSync();
+      final beside = await export.write(out, format: format, to: 0.3, onProgress: (p) {
+        if (p.frame == 1) File('$out/later.txt').writeAsStringSync('mine');
+      });
+      expect(beside, '$out 2');
+      expect(Directory(beside).listSync(), hasLength(3));
+      expect(File('$out/later.txt').readAsStringSync(), 'mine');
+      expect(Directory('$out.part').existsSync(), isFalse);
     }, skip: skip, timeout: const Timeout(Duration(minutes: 2)));
 
     test('the export condenses the pairs the editor did when it started', () {

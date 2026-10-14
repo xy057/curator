@@ -153,7 +153,7 @@ class _ExportDialogState extends State<_ExportDialog> {
       _progress = null;
     });
     try {
-      await _export.write(path,
+      final written = await _export.write(path,
           format: format,
           ffmpeg: _ffmpeg,
           // The still follows the frames written.
@@ -161,7 +161,7 @@ class _ExportDialogState extends State<_ExportDialog> {
           onProgress: (p) {
             if (mounted) setState(() => (_progress = p, _still = start + format.timeOf(p.frame - 1)));
           });
-      if (mounted) setState(() => _stage = _Stage.done);
+      if (mounted) setState(() => (_stage = _Stage.done, _output = written));
     } on VideoExportCancelled {
       if (mounted) setState(() => _stage = _Stage.setup);
     } catch (e) {
