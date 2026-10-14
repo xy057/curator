@@ -204,13 +204,6 @@ Encoders:
       expect(mov.hasAlpha, isTrue);
       expect(mov.paperColor.a, 0);
     });
-
-    test('H.264 and HEVC stop at their highest level\'s pixels; the others at the longest side drawn', () {
-      expect(VideoCodec.h264.fits(7680, 4320), isTrue, reason: '8K');
-      expect(VideoCodec.h264.fits(10080, 4320), isFalse, reason: '8K at 21:9');
-      expect(VideoCodec.prores.fits(10080, 4320), isTrue);
-      expect(VideoCodec.prores.fits(17280, 4320), isFalse);
-    });
   });
 
   test('frame rates: 30 to 120 offered, any from 1 to 240 typed; the broadcast ones exact', () {
@@ -235,7 +228,8 @@ Encoders:
 
   test('every size frames the score alike: 1080p is the 540-point layout at 2 pixels a point', () {
     expect(VideoFormat.of(VideoResolution.hd1080, fps: 30).devicePixelRatio, 2);
-    expect(VideoFormat.of(VideoResolution.uhd2160, fps: 30).devicePixelRatio, 4);
+    expect(VideoFormat.of(VideoResolution.qhd1440, fps: 30).devicePixelRatio, closeTo(8 / 3, 1e-9));
+    expect([for (final r in VideoResolution.values) r.label], ['480p', '720p', '1080p', '1440p'], reason: 'no 4K or 8K');
     for (final r in VideoResolution.values) {
       final f = VideoFormat.of(r, fps: 30);
       // 480p: 853⅓ pixels wide, rounded to an even 854.
@@ -254,7 +248,7 @@ Encoders:
       expect((at(VideoRatio.widescreen).width, at(VideoRatio.widescreen).height), (1920, 1080));
       expect((at(const VideoRatio(9, 16)).width, at(const VideoRatio(9, 16)).height), (1080, 1920));
       expect((at(const VideoRatio(1, 1)).width, at(const VideoRatio(1, 1)).height), (1080, 1080));
-      expect((at(const VideoRatio(4, 3), VideoResolution.uhd2160).width), 2880);
+      expect((at(const VideoRatio(4, 3), VideoResolution.qhd1440).width), 1920);
       // H.264 in 4:2:0 needs even sizes: 2.39 × 1080 = 2581.2, so 2582.
       expect(at(const VideoRatio(2.39, 1)).width, 2582);
       // Every ratio is laid out 540 points on its short side: 1080p is 2 pixels a point,

@@ -15,14 +15,13 @@ import 'media_converter.dart';
 /// A video's size: its short side in pixels ("1080p" is 1080 pixels high when wide, 1080
 /// wide when tall), the long one following from the [VideoRatio]. Every size is laid out
 /// [VideoFormat.layoutShortSide] points on its short side, so they all frame the score the
-/// same way; bigger ones are only sharper.
+/// same way; bigger ones are only sharper. Up to 1440p: at 4:1 that is still a frame every
+/// format writes and every GPU draws.
 enum VideoResolution {
   sd480(480, '480p'),
   hd720(720, '720p'),
   hd1080(1080, '1080p'),
-  qhd1440(1440, '1440p'),
-  uhd2160(2160, '4K'),
-  uhd4320(4320, '8K');
+  qhd1440(1440, '1440p');
 
   const VideoResolution(this.shortSide, this.label);
   final int shortSide;
@@ -38,8 +37,7 @@ enum VideoResolution {
 }
 
 /// A video's shape, width : height: one of the [presets], or any the user types between
-/// [min] and [max] (1:4 to 4:1; wider would be more pixels than H.264 allows at 4K; at 8K it
-/// allows only shapes near 16:9, see [VideoCodec.fits]).
+/// [min] and [max] (1:4 to 4:1).
 @immutable
 class VideoRatio {
   const VideoRatio(this.width, this.height);
@@ -152,16 +150,6 @@ enum VideoCodec {
 
   /// Whether it has a sound track.
   bool get hasSound => !isSequence;
-
-  /// The most pixels a frame may have: H.264's and HEVC's highest level (6.2) stop at about
-  /// 35.6 megapixels (8K is 33.2); the others go as far as a frame can be drawn ([maxSide]).
-  int get maxPixels => this == h264 || this == hevc ? 139264 * 256 : maxSide * maxSide;
-
-  /// The longest side a frame can be drawn at (the GPU's largest texture).
-  static const maxSide = 16384;
-
-  /// Whether a frame of [width] × [height] can be written.
-  bool fits(int width, int height) => math.max(width, height) <= maxSide && width * height <= maxPixels;
 }
 
 /// Light (black on white, the engraving's own colours) or dark paper, as in the app's themes.
@@ -217,9 +205,6 @@ class VideoFormat {
 
   /// The colour the frame is drawn on: the paper's, or none.
   ui.Color get paperColor => hasAlpha ? paper.paper.withValues(alpha: 0) : paper.paper;
-
-  /// Whether the [codec] can write frames this size.
-  bool get fits => codec.fits(width, height);
 
   /// Width over height, of the pixels themselves (the ratio, rounded to even pixels).
   double get aspectRatio => width / height;
@@ -621,9 +606,6 @@ class VideoExport {
     if (encoder == null) {
       throw VideoExportException(
           'This FFmpeg can’t write ${codec.label}. Install a full build (with ${codec.encoders.first}).');
-    }
-    if (!format.fits) {
-      throw VideoExportException('${codec.label} can’t be ${format.width} × ${format.height}. Choose a smaller size.');
     }
     final name = output.split(RegExp(r'[/\\]')).last;
     if (codec.isSequence && Directory(output).existsSync() && !VideoEncoder.onlyFrames(Directory(output), name)) {

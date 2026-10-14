@@ -107,7 +107,7 @@ class _ExportDialogState extends State<_ExportDialog> {
   bool _canWrite(VideoCodec codec) => _encoders?.intersection(codec.encoders.toSet()).isNotEmpty ?? true;
 
   /// Whether the video as chosen can be written.
-  bool get _writable => _ffmpeg != null && _range != null && _canWrite(_format.codec) && _format.fits;
+  bool get _writable => _ffmpeg != null && _range != null && _canWrite(_format.codec);
 
   void _setWhole() => _setBars(1, _export.bars);
 
@@ -387,14 +387,9 @@ class _ExportDialogState extends State<_ExportDialog> {
       ),
       _Row(
         label: 'Size',
-        // Those too big for the format at this ratio can't be chosen (8K H.264 wider than 16:9).
         child: _Select<VideoResolution>(
           value: _settings.videoResolution,
-          bad: !format.fits,
-          items: [
-            for (final r in VideoResolution.values)
-              (r, r.label, format.codec.fits(r.size(ratio).width, r.size(ratio).height)),
-          ],
+          items: [for (final r in VideoResolution.values) (r, r.label, true)],
           onChanged: (r) => setState(() => _settings.videoResolution = r),
         ),
       ),

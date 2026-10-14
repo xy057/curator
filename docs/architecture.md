@@ -93,8 +93,8 @@ out the rest): FFmpeg's own and its libraries, alike everywhere; for H.264 and H
 own (VideoToolbox, Media Foundation) last, for builds without them, its container and sound. A PNG sequence is a folder of numbered frames without
 sound, written as `<name>.part` and renamed; an existing folder is replaced only if it holds
 nothing but frames of that name (`VideoEncoder.onlyFrames`; `.DS_Store`, `Thumbs.db` and the like aside), never anything else; one that gains other files while it is written keeps them, and the frames go beside it ("Take 2", `write` returns where). Sizes run 480p
-to 8K; H.264 and HEVC stop at level 6.2's pixels (`VideoCodec.fits`: 8K only near 16:9), every
-format at the 16384-pixel side a frame can be drawn at.
+to 1440p (no 4K or 8K): at 4:1 that is 5760 × 1440, which every format writes and every GPU draws,
+so no size is ever too big.
 A transparent video (`AppSettings.videoTransparent`, only where `VideoCodec.alpha`:
 ProRes 4444, VP9 with alpha, RGBA PNG) is drawn on paper of alpha 0 (`VideoFormat.paperColor`),
 the paper choosing the ink. The renderer can't hide the music under the names by painting paper

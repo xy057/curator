@@ -10,11 +10,22 @@ import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:curated_score/video_export.dart' show VideoResolution;
 import 'package:score_engine/score_engine.dart' show CaptionCountdown, CaptionPosition, EngraveOption;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'test_fonts.dart';
 
 void main() {
+  test('a video size no longer offered (4K, 8K) comes back as 1080p', () async {
+    for (final gone in ['uhd2160', 'uhd4320']) {
+      SharedPreferences.setMockInitialValues({'videoResolution': gone});
+      expect((await AppSettings.load()).videoResolution, VideoResolution.hd1080, reason: gone);
+    }
+    SharedPreferences.setMockInitialValues({'videoResolution': 'qhd1440'});
+    expect((await AppSettings.load()).videoResolution, VideoResolution.qhd1440);
+  });
+
   Future<AppSettings> open(WidgetTester tester) async {
     final settings = AppSettings.memory();
     if (Platform.environment['SCREENSHOT_DIR'] != null) await tester.runAsync(loadTestFonts);
