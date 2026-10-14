@@ -971,7 +971,7 @@ class EditorController extends ChangeNotifier {
 
   /// Ends a gesture: merges what it left overlapping, and records it.
   void endEdit() {
-    if (_gestures == 0) return;
+    if (_gestures == 0 || _disposed) return;
     _gestures--;
     _curation?.normalize();
     _record();
