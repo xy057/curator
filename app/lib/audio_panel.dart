@@ -261,7 +261,8 @@ class _AudioLanesState extends State<AudioLanes> {
 /// sequencer's tempo track is: drag a change (up and down its tempo, sideways its place,
 /// snapped to beats; ⌘ = free, to a tenth of a beat a minute), or the step after it for its
 /// tempo only; ⌥-click on the line adds a change at the nearest beat, ⌥-drag draws a step a
-/// beat; Delete removes the selected change. A click elsewhere moves the playhead.
+/// beat; Delete removes the selected change. A click elsewhere moves the playhead. Warps (W)
+/// are lines across it; double-click one to change or remove it.
 class _MidiTempoLane extends StatefulWidget {
   const _MidiTempoLane({required this.controller, required this.name});
   final EditorController controller;
@@ -303,10 +304,36 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
 
   _TempoScale get _currentScale => _scale.value ?? _TempoScale.fit(c, _size.width, large: true);
 
-  /// Quarter notes a minute → beats a minute as the meter counts them at [quarter], and back.
-  double _beat(double quarter) {
+  // The file counts quarters as played: through a warp it runs on while the score jumps. Its
+  // quarter [at] is in the score where the sync puts the moment it sounds.
+
+  /// The score quarter where the file's quarter [at] sounds.
+  double _score(double at) {
     final sync = c.sync!;
-    final b = sync.beats.beatAt(quarter.clamp(0.0, sync.totalQuarters).toDouble());
+    return sync.quarterAtSeconds(sync.startSeconds + c.midiTempo!.secondsAt(at)).clamp(0.0, sync.totalQuarters).toDouble();
+  }
+
+  /// The file's quarter where the score ends, as it last reaches it.
+  double get _end => c.midiTempo!.quarterAt(c.sync!.anchors.last.seconds - c.sync!.startSeconds);
+
+  /// The score's beat around the file's quarter [at], in the file's quarters.
+  ({double start, double end}) _beatAround(double at) {
+    final q = _score(at), b = c.sync!.beats.beatAt(q);
+    return (start: _round(at - (q - b.start)), end: _round(at + (b.end - q)));
+  }
+
+  /// [at] moved onto the score's nearest beat.
+  double _snap(double at) {
+    final q = _score(at);
+    return _round(at + c.sync!.nearestGrid(q, SyncGrid.beat) - q);
+  }
+
+  /// Rounding off what going through seconds and back leaves (a millionth of a quarter).
+  static double _round(double at) => (at * 1e6).roundToDouble() / 1e6;
+
+  /// Quarter notes a minute → beats a minute as the meter counts them at [at], and back.
+  double _beat(double at) {
+    final b = _beatAround(at + 1e-7); // a beat's start is in it
     return b.end - b.start > 1e-9 ? b.end - b.start : 1;
   }
 
@@ -321,22 +348,45 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
     if (midi == null || sync == null) return null;
     final scale = _currentScale;
     ({int index, bool dot})? step;
+    final end = _end;
     for (final (i, t) in midi.tempos.indexed) {
-      if (t.quarter >= sync.totalQuarters) break;
+      if (t.quarter >= end) break;
       final x = _x(midi, t.quarter), y = scale.y(t.quartersPerMinute / _beat(t.quarter), _size);
       if ((p.dx - x).abs() <= _grab && (p.dy - y).abs() <= _grab + 2) return (index: i, dot: true);
-      final next = i + 1 < midi.tempos.length ? math.min(midi.tempos[i + 1].quarter, sync.totalQuarters) : sync.totalQuarters;
+      final next = i + 1 < midi.tempos.length ? math.min(midi.tempos[i + 1].quarter, end) : end;
       if (p.dx > x && p.dx < _x(midi, next) && (p.dy - y).abs() <= 5) step = (index: i, dot: false);
     }
     return step;
   }
 
+  /// The warp (its place among the map's warps) whose line is under [p].
+  int? _warpAt(Offset p) {
+    final warps = c.sync!.anchors.where((a) => a.isWarp).toList();
+    for (final (i, a) in warps.indexed) {
+      if ((c.viewport.x(a.seconds) - p.dx).abs() <= 4) return i;
+    }
+    return null;
+  }
+
+  Duration _lastDown = Duration.zero;
+  Offset _lastDownAt = Offset.zero;
+
   void _onDown(PointerDownEvent e) {
     c.captions.select(null); // the Delete key goes to what was clicked here
     final midi = c.midiTempo;
     if (e.buttons != kPrimaryButton || midi == null) return;
+    final doubleClick = e.timeStamp - _lastDown < const Duration(milliseconds: 350) &&
+        (e.localPosition - _lastDownAt).distance < 6;
+    _lastDown = e.timeStamp;
+    _lastDownAt = e.localPosition;
     final hit = _hit(e.localPosition);
-    if (HardwareKeyboard.instance.isAltPressed) {
+    final warp = hit == null ? _warpAt(e.localPosition) : null;
+    if (doubleClick && warp != null && !HardwareKeyboard.instance.isAltPressed) {
+      // Where it jumps from and to; an empty jump removes it.
+      _scrubbing = false;
+      c.playback.endScrub();
+      editMidiWarp(context, c, index: warp);
+    } else if (HardwareKeyboard.instance.isAltPressed) {
       c.beginEdit();
       _scale.value = _currentScale;
       _drawFrom = midi;
@@ -346,10 +396,9 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
       _inserting = hit != null;
       if (_inserting) {
         // On the line: a change at the beat nearest, keeping its tempo; drawing once it moves.
-        final sync = c.sync!;
-        var quarter = midi.quarterAt(c.viewport.seconds(e.localPosition.dx) - sync.startSeconds);
-        if (!isCommandPressed) quarter = sync.nearestGrid(quarter, SyncGrid.beat);
-        final inserted = quarter < sync.totalQuarters ? midi.inserted(quarter) : midi;
+        var quarter = midi.quarterAt(c.viewport.seconds(e.localPosition.dx) - c.sync!.startSeconds);
+        if (!isCommandPressed) quarter = _snap(quarter);
+        final inserted = quarter < _end ? midi.inserted(quarter) : midi;
         c.editMidiTempo(inserted);
         final index = inserted.tempos.indexWhere((t) => t.quarter == quarter);
         c.anchors.select(index < 0 ? null : index);
@@ -395,7 +444,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
         final previous = from.tempos[_index - 1];
         final seconds = from.secondsAt(t.quarter) + c.viewport.seconds(p.dx) - c.viewport.seconds(_down.dx);
         quarter = previous.quarter + (seconds - from.secondsAt(previous.quarter)) * previous.quartersPerMinute / 60;
-        if (!isCommandPressed) quarter = c.sync!.nearestGrid(quarter, SyncGrid.beat);
+        if (!isCommandPressed) quarter = _snap(quarter);
       }
       c.editMidiTempo(from.moved(_index, quarter: quarter, quartersPerMinute: bpm * _beat(quarter)));
     } else if (_scrubbing) {
@@ -406,23 +455,23 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
   /// Draws a step at every beat the pointer passed since the last point, the tempo going
   /// evenly from the last point's to this one's.
   void _draw(Offset p) {
-    final midi = c.midiTempo!, sync = c.sync!, from = _drawFrom!;
-    final quarter = midi.quarterAt(c.viewport.seconds(p.dx) - sync.startSeconds).clamp(0.0, sync.totalQuarters - 1e-6);
+    final midi = c.midiTempo!, sync = c.sync!, from = _drawFrom!, end = _end;
+    final quarter = midi.quarterAt(c.viewport.seconds(p.dx) - sync.startSeconds).clamp(0.0, end - 1e-6);
     final bpm = _bpmOf(_scale.value!.bpm(p.dy, _size));
     final last = _last ?? (quarter, bpm);
     _last = (quarter, bpm);
     final lo = math.min(last.$1, quarter), hi = math.max(last.$1, quarter);
-    for (var b = sync.beats.beatAt(lo).start;;) {
+    for (var b = _beatAround(lo).start;;) {
       final f = hi > lo ? ((b.clamp(lo, hi) - last.$1) / (quarter - last.$1)).clamp(0.0, 1.0) : 1.0;
       _drawn[b] = _bpmOf(last.$2 + (bpm - last.$2) * f);
-      final end = sync.beats.beatAt(b).end;
-      if (end <= b + 1e-9 || end > hi) break;
-      b = end;
+      final next = _beatAround(b + 1e-7).end;
+      if (next <= b + 1e-9 || next > hi) break;
+      b = next;
     }
-    final until = sync.beats.beatAt(_drawn.lastKey()!).end;
+    final until = _beatAround(_drawn.lastKey()! + 1e-7).end;
     c.editMidiTempo(from.drawn([
       for (final MapEntry(key: q, value: bpm) in _drawn.entries) (quarter: q, quartersPerMinute: bpm * _beat(q)),
-    ], until: until > _drawn.lastKey()! ? until : sync.totalQuarters));
+    ], until: until > _drawn.lastKey()! ? until : end));
   }
 
   void _onUp(PointerEvent e) {
@@ -440,7 +489,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
     final cursor = HardwareKeyboard.instance.isAltPressed
         ? SystemMouseCursors.precise
         : hit == null
-            ? SystemMouseCursors.basic
+            ? (_warpAt(e.localPosition) != null ? SystemMouseCursors.click : SystemMouseCursors.basic)
             : hit.dot && hit.index > 0
                 ? SystemMouseCursors.move
                 : SystemMouseCursors.resizeUpDown;
@@ -509,7 +558,8 @@ void _refused(BuildContext context, String? why) => ScaffoldMessenger.of(context
 /// warp at the playhead, on the bar (or beat) sounding there.
 Future<void> editWarp(BuildContext context, EditorController c) async {
   final sync = c.sync;
-  if (sync == null || c.usesMidiTempo) return;
+  if (sync == null) return;
+  if (c.usesMidiTempo) return editMidiWarp(context, c);
   final selected = c.anchors.selected.where((i) => i < sync.anchors.length);
   if (selected.length == 1) return _editAnchor(context, c, selected.single, warp: true);
 
@@ -520,6 +570,35 @@ Future<void> editWarp(BuildContext context, EditorController c) async {
   final set = await showAnchorDialog(context, beats: sync.beats, quarter: quarter, warp: true);
   if (set == null || !context.mounted) return;
   if (!c.anchors.addWarp(t, set.quarter, set.jumpTo)) _refused(context, null);
+}
+
+/// A MIDI tempo map's warp [index] to edit (an empty jump removes it), or with none, one to
+/// add at the playhead, on the bar (or beat) sounding there. The file plays on through a warp:
+/// moving where it arrives moves the moment the file jumps; the warps after it keep theirs.
+Future<void> editMidiWarp(BuildContext context, EditorController c, {int? index}) async {
+  final sync = c.sync!, midi = c.midiTempo!;
+  final arrivals = midi.arrivals(sync.totalQuarters);
+  final MidiWarp? warp = index != null && arrivals != null && index < arrivals.length ? midi.warps[index] : null;
+  final double at, arrival;
+  if (warp != null) {
+    at = warp.at;
+    arrival = arrivals![index!];
+  } else {
+    final t = c.playback.time.value, q = sync.quarterAtSeconds(t);
+    arrival = sync.nearestGrid(q, c.anchors.grid);
+    at = midi.quarterAt(t - sync.startSeconds) + arrival - q;
+  }
+  final set = await showAnchorDialog(context, beats: sync.beats, quarter: arrival, jumpTo: warp?.jumpTo, warp: true);
+  if (set == null || !context.mounted || c.midiTempo != midi) return;
+  final others = [...midi.warps]..remove(warp);
+  final moved = at + set.quarter - arrival;
+  if (set.jumpTo case final jumpTo?) {
+    if (others.any((w) => (w.at - moved).abs() < 1e-6) || !c.setMidiWarps([...others, (at: moved, jumpTo: jumpTo)])) {
+      _refused(context, null);
+    }
+  } else if (warp != null) {
+    c.setMidiWarps(others);
+  }
 }
 
 /// Audio tab tools (right of the tab switch). Every control explains itself on hover.
@@ -547,15 +626,15 @@ class AudioToolbar extends StatelessWidget {
           selected: c.usesMidiTempo,
           onPressed: () => c.usesMidiTempo ? c.useMidiTempo(null) : pickMidi(context, c),
         ),
+        if (!c.usesMidiTempo) _TapButton(controller: c),
+        ToolbarButton(
+          icon: Icons.u_turn_left_rounded,
+          tooltip: c.anchors.selected.length == 1 && !c.usesMidiTempo
+              ? 'Warp (W)\nMake this anchor jump to another bar'
+              : 'Warp (W)\nJump to another bar here',
+          onPressed: () => editWarp(context, c),
+        ),
         if (!c.usesMidiTempo) ...[
-          _TapButton(controller: c),
-          ToolbarButton(
-            icon: Icons.u_turn_left_rounded,
-            tooltip: c.anchors.selected.length == 1
-                ? 'Warp (W)\nMake this anchor jump to another bar'
-                : 'Warp (W)\nJump to another bar here',
-            onPressed: () => editWarp(context, c),
-          ),
           const ToolbarDivider(),
           Tip(
             message: 'Step for taps, ${shortcut('Option-click', 'Alt+click')}, and ↑/↓',
@@ -1131,7 +1210,7 @@ class _TempoPainter extends CustomPainter {
       ..color = colors.accent.withValues(alpha: 0.5)
       ..strokeWidth = 1.2;
     Offset? previous;
-    for (final (i, (s0, s1, bpm, extrapolated)) in segments.indexed) {
+    for (final (s0, s1, bpm, extrapolated) in segments) {
       final x0 = v.x(s0), x1 = v.x(s1);
       if (x1 < 0 || x0 > size.width) {
         previous = Offset(x1, y(bpm));
@@ -1146,12 +1225,6 @@ class _TempoPainter extends CustomPainter {
       } else {
         canvas.drawLine(Offset(x0, yy), Offset(x1, yy), line);
       }
-      // Step i follows anchor i - 1, which a MIDI tempo map puts at its change i - 1.
-      if (large && !extrapolated && x0 >= -6) {
-        final selected = c.anchors.selected.contains(i - 1);
-        if (selected) canvas.drawCircle(Offset(x0, yy), 6, Paint()..color = colors.surface);
-        canvas.drawCircle(Offset(x0, yy), selected ? 4.5 : 3, Paint()..color = colors.accentStrong);
-      }
       if (x1 - x0 > 34) {
         final tp = TextPainter(
           text: TextSpan(
@@ -1165,6 +1238,44 @@ class _TempoPainter extends CustomPainter {
           ..dispose();
       }
       previous = Offset(x1, yy);
+    }
+    if (c.midiTempo case final midi? when large) _paintMidi(canvas, size, midi, y);
+  }
+
+  /// A MIDI tempo map's warps (a line, labelled where it jumps from and to) and its changes (a
+  /// dot each, larger when selected).
+  void _paintMidi(Canvas canvas, Size size, MidiTempoMap midi, double Function(double bpm) y) {
+    final sync = c.sync!, v = c.viewport;
+    var lastLabelEnd = double.negativeInfinity;
+    for (final a in sync.anchors) {
+      final x = v.x(a.seconds);
+      if (!a.isWarp || x < -40 || x > size.width + 40) continue;
+      canvas.drawRect(Rect.fromLTWH(x - 1, 0, 2, size.height), Paint()..color = colors.accent.withValues(alpha: 0.7));
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '${sync.beats.format(a.quarter, compact: true)}→${sync.beats.format(a.jumpTo!, compact: true)}',
+          style: TextStyle(fontSize: 10.5, color: colors.text),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      if (x + 4 > lastLabelEnd + 3) {
+        tp.paint(canvas, Offset(x + 4, 3));
+        lastLabelEnd = x + 4 + tp.width;
+      }
+      tp.dispose();
+    }
+    final end = sync.anchors.last.seconds;
+    for (final (i, t) in midi.tempos.indexed) {
+      final seconds = sync.startSeconds + midi.secondsAt(t.quarter);
+      if (seconds >= end) break;
+      final x = v.x(seconds);
+      if (x < -6 || x > size.width + 6) continue;
+      final beat = sync.beats.beatAt(sync.quarterAtSeconds(seconds).clamp(0.0, sync.totalQuarters) + 1e-7);
+      final length = beat.end - beat.start > 1e-9 ? beat.end - beat.start : 1;
+      final at = Offset(x, y(t.quartersPerMinute / length));
+      final selected = c.anchors.selected.contains(i);
+      if (selected) canvas.drawCircle(at, 6, Paint()..color = colors.surface);
+      canvas.drawCircle(at, selected ? 4.5 : 3, Paint()..color = colors.accentStrong);
     }
   }
 

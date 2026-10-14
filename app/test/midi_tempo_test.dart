@@ -93,6 +93,34 @@ void main() {
     expect(() => ProjectState.fromJson({'sync': {'midi': {'tempos': [[1, 90]]}}}), throwsFormatException);
   });
 
+  test('warps stay with a MIDI file: the score jumps where the file, playing on, reaches them', () async {
+    // Hand-set: bar 3 (quarter 6 in 6/8) jumps back to bar 1.
+    final starts = c.sync!.measureStarts;
+    c.sync!.load([SyncAnchor(0, 2), SyncAnchor(starts[2], 5, jumpTo: 0), SyncAnchor(starts[4], 9)]);
+    await c.loadMidiTempo(_midiFile().path);
+    expect(c.midiTempo!.warps, [(at: starts[2], jumpTo: 0.0)], reason: 'the warps set by hand carry over');
+    final sync = c.sync!;
+    expect(sync.passes, hasLength(2));
+    // ♩ = 90 throughout the first 12 quarters the file plays: bar 1 again at file quarter 6.
+    expect(sync.secondsAtQuarter(0, pass: 1), closeTo(2 + starts[2] * 60 / 90, 1e-4));
+    expect(sync.secondsAtQuarter(starts[2], pass: 1), closeTo(2 + 8 + (2 * starts[2] - 12), 1e-4),
+        reason: 'the file\'s change at quarter 12 lands in the second pass');
+
+    await c.loadMidiTempo(_midiFile().path);
+    expect(c.midiTempo!.warps, [(at: starts[2], jumpTo: 0.0)], reason: 'a file read in place of another keeps them');
+
+    expect(c.setMidiWarps([(at: starts[2], jumpTo: c.sync!.totalQuarters)]), isFalse, reason: 'goes on from the end');
+    expect(c.setMidiWarps(const []), isTrue);
+    expect(c.sync!.passes, hasLength(1));
+    c.undo();
+    expect(c.midiTempo!.warps, hasLength(1), reason: 'one Undo step');
+
+    final state = ProjectState.fromJson(jsonDecode(jsonEncode(c.projectState.toJson())) as Map<String, Object?>);
+    expect(state.edits.midi, c.midiTempo, reason: 'saved with the map');
+    expect(ProjectState.fromJson({'sync': {'midi': {'tempos': [[0, 90]]}}}, savedVersion: 14).edits.midi!.warps, isEmpty);
+    expect(() => ProjectState.fromJson({'sync': {'midi': {'tempos': [[0, 90]], 'warps': [[0, 4]]}}}), throwsFormatException);
+  });
+
   test('a file that is not MIDI changes nothing', () async {
     expect(() => c.loadMidiTempo(demoScore.path), throwsFormatException);
     expect(c.usesMidiTempo, isFalse);

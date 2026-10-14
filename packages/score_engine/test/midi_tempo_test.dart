@@ -113,4 +113,45 @@ void main() {
       expect(kept.tempos, contains(t(4, 120)), reason: 'drawing elsewhere keeps it');
     });
   });
+
+  group('warps', () {
+    MidiTempo t(double quarter, double qpm) => (quarter: quarter, quartersPerMinute: qpm);
+    // A 16-quarter score whose first 8 are repeated: the file plays 24 quarters, at 60 a
+    // minute, slowing to 30 on the way through the repeat.
+    final measures = [for (var i = 0; i <= 4; i++) i * 4.0];
+    final map = MidiTempoMap('r.mid', [t(0, 60), t(12, 30)], warps: [(at: 8, jumpTo: 0)]);
+
+    test('the file runs on through a jump: its quarters are played quarters', () {
+      expect(map.arrivals(16), [8]);
+      final anchors = map.anchors(start: 1, totalQuarters: 16);
+      expect(anchors, [
+        const SyncAnchor(0, 1),
+        const SyncAnchor(8, 9, jumpTo: 0),
+        const SyncAnchor(4, 13), // the change at file quarter 12: bar 2 the second time
+        const SyncAnchor(16, 13 + 12 * 2),
+      ]);
+      final sync = SyncMap(measureStarts: measures, defaultTempo: 90)..load(anchors);
+      expect(sync.passes, hasLength(2));
+      expect(sync.secondsAtQuarter(2, pass: 0), closeTo(3, 1e-9));
+      expect(sync.secondsAtQuarter(2, pass: 1), closeTo(11, 1e-9));
+      expect(sync.secondsAtQuarter(6, pass: 1), closeTo(13 + 2 * 2, 1e-9), reason: 'at 30 a minute');
+    });
+
+    test('warps that don\'t fit the score are left out', () {
+      expect(map.withWarps([(at: 20, jumpTo: 0)]).arrivals(16), isNull, reason: 'arrives past the end');
+      expect(map.withWarps([(at: 8, jumpTo: 16)]).arrivals(16), isNull, reason: 'goes on from the end');
+      final straight = map.withWarps([(at: 20, jumpTo: 0)]).anchors(start: 0, totalQuarters: 16);
+      expect(straight.any((a) => a.isWarp), isFalse);
+      expect(straight.last.quarter, 16);
+    });
+
+    test('hand-set warps carry over as where a file would jump; edits keep the warps', () {
+      final hand = [const SyncAnchor(0, 0), const SyncAnchor(8, 8, jumpTo: 0), const SyncAnchor(12, 20, jumpTo: 14)];
+      expect(MidiTempoMap.warpsOf(hand), [(at: 8.0, jumpTo: 0.0), (at: 20.0, jumpTo: 14.0)]);
+      expect(map.moved(1, quarter: 10, quartersPerMinute: 40).warps, map.warps);
+      expect(map.inserted(4).drawn([t(5, 50)], until: 6).removed({1}).warps, map.warps);
+      expect(MidiTempoMap('x.mid', map.tempos).withWarpsOf(map).warps, map.warps, reason: 'another file read in its place');
+      expect(map.withWarps(const []), isNot(map), reason: 'warps count in equality');
+    });
+  });
 }

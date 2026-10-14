@@ -306,7 +306,7 @@ void main() {
     final state = ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 1);
     expect(state.edits.condensed, isEmpty);
     expect(state.edits.pairs, isEmpty);
-    expect(ProjectState.version, 14);
+    expect(ProjectState.version, 15);
     expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).edits.pairs, isEmpty);
   });
 
