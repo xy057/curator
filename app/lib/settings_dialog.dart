@@ -708,7 +708,7 @@ class _SidebarTileState extends State<_SidebarTile> {
     final colors = context.colors;
     final selected = widget.selected;
     // Raised off the sidebar: white on the light grey, a lighter grey on the dark one; in the
-    // refined style a solid accent row with white text, as a desktop source list's.
+    // refined style a solid accent row, as a desktop source list's.
     final dark = Theme.of(context).brightness == Brightness.dark;
     final refined = isRefined(context);
     final solid = refined && selected;
@@ -747,12 +747,12 @@ class _SidebarTileState extends State<_SidebarTile> {
                 ],
               ),
               child: Row(children: [
-                Icon(widget.icon, size: 16, color: solid ? Colors.white : selected ? colors.accentStrong : colors.textMuted),
+                Icon(widget.icon, size: 16, color: solid ? colors.onAccentFill : selected ? colors.accentStrong : colors.textMuted),
                 const SizedBox(width: 10),
                 Text(widget.label,
                     style: TextStyle(
                       fontSize: 13,
-                      color: solid ? Colors.white : colors.text,
+                      color: solid ? colors.onAccentFill : colors.text,
                       fontWeight: selected && !refined ? FontWeight.w600 : FontWeight.w400,
                     )),
               ]),
@@ -865,7 +865,7 @@ class _AccentPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final brightness = Theme.of(context).brightness;
     return Wrap(spacing: 6, children: [
       for (final accent in AccentColor.values)
         Tip(
@@ -883,12 +883,12 @@ class _AccentPicker extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: settings.accent == accent ? (dark ? accent.color : accent.strong) : Colors.transparent,
+                    color: settings.accent == accent ? accent.shade(brightness) : Colors.transparent,
                     width: 2,
                   ),
                 ),
                 child: DecoratedBox(
-                  decoration: BoxDecoration(color: dark ? accent.color : accent.strong, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: accent.shade(brightness), shape: BoxShape.circle),
                 ),
               ),
             ),
