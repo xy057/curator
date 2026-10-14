@@ -45,6 +45,10 @@ void main() {
     expect(TextDynamics.dynamicOf(_words('cresc.', font: 'Maestro')), isNull); // not a dynamic
     expect(TextDynamics.dynamicOf(_words('fpz', font: 'Maestro')), isNull);
     expect(TextDynamics.dynamicOf(_words('\u{E522} sub.')), isNull);
+    // A music font's "n" is a natural sign; niente is SMuFL's character only.
+    expect(TextDynamics.dynamicOf(_words('n', font: 'Maestro')), isNull);
+    expect(TextDynamics.dynamicOf(_words('N', font: 'Opus Text')), isNull);
+    expect(TextDynamics.dynamicOf(_words('\u{E526}')), 'n');
   });
 
   test('a dynamic keeps its place, and text beside it stays beside it', () {

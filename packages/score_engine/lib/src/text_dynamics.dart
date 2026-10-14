@@ -29,7 +29,8 @@ abstract final class TextDynamics {
     if (!_inMusicFont(words.getAttribute('font-family'))) return null;
     // Case aside: an exporter may map the glyph to another letter through its font's table.
     final name = text.toLowerCase();
-    return _names.contains(name) ? name : null;
+    // In these fonts "n" is the natural sign, not niente (that is only SMuFL's character).
+    return name != 'n' && _names.contains(name) ? name : null;
   }
 
   /// The letters a run of SMuFL dynamics characters spells, or null if [text] has others.
