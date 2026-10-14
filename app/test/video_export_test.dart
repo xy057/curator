@@ -184,8 +184,10 @@ Encoders:
       expect(opaque, isNot(contains('bt709')));
       expect(opaque, endsWith('-f image2 -start_number 1 out'));
       expect(line(VideoCodec.png, 'png', transparent: true), contains('-vf format=rgba'));
-      expect(VideoEncoder.framePattern('Take', 900), 'Take %05d.png');
-      expect(VideoEncoder.framePattern('Take', 216000), 'Take %06d.png');
+      expect(VideoEncoder.framePattern('/v/Take.part', 'Take', 900), '/v/Take.part/Take %05d.png');
+      expect(VideoEncoder.framePattern('/v/Take.part', 'Take', 216000), '/v/Take.part/Take %06d.png');
+      expect(VideoEncoder.framePattern('/50% off/A%d.part', 'A%d', 9), '/50%% off/A%%d.part/A%%d %05d.png',
+          reason: 'FFmpeg reads the whole path as the pattern');
     });
 
     test('transparent only where the format keeps it: an MP4 is always on paper', () {
@@ -441,6 +443,13 @@ Encoders:
       final export = VideoExport.of(c);
       addTearDown(export.dispose);
       final out = '${dir.path}/Demo';
+      // A "%" in the path is a percent sign, not a pattern.
+      final percent = Directory('${dir.path}/50% off')..createSync();
+      const tiny = VideoFormat(width: 320, height: 180, fps: 10, codec: VideoCodec.png);
+      await export.write('${percent.path}/A%d', format: tiny, to: 0.2);
+      expect(Directory('${percent.path}/A%d').listSync().map((f) => f.uri.pathSegments.last).toList()..sort(),
+          ['A%d 00001.png', 'A%d 00002.png']);
+
       const format = VideoFormat(width: 320, height: 180, fps: 10, codec: VideoCodec.png, transparent: true);
       await export.write(out, format: format, to: 0.5);
       final files = Directory(out).listSync().map((f) => f.uri.pathSegments.last).toList()..sort();

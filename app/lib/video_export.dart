@@ -383,9 +383,13 @@ abstract final class VideoEncoder {
     ];
   }
 
-  /// What a sequence of [frames] frames in a folder named [name] calls them, for FFmpeg:
-  /// "name %05d.png", numbered from 1 with as many digits as the last needs (at least 5).
-  static String framePattern(String name, int frames) => '$name %0${math.max(5, '$frames'.length)}d.png';
+  /// What a sequence of [frames] frames in [folder], named [name], calls them, for FFmpeg:
+  /// "folder/name %05d.png", numbered from 1 with as many digits as the last needs (at least
+  /// 5). FFmpeg reads the whole path as the pattern, so a "%" in it is written "%%".
+  static String framePattern(String folder, String name, int frames) =>
+      '${_literal(folder)}/${_literal(name)} %0${math.max(5, '$frames'.length)}d.png';
+
+  static String _literal(String text) => text.replaceAll('%', '%%');
 
   /// Whether every file in [folder] is a frame [framePattern] names for a folder named [name]
   /// (an earlier export, which a new one may replace).
@@ -629,7 +633,7 @@ class VideoExport {
           encoder: encoder,
           format: format,
           seconds: frames / format.fps,
-          output: codec.isSequence ? '$partial/${VideoEncoder.framePattern(name, frames)}' : partial,
+          output: codec.isSequence ? VideoEncoder.framePattern(partial, name, frames) : partial,
           audio: audio,
           audioStart: start,
           fadeOut: fadeOut),
