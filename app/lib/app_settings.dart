@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart'
-    show CaptionCountdown, CaptionPosition, CaptionSize, EngravingOptions, MusicFont, TextFonts;
+    show CaptionCountdown, CaptionPosition, CaptionSize, EngravingOptions, MusicFont, TextDynamics, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
@@ -35,6 +35,7 @@ class AppSettings extends ChangeNotifier {
         _videoTransparent = _prefs?.getBool(_videoTransparentKey) ?? false,
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
+        _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? true,
         _attachImage = _prefs?.getBool(_attachImageKey) ?? false,
         _captions = _prefs?.getBool(_captionsKey) ?? false,
         _captionFont = _prefs?.getString(_captionFontKey) ?? '',
@@ -66,6 +67,7 @@ class AppSettings extends ChangeNotifier {
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
+  static const _textDynamicsKey = 'textDynamics';
 
   static double _readFps(SharedPreferences? prefs) {
     try {
@@ -381,6 +383,19 @@ class AppSettings extends ChangeNotifier {
     } on FormatException {
       return const EngravingOptions();
     }
+  }
+
+  // MARK: Flags
+
+  /// Dynamics a notation program wrote as text ("f" in a music font) are engraved as dynamics
+  /// ([TextDynamics]). On by default.
+  bool get textDynamics => _textDynamics;
+  bool _textDynamics;
+  set textDynamics(bool value) {
+    if (value == _textDynamics) return;
+    _textDynamics = value;
+    _prefs?.setBool(_textDynamicsKey, value);
+    notifyListeners();
   }
 
   // MARK: Update

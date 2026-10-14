@@ -249,6 +249,15 @@ final _categories = <_Category>[
         keywords: '${e.keywords} extension',
       ),
   ], empty: 'No extensions yet.'),
+  // Fixes for how other programs write their files, on by default; a switch to turn one off.
+  _Category('Flags', Icons.flag_outlined, [
+    _Item(
+      'Dynamics typed as text',
+      (_) => 'Engraves “f” set in a music font as a dynamic.',
+      (c) => AppSwitch(value: c.settings.textDynamics, onChanged: (v) => c.settings.textDynamics = v),
+      keywords: 'flag dynamics text words music font maestro opus sibelius finale import musicxml forte piano',
+    ),
+  ]),
   // The page is _AboutPage; these rows are what the search finds.
   _Category('About', Icons.info_outline_rounded, page: (c) => _AboutPage(c), [
     _Item(
