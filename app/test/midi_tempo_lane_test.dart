@@ -3,10 +3,12 @@
 // beat, select one and Delete it; each one Undo step.
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_panel.dart';
+import 'package:curated_score/dialog_kit.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/lanes_common.dart';
 import 'package:curated_score/main.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -111,5 +113,24 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(c.anchors.selected, isEmpty);
     expect(c.playback.time.value, closeTo(1 + 6 * 60 / 135, 0.05));
+
+    // A warp is a line across the lane: double-click it to change where it jumps; an empty
+    // jump removes it. The bar 5 the file reaches at its quarter 12 jumps back to bar 1.
+    c.undo(); // the change Delete removed
+    expect(c.setMidiWarps([(at: 12, jumpTo: 0)]), isTrue);
+    expect(c.sync!.passes, hasLength(2));
+    await tester.pump(const Duration(milliseconds: 400));
+    final warpX = lane().left + kLaneHeaderWidth + c.viewport.x(c.sync!.anchors.firstWhere((a) => a.isWarp).seconds);
+    await tester.tapAt(Offset(warpX, lane().top + 40));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(Offset(warpX, lane().top + 40));
+    await tester.pumpAndSettle();
+    expect(find.text('Warp'), findsOneWidget);
+    await tester.enterText(find.descendant(of: find.byType(AppDialog), matching: find.byType(EditableText)).at(1), ''); // At, then Jump to
+    await tester.pump();
+    await tester.tap(find.text('Set'));
+    await tester.pumpAndSettle();
+    expect(c.midiTempo!.warps, isEmpty);
+    expect(c.sync!.passes, hasLength(1));
   });
 }

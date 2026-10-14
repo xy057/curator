@@ -181,7 +181,7 @@ class ProjectState {
   final ViewState view;
 
   /// The version [toJson] writes (the project file's format version).
-  static const version = 14;
+  static const version = 15;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version].
@@ -199,6 +199,7 @@ class ProjectState {
     11: (state) => state, // a caption font came in 12: none is the app's
     12: (state) => state, // a project's engraving options came in 13: none, the app's
     13: (state) => state, // not embedding a font came in 14: every added font embedded
+    14: (state) => state, // a MIDI tempo map's warps came in 15: none
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -336,7 +337,16 @@ class ProjectState {
       }
     }
     if (tempos.isEmpty) throw FormatException('The project is damaged: ${r.where}.tempos is empty.');
-    return MidiTempoMap(r.string('name') ?? '', tempos);
+    final warps = <MidiWarp>[
+      if (!r.isAbsent('warps'))
+        for (final (i, w) in r.list('warps').indexed)
+          switch (w) {
+            [final num at, final num jumpTo] when at > 0 && jumpTo >= 0 && at.isFinite && jumpTo.isFinite =>
+              (at: at.toDouble(), jumpTo: jumpTo.toDouble()),
+            _ => throw FormatException('The project is damaged: ${r.where}.warps[$i] is not a quarter and where it jumps to.'),
+          },
+    ];
+    return MidiTempoMap(r.string('name') ?? '', tempos, warps: warps);
   }
 
   static ImagePatch _patch(JsonReader r, Map<String, PatchImage> images) {
@@ -437,6 +447,7 @@ class ProjectState {
           'midi': {
             'name': midi.name,
             'tempos': [for (final t in midi.tempos) [t.quarter, t.quartersPerMinute]],
+            if (midi.warps.isNotEmpty) 'warps': [for (final w in midi.warps) [w.at, w.jumpTo]],
           },
         'anchors': [
           for (final a in anchors) {'quarter': a.quarter, 'seconds': a.seconds, 'jumpTo': ?a.jumpTo},

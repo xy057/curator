@@ -165,6 +165,16 @@ set by hand are kept behind it (`EditorController._tapped`, saved as `sync.ancho
 back when the MIDI goes. Using or dropping one is an edit (`midi` in `EditState`, and
 `sync.midi` in the project from format 7, its tempos as `[quarter, quarters a minute]`).
 
+A file that plays the repeats out keeps the score's form in its warps (`MidiTempoMap.warps`,
+W or the Warp button, saved as `sync.midi.warps` from format 15). The file counts quarters
+as played, as `SyncMap`'s performed position does, so a warp is `(at, jumpTo)`: at the file's
+quarter `at` the score goes on from `jumpTo`; where it arrives from follows (`arrivals`), and
+`anchors` walks the passes, a change of tempo landing in whichever pass plays it. Editing one
+(double-click its line; an empty jump removes it) moves the moment it jumps, never those after.
+Reading a file keeps the warps the sync had: the old file's, or those set by hand
+(`MidiTempoMap.warpsOf`), so the form is set once. The lane works in the file's quarters and
+asks the sync where they are in the score for beats and snapping (`_score`, `_beatAround`).
+
 **An image scrolls with the score** (the Attach Image extension). Right-click the preview ▸
 Add Image… (an SVG, drawn as vectors, or a PNG / JPEG: the file's type says which), or Paste (⌘V: a PNG, SVG text, or a copied
 file), puts one where it was clicked (⌘V: at the pointer); a file dropped on the score, where

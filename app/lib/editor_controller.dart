@@ -804,11 +804,14 @@ class EditorController extends ChangeNotifier {
   List<SyncAnchor> get _ownAnchors => _midi == null ? _sync!.anchors : _tapped;
 
   /// Reads the tempo map of the MIDI file at [path] and follows it ([useMidiTempo]). Throws
-  /// a [FormatException] (changing nothing) when it isn't a MIDI file with a tempo map.
+  /// a [FormatException] (changing nothing) when it isn't a MIDI file with a tempo map. It
+  /// keeps the warps the sync has (see [MidiTempoMap.warps]).
   Future<void> loadMidiTempo(String path) async {
-    final map = MidiTempoMap.read(await File(path).readAsBytes(), name: path.split(RegExp(r'[/\\]')).last);
-    if (_sync == null) return;
-    useMidiTempo(map);
+    final read = MidiTempoMap.read(await File(path).readAsBytes(), name: path.split(RegExp(r'[/\\]')).last);
+    final sync = _sync;
+    if (sync == null) return;
+    // The score's form stays: the warps of the file it replaces, or those set by hand.
+    useMidiTempo(_midi != null ? read.withWarpsOf(_midi) : read.withWarps(MidiTempoMap.warpsOf(sync.anchors)));
     _tab = BottomTab.audio;
     notifyListeners();
   }
@@ -838,6 +841,17 @@ class EditorController extends ChangeNotifier {
     if (_midi == null || _sync == null || map == _midi) return;
     _midi = map;
     _followMidi(_sync!.startSeconds);
+  }
+
+  /// Gives the MIDI tempo map being followed [warps] instead (one Undo step). False, changing
+  /// nothing, when they don't fit the score (see [MidiTempoMap.arrivals]).
+  bool setMidiWarps(List<MidiWarp> warps) {
+    final midi = _midi, sync = _sync;
+    if (midi == null || sync == null) return false;
+    final map = midi.withWarps(warps);
+    if (map.arrivals(sync.totalQuarters) == null) return false;
+    editMidiTempo(map);
+    return true;
   }
 
   /// Puts the derived anchors of the MIDI tempo map in the sync, with its start at [start].

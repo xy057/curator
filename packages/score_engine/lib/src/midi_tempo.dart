@@ -7,6 +7,10 @@ import 'sync_map.dart';
 /// [quartersPerMinute] quarter notes a minute.
 typedef MidiTempo = ({double quarter, double quartersPerMinute});
 
+/// A jump in the score as the MIDI file plays on: at [at] (quarter notes from the start of the
+/// file) the score goes on from [jumpTo] (score quarters): back for a repeat, on to a coda.
+typedef MidiWarp = ({double at, double jumpTo});
+
 /// The tempo map of a Standard MIDI File: its tempo changes, in quarter notes from its start.
 ///
 /// The file's start is the start of the score (bar 1, or its upbeat), and the tempo holds
@@ -15,7 +19,9 @@ typedef MidiTempo = ({double quarter, double quartersPerMinute});
 @immutable
 class MidiTempoMap {
   /// [tempos] in order, the first at quarter 0 (see [MidiTempoMap.read]).
-  MidiTempoMap(this.name, List<MidiTempo> tempos) : tempos = List.unmodifiable(tempos) {
+  MidiTempoMap(this.name, List<MidiTempo> tempos, {List<MidiWarp> warps = const []})
+      : tempos = List.unmodifiable(tempos),
+        warps = List.unmodifiable([...warps]..sort((a, b) => a.at.compareTo(b.at))) {
     if (tempos.isEmpty || tempos.first.quarter != 0) throw ArgumentError('A tempo map starts at quarter 0.');
   }
 
@@ -24,6 +30,11 @@ class MidiTempoMap {
 
   /// Every change of tempo, in order; the first is at quarter 0.
   final List<MidiTempo> tempos;
+
+  /// Where the score jumps as the file plays on (repeats played out), in order. The file
+  /// counts quarters as played, so its quarter `q` is in the score where the jumps before it
+  /// put it (see [anchors]).
+  final List<MidiWarp> warps;
 
   /// What a MIDI file without a tempo plays at (the standard's 500 000 µs a quarter).
   static const defaultQuartersPerMinute = 120.0;
@@ -104,7 +115,7 @@ class MidiTempoMap {
     final previous = index > 0 ? tempos[index - 1].quarter : null;
     final next = index + 1 < tempos.length ? tempos[index + 1].quarter : null;
     if (previous == null || quarter <= previous || (next != null && quarter >= next)) quarter = tempos[index].quarter;
-    return MidiTempoMap(name, [...tempos]..[index] = (quarter: quarter, quartersPerMinute: quartersPerMinute));
+    return MidiTempoMap(name, [...tempos]..[index] = (quarter: quarter, quartersPerMinute: quartersPerMinute), warps: warps);
   }
 
   /// A change at [quarter] keeping the tempo there (a point to drag from), kept although it
@@ -114,7 +125,7 @@ class MidiTempoMap {
     if (!(quarter > 0) || tempos.any((t) => t.quarter == quarter)) return this;
     final at = tempos.lastWhere((t) => t.quarter < quarter);
     return MidiTempoMap(name, [...tempos, (quarter: quarter, quartersPerMinute: at.quartersPerMinute)]
-      ..sort((a, b) => a.quarter.compareTo(b.quarter)));
+      ..sort((a, b) => a.quarter.compareTo(b.quarter)), warps: warps);
   }
 
   /// [changes] (in order) drawn over the changes from the first of them up to [until], as a
@@ -132,32 +143,86 @@ class MidiTempoMap {
     return MidiTempoMap(name, [
       for (final (i, t) in all.indexed)
         if (i == 0 || t.quarter < from || t.quarter > until || t.quartersPerMinute != all[i - 1].quartersPerMinute) t,
-    ]);
+    ], warps: warps);
   }
 
   /// Without the changes at [indices] (the first, at quarter 0, always stays).
   MidiTempoMap removed(Set<int> indices) => MidiTempoMap(name, [
         for (final (i, t) in tempos.indexed)
           if (i == 0 || !indices.contains(i)) t,
-      ]);
+      ], warps: warps);
+
+  /// The same tempos with [warps] instead.
+  MidiTempoMap withWarps(List<MidiWarp> warps) => MidiTempoMap(name, tempos, warps: warps);
+
+  /// The same warps under another tempo map (another file read in place of this one).
+  MidiTempoMap withWarpsOf(MidiTempoMap? other) => other == null ? this : withWarps(other.warps);
+
+  /// Each warp's arrival in the score (where it jumps from), or null when the warps don't fit
+  /// a score of [totalQuarters]: each must arrive further on than the one before went on
+  /// from, inside the score, and go on from inside it.
+  List<double>? arrivals(double totalQuarters) {
+    final result = <double>[];
+    var start = 0.0, at = 0.0;
+    for (final w in warps) {
+      final arrive = start + w.at - at;
+      if (w.at <= at || arrive > totalQuarters + 1e-9 || w.jumpTo < 0 || w.jumpTo >= totalQuarters) return null;
+      result.add(arrive);
+      start = w.jumpTo;
+      at = w.at;
+    }
+    return result;
+  }
+
+  /// The warps of hand-set [anchors], where a file played as they are would jump.
+  static List<MidiWarp> warpsOf(List<SyncAnchor> anchors) {
+    final result = <MidiWarp>[];
+    var start = 0.0, at = 0.0;
+    for (final a in anchors) {
+      if (!a.isWarp) continue;
+      at += a.quarter - start;
+      result.add((at: at, jumpTo: a.jumpTo!));
+      start = a.jumpTo!;
+    }
+    return result;
+  }
 
   /// The anchors that make a [SyncMap] follow this tempo map exactly, with the file's start
-  /// at [start] seconds: one where the score begins, one at each change of tempo inside it,
-  /// and one at its end ([totalQuarters]). Between anchors a sync map's tempo is constant,
-  /// as a MIDI file's is between changes.
-  List<SyncAnchor> anchors({required double start, required double totalQuarters}) => [
-        SyncAnchor(0, start),
-        for (final t in tempos.skip(1))
-          if (t.quarter < totalQuarters) SyncAnchor(t.quarter, start + secondsAt(t.quarter)),
-        if (totalQuarters > 0) SyncAnchor(totalQuarters, start + secondsAt(totalQuarters)),
-      ];
+  /// at [start] seconds: one where the score begins, one at each change of tempo inside it, a
+  /// warp at each of [warps], and one at the score's end ([totalQuarters]) as the file last
+  /// reaches it. Between anchors a sync map's tempo is constant, as a MIDI file's is between
+  /// changes. Warps that don't fit the score (see [arrivals]) are left out, from the first.
+  List<SyncAnchor> anchors({required double start, required double totalQuarters}) {
+    final result = [SyncAnchor(0, start)];
+    double seconds(double at) => start + secondsAt(at);
+    // The pass so far: from score quarter [from], which the file reaches at its quarter [at].
+    var from = 0.0, at = 0.0;
+    void changes(double until) {
+      for (final t in tempos.skip(1)) {
+        if (t.quarter > at && t.quarter < until) result.add(SyncAnchor(from + t.quarter - at, seconds(t.quarter)));
+      }
+    }
+
+    final arrivals = this.arrivals(totalQuarters) ?? const [];
+    for (final (i, arrive) in arrivals.indexed) {
+      final w = warps[i];
+      changes(w.at);
+      result.add(SyncAnchor(arrive, seconds(w.at), jumpTo: w.jumpTo));
+      from = w.jumpTo;
+      at = w.at;
+    }
+    final end = at + totalQuarters - from;
+    changes(end);
+    if (end > at) result.add(SyncAnchor(totalQuarters, seconds(end)));
+    return result;
+  }
 
   @override
-  bool operator ==(Object other) => other is MidiTempoMap && other.name == name && listEquals(other.tempos, tempos);
+  bool operator ==(Object other) => other is MidiTempoMap && other.name == name && listEquals(other.tempos, tempos) && listEquals(other.warps, warps);
   @override
-  int get hashCode => Object.hash(name, Object.hashAll(tempos));
+  int get hashCode => Object.hash(name, Object.hashAll(tempos), Object.hashAll(warps));
   @override
-  String toString() => 'MidiTempoMap($name, ${tempos.length} tempos)';
+  String toString() => 'MidiTempoMap($name, ${tempos.length} tempos, ${warps.length} warps)';
 
   // MARK: Reading
 
