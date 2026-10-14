@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart';
@@ -39,7 +40,7 @@ const _grab = 7.0;
 ///
 /// With a MIDI tempo map (dropped on the window, or the toolbar's MIDI button) the sync
 /// follows the file instead: the anchors, the waveform and tapping give way to the tempo map,
-/// drawn large. Clicking it moves the playhead.
+/// drawn large, and edited there (see [_MidiTempoLane]).
 class AudioLanes extends StatefulWidget {
   const AudioLanes({super.key, required this.controller});
   final EditorController controller;
@@ -176,43 +177,6 @@ class _AudioLanesState extends State<AudioLanes> {
 
   Future<void> _editPosition(int index) => _editAnchor(context, c, index);
 
-  /// The MIDI tempo map in place of the anchors, the waveform and the tempo lane.
-  Widget _midiLanes(BuildContext context, MidiTempoMap midi) {
-    final colors = context.colors;
-    final repaint = Listenable.merge([c.viewport, sync, c]);
-    void seek(PointerEvent e) => c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
-    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      SizedBox(
-        width: kLaneHeaderWidth,
-        child: LaneLabel(
-          height: double.infinity,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Tip(message: 'Beats per minute', child: Text('MIDI tempo')),
-              Text(midi.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textMuted)),
-              if (c.track case final track?)
-                Text('♪ ${track.name}', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textMuted)),
-            ],
-          ),
-        ),
-      ),
-      Expanded(
-        child: Listener(
-          onPointerDown: (e) => e.buttons == kPrimaryButton ? seek(e) : null,
-          onPointerMove: (e) => e.buttons == kPrimaryButton ? seek(e) : null,
-          onPointerUp: (_) => c.playback.endScrub(),
-          onPointerCancel: (_) => c.playback.endScrub(),
-          child: WithPlayhead(
-            controller: c,
-            child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint, large: true)),
-          ),
-        ),
-      ),
-    ]);
-  }
-
   @override
   Widget build(BuildContext context) => Select(
         listenable: c,
@@ -221,7 +185,7 @@ class _AudioLanesState extends State<AudioLanes> {
       );
 
   Widget _lanes(BuildContext context) {
-    if (c.midiTempo case final midi?) return _midiLanes(context, midi);
+    if (c.midiTempo case final midi?) return _MidiTempoLane(controller: c, name: midi.name);
     final track = c.track;
     final colors = context.colors;
     final repaint = Listenable.merge([c.viewport, sync, c, _marquee]);
@@ -289,6 +253,240 @@ class _AudioLanesState extends State<AudioLanes> {
         ]),
       ),
       Expanded(child: lanes),
+    ]);
+  }
+}
+
+/// The MIDI tempo map in place of the anchors, the waveform and the tempo lane, edited as a
+/// sequencer's tempo track is: drag a change (up and down its tempo, sideways its place,
+/// snapped to beats; ⌘ = free, to a tenth of a beat a minute), or the step after it for its
+/// tempo only; ⌥-click on the line adds a change at the nearest beat, ⌥-drag draws a step a
+/// beat; Delete removes the selected change. A click elsewhere moves the playhead.
+class _MidiTempoLane extends StatefulWidget {
+  const _MidiTempoLane({required this.controller, required this.name});
+  final EditorController controller;
+  final String name;
+
+  @override
+  State<_MidiTempoLane> createState() => _MidiTempoLaneState();
+}
+
+class _MidiTempoLaneState extends State<_MidiTempoLane> {
+  EditorController get c => widget.controller;
+
+  /// The scale held while a gesture lasts, so the lane doesn't re-fit under the pointer.
+  final _scale = ValueNotifier<_TempoScale?>(null);
+  Size _size = Size.zero;
+  MouseCursor _cursor = SystemMouseCursors.basic;
+  bool _scrubbing = false;
+
+  // Dragging change [_index] of [_from]: taken by its dot ([_byDot]), also sideways
+  // ([_sideways], once past a few pixels).
+  MidiTempoMap? _from;
+  int _index = 0;
+  bool _byDot = false, _sideways = false;
+  Offset _down = Offset.zero;
+  double _downBpm = 0;
+
+  // Drawing over [_drawFrom]: the beats drawn (beats a minute by beat start), and the last point.
+  // [_inserting]: ⌥ went down on the line, which put a change there; moving draws instead.
+  MidiTempoMap? _drawFrom;
+  bool _inserting = false;
+  final _drawn = SplayTreeMap<double, double>();
+  (double quarter, double bpm)? _last;
+
+  @override
+  void dispose() {
+    _scale.dispose();
+    super.dispose();
+  }
+
+  _TempoScale get _currentScale => _scale.value ?? _TempoScale.fit(c, _size.width, large: true);
+
+  /// Quarter notes a minute → beats a minute as the meter counts them at [quarter], and back.
+  double _beat(double quarter) {
+    final sync = c.sync!;
+    final b = sync.beats.beatAt(quarter.clamp(0.0, sync.totalQuarters).toDouble());
+    return b.end - b.start > 1e-9 ? b.end - b.start : 1;
+  }
+
+  static double _bpmOf(double value) =>
+      (isCommandPressed ? (value * 10).roundToDouble() / 10 : value.roundToDouble()).clamp(10.0, 600.0);
+
+  double _x(MidiTempoMap midi, double quarter) => c.viewport.x(c.sync!.startSeconds + midi.secondsAt(quarter));
+
+  /// The change under [p]: on its dot ([dot]), or on the step after it.
+  ({int index, bool dot})? _hit(Offset p) {
+    final midi = c.midiTempo, sync = c.sync;
+    if (midi == null || sync == null) return null;
+    final scale = _currentScale;
+    ({int index, bool dot})? step;
+    for (final (i, t) in midi.tempos.indexed) {
+      if (t.quarter >= sync.totalQuarters) break;
+      final x = _x(midi, t.quarter), y = scale.y(t.quartersPerMinute / _beat(t.quarter), _size);
+      if ((p.dx - x).abs() <= _grab && (p.dy - y).abs() <= _grab + 2) return (index: i, dot: true);
+      final next = i + 1 < midi.tempos.length ? math.min(midi.tempos[i + 1].quarter, sync.totalQuarters) : sync.totalQuarters;
+      if (p.dx > x && p.dx < _x(midi, next) && (p.dy - y).abs() <= 5) step = (index: i, dot: false);
+    }
+    return step;
+  }
+
+  void _onDown(PointerDownEvent e) {
+    c.captions.select(null); // the Delete key goes to what was clicked here
+    final midi = c.midiTempo;
+    if (e.buttons != kPrimaryButton || midi == null) return;
+    final hit = _hit(e.localPosition);
+    if (HardwareKeyboard.instance.isAltPressed) {
+      c.beginEdit();
+      _scale.value = _currentScale;
+      _drawFrom = midi;
+      _drawn.clear();
+      _last = null;
+      _down = e.localPosition;
+      _inserting = hit != null;
+      if (_inserting) {
+        // On the line: a change at the beat nearest, keeping its tempo; drawing once it moves.
+        final sync = c.sync!;
+        var quarter = midi.quarterAt(c.viewport.seconds(e.localPosition.dx) - sync.startSeconds);
+        if (!isCommandPressed) quarter = sync.nearestGrid(quarter, SyncGrid.beat);
+        final inserted = quarter < sync.totalQuarters ? midi.inserted(quarter) : midi;
+        c.editMidiTempo(inserted);
+        final index = inserted.tempos.indexWhere((t) => t.quarter == quarter);
+        c.anchors.select(index < 0 ? null : index);
+      } else {
+        c.anchors.select(null);
+        _draw(e.localPosition);
+      }
+    } else if (hit != null) {
+      c.anchors.select(hit.index);
+      c.beginEdit();
+      _scale.value = _currentScale;
+      _from = midi;
+      _index = hit.index;
+      _byDot = hit.dot;
+      _sideways = false;
+      _down = e.localPosition;
+      final t = midi.tempos[hit.index];
+      _downBpm = t.quartersPerMinute / _beat(t.quarter);
+    } else {
+      c.anchors.select(null);
+      _scrubbing = true;
+      c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
+    }
+  }
+
+  void _onMove(PointerMoveEvent e) {
+    final p = e.localPosition;
+    if (_drawFrom != null) {
+      if (_inserting) {
+        if ((p - _down).distance <= 4) return;
+        _inserting = false;
+        c.anchors.select(null);
+        _draw(_down);
+      }
+      _draw(p);
+    } else if (_from case final from?) {
+      final scale = _scale.value!, t = from.tempos[_index];
+      final bpm = _bpmOf(_downBpm + scale.bpm(p.dy, _size) - scale.bpm(_down.dy, _size));
+      var quarter = t.quarter;
+      _sideways = _sideways || (_byDot && _index > 0 && (p.dx - _down.dx).abs() > 4);
+      if (_sideways) {
+        // Where the change is taken, as a quarter at the tempo before it (which holds up to it).
+        final previous = from.tempos[_index - 1];
+        final seconds = from.secondsAt(t.quarter) + c.viewport.seconds(p.dx) - c.viewport.seconds(_down.dx);
+        quarter = previous.quarter + (seconds - from.secondsAt(previous.quarter)) * previous.quartersPerMinute / 60;
+        if (!isCommandPressed) quarter = c.sync!.nearestGrid(quarter, SyncGrid.beat);
+      }
+      c.editMidiTempo(from.moved(_index, quarter: quarter, quartersPerMinute: bpm * _beat(quarter)));
+    } else if (_scrubbing) {
+      c.playback.scrub(c.viewport.seconds(p.dx));
+    }
+  }
+
+  /// Draws a step at every beat the pointer passed since the last point, the tempo going
+  /// evenly from the last point's to this one's.
+  void _draw(Offset p) {
+    final midi = c.midiTempo!, sync = c.sync!, from = _drawFrom!;
+    final quarter = midi.quarterAt(c.viewport.seconds(p.dx) - sync.startSeconds).clamp(0.0, sync.totalQuarters - 1e-6);
+    final bpm = _bpmOf(_scale.value!.bpm(p.dy, _size));
+    final last = _last ?? (quarter, bpm);
+    _last = (quarter, bpm);
+    final lo = math.min(last.$1, quarter), hi = math.max(last.$1, quarter);
+    for (var b = sync.beats.beatAt(lo).start;;) {
+      final f = hi > lo ? ((b.clamp(lo, hi) - last.$1) / (quarter - last.$1)).clamp(0.0, 1.0) : 1.0;
+      _drawn[b] = _bpmOf(last.$2 + (bpm - last.$2) * f);
+      final end = sync.beats.beatAt(b).end;
+      if (end <= b + 1e-9 || end > hi) break;
+      b = end;
+    }
+    final until = sync.beats.beatAt(_drawn.lastKey()!).end;
+    c.editMidiTempo(from.drawn([
+      for (final MapEntry(key: q, value: bpm) in _drawn.entries) (quarter: q, quartersPerMinute: bpm * _beat(q)),
+    ], until: until > _drawn.lastKey()! ? until : sync.totalQuarters));
+  }
+
+  void _onUp(PointerEvent e) {
+    if (_from != null || _drawFrom != null) {
+      c.endEdit();
+      _from = _drawFrom = null;
+      _scale.value = null;
+    }
+    if (_scrubbing) c.playback.endScrub();
+    _scrubbing = false;
+  }
+
+  void _onHover(PointerHoverEvent e) {
+    final hit = HardwareKeyboard.instance.isAltPressed ? null : _hit(e.localPosition);
+    final cursor = HardwareKeyboard.instance.isAltPressed
+        ? SystemMouseCursors.precise
+        : hit == null
+            ? SystemMouseCursors.basic
+            : hit.dot && hit.index > 0
+                ? SystemMouseCursors.move
+                : SystemMouseCursors.resizeUpDown;
+    if (cursor != _cursor) setState(() => _cursor = cursor);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final repaint = Listenable.merge([c.viewport, c.sync, c, _scale]);
+    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SizedBox(
+        width: kLaneHeaderWidth,
+        child: LaneLabel(
+          height: double.infinity,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Tip(message: 'Beats per minute\n${shortcut('⌥ add, draw · ⌘ no snap')}', child: const Text('MIDI tempo')),
+              Text(widget.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textMuted)),
+              if (c.track case final track?)
+                Text('♪ ${track.name}', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textMuted)),
+            ],
+          ),
+        ),
+      ),
+      Expanded(
+        child: LayoutBuilder(builder: (context, constraints) {
+          _size = constraints.biggest;
+          return MouseRegion(
+            cursor: _cursor,
+            onHover: _onHover,
+            child: Listener(
+              onPointerDown: _onDown,
+              onPointerMove: _onMove,
+              onPointerUp: _onUp,
+              onPointerCancel: _onUp,
+              child: WithPlayhead(
+                controller: c,
+                child: CustomPaint(size: Size.infinite, painter: _TempoPainter(c, colors, repaint, large: true, scale: _scale)),
+              ),
+            ),
+          );
+        }),
+      ),
     ]);
   }
 }
@@ -834,22 +1032,82 @@ class _WaveformPainter extends CustomPainter {
   bool shouldRepaint(_WaveformPainter old) => true;
 }
 
+/// The tempo lane's steps: start and end (seconds), beats a minute, and whether extrapolated
+/// (before the first anchor or after the last), one per segment between anchors.
+List<(double, double, double, bool)> _tempoSteps(EditorController c, double width) {
+  final sync = c.sync!;
+  final v = c.viewport;
+  final anchors = sync.anchors;
+  final steps = <(double, double, double, bool)>[];
+  final end = math.max(c.playback.duration, v.seconds(width));
+  // Quarter notes a minute → the meter's beats a minute, at the beat where [seconds] falls.
+  double bpm(double quartersPerMinute, double seconds) {
+    final q = sync.quarterAtSeconds(seconds).clamp(0.0, sync.totalQuarters);
+    final beat = sync.beats.beatAt(q.toDouble());
+    final length = beat.end - beat.start;
+    return length > 1e-9 ? quartersPerMinute / length : quartersPerMinute;
+  }
+
+  void add(double s0, double s1, double quartersPerMinute, bool extrapolated) =>
+      steps.add((s0, s1, bpm(quartersPerMinute, math.max(s0, 0)), extrapolated));
+  if (anchors.length < 2) {
+    final start = anchors.isEmpty ? sync.startSeconds : anchors.first.seconds;
+    add(start, end, sync.defaultTempo, true);
+  } else {
+    add(v.seconds(0), anchors.first.seconds, sync.segmentTempo(0), true);
+    for (var i = 0; i + 1 < anchors.length; i++) {
+      add(anchors[i].seconds, anchors[i + 1].seconds, sync.segmentTempo(i), false);
+    }
+    add(anchors.last.seconds, end, sync.segmentTempo(anchors.length - 2), true);
+  }
+  return steps;
+}
+
+/// The tempo lane's height: beats a minute from [lo] (at the bottom margin) to [hi] (at the top).
+@immutable
+class _TempoScale {
+  const _TempoScale(this.lo, this.hi, {required this.large});
+
+  /// Fits the steps in view, at least 20 beats a minute apart.
+  factory _TempoScale.fit(EditorController c, double width, {required bool large}) {
+    final bpms = [for (final s in _tempoSteps(c, width)) s.$3];
+    var lo = bpms.reduce(math.min), hi = bpms.reduce(math.max);
+    if (hi - lo < 20) {
+      final m = (hi + lo) / 2;
+      lo = m - 10;
+      hi = m + 10;
+    }
+    return _TempoScale(lo, hi, large: large);
+  }
+
+  final double lo, hi;
+  final bool large;
+
+  double get _margin => large ? 24.0 : 8.0;
+  double get _top => large ? 30.0 : 14.0;
+
+  double y(double bpm, Size size) => size.height - _margin - (bpm - lo) / (hi - lo) * (size.height - _margin - _top);
+  double bpm(double y, Size size) => lo + (size.height - _margin - y) / (size.height - _margin - _top) * (hi - lo);
+}
+
 /// The tempo track: one step per segment between anchors (dashed where it is extrapolated), in
 /// beats a minute as the time signature counts them (6/8: dotted crotchets).
 ///
-/// [large]: a MIDI tempo map, filling the lanes: over the bars, each change marked with a dot.
+/// [large]: a MIDI tempo map, filling the lanes: over the bars, each change marked with a dot
+/// (larger when selected), on [scale] while it is held.
 class _TempoPainter extends CustomPainter {
-  _TempoPainter(this.c, this.colors, Listenable repaint, {this.large = false}) : super(repaint: repaint);
+  _TempoPainter(this.c, this.colors, Listenable repaint, {this.large = false, this.scale})
+      : super(repaint: repaint);
   final EditorController c;
   final AppColors colors;
   final bool large;
+  final ValueListenable<_TempoScale?>? scale;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.clipRect(Offset.zero & size);
     final sync = c.sync!;
     final v = c.viewport;
-    final anchors = sync.anchors;
     if (large) {
       canvas.drawRect(Offset.zero & size, Paint()..color = colors.surface);
       final startX = v.x(sync.startSeconds);
@@ -862,37 +1120,9 @@ class _TempoPainter extends CustomPainter {
       canvas.drawLine(const Offset(0, 0.5), Offset(size.width, 0.5), Paint()..color = colors.line);
     }
 
-    final segments = <(double, double, double, bool)>[]; // start s, end s, beats a minute, extrapolated
-    final end = math.max(c.playback.duration, v.seconds(size.width));
-    // Quarter notes a minute → the meter's beats a minute, at the beat where [seconds] falls.
-    double bpm(double quartersPerMinute, double seconds) {
-      final q = sync.quarterAtSeconds(seconds).clamp(0.0, sync.totalQuarters);
-      final beat = sync.beats.beatAt(q.toDouble());
-      final length = beat.end - beat.start;
-      return length > 1e-9 ? quartersPerMinute / length : quartersPerMinute;
-    }
-
-    void add(double s0, double s1, double quartersPerMinute, bool extrapolated) =>
-        segments.add((s0, s1, bpm(quartersPerMinute, math.max(s0, 0)), extrapolated));
-    if (anchors.length < 2) {
-      final start = anchors.isEmpty ? sync.startSeconds : anchors.first.seconds;
-      add(start, end, sync.defaultTempo, true);
-    } else {
-      add(v.seconds(0), anchors.first.seconds, sync.segmentTempo(0), true);
-      for (var i = 0; i + 1 < anchors.length; i++) {
-        add(anchors[i].seconds, anchors[i + 1].seconds, sync.segmentTempo(i), false);
-      }
-      add(anchors.last.seconds, end, sync.segmentTempo(anchors.length - 2), true);
-    }
-    final bpms = [for (final s in segments) s.$3];
-    var lo = bpms.reduce(math.min), hi = bpms.reduce(math.max);
-    if (hi - lo < 20) {
-      final m = (hi + lo) / 2;
-      lo = m - 10;
-      hi = m + 10;
-    }
-    final margin = large ? 24.0 : 8.0, top = large ? 30.0 : 14.0;
-    double y(double bpm) => size.height - margin - (bpm - lo) / (hi - lo) * (size.height - margin - top);
+    final segments = _tempoSteps(c, size.width);
+    final fit = scale?.value ?? _TempoScale.fit(c, size.width, large: large);
+    double y(double bpm) => fit.y(bpm, size);
 
     final line = Paint()
       ..color = colors.accentStrong
@@ -901,7 +1131,7 @@ class _TempoPainter extends CustomPainter {
       ..color = colors.accent.withValues(alpha: 0.5)
       ..strokeWidth = 1.2;
     Offset? previous;
-    for (final (s0, s1, bpm, extrapolated) in segments) {
+    for (final (i, (s0, s1, bpm, extrapolated)) in segments.indexed) {
       final x0 = v.x(s0), x1 = v.x(s1);
       if (x1 < 0 || x0 > size.width) {
         previous = Offset(x1, y(bpm));
@@ -916,7 +1146,12 @@ class _TempoPainter extends CustomPainter {
       } else {
         canvas.drawLine(Offset(x0, yy), Offset(x1, yy), line);
       }
-      if (large && !extrapolated && x0 >= -4) canvas.drawCircle(Offset(x0, yy), 3, Paint()..color = colors.accentStrong);
+      // Step i follows anchor i - 1, which a MIDI tempo map puts at its change i - 1.
+      if (large && !extrapolated && x0 >= -6) {
+        final selected = c.anchors.selected.contains(i - 1);
+        if (selected) canvas.drawCircle(Offset(x0, yy), 6, Paint()..color = colors.surface);
+        canvas.drawCircle(Offset(x0, yy), selected ? 4.5 : 3, Paint()..color = colors.accentStrong);
+      }
       if (x1 - x0 > 34) {
         final tp = TextPainter(
           text: TextSpan(

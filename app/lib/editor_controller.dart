@@ -797,7 +797,7 @@ class EditorController extends ChangeNotifier {
   MidiTempoMap? get midiTempo => _midi;
 
   /// Whether the sync follows a MIDI tempo map: its anchors are then derived, and tapping and
-  /// editing them is off (the Audio tab shows the tempo map instead of the waveform).
+  /// editing them is off (the Audio tab shows the tempo map, edited instead, see [editMidiTempo]).
   bool get usesMidiTempo => _midi != null;
 
   /// The anchors set by hand, whether in use or kept behind a MIDI tempo map.
@@ -830,6 +830,14 @@ class EditorController extends ChangeNotifier {
       _followMidi(start);
     }
     notifyListeners();
+  }
+
+  /// Follows [map], an edit of the MIDI tempo map being followed (its points dragged or
+  /// drawn), from where it starts now. Inside [beginEdit] / [endEdit], one Undo step.
+  void editMidiTempo(MidiTempoMap map) {
+    if (_midi == null || _sync == null || map == _midi) return;
+    _midi = map;
+    _followMidi(_sync!.startSeconds);
   }
 
   /// Puts the derived anchors of the MIDI tempo map in the sync, with its start at [start].

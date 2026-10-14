@@ -80,6 +80,67 @@ class MidiTempoMap {
     return seconds; // not reached: the last tempo runs on for ever
   }
 
+  /// Where [seconds] from the start of the file falls, in quarter notes (the inverse of
+  /// [secondsAt]).
+  double quarterAt(double seconds) {
+    var at = 0.0;
+    for (var i = 0; i < tempos.length; i++) {
+      final t = tempos[i];
+      final end = i + 1 < tempos.length ? tempos[i + 1].quarter : double.infinity;
+      final length = (end - t.quarter) * 60 / t.quartersPerMinute;
+      if (seconds <= at + length) return t.quarter + (seconds - at) * t.quartersPerMinute / 60;
+      at += length;
+    }
+    return 0; // not reached: the last tempo runs on for ever
+  }
+
+  // MARK: Editing
+
+  /// Change [index] moved to [quarter] (kept strictly between its neighbours; the first stays
+  /// at 0) at [quartersPerMinute]. It stays even when it repeats the tempo before it, as it is
+  /// still being dragged.
+  MidiTempoMap moved(int index, {required double quarter, required double quartersPerMinute}) {
+    if (index < 0 || index >= tempos.length || !(quartersPerMinute > 0)) return this;
+    final previous = index > 0 ? tempos[index - 1].quarter : null;
+    final next = index + 1 < tempos.length ? tempos[index + 1].quarter : null;
+    if (previous == null || quarter <= previous || (next != null && quarter >= next)) quarter = tempos[index].quarter;
+    return MidiTempoMap(name, [...tempos]..[index] = (quarter: quarter, quartersPerMinute: quartersPerMinute));
+  }
+
+  /// A change at [quarter] keeping the tempo there (a point to drag from), kept although it
+  /// repeats the tempo before it. The map as it is when a change is already there, or
+  /// [quarter] is before the start.
+  MidiTempoMap inserted(double quarter) {
+    if (!(quarter > 0) || tempos.any((t) => t.quarter == quarter)) return this;
+    final at = tempos.lastWhere((t) => t.quarter < quarter);
+    return MidiTempoMap(name, [...tempos, (quarter: quarter, quartersPerMinute: at.quartersPerMinute)]
+      ..sort((a, b) => a.quarter.compareTo(b.quarter)));
+  }
+
+  /// [changes] (in order) drawn over the changes from the first of them up to [until], as a
+  /// sequencer's draw tool does: the last drawn tempo then holds to the next change after it.
+  /// Drawn changes repeating the tempo before them are left out, as is a change at [until]
+  /// repeating the last drawn; changes elsewhere stay as they are.
+  MidiTempoMap drawn(List<MidiTempo> changes, {required double until}) {
+    if (changes.isEmpty) return this;
+    final from = changes.first.quarter;
+    final all = [
+      for (final t in tempos)
+        if (t.quarter < from || t.quarter >= until) t,
+      ...changes,
+    ]..sort((a, b) => a.quarter.compareTo(b.quarter));
+    return MidiTempoMap(name, [
+      for (final (i, t) in all.indexed)
+        if (i == 0 || t.quarter < from || t.quarter > until || t.quartersPerMinute != all[i - 1].quartersPerMinute) t,
+    ]);
+  }
+
+  /// Without the changes at [indices] (the first, at quarter 0, always stays).
+  MidiTempoMap removed(Set<int> indices) => MidiTempoMap(name, [
+        for (final (i, t) in tempos.indexed)
+          if (i == 0 || !indices.contains(i)) t,
+      ]);
+
   /// The anchors that make a [SyncMap] follow this tempo map exactly, with the file's start
   /// at [start] seconds: one where the score begins, one at each change of tempo inside it,
   /// and one at its end ([totalQuarters]). Between anchors a sync map's tempo is constant,

@@ -74,4 +74,43 @@ void main() {
     final riff = Uint8List.fromList([...'RIFF'.codeUnits, ...le32(smf.length + 12), ...'RMID'.codeUnits, ...'data'.codeUnits, ...le32(smf.length), ...smf]);
     expect(MidiTempoMap.read(riff).tempos.single.quartersPerMinute, closeTo(90, 1e-3));
   });
+
+  group('editing', () {
+    MidiTempo t(double quarter, double qpm) => (quarter: quarter, quartersPerMinute: qpm);
+    final map = MidiTempoMap('a.mid', [t(0, 120), t(8, 60), t(16, 90)]);
+
+    test('quarterAt is the inverse of secondsAt', () {
+      for (final q in const <double>[0, 3, 8, 11.5, 16, 40]) {
+        expect(map.quarterAt(map.secondsAt(q)), closeTo(q, 1e-9));
+      }
+    });
+
+    test('a change moves between its neighbours only; the first stays at 0', () {
+      expect(map.moved(1, quarter: 10, quartersPerMinute: 72).tempos[1], t(10, 72));
+      expect(map.moved(1, quarter: 16, quartersPerMinute: 72).tempos[1], t(8, 72), reason: 'onto the next');
+      expect(map.moved(1, quarter: 0, quartersPerMinute: 72).tempos[1], t(8, 72), reason: 'onto the previous');
+      expect(map.moved(0, quarter: 3, quartersPerMinute: 100).tempos.first, t(0, 100));
+      expect(map.moved(1, quarter: 8, quartersPerMinute: 120).tempos, hasLength(3), reason: 'kept while dragged');
+      expect(map.moved(1, quarter: 8, quartersPerMinute: 120).name, 'a.mid');
+    });
+
+    test('drawing replaces the changes it covers; the last drawn holds to the next change', () {
+      final drawn = map.drawn([t(6, 100), t(7, 110), t(8, 110), t(9, 120)], until: 10);
+      expect(drawn.tempos, [t(0, 120), t(6, 100), t(7, 110), t(9, 120), t(16, 90)]);
+      expect(map.drawn([t(4, 120)], until: 5).tempos, map.tempos, reason: 'the tempo it had: nothing added');
+    });
+
+    test('removing keeps the first change, and the others as they are', () {
+      expect(map.removed({0, 1}).tempos, [t(0, 120), t(16, 90)]);
+      expect(MidiTempoMap('', [t(0, 90), t(4, 60), t(8, 90)]).removed({1}).tempos, [t(0, 90), t(8, 90)]);
+    });
+
+    test('inserting keeps the tempo there, as a change of its own', () {
+      expect(map.inserted(12).tempos, [t(0, 120), t(8, 60), t(12, 60), t(16, 90)]);
+      expect(map.inserted(8), map, reason: 'already a change there');
+      expect(map.inserted(0), map);
+      final kept = map.inserted(4).drawn([t(10, 70)], until: 11);
+      expect(kept.tempos, contains(t(4, 120)), reason: 'drawing elsewhere keeps it');
+    });
+  });
 }
