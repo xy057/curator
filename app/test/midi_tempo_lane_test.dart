@@ -132,6 +132,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(c.midiTempo!.warps, isEmpty);
     expect(c.sync!.passes, hasLength(1));
+
+    // A damaged project's warp that doesn't fit the score is left out, the one before it still
+    // followed and shown; editing that one lets the other go.
+    c.editMidiTempo(c.midiTempo!.withWarps([(at: 12, jumpTo: 0), (at: 1e5, jumpTo: 0)]));
+    expect(c.sync!.passes, hasLength(2));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tapAt(Offset(warpX + 100, lane().top + 40)); // not a double-click with the last ones
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tapAt(Offset(warpX, lane().top + 40));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(Offset(warpX, lane().top + 40));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.descendant(of: find.byType(AppDialog), matching: find.byType(EditableText)).at(1), '');
+    await tester.pump();
+    await tester.tap(find.text('Set'));
+    await tester.pumpAndSettle();
+    expect(c.midiTempo!.warps, isEmpty);
   });
 
   testWidgets('Undo in the middle of a drag ends it, and Undo goes on recording after', (tester) async {

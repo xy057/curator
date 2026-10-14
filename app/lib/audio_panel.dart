@@ -600,14 +600,17 @@ Future<void> editWarp(BuildContext context, EditorController c) async {
 /// A MIDI tempo map's warp [index] to edit (an empty jump removes it), or with none, one to
 /// add at the playhead, on the bar (or beat) sounding there. The file plays on through a warp:
 /// moving where it arrives moves the moment the file jumps; the warps after it keep theirs.
+/// Warps that don't fit the score (a damaged project's: not shown, not followed) go with it.
 Future<void> editMidiWarp(BuildContext context, EditorController c, {int? index}) async {
   final sync = c.sync!, midi = c.midiTempo!;
+  // The warps followed: the lines drawn, [index] one of them.
   final arrivals = midi.arrivals(sync.totalQuarters);
-  final MidiWarp? warp = index != null && arrivals != null && index < arrivals.length ? midi.warps[index] : null;
+  final followed = midi.warps.take(arrivals.length).toList();
+  final MidiWarp? warp = index != null && index < arrivals.length ? followed[index] : null;
   final double at, arrival;
   if (warp != null) {
     at = warp.at;
-    arrival = arrivals![index!];
+    arrival = arrivals[index!];
   } else {
     final t = c.playback.time.value, q = sync.quarterAtSeconds(t);
     arrival = sync.nearestGrid(q, c.anchors.grid);
@@ -615,7 +618,7 @@ Future<void> editMidiWarp(BuildContext context, EditorController c, {int? index}
   }
   final set = await showAnchorDialog(context, beats: sync.beats, quarter: arrival, jumpTo: warp?.jumpTo, warp: true);
   if (set == null || !context.mounted || c.midiTempo != midi) return;
-  final others = [...midi.warps]..remove(warp);
+  final others = [...followed]..remove(warp);
   final moved = at + set.quarter - arrival;
   if (set.jumpTo case final jumpTo?) {
     if (others.any((w) => (w.at - moved).abs() < 1e-6) || !c.setMidiWarps([...others, (at: moved, jumpTo: jumpTo)])) {

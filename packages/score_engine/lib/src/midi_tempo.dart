@@ -172,21 +172,31 @@ class MidiTempoMap {
   /// The same warps under another tempo map (another file read in place of this one).
   MidiTempoMap withWarpsOf(MidiTempoMap? other) => other == null ? this : withWarps(other.warps);
 
-  /// Each warp's arrival in the score (where it jumps from), or null when the warps don't fit
+  /// Each warp's arrival in the score (where it jumps from), up to the first that doesn't fit
   /// a score of [totalQuarters]: each must arrive further on than the one before went on
-  /// from, inside the score, and go on from inside it.
-  List<double>? arrivals(double totalQuarters) {
+  /// from, inside the score, and go on from inside it, somewhere else (as [SyncMap] keeps
+  /// them). Those from that one on are left out ([anchors]) until edited ([fits]).
+  List<double> arrivals(double totalQuarters) {
     final result = <double>[];
     var start = 0.0, at = 0.0;
     for (final w in warps) {
       final arrive = start + w.at - at;
-      if (w.at <= at || arrive > totalQuarters + 1e-9 || w.jumpTo < 0 || w.jumpTo >= totalQuarters) return null;
+      if (w.at <= at + 1e-6 ||
+          arrive > totalQuarters + 1e-9 ||
+          w.jumpTo < 0 ||
+          w.jumpTo >= totalQuarters ||
+          (w.jumpTo - arrive).abs() < 1e-6) {
+        break;
+      }
       result.add(arrive);
       start = w.jumpTo;
       at = w.at;
     }
     return result;
   }
+
+  /// Whether every warp fits a score of [totalQuarters] (see [arrivals]).
+  bool fits(double totalQuarters) => arrivals(totalQuarters).length == warps.length;
 
   /// The warps of hand-set [anchors], where a file played as they are would jump.
   static List<MidiWarp> warpsOf(List<SyncAnchor> anchors) {
@@ -205,7 +215,8 @@ class MidiTempoMap {
   /// at [start] seconds: one where the score begins, one at each change of tempo inside it, a
   /// warp at each of [warps], and one at the score's end ([totalQuarters]) as the file last
   /// reaches it. Between anchors a sync map's tempo is constant, as a MIDI file's is between
-  /// changes. Warps that don't fit the score (see [arrivals]) are left out, from the first.
+  /// changes. Warps that don't fit the score (see [arrivals]) are left out, from the first that
+  /// doesn't on.
   List<SyncAnchor> anchors({required double start, required double totalQuarters}) {
     final result = [SyncAnchor(0, start)];
     double seconds(double at) => start + secondsAt(at);
@@ -217,7 +228,7 @@ class MidiTempoMap {
       }
     }
 
-    final arrivals = this.arrivals(totalQuarters) ?? const [];
+    final arrivals = this.arrivals(totalQuarters);
     for (final (i, arrive) in arrivals.indexed) {
       final w = warps[i];
       changes(w.at);

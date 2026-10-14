@@ -171,6 +171,8 @@ as played, as `SyncMap`'s performed position does, so a warp is `(at, jumpTo)`: 
 quarter `at` the score goes on from `jumpTo`; where it arrives from follows (`arrivals`), and
 `anchors` walks the passes, a change of tempo landing in whichever pass plays it. Editing one
 (double-click its line; an empty jump removes it) moves the moment it jumps, never those after.
+Warps that don't fit the score (a damaged project's) are left out from the first that doesn't, the
+rest followed (`MidiTempoMap.arrivals`, as `SyncMap` would keep them); editing a warp lets them go.
 Reading a file keeps the warps the sync had: the old file's, or those set by hand
 (`MidiTempoMap.warpsOf`), so the form is set once. The lane works in the file's quarters and
 asks the sync where they are in the score for beats and snapping (`_score`, `_beatAround`).

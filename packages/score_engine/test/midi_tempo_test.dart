@@ -155,8 +155,15 @@ void main() {
     });
 
     test('warps that don\'t fit the score are left out', () {
-      expect(map.withWarps([(at: 20, jumpTo: 0)]).arrivals(16), isNull, reason: 'arrives past the end');
-      expect(map.withWarps([(at: 8, jumpTo: 16)]).arrivals(16), isNull, reason: 'goes on from the end');
+      expect(map.withWarps([(at: 20, jumpTo: 0)]).arrivals(16), isEmpty, reason: 'arrives past the end');
+      expect(map.withWarps([(at: 8, jumpTo: 16)]).arrivals(16), isEmpty, reason: 'goes on from the end');
+      expect(map.withWarps([(at: 8, jumpTo: 8)]).arrivals(16), isEmpty, reason: 'goes on from where it is');
+      expect(map.fits(16), isTrue);
+      // Those that fit, from the first, are followed; the rest left out.
+      final some = map.withWarps([(at: 8, jumpTo: 0), (at: 30, jumpTo: 0)]);
+      expect(some.arrivals(16), [8]);
+      expect(some.fits(16), isFalse);
+      expect(some.anchors(start: 0, totalQuarters: 16).where((a) => a.isWarp), hasLength(1));
       final straight = map.withWarps([(at: 20, jumpTo: 0)]).anchors(start: 0, totalQuarters: 16);
       expect(straight.any((a) => a.isWarp), isFalse);
       expect(straight.last.quarter, 16);
