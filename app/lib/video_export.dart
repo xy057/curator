@@ -587,11 +587,14 @@ class VideoExport {
   /// at the end ([showBars]) fades out as the score comes to rest. The file (or folder)
   /// appears only once complete; a failed or cancelled export leaves nothing behind (and an
   /// older file of that name as it was). A folder is only replaced if it holds nothing but
-  /// an earlier export's frames.
+  /// an earlier export's frames. [onFrame] gets each frame as drawn, to show (its own handle:
+  /// it disposes it), so nothing need draw the scene again at another size meanwhile, which
+  /// would make the renderer draw its tiles again for every frame.
   Future<void> write(
     String output, {
     required VideoFormat format,
     void Function(ExportProgress progress)? onProgress,
+    void Function(ui.Image frame)? onFrame,
     double? from,
     double? to,
     String? ffmpeg,
@@ -656,6 +659,7 @@ class VideoExport {
             end: span.end,
             paper: format.paperColor,
             ink: format.paper.ink);
+        onFrame?.call(image.clone());
         // FFmpeg's RGBA is straight; Flutter's is premultiplied, the same only where it is opaque.
         return image
             .toByteData(format: format.hasAlpha ? ui.ImageByteFormat.rawStraightRgba : ui.ImageByteFormat.rawRgba)

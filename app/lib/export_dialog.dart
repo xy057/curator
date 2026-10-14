@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/gestures.dart';
@@ -65,6 +66,14 @@ class _ExportDialogState extends State<_ExportDialog> {
   /// The encoders this FFmpeg has; null until it has said (every format offered meanwhile).
   Set<String>? _encoders;
 
+  /// The frame last drawn while the video is written: the still shows it, drawing nothing again.
+  ui.Image? _written;
+
+  void _showWritten(ui.Image? frame) {
+    _written?.dispose();
+    _written = frame;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +86,7 @@ class _ExportDialogState extends State<_ExportDialog> {
 
   @override
   void dispose() {
+    _showWritten(null);
     _export.dispose();
     _from.dispose();
     _to.dispose();
@@ -143,10 +153,14 @@ class _ExportDialogState extends State<_ExportDialog> {
       _progress = null;
     });
     try {
-      await _export.write(path, format: format, ffmpeg: _ffmpeg, onProgress: (p) {
-        // The still follows the frames written.
-        if (mounted) setState(() => (_progress = p, _still = start + format.timeOf(p.frame - 1)));
-      });
+      await _export.write(path,
+          format: format,
+          ffmpeg: _ffmpeg,
+          // The still follows the frames written.
+          onFrame: (frame) => mounted ? _showWritten(frame) : frame.dispose(),
+          onProgress: (p) {
+            if (mounted) setState(() => (_progress = p, _still = start + format.timeOf(p.frame - 1)));
+          });
       if (mounted) setState(() => _stage = _Stage.done);
     } on VideoExportCancelled {
       if (mounted) setState(() => _stage = _Stage.setup);
@@ -157,6 +171,8 @@ class _ExportDialogState extends State<_ExportDialog> {
           _error = describeError(e);
         });
       }
+    } finally {
+      if (mounted) setState(() => _showWritten(null));
     }
   }
 
@@ -272,6 +288,7 @@ class _ExportDialogState extends State<_ExportDialog> {
                   // A see-through frame on a checkerboard, toned like its paper so the ink shows.
                   painter: format.hasAlpha ? _Checkerboard(format.paper) : null,
                   foregroundPainter: _StillPainter(_export,
+                      frame: _written,
                       time: still,
                       paper: format.paper,
                       transparent: format.hasAlpha,
@@ -1020,18 +1037,27 @@ class _BarField extends StatelessWidget {
   }
 }
 
+/// The still: the frame at [time], or, while the video is written, the [frame] last drawn for it.
 class _StillPainter extends CustomPainter {
   _StillPainter(this.export,
-      {required this.time, required this.paper, required this.transparent, required this.devicePixelRatio});
+      {this.frame, required this.time, required this.paper, required this.transparent, required this.devicePixelRatio});
   final VideoExport export;
+  final ui.Image? frame;
   final double time;
   final VideoPaper paper;
   final bool transparent;
   final double devicePixelRatio;
 
   @override
-  void paint(Canvas canvas, Size size) => export.paintPreview(canvas, size,
-      time: time, paper: paper, transparent: transparent, devicePixelRatio: devicePixelRatio);
+  void paint(Canvas canvas, Size size) {
+    if (frame case final frame?) {
+      final source = Offset.zero & Size(frame.width.toDouble(), frame.height.toDouble());
+      canvas.drawImageRect(frame, source, Offset.zero & size, Paint()..filterQuality = FilterQuality.medium);
+      return;
+    }
+    export.paintPreview(canvas, size,
+        time: time, paper: paper, transparent: transparent, devicePixelRatio: devicePixelRatio);
+  }
 
   // The score size changes the export's scene in place, so every rebuild repaints.
   @override

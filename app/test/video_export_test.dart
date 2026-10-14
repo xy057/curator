@@ -347,6 +347,17 @@ Encoders:
       expect(File(out).lengthSync(), greaterThan(0));
     }, skip: skip);
 
+    test('each frame drawn is handed on to show, so the still needn\'t draw it again', () async {
+      final export = VideoExport.of(c);
+      addTearDown(export.dispose);
+      final shown = <(int, int)>[];
+      await export.write('${dir.path}/demo.mp4', format: small, to: 0.5, onFrame: (frame) {
+        shown.add((frame.width, frame.height));
+        frame.dispose();
+      });
+      expect(shown, List.filled(5, (320, 180)));
+    }, skip: skip);
+
     test('when FFmpeg fails, it says why and leaves nothing', () async {
       await useRecording('${dir.path}/missing.flac');
       final export = VideoExport.of(c);
