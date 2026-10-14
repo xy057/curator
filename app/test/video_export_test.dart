@@ -30,12 +30,13 @@ Encoders:
 
     test('libx264 when the build has it', () => expect(VideoEncoder.pick(listing), 'libx264'));
 
-    test('else OpenH264; never a platform\'s own (VideoToolbox, Media Foundation)', () {
+    test('else OpenH264; the platform\'s own (VideoToolbox, Media Foundation) only for builds with neither', () {
       expect(VideoEncoder.pick('$listing V....D libopenh264  OpenH264\n'.replaceAll(' libx264 ', ' x ')), 'libopenh264');
-      expect(VideoEncoder.pick(listing.replaceAll(' libx264 ', ' x ')), isNull);
+      expect(VideoEncoder.pick(listing.replaceAll(' libx264 ', ' x ')), 'h264_videotoolbox');
+      expect(VideoEncoder.pick(' V....D h264_mf              H264 via MediaFoundation (codec h264)\n'), 'h264_mf');
     });
 
-    test('each format has its own: libx265 for HEVC, prores_ks, libvpx-vp9, png', () {
+    test('each format has its own: libx265 (else the platform\'s) for HEVC, prores_ks, libvpx-vp9, png', () {
       const more = '''
  V....D libx265              libx265 H.265 / HEVC (codec hevc)
  V....D hevc_videotoolbox    VideoToolbox H.265 Encoder (codec hevc)
@@ -44,7 +45,7 @@ Encoders:
  VF...D png                  PNG (Portable Network Graphics) image
 ''';
       expect(VideoEncoder.pick(listing + more, VideoCodec.hevc), 'libx265');
-      expect(VideoEncoder.pick(listing + more.replaceAll(' libx265 ', ' x '), VideoCodec.hevc), isNull);
+      expect(VideoEncoder.pick(listing + more.replaceAll(' libx265 ', ' x '), VideoCodec.hevc), 'hevc_videotoolbox');
       expect(VideoEncoder.pick(listing + more, VideoCodec.prores), 'prores_ks');
       expect(VideoEncoder.pick(listing + more, VideoCodec.vp9), 'libvpx-vp9');
       expect(VideoEncoder.pick(listing + more, VideoCodec.png), 'png');
@@ -116,9 +117,13 @@ Encoders:
       expect(line, contains('-t 12.500000 -movflags +faststart -f mp4 out.mp4.part'));
     });
 
-    test('OpenH264 gets a bit rate; no recording, no audio track', () {
+    test('OpenH264 and the platforms\' encoders get a bit rate; no recording, no audio track', () {
       final args = VideoEncoder.arguments(encoder: 'libopenh264', format: format, seconds: 1, output: 'o');
       expect(args.join(' '), contains('-c:v libopenh264 -b:v 7465k'));
+      expect(VideoEncoder.arguments(encoder: 'h264_videotoolbox', format: format, seconds: 1, output: 'o').join(' '),
+          contains('-c:v h264_videotoolbox -b:v 7465k -profile:v high -allow_sw 1'));
+      expect(VideoEncoder.arguments(encoder: 'hevc_mf', format: format, seconds: 1, output: 'o').join(' '),
+          contains('-tag:v hvc1'));
       expect(args.where((a) => a == '-i'), hasLength(1));
       expect(args, isNot(contains('-c:a')));
     });
@@ -184,8 +189,10 @@ Encoders:
       expect(opaque, isNot(contains('bt709')));
       expect(opaque, endsWith('-f image2 -start_number 1 out'));
       expect(line(VideoCodec.png, 'png', transparent: true), contains('-vf format=rgba'));
-      expect(VideoEncoder.framePattern('Take', 900), 'Take %05d.png');
-      expect(VideoEncoder.framePattern('Take', 216000), 'Take %06d.png');
+      expect(VideoEncoder.framePattern('/v/Take.part', 'Take', 900), '/v/Take.part/Take %05d.png');
+      expect(VideoEncoder.framePattern('/v/Take.part', 'Take', 216000), '/v/Take.part/Take %06d.png');
+      expect(VideoEncoder.framePattern('/50% off/A%d.part', 'A%d', 9), '/50%% off/A%%d.part/A%%d %05d.png',
+          reason: 'FFmpeg reads the whole path as the pattern');
     });
 
     test('transparent only where the format keeps it: an MP4 is always on paper', () {
@@ -196,13 +203,6 @@ Encoders:
       const mov = VideoFormat(width: 2, height: 2, fps: 30, codec: VideoCodec.prores, transparent: true);
       expect(mov.hasAlpha, isTrue);
       expect(mov.paperColor.a, 0);
-    });
-
-    test('H.264 and HEVC stop at their highest level\'s pixels; the others at the longest side drawn', () {
-      expect(VideoCodec.h264.fits(7680, 4320), isTrue, reason: '8K');
-      expect(VideoCodec.h264.fits(10080, 4320), isFalse, reason: '8K at 21:9');
-      expect(VideoCodec.prores.fits(10080, 4320), isTrue);
-      expect(VideoCodec.prores.fits(17280, 4320), isFalse);
     });
   });
 
@@ -228,7 +228,8 @@ Encoders:
 
   test('every size frames the score alike: 1080p is the 540-point layout at 2 pixels a point', () {
     expect(VideoFormat.of(VideoResolution.hd1080, fps: 30).devicePixelRatio, 2);
-    expect(VideoFormat.of(VideoResolution.uhd2160, fps: 30).devicePixelRatio, 4);
+    expect(VideoFormat.of(VideoResolution.qhd1440, fps: 30).devicePixelRatio, closeTo(8 / 3, 1e-9));
+    expect([for (final r in VideoResolution.values) r.label], ['480p', '720p', '1080p', '1440p'], reason: 'no 4K or 8K');
     for (final r in VideoResolution.values) {
       final f = VideoFormat.of(r, fps: 30);
       // 480p: 853⅓ pixels wide, rounded to an even 854.
@@ -247,7 +248,7 @@ Encoders:
       expect((at(VideoRatio.widescreen).width, at(VideoRatio.widescreen).height), (1920, 1080));
       expect((at(const VideoRatio(9, 16)).width, at(const VideoRatio(9, 16)).height), (1080, 1920));
       expect((at(const VideoRatio(1, 1)).width, at(const VideoRatio(1, 1)).height), (1080, 1080));
-      expect((at(const VideoRatio(4, 3), VideoResolution.uhd2160).width), 2880);
+      expect((at(const VideoRatio(4, 3), VideoResolution.qhd1440).width), 1920);
       // H.264 in 4:2:0 needs even sizes: 2.39 × 1080 = 2581.2, so 2582.
       expect(at(const VideoRatio(2.39, 1)).width, 2582);
       // Every ratio is laid out 540 points on its short side: 1080p is 2 pixels a point,
@@ -343,6 +344,17 @@ Encoders:
       }), throwsA(isA<VideoExportCancelled>()));
       await export.write(out, format: small, to: 0.3);
       expect(File(out).lengthSync(), greaterThan(0));
+    }, skip: skip);
+
+    test('each frame drawn is handed on to show, so the still needn\'t draw it again', () async {
+      final export = VideoExport.of(c);
+      addTearDown(export.dispose);
+      final shown = <(int, int)>[];
+      await export.write('${dir.path}/demo.mp4', format: small, to: 0.5, onFrame: (frame) {
+        shown.add((frame.width, frame.height));
+        frame.dispose();
+      });
+      expect(shown, List.filled(5, (320, 180)));
     }, skip: skip);
 
     test('when FFmpeg fails, it says why and leaves nothing', () async {
@@ -441,6 +453,13 @@ Encoders:
       final export = VideoExport.of(c);
       addTearDown(export.dispose);
       final out = '${dir.path}/Demo';
+      // A "%" in the path is a percent sign, not a pattern.
+      final percent = Directory('${dir.path}/50% off')..createSync();
+      const tiny = VideoFormat(width: 320, height: 180, fps: 10, codec: VideoCodec.png);
+      await export.write('${percent.path}/A%d', format: tiny, to: 0.2);
+      expect(Directory('${percent.path}/A%d').listSync().map((f) => f.uri.pathSegments.last).toList()..sort(),
+          ['A%d 00001.png', 'A%d 00002.png']);
+
       const format = VideoFormat(width: 320, height: 180, fps: 10, codec: VideoCodec.png, transparent: true);
       await export.write(out, format: format, to: 0.5);
       final files = Directory(out).listSync().map((f) => f.uri.pathSegments.last).toList()..sort();
@@ -453,14 +472,27 @@ Encoders:
       final alphas = {for (var i = 3; i < rgba.lengthInBytes; i += 4) rgba.getUint8(i)};
       expect(alphas, containsAll([0, 255]), reason: 'clear paper, solid ink');
 
-      // Again: an earlier export's frames are replaced; a folder with anything else isn't touched.
-      await export.write(out, format: format, to: 0.3);
+      // Again: an earlier export's frames are replaced, though Finder or Explorer has looked in;
+      // a folder with anything else isn't touched.
+      File('$out/.DS_Store').writeAsStringSync('');
+      File('$out/Thumbs.db').writeAsStringSync('');
+      expect(await export.write(out, format: format, to: 0.3), out);
       expect(Directory(out).listSync(), hasLength(3));
       File('$out/notes.txt').writeAsStringSync('mine');
       await expectLater(export.write(out, format: format, to: 0.3),
           throwsA(isA<VideoExportException>().having((e) => e.message, 'message', contains('other files'))));
       expect(File('$out/notes.txt').readAsStringSync(), 'mine');
       expect(Directory(out).listSync(), hasLength(4));
+
+      // Something put in the folder while the frames are written: they go beside it, not away.
+      File('$out/notes.txt').deleteSync();
+      final beside = await export.write(out, format: format, to: 0.3, onProgress: (p) {
+        if (p.frame == 1) File('$out/later.txt').writeAsStringSync('mine');
+      });
+      expect(beside, '$out 2');
+      expect(Directory(beside).listSync(), hasLength(3));
+      expect(File('$out/later.txt').readAsStringSync(), 'mine');
+      expect(Directory('$out.part').existsSync(), isFalse);
     }, skip: skip, timeout: const Timeout(Duration(minutes: 2)));
 
     test('the export condenses the pairs the editor did when it started', () {

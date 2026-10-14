@@ -85,6 +85,23 @@ void main() {
       }
     });
 
+    test('secondsAt adds up the tempos before it, at and between the changes, and before the start', () {
+      double walked(double q) {
+        var seconds = 0.0, at = 0.0, qpm = map.tempos.first.quartersPerMinute;
+        for (final t in map.tempos.skip(1)) {
+          if (t.quarter >= q) break;
+          seconds += (t.quarter - at) * 60 / qpm;
+          (at, qpm) = (t.quarter, t.quartersPerMinute);
+        }
+        return seconds + (q - at) * 60 / qpm;
+      }
+
+      for (final q in const <double>[-2, 0, 0.5, 8, 8.25, 15.9, 16, 16.1, 100]) {
+        expect(map.secondsAt(q), closeTo(walked(q), 1e-9), reason: 'at $q');
+        expect(map.quarterAt(map.secondsAt(q)), closeTo(q, 1e-9), reason: 'back from $q');
+      }
+    });
+
     test('a change moves between its neighbours only; the first stays at 0', () {
       expect(map.moved(1, quarter: 10, quartersPerMinute: 72).tempos[1], t(10, 72));
       expect(map.moved(1, quarter: 16, quartersPerMinute: 72).tempos[1], t(8, 72), reason: 'onto the next');
@@ -138,8 +155,15 @@ void main() {
     });
 
     test('warps that don\'t fit the score are left out', () {
-      expect(map.withWarps([(at: 20, jumpTo: 0)]).arrivals(16), isNull, reason: 'arrives past the end');
-      expect(map.withWarps([(at: 8, jumpTo: 16)]).arrivals(16), isNull, reason: 'goes on from the end');
+      expect(map.withWarps([(at: 20, jumpTo: 0)]).arrivals(16), isEmpty, reason: 'arrives past the end');
+      expect(map.withWarps([(at: 8, jumpTo: 16)]).arrivals(16), isEmpty, reason: 'goes on from the end');
+      expect(map.withWarps([(at: 8, jumpTo: 8)]).arrivals(16), isEmpty, reason: 'goes on from where it is');
+      expect(map.fits(16), isTrue);
+      // Those that fit, from the first, are followed; the rest left out.
+      final some = map.withWarps([(at: 8, jumpTo: 0), (at: 30, jumpTo: 0)]);
+      expect(some.arrivals(16), [8]);
+      expect(some.fits(16), isFalse);
+      expect(some.anchors(start: 0, totalQuarters: 16).where((a) => a.isWarp), hasLength(1));
       final straight = map.withWarps([(at: 20, jumpTo: 0)]).anchors(start: 0, totalQuarters: 16);
       expect(straight.any((a) => a.isWarp), isFalse);
       expect(straight.last.quarter, 16);

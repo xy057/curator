@@ -844,12 +844,12 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Gives the MIDI tempo map being followed [warps] instead (one Undo step). False, changing
-  /// nothing, when they don't fit the score (see [MidiTempoMap.arrivals]).
+  /// nothing, when they don't all fit the score (see [MidiTempoMap.arrivals]).
   bool setMidiWarps(List<MidiWarp> warps) {
     final midi = _midi, sync = _sync;
     if (midi == null || sync == null) return false;
     final map = midi.withWarps(warps);
-    if (map.arrivals(sync.totalQuarters) == null) return false;
+    if (!map.fits(sync.totalQuarters)) return false;
     editMidiTempo(map);
     return true;
   }
@@ -971,7 +971,7 @@ class EditorController extends ChangeNotifier {
 
   /// Ends a gesture: merges what it left overlapping, and records it.
   void endEdit() {
-    if (_gestures == 0) return;
+    if (_gestures == 0 || _disposed) return;
     _gestures--;
     _curation?.normalize();
     _record();

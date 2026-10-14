@@ -15,14 +15,13 @@ import 'media_converter.dart';
 /// A video's size: its short side in pixels ("1080p" is 1080 pixels high when wide, 1080
 /// wide when tall), the long one following from the [VideoRatio]. Every size is laid out
 /// [VideoFormat.layoutShortSide] points on its short side, so they all frame the score the
-/// same way; bigger ones are only sharper.
+/// same way; bigger ones are only sharper. Up to 1440p: at 4:1 that is still a frame every
+/// format writes and every GPU draws.
 enum VideoResolution {
   sd480(480, '480p'),
   hd720(720, '720p'),
   hd1080(1080, '1080p'),
-  qhd1440(1440, '1440p'),
-  uhd2160(2160, '4K'),
-  uhd4320(4320, '8K');
+  qhd1440(1440, '1440p');
 
   const VideoResolution(this.shortSide, this.label);
   final int shortSide;
@@ -38,8 +37,7 @@ enum VideoResolution {
 }
 
 /// A video's shape, width : height: one of the [presets], or any the user types between
-/// [min] and [max] (1:4 to 4:1; wider would be more pixels than H.264 allows at 4K; at 8K it
-/// allows only shapes near 16:9, see [VideoCodec.fits]).
+/// [min] and [max] (1:4 to 4:1).
 @immutable
 class VideoRatio {
   const VideoRatio(this.width, this.height);
@@ -124,8 +122,8 @@ class VideoFrame {
 /// What a video is written as: a container and codec FFmpeg writes it with, or PNG images, one
 /// a frame, in a folder. Some keep a transparent background ([alpha]).
 enum VideoCodec {
-  h264('MP4 (H.264)', 'mp4', 'MP4 video', ['libx264', 'libopenh264']),
-  hevc('MP4 (HEVC)', 'mp4', 'MP4 video', ['libx265']),
+  h264('MP4 (H.264)', 'mp4', 'MP4 video', ['libx264', 'libopenh264', 'h264_videotoolbox', 'h264_mf']),
+  hevc('MP4 (HEVC)', 'mp4', 'MP4 video', ['libx265', 'hevc_videotoolbox', 'hevc_mf']),
   prores('MOV (ProRes)', 'mov', 'QuickTime movie', ['prores_ks', 'prores_aw'], alpha: true),
   vp9('WebM (VP9)', 'webm', 'WebM video', ['libvpx-vp9'], alpha: true),
   png('PNG Sequence', '', 'Folder', ['png'], alpha: true);
@@ -140,7 +138,8 @@ enum VideoCodec {
   final String typeLabel;
 
   /// FFmpeg's encoders for it, best first: its own or libraries built into it, the same on every
-  /// platform (no VideoToolbox, no Media Foundation), so a file comes out alike everywhere.
+  /// platform, so a file comes out alike everywhere; the platform's own (VideoToolbox, Media
+  /// Foundation) last, for builds without them (an LGPL FFmpeg has no libx264).
   final List<String> encoders;
 
   /// Whether it can keep a transparent background.
@@ -151,16 +150,6 @@ enum VideoCodec {
 
   /// Whether it has a sound track.
   bool get hasSound => !isSequence;
-
-  /// The most pixels a frame may have: H.264's and HEVC's highest level (6.2) stop at about
-  /// 35.6 megapixels (8K is 33.2); the others go as far as a frame can be drawn ([maxSide]).
-  int get maxPixels => this == h264 || this == hevc ? 139264 * 256 : maxSide * maxSide;
-
-  /// The longest side a frame can be drawn at (the GPU's largest texture).
-  static const maxSide = 16384;
-
-  /// Whether a frame of [width] × [height] can be written.
-  bool fits(int width, int height) => math.max(width, height) <= maxSide && width * height <= maxPixels;
 }
 
 /// Light (black on white, the engraving's own colours) or dark paper, as in the app's themes.
@@ -216,9 +205,6 @@ class VideoFormat {
 
   /// The colour the frame is drawn on: the paper's, or none.
   ui.Color get paperColor => hasAlpha ? paper.paper.withValues(alpha: 0) : paper.paper;
-
-  /// Whether the [codec] can write frames this size.
-  bool get fits => codec.fits(width, height);
 
   /// Width over height, of the pixels themselves (the ratio, rounded to even pixels).
   double get aspectRatio => width / height;
@@ -322,7 +308,7 @@ abstract final class VideoEncoder {
   }) {
     final fps = format.fps, codec = format.codec, alpha = format.hasAlpha;
     if (!codec.hasSound) audio = null;
-    // OpenH264 takes a bit rate: 0.12 bits a pixel is ample for ink on paper
+    // OpenH264 and the platforms' encoders take a bit rate: 0.12 bits a pixel is ample for ink on paper
     // (HEVC needs about two thirds of H.264's).
     final kbps = (format.width * format.height * fps * (codec == VideoCodec.hevc ? 0.08 : 0.12) / 1000).round();
     final pixels = switch (codec) {
@@ -342,7 +328,10 @@ abstract final class VideoEncoder {
       '-c:v', encoder,
       ...switch (encoder) {
         'libx264' => ['-preset', 'medium', '-crf', '18', '-profile:v', 'high'],
+        'h264_videotoolbox' => ['-b:v', '${kbps}k', '-profile:v', 'high', '-allow_sw', '1'],
         'libx265' => ['-preset', 'medium', '-crf', '20', '-tag:v', 'hvc1', '-x265-params', 'log-level=error'],
+        'hevc_videotoolbox' => ['-b:v', '${kbps}k', '-tag:v', 'hvc1', '-allow_sw', '1'],
+        'hevc_mf' => ['-b:v', '${kbps}k', '-tag:v', 'hvc1'],
         // 4444 keeps the alpha (16 bits of it); 422 HQ otherwise. "apl0" as Apple's own files say.
         'prores_ks' => ['-profile:v', alpha ? '4444' : 'hq', if (alpha) ...['-alpha_bits', '16'], '-vendor', 'apl0'],
         'prores_aw' => ['-profile:v', alpha ? '4444' : 'hq', '-vendor', 'apl0'],
@@ -383,16 +372,27 @@ abstract final class VideoEncoder {
     ];
   }
 
-  /// What a sequence of [frames] frames in a folder named [name] calls them, for FFmpeg:
-  /// "name %05d.png", numbered from 1 with as many digits as the last needs (at least 5).
-  static String framePattern(String name, int frames) => '$name %0${math.max(5, '$frames'.length)}d.png';
+  /// What a sequence of [frames] frames in [folder], named [name], calls them, for FFmpeg:
+  /// "folder/name %05d.png", numbered from 1 with as many digits as the last needs (at least
+  /// 5). FFmpeg reads the whole path as the pattern, so a "%" in it is written "%%".
+  static String framePattern(String folder, String name, int frames) =>
+      '${_literal(folder)}/${_literal(name)} %0${math.max(5, '$frames'.length)}d.png';
+
+  static String _literal(String text) => text.replaceAll('%', '%%');
 
   /// Whether every file in [folder] is a frame [framePattern] names for a folder named [name]
-  /// (an earlier export, which a new one may replace).
+  /// (an earlier export, which a new one may replace), or what the system leaves in a folder
+  /// looked at (Finder's `.DS_Store`, Explorer's `Thumbs.db` and `desktop.ini`, a frame's `._`
+  /// twin on a disk that isn't the Mac's own).
   static bool onlyFrames(Directory folder, String name) {
-    final frame = RegExp('^${RegExp.escape(name)} \\d{5,}\\.png\$');
-    return folder.listSync().every((e) => e is File && frame.hasMatch(e.uri.pathSegments.last));
+    final frame = RegExp('^(\\._)?${RegExp.escape(name)} \\d{5,}\\.png\$');
+    return folder.listSync().every((e) {
+      final file = e.uri.pathSegments.last;
+      return e is File && (frame.hasMatch(file) || _systemFiles.contains(file));
+    });
   }
+
+  static const _systemFiles = {'.DS_Store', 'Thumbs.db', 'desktop.ini'};
 
   /// Seconds of fade where a sound is cut.
   static const declick = 0.01;
@@ -583,11 +583,16 @@ class VideoExport {
   /// at the end ([showBars]) fades out as the score comes to rest. The file (or folder)
   /// appears only once complete; a failed or cancelled export leaves nothing behind (and an
   /// older file of that name as it was). A folder is only replaced if it holds nothing but
-  /// an earlier export's frames.
-  Future<void> write(
+  /// an earlier export's frames; one that gains other files while the video is written keeps
+  /// them, and the video goes beside it instead ("Take 2"). Returns where the video went.
+  /// [onFrame] gets each frame as drawn, to show (its own handle:
+  /// it disposes it), so nothing need draw the scene again at another size meanwhile, which
+  /// would make the renderer draw its tiles again for every frame.
+  Future<String> write(
     String output, {
     required VideoFormat format,
     void Function(ExportProgress progress)? onProgress,
+    void Function(ui.Image frame)? onFrame,
     double? from,
     double? to,
     String? ffmpeg,
@@ -601,9 +606,6 @@ class VideoExport {
     if (encoder == null) {
       throw VideoExportException(
           'This FFmpeg can’t write ${codec.label}. Install a full build (with ${codec.encoders.first}).');
-    }
-    if (!format.fits) {
-      throw VideoExportException('${codec.label} can’t be ${format.width} × ${format.height}. Choose a smaller size.');
     }
     final name = output.split(RegExp(r'[/\\]')).last;
     if (codec.isSequence && Directory(output).existsSync() && !VideoEncoder.onlyFrames(Directory(output), name)) {
@@ -629,7 +631,7 @@ class VideoExport {
           encoder: encoder,
           format: format,
           seconds: frames / format.fps,
-          output: codec.isSequence ? '$partial/${VideoEncoder.framePattern(name, frames)}' : partial,
+          output: codec.isSequence ? VideoEncoder.framePattern(partial, name, frames) : partial,
           audio: audio,
           audioStart: start,
           fadeOut: fadeOut),
@@ -652,6 +654,7 @@ class VideoExport {
             end: span.end,
             paper: format.paperColor,
             ink: format.paper.ink);
+        onFrame?.call(image.clone());
         // FFmpeg's RGBA is straight; Flutter's is premultiplied, the same only where it is opaque.
         return image
             .toByteData(format: format.hasAlpha ? ui.ImageByteFormat.rawStraightRgba : ui.ImageByteFormat.rawRgba)
@@ -681,21 +684,34 @@ class VideoExport {
       if (code != 0) throw VideoExportException('FFmpeg couldn’t write the video.\n${_lastLines('$errors')}');
       Error.throwWithStackTrace(failure!.$1, failure.$2);
     }
+    var target = output;
     switch (FileSystemEntity.typeSync(output)) {
       case FileSystemEntityType.directory:
-        // Checked before it began; an earlier export's frames only.
+        // Checked before it began, but something may have been put in it since: a finished
+        // video isn't thrown away for that, it goes beside it.
         if (codec.isSequence && VideoEncoder.onlyFrames(Directory(output), name)) {
           Directory(output).deleteSync(recursive: true);
         } else {
-          part.deleteSync(recursive: true);
-          throw VideoExportException('“$name” already holds other files. Choose another name.');
+          target = _besides(output, file: !codec.isSequence);
         }
       case FileSystemEntityType.notFound:
         break;
       default:
         File(output).deleteSync();
     }
-    part.renameSync(output);
+    part.renameSync(target);
+    return target;
+  }
+
+  /// [path] with the first number that names nothing added to its name, before the extension
+  /// of a [file]: "Take 2", "Take 2.mp4" (a folder has none: "Op. 9 2").
+  static String _besides(String path, {required bool file}) {
+    final slash = path.lastIndexOf(RegExp(r'[/\\]')), dot = path.lastIndexOf('.');
+    final cut = file && dot > slash + 1 ? dot : path.length;
+    for (var i = 2;; i++) {
+      final free = '${path.substring(0, cut)} $i${path.substring(cut)}';
+      if (FileSystemEntity.typeSync(free) == FileSystemEntityType.notFound) return free;
+    }
   }
 
   /// The results of jobs `0 … count - 1`, in order, with up to [ahead] of them started while

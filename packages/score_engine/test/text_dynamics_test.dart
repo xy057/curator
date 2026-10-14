@@ -45,6 +45,10 @@ void main() {
     expect(TextDynamics.dynamicOf(_words('cresc.', font: 'Maestro')), isNull); // not a dynamic
     expect(TextDynamics.dynamicOf(_words('fpz', font: 'Maestro')), isNull);
     expect(TextDynamics.dynamicOf(_words('\u{E522} sub.')), isNull);
+    // A music font's "n" is a natural sign; niente is SMuFL's character only.
+    expect(TextDynamics.dynamicOf(_words('n', font: 'Maestro')), isNull);
+    expect(TextDynamics.dynamicOf(_words('N', font: 'Opus Text')), isNull);
+    expect(TextDynamics.dynamicOf(_words('\u{E526}')), 'n');
   });
 
   test('a dynamic keeps its place, and text beside it stays beside it', () {
@@ -60,6 +64,22 @@ void main() {
         '<direction-type><words font-family="Garamond">sub.</words></direction-type>'
         '<direction-type><dynamics default-x="10" default-y="-70" color="#000000"><f/></dynamics></direction-type>'
         '<direction-type><words font-family="Garamond">espress.</words></direction-type>'
+        '</direction>');
+  });
+
+  test('every dynamic in one direction-type is one, the text between them kept between', () {
+    final doc = XmlDocument.parse('<direction><direction-type>'
+        '<words font-family="Maestro">f</words>'
+        '<words font-family="Garamond">–</words>'
+        '<words font-family="Maestro">p</words>'
+        '</direction-type></direction>');
+    expect(TextDynamics.apply(doc), 2);
+    expect(
+        doc.rootElement.toXmlString(),
+        '<direction>'
+        '<direction-type><dynamics><f/></dynamics></direction-type>'
+        '<direction-type><words font-family="Garamond">–</words></direction-type>'
+        '<direction-type><dynamics><p/></dynamics></direction-type>'
         '</direction>');
   });
 

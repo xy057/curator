@@ -46,7 +46,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned): its edits (`EditState`, also Undo's snapshots), image files and view; Undo and Redo |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
-| `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still follows the frames |
+| `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
 | `app_menus.dart` | The menu bar (native on macOS): File (Settings… at its foot, on macOS too), Edit, Score (Project Settings… at its foot). Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu |
@@ -89,11 +89,12 @@ the same way and scaled to fit (`VideoFrame.fit`; filling is `VideoFrame.fill`),
 window's size never changes what the score shows. Hit tests go through `VideoFrame.toLayout`.
 What a video is written as is a `VideoCodec` (Export's Format, `AppSettings.videoCodec`): its
 FFmpeg encoders best first (the dialog asks FFmpeg which it has, `VideoEncoder.probeAll`, and greys
-out the rest), its container and sound. A PNG sequence is a folder of numbered frames without
+out the rest): FFmpeg's own and its libraries, alike everywhere; for H.264 and HEVC the platform's
+own (VideoToolbox, Media Foundation) last, for builds without them, its container and sound. A PNG sequence is a folder of numbered frames without
 sound, written as `<name>.part` and renamed; an existing folder is replaced only if it holds
-nothing but frames of that name (`VideoEncoder.onlyFrames`), never anything else. Sizes run 480p
-to 8K; H.264 and HEVC stop at level 6.2's pixels (`VideoCodec.fits`: 8K only near 16:9), every
-format at the 16384-pixel side a frame can be drawn at.
+nothing but frames of that name (`VideoEncoder.onlyFrames`; `.DS_Store`, `Thumbs.db` and the like aside), never anything else; one that gains other files while it is written keeps them, and the frames go beside it ("Take 2", `write` returns where). Sizes run 480p
+to 1440p (no 4K or 8K): at 4:1 that is 5760 × 1440, which every format writes and every GPU draws,
+so no size is ever too big.
 A transparent video (`AppSettings.videoTransparent`, only where `VideoCodec.alpha`:
 ProRes 4444, VP9 with alpha, RGBA PNG) is drawn on paper of alpha 0 (`VideoFormat.paperColor`),
 the paper choosing the ink. The renderer can't hide the music under the names by painting paper
@@ -171,6 +172,8 @@ as played, as `SyncMap`'s performed position does, so a warp is `(at, jumpTo)`: 
 quarter `at` the score goes on from `jumpTo`; where it arrives from follows (`arrivals`), and
 `anchors` walks the passes, a change of tempo landing in whichever pass plays it. Editing one
 (double-click its line; an empty jump removes it) moves the moment it jumps, never those after.
+Warps that don't fit the score (a damaged project's) are left out from the first that doesn't, the
+rest followed (`MidiTempoMap.arrivals`, as `SyncMap` would keep them); editing a warp lets them go.
 Reading a file keeps the warps the sync had: the old file's, or those set by hand
 (`MidiTempoMap.warpsOf`), so the form is set once. The lane works in the file's quarters and
 asks the sync where they are in the score for beats and snapping (`_score`, `_beatAround`).

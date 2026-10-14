@@ -132,5 +132,75 @@ void main() {
     await tester.pumpAndSettle();
     expect(c.midiTempo!.warps, isEmpty);
     expect(c.sync!.passes, hasLength(1));
+
+    // A damaged project's warp that doesn't fit the score is left out, the one before it still
+    // followed and shown; editing that one lets the other go.
+    c.editMidiTempo(c.midiTempo!.withWarps([(at: 12, jumpTo: 0), (at: 1e5, jumpTo: 0)]));
+    expect(c.sync!.passes, hasLength(2));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tapAt(Offset(warpX + 100, lane().top + 40)); // not a double-click with the last ones
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tapAt(Offset(warpX, lane().top + 40));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(Offset(warpX, lane().top + 40));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.descendant(of: find.byType(AppDialog), matching: find.byType(EditableText)).at(1), '');
+    await tester.pump();
+    await tester.tap(find.text('Set'));
+    await tester.pumpAndSettle();
+    expect(c.midiTempo!.warps, isEmpty);
+  });
+
+  testWidgets('Undo in the middle of a drag ends it, and Undo goes on recording after', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScore.path));
+    c.tab = BottomTab.audio;
+    final original = MidiTempoMap('tempo.mid', [_t(0, 135), _t(12, 90)]);
+    c.useMidiTempo(original);
+    c.anchors.setStart(1);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    Rect lane() => tester.getRect(find.byType(AudioLanes));
+    double x(double quarter) => lane().left + kLaneHeaderWidth + c.viewport.x(1 + c.midiTempo!.secondsAt(quarter));
+    double y(double bpm) => lane().bottom - 24 - (bpm - 60) / 30 * (lane().height - 54);
+
+    // Undone mid-drag: the drag stops there, and doesn't bring back what it began from.
+    await tester.dragFrom(Offset(x(12), y(60)), Offset(0, y(70) - y(60)));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo!.tempos, [_t(0, 135), _t(12, 105)]);
+    // The lane now fits 70–90: the change, at 70, is at its bottom margin.
+    var gesture = await tester.startGesture(Offset(x(12), lane().bottom - 24));
+    expect(c.anchors.selected, {1}, reason: 'the change is taken');
+    await gesture.moveBy(const Offset(0, -20));
+    await tester.pump();
+    c.undo();
+    await tester.pump();
+    expect(c.midiTempo, original);
+    await gesture.moveBy(const Offset(0, -20));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo, original, reason: 'the drag ended with the Undo');
+
+    // Undone back past the MIDI file mid-drag, the lane goes; Undo still records what follows.
+    gesture = await tester.startGesture(Offset(x(12), y(60)));
+    await gesture.moveBy(const Offset(0, -20));
+    await tester.pump();
+    while (c.midiTempo != null && c.canUndo) {
+      c.undo(); // Starts at, then using the file
+    }
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo, isNull);
+    expect(find.byType(AudioLanes), findsOneWidget);
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+    c.useMidiTempo(original);
+    c.undo();
+    expect(c.midiTempo, isNull, reason: 'using the file again was an Undo step of its own');
   });
 }

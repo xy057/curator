@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:math' as math;
 
@@ -296,8 +297,35 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
   final _drawn = SplayTreeMap<double, double>();
   (double quarter, double bpm)? _last;
 
+  /// The map the gesture under way last made: when the map is another (Undo meanwhile), the
+  /// gesture is over.
+  MidiTempoMap? _made;
+
+  bool get _editing => _from != null || _drawFrom != null;
+
+  /// Follows [map], made by the gesture under way.
+  void _edit(MidiTempoMap map) {
+    c.editMidiTempo(map);
+    _made = c.midiTempo;
+  }
+
+  /// Ends the gesture under way (one Undo step).
+  void _endEdit() {
+    if (!_editing) return;
+    c.endEdit();
+    _from = _drawFrom = null;
+    _scale.value = null;
+  }
+
   @override
   void dispose() {
+    // Gone mid-gesture (Undo back past the MIDI file): the gesture ends here, after this frame
+    // (ending it tells the controller's listeners), not at the pointer's release, which still
+    // comes to this state's handlers.
+    if (_editing) {
+      _from = _drawFrom = null;
+      scheduleMicrotask(c.endEdit);
+    }
     _scale.dispose();
     super.dispose();
   }
@@ -389,7 +417,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
     } else if (HardwareKeyboard.instance.isAltPressed) {
       c.beginEdit();
       _scale.value = _currentScale;
-      _drawFrom = midi;
+      _drawFrom = _made = midi;
       _drawn.clear();
       _last = null;
       _down = e.localPosition;
@@ -399,7 +427,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
         var quarter = midi.quarterAt(c.viewport.seconds(e.localPosition.dx) - c.sync!.startSeconds);
         if (!isCommandPressed) quarter = _snap(quarter);
         final inserted = quarter < _end ? midi.inserted(quarter) : midi;
-        c.editMidiTempo(inserted);
+        _edit(inserted);
         final index = inserted.tempos.indexWhere((t) => t.quarter == quarter);
         c.anchors.select(index < 0 ? null : index);
       } else {
@@ -410,7 +438,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
       c.anchors.select(hit.index);
       c.beginEdit();
       _scale.value = _currentScale;
-      _from = midi;
+      _from = _made = midi;
       _index = hit.index;
       _byDot = hit.dot;
       _sideways = false;
@@ -426,6 +454,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
 
   void _onMove(PointerMoveEvent e) {
     final p = e.localPosition;
+    if (_editing && c.midiTempo != _made) return _endEdit(); // undone meanwhile: what it began from is gone
     if (_drawFrom != null) {
       if (_inserting) {
         if ((p - _down).distance <= 4) return;
@@ -446,7 +475,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
         quarter = previous.quarter + (seconds - from.secondsAt(previous.quarter)) * previous.quartersPerMinute / 60;
         if (!isCommandPressed) quarter = _snap(quarter);
       }
-      c.editMidiTempo(from.moved(_index, quarter: quarter, quartersPerMinute: bpm * _beat(quarter)));
+      _edit(from.moved(_index, quarter: quarter, quartersPerMinute: bpm * _beat(quarter)));
     } else if (_scrubbing) {
       c.playback.scrub(c.viewport.seconds(p.dx));
     }
@@ -469,17 +498,13 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
       b = next;
     }
     final until = _beatAround(_drawn.lastKey()! + 1e-7).end;
-    c.editMidiTempo(from.drawn([
+    _edit(from.drawn([
       for (final MapEntry(key: q, value: bpm) in _drawn.entries) (quarter: q, quartersPerMinute: bpm * _beat(q)),
     ], until: until > _drawn.lastKey()! ? until : end));
   }
 
   void _onUp(PointerEvent e) {
-    if (_from != null || _drawFrom != null) {
-      c.endEdit();
-      _from = _drawFrom = null;
-      _scale.value = null;
-    }
+    _endEdit();
     if (_scrubbing) c.playback.endScrub();
     _scrubbing = false;
   }
@@ -575,14 +600,17 @@ Future<void> editWarp(BuildContext context, EditorController c) async {
 /// A MIDI tempo map's warp [index] to edit (an empty jump removes it), or with none, one to
 /// add at the playhead, on the bar (or beat) sounding there. The file plays on through a warp:
 /// moving where it arrives moves the moment the file jumps; the warps after it keep theirs.
+/// Warps that don't fit the score (a damaged project's: not shown, not followed) go with it.
 Future<void> editMidiWarp(BuildContext context, EditorController c, {int? index}) async {
   final sync = c.sync!, midi = c.midiTempo!;
+  // The warps followed: the lines drawn, [index] one of them.
   final arrivals = midi.arrivals(sync.totalQuarters);
-  final MidiWarp? warp = index != null && arrivals != null && index < arrivals.length ? midi.warps[index] : null;
+  final followed = midi.warps.take(arrivals.length).toList();
+  final MidiWarp? warp = index != null && index < arrivals.length ? followed[index] : null;
   final double at, arrival;
   if (warp != null) {
     at = warp.at;
-    arrival = arrivals![index!];
+    arrival = arrivals[index!];
   } else {
     final t = c.playback.time.value, q = sync.quarterAtSeconds(t);
     arrival = sync.nearestGrid(q, c.anchors.grid);
@@ -590,7 +618,7 @@ Future<void> editMidiWarp(BuildContext context, EditorController c, {int? index}
   }
   final set = await showAnchorDialog(context, beats: sync.beats, quarter: arrival, jumpTo: warp?.jumpTo, warp: true);
   if (set == null || !context.mounted || c.midiTempo != midi) return;
-  final others = [...midi.warps]..remove(warp);
+  final others = [...followed]..remove(warp);
   final moved = at + set.quarter - arrival;
   if (set.jumpTo case final jumpTo?) {
     if (others.any((w) => (w.at - moved).abs() < 1e-6) || !c.setMidiWarps([...others, (at: moved, jumpTo: jumpTo)])) {

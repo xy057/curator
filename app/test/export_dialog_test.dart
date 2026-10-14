@@ -90,13 +90,13 @@ void main() {
 
     // Format, size and frame rate: menus, remembered.
     await choose('MP4 (H.264)', 'MOV (ProRes)');
-    await choose('1080p', '4K');
+    await choose('1080p', '1440p');
     await choose('30', '60');
     await tester.tap(find.text('Dark'));
     await tester.pump();
     expect((settings.videoCodec, settings.videoResolution, settings.videoFps, settings.videoPaper),
-        (VideoCodec.prores, VideoResolution.uhd2160, 60, VideoPaper.dark));
-    expect(find.textContaining('16:9 · 3840 × 2160 · 60 fps'), findsOneWidget);
+        (VideoCodec.prores, VideoResolution.qhd1440, 60, VideoPaper.dark));
+    expect(find.textContaining('16:9 · 2560 × 1440 · 60 fps'), findsOneWidget);
 
     // Any frame rate, typed: Custom… turns the select into a field.
     await choose('60', 'Custom…');
@@ -141,16 +141,13 @@ void main() {
     await mouse.moveTo(Offset.zero);
     await tester.pump(const Duration(seconds: 1));
 
-    // From 480p to 8K; 8K H.264 only as wide as about 16:9, so at 21:9 it can't be chosen.
-    await choose('1080p', '8K');
-    expect(find.textContaining('7680 × 4320'), findsOneWidget);
+    // From 480p to 1440p, at any ratio.
     await choose('16:9', '21:9');
     expect(settings.videoRatio, const VideoRatio(21, 9));
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Export…')).onPressed, isNull,
-        reason: 'too many pixels for H.264');
-    await tester.tap(inDialog('8K').first);
+    await tester.tap(inDialog('1080p').first);
     await tester.pumpAndSettle();
-    expect(tester.widget<MenuItemButton>(find.widgetWithText(MenuItemButton, '8K')).onPressed, isNull);
+    expect([for (final l in ['480p', '720p', '1080p', '1440p', '4K', '8K']) find.widgetWithText(MenuItemButton, l).evaluate().length],
+        [1, 1, 1, 1, 0, 0]);
     await tester.tap(find.text('480p').last);
     await tester.pumpAndSettle();
     expect(find.textContaining('1120 × 480'), findsOneWidget);

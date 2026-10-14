@@ -81,28 +81,42 @@ class MidiTempoMap {
 
   /// When [quarter] sounds, in seconds from the start of the file.
   double secondsAt(double quarter) {
-    var seconds = 0.0;
-    for (var i = 0; i < tempos.length; i++) {
-      final t = tempos[i];
-      final end = i + 1 < tempos.length ? tempos[i + 1].quarter : double.infinity;
-      if (quarter <= end) return seconds + (quarter - t.quarter) * 60 / t.quartersPerMinute;
-      seconds += (end - t.quarter) * 60 / t.quartersPerMinute;
-    }
-    return seconds; // not reached: the last tempo runs on for ever
+    final i = _lastAtOrBefore(quarter, (i) => tempos[i].quarter);
+    final t = tempos[i];
+    return _starts[i] + (quarter - t.quarter) * 60 / t.quartersPerMinute;
   }
 
   /// Where [seconds] from the start of the file falls, in quarter notes (the inverse of
   /// [secondsAt]).
   double quarterAt(double seconds) {
-    var at = 0.0;
-    for (var i = 0; i < tempos.length; i++) {
-      final t = tempos[i];
-      final end = i + 1 < tempos.length ? tempos[i + 1].quarter : double.infinity;
-      final length = (end - t.quarter) * 60 / t.quartersPerMinute;
-      if (seconds <= at + length) return t.quarter + (seconds - at) * t.quartersPerMinute / 60;
-      at += length;
+    final i = _lastAtOrBefore(seconds, (i) => _starts[i]);
+    final t = tempos[i];
+    return t.quarter + (seconds - _starts[i]) * t.quartersPerMinute / 60;
+  }
+
+  /// When each change sounds, in seconds from the start of the file: a map with a change a
+  /// beat (a performance's) has thousands, and the Audio tab asks for each on every frame.
+  late final List<double> _starts = () {
+    final out = List<double>.filled(tempos.length, 0);
+    for (var i = 1; i < tempos.length; i++) {
+      final t = tempos[i - 1];
+      out[i] = out[i - 1] + (tempos[i].quarter - t.quarter) * 60 / t.quartersPerMinute;
     }
-    return 0; // not reached: the last tempo runs on for ever
+    return out;
+  }();
+
+  /// The last change whose [key] is at or before [value] (the first before them all).
+  int _lastAtOrBefore(double value, double Function(int i) key) {
+    var lo = 0, hi = tempos.length - 1;
+    while (lo < hi) {
+      final mid = (lo + hi + 1) >> 1;
+      if (key(mid) <= value) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return lo;
   }
 
   // MARK: Editing
@@ -158,21 +172,31 @@ class MidiTempoMap {
   /// The same warps under another tempo map (another file read in place of this one).
   MidiTempoMap withWarpsOf(MidiTempoMap? other) => other == null ? this : withWarps(other.warps);
 
-  /// Each warp's arrival in the score (where it jumps from), or null when the warps don't fit
+  /// Each warp's arrival in the score (where it jumps from), up to the first that doesn't fit
   /// a score of [totalQuarters]: each must arrive further on than the one before went on
-  /// from, inside the score, and go on from inside it.
-  List<double>? arrivals(double totalQuarters) {
+  /// from, inside the score, and go on from inside it, somewhere else (as [SyncMap] keeps
+  /// them). Those from that one on are left out ([anchors]) until edited ([fits]).
+  List<double> arrivals(double totalQuarters) {
     final result = <double>[];
     var start = 0.0, at = 0.0;
     for (final w in warps) {
       final arrive = start + w.at - at;
-      if (w.at <= at || arrive > totalQuarters + 1e-9 || w.jumpTo < 0 || w.jumpTo >= totalQuarters) return null;
+      if (w.at <= at + 1e-6 ||
+          arrive > totalQuarters + 1e-9 ||
+          w.jumpTo < 0 ||
+          w.jumpTo >= totalQuarters ||
+          (w.jumpTo - arrive).abs() < 1e-6) {
+        break;
+      }
       result.add(arrive);
       start = w.jumpTo;
       at = w.at;
     }
     return result;
   }
+
+  /// Whether every warp fits a score of [totalQuarters] (see [arrivals]).
+  bool fits(double totalQuarters) => arrivals(totalQuarters).length == warps.length;
 
   /// The warps of hand-set [anchors], where a file played as they are would jump.
   static List<MidiWarp> warpsOf(List<SyncAnchor> anchors) {
@@ -191,7 +215,8 @@ class MidiTempoMap {
   /// at [start] seconds: one where the score begins, one at each change of tempo inside it, a
   /// warp at each of [warps], and one at the score's end ([totalQuarters]) as the file last
   /// reaches it. Between anchors a sync map's tempo is constant, as a MIDI file's is between
-  /// changes. Warps that don't fit the score (see [arrivals]) are left out, from the first.
+  /// changes. Warps that don't fit the score (see [arrivals]) are left out, from the first that
+  /// doesn't on.
   List<SyncAnchor> anchors({required double start, required double totalQuarters}) {
     final result = [SyncAnchor(0, start)];
     double seconds(double at) => start + secondsAt(at);
@@ -203,7 +228,7 @@ class MidiTempoMap {
       }
     }
 
-    final arrivals = this.arrivals(totalQuarters) ?? const [];
+    final arrivals = this.arrivals(totalQuarters);
     for (final (i, arrive) in arrivals.indexed) {
       final w = warps[i];
       changes(w.at);
