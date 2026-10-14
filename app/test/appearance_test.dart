@@ -118,6 +118,25 @@ void main() {
     }
   });
 
+  test('Refined: a held-down button is a clear grey, a step past hovered, and a selected one its accent', () {
+    for (final brightness in Brightness.values) {
+      final theme = AppColors.theme(brightness: brightness);
+      final c = theme.extension<AppColors>()!;
+      expect(c.pressTint.a, greaterThanOrEqualTo(c.hoverTint.a * 3), reason: '$brightness');
+      for (final style in [
+        theme.textButtonTheme.style!,
+        theme.outlinedButtonTheme.style!,
+        theme.iconButtonTheme.style!,
+        theme.segmentedButtonTheme.style!,
+      ]) {
+        expect(style.overlayColor!.resolve({WidgetState.pressed}), c.pressTint);
+        expect(style.overlayColor!.resolve({WidgetState.hovered}), c.hoverTint);
+      }
+      expect(theme.highlightColor, c.pressTint, reason: 'an InkWell held down');
+      expect(c.selectedTint.withValues(alpha: 1), c.accentFill, reason: "selected: the swatch's colour, not grey");
+    }
+  });
+
   test('Refined sets a desktop theme over Classic, which stays Material as it was', () {
     for (final brightness in Brightness.values) {
       final refined = AppColors.theme(brightness: brightness);

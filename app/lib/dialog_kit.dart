@@ -287,7 +287,7 @@ Widget dialogMenuField(
         minimumSize: const Size(24, 24),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         visualDensity: VisualDensity.compact,
-      ),
+      ).copyWith(overlayColor: colors.pressOverlay),
     ),
     child: menu(
       InputDecorationTheme(

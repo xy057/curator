@@ -218,6 +218,28 @@ class AppColors extends ThemeExtension<AppColors> {
 
   /// Text on [accentFill]: white, or where white would be faint on it (the dark theme's light
   /// shades) the dark text.
+  bool get _dark => surface.computeLuminance() < 0.5;
+
+  /// [UiStyle.refined]: under a control held down: a clear step darker than [hoverTint], and grey,
+  /// never a selected control's accent.
+  Color get pressTint => text.withValues(alpha: _dark ? 0.2 : 0.14);
+
+  /// [UiStyle.refined]: under a control the pointer is over.
+  Color get hoverTint => text.withValues(alpha: _dark ? 0.06 : 0.045);
+
+  /// [UiStyle.refined]: a button's overlay, [pressTint] held down and [hoverTint] hovered.
+  WidgetStateProperty<Color?> get pressOverlay => WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.pressed)
+      ? pressTint
+      : s.contains(WidgetState.hovered)
+          ? hoverTint
+          : s.contains(WidgetState.focused)
+              ? accent.withValues(alpha: 0.14)
+              : null);
+
+  /// [UiStyle.refined]: behind a selected toggle (a tool, a grid): its swatch's colour, faint, so
+  /// it reads as chosen and a grey press doesn't.
+  Color get selectedTint => accentFill.withValues(alpha: _dark ? 0.24 : 0.14);
+
   Color get onAccentFill => (1.05 / (accentFill.computeLuminance() + 0.05)) >= 3 ? Colors.white : const Color(0xFF1D1D1F);
 
   static ThemeData theme({
@@ -322,6 +344,7 @@ class AppColors extends ThemeExtension<AppColors> {
       animationDuration: quick,
       visualDensity: VisualDensity.standard,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      overlayColor: c.pressOverlay,
     );
     // The default action: on the accent, darkened while pressed, as a desktop button is.
     final fill = c.accentFill;
@@ -332,7 +355,7 @@ class AppColors extends ThemeExtension<AppColors> {
       foregroundColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.6) : c.onAccentFill),
       overlayColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.pressed)
-          ? Colors.black.withValues(alpha: 0.14)
+          ? Colors.black.withValues(alpha: 0.22)
           : s.contains(WidgetState.hovered)
               ? Colors.white.withValues(alpha: 0.08)
               : null),
@@ -370,6 +393,7 @@ class AppColors extends ThemeExtension<AppColors> {
               : c.textMuted),
       iconColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? c.text : c.textMuted),
       iconSize: const WidgetStatePropertyAll(15),
+      overlayColor: c.pressOverlay,
     );
     final strong = dark ? c.accent : c.accentStrong;
     // Dialogs and menus: in the dark, a step lighter than the window, as raised things are.
@@ -486,6 +510,7 @@ class AppColors extends ThemeExtension<AppColors> {
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),
+      iconButtonTheme: IconButtonThemeData(style: theme.iconButtonTheme.style!.copyWith(overlayColor: c.pressOverlay)),
       filledButtonTheme: FilledButtonThemeData(style: filled),
       elevatedButtonTheme: ElevatedButtonThemeData(style: filled),
       outlinedButtonTheme: OutlinedButtonThemeData(style: outlined),
@@ -500,8 +525,8 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       splashFactory: NoSplash.splashFactory,
       splashColor: Colors.transparent,
-      hoverColor: c.text.withValues(alpha: dark ? 0.06 : 0.045),
-      highlightColor: c.text.withValues(alpha: dark ? 0.1 : 0.08),
+      hoverColor: c.hoverTint,
+      highlightColor: c.pressTint,
       focusColor: c.accent.withValues(alpha: 0.14),
     );
   }

@@ -144,7 +144,8 @@ class _RecentList extends StatelessWidget {
         const Spacer(),
         TextButton(
           onPressed: onClear,
-          style: TextButton.styleFrom(foregroundColor: colors.textMuted, textStyle: const TextStyle(fontSize: 12)),
+          style: TextButton.styleFrom(foregroundColor: colors.textMuted, textStyle: const TextStyle(fontSize: 12))
+              .copyWith(overlayColor: isRefined(context) ? colors.pressOverlay : null),
           child: const Text('Clear'),
         ),
       ]),

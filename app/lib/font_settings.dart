@@ -52,7 +52,7 @@ Widget _field(BuildContext context, Widget menu) => SizedBox(
             minimumSize: const Size(24, 24),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             visualDensity: VisualDensity.compact,
-          ),
+          ).copyWith(overlayColor: isRefined(context) ? context.colors.pressOverlay : null),
         ),
         child: menu,
       ),
