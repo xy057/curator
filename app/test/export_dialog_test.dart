@@ -9,6 +9,7 @@ import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:curated_score/video_export.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -130,7 +131,15 @@ void main() {
     expect(tester.widget<IconButton>(find.ancestor(of: reset, matching: find.byType(IconButton))).onPressed, isNull,
         reason: 'nothing to reset');
     expect((transparent().value, transparent().onChanged), (false, null), reason: 'an MP4 is always on paper');
-    expect(find.byTooltip('MOV, WebM or PNG only'), findsOneWidget);
+    // Why, on hovering anywhere along the row: its label too, not only the switch.
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.descendant(of: find.byType(Dialog), matching: find.text('Transparent'))));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Not supported in MP4'), findsOneWidget);
+    await mouse.moveTo(Offset.zero);
+    await tester.pump(const Duration(seconds: 1));
 
     // From 480p to 8K; 8K H.264 only as wide as about 16:9, so at 21:9 it can't be chosen.
     await choose('1080p', '8K');

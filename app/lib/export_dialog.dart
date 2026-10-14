@@ -417,12 +417,10 @@ class _ExportDialogState extends State<_ExportDialog> {
       ),
       _Row(
         label: 'Transparent',
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: format.codec.alpha
-              ? AppSwitch(value: format.hasAlpha, onChanged: (v) => setState(() => _settings.videoTransparent = v))
-              : const Tip(message: 'MOV, WebM or PNG only', child: AppSwitch(value: false, onChanged: null)),
-        ),
+        tip: format.codec.alpha ? null : 'Not supported in MP4',
+        child: format.codec.alpha
+            ? AppSwitch(value: format.hasAlpha, onChanged: (v) => setState(() => _settings.videoTransparent = v))
+            : const AppSwitch(value: false, onChanged: null),
       ),
       _Row(
         label: 'Score size',
@@ -926,21 +924,23 @@ class _FrameRateState extends State<_FrameRate> {
 
 /// A sidebar row: its [label] at the left, [child] filling the rest.
 class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.child});
+  const _Row({required this.label, this.tip, required this.child});
   final String label;
+
+  /// Why the row can't be used: shown on hovering anywhere along it, label too.
+  final String? tip;
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: SizedBox(
-          height: 36,
-          child: Row(children: [
-            SizedBox(width: 96, child: Text(label, style: TextStyle(fontSize: 14, color: context.colors.textMuted))),
-            Expanded(child: Align(alignment: Alignment.centerLeft, child: child)),
-          ]),
-        ),
-      );
+  Widget build(BuildContext context) {
+    Widget row = Row(children: [
+      SizedBox(width: 96, child: Text(label, style: TextStyle(fontSize: 14, color: context.colors.textMuted))),
+      Expanded(child: Align(alignment: Alignment.centerLeft, child: child)),
+    ]);
+    // A clear box: the gaps between label and control are hit too.
+    if (tip case final tip?) row = Tip(message: tip, child: ColoredBox(color: Colors.transparent, child: row));
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: SizedBox(height: 36, child: row));
+  }
 }
 
 /// A group's name: "Video", "Picture"; [trailing] at its far end.
