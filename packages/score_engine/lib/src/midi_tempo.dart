@@ -81,28 +81,42 @@ class MidiTempoMap {
 
   /// When [quarter] sounds, in seconds from the start of the file.
   double secondsAt(double quarter) {
-    var seconds = 0.0;
-    for (var i = 0; i < tempos.length; i++) {
-      final t = tempos[i];
-      final end = i + 1 < tempos.length ? tempos[i + 1].quarter : double.infinity;
-      if (quarter <= end) return seconds + (quarter - t.quarter) * 60 / t.quartersPerMinute;
-      seconds += (end - t.quarter) * 60 / t.quartersPerMinute;
-    }
-    return seconds; // not reached: the last tempo runs on for ever
+    final i = _lastAtOrBefore(quarter, (i) => tempos[i].quarter);
+    final t = tempos[i];
+    return _starts[i] + (quarter - t.quarter) * 60 / t.quartersPerMinute;
   }
 
   /// Where [seconds] from the start of the file falls, in quarter notes (the inverse of
   /// [secondsAt]).
   double quarterAt(double seconds) {
-    var at = 0.0;
-    for (var i = 0; i < tempos.length; i++) {
-      final t = tempos[i];
-      final end = i + 1 < tempos.length ? tempos[i + 1].quarter : double.infinity;
-      final length = (end - t.quarter) * 60 / t.quartersPerMinute;
-      if (seconds <= at + length) return t.quarter + (seconds - at) * t.quartersPerMinute / 60;
-      at += length;
+    final i = _lastAtOrBefore(seconds, (i) => _starts[i]);
+    final t = tempos[i];
+    return t.quarter + (seconds - _starts[i]) * t.quartersPerMinute / 60;
+  }
+
+  /// When each change sounds, in seconds from the start of the file: a map with a change a
+  /// beat (a performance's) has thousands, and the Audio tab asks for each on every frame.
+  late final List<double> _starts = () {
+    final out = List<double>.filled(tempos.length, 0);
+    for (var i = 1; i < tempos.length; i++) {
+      final t = tempos[i - 1];
+      out[i] = out[i - 1] + (tempos[i].quarter - t.quarter) * 60 / t.quartersPerMinute;
     }
-    return 0; // not reached: the last tempo runs on for ever
+    return out;
+  }();
+
+  /// The last change whose [key] is at or before [value] (the first before them all).
+  int _lastAtOrBefore(double value, double Function(int i) key) {
+    var lo = 0, hi = tempos.length - 1;
+    while (lo < hi) {
+      final mid = (lo + hi + 1) >> 1;
+      if (key(mid) <= value) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return lo;
   }
 
   // MARK: Editing
