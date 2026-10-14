@@ -184,6 +184,22 @@ void main() {
     expect(darkMenu, darkLine, reason: 'not on the menu\'s own shape animation');
   });
 
+  testWidgets('Flags: dynamics typed as text, on until switched off', (tester) async {
+    final settings = await open(tester);
+    await tester.tap(find.text('Flags'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dynamics typed as text'), findsOneWidget);
+    expect(settings.textDynamics, isTrue);
+    await shot(tester, 'settings-flags');
+    await tester.tap(find.byType(AppSwitch));
+    await tester.pumpAndSettle();
+    expect(settings.textDynamics, isFalse);
+
+    await tester.enterText(find.byType(TextField), 'maestro');
+    await tester.pumpAndSettle();
+    expect(find.text('Dynamics typed as text'), findsOneWidget, reason: 'found by search');
+  });
+
   testWidgets('search finds items on every page', (tester) async {
     await open(tester);
     await tester.enterText(find.byType(TextField), 'link');

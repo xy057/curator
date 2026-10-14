@@ -240,7 +240,11 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
     try {
       return await LoadedScore.load(ScoreFile.decodeMusicXML(bytes),
-          textEdits: textEdits, pairs: pairs, fonts: fonts, options: engraving.over(_engravingOptions));
+          textEdits: textEdits,
+          pairs: pairs,
+          fonts: fonts,
+          options: engraving.over(_engravingOptions),
+          textDynamics: _textDynamics);
     } finally {
       _loading = false;
       if (!_disposed) notifyListeners();
@@ -419,6 +423,16 @@ class EditorController extends ChangeNotifier {
     if (_score != null) unawaited(_reengrave());
   }
 
+  /// Whether dynamics written as text ("f" in a music font) are engraved as dynamics
+  /// (Settings ▸ Flags, [TextDynamics]). Not an edit: changing it re-engraves what is open.
+  bool get textDynamics => _textDynamics;
+  bool _textDynamics = true;
+  set textDynamics(bool value) {
+    if (value == _textDynamics) return;
+    _textDynamics = value;
+    if (_score != null) unawaited(_reengrave());
+  }
+
   /// The options this project sets over [engravingOptions] (Project Settings ▸ Engraving):
   /// an edit, saved with the project.
   EngravingOptions get projectEngraving => _projectEngraving;
@@ -489,7 +503,11 @@ class EditorController extends ChangeNotifier {
   @visibleForTesting
   Future<LoadedScore> engraveAgain(LoadedScore score) =>
       score.withEdits(
-          textEdits: _textEdits, pairs: _pairs, fonts: _fonts, options: _projectEngraving.over(_engravingOptions));
+          textEdits: _textEdits,
+          pairs: _pairs,
+          fonts: _fonts,
+          options: _projectEngraving.over(_engravingOptions),
+          textDynamics: _textDynamics);
 
   /// Why the latest re-engraving failed, the score showing as it was before; null once one
   /// succeeds. Undo can step back from the edit that caused it.

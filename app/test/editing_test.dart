@@ -86,6 +86,25 @@ void main() {
     expect(c.score!.options.valueOf(spacing), 0.9);
   });
 
+  test('turning off dynamics typed as text re-engraves what is open, and is not an edit', () async {
+    expect(c.score!.textDynamics, isTrue, reason: 'on by default');
+    final curation = c.curation, sync = c.sync;
+    final revision = c.editRevision.value;
+    c.textDynamics = false;
+    expect(c.isReengraving, isTrue);
+    while (c.isReengraving) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(c.score!.textDynamics, isFalse);
+    expect(identical(c.curation, curation) && identical(c.sync, sync), isTrue);
+    expect(c.editRevision.value, revision, reason: 'a setting, not part of the project');
+
+    // A text edit keeps it.
+    final vivo = c.score!.texts.firstWhere((t) => t.text == 'Vivo');
+    await c.editText(vivo.id, 'Vivo assai');
+    expect(c.score!.textDynamics, isFalse);
+  });
+
   test("the project's engraving options win over the app's, and are an edit Undo steps through", () async {
     Future<void> engraved() async {
       while (c.isReengraving) {

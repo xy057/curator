@@ -13,6 +13,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `engraving_options.dart` | The Verovio options the user may change (Settings ▸ Engraving: the common ones by plain name, every one in Engraving options by code name; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
 | `lib/src/native/bindings.dart`, `engraving.dart` | FFI bindings; `Engraver.engrave` runs Verovio on an isolate and copies everything into plain Dart data (`EngravingData`) |
 | `score_metadata.dart`, `score_text.dart` | What the MusicXML says: parts, staves, meters, where each part plays; the editable texts, with text edits applied before engraving |
+| `text_dynamics.dart` | Dynamics another program wrote as text (`TextDynamics`), made dynamics before engraving |
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
@@ -367,6 +368,19 @@ in `engraving.dart`). The bridge `static_assert`s every field's word index, and
 `Engraver` compares every struct's size with the library's (`vb_struct_size`) before reading.
 Change both sides together.
 
+**Dynamics typed as text are dynamics.** A notation program can write a dynamic as words: Sibelius
+exports an "f" typed in a text style other than Expression as `<words font-family="Maestro">F</words>`,
+and Verovio, reading what the file says, engraves the letter in the text font. `TextDynamics.apply`
+(in `PreparedScore.prepare`, after the text edits and before condensing) rewrites as `<dynamics>`
+every `<words>` that spells one of MusicXML's dynamics (`f`, `mp`, `sfz`…): in a font whose letters
+draw dynamics (Maestro, Opus Text, Bravura Text…; any case, as exporters map glyphs through their
+font's table), or in SMuFL's dynamics characters (U+E520–E53D) in any font. It keeps its place and
+colour, not its font; text beside it in the same direction-type moves into direction-types of its
+own, so Verovio still sets it beside the dynamic. The texts list is read before, so it and saved
+edits' ids don't change. Settings ▸ Flags ▸ Dynamics typed as text (`AppSettings.textDynamics`, on
+by default; not an edit) turns it off: `EditorController.textDynamics` re-engraves, as the
+engraving options do.
+
 **Verovio is pinned and patched.** `make setup` clones the tagged release and applies
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
@@ -551,6 +565,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
   `AppSettings`; a project's own, in `_projectCategories`, backed by an edit (see *Something a
   project saves*), so Settings holds only what is the same for every project. Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extensions**.
+- **A flag**: a fix for how other programs write their files, on by default, as an `_Item` on
+  Settings ▸ Flags with a switch to turn it off (`AppSettings`, the app's, never a project's).
 - **An extension**: a value of `AppExtension` (`app_extensions.dart`: its name, icon, version,
   one-line summary, search words, its own settings (`settings`, a dialog's content, or null)
   and its switch, a `bool` in `AppSettings`), which the Extensions page lists: name and

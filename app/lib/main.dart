@@ -301,8 +301,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  /// Settings ▸ Engraving: what is open is engraved again with them.
-  void _engravingChanged() => controller.engravingOptions = settings.engravingOptions;
+  /// Settings ▸ Engraving and ▸ Flags: what is open is engraved again with them.
+  void _engravingChanged() => controller
+    ..engravingOptions = settings.engravingOptions
+    ..textDynamics = settings.textDynamics;
   void _sampleChanged() => _isSample.value = document.isSample;
 
   /// An edit that couldn't be engraved: the score stays as it was, and Undo steps back.
