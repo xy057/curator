@@ -8,20 +8,13 @@ abstract final class TextDynamics {
   /// Rewrites every such `<words>` in [doc] as `<dynamics>`; returns how many.
   static int apply(XmlDocument doc) {
     var count = 0;
-    for (final words in doc.findAllElements('words').toList()) {
-      final name = dynamicOf(words);
-      final type = words.parent;
-      if (name == null || type is! XmlElement || type.name.local != 'direction-type') continue;
-      _replace(
-          type,
-          words,
-          XmlElement.tag('dynamics', attributes: [
-            for (final a in words.attributes)
-              if (_kept.contains(a.name.local)) XmlAttribute(XmlName.qualified(a.name.local), a.value),
-          ], children: [
-            XmlElement.tag(name)
-          ]));
-      count++;
+    for (final type in doc.findAllElements('direction-type').toList()) {
+      final kids = type.childElements.toList();
+      final names = [for (final k in kids) k.name.local == 'words' ? dynamicOf(k) : null];
+      final found = names.nonNulls.length;
+      if (found == 0) continue;
+      count += found;
+      _split(type, kids, names);
     }
     return count;
   }
@@ -58,20 +51,36 @@ abstract final class TextDynamics {
   /// (the score's music font draws it).
   static const _kept = {'default-x', 'default-y', 'relative-x', 'relative-y', 'color', 'halign', 'valign', 'id'};
 
-  /// [words] becomes [dynamics]. A direction-type holds one kind of thing, so text beside it
-  /// moves into direction-types of its own, before and after, in the same order.
-  static void _replace(XmlElement type, XmlElement words, XmlElement dynamics) {
-    final kids = type.childElements.toList();
-    final i = kids.indexOf(words);
-    if (kids.length == 1) return words.replace(dynamics);
-    XmlElement typeOf(Iterable<XmlNode> children) =>
-        XmlElement.tag('direction-type', children: [for (final c in children) c.copy()]);
-    final split = [
-      if (i > 0) typeOf(kids.take(i)),
-      typeOf([dynamics]),
-      if (i < kids.length - 1) typeOf(kids.skip(i + 1)),
-    ];
-    final siblings = type.parent!.children;
+  /// [words] as a `<dynamics>` [name]: its place and colour kept, not its font.
+  static XmlElement _dynamics(XmlElement words, String name) => XmlElement.tag('dynamics', attributes: [
+        for (final a in words.attributes)
+          if (_kept.contains(a.name.local)) XmlAttribute(XmlName.qualified(a.name.local), a.value),
+      ], children: [
+        XmlElement.tag(name)
+      ]);
+
+  /// [type]'s children [kids], where [names] says which are dynamics, made dynamics. A
+  /// direction-type holds one kind of thing, so each dynamic gets one of its own, and the text
+  /// beside them goes into direction-types of its own between them, in the same order.
+  static void _split(XmlElement type, List<XmlElement> kids, List<String?> names) {
+    if (kids.length == 1) return kids.single.replace(_dynamics(kids.single, names.single!));
+    final split = <XmlElement>[];
+    var run = <XmlNode>[];
+    void endRun() {
+      if (run.isNotEmpty) split.add(XmlElement.tag('direction-type', children: run));
+      run = [];
+    }
+
+    for (final (i, kid) in kids.indexed) {
+      if (names[i] case final name?) {
+        endRun();
+        split.add(XmlElement.tag('direction-type', children: [_dynamics(kid, name)]));
+      } else {
+        run.add(kid.copy());
+      }
+    }
+    endRun();
+    final siblings = type.parent!.children; // found in the document: it has one
     siblings.insertAll(siblings.indexOf(type), split);
     type.remove();
   }

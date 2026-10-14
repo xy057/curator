@@ -63,6 +63,22 @@ void main() {
         '</direction>');
   });
 
+  test('every dynamic in one direction-type is one, the text between them kept between', () {
+    final doc = XmlDocument.parse('<direction><direction-type>'
+        '<words font-family="Maestro">f</words>'
+        '<words font-family="Garamond">–</words>'
+        '<words font-family="Maestro">p</words>'
+        '</direction-type></direction>');
+    expect(TextDynamics.apply(doc), 2);
+    expect(
+        doc.rootElement.toXmlString(),
+        '<direction>'
+        '<direction-type><dynamics><f/></dynamics></direction-type>'
+        '<direction-type><words font-family="Garamond">–</words></direction-type>'
+        '<direction-type><dynamics><p/></dynamics></direction-type>'
+        '</direction>');
+  });
+
   test('engraved as a dynamic, or as text with the flag off', () async {
     final score = await LoadedScore.load(_sibelius);
     expect(score.textDynamics, isTrue);
