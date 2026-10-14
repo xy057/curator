@@ -30,12 +30,13 @@ Encoders:
 
     test('libx264 when the build has it', () => expect(VideoEncoder.pick(listing), 'libx264'));
 
-    test('else OpenH264; never a platform\'s own (VideoToolbox, Media Foundation)', () {
+    test('else OpenH264; the platform\'s own (VideoToolbox, Media Foundation) only for builds with neither', () {
       expect(VideoEncoder.pick('$listing V....D libopenh264  OpenH264\n'.replaceAll(' libx264 ', ' x ')), 'libopenh264');
-      expect(VideoEncoder.pick(listing.replaceAll(' libx264 ', ' x ')), isNull);
+      expect(VideoEncoder.pick(listing.replaceAll(' libx264 ', ' x ')), 'h264_videotoolbox');
+      expect(VideoEncoder.pick(' V....D h264_mf              H264 via MediaFoundation (codec h264)\n'), 'h264_mf');
     });
 
-    test('each format has its own: libx265 for HEVC, prores_ks, libvpx-vp9, png', () {
+    test('each format has its own: libx265 (else the platform\'s) for HEVC, prores_ks, libvpx-vp9, png', () {
       const more = '''
  V....D libx265              libx265 H.265 / HEVC (codec hevc)
  V....D hevc_videotoolbox    VideoToolbox H.265 Encoder (codec hevc)
@@ -44,7 +45,7 @@ Encoders:
  VF...D png                  PNG (Portable Network Graphics) image
 ''';
       expect(VideoEncoder.pick(listing + more, VideoCodec.hevc), 'libx265');
-      expect(VideoEncoder.pick(listing + more.replaceAll(' libx265 ', ' x '), VideoCodec.hevc), isNull);
+      expect(VideoEncoder.pick(listing + more.replaceAll(' libx265 ', ' x '), VideoCodec.hevc), 'hevc_videotoolbox');
       expect(VideoEncoder.pick(listing + more, VideoCodec.prores), 'prores_ks');
       expect(VideoEncoder.pick(listing + more, VideoCodec.vp9), 'libvpx-vp9');
       expect(VideoEncoder.pick(listing + more, VideoCodec.png), 'png');
@@ -116,9 +117,13 @@ Encoders:
       expect(line, contains('-t 12.500000 -movflags +faststart -f mp4 out.mp4.part'));
     });
 
-    test('OpenH264 gets a bit rate; no recording, no audio track', () {
+    test('OpenH264 and the platforms\' encoders get a bit rate; no recording, no audio track', () {
       final args = VideoEncoder.arguments(encoder: 'libopenh264', format: format, seconds: 1, output: 'o');
       expect(args.join(' '), contains('-c:v libopenh264 -b:v 7465k'));
+      expect(VideoEncoder.arguments(encoder: 'h264_videotoolbox', format: format, seconds: 1, output: 'o').join(' '),
+          contains('-c:v h264_videotoolbox -b:v 7465k -profile:v high -allow_sw 1'));
+      expect(VideoEncoder.arguments(encoder: 'hevc_mf', format: format, seconds: 1, output: 'o').join(' '),
+          contains('-tag:v hvc1'));
       expect(args.where((a) => a == '-i'), hasLength(1));
       expect(args, isNot(contains('-c:a')));
     });

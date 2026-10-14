@@ -89,7 +89,8 @@ the same way and scaled to fit (`VideoFrame.fit`; filling is `VideoFrame.fill`),
 window's size never changes what the score shows. Hit tests go through `VideoFrame.toLayout`.
 What a video is written as is a `VideoCodec` (Export's Format, `AppSettings.videoCodec`): its
 FFmpeg encoders best first (the dialog asks FFmpeg which it has, `VideoEncoder.probeAll`, and greys
-out the rest), its container and sound. A PNG sequence is a folder of numbered frames without
+out the rest): FFmpeg's own and its libraries, alike everywhere; for H.264 and HEVC the platform's
+own (VideoToolbox, Media Foundation) last, for builds without them, its container and sound. A PNG sequence is a folder of numbered frames without
 sound, written as `<name>.part` and renamed; an existing folder is replaced only if it holds
 nothing but frames of that name (`VideoEncoder.onlyFrames`; `.DS_Store`, `Thumbs.db` and the like aside), never anything else; one that gains other files while it is written keeps them, and the frames go beside it ("Take 2", `write` returns where). Sizes run 480p
 to 8K; H.264 and HEVC stop at level 6.2's pixels (`VideoCodec.fits`: 8K only near 16:9), every

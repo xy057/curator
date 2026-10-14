@@ -124,8 +124,8 @@ class VideoFrame {
 /// What a video is written as: a container and codec FFmpeg writes it with, or PNG images, one
 /// a frame, in a folder. Some keep a transparent background ([alpha]).
 enum VideoCodec {
-  h264('MP4 (H.264)', 'mp4', 'MP4 video', ['libx264', 'libopenh264']),
-  hevc('MP4 (HEVC)', 'mp4', 'MP4 video', ['libx265']),
+  h264('MP4 (H.264)', 'mp4', 'MP4 video', ['libx264', 'libopenh264', 'h264_videotoolbox', 'h264_mf']),
+  hevc('MP4 (HEVC)', 'mp4', 'MP4 video', ['libx265', 'hevc_videotoolbox', 'hevc_mf']),
   prores('MOV (ProRes)', 'mov', 'QuickTime movie', ['prores_ks', 'prores_aw'], alpha: true),
   vp9('WebM (VP9)', 'webm', 'WebM video', ['libvpx-vp9'], alpha: true),
   png('PNG Sequence', '', 'Folder', ['png'], alpha: true);
@@ -140,7 +140,8 @@ enum VideoCodec {
   final String typeLabel;
 
   /// FFmpeg's encoders for it, best first: its own or libraries built into it, the same on every
-  /// platform (no VideoToolbox, no Media Foundation), so a file comes out alike everywhere.
+  /// platform, so a file comes out alike everywhere; the platform's own (VideoToolbox, Media
+  /// Foundation) last, for builds without them (an LGPL FFmpeg has no libx264).
   final List<String> encoders;
 
   /// Whether it can keep a transparent background.
@@ -322,7 +323,7 @@ abstract final class VideoEncoder {
   }) {
     final fps = format.fps, codec = format.codec, alpha = format.hasAlpha;
     if (!codec.hasSound) audio = null;
-    // OpenH264 takes a bit rate: 0.12 bits a pixel is ample for ink on paper
+    // OpenH264 and the platforms' encoders take a bit rate: 0.12 bits a pixel is ample for ink on paper
     // (HEVC needs about two thirds of H.264's).
     final kbps = (format.width * format.height * fps * (codec == VideoCodec.hevc ? 0.08 : 0.12) / 1000).round();
     final pixels = switch (codec) {
@@ -342,7 +343,10 @@ abstract final class VideoEncoder {
       '-c:v', encoder,
       ...switch (encoder) {
         'libx264' => ['-preset', 'medium', '-crf', '18', '-profile:v', 'high'],
+        'h264_videotoolbox' => ['-b:v', '${kbps}k', '-profile:v', 'high', '-allow_sw', '1'],
         'libx265' => ['-preset', 'medium', '-crf', '20', '-tag:v', 'hvc1', '-x265-params', 'log-level=error'],
+        'hevc_videotoolbox' => ['-b:v', '${kbps}k', '-tag:v', 'hvc1', '-allow_sw', '1'],
+        'hevc_mf' => ['-b:v', '${kbps}k', '-tag:v', 'hvc1'],
         // 4444 keeps the alpha (16 bits of it); 422 HQ otherwise. "apl0" as Apple's own files say.
         'prores_ks' => ['-profile:v', alpha ? '4444' : 'hq', if (alpha) ...['-alpha_bits', '16'], '-vendor', 'apl0'],
         'prores_aw' => ['-profile:v', alpha ? '4444' : 'hq', '-vendor', 'apl0'],
