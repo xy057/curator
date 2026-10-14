@@ -498,9 +498,10 @@ class _TextToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    // Refined: on, a selected toolbar button's accent tint and colour (a press is grey).
+    // Refined: on, the same neutral pressed fill as a toolbar button, the text not tinted.
     final refined = isRefined(context);
-    final on = refined ? colors.selectedTint : colors.accentSoft;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final on = refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05) : colors.accentSoft;
     final radius = BorderRadius.circular(refined ? 5 : 8);
     return InkWell(
       borderRadius: radius,
@@ -515,7 +516,7 @@ class _TextToggle extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              color: selected ? (refined ? colors.accentFill : colors.accentStrong) : colors.textMuted,
+              color: selected ? (refined ? colors.text : colors.accentStrong) : colors.textMuted,
             )),
       ),
     );

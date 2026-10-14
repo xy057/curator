@@ -122,7 +122,7 @@ class FieldLabel extends StatelessWidget {
 }
 
 /// The compact icon button used in every toolbar: 32 × 32, its label in the tooltip; in
-/// [UiStyle.refined] 28 × 28, and when selected the accent's tint under an accent icon (a press is grey).
+/// [UiStyle.refined] 28 × 28, and when selected a neutral pressed fill under an accent icon.
 class ToolbarButton extends StatelessWidget {
   const ToolbarButton({
     super.key,
@@ -149,6 +149,7 @@ class ToolbarButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final refined = isRefined(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final size = refined ? 28.0 : 32.0;
     return OverlaySemantics(
       child: IconButton(
@@ -160,11 +161,13 @@ class ToolbarButton extends StatelessWidget {
         constraints: BoxConstraints.tightFor(width: size, height: size),
         padding: EdgeInsets.zero,
         style: IconButton.styleFrom(
-          foregroundColor: selected ? (refined ? colors.accentFill : colors.accentStrong) : (color ?? colors.text),
-          backgroundColor: selected ? (refined ? colors.selectedTint : colors.accentSoft) : null,
+          foregroundColor: selected ? (refined && dark ? colors.accent : colors.accentStrong) : (color ?? colors.text),
+          backgroundColor: selected
+              ? (refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05) : colors.accentSoft)
+              : null,
           shape: refined ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)) : null,
           animationDuration: motion(context, 150),
-        ).copyWith(overlayColor: refined ? colors.pressOverlay : null),
+        ),
         icon: glyph ?? Icon(icon),
       ),
     );
