@@ -16,9 +16,6 @@ enum AccentColor {
 
   /// The darker shade for lines and selected things on a light background.
   final Color strong;
-
-  /// The accent as Settings ▸ Appearance shows it in [brightness]: what a solid accent fill is.
-  Color shade(Brightness brightness) => brightness == Brightness.dark ? color : strong;
 }
 
 /// How the controls look (Settings ▸ Appearance ▸ Style), the same on every platform.
@@ -68,7 +65,6 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.onset,
     required this.scorePaper,
     required this.scoreInk,
-    required this.accentFill,
     Color? chrome,
     Color? well,
   })  : chrome = chrome ?? surface,
@@ -83,7 +79,6 @@ class AppColors extends ThemeExtension<AppColors> {
       const surface = Color(0xFFFFFFFF);
       return AppColors(
         accent: a,
-        accentFill: accent.shade(brightness),
         accentStrong: accent.strong,
         accentSoft: mix(surface, 0.2),
         accentWash: mix(surface, 0.055),
@@ -105,7 +100,6 @@ class AppColors extends ThemeExtension<AppColors> {
     const surface = Color(0xFF1D1F23);
     return AppColors(
       accent: a,
-      accentFill: accent.shade(brightness),
       accentStrong: Color.lerp(a, Colors.white, 0.28)!,
       accentSoft: mix(surface, 0.3),
       accentWash: mix(surface, 0.045),
@@ -135,7 +129,6 @@ class AppColors extends ThemeExtension<AppColors> {
       const surface = Color(0xFFFFFFFF);
       return AppColors(
         accent: a,
-        accentFill: accent.shade(brightness),
         accentStrong: accent.strong,
         accentSoft: mix(surface, 0.2),
         // Nearly all white: the chrome and the lane stripes a whisper off it, hairlines doing the
@@ -161,7 +154,6 @@ class AppColors extends ThemeExtension<AppColors> {
     const surface = Color(0xFF1E1E20);
     return AppColors(
       accent: a,
-      accentFill: accent.shade(brightness),
       accentStrong: Color.lerp(a, Colors.white, 0.28)!,
       accentSoft: mix(surface, 0.3),
       accentWash: const Color(0xFF232325),
@@ -212,13 +204,12 @@ class AppColors extends ThemeExtension<AppColors> {
   /// The recess of a segmented control, the chosen segment raised out of it.
   final Color well;
 
-  /// A solid accent (the default button, a selected sidebar row): the colour of its swatch in
-  /// Settings ▸ Appearance ([AccentColor.shade]), not a shade of it.
-  final Color accentFill;
-
-  /// Text on [accentFill]: white, or where white would be faint on it (the dark theme's light
-  /// shades) the dark text.
-  Color get onAccentFill => (1.05 / (accentFill.computeLuminance() + 0.05)) >= 3 ? Colors.white : const Color(0xFF1D1D1F);
+  /// A solid accent for white to read on (the default button, a selected sidebar row): the
+  /// strong shade, darkened where it is light (amber, and every accent's dark-theme shade).
+  Color get accentFill {
+    final hsl = HSLColor.fromColor(accentStrong);
+    return hsl.withLightness(hsl.lightness.clamp(0, 0.42)).toColor();
+  }
 
   static ThemeData theme({
     AccentColor accent = AccentColor.sky,
@@ -323,14 +314,14 @@ class AppColors extends ThemeExtension<AppColors> {
       visualDensity: VisualDensity.standard,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
-    // The default action: on the accent, darkened while pressed, as a desktop button is.
+    // The default action: white on the accent, darkened while pressed, as a desktop button is.
     final fill = c.accentFill;
     final filled = button.copyWith(
       backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
           ? c.textMuted.withValues(alpha: 0.18)
           : fill),
       foregroundColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.6) : c.onAccentFill),
+          (s) => s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.6) : Colors.white),
       overlayColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.pressed)
           ? Colors.black.withValues(alpha: 0.14)
           : s.contains(WidgetState.hovered)
@@ -516,7 +507,6 @@ class AppColors extends ThemeExtension<AppColors> {
     return AppColors(
       accent: l(accent, other.accent),
       accentStrong: l(accentStrong, other.accentStrong),
-      accentFill: l(accentFill, other.accentFill),
       accentSoft: l(accentSoft, other.accentSoft),
       accentWash: l(accentWash, other.accentWash),
       surface: l(surface, other.surface),

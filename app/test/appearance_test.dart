@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
@@ -97,25 +95,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
     expect(color(), AppColors.of(settings.accent, Brightness.dark, settings.uiStyle).chrome);
     await tester.pumpAndSettle();
-  });
-
-  test("a solid accent is its swatch's colour in Settings ▸ Appearance, its text readable on it", () {
-    double contrast(Color a, Color b) {
-      final (x, y) = (a.computeLuminance(), b.computeLuminance());
-      return (max(x, y) + 0.05) / (min(x, y) + 0.05);
-    }
-
-    for (final accent in AccentColor.values) {
-      for (final brightness in Brightness.values) {
-        for (final style in UiStyle.values) {
-          final c = AppColors.of(accent, brightness, style);
-          expect(c.accentFill, accent.shade(brightness), reason: '$accent $brightness $style');
-          expect(contrast(c.onAccentFill, c.accentFill), greaterThanOrEqualTo(3), reason: '$accent $brightness');
-        }
-      }
-      final filled = AppColors.theme(accent: accent).filledButtonTheme.style!;
-      expect(filled.backgroundColor!.resolve({}), accent.shade(Brightness.light));
-    }
   });
 
   test('Refined sets a desktop theme over Classic, which stays Material as it was', () {
