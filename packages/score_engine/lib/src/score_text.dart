@@ -2,6 +2,7 @@ import 'package:xml/xml.dart';
 
 import 'condensing.dart';
 import 'score_metadata.dart';
+import 'text_dynamics.dart';
 
 /// A piece of text written in the score (a direction like "arco" or "dolce", a tempo mark, or
 /// a rehearsal mark) that can be edited.
@@ -28,7 +29,8 @@ class ScoreText {
 enum ScoreTextKind { direction, tempo, rehearsal }
 
 /// The MusicXML prepared for engraving: every direction has an id, text edits are applied,
-/// and the players that can share a staff have one (see [Condenser]).
+/// dynamics written as text are dynamics (see [TextDynamics]), and the players that can share
+/// a staff have one (see [Condenser]).
 class PreparedScore {
   PreparedScore._(this.musicXML, this.texts, this.condensed, this.condensing);
 
@@ -46,9 +48,10 @@ class PreparedScore {
 
   /// [edits]: text id → new text ('' removes it). [metadata] is what [doc] says; with it,
   /// shared staves are added (after the edits, so they copy the edited texts), for the
-  /// built-in pairs and the user's [pairs].
+  /// built-in pairs and the user's [pairs]. [textDynamics] off leaves dynamics written as text
+  /// as text.
   static PreparedScore prepare(XmlDocument doc, Map<String, String> edits,
-      {ScoreMetadata? metadata, List<PlayerPair> pairs = const []}) {
+      {ScoreMetadata? metadata, List<PlayerPair> pairs = const [], bool textDynamics = true}) {
     final texts = <ScoreText>[];
     var counter = 0;
     for (final part in doc.rootElement.findElements('part')) {
@@ -102,6 +105,8 @@ class PreparedScore {
     for (final direction in doc.findAllElements('direction').toList()) {
       if (direction.findElements('direction-type').isEmpty) direction.parent?.children.remove(direction);
     }
+    // After the edits (an edited "F" is read as edited) and before condensing (which copies it).
+    if (textDynamics) TextDynamics.apply(doc);
     final options = metadata == null ? null : Condenser.options(doc, metadata);
     final condensed =
         metadata == null ? const <CondensedGroup>[] : Condenser.condense(doc, metadata, custom: pairs, options: options);

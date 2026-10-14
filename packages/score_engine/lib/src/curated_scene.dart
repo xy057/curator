@@ -31,6 +31,7 @@ class LoadedScore {
       required this.fonts,
       required this.textFontFound,
       required this.options,
+      required this.textDynamics,
       required this.condensed,
       required this.condensing,
       required this.pairs});
@@ -68,6 +69,9 @@ class LoadedScore {
   /// The engraving options it was engraved with.
   final EngravingOptions options;
 
+  /// Whether dynamics written as text were engraved as dynamics ([TextDynamics]).
+  final bool textDynamics;
+
   /// The pairs of players that can share a staff, each engraved on one of its own (the
   /// scene shows it while both are shown and the pair is condensed).
   final List<CondensedGroup> condensed;
@@ -94,10 +98,12 @@ class LoadedScore {
     Map<String, String> textEdits = const {},
     List<PlayerPair> pairs = const [],
     EngravingOptions options = const EngravingOptions(),
+    bool textDynamics = true,
   }) async {
     final doc = ScoreMetadata.parse(musicXML);
     final metadata = ScoreMetadata.fromDocument(doc);
-    final prepared = PreparedScore.prepare(doc, textEdits, metadata: metadata, pairs: pairs);
+    final prepared =
+        PreparedScore.prepare(doc, textEdits, metadata: metadata, pairs: pairs, textDynamics: textDynamics);
     final resources = await prepareFonts(fonts, resourceDirectory: resourceDirectory);
     final engraving = await Engraver.engrave(
       prepared.musicXML,
@@ -115,6 +121,7 @@ class LoadedScore {
         fonts: fonts,
         textFontFound: resources.textFound,
         options: options,
+        textDynamics: textDynamics,
         condensed: prepared.condensed,
         condensing: prepared.condensing!,
         pairs: List.unmodifiable(pairs));
@@ -141,16 +148,21 @@ class LoadedScore {
   /// valid).
   Future<LoadedScore> withTextEdits(Map<String, String> edits) => withEdits(textEdits: edits);
 
-  /// Re-engraves with different text edits, pairs of players, fonts or engraving options; what
-  /// isn't given stays.
+  /// Re-engraves with different text edits, pairs of players, fonts, engraving options or
+  /// [textDynamics]; what isn't given stays.
   Future<LoadedScore> withEdits(
-          {Map<String, String>? textEdits, List<PlayerPair>? pairs, ScoreFonts? fonts, EngravingOptions? options}) =>
+          {Map<String, String>? textEdits,
+          List<PlayerPair>? pairs,
+          ScoreFonts? fonts,
+          EngravingOptions? options,
+          bool? textDynamics}) =>
       load(musicXML,
           fonts: fonts ?? this.fonts,
           tempo: metadata.tempo,
           textEdits: textEdits ?? this.textEdits,
           pairs: pairs ?? this.pairs,
-          options: options ?? this.options);
+          options: options ?? this.options,
+          textDynamics: textDynamics ?? this.textDynamics);
 }
 
 /// Where Verovio's font metrics live on disk (bundled as package assets).
