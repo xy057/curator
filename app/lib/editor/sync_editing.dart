@@ -46,7 +46,8 @@ class SyncEditing {
 
   // MARK: Selection
 
-  /// Selected anchors (indices into sync.anchors). Batch edits act on all of them.
+  /// Selected anchors (indices into sync.anchors), or, following a MIDI tempo map, its
+  /// changes (indices into its tempos). Batch edits act on all of them.
   Set<int> get selected => _selected;
   Set<int> _selected = {};
   int? _pivot; // where a ⇧-click range starts
@@ -167,9 +168,13 @@ class SyncEditing {
   /// ←/→: nudge the selected anchors in time, together.
   void nudge(double seconds) => _sync?.moveAnchors(_valid, seconds);
 
-  /// Delete: removes the selected anchors.
+  /// Delete: removes the selected anchors, or the selected changes of the MIDI tempo map.
   void delete() {
-    _sync?.removeAnchors(_valid);
+    if (_editor._midi case final midi?) {
+      _editor.editMidiTempo(midi.removed(_selected));
+    } else {
+      _sync?.removeAnchors(_valid);
+    }
     _selected = {};
     _editor._changed();
   }
