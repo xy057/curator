@@ -25,6 +25,18 @@ File _midiFile() {
   return file;
 }
 
+/// A one-track MIDI file (480 ticks a quarter) at ♩ = 90 that ends after [quarters].
+File _midiFileOf(double quarters) {
+  final ticks = (quarters * 480).round();
+  final length = [for (var shift = 21; shift > 0; shift -= 7) 0x80 | (ticks >> shift & 0x7f), ticks & 0x7f];
+  final body = [0, 0xff, 0x51, 3, 0x0a, 0x2c, 0x2b, ...length, 0xff, 0x2f, 0]; // 666 667 µs a quarter
+  final bytes = [
+    ...'MThd'.codeUnits, 0, 0, 0, 6, 0, 0, 0, 1, 0x01, 0xe0, //
+    ...'MTrk'.codeUnits, 0, 0, 0, body.length, ...body,
+  ];
+  return File('${Directory.systemTemp.createTempSync('midi-').path}/played.mid')..writeAsBytesSync(Uint8List.fromList(bytes));
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late EditorController c;
@@ -119,6 +131,38 @@ void main() {
     expect(state.edits.midi, c.midiTempo, reason: 'saved with the map');
     expect(ProjectState.fromJson({'sync': {'midi': {'tempos': [[0, 90]]}}}, savedVersion: 14).edits.midi!.warps, isEmpty);
     expect(() => ProjectState.fromJson({'sync': {'midi': {'tempos': [[0, 90]], 'warps': [[0, 4]]}}}), throwsFormatException);
+  });
+
+  test('a MIDI file as long as the score with its repeats takes the score’s warps; one played straight doesn’t', () async {
+    await c.openFile(demoScoreRepeated().path);
+    final starts = c.sync!.measureStarts;
+    expect(c.scoreWarps, [(at: starts[4], jumpTo: 0.0)]);
+    final played = starts.last + starts[4];
+
+    await c.loadMidiTempo(_midiFileOf(played).path);
+    expect(c.midiTempo!.warps, c.scoreWarps);
+    expect(c.sync!.passes, hasLength(2));
+    c.undo();
+    expect(c.usesMidiTempo, isFalse, reason: 'with its warps, one Undo step');
+
+    await c.loadMidiTempo(_midiFileOf(starts.last).path);
+    expect(c.midiTempo!.warps, isEmpty, reason: 'played straight through');
+    expect(c.useScoreWarps(), isTrue);
+    expect(c.midiTempo!.warps, c.scoreWarps);
+    c.undo();
+    expect(c.midiTempo!.warps, isEmpty, reason: 'one Undo step');
+
+    c.useMidiTempo(null);
+    c.sync!.load([SyncAnchor(0, 2), SyncAnchor(starts[2], 5, jumpTo: 0), SyncAnchor(starts[4], 9)]);
+    await c.loadMidiTempo(_midiFileOf(played).path);
+    expect(c.midiTempo!.warps, [(at: starts[2], jumpTo: 0.0)], reason: 'warps set by hand win');
+  });
+
+  test('the score’s warps need a score with repeats and a MIDI tempo map', () async {
+    expect(c.scoreWarps, isEmpty, reason: 'the demo plays straight through');
+    expect(c.useScoreWarps(), isFalse);
+    await c.openFile(demoScoreRepeated().path);
+    expect(c.useScoreWarps(), isFalse, reason: 'no MIDI tempo map');
   });
 
   test('a file that is not MIDI changes nothing', () async {

@@ -18,6 +18,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump) |
+| `score_form.dart` | The score's form (repeats, endings, D.C., D.S., To Coda, Fine): the order its bars are played in, and the MIDI warps for it |
 | `midi_tempo.dart` | A Standard MIDI File's tempo map (Set Tempo events only), and the anchors that make a `SyncMap` follow it |
 | `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend; `ClippedTimeline`, part of a performance as if it were all |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
@@ -175,7 +176,16 @@ quarter `at` the score goes on from `jumpTo`; where it arrives from follows (`ar
 Warps that don't fit the score (a damaged project's) are left out from the first that doesn't, the
 rest followed (`MidiTempoMap.arrivals`, as `SyncMap` would keep them); editing a warp lets them go.
 Reading a file keeps the warps the sync had: the old file's, or those set by hand
-(`MidiTempoMap.warpsOf`), so the form is set once. The lane works in the file's quarters and
+(`MidiTempoMap.warpsOf`), so the form is set once. With none, a file nearer the score's length
+played with its repeats than straight through (`MidiTempoMap.lengthOf`, to its last track's end)
+takes the score's own (`EditorController.scoreWarps`); the Audio tab's Warps from score button puts
+them in place of the map's at any time. They come from `ScoreForm` (`ScoreMetadata.form`): the
+first part's repeats and endings and every part's `<sound>` jumps and markers (a segno or coda
+symbol counts as a marker), unrolled by `playedOrder` as a player would: a repeat goes back to the
+last forward repeat or where the stretch began, endings play on their times through, D.C. / D.S.
+are taken once and after one repeats are left out (unless `after-jump`) and the last ending plays,
+To Coda jumps on and Fine stops. A warp is wherever the next bar played isn't the next in the
+score. A Fine ends the file but not the score: the bars after it follow the last tempo. The lane works in the file's quarters and
 asks the sync where they are in the score for beats and snapping (`_score`, `_beatAround`).
 
 **An image scrolls with the score** (the Attach Image extension). Right-click the preview ▸

@@ -8,6 +8,7 @@ import 'package:xml/xml.dart';
 
 import 'beat_grid.dart';
 import 'engraving.dart';
+import 'score_form.dart';
 import 'zip_entries.dart';
 
 enum InstrumentFamily {
@@ -91,6 +92,7 @@ class ScoreMetadata {
     required this.activeMeasures,
     this.meters = const [],
     this.pickups = const {},
+    this.form = ScoreForm.straight,
   });
 
   final String title;
@@ -108,6 +110,9 @@ class ScoreMetadata {
 
   /// Incomplete measures (`implicit="yes"`): upbeats, and the second half of split bars.
   final Set<int> pickups;
+
+  /// Its repeats, endings and jumps (see [ScoreForm.playedOrder]).
+  final ScoreForm form;
 
   static ScoreMetadata read(String musicXML) => fromDocument(parse(musicXML));
 
@@ -203,6 +208,7 @@ class ScoreMetadata {
       activeMeasures: activeMeasures,
       meters: meters,
       pickups: pickups,
+      form: ScoreForm.fromDocument(doc),
     );
   }
 }

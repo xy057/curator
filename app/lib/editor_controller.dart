@@ -805,15 +805,41 @@ class EditorController extends ChangeNotifier {
 
   /// Reads the tempo map of the MIDI file at [path] and follows it ([useMidiTempo]). Throws
   /// a [FormatException] (changing nothing) when it isn't a MIDI file with a tempo map. It
-  /// keeps the warps the sync has (see [MidiTempoMap.warps]).
+  /// keeps the warps the sync has (see [MidiTempoMap.warps]); with none, a file as long as the
+  /// score played with its repeats gets the score's ([scoreWarps]).
   Future<void> loadMidiTempo(String path) async {
-    final read = MidiTempoMap.read(await File(path).readAsBytes(), name: path.split(RegExp(r'[/\\]')).last);
+    final bytes = await File(path).readAsBytes();
+    final read = MidiTempoMap.read(bytes, name: path.split(RegExp(r'[/\\]')).last);
     final sync = _sync;
     if (sync == null) return;
     // The score's form stays: the warps of the file it replaces, or those set by hand.
-    useMidiTempo(_midi != null ? read.withWarpsOf(_midi) : read.withWarps(MidiTempoMap.warpsOf(sync.anchors)));
+    final kept = _midi?.warps ?? MidiTempoMap.warpsOf(sync.anchors);
+    useMidiTempo(read.withWarps(kept.isEmpty && _playsRepeats(MidiTempoMap.lengthOf(bytes)) ? scoreWarps : kept));
     _tab = BottomTab.audio;
     notifyListeners();
+  }
+
+  /// The warps a MIDI file playing the score's repeats, endings and jumps needs (none when it
+  /// is played straight through).
+  List<MidiWarp> get scoreWarps {
+    final score = _score;
+    return score == null ? const [] : score.metadata.form.warps(score.timeline.measureStarts);
+  }
+
+  /// Whether a MIDI file [quarters] long is nearer the score played with its repeats than
+  /// straight through.
+  bool _playsRepeats(double quarters) {
+    final score = _score;
+    if (score == null || scoreWarps.isEmpty) return false;
+    final starts = score.timeline.measureStarts;
+    return (quarters - score.metadata.form.playedQuarters(starts)).abs() < (quarters - starts.last).abs();
+  }
+
+  /// Gives the MIDI tempo map being followed the score's warps ([scoreWarps]) in place of its
+  /// own: one Undo step. False, changing nothing, without a MIDI tempo map or score warps.
+  bool useScoreWarps() {
+    final warps = scoreWarps;
+    return warps.isNotEmpty && setMidiWarps(warps);
   }
 
   /// Makes the sync follow [map] (null: the anchors set by hand again, as they were): one

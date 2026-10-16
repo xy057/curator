@@ -17,6 +17,7 @@ export 'src/midi_tempo.dart';
 export 'src/score_metadata.dart';
 export 'src/score_caption.dart' show Caption, CaptionBar, CaptionCountdown, CaptionPosition, CaptionSize, CaptionSpan, CaptionStyle, captionOverlapping, captionRoom, captionSpans, separateCaptions;
 export 'src/score_fonts.dart';
+export 'src/score_form.dart';
 export 'src/score_patch.dart';
 export 'src/score_text.dart';
 export 'src/scroll_map.dart';

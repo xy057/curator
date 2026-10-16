@@ -1,4 +1,6 @@
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
 import 'sync_map.dart';
@@ -43,30 +45,13 @@ class MidiTempoMap {
   /// Throws a [FormatException] saying why when [bytes] isn't one, or keeps time in SMPTE
   /// frames (there is no tempo to read then).
   factory MidiTempoMap.read(Uint8List bytes, {String name = ''}) {
-    var data = ByteData.sublistView(bytes);
-    if (_tag(data, 0) == 'RIFF' && _tag(data, 8) == 'RMID') data = _riffData(data);
-    if (_tag(data, 0) != 'MThd' || data.lengthInBytes < 14) throw const FormatException('This isn’t a MIDI file.');
-    final headerLength = data.getUint32(4);
-    final format = data.getUint16(8), division = data.getUint16(12);
-    if (division & 0x8000 != 0) throw const FormatException('This MIDI file counts time in SMPTE frames, so it has no tempo map.');
-    if (division == 0) throw const FormatException('This MIDI file is damaged: its header gives no ticks per quarter note.');
-
+    final (data, division, tracks) = _tracks(bytes);
     final changes = <(int tick, int order, double qpm)>[];
-    var at = 8 + headerLength, track = 0;
-    while (at + 8 <= data.lengthInBytes) {
-      final tag = _tag(data, at), length = data.getUint32(at + 4);
-      final end = at + 8 + length;
-      if (end > data.lengthInBytes) throw const FormatException('This MIDI file is cut short.');
-      // A format 2 file holds independent songs: the first one is the one to follow.
-      if (tag == 'MTrk' && (format != 2 || track == 0)) {
-        for (final (tick, microseconds) in _tempoEvents(data, at + 8, end)) {
-          changes.add((tick, changes.length, 60e6 / microseconds));
-        }
+    for (final (at, end) in tracks) {
+      for (final (tick, microseconds) in _tempoEvents(data, at, end)) {
+        if (microseconds != null) changes.add((tick, changes.length, 60e6 / microseconds));
       }
-      if (tag == 'MTrk') track++;
-      at = end;
     }
-    if (track == 0) throw const FormatException('This MIDI file has no tracks.');
 
     // In time order; of several changes at one tick, the last read wins.
     changes.sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
@@ -77,6 +62,43 @@ class MidiTempoMap {
       if (tempos.isEmpty || tempos.last.quartersPerMinute != qpm) tempos.add((quarter: quarter, quartersPerMinute: qpm));
     }
     return MidiTempoMap(name, tempos);
+  }
+
+  /// How long the Standard MIDI File [bytes] plays, in quarter notes: to its last track's end.
+  /// Throws a [FormatException] as [MidiTempoMap.read] does.
+  static double lengthOf(Uint8List bytes) {
+    final (data, division, tracks) = _tracks(bytes);
+    var last = 0;
+    for (final (at, end) in tracks) {
+      last = math.max(last, _tempoEvents(data, at, end).last.$1);
+    }
+    return last / division;
+  }
+
+  /// The file's data, its ticks a quarter note and the tracks to read (start and end of each
+  /// one's events).
+  static (ByteData, int, List<(int, int)>) _tracks(Uint8List bytes) {
+    var data = ByteData.sublistView(bytes);
+    if (_tag(data, 0) == 'RIFF' && _tag(data, 8) == 'RMID') data = _riffData(data);
+    if (_tag(data, 0) != 'MThd' || data.lengthInBytes < 14) throw const FormatException('This isn’t a MIDI file.');
+    final headerLength = data.getUint32(4);
+    final format = data.getUint16(8), division = data.getUint16(12);
+    if (division & 0x8000 != 0) throw const FormatException('This MIDI file counts time in SMPTE frames, so it has no tempo map.');
+    if (division == 0) throw const FormatException('This MIDI file is damaged: its header gives no ticks per quarter note.');
+
+    final tracks = <(int, int)>[];
+    var at = 8 + headerLength, track = 0;
+    while (at + 8 <= data.lengthInBytes) {
+      final tag = _tag(data, at), length = data.getUint32(at + 4);
+      final end = at + 8 + length;
+      if (end > data.lengthInBytes) throw const FormatException('This MIDI file is cut short.');
+      // A format 2 file holds independent songs: the first one is the one to follow.
+      if (tag == 'MTrk' && (format != 2 || track == 0)) tracks.add((at + 8, end));
+      if (tag == 'MTrk') track++;
+      at = end;
+    }
+    if (track == 0) throw const FormatException('This MIDI file has no tracks.');
+    return (data, division, tracks);
   }
 
   /// When [quarter] sounds, in seconds from the start of the file.
@@ -270,8 +292,8 @@ class MidiTempoMap {
   }
 
   /// Every Set Tempo event in the track between [at] and [end]: its tick and microseconds a
-  /// quarter note.
-  static Iterable<(int, int)> _tempoEvents(ByteData data, int at, int end) sync* {
+  /// quarter note; last, the track's end (its tick, no microseconds).
+  static Iterable<(int, int?)> _tempoEvents(ByteData data, int at, int end) sync* {
     int byte() {
       if (at >= end) throw const FormatException('This MIDI file is damaged: a track ends in the middle of an event.');
       return data.getUint8(at++);
@@ -306,7 +328,7 @@ class MidiTempoMap {
           if (microseconds > 0) yield (tick, microseconds);
         }
         at += length;
-        if (type == 0x2f) return; // end of track
+        if (type == 0x2f) break; // end of track
       } else if (status == 0xf0 || status == 0xf7) {
         at += number(); // system exclusive
       } else if (status >= 0x80 && status < 0xf0) {
@@ -316,5 +338,6 @@ class MidiTempoMap {
         throw FormatException('This MIDI file is damaged: unknown event 0x${status.toRadixString(16)}.');
       }
     }
+    yield (tick, null);
   }
 }

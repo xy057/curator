@@ -662,6 +662,12 @@ class AudioToolbar extends StatelessWidget {
               : 'Warp (W)\nJump to another bar here',
           onPressed: () => editWarp(context, c),
         ),
+        if (c.midiTempo case final midi?)
+          ToolbarButton(
+            icon: Icons.repeat_rounded,
+            tooltip: 'Warps from score',
+            onPressed: c.scoreWarps.isEmpty || listEquals(midi.warps, c.scoreWarps) ? null : c.useScoreWarps,
+          ),
         if (!c.usesMidiTempo) ...[
           const ToolbarDivider(),
           Tip(
