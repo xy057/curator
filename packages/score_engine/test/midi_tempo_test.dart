@@ -44,6 +44,16 @@ void main() {
     expect(map.secondsAt(4), closeTo(1.2 + 1.6, 1e-6));
   });
 
+  test('a file\'s length runs to the end of its last track', () {
+    final bytes = midiFile([
+      [(0, tempo(100))],
+      [(0, [0x90, 60, 100]), (480 * 6, [0x80, 60, 0])], // a note six quarters long
+    ]);
+    expect(MidiTempoMap.lengthOf(bytes), 6);
+    expect(MidiTempoMap.lengthOf(midiFile([[]])), 0);
+    expect(() => MidiTempoMap.lengthOf(Uint8List(4)), throwsFormatException);
+  });
+
   test('no tempo is 120 a minute; a change past the start keeps 120 before it', () {
     expect(MidiTempoMap.read(midiFile([[]])).tempos, [(quarter: 0.0, quartersPerMinute: 120.0)]);
     final map = MidiTempoMap.read(midiFile([[(480 * 4, tempo(60))]]));
