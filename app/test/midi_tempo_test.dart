@@ -37,17 +37,6 @@ File _midiFileOf(double quarters) {
   return File('${Directory.systemTemp.createTempSync('midi-').path}/played.mid')..writeAsBytesSync(Uint8List.fromList(bytes));
 }
 
-/// The demo's score with bars 1–4 repeated (a backward repeat ending bar 4 of its first part).
-File _repeatedScore() {
-  final xml = demoScore.readAsStringSync();
-  var at = xml.indexOf('<part id=');
-  for (var i = 0; i < 4; i++) {
-    at = xml.indexOf('</measure>', at + 1);
-  }
-  final repeated = xml.replaceRange(at, at, '<barline location="right"><repeat direction="backward"/></barline>');
-  return File('${Directory.systemTemp.createTempSync('repeats-').path}/repeats.musicxml')..writeAsStringSync(repeated);
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late EditorController c;
@@ -145,7 +134,7 @@ void main() {
   });
 
   test('a MIDI file as long as the score with its repeats takes the score’s warps; one played straight doesn’t', () async {
-    await c.openFile(_repeatedScore().path);
+    await c.openFile(demoScoreRepeated().path);
     final starts = c.sync!.measureStarts;
     expect(c.scoreWarps, [(at: starts[4], jumpTo: 0.0)]);
     final played = starts.last + starts[4];
@@ -172,7 +161,7 @@ void main() {
   test('the score’s warps need a score with repeats and a MIDI tempo map', () async {
     expect(c.scoreWarps, isEmpty, reason: 'the demo plays straight through');
     expect(c.useScoreWarps(), isFalse);
-    await c.openFile(_repeatedScore().path);
+    await c.openFile(demoScoreRepeated().path);
     expect(c.useScoreWarps(), isFalse, reason: 'no MIDI tempo map');
   });
 

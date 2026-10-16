@@ -151,6 +151,35 @@ void main() {
     expect(c.midiTempo!.warps, isEmpty);
   });
 
+  testWidgets('Warps from score gives the map the score’s repeats, one Undo step', (tester) async {
+    tester.view.physicalSize = const Size(2880, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
+    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.runAsync(() => c.openFile(demoScoreRepeated().path));
+    c.tab = BottomTab.audio;
+    c.useMidiTempo(MidiTempoMap('tempo.mid', [_t(0, 135)]));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 200)); // past the tab's transition
+    }
+
+    final button = find.byTooltip('Warps from score');
+    expect(button, findsOneWidget);
+    await tester.tap(button);
+    await tester.pump();
+    expect(c.midiTempo!.warps, c.scoreWarps);
+    expect(c.scoreWarps, isNotEmpty);
+    await tester.tap(button, warnIfMissed: false);
+    await tester.pump();
+    c.undo();
+    expect(c.midiTempo!.warps, isEmpty, reason: 'one Undo step; a second tap, with them in place, did nothing');
+
+    c.useMidiTempo(null);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(button, findsNothing, reason: 'only with a MIDI tempo map');
+  });
+
   testWidgets('Undo in the middle of a drag ends it, and Undo goes on recording after', (tester) async {
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
