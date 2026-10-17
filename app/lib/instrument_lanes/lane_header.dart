@@ -55,7 +55,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
   EditorController get controller => widget.controller;
   ScorePart get part => widget.part;
   Offset? _downAt;
-  Duration? _lastClick;
+  final _clicks = DoubleClicks();
 
   void _down(PointerDownEvent e) => _downAt = e.buttons == kPrimaryButton ? e.position : null;
 
@@ -66,9 +66,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
     final down = _downAt;
     _downAt = null;
     if (down == null || widget.lifted || (e.position - down).distance > 6) return;
-    final last = _lastClick;
-    final doubleClick = last != null && e.timeStamp - last < const Duration(milliseconds: 350);
-    _lastClick = doubleClick ? null : e.timeStamp;
+    final doubleClick = _clicks.press(e.timeStamp, e.position);
     if (doubleClick && controller.condensedGroupOf(part.id) == null) {
       showRenameDialog(context, controller, part);
     } else if (isCommandPressed) {

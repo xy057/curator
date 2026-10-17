@@ -63,8 +63,7 @@ class _AudioLanesState extends State<AudioLanes> {
   final _marquee = ValueNotifier<(double, double)?>(null);
   Set<int> _marqueeKeep = const {};
 
-  Duration _lastDown = Duration.zero;
-  Offset _lastDownAt = Offset.zero;
+  final _clicks = DoubleClicks();
 
   /// Where the pointer was (in seconds) when the current drag began: kept, as the view may
   /// scroll under the drag (it follows the playhead).
@@ -100,10 +99,7 @@ class _AudioLanesState extends State<AudioLanes> {
     final x = e.localPosition.dx;
     final seconds = c.viewport.seconds(x);
     final hit = _anchorAt(x);
-    final doubleClick = e.timeStamp - _lastDown < const Duration(milliseconds: 350) &&
-        (e.localPosition - _lastDownAt).distance < 6;
-    _lastDown = e.timeStamp;
-    _lastDownAt = e.localPosition;
+    final doubleClick = _clicks.press(e.timeStamp, e.localPosition);
     _downSeconds = seconds;
 
     if (hit != null) {
@@ -396,17 +392,13 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
     return null;
   }
 
-  Duration _lastDown = Duration.zero;
-  Offset _lastDownAt = Offset.zero;
+  final _clicks = DoubleClicks();
 
   void _onDown(PointerDownEvent e) {
     c.captions.select(null); // the Delete key goes to what was clicked here
     final midi = c.midiTempo;
     if (e.buttons != kPrimaryButton || midi == null) return;
-    final doubleClick = e.timeStamp - _lastDown < const Duration(milliseconds: 350) &&
-        (e.localPosition - _lastDownAt).distance < 6;
-    _lastDown = e.timeStamp;
-    _lastDownAt = e.localPosition;
+    final doubleClick = _clicks.press(e.timeStamp, e.localPosition);
     final hit = _hit(e.localPosition);
     final warp = hit == null ? _warpAt(e.localPosition) : null;
     if (doubleClick && warp != null && !HardwareKeyboard.instance.isAltPressed) {

@@ -292,20 +292,7 @@ mixin _LaneGeometry on State<InstrumentLanes> {
   int _passAt(double x) => tl.passAt(c.viewport.seconds(x));
   double get _totalQuarters => tl.measureStarts.last;
 
-  /// Snaps a score position to the time signature's beats, or to barlines when beats are
-  /// too close together on screen (as they sound in [pass]).
-  double _snap(double q, int pass) {
-    q = q.clamp(0.0, _totalQuarters);
-    if (isCommandPressed) return q;
-    final starts = tl.measureStarts;
-    var i = c.beats.measureAt(q);
-    if (beatsFit(c, q, pass: pass)) {
-      final beat = c.beats.beatAt(q);
-      return q - beat.start <= beat.end - q ? beat.start : beat.end;
-    }
-    if (i + 1 < starts.length && (starts[i + 1] - q) < (q - starts[i])) i++;
-    return starts[i];
-  }
+  double _snap(double q, int pass) => snapInLanes(c, q, pass: pass);
 
   int _laneIndex(Offset p) => (p.dy / _laneHeight).floor().clamp(0, parts.length - 1);
 

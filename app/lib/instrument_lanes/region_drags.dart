@@ -28,8 +28,7 @@ mixin _RegionDrags on _LaneGeometry {
   _Drag? _drag;
   final _band = ValueNotifier<_Band?>(null);
   MouseCursor _cursor = SystemMouseCursors.basic;
-  Duration _lastDown = Duration.zero;
-  Offset _lastDownAt = Offset.zero;
+  final _clicks = DoubleClicks();
 
   @override
   void dispose() {
@@ -91,9 +90,7 @@ mixin _RegionDrags on _LaneGeometry {
     final p = e.localPosition;
     final q = _q(p.dx);
     final pass = _passAt(p.dx);
-    final doubleClick = e.timeStamp - _lastDown < const Duration(milliseconds: 350) && (p - _lastDownAt).distance < 6;
-    _lastDown = e.timeStamp;
-    _lastDownAt = p;
+    final doubleClick = _clicks.press(e.timeStamp, p);
 
     final tool = _tool;
     if (tool != LaneTool.select) {
