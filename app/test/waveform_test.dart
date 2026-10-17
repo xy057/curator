@@ -43,14 +43,15 @@ void main() {
 
   test('tapping bars (with human timing error) syncs the whole recording, closing rit included', () {
     final starts = score.timeline.measureStarts;
-    final sync = SyncMap(measureStarts: starts, defaultTempo: score.metadata.tempo!, beats: score.beats)..beginTapping();
+    final sync = SyncMap(measureStarts: starts, defaultTempo: score.metadata.tempo!, beats: score.beats);
+    final pass = TapPass(sync);
 
     final random = math.Random(7);
     var taps = 0;
     for (var i = 0; i < starts.length; i++) {
       if (i > 6 && i % 5 == 0) continue; // skip a bar now and then: snapping must still find the right one
       final tap = demo.secondsAtQuarter(starts[i]) + (random.nextDouble() - 0.5) * 0.08; // ±40 ms
-      sync.tap(waveform.nearestOnset(tap, 0.08) ?? tap); // what the app does with "snap to onsets"
+      pass.tap(waveform.nearestOnset(tap, 0.08) ?? tap); // what the app does with "snap to onsets"
       taps++;
     }
 

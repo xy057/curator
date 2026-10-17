@@ -96,6 +96,9 @@ void main() {
             'P2': [const Region(4, 12)],
           },
           anchors: const [SyncAnchor(3, 2), SyncAnchor(6, 4, jumpTo: 0), SyncAnchor(10, 9)],
+          // Back to bar 1 at the file's quarter 6, then on to quarter 10, past the new end.
+          midi: MidiTempoMap('take.mid', const [(quarter: 0, quartersPerMinute: 120)],
+              warps: const [(at: 6, jumpTo: 0), (at: 15, jumpTo: 10)]),
           partNames: const {'P2': (name: 'Hautbois', abbreviation: 'Hb.')},
           partOrder: const ['P2', 'P1'],
           pairs: const [PlayerPair('P1', 'P2')],
@@ -127,14 +130,34 @@ void main() {
       expect(state.edits.pairs, const [PlayerPair('P2', 'P3')]);
       expect(state.edits.condensed, {const PlayerPair('P2', 'P3').id});
       expect(state.edits.captions, const [Caption(1, 4, 'A'), Caption(8, 9, 'B')]);
-      expect(lost, (regions: 1, anchors: 1, captions: 1, images: 0));
+      expect(state.edits.midi!.warps, const [(at: 6.0, jumpTo: 0.0)]);
+      expect(state.edits.midi!.tempos, project.edits.midi!.tempos);
+      expect(lost, (regions: 1, anchors: 1, warps: 1, captions: 1, images: 0));
       // What has no part id or position stays as it was.
       expect((state.edits.transition, state.edits.leadIn, state.edits.captionFont), (0.8, 1.5, 'Helvetica'));
 
       expect(
         swap.differences(measuresBefore: measuresBefore, measuresAfter: measuresAfter, edits: const {}, lost: lost),
-        ['Added: Horn', 'Bars: 4 → 3', 'Lost past bar 3: 1 region, 1 anchor, 1 caption'],
+        ['Added: Horn', 'Bars: 4 → 3', 'Lost past bar 3: 1 region, 1 anchor, 1 warp, 1 caption'],
       );
+    });
+
+    test('a MIDI warp goes on from the same bar; the moment it jumps stays', () {
+      final parts = [_part('P1', 'Flute')];
+      final project = ProjectState(
+        edits: EditState(
+          midi: MidiTempoMap('take.mid', const [(quarter: 0, quartersPerMinute: 120)],
+              warps: const [(at: 9, jumpTo: 6)]),
+        ),
+      );
+      final (:state, :lost) = _swap(_score(parts), _score(parts)).carry(
+        project,
+        condensable: const [],
+        measuresBefore: const [0, 3, 6, 9],
+        measuresAfter: const [0, 3, 5, 8, 11], // bar 2 is now 2/4
+      );
+      expect(state.edits.midi!.warps, const [(at: 9.0, jumpTo: 5.0)], reason: 'bar 3 starts at 5 now');
+      expect(lost.warps, 0);
     });
 
     test('a text edit follows its text when the ids the app gave it shift', () {

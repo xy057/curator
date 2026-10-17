@@ -196,6 +196,17 @@ void main() {
         isNull);
   });
 
+  test("a SMuFL folder that can't be read holds no fonts, and stops nothing", () async {
+    final locked = Directory.systemTemp.createTempSync('smufl');
+    addTearDown(() {
+      Process.runSync('chmod', ['700', locked.path]);
+      locked.deleteSync(recursive: true);
+    });
+    Directory('${locked.path}/Bravura').createSync();
+    Process.runSync('chmod', ['000', locked.path]);
+    expect(await MusicFont.installed(folders: [locked.path]), isEmpty);
+  }, skip: Platform.isWindows ? 'no chmod' : null);
+
   test('finds installed text fonts, a face of a collection among them', () async {
     expect(await TextFonts.installed(), contains('Helvetica'));
     final faces = (await TextFonts.faces('Helvetica'))!;

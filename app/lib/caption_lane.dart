@@ -58,9 +58,7 @@ class _CaptionLaneState extends State<CaptionLane> {
   /// The stretch being drawn or erased (score quarters), drawn as a band.
   final _band = ValueNotifier<({double q0, double q1, bool draw})?>(null);
   MouseCursor _cursor = SystemMouseCursors.basic;
-  Duration _lastDown = Duration.zero;
-  Offset _lastDownAt = Offset.zero;
-  Duration? _lastNameClick;
+  final _clicks = DoubleClicks(), _nameClicks = DoubleClicks();
 
   @override
   void dispose() {
@@ -125,19 +123,7 @@ class _CaptionLaneState extends State<CaptionLane> {
   int _passAt(double x) => tl.passAt(c.viewport.seconds(x));
   double get _total => tl.measureStarts.last;
 
-  /// To the nearest beat, or barline when beats are too close on screen; ⌘: free.
-  double _snap(double q, int pass) {
-    q = q.clamp(0.0, _total);
-    if (isCommandPressed) return q;
-    if (beatsFit(c, q, pass: pass)) {
-      final beat = c.beats.beatAt(q);
-      return q - beat.start <= beat.end - q ? beat.start : beat.end;
-    }
-    final starts = tl.measureStarts;
-    var i = c.beats.measureAt(q);
-    if (i + 1 < starts.length && (starts[i + 1] - q) < (q - starts[i])) i++;
-    return starts[i];
-  }
+  double _snap(double q, int pass) => snapInLanes(c, q, pass: pass);
 
   /// The caption under [x] and which part of it: an edge or its middle. The one drawn on
   /// top (the later) wins.
@@ -168,9 +154,7 @@ class _CaptionLaneState extends State<CaptionLane> {
   void _onDown(PointerDownEvent e) {
     if (e.buttons != kPrimaryButton) return;
     final p = e.localPosition, q = _q(p.dx), pass = _passAt(p.dx);
-    final doubleClick = e.timeStamp - _lastDown < const Duration(milliseconds: 350) && (p - _lastDownAt).distance < 6;
-    _lastDown = e.timeStamp;
-    _lastDownAt = p;
+    final doubleClick = _clicks.press(e.timeStamp, p);
 
     final tool = _tool;
     if (tool != LaneTool.select) {
@@ -290,15 +274,9 @@ class _CaptionLaneState extends State<CaptionLane> {
     }
   }
 
-  /// The beat at [q] as it sounds in [pass], or its bar when beats are too close on screen.
   (double, double) _beatAt(double q, int pass) {
-    q = q.clamp(0.0, _total - 1e-9);
-    if (beatsFit(c, q, pass: pass)) {
-      final beat = c.beats.beatAt(q);
-      return (beat.start, beat.end);
-    }
-    final starts = tl.measureStarts, m = c.beats.measureAt(q);
-    return (starts[m], starts[math.min(m + 1, starts.length - 1)]);
+    final beat = beatInLanes(c, q, pass: pass);
+    return (beat.start, beat.end);
   }
 
   /// [from] with [q0]–[q1] cut out of every caption: covered ones go, others are trimmed or
@@ -314,10 +292,7 @@ class _CaptionLaneState extends State<CaptionLane> {
       ];
 
   void _onNameUp(PointerUpEvent e) {
-    final last = _lastNameClick;
-    final second = last != null && e.timeStamp - last < const Duration(milliseconds: 350);
-    _lastNameClick = second ? null : e.timeStamp;
-    if (second) showCaptionsDialog(context, c);
+    if (_nameClicks.press(e.timeStamp, e.position)) showCaptionsDialog(context, c);
   }
 
   @override

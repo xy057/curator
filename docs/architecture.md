@@ -17,13 +17,13 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
-| `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump) |
+| `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump); `TapPass`, one pass of tapping along |
 | `score_form.dart` | The score's form (repeats, endings, D.C., D.S., To Coda, Fine): the order its bars are played in, and the MIDI warps for it |
-| `midi_tempo.dart` | A Standard MIDI File's tempo map (Set Tempo events only), and the anchors that make a `SyncMap` follow it |
+| `midi_tempo.dart` | A Standard MIDI File's tempo map (Set Tempo events only), and the anchors that make a `SyncMap` follow it; `MidiInScore`, where its quarters fall in the score |
 | `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend; `ClippedTimeline`, part of a performance as if it were all |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
-| `curated_scene.dart` | `LoadedScore` (engraved, ready) and `CuratedScene`: one frame is `paint(time)` |
+| `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
 | `score_caption.dart` | Captions (`Caption`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
@@ -35,7 +35,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
-| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/caption_editing.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image); captions (Captions) |
+| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/caption_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image); captions (Captions); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
+| `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
@@ -49,6 +50,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
+| `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
 | `app_menus.dart` | The menu bar (native on macOS): File (Settings… at its foot, on macOS too), Edit, Score (Project Settings… at its foot). Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's toolbar |
@@ -60,7 +62,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 curation, the sync and the time alone; nothing accumulates between frames. That is what lets
 the preview scrub freely, and what video export reuses: frame *i* is `renderFrame(i / fps)`,
 the same painting offscreen. `VideoExport` works on its own scene and copies of the curation
-and sync, so something the scene shows must be copied in `VideoExport.of` too (as `names` is);
+and sync; what else the scene shows is a `SceneSettings` (`EditorController.sceneSettings`), which
+`VideoExport.of` takes whole, so something new the scene shows goes in it;
 the decoded images it shares are held (`ImageEditing.hold`) until it is disposed, since the
 menu bar can close the project under the export dialog.
 A video is the whole piece unless the dialog's From bar / To bar say otherwise
@@ -160,7 +163,7 @@ sideways its place, snapped to beats), the step after it dragged for its tempo o
 on the line adding a change at the nearest beat (`inserted`: kept though it repeats the tempo,
 a point to drag), ⌥-drag drawing a step a beat (`MidiTempoMap.drawn`: the last drawn holds to
 the next change; only the stretch drawn loses repeats), Delete removing the selected change
-(`anchors.selected` holds tempo indices then). Each makes a new map (`moved` / `inserted` /
+(`anchors.selectedTempo`; `anchors.selected` is only ever anchors). Each makes a new map (`moved` / `inserted` /
 `drawn` / `removed`) that `EditorController.editMidiTempo` follows from the same
 start; the lane's scale is held while a gesture lasts, so it doesn't re-fit under the pointer. The anchors
 set by hand are kept behind it (`EditorController._tapped`, saved as `sync.anchors`) and come
@@ -186,7 +189,8 @@ last forward repeat or where the stretch began, endings play on their times thro
 are taken once and after one repeats are left out (unless `after-jump`) and the last ending plays,
 To Coda jumps on and Fine stops. A warp is wherever the next bar played isn't the next in the
 score. A Fine ends the file but not the score: the bars after it follow the last tempo. The lane works in the file's quarters and
-asks the sync where they are in the score for beats and snapping (`_score`, `_beatAround`).
+asks `MidiInScore` (the engine's) where they are in the score for beats and snapping, and when each
+warp it follows jumps (`warpSeconds`, by its place among the map's warps).
 
 **An image scrolls with the score** (the Attach Image extension). Right-click the preview ▸
 Add Image… (an SVG, drawn as vectors, or a PNG / JPEG: the file's type says which), or Paste (⌘V: a PNG, SVG text, or a copied
@@ -269,7 +273,9 @@ tempo map or a recording.
 **Lanes are painted, not cut.** Drawing adds a region and merges it with what it touches;
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip
 the staff's fade. During a drag regions may overlap (`Curation.updateLanes`); `normalize`
-merges them when the drag ends.
+merges them when the drag ends. Every lane snaps through `snapInLanes`, takes a click's beat (or
+bar, zoomed out) through `beatInLanes`, and tells a double-click through `DoubleClicks`
+(lanes_common.dart).
 A drag in the timeline measures from where it began in the score or the recording (kept at the
 press), never from a point on the screen: the view pages on under it while playing
 (`TimeViewport.follow`). One the system cancels (the pointer taken) keeps what it changed so far
@@ -309,7 +315,9 @@ Replace Score carries them over. A double-click on a text does nothing
 (`test/app_screenshot_test.dart` checks it).
 
 **Widgets change the document only through `EditorController`** (and its parts). They may
-read the models (`curation`, `sync`) to draw them.
+read the models (`curation`, `sync`) to draw them. The Edit menu, the keys and the toolbar's Remove
+act through `EditorController.commands` (`EditCommands`), and a menu item is enabled by the same
+`can…` its command checks, so what the menu offers is what the key does.
 The controller notifies at every move of a drag, so nothing large rebuilds on it wholesale: the
 page, the toolbar, the score view, the bottom panel, the lanes and their names each rebuild through
 a `Select` (ui_kit.dart) only when what they show changes; painters listen for themselves.
@@ -322,7 +330,11 @@ each lane, so what they read is kept until what it comes from is replaced: `lane
 `condensable` (the score, order, pairs and condensed set are always replaced, never changed in
 place), and each lane's runs of bars played (`_activity`, per score and pair).
 
-**One Undo for the whole document.** After every change the controller compares the
+**One Undo for the whole document.** The controller keeps its own edits (names, texts, pairs,
+condensing, order, fonts, engraving options, the MIDI tempo map and the anchors behind it) as one
+`EditState`, `_doc`, which opening takes, Undo puts back and closing empties whole; the models (the
+curation, the sync, the images, the captions) keep theirs, and `_editState` reads them from there.
+After every change the controller compares the
 document's `EditState` (everything a project saves but the view: lanes, transition, sync,
 MIDI, names, texts, condensing, order, images, fonts, engraving options) with the last one recorded; a difference is one step. A gesture is one step: wrap it in `beginEdit` /
 `endEdit`. The models keep no history of their own. View settings (staff size, grid, playhead)
@@ -376,7 +388,9 @@ the view (`replaceScore`). Instruments are matched by id and name, then by name 
 instrument added above renumbers the rest), then by id (renamed); lanes, names, pairs,
 condensing and order follow them, and an instrument only in the new file is curated as on
 import. Positions (regions, anchors and warps, images, captions) keep their bar and their
-distance into it, no further than its end; a barline stays that barline. A text edit follows
+distance into it, no further than its end; a barline stays that barline. A MIDI tempo map's warp
+jumps at the same moment of the file (as an anchor keeps its time) and goes on from the same bar;
+one with nowhere to go, and those after it, are left out and counted. A text edit follows
 its text: the same instrument, words and kind, by id, else in the same bar (ids the app gives
 in document order shift). What has no place (past the new last bar, a removed instrument's
 text) is dropped. When the files differ (instruments, bars, time signatures, bar lengths,
@@ -422,7 +436,10 @@ Verovio's code with `[curated-score patch]`.
 
 **Engraving options: offered ones only, the layout ones fixed.** The bridge
 (`vb_engraver_create`) fixes what the curated view relies on: one endless system (`breaks`
-none), no header, footer or page margins, `scale` 100. Dart then sends every option in
+none), no header, footer or page margins, `scale` 100. Everything a score is engraved with besides its MusicXML (text edits, pairs, fonts,
+options, flags) is one `EngraveRequest`; the score keeps the one it was engraved with
+(`LoadedScore.request`), and an edit that changes the controller's (`_requestFor`) engraves again.
+Dart then sends every option in
 `EngraveOption.all`, with the house style's value unless the user changed it, so the house
 style lives in that list alone. They are set twice over: the app's (Settings ▸ Engraving, in
 `AppSettings`; not part of a project, not an edit), and the open project's over them (Project
@@ -593,7 +610,7 @@ on Windows wherever the registry says that folder now is): it never replaces the
 ## Adding things
 
 - **A setting**: an `_Item` in `settings_dialog.dart`'s `_categories`, backed by a field in
-  `AppSettings`; a project's own, in `_projectCategories`, backed by an edit (see *Something a
+  `AppSettings` (the editor takes what concerns it in `takeSettings`, controller_settings.dart); a project's own, in `_projectCategories`, backed by an edit (see *Something a
   project saves*), so Settings holds only what is the same for every project. Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extensions**.
 - **A flag**: a fix for how other programs write their files, on by default, as an `_Item` on
@@ -618,12 +635,14 @@ on Windows wherever the registry says that folder now is): it never replaces the
   open (a score), add (a recording, a MIDI tempo map), transition, Extensions.
 - **Something a project saves**: a field of `EditState` (with its `==` and `copyWith`),
   written in `ProjectState.toJson` and read in `fromJson`; bump the version with a migration
-  (even one that changes nothing). The controller fills it in `_editState` (which is also what
-  a project saves, `EditorController.projectState`), takes it on when a project opens
-  (`_install`) and puts it back in `_restore` (Undo). Replace Score carries it as it is unless
+  (even one that changes nothing). If the controller keeps it itself it lives in `_doc`, and
+  opening, Undo and closing take it with no more code; if a model holds it, `_editState` (also
+  what a project saves, `EditorController.projectState`) reads it from the model, and `_install`
+  and `_restore` load the model. If it changes the engraving it goes in `EngraveRequest` too. Replace Score carries it as it is unless
   `ScoreSwap.carry` maps it (a part id or a position). Only the view (`ViewState`) is saved
-  without being an edit. If it changes what is drawn, copy it in `VideoExport.of` too, and set
-  it in `test/export_parity_test.dart`, which checks that a video frame is the preview's.
+  without being an edit. If it changes what is drawn, it goes in `SceneSettings` (and the
+  controller's `sceneSettings`), which `VideoExport.of` takes; set it in
+  `test/export_parity_test.dart`, which checks that a video frame is the preview's.
 - **A Verovio change**: edit `third_party/verovio`, then
   `git -C packages/score_engine/third_party/verovio diff > patches/verovio-curated-score.patch`,
   then `make setup` (it re-applies the patches from a clean tree, and records that it did).

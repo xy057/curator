@@ -28,8 +28,7 @@ mixin _RegionDrags on _LaneGeometry {
   _Drag? _drag;
   final _band = ValueNotifier<_Band?>(null);
   MouseCursor _cursor = SystemMouseCursors.basic;
-  Duration _lastDown = Duration.zero;
-  Offset _lastDownAt = Offset.zero;
+  final _clicks = DoubleClicks();
 
   @override
   void dispose() {
@@ -91,9 +90,7 @@ mixin _RegionDrags on _LaneGeometry {
     final p = e.localPosition;
     final q = _q(p.dx);
     final pass = _passAt(p.dx);
-    final doubleClick = e.timeStamp - _lastDown < const Duration(milliseconds: 350) && (p - _lastDownAt).distance < 6;
-    _lastDown = e.timeStamp;
-    _lastDownAt = p;
+    final doubleClick = _clicks.press(e.timeStamp, p);
 
     final tool = _tool;
     if (tool != LaneTool.select) {
@@ -237,17 +234,8 @@ mixin _RegionDrags on _LaneGeometry {
     if (drag == null || drag.kind == _DragKind.scrub || drag.kind == _DragKind.marquee) return;
     if (drag.kind == _DragKind.paint && !drag.moved && !cancelled) {
       // A click draws (or erases) the beat under the pointer, or the bar when zoomed out.
-      final starts = tl.measureStarts;
-      final q = _q(drag.downAt.dx).clamp(0.0, _totalQuarters).toDouble();
-      final m = c.beats.measureAt(q);
-      if (m + 1 < starts.length) {
-        if (beatsFit(c, q, pass: drag.pass)) {
-          final beat = c.beats.beatAt(q); // a dotted crotchet in 6/8
-          _paint(drag, beat.start, beat.end, drag.lane);
-        } else {
-          _paint(drag, starts[m], starts[m + 1], drag.lane);
-        }
-      }
+      final beat = beatInLanes(c, _q(drag.downAt.dx), pass: drag.pass);
+      _paint(drag, beat.start, beat.end, drag.lane);
       _band.value = null;
     }
     final selected = c.lanes.selection;

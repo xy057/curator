@@ -52,6 +52,39 @@ void main() {
     expect(c.canRedo, isFalse);
   });
 
+  test('what the controller keeps itself comes back whole through Undo and Redo, and opening it again', () async {
+    final start = c.projectState.edits;
+    final parts = c.score!.metadata.parts;
+    c.renamePart(parts.first, name: 'Ottavino', abbreviation: 'Ott.');
+    await c.editText(c.score!.texts.first.id, 'Presto');
+    c.moveLane(parts.last.id, 0);
+    final pair = c.condensable.first;
+    c.setCondensed([pair.id], on: !c.condensed.contains(pair.id));
+    await c.setProjectEngraving(const EngravingOptions().withValue(EngraveOption.byKey('spacingLinear')!, 0.9));
+    c.sync!.addAnchor(const SyncAnchor(4, 3)); // set by hand: kept behind the MIDI tempo map
+    c.useMidiTempo(MidiTempoMap('take.mid', const [(quarter: 0, quartersPerMinute: 120)]));
+    final edited = c.projectState.edits;
+    expect(edited, isNot(start));
+
+    while (c.canUndo) {
+      c.undo();
+    }
+    expect(c.projectState.edits, start);
+    while (c.canRedo) {
+      c.redo();
+    }
+    expect(c.projectState.edits, edited);
+    expect(c.projectState.edits.anchors, contains(const SyncAnchor(4, 3)));
+    while (c.isReengraving) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+
+    final again = EditorController(vsync: const TestVSync());
+    addTearDown(again.dispose);
+    await again.openProject(name: c.source!.name, scoreBytes: c.source!.bytes, state: c.projectState);
+    expect(again.projectState.edits, edited);
+  });
+
   test('moving an instrument is one step, and moves its staff in the preview too', () {
     final scoreOrder = [for (final p in c.score!.metadata.parts) p.id];
     expect(c.isScoreOrder, isTrue);

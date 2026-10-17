@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
+import 'file_names.dart';
 import 'ui_kit.dart';
 
 /// The menu bar: native on macOS, a Material menu bar at the top of the window elsewhere.
@@ -106,7 +107,7 @@ class AppMenus extends StatelessWidget {
               else
                 PlatformMenuItemGroup(members: [
                   for (final path in recentFiles)
-                    PlatformMenuItem(label: _basename(path), onSelected: onOpenRecent == null ? null : () => onOpenRecent!(path)),
+                    PlatformMenuItem(label: fileNameOf(path), onSelected: onOpenRecent == null ? null : () => onOpenRecent!(path)),
                 ]),
               PlatformMenuItem(label: 'Clear Menu', onSelected: recentFiles.isEmpty ? null : onClearRecent),
             ]),
@@ -172,8 +173,6 @@ class AppMenus extends StatelessWidget {
             PlatformMenuItem(label: 'About Curator', onSelected: onAbout),
           ]),
       ];
-
-  static String _basename(String path) => path.split(RegExp(r'[/\\]')).last;
 
   @override
   Widget build(BuildContext context) {

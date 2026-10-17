@@ -6,13 +6,22 @@ class SyncEditing {
   final EditorController _editor;
 
   /// The sync, while its anchors are set by hand (not while a MIDI tempo map sets them).
-  SyncMap? get _sync => _editor._midi == null ? _editor._sync : null;
+  SyncMap? get _sync => _editor._doc.midi == null ? _editor._sync : null;
 
   void _reset() {
     _tapArmed = false;
-    _selected = {};
+    _taps = null;
+    _deselect();
     _pivot = null;
   }
+
+  /// Nothing selected: no anchors, no change of the MIDI tempo map.
+  void _deselect() {
+    _selected = {};
+    _selectedTempo = null;
+  }
+
+  bool get _isEmpty => _selected.isEmpty && _selectedTempo == null;
 
   void _restoreView(ViewState view) {
     _grid = view.grid ?? _grid;
@@ -24,9 +33,14 @@ class SyncEditing {
   bool _tapArmed = false;
   set tapArmed(bool value) {
     _tapArmed = value && _sync != null;
-    if (value) _sync?.beginTapping();
+    if (value) _newPass();
     _editor._changed();
   }
+
+  /// The tapping pass under way: a new one at each arming and each start of playback.
+  TapPass? _taps;
+
+  void _newPass() => _taps = _sync == null ? null : TapPass(_sync!);
 
   /// What taps and ↑/↓ snap to.
   SyncGrid get grid => _grid;
@@ -46,8 +60,8 @@ class SyncEditing {
 
   // MARK: Selection
 
-  /// Selected anchors (indices into sync.anchors), or, following a MIDI tempo map, its
-  /// changes (indices into its tempos). Batch edits act on all of them.
+  /// Selected anchors (indices into sync.anchors) while they are set by hand. Batch edits act
+  /// on all of them.
   Set<int> get selected => _selected;
   Set<int> _selected = {};
   int? _pivot; // where a ⇧-click range starts
@@ -86,6 +100,17 @@ class SyncEditing {
   void selectAll() {
     final count = _sync?.anchors.length ?? 0;
     _selected = {for (var i = 0; i < count; i++) i};
+    _editor._changed();
+  }
+
+  /// The change of the MIDI tempo map followed that is selected (an index into its tempos);
+  /// null: none.
+  int? get selectedTempo => _selectedTempo;
+  int? _selectedTempo;
+
+  void selectTempo(int? index) {
+    if (index == _selectedTempo) return;
+    _selectedTempo = index;
     _editor._changed();
   }
 
@@ -129,7 +154,7 @@ class SyncEditing {
   /// Where bar 1 sounds in the recording (Starts at); with a MIDI tempo map, where it starts.
   void setStart(double seconds) {
     if (!seconds.isFinite) return;
-    _editor._midi != null ? _editor._followMidi(seconds) : _sync?.startSeconds = seconds;
+    _editor._doc.midi != null ? _editor._followMidi(seconds) : _sync?.startSeconds = seconds;
   }
 
   /// Removes every anchor.
@@ -145,14 +170,15 @@ class SyncEditing {
     final playback = _editor.playback;
     if (sync == null) return;
     if (!playback.isPlaying) {
-      sync.beginTapping();
+      _newPass();
       playback.play();
       return;
     }
     var t = playback.time.value;
     final onset = snapToOnsets ? _editor.track?.waveform.nearestOnset(t, 0.08) : null;
     if (onset != null) t = onset;
-    final anchor = sync.tap(t, grid: grid);
+    final taps = _taps?.sync == sync ? _taps! : _taps = TapPass(sync);
+    final anchor = taps.tap(t, grid: grid);
     _selected = {sync.anchors.indexOf(anchor)};
     _pivot = sync.anchors.indexOf(anchor);
     _editor._changed();
@@ -168,14 +194,14 @@ class SyncEditing {
   /// ←/→: nudge the selected anchors in time, together.
   void nudge(double seconds) => _sync?.moveAnchors(_valid, seconds);
 
-  /// Delete: removes the selected anchors, or the selected changes of the MIDI tempo map.
+  /// Delete: removes the selected anchors, or the selected change of the MIDI tempo map.
   void delete() {
-    if (_editor._midi case final midi?) {
-      _editor.editMidiTempo(midi.removed(_selected));
+    if (_editor._doc.midi case final midi?) {
+      if (_selectedTempo case final i?) _editor.editMidiTempo(midi.removed({i}));
     } else {
       _sync?.removeAnchors(_valid);
     }
-    _selected = {};
+    _deselect();
     _editor._changed();
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi' show Abi;
 import 'dart:io';
 
@@ -13,6 +14,7 @@ import 'editor_controller.dart';
 import 'engrave_options_dialog.dart';
 import 'engraving_settings.dart';
 import 'export_dialog.dart' show revealInFileManager;
+import 'file_names.dart';
 import 'font_settings.dart';
 import 'menu_kit.dart';
 import 'project_file.dart';
@@ -365,7 +367,7 @@ class _EngraveOptionButton extends StatelessWidget {
   Widget build(BuildContext context) => OutlinedButton(
         onPressed: () async {
           if (!await _confirmEngraving(context) || !context.mounted) return;
-          showEngraveOptionsDialog(context, c.settings, controller: c.controller, project: project);
+          unawaited(showEngraveOptionsDialog(context, c.settings, controller: c.controller, project: project));
         },
         child: const Text('Open…'),
       );
@@ -411,7 +413,7 @@ String _updateHelp(UpdateStatus status) => switch (status) {
         'Curator ${release.version} is available, but not yet for this system.',
       UpdateAvailable(:final release) => 'Curator ${release.version} is available.',
       UpdateDownloading(:final release) => 'Downloading ${release.version}…',
-      UpdateDownloaded(:final path) => 'Saved “${path.split(RegExp(r'[/\\]')).last}”. '
+      UpdateDownloaded(:final path) => 'Saved “${fileNameOf(path)}”. '
           '${Platform.isWindows ? 'Close Curator, then replace its folder with the unzipped one.' : 'Unzip it and replace this app with it.'}',
       UpdateFailed(:final message) => message,
     };

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/controller_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/media_converter.dart';
@@ -335,6 +336,14 @@ void main() {
     expect(ProjectState.fromJson({'sync': {'anchors': [{'quarter': 0, 'seconds': 1}]}}, savedVersion: 3).edits.anchors.single.isWarp, isFalse);
   });
 
+  test('copyWith clears a field that may be null when given null, and keeps it when left out', () {
+    final midi = MidiTempoMap('take.mid', const [(quarter: 0, quartersPerMinute: 120)]);
+    final full = EditState(lanes: const {'P1': []}, transition: 0.5, midi: midi, captionFont: 'Helvetica');
+    expect(full.copyWith(leadIn: 2), EditState(lanes: const {'P1': []}, transition: 0.5, midi: midi, captionFont: 'Helvetica', leadIn: 2));
+    final cleared = full.copyWith(lanes: null, transition: null, midi: null, captionFont: null);
+    expect((cleared.lanes, cleared.transition, cleared.midi, cleared.captionFont), (null, null, null, null));
+  });
+
   test('a project that is not ours, or from the future, is refused', () async {
     final path = '${dir.path}/future.ccs';
     final archive = Archive()
@@ -580,6 +589,7 @@ void main() {
 
     test('Undo keeps as many steps as Settings say', () {
       doc.settings.undoSteps = 3;
+      c.takeSettings(doc.settings); // as the window does
       final id = c.score!.metadata.parts.first.id;
       for (var i = 1; i <= 5; i++) {
         c.curation!.setLane(id, [Region(0, i * 3.0)]);

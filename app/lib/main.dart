@@ -19,12 +19,14 @@ import 'app_settings.dart';
 import 'audio_panel.dart';
 import 'bottom_panel.dart';
 import 'condensing_dialog.dart';
+import 'controller_settings.dart';
 import 'dialog_kit.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'editor_toolbar.dart';
 import 'error_text.dart';
 import 'export_dialog.dart';
+import 'file_names.dart';
 import 'home_screen.dart';
 import 'media_converter.dart';
 import 'project_document.dart';
@@ -251,7 +253,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         videoRatio: settings.videoRatio,
       );
 
-  void _settingsChanged() => _shown.value = _shownSettings;
+  void _settingsChanged() {
+    controller.takeSettings(settings);
+    _shown.value = _shownSettings;
+  }
 
   @override
   void initState() {
@@ -261,9 +266,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     document.addListener(_sampleChanged);
     controller.addListener(_scoreChanged);
     controller.engravingFailure.addListener(_engravingFailed);
-    settings.addListener(_engravingChanged);
     settings.addListener(_settingsChanged);
-    _engravingChanged();
+    controller.takeSettings(settings);
     _lifecycle; // start listening for Quit
     updater.addListener(_launchCheckAnswered);
     WindowChrome.listenForOpenedFiles((paths) => _openPath(paths.first));
@@ -295,16 +299,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _edit.value = (
       undo: controller.canUndo,
       redo: controller.canRedo,
-      copy: open && controller.tab == BottomTab.instruments && controller.lanes.selected.isNotEmpty,
-      paste: open && (controller.images.enabled || (controller.tab == BottomTab.instruments && controller.lanes.canPaste)),
-      delete: open && controller.canDelete,
+      copy: _commands.canCopy,
+      paste: _commands.canPaste,
+      delete: _commands.canDelete,
     );
   }
 
-  /// Settings ▸ Engraving and ▸ Flags: what is open is engraved again with them.
-  void _engravingChanged() => controller
-    ..engravingOptions = settings.engravingOptions
-    ..textDynamics = settings.textDynamics;
   void _sampleChanged() => _isSample.value = document.isSample;
 
   /// An edit that couldn't be engraved: the score stays as it was, and Undo steps back.
@@ -317,9 +317,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// The document's name (without extension) and edited state, in the native title bar.
   void _updateWindowTitle() {
     final title = document.title;
-    final dot = title?.lastIndexOf('.') ?? -1;
     WindowChrome.showDocument(
-      name: title == null ? null : (dot > 0 ? title.substring(0, dot) : title),
+      name: title == null ? null : stemOf(title),
       edited: document.isDirty,
       path: document.path,
     );
@@ -332,7 +331,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     document.removeListener(_sampleChanged);
     controller.removeListener(_scoreChanged);
     controller.engravingFailure.removeListener(_engravingFailed);
-    settings.removeListener(_engravingChanged);
     settings.removeListener(_settingsChanged);
     updater.removeListener(_launchCheckAnswered);
     _hasScore.dispose();
@@ -372,7 +370,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Future<void> _openPath(String path, {bool confirmed = false}) async {
     if (!File(path).existsSync()) {
       settings.removeRecent(path);
-      _snack('“${path.split(RegExp(r'[/\\]')).last}” was moved or deleted.');
+      _snack('“${fileNameOf(path)}” was moved or deleted.');
       return;
     }
     if (!confirmed && !await _confirmDiscard()) return;
@@ -499,29 +497,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       await action();
     } catch (e) {
       if (!mounted) return;
-      showAppDialog<void>(
+      unawaited(showAppDialog<void>(
         context: context,
         builder: (context) => AppDialog(
           title: Text(title),
           content: SingleChildScrollView(child: Text(describeError(e))),
           actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
         ),
-      );
+      ));
     }
   }
 
-  bool get _syncing => controller.score != null && controller.tab == BottomTab.audio;
-  bool get _curating => controller.score != null && controller.tab == BottomTab.instruments;
-
-  void _tool(LaneTool tool) {
-    if (_curating) controller.lanes.tool = tool;
-  }
-
-  void _trim({required bool start}) {
-    if (_curating) controller.lanes.trimToPlayhead(start: start);
-  }
-
-  void _space() => _syncing && controller.anchors.tapArmed ? controller.anchors.tap() : controller.playback.togglePlay();
+  EditCommands get _commands => controller.commands;
 
   void _toggleTapMode() {
     if (controller.score == null) return;
@@ -539,64 +526,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (controller.score == null) return;
     controller.tab = BottomTab.audio;
     controller.playback.pause(); // a dialog asks where it jumps to
-    editWarp(context, controller);
-  }
-
-  /// ←/→ nudge the selected anchors (10 ms, ⇧ 1 ms) or regions (a bar, ⇧ a beat);
-  /// otherwise skip 5 s (⇧ 1 s).
-  void _arrow(int direction, {required bool fine}) {
-    if (_syncing && controller.anchors.selected.isNotEmpty) {
-      controller.anchors.nudge(direction * (fine ? 0.001 : 0.01));
-    } else if (_curating && controller.lanes.selected.isNotEmpty) {
-      controller.lanes.nudge(direction, beat: fine);
-    } else {
-      controller.playback.skip(direction * (fine ? 1.0 : 5.0));
-    }
-  }
-
-  /// ↑/↓ move the selection to the lane above / below, or re-bar the selected anchors
-  /// (↑ the next bar or beat, ↓ the previous).
-  void _vertical(int direction) {
-    if (_curating) {
-      controller.lanes.selectNextLane(direction);
-    } else {
-      controller.anchors.shift(-direction);
-    }
-  }
-
-  void _selectAll() {
-    if (_syncing) controller.anchors.selectAll();
-    if (_curating) controller.lanes.selectAll();
+    unawaited(editWarp(context, controller));
   }
 
   final _readout = GlobalKey<TimeReadoutState>();
 
   void _goTo() => _readout.currentState?.edit();
 
-  void _escape() {
-    if (controller.anchors.tapArmed) {
-      controller.anchors.tapArmed = false;
-      controller.playback.pause();
-    } else if (_curating && controller.lanes.selected.isEmpty && controller.lanes.tool != LaneTool.select) {
-      controller.lanes.tool = LaneTool.select;
-    } else {
-      controller.clearSelection();
-    }
-  }
-
-  void _copy() {
-    if (_curating) controller.lanes.copy();
-  }
-
-  void _cut() {
-    if (_curating) controller.lanes.cut();
-  }
-
   /// Paste: regions copied in the Instruments tab, while it shows; else Attach Image's image.
-  void _paste() => _curating && controller.lanes.canPaste ? controller.lanes.paste() : _pasteImage();
+  void _paste() => _commands.pastesRegions ? _commands.pasteRegions() : _pasteImage();
 
   Future<void> _pasteImage() async {
-    if (!controller.images.enabled || controller.score == null) return;
+    if (!_commands.pastesImage) return;
     String? problem;
     try {
       if (!await controller.images.paste()) problem = 'No image to paste.';
@@ -647,37 +588,32 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (MediaFormats.isMidi(path) || MediaFormats.isRecording(path)) {
           _snack('Drop recordings and MIDI files on the Audio tab.');
         } else {
-          _openPath(path);
+          unawaited(_openPath(path));
         }
       case _DropArea.audio:
-        if (MediaFormats.isMidi(path)) {
-          _guard(() => controller.loadMidiTempo(path), title: 'Couldn’t Use MIDI File');
-        } else if (MediaFormats.isRecording(path)) {
-          _guard(() => controller.loadAudio(path), title: 'Couldn’t Load Recording');
-        } else {
-          _snack('Drop a MIDI file or a recording.');
-        }
+        if (!_addMedia(path)) _snack('Drop a MIDI file or a recording.');
       case _DropArea.home:
-        _droppedHome(path);
+        if (controller.score != null || !(MediaFormats.isMidi(path) || MediaFormats.isRecording(path))) {
+          if (!_addMedia(path)) unawaited(_openPath(path));
+        } else {
+          _snack(MediaFormats.isMidi(path)
+              ? 'Open a score first, then add its MIDI tempo map.'
+              : 'Open a score first, then add its recording.');
+        }
     }
   }
 
-  void _droppedHome(String path) {
+  /// Adds the MIDI tempo map or the recording at [path] to the score open; false when it is
+  /// neither.
+  bool _addMedia(String path) {
     if (MediaFormats.isMidi(path)) {
-      if (controller.score == null) {
-        _snack('Open a score first, then add its MIDI tempo map.');
-      } else {
-        _guard(() => controller.loadMidiTempo(path), title: 'Couldn’t Use MIDI File');
-      }
+      unawaited(_guard(() => controller.loadMidiTempo(path), title: 'Couldn’t Use MIDI File'));
     } else if (MediaFormats.isRecording(path)) {
-      if (controller.score == null) {
-        _snack('Open a score first, then add its recording.');
-      } else {
-        _guard(() => controller.loadAudio(path), title: 'Couldn’t Load Recording');
-      }
+      unawaited(_guard(() => controller.loadAudio(path), title: 'Couldn’t Load Recording'));
     } else {
-      _openPath(path);
+      return false;
     }
+    return true;
   }
 
   // MARK: Close
@@ -734,9 +670,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// File ▸ Export Video… (⌘E): offers the project's (or the score's) name for the video.
   void _exportVideo() {
     if (controller.score == null || controller.isReengraving) return;
-    final title = document.title ?? 'Curator';
-    final dot = title.lastIndexOf('.');
-    showExportDialog(context, controller, settings, suggestedName: dot > 0 ? title.substring(0, dot) : title);
+    showExportDialog(context, controller, settings, suggestedName: stemOf(document.title ?? 'Curator'));
   }
 
   @override
@@ -767,11 +701,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onExportVideo: _canExport.value ? _exportVideo : null,
           onUndo: edit != null && edit.undo ? controller.undo : null,
           onRedo: edit != null && edit.redo ? controller.redo : null,
-          onCut: edit != null && edit.copy ? _cut : null,
-          onCopy: edit != null && edit.copy ? _copy : null,
+          onCut: edit != null && edit.copy ? _commands.cut : null,
+          onCopy: edit != null && edit.copy ? _commands.copy : null,
           onPaste: edit != null && edit.paste ? _paste : null,
-          onDelete: edit != null && edit.delete ? controller.deleteSelection : null,
-          onSelectAll: edit != null && _hasScore.value ? _selectAll : null,
+          onDelete: edit != null && edit.delete ? _commands.delete : null,
+          onSelectAll: edit != null && _commands.canSelectAll ? _commands.selectAll : null,
           child: page!,
         );
       },
@@ -849,45 +783,45 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   Map<ShortcutActivator, VoidCallback> get _bindings => {
         // Space plays / pauses — or, in tap mode, marks the bar or beat sounding now.
-        const SingleActivator(LogicalKeyboardKey.space): _space,
+        const SingleActivator(LogicalKeyboardKey.space): _commands.space,
         const SingleActivator(LogicalKeyboardKey.enter): controller.playback.togglePlay,
         const SingleActivator(LogicalKeyboardKey.numpadEnter): controller.playback.togglePlay,
         const SingleActivator(LogicalKeyboardKey.keyT): _toggleTapMode,
         const SingleActivator(LogicalKeyboardKey.keyW): _warp,
         const SingleActivator(LogicalKeyboardKey.keyC): _toggleMetronome,
-        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _arrow(-1, fine: false),
-        const SingleActivator(LogicalKeyboardKey.arrowRight): () => _arrow(1, fine: false),
-        const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () => _arrow(-1, fine: true),
-        const SingleActivator(LogicalKeyboardKey.arrowRight, shift: true): () => _arrow(1, fine: true),
-        const SingleActivator(LogicalKeyboardKey.arrowUp): () => _vertical(-1),
-        const SingleActivator(LogicalKeyboardKey.arrowDown): () => _vertical(1),
-        const SingleActivator(LogicalKeyboardKey.keyA, meta: true): _selectAll,
-        const SingleActivator(LogicalKeyboardKey.keyA, control: true): _selectAll,
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _commands.arrow(-1, fine: false),
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () => _commands.arrow(1, fine: false),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () => _commands.arrow(-1, fine: true),
+        const SingleActivator(LogicalKeyboardKey.arrowRight, shift: true): () => _commands.arrow(1, fine: true),
+        const SingleActivator(LogicalKeyboardKey.arrowUp): () => _commands.vertical(-1),
+        const SingleActivator(LogicalKeyboardKey.arrowDown): () => _commands.vertical(1),
+        const SingleActivator(LogicalKeyboardKey.keyA, meta: true): _commands.selectAll,
+        const SingleActivator(LogicalKeyboardKey.keyA, control: true): _commands.selectAll,
         const SingleActivator(LogicalKeyboardKey.home): () => controller.playback.seek(0),
         const SingleActivator(LogicalKeyboardKey.end): () => controller.playback.seek(controller.playback.duration),
         // Go to a bar or a time: the toolbar's readout, typed.
         const SingleActivator(LogicalKeyboardKey.keyG, meta: true): _goTo,
         const SingleActivator(LogicalKeyboardKey.keyG, control: true): _goTo,
-        const SingleActivator(LogicalKeyboardKey.delete): controller.deleteSelection,
-        const SingleActivator(LogicalKeyboardKey.backspace): controller.deleteSelection,
+        const SingleActivator(LogicalKeyboardKey.delete): _commands.delete,
+        const SingleActivator(LogicalKeyboardKey.backspace): _commands.delete,
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): controller.undo,
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true): controller.redo,
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): controller.undo,
         const SingleActivator(LogicalKeyboardKey.keyY, control: true): controller.redo,
-        const SingleActivator(LogicalKeyboardKey.escape): _escape,
+        const SingleActivator(LogicalKeyboardKey.escape): _commands.escape,
         // Instruments tab: the selected regions. Paste: those, or Attach Image's image at the pointer.
-        const SingleActivator(LogicalKeyboardKey.keyC, meta: true): _copy,
-        const SingleActivator(LogicalKeyboardKey.keyC, control: true): _copy,
-        const SingleActivator(LogicalKeyboardKey.keyX, meta: true): _cut,
-        const SingleActivator(LogicalKeyboardKey.keyX, control: true): _cut,
+        const SingleActivator(LogicalKeyboardKey.keyC, meta: true): _commands.copy,
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true): _commands.copy,
+        const SingleActivator(LogicalKeyboardKey.keyX, meta: true): _commands.cut,
+        const SingleActivator(LogicalKeyboardKey.keyX, control: true): _commands.cut,
         const SingleActivator(LogicalKeyboardKey.keyV, meta: true): _paste,
         const SingleActivator(LogicalKeyboardKey.keyV, control: true): _paste,
         // Instruments tab: tools, and trimming the selected regions to the playhead.
-        const SingleActivator(LogicalKeyboardKey.keyV): () => _tool(LaneTool.select),
-        const SingleActivator(LogicalKeyboardKey.keyD): () => _tool(LaneTool.draw),
-        const SingleActivator(LogicalKeyboardKey.keyE): () => _tool(LaneTool.erase),
-        const SingleActivator(LogicalKeyboardKey.bracketLeft): () => _trim(start: true),
-        const SingleActivator(LogicalKeyboardKey.bracketRight): () => _trim(start: false),
+        const SingleActivator(LogicalKeyboardKey.keyV): () => _commands.tool(LaneTool.select),
+        const SingleActivator(LogicalKeyboardKey.keyD): () => _commands.tool(LaneTool.draw),
+        const SingleActivator(LogicalKeyboardKey.keyE): () => _commands.tool(LaneTool.erase),
+        const SingleActivator(LogicalKeyboardKey.bracketLeft): () => _commands.trim(start: true),
+        const SingleActivator(LogicalKeyboardKey.bracketRight): () => _commands.trim(start: false),
       };
 
   static const _minTimeline = 150.0, _minScore = 180.0;

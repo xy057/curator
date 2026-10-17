@@ -152,6 +152,23 @@ class ScoreSwap {
       if (q != null && (a.jumpTo == null) == (jump == null)) anchors.add(SyncAnchor(q, a.seconds, jumpTo: jump));
     }
 
+    // A MIDI tempo map's warps happen at a moment of the file, which stays, as an anchor's time
+    // does; where each goes on from is a place in the score. Those that no longer fit are left
+    // out, from the first that doesn't (only those that fitted before count as lost).
+    var midi = edits.midi, lostWarps = 0;
+    if (midi != null) {
+      final fitted = midi.arrivals(measuresBefore.last).length;
+      final kept = <MidiWarp>[];
+      for (final w in midi.warps.take(fitted)) {
+        final jumpTo = at(w.jumpTo);
+        if (jumpTo == null) break;
+        kept.add((at: w.at, jumpTo: jumpTo));
+      }
+      final carried = midi.withWarps(kept);
+      midi = carried.withWarps(kept.take(carried.arrivals(measuresAfter.last).length).toList());
+      lostWarps = fitted - midi.warps.length;
+    }
+
     final patches = [
       for (final p in edits.patches)
         if (at(p.quarter) case final q?) p.copyWith(quarter: q),
@@ -178,6 +195,7 @@ class ScoreSwap {
         edits: edits.copyWith(
           lanes: lanes,
           anchors: anchors,
+          midi: midi,
           partNames: {for (final MapEntry(key: id, value: name) in edits.partNames.entries) ?parts[id]: name},
           textEdits: textEdits(edits.textEdits),
           condensed: {for (final id in edits.condensed) ?condensedId(id)},
@@ -192,6 +210,7 @@ class ScoreSwap {
       lost: (
         regions: lostRegions,
         anchors: edits.anchors.length - anchors.length,
+        warps: lostWarps,
         captions: edits.captions.length - captions.length,
         images: edits.patches.length - patches.length,
       ),
@@ -206,7 +225,7 @@ class ScoreSwap {
     required List<double> measuresBefore,
     required List<double> measuresAfter,
     required Map<String, String> edits,
-    Lost lost = const (regions: 0, anchors: 0, captions: 0, images: 0),
+    Lost lost = const (regions: 0, anchors: 0, warps: 0, captions: 0, images: 0),
   }) {
     String names(Iterable<ScorePart> parts) => parts.map((p) => p.name).join(', ');
     final barsBefore = measuresBefore.length - 1, barsAfter = measuresAfter.length - 1;
@@ -221,6 +240,7 @@ class ScoreSwap {
     final lostItems = [
       if (lost.regions > 0) _count(lost.regions, 'region'),
       if (lost.anchors > 0) _count(lost.anchors, 'anchor'),
+      if (lost.warps > 0) _count(lost.warps, 'warp'),
       if (lost.captions > 0) _count(lost.captions, 'caption'),
       if (lost.images > 0) _count(lost.images, 'image'),
     ];
@@ -256,7 +276,7 @@ class ScoreSwap {
 }
 
 /// What [ScoreSwap.carry] left out: past the new file's end.
-typedef Lost = ({int regions, int anchors, int captions, int images});
+typedef Lost = ({int regions, int anchors, int warps, int captions, int images});
 
 /// A score engraved to stand in for the open one ([EditorController.prepareReplacement]):
 /// nothing has changed yet.

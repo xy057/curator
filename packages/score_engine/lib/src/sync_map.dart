@@ -93,11 +93,11 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
   int get revision => _revision;
   int _revision = 0;
 
-  @override
-  void notifyListeners() {
+  /// The anchors changed: works out what follows from them again, and says so.
+  void _changed() {
     _derive();
     _revision++;
-    super.notifyListeners();
+    notifyListeners();
   }
 
   // Derived from the anchors (see [_derive]).
@@ -156,7 +156,7 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
     } else {
       _leadIn = math.max(0, seconds);
     }
-    notifyListeners();
+    _changed();
   }
 
   // MARK: Mapping
@@ -251,28 +251,23 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
 
   // MARK: Tapping
 
-  double? _sessionLastTap;
-
-  /// Starts a tapping pass: taps from now on overwrite the anchors they pass over.
-  void beginTapping() => _sessionLastTap = null;
-
-  /// Adds an anchor for a tap at [seconds] and returns it (see the class rules).
-  SyncAnchor tap(double seconds, {SyncGrid grid = SyncGrid.bar}) {
+  /// Adds an anchor for [pass]'s tap at [seconds] and returns it (see the class rules).
+  SyncAnchor _tap(TapPass pass, double seconds, SyncGrid grid) {
     // The downbeat after a repeat is the warp itself: tapping it re-times the warp.
     final warp = _anchors.indexWhere((a) => a.isWarp && (a.seconds - seconds).abs() <= 0.15);
     if (warp >= 0) {
       moveAnchor(warp, seconds);
-      _sessionLastTap = _anchors[warp].seconds;
+      pass._last = _anchors[warp].seconds;
       return _anchors[warp];
     }
 
     // Overwrite what this pass has moved over (and an old anchor for this very beat).
-    final from = _sessionLastTap ?? seconds - 0.15;
+    final from = pass._last ?? seconds - 0.15;
     final anchors = [
       for (final a in _anchors)
         if (a.isWarp || a.seconds <= from || a.seconds > seconds + 0.15) a,
     ];
-    _sessionLastTap = seconds;
+    pass._last = seconds;
 
     final before = anchors.where((a) => a.seconds < seconds).toList();
     final double quarter;
@@ -290,7 +285,7 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
     final anchor = SyncAnchor(math.min(quarter, totalQuarters), seconds);
     // Later anchors that no longer fit after this one are dropped.
     _anchors = _fitted([...before, anchor, ...anchors.where((a) => a.seconds > seconds)], keep: before.length);
-    notifyListeners();
+    _changed();
     return anchor;
   }
 
@@ -304,7 +299,7 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
       anchor,
     ]..sort((a, b) => a.seconds.compareTo(b.seconds));
     _anchors = _fitted(anchors, keep: anchors.indexOf(anchor));
-    notifyListeners();
+    _changed();
   }
 
   /// Moves anchor [index] in time, kept between its neighbours (where they leave no room,
@@ -345,7 +340,7 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
     final changed = _shiftedAfter(_anchors, index, delta)..[index] = SyncAnchor(quarter, a.seconds, jumpTo: jumpTo);
     if (!_inOrder(changed)) return false;
     _anchors = List.unmodifiable(changed);
-    notifyListeners();
+    _changed();
     return true;
   }
 
@@ -421,7 +416,7 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
     _anchors = List.unmodifiable([
       for (final (i, a) in base.indexed) indices.contains(i) ? a.at(a.seconds + applied) : a,
     ]);
-    notifyListeners();
+    _changed();
     return applied;
   }
 
@@ -437,7 +432,7 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
     if (!_inOrder(shifted)) return false;
     if (indices.every((i) => shifted[i].quarter == _anchors[i].quarter)) return false;
     _anchors = List.unmodifiable(shifted);
-    notifyListeners();
+    _changed();
     return true;
   }
 
@@ -454,7 +449,7 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
       anchors.removeAt(i);
     }
     _anchors = _fitted(anchors);
-    notifyListeners();
+    _changed();
   }
 
   /// Indices of the anchors between two times (inclusive), for box selection.
@@ -468,12 +463,12 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
 
   void clear() {
     _anchors = const [];
-    notifyListeners();
+    _changed();
   }
 
   void _replace(int index, SyncAnchor anchor) {
     _anchors = List.unmodifiable([..._anchors]..[index] = anchor);
-    notifyListeners();
+    _changed();
   }
 
   // MARK: Saving
@@ -486,6 +481,21 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
   void load(List<SyncAnchor> anchors, {double leadIn = 0}) {
     _leadIn = leadIn;
     _anchors = _fitted([...anchors]..sort((a, b) => a.seconds.compareTo(b.seconds)));
-    notifyListeners();
+    _changed();
   }
+}
+
+/// One pass of tapping along (Space, playing, in the Audio tab): each tap pins the beat
+/// sounding to its time, overwriting the anchors the pass has moved over since its last tap.
+/// A new pass starts again (from where the next tap lands).
+class TapPass {
+  TapPass(this.sync);
+
+  final SyncMap sync;
+
+  /// When this pass last tapped; null before its first tap.
+  double? _last;
+
+  /// Adds an anchor for a tap at [seconds], on the [grid], and returns it.
+  SyncAnchor tap(double seconds, {SyncGrid grid = SyncGrid.bar}) => sync._tap(this, seconds, grid);
 }

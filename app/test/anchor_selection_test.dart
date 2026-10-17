@@ -48,7 +48,7 @@ void main() {
     c.anchors.shift(1); // "these were all one bar late in the score"
     expect(sync.anchors.map((a) => a.quarter), [0, 6, 9, 12, 15]);
 
-    c.deleteSelection();
+    c.commands.delete();
     expect(sync.anchors.map((a) => a.quarter), [0, 15]);
     c.undo();
     expect(sync.anchors, hasLength(5));

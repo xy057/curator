@@ -1,5 +1,6 @@
 // File ▸ Save / Save As… are always enabled: before a score is open, after one loads (the
 // menu used to stay greyed out then, because it was never rebuilt), and with no changes.
+import 'dart:async';
 import 'dart:io';
 
 import 'package:curated_score/app_menus.dart';
@@ -140,7 +141,7 @@ void main() {
     expect(menus().onPaste, isNotNull);
 
     // A dialog over the page has the keyboard: Edit is off under it.
-    showDialog<void>(context: tester.element(find.byType(HomePage)), builder: (_) => const Text('dialog'));
+    unawaited(showDialog<void>(context: tester.element(find.byType(HomePage)), builder: (_) => const Text('dialog')));
     await tester.pump();
     expect(menus().onUndo, isNull);
     expect(menus().onSelectAll, isNull);

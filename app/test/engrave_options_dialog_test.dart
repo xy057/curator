@@ -1,5 +1,6 @@
 // Settings ▸ Engraving ▸ Engraving options with a score open: the preview beside the list shows
 // the score engraved again after each change. With SCREENSHOT_DIR set, saves PNGs.
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -59,7 +60,7 @@ void main() {
       });
     }
 
-    showEngraveOptionsDialog(tester.element(find.byType(HomePage)), settings, controller: c);
+    unawaited(showEngraveOptionsDialog(tester.element(find.byType(HomePage)), settings, controller: c));
     await settle();
     final preview = find.descendant(of: find.byType(Dialog), matching: find.byType(Slider));
     expect(preview, findsOneWidget, reason: 'a preview, scrubbed with its own slider');
@@ -91,7 +92,7 @@ void main() {
     await settle();
 
     // Settings ▸ Engraving shows the same preview above its sliders.
-    showSettingsDialog(tester.element(find.byType(HomePage)), settings, controller: c, page: 'Engraving');
+    unawaited(showSettingsDialog(tester.element(find.byType(HomePage)), settings, controller: c, page: 'Engraving'));
     await settle();
     final pagePreview = find.descendant(of: find.byType(EngravingPreview), matching: find.byType(CustomPaint));
     expect(pagePreview, findsWidgets);
@@ -118,7 +119,7 @@ void main() {
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     expect(c.score, isNull);
 
-    showSettingsDialog(tester.element(find.byType(HomePage)), settings, controller: c, page: 'Engraving');
+    unawaited(showSettingsDialog(tester.element(find.byType(HomePage)), settings, controller: c, page: 'Engraving'));
     EditorController demo() => tester.widget<EngravingPreview>(find.byType(EngravingPreview)).controller;
     for (var i = 0; i < 200 && find.byType(EngravingPreview).evaluate().isEmpty; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
@@ -179,7 +180,7 @@ void main() {
     await tester.runAsync(() => c.openFile(demoScore.path));
     await tester.pump();
 
-    showSettingsDialog(tester.element(find.byType(HomePage)), settings, controller: c, page: 'Engraving');
+    unawaited(showSettingsDialog(tester.element(find.byType(HomePage)), settings, controller: c, page: 'Engraving'));
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 150));
     }

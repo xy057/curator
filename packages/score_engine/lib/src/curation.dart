@@ -88,7 +88,7 @@ class Curation extends ChangeNotifier {
   set transition(double value) {
     if (value == _transition) return;
     _transition = value;
-    notifyListeners();
+    _changed();
   }
 
   Iterable<String> get partIds => _lanes.keys;
@@ -97,10 +97,10 @@ class Curation extends ChangeNotifier {
   int get revision => _revision;
   int _revision = 0;
 
-  @override
-  void notifyListeners() {
+  /// The lanes or the transition changed: counts it, and says so.
+  void _changed() {
     _revision++;
-    super.notifyListeners();
+    notifyListeners();
   }
 
   /// Seconds for [region]'s staff to enter at its start: its own, or the curation's.
@@ -159,7 +159,7 @@ class Curation extends ChangeNotifier {
   /// Replaces a lane. Regions are sorted and overlapping or touching ones merged.
   void setLane(String partId, List<Region> regions) {
     _lanes = _joinedLanes(_lanes, {..._lanes, partId: _normalize(regions)});
-    notifyListeners();
+    _changed();
   }
 
   void addRegion(String partId, Region region) => setLane(partId, [...lane(partId), region]);
@@ -168,7 +168,7 @@ class Curation extends ChangeNotifier {
   void setLanes(Map<String, List<Region>> lanes) {
     _lanes = _joinedLanes(
         _lanes, {..._lanes, for (final e in lanes.entries) if (_lanes.containsKey(e.key)) e.key: _normalize(e.value)});
-    notifyListeners();
+    _changed();
   }
 
   /// Shows (or, with [shown] false, hides) every lane in [partIds] over [range]: drawing
@@ -224,7 +224,7 @@ class Curation extends ChangeNotifier {
 
   void clearAll() {
     _lanes = {for (final id in _lanes.keys) id: const []};
-    notifyListeners();
+    _changed();
   }
 
   /// Fills lanes from where each part actually plays (see [autoCurateMeasures]): [partIds],
@@ -253,7 +253,7 @@ class Curation extends ChangeNotifier {
           for (final e in lanes.entries) e.key: [...e.value]..sort((a, b) => a.start.compareTo(b.start)),
         },
         normalize: false);
-    notifyListeners();
+    _changed();
   }
 
   /// Merges what a drag left overlapping or touching (see [updateLanes]).
@@ -261,7 +261,7 @@ class Curation extends ChangeNotifier {
     final normalized = {for (final e in _lanes.entries) e.key: _normalize(e.value)};
     if (sameLanes(normalized, _lanes)) return;
     _lanes = normalized;
-    notifyListeners();
+    _changed();
   }
 
   /// Whether two sets of lanes hold the same regions.
@@ -312,7 +312,7 @@ class Curation extends ChangeNotifier {
     final lanes = _joinedLanes(_lanes, _lanes);
     if (sameLanes(lanes, _lanes)) return;
     _lanes = lanes;
-    notifyListeners();
+    _changed();
   }
 
   /// [next] (what [before] becomes) with each pair of joined lanes made the same: the one
@@ -375,6 +375,6 @@ class Curation extends ChangeNotifier {
   void load(Map<String, List<Region>> lanes, {double? transition}) {
     _lanes = _joinedLanes(_lanes, {for (final id in _lanes.keys) id: _normalize(lanes[id] ?? const [])});
     _transition = transition ?? _transition;
-    notifyListeners();
+    _changed();
   }
 }

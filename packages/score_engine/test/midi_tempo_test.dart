@@ -164,6 +164,21 @@ void main() {
       expect(sync.secondsAtQuarter(6, pass: 1), closeTo(13 + 2 * 2, 1e-9), reason: 'at 30 a minute');
     });
 
+    test('in the score, a file quarter is where the sync plays it, and its beats are the score\'s', () {
+      final sync = SyncMap(measureStarts: measures, defaultTempo: 90)..load(map.anchors(start: 1, totalQuarters: 16));
+      final placed = MidiInScore(map, sync);
+      expect(placed.secondsAt(12), closeTo(13, 1e-9));
+      expect(placed.scoreAt(12), closeTo(4, 1e-9), reason: 'bar 2 the second time');
+      expect(placed.end, closeTo(24, 1e-9), reason: 'the file reaches the score\'s end at its quarter 24');
+      final beat = sync.beats.beatAt(4);
+      expect(placed.beatAround(12.3), (start: 12.0, end: 12 + beat.end - beat.start));
+      expect(placed.snap(12.3), 12);
+      expect(placed.beatLength(12), beat.end - beat.start);
+      expect(placed.warpSeconds, [closeTo(9, 1e-9)]);
+      expect(MidiInScore(map.withWarps([(at: 8, jumpTo: 0), (at: 30, jumpTo: 0)]), sync).warpSeconds, hasLength(1),
+          reason: 'only those followed');
+    });
+
     test('warps that don\'t fit the score are left out', () {
       expect(map.withWarps([(at: 20, jumpTo: 0)]).arrivals(16), isEmpty, reason: 'arrives past the end');
       expect(map.withWarps([(at: 8, jumpTo: 16)]).arrivals(16), isEmpty, reason: 'goes on from the end');

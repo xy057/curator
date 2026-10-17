@@ -196,7 +196,7 @@ void main() {
       c.undo();
       expect(c.curation!.lane(ids[0]), [Region(bars[5], bars[9])]);
       c.lanes.selectAll();
-      c.deleteSelection();
+      c.commands.delete();
       expect(c.curation!.lane(ids[0]), isEmpty);
       expect(c.curation!.lane(ids[1]), isEmpty);
     });

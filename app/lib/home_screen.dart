@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'file_names.dart';
 import 'project_file.dart';
 import 'ui_kit.dart';
 
@@ -181,7 +182,7 @@ class _RecentRowState extends State<_RecentRow> {
 
   static final _home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
 
-  String get _name => widget.path.split(RegExp(r'[/\\]')).last;
+  String get _name => fileNameOf(widget.path);
 
   String get _folder {
     final parts = widget.path.split(RegExp(r'[/\\]'));

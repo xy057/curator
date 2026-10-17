@@ -236,6 +236,52 @@ bool beatsFit(EditorController c, double quarter, {int pass = 0}) {
       kMinBeatWidth;
 }
 
+/// [quarter] snapped as the lanes snap: to the time signature's nearest beat, or the nearest
+/// barline when beats are too close together on screen (as they sound in [pass]); ⌘: free.
+/// Inside the score.
+double snapInLanes(EditorController c, double quarter, {required int pass}) {
+  final starts = c.timeline.measureStarts;
+  final q = quarter.clamp(0.0, starts.last).toDouble();
+  if (isCommandPressed) return q;
+  if (beatsFit(c, q, pass: pass)) {
+    final beat = c.beats.beatAt(q);
+    return q - beat.start <= beat.end - q ? beat.start : beat.end;
+  }
+  var i = c.beats.measureAt(q);
+  if (i + 1 < starts.length && (starts[i + 1] - q) < (q - starts[i])) i++;
+  return starts[i];
+}
+
+/// What a click in the lanes takes: the beat at [quarter] as it sounds in [pass], or its bar
+/// when beats are too close together on screen (a dotted crotchet in 6/8).
+({double start, double end}) beatInLanes(EditorController c, double quarter, {required int pass}) {
+  final starts = c.timeline.measureStarts;
+  final q = quarter.clamp(0.0, starts.last - 1e-9).toDouble();
+  if (beatsFit(c, q, pass: pass)) return c.beats.beatAt(q);
+  final m = c.beats.measureAt(q);
+  return (start: starts[m], end: starts[math.min(m + 1, starts.length - 1)]);
+}
+
+/// Tells a double-click from two clicks: a second press within [interval] of the first and
+/// [slop] pixels of where it was. A double-click starts the count again, so a third press is a
+/// first one.
+class DoubleClicks {
+  static const interval = Duration(milliseconds: 350), slop = 6.0;
+
+  Duration? _last;
+  Offset _at = Offset.zero;
+
+  /// Counts a press at [time] (the pointer event's `timeStamp`) and [position]: whether it is a
+  /// double-click's second.
+  bool press(Duration time, Offset position) {
+    final last = _last;
+    final second = last != null && time - last < interval && (position - _at).distance < slop;
+    _last = second ? null : time;
+    _at = position;
+    return second;
+  }
+}
+
 /// For each pass (see [ScoreTimeline.passes]), the bars whose barline it plays, in order. A
 /// pass's end is the next one's start, so only the last pass has the final barline.
 List<List<int>> _barsByPass(ScoreTimeline tl) {

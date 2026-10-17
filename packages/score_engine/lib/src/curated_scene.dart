@@ -22,6 +22,43 @@ import 'scroll_map.dart';
 import 'spacing_plan.dart';
 import 'staff_stack.dart';
 
+/// What a score is engraved with besides its MusicXML: the text edits, the user's own pairs of
+/// players, the fonts, the engraving options and whether dynamics typed as text are made
+/// dynamics. Equal requests engrave a score the same, so a change of any is one to engrave.
+@immutable
+class EngraveRequest {
+  const EngraveRequest({
+    this.textEdits = const {},
+    this.pairs = const [],
+    this.fonts = ScoreFonts.standard,
+    this.options = const EngravingOptions(),
+    this.textDynamics = true,
+  });
+
+  /// Text id → new text ('' removes it).
+  final Map<String, String> textEdits;
+
+  /// Pairs of players besides the score's own (see [CondensingOptions.pairs]).
+  final List<PlayerPair> pairs;
+  final ScoreFonts fonts;
+  final EngravingOptions options;
+
+  /// See [TextDynamics].
+  final bool textDynamics;
+
+  @override
+  bool operator ==(Object other) =>
+      other is EngraveRequest &&
+      mapEquals(other.textEdits, textEdits) &&
+      listEquals(other.pairs, pairs) &&
+      other.fonts == fonts &&
+      other.options == options &&
+      other.textDynamics == textDynamics;
+
+  @override
+  int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics);
+}
+
 /// A score that is engraved and ready to show.
 class LoadedScore {
   LoadedScore._(this.metadata, this.engraving, this.timeline, this.beats, this.scrollMap,
@@ -90,6 +127,21 @@ class LoadedScore {
   /// The text as currently shown (after edits).
   String currentText(ScoreText text) => textEdits[text.id] ?? text.text;
 
+  /// What it was engraved with.
+  EngraveRequest get request =>
+      EngraveRequest(textEdits: textEdits, pairs: pairs, fonts: fonts, options: options, textDynamics: textDynamics);
+
+  /// Engraves [musicXML] as [request] asks.
+  static Future<LoadedScore> engrave(String musicXML, EngraveRequest request, {String? resourceDirectory, double? tempo}) =>
+      load(musicXML,
+          resourceDirectory: resourceDirectory,
+          tempo: tempo,
+          fonts: request.fonts,
+          textEdits: request.textEdits,
+          pairs: request.pairs,
+          options: request.options,
+          textDynamics: request.textDynamics);
+
   static Future<LoadedScore> load(
     String musicXML, {
     String? resourceDirectory,
@@ -148,6 +200,9 @@ class LoadedScore {
   /// valid).
   Future<LoadedScore> withTextEdits(Map<String, String> edits) => withEdits(textEdits: edits);
 
+  /// Re-engraves as [request] asks (the structure, and so the curation and sync, stay valid).
+  Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo);
+
   /// Re-engraves with different text edits, pairs of players, fonts, engraving options or
   /// [textDynamics]; what isn't given stays.
   Future<LoadedScore> withEdits(
@@ -156,13 +211,12 @@ class LoadedScore {
           ScoreFonts? fonts,
           EngravingOptions? options,
           bool? textDynamics}) =>
-      load(musicXML,
-          fonts: fonts ?? this.fonts,
-          tempo: metadata.tempo,
+      withRequest(EngraveRequest(
           textEdits: textEdits ?? this.textEdits,
           pairs: pairs ?? this.pairs,
+          fonts: fonts ?? this.fonts,
           options: options ?? this.options,
-          textDynamics: textDynamics ?? this.textDynamics);
+          textDynamics: textDynamics ?? this.textDynamics));
 }
 
 /// Where Verovio's font metrics live on disk (bundled as package assets).
@@ -179,6 +233,30 @@ String engineResourceDirectory() {
     '${Directory.current.path}/../packages/score_engine/assets/verovio',
   ];
   return candidates.firstWhere((p) => File('$p/Bravura.xml').existsSync(), orElse: () => candidates.first);
+}
+
+/// What a scene shows besides its score, the time, the curation and the tempo track: what the
+/// editor sets on it, as one value, so a video's scene is the preview's by taking its settings.
+@immutable
+class SceneSettings {
+  const SceneSettings({
+    this.names = const {},
+    this.condensed = const {},
+    this.partOrder = const [],
+    this.scrollFollow = 1,
+    this.patches = const [],
+    this.captions = const [],
+    this.captionStyle = const CaptionStyle(),
+  });
+
+  /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
+  final Map<String, ({String name, String abbreviation})> names;
+  final Set<String> condensed;
+  final List<String> partOrder;
+  final double scrollFollow;
+  final List<ScenePatch> patches;
+  final List<Caption> captions;
+  final CaptionStyle captionStyle;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -255,6 +333,26 @@ class CuratedScene {
 
   /// Instrument names chosen by the user (part id → name / short name), shown in the name column.
   Map<String, ({String name, String abbreviation})> names = const {};
+
+  /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
+  /// [patches], [captions], [captionStyle]); setting it changes only what differs.
+  SceneSettings get settings => SceneSettings(
+      names: names,
+      condensed: condensed,
+      partOrder: partOrder,
+      scrollFollow: scrollFollow,
+      patches: patches,
+      captions: captions,
+      captionStyle: captionStyle);
+  set settings(SceneSettings value) {
+    names = value.names;
+    condensed = value.condensed;
+    partOrder = value.partOrder;
+    scrollFollow = value.scrollFollow;
+    patches = value.patches;
+    captions = value.captions;
+    captionStyle = value.captionStyle;
+  }
 
   /// The pairs of players (ids from [LoadedScore.condensed]) that share a staff while both
   /// are shown. Changing it re-plans the layout; nothing is engraved again.

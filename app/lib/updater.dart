@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'file_names.dart';
 
 /// This build's version: `version` in pubspec.yaml without the build number (a test keeps them
 /// equal). The Release workflow tags each release `v` + this.
 const appVersion = '0.5.1';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (a test keeps them equal).
-const appBuild = 56;
+const appBuild = 57;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
@@ -294,8 +295,7 @@ class Updater extends ChangeNotifier {
 
   /// `name`, or `name (2)`, `name (3)`… when that is taken.
   static String _freeName(String dir, String name) {
-    final dot = name.lastIndexOf('.');
-    final (stem, ext) = dot > 0 ? (name.substring(0, dot), name.substring(dot)) : (name, '');
+    final stem = stemOf(name), ext = name.substring(stem.length);
     for (var n = 1;; n++) {
       final path = '$dir${Platform.pathSeparator}${n == 1 ? name : '$stem ($n)$ext'}';
       if (!File(path).existsSync() && !File('$path.part').existsSync()) return path;

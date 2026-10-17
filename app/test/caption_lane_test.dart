@@ -190,7 +190,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(c.captions.selected, 0);
     expect(find.byType(AppDialog), findsNothing);
-    c.deleteSelection();
+    c.commands.delete();
     expect(c.captions.captions, isEmpty);
 
     // A drawing the system cancels asks for nothing.

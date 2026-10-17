@@ -97,14 +97,20 @@ class MusicFont {
   }
 
   /// SMuFL fonts installed on this computer besides the bundled ones: each with metadata in a
-  /// SMuFL folder and its font installed. Sorted by name.
-  static Future<List<({String name, FontFace face, String metadata})>> installed() async {
+  /// SMuFL folder ([folders]: the platform's) and its font installed. Sorted by name.
+  static Future<List<({String name, FontFace face, String metadata})>> installed({List<String>? folders}) async {
     final fonts = await FontFiles.installed;
     final found = <String, ({String name, FontFace face, String metadata})>{};
-    for (final root in FontFiles.smuflFolders) {
+    for (final root in folders ?? FontFiles.smuflFolders) {
       final dir = Directory(root);
       if (!dir.existsSync()) continue;
-      for (final folder in dir.listSync().whereType<Directory>()) {
+      final List<FileSystemEntity> folders;
+      try {
+        folders = dir.listSync();
+      } on FileSystemException {
+        continue; // one that can't be read holds none we can use
+      }
+      for (final folder in folders.whereType<Directory>()) {
         final name = folder.path.split(Platform.pathSeparator).last;
         final metadata = _metadataIn(folder.path);
         if (metadata == null || found.containsKey(name) || bundled.any((f) => f.name == name)) continue;

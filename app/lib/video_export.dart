@@ -10,6 +10,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
+import 'file_names.dart';
 import 'media_converter.dart';
 
 /// A video's size: its short side in pixels ("1080p" is 1080 pixels high when wide, 1080
@@ -444,13 +445,7 @@ class VideoExport {
         measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
       ..load(sync.anchors, leadIn: sync.leadIn);
     final scene = CuratedScene(score, style: RenderStyle(staffSpace: editor.staffSpace))
-      ..names = editor.scene!.names
-      ..condensed = editor.condensed
-      ..partOrder = editor.partOrder
-      ..scrollFollow = editor.scrollFollow
-      ..patches = editor.scene!.patches // none while Attach Image is off
-      ..captions = editor.scene!.captions // none while Captions is off
-      ..captionStyle = editor.scene!.captionStyle
+      ..settings = editor.sceneSettings // the preview's: no images or captions while their extension is off
       ..setTimeline(timeline);
     return VideoExport._(scene, copy, timeline, editor.images.hold(),
         duration: editor.playback.duration, audio: editor.track?.path);
@@ -607,7 +602,7 @@ class VideoExport {
       throw VideoExportException(
           'This FFmpeg can’t write ${codec.label}. Install a full build (with ${codec.encoders.first}).');
     }
-    final name = output.split(RegExp(r'[/\\]')).last;
+    final name = fileNameOf(output);
     if (codec.isSequence && Directory(output).existsSync() && !VideoEncoder.onlyFrames(Directory(output), name)) {
       throw VideoExportException('“$name” already holds other files. Choose another name.');
     }

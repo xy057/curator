@@ -124,6 +124,12 @@ void main() {
     expect(thick.engraving.width, closeTo(plain.engraving.width, plain.engraving.width * 0.01));
     expect(thick.engraving.measures.length, plain.engraving.measures.length);
     expect(thick.engraving.commandFloats, isNot(plain.engraving.commandFloats));
+
+    // A score knows what it was engraved with: a request like it engraves it the same.
+    expect(wide.request, EngraveRequest(options: const EngravingOptions().withValue(spacing, 0.9)));
+    expect(wide.request, isNot(plain.request));
+    expect(plain.request, const EngraveRequest());
+    expect(const EngraveRequest(textEdits: {'d1': 'Presto'}), EngraveRequest(textEdits: {'d1': 'Presto'}));
   });
 
   test('NaN and infinity are no value for a number (they passed clamping, or failed to round)', () {
