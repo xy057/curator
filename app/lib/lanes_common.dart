@@ -252,6 +252,16 @@ double snapInLanes(EditorController c, double quarter, {required int pass}) {
   return starts[i];
 }
 
+/// What a click in the lanes takes: the beat at [quarter] as it sounds in [pass], or its bar
+/// when beats are too close together on screen (a dotted crotchet in 6/8).
+({double start, double end}) beatInLanes(EditorController c, double quarter, {required int pass}) {
+  final starts = c.timeline.measureStarts;
+  final q = quarter.clamp(0.0, starts.last - 1e-9).toDouble();
+  if (beatsFit(c, q, pass: pass)) return c.beats.beatAt(q);
+  final m = c.beats.measureAt(q);
+  return (start: starts[m], end: starts[math.min(m + 1, starts.length - 1)]);
+}
+
 /// Tells a double-click from two clicks: a second press within [interval] of the first and
 /// [slop] pixels of where it was. A double-click starts the count again, so a third press is a
 /// first one.

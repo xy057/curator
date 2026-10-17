@@ -274,15 +274,9 @@ class _CaptionLaneState extends State<CaptionLane> {
     }
   }
 
-  /// The beat at [q] as it sounds in [pass], or its bar when beats are too close on screen.
   (double, double) _beatAt(double q, int pass) {
-    q = q.clamp(0.0, _total - 1e-9);
-    if (beatsFit(c, q, pass: pass)) {
-      final beat = c.beats.beatAt(q);
-      return (beat.start, beat.end);
-    }
-    final starts = tl.measureStarts, m = c.beats.measureAt(q);
-    return (starts[m], starts[math.min(m + 1, starts.length - 1)]);
+    final beat = beatInLanes(c, q, pass: pass);
+    return (beat.start, beat.end);
   }
 
   /// [from] with [q0]–[q1] cut out of every caption: covered ones go, others are trimmed or
