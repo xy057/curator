@@ -478,12 +478,19 @@ that reads it. The page, likewise, rebuilds only for the settings it shows (`_Ho
 Refined, the default, is `AppColors._refined` laid over Classic, Material's theme as it was: a
 desktop editor's look. Its palette (`AppColors._refinedOf`) has neutral greys, with no accent mixed
 in, and a `chrome` tone behind toolbars, the lane-name column and the ruler (`chrome` is `surface` in
-Classic). Controls are 28 px with 5 px corners on a 13 px type scale. Segmented controls are a well
-with the chosen segment raised, there are no ripples or 48 px touch targets, and the play button is
-a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
+Classic). Controls are 28 px with 5 px corners on a 13 px type scale. Segmented controls are a clear
+track whose chosen segment, a light tint of the accent, slides to the one clicked, each label taking
+the accent as the tint passes under it, and the hover and press shades (drawn by the segment, so
+they fade rather than switch) gone while it slides. A click chooses at once; an appearance change it makes (Theme, Style) fades
+from a still of the window, which would hold the tint where it started, so the tint is
+`LeftOutOfStills` (its own layer, hidden while `_RenderStillBoundary` takes the still) while it
+moves or a click is about to move it; at rest it stays in the still, so a change of accent
+cross-fades it as the rest of the window; there are no ripples or 48 px touch targets, and the play button is a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
 tab switch, the Settings sidebar, lane labels). Video export draws in the classic palette. Neither follows the platform (no `.adaptive` or Cupertino widgets), so macOS and
 Windows match. A widget that draws its own control for Refined reads `AppStyle` from the theme;
-`AppSwitch` (ui_kit.dart) is the only one: always use it, never `Switch`. Text styles set in the
+`AppSwitch` and `AppSegmented` (ui_kit.dart) are those: always use them, never `Switch` or
+`SegmentedButton`. `AppSegmented` works its label colour out from the tint (the accent's strong
+shade taken toward black, or white, until it reads at 4.5:1), as some accents' shades don't. Text styles set in the
 refined theme are merged with the typography's geometry as `Theme.of` gives them, since a button
 lerps its label between the two styles and two text styles lerp only when both inherit or neither.
 Refined is agile: a menu opens in 190 ms (the material ones take 300) with 22 px rows, not 48 (a

@@ -4,6 +4,7 @@ import 'package:score_engine/score_engine.dart';
 import 'app_colors.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
+import 'ui_kit.dart';
 
 /// Settings ▸ Extensions ▸ Captions ▸ settings: how captions look in every project. A project
 /// may choose its own font (Project Settings ▸ Fonts).
@@ -39,11 +40,10 @@ class _CaptionSettingsState extends State<CaptionSettings> {
                 Expanded(child: Align(alignment: Alignment.centerLeft, child: field)),
               ]),
             );
-        Widget segments<T>(T value, List<(T, String)> choices, ValueChanged<T> onChanged) => SegmentedButton<T>(
-              showSelectedIcon: false,
+        Widget segments<T>(T value, List<(T, String)> choices, ValueChanged<T> onChanged) => AppSegmented<T>(
               segments: [for (final (v, label) in choices) ButtonSegment(value: v, label: Text(label))],
-              selected: {value},
-              onSelectionChanged: (v) => onChanged(v.single),
+              selected: value,
+              onChanged: onChanged,
             );
         final families = [TextFonts.academico, ..._installed.where((f) => f != TextFonts.academico)];
         return SizedBox(

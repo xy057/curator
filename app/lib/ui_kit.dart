@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'app_colors.dart';
 
@@ -515,4 +518,307 @@ class _SwitchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SwitchPainter old) => old.t != t || old.track != track || old.focus != focus;
+}
+
+/// Painted in the window, but not in the still a change of appearance fades from (main.dart)
+/// while [moving]: something that moves meanwhile, which the still would hold where it was,
+/// fading out there. Still, it is in the still, and cross-fades to its new colours as the rest
+/// of the window does.
+class LeftOutOfStills extends SingleChildRenderObjectWidget {
+  const LeftOutOfStills({super.key, required this.moving, super.child});
+
+  /// Asked as the still is taken.
+  final bool Function() moving;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderLeftOutOfStills(moving);
+
+  @override
+  void updateRenderObject(BuildContext context, RenderObject renderObject) =>
+      (renderObject as _RenderLeftOutOfStills).moving = moving;
+}
+
+class _RenderLeftOutOfStills extends RenderProxyBox {
+  _RenderLeftOutOfStills(this.moving);
+  bool Function() moving;
+
+  static final _attached = <_RenderLeftOutOfStills>{};
+
+  OpacityLayer? get _opacity => layer as OpacityLayer?;
+
+  @override
+  bool get alwaysNeedsCompositing => child != null;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _attached.add(this);
+  }
+
+  @override
+  void detach() {
+    _attached.remove(this);
+    super.detach();
+  }
+
+  // Its own layer, fully opaque but for the moment a still is taken.
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (child == null) {
+      layer = null;
+      return;
+    }
+    layer = context.pushOpacity(offset, 255, super.paint, oldLayer: layer as OpacityLayer?);
+  }
+}
+
+/// [capture] (a still of the window) with every [LeftOutOfStills] that is moving hidden.
+T withoutLeftOut<T>(T Function() capture) {
+  final layers = [for (final r in _RenderLeftOutOfStills._attached) if (r.moving()) ?r._opacity];
+  for (final l in layers) {
+    l.alpha = 0;
+  }
+  try {
+    return capture();
+  } finally {
+    for (final l in layers) {
+      l.alpha = 255;
+    }
+  }
+}
+
+/// The app's segmented control: always use it rather than [SegmentedButton]. In
+/// [UiStyle.refined] a clear track whose chosen segment, a light tint of the accent, slides to
+/// the segment chosen, each label taking the accent as the tint passes under it. A click
+/// chooses at once ([onChanged]); the tint is [LeftOutOfStills], so a change of appearance it
+/// makes (Theme, Style) fades from a still without it, not one holding it where it started. In
+/// [UiStyle.classic] Material's [SegmentedButton] (with [style]). Segments are as wide as the
+/// widest, or share the width given with [expand].
+class AppSegmented<T> extends StatefulWidget {
+  const AppSegmented({
+    super.key,
+    required this.segments,
+    required this.selected,
+    required this.onChanged,
+    this.expand = false,
+    this.style,
+  });
+  final List<ButtonSegment<T>> segments;
+  final T selected;
+  final ValueChanged<T> onChanged;
+  final bool expand;
+  final ButtonStyle? style;
+
+  @override
+  State<AppSegmented<T>> createState() => _AppSegmentedState<T>();
+}
+
+class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProviderStateMixin {
+  /// Where the tint is, in segments: 0 over the first, 1 over the second, and between while it slides.
+  late final _at = AnimationController.unbounded(vsync: this, value: math.max(_indexOf(widget.selected), 0).toDouble());
+
+  int _indexOf(T value) => widget.segments.indexWhere((s) => s.value == value);
+
+  /// A click is choosing: the tint is about to slide, though it hasn't started yet.
+  bool _choosing = false;
+
+  void _choose(T value) {
+    if (value == widget.selected) return;
+    _choosing = true;
+    try {
+      widget.onChanged(value);
+    } finally {
+      _choosing = false;
+    }
+  }
+
+  /// Out of a still while it slides, or is about to (a click on Theme takes the still before the
+  /// tint sets off); in it otherwise, so a change of accent cross-fades it as the rest.
+  bool _moving() => _choosing || _at.isAnimating;
+
+  // The tint follows what is chosen, from wherever it is.
+  @override
+  void didUpdateWidget(AppSegmented<T> old) {
+    super.didUpdateWidget(old);
+    final index = _indexOf(widget.selected);
+    if (widget.segments.length != old.segments.length) {
+      _at.value = math.max(index, 0).toDouble();
+    } else if (widget.selected != old.selected && index >= 0) {
+      _at.animateTo(index.toDouble(), duration: motion(context, 320), curve: Curves.fastOutSlowIn);
+    }
+  }
+
+  @override
+  void dispose() {
+    _at.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isRefined(context)) {
+      return SegmentedButton<T>(
+        style: widget.style,
+        expandedInsets: widget.expand ? EdgeInsets.zero : null,
+        showSelectedIcon: false,
+        segments: widget.segments,
+        selected: {widget.selected},
+        onSelectionChanged: (s) => widget.onChanged(s.single),
+      );
+    }
+    final colors = context.colors;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final segments = widget.segments;
+    final n = segments.length;
+    final index = _indexOf(widget.selected);
+    final shown = index >= 0;
+    // The chosen segment: the accent's light tint, edged with the accent, its label the accent's
+    // strong shade taken toward black (or in the dark, white) until it reads on the tint (4.5:1).
+    final chosen = colors.accentSoft;
+    final edge = colors.accent.withValues(alpha: dark ? 0.5 : 0.45);
+    double contrast(Color a, Color b) {
+      final (x, y) = (a.computeLuminance(), b.computeLuminance());
+      return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
+    }
+
+    var onChosen = colors.accentStrong;
+    for (var t = 0.05; contrast(onChosen, chosen) < 4.5 && t <= 1; t += 0.05) {
+      onChosen = Color.lerp(colors.accentStrong, dark ? Colors.white : Colors.black, t)!;
+    }
+    final control = Container(
+      height: 32,
+      padding: const EdgeInsets.all(2),
+      // Clear: the track takes the colour of what it is on, its hairline marking it out.
+      decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(7)),
+      child: AnimatedBuilder(
+        animation: _at,
+        builder: (context, _) {
+          final at = _at.value;
+          return Stack(fit: StackFit.expand, children: [
+            if (shown)
+              Align(
+                alignment: Alignment(n == 1 ? 0 : -1 + 2 * at / (n - 1), 0),
+                child: FractionallySizedBox(
+                  widthFactor: 1 / n,
+                  heightFactor: 1,
+                  child: LeftOutOfStills(
+                    moving: _moving,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: chosen,
+                        border: Border.all(color: edge),
+                        borderRadius: BorderRadius.circular(5),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.2 : 0.06), blurRadius: 2, offset: const Offset(0, 1))],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            Material(
+              type: MaterialType.transparency,
+              child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                for (final (i, s) in segments.indexed)
+                  Expanded(
+                    child: _Segment(
+                      segment: s,
+                      chosen: s.value == widget.selected,
+                      sliding: _at.isAnimating,
+                      // As much of the accent as the tint covers of this segment.
+                      color: !s.enabled
+                          ? colors.textMuted.withValues(alpha: 0.5)
+                          : Color.lerp(colors.textMuted, onChosen, shown ? (1 - (at - i).abs()).clamp(0, 1) : 0)!,
+                      onTap: () => _choose(s.value),
+                    ),
+                  ),
+              ]),
+            ),
+          ]);
+        },
+      ),
+    );
+    return Semantics(
+        container: true, explicitChildNodes: true, child: widget.expand ? control : IntrinsicWidth(child: control));
+  }
+}
+
+class _Segment extends StatefulWidget {
+  const _Segment({
+    required this.segment,
+    required this.chosen,
+    required this.sliding,
+    required this.color,
+    required this.onTap,
+  });
+  final ButtonSegment<Object?> segment;
+  final bool chosen;
+
+  /// The tint is on its way: no shade under the mouse, so only the tint and the labels change.
+  final bool sliding;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  State<_Segment> createState() => _SegmentState();
+}
+
+class _SegmentState extends State<_Segment> {
+  bool _hovered = false, _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final s = widget.segment;
+    // Not chosen: a faint shade while hovered, and held down a faint tint of the accent, so a
+    // press already looks like the chosen one; none while the tint slides. Drawn here, not as
+    // the ink's overlay, so it fades out as the slide starts and back in when it lands (the
+    // ink would change colour in one frame).
+    final shade = widget.chosen || widget.sliding || !s.enabled
+        ? colors.text.withValues(alpha: 0)
+        : _pressed
+            ? colors.accent.withValues(alpha: dark ? 0.2 : 0.14)
+            : _hovered
+                ? colors.text.withValues(alpha: dark ? 0.06 : 0.045)
+                : colors.text.withValues(alpha: 0);
+    final label = theme.textTheme.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0, color: widget.color);
+    const radius = BorderRadius.all(Radius.circular(5));
+    Widget button = Semantics(
+      button: true,
+      selected: widget.chosen,
+      inMutuallyExclusiveGroup: true,
+      child: InkWell(
+        borderRadius: radius,
+        // Only a keyboard's focus, as the accent's tint.
+        overlayColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.focused) && !widget.chosen
+            ? colors.accent.withValues(alpha: 0.14)
+            : Colors.transparent),
+        onTap: s.enabled ? widget.onTap : null,
+        onHover: (v) => setState(() => _hovered = v),
+        onHighlightChanged: (v) => setState(() => _pressed = v),
+        child: AnimatedContainer(
+          duration: stateDuration(motion(context, 150)),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(color: shade, borderRadius: radius),
+          child: IconTheme.merge(
+            data: IconThemeData(color: widget.color, size: 15),
+            child: DefaultTextStyle.merge(
+              style: label,
+              maxLines: 1,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
+                  ?s.icon,
+                  if (s.icon != null && s.label != null) const SizedBox(width: 6),
+                  if (s.label case final label?) Flexible(child: label),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (s.tooltip case final tip?) button = Tip(message: tip, child: button);
+    return button;
+  }
 }

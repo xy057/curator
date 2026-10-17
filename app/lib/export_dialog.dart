@@ -419,13 +419,12 @@ class _ExportDialogState extends State<_ExportDialog> {
       ),
       _Row(
         label: 'Paper',
-        child: SegmentedButton<VideoPaper>(
+        child: AppSegmented<VideoPaper>(
           style: _segments,
-          expandedInsets: EdgeInsets.zero,
-          showSelectedIcon: false,
+          expand: true,
           segments: [for (final p in VideoPaper.values) ButtonSegment(value: p, label: Text(p.label))],
-          selected: {_settings.videoPaper},
-          onSelectionChanged: (s) => setState(() => _settings.videoPaper = s.single),
+          selected: _settings.videoPaper,
+          onChanged: (p) => setState(() => _settings.videoPaper = p),
         ),
       ),
       _Row(

@@ -195,7 +195,8 @@ class _StillBoundary extends RepaintBoundary {
 
 class _RenderStillBoundary extends RenderRepaintBoundary {
   ui.Image? still(double pixelRatio) => switch (layer) {
-        final OffsetLayer layer when hasSize => layer.toImageSync(Offset.zero & size, pixelRatio: pixelRatio),
+        final OffsetLayer layer when hasSize =>
+          withoutLeftOut(() => layer.toImageSync(Offset.zero & size, pixelRatio: pixelRatio)),
         _ => null,
       };
 }
