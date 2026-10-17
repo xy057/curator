@@ -121,11 +121,11 @@ class EditorController extends ChangeNotifier {
     var edits = await _newProjectEdits();
     LoadedScore score;
     try {
-      score = await _engrave(ScoreFile.decodeMusicXML(bytes), fonts: edits.fonts);
+      score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits));
     } on FormatException {
       if (edits.fonts == ScoreFonts.standard) rethrow;
-      score = await _engrave(ScoreFile.decodeMusicXML(bytes)); // a default font that can't be read: the standard ones
-      edits = edits.copyWith(fonts: ScoreFonts.standard);
+      edits = edits.copyWith(fonts: ScoreFonts.standard); // a default font that can't be read: the standard ones
+      score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits));
     }
     await _install(fileNameOf(path), bytes, score, ProjectState(edits: edits));
   }
@@ -176,8 +176,7 @@ class EditorController extends ChangeNotifier {
         state = ProjectState(edits: edits, images: state.images, view: state.view);
       }
     }
-    final score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes),
-        textEdits: edits.textEdits, pairs: edits.pairs, fonts: edits.fonts, engraving: edits.engraving);
+    final score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
     final arts = await ImageEditing._decodeAll(state.images);
     await _install(name, scoreBytes, score, state, arts: arts);
     if (mediaPath == null || _disposed) return null; // nothing to play it in: the window closed
@@ -208,8 +207,8 @@ class EditorController extends ChangeNotifier {
       textsBefore: before.texts,
       textsAfter: PreparedScore.prepare(doc, const {}, metadata: metadata).texts,
     );
-    final score = await _engrave(xml,
-        textEdits: swap.textEdits(_textEdits), pairs: swap.pairs(_pairs), fonts: _fonts, engraving: _projectEngraving);
+    final score =
+        await _engrave(xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_textEdits), pairs: swap.pairs(_pairs))));
     if (_score != before) throw StateError('Another score was opened meanwhile.');
     final state = projectState;
     final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
@@ -238,20 +237,11 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Engraves a score (the slow part, and the one that can fail) without touching what is open.
-  Future<LoadedScore> _engrave(String musicXML,
-      {Map<String, String> textEdits = const {},
-      List<PlayerPair> pairs = const [],
-      ScoreFonts fonts = ScoreFonts.standard,
-      EngravingOptions engraving = const EngravingOptions()}) async {
+  Future<LoadedScore> _engrave(String musicXML, EngraveRequest request) async {
     _loading = true;
     notifyListeners();
     try {
-      return await LoadedScore.load(musicXML,
-          textEdits: textEdits,
-          pairs: pairs,
-          fonts: fonts,
-          options: engraving.over(_engravingOptions),
-          textDynamics: _textDynamics);
+      return await LoadedScore.engrave(musicXML, request);
     } finally {
       _loading = false;
       if (!_disposed) notifyListeners();
@@ -503,16 +493,23 @@ class EditorController extends ChangeNotifier {
     }
   }
 
-  /// [score] engraved with the edits made so far and the engraving options.
+  /// [score] engraved with the edits made so far and the engraving options ([_wanted]).
   @protected
   @visibleForTesting
-  Future<LoadedScore> engraveAgain(LoadedScore score) =>
-      score.withEdits(
-          textEdits: _textEdits,
-          pairs: _pairs,
-          fonts: _fonts,
-          options: _projectEngraving.over(_engravingOptions),
-          textDynamics: _textDynamics);
+  Future<LoadedScore> engraveAgain(LoadedScore score) => score.withRequest(_wanted);
+
+  /// What a score with [edits] is engraved with: their texts, pairs of players, fonts and
+  /// engraving options (over the app's), and the app's flags.
+  EngraveRequest _requestFor(EditState edits) => EngraveRequest(
+      textEdits: edits.textEdits,
+      pairs: edits.pairs,
+      fonts: edits.fonts,
+      options: edits.engraving.over(_engravingOptions),
+      textDynamics: _textDynamics);
+
+  /// What the score is to be engraved with now (an engraving may still be catching up).
+  EngraveRequest get _wanted =>
+      _requestFor(EditState(textEdits: _textEdits, pairs: _pairs, fonts: _fonts, engraving: _projectEngraving));
 
   /// Why the latest re-engraving failed, the score showing as it was before; null once one
   /// succeeds. Undo can step back from the edit that caused it.
@@ -1012,10 +1009,7 @@ class EditorController extends ChangeNotifier {
     if (state == null || _score == null) return;
     _restoring = true;
     try {
-      final reengrave = !mapEquals(state.textEdits, _textEdits) ||
-          !listEquals(state.pairs, _pairs) ||
-          state.fonts != _fonts ||
-          state.engraving != _projectEngraving;
+      final engraved = _wanted;
       _textEdits = state.textEdits;
       _pairs = state.pairs;
       _fonts = state.fonts;
@@ -1023,7 +1017,7 @@ class EditorController extends ChangeNotifier {
       _projectEngraving = state.engraving;
       _condensed = state.condensed;
       _scene?.condensed = _condensed;
-      if (reengrave) unawaited(_reengrave());
+      if (_wanted != engraved) unawaited(_reengrave());
       _joinLanes(); // before the lanes, which fit it
       _curation!.load(state.lanes!, transition: state.transition!); // Undo's states have both
       _midi = state.midi;
