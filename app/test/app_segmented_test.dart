@@ -1,6 +1,7 @@
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -61,13 +62,29 @@ void main() {
     expect(tester.getCenter(thumb).dx, closeTo(tester.getCenter(find.text('Dark')).dx, 0.5));
   });
 
-  testWidgets('Refined: a clear track; a segment not chosen shades under the mouse', (tester) async {
+  testWidgets('Refined: a clear track; a segment not chosen shades under the mouse, but not while the tint slides', (tester) async {
     await mount(tester, UiStyle.refined);
     final track = tester.widget<Container>(find.descendant(of: find.byType(AppSegmented<int>), matching: find.byType(Container)).first);
     expect((track.decoration! as BoxDecoration).color, isNull);
-    final inks = tester.widgetList<InkWell>(find.byType(InkWell)).toList();
-    expect(inks.first.overlayColor!.resolve({WidgetState.hovered}), Colors.transparent, reason: 'the chosen one');
-    expect(inks.last.overlayColor!.resolve({WidgetState.hovered}), isNot(Colors.transparent));
+    double shade(String label) =>
+        (tester.widget<AnimatedContainer>(find.ancestor(of: find.text(label), matching: find.byType(AnimatedContainer))).decoration!
+                as BoxDecoration)
+            .color!
+            .a;
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: tester.getCenter(find.text('Light')));
+    await tester.pumpAndSettle();
+    expect(shade('Light'), greaterThan(0));
+    expect(shade('Auto'), 0, reason: 'the chosen one');
+
+    await tester.tap(find.text('Dark'), kind: PointerDeviceKind.mouse);
+    await mouse.moveTo(tester.getCenter(find.text('Light')));
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(shade('Light'), 0, reason: 'the tint passes under it');
+    await tester.pumpAndSettle();
+    expect(shade('Light'), greaterThan(0), reason: 'landed');
   });
 
   testWidgets('Refined: a click back before the tint lands chooses nothing; a third one goes on from where it is', (tester) async {

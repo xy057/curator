@@ -480,7 +480,8 @@ desktop editor's look. Its palette (`AppColors._refinedOf`) has neutral greys, w
 in, and a `chrome` tone behind toolbars, the lane-name column and the ruler (`chrome` is `surface` in
 Classic). Controls are 28 px with 5 px corners on a 13 px type scale. Segmented controls are a clear
 track whose chosen segment, a light tint of the accent, slides to the one clicked, each label taking
-the accent as the tint passes under it; the choice is made once the frame with the tint landed is
+the accent as the tint passes under it, and the hover and press shades (drawn by the segment, so
+they fade rather than switch) gone while it slides; the choice is made once the frame with the tint landed is
 painted, since an appearance change (Theme, Style) fades from a still of the window, and a still
 taken at the click would hold the tint where it started; there are no ripples or 48 px touch targets, and the play button is a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
 tab switch, the Settings sidebar, lane labels). Video export draws in the classic palette. Neither follows the platform (no `.adaptive` or Cupertino widgets), so macOS and

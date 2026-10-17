@@ -666,6 +666,7 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
                     child: _Segment(
                       segment: s,
                       chosen: s.value == _shown,
+                      sliding: _at.isAnimating,
                       // As much of the accent as the tint covers of this segment.
                       color: !s.enabled
                           ? colors.textMuted.withValues(alpha: 0.5)
@@ -684,51 +685,78 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
   }
 }
 
-class _Segment extends StatelessWidget {
-  const _Segment({required this.segment, required this.chosen, required this.color, required this.onTap});
+class _Segment extends StatefulWidget {
+  const _Segment({
+    required this.segment,
+    required this.chosen,
+    required this.sliding,
+    required this.color,
+    required this.onTap,
+  });
   final ButtonSegment<Object?> segment;
   final bool chosen;
+
+  /// The tint is on its way: no shade under the mouse, so only the tint and the labels change.
+  final bool sliding;
   final Color color;
   final VoidCallback onTap;
+
+  @override
+  State<_Segment> createState() => _SegmentState();
+}
+
+class _SegmentState extends State<_Segment> {
+  bool _hovered = false, _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
-    final s = segment;
+    final s = widget.segment;
     // Not chosen: a faint shade while hovered, and held down a faint tint of the accent, so a
-    // press already looks like the chosen one. A keyboard's focus shows as the accent's tint too.
-    final overlay = WidgetStateProperty.resolveWith<Color?>((states) => chosen
-        ? Colors.transparent
-        : states.contains(WidgetState.pressed)
+    // press already looks like the chosen one; none while the tint slides. Drawn here, not as
+    // the ink's overlay, so it fades out as the slide starts and back in when it lands (the
+    // ink would change colour in one frame).
+    final shade = widget.chosen || widget.sliding || !s.enabled
+        ? colors.text.withValues(alpha: 0)
+        : _pressed
             ? colors.accent.withValues(alpha: dark ? 0.2 : 0.14)
-            : states.contains(WidgetState.hovered)
+            : _hovered
                 ? colors.text.withValues(alpha: dark ? 0.06 : 0.045)
-                : states.contains(WidgetState.focused)
-                    ? colors.accent.withValues(alpha: 0.14)
-                    : Colors.transparent);
-    final label = theme.textTheme.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0, color: color);
+                : colors.text.withValues(alpha: 0);
+    final label = theme.textTheme.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0, color: widget.color);
+    const radius = BorderRadius.all(Radius.circular(5));
     Widget button = Semantics(
       button: true,
-      selected: chosen,
+      selected: widget.chosen,
       inMutuallyExclusiveGroup: true,
       child: InkWell(
-        borderRadius: BorderRadius.circular(5),
-        overlayColor: overlay,
-        onTap: s.enabled ? onTap : null,
-        child: IconTheme.merge(
-          data: IconThemeData(color: color, size: 15),
-          child: DefaultTextStyle.merge(
-            style: label,
-            maxLines: 1,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-                ?s.icon,
-                if (s.icon != null && s.label != null) const SizedBox(width: 6),
-                if (s.label case final label?) Flexible(child: label),
-              ]),
+        borderRadius: radius,
+        // Only a keyboard's focus, as the accent's tint.
+        overlayColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.focused) && !widget.chosen
+            ? colors.accent.withValues(alpha: 0.14)
+            : Colors.transparent),
+        onTap: s.enabled ? widget.onTap : null,
+        onHover: (v) => setState(() => _hovered = v),
+        onHighlightChanged: (v) => setState(() => _pressed = v),
+        child: AnimatedContainer(
+          duration: stateDuration(motion(context, 150)),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(color: shade, borderRadius: radius),
+          child: IconTheme.merge(
+            data: IconThemeData(color: widget.color, size: 15),
+            child: DefaultTextStyle.merge(
+              style: label,
+              maxLines: 1,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
+                  ?s.icon,
+                  if (s.icon != null && s.label != null) const SizedBox(width: 6),
+                  if (s.label case final label?) Flexible(child: label),
+                ]),
+              ),
             ),
           ),
         ),

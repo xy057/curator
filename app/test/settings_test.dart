@@ -132,7 +132,8 @@ void main() {
     await tester.pumpAndSettle();
     final tint = find.descendant(
         of: find.byType(AppSegmented<ThemeMode>),
-        matching: find.byWidgetPredicate((w) => w is DecoratedBox && (w.decoration as BoxDecoration).color != null));
+        matching: find.byWidgetPredicate((w) =>
+            w is DecoratedBox && (w.decoration as BoxDecoration).color != null && (w.decoration as BoxDecoration).border != null));
     double? at;
     settings.addListener(() => at ??= tester.getCenter(tint).dx);
     await tester.tap(find.text('Dark'));
