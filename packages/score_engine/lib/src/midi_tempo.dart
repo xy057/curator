@@ -341,3 +341,52 @@ class MidiTempoMap {
     yield (tick, null);
   }
 }
+
+/// A MIDI tempo map in the score, as [sync] follows it. The file counts quarters as played,
+/// so through a warp it runs on while the score jumps: its quarter `at` is in the score where
+/// the sync puts the moment it sounds. What the Audio tab's tempo lane draws and edits by.
+class MidiInScore {
+  const MidiInScore(this.map, this.sync);
+
+  final MidiTempoMap map;
+
+  /// A sync following [map] (its anchors are [MidiTempoMap.anchors]).
+  final SyncMap sync;
+
+  /// When the file's quarter [at] sounds, in the recording's seconds.
+  double secondsAt(double at) => sync.startSeconds + map.secondsAt(at);
+
+  /// The score quarter where the file's quarter [at] sounds.
+  double scoreAt(double at) => sync.quarterAtSeconds(secondsAt(at)).clamp(0.0, sync.totalQuarters).toDouble();
+
+  /// The file's quarter where the score ends, as it last reaches it.
+  double get end => map.quarterAt(sync.anchors.last.seconds - sync.startSeconds);
+
+  /// The score's beat around the file's quarter [at], in the file's quarters.
+  ({double start, double end}) beatAround(double at) {
+    final q = scoreAt(at), b = sync.beats.beatAt(q);
+    return (start: _round(at - (q - b.start)), end: _round(at + (b.end - q)));
+  }
+
+  /// [at] moved onto the score's nearest beat.
+  double snap(double at) {
+    final q = scoreAt(at);
+    return _round(at + sync.nearestGrid(q, SyncGrid.beat) - q);
+  }
+
+  /// The quarters in the score's beat at the file's quarter [at] (a beat's start is in it):
+  /// quarters a minute over this are beats a minute, as the meter counts them.
+  double beatLength(double at) {
+    final b = beatAround(at + 1e-7);
+    return b.end - b.start > 1e-9 ? b.end - b.start : 1;
+  }
+
+  /// When each warp the sync follows jumps, in the recording's seconds: those of [map]'s warps
+  /// that fit the score (see [MidiTempoMap.arrivals]), by their place among them.
+  List<double> get warpSeconds => [
+        for (final w in map.warps.take(map.arrivals(sync.totalQuarters).length)) secondsAt(w.at),
+      ];
+
+  /// Rounding off what going through seconds and back leaves (a millionth of a quarter).
+  static double _round(double at) => (at * 1e6).roundToDouble() / 1e6;
+}
