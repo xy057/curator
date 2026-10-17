@@ -17,6 +17,7 @@ import 'score_replacement.dart';
 import 'time_viewport.dart';
 
 part 'editor/caption_editing.dart';
+part 'editor/commands.dart';
 part 'editor/image_editing.dart';
 part 'editor/lane_editing.dart';
 part 'editor/playback.dart';
@@ -33,7 +34,8 @@ enum BottomTab { instruments, audio }
 ///  * [lanes]: editing in the Instruments tab (tools, the region selection, tidying);
 ///  * [anchors]: editing in the Audio tab (tapping, the anchor selection);
 ///  * [images]: images on the score (the Attach Image extension);
-///  * [captions]: captions under the score (the Captions extension).
+///  * [captions]: captions under the score (the Captions extension);
+///  * [commands]: what the Edit menu and the keys do in the tab showing.
 ///
 /// All of them notify through this controller, so a widget listens to one thing.
 class EditorController extends ChangeNotifier {
@@ -46,6 +48,7 @@ class EditorController extends ChangeNotifier {
   late final anchors = SyncEditing._(this);
   late final images = ImageEditing._(this);
   late final captions = CaptionEditing._(this);
+  late final commands = EditCommands._(this);
 
   /// Zoom and scroll shared by both tabs of the bottom panel.
   final viewport = TimeViewport();
@@ -932,20 +935,6 @@ class EditorController extends ChangeNotifier {
     anchors._selected = {};
     notifyListeners();
   }
-
-  /// Whether Delete has anything to remove.
-  bool get canDelete =>
-      images._selected != null || captions._selected != null || (_tab == BottomTab.audio ? anchors.selected.isNotEmpty : lanes.selected.isNotEmpty);
-
-  /// Delete: removes what is selected in the tab that is showing.
-  /// A selected image goes first, then a selected caption.
-  void deleteSelection() => images._selected != null
-      ? images.remove()
-      : captions._selected != null
-          ? captions.remove()
-          : _tab == BottomTab.audio
-          ? anchors.delete()
-          : lanes.delete();
 
   // One history for the whole document: every edit a project saves ([EditState]). After
   // every change the document's state is compared with the last one recorded; a difference

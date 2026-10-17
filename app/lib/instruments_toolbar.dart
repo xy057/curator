@@ -54,7 +54,7 @@ class InstrumentsToolbar extends StatelessWidget {
                         tooltip: 'End at the playhead (])',
                         onPressed: () => c.lanes.trimToPlayhead(start: false),
                       ),
-                      ToolbarButton(icon: Icons.delete_outline_rounded, tooltip: 'Remove (Delete)', onPressed: c.deleteSelection),
+                      ToolbarButton(icon: Icons.delete_outline_rounded, tooltip: 'Remove (Delete)', onPressed: c.commands.delete),
                       const ToolbarDivider(),
                       _TransitionMenu(controller: c),
                       const ToolbarDivider(),

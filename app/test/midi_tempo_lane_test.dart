@@ -106,7 +106,7 @@ void main() {
     await tester.tapAt(Offset(x(12), y(60)));
     await tester.pump(const Duration(milliseconds: 400));
     expect(c.anchors.selected, {1});
-    c.deleteSelection();
+    c.commands.delete();
     expect(c.midiTempo!.tempos, [_t(0, 135)]);
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tapAt(Offset(x(6), lane().top + 10));
