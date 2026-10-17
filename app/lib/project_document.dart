@@ -250,17 +250,6 @@ class ProjectDocument extends ChangeNotifier {
   Duration? _autosaveInterval;
 
   void _settingsChanged() {
-    controller.undoLimit = settings.undoSteps;
-    controller.defaultTransition = settings.transition;
-    controller.newProjectFonts = (music: settings.musicFont, text: settings.textFont, embed: settings.embedFont);
-    controller.scrollFollow = settings.scrollFollow;
-    controller.images.enabled = settings.attachImage;
-    controller.captions.enabled = settings.captions;
-    controller.captions.configure(
-        font: settings.captionFont,
-        position: settings.captionPosition,
-        countdown: settings.captionCountdown,
-        size: settings.captionSize);
     if (settings.autosave != _autosaveInterval) _restartAutosave();
   }
 

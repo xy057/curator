@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/controller_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/media_converter.dart';
@@ -588,6 +589,7 @@ void main() {
 
     test('Undo keeps as many steps as Settings say', () {
       doc.settings.undoSteps = 3;
+      c.takeSettings(doc.settings); // as the window does
       final id = c.score!.metadata.parts.first.id;
       for (var i = 1; i <= 5; i++) {
         c.curation!.setLane(id, [Region(0, i * 3.0)]);

@@ -19,6 +19,7 @@ import 'app_settings.dart';
 import 'audio_panel.dart';
 import 'bottom_panel.dart';
 import 'condensing_dialog.dart';
+import 'controller_settings.dart';
 import 'dialog_kit.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
@@ -252,7 +253,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         videoRatio: settings.videoRatio,
       );
 
-  void _settingsChanged() => _shown.value = _shownSettings;
+  void _settingsChanged() {
+    controller.takeSettings(settings);
+    _shown.value = _shownSettings;
+  }
 
   @override
   void initState() {
@@ -262,9 +266,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     document.addListener(_sampleChanged);
     controller.addListener(_scoreChanged);
     controller.engravingFailure.addListener(_engravingFailed);
-    settings.addListener(_engravingChanged);
     settings.addListener(_settingsChanged);
-    _engravingChanged();
+    controller.takeSettings(settings);
     _lifecycle; // start listening for Quit
     updater.addListener(_launchCheckAnswered);
     WindowChrome.listenForOpenedFiles((paths) => _openPath(paths.first));
@@ -302,10 +305,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  /// Settings ▸ Engraving and ▸ Flags: what is open is engraved again with them.
-  void _engravingChanged() => controller
-    ..engravingOptions = settings.engravingOptions
-    ..textDynamics = settings.textDynamics;
   void _sampleChanged() => _isSample.value = document.isSample;
 
   /// An edit that couldn't be engraved: the score stays as it was, and Undo steps back.
@@ -332,7 +331,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     document.removeListener(_sampleChanged);
     controller.removeListener(_scoreChanged);
     controller.engravingFailure.removeListener(_engravingFailed);
-    settings.removeListener(_engravingChanged);
     settings.removeListener(_settingsChanged);
     updater.removeListener(_launchCheckAnswered);
     _hasScore.dispose();

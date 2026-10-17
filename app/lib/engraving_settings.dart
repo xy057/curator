@@ -7,6 +7,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'app_settings.dart';
+import 'controller_settings.dart';
 import 'editor_controller.dart';
 import 'project_document.dart' show sampleProjectAsset;
 import 'project_file.dart';
@@ -238,7 +239,7 @@ class _EngravingPreviewHostState extends State<EngravingPreviewHost> with Ticker
   }
 
   Future<void> _loadDemo() async {
-    final demo = _demo = EditorController(vsync: this)..engravingOptions = widget.settings.engravingOptions;
+    final demo = _demo = EditorController(vsync: this)..takeSettings(widget.settings);
     bool current() => mounted && identical(_demo, demo); // not let go meanwhile (a score opened)
     final folder = ScratchSpace.folder('engraving-preview');
     try {
@@ -258,7 +259,7 @@ class _EngravingPreviewHostState extends State<EngravingPreviewHost> with Ticker
     if (current()) setState(() {});
   }
 
-  void _optionsChanged() => _demo?.engravingOptions = widget.settings.engravingOptions;
+  void _optionsChanged() => _demo?.takeSettings(widget.settings);
 
   @override
   void dispose() {
