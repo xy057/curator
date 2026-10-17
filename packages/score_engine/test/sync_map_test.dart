@@ -14,41 +14,45 @@ void main() {
   });
 
   test('the first tap is the start; the next is snapped at the score tempo', () {
-    final m = map()..beginTapping();
-    expect(m.tap(1.0).quarter, 0);
+    final m = map();
+    var taps = TapPass(m);
+    expect(taps.tap(1.0).quarter, 0);
     // ♩ = 120 from the MusicXML: 4.1 s later is ~8.2 quarters, so bar 3 (bar 2 was skipped).
-    expect(m.tap(5.1).quarter, 8);
+    expect(taps.tap(5.1).quarter, 8);
     expect(m.segmentTempo(0), closeTo(8 / 4.1 * 60, 1e-9));
     // From here the tapped tempo predicts: ~2.05 s per bar, so 2.2 s later is bar 4.
-    expect(m.tap(7.3).quarter, 12);
+    expect(taps.tap(7.3).quarter, 12);
   });
 
   test('a tap too early for the next bar still moves on to it', () {
-    final m = map()..beginTapping();
-    m.tap(1.0);
-    expect(m.tap(1.5).quarter, 4); // nearest bar would be bar 1 again
+    final m = map();
+    var taps = TapPass(m);
+    taps.tap(1.0);
+    expect(taps.tap(1.5).quarter, 4); // nearest bar would be bar 1 again
   });
 
   test('later taps snap to the nearest bar and re-time the previous segment', () {
-    final m = map()..beginTapping();
+    final m = map();
+    var taps = TapPass(m);
     for (final t in [1.0, 3.0, 5.0]) {
-      m.tap(t); // bars 1–3 at ♩ = 120
+      taps.tap(t); // bars 1–3 at ♩ = 120
     }
     // A late tap (ritardando): predicted bar 4 is 2.4 s into the bar, still nearest to bar 4.
-    final a = m.tap(7.4);
+    final a = taps.tap(7.4);
     expect(a.quarter, 12);
     expect(m.segmentTempo(2), closeTo(4 / 2.4 * 60, 1e-9)); // that bar slowed to 100
     // Skipping a bar: the tap lands near bar 6, so bar 5 is simply not anchored.
-    expect(m.tap(7.4 + 2.4 * 2).quarter, 20);
+    expect(taps.tap(7.4 + 2.4 * 2).quarter, 20);
   });
 
   test('beat grid anchors single beats', () {
-    final m = map()..beginTapping();
+    final m = map();
+    var taps = TapPass(m);
     for (final t in [0.0, 0.5, 1.0, 1.5]) {
-      m.tap(t, grid: SyncGrid.beat);
+      taps.tap(t, grid: SyncGrid.beat);
     }
     expect(m.anchors.map((a) => a.quarter), [0, 1, 2, 3]);
-    expect(m.tap(2.05, grid: SyncGrid.beat).quarter, 4); // bar 2, beat 1
+    expect(taps.tap(2.05, grid: SyncGrid.beat).quarter, 4); // bar 2, beat 1
   });
 
   test('scroll time follows a ritardando between anchors', () {
@@ -73,21 +77,23 @@ void main() {
   });
 
   test('retapping overwrites the anchors it passes over', () {
-    final m = map()..beginTapping();
+    final m = map();
+    var taps = TapPass(m);
     for (final t in [0.0, 2.0, 4.0, 6.0, 8.0]) {
-      m.tap(t);
+      taps.tap(t);
     }
-    m.beginTapping();
-    m.tap(4.1); // retap from bar 3
+    taps = TapPass(m);
+    taps.tap(4.1); // retap from bar 3
     expect(m.anchors.map((a) => a.seconds), [0.0, 2.0, 4.1, 6.0, 8.0]);
-    m.tap(6.3);
+    taps.tap(6.3);
     expect(m.anchors.map((a) => a.seconds), [0.0, 2.0, 4.1, 6.3, 8.0]);
   });
 
   test('moving the start keeps the rest of the anchors in place', () {
-    final m = map()..beginTapping();
+    final m = map();
+    var taps = TapPass(m);
     for (final t in [1.0, 3.0, 5.0]) {
-      m.tap(t);
+      taps.tap(t);
     }
     m.startSeconds = 0.5;
     expect(m.anchors.map((a) => a.seconds), [0.5, 3.0, 5.0]);
@@ -204,18 +210,19 @@ void main() {
       final m = map()
         ..addAnchor(const SyncAnchor(0, 0))
         ..addAnchor(const SyncAnchor(32, 16, jumpTo: 0));
-      m.beginTapping();
-      expect(m.tap(18).quarter, 4); // bar 2, second time
-      m.beginTapping();
-      m.tap(14);
-      m.tap(20.1); // a retap passing over the warp
+      var taps = TapPass(m);
+      expect(taps.tap(18).quarter, 4); // bar 2, second time
+      taps = TapPass(m);
+      taps.tap(14);
+      taps.tap(20.1); // a retap passing over the warp
       expect(m.anchors.where((a) => a.isWarp), hasLength(1));
       expect(m.anchors.last.quarter, 8);
     });
 
     test('tapping on a warp re-times it', () {
-      final m = repeat()..beginTapping();
-      final tapped = m.tap(16.1);
+      final m = repeat();
+      var taps = TapPass(m);
+      final tapped = taps.tap(16.1);
       expect(tapped.isWarp, isTrue);
       expect(m.anchors.map((a) => a.seconds), [0, 16.1, 48]);
     });

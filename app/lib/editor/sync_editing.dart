@@ -10,6 +10,7 @@ class SyncEditing {
 
   void _reset() {
     _tapArmed = false;
+    _taps = null;
     _deselect();
     _pivot = null;
   }
@@ -32,9 +33,14 @@ class SyncEditing {
   bool _tapArmed = false;
   set tapArmed(bool value) {
     _tapArmed = value && _sync != null;
-    if (value) _sync?.beginTapping();
+    if (value) _newPass();
     _editor._changed();
   }
+
+  /// The tapping pass under way: a new one at each arming and each start of playback.
+  TapPass? _taps;
+
+  void _newPass() => _taps = _sync == null ? null : TapPass(_sync!);
 
   /// What taps and ↑/↓ snap to.
   SyncGrid get grid => _grid;
@@ -164,14 +170,15 @@ class SyncEditing {
     final playback = _editor.playback;
     if (sync == null) return;
     if (!playback.isPlaying) {
-      sync.beginTapping();
+      _newPass();
       playback.play();
       return;
     }
     var t = playback.time.value;
     final onset = snapToOnsets ? _editor.track?.waveform.nearestOnset(t, 0.08) : null;
     if (onset != null) t = onset;
-    final anchor = sync.tap(t, grid: grid);
+    final taps = _taps?.sync == sync ? _taps! : _taps = TapPass(sync);
+    final anchor = taps.tap(t, grid: grid);
     _selected = {sync.anchors.indexOf(anchor)};
     _pivot = sync.anchors.indexOf(anchor);
     _editor._changed();
