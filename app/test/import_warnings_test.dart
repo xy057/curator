@@ -1,5 +1,6 @@
 // Importing a score that has things Curator leaves out lists them in a dialog, instead of only
 // in the log. With SCREENSHOT_DIR set, also saves a PNG of the dialog for visual review.
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -37,7 +38,7 @@ void main() {
     expect(c.score!.warnings, ["Unsupported direction-type 'harp-pedals'"]);
 
     final context = tester.element(find.byType(HomePage));
-    showImportWarnings(context, 'Harp.musicxml', [...c.score!.warnings, 'Clef change at measure 3, staff 2, time 0 not inserted']);
+    unawaited(showImportWarnings(context, 'Harp.musicxml', [...c.score!.warnings, 'Clef change at measure 3, staff 2, time 0 not inserted']));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Some of “Harp.musicxml” isn’t shown'), findsOneWidget);

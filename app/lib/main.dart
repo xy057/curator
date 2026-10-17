@@ -499,14 +499,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       await action();
     } catch (e) {
       if (!mounted) return;
-      showAppDialog<void>(
+      unawaited(showAppDialog<void>(
         context: context,
         builder: (context) => AppDialog(
           title: Text(title),
           content: SingleChildScrollView(child: Text(describeError(e))),
           actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
         ),
-      );
+      ));
     }
   }
 

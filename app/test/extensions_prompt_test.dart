@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
@@ -22,7 +23,7 @@ void main() {
     })));
 
     // Nothing used: no dialog.
-    promptForExtensions(context, settings, c);
+    unawaited(promptForExtensions(context, settings, c));
     await tester.pumpAndSettle();
     expect(find.byType(ExtensionsDialog), findsNothing);
 
@@ -34,7 +35,7 @@ void main() {
     await tester.runAsync(() => c.openProject(name: 'demo.musicxml', scoreBytes: demoScore.readAsBytesSync(), state: state));
     expect(AppExtension.usedBy(c), [AppExtension.attachImage], reason: 'kept, though off');
 
-    promptForExtensions(context, settings, c);
+    unawaited(promptForExtensions(context, settings, c));
     await tester.pumpAndSettle();
     expect(find.text('Extensions in this project'), findsOneWidget);
     expect(find.text('Attach Image'), findsOneWidget);
@@ -46,7 +47,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Already on: not asked again.
-    promptForExtensions(context, settings, c);
+    unawaited(promptForExtensions(context, settings, c));
     await tester.pumpAndSettle();
     expect(find.byType(ExtensionsDialog), findsNothing);
   });

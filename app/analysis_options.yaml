@@ -6,3 +6,8 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+
+linter:
+  rules:
+    # A future left running is wrapped in unawaited(), so one forgotten stands out.
+    - unawaited_futures

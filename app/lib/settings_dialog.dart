@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi' show Abi;
 import 'dart:io';
 
@@ -366,7 +367,7 @@ class _EngraveOptionButton extends StatelessWidget {
   Widget build(BuildContext context) => OutlinedButton(
         onPressed: () async {
           if (!await _confirmEngraving(context) || !context.mounted) return;
-          showEngraveOptionsDialog(context, c.settings, controller: c.controller, project: project);
+          unawaited(showEngraveOptionsDialog(context, c.settings, controller: c.controller, project: project));
         },
         child: const Text('Open…'),
       );
