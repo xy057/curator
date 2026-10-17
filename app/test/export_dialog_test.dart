@@ -93,7 +93,7 @@ void main() {
     await choose('1080p', '1440p');
     await choose('30', '60');
     await tester.tap(find.text('Dark'));
-    await tester.pump();
+    await tester.pumpAndSettle(); // chosen when the segment's tint lands
     expect((settings.videoCodec, settings.videoResolution, settings.videoFps, settings.videoPaper),
         (VideoCodec.prores, VideoResolution.qhd1440, 60, VideoPaper.dark));
     expect(find.textContaining('16:9 · 2560 × 1440 · 60 fps'), findsOneWidget);

@@ -43,8 +43,8 @@ void main() {
 
     await tester.tap(find.text('Dark'));
     await tester.pump();
-    expect(chosen.value, 2);
     await tester.pump(const Duration(milliseconds: 60));
+    expect(chosen.value, 0, reason: 'chosen when the tint lands');
     final between = tester.getRect(thumb).left;
     expect(between, greaterThan(start), reason: 'on its way');
     expect(between, lessThan(start + 2 * segment), reason: 'not there yet');
@@ -54,19 +54,47 @@ void main() {
     expect(label('Light'), isNot(muted), reason: 'the label under the moving tint takes some accent');
 
     await tester.pumpAndSettle();
+    expect(chosen.value, 2);
     expect(tester.getRect(thumb).left, closeTo(start + 2 * segment, 0.5));
     expect(label('Auto'), muted);
     expect(label('Light'), muted);
     expect(tester.getCenter(thumb).dx, closeTo(tester.getCenter(find.text('Dark')).dx, 0.5));
   });
 
-  testWidgets('Refined: a clear track, and no highlight under the mouse', (tester) async {
+  testWidgets('Refined: a clear track; a segment not chosen shades under the mouse', (tester) async {
     await mount(tester, UiStyle.refined);
     final track = tester.widget<Container>(find.descendant(of: find.byType(AppSegmented<int>), matching: find.byType(Container)).first);
     expect((track.decoration! as BoxDecoration).color, isNull);
-    for (final ink in tester.widgetList<InkWell>(find.byType(InkWell))) {
-      expect(ink.overlayColor!.resolve({WidgetState.hovered}), Colors.transparent);
-    }
+    final inks = tester.widgetList<InkWell>(find.byType(InkWell)).toList();
+    expect(inks.first.overlayColor!.resolve({WidgetState.hovered}), Colors.transparent, reason: 'the chosen one');
+    expect(inks.last.overlayColor!.resolve({WidgetState.hovered}), isNot(Colors.transparent));
+  });
+
+  testWidgets('Refined: a click back before the tint lands chooses nothing; a third one goes on from where it is', (tester) async {
+    final chosen = await mount(tester, UiStyle.refined);
+    var changes = 0;
+    chosen.addListener(() => changes++);
+    await tester.tap(find.text('Dark'));
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.tap(find.text('Auto'));
+    await tester.pumpAndSettle();
+    expect((chosen.value, changes), (0, 0));
+
+    await tester.tap(find.text('Dark'));
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.tap(find.text('Light'));
+    await tester.pumpAndSettle();
+    expect((chosen.value, changes), (1, 1));
+    expect(tester.getCenter(thumb).dx, closeTo(tester.getCenter(find.text('Light')).dx, 0.5));
+  });
+
+  testWidgets('Refined: closed while the tint slides, the click still counts', (tester) async {
+    final chosen = await mount(tester, UiStyle.refined);
+    await tester.tap(find.text('Light'));
+    await tester.pump(const Duration(milliseconds: 40));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    expect(chosen.value, 1);
   });
 
   testWidgets('Refined: for every accent, light and dark, the chosen label reads on its tint', (tester) async {

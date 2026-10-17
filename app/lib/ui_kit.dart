@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
 
 import 'app_colors.dart';
 
@@ -521,10 +520,13 @@ class _SwitchPainter extends CustomPainter {
 }
 
 /// The app's segmented control: always use it rather than [SegmentedButton]. In
-/// [UiStyle.refined] a clear track whose chosen segment, a light tint of the accent, glides on a
-/// spring to the segment chosen, each label taking the accent as the tint passes under it; in
-/// [UiStyle.classic] Material's [SegmentedButton] (with [style]). Segments are as wide as the
-/// widest, or share the width given with [expand].
+/// [UiStyle.refined] a clear track whose chosen segment, a light tint of the accent, slides to
+/// the segment clicked, each label taking the accent as the tint passes under it, and the
+/// choice is made ([onChanged]) when the tint lands. A change of appearance (Theme, Style)
+/// cross-fades from a still of the window; made first, the still would hold the tint where it
+/// started while the live one slid away. In [UiStyle.classic] Material's [SegmentedButton]
+/// (with [style]), chosen at once. Segments are as wide as the widest, or share the width given
+/// with [expand].
 class AppSegmented<T> extends StatefulWidget {
   const AppSegmented({
     super.key,
@@ -540,37 +542,61 @@ class AppSegmented<T> extends StatefulWidget {
   final bool expand;
   final ButtonStyle? style;
 
-  /// The tint's spring: critically damped, so it settles in about a quarter of a second without
-  /// overshooting, and a second click while it moves carries its speed on.
-  static final spring = SpringDescription.withDampingRatio(mass: 1, stiffness: 420);
-
   @override
   State<AppSegmented<T>> createState() => _AppSegmentedState<T>();
 }
 
 class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProviderStateMixin {
-  /// Where the tint is, in segments: 0 over the first, 1 over the second, and between while it moves.
-  late final _at = AnimationController.unbounded(vsync: this, value: math.max(_index, 0).toDouble());
+  /// Where the tint is, in segments: 0 over the first, 1 over the second, and between while it slides.
+  late final _at = AnimationController.unbounded(vsync: this, value: math.max(_indexOf(widget.selected), 0).toDouble());
 
-  int get _index => widget.segments.indexWhere((s) => s.value == widget.selected);
+  /// A segment clicked whose tint hasn't landed yet: chosen when it does.
+  (T,)? _pending;
+
+  T get _shown => _pending?.$1 ?? widget.selected;
+
+  int _indexOf(T value) => widget.segments.indexWhere((s) => s.value == value);
+
+  void _slideTo(int index) {
+    if (index == _at.value) return;
+    // Chosen once the frame with the tint landed is painted: an animation ends before its last
+    // frame is, and a still taken then would hold the tint short of the segment.
+    _at.animateTo(index.toDouble(), duration: motion(context, 320), curve: Curves.fastOutSlowIn).then(
+        (_) => WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              if (_pending case (final value,)?) {
+                _pending = null;
+                widget.onChanged(value);
+              }
+            }));
+  }
+
+  void _choose(T value) {
+    if (value == _shown) return;
+    setState(() => _pending = value == widget.selected ? null : (value,));
+    _slideTo(_indexOf(value));
+  }
 
   @override
   void didUpdateWidget(AppSegmented<T> old) {
     super.didUpdateWidget(old);
-    final index = _index;
-    if (index < 0) return;
+    final index = _indexOf(_shown);
     if (widget.segments.length != old.segments.length) {
-      _at.value = index.toDouble();
-    } else if (index != _at.value) {
-      // A spring ends within a hair of its target; land it there exactly.
-      _at
-          .animateWith(SpringSimulation(AppSegmented.spring, _at.value, index.toDouble(), _at.velocity))
-          .then((_) => _at.value = index.toDouble());
+      _at.value = math.max(index, 0).toDouble();
+    } else if (widget.selected != old.selected) {
+      // Chosen elsewhere (Undo, another window): that wins over a click still sliding.
+      _pending = null;
+      if (index >= 0) _slideTo(index);
     }
   }
 
   @override
   void dispose() {
+    // Closed while the tint slid: the click still counts, once the tree is settled.
+    if (_pending case (final value,)?) {
+      final onChanged = widget.onChanged;
+      Future.microtask(() => onChanged(value));
+    }
     _at.dispose();
     super.dispose();
   }
@@ -591,7 +617,8 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
     final dark = Theme.of(context).brightness == Brightness.dark;
     final segments = widget.segments;
     final n = segments.length;
-    final shown = _index >= 0;
+    final index = _indexOf(_shown);
+    final shown = index >= 0;
     // The chosen segment: the accent's light tint, edged with the accent, its label the accent's
     // strong shade taken toward black (or in the dark, white) until it reads on the tint (4.5:1).
     final chosen = colors.accentSoft;
@@ -638,12 +665,12 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
                   Expanded(
                     child: _Segment(
                       segment: s,
-                      chosen: s.value == widget.selected,
+                      chosen: s.value == _shown,
                       // As much of the accent as the tint covers of this segment.
                       color: !s.enabled
                           ? colors.textMuted.withValues(alpha: 0.5)
                           : Color.lerp(colors.textMuted, onChosen, shown ? (1 - (at - i).abs()).clamp(0, 1) : 0)!,
-                      onTap: () => widget.onChanged(s.value),
+                      onTap: () => _choose(s.value),
                     ),
                   ),
               ]),
@@ -670,15 +697,17 @@ class _Segment extends StatelessWidget {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final s = segment;
-    // No hover; held down, a segment not chosen takes a faint tint of the accent, so a press
-    // already looks like the chosen one. A keyboard's focus shows as the accent's tint too.
+    // Not chosen: a faint shade while hovered, and held down a faint tint of the accent, so a
+    // press already looks like the chosen one. A keyboard's focus shows as the accent's tint too.
     final overlay = WidgetStateProperty.resolveWith<Color?>((states) => chosen
         ? Colors.transparent
         : states.contains(WidgetState.pressed)
             ? colors.accent.withValues(alpha: dark ? 0.2 : 0.14)
-            : states.contains(WidgetState.focused)
-                ? colors.accent.withValues(alpha: 0.14)
-                : Colors.transparent);
+            : states.contains(WidgetState.hovered)
+                ? colors.text.withValues(alpha: dark ? 0.06 : 0.045)
+                : states.contains(WidgetState.focused)
+                    ? colors.accent.withValues(alpha: 0.14)
+                    : Colors.transparent);
     final label = theme.textTheme.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0, color: color);
     Widget button = Semantics(
       button: true,
