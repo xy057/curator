@@ -54,6 +54,13 @@ class EditorController extends ChangeNotifier {
   final viewport = TimeViewport();
 
   LoadedScore? _score;
+
+  /// The edits the controller keeps itself: names, texts, pairs of players and condensing, the
+  /// instruments' order, fonts, engraving options, and the MIDI tempo map (with the anchors set
+  /// by hand kept behind it, as its anchors). The rest of a project's edits live in their models
+  /// (the curation, the sync, the images, the captions); [_editState] takes them from there, so
+  /// this state's own copies of those are never read.
+  EditState _doc = const EditState();
   CuratedScene? _scene;
   Curation? _curation;
   SyncMap? _sync;
@@ -208,7 +215,7 @@ class EditorController extends ChangeNotifier {
       textsAfter: PreparedScore.prepare(doc, const {}, metadata: metadata).texts,
     );
     final score =
-        await _engrave(xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_textEdits), pairs: swap.pairs(_pairs))));
+        await _engrave(xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_doc.textEdits), pairs: swap.pairs(_doc.pairs))));
     if (_score != before) throw StateError('Another score was opened meanwhile.');
     final state = projectState;
     final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
@@ -220,7 +227,7 @@ class EditorController extends ChangeNotifier {
       score: score,
       state: carried,
       differences: swap.differences(
-          measuresBefore: measures.before, measuresAfter: measures.after, edits: _textEdits, lost: lost),
+          measuresBefore: measures.before, measuresAfter: measures.after, edits: _doc.textEdits, lost: lost),
       replacing: before,
     );
   }
@@ -267,20 +274,18 @@ class EditorController extends ChangeNotifier {
     _source = (name: name, bytes: bytes);
     _fileName = name;
     _staffSpace = (view.staffSpace ?? _staffSpace).clamp(minStaffSpace, maxStaffSpace);
-    _partNames = Map.unmodifiable(edits.partNames);
-    _textEdits = Map.unmodifiable(edits.textEdits);
-    _pairs = List.unmodifiable({for (final p in edits.pairs) ?score.condensing.pair(p.first, p.second)});
-    _condensed = Set.unmodifiable({for (final g in condensable) if (edits.condensed.contains(g.id)) g.id});
-    _partOrder = CuratedScene.orderedPartIds(score.metadata.parts, edits.partOrder);
-    _fonts = edits.fonts;
-    _embedFont = edits.embedFont;
-    _projectEngraving = edits.engraving;
-    if (_fonts.music.isAdded && !_addedFonts.contains(_fonts.music)) _addedFonts = [..._addedFonts, _fonts.music];
+    _doc = edits.copyWith(
+      partNames: Map.unmodifiable(edits.partNames),
+      textEdits: Map.unmodifiable(edits.textEdits),
+      pairs: List.unmodifiable({for (final p in edits.pairs) ?score.condensing.pair(p.first, p.second)}),
+      partOrder: CuratedScene.orderedPartIds(score.metadata.parts, edits.partOrder),
+    );
+    // The pairs that can condense follow the score and the pairs just taken on.
+    _doc = _doc.copyWith(condensed: Set.unmodifiable({for (final g in condensable) if (edits.condensed.contains(g.id)) g.id}));
+    if (_doc.fonts.music case final music when music.isAdded && !_addedFonts.contains(music)) _addedFonts = [..._addedFonts, music];
     images._load(edits.patches, state.images, arts);
-    _midi = edits.midi;
-    _tapped = edits.midi != null ? edits.anchors : const [];
     _sync = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
-      ..load(_midi?.anchors(start: edits.leadIn, totalQuarters: score.timeline.measureStarts.last) ?? edits.anchors,
+      ..load(_doc.midi?.anchors(start: edits.leadIn, totalQuarters: score.timeline.measureStarts.last) ?? edits.anchors,
           leadIn: edits.leadIn)
       ..addListener(_syncChanged);
     final parts = [for (final p in score.metadata.parts) p.id];
@@ -330,20 +335,11 @@ class EditorController extends ChangeNotifier {
     _sync?.removeListener(_syncChanged);
     _sync?.dispose();
     _sync = null;
-    _midi = null;
-    _tapped = const [];
     _score = null;
     _source = null;
     _fileName = null;
     _mediaOriginal = null;
-    _partNames = const {};
-    _textEdits = const {};
-    _condensed = const {};
-    _pairs = const [];
-    _partOrder = const [];
-    _fonts = ScoreFonts.standard;
-    _embedFont = true;
-    _projectEngraving = const EngravingOptions();
+    _doc = const EditState();
     _tab = BottomTab.instruments;
   }
 
@@ -370,9 +366,9 @@ class EditorController extends ChangeNotifier {
   /// What the scene shows besides the score, the time, the curation and the sync: the names,
   /// condensing, order, scroll, and the extensions' images and captions (none while off).
   SceneSettings get sceneSettings => SceneSettings(
-      names: _partNames,
-      condensed: _condensed,
-      partOrder: _partOrder,
+      names: _doc.partNames,
+      condensed: _doc.condensed,
+      partOrder: _doc.partOrder,
       scrollFollow: _scrollFollow,
       patches: images._scenePatches,
       captions: captions._sceneCaptions,
@@ -383,15 +379,13 @@ class EditorController extends ChangeNotifier {
 
   // MARK: Editing names and texts
 
-  Map<String, PartName> _partNames = const {};
-
-  String partName(ScorePart part) => _partNames[part.id]?.name ?? part.name;
-  String partAbbreviation(ScorePart part) => _partNames[part.id]?.abbreviation ?? part.abbreviation;
+  String partName(ScorePart part) => _doc.partNames[part.id]?.name ?? part.name;
+  String partAbbreviation(ScorePart part) => _doc.partNames[part.id]?.abbreviation ?? part.abbreviation;
 
   /// Renames an instrument (shown in the name column and the lanes). Empty values fall back
   /// to the names in the file.
   void renamePart(ScorePart part, {required String name, required String abbreviation}) {
-    final next = {..._partNames};
+    final next = {..._doc.partNames};
     if (name.trim().isEmpty && abbreviation.trim().isEmpty) {
       next.remove(part.id);
     } else {
@@ -400,14 +394,13 @@ class EditorController extends ChangeNotifier {
         abbreviation: abbreviation.trim().isEmpty ? part.abbreviation : abbreviation.trim(),
       );
     }
-    _partNames = Map.unmodifiable(next);
+    _doc = _doc.copyWith(partNames: Map.unmodifiable(next));
     _showSettings();
     _edited();
   }
 
-  /// The score's text edits (text id → new text; '' removes it). The engraving catches up
-  /// with them a moment later ([isReengraving]).
-  Map<String, String> _textEdits = const {};
+  /// The latest engraving asked for (a text edit, a pair, fonts or options changed): the one
+  /// whose result is shown.
   final _engravings = Latest();
   bool _reengraving = false;
 
@@ -438,14 +431,13 @@ class EditorController extends ChangeNotifier {
 
   /// The options this project sets over [engravingOptions] (Project Settings ▸ Engraving):
   /// an edit, saved with the project.
-  EngravingOptions get projectEngraving => _projectEngraving;
-  EngravingOptions _projectEngraving = const EngravingOptions();
+  EngravingOptions get projectEngraving => _doc.engraving;
 
   /// Engraves the score with [options] over the app's: one Undo step. The future completes
   /// when it is engraved.
   Future<void> setProjectEngraving(EngravingOptions options) async {
-    if (_score == null || options == _projectEngraving) return;
-    _projectEngraving = options;
+    if (_score == null || options == _doc.engraving) return;
+    _doc = _doc.copyWith(engraving: options);
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
     await engraved;
@@ -457,7 +449,7 @@ class EditorController extends ChangeNotifier {
     final score = _score;
     if (score == null || changes.isEmpty) return;
     final originals = {for (final t in score.texts) t.id: t.text};
-    final edits = {..._textEdits};
+    final edits = {..._doc.textEdits};
     for (final MapEntry(:key, :value) in changes.entries) {
       if (value == null || value == originals[key]) {
         edits.remove(key);
@@ -465,8 +457,8 @@ class EditorController extends ChangeNotifier {
         edits[key] = value;
       }
     }
-    if (mapEquals(edits, _textEdits)) return;
-    _textEdits = Map.unmodifiable(edits);
+    if (mapEquals(edits, _doc.textEdits)) return;
+    _doc = _doc.copyWith(textEdits: Map.unmodifiable(edits));
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
     await engraved;
@@ -516,7 +508,7 @@ class EditorController extends ChangeNotifier {
 
   /// What the score is to be engraved with now (an engraving may still be catching up).
   EngraveRequest get _wanted =>
-      _requestFor(EditState(textEdits: _textEdits, pairs: _pairs, fonts: _fonts, engraving: _projectEngraving));
+      _requestFor(_doc);
 
   /// Why the latest re-engraving failed, the score showing as it was before; null once one
   /// succeeds. Undo can step back from the edit that caused it.
@@ -532,15 +524,13 @@ class EditorController extends ChangeNotifier {
   }
 
   /// A text as it reads with the edits made so far.
-  String currentText(ScoreText text) => _textEdits[text.id] ?? text.text;
+  String currentText(ScoreText text) => _doc.textEdits[text.id] ?? text.text;
 
   // MARK: Fonts
 
-  ScoreFonts _fonts = ScoreFonts.standard;
-
   /// The music and text fonts the score is engraved in (Project Settings ▸ Fonts). The engraving
   /// catches up a moment later ([isReengraving]).
-  ScoreFonts get fonts => _fonts;
+  ScoreFonts get fonts => _doc.fonts;
 
   /// Music fonts the user added in this session, or that came with a project: offered beside
   /// the bundled ones.
@@ -555,7 +545,7 @@ class EditorController extends ChangeNotifier {
   Future<void> setFonts(ScoreFonts fonts, {bool? embed}) async {
     final score = _score;
     if (score == null) return;
-    if (fonts == _fonts) {
+    if (fonts == _doc.fonts) {
       if (embed != null) embedFont = embed;
       return;
     }
@@ -567,11 +557,10 @@ class EditorController extends ChangeNotifier {
       _preparingFonts--;
       if (!_disposed) notifyListeners();
     }
-    if (_score != score || fonts == _fonts) return; // closed, or another score opened, meanwhile
+    if (_score != score || fonts == _doc.fonts) return; // closed, or another score opened, meanwhile
     if (fonts.music.isAdded && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
-    _fonts = fonts;
-    if (embed != null) _embedFont = embed;
-    if (!canEmbedFont) _embedFont = false; // as it will be saved
+    _doc = _doc.copyWith(fonts: fonts, embedFont: embed);
+    if (!canEmbedFont) _doc = _doc.copyWith(embedFont: false); // as it will be saved
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
     await engraved;
@@ -580,20 +569,17 @@ class EditorController extends ChangeNotifier {
   /// Whether an added music font is saved inside the project (Project Settings ▸ Fonts): an
   /// edit. Off, only its name is saved and the font is looked for where the project opens.
   /// A missing font has nothing to embed: it can't be switched on ([canEmbedFont]).
-  bool get embedFont => _embedFont;
-  bool _embedFont = true;
+  bool get embedFont => _doc.embedFont;
 
-  bool get canEmbedFont => !_fonts.music.isMissing;
+  bool get canEmbedFont => !_doc.fonts.music.isMissing;
 
   set embedFont(bool value) {
-    if (value == _embedFont || _score == null || (value && !canEmbedFont)) return;
-    _embedFont = value;
+    if (value == _doc.embedFont || _score == null || (value && !canEmbedFont)) return;
+    _doc = _doc.copyWith(embedFont: value);
     _edited();
   }
 
   // MARK: Condensing
-
-  Set<String> _condensed = const {};
 
   /// The pairs of players that can share a staff: the score's own (Flute 1 and 2, Horn 3
   /// and 4…) and those the user made ([pairs]), which win over them. Known at once; the
@@ -604,20 +590,19 @@ class EditorController extends ChangeNotifier {
   List<PlayerPair> get condensable {
     final score = _score;
     if (score == null) return const [];
-    if (_condensable case (final s, final p, final pairs) when identical(s, score) && identical(p, _pairs)) return pairs;
-    final pairs = List<PlayerPair>.unmodifiable(score.condensing.pairs(_pairs));
-    _condensable = (score, _pairs, pairs);
+    if (_condensable case (final s, final p, final pairs) when identical(s, score) && identical(p, _doc.pairs)) return pairs;
+    final pairs = List<PlayerPair>.unmodifiable(score.condensing.pairs(_doc.pairs));
+    _condensable = (score, _doc.pairs, pairs);
     return pairs;
   }
 
   (LoadedScore, List<PlayerPair>, List<PlayerPair>)? _condensable;
 
   /// The pairs the user made (Flute 1 + Oboe 1), in score order.
-  List<PlayerPair> get pairs => _pairs;
-  List<PlayerPair> _pairs = const [];
+  List<PlayerPair> get pairs => _doc.pairs;
 
   /// The pairs that do: their shared staff is shown while both players are.
-  Set<String> get condensed => _condensed;
+  Set<String> get condensed => _doc.condensed;
 
   /// Who could share a staff with [partId]: single-staff players with the same clefs, keys
   /// and transposition.
@@ -636,18 +621,21 @@ class EditorController extends ChangeNotifier {
       setCondensed([pair.id], on: true);
       return;
     }
-    _pairs = List.unmodifiable(
-        [for (final p in _pairs) if (!p.contains(pair.first) && !p.contains(pair.second)) p, pair]);
-    _condensed = Set.unmodifiable({..._condensed, pair.id});
+    _doc = _doc.copyWith(
+      pairs: List.unmodifiable([for (final p in _doc.pairs) if (!p.contains(pair.first) && !p.contains(pair.second)) p, pair]),
+      condensed: Set.unmodifiable({..._doc.condensed, pair.id}),
+    );
     await _pairsChanged();
   }
 
   /// Removes a pair the user made: one Undo step. Built-in pairs it took players from come
   /// back.
   Future<void> removePair(PlayerPair pair) async {
-    if (!_pairs.contains(pair)) return;
-    _pairs = List.unmodifiable([for (final p in _pairs) if (p != pair) p]);
-    _condensed = Set.unmodifiable({..._condensed}..remove(pair.id));
+    if (!_doc.pairs.contains(pair)) return;
+    _doc = _doc.copyWith(
+      pairs: List.unmodifiable([for (final p in _doc.pairs) if (p != pair) p]),
+      condensed: Set.unmodifiable({..._doc.condensed}..remove(pair.id)),
+    );
     await _pairsChanged();
   }
 
@@ -662,7 +650,7 @@ class EditorController extends ChangeNotifier {
   /// The pair [partId] belongs to, while it is condensed.
   PlayerPair? condensedGroupOf(String partId) {
     final group = condensingGroupOf(partId);
-    return group != null && _condensed.contains(group.id) ? group : null;
+    return group != null && _doc.condensed.contains(group.id) ? group : null;
   }
 
   /// One lane per instrument, top to bottom as in the preview ([partOrder]), except that a
@@ -672,14 +660,14 @@ class EditorController extends ChangeNotifier {
   /// Worked out again only when the score, the order, the pairs or what is condensed is
   /// replaced (none is ever changed in place): the lanes read it for every lane they paint.
   List<ScorePart> get laneParts {
-    final key = (_score, _partOrder, _condensed, condensable);
+    final key = (_score, _doc.partOrder, _doc.condensed, condensable);
     if (_laneParts case (final k, final lanes) when identical(k.$1, key.$1) && identical(k.$2, key.$2) &&
         identical(k.$3, key.$3) && identical(k.$4, key.$4)) {
       return lanes;
     }
     final parts = {for (final p in _score?.metadata.parts ?? const <ScorePart>[]) p.id: p};
     final lanes = List<ScorePart>.unmodifiable([
-      for (final id in _partOrder)
+      for (final id in _doc.partOrder)
         if (condensedGroupOf(id)?.partIds.last != id) parts[id]!,
     ]);
     _laneParts = (key, lanes);
@@ -690,13 +678,11 @@ class EditorController extends ChangeNotifier {
 
   // MARK: Instrument order
 
-  List<String> _partOrder = const [];
-
   /// Every instrument (part id), top to bottom: the score's order unless the user moved some.
-  List<String> get partOrder => _partOrder;
+  List<String> get partOrder => _doc.partOrder;
 
   /// Whether the instruments are in the score's own order.
-  bool get isScoreOrder => listEquals(_partOrder, [for (final p in _score!.metadata.parts) p.id]);
+  bool get isScoreOrder => listEquals(_doc.partOrder, [for (final p in _score!.metadata.parts) p.id]);
 
   /// Moves [partId]'s lane (and its staff) to lane [to] of [laneParts] (0: the top), one
   /// Undo step. A condensed pair moves as one: its second player goes along with the first.
@@ -711,7 +697,7 @@ class EditorController extends ChangeNotifier {
     final others = [for (final id in lanes) if (!block.contains(id)) id];
     to = to.clamp(0, others.length);
     final moving = [for (final id in block) ...(condensedGroupOf(id)?.partIds ?? [id])];
-    final order = [for (final id in _partOrder) if (!moving.contains(id)) id];
+    final order = [for (final id in _doc.partOrder) if (!moving.contains(id)) id];
     final at = to < others.length ? order.indexOf(others[to]) : order.length;
     _setPartOrder(order..insertAll(at, moving));
   }
@@ -721,8 +707,8 @@ class EditorController extends ChangeNotifier {
 
   void _setPartOrder(List<String> ids) {
     final next = CuratedScene.orderedPartIds(_score!.metadata.parts, ids);
-    if (listEquals(next, _partOrder)) return;
-    _partOrder = next;
+    if (listEquals(next, _doc.partOrder)) return;
+    _doc = _doc.copyWith(partOrder: next);
     _showSettings();
     _edited();
   }
@@ -742,20 +728,20 @@ class EditorController extends ChangeNotifier {
   /// Makes each condensed pair's lanes one (see [Curation.join]).
   void _joinLanes() => _curation?.join({
         for (final g in condensable)
-          if (_condensed.contains(g.id)) g.second: g.first,
+          if (_doc.condensed.contains(g.id)) g.second: g.first,
       });
 
   /// Condenses the pairs [ids] (or stops, with [on] false): one Undo step. Nothing is
   /// engraved again; the shared staves are always there. A condensed pair is one lane,
   /// shown wherever either player was.
   void setCondensed(Iterable<String> ids, {required bool on}) {
-    final next = {..._condensed};
+    final next = {..._doc.condensed};
     for (final id in ids) {
       if (!condensable.any((g) => g.id == id)) continue;
       on ? next.add(id) : next.remove(id);
     }
-    if (setEquals(next, _condensed)) return;
-    _condensed = Set.unmodifiable(next);
+    if (setEquals(next, _doc.condensed)) return;
+    _doc = _doc.copyWith(condensed: Set.unmodifiable(next));
     _showSettings();
     lanes._clear();
     _joinLanes();
@@ -791,20 +777,16 @@ class EditorController extends ChangeNotifier {
 
   // MARK: MIDI tempo map
 
-  MidiTempoMap? _midi;
-
-  /// The anchors tapped (or set) by hand, kept while a MIDI tempo map stands in for them.
-  List<SyncAnchor> _tapped = const [];
 
   /// The MIDI file whose tempo map the sync follows, instead of anchors set by hand.
-  MidiTempoMap? get midiTempo => _midi;
+  MidiTempoMap? get midiTempo => _doc.midi;
 
   /// Whether the sync follows a MIDI tempo map: its anchors are then derived, and tapping and
   /// editing them is off (the Audio tab shows the tempo map, edited instead, see [editMidiTempo]).
-  bool get usesMidiTempo => _midi != null;
+  bool get usesMidiTempo => _doc.midi != null;
 
   /// The anchors set by hand, whether in use or kept behind a MIDI tempo map.
-  List<SyncAnchor> get _ownAnchors => _midi == null ? _sync!.anchors : _tapped;
+  List<SyncAnchor> get _ownAnchors => _doc.midi == null ? _sync!.anchors : _doc.anchors;
 
   /// Reads the tempo map of the MIDI file at [path] and follows it ([useMidiTempo]). Throws
   /// a [FormatException] (changing nothing) when it isn't a MIDI file with a tempo map. It
@@ -816,7 +798,7 @@ class EditorController extends ChangeNotifier {
     final sync = _sync;
     if (sync == null) return;
     // The score's form stays: the warps of the file it replaces, or those set by hand.
-    final kept = _midi?.warps ?? MidiTempoMap.warpsOf(sync.anchors);
+    final kept = _doc.midi?.warps ?? MidiTempoMap.warpsOf(sync.anchors);
     useMidiTempo(read.withWarps(kept.isEmpty && _playsRepeats(MidiTempoMap.lengthOf(bytes)) ? scoreWarps : kept));
     _tab = BottomTab.audio;
     notifyListeners();
@@ -849,14 +831,11 @@ class EditorController extends ChangeNotifier {
   /// Undo step. The file's start sounds where bar 1 does now (Starts at).
   void useMidiTempo(MidiTempoMap? map) {
     final sync = _sync;
-    if (sync == null || map == _midi) return;
-    final start = sync.startSeconds;
-    if (_midi == null) _tapped = sync.anchors;
-    final own = _tapped;
-    _midi = map;
+    if (sync == null || map == _doc.midi) return;
+    final start = sync.startSeconds, own = _ownAnchors;
+    _doc = _doc.copyWith(midi: map, anchors: own); // the anchors set by hand, kept behind the map
     anchors._reset();
     if (map == null) {
-      _tapped = const [];
       sync.load(own, leadIn: sync.leadIn);
     } else {
       _followMidi(start);
@@ -867,15 +846,15 @@ class EditorController extends ChangeNotifier {
   /// Follows [map], an edit of the MIDI tempo map being followed (its points dragged or
   /// drawn), from where it starts now. Inside [beginEdit] / [endEdit], one Undo step.
   void editMidiTempo(MidiTempoMap map) {
-    if (_midi == null || _sync == null || map == _midi) return;
-    _midi = map;
+    if (_doc.midi == null || _sync == null || map == _doc.midi) return;
+    _doc = _doc.copyWith(midi: map);
     _followMidi(_sync!.startSeconds);
   }
 
   /// Gives the MIDI tempo map being followed [warps] instead (one Undo step). False, changing
   /// nothing, when they don't all fit the score (see [MidiTempoMap.arrivals]).
   bool setMidiWarps(List<MidiWarp> warps) {
-    final midi = _midi, sync = _sync;
+    final midi = _doc.midi, sync = _sync;
     if (midi == null || sync == null) return false;
     final map = midi.withWarps(warps);
     if (!map.fits(sync.totalQuarters)) return false;
@@ -886,7 +865,7 @@ class EditorController extends ChangeNotifier {
   /// Puts the derived anchors of the MIDI tempo map in the sync, with its start at [start].
   void _followMidi(double start) {
     start = math.max(0, start);
-    _sync!.load(_midi!.anchors(start: start, totalQuarters: _sync!.totalQuarters), leadIn: start);
+    _sync!.load(_doc.midi!.anchors(start: start, totalQuarters: _sync!.totalQuarters), leadIn: start);
   }
 
   // MARK: Audio
@@ -951,23 +930,14 @@ class EditorController extends ChangeNotifier {
   int _gestures = 0;
   bool _restoring = false;
 
-  EditState get _editState => EditState(
+  EditState get _editState => _doc.copyWith(
         lanes: _curation!.lanes,
         transition: _curation!.transition,
         anchors: _ownAnchors,
         leadIn: _sync!.leadIn,
-        midi: _midi,
-        partNames: _partNames,
-        textEdits: _textEdits,
-        condensed: _condensed,
-        pairs: _pairs,
-        partOrder: _partOrder,
         patches: images._patches,
         captions: captions._captions,
         captionFont: captions._font,
-        fonts: _fonts,
-        embedFont: _embedFont,
-        engraving: _projectEngraving,
       );
 
   /// How many steps Undo can go back.
@@ -1017,21 +987,12 @@ class EditorController extends ChangeNotifier {
     _restoring = true;
     try {
       final engraved = _wanted;
-      _textEdits = state.textEdits;
-      _pairs = state.pairs;
-      _fonts = state.fonts;
-      _embedFont = state.embedFont;
-      _projectEngraving = state.engraving;
-      _condensed = state.condensed;
+      _doc = state;
       if (_wanted != engraved) unawaited(_reengrave());
       _joinLanes(); // before the lanes, which fit it
       _curation!.load(state.lanes!, transition: state.transition!); // Undo's states have both
-      _midi = state.midi;
-      _tapped = state.midi != null ? state.anchors : const [];
-      _sync!.load(_midi?.anchors(start: state.leadIn, totalQuarters: _sync!.totalQuarters) ?? state.anchors,
+      _sync!.load(_doc.midi?.anchors(start: state.leadIn, totalQuarters: _sync!.totalQuarters) ?? state.anchors,
           leadIn: state.leadIn);
-      _partNames = state.partNames;
-      _partOrder = state.partOrder;
       images._restore(state.patches);
       captions._restore(state.captions, state.captionFont);
       _showSettings();

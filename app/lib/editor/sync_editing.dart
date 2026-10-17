@@ -6,7 +6,7 @@ class SyncEditing {
   final EditorController _editor;
 
   /// The sync, while its anchors are set by hand (not while a MIDI tempo map sets them).
-  SyncMap? get _sync => _editor._midi == null ? _editor._sync : null;
+  SyncMap? get _sync => _editor._doc.midi == null ? _editor._sync : null;
 
   void _reset() {
     _tapArmed = false;
@@ -148,7 +148,7 @@ class SyncEditing {
   /// Where bar 1 sounds in the recording (Starts at); with a MIDI tempo map, where it starts.
   void setStart(double seconds) {
     if (!seconds.isFinite) return;
-    _editor._midi != null ? _editor._followMidi(seconds) : _sync?.startSeconds = seconds;
+    _editor._doc.midi != null ? _editor._followMidi(seconds) : _sync?.startSeconds = seconds;
   }
 
   /// Removes every anchor.
@@ -189,7 +189,7 @@ class SyncEditing {
 
   /// Delete: removes the selected anchors, or the selected change of the MIDI tempo map.
   void delete() {
-    if (_editor._midi case final midi?) {
+    if (_editor._doc.midi case final midi?) {
       if (_selectedTempo case final i?) _editor.editMidiTempo(midi.removed({i}));
     } else {
       _sync?.removeAnchors(_valid);
