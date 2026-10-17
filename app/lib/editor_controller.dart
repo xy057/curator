@@ -9,6 +9,7 @@ import 'package:score_engine/score_engine.dart';
 import 'audio_track.dart';
 import 'edit_history.dart';
 import 'error_text.dart';
+import 'file_names.dart';
 import 'image_patch.dart';
 import 'project_state.dart';
 import 'score_replacement.dart';
@@ -122,7 +123,7 @@ class EditorController extends ChangeNotifier {
       score = await _engrave(bytes); // a default font that can't be read: the standard ones
       edits = edits.copyWith(fonts: ScoreFonts.standard);
     }
-    await _install(path.split(RegExp(r'[/\\]')).last, bytes, score, ProjectState(edits: edits));
+    await _install(fileNameOf(path), bytes, score, ProjectState(edits: edits));
   }
 
   /// The fonts a newly imported score starts with (Settings ▸ Fonts), by name.
@@ -209,7 +210,7 @@ class EditorController extends ChangeNotifier {
     final (state: carried, :lost) =
         swap.carry(state, condensable: condensable, measuresBefore: measures.before, measuresAfter: measures.after);
     return ScoreReplacement(
-      name: path.split(RegExp(r'[/\\]')).last,
+      name: fileNameOf(path),
       bytes: bytes,
       score: score,
       state: carried,
@@ -809,7 +810,7 @@ class EditorController extends ChangeNotifier {
   /// score played with its repeats gets the score's ([scoreWarps]).
   Future<void> loadMidiTempo(String path) async {
     final bytes = await File(path).readAsBytes();
-    final read = MidiTempoMap.read(bytes, name: path.split(RegExp(r'[/\\]')).last);
+    final read = MidiTempoMap.read(bytes, name: fileNameOf(path));
     final sync = _sync;
     if (sync == null) return;
     // The score's form stays: the warps of the file it replaces, or those set by hand.

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 
 import 'audio_format.dart';
+import 'file_names.dart';
 import 'media_converter.dart';
 import 'scratch_space.dart';
 
@@ -155,7 +156,7 @@ class AudioEngine {
       final plan = AudioFormat.samplingPlan(length, AudioFormat.sampleRateOf(playable));
       final samples = await SoLoud.instance.readSamplesFromFile(playable, plan.count);
       final waveform = await Waveform.analyze(samples, plan.rate);
-      track = AudioTrack._(audio, audio.split(RegExp(r'[/\\]')).last, source, length, waveform);
+      track = AudioTrack._(audio, fileNameOf(audio), source, length, waveform);
     } catch (_) {
       if (source != null) await SoLoud.instance.disposeSource(source);
       ScratchSpace.release(scratch);

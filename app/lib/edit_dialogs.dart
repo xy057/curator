@@ -8,6 +8,7 @@ import 'app_colors.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
+import 'file_names.dart';
 import 'menu_kit.dart';
 import 'score_replacement.dart' show ScoreSwap;
 import 'ui_kit.dart';
@@ -554,7 +555,7 @@ class _VideoRatioDialogState extends State<_VideoRatioDialog> {
 Future<String?> confirmSavePath(BuildContext context, String path, String extension) async {
   final (full, added) = withExtension(path, extension);
   if (!added || !File(full).existsSync()) return full;
-  final name = full.split(RegExp(r'[/\\]')).last;
+  final name = fileNameOf(full);
   final replace = await showAppDialog<bool>(
     context: context,
     builder: (context) => AppDialog(

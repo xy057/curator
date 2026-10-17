@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'app_settings.dart';
 import 'editor_controller.dart';
+import 'file_names.dart';
 import 'project_file.dart';
 import 'score_replacement.dart';
 import 'scratch_space.dart';
@@ -61,7 +62,7 @@ class ProjectDocument extends ChangeNotifier {
   bool get isDirty => _dirty;
 
   /// The name for the title bar: the project file, or the imported score.
-  String? get title => _path != null ? _basename(_path!) : controller.fileName;
+  String? get title => _path != null ? fileNameOf(_path!) : controller.fileName;
 
   bool get isSaving => _saving != null;
 
@@ -225,10 +226,9 @@ class ProjectDocument extends ChangeNotifier {
 
   /// A name for Save As…: the project's, or the score's with .ccs.
   String get suggestedFileName {
-    if (_path != null) return _basename(_path!);
+    if (_path != null) return fileNameOf(_path!);
     final name = controller.source?.name ?? 'Untitled';
-    final dot = name.lastIndexOf('.');
-    return '${dot > 0 ? name.substring(0, dot) : name}.${ProjectFile.extension}';
+    return '${stemOf(name)}.${ProjectFile.extension}';
   }
 
   // MARK: Unsaved changes and autosave
@@ -288,7 +288,6 @@ class ProjectDocument extends ChangeNotifier {
   /// Where the open project's embedded recording is unpacked.
   Directory? _mediaDirectory;
 
-  static String _basename(String path) => path.split(RegExp(r'[/\\]')).last;
 
   @override
   void dispose() {

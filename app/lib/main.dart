@@ -25,6 +25,7 @@ import 'editor_controller.dart';
 import 'editor_toolbar.dart';
 import 'error_text.dart';
 import 'export_dialog.dart';
+import 'file_names.dart';
 import 'home_screen.dart';
 import 'media_converter.dart';
 import 'project_document.dart';
@@ -317,9 +318,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// The document's name (without extension) and edited state, in the native title bar.
   void _updateWindowTitle() {
     final title = document.title;
-    final dot = title?.lastIndexOf('.') ?? -1;
     WindowChrome.showDocument(
-      name: title == null ? null : (dot > 0 ? title.substring(0, dot) : title),
+      name: title == null ? null : stemOf(title),
       edited: document.isDirty,
       path: document.path,
     );
@@ -372,7 +372,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Future<void> _openPath(String path, {bool confirmed = false}) async {
     if (!File(path).existsSync()) {
       settings.removeRecent(path);
-      _snack('“${path.split(RegExp(r'[/\\]')).last}” was moved or deleted.');
+      _snack('“${fileNameOf(path)}” was moved or deleted.');
       return;
     }
     if (!confirmed && !await _confirmDiscard()) return;
@@ -734,9 +734,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// File ▸ Export Video… (⌘E): offers the project's (or the score's) name for the video.
   void _exportVideo() {
     if (controller.score == null || controller.isReengraving) return;
-    final title = document.title ?? 'Curator';
-    final dot = title.lastIndexOf('.');
-    showExportDialog(context, controller, settings, suggestedName: dot > 0 ? title.substring(0, dot) : title);
+    showExportDialog(context, controller, settings, suggestedName: stemOf(document.title ?? 'Curator'));
   }
 
   @override

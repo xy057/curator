@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'file_names.dart';
 
 /// This build's version: `version` in pubspec.yaml without the build number (a test keeps them
 /// equal). The Release workflow tags each release `v` + this.
@@ -294,8 +295,7 @@ class Updater extends ChangeNotifier {
 
   /// `name`, or `name (2)`, `name (3)`… when that is taken.
   static String _freeName(String dir, String name) {
-    final dot = name.lastIndexOf('.');
-    final (stem, ext) = dot > 0 ? (name.substring(0, dot), name.substring(dot)) : (name, '');
+    final stem = stemOf(name), ext = name.substring(stem.length);
     for (var n = 1;; n++) {
       final path = '$dir${Platform.pathSeparator}${n == 1 ? name : '$stem ($n)$ext'}';
       if (!File(path).existsSync() && !File('$path.part').existsSync()) return path;

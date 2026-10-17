@@ -14,6 +14,7 @@ import 'dialog_kit.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
+import 'file_names.dart';
 import 'media_converter.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
@@ -565,7 +566,7 @@ class _ExportDialogState extends State<_ExportDialog> {
   Widget _done(BuildContext context) => Row(children: [
         Icon(Icons.check_circle_rounded, size: 18, color: context.colors.accent),
         const SizedBox(width: 8),
-        Flexible(child: Text('Saved “${_basename(_output!)}”.', overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text('Saved “${fileNameOf(_output!)}”.', overflow: TextOverflow.ellipsis)),
       ]);
 
   Widget _failed(BuildContext context) => Row(children: [
@@ -585,8 +586,6 @@ class _ExportDialogState extends State<_ExportDialog> {
       : Platform.isWindows
           ? 'Show in Explorer'
           : 'Open Folder';
-
-  static String _basename(String path) => path.split(RegExp(r'[/\\]')).last;
 
   static String _clock(double seconds) {
     final s = seconds.round();

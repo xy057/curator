@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'file_names.dart';
 
 /// The recordings the app takes, by what it does with them. The one list every part of the
 /// app (the player, the file picker, drag and drop) goes by.
@@ -43,9 +44,7 @@ abstract final class MediaConverter {
   /// Converts [input] (its first sound track) to `<directory>/<name>.flac` and returns that path.
   static Future<String> toFlac(String input, String directory) async {
     await Directory(directory).create(recursive: true);
-    final name = input.split(RegExp(r'[/\\]')).last;
-    final dot = name.lastIndexOf('.');
-    final output = '$directory${Platform.pathSeparator}${dot > 0 ? name.substring(0, dot) : name}.flac';
+    final output = '$directory${Platform.pathSeparator}${stemOf(fileNameOf(input))}.flac';
 
     final problems = <String>[];
     if (Platform.isMacOS) {

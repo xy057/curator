@@ -10,6 +10,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
+import 'file_names.dart';
 import 'media_converter.dart';
 
 /// A video's size: its short side in pixels ("1080p" is 1080 pixels high when wide, 1080
@@ -607,7 +608,7 @@ class VideoExport {
       throw VideoExportException(
           'This FFmpeg can’t write ${codec.label}. Install a full build (with ${codec.encoders.first}).');
     }
-    final name = output.split(RegExp(r'[/\\]')).last;
+    final name = fileNameOf(output);
     if (codec.isSequence && Directory(output).existsSync() && !VideoEncoder.onlyFrames(Directory(output), name)) {
       throw VideoExportException('“$name” already holds other files. Choose another name.');
     }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'file_names.dart';
 
 /// What to tell the user about [error]: a sentence, not a stack of type names.
 ///
@@ -6,7 +7,7 @@ import 'dart:io';
 /// a damaged project's FormatException); file errors say which file and why.
 String describeError(Object error) => switch (error) {
       FileSystemException(:final message, :final path, :final osError) => [
-          '${message.isEmpty ? 'Couldn’t use the file' : message}${path == null ? '' : ': “${path.split(RegExp(r'[/\\]')).last}”'}.',
+          '${message.isEmpty ? 'Couldn’t use the file' : message}${path == null ? '' : ': “${fileNameOf(path)}”'}.',
           if (osError != null && osError.message.isNotEmpty) '(${osError.message})',
         ].join(' '),
       FormatException(:final message) => message,
