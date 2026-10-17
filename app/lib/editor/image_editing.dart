@@ -4,8 +4,8 @@ part of '../editor_controller.dart';
 /// resizing, cropping and removing. Nothing here works, and no image is drawn, while
 /// [enabled] is off (Settings ▸ Extensions ▸ Attach Image); the images stay in the project.
 class ImageEditing {
-  ImageEditing._(this._c);
-  final EditorController _c;
+  ImageEditing._(this._editor);
+  final EditorController _editor;
 
   /// The extension's switch.
   bool get enabled => _enabled;
@@ -15,7 +15,7 @@ class ImageEditing {
     _enabled = value;
     if (!value) _deselect();
     _show();
-    _c._changed();
+    _editor._changed();
   }
 
   /// On the score, bottom to top.
@@ -43,7 +43,7 @@ class ImageEditing {
     if (index == _selected && cropping == _cropping) return;
     _selected = index;
     _cropping = cropping;
-    _c._changed();
+    _editor._changed();
   }
 
   void _deselect() {
@@ -59,7 +59,7 @@ class ImageEditing {
               p.scene(art),
       ];
 
-  void _show() => _c._scene?.patches = _scenePatches;
+  void _show() => _editor._scene?.patches = _scenePatches;
 
   /// How big a new image comes in: [defaultHeight] staff spaces high (narrower than
   /// [maxWidth]), its own shape.
@@ -69,13 +69,13 @@ class ImageEditing {
   /// [top] staff spaces down, and selects it. One Undo step. Throws a [FormatException]
   /// when the bytes are not such an image.
   Future<void> add(ImageKind kind, Uint8List bytes, {required double quarter, required double top, String extension = ''}) async {
-    if (!_enabled || _c._score == null) return;
+    if (!_enabled || _editor._score == null) return;
     // The same file again is the same image: the project keeps it once.
     final same = _images.values.where((i) => i.kind == kind && _arts.containsKey(i.id) && listEquals(i.bytes, bytes)).firstOrNull;
     final image = same ?? PatchImage.create(kind, bytes, extension: extension), document = _document;
     final art = same != null ? _arts[same.id]! : await image.decode();
     // Closed (another maybe opened) or switched off meanwhile: not for what is open now.
-    if (document != _document || !_enabled || _c._score == null) return same == null ? _dispose(art) : null;
+    if (document != _document || !_enabled || _editor._score == null) return same == null ? _dispose(art) : null;
     _images[image.id] = image;
     _arts[image.id] = art;
     final aspect = art.size.width / art.size.height;
@@ -84,20 +84,19 @@ class ImageEditing {
     _deselect();
     _selected = _patches.length - 1;
     _show();
-    _c._edited();
-    _c._changed();
+    _editor._edited();
   }
 
   /// Pastes the image on the clipboard (a PNG, SVG text, or a copied SVG / PNG / JPEG file)
   /// at score quarter [quarter] (by default the one under the pointer now) and [top] staff
   /// spaces down. False when there is no image to paste.
   Future<bool> paste({double? quarter, double top = 4}) async {
-    final scene = _c.scene;
+    final scene = _editor.scene;
     if (!_enabled || scene == null) return false;
     final image = await readClipboardImage();
     if (image == null) return false;
     await add(image.kind, image.bytes,
-        quarter: quarter ?? scene.axis.quarterAt(scene.scrollMap.xAt(_c.playback.time.value)),
+        quarter: quarter ?? scene.axis.quarterAt(scene.scrollMap.xAt(_editor.playback.time.value)),
         top: top,
         extension: image.extension);
     return true;
@@ -109,8 +108,7 @@ class ImageEditing {
     if (!_enabled || index < 0 || index >= _patches.length || _patches[index] == patch) return;
     _patches = [..._patches]..[index] = patch;
     _show();
-    _c._edited();
-    _c._changed();
+    _editor._edited();
   }
 
   /// Removes patch [index] (the selected one by default).
@@ -120,8 +118,7 @@ class ImageEditing {
     _patches = [..._patches]..removeAt(index);
     _deselect();
     _show();
-    _c._edited();
-    _c._changed();
+    _editor._edited();
   }
 
   /// The image files the project keeps (those [patches] show), in the order first shown.
@@ -153,9 +150,9 @@ class ImageEditing {
     }
     List<ImagePatch> kept(List<ImagePatch> patches) =>
         patches.any((p) => gone.contains(p.image)) ? List.unmodifiable(patches.where((p) => !gone.contains(p.image))) : patches;
-    _c._history.rewrite(_c._editState, (state) => state.copyWith(patches: kept(state.patches)));
-    if (_c._committed case final committed?) _c._committed = committed.copyWith(patches: kept(committed.patches));
-    _c._changed();
+    _editor._history.rewrite(_editor._editState, (state) => state.copyWith(patches: kept(state.patches)));
+    if (_editor._committed case final committed?) _editor._committed = committed.copyWith(patches: kept(committed.patches));
+    _editor._changed();
   }
 
   /// Removes every patch showing image [id]: one Undo step.
@@ -164,18 +161,17 @@ class ImageEditing {
     _patches = List.unmodifiable(_patches.where((p) => p.image != id));
     _deselect();
     _show();
-    _c._edited();
-    _c._changed();
+    _editor._edited();
   }
 
   /// Shows patch [index]: moves the playhead to where its left edge reaches the pointer (its
   /// first pass) and selects it.
   void locate(int index) {
     if (!_enabled || index < 0 || index >= _patches.length) return;
-    final timeline = _c.timeline;
+    final timeline = _editor.timeline;
     final quarter = _patches[index].quarter;
     final first = timeline.timesOf(quarter).firstOrNull;
-    _c.playback.seek(first?.seconds ?? timeline.secondsAtQuarter(quarter));
+    _editor.playback.seek(first?.seconds ?? timeline.secondsAtQuarter(quarter));
     select(index);
   }
 

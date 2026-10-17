@@ -294,7 +294,7 @@ class EditorController extends ChangeNotifier {
       ..load(edits.lanes ?? Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
           transition: edits.transition ?? defaultTransition);
     _joinLanes();
-    _curation!.addListener(_edited);
+    _curation!.addListener(_curationEdited);
     _scene = _makeScene(score);
     // Last: working out their style can notify at once, and listeners must find all of it open.
     captions._load(edits.captions, edits.captionFont);
@@ -330,7 +330,7 @@ class EditorController extends ChangeNotifier {
     captions._reset();
     _scene?.dispose();
     _scene = null;
-    _curation?.removeListener(_edited);
+    _curation?.removeListener(_curationEdited);
     _curation?.dispose();
     _curation = null;
     _sync?.removeListener(_syncChanged);
@@ -402,7 +402,6 @@ class EditorController extends ChangeNotifier {
     _partNames = Map.unmodifiable(next);
     _scene?.names = _partNames;
     _edited();
-    notifyListeners();
   }
 
   /// The score's text edits (text id → new text; '' removes it). The engraving catches up
@@ -448,7 +447,6 @@ class EditorController extends ChangeNotifier {
     _projectEngraving = options;
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
-    notifyListeners();
     await engraved;
   }
 
@@ -568,7 +566,6 @@ class EditorController extends ChangeNotifier {
     if (!canEmbedFont) _embedFont = false; // as it will be saved
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
-    notifyListeners();
     await engraved;
   }
 
@@ -584,7 +581,6 @@ class EditorController extends ChangeNotifier {
     if (value == _embedFont || _score == null || (value && !canEmbedFont)) return;
     _embedFont = value;
     _edited();
-    notifyListeners();
   }
 
   // MARK: Condensing
@@ -652,7 +648,6 @@ class EditorController extends ChangeNotifier {
     _joinLanes();
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
-    notifyListeners();
     return engraved;
   }
 
@@ -722,7 +717,6 @@ class EditorController extends ChangeNotifier {
     _partOrder = next;
     _scene?.partOrder = next;
     _edited();
-    notifyListeners();
   }
 
   /// A lane's name: the instrument's, or a condensed pair's shared one ("Flute 1.2").
@@ -758,7 +752,6 @@ class EditorController extends ChangeNotifier {
     lanes._clear();
     _joinLanes();
     _edited();
-    notifyListeners();
   }
 
   /// Seconds for a staff to glide in or out, in this project.
@@ -767,7 +760,6 @@ class EditorController extends ChangeNotifier {
   void _syncChanged() {
     _timelineStale = true;
     _edited();
-    notifyListeners();
   }
 
   /// The score's size. While [dragging] (the slider) only the view follows; the project
@@ -1003,16 +995,18 @@ class EditorController extends ChangeNotifier {
     if (_gestures == 0 || _disposed) return;
     _gestures--;
     _curation?.normalize();
-    _record();
+    if (_record()) notifyListeners();
   }
 
-  void _record() {
-    if (_restoring || _gestures > 0 || _score == null) return;
+  /// Records an Undo step if the document changed since the last (not inside a gesture);
+  /// whether it did.
+  bool _record() {
+    if (_restoring || _gestures > 0 || _score == null) return false;
     final now = _editState, before = _committed;
-    if (before == null || now == before) return;
+    if (before == null || now == before) return false;
     _history.record(before);
     _committed = now;
-    notifyListeners();
+    return true;
   }
 
   // Nothing open (⌘Z on the start screen) has no state to step from.
@@ -1059,7 +1053,6 @@ class EditorController extends ChangeNotifier {
     lanes._clear();
     anchors._selected = {};
     _edited();
-    notifyListeners();
   }
 
   // MARK: Projects
@@ -1067,11 +1060,16 @@ class EditorController extends ChangeNotifier {
   /// Increases with every change that a project saves (not with playback, zoom or selection).
   final editRevision = ValueNotifier<int>(0);
 
-  void _edited() {
+  /// Something a project saves changed: counts it, repaints, records an Undo step (see
+  /// [_record]) and tells the listeners. Without [notify] (a model telling its own listeners,
+  /// at every move of a drag) they are told only of a step recorded.
+  void _edited({bool notify = true}) {
     editRevision.value++;
     playback._markDirty();
-    _record();
+    if (_record() || notify) notifyListeners();
   }
+
+  void _curationEdited() => _edited(notify: false);
 
   /// Every edit made in the app, and the view: what a project stores next to the source score.
   ProjectState get projectState => ProjectState(
