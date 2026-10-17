@@ -235,6 +235,30 @@ String engineResourceDirectory() {
   return candidates.firstWhere((p) => File('$p/Bravura.xml').existsSync(), orElse: () => candidates.first);
 }
 
+/// What a scene shows besides its score, the time, the curation and the tempo track: what the
+/// editor sets on it, as one value, so a video's scene is the preview's by taking its settings.
+@immutable
+class SceneSettings {
+  const SceneSettings({
+    this.names = const {},
+    this.condensed = const {},
+    this.partOrder = const [],
+    this.scrollFollow = 1,
+    this.patches = const [],
+    this.captions = const [],
+    this.captionStyle = const CaptionStyle(),
+  });
+
+  /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
+  final Map<String, ({String name, String abbreviation})> names;
+  final Set<String> condensed;
+  final List<String> partOrder;
+  final double scrollFollow;
+  final List<ScenePatch> patches;
+  final List<Caption> captions;
+  final CaptionStyle captionStyle;
+}
+
 /// Turns "time + the curation" into one frame.
 class CuratedScene {
   CuratedScene(this.score, {RenderStyle style = const RenderStyle()})
@@ -309,6 +333,26 @@ class CuratedScene {
 
   /// Instrument names chosen by the user (part id → name / short name), shown in the name column.
   Map<String, ({String name, String abbreviation})> names = const {};
+
+  /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
+  /// [patches], [captions], [captionStyle]); setting it changes only what differs.
+  SceneSettings get settings => SceneSettings(
+      names: names,
+      condensed: condensed,
+      partOrder: partOrder,
+      scrollFollow: scrollFollow,
+      patches: patches,
+      captions: captions,
+      captionStyle: captionStyle);
+  set settings(SceneSettings value) {
+    names = value.names;
+    condensed = value.condensed;
+    partOrder = value.partOrder;
+    scrollFollow = value.scrollFollow;
+    patches = value.patches;
+    captions = value.captions;
+    captionStyle = value.captionStyle;
+  }
 
   /// The pairs of players (ids from [LoadedScore.condensed]) that share a staff while both
   /// are shown. Changing it re-plans the layout; nothing is engraved again.

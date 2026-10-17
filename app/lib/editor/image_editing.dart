@@ -59,7 +59,7 @@ class ImageEditing {
               p.scene(art),
       ];
 
-  void _show() => _editor._scene?.patches = _scenePatches;
+  void _show() => _editor._showSettings();
 
   /// How big a new image comes in: [defaultHeight] staff spaces high (narrower than
   /// [maxWidth]), its own shape.

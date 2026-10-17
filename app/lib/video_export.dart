@@ -445,13 +445,7 @@ class VideoExport {
         measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
       ..load(sync.anchors, leadIn: sync.leadIn);
     final scene = CuratedScene(score, style: RenderStyle(staffSpace: editor.staffSpace))
-      ..names = editor.scene!.names
-      ..condensed = editor.condensed
-      ..partOrder = editor.partOrder
-      ..scrollFollow = editor.scrollFollow
-      ..patches = editor.scene!.patches // none while Attach Image is off
-      ..captions = editor.scene!.captions // none while Captions is off
-      ..captionStyle = editor.scene!.captionStyle
+      ..settings = editor.sceneSettings // the preview's: no images or captions while their extension is off
       ..setTimeline(timeline);
     return VideoExport._(scene, copy, timeline, editor.images.hold(),
         duration: editor.playback.duration, audio: editor.track?.path);

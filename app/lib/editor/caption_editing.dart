@@ -88,7 +88,7 @@ class CaptionEditing {
     if (!turn.isLatest) return;
     _fontFound = found;
     _style = CaptionStyle(fontFamily: family, position: _position, countdown: _countdown, size: _size);
-    _editor._scene?.captionStyle = _style;
+    _editor._showSettings();
     _editor.playback._markDirty(); // the preview repaints only when asked
     _editor._changed();
   }
@@ -180,7 +180,7 @@ class CaptionEditing {
   /// The captions as the scene draws them: none while the extension is off.
   List<Caption> get _sceneCaptions => _enabled ? _captions : const [];
 
-  void _show() => _editor._scene?.captions = _sceneCaptions;
+  void _show() => _editor._showSettings();
 
   void _load(List<Caption> captions, String? font) {
     _captions = List.unmodifiable(captions);

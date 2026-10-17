@@ -31,6 +31,32 @@ void main() {
     expect(score.metadata.tempo, 93);
   });
 
+  test("a scene's settings are what is set on it, and setting them sets each", () {
+    final scene = CuratedScene(score);
+    addTearDown(scene.dispose);
+    final parts = [for (final p in score.metadata.parts) p.id];
+    final settings = SceneSettings(
+      names: const {'P1': (name: 'Ottavino', abbreviation: 'Ott.')},
+      partOrder: [parts[1], parts[0]],
+      scrollFollow: 0.4,
+      captions: const [Caption(0, 4, 'Intro')],
+      captionStyle: const CaptionStyle(size: CaptionSize.large),
+    );
+    scene.settings = settings;
+    expect(scene.names, settings.names);
+    expect(scene.partOrder.take(2), [parts[1], parts[0]]);
+    expect(scene.scrollFollow, 0.4);
+    expect(scene.captions, settings.captions);
+    expect(scene.captionStyle.size, CaptionSize.large);
+    final copy = CuratedScene(score)..settings = scene.settings;
+    addTearDown(copy.dispose);
+    expect(copy.names, scene.names);
+    expect(copy.partOrder, scene.partOrder);
+    expect(copy.scrollFollow, scene.scrollFollow);
+    expect(copy.captions, scene.captions);
+    expect(copy.captionStyle.size, scene.captionStyle.size);
+  });
+
   test('says what it left out of the score, each thing once', () async {
     expect(score.warnings, isEmpty, reason: 'the demo is read whole');
     // Verovio has no harp pedal diagrams: it leaves them out, and says so.

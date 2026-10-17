@@ -357,22 +357,29 @@ class EditorController extends ChangeNotifier {
   set scrollFollow(double value) {
     if (value == _scrollFollow) return;
     _scrollFollow = value;
-    _scene?.scrollFollow = value;
+    _showSettings();
     playback._markDirty(); // only the score shows it: nothing to rebuild
   }
 
   CuratedScene _makeScene(LoadedScore score) {
-    final scene = CuratedScene(score, style: RenderStyle(staffSpace: _staffSpace))
-      ..names = _partNames
-      ..condensed = _condensed
-      ..partOrder = _partOrder
-      ..scrollFollow = _scrollFollow
-      ..patches = images._scenePatches
-      ..captions = captions._sceneCaptions
-      ..captionStyle = captions._style;
+    final scene = CuratedScene(score, style: RenderStyle(staffSpace: _staffSpace))..settings = sceneSettings;
     if (_sync != null) scene.setTimeline(_sync!);
     return scene;
   }
+
+  /// What the scene shows besides the score, the time, the curation and the sync: the names,
+  /// condensing, order, scroll, and the extensions' images and captions (none while off).
+  SceneSettings get sceneSettings => SceneSettings(
+      names: _partNames,
+      condensed: _condensed,
+      partOrder: _partOrder,
+      scrollFollow: _scrollFollow,
+      patches: images._scenePatches,
+      captions: captions._sceneCaptions,
+      captionStyle: captions._style);
+
+  /// Gives the scene [sceneSettings] again, after a change of any of them.
+  void _showSettings() => _scene?.settings = sceneSettings;
 
   // MARK: Editing names and texts
 
@@ -394,7 +401,7 @@ class EditorController extends ChangeNotifier {
       );
     }
     _partNames = Map.unmodifiable(next);
-    _scene?.names = _partNames;
+    _showSettings();
     _edited();
   }
 
@@ -716,7 +723,7 @@ class EditorController extends ChangeNotifier {
     final next = CuratedScene.orderedPartIds(_score!.metadata.parts, ids);
     if (listEquals(next, _partOrder)) return;
     _partOrder = next;
-    _scene?.partOrder = next;
+    _showSettings();
     _edited();
   }
 
@@ -749,7 +756,7 @@ class EditorController extends ChangeNotifier {
     }
     if (setEquals(next, _condensed)) return;
     _condensed = Set.unmodifiable(next);
-    _scene?.condensed = _condensed;
+    _showSettings();
     lanes._clear();
     _joinLanes();
     _edited();
@@ -1016,7 +1023,6 @@ class EditorController extends ChangeNotifier {
       _embedFont = state.embedFont;
       _projectEngraving = state.engraving;
       _condensed = state.condensed;
-      _scene?.condensed = _condensed;
       if (_wanted != engraved) unawaited(_reengrave());
       _joinLanes(); // before the lanes, which fit it
       _curation!.load(state.lanes!, transition: state.transition!); // Undo's states have both
@@ -1025,11 +1031,10 @@ class EditorController extends ChangeNotifier {
       _sync!.load(_midi?.anchors(start: state.leadIn, totalQuarters: _sync!.totalQuarters) ?? state.anchors,
           leadIn: state.leadIn);
       _partNames = state.partNames;
-      _scene?.names = _partNames;
       _partOrder = state.partOrder;
-      _scene?.partOrder = _partOrder;
       images._restore(state.patches);
       captions._restore(state.captions, state.captionFont);
+      _showSettings();
     } finally {
       _restoring = false;
     }
