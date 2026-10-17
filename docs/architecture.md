@@ -478,9 +478,10 @@ that reads it. The page, likewise, rebuilds only for the settings it shows (`_Ho
 Refined, the default, is `AppColors._refined` laid over Classic, Material's theme as it was: a
 desktop editor's look. Its palette (`AppColors._refinedOf`) has neutral greys, with no accent mixed
 in, and a `chrome` tone behind toolbars, the lane-name column and the ruler (`chrome` is `surface` in
-Classic). Controls are 28 px with 5 px corners on a 13 px type scale. Segmented controls are a well
-whose chosen segment, a light tint of the accent with its label in the accent, slides to the one
-clicked; there are no ripples or 48 px touch targets, and the play button is a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
+Classic). Controls are 28 px with 5 px corners on a 13 px type scale. Segmented controls are a clear
+track whose chosen segment, a light tint of the accent, glides on a critically damped spring to the
+one clicked (a second click mid-glide keeps its speed), each label taking the accent as the tint
+passes under it, with no hover highlight; there are no ripples or 48 px touch targets, and the play button is a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
 tab switch, the Settings sidebar, lane labels). Video export draws in the classic palette. Neither follows the platform (no `.adaptive` or Cupertino widgets), so macOS and
 Windows match. A widget that draws its own control for Refined reads `AppStyle` from the theme;
 `AppSwitch` and `AppSegmented` (ui_kit.dart) are those: always use them, never `Switch` or

@@ -49,9 +49,24 @@ void main() {
     expect(between, greaterThan(start), reason: 'on its way');
     expect(between, lessThan(start + 2 * segment), reason: 'not there yet');
 
+    Color label(String text) => tester.renderObject<RenderParagraph>(find.text(text)).text.style!.color!;
+    final muted = AppColors.of(AccentColor.sky, Brightness.light, UiStyle.refined).textMuted;
+    expect(label('Light'), isNot(muted), reason: 'the label under the moving tint takes some accent');
+
     await tester.pumpAndSettle();
     expect(tester.getRect(thumb).left, closeTo(start + 2 * segment, 0.5));
+    expect(label('Auto'), muted);
+    expect(label('Light'), muted);
     expect(tester.getCenter(thumb).dx, closeTo(tester.getCenter(find.text('Dark')).dx, 0.5));
+  });
+
+  testWidgets('Refined: a clear track, and no highlight under the mouse', (tester) async {
+    await mount(tester, UiStyle.refined);
+    final track = tester.widget<Container>(find.descendant(of: find.byType(AppSegmented<int>), matching: find.byType(Container)).first);
+    expect((track.decoration! as BoxDecoration).color, isNull);
+    for (final ink in tester.widgetList<InkWell>(find.byType(InkWell))) {
+      expect(ink.overlayColor!.resolve({WidgetState.hovered}), Colors.transparent);
+    }
   });
 
   testWidgets('Refined: for every accent, light and dark, the chosen label reads on its tint', (tester) async {
