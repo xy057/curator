@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'app_colors.dart';
 
@@ -519,14 +520,68 @@ class _SwitchPainter extends CustomPainter {
   bool shouldRepaint(_SwitchPainter old) => old.t != t || old.track != track || old.focus != focus;
 }
 
+/// Painted in the window, but not in the still a change of appearance fades from (main.dart):
+/// something that moves meanwhile, which the still would hold where it was, fading out there.
+class LeftOutOfStills extends SingleChildRenderObjectWidget {
+  const LeftOutOfStills({super.key, super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderLeftOutOfStills();
+}
+
+class _RenderLeftOutOfStills extends RenderProxyBox {
+  static final _attached = <_RenderLeftOutOfStills>{};
+
+  OpacityLayer? get _opacity => layer as OpacityLayer?;
+
+  @override
+  bool get alwaysNeedsCompositing => child != null;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _attached.add(this);
+  }
+
+  @override
+  void detach() {
+    _attached.remove(this);
+    super.detach();
+  }
+
+  // Its own layer, fully opaque but for the moment a still is taken.
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (child == null) {
+      layer = null;
+      return;
+    }
+    layer = context.pushOpacity(offset, 255, super.paint, oldLayer: layer as OpacityLayer?);
+  }
+}
+
+/// [capture] (a still of the window) with every [LeftOutOfStills] hidden.
+T withoutLeftOut<T>(T Function() capture) {
+  final layers = [for (final r in _RenderLeftOutOfStills._attached) ?r._opacity];
+  for (final l in layers) {
+    l.alpha = 0;
+  }
+  try {
+    return capture();
+  } finally {
+    for (final l in layers) {
+      l.alpha = 255;
+    }
+  }
+}
+
 /// The app's segmented control: always use it rather than [SegmentedButton]. In
 /// [UiStyle.refined] a clear track whose chosen segment, a light tint of the accent, slides to
-/// the segment clicked, each label taking the accent as the tint passes under it, and the
-/// choice is made ([onChanged]) when the tint lands. A change of appearance (Theme, Style)
-/// cross-fades from a still of the window; made first, the still would hold the tint where it
-/// started while the live one slid away. In [UiStyle.classic] Material's [SegmentedButton]
-/// (with [style]), chosen at once. Segments are as wide as the widest, or share the width given
-/// with [expand].
+/// the segment chosen, each label taking the accent as the tint passes under it. A click
+/// chooses at once ([onChanged]); the tint is [LeftOutOfStills], so a change of appearance it
+/// makes (Theme, Style) fades from a still without it, not one holding it where it started. In
+/// [UiStyle.classic] Material's [SegmentedButton] (with [style]). Segments are as wide as the
+/// widest, or share the width given with [expand].
 class AppSegmented<T> extends StatefulWidget {
   const AppSegmented({
     super.key,
@@ -550,53 +605,26 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
   /// Where the tint is, in segments: 0 over the first, 1 over the second, and between while it slides.
   late final _at = AnimationController.unbounded(vsync: this, value: math.max(_indexOf(widget.selected), 0).toDouble());
 
-  /// A segment clicked whose tint hasn't landed yet: chosen when it does.
-  (T,)? _pending;
-
-  T get _shown => _pending?.$1 ?? widget.selected;
-
   int _indexOf(T value) => widget.segments.indexWhere((s) => s.value == value);
 
-  void _slideTo(int index) {
-    if (index == _at.value) return;
-    // Chosen once the frame with the tint landed is painted: an animation ends before its last
-    // frame is, and a still taken then would hold the tint short of the segment.
-    _at.animateTo(index.toDouble(), duration: motion(context, 320), curve: Curves.fastOutSlowIn).then(
-        (_) => WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              if (_pending case (final value,)?) {
-                _pending = null;
-                widget.onChanged(value);
-              }
-            }));
-  }
-
   void _choose(T value) {
-    if (value == _shown) return;
-    setState(() => _pending = value == widget.selected ? null : (value,));
-    _slideTo(_indexOf(value));
+    if (value != widget.selected) widget.onChanged(value);
   }
 
+  // The tint follows what is chosen, from wherever it is.
   @override
   void didUpdateWidget(AppSegmented<T> old) {
     super.didUpdateWidget(old);
-    final index = _indexOf(_shown);
+    final index = _indexOf(widget.selected);
     if (widget.segments.length != old.segments.length) {
       _at.value = math.max(index, 0).toDouble();
-    } else if (widget.selected != old.selected) {
-      // Chosen elsewhere (Undo, another window): that wins over a click still sliding.
-      _pending = null;
-      if (index >= 0) _slideTo(index);
+    } else if (widget.selected != old.selected && index >= 0) {
+      _at.animateTo(index.toDouble(), duration: motion(context, 320), curve: Curves.fastOutSlowIn);
     }
   }
 
   @override
   void dispose() {
-    // Closed while the tint slid: the click still counts, once the tree is settled.
-    if (_pending case (final value,)?) {
-      final onChanged = widget.onChanged;
-      Future.microtask(() => onChanged(value));
-    }
     _at.dispose();
     super.dispose();
   }
@@ -617,7 +645,7 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
     final dark = Theme.of(context).brightness == Brightness.dark;
     final segments = widget.segments;
     final n = segments.length;
-    final index = _indexOf(_shown);
+    final index = _indexOf(widget.selected);
     final shown = index >= 0;
     // The chosen segment: the accent's light tint, edged with the accent, its label the accent's
     // strong shade taken toward black (or in the dark, white) until it reads on the tint (4.5:1).
@@ -648,12 +676,14 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
                 child: FractionallySizedBox(
                   widthFactor: 1 / n,
                   heightFactor: 1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: chosen,
-                      border: Border.all(color: edge),
-                      borderRadius: BorderRadius.circular(5),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.2 : 0.06), blurRadius: 2, offset: const Offset(0, 1))],
+                  child: LeftOutOfStills(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: chosen,
+                        border: Border.all(color: edge),
+                        borderRadius: BorderRadius.circular(5),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.2 : 0.06), blurRadius: 2, offset: const Offset(0, 1))],
+                      ),
                     ),
                   ),
                 ),
@@ -665,7 +695,7 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
                   Expanded(
                     child: _Segment(
                       segment: s,
-                      chosen: s.value == _shown,
+                      chosen: s.value == widget.selected,
                       sliding: _at.isAnimating,
                       // As much of the accent as the tint covers of this segment.
                       color: !s.enabled

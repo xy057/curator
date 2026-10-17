@@ -481,9 +481,9 @@ in, and a `chrome` tone behind toolbars, the lane-name column and the ruler (`ch
 Classic). Controls are 28 px with 5 px corners on a 13 px type scale. Segmented controls are a clear
 track whose chosen segment, a light tint of the accent, slides to the one clicked, each label taking
 the accent as the tint passes under it, and the hover and press shades (drawn by the segment, so
-they fade rather than switch) gone while it slides; the choice is made once the frame with the tint landed is
-painted, since an appearance change (Theme, Style) fades from a still of the window, and a still
-taken at the click would hold the tint where it started; there are no ripples or 48 px touch targets, and the play button is a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
+they fade rather than switch) gone while it slides. A click chooses at once; an appearance change it makes (Theme, Style) fades
+from a still of the window, which would hold the tint where it started, so the tint is
+`LeftOutOfStills` (its own layer, hidden while `_RenderStillBoundary` takes the still); there are no ripples or 48 px touch targets, and the play button is a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
 tab switch, the Settings sidebar, lane labels). Video export draws in the classic palette. Neither follows the platform (no `.adaptive` or Cupertino widgets), so macOS and
 Windows match. A widget that draws its own control for Refined reads `AppStyle` from the theme;
 `AppSwitch` and `AppSegmented` (ui_kit.dart) are those: always use them, never `Switch` or

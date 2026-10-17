@@ -126,27 +126,8 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('Theme changes once its tint has landed: the window\'s still holds no tint left behind', (tester) async {
-    final settings = await open(tester);
-    await tester.tap(find.text('Appearance'));
-    await tester.pumpAndSettle();
-    final tint = find.descendant(
-        of: find.byType(AppSegmented<ThemeMode>),
-        matching: find.byWidgetPredicate((w) =>
-            w is DecoratedBox && (w.decoration as BoxDecoration).color != null && (w.decoration as BoxDecoration).border != null));
-    double? at;
-    settings.addListener(() => at ??= tester.getCenter(tint).dx);
-    await tester.tap(find.text('Dark'));
-    await tester.pumpAndSettle();
-    expect(settings.themeMode, ThemeMode.dark);
-    final dark = find.ancestor(of: find.text('Dark'), matching: find.byType(InkWell));
-    expect(at, closeTo(tester.getCenter(dark).dx, 0.5), reason: 'over Dark when the still is taken');
-    await tester.tap(find.text('General')); // the page the next test opens on
-    await tester.pumpAndSettle();
-  });
-
   testWidgets('the window\'s outline changes with the theme at once, as the other lines do', (tester) async {
-    final settings = await open(tester);
+    await open(tester);
     await tester.tap(find.text('Appearance'));
     await tester.pumpAndSettle();
     final window = tester.getRect(find.byType(Material).at(2));
@@ -163,9 +144,6 @@ void main() {
 
     await tester.tap(find.text('Dark'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400)); // the tint lands: Dark is chosen
-    expect(settings.themeMode, ThemeMode.dark);
-    await tester.pump(); // the first frame in the dark theme
     final (darkWindow, darkSwitch) = await outlines();
     expect(darkSwitch, isNot(lightSwitch));
     expect(darkWindow, darkSwitch, reason: 'not on a Material\'s own shape animation');

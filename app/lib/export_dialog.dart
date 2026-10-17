@@ -424,10 +424,7 @@ class _ExportDialogState extends State<_ExportDialog> {
           expand: true,
           segments: [for (final p in VideoPaper.values) ButtonSegment(value: p, label: Text(p.label))],
           selected: _settings.videoPaper,
-          onChanged: (p) {
-            _settings.videoPaper = p;
-            if (mounted) setState(() {});
-          },
+          onChanged: (p) => setState(() => _settings.videoPaper = p),
         ),
       ),
       _Row(

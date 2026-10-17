@@ -1,13 +1,46 @@
+import 'dart:async';
+
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
 
 void main() {
+  testWidgets('a click on Theme chooses at once; the still it fades from holds no tint where it started', (tester) async {
+    tester.view.physicalSize = const Size(2000, 1400);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory()..themeMode = ThemeMode.light;
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    await tester.pumpAndSettle();
+    unawaited(showSettingsDialog(tester.element(find.byType(HomePage)), settings));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Appearance'));
+    await tester.pumpAndSettle();
+    final segment = find.descendant(of: find.byType(AppSegmented<ThemeMode>), matching: find.byType(InkWell));
+    final (auto, light) = (tester.getRect(segment.at(0)), tester.getRect(segment.at(1)));
+    final images = find.byType(RawImage).evaluate().length;
+
+    await tester.tap(find.text('Dark'));
+    await tester.pump();
+    expect(settings.themeMode, ThemeMode.dark, reason: 'at the click');
+    final still = tester.widgetList<RawImage>(find.byType(RawImage)).elementAt(images).image!;
+    final (onAuto, onLight) = (await tester.runAsync(() async {
+      final data = (await still.toByteData())!;
+      // At the view's 2× pixels, a little in from each segment's left edge: no label there.
+      int at(Offset p) => data.getUint32(((p.dy * 2).floor() * still.width + (p.dx * 2).floor()) * 4);
+      return (at(auto.centerLeft + const Offset(5, 0)), at(light.centerLeft + const Offset(5, 0)));
+    }))!;
+    expect(onAuto, onLight, reason: 'Auto, where the tint was, bare as Light is');
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('an appearance change switches the theme at once, under a still of the window that fades out', (tester) async {
     tester.view.physicalSize = const Size(2000, 1400);
     tester.view.devicePixelRatio = 2;
