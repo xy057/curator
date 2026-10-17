@@ -117,10 +117,10 @@ class EditorController extends ChangeNotifier {
     var edits = await _newProjectEdits();
     LoadedScore score;
     try {
-      score = await _engrave(bytes, fonts: edits.fonts);
+      score = await _engrave(ScoreFile.decodeMusicXML(bytes), fonts: edits.fonts);
     } on FormatException {
       if (edits.fonts == ScoreFonts.standard) rethrow;
-      score = await _engrave(bytes); // a default font that can't be read: the standard ones
+      score = await _engrave(ScoreFile.decodeMusicXML(bytes)); // a default font that can't be read: the standard ones
       edits = edits.copyWith(fonts: ScoreFonts.standard);
     }
     await _install(fileNameOf(path), bytes, score, ProjectState(edits: edits));
@@ -172,7 +172,7 @@ class EditorController extends ChangeNotifier {
         state = ProjectState(edits: edits, images: state.images, view: state.view);
       }
     }
-    final score = await _engrave(scoreBytes,
+    final score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes),
         textEdits: edits.textEdits, pairs: edits.pairs, fonts: edits.fonts, engraving: edits.engraving);
     final arts = await ImageEditing._decodeAll(state.images);
     await _install(name, scoreBytes, score, state, arts: arts);
@@ -194,15 +194,17 @@ class EditorController extends ChangeNotifier {
   Future<ScoreReplacement> prepareReplacement(String path) async {
     final before = _score!;
     final bytes = await File(path).readAsBytes();
-    final xml = ScoreFile.decodeMusicXML(bytes);
-    final metadata = ScoreMetadata.read(xml);
+    // Read once for what it holds (its texts as written: the edits are carried by them), and
+    // once more as engraved.
+    final xml = ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
+    final metadata = ScoreMetadata.fromDocument(doc);
     final swap = ScoreSwap(
       before: before.metadata,
       after: metadata,
       textsBefore: before.texts,
-      textsAfter: PreparedScore.prepare(ScoreMetadata.parse(xml), const {}).texts,
+      textsAfter: PreparedScore.prepare(doc, const {}, metadata: metadata).texts,
     );
-    final score = await _engrave(bytes,
+    final score = await _engrave(xml,
         textEdits: swap.textEdits(_textEdits), pairs: swap.pairs(_pairs), fonts: _fonts, engraving: _projectEngraving);
     if (_score != before) throw StateError('Another score was opened meanwhile.');
     final state = projectState;
@@ -232,7 +234,7 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Engraves a score (the slow part, and the one that can fail) without touching what is open.
-  Future<LoadedScore> _engrave(Uint8List bytes,
+  Future<LoadedScore> _engrave(String musicXML,
       {Map<String, String> textEdits = const {},
       List<PlayerPair> pairs = const [],
       ScoreFonts fonts = ScoreFonts.standard,
@@ -240,7 +242,7 @@ class EditorController extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     try {
-      return await LoadedScore.load(ScoreFile.decodeMusicXML(bytes),
+      return await LoadedScore.load(musicXML,
           textEdits: textEdits,
           pairs: pairs,
           fonts: fonts,
