@@ -43,7 +43,7 @@ class EditCommands {
       _open &&
       (_editor.images._selected != null ||
           _editor.captions._selected != null ||
-          (_syncing ? _anchors.selected.isNotEmpty : _lanes.selected.isNotEmpty));
+          (_syncing ? !_anchors._isEmpty : _lanes.selected.isNotEmpty));
 
   /// Delete: a selected image goes first, then a selected caption, then what is selected in
   /// the tab showing.

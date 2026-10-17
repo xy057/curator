@@ -390,13 +390,13 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
         final inserted = quarter < _placed.end ? midi.inserted(quarter) : midi;
         _edit(inserted);
         final index = inserted.tempos.indexWhere((t) => t.quarter == quarter);
-        c.anchors.select(index < 0 ? null : index);
+        c.anchors.selectTempo(index < 0 ? null : index);
       } else {
-        c.anchors.select(null);
+        c.anchors.selectTempo(null);
         _draw(e.localPosition);
       }
     } else if (hit != null) {
-      c.anchors.select(hit.index);
+      c.anchors.selectTempo(hit.index);
       c.beginEdit();
       _scale.value = _currentScale;
       _from = _made = midi;
@@ -407,7 +407,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
       final t = midi.tempos[hit.index];
       _downBpm = t.quartersPerMinute / _placed.beatLength(t.quarter);
     } else {
-      c.anchors.select(null);
+      c.anchors.selectTempo(null);
       _scrubbing = true;
       c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
     }
@@ -420,7 +420,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
       if (_inserting) {
         if ((p - _down).distance <= 4) return;
         _inserting = false;
-        c.anchors.select(null);
+        c.anchors.selectTempo(null);
         _draw(_down);
       }
       _draw(p);
@@ -1266,7 +1266,7 @@ class _TempoPainter extends CustomPainter {
       final x = v.x(seconds);
       if (x < -6 || x > size.width + 6) continue;
       final at = Offset(x, y(t.quartersPerMinute / placed.beatLength(t.quarter)));
-      final selected = c.anchors.selected.contains(i);
+      final selected = c.anchors.selectedTempo == i;
       if (selected) canvas.drawCircle(at, 6, Paint()..color = colors.surface);
       canvas.drawCircle(at, selected ? 4.5 : 3, Paint()..color = colors.accentStrong);
     }

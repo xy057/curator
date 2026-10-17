@@ -928,7 +928,7 @@ class EditorController extends ChangeNotifier {
   void clearSelection() {
     if (lanes._selected.isEmpty &&
         lanes._lanes.isEmpty &&
-        anchors._selected.isEmpty &&
+        anchors._isEmpty &&
         images._selected == null &&
         captions._selected == null) {
       return;
@@ -936,7 +936,7 @@ class EditorController extends ChangeNotifier {
     images._deselect();
     captions._selected = null;
     lanes._clear();
-    anchors._selected = {};
+    anchors._deselect();
     notifyListeners();
   }
 
@@ -1040,7 +1040,7 @@ class EditorController extends ChangeNotifier {
     }
     _committed = state;
     lanes._clear();
-    anchors._selected = {};
+    anchors._deselect();
     _edited();
   }
 

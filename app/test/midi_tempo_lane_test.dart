@@ -44,7 +44,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(c.midiTempo!.tempos, [_t(0, 135), _t(12, 105)]);
     expect(c.sync!.secondsAtQuarter(15), closeTo(1 + 12 * 60 / 135 + 3 * 60 / 105, 1e-6), reason: 'the sync follows');
-    expect(c.anchors.selected, {1}, reason: 'the change dragged is selected');
+    expect(c.anchors.selectedTempo, 1, reason: 'the change dragged is selected');
     c.undo();
     expect(c.midiTempo, original);
     await tester.pump(const Duration(milliseconds: 400));
@@ -93,7 +93,7 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
     await tester.pump(const Duration(milliseconds: 400));
     expect(c.midiTempo!.tempos, [_t(0, 135), _t(6, 135), _t(12, 90)]);
-    expect(c.anchors.selected, {1});
+    expect(c.anchors.selectedTempo, 1);
     await tester.dragFrom(Offset(x(6), y(90)), Offset(0, y(80) - y(90)));
     await tester.pump(const Duration(milliseconds: 400));
     expect(c.midiTempo!.tempos, [_t(0, 135), _t(6, 120), _t(12, 90)]);
@@ -105,13 +105,13 @@ void main() {
     // A click selects a change, Delete removes it; a click off the line moves the playhead.
     await tester.tapAt(Offset(x(12), y(60)));
     await tester.pump(const Duration(milliseconds: 400));
-    expect(c.anchors.selected, {1});
+    expect(c.anchors.selectedTempo, 1);
     c.commands.delete();
     expect(c.midiTempo!.tempos, [_t(0, 135)]);
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tapAt(Offset(x(6), lane().top + 10));
     await tester.pump(const Duration(milliseconds: 400));
-    expect(c.anchors.selected, isEmpty);
+    expect(c.anchors.selectedTempo, isNull);
     expect(c.playback.time.value, closeTo(1 + 6 * 60 / 135, 0.05));
 
     // A warp is a line across the lane: double-click it to change where it jumps; an empty
@@ -204,7 +204,7 @@ void main() {
     expect(c.midiTempo!.tempos, [_t(0, 135), _t(12, 105)]);
     // The lane now fits 70–90: the change, at 70, is at its bottom margin.
     var gesture = await tester.startGesture(Offset(x(12), lane().bottom - 24));
-    expect(c.anchors.selected, {1}, reason: 'the change is taken');
+    expect(c.anchors.selectedTempo, 1, reason: 'the change is taken');
     await gesture.moveBy(const Offset(0, -20));
     await tester.pump();
     c.undo();
