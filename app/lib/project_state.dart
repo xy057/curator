@@ -20,6 +20,9 @@ class ViewState {
   final double? time;
 }
 
+/// [EditState.copyWith]'s "not given", told apart from null.
+const _kept = Object();
+
 /// The edits a project saves (everything but its image files and the view), at one moment:
 /// what Undo steps through, and the heart of [ProjectState].
 @immutable
@@ -123,13 +126,14 @@ class EditState {
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
 
-  /// This state with the fields given instead of its own.
+  /// This state with the fields given instead of its own. A field that may be null is
+  /// cleared by passing null ([lanes], [transition], [midi], [captionFont]); left out, it stays.
   EditState copyWith({
-    Map<String, List<Region>>? lanes,
-    double? transition,
+    Object? lanes = _kept,
+    Object? transition = _kept,
     List<SyncAnchor>? anchors,
     double? leadIn,
-    MidiTempoMap? midi,
+    Object? midi = _kept,
     Map<String, PartName>? partNames,
     Map<String, String>? textEdits,
     Set<String>? condensed,
@@ -137,17 +141,17 @@ class EditState {
     List<String>? partOrder,
     List<ImagePatch>? patches,
     List<Caption>? captions,
-    String? captionFont,
+    Object? captionFont = _kept,
     ScoreFonts? fonts,
     bool? embedFont,
     EngravingOptions? engraving,
   }) =>
       EditState(
-        lanes: lanes ?? this.lanes,
-        transition: transition ?? this.transition,
+        lanes: identical(lanes, _kept) ? this.lanes : lanes as Map<String, List<Region>>?,
+        transition: identical(transition, _kept) ? this.transition : transition as double?,
         anchors: anchors ?? this.anchors,
         leadIn: leadIn ?? this.leadIn,
-        midi: midi ?? this.midi,
+        midi: identical(midi, _kept) ? this.midi : midi as MidiTempoMap?,
         partNames: partNames ?? this.partNames,
         textEdits: textEdits ?? this.textEdits,
         condensed: condensed ?? this.condensed,
@@ -155,7 +159,7 @@ class EditState {
         partOrder: partOrder ?? this.partOrder,
         patches: patches ?? this.patches,
         captions: captions ?? this.captions,
-        captionFont: captionFont ?? this.captionFont,
+        captionFont: identical(captionFont, _kept) ? this.captionFont : captionFont as String?,
         fonts: fonts ?? this.fonts,
         embedFont: embedFont ?? this.embedFont,
         engraving: engraving ?? this.engraving,

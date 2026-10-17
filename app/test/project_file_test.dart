@@ -335,6 +335,14 @@ void main() {
     expect(ProjectState.fromJson({'sync': {'anchors': [{'quarter': 0, 'seconds': 1}]}}, savedVersion: 3).edits.anchors.single.isWarp, isFalse);
   });
 
+  test('copyWith clears a field that may be null when given null, and keeps it when left out', () {
+    final midi = MidiTempoMap('take.mid', const [(quarter: 0, quartersPerMinute: 120)]);
+    final full = EditState(lanes: const {'P1': []}, transition: 0.5, midi: midi, captionFont: 'Helvetica');
+    expect(full.copyWith(leadIn: 2), EditState(lanes: const {'P1': []}, transition: 0.5, midi: midi, captionFont: 'Helvetica', leadIn: 2));
+    final cleared = full.copyWith(lanes: null, transition: null, midi: null, captionFont: null);
+    expect((cleared.lanes, cleared.transition, cleared.midi, cleared.captionFont), (null, null, null, null));
+  });
+
   test('a project that is not ours, or from the future, is refused', () async {
     final path = '${dir.path}/future.ccs';
     final archive = Archive()
