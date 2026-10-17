@@ -483,7 +483,9 @@ track whose chosen segment, a light tint of the accent, slides to the one clicke
 the accent as the tint passes under it, and the hover and press shades (drawn by the segment, so
 they fade rather than switch) gone while it slides. A click chooses at once; an appearance change it makes (Theme, Style) fades
 from a still of the window, which would hold the tint where it started, so the tint is
-`LeftOutOfStills` (its own layer, hidden while `_RenderStillBoundary` takes the still); there are no ripples or 48 px touch targets, and the play button is a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
+`LeftOutOfStills` (its own layer, hidden while `_RenderStillBoundary` takes the still) while it
+moves or a click is about to move it; at rest it stays in the still, so a change of accent
+cross-fades it as the rest of the window; there are no ripples or 48 px touch targets, and the play button is a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
 tab switch, the Settings sidebar, lane labels). Video export draws in the classic palette. Neither follows the platform (no `.adaptive` or Cupertino widgets), so macOS and
 Windows match. A widget that draws its own control for Refined reads `AppStyle` from the theme;
 `AppSwitch` and `AppSegmented` (ui_kit.dart) are those: always use them, never `Switch` or

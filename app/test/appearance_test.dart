@@ -19,9 +19,7 @@ void main() {
     final settings = AppSettings.memory()..themeMode = ThemeMode.light;
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pumpAndSettle();
-    unawaited(showSettingsDialog(tester.element(find.byType(HomePage)), settings));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Appearance'));
+    unawaited(showSettingsDialog(tester.element(find.byType(HomePage)), settings, page: 'Appearance'));
     await tester.pumpAndSettle();
     final segment = find.descendant(of: find.byType(AppSegmented<ThemeMode>), matching: find.byType(InkWell));
     final (auto, light) = (tester.getRect(segment.at(0)), tester.getRect(segment.at(1)));
@@ -38,6 +36,32 @@ void main() {
       return (at(auto.centerLeft + const Offset(5, 0)), at(light.centerLeft + const Offset(5, 0)));
     }))!;
     expect(onAuto, onLight, reason: 'Auto, where the tint was, bare as Light is');
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a change of accent cross-fades the chosen segment\'s tint, as the rest of the window', (tester) async {
+    tester.view.physicalSize = const Size(2000, 1400);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings.memory()..themeMode = ThemeMode.light;
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    await tester.pumpAndSettle();
+    unawaited(showSettingsDialog(tester.element(find.byType(HomePage)), settings, page: 'Appearance'));
+    await tester.pumpAndSettle();
+    final segment = find.descendant(of: find.byType(AppSegmented<ThemeMode>), matching: find.byType(InkWell));
+    final (auto, light) = (tester.getRect(segment.at(0)), tester.getRect(segment.at(1)));
+    final images = find.byType(RawImage).evaluate().length;
+
+    await tester.tap(find.byTooltip('Rose'));
+    await tester.pump();
+    expect(settings.accent, AccentColor.rose);
+    final still = tester.widgetList<RawImage>(find.byType(RawImage)).elementAt(images).image!;
+    final (onAuto, onLight) = (await tester.runAsync(() async {
+      final data = (await still.toByteData())!;
+      int at(Offset p) => data.getUint32(((p.dy * 2).floor() * still.width + (p.dx * 2).floor()) * 4);
+      return (at(auto.centerLeft + const Offset(5, 0)), at(light.centerLeft + const Offset(5, 0)));
+    }))!;
+    expect(onLight, isNot(onAuto), reason: 'Light, chosen, keeps its tint in the still: it fades from the old accent, not from nothing');
     await tester.pumpAndSettle();
   });
 

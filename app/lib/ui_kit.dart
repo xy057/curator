@@ -520,16 +520,28 @@ class _SwitchPainter extends CustomPainter {
   bool shouldRepaint(_SwitchPainter old) => old.t != t || old.track != track || old.focus != focus;
 }
 
-/// Painted in the window, but not in the still a change of appearance fades from (main.dart):
-/// something that moves meanwhile, which the still would hold where it was, fading out there.
+/// Painted in the window, but not in the still a change of appearance fades from (main.dart)
+/// while [moving]: something that moves meanwhile, which the still would hold where it was,
+/// fading out there. Still, it is in the still, and cross-fades to its new colours as the rest
+/// of the window does.
 class LeftOutOfStills extends SingleChildRenderObjectWidget {
-  const LeftOutOfStills({super.key, super.child});
+  const LeftOutOfStills({super.key, required this.moving, super.child});
+
+  /// Asked as the still is taken.
+  final bool Function() moving;
 
   @override
-  RenderObject createRenderObject(BuildContext context) => _RenderLeftOutOfStills();
+  RenderObject createRenderObject(BuildContext context) => _RenderLeftOutOfStills(moving);
+
+  @override
+  void updateRenderObject(BuildContext context, RenderObject renderObject) =>
+      (renderObject as _RenderLeftOutOfStills).moving = moving;
 }
 
 class _RenderLeftOutOfStills extends RenderProxyBox {
+  _RenderLeftOutOfStills(this.moving);
+  bool Function() moving;
+
   static final _attached = <_RenderLeftOutOfStills>{};
 
   OpacityLayer? get _opacity => layer as OpacityLayer?;
@@ -560,9 +572,9 @@ class _RenderLeftOutOfStills extends RenderProxyBox {
   }
 }
 
-/// [capture] (a still of the window) with every [LeftOutOfStills] hidden.
+/// [capture] (a still of the window) with every [LeftOutOfStills] that is moving hidden.
 T withoutLeftOut<T>(T Function() capture) {
-  final layers = [for (final r in _RenderLeftOutOfStills._attached) ?r._opacity];
+  final layers = [for (final r in _RenderLeftOutOfStills._attached) if (r.moving()) ?r._opacity];
   for (final l in layers) {
     l.alpha = 0;
   }
@@ -607,9 +619,22 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
 
   int _indexOf(T value) => widget.segments.indexWhere((s) => s.value == value);
 
+  /// A click is choosing: the tint is about to slide, though it hasn't started yet.
+  bool _choosing = false;
+
   void _choose(T value) {
-    if (value != widget.selected) widget.onChanged(value);
+    if (value == widget.selected) return;
+    _choosing = true;
+    try {
+      widget.onChanged(value);
+    } finally {
+      _choosing = false;
+    }
   }
+
+  /// Out of a still while it slides, or is about to (a click on Theme takes the still before the
+  /// tint sets off); in it otherwise, so a change of accent cross-fades it as the rest.
+  bool _moving() => _choosing || _at.isAnimating;
 
   // The tint follows what is chosen, from wherever it is.
   @override
@@ -677,6 +702,7 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
                   widthFactor: 1 / n,
                   heightFactor: 1,
                   child: LeftOutOfStills(
+                    moving: _moving,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: chosen,

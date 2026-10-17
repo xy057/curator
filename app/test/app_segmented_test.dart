@@ -102,21 +102,27 @@ void main() {
     expect(tester.getCenter(thumb).dx, closeTo(tester.getCenter(find.text('Light')).dx, 0.5));
   });
 
-  testWidgets('Refined: a still of the window leaves the tint out', (tester) async {
+  testWidgets('Refined: a still of the window holds the tint at rest, and leaves it out while it slides', (tester) async {
     await mount(tester, UiStyle.refined);
     final boundary = tester.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first);
-    Future<int> pixel(ui.Image image) async {
-      final data = (await image.toByteData())!;
-      final p = tester.getRect(thumb).centerLeft + const Offset(5, 0);
-      return data.getUint32((p.dy.floor() * image.width + p.dx.floor()) * 4);
-    }
+    ui.Image still() => withoutLeftOut(() => (boundary.debugLayer! as OffsetLayer).toImageSync(Offset.zero & boundary.size));
+    // A little in from a segment's left edge: no label there.
+    Future<int> pixel(String label) => tester.runAsync(() async {
+          final image = still();
+          final data = (await image.toByteData())!;
+          final segment = find.ancestor(of: find.text(label), matching: find.byType(InkWell));
+          final p = tester.getRect(segment).centerLeft + const Offset(5, 0);
+          return data.getUint32((p.dy.floor() * image.width + p.dx.floor()) * 4);
+        }).then((v) => v!);
 
-    ui.Image still() => (boundary.debugLayer! as OffsetLayer).toImageSync(Offset.zero & boundary.size);
-
-    final (shown, left) = (await tester.runAsync(() async => (await pixel(still()), await pixel(withoutLeftOut(still)))))!;
-    expect(shown, isNot(left));
+    final bare = await pixel('Light');
+    expect(await pixel('Auto'), isNot(bare), reason: 'at rest, in the still');
+    await tester.tap(find.text('Dark'));
     await tester.pump();
-    expect(await tester.runAsync(() => pixel(still())), shown, reason: 'back in the window');
+    await tester.pump(const Duration(milliseconds: 20));
+    expect(await pixel('Auto'), bare, reason: 'sliding: out of it');
+    await tester.pumpAndSettle();
+    expect(await pixel('Dark'), isNot(bare), reason: 'landed: in it again');
   });
 
   testWidgets('Refined: for every accent, light and dark, the chosen label reads on its tint', (tester) async {
