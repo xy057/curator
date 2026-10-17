@@ -288,12 +288,12 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, width: 520),
     );
-    return style == UiStyle.refined ? _refined(theme, accent, c, dark) : theme;
+    return style == UiStyle.refined ? _refined(theme, c, dark) : theme;
   }
 
   /// [UiStyle.refined] over the classic theme: what a desktop app does, not a phone. A press
   /// shows as a tint, not a ripple, and a hover as a fainter one.
-  static ThemeData _refined(ThemeData theme, AccentColor accent, AppColors c, bool dark) {
+  static ThemeData _refined(ThemeData theme, AppColors c, bool dark) {
     // Text styles as Theme.of gives them (merged with the typography's geometry, not
     // inherited): a button lerps its label from one style to the other when the style changes,
     // and two text styles lerp only when both inherit or neither does.
@@ -339,40 +339,6 @@ class AppColors extends ThemeExtension<AppColors> {
       foregroundColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.5) : c.text),
       padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
-    );
-    // A segmented control: a recessed well, the chosen segment filled with the accent exactly as
-    // its swatch in Settings ▸ Appearance shows it, and a segment held down already tinted with
-    // it, so a press never looks like the segments not chosen.
-    final chosen = dark ? accent.color : accent.strong;
-    final onChosen = 1.05 / (chosen.computeLuminance() + 0.05) >= 3 ? Colors.white : const Color(0xFF1D1D1F);
-    Color? segmentText(Set<WidgetState> s) => s.contains(WidgetState.disabled)
-        ? c.textMuted.withValues(alpha: 0.5)
-        : s.contains(WidgetState.selected)
-            ? onChosen
-            : s.contains(WidgetState.pressed)
-                ? c.text
-                : c.textMuted;
-    final segment = ButtonStyle(
-      shape: shape,
-      textStyle: label,
-      minimumSize: const WidgetStatePropertyAll(Size(0, 26)),
-      padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
-      animationDuration: quick,
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
-      side: WidgetStatePropertyAll(BorderSide(color: c.line)),
-      backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected)
-          ? chosen
-          : s.contains(WidgetState.pressed)
-              ? Color.alphaBlend(chosen.withValues(alpha: dark ? 0.4 : 0.3), c.well)
-              : c.well),
-      foregroundColor: WidgetStateProperty.resolveWith(segmentText),
-      iconColor: WidgetStateProperty.resolveWith(segmentText),
-      iconSize: const WidgetStatePropertyAll(15),
-      // The fill says pressed; hovered, a faint shade of the well.
-      overlayColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.hovered) && !s.contains(WidgetState.pressed)
-          ? c.text.withValues(alpha: dark ? 0.06 : 0.045)
-          : Colors.transparent),
     );
     final strong = dark ? c.accent : c.accentStrong;
     // Dialogs and menus: in the dark, a step lighter than the window, as raised things are.
@@ -493,7 +459,6 @@ class AppColors extends ThemeExtension<AppColors> {
       elevatedButtonTheme: ElevatedButtonThemeData(style: filled),
       outlinedButtonTheme: OutlinedButtonThemeData(style: outlined),
       textButtonTheme: TextButtonThemeData(style: text),
-      segmentedButtonTheme: SegmentedButtonThemeData(style: segment),
       dialogTheme: theme.dialogTheme.copyWith(
         backgroundColor: raised,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: dark ? c.line : Colors.transparent)),

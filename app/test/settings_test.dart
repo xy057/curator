@@ -131,7 +131,7 @@ void main() {
     await tester.tap(find.text('Appearance'));
     await tester.pumpAndSettle();
     final window = tester.getRect(find.byType(Material).at(2));
-    final theme = tester.getRect(find.byType(SegmentedButton<ThemeMode>));
+    final theme = tester.getRect(find.byType(AppSegmented<ThemeMode>));
     Future<(int, int)> outlines() async => (await tester.runAsync(() async {
           // At the view's 2× pixels: the window's left edge, and the theme switch's top edge.
           final image = await tester.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first).toImage(pixelRatio: 2);

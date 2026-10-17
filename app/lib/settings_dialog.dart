@@ -151,15 +151,14 @@ final _categories = <_Category>[
     _Item(
       'Theme',
       (_) => 'Dark also turns the score dark.',
-      (c) => SegmentedButton<ThemeMode>(
-        showSelectedIcon: false,
+      (c) => AppSegmented<ThemeMode>(
         segments: const [
           ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined, size: 16), label: Text('Auto')),
           ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined, size: 16), label: Text('Light')),
           ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined, size: 16), label: Text('Dark')),
         ],
-        selected: {c.settings.themeMode},
-        onSelectionChanged: (s) => c.settings.themeMode = s.single,
+        selected: c.settings.themeMode,
+        onChanged: (v) => c.settings.themeMode = v,
       ),
       keywords: 'dark light mode colour color',
     ),
@@ -172,11 +171,10 @@ final _categories = <_Category>[
     _Item(
       'Style',
       null,
-      (c) => SegmentedButton<UiStyle>(
-        showSelectedIcon: false,
+      (c) => AppSegmented<UiStyle>(
         segments: [for (final s in UiStyle.values) ButtonSegment(value: s, label: Text(s.label))],
-        selected: {c.settings.uiStyle},
-        onSelectionChanged: (s) => c.settings.uiStyle = s.single,
+        selected: c.settings.uiStyle,
+        onChanged: (v) => c.settings.uiStyle = v,
       ),
       keywords: 'look controls switch button material classic refined theme',
     ),
@@ -221,14 +219,13 @@ final _categories = <_Category>[
         MediaStorage.embed => 'The audio is stored in the project file.',
         MediaStorage.link => 'The project points to the recording; keep it nearby.',
       },
-      (c) => SegmentedButton<MediaStorage>(
-        showSelectedIcon: false,
+      (c) => AppSegmented<MediaStorage>(
         segments: const [
           ButtonSegment(value: MediaStorage.embed, label: Text('Embed'), icon: Icon(Icons.inventory_2_outlined, size: 16)),
           ButtonSegment(value: MediaStorage.link, label: Text('Link'), icon: Icon(Icons.link, size: 16)),
         ],
-        selected: {c.settings.mediaStorage},
-        onSelectionChanged: (s) => c.settings.mediaStorage = s.single,
+        selected: c.settings.mediaStorage,
+        onChanged: (v) => c.settings.mediaStorage = v,
       ),
       keywords: 'embed link media audio video file',
     ),

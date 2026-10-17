@@ -97,21 +97,6 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  test("Refined: a segment chosen is its accent's swatch; held down, tinted with it, not the unchosen grey", () {
-    for (final accent in AccentColor.values) {
-      for (final brightness in Brightness.values) {
-        final style = AppColors.theme(accent: accent, brightness: brightness).segmentedButtonTheme.style!;
-        final swatch = brightness == Brightness.dark ? accent.color : accent.strong;
-        final chosen = style.backgroundColor!.resolve({WidgetState.selected});
-        final pressed = style.backgroundColor!.resolve({WidgetState.pressed})!;
-        final unchosen = style.backgroundColor!.resolve({})!;
-        expect(chosen, swatch, reason: '$accent $brightness');
-        expect(pressed, isNot(unchosen));
-        expect((pressed.computeLuminance() - unchosen.computeLuminance()).abs(), greaterThan(0.05), reason: '$accent $brightness');
-      }
-    }
-  });
-
   test('Refined sets a desktop theme over Classic, which stays Material as it was', () {
     for (final brightness in Brightness.values) {
       final refined = AppColors.theme(brightness: brightness);

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -515,4 +517,172 @@ class _SwitchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SwitchPainter old) => old.t != t || old.track != track || old.focus != focus;
+}
+
+/// The app's segmented control: always use it rather than [SegmentedButton]. In
+/// [UiStyle.refined] a recessed well whose chosen segment, a light tint of the accent, slides
+/// to the segment chosen; in [UiStyle.classic] Material's [SegmentedButton] (with [style]).
+/// Segments are as wide as the widest, or share the width given with [expand].
+class AppSegmented<T> extends StatelessWidget {
+  const AppSegmented({
+    super.key,
+    required this.segments,
+    required this.selected,
+    required this.onChanged,
+    this.expand = false,
+    this.style,
+  });
+  final List<ButtonSegment<T>> segments;
+  final T selected;
+  final ValueChanged<T> onChanged;
+  final bool expand;
+  final ButtonStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isRefined(context)) {
+      return SegmentedButton<T>(
+        style: style,
+        expandedInsets: expand ? EdgeInsets.zero : null,
+        showSelectedIcon: false,
+        segments: segments,
+        selected: {selected},
+        onSelectionChanged: (s) => onChanged(s.single),
+      );
+    }
+    final colors = context.colors;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final n = segments.length;
+    final index = segments.indexWhere((s) => s.value == selected);
+    // The chosen segment: the accent's light tint, edged with the accent, its label the accent's
+    // strong shade taken toward black (or in the dark, white) until it reads on the tint (4.5:1).
+    final chosen = colors.accentSoft;
+    final edge = colors.accent.withValues(alpha: dark ? 0.5 : 0.45);
+    double contrast(Color a, Color b) {
+      final (x, y) = (a.computeLuminance(), b.computeLuminance());
+      return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
+    }
+
+    var onChosen = colors.accentStrong;
+    for (var t = 0.05; contrast(onChosen, chosen) < 4.5 && t <= 1; t += 0.05) {
+      onChosen = Color.lerp(colors.accentStrong, dark ? Colors.white : Colors.black, t)!;
+    }
+    final control = Container(
+      height: 32,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(color: colors.well, border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(7)),
+      child: Stack(fit: StackFit.expand, children: [
+        if (index >= 0)
+          Positioned.fill(
+            child: AnimatedAlign(
+              alignment: Alignment(n == 1 ? 0 : -1 + 2 * index / (n - 1), 0),
+              duration: motion(context, 220),
+              curve: Curves.easeOutCubic,
+              child: FractionallySizedBox(
+                widthFactor: 1 / n,
+                heightFactor: 1,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: chosen,
+                    border: Border.all(color: edge),
+                    borderRadius: BorderRadius.circular(5),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.2 : 0.06), blurRadius: 2, offset: const Offset(0, 1))],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        Material(
+          type: MaterialType.transparency,
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            for (final s in segments)
+              Expanded(
+                child: _Segment(
+                  segment: s,
+                  chosen: s.value == selected,
+                  onChosen: onChosen,
+                  onTap: () => onChanged(s.value),
+                ),
+              ),
+          ]),
+        ),
+      ]),
+    );
+    return Semantics(container: true, explicitChildNodes: true, child: expand ? control : IntrinsicWidth(child: control));
+  }
+}
+
+class _Segment extends StatefulWidget {
+  const _Segment({required this.segment, required this.chosen, required this.onChosen, required this.onTap});
+  final ButtonSegment<Object?> segment;
+  final bool chosen;
+  final Color onChosen;
+  final VoidCallback onTap;
+
+  @override
+  State<_Segment> createState() => _SegmentState();
+}
+
+class _SegmentState extends State<_Segment> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final s = widget.segment;
+    final enabled = s.enabled;
+    final text = !enabled
+        ? colors.textMuted.withValues(alpha: 0.5)
+        : widget.chosen
+            ? widget.onChosen
+            : _pressed
+                ? colors.text
+                : colors.textMuted;
+    // Not chosen: a faint shade of the well while hovered, the accent's tint while held down,
+    // so a press already looks like the chosen segment.
+    final overlay = WidgetStateProperty.resolveWith<Color?>((states) => widget.chosen
+        ? Colors.transparent
+        : states.contains(WidgetState.pressed)
+            ? colors.accent.withValues(alpha: dark ? 0.2 : 0.14)
+            : states.contains(WidgetState.hovered)
+                ? colors.text.withValues(alpha: dark ? 0.06 : 0.045)
+                : states.contains(WidgetState.focused)
+                    ? colors.accent.withValues(alpha: 0.14)
+                    : Colors.transparent);
+    final label = theme.textTheme.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0);
+    Widget segment = Semantics(
+      button: true,
+      selected: widget.chosen,
+      inMutuallyExclusiveGroup: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(5),
+        overlayColor: overlay,
+        onTap: enabled ? widget.onTap : null,
+        onHighlightChanged: (v) => setState(() => _pressed = v),
+        child: TweenAnimationBuilder<Color?>(
+          tween: ColorTween(end: text),
+          duration: stateDuration(motion(context, 200)),
+          builder: (context, color, _) => IconTheme.merge(
+            data: IconThemeData(color: color, size: 15),
+            child: DefaultTextStyle.merge(
+              style: label.copyWith(color: color),
+              maxLines: 1,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
+                  ?s.icon,
+                  if (s.icon != null && s.label != null) const SizedBox(width: 6),
+                  if (s.label case final label?) Flexible(child: label),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (s.tooltip case final tip?) segment = Tip(message: tip, child: segment);
+    return segment;
+  }
 }
