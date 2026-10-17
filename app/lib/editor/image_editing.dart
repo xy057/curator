@@ -72,10 +72,10 @@ class ImageEditing {
     if (!_enabled || _editor._score == null) return;
     // The same file again is the same image: the project keeps it once.
     final same = _images.values.where((i) => i.kind == kind && _arts.containsKey(i.id) && listEquals(i.bytes, bytes)).firstOrNull;
-    final image = same ?? PatchImage.create(kind, bytes, extension: extension), document = _document;
+    final image = same ?? PatchImage.create(kind, bytes, extension: extension), document = _documents.current;
     final art = same != null ? _arts[same.id]! : await image.decode();
     // Closed (another maybe opened) or switched off meanwhile: not for what is open now.
-    if (document != _document || !_enabled || _editor._score == null) return same == null ? _dispose(art) : null;
+    if (!document.isLatest || !_enabled || _editor._score == null) return same == null ? _dispose(art) : null;
     _images[image.id] = image;
     _arts[image.id] = art;
     final aspect = art.size.width / art.size.height;
@@ -208,11 +208,11 @@ class ImageEditing {
         for (final p in _patches) p.image: ?_images[p.image],
       };
 
-  /// Counts the documents closed, so an image decoded for one isn't added to the next.
-  int _document = 0;
+  /// A turn per document, so an image decoded for one isn't added to the next.
+  final _documents = Latest();
 
   void _reset() {
-    _document++;
+    _documents.cancel();
     _patches = const [];
     _deselect();
     _images.clear();

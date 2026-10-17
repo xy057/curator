@@ -61,13 +61,13 @@ class CaptionEditing {
   /// As the scene draws them.
   CaptionStyle get style => _style;
   CaptionStyle _style = const CaptionStyle();
-  int _styleGeneration = 0;
+  final _styles = Latest();
 
   /// Works out [style] (an installed family is read and registered first) and gives it to the
   /// scene. The latest call wins. Never throws (it isn't awaited): a family that can't be read
   /// is drawn as one not installed.
   Future<void> _applyStyle() async {
-    final generation = ++_styleGeneration, name = effectiveFont;
+    final turn = _styles.start(), name = effectiveFont;
     String? family;
     var found = true;
     if (name == TextFonts.academico) {
@@ -85,7 +85,7 @@ class CaptionEditing {
         found = false; // its files can't be read: as if not installed
       }
     }
-    if (generation != _styleGeneration) return;
+    if (!turn.isLatest) return;
     _fontFound = found;
     _style = CaptionStyle(fontFamily: family, position: _position, countdown: _countdown, size: _size);
     _editor._scene?.captionStyle = _style;

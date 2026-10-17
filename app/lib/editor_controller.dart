@@ -11,6 +11,7 @@ import 'edit_history.dart';
 import 'error_text.dart';
 import 'file_names.dart';
 import 'image_patch.dart';
+import 'latest.dart';
 import 'project_state.dart';
 import 'score_replacement.dart';
 import 'time_viewport.dart';
@@ -318,7 +319,7 @@ class EditorController extends ChangeNotifier {
 
   /// Lets go of the score and everything edited in it.
   void _closeDocument() {
-    _textGeneration++; // a text edit still engraving is for this document: drop it
+    _engravings.cancel(); // an edit still engraving is for this document: drop it
     _reengraving = false;
     engravingFailure.value = null;
     _history.clear();
@@ -407,7 +408,7 @@ class EditorController extends ChangeNotifier {
   /// The score's text edits (text id → new text; '' removes it). The engraving catches up
   /// with them a moment later ([isReengraving]).
   Map<String, String> _textEdits = const {};
-  int _textGeneration = 0;
+  final _engravings = Latest();
   bool _reengraving = false;
 
   /// True while a text edit (a new pair of players, new engraving options, new fonts) is being
@@ -478,21 +479,21 @@ class EditorController extends ChangeNotifier {
   /// [engravingFailure] (several callers don't wait for it, Undo and the engraving options).
   Future<void> _reengrave() async {
     final score = _score!;
-    final generation = ++_textGeneration;
+    final turn = _engravings.start();
     _reengraving = true;
     notifyListeners();
     try {
       final edited = await engraveAgain(score);
-      if (generation != _textGeneration) return; // superseded, or another score was opened
+      if (!turn.isLatest) return; // superseded, or another score was opened
       _score = edited;
       _scene?.dispose();
       _scene = _makeScene(edited);
       playback._markDirty();
       engravingFailure.value = null;
     } catch (e) {
-      if (generation == _textGeneration && !_disposed) engravingFailure.value = e;
+      if (turn.isLatest && !_disposed) engravingFailure.value = e;
     } finally {
-      if (generation == _textGeneration) {
+      if (turn.isLatest) {
         _reengraving = false;
         notifyListeners();
       }
@@ -1088,7 +1089,7 @@ class EditorController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _textGeneration++; // an engraving still running finds nothing to update
+    _engravings.cancel(); // an engraving still running finds nothing to update
     playback._dispose();
     _scene?.dispose();
     _curation?.dispose();
