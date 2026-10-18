@@ -1,8 +1,6 @@
 // File ▸ Export Video…: greyed out until a score is open; the dialog shows the frame at the
 // playhead over a trimmer of the piece, exports the whole piece unless bars are typed or dragged,
 // and remembers its choices. SCREENSHOT_DIR=/some/dir also saves it as PNGs.
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
@@ -11,7 +9,6 @@ import 'package:curated_score/ui_kit.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
@@ -29,16 +26,9 @@ void main() {
     final c = state.controller as EditorController;
 
     Future<void> shoot(String name) async {
-      final dir = Platform.environment['SCREENSHOT_DIR'];
-      if (dir == null) return;
+      if (screenshotDir == null) return;
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(
-            find.ancestor(of: find.byType(Dialog), matching: find.byType(RepaintBoundary)).last);
-        final image = await boundary.toImage(pixelRatio: 2);
-        final png = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
-      });
+      await screenshot(tester, name, inside: find.byType(Dialog), outermost: true);
     }
 
     Future<MenuItemButton> item() async {

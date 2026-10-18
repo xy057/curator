@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/caption_lane.dart';
@@ -10,7 +8,6 @@ import 'package:curated_score/lanes_common.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
@@ -24,18 +21,6 @@ void main() {
       (tester) async {
     await tester.runAsync(loadTestFonts);
     desktopWindow(tester);
-    final dir = Platform.environment['SCREENSHOT_DIR'];
-    Future<void> shot(String name, Finder inside) async {
-      if (dir == null) return;
-      await tester.runAsync(() async {
-        final boundary =
-            tester.renderObject<RenderRepaintBoundary>(find.ancestor(of: inside, matching: find.byType(RepaintBoundary)).first);
-        final image = await boundary.toImage(pixelRatio: 2);
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
-      });
-    }
-
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
@@ -59,7 +44,7 @@ void main() {
     c.captions.add(Caption(bar[8], bar[12], 'Strings alone'));
     c.captions.add(Caption(bar[1], bar[4], 'The horns answer'));
     await tester.pumpAndSettle();
-    await shot('caption-lane', find.byType(CaptionLane));
+    await screenshot(tester, 'caption-lane', inside: find.byType(CaptionLane));
 
     c.tab = BottomTab.audio;
     await tester.pumpAndSettle();
@@ -100,7 +85,7 @@ void main() {
     await tester.enterText(texts.at(8), 'Tutti');
     await tester.tap(find.byIcon(Icons.close_rounded).at(1));
     await tester.pumpAndSettle();
-    await shot('captions-sheet', find.byType(CaptionsDialog));
+    await screenshot(tester, 'captions-sheet', inside: find.byType(CaptionsDialog));
     await tester.tap(find.widgetWithText(FilledButton, 'Done'));
     await tester.pumpAndSettle();
 
