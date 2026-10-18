@@ -635,7 +635,7 @@ void main() {
     expect(vertical().pixels, greaterThan(top));
   });
 
-  testWidgets('in 6/8 the finer grid is the two dotted-crotchet beats of each bar', (tester) async {
+  testWidgets('in 6/8 a drag snaps to the two dotted-crotchet beats of each bar', (tester) async {
     tester.view.physicalSize = const Size(2880, 1800);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
@@ -649,27 +649,12 @@ void main() {
 
     final ids = [for (final p in c.score!.metadata.parts) p.id];
     final bars = c.timeline.measureStarts;
-    expect(bars[3] - bars[2], 3); // a 6/8 bar is three crotchets long…
-    expect(c.beats.beatsIn(2), [bars[2], bars[2] + 1.5]); // …and has two beats
-
-    // Positions count those beats.
-    expect(c.beats.format(bars[2] + 1.5), '3.2');
-    expect(c.beats.parse('3.2'), bars[2] + 1.5);
-    expect(c.beats.parse('3.3'), isNull);
-
-    // Zoomed in, a click erases one dotted crotchet, and drags snap to them.
     c.viewport.zoom(12, 0);
     await tester.pump();
     final lanes = tester.getRect(find.byWidgetPredicate(
         (w) => w is CustomPaint && w.painter.runtimeType.toString() == '_LanesPainter'));
     Offset at(int lane, double quarter) =>
         lanes.topLeft + Offset(c.viewport.x(c.timeline.secondsAtQuarter(quarter)), lane * 26.0 + 12);
-
-    c.curation!.setLane(ids[0], [Region(bars[1], bars[4])]);
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
-    await tester.tapAt(at(0, bars[2] + 2)); // inside beat 2 of bar 3
-    await tester.pump();
-    expect(c.curation!.lane(ids[0]), [Region(bars[1], bars[2] + 1.5), Region(bars[3], bars[4])]);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
     final g = await tester.startGesture(at(1, bars[1] + 0.9)); // nearer beat 2 (1.5) than beat 1

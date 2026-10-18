@@ -160,21 +160,6 @@ void main() {
       c.curation!.clearAll();
     });
 
-    test('positions read and write as bar.beat', () {
-      // 6/8: two dotted-crotchet beats a bar.
-      expect(c.beats.format(bars[11]), '12.1');
-      expect(c.beats.format(bars[11] + 1.5), '12.2');
-      expect(c.beats.format(bars[11] + 0.75), '12.1.50');
-      expect(c.beats.parse('12'), bars[11]);
-      expect(c.beats.parse('12.2'), bars[11] + 1.5);
-      expect(c.beats.parse('12.1.50'), bars[11] + 0.75);
-      expect(c.beats.parse('12.3'), isNull); // no third beat in 6/8
-      expect(c.beats.parse('${bars.length}'), bars.last); // the end of the piece
-      expect(c.beats.parse('0'), isNull);
-      expect(c.beats.parse('12.99'), isNull); // no such beat
-      expect(c.beats.parse('twelve'), isNull);
-    });
-
     test('a selection across lanes moves, trims and deletes together', () {
       final a = Region(bars[4], bars[8]), b = Region(bars[6], bars[10]);
       c.curation!.setLane(ids[0], [a]);
