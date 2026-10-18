@@ -9,6 +9,7 @@
 #include <string>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "resource.h"
 #include "utils.h"
 
 namespace {
@@ -32,7 +33,38 @@ std::wstring Utf16FromUtf8(const std::string& text) {
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
-FlutterWindow::~FlutterWindow() {}
+FlutterWindow::~FlutterWindow() {
+  if (big_icon_) ::DestroyIcon(big_icon_);
+  if (small_icon_) ::DestroyIcon(small_icon_);
+}
+
+void FlutterWindow::SetAppIcon(const std::vector<uint8_t>* png) {
+  HINSTANCE instance = ::GetModuleHandle(nullptr);
+  auto make = [&](int size) -> HICON {
+    if (png == nullptr || png->empty()) {
+      return static_cast<HICON>(::LoadImage(instance, MAKEINTRESOURCE(IDI_APP_ICON),
+                                            IMAGE_ICON, size, size, 0));
+    }
+    // PNG data is an icon image as Vista and later read them.
+    return ::CreateIconFromResourceEx(const_cast<PBYTE>(png->data()),
+                                      static_cast<DWORD>(png->size()), TRUE,
+                                      0x00030000, size, size, LR_DEFAULTCOLOR);
+  };
+  HICON big = make(::GetSystemMetrics(SM_CXICON));
+  HICON little = make(::GetSystemMetrics(SM_CXSMICON));
+  if (big == nullptr || little == nullptr) {
+    if (big) ::DestroyIcon(big);
+    if (little) ::DestroyIcon(little);
+    return;
+  }
+  HWND window = GetHandle();
+  ::SendMessage(window, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(big));
+  ::SendMessage(window, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(little));
+  if (big_icon_) ::DestroyIcon(big_icon_);
+  if (small_icon_) ::DestroyIcon(small_icon_);
+  big_icon_ = big;
+  small_icon_ = little;
+}
 
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
@@ -61,6 +93,14 @@ bool FlutterWindow::OnCreate() {
                  result) {
         const auto* args =
             std::get_if<flutter::EncodableMap>(call.arguments());
+        if (call.method_name() == "setAppIcon" && args != nullptr) {
+          auto png = args->find(flutter::EncodableValue("png"));
+          SetAppIcon(png == args->end()
+                         ? nullptr
+                         : std::get_if<std::vector<uint8_t>>(&png->second));
+          result->Success();
+          return;
+        }
         if (call.method_name() != "setDocument" || args == nullptr) {
           result->NotImplemented();
           return;

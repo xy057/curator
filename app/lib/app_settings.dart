@@ -23,6 +23,7 @@ class AppSettings extends ChangeNotifier {
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
         _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,
         _embedFont = _prefs?.getBool(_embedFontKey) ?? true,
+        _mascotIcon = _prefs?.getBool(_mascotIconKey) ?? false,
         _scrollFollow = (_prefs?.getDouble(_scrollFollowKey) ?? defaultScrollFollow).clamp(0.0, 1.0),
         _recent = List.unmodifiable(_prefs?.getStringList(_recentKey) ?? const <String>[]),
         _videoResolution =
@@ -66,6 +67,7 @@ class AppSettings extends ChangeNotifier {
   static const _uiStyleKey = 'uiStyle';
   static const _scrollFollowKey = 'scrollFollow';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
+  static const _mascotIconKey = 'mascotIcon';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
@@ -208,6 +210,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _embedFont) return;
     _embedFont = value;
     _prefs?.setBool(_embedFontKey, value);
+    notifyListeners();
+  }
+
+  /// The mascot in place of the app icon, in the app (AppLogo) and in the Dock or taskbar
+  /// (WindowChrome.showAppIcon); a click on the icon in Settings ▸ About toggles it.
+  bool get mascotIcon => _mascotIcon;
+  bool _mascotIcon;
+  set mascotIcon(bool value) {
+    if (value == _mascotIcon) return;
+    _mascotIcon = value;
+    _prefs?.setBool(_mascotIconKey, value);
     notifyListeners();
   }
 

@@ -524,7 +524,15 @@ there are, the 32 px masters otherwise). Both are bundled as small fonts holding
 one code point per icon in both; `AppIcon.x.of(context)` picks the style's, never `Icons`. A table
 that has no context holds the `AppIcon` and resolves it where it is drawn. Tools/make_icon_fonts.py
 builds both fonts and app_icons.dart from its table, from the pinned releases: add an icon there.
-The metronome, which neither set has, is painted in the style's stroke. Refined's `AppSegmented` works its label colour out from the tint
+The metronome, which neither set has, is painted in the style's stroke.
+The app icon shows in the app as `AppLogo` (Home, Settings ▸ About): the icon, or the mascot on the
+same tile while `AppSettings.mascotIcon` is on, which a click on About's icon toggles (saved). The
+running app takes it too: `WindowChrome.showAppIcon` sends the tile's PNG (512 px on macOS,
+256 elsewhere; null for the bundle's own) over the runners' `curated_score/window` channel as
+`setAppIcon`: the Dock icon on macOS (`NSApp.applicationIconImage`), the window's icons on Windows
+(`WM_SETICON`: title bar, taskbar, Alt-Tab) and Linux (`gtk_window_set_icon`). The bundle's icon
+(Finder, Launchpad, a pinned taskbar item, the Start menu) stays the app's: changing it would
+break the signature. Refined's `AppSegmented` works its label colour out from the tint
 (the accent's strong shade taken toward black, or white, until it reads at 4.5:1), as some
 accents' shades don't. Text styles set in a style's theme are merged with the typography's
 geometry as `Theme.of` gives them, since a button lerps its label between the two styles and two

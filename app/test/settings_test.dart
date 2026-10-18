@@ -27,6 +27,14 @@ void main() {
     expect((await AppSettings.load()).videoResolution, VideoResolution.qhd1440);
   });
 
+  test('the mascot icon is off until turned on, and is saved', () async {
+    SharedPreferences.setMockInitialValues({});
+    final settings = await AppSettings.load();
+    expect(settings.mascotIcon, isFalse);
+    settings.mascotIcon = true;
+    expect((await AppSettings.load()).mascotIcon, isTrue);
+  });
+
   test('the Classic style, which is gone, opens as Refined and is saved so', () async {
     SharedPreferences.setMockInitialValues({'uiStyle': 'classic'});
     expect((await AppSettings.load()).uiStyle, UiStyle.refined);
@@ -341,8 +349,8 @@ void main() {
     expect(find.text('Engraving options'), findsOneWidget, reason: 'back on the Engraving page');
   });
 
-  testWidgets("a click on About's icon swaps it for the mascot, and another back", (tester) async {
-    await open(tester);
+  testWidgets("a click on About's icon toggles the mascot in its place, saved; another turns it off", (tester) async {
+    final settings = await open(tester);
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
     bool showing(String asset) => tester
@@ -352,10 +360,12 @@ void main() {
     expect(showing('mascot'), isFalse);
     await tester.tap(find.byWidgetPredicate((w) => w is Image && w.image is AssetImage));
     await tester.pumpAndSettle();
+    expect(settings.mascotIcon, isTrue);
     expect(showing('mascot'), isTrue);
     expect(showing('app_icon'), isFalse);
     await tester.tap(find.byWidgetPredicate((w) => w is Image && w.image is AssetImage));
     await tester.pumpAndSettle();
+    expect(settings.mascotIcon, isFalse);
     expect(showing('app_icon'), isTrue);
     expect(File('assets/icon/mascot.png').existsSync(), isTrue);
   });

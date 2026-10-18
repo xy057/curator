@@ -258,6 +258,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _settingsChanged() {
     controller.takeSettings(settings);
     _shown.value = _shownSettings;
+    WindowChrome.showAppIcon(mascot: settings.mascotIcon);
   }
 
   @override
@@ -273,6 +274,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _lifecycle; // start listening for Quit
     updater.addListener(_launchCheckAnswered);
     WindowChrome.listenForOpenedFiles((paths) => _openPath(paths.first));
+    WindowChrome.showAppIcon(mascot: settings.mascotIcon);
     // Once, after the window's first frame, not when a video's background is first made
     // transparent. (Not an idle task: one waits while anything animates, re-arming a timer on
     // every turn of the event loop, which spun and, in widget tests, filled memory.)
@@ -756,6 +758,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         child: controller.score == null
                             ? HomeScreen(
                                 key: const ValueKey('home'),
+                                settings: settings,
                                 recentFiles: settings.recentFiles,
                                 onOpen: _open,
                                 onOpenRecent: _openPath,

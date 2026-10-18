@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 import 'app_icons.dart';
+import 'app_logo.dart';
+import 'app_settings.dart';
 import 'file_names.dart';
 import 'project_file.dart';
 import 'ui_kit.dart';
@@ -13,6 +15,7 @@ import 'ui_kit.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
+    required this.settings,
     required this.recentFiles,
     required this.onOpen,
     required this.onOpenRecent,
@@ -21,6 +24,8 @@ class HomeScreen extends StatelessWidget {
     required this.onOpenSample,
   });
 
+  /// For the icon up top ([AppLogo]).
+  final AppSettings settings;
   final List<String> recentFiles;
   final VoidCallback onOpen;
   final ValueChanged<String> onOpenRecent;
@@ -42,13 +47,7 @@ class HomeScreen extends StatelessWidget {
             children: [
               _Entrance(
                 delay: 0,
-                child: Image.asset(
-                  'assets/icon/app_icon.png',
-                  width: 80,
-                  height: 80,
-                  filterQuality: FilterQuality.medium,
-                  errorBuilder: (_, _, _) => Icon(AppIcon.music.of(context), size: 64, color: colors.accent),
-                ),
+                child: AppLogo(settings: settings, size: 80),
               ),
               const SizedBox(height: 18),
               _Entrance(

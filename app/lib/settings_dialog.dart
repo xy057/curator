@@ -9,6 +9,7 @@ import 'package:score_engine/score_engine.dart' show EngravingOptions, MusicFont
 import 'app_colors.dart';
 import 'app_extensions.dart';
 import 'app_icons.dart';
+import 'app_logo.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
@@ -1088,37 +1089,17 @@ class _CopyButtonState extends State<_CopyButton> {
       );
 }
 
-/// The app icon at the top of About. A click swaps it for the mascot, and back.
-class _AboutIcon extends StatefulWidget {
-  const _AboutIcon();
+/// The app icon at the top of About. A click toggles the mascot in its place, everywhere the
+/// app icon shows ([AppSettings.mascotIcon]).
+class _AboutIcon extends StatelessWidget {
+  const _AboutIcon(this.settings);
+  final AppSettings settings;
 
   @override
-  State<_AboutIcon> createState() => _AboutIconState();
-}
-
-class _AboutIconState extends State<_AboutIcon> {
-  var _mascot = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = AppStyle.of(context);
-    return GestureDetector(
-      onTap: () => setState(() => _mascot = !_mascot),
-      child: AnimatedSwitcher(
-        duration: motion(context, 250),
-        switchInCurve: style.enterCurve,
-        switchOutCurve: style.exitCurve,
-        child: Image.asset(
-          _mascot ? 'assets/icon/mascot.png' : 'assets/icon/app_icon.png',
-          key: ValueKey(_mascot),
-          width: 76,
-          height: 76,
-          filterQuality: FilterQuality.medium,
-          errorBuilder: (_, _, _) => Icon(AppIcon.music.of(context), size: 64, color: context.colors.accent),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: () => settings.mascotIcon = !settings.mascotIcon,
+        child: AppLogo(settings: settings, size: 76),
+      );
 }
 
 /// Settings ▸ About: the icon, name and build up top, the updates under them, then the links;
@@ -1138,7 +1119,7 @@ class _AboutPage extends StatelessWidget {
           constraints: BoxConstraints(minHeight: box.maxHeight - 34),
           child: IntrinsicHeight(
             child: Column(children: [
-              const _AboutIcon(),
+              _AboutIcon(c.settings),
               const SizedBox(height: 6),
               Text('Curator', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: colors.text)),
               const SizedBox(height: 2),
