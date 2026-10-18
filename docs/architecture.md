@@ -159,7 +159,8 @@ reads the sync (scroll, timeline, video export) then works unchanged. While it d
 anchors are derived: `SyncEditing` edits no anchor (its `_sync` is null), tapping is off, and
 the Audio tab draws the tempo map large instead of the anchors and the waveform. The map
 itself is edited there, as a sequencer's tempo track: a change dragged (up and down its tempo,
-sideways its place, snapped to beats), the step after it dragged for its tempo only, ⌥-click
+sideways its place, snapped to beats, stopping a beat this side of a
+neighbour), the step after it dragged for its tempo only, ⌥-click
 on the line adding a change at the nearest beat (`inserted`: kept though it repeats the tempo,
 a point to drag), ⌥-drag drawing a step a beat (`MidiTempoMap.drawn`: the last drawn holds to
 the next change; only the stretch drawn loses repeats), Delete removing the selected change

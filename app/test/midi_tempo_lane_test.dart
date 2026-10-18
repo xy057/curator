@@ -63,6 +63,34 @@ void main() {
     expect(c.midiTempo, original);
     await tester.pump(const Duration(milliseconds: 400));
 
+    // Dragged past the change before it, it stops at the beat after that one (a beat is 1.5
+    // quarters), and past the one after it at the beat before.
+    final beforeStart = x(0);
+    gesture = await tester.startGesture(Offset(from, y(60)));
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveTo(Offset(from + (beforeStart - 40 - from) * i / 10, y(60)));
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo!.tempos, [_t(0, 135), _t(1.5, 90)]);
+    c.undo();
+    c.editMidiTempo(MidiTempoMap('tempo.mid', [_t(0, 135), _t(6, 135), _t(12, 90)]));
+    await tester.pump(const Duration(milliseconds: 400));
+    final six = x(6), past = x(14);
+    gesture = await tester.startGesture(Offset(six, y(90)));
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveTo(Offset(six + (past - six) * i / 10, y(90)));
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo!.tempos, [_t(0, 135), _t(10.5, 135), _t(12, 90)]);
+    c.undo();
+    c.undo();
+    expect(c.midiTempo, original);
+    await tester.pump(const Duration(milliseconds: 400));
+
     // The step after a change, taken anywhere along it, sets only its tempo.
     await tester.dragFrom(Offset((x(0) + x(12)) / 2, y(90)), Offset(30, y(80) - y(90)));
     await tester.pump(const Duration(milliseconds: 400));

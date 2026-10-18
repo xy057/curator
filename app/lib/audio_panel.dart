@@ -436,6 +436,11 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
         final seconds = from.secondsAt(t.quarter) + c.viewport.seconds(p.dx) - c.viewport.seconds(_down.dx);
         quarter = previous.quarter + (seconds - from.secondsAt(previous.quarter)) * previous.quartersPerMinute / 60;
         if (!isCommandPressed) quarter = _placed.snap(quarter);
+        // Past a neighbour it stops at the beat this side of it, rather than going back.
+        if (_index + 1 < from.tempos.length && quarter >= from.tempos[_index + 1].quarter) {
+          quarter = _placed.beatAround(from.tempos[_index + 1].quarter - 1e-7).start;
+        }
+        if (quarter <= previous.quarter) quarter = _placed.beatAround(previous.quarter + 1e-7).end;
       }
       _edit(from.moved(_index, quarter: quarter, quartersPerMinute: bpm * _placed.beatLength(quarter)));
     } else if (_scrubbing) {
