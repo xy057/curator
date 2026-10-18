@@ -8,7 +8,6 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
-import 'package:curated_score/score_view.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -132,49 +131,5 @@ void main() {
     }
     await shot('app-midi-audio');
     controller.undo();
-  });
-
-  testWidgets('double-clicking a score text no longer edits it (text editing is unreachable)', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-
-    // Framed, so the click goes through the frame's mapping (VideoFrame.toLayout).
-    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()..previewVideoFrame = true));
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final controller = state.controller as EditorController;
-    await tester.runAsync(() => controller.openFile(demoScore.path));
-    await tester.pump();
-
-    // Show the top three instruments only (the tempo mark sits above the top staff).
-    controller.curation!.clearAll();
-    for (final p in controller.score!.metadata.parts.take(3)) {
-      controller.curation!.setLane(p.id, [const Region(0, 1000)]);
-    }
-    final vivo = controller.score!.texts.firstWhere((t) => t.text == 'Vivo');
-    controller.playback.seek(controller.timeline.secondsAtQuarter(controller.timeline.measureStarts[vivo.measure]));
-    await tester.pump(const Duration(milliseconds: 50));
-
-    final box = tester.getRect(find.byType(ScoreView));
-    final frame = VideoFrame.fit(box.size, VideoFormat.of(VideoResolution.hd1080, fps: 30).aspectRatio,
-        devicePixelRatio: tester.view.devicePixelRatio);
-    Offset? target;
-    for (var y = 0.0; y < frame.layout.height && target == null; y += 4) {
-      for (var x = 140.0; x < frame.layout.width && target == null; x += 6) {
-        final hit =
-            controller.scene!.textAt(Offset(x, y), controller.playback.time.value, controller.curation!, frame.layout);
-        if (hit?.id == vivo.id) target = frame.toView(hit!.rect).center;
-      }
-    }
-    expect(target, isNotNull, reason: 'the click lands on the text');
-    await tester.tapAt(box.topLeft + target!);
-    await tester.pump(const Duration(milliseconds: 60));
-    await tester.tapAt(box.topLeft + target);
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump();
-
-    expect(find.descendant(of: find.byType(ScoreView), matching: find.byType(TextField)), findsNothing);
-    expect(find.byType(Dialog), findsNothing);
-    expect(controller.textById(vivo.id)!.current, 'Vivo');
   });
 }

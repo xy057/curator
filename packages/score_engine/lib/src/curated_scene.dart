@@ -729,32 +729,7 @@ class CuratedScene {
     return (placements: placements, labels: labels, braces: braces);
   }
 
-  // MARK: Hit testing (for editing in the preview)
-
-  /// The editable score text under [point] (e.g. "arco", a tempo mark) and where it is drawn.
-  ({String id, ui.Rect rect})? textAt(ui.Offset point, double time, Curation curation, ui.Size size) {
-    final s = renderer.scale;
-    final pointerX = renderer.pointerX(size.width);
-    if (point.dx < renderer.musicLeftFor(keyColumnAt(time, curation, size))) return null;
-    final scrollX = scrollMap.xAt(time);
-    final x = scrollX + (point.dx - pointerX) / s;
-    for (final placement in layoutAt(time, curation, size).placements) {
-      final staff = display.staves[placement.staffIndex];
-      final y = staff.info.top + (point.dy - placement.y) / s;
-      for (final item in staff.itemsIn(x - 1, x + 1)) {
-        if (item is! ParagraphItem || item.sourceId == null) continue;
-        final b = item.bounds.inflate(display.data.staffSpace * 0.3);
-        if (!b.contains(ui.Offset(x, y))) continue;
-        final r = item.bounds;
-        return (
-          id: Condenser.sourceTextId(item.sourceId!), // a shared staff's copy edits the original
-          rect: ui.Rect.fromLTWH(pointerX + (r.left - scrollX) * s, placement.y + (r.top - staff.info.top) * s,
-              r.width * s, r.height * s),
-        );
-      }
-    }
-    return null;
-  }
+  // MARK: Hit testing
 
   /// The part whose name is under [point] in the name column.
   String? partLabelAt(ui.Offset point, double time, Curation curation, ui.Size size) {
