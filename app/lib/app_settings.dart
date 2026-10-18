@@ -43,7 +43,10 @@ class AppSettings extends ChangeNotifier {
         _captionCountdown =
             CaptionCountdown.values.asNameMap()[_prefs?.getString(_captionCountdownKey)] ?? CaptionCountdown.line,
         _captionSize = CaptionSize.values.asNameMap()[_prefs?.getString(_captionSizeKey)] ?? CaptionSize.medium,
-        _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false;
+        _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false {
+    // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
+    if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
+  }
 
   /// Defaults, kept in memory only (tests, or when there is no preferences store).
   AppSettings.memory() : this._(null);

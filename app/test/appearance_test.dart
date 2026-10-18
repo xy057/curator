@@ -198,8 +198,8 @@ void main() {
     expect(AppColors.of(AccentColor.rose, Brightness.light, UiStyle.carbon).accent, const Color(0xFFD02670), reason: 'Magenta 60');
   });
 
-  test('a saved Classic style opens as Carbon, which replaced it', () {
-    expect(UiStyle.named('classic'), UiStyle.carbon);
+  test('a saved Classic style, which is gone, opens as Refined', () {
+    expect(UiStyle.named('classic'), UiStyle.refined);
     expect(UiStyle.named('refined'), UiStyle.refined);
     expect(UiStyle.named('carbon'), UiStyle.carbon);
     expect(UiStyle.named(null), isNull);

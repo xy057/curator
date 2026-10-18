@@ -476,7 +476,8 @@ that reads it. The page, likewise, rebuilds only for the settings it shows (`_Ho
 
 **Two styles, one look on every platform: a style is a set of tokens and a theme builder.**
 Settings ▸ Appearance ▸ Style (`AppSettings.uiStyle`): Refined, the default, or Carbon (which
-replaced Classic, Material's theme as it was; a saved `classic` opens as Carbon, `UiStyle.named`).
+replaced Classic, Material's theme as it was; a saved `classic` opens as Refined, `UiStyle.named`,
+and `AppSettings` saves it so).
 Each style is three things in app_colors.dart: a palette (`AppColors.of`), a theme builder laid
 over one Material base (`AppColors._refined`, `AppColors._carbon`), and an `AppStyle`, the tokens
 every widget reads instead of asking which style it is: `rounded` (`corner(r)` / `radius(r)`

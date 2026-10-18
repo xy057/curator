@@ -27,6 +27,14 @@ void main() {
     expect((await AppSettings.load()).videoResolution, VideoResolution.qhd1440);
   });
 
+  test('the Classic style, which is gone, opens as Refined and is saved so', () async {
+    SharedPreferences.setMockInitialValues({'uiStyle': 'classic'});
+    expect((await AppSettings.load()).uiStyle, UiStyle.refined);
+    expect((await SharedPreferences.getInstance()).getString('uiStyle'), 'refined');
+    SharedPreferences.setMockInitialValues({'uiStyle': 'carbon'});
+    expect((await AppSettings.load()).uiStyle, UiStyle.carbon);
+  });
+
   Future<AppSettings> open(WidgetTester tester) async {
     final settings = AppSettings.memory();
     if (Platform.environment['SCREENSHOT_DIR'] != null) await tester.runAsync(loadTestFonts);

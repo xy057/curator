@@ -29,8 +29,8 @@ enum UiStyle {
   const UiStyle(this.label);
   final String label;
 
-  /// The style saved as [name]; Classic, which Carbon replaced, is Carbon.
-  static UiStyle? named(String? name) => name == 'classic' ? carbon : values.asNameMap()[name];
+  /// The style saved as [name]; Classic, which is gone, is Refined.
+  static UiStyle? named(String? name) => name == 'classic' ? refined : values.asNameMap()[name];
 }
 
 /// A [UiStyle]'s measures and motion, which the app's widgets read rather than asking which
