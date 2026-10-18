@@ -175,12 +175,11 @@ void main() {
     expect(bars.expand((b) => b.descendantElements).where((e) => e.getAttribute('cs-pair') != null), isEmpty);
   });
 
-  test("a text on a shared staff leads back to the player's own", () async {
+  test("a text on a shared staff is listed once, as the player's own", () async {
     final score = await LoadedScore.load(twoFlutes());
     final dolce = score.texts.single;
     expect(score.texts.map((t) => t.partId), ['P1']); // listed once, as Flute 1's
     expect(score.engraving.sourceIds, containsAll([dolce.id, '${Condenser.idPrefix}${dolce.id}']));
-    expect(Condenser.sourceTextId('${Condenser.idPrefix}${dolce.id}'), dolce.id);
   });
 
   test('who can share a staff: the same clefs, transposition and meters, read for what they mean', () {
@@ -285,7 +284,6 @@ ${parts.values.join()}</score-partwise>''');
     expect(CondensedGroup.nameFor('Flute 1', 'Oboe 1'), 'Flute 1 + Oboe 1');
     expect(CondensedGroup.arePlayers('Violin I', 'Violin II'), isFalse);
     expect(CondensedGroup.arePlayers('Clarinet in B♭ 1', 'Clarinet in B♭ 2'), isTrue);
-    expect(Condenser.sourceTextId('cond-cs-dir-4-reh'), 'cs-dir-4-reh');
   });
 
   group('the demo', () {

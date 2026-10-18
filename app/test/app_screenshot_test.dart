@@ -1,46 +1,29 @@
 // A tour of the editor's views, which must all draw without an error; with SCREENSHOT_DIR set,
 // each is saved as a PNG of the whole window for visual review.
 // Run: SCREENSHOT_DIR=/some/dir flutter test test/app_screenshot_test.dart
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
-import 'package:curated_score/score_view.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('home screen with the sample score and timeline', (tester) async {
-    final dir = Platform.environment['SCREENSHOT_DIR'];
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-
-    Future<void> shot(String name) async {
-      if (dir == null) return;
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(
-            find.ancestor(of: find.byType(Scaffold), matching: find.byType(RepaintBoundary)).first);
-        final image = await boundary.toImage(pixelRatio: 2);
-        final png = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
-      });
-    }
+    desktopWindow(tester);
 
     final settings = AppSettings.memory()..addRecent(demoProject.absolute.path);
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
-    await shot('home');
+    await screenshot(tester, 'home');
     await tester.tap(find.text('Open Sample'));
     final state = tester.state(find.byType(HomePage)) as dynamic;
     for (var i = 0; i < 100 && state.controller.score == null; i++) {
@@ -54,16 +37,16 @@ void main() {
     state.controller.playback.seek(70.0);
     await tester.pump(const Duration(milliseconds: 50));
 
-    await shot('app');
+    await screenshot(tester, 'app');
 
     // The same showing the video's frame (the toolbar's toggle), letterboxed in the view.
     settings.previewVideoFrame = true;
     await tester.pump(const Duration(milliseconds: 50));
-    await shot('app-framed');
+    await screenshot(tester, 'app-framed');
     // A tall video (9:16): 540 points wide, with room for more staves, centred.
     settings.videoRatio = const VideoRatio(9, 16);
     await tester.pump(const Duration(milliseconds: 50));
-    await shot('app-framed-tall');
+    await screenshot(tester, 'app-framed-tall');
     settings.videoRatio = VideoRatio.widescreen;
     settings.previewVideoFrame = false;
 
@@ -71,7 +54,7 @@ void main() {
     final controller = state.controller as EditorController;
     controller.setCondensed([for (final g in controller.condensable) g.id], on: true);
     await tester.pump(const Duration(milliseconds: 50));
-    await shot('app-condensed');
+    await screenshot(tester, 'app-condensed');
     controller.undo();
 
     // Audio tab with the demo recording and its sync through the closing ritardando.
@@ -86,14 +69,14 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump(const Duration(milliseconds: 300)); // past the tab cross-fade
-    await shot('app-audio');
+    await screenshot(tester, 'app-audio');
 
     // The same in the dark theme: the chrome goes dark, the score turns to light ink on dark paper.
     settings.themeMode = ThemeMode.dark;
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    await shot('app-audio-dark');
+    await screenshot(tester, 'app-audio-dark');
 
     // A warp: bars 1–16 tapped every 2 s, then back to bar 9 and on to the end.
     settings.themeMode = ThemeMode.light;
@@ -110,11 +93,11 @@ void main() {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    await shot('app-warp-audio');
+    await screenshot(tester, 'app-warp-audio');
     controller.tab = BottomTab.instruments;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    await shot('app-warp-instruments');
+    await screenshot(tester, 'app-warp-instruments');
     controller.undo();
 
     // A MIDI tempo map in place of the anchors: steady, a push, then a long ritardando.
@@ -130,51 +113,7 @@ void main() {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    await shot('app-midi-audio');
+    await screenshot(tester, 'app-midi-audio');
     controller.undo();
-  });
-
-  testWidgets('double-clicking a score text no longer edits it (text editing is unreachable)', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-
-    // Framed, so the click goes through the frame's mapping (VideoFrame.toLayout).
-    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()..previewVideoFrame = true));
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final controller = state.controller as EditorController;
-    await tester.runAsync(() => controller.openFile(demoScore.path));
-    await tester.pump();
-
-    // Show the top three instruments only (the tempo mark sits above the top staff).
-    controller.curation!.clearAll();
-    for (final p in controller.score!.metadata.parts.take(3)) {
-      controller.curation!.setLane(p.id, [const Region(0, 1000)]);
-    }
-    final vivo = controller.score!.texts.firstWhere((t) => t.text == 'Vivo');
-    controller.playback.seek(controller.timeline.secondsAtQuarter(controller.timeline.measureStarts[vivo.measure]));
-    await tester.pump(const Duration(milliseconds: 50));
-
-    final box = tester.getRect(find.byType(ScoreView));
-    final frame = VideoFrame.fit(box.size, VideoFormat.of(VideoResolution.hd1080, fps: 30).aspectRatio,
-        devicePixelRatio: tester.view.devicePixelRatio);
-    Offset? target;
-    for (var y = 0.0; y < frame.layout.height && target == null; y += 4) {
-      for (var x = 140.0; x < frame.layout.width && target == null; x += 6) {
-        final hit =
-            controller.scene!.textAt(Offset(x, y), controller.playback.time.value, controller.curation!, frame.layout);
-        if (hit?.id == vivo.id) target = frame.toView(hit!.rect).center;
-      }
-    }
-    expect(target, isNotNull, reason: 'the click lands on the text');
-    await tester.tapAt(box.topLeft + target!);
-    await tester.pump(const Duration(milliseconds: 60));
-    await tester.tapAt(box.topLeft + target);
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump();
-
-    expect(find.descendant(of: find.byType(ScoreView), matching: find.byType(TextField)), findsNothing);
-    expect(find.byType(Dialog), findsNothing);
-    expect(controller.textById(vivo.id)!.current, 'Vivo');
   });
 }

@@ -10,13 +10,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'window.dart';
+
 void main() {
   for (final framed in [false, true]) {
     testWidgets('at the start the staff lines run unbroken from the frozen zone to the music'
         '${framed ? " (the video's frame)" : ''}', (tester) async {
-      tester.view.physicalSize = const Size(2880, 1800);
-      tester.view.devicePixelRatio = 2;
-      addTearDown(tester.view.reset);
+      desktopWindow(tester);
       await tester.pumpWidget(const CuratedScoreApp());
       await tester.pump(const Duration(seconds: 1));
       final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;

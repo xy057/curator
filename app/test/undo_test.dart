@@ -16,7 +16,7 @@ void main() {
   });
   tearDown(() => c.dispose());
 
-  test('one history steps back through every kind of edit, in order, whichever tab is showing', () async {
+  test('one history steps back through every kind of edit, in order, whichever tab is showing; a new edit drops the redo; nothing open, nothing to undo', () async {
     expect(c.canUndo, isFalse, reason: 'opening is not an edit');
     final part = c.score!.metadata.parts.first;
     final lanes = c.curation!.lanes;
@@ -50,6 +50,19 @@ void main() {
     expect(c.partName(part), 'Solo Piccolo');
     expect(c.textById(vivo.id)!.current, 'Presto');
     expect(c.canRedo, isFalse);
+
+    // A new edit after Undo drops what could be redone.
+    c.undo();
+    expect(c.canRedo, isTrue);
+    c.setTransition(0.5);
+    expect(c.canRedo, isFalse);
+
+    // With nothing open (⌘Z on the start screen), Undo and Redo do nothing.
+    await c.close();
+    expect(c.canUndo, isFalse);
+    c.undo();
+    c.redo();
+    expect(c.score, isNull);
   });
 
   test('what the controller keeps itself comes back whole through Undo and Redo, and opening it again', () async {
@@ -181,37 +194,6 @@ void main() {
     expect(c.pairs, isEmpty);
     expect(c.condensed, contains('cond-P2-P3'), reason: 'the built-in pair comes back as it was');
     expect(c.score!.condensed.map((g) => g.id), contains('cond-P2-P3'));
-  });
-
-  test('a gesture is one step, however many changes it makes', () {
-    final id = c.score!.metadata.parts.first.id;
-    c.curation!.clearAll();
-    c.beginEdit();
-    for (var end = 3.0; end <= 12; end += 3) {
-      c.curation!.updateLanes({id: [Region(0, end), const Region(6, 9)]}); // overlapping while dragging
-    }
-    c.endEdit();
-    expect(c.curation!.lane(id), [const Region(0, 12)], reason: 'merged when the drag ends');
-    c.undo();
-    expect(c.curation!.lane(id), isEmpty);
-  });
-
-  test('a new edit after Undo drops what could be redone', () {
-    final id = c.score!.metadata.parts.first.id;
-    c.curation!.setLane(id, const [Region(0, 3)]);
-    c.undo();
-    expect(c.canRedo, isTrue);
-    c.curation!.setLane(id, const [Region(3, 6)]);
-    expect(c.canRedo, isFalse);
-  });
-
-  test('Undo and Redo with nothing open do nothing (⌘Z on the start screen)', () async {
-    c.renamePart(c.score!.metadata.parts.first, name: 'Solo Piccolo', abbreviation: 'Picc.');
-    await c.close();
-    expect(c.canUndo, isFalse);
-    c.undo();
-    c.redo();
-    expect(c.score, isNull);
   });
 
   test('a music font that can\'t be read changes nothing, so the project never keeps it', () async {

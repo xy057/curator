@@ -11,15 +11,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
+import 'window.dart';
 
 void main() {
   late EditorController c;
   late List<bool> clicks;
 
   Future<void> open(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));

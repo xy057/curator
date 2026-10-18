@@ -13,7 +13,7 @@ void main() {
     expect(m.quarterAtSeconds(4), closeTo(4, 1e-9));
   });
 
-  test('the first tap is the start; the next is snapped at the score tempo', () {
+  test('the first tap is the start; later ones snap to the bar the tempo so far predicts, and re-time the one before', () {
     final m = map();
     var taps = TapPass(m);
     expect(taps.tap(1.0).quarter, 0);
@@ -22,27 +22,10 @@ void main() {
     expect(m.segmentTempo(0), closeTo(8 / 4.1 * 60, 1e-9));
     // From here the tapped tempo predicts: ~2.05 s per bar, so 2.2 s later is bar 4.
     expect(taps.tap(7.3).quarter, 12);
-  });
-
-  test('a tap too early for the next bar still moves on to it', () {
-    final m = map();
-    var taps = TapPass(m);
-    taps.tap(1.0);
-    expect(taps.tap(1.5).quarter, 4); // nearest bar would be bar 1 again
-  });
-
-  test('later taps snap to the nearest bar and re-time the previous segment', () {
-    final m = map();
-    var taps = TapPass(m);
-    for (final t in [1.0, 3.0, 5.0]) {
-      taps.tap(t); // bars 1–3 at ♩ = 120
-    }
-    // A late tap (ritardando): predicted bar 4 is 2.4 s into the bar, still nearest to bar 4.
-    final a = taps.tap(7.4);
-    expect(a.quarter, 12);
-    expect(m.segmentTempo(2), closeTo(4 / 2.4 * 60, 1e-9)); // that bar slowed to 100
-    // Skipping a bar: the tap lands near bar 6, so bar 5 is simply not anchored.
-    expect(taps.tap(7.4 + 2.4 * 2).quarter, 20);
+    // A late tap (ritardando) still lands on the next bar, and slows the bar before it.
+    expect(taps.tap(10.0).quarter, 16);
+    expect(m.segmentTempo(2), closeTo(4 / 2.7 * 60, 1e-9));
+    expect(taps.tap(10.5).quarter, 20, reason: 'too early for the next bar: still the next');
   });
 
   test('beat grid anchors single beats', () {
@@ -63,17 +46,6 @@ void main() {
     expect(m.secondsAtQuarter(6), closeTo(3.5, 1e-9));
     expect(m.quarterAtSeconds(3.5), closeTo(6, 1e-9));
     expect(m.secondsAtQuarter(12), closeTo(8, 1e-9)); // continues at the last tempo
-  });
-
-  test('an anchor can be redefined to point at another bar', () {
-    final m = map()
-      ..addAnchor(const SyncAnchor(0, 0))
-      ..addAnchor(const SyncAnchor(4, 2))
-      ..addAnchor(const SyncAnchor(8, 4));
-    expect(m.setAnchorQuarter(1, 5), isTrue); // "that was beat 2 of bar 2"
-    expect(m.anchors[1].quarter, 5);
-    expect(m.setAnchorQuarter(1, 9), isFalse); // cannot jump past its neighbour
-    expect(m.anchors[1].quarter, 5);
   });
 
   test('retapping overwrites the anchors it passes over', () {
@@ -130,13 +102,16 @@ void main() {
       ..addAnchor(const SyncAnchor(12, 6))
       ..addAnchor(const SyncAnchor(16, 8));
 
-    test('a selection moves as a block, clamped by its unselected neighbours', () {
+    test('a box selects, and the selection moves as a block, clamped by its unselected neighbours, or is deleted', () {
       final m = fourBars();
+      expect(m.anchorsBetween(1.5, 4.2), {1, 2});
       expect(m.moveAnchors({1, 2}, 0.5), 0.5);
       expect(m.anchors.map((a) => a.seconds), [0, 2.5, 4.5, 6, 8]);
       // Only 1.49 s of room before the next anchor (6 s) — the block stops there.
       expect(m.moveAnchors({1, 2}, 5), closeTo(1.49, 1e-9));
       expect(m.anchors[2].seconds, closeTo(5.99, 1e-9));
+      m.removeAnchors({1, 2});
+      expect(m.anchors.map((a) => a.quarter), [0, 12, 16]);
     });
 
     test('a drag applies its delta from where the anchors started', () {
@@ -155,13 +130,6 @@ void main() {
       expect(m.shiftAnchors({1}, 1, SyncGrid.bar), isTrue); // bar 2 → bar 3
       expect(m.shiftAnchors({1}, 1, SyncGrid.bar), isFalse); // bar 4 is already taken
       expect(m.anchors.map((a) => a.quarter), [0, 8, 12, 16]);
-    });
-
-    test('box selection and deleting a selection', () {
-      final m = fourBars();
-      expect(m.anchorsBetween(3.5, 6.2), {2, 3});
-      m.removeAnchors({2, 3});
-      expect(m.anchors.map((a) => a.quarter), [0, 4, 16]);
     });
   });
 

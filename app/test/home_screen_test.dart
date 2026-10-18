@@ -5,13 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
+import 'window.dart';
 
 
 void main() {
   testWidgets('Recent files open from the home screen; missing ones say so', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory()
       ..addRecent('/nowhere/Gone.ccs')
       ..addRecent(demoScore.absolute.path);

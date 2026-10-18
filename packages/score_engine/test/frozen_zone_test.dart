@@ -25,16 +25,24 @@ void main() {
     return scene.renderer.frozen!.stateAt(staffOf(part), measure.onsetXs.first);
   }
 
-  test('the zone shows each part\'s opening clef and written key', () {
+  test('the zone shows each part\'s opening clef, written key and time; a key change takes it over once it passes', () {
     expect(stateAt('Oboe 1', 3).key?.fifths ?? 0, 0); // C major
     expect(stateAt('Clarinet in B♭ 1', 3).key?.fifths, 2); // written D major
     expect(stateAt('Horn in F 1', 3).key?.fifths, 1); // written G major
     expect(stateAt('Bassoon 1', 3).clef?.shape, ClefShape.f);
     expect(stateAt('Viola', 3).clef?.shape, ClefShape.c);
     expect(stateAt('Snare Drum', 3).clef?.shape, ClefShape.percussion);
-  });
+    for (final part in ['Oboe 1', 'Horn in F 1', 'Bassoon 1']) {
+      final time = stateAt(part, 3).time;
+      expect((time?.count, time?.unit), (6, 8), reason: part);
+    }
+    // The opening time signature is pinned there, and left out of the scrolling score.
+    final opening = score.engraving.signatures.whereType<TimeSignature>().where((t) => t.x < score.engraving.measures.first.onsetXs.first);
+    expect(opening, isNotEmpty);
+    for (final t in opening) {
+      expect(scene.renderer.frozen!.openingCommands, contains(t.commandStart));
+    }
 
-  test('a key change takes over the zone once it passes, in each part\'s written key', () {
     expect(stateAt('Oboe 1', 27).key?.fifths ?? 0, 0); // not yet
     expect(stateAt('Oboe 1', 29).key?.fifths, -4);
     expect(stateAt('Clarinet in B♭ 1', 29).key?.fifths, -2);
@@ -42,14 +50,14 @@ void main() {
     expect(stateAt('Trumpet in B♭ 1', 29).key?.fifths, -2);
   });
 
-  test('a change to C major draws a natural for each accidental it cancels, in the scrolling score', () async {
+  test('a change to C major takes over the zone, and draws a natural for each accidental it cancels in the scrolling score', () async {
     // B major from bar 5, then C major at bar 17: Oboe 1 drops five sharps, the clarinets
     // (written D major at both ends of the piece, C♯ major between) only those beyond two.
     final changes = await LoadedScore.load(demoScoreWithKeyChanges({5: 5, 17: 0}));
     final data = changes.engraving;
+    int staff(String part) => changes.metadata.parts.firstWhere((p) => p.name == part).staffNumbers.first;
     List<int> glyphs(String part, int fifths) {
-      final n = changes.metadata.parts.firstWhere((p) => p.name == part).staffNumbers.first;
-      final sig = data.signatures.whereType<KeySignature>().lastWhere((k) => k.staff == n && k.fifths == fifths);
+      final sig = data.signatures.whereType<KeySignature>().lastWhere((k) => k.staff == staff(part) && k.fifths == fifths);
       return [for (var i = sig.commandStart; i < sig.commandStart + sig.commandCount; i++) data.commandInts[i * Cmd.words + Cmd.codepoint]];
     }
 
@@ -57,17 +65,11 @@ void main() {
     expect(glyphs('Oboe 1', 0), List.filled(5, natural));
     expect(glyphs('Violin I', 0), List.filled(5, natural));
     expect(glyphs('Clarinet in B♭ 1', 2), List.filled(2, sharp), reason: 'fewer sharps cancel nothing unless the score asks');
-  });
 
-  test('a change to no key signature takes over the zone too, though only naturals are drawn for it', () async {
-    // B major from bar 5, then C major at bar 17.
-    final changes = await LoadedScore.load(demoScoreWithKeyChanges({5: 5, 17: 0}));
+    // The zone takes over the change to no key signature too, though only naturals are drawn for it.
     final scene = CuratedScene(changes);
-    int? fifths(String part, int bar) {
-      final n = changes.metadata.parts.firstWhere((p) => p.name == part).staffNumbers.first;
-      return scene.renderer.frozen!.stateAt(n, changes.engraving.measures[bar - 1].onsetXs.first).key?.fifths;
-    }
-
+    addTearDown(scene.dispose);
+    int? fifths(String part, int bar) => scene.renderer.frozen!.stateAt(staff(part), data.measures[bar - 1].onsetXs.first).key?.fifths;
     expect(fifths('Oboe 1', 16), 5);
     expect(fifths('Oboe 1', 17), 0);
     expect(fifths('Violin I', 30), 0);
@@ -78,7 +80,6 @@ void main() {
     double column(int bar) => scene.keyColumnAt(changes.timeline.secondsAtQuarter(changes.timeline.measureStarts[bar - 1]), c, const ui.Size(1280, 720));
     expect(column(12), closeTo(1.0 + 5 * 1.1, 1e-9));
     expect(column(20), 0, reason: 'the column closes after the sharps leave');
-    scene.dispose();
   });
 
   test('a hidden key change shows no key signature, as the score does', () async {
@@ -126,19 +127,6 @@ void main() {
     c.setLane(piano.id, []);
     expect(scene.layoutAt(1, c, size).braces, isEmpty, reason: 'no brace while the piano is hidden');
     scene.dispose();
-  });
-
-  test('the opening time signature is pinned in the zone and left out of the scrolling score', () {
-    final zone = scene.renderer.frozen!;
-    for (final part in ['Oboe 1', 'Horn in F 1', 'Bassoon 1']) {
-      final time = stateAt(part, 3).time;
-      expect((time?.count, time?.unit), (6, 8), reason: part);
-    }
-    final opening = score.engraving.signatures.whereType<TimeSignature>().where((t) => t.x < score.engraving.measures.first.onsetXs.first);
-    expect(opening, isNotEmpty);
-    for (final t in opening) {
-      expect(zone.openingCommands, contains(t.commandStart));
-    }
   });
 
   test('an additive time signature is pinned as written, and beats in its groups', () async {

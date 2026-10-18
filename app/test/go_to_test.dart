@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
+import 'window.dart';
 
 void main() {
   test('a bar is where it first sounds; a time is read as m:ss or h:mm:ss', () async {
@@ -38,9 +39,7 @@ void main() {
   });
 
   testWidgets('the readout types where to go: a click or ⌘G, Enter goes, Escape cancels', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));
@@ -88,9 +87,7 @@ void main() {
   });
 
   testWidgets('after Starts at is typed, the keyboard goes back to what had it: Space plays', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory()..addRecent(demoProject.absolute.path);
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
@@ -136,9 +133,7 @@ void main() {
   });
 
   testWidgets('a click away from a field (Starts at, the readout) sets what was typed and gives the keyboard back', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));

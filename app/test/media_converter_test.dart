@@ -58,6 +58,8 @@ void main() {
     final out = await MediaConverter.toFlac(_video, '${dir.path}/out');
     expect(out, '${dir.path}/out${Platform.pathSeparator}tiny-video.flac');
     expect(isFlac(out), isTrue);
+    expect(MediaFormats.isVideo('Take.MOV'), isTrue);
+    expect(MediaFormats.isVideo('take.m4a'), isFalse);
   }, skip: Platform.isMacOS || ffmpeg != null ? false : 'no converter here');
 
   test("when afconvert can't read a file (MKV), FFmpeg takes over", () async {
@@ -79,23 +81,14 @@ void main() {
           exists: files.contains,
         );
 
-    test('next to the app first', () {
+    test('next to the app first, then on PATH, then where winget, Scoop and Chocolatey install it; else null, with help', () {
       expect(find({r'C:\Program Files\Curator\ffmpeg.exe', r'C:\Tools\bin\ffmpeg.exe'}),
           r'C:\Program Files\Curator\ffmpeg.exe');
-    });
-
-    test('then on PATH (whatever its case)', () {
       expect(find({r'C:\Tools\bin\ffmpeg.exe'}), r'C:\Tools\bin\ffmpeg.exe');
-    });
-
-    test('then where winget, Scoop and Chocolatey install it', () {
       expect(find({r'C:\Users\ana\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe'}),
           r'C:\Users\ana\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe');
       expect(find({r'C:\Users\ana\scoop\shims\ffmpeg.exe'}), r'C:\Users\ana\scoop\shims\ffmpeg.exe');
       expect(find({r'C:\ProgramData\chocolatey\bin\ffmpeg.exe'}), r'C:\ProgramData\chocolatey\bin\ffmpeg.exe');
-    });
-
-    test('null when missing, and the help says how to install it', () {
       expect(find({}), isNull);
       expect(MediaConverter.missingFfmpegHelp(windows: true), contains('winget install Gyan.FFmpeg'));
     });

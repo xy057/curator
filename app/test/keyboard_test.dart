@@ -11,15 +11,14 @@ import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 import 'finders.dart';
+import 'window.dart';
 
 void main() {
   late EditorController c;
   late AppSettings settings;
 
   Future<void> open(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;

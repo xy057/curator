@@ -1,38 +1,21 @@
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/score_view.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:curated_score/image_patch.dart';
 
 import 'image_patch_test.dart' show png;
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('right-click the score: Add Image… and Paste; select, resize, crop', (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    final dir = Platform.environment['SCREENSHOT_DIR'];
-    Future<void> shot(String name) async {
-      if (dir == null) return;
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(
-            find.ancestor(of: find.byType(Scaffold), matching: find.byType(RepaintBoundary)).first);
-        final image = await boundary.toImage(pixelRatio: 2);
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
-      });
-    }
-
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
@@ -59,7 +42,7 @@ void main() {
     await rightClick(spot);
     expect(find.text('Add Image…'), findsOneWidget, reason: 'one item for SVG, PNG and JPEG');
     expect(find.text('Paste'), findsOneWidget);
-    await shot('image-menu');
+    await screenshot(tester, 'image-menu');
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
@@ -71,7 +54,7 @@ void main() {
     Rect rect() => c.scene!.patchRect(c.scene!.patches.single, c.playback.time.value, view.size).shift(view.topLeft);
     expect(rect().topLeft.dx, closeTo(spot.dx, 0.5));
     expect(rect().topLeft.dy, closeTo(spot.dy, 0.5));
-    await shot('image-selected');
+    await screenshot(tester, 'image-selected');
 
     // Drag the bottom-right corner: bigger, same shape.
     final before = c.images.patches.single;
@@ -96,7 +79,7 @@ void main() {
     expect(cropped.crop.left, closeTo(40 / shown.width, 0.005), reason: 'the left edge went in by 40 points');
     expect(rect().left, closeTo(shown.left + 40, 0.5));
     expect(cropped.height, closeTo(resized.height, 1e-6), reason: 'cropping keeps the scale');
-    await shot('image-cropping');
+    await screenshot(tester, 'image-cropping');
 
     // A click elsewhere deselects; Delete then leaves the image be.
     await tester.tapAt(view.topLeft + const Offset(400, 20));

@@ -145,12 +145,8 @@ enum _Bar {
 /// Each bar is written in the simplest way that shows both players (see [_Bar]).
 abstract final class Condenser {
   /// Prefix of every id in the added parts (their own, and copied directions' ids), so the
-  /// shared staff's texts lead back to the texts they copy (see [sourceTextId]).
+  /// shared staff's texts are told from the texts they copy.
   static const idPrefix = 'cond-';
-
-  /// The id of the score text a drawn text copies: a shared staff's copy of "dolce" edits
-  /// the player's own.
-  static String sourceTextId(String id) => id.startsWith(idPrefix) ? id.substring(idPrefix.length) : id;
 
   /// Who can share a staff with whom in [doc] (before [condense] adds anything to it).
   static CondensingOptions options(XmlDocument doc, ScoreMetadata metadata) {

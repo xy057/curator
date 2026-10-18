@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/assets_dialog.dart';
@@ -7,18 +5,16 @@ import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/main.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'image_patch_test.dart' show png, svg;
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('Manage assets lists the images kept, locates each use, removes an image everywhere and purges unused ones', (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
@@ -29,18 +25,6 @@ void main() {
       await tester.pump();
     }
     await tester.pump(const Duration(milliseconds: 500));
-
-    final dir = Platform.environment['SCREENSHOT_DIR'];
-    Future<void> shot(String name) async {
-      if (dir == null) return;
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(
-            find.ancestor(of: find.byType(AssetsDialog), matching: find.byType(RepaintBoundary)).last);
-        final image = await boundary.toImage(pixelRatio: 2);
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
-      });
-    }
 
     final button = find.byTooltip('Manage assets…');
     expect(button, findsNothing, reason: 'Attach Image is off');
@@ -66,7 +50,7 @@ void main() {
     for (final bar in ['Bar 5', 'Bar 11', 'Bar 2']) {
       expect(find.text(bar), findsOneWidget);
     }
-    await shot('assets-dialog');
+    await screenshot(tester, 'assets-dialog', inside: find.byType(AssetsDialog), outermost: true);
 
     // A use's bar: the playhead goes where it reaches the pointer, and it is selected.
     await tester.tap(find.text('Bar 11'));
@@ -97,7 +81,7 @@ void main() {
     await tester.tap(button);
     await tester.pumpAndSettle();
     expect(find.text('Unused'), findsOneWidget);
-    await shot('assets-unused');
+    await screenshot(tester, 'assets-unused', inside: find.byType(AssetsDialog), outermost: true);
     expect(find.textContaining('SVG · '), findsOneWidget);
     expect(find.byTooltip('Remove'), findsOneWidget, reason: 'only the PNG is on the score');
     expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Remove Unused')).onPressed, isNotNull);

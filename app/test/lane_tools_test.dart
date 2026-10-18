@@ -1,8 +1,6 @@
 // Drives the Instruments tab tools with real pointer gestures.
 // With SCREENSHOT_DIR set, also saves PNGs of the lanes mid-drag for visual review.
 import 'dart:async';
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:curated_score/edit_dialogs.dart';
 import 'package:curated_score/editor_controller.dart';
@@ -12,49 +10,25 @@ import 'package:curated_score/timeline_panel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 import 'test_fonts.dart';
+import 'window.dart';
 
 
 void main() {
   testWidgets('draw, erase, box-select and nudge in the instrument lanes', (tester) async {
-    final dir = Platform.environment['SCREENSHOT_DIR'];
-    if (dir != null) await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(const CuratedScoreApp());
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final c = state.controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.pump();
+    if (screenshotDir != null) await tester.runAsync(loadTestFonts);
+    final c = await _openDemo(tester);
     c.curation!.clearAll();
     await tester.pump();
 
     final ids = [for (final p in c.score!.metadata.parts) p.id];
     final bars = c.timeline.measureStarts;
-    final lanes = tester.getRect(find.byWidgetPredicate(
-        (w) => w is CustomPaint && w.painter.runtimeType.toString() == '_LanesPainter'));
-    Offset at(int lane, double quarter) =>
-        lanes.topLeft + Offset(c.viewport.x(c.timeline.secondsAtQuarter(quarter)), lane * 26.0 + 12);
-
-    Future<void> shot(String name) async {
-      if (dir == null) return;
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(
-            find.ancestor(of: find.byType(Scaffold), matching: find.byType(RepaintBoundary)).first);
-        final image = await boundary.toImage(pixelRatio: 2);
-        final png = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
-      });
-    }
+    final at = _laneSpots(tester, c);
 
     // Draw (D): one drag down four lanes shows all of them from bar 3 to bar 7.
     await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
@@ -63,7 +37,7 @@ void main() {
     await g.moveTo(at(3, bars[5]));
     await g.moveTo(at(4, bars[6]));
     await tester.pump();
-    await shot('lanes-drawing');
+    await screenshot(tester, 'lanes-drawing');
     await g.up();
     await tester.pump();
     for (final i in [1, 2, 3, 4]) {
@@ -109,7 +83,7 @@ void main() {
     g = await tester.startGesture(at(3, bars[1]));
     await g.moveTo(at(4, bars[3]));
     await tester.pump();
-    await shot('lanes-box-select');
+    await screenshot(tester, 'lanes-box-select');
     await g.up();
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pump();
@@ -123,7 +97,7 @@ void main() {
     expect(c.curation!.lane(ids[4]), [Region(bars[3], bars[7])]);
     expect(c.curation!.lane(ids[1]), [Region(bars[2], bars[6])]); // not selected: stays
     expect(find.textContaining('2 regions in 2 lanes'), findsOneWidget);
-    await shot('lanes-selected');
+    await screenshot(tester, 'lanes-selected');
 
     // Dragging one selected region's start edge trims both.
     g = await tester.startGesture(at(3, bars[3]));
@@ -183,17 +157,8 @@ void main() {
   });
 
   testWidgets("holding an instrument's name and dragging it moves it: Violin I to the top", (tester) async {
-    final dir = Platform.environment['SCREENSHOT_DIR'];
-    if (dir != null) await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(const CuratedScoreApp());
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final c = state.controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.pump();
+    if (screenshotDir != null) await tester.runAsync(loadTestFonts);
+    final c = await _openDemo(tester);
 
     final violin = find.text('Violin I');
     await tester.ensureVisible(violin);
@@ -218,12 +183,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
     expect(tester.widget(header), same(built));
     await tester.pump(const Duration(milliseconds: 400));
-    await _shot(tester, dir, 'lanes-moving');
+    await screenshot(tester, 'lanes-moving');
     await g.moveBy(const Offset(0, -40));
     await tester.pump(const Duration(milliseconds: 400));
     await g.up();
     await tester.pump(const Duration(milliseconds: 400)); // settles into its place
-    await _shot(tester, dir, 'lanes-moved');
+    await screenshot(tester, 'lanes-moved');
     expect(c.laneParts.first.name, 'Violin I');
     expect(c.scene!.partOrder.first, 'P17');
     expect(c.lanes.selected, isEmpty, reason: 'holding a name is not a click on it');
@@ -273,7 +238,7 @@ void main() {
     for (var i = 0; i < 30; i++) {
       await tester.pump(const Duration(milliseconds: 16)); // frames: the block gathers as it goes
     }
-    await _shot(tester, dir, 'lanes-moving-selection');
+    await screenshot(tester, 'lanes-moving-selection');
     // Gathered, the block is one object: its lanes one lane apart, moving by the same amount.
     double nameTop(String name) => tester.getTopLeft(find.text(name)).dy;
     double gap() => nameTop('Oboe 2') - nameTop('Flute 2');
@@ -301,15 +266,7 @@ void main() {
   });
 
   testWidgets('a held name the system takes the pointer from goes back to its place', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(const CuratedScoreApp());
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final c = state.controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.pump();
+    final c = await _openDemo(tester);
 
     final piccolo = tester.getCenter(find.text('Piccolo'));
     final g = await tester.startGesture(piccolo, kind: PointerDeviceKind.mouse);
@@ -333,22 +290,11 @@ void main() {
   });
 
   testWidgets('dragging regions moves them freely across lanes as well as along them', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(const CuratedScoreApp());
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final c = state.controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.pump();
+    final c = await _openDemo(tester);
 
     final ids = [for (final p in c.score!.metadata.parts) p.id];
     final bars = c.timeline.measureStarts;
-    final lanes = tester.getRect(find.byWidgetPredicate(
-        (w) => w is CustomPaint && w.painter.runtimeType.toString() == '_LanesPainter'));
-    Offset at(int lane, double quarter) =>
-        lanes.topLeft + Offset(c.viewport.x(c.timeline.secondsAtQuarter(quarter)), lane * 26.0 + 12);
+    final at = _laneSpots(tester, c);
     c.curation!.clearAll();
     c.curation!.setLanes({
       ids[1]: [Region(bars[2], bars[4])],
@@ -415,24 +361,13 @@ void main() {
   });
 
   testWidgets('a condensed pair is one lane: drawn, erased and dragged as a whole', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(const CuratedScoreApp());
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final c = state.controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.pump();
+    final c = await _openDemo(tester);
 
     final parts = c.score!.metadata.parts;
     final ids = [for (final p in parts) p.id];
     final a = ids.indexOf('P2'), b = ids.indexOf('P3'); // a pair that can condense
     final bars = c.timeline.measureStarts;
-    final lanes = tester.getRect(find.byWidgetPredicate(
-        (w) => w is CustomPaint && w.painter.runtimeType.toString() == '_LanesPainter'));
-    Offset at(int lane, double quarter) =>
-        lanes.topLeft + Offset(c.viewport.x(c.timeline.secondsAtQuarter(quarter)), lane * 26.0 + 12);
+    final at = _laneSpots(tester, c);
     List<Region> lane(int i) => c.curation!.lane(ids[i]);
     c.curation!.clearAll();
     c.curation!.setLanes({
@@ -493,14 +428,7 @@ void main() {
   });
 
   testWidgets('the toolbar sets how long every selected region glides in and out, as one step', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(const CuratedScoreApp());
-    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.pump();
+    final c = await _openDemo(tester);
 
     final ids = [for (final p in c.score!.metadata.parts) p.id];
     final bars = c.timeline.measureStarts;
@@ -541,10 +469,7 @@ void main() {
     expect(c.curation!.lane(ids[2]), [b], reason: 'every region in one step');
 
     // A click on an edge selects that edge alone; the menu then sets only that side.
-    final lanes = tester.getRect(find.byWidgetPredicate(
-        (w) => w is CustomPaint && w.painter.runtimeType.toString() == '_LanesPainter'));
-    Offset at(int lane, double quarter) =>
-        lanes.topLeft + Offset(c.viewport.x(c.timeline.secondsAtQuarter(quarter)), lane * 26.0 + 12);
+    final at = _laneSpots(tester, c);
     await tester.tapAt(at(1, a.start));
     await tester.pumpAndSettle();
     expect(c.lanes.selection, {(partId: ids[1], region: a): RegionEdges.start});
@@ -581,15 +506,7 @@ void main() {
   });
 
   testWidgets('⌘-scroll zooms the lanes horizontally without scrolling them vertically', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(const CuratedScoreApp());
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final c = state.controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.pump();
+    final c = await _openDemo(tester);
 
     final lanes = tester.getRect(find.byType(InstrumentLanes));
     final over = lanes.topLeft + const Offset(600, 60);
@@ -635,41 +552,15 @@ void main() {
     expect(vertical().pixels, greaterThan(top));
   });
 
-  testWidgets('in 6/8 the finer grid is the two dotted-crotchet beats of each bar', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(const CuratedScoreApp());
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final c = state.controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.pump();
+  testWidgets('in 6/8 a drag snaps to the two dotted-crotchet beats of each bar', (tester) async {
+    final c = await _openDemo(tester);
     c.curation!.clearAll();
 
     final ids = [for (final p in c.score!.metadata.parts) p.id];
     final bars = c.timeline.measureStarts;
-    expect(bars[3] - bars[2], 3); // a 6/8 bar is three crotchets long…
-    expect(c.beats.beatsIn(2), [bars[2], bars[2] + 1.5]); // …and has two beats
-
-    // Positions count those beats.
-    expect(c.beats.format(bars[2] + 1.5), '3.2');
-    expect(c.beats.parse('3.2'), bars[2] + 1.5);
-    expect(c.beats.parse('3.3'), isNull);
-
-    // Zoomed in, a click erases one dotted crotchet, and drags snap to them.
     c.viewport.zoom(12, 0);
     await tester.pump();
-    final lanes = tester.getRect(find.byWidgetPredicate(
-        (w) => w is CustomPaint && w.painter.runtimeType.toString() == '_LanesPainter'));
-    Offset at(int lane, double quarter) =>
-        lanes.topLeft + Offset(c.viewport.x(c.timeline.secondsAtQuarter(quarter)), lane * 26.0 + 12);
-
-    c.curation!.setLane(ids[0], [Region(bars[1], bars[4])]);
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
-    await tester.tapAt(at(0, bars[2] + 2)); // inside beat 2 of bar 3
-    await tester.pump();
-    expect(c.curation!.lane(ids[0]), [Region(bars[1], bars[2] + 1.5), Region(bars[3], bars[4])]);
+    final at = _laneSpots(tester, c);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
     final g = await tester.startGesture(at(1, bars[1] + 0.9)); // nearer beat 2 (1.5) than beat 1
@@ -680,15 +571,7 @@ void main() {
   });
 
   testWidgets("a region's dialog keeps edges placed between beats where they are unless they are retyped", (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(const CuratedScoreApp());
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final c = state.controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.pump();
+    final c = await _openDemo(tester);
 
     // Placed freely (⌘-drag): a third of the way into a dotted-crotchet beat, shown as "x.y.33".
     final id = c.laneParts.first.id;
@@ -706,14 +589,21 @@ void main() {
   });
 }
 
-/// Saves the window as [name].png in [dir] (SCREENSHOT_DIR), when set.
-Future<void> _shot(WidgetTester tester, String? dir, String name) async {
-  if (dir == null) return;
-  await tester.runAsync(() async {
-    final boundary = tester.renderObject<RenderRepaintBoundary>(
-        find.ancestor(of: find.byType(Scaffold), matching: find.byType(RepaintBoundary)).first);
-    final image = await boundary.toImage(pixelRatio: 2);
-    final png = await image.toByteData(format: ui.ImageByteFormat.png);
-    File('$dir/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
-  });
+/// The desktop window with the demo open in the editor.
+Future<EditorController> _openDemo(WidgetTester tester) async {
+  desktopWindow(tester);
+  await tester.pumpWidget(const CuratedScoreApp());
+  final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+  await tester.runAsync(() => c.openFile(demoScore.path));
+  await tester.pump();
+  await tester.pump();
+  return c;
+}
+
+/// Where [quarter] is in lane [lane] of the instrument lanes as they are now (26 px a lane);
+/// it follows the view's zoom and scroll.
+Offset Function(int lane, double quarter) _laneSpots(WidgetTester tester, EditorController c) {
+  final lanes = tester.getRect(find.byWidgetPredicate(
+      (w) => w is CustomPaint && w.painter.runtimeType.toString() == '_LanesPainter'));
+  return (lane, quarter) => lanes.topLeft + Offset(c.viewport.x(c.timeline.secondsAtQuarter(quarter)), lane * 26.0 + 12);
 }

@@ -25,6 +25,7 @@ import 'package:score_engine/score_engine.dart';
 import 'accessibility_mirror.dart';
 import 'demo_project.dart';
 import 'image_patch_test.dart' show png;
+import 'window.dart';
 
 void main() {
   final binding = AccessibilityMirrorBinding();
@@ -53,9 +54,7 @@ void main() {
   });
 
   testWidgets('every update is one the engine accepts', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final handle = tester.ensureSemantics();
     mirror.takeErrors();
     void check(String after) => expectAccessibilityTreeIntact(mirror, after);

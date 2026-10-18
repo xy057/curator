@@ -78,7 +78,9 @@ void main() {
       expect(grid.parse(grid.format(q)), q);
     }
     expect(grid.parse('2.3'), isNull); // no third beat in 6/8
+    expect(grid.parse('2.99'), isNull); // no such beat
     expect(grid.parse('4'), 10); // the end of the piece
+    expect(grid.parse('0'), isNull);
     expect(grid.parse('two'), isNull);
   });
 

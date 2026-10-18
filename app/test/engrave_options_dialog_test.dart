@@ -1,8 +1,6 @@
 // Settings ▸ Engraving ▸ Engraving options with a score open: the preview beside the list shows
 // the score engraved again after each change. With SCREENSHOT_DIR set, saves PNGs.
 import 'dart:async';
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
@@ -11,20 +9,17 @@ import 'package:curated_score/engraving_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/main.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('the preview shows the open score, engraved again with each change', (tester) async {
-    final dir = Platform.environment['SCREENSHOT_DIR'];
-    if (dir != null) await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    if (screenshotDir != null) await tester.runAsync(loadTestFonts);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final state = tester.state(find.byType(HomePage)) as dynamic;
@@ -49,17 +44,6 @@ void main() {
       await settle();
     }
 
-    Future<void> shot(String name) async {
-      if (dir == null) return;
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(
-            find.ancestor(of: find.byType(Dialog), matching: find.byType(RepaintBoundary)).first);
-        final image = await boundary.toImage(pixelRatio: 1);
-        final png = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
-      });
-    }
-
     unawaited(showEngraveOptionsDialog(tester.element(find.byType(HomePage)), settings, controller: c));
     await settle();
     final preview = find.descendant(of: find.byType(Dialog), matching: find.byType(Slider));
@@ -70,7 +54,7 @@ void main() {
         .firstWhere((p) => p.runtimeType.toString() == '_PreviewPainter')!;
     final before = painter();
     final width = c.score!.engraving.width;
-    await shot('engrave-preview');
+    await screenshot(tester, 'engrave-preview', inside: find.byType(Dialog), pixelRatio: 1);
 
     await tester.enterText(find.widgetWithText(TextField, 'Search').last, 'spacingLinear');
     await settle();
@@ -81,7 +65,7 @@ void main() {
     await engraved();
     expect(c.score!.engraving.width, greaterThan(width));
     expect(painter().shouldRepaint(before), isTrue, reason: 'the preview draws the new engraving');
-    await shot('engrave-preview-changed');
+    await screenshot(tester, 'engrave-preview-changed', inside: find.byType(Dialog), pixelRatio: 1);
 
     // Scrubbing moves only the preview.
     await tester.drag(preview, const Offset(200, 0));
@@ -96,24 +80,13 @@ void main() {
     await settle();
     final pagePreview = find.descendant(of: find.byType(EngravingPreview), matching: find.byType(CustomPaint));
     expect(pagePreview, findsWidgets);
-    if (dir != null) {
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(
-            find.ancestor(of: find.byType(EngravingPreview), matching: find.byType(RepaintBoundary)).last);
-        final image = await boundary.toImage(pixelRatio: 1);
-        final png = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/settings-engraving-preview.png').writeAsBytesSync(png!.buffer.asUint8List());
-      });
-    }
+    await screenshot(tester, 'settings-engraving-preview', inside: find.byType(EngravingPreview), outermost: true, pixelRatio: 1);
   });
 
   testWidgets('with nothing open, the Engraving page previews the demo, engraved with the app\'s options',
       (tester) async {
-    final dir = Platform.environment['SCREENSHOT_DIR'];
-    if (dir != null) await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    if (screenshotDir != null) await tester.runAsync(loadTestFonts);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
@@ -131,15 +104,7 @@ void main() {
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 150)); // the window's fade
     }
-    if (dir != null) {
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(
-            find.ancestor(of: find.byType(EngravingPreview), matching: find.byType(RepaintBoundary)).last);
-        final image = await boundary.toImage(pixelRatio: 1);
-        final png = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/settings-engraving-demo.png').writeAsBytesSync(png!.buffer.asUint8List());
-      });
-    }
+    await screenshot(tester, 'settings-engraving-demo', inside: find.byType(EngravingPreview), outermost: true, pixelRatio: 1);
 
     final width = demo().score!.engraving.width;
     settings.engravingOptions = const EngravingOptions().withValue(EngraveOption.byKey('spacingLinear')!, 0.95);
@@ -171,9 +136,7 @@ void main() {
   });
 
   testWidgets('the project closed while the Engraving page shows it: the demo is previewed instead', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;

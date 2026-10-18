@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_settings.dart';
@@ -10,30 +8,16 @@ import 'package:curated_score/project_state.dart';
 import 'package:curated_score/score_view.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('Captions settings style every project; Project Settings ▸ Fonts has a caption font while Captions is on', (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    final dir = Platform.environment['SCREENSHOT_DIR'];
-    Future<void> shot(String name, Finder inside) async {
-      if (dir == null) return;
-      await tester.runAsync(() async {
-        final boundary =
-            tester.renderObject<RenderRepaintBoundary>(find.ancestor(of: inside, matching: find.byType(RepaintBoundary)).first);
-        final image = await boundary.toImage(pixelRatio: 2);
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
-      });
-    }
-
+    desktopWindow(tester);
     Future<void> settle() async {
       for (var i = 0; i < 4; i++) {
         await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
@@ -80,7 +64,7 @@ void main() {
     expect(c.scene!.captionStyle.size, CaptionSize.large);
     final topTop = c.scene!.layoutAt(c.playback.time.value, c.curation!, tester.getSize(find.byType(ScoreView))).placements.first.y;
     expect(topTop, greaterThan(bottomTop), reason: 'the staves make room above them');
-    await shot('caption-top-ring', find.byType(ScoreView));
+    await screenshot(tester, 'caption-top-ring', inside: find.byType(ScoreView));
 
     // The project's own font, an Undo step, saved.
     unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
@@ -92,7 +76,7 @@ void main() {
     await settle();
     expect(c.captions.font, TextFonts.academico);
     expect(c.scene!.captionStyle.fontFamily, TextFonts.familyOf(TextFonts.academico));
-    await shot('fonts-caption', find.text('Music'));
+    await screenshot(tester, 'fonts-caption', inside: find.text('Music'));
     Navigator.of(tester.element(find.text('Music'))).pop();
     await settle();
     expect(ProjectState.fromJson(c.projectState.toJson()).edits.captionFont, TextFonts.academico);

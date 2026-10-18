@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('a click on Theme chooses at once; the still it fades from holds no tint where it started', (tester) async {
@@ -110,9 +111,7 @@ void main() {
   });
 
   testWidgets('a setting the page doesn\'t show (a slider in Settings, dragged) rebuilds nothing', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
@@ -133,9 +132,7 @@ void main() {
   });
 
   testWidgets("a widget's own colour animations take the new theme at once, under the window's cross-fade", (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory()..themeMode = ThemeMode.light;
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
