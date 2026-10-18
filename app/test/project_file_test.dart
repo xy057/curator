@@ -228,12 +228,6 @@ void main() {
     expect(() => read({'partOrder': ['P17', 2]}), damaged('state.partOrder[1] is not text'));
   });
 
-  test('a project claiming a format before the first is read as the first, at once', () {
-    final clock = Stopwatch()..start();
-    expect(ProjectState.fromJson(const {}, savedVersion: -1000000000).edits.pairs, isEmpty);
-    expect(clock.elapsed, lessThan(const Duration(seconds: 1)));
-  });
-
   test('the instruments\' order is saved when moved; older projects keep the score\'s', () {
     final json = jsonDecode(jsonEncode(const ProjectState(edits: EditState(partOrder: ['P17', 'P1'])).toJson())) as Map<String, Object?>;
     expect(ProjectState.fromJson(json).edits.partOrder, ['P17', 'P1']);
@@ -302,12 +296,16 @@ void main() {
     expect(() => ProjectState.fromJson({'engraving': 'wide'}), throwsA(isA<FormatException>()));
   });
 
-  test('a project from before condensing opens with nothing condensed', () {
+  test('a project from before condensing opens with nothing condensed; one claiming a format before the first is read as the first, at once', () {
     final state = ProjectState.fromJson({'textEdits': <String, Object?>{}}, savedVersion: 1);
     expect(state.edits.condensed, isEmpty);
     expect(state.edits.pairs, isEmpty);
     expect(ProjectState.version, 15);
     expect(ProjectState.fromJson({'condensed': ['cond-P2-P3']}, savedVersion: 2).edits.pairs, isEmpty);
+    // One claiming a format before the first is read as the first, at once.
+    final clock = Stopwatch()..start();
+    expect(ProjectState.fromJson(const {}, savedVersion: -1000000000).edits.pairs, isEmpty);
+    expect(clock.elapsed, lessThan(const Duration(seconds: 1)));
   });
 
   test('a region is saved with its own transitions; one without, and older projects\' regions, use the project\'s', () {
@@ -595,17 +593,11 @@ void main() {
       expect(c.canRedo, isTrue);
     });
 
-    test('edits make the project dirty; saving makes it clean', () async {
+    test('edits make the project dirty; saving makes it clean; autosave writes a saved project with changes, not an untitled one', () async {
       expect(doc.isDirty, isFalse, reason: 'importing is not an edit');
       expect(doc.suggestedFileName, 'WI275 - 01 Intro.ccs');
       c.curation!.clearAll();
       expect(doc.isDirty, isTrue);
-      await doc.save('${dir.path}/d.ccs');
-      expect(doc.isDirty, isFalse);
-    });
-
-    test('autosave writes a saved project with changes, and leaves untitled ones alone', () async {
-      c.curation!.clearAll();
       await doc.autosave();
       expect(doc.path, isNull);
       expect(dir.listSync(), isEmpty);
