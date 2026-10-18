@@ -408,8 +408,11 @@ MusicXML score lists them in a dialog (`showImportWarnings`). Opening a project,
 re-engraving after an edit, doesn't show them again.
 
 **The project format changes with a version.** `project.json`'s `state` is written by
-`ProjectState.toJson`. To change it: bump `ProjectState.version`, and add a migration from the
-old version in `ProjectState._migrations`, so older files still open. Reading checks every
+`ProjectState.toJson`, always in the newest format this build has (`ProjectState.version`),
+whatever the project uses. To change it: bump `ProjectState.version`, and add a migration from the
+old version in `ProjectState._migrations`, so older files still open. Migrations are additive: a
+new format adds fields (an older file, lacking them, gets their defaults) and never renames,
+removes or changes the meaning of one an older format wrote. Reading checks every
 field and names the damaged one.
 
 **The C and Dart structs must match.** `VBCommand` is read from Dart as 4-byte words (`Cmd`

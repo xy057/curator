@@ -41,6 +41,8 @@ void main() {
     final archive = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
     expect(archive.files.first.name, 'mimetype', reason: 'identifies the file type without unzipping');
     expect(archive.findFile('score/Score.musicxml'), isNotNull);
+    final manifest = jsonDecode(utf8.decode(archive.findFile('project.json')!.content)) as Map;
+    expect(manifest['version'], ProjectState.version, reason: 'always written in the newest format');
 
     final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
     expect(opened.scoreName, 'Score.musicxml');
