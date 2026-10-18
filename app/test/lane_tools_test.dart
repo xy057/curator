@@ -19,15 +19,14 @@ import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 import 'test_fonts.dart';
+import 'window.dart';
 
 
 void main() {
   testWidgets('draw, erase, box-select and nudge in the instrument lanes', (tester) async {
     final dir = Platform.environment['SCREENSHOT_DIR'];
     if (dir != null) await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
 
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
@@ -185,9 +184,7 @@ void main() {
   testWidgets("holding an instrument's name and dragging it moves it: Violin I to the top", (tester) async {
     final dir = Platform.environment['SCREENSHOT_DIR'];
     if (dir != null) await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
@@ -301,9 +298,7 @@ void main() {
   });
 
   testWidgets('a held name the system takes the pointer from goes back to its place', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
@@ -333,9 +328,7 @@ void main() {
   });
 
   testWidgets('dragging regions moves them freely across lanes as well as along them', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
@@ -415,9 +408,7 @@ void main() {
   });
 
   testWidgets('a condensed pair is one lane: drawn, erased and dragged as a whole', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
@@ -493,9 +484,7 @@ void main() {
   });
 
   testWidgets('the toolbar sets how long every selected region glides in and out, as one step', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));
@@ -581,9 +570,7 @@ void main() {
   });
 
   testWidgets('⌘-scroll zooms the lanes horizontally without scrolling them vertically', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
@@ -636,9 +623,7 @@ void main() {
   });
 
   testWidgets('in 6/8 a drag snaps to the two dotted-crotchet beats of each bar', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
@@ -665,9 +650,7 @@ void main() {
   });
 
   testWidgets("a region's dialog keeps edges placed between beats where they are unless they are retyped", (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;

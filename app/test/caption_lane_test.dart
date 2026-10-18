@@ -17,14 +17,13 @@ import 'package:score_engine/score_engine.dart';
 
 import 'test_fonts.dart';
 import 'finders.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('the Captions lane is pinned in both tabs; double-click opens the sheet, which edits them all as one step',
       (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final dir = Platform.environment['SCREENSHOT_DIR'];
     Future<void> shot(String name, Finder inside) async {
       if (dir == null) return;
@@ -124,9 +123,7 @@ void main() {
 
   testWidgets('captions are regions in their lane: drawn, moved, trimmed, double-clicked, deleted and erased', (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory()..captions = true;
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
@@ -207,9 +204,7 @@ void main() {
   testWidgets('captions never overlap: drawing, moving and trimming stop at the next; the dialog and the sheet say so',
       (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory()..captions = true;
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));

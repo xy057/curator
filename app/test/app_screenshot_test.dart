@@ -16,14 +16,13 @@ import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('home screen with the sample score and timeline', (tester) async {
     final dir = Platform.environment['SCREENSHOT_DIR'];
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
 
     Future<void> shot(String name) async {
       if (dir == null) return;

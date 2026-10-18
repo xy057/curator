@@ -14,12 +14,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart' show EngraveOption, EngravingOptions;
 
 import 'demo_project.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('Save and Save As stay enabled whatever is open or edited', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
@@ -73,9 +72,7 @@ void main() {
   });
 
   testWidgets('Edit greys out what has nothing to do', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
@@ -148,9 +145,7 @@ void main() {
   });
 
   testWidgets('About Curator opens Settings ▸ About', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
 
     await tester.tap(find.text('Help'));
@@ -162,9 +157,7 @@ void main() {
   });
 
   testWidgets('Score ▸ Project Settings… opens the project\'s settings, greyed out with nothing open; File has the app\'s', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     Finder item() => find.widgetWithText(MenuItemButton, 'Project Settings…');
 
@@ -205,9 +198,7 @@ void main() {
   });
 
   testWidgets('Export Video is greyed out in the menu while the score is engraved again, as the toolbar button is', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));

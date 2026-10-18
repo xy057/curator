@@ -14,13 +14,12 @@ import 'package:curated_score/image_patch.dart';
 
 import 'image_patch_test.dart' show png;
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('right-click the score: Add Image… and Paste; select, resize, crop', (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final dir = Platform.environment['SCREENSHOT_DIR'];
     Future<void> shot(String name) async {
       if (dir == null) return;

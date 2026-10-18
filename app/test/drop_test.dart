@@ -10,14 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'image_patch_test.dart' show greyPng;
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('a drop goes by where it lands: an image on the score; on the timeline, what its tab takes',
       (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final dir = Directory.systemTemp.createTempSync('drop-');
     addTearDown(() => dir.deleteSync(recursive: true));
     final png = File('${dir.path}/logo.png')..writeAsBytesSync(greyPng(40, 20));

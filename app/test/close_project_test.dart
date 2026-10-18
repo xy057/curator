@@ -13,12 +13,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('Close returns to the start screen', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     await tester.pump(const Duration(seconds: 1));
     final state = tester.state(find.byType(HomePage)) as dynamic;

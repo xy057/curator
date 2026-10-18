@@ -21,13 +21,12 @@ import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('Project Settings ▸ Fonts engraves the score in another music and text font, each an Undo step',
       (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final state = tester.state(find.byType(HomePage)) as dynamic;
@@ -107,9 +106,7 @@ void main() {
 
   testWidgets("Project Settings sets the project's staff transition and engraving options, over the app's",
       (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
@@ -194,9 +191,7 @@ void main() {
   });
 
   testWidgets("a text font that can't be read changes nothing, and the picker says why", (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final c = _UnreadableTextFonts();
     addTearDown(c.dispose);
     await tester.runAsync(() => c.openFile(demoScore.path));
@@ -223,9 +218,7 @@ void main() {
 
   testWidgets('Installed Font… asks the system font picker; then Embed font shows, and each change is an Undo step',
       (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final state = tester.state(find.byType(HomePage)) as dynamic;
@@ -284,9 +277,7 @@ void main() {
 
   testWidgets('Project Settings closes when the project closes under it (the menu bar works while it is open)',
       (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
@@ -308,9 +299,7 @@ void main() {
 
   testWidgets("a font the system picker answers after Project Settings closed doesn't change the project open then",
       (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final state = tester.state(find.byType(HomePage)) as dynamic;
@@ -351,9 +340,7 @@ void main() {
   });
 
   testWidgets('Settings ▸ Fonts sets the fonts new projects start with', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final state = tester.state(find.byType(HomePage)) as dynamic;

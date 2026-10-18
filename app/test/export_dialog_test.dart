@@ -17,13 +17,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'demo_project.dart';
 import 'test_fonts.dart';
 import 'finders.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('Export Video…: a still over a trimmer, and a sidebar of the video and its picture', (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final state = tester.state(find.byType(HomePage)) as dynamic;

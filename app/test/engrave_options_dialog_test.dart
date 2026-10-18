@@ -17,14 +17,13 @@ import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('the preview shows the open score, engraved again with each change', (tester) async {
     final dir = Platform.environment['SCREENSHOT_DIR'];
     if (dir != null) await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final state = tester.state(find.byType(HomePage)) as dynamic;
@@ -111,9 +110,7 @@ void main() {
       (tester) async {
     final dir = Platform.environment['SCREENSHOT_DIR'];
     if (dir != null) await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
@@ -171,9 +168,7 @@ void main() {
   });
 
   testWidgets('the project closed while the Engraving page shows it: the demo is previewed instead', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;

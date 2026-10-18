@@ -10,15 +10,14 @@ import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 import 'finders.dart';
+import 'window.dart';
 import 'package:curated_score/dialog_kit.dart';
 
 void main() {
   late EditorController c;
 
   Future<void> open(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));

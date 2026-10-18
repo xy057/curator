@@ -13,14 +13,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
+import 'window.dart';
 
 MidiTempo _t(double quarter, double quartersPerMinute) => (quarter: quarter, quartersPerMinute: quartersPerMinute);
 
 void main() {
   testWidgets('the MIDI tempo map is edited by dragging its changes and by drawing with ⌥', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));
@@ -152,9 +151,7 @@ void main() {
   });
 
   testWidgets('Warps from score gives the map the score’s repeats, one Undo step', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScoreRepeated().path));
@@ -181,9 +178,7 @@ void main() {
   });
 
   testWidgets('Undo in the middle of a drag ends it, and Undo goes on recording after', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));

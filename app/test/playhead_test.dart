@@ -10,12 +10,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('a new time repaints the playhead, not the lanes', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));
@@ -49,9 +48,7 @@ void main() {
   });
 
   testWidgets('scrubbing while playing holds the music at the pointer and goes on from where it is let go', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));
@@ -73,9 +70,7 @@ void main() {
   });
 
   testWidgets('the ruler moves the playhead with the primary button only, as the lanes do', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));

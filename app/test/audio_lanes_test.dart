@@ -16,6 +16,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
 import 'finders.dart';
+import 'window.dart';
 
 /// 30 s of silence with one note starting at [onset] seconds, 1000 samples a second.
 Future<Waveform> oneNote(double onset) {
@@ -29,9 +30,7 @@ Future<Waveform> oneNote(double onset) {
 
 void main() {
   testWidgets('anchors are selected, moved, added and retyped with the mouse; tapping along adds them', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));
@@ -120,9 +119,7 @@ void main() {
   });
 
   testWidgets('a dragged anchor stays under the pointer when the view scrolls under it', (tester) async {
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));

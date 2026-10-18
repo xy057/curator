@@ -12,13 +12,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'image_patch_test.dart' show png, svg;
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('Manage assets lists the images kept, locates each use, removes an image everywhere and purges unused ones', (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final settings = AppSettings.memory();
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));

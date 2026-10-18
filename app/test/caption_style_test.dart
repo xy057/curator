@@ -15,13 +15,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('Captions settings style every project; Project Settings ▸ Fonts has a caption font while Captions is on', (tester) async {
     await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     final dir = Platform.environment['SCREENSHOT_DIR'];
     Future<void> shot(String name, Finder inside) async {
       if (dir == null) return;

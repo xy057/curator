@@ -12,14 +12,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
 import 'test_fonts.dart';
+import 'window.dart';
 
 void main() {
   testWidgets('what an imported score loses is listed in a dialog', (tester) async {
     final dir = Platform.environment['SCREENSHOT_DIR'];
     if (dir != null) await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2880, 1800);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
+    desktopWindow(tester);
     await tester.pumpWidget(const CuratedScoreApp());
     final state = tester.state(find.byType(HomePage)) as dynamic;
     final c = state.controller as EditorController;
