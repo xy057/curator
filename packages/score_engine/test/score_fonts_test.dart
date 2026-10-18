@@ -167,19 +167,18 @@ void main() {
     expect(FontFiles.named(fonts, 'Foo Light')!.single.weight, 300);
     expect(FontFiles.named(fonts, 'Baz'), isNull);
     expect(FontFiles.faces('assets/fonts/Leland.otf').single.legacyFamily, 'Leland');
-  });
 
-  test("a family whose name a file name can't have is found by the name its font goes by", () {
+    // A family whose name a file name can't have is found by the name its font goes by.
     final file = File('assets/fonts/Leland.otf').readAsBytesSync();
     final font = MusicFont.added(family: 'Foo.Std ♯', file: file);
     expect(font.name, 'Foo_Std _');
     expect(MusicFont.isNamed('Foo.Std ♯', font.name), isTrue);
     expect(MusicFont.isNamed('Foo Std', font.name), isFalse);
-    final fonts = {
+    final odd = {
       'Foo.Std ♯': [(path: 'f.otf', index: 0, family: 'Foo.Std ♯', legacyFamily: 'Foo.Std ♯', weight: 400, italic: false)],
     };
-    expect(FontFiles.named(fonts, font.name, same: MusicFont.isNamed), hasLength(1));
-    expect(FontFiles.named(fonts, font.name), isNull, reason: 'compared as is, the names differ');
+    expect(FontFiles.named(odd, font.name, same: MusicFont.isNamed), hasLength(1));
+    expect(FontFiles.named(odd, font.name), isNull, reason: 'compared as is, the names differ');
   });
 
   test('measures a text font from its file', () {
@@ -224,7 +223,9 @@ void main() {
     expect(await TextFonts.faces('No Such Font 12345'), isNull);
   }, skip: Platform.isMacOS ? false : 'uses Helvetica, a macOS font');
 
-  test('engraves and draws in another music font and text font', () async {
+  test('engraves and draws in another music font, bundled or added (under its own name), and text font', () async {
+    FontResources.workDirectory = work.path;
+    addTearDown(() => FontResources.workDirectory = null);
     final standard = await LoadedScore.load(demoScore());
     final leland = await LoadedScore.load(demoScore(),
         fonts: const ScoreFonts(music: MusicFont.leland, text: 'Helvetica'));
@@ -240,6 +241,19 @@ void main() {
     expect(scene.style.musicFontFamily, 'packages/score_engine/Leland');
     expect(scene.style.textFontFamily, 'Curator text Helvetica');
     scene.dispose();
+
+    final metadata = jsonDecode(File('third_party/verovio/fonts/Leland/leland_metadata.json').readAsStringSync()) as Map;
+    final font = MusicFont.added(
+      family: 'Leland Copy',
+      file: File('assets/fonts/Leland.otf').readAsBytesSync(),
+      metadata: utf8.encode(jsonEncode({...metadata, 'fontName': 'Leland Copy'})),
+    );
+    final added = await LoadedScore.load(demoScore(), fonts: ScoreFonts(music: font, text: 'Helvetica'));
+    expect(added.musicFontFamily, startsWith('Curator Leland Copy'));
+    expect(added.engraving.measures.length, 44);
+    // Measured from the same file as Verovio's own Leland metrics: the same layout, to a hair.
+    expect((added.engraving.width - leland.engraving.width).abs() / leland.engraving.width, lessThan(0.01));
+    expect(work.listSync().whereType<Directory>().where((d) => File('${d.path}/Leland Copy.xml').existsSync()), hasLength(1));
   }, skip: Platform.isMacOS ? false : 'uses Helvetica, a macOS font');
 
   test('a text font not installed falls back to Academico', () async {
@@ -265,24 +279,6 @@ void main() {
       expect(File('${again.directory}/$name').existsSync(), isTrue, reason: name);
     }
     expect(work.listSync().where((e) => e.path.startsWith('${first.directory}.')), isEmpty, reason: 'no draft left');
-  });
-
-  test('engraves with a SMuFL font the user added, under its own name', () async {
-    FontResources.workDirectory = work.path;
-    addTearDown(() => FontResources.workDirectory = null);
-    final metadata = jsonDecode(File('third_party/verovio/fonts/Leland/leland_metadata.json').readAsStringSync()) as Map;
-    final font = MusicFont.added(
-      family: 'Leland Copy',
-      file: File('assets/fonts/Leland.otf').readAsBytesSync(),
-      metadata: utf8.encode(jsonEncode({...metadata, 'fontName': 'Leland Copy'})),
-    );
-    final added = await LoadedScore.load(demoScore(), fonts: ScoreFonts(music: font));
-    final bundled = await LoadedScore.load(demoScore(), fonts: const ScoreFonts(music: MusicFont.leland));
-    expect(added.musicFontFamily, startsWith('Curator Leland Copy'));
-    expect(added.engraving.measures.length, 44);
-    // Measured from the same file as Verovio's own Leland metrics: the same layout, to a hair.
-    expect((added.engraving.width - bundled.engraving.width).abs() / bundled.engraving.width, lessThan(0.01));
-    expect(work.listSync().whereType<Directory>().where((d) => File('${d.path}/Leland Copy.xml').existsSync()), hasLength(1));
   });
 
   test('a font made to break its reader is measured within its own bytes', () {
