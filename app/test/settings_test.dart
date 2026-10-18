@@ -340,4 +340,23 @@ void main() {
     expect(find.widgetWithText(TextField, 'Search'), findsOneWidget, reason: 'no engraving list opened');
     expect(find.text('Engraving options'), findsOneWidget, reason: 'back on the Engraving page');
   });
+
+  testWidgets("a click on About's icon swaps it for the mascot, and another back", (tester) async {
+    await open(tester);
+    await tester.tap(find.text('About'));
+    await tester.pumpAndSettle();
+    bool showing(String asset) => tester
+        .widgetList<Image>(find.byType(Image))
+        .any((i) => i.image is AssetImage && (i.image as AssetImage).assetName == 'assets/icon/$asset.png');
+    expect(showing('app_icon'), isTrue);
+    expect(showing('mascot'), isFalse);
+    await tester.tap(find.byWidgetPredicate((w) => w is Image && w.image is AssetImage));
+    await tester.pumpAndSettle();
+    expect(showing('mascot'), isTrue);
+    expect(showing('app_icon'), isFalse);
+    await tester.tap(find.byWidgetPredicate((w) => w is Image && w.image is AssetImage));
+    await tester.pumpAndSettle();
+    expect(showing('app_icon'), isTrue);
+    expect(File('assets/icon/mascot.png').existsSync(), isTrue);
+  });
 }
