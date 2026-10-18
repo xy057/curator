@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'engraving_settings.dart';
@@ -88,7 +89,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
                 decoration: InputDecoration(
                   isDense: true,
                   hintText: 'Search',
-                  prefixIcon: Icon(Icons.search, size: 15, color: colors.textMuted),
+                  prefixIcon: Icon(AppIcon.search.of(context), size: 15, color: colors.textMuted),
                   prefixIconConstraints: const BoxConstraints(minWidth: 30),
                   contentPadding: const EdgeInsets.symmetric(vertical: 7),
                   border: border,
@@ -98,12 +99,12 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.restart_alt_rounded, size: 18),
+            icon: Icon(AppIcon.reset.of(context), size: 18),
             tooltip: 'Reset All',
             onPressed: target.own.isEmpty ? null : () => target.own = const EngravingOptions(),
           ),
           IconButton(
-            icon: const Icon(Icons.close_rounded, size: 18),
+            icon: Icon(AppIcon.close.of(context), size: 18),
             tooltip: 'Close',
             onPressed: () => Navigator.pop(context),
           ),
@@ -192,7 +193,7 @@ class _OptionRow extends StatelessWidget {
           width: 32,
           child: changed
               ? IconButton(
-                  icon: const Icon(Icons.restart_alt_rounded, size: 15),
+                  icon: Icon(AppIcon.reset.of(context), size: 15),
                   tooltip: 'Reset',
                   visualDensity: VisualDensity.compact,
                   onPressed: () => onChanged(null),

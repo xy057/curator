@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'audio_panel.dart';
 import 'caption_lane.dart';
 import 'editor_controller.dart';
@@ -64,7 +65,7 @@ class BottomPanel extends StatelessWidget {
             const ToolbarDivider(),
             _ZoomButtons(controller: c),
             ToolbarButton(
-              icon: Icons.fit_screen_outlined,
+              icon: AppIcon.fit.of(context),
               tooltip: 'Fit',
               onPressed: c.viewport.fit,
             ),
@@ -118,8 +119,8 @@ class _ZoomButtons extends StatelessWidget {
     if (MediaQuery.sizeOf(context).width < 1100) return const SizedBox.shrink();
     final v = controller.viewport;
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      ToolbarButton(icon: Icons.zoom_out_rounded, tooltip: 'Zoom out (${shortcut('⌘-scroll')} or pinch)', onPressed: () => v.zoom(1 / 1.5)),
-      ToolbarButton(icon: Icons.zoom_in_rounded, tooltip: 'Zoom in (${shortcut('⌘-scroll')} or pinch)', onPressed: () => v.zoom(1.5)),
+      ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom out (${shortcut('⌘-scroll')} or pinch)', onPressed: () => v.zoom(1 / 1.5)),
+      ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom in (${shortcut('⌘-scroll')} or pinch)', onPressed: () => v.zoom(1.5)),
     ]);
   }
 }
@@ -145,8 +146,8 @@ class _TabSwitch extends StatelessWidget {
   final ValueChanged<BottomTab> onChanged;
 
   static const _tabs = [
-    (BottomTab.instruments, Icons.view_list_rounded, 'Instruments'),
-    (BottomTab.audio, Icons.graphic_eq_rounded, 'Audio'),
+    (BottomTab.instruments, AppIcon.lanes, 'Instruments'),
+    (BottomTab.audio, AppIcon.audio, 'Audio'),
   ];
 
   @override
@@ -194,7 +195,7 @@ class _TabSwitch extends StatelessWidget {
                   child: TweenAnimationBuilder<Color?>(
                     duration: stateDuration(motion(context, 200)),
                     tween: ColorTween(end: tab == value ? chosen : k?.textSecondary ?? colors.textMuted),
-                    builder: (context, color, _) => Icon(icon, size: 16, color: color),
+                    builder: (context, color, _) => Icon(icon.of(context), size: 16, color: color),
                   ),
                 ),
               ),

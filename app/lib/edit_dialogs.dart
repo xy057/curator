@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
@@ -469,7 +470,7 @@ class _AnchorDialogState extends State<_AnchorDialog> {
           ),
           Padding(
             padding: EdgeInsets.fromLTRB(10, 0, 10, (AppStyle.of(context).field - 16) / 2),
-            child: const Icon(Icons.arrow_forward_rounded, size: 18),
+            child: Icon(AppIcon.forward.of(context), size: 18),
           ),
           Expanded(
             child: AppTextField(

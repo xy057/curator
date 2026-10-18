@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'file_names.dart';
 import 'project_file.dart';
 import 'ui_kit.dart';
@@ -46,7 +47,7 @@ class HomeScreen extends StatelessWidget {
                   width: 80,
                   height: 80,
                   filterQuality: FilterQuality.medium,
-                  errorBuilder: (_, _, _) => Icon(Icons.music_note_rounded, size: 64, color: colors.accent),
+                  errorBuilder: (_, _, _) => Icon(AppIcon.music.of(context), size: 64, color: colors.accent),
                 ),
               ),
               const SizedBox(height: 18),
@@ -74,13 +75,13 @@ class HomeScreen extends StatelessWidget {
                       message: 'Project or MusicXML (${shortcut('⌘O')})',
                       child: FilledButton.icon(
                         onPressed: onOpen,
-                        icon: const Icon(Icons.folder_open_rounded, size: 18),
+                        icon: Icon(AppIcon.open.of(context), size: 18),
                         label: const Text('Open…'),
                       ),
                     ),
                     OutlinedButton.icon(
                       onPressed: onOpenSample,
-                      icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
+                      icon: Icon(AppIcon.demo.of(context), size: 18),
                       label: const Text('Open Sample'),
                     ),
                   ],
@@ -217,7 +218,7 @@ class _RecentRowState extends State<_RecentRow> {
                 borderRadius: AppStyle.of(context).radius(8),
               ),
               child: Icon(
-                _isProject ? Icons.movie_filter_outlined : Icons.queue_music_rounded,
+                _isProject ? AppIcon.project.of(context) : AppIcon.score.of(context),
                 size: 17,
                 color: _exists ? colors.accentStrong : colors.textMuted,
               ),
@@ -239,7 +240,7 @@ class _RecentRowState extends State<_RecentRow> {
               // Hidden until hovered, but always there for VoiceOver (and its tooltip's overlay).
               alwaysIncludeSemantics: true,
               child: ToolbarButton(
-                icon: Icons.close_rounded,
+                icon: AppIcon.close.of(context),
                 tooltip: 'Remove from Recent',
                 color: colors.textMuted,
                 onPressed: widget.onRemove,

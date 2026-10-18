@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'captions_dialog.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
@@ -310,7 +311,7 @@ class _CaptionLaneState extends State<CaptionLane> {
               color: colors.accentWash,
               trailing: Padding(
                 padding: const EdgeInsets.only(right: 10),
-                child: Tip(message: 'Pinned', child: Icon(Icons.push_pin, size: 13, color: colors.textMuted)),
+                child: Tip(message: 'Pinned', child: Icon(AppIcon.pin.of(context), size: 13, color: colors.textMuted)),
               ),
               child: const Text('Captions', style: TextStyle(fontWeight: FontWeight.w500)),
             ),

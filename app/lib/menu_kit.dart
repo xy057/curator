@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'ui_kit.dart';
 
 /// A popup menu's row: a desktop menu's ([AppStyle.menuRow]), not Material's 48 px.
@@ -44,7 +45,7 @@ PopupMenuItem<T> checkedMenuItem<T>(BuildContext context,
       role: SemanticsRole.menuItemCheckbox,
       checked: checked,
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        SizedBox(width: 16, child: checked ? const Icon(Icons.done, size: 16) : null),
+        SizedBox(width: 16, child: checked ? Icon(AppIcon.check.of(context), size: 16) : null),
         SizedBox(width: AppStyle.of(context).isCarbon ? 8 : 6),
         child,
       ]),
@@ -181,8 +182,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
     );
     final arrow = IconTheme.merge(
       data: IconThemeData(size: inDialog && k == null ? 18 : 16, color: k?.textPrimary ?? colors.textMuted),
-      // Carbon's chevron--down.
-      child: w.icon ?? Icon(k != null ? Icons.keyboard_arrow_down_rounded : Icons.unfold_more_rounded),
+      child: w.icon ?? Icon(AppIcon.select.of(context)),
     );
     Widget field = Row(mainAxisSize: w.isExpanded ? MainAxisSize.max : MainAxisSize.min, children: [
       if (w.isExpanded) Expanded(child: label) else Flexible(child: label),
@@ -251,7 +251,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                     : null,
                 leadingIcon: SizedBox(
                   width: 16,
-                  child: item.value == w.value ? Icon(Icons.done, size: 16, color: k?.textPrimary ?? colors.text) : null,
+                  child: item.value == w.value ? Icon(AppIcon.check.of(context), size: 16, color: k?.textPrimary ?? colors.text) : null,
                 ),
                 child: item.child,
               ),
@@ -299,9 +299,7 @@ class SettingsDropdown<T> extends StatelessWidget {
         value: value,
         dense: true,
         isExpanded: width != null,
-        icon: k != null
-            ? Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: k.textPrimary)
-            : Icon(Icons.unfold_more_rounded, size: 16, color: colors.textMuted),
+        icon: Icon(AppIcon.select.of(context), size: 16, color: k?.textPrimary ?? colors.textMuted),
         style: k != null ? TextStyle(fontSize: 14, letterSpacing: 0.16, color: k.textPrimary) : TextStyle(fontSize: 13, color: colors.text),
         onChanged: onChanged == null ? null : (v) => v == null ? null : onChanged(v),
         items: items,

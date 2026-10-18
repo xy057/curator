@@ -42,3 +42,11 @@ flutter:
         - asset: assets/fonts/IBMPlexSans-Regular.ttf
         - asset: assets/fonts/IBMPlexSans-SemiBold.ttf
           weight: 600
+    # The icons (AppIcon), one font per style, made by Tools/make_icon_fonts.py from Material Symbols
+    # Rounded and IBM's Carbon icons (both Apache 2.0, see assets/fonts/*-LICENSE.txt).
+    - family: Material Symbols Rounded
+      fonts:
+        - asset: assets/fonts/MaterialSymbolsRounded.ttf
+    - family: Carbon Icons
+      fonts:
+        - asset: assets/fonts/CarbonIcons.ttf

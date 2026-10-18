@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'image_patch.dart';
@@ -114,7 +115,7 @@ class _AssetRow extends StatelessWidget {
           ]),
         ),
         if (uses.isNotEmpty)
-          ToolbarButton(icon: Icons.delete_outline_rounded, tooltip: 'Remove', onPressed: () => images.removeImage(image.id)),
+          ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove', onPressed: () => images.removeImage(image.id)),
       ]),
     );
   }

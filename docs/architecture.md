@@ -515,7 +515,15 @@ button, the bottom panel's tab switch, the Settings sidebar, lane labels). The s
 ink are the same in every style (`ScorePaper`), and video export draws on them. Neither style
 follows the platform (no `.adaptive` or Cupertino widgets), so macOS and Windows match.
 `AppSwitch` and `AppSegmented` (ui_kit.dart) draw their own controls: always use them, never
-`Switch` or `SegmentedButton`. Refined's `AppSegmented` works its label colour out from the tint
+`Switch` or `SegmentedButton`.
+Icons are named by meaning, `AppIcon` (app_icons.dart), and each style draws its own set: Refined
+Material Symbols Rounded (outlined, weight 300, optical size 20; filled only for play, pause, go to
+start, the pin and the done / failed marks), Carbon IBM's Carbon icons (the 16 px designs where
+there are, the 32 px masters otherwise). Both are bundled as small fonts holding only these icons,
+one code point per icon in both; `AppIcon.x.of(context)` picks the style's, never `Icons`. A table
+that has no context holds the `AppIcon` and resolves it where it is drawn. Tools/make_icon_fonts.py
+builds both fonts and app_icons.dart from its table, from the pinned releases: add an icon there.
+The metronome, which neither set has, is painted in the style's stroke. Refined's `AppSegmented` works its label colour out from the tint
 (the accent's strong shade taken toward black, or white, until it reads at 4.5:1), as some
 accents' shades don't. Text styles set in a style's theme are merged with the typography's
 geometry as `Theme.of` gives them, since a button lerps its label between the two styles and two

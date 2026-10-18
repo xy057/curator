@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_extensions.dart';
+import 'package:curated_score/app_icons.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/engraving_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
@@ -102,7 +103,7 @@ void main() {
     expect(find.text('Attach Image  1.0'), findsOneWidget, reason: 'its version after its name');
     expect(find.text(AppExtension.attachImage.summary), findsOneWidget);
     expect(find.text('Captions  1.0'), findsOneWidget);
-    final gears = tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, Icons.settings_outlined)).toList();
+    final gears = tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, AppIcon.settings.refined)).toList();
     expect(gears.first.onPressed, isNull, reason: 'Attach Image has no settings of its own yet');
     expect(gears.last.onPressed, isNotNull, reason: 'Captions has');
     expect(settings.attachImage, isFalse, reason: 'extensions start off');
@@ -114,7 +115,7 @@ void main() {
     await shot(tester, 'settings-extension');
 
     // Captions' own settings: how captions look.
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.settings_outlined).last);
+    await tester.tap(find.widgetWithIcon(IconButton, AppIcon.settings.refined).last);
     await tester.pumpAndSettle();
     expect(find.text('Countdown'), findsOneWidget);
     await tester.tap(find.text('Ring'));

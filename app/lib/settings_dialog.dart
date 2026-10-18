@@ -8,6 +8,7 @@ import 'package:score_engine/score_engine.dart' show EngravingOptions, MusicFont
 
 import 'app_colors.dart';
 import 'app_extensions.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
@@ -107,7 +108,7 @@ class _Item {
 class _Category {
   const _Category(this.label, this.icon, this.items, {this.empty, this.page, this.header});
   final String label;
-  final IconData icon;
+  final AppIcon icon;
   final List<_Item> items;
 
   /// Above the page's rows, staying put while they scroll; null for none.
@@ -123,7 +124,7 @@ class _Category {
 typedef _Context = ({AppSettings settings, EditorController? controller, Updater updater});
 
 final _categories = <_Category>[
-  _Category('General', Icons.tune_rounded, [
+  _Category('General', AppIcon.general, [
     _Item(
       'Autosave',
       (_) => 'Saved projects only.',
@@ -147,19 +148,19 @@ final _categories = <_Category>[
       keywords: 'undo redo steps',
     ),
   ]),
-  _Category('Appearance', Icons.palette_outlined, [
+  _Category('Appearance', AppIcon.appearance, [
     _Item(
       'Theme',
       (_) => 'Dark also turns the score dark.',
-      (c) => AppSegmented<ThemeMode>(
-        segments: const [
-          ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined, size: 16), label: Text('Auto')),
-          ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined, size: 16), label: Text('Light')),
-          ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined, size: 16), label: Text('Dark')),
+      (c) => Builder(builder: (context) => AppSegmented<ThemeMode>(
+        segments: [
+          ButtonSegment(value: ThemeMode.system, icon: Icon(AppIcon.auto.of(context), size: 16), label: Text('Auto')),
+          ButtonSegment(value: ThemeMode.light, icon: Icon(AppIcon.light.of(context), size: 16), label: Text('Light')),
+          ButtonSegment(value: ThemeMode.dark, icon: Icon(AppIcon.dark.of(context), size: 16), label: Text('Dark')),
         ],
         selected: c.settings.themeMode,
         onChanged: (v) => c.settings.themeMode = v,
-      ),
+      )),
       keywords: 'dark light mode colour color',
     ),
     _Item(
@@ -179,7 +180,7 @@ final _categories = <_Category>[
       keywords: 'look controls switch button classic refined carbon ibm theme',
     ),
   ]),
-  _Category('Animation', Icons.animation_rounded, [
+  _Category('Animation', AppIcon.transition, [
     _Item(
       'Staff transition',
       (_) => 'For new projects.',
@@ -198,7 +199,7 @@ final _categories = <_Category>[
       keywords: 'scroll speed smooth snap note beat follow onset glide motion pointer',
     ),
   ]),
-  _Category('Fonts', Icons.text_fields_rounded, [
+  _Category('Fonts', AppIcon.fonts, [
     _Item('Music', (_) => 'For new projects.', (c) => MusicFontPicker.forNewProjects(settings: c.settings),
         keywords: 'font smufl bravura leland petaluma notation default'),
     _Item(
@@ -212,21 +213,21 @@ final _categories = <_Category>[
         keywords: 'font academico family typeface default'),
   ]),
   _engravingCategory(project: false),
-  _Category('Recording', Icons.graphic_eq_rounded, [
+  _Category('Recording', AppIcon.audio, [
     _Item(
       'Save the recording',
       (c) => switch (c.settings.mediaStorage) {
         MediaStorage.embed => 'The audio is stored in the project file.',
         MediaStorage.link => 'The project points to the recording; keep it nearby.',
       },
-      (c) => AppSegmented<MediaStorage>(
-        segments: const [
-          ButtonSegment(value: MediaStorage.embed, label: Text('Embed'), icon: Icon(Icons.inventory_2_outlined, size: 16)),
-          ButtonSegment(value: MediaStorage.link, label: Text('Link'), icon: Icon(Icons.link, size: 16)),
+      (c) => Builder(builder: (context) => AppSegmented<MediaStorage>(
+        segments: [
+          ButtonSegment(value: MediaStorage.embed, label: Text('Embed'), icon: Icon(AppIcon.embed.of(context), size: 16)),
+          ButtonSegment(value: MediaStorage.link, label: Text('Link'), icon: Icon(AppIcon.link.of(context), size: 16)),
         ],
         selected: c.settings.mediaStorage,
         onChanged: (v) => c.settings.mediaStorage = v,
-      ),
+      )),
       keywords: 'embed link media audio video file',
     ),
   ]),
@@ -234,7 +235,7 @@ final _categories = <_Category>[
   // lower priority, each one optional.
   // Each one is a switch for the whole app (AppExtension), off by default; what it adds
   // works only while it is on.
-  _Category('Extensions', Icons.extension_outlined, [
+  _Category('Extensions', AppIcon.extensions, [
     for (final e in AppExtension.values)
       _Item(
         e.label,
@@ -249,7 +250,7 @@ final _categories = <_Category>[
       ),
   ], empty: 'No extensions yet.'),
   // Fixes for how other programs write their files, on by default; a switch to turn one off.
-  _Category('Flags', Icons.flag_outlined, [
+  _Category('Flags', AppIcon.flags, [
     _Item(
       'Dynamics typed as text',
       (_) => 'Engraves “f” set in a music font as a dynamic.',
@@ -258,7 +259,7 @@ final _categories = <_Category>[
     ),
   ]),
   // The page is _AboutPage; these rows are what the search finds.
-  _Category('About', Icons.info_outline_rounded, page: (c) => _AboutPage(c), [
+  _Category('About', AppIcon.about, page: (c) => _AboutPage(c), [
     _Item(
       'Version',
       null,
@@ -287,7 +288,7 @@ final _categories = <_Category>[
 
 /// The open project's settings (Score ▸ Project Settings…): each change an edit.
 final _projectCategories = <_Category>[
-  _Category('Animation', Icons.animation_rounded, [
+  _Category('Animation', AppIcon.transition, [
     _Item(
       'Staff transition',
       (_) => 'Regions can have their own.',
@@ -295,7 +296,7 @@ final _projectCategories = <_Category>[
       keywords: 'fade duration enter leave glide',
     ),
   ]),
-  _Category('Fonts', Icons.text_fields_rounded, [
+  _Category('Fonts', AppIcon.fonts, [
     _Item('Music', null, (c) => MusicFontPicker(controller: c.controller!), keywords: 'font smufl bravura leland petaluma notation'),
     _Item(
       'Embed font',
@@ -323,7 +324,7 @@ _Category _engravingCategory({required bool project}) {
   EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller, project: project);
   return _Category(
     'Engraving',
-    Icons.music_note_outlined,
+    AppIcon.music,
     header: (c) => SizedBox(
         height: 170, child: EngravingPreviewHost(settings: c.settings, controller: c.controller, scale: 0.5)),
     [
@@ -546,7 +547,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Search',
-              prefixIcon: Icon(Icons.search_rounded, size: 16, color: carbon?.textSecondary ?? colors.textMuted),
+              prefixIcon: Icon(AppIcon.search.of(context), size: 16, color: carbon?.textSecondary ?? colors.textMuted),
               prefixIconConstraints: BoxConstraints(minWidth: carbon == null ? 30 : 40),
               filled: true,
               fillColor: carbon?.field ?? colors.line.withValues(alpha: 0.6),
@@ -568,7 +569,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         const SizedBox(height: 14),
         for (final (i, cat) in _categories.indexed)
           _SidebarTile(
-            icon: cat.icon,
+            icon: cat.icon.of(context),
             label: cat.label,
             selected: !searching && i == _page,
             onTap: () {
@@ -655,7 +656,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
             visualDensity: VisualDensity.compact,
             color: colors.textMuted,
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close_rounded),
+            icon: Icon(AppIcon.close.of(context)),
           ),
         ]),
       ),
@@ -1025,7 +1026,7 @@ class _ExtensionSettingsButton extends StatelessWidget {
                     actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
                   ),
                 ),
-        icon: const Icon(Icons.settings_outlined),
+        icon: Icon(AppIcon.settings.of(context)),
       ),
     );
   }
@@ -1082,7 +1083,7 @@ class _CopyButtonState extends State<_CopyButton> {
             await Future<void>.delayed(const Duration(milliseconds: 1500));
             if (mounted) setState(() => _copied = false);
           },
-          icon: Icon(_copied ? Icons.check_rounded : Icons.copy_rounded),
+          icon: Icon(_copied ? AppIcon.check.of(context) : AppIcon.copy.of(context)),
         ),
       );
 }
@@ -1109,7 +1110,7 @@ class _AboutPage extends StatelessWidget {
                 width: 76,
                 height: 76,
                 filterQuality: FilterQuality.medium,
-                errorBuilder: (_, _, _) => Icon(Icons.music_note_rounded, size: 64, color: colors.accent),
+                errorBuilder: (_, _, _) => Icon(AppIcon.music.of(context), size: 64, color: colors.accent),
               ),
               const SizedBox(height: 6),
               Text('Curator', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: colors.text)),

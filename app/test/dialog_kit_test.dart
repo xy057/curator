@@ -1,6 +1,7 @@
 // Dialogs are laid out as a desktop editor's: title, scrolling body, footer; Carbon's as its
 // modal, the footer's buttons edge to edge.
 import 'package:curated_score/app_colors.dart';
+import 'package:curated_score/app_icons.dart';
 import 'package:curated_score/dialog_kit.dart';
 import 'package:curated_score/menu_kit.dart';
 import 'package:curated_score/ui_kit.dart';
@@ -160,7 +161,7 @@ void main() {
       expect(border.ring, bad);
       expect(border.borderSide.color, bad ? k.error : k.borderStrong);
       expect((decoration.focusedBorder! as CarbonFieldBorder).borderSide.width, 2);
-      expect(find.byIcon(Icons.error), bad ? findsOneWidget : findsNothing);
+      expect(find.byIcon(AppIcon.invalid.carbon), bad ? findsOneWidget : findsNothing);
     }
   });
 

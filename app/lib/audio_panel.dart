@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
@@ -603,21 +604,21 @@ class AudioToolbar extends StatelessWidget {
       listenable: Listenable.merge([sync, c]),
       builder: (context, _) => Row(children: [
         ToolbarButton(
-          icon: c.track == null ? Icons.audio_file_outlined : Icons.change_circle_outlined,
+          icon: c.track == null ? AppIcon.addAudio.of(context) : AppIcon.replaceAudio.of(context),
           tooltip: c.track == null
               ? 'Add Recording… (or drop one here)'
               : 'Replace recording…\n${c.track!.name}',
           onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
         ),
         ToolbarButton(
-          icon: Icons.piano_outlined,
+          icon: AppIcon.tempoMap.of(context),
           tooltip: c.midiTempo == null ? 'Add MIDI Tempo Map… (or drop one here)' : 'Stop following ${c.midiTempo!.name}',
           selected: c.usesMidiTempo,
           onPressed: () => c.usesMidiTempo ? c.useMidiTempo(null) : pickMidi(context, c),
         ),
         if (!c.usesMidiTempo) _TapButton(controller: c),
         ToolbarButton(
-          icon: Icons.u_turn_left_rounded,
+          icon: AppIcon.warp.of(context),
           tooltip: c.anchors.selected.length == 1 && !c.usesMidiTempo
               ? 'Warp (W)\nMake this anchor jump to another bar'
               : 'Warp (W)\nJump to another bar here',
@@ -625,7 +626,7 @@ class AudioToolbar extends StatelessWidget {
         ),
         if (c.midiTempo case final midi?)
           ToolbarButton(
-            icon: Icons.repeat_rounded,
+            icon: AppIcon.repeat.of(context),
             tooltip: 'Warps from score',
             onPressed: c.scoreWarps.isEmpty || listEquals(midi.warps, c.scoreWarps) ? null : c.useScoreWarps,
           ),
@@ -640,7 +641,7 @@ class AudioToolbar extends StatelessWidget {
           ),
           const SizedBox(width: 2),
           ToolbarButton(
-            icon: Icons.align_horizontal_center_rounded,
+            icon: AppIcon.snap.of(context),
             tooltip: c.anchors.snapToOnsets
                 ? 'Snap to notes (on)'
                 : 'Snap to notes (off)',
@@ -673,7 +674,7 @@ class AudioToolbar extends StatelessWidget {
         ),
         if (!c.usesMidiTempo)
           ToolbarButton(
-            icon: Icons.clear_all_rounded,
+            icon: AppIcon.clearAnchors.of(context),
             tooltip: 'Remove all anchors',
             onPressed: sync.anchors.isEmpty ? null : c.anchors.clear,
           ),
@@ -707,11 +708,11 @@ class _SpeedMenu extends StatelessWidget {
           for (final s in const [0.5, 0.75, 1.0]) checkedMenuItem(context, value: s, checked: s == speed, child: Text(_label(s))),
         ],
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.speed_rounded, size: 16, color: colors.textMuted),
+          Icon(AppIcon.speed.of(context), size: 16, color: colors.textMuted),
           const SizedBox(width: 5),
           Text(_label(speed),
               style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
-          Icon(Icons.arrow_drop_down_rounded, size: 18, color: colors.textMuted),
+          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
         ]),
       ),
     );
@@ -751,7 +752,7 @@ class _TapButton extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text('Space', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.recording)),
               ] else
-                SizedBox.square(dimension: 32, child: Icon(Icons.touch_app_outlined, size: 18, color: colors.text)),
+                SizedBox.square(dimension: 32, child: Icon(AppIcon.tap.of(context), size: 18, color: colors.text)),
             ]),
           ),
         ),
@@ -914,7 +915,7 @@ class _StartFieldState extends State<_StartField> {
     return Tip(
       message: 'Silence before bar 1 (s)',
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.start_rounded, size: 17, color: context.colors.textMuted),
+        Icon(AppIcon.leadIn.of(context), size: 17, color: context.colors.textMuted),
         const SizedBox(width: 4),
         // Shaped as the time readout's field.
         SizedBox(

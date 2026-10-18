@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'menu_kit.dart';
@@ -114,7 +115,7 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                             label: c.pairName(pair),
                             trailing: c.pairs.contains(pair)
                                 ? ToolbarButton(
-                                    icon: Icons.close_rounded,
+                                    icon: AppIcon.close.of(context),
                                     tooltip: 'Remove pair',
                                     onPressed: () => c.removePair(pair),
                                   )

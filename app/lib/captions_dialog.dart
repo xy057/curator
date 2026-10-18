@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'ui_kit.dart';
@@ -191,7 +192,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
         ]),
       ),
       divided: true,
-      leading: [TextButton.icon(onPressed: _add, icon: const Icon(Icons.add, size: 18), label: const Text('Add'))],
+      leading: [TextButton.icon(onPressed: _add, icon: Icon(AppIcon.add.of(context), size: 18), label: const Text('Add'))],
       status: problem == null ? null : Text(problem, style: TextStyle(color: colors.erase), overflow: TextOverflow.ellipsis),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
@@ -263,7 +264,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
             child: IconButton(
               iconSize: 16,
               padding: EdgeInsets.zero,
-              icon: Icon(Icons.close_rounded, color: colors.textMuted),
+              icon: Icon(AppIcon.close.of(context), color: colors.textMuted),
               onPressed: () => _remove(i),
             ),
           ),

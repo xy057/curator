@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'ui_kit.dart';
 
 /// The space between a dialog's groups of fields (a field is [AppStyle.field] tall, its label
@@ -288,7 +289,7 @@ class AppTextField extends StatelessWidget {
             focusedBorder: borders.focused,
             border: borders.rest,
             // Carbon's invalid field: its warning icon at the right.
-            suffixIcon: k != null && bad ? Icon(Icons.error, size: 16, color: k.error) : null,
+            suffixIcon: k != null && bad ? Icon(AppIcon.invalid.of(context), size: 16, color: k.error) : null,
             suffixIconConstraints: const BoxConstraints.tightFor(width: 32, height: 16),
           ),
           onChanged: onChanged,
@@ -348,9 +349,7 @@ Widget dialogMenuField(
         focusedBorder: borders.focused,
       ),
       TextStyle(fontSize: 14, letterSpacing: style.isCarbon ? 0.16 : null),
-      style.isCarbon
-          ? Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: colors.text) // Carbon's chevron--down
-          : Icon(Icons.unfold_more_rounded, size: 16, color: colors.textMuted),
+      Icon(AppIcon.select.of(context), size: 16, color: style.isCarbon ? colors.text : colors.textMuted),
     ),
   );
 }

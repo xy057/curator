@@ -23,7 +23,8 @@ Future<void> _font(String family, List<String> paths) async {
   await loader.load();
 }
 
-/// Loads Roboto (also as the test's default family), the Material icons, IBM Plex Sans and the score fonts.
+/// Loads Roboto (also as the test's default family), the Material icons, IBM Plex Sans, the app's icons and
+/// the score fonts.
 Future<void> loadTestFonts() async {
   final roboto = ['$_materialFonts/Roboto-Regular.ttf', '$_materialFonts/Roboto-Medium.ttf'];
   await _font('Roboto', roboto);
@@ -31,6 +32,9 @@ Future<void> loadTestFonts() async {
   await _font('MaterialIcons', ['$_materialFonts/MaterialIcons-Regular.otf']);
   // Carbon's typeface, as the app bundles it.
   await _font('IBM Plex Sans', [for (final w in ['Light', 'Regular', 'SemiBold']) 'assets/fonts/IBMPlexSans-$w.ttf']);
+  // The icons, as the app bundles them.
+  await _font('Material Symbols Rounded', ['assets/fonts/MaterialSymbolsRounded.ttf']);
+  await _font('Carbon Icons', ['assets/fonts/CarbonIcons.ttf']);
   for (final f in ['Bravura.otf', 'Leland.otf', 'Petaluma.otf', 'Leipzig.ttf', 'Gootville.otf']) {
     await _font('packages/score_engine/${f.split('.').first}', ['../packages/score_engine/assets/fonts/$f']);
   }

@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:curated_score/app_icons.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/dialog_kit.dart';
@@ -42,7 +43,7 @@ void main() {
       }
     }
 
-    await tester.tap(find.byIcon(Icons.merge_type_rounded));
+    await tester.tap(find.byIcon(AppIcon.condense.refined));
     await settle();
     final dialog = find.byType(AppDialog);
     expect(find.descendant(of: dialog, matching: find.byType(AppCheckRow)), findsNWidgets(7)); // "All pairs" and 6

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'edit_dialogs.dart';
@@ -250,7 +251,7 @@ class _ExportDialogState extends State<_ExportDialog> {
           ),
         ),
         ToolbarButton(
-          icon: Icons.close_rounded,
+          icon: AppIcon.close.of(context),
           tooltip: 'Close',
           onPressed: _stage == _Stage.writing ? null : () => Navigator.pop(context),
         ),
@@ -341,7 +342,7 @@ class _ExportDialogState extends State<_ExportDialog> {
           // Back to the whole piece; its room is kept so nothing jumps.
           Visibility.maintain(
             visible: !_whole,
-            child: ToolbarButton(icon: Icons.restart_alt_rounded, tooltip: 'Whole piece', onPressed: _whole ? null : _setWhole),
+            child: ToolbarButton(icon: AppIcon.reset.of(context), tooltip: 'Whole piece', onPressed: _whole ? null : _setWhole),
           ),
         ]),
       ),
@@ -368,7 +369,7 @@ class _ExportDialogState extends State<_ExportDialog> {
         trailing: Visibility.maintain(
           visible: !_defaultVideo,
           child: ToolbarButton(
-            icon: Icons.restart_alt_rounded,
+            icon: AppIcon.reset.of(context),
             tooltip: 'MP4 · 1080p · 30 fps',
             onPressed: _defaultVideo ? null : _setDefaultVideo,
           ),
@@ -524,7 +525,7 @@ class _ExportDialogState extends State<_ExportDialog> {
         ),
       ),
       const SizedBox(width: 14),
-      Icon(sound == null ? Icons.volume_off_rounded : Icons.music_note_rounded, size: 15, color: colors.textMuted),
+      Icon(sound == null ? AppIcon.mute.of(context) : AppIcon.music.of(context), size: 15, color: colors.textMuted),
       const SizedBox(width: 4),
       Flexible(child: Text(sound?.name ?? 'Silent', style: muted, overflow: TextOverflow.ellipsis)),
     ]);
@@ -552,13 +553,13 @@ class _ExportDialogState extends State<_ExportDialog> {
   }
 
   Widget _done(BuildContext context) => Row(children: [
-        Icon(Icons.check_circle_rounded, size: 18, color: context.colors.accent),
+        Icon(AppIcon.done.of(context), size: 18, color: context.colors.accent),
         const SizedBox(width: 8),
         Flexible(child: Text('Saved “${fileNameOf(_output!)}”.', overflow: TextOverflow.ellipsis)),
       ]);
 
   Widget _failed(BuildContext context) => Row(children: [
-        Icon(Icons.error_outline_rounded, size: 18, color: Theme.of(context).colorScheme.error),
+        Icon(AppIcon.failed.of(context), size: 18, color: Theme.of(context).colorScheme.error),
         const SizedBox(width: 8),
         // FFmpeg's last lines can be long: the whole of it is there to copy, in a tooltip too.
         Flexible(

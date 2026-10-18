@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'controller_settings.dart';
 import 'editor_controller.dart';
@@ -164,7 +165,7 @@ class _EngravingControlState extends State<EngravingControl> {
         width: 32,
         child: changed
             ? IconButton(
-                icon: const Icon(Icons.restart_alt_rounded, size: 15),
+                icon: Icon(AppIcon.reset.of(context), size: 15),
                 tooltip: 'Reset',
                 visualDensity: VisualDensity.compact,
                 color: colors.textMuted,

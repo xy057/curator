@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'assets_dialog.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
@@ -70,13 +71,13 @@ class EditorToolbar extends StatelessWidget {
       decoration: BoxDecoration(color: colors.chrome, border: Border(bottom: BorderSide(color: colors.line))),
       child: Row(children: [
         ToolbarButton(
-          icon: Icons.home_outlined,
+          icon: AppIcon.home.of(context),
           tooltip: 'Close project (${shortcut('⌘W')})',
           onPressed: onClose,
         ),
         const ToolbarDivider(),
         ToolbarButton(
-          icon: Icons.skip_previous_rounded,
+          icon: AppIcon.toStart.of(context),
           tooltip: 'Go to start (Home)',
           onPressed: () => c.playback.seek(0),
         ),
@@ -94,29 +95,29 @@ class EditorToolbar extends StatelessWidget {
         const Spacer(),
         _SavingIndicator(document: document),
         ToolbarButton(
-          icon: Icons.undo_rounded,
+          icon: AppIcon.undo.of(context),
           tooltip: 'Undo (${shortcut('⌘Z')})',
           onPressed: c.canUndo ? c.undo : null,
         ),
         ToolbarButton(
-          icon: Icons.redo_rounded,
+          icon: AppIcon.redo.of(context),
           tooltip: 'Redo (${shortcut('⇧⌘Z', 'Ctrl+Y')})',
           onPressed: c.canRedo ? c.redo : null,
         ),
         const ToolbarDivider(),
         if (c.images.enabled)
           ToolbarButton(
-            icon: Icons.photo_library_outlined,
+            icon: AppIcon.assets.of(context),
             tooltip: 'Manage assets…',
             onPressed: () => showAssetsDialog(context, c),
           ),
         ToolbarButton(
-          icon: Icons.movie_outlined,
+          icon: AppIcon.export.of(context),
           tooltip: 'Export video… (${shortcut('⌘E')})',
           onPressed: c.isReengraving ? null : onExportVideo,
         ),
         ToolbarButton(
-          icon: Icons.crop_16_9_rounded,
+          icon: AppIcon.frame.of(context),
           tooltip: videoFrame ? 'Fill the window' : "Show the video's frame",
           selected: videoFrame,
           onPressed: () => onVideoFrame(!videoFrame),
@@ -125,7 +126,7 @@ class EditorToolbar extends StatelessWidget {
         const ToolbarDivider(),
         Tip(
           message: 'Score size',
-          child: Icon(Icons.format_size_rounded, size: 16, color: colors.textMuted),
+          child: Icon(AppIcon.scoreSize.of(context), size: 16, color: colors.textMuted),
         ),
         SizedBox(
           width: 132,
@@ -188,7 +189,7 @@ class RatioMenu extends StatelessWidget {
           Text(ratio.label,
               style: TextStyle(
                   fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
-          Icon(Icons.arrow_drop_down_rounded, size: 18, color: colors.textMuted),
+          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
         ]),
       ),
     );
@@ -208,7 +209,7 @@ class _PlayButton extends StatelessWidget {
     // Refined: a transport button like the others, its icon in the accent. Carbon: its primary
     // icon button, white on the accent.
     final tip = playing ? 'Pause (Space)' : 'Play (Space)';
-    final icon = playing ? Icons.pause_rounded : Icons.play_arrow_rounded;
+    final icon = playing ? AppIcon.pause.of(context) : AppIcon.play.of(context);
     if (CarbonColors.maybeOf(context) case final k?) {
       return OverlaySemantics(
         child: IconButton(
@@ -251,13 +252,16 @@ class _MetronomeGlyph extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = IconTheme.of(context);
     final size = icon.size ?? 18;
-    return CustomPaint(size: Size.square(size), painter: _MetronomePainter(icon.color ?? context.colors.text));
+    return CustomPaint(
+        size: Size.square(size), painter: _MetronomePainter(icon.color ?? context.colors.text, AppStyle.of(context).isCarbon));
   }
 }
 
+/// Drawn as its style's icons are: Material Symbols' light rounded stroke, or Carbon's square 2-unit one.
 class _MetronomePainter extends CustomPainter {
-  const _MetronomePainter(this.color);
+  const _MetronomePainter(this.color, this.carbon);
   final Color color;
+  final bool carbon;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -265,9 +269,9 @@ class _MetronomePainter extends CustomPainter {
     final line = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
+      ..strokeWidth = carbon ? 1.5 : 1.6
+      ..strokeJoin = carbon ? StrokeJoin.miter : StrokeJoin.round
+      ..strokeCap = carbon ? StrokeCap.butt : StrokeCap.round;
     canvas.drawPath(
         Path()
           ..moveTo(9.5, 3.5)
@@ -282,7 +286,7 @@ class _MetronomePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_MetronomePainter old) => old.color != color;
+  bool shouldRepaint(_MetronomePainter old) => old.color != color || old.carbon != carbon;
 }
 
 /// "1:10.0 / 1:31.4" and the bar.beat sounding now. A click on either (or ⌘G: [edit]) types

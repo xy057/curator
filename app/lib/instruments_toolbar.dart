@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'condensing_dialog.dart';
 import 'editor_controller.dart';
@@ -14,10 +15,10 @@ class InstrumentsToolbar extends StatelessWidget {
   final EditorController controller;
 
   /// Each tool's icon and hover text: its name, then what each key changes.
-  static Map<LaneTool, (IconData, String)> get _tools => {
-        LaneTool.select: (Icons.near_me_outlined, 'Select (V)\n${shortcut('⇧ add · ⌘ toggle, no snap · ⌥ draw')}'),
-        LaneTool.draw: (Icons.edit_outlined, 'Draw (D)\n${shortcut('⌘ no snap · ⌥ erase')}'),
-        LaneTool.erase: (Icons.hide_source_outlined, 'Erase (E)\n${shortcut('⌘ no snap · ⌥ draw')}'),
+  static Map<LaneTool, (AppIcon, String)> get _tools => {
+        LaneTool.select: (AppIcon.pointer, 'Select (V)\n${shortcut('⇧ add · ⌘ toggle, no snap · ⌥ draw')}'),
+        LaneTool.draw: (AppIcon.draw, 'Draw (D)\n${shortcut('⌘ no snap · ⌥ erase')}'),
+        LaneTool.erase: (AppIcon.erase, 'Erase (E)\n${shortcut('⌘ no snap · ⌥ draw')}'),
       };
 
   @override
@@ -35,7 +36,7 @@ class InstrumentsToolbar extends StatelessWidget {
           children: [
             ToolGroup(children: [
               for (final MapEntry(key: tool, value: (icon, tip)) in _tools.entries)
-                ToolbarButton(icon: icon, tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
+                ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
             ]),
             const SizedBox(width: 10),
             Expanded(child: FadingText(status, style: TextStyle(fontSize: 12, color: context.colors.textMuted))),
@@ -45,16 +46,16 @@ class InstrumentsToolbar extends StatelessWidget {
                   ? const SizedBox.shrink()
                   : Row(key: const ValueKey('selection'), mainAxisSize: MainAxisSize.min, children: [
                       ToolbarButton(
-                        icon: Icons.first_page_rounded,
+                        icon: AppIcon.trimStart.of(context),
                         tooltip: 'Start at the playhead ([)',
                         onPressed: () => c.lanes.trimToPlayhead(start: true),
                       ),
                       ToolbarButton(
-                        icon: Icons.last_page_rounded,
+                        icon: AppIcon.trimEnd.of(context),
                         tooltip: 'End at the playhead (])',
                         onPressed: () => c.lanes.trimToPlayhead(start: false),
                       ),
-                      ToolbarButton(icon: Icons.delete_outline_rounded, tooltip: 'Remove (Delete)', onPressed: c.commands.delete),
+                      ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove (Delete)', onPressed: c.commands.delete),
                       const ToolbarDivider(),
                       _TransitionMenu(controller: c),
                       const ToolbarDivider(),
@@ -62,7 +63,7 @@ class InstrumentsToolbar extends StatelessWidget {
             ),
             if (score.condensing.partners.values.any((p) => p.isNotEmpty)) ...[
               ToolbarButton(
-                icon: Icons.merge_type_rounded,
+                icon: AppIcon.condense.of(context),
                 tooltip: 'Condensing…',
                 onPressed: () => showCondensingDialog(context, c),
               ),
@@ -70,12 +71,12 @@ class InstrumentsToolbar extends StatelessWidget {
             ],
             _TidyMenu(controller: c, lanes: lanes.length),
             ToolbarButton(
-              icon: Icons.auto_awesome_outlined,
+              icon: AppIcon.autoCurate.of(context),
               tooltip: 'Auto-curate',
               onPressed: c.lanes.autoCurate,
             ),
             ToolbarButton(
-              icon: Icons.layers_clear_outlined,
+              icon: AppIcon.clearLanes.of(context),
               tooltip: 'Clear all lanes',
               onPressed: c.lanes.clear,
             ),
@@ -130,7 +131,7 @@ class _TidyMenu extends StatelessWidget {
           minimumSize: const Size(32, 32),
           shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
         ),
-        icon: const Icon(Icons.cleaning_services_outlined),
+        icon: Icon(AppIcon.tidy.of(context)),
         onSelected: (action) => action(),
         itemBuilder: (context) => [
           menuHeader(context, lanes == 0 ? 'Tidy All Lanes' : 'Tidy $lanes Selected ${lanes == 1 ? 'Lane' : 'Lanes'}'),
@@ -191,14 +192,14 @@ class _TransitionMenu extends StatelessWidget {
             checkedMenuItem(context, value: s, checked: values.length == 1 && value == s, child: Text('$s s')),
         ],
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.animation_rounded, size: 16, color: colors.textMuted),
+          Icon(AppIcon.transition.of(context), size: 16, color: colors.textMuted),
           const SizedBox(width: 5),
           Text(label,
               style: TextStyle(
                   fontSize: 12.5,
                   color: values.length == 1 && value != null ? colors.text : colors.textMuted,
                   fontFeatures: const [FontFeature.tabularFigures()])),
-          Icon(Icons.arrow_drop_down_rounded, size: 18, color: colors.textMuted),
+          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
         ]),
       ),
     );

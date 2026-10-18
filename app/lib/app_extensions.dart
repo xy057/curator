@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'caption_settings.dart';
 import 'dialog_kit.dart';
@@ -10,14 +11,14 @@ import 'ui_kit.dart';
 /// The optional first-party components (Settings ▸ Extensions). Each is a switch for the whole
 /// app (not per project), off by default; what it adds works only while it is on.
 enum AppExtension {
-  attachImage('Attach Image', Icons.image_outlined, '1.0', 'Images that scroll with the score.',
+  attachImage('Attach Image', AppIcon.image, '1.0', 'Images that scroll with the score.',
       'image picture photo svg png jpg'),
-  captions('Captions', Icons.subtitles_outlined, '1.0', 'Timed text under the score.',
+  captions('Captions', AppIcon.captions, '1.0', 'Timed text under the score.',
       'caption subtitle commentary note text');
 
   const AppExtension(this.label, this.icon, this.version, this.summary, this.keywords);
   final String label;
-  final IconData icon;
+  final AppIcon icon;
 
   /// Shown after [label]; raised when what the extension does changes.
   final String version;
@@ -100,7 +101,7 @@ class ExtensionsDialog extends StatelessWidget {
                   itemBuilder: (context, i) {
                     final e = extensions[i];
                     return _SwitchRow(
-                      icon: e.icon,
+                      icon: e.icon.of(context),
                       label: Text(e.label),
                       value: e.isOn(settings),
                       onChanged: (on) => e.set(settings, on),

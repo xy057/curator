@@ -1,4 +1,5 @@
 // Go to: the toolbar's readout typed (a click on it, or ⌘G) moves the playhead to a bar or a time.
+import 'package:curated_score/app_icons.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
@@ -98,7 +99,7 @@ void main() {
       await tester.pump();
     }
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.graphic_eq_rounded));
+    await tester.tap(find.byIcon(AppIcon.audio.refined));
     await tester.pumpAndSettle();
 
     final field = find.descendant(of: find.byTooltip('Silence before bar 1 (s)'), matching: find.byType(TextField));
@@ -138,7 +139,7 @@ void main() {
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.runAsync(() => c.openFile(demoScore.path));
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.graphic_eq_rounded));
+    await tester.tap(find.byIcon(AppIcon.audio.refined));
     await tester.pumpAndSettle();
     final score = tester.getCenter(find.byType(ScoreView));
 

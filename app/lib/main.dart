@@ -14,6 +14,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'app_extensions.dart';
+import 'app_icons.dart';
 import 'app_menus.dart';
 import 'app_settings.dart';
 import 'audio_panel.dart';
@@ -983,11 +984,11 @@ class _DropHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final (icon, title, detail) = switch (area) {
-      _DropArea.home => (Icons.file_download_outlined, 'Drop to open', 'A project or a MusicXML score'),
-      _DropArea.project => (Icons.file_download_outlined, 'Drop to open', 'A project or a MusicXML score'),
-      _DropArea.audio => (Icons.graphic_eq_rounded, 'Drop to add', 'A MIDI tempo map or a recording'),
-      _DropArea.image when attachImage => (Icons.image_outlined, 'Drop to add an image', 'SVG, PNG or JPEG'),
-      _DropArea.image => (Icons.image_not_supported_outlined, 'Attach Image is off', 'Turn on in Settings ▸ Extensions'),
+      _DropArea.home => (AppIcon.drop.of(context), 'Drop to open', 'A project or a MusicXML score'),
+      _DropArea.project => (AppIcon.drop.of(context), 'Drop to open', 'A project or a MusicXML score'),
+      _DropArea.audio => (AppIcon.audio.of(context), 'Drop to add', 'A MIDI tempo map or a recording'),
+      _DropArea.image when attachImage => (AppIcon.image.of(context), 'Drop to add an image', 'SVG, PNG or JPEG'),
+      _DropArea.image => (AppIcon.noImage.of(context), 'Attach Image is off', 'Turn on in Settings ▸ Extensions'),
     };
     final hint = IgnorePointer(
       child: AnimatedOpacity(
