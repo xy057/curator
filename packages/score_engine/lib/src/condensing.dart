@@ -406,17 +406,31 @@ abstract final class Condenser {
         if (attribute.name.local != 'width') attribute.name.qualified: attribute.value,
     });
     final body = <XmlNode>[];
+    // The second player's directions the first doesn't have (the same at the same point are
+    // one); placed apart from the first's, below.
+    final own = [
+      for (final MapEntry(key: direction, value: key) in y.directionKeys.entries)
+        if (!x.directions.contains(key)) direction,
+    ];
     switch (bar) {
-      case _Bar.rest || _Bar.first || _Bar.unison:
+      case _Bar.rest || _Bar.first:
         body.addAll(x.body);
       case _Bar.second:
         body.addAll(y.body);
-      case _Bar.chords:
-        _addChords(x, y);
-        for (final note in x.notes) {
-          note.getElement('stem')?.remove(); // Verovio chooses them for the chords
+      case _Bar.unison || _Bar.chords:
+        if (bar == _Bar.chords) {
+          _addChords(x, y);
+          for (final note in x.notes) {
+            note.getElement('stem')?.remove(); // Verovio chooses them for the chords
+          }
+        }
+        // One rhythm: each of the second player's directions goes where it is in the first's bar.
+        for (final direction in own) {
+          direction.getElement('voice')?.innerText = x.voices.single;
+          _insertAt(x.body, direction, y.positions[direction]!);
         }
         body.addAll(x.body);
+        _placeApart(own, x.body);
       case _Bar.voices:
         _setVoice(x, 1, 'up', offset: 0);
         _setVoice(y, 2, 'down', offset: 4);
@@ -424,25 +438,9 @@ abstract final class Condenser {
         if (x.finish > 0) body.add(_durationElement('backup', x.finish));
         body.addAll([
           for (final node in y.body)
-            if (node is! XmlElement || node.name.local != 'direction' || !x.directions.contains(y.directionKeys[node]))
-              node,
+            if (node is! XmlElement || node.name.local != 'direction' || own.contains(node)) node,
         ]);
-        // Where the players' dynamics differ, the first player's go above the staff and the
-        // second's below, as Dorico places them.
-        final own = [
-          for (final node in body.skip(x.body.length))
-            if (node is XmlElement && node.name.local == 'direction') node,
-        ];
-        for (final direction in own) {
-          direction.setAttribute('placement', 'below');
-        }
-        if (own.any(_isDynamic)) {
-          for (final node in x.body) {
-            if (node is XmlElement && node.name.local == 'direction' && _isDynamic(node)) {
-              node.setAttribute('placement', 'above');
-            }
-          }
-        }
+        _placeApart(own, x.body);
     }
     if (respellIn != null && bar != _Bar.first && bar != _Bar.unison && bar != _Bar.rest) _respell(body, respellIn);
     if (label != null) _insertLabel(body, label);
@@ -451,6 +449,42 @@ abstract final class Condenser {
       ..addAll(body)
       ..addAll(x.tail);
     return measure;
+  }
+
+  /// The second player's [own] directions go below the staff; where any is a dynamic, the
+  /// first player's dynamics (in [first]) go above, as Dorico places them.
+  static void _placeApart(List<XmlElement> own, List<XmlNode> first) {
+    for (final direction in own) {
+      direction.setAttribute('placement', 'below');
+    }
+    if (!own.any(_isDynamic)) return;
+    for (final node in first) {
+      if (node is XmlElement && node.name.local == 'direction' && !own.contains(node) && _isDynamic(node)) {
+        node.setAttribute('placement', 'above');
+      }
+    }
+  }
+
+  /// Inserts [direction] into a one-voice [body] before the note that starts at [position]
+  /// (in divisions), or at the end when none does.
+  static void _insertAt(List<XmlNode> body, XmlElement direction, int position) {
+    var at = 0;
+    for (final (i, node) in body.indexed) {
+      if (node is! XmlElement) continue;
+      switch (node.name.local) {
+        case 'note' when node.getElement('chord') == null:
+          if (at >= position) {
+            body.insert(i, direction);
+            return;
+          }
+          if (node.getElement('grace') == null) at += _BarReading._duration(node);
+        case 'backup':
+          at -= _BarReading._duration(node);
+        case 'forward':
+          at += _BarReading._duration(node);
+      }
+    }
+    body.add(direction);
   }
 
   static bool _isDynamic(XmlElement direction) => direction
@@ -732,6 +766,7 @@ class _BarReading {
         case 'direction':
           final key = '$position ${[for (final t in node.findElements('direction-type')) Condenser._plain(t)].join()}';
           directionKeys[node] = key;
+          positions[node] = position;
       }
       if (position > end) end = position;
     }
@@ -755,6 +790,9 @@ class _BarReading {
   /// the first player's dynamics.
   final directionKeys = <XmlElement, String>{};
   late final Set<String> directions = directionKeys.values.toSet();
+
+  /// Where each direction is in the bar (divisions).
+  final positions = <XmlElement, int>{};
 
   /// How far into the bar the player's music reaches (divisions), and where it is after the
   /// last element.

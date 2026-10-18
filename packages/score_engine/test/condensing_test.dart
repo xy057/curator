@@ -12,7 +12,7 @@ import 'demo_score.dart';
 /// Two flutes in 3/4, a bar of each kind: Flute 1 alone, both the same, the same rhythm a
 /// third apart, different rhythms, both resting, Flute 2 alone. Flute 2 counts in halves of
 /// Flute 1's divisions, and slurs across bars 3–4 (a chord bar, then two voices). Flute 1
-/// plays dolce, and the two play different dynamics in bar 4.
+/// plays dolce; Flute 2 alone plays mp in bar 2, both f in bar 3, and they differ in bar 4.
 String twoFlutes() {
   String note(String step, int octave, int duration, String type, {String extra = ''}) =>
       '<note><pitch><step>$step</step><octave>$octave</octave></pitch><duration>$duration</duration>'
@@ -37,15 +37,15 @@ String twoFlutes() {
 ${part('P1', q, [
         '<direction><direction-type><words>dolce</words></direction-type></direction>${note('C', 5, 3 * q, 'half', extra: '<dot/>')}',
         note('E', 5, q, 'quarter') * 3,
-        note('G', 5, q, 'quarter', extra: '<notations><slur type="start"/></notations>') + note('G', 5, q, 'quarter') * 2,
+        dynamic('f') + note('G', 5, q, 'quarter', extra: '<notations><slur type="start"/></notations>') + note('G', 5, q, 'quarter') * 2,
         '${dynamic('p')}${note('A', 5, 3 * q, 'half', extra: '<dot/><notations><slur type="stop"/></notations>')}',
         rest(3 * q),
         rest(3 * q),
       ])}
 ${part('P2', h, [
         rest(3 * h),
-        note('E', 5, h, 'quarter') * 3,
-        note('E', 5, h, 'quarter', extra: '<notations><slur type="start"/></notations>') + note('E', 5, h, 'quarter') * 2,
+        note('E', 5, h, 'quarter') + dynamic('mp') + note('E', 5, h, 'quarter') * 2,
+        dynamic('f') + note('E', 5, h, 'quarter', extra: '<notations><slur type="start"/></notations>') + note('E', 5, h, 'quarter') * 2,
         dynamic('mf') + note('F', 5, h, 'quarter') * 2 + note('F', 5, h, 'quarter', extra: '<notations><slur type="stop"/></notations>'),
         rest(3 * h),
         note('D', 5, 3 * h, 'half', extra: '<dot/>'),
@@ -144,11 +144,17 @@ void main() {
     // The same notes: once, marked "a2".
     expect(labels(bars[1]), ['a2']);
     expect(bars[1].findElements('note'), hasLength(3));
+    // Flute 2's own dynamic stays, below the staff, before its second note.
+    final mp = bars[1].childElements.toList().indexWhere((e) => e.findAllElements('mp').isNotEmpty);
+    expect(bars[1].childElements.elementAt(mp).getAttribute('placement'), 'below');
+    expect(bars[1].childElements.take(mp).where((e) => e.name.local == 'note'), hasLength(1));
     // The same rhythm a third apart: one voice of chords, stems left to Verovio.
     expect(labels(bars[2]), isEmpty);
     expect(bars[2].findElements('note').where((n) => n.getElement('chord') != null), hasLength(3));
     expect(voices(bars[2]), {'1'});
     expect(bars[2].findAllElements('stem'), isEmpty);
+    // The same dynamic in both: once.
+    expect(bars[2].findAllElements('f'), hasLength(1));
     // Different rhythms: two voices, Flute 1's stems up and Flute 2's down, after a backup
     // written in the shared divisions (a crotchet is 1 in Flute 1, 2 in Flute 2: 2 in both).
     expect(voices(bars[3]), {'1', '2'});
