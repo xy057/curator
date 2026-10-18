@@ -31,7 +31,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/demo/ # the sample project behind "Try the sample" (and every test)
-    - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one), and the mascot a click on it shows
+    - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one), and the mascot a click on it shows (on the same tile)
   fonts:
     # Carbon's typeface, IBM Plex Sans 1.1.0 (SIL OFL 1.1, see assets/fonts/IBMPlexSans-OFL.txt):
     # the weights the Carbon style sets (Light, Regular, SemiBold).
