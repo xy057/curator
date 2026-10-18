@@ -814,12 +814,34 @@ Future<void> pickMidi(BuildContext context, EditorController c) async {
   final file = await openFile(acceptedTypeGroups: [midiTypes]);
   if (file == null) return;
   try {
-    await c.loadMidiTempo(file.path);
+    final taken = await c.loadMidiTempo(file.path);
+    if (context.mounted) showMidiWarpsTaken(context, c, taken);
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t use the MIDI file. ${describeError(e)}')));
     }
   }
+}
+
+/// Says where the MIDI tempo map just read took its warps from ([EditorController.loadMidiTempo]),
+/// when it took any, with Remove (one Undo step) for a file that plays straight through.
+void showMidiWarpsTaken(BuildContext context, EditorController c, MidiWarpsTaken? taken) {
+  if (taken == null) return;
+  final map = c.midiTempo;
+  final warps = taken.count == 1 ? '1 warp' : '${taken.count} warps';
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    content: Text(switch (taken.from) {
+      MidiWarpsFrom.file => 'Kept $warps from ${taken.file}',
+      MidiWarpsFrom.anchors => 'Kept $warps from the anchors',
+      MidiWarpsFrom.score => '$warps from the score’s repeats',
+    }),
+    action: SnackBarAction(
+      label: 'Remove',
+      onPressed: () {
+        if (c.midiTempo == map) c.setMidiWarps(const []);
+      },
+    ),
+  ));
 }
 
 /// "Starts at": where bar 1 sounds in the recording (the blank time before the music).

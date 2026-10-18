@@ -56,7 +56,7 @@ void main() {
     final tapped = c.sync!.anchors;
     c.tab = BottomTab.instruments;
 
-    await c.loadMidiTempo(_midiFile().path);
+    expect(await c.loadMidiTempo(_midiFile().path), isNull, reason: 'no warps taken');
     expect(c.tab, BottomTab.audio);
     expect(c.midiTempo!.name, 'tempo.mid');
     final sync = c.sync!;
@@ -113,7 +113,7 @@ void main() {
     // Hand-set: bar 3 (quarter 6 in 6/8) jumps back to bar 1.
     final starts = c.sync!.measureStarts;
     c.sync!.load([SyncAnchor(0, 2), SyncAnchor(starts[2], 5, jumpTo: 0), SyncAnchor(starts[4], 9)]);
-    await c.loadMidiTempo(_midiFile().path);
+    expect(await c.loadMidiTempo(_midiFile().path), (from: MidiWarpsFrom.anchors, count: 1, file: null));
     expect(c.midiTempo!.warps, [(at: starts[2], jumpTo: 0.0)], reason: 'the warps set by hand carry over');
     final sync = c.sync!;
     expect(sync.passes, hasLength(2));
@@ -122,7 +122,7 @@ void main() {
     expect(sync.secondsAtQuarter(starts[2], pass: 1), closeTo(2 + 8 + (2 * starts[2] - 12), 1e-4),
         reason: 'the file\'s change at quarter 12 lands in the second pass');
 
-    await c.loadMidiTempo(_midiFile().path);
+    expect(await c.loadMidiTempo(_midiFile().path), (from: MidiWarpsFrom.file, count: 1, file: 'tempo.mid'));
     expect(c.midiTempo!.warps, [(at: starts[2], jumpTo: 0.0)], reason: 'a file read in place of another keeps them');
 
     expect(c.setMidiWarps([(at: starts[2], jumpTo: c.sync!.totalQuarters)]), isFalse, reason: 'goes on from the end');
@@ -143,13 +143,13 @@ void main() {
     expect(c.scoreWarps, [(at: starts[4], jumpTo: 0.0)]);
     final played = starts.last + starts[4];
 
-    await c.loadMidiTempo(_midiFileOf(played).path);
+    expect(await c.loadMidiTempo(_midiFileOf(played).path), (from: MidiWarpsFrom.score, count: 1, file: null));
     expect(c.midiTempo!.warps, c.scoreWarps);
     expect(c.sync!.passes, hasLength(2));
     c.undo();
     expect(c.usesMidiTempo, isFalse, reason: 'with its warps, one Undo step');
 
-    await c.loadMidiTempo(_midiFileOf(starts.last).path);
+    expect(await c.loadMidiTempo(_midiFileOf(starts.last).path), isNull);
     expect(c.midiTempo!.warps, isEmpty, reason: 'played straight through');
     expect(c.useScoreWarps(), isTrue);
     expect(c.midiTempo!.warps, c.scoreWarps);

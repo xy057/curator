@@ -7,6 +7,7 @@ import 'package:curated_score/dialog_kit.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/lanes_common.dart';
 import 'package:curated_score/main.dart';
+import 'package:flutter/material.dart' show ScaffoldMessenger;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -189,6 +190,20 @@ void main() {
     await tester.pump();
     c.undo();
     expect(c.midiTempo!.warps, isEmpty, reason: 'one Undo step; a second tap, with them in place, did nothing');
+
+    // A file read says where its warps came from, and Remove takes them off (one Undo step).
+    expect(c.useScoreWarps(), isTrue);
+    showMidiWarpsTaken(tester.element(find.byType(HomePage)), c, (from: MidiWarpsFrom.score, count: 1, file: null));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400)); // slid in
+    expect(find.text('1 warp from the score’s repeats'), findsOneWidget);
+    await tester.tap(find.text('Remove'));
+    await tester.pump();
+    expect(c.midiTempo!.warps, isEmpty);
+    c.undo();
+    expect(c.midiTempo!.warps, c.scoreWarps);
+    ScaffoldMessenger.of(tester.element(find.byType(HomePage))).removeCurrentSnackBar();
+    await tester.pump(const Duration(milliseconds: 400));
 
     c.useMidiTempo(null);
     await tester.pump(const Duration(milliseconds: 400));

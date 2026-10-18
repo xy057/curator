@@ -181,7 +181,8 @@ quarter `at` the score goes on from `jumpTo`; where it arrives from follows (`ar
 Warps that don't fit the score (a damaged project's) are left out from the first that doesn't, the
 rest followed (`MidiTempoMap.arrivals`, as `SyncMap` would keep them); editing a warp lets them go.
 Reading a file keeps the warps the sync had: the old file's, or those set by hand
-(`MidiTempoMap.warpsOf`), so the form is set once. With none, a file nearer the score's length
+(`MidiTempoMap.warpsOf`), so the form is set once; the window says where a file's warps came from
+(`showMidiWarpsTaken`, with Remove). With none, a file nearer the score's length
 played with its repeats than straight through (`MidiTempoMap.lengthOf`, to its last track's end)
 takes the score's own (`EditorController.scoreWarps`); the Audio tab's Warps from score button puts
 them in place of the map's at any time. They come from `ScoreForm` (`ScoreMetadata.form`): the
