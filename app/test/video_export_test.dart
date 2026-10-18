@@ -323,7 +323,7 @@ Encoders:
       expect(double.parse(info['format']['duration'] as String), closeTo(1.5, 0.05));
     }, skip: skip, timeout: const Timeout(Duration(minutes: 2)));
 
-    test('cancelling leaves no file behind, and an older video of that name as it was', () async {
+    test('cancelling leaves no file behind, and an older video of that name as it was; exporting again writes it', () async {
       final export = VideoExport.of(c);
       addTearDown(export.dispose);
       final out = File('${dir.path}/demo.mp4')..writeAsStringSync('the old one');
@@ -333,17 +333,9 @@ Encoders:
       await expectLater(writing, throwsA(isA<VideoExportCancelled>()));
       expect(out.readAsStringSync(), 'the old one');
       expect(File('${out.path}.part').existsSync(), isFalse);
-    }, skip: skip);
 
-    test('after a cancelled export, exporting again writes the video', () async {
-      final export = VideoExport.of(c);
-      addTearDown(export.dispose);
-      final out = '${dir.path}/demo.mp4';
-      await expectLater(export.write(out, format: small, to: 5, onProgress: (p) {
-        if (p.frame == 2) export.cancel();
-      }), throwsA(isA<VideoExportCancelled>()));
-      await export.write(out, format: small, to: 0.3);
-      expect(File(out).lengthSync(), greaterThan(0));
+      await export.write(out.path, format: small, to: 0.3);
+      expect(out.lengthSync(), greaterThan('the old one'.length));
     }, skip: skip);
 
     test('each frame drawn is handed on to show, so the still needn\'t draw it again', () async {
@@ -365,16 +357,6 @@ Encoders:
       await expectLater(export.write(out, format: small, to: 1),
           throwsA(isA<VideoExportException>().having((e) => e.message, 'message', contains('missing.flac'))));
       expect(dir.listSync(), isEmpty);
-    }, skip: skip);
-
-    test('the export keeps the curation it started with', () async {
-      final export = VideoExport.of(c);
-      addTearDown(export.dispose);
-      c.curation!.clearAll(); // edited in the editor after the export was made
-      final out = '${dir.path}/demo.mp4';
-      await export.write(out, format: small, to: 0.2);
-      expect(File(out).lengthSync(), greaterThan(0));
-      expect(export.duration, c.playback.duration);
     }, skip: skip);
 
     test('bars A–B: from where A first sounds to where B ends, then the ending; all of them is the whole video', () {
@@ -495,20 +477,22 @@ Encoders:
       expect(Directory('$out.part').existsSync(), isFalse);
     }, skip: skip, timeout: const Timeout(Duration(minutes: 2)));
 
-    test('the export condenses the pairs the editor did when it started', () {
+    test('the export keeps the curation, pairs and instrument order the editor had when it started', () async {
       c.setCondensed(['cond-P2-P3'], on: true);
-      final export = VideoExport.of(c);
-      addTearDown(export.dispose);
-      c.setCondensed(['cond-P2-P3'], on: false); // changed in the editor afterwards
-      expect(export.condensed, {'cond-P2-P3'});
-    });
-
-    test('the export stacks the instruments as the editor did when it started', () {
       c.moveLane('P17', 0); // Violin I on top
       final export = VideoExport.of(c);
       addTearDown(export.dispose);
-      c.restoreScoreOrder(); // changed in the editor afterwards
+      // Changed in the editor afterwards.
+      c.curation!.clearAll();
+      c.setCondensed(['cond-P2-P3'], on: false);
+      c.restoreScoreOrder();
+      expect(export.condensed, {'cond-P2-P3'});
       expect(export.partOrder.first, 'P17');
+      expect(export.duration, c.playback.duration);
+      if (ffmpeg == null) return;
+      final out = '${dir.path}/demo.mp4';
+      await export.write(out, format: small, to: 0.2);
+      expect(File(out).lengthSync(), greaterThan(0));
     });
   });
 }
