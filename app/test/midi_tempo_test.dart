@@ -47,7 +47,11 @@ void main() {
   });
   tearDown(() => c.dispose());
 
-  test('a MIDI file sets the sync from its tempo map, in one Undo step, and gives the tapped anchors back', () async {
+  test('a MIDI file sets the sync from its tempo map, in one Undo step, and gives the tapped anchors back; a file that is not MIDI changes nothing', () async {
+    expect(() => c.loadMidiTempo(demoScore.path), throwsFormatException);
+    expect(c.usesMidiTempo, isFalse);
+    expect(c.canUndo, isFalse);
+
     c.sync!.load(const [SyncAnchor(0, 2), SyncAnchor(6, 5)]);
     final tapped = c.sync!.anchors;
     c.tab = BottomTab.instruments;
@@ -163,11 +167,5 @@ void main() {
     expect(c.useScoreWarps(), isFalse);
     await c.openFile(demoScoreRepeated().path);
     expect(c.useScoreWarps(), isFalse, reason: 'no MIDI tempo map');
-  });
-
-  test('a file that is not MIDI changes nothing', () async {
-    expect(() => c.loadMidiTempo(demoScore.path), throwsFormatException);
-    expect(c.usesMidiTempo, isFalse);
-    expect(c.canUndo, isFalse);
   });
 }
