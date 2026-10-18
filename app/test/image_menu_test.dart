@@ -115,5 +115,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(c.images.patches.single.crop.right, lessThan(1));
     expect(rect().height, closeTo(banner.height, 0.5), reason: 'a thin side never gets thinner');
+
+    // Attach Image turned off mid-drag: the drag ends, the move so far one Undo step, and Undo
+    // goes on recording what follows.
+    c.images.select(0);
+    await tester.pump();
+    final was = c.images.patches.single;
+    final gesture = await tester.startGesture(rect().center);
+    for (var i = 0; i < 3; i++) {
+      await gesture.moveBy(const Offset(15, 0));
+      await tester.pump();
+    }
+    settings.attachImage = false;
+    await tester.pump();
+    await gesture.moveBy(const Offset(15, 0));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+    expect(c.images.patches.single.quarter, greaterThan(was.quarter));
+    c.curation!.transition = 0.7;
+    c.undo();
+    expect(c.curation!.transition, isNot(0.7), reason: 'recorded after the drag');
+    c.undo();
+    expect(c.images.patches.single, was, reason: 'the move, one Undo step');
+    await tester.pump(const Duration(seconds: 1)); // the double-click window
   });
 }
