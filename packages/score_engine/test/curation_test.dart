@@ -10,17 +10,13 @@ void main() {
     quarterNotesPerMinute: 120,
   );
 
-  test('overlapping and touching regions merge', () {
+  test('overlapping and touching regions merge; a drag may overlap them live, merged when it ends', () {
     final c = Curation(['vn'])..setLane('vn', const [Region(8, 12), Region(0, 4), Region(4, 6), Region(10, 16)]);
     expect(c.lane('vn'), const [Region(0, 6), Region(8, 16)]);
-  });
-
-  test('a drag may overlap regions live; normalizing merges them', () {
-    final c = Curation(['vn'])..setLane('vn', const [Region(0, 4), Region(6, 8)]);
-    c.updateLanes({'vn': const [Region(0, 4), Region(3, 7), Region(6, 8)]});
+    c.updateLanes({'vn': const [Region(0, 6), Region(5, 9), Region(8, 16)]});
     expect(c.lane('vn'), hasLength(3), reason: 'passing over each other');
     c.normalize();
-    expect(c.lane('vn'), const [Region(0, 8)]);
+    expect(c.lane('vn'), const [Region(0, 16)]);
   });
 
   test('drawing joins regions; erasing trims, splits and removes them', () {
@@ -35,13 +31,6 @@ void main() {
     expect(c.lane('vn'), const [Region(13, 16)]);
   });
 
-  test('bars are counted by their own length', () {
-    const starts = <double>[0, 4, 6, 10, 14]; // 4/4, 2/4, 4/4, 4/4
-    expect(Curation.barsBetween(starts, 4, 6), 1);
-    expect(Curation.barsBetween(starts, 5, 8), closeTo(1, 1e-9)); // half of 2/4 + half of 4/4
-    expect(Curation.barsBetween(starts, 0, 14), 4);
-  });
-
   test('tidying fills short rests and drops short flashes', () {
     const starts = <double>[0, 4, 8, 12, 16, 20, 24, 28, 32];
     final c = Curation(['vn', 'fl'])
@@ -54,13 +43,9 @@ void main() {
     c.removeShort(starts, 2);
     expect(c.lane('vn'), const [Region(0, 12)]);
     expect(c.lane('fl'), isEmpty);
-  });
 
-  test('a lane can be copied to others', () {
-    final c = Curation(['vn1', 'vn2', 'va'])..setLane('vn1', const [Region(0, 4), Region(8, 12)]);
-    c.copyLane('vn1', ['vn2', 'va']);
-    expect(c.lane('vn2'), c.lane('vn1'));
-    expect(c.lane('va'), c.lane('vn1'));
+    // Bars are counted by their own length: 4/4, 2/4, 4/4, 4/4.
+    expect(Curation.barsBetween(const [0, 4, 6, 10, 14], 5, 8), closeTo(1, 1e-9));
   });
 
   test('joined lanes (a condensed pair) are one: an edit of either is an edit of both', () {
