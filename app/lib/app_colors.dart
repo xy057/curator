@@ -605,7 +605,8 @@ class AppColors extends ThemeExtension<AppColors> {
     return carbon == null ? _refined(theme, c, dark) : _carbon(theme, c, carbon, dark);
   }
 
-  /// Carbon's typeface, IBM Plex Sans (bundled), and what stands in for a glyph it hasn't.
+  /// Carbon's typeface, IBM Plex Sans (bundled: Light, Regular, SemiBold), and what stands in for
+  /// a glyph it hasn't.
   static const carbonFont = 'IBM Plex Sans';
   static const carbonFontFallback = ['Helvetica Neue', 'Arial', 'sans-serif'];
 
