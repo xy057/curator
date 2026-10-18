@@ -27,22 +27,12 @@ void main() {
 
     Future<void> openSample() async {
       await tester.tap(find.text('Open Sample'));
-
-      for (var i = 0; i < 300 && c.score == null; i++) {
-        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      // Done once it is the sample: after the score, its recording is tried (tests have no audio).
+      for (var i = 0; i < 1500 && !document.isSample; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
         await tester.pump();
       }
       await tester.pump(const Duration(milliseconds: 600));
-      // Tests have no audio plugin: the sample's recording can't load (just after the score),
-      // which the app reports.
-      for (var i = 0; i < 20 && find.text('OK').evaluate().isEmpty; i++) {
-        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
-        await tester.pump();
-      }
-      if (find.text('OK').evaluate().isNotEmpty) {
-        await tester.tap(find.text('OK'));
-        await tester.pumpAndSettle();
-      }
     }
 
     Future<void> close() async {
@@ -50,6 +40,15 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(MenuItemButton, 'Close'));
       await tester.pump();
+    }
+
+    /// Waits until the start screen is back (or a second has passed), then past its cross-fade.
+    Future<void> closed() async {
+      for (var i = 0; i < 50 && (c.score != null || find.byType(HomeScreen).evaluate().isEmpty); i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.pump(const Duration(milliseconds: 500));
     }
 
     AppMenus menus() => tester.widget<AppMenus>(find.byType(AppMenus));
@@ -66,10 +65,7 @@ void main() {
     expect(document.isDirty, isFalse);
     await expectLater(document.save('${Directory.systemTemp.path}/demo.ccs'), throwsStateError);
     await close();
-    for (var i = 0; i < 10; i++) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+    await closed();
     expect(find.textContaining('save the changes'), findsNothing);
     expect(c.score, isNull);
     expect(document.isSample, isFalse);
@@ -85,10 +81,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.textContaining('save the changes'), findsOneWidget);
     await tester.tap(find.text('Don’t Save'));
-    for (var i = 0; i < 10; i++) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+    await closed();
     expect(c.score, isNull);
     expect(document.isDirty, isFalse);
     expect(document.path, isNull);
@@ -105,10 +98,7 @@ void main() {
     // The toolbar's Close button: its click leaves the editor to paint again just as Close
     // takes the snapshot it cross-fades from.
     await tester.tap(find.byTooltip('Close project (${shortcut('⌘W')})'));
-    for (var i = 0; i < 10; i++) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+    await closed();
     expect(tester.takeException(), isNull);
     expect(c.score, isNull);
     expect(find.byType(HomeScreen), findsOneWidget);
