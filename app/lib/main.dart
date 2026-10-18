@@ -14,6 +14,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'app_extensions.dart';
+import 'app_icons.dart';
 import 'app_menus.dart';
 import 'app_settings.dart';
 import 'audio_panel.dart';
@@ -257,6 +258,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _settingsChanged() {
     controller.takeSettings(settings);
     _shown.value = _shownSettings;
+    WindowChrome.showAppIcon(mascot: settings.mascotIcon);
   }
 
   @override
@@ -272,6 +274,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _lifecycle; // start listening for Quit
     updater.addListener(_launchCheckAnswered);
     WindowChrome.listenForOpenedFiles((paths) => _openPath(paths.first));
+    WindowChrome.showAppIcon(mascot: settings.mascotIcon);
     // Once, after the window's first frame, not when a video's background is first made
     // transparent. (Not an idle task: one waits while anything animates, re-arming a timer on
     // every turn of the event loop, which spun and, in widget tests, filled memory.)
@@ -755,6 +758,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         child: controller.score == null
                             ? HomeScreen(
                                 key: const ValueKey('home'),
+                                settings: settings,
                                 recentFiles: settings.recentFiles,
                                 onOpen: _open,
                                 onOpenRecent: _openPath,
@@ -912,7 +916,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
             height: 3,
             decoration: BoxDecoration(
               color: active ? colors.accent : colors.activity,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: AppStyle.of(context).radius(2),
             ),
           ),
         ),
@@ -983,11 +987,11 @@ class _DropHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final (icon, title, detail) = switch (area) {
-      _DropArea.home => (Icons.file_download_outlined, 'Drop to open', 'A project or a MusicXML score'),
-      _DropArea.project => (Icons.file_download_outlined, 'Drop to open', 'A project or a MusicXML score'),
-      _DropArea.audio => (Icons.graphic_eq_rounded, 'Drop to add', 'A MIDI tempo map or a recording'),
-      _DropArea.image when attachImage => (Icons.image_outlined, 'Drop to add an image', 'SVG, PNG or JPEG'),
-      _DropArea.image => (Icons.image_not_supported_outlined, 'Attach Image is off', 'Turn on in Settings ▸ Extensions'),
+      _DropArea.home => (AppIcon.drop.of(context), 'Drop to open', 'A project or a MusicXML score'),
+      _DropArea.project => (AppIcon.drop.of(context), 'Drop to open', 'A project or a MusicXML score'),
+      _DropArea.audio => (AppIcon.audio.of(context), 'Drop to add', 'A MIDI tempo map or a recording'),
+      _DropArea.image when attachImage => (AppIcon.image.of(context), 'Drop to add an image', 'SVG, PNG or JPEG'),
+      _DropArea.image => (AppIcon.noImage.of(context), 'Attach Image is off', 'Turn on in Settings ▸ Extensions'),
     };
     final hint = IgnorePointer(
       child: AnimatedOpacity(
@@ -1002,7 +1006,7 @@ class _DropHint extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.accentWash.withValues(alpha: 0.85),
               border: Border.all(color: colors.accent, width: 2),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: AppStyle.of(context).radius(16),
             ),
             child: Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'image_patch.dart';
@@ -30,7 +31,7 @@ class AssetsDialog extends StatelessWidget {
           title: const Text('Assets'),
           content: SizedBox(
             width: dialogWidth(context, 480),
-            height: stored.isEmpty && unused.isEmpty && isRefined(context) ? 96 : 360,
+            height: stored.isEmpty && unused.isEmpty ? 96 : 360,
             child: stored.isEmpty && unused.isEmpty
                 ? Center(child: Text('No images', style: muted))
                 : ListView(children: [
@@ -86,7 +87,7 @@ class _AssetRow extends StatelessWidget {
         Container(
           width: 72,
           height: 48,
-          decoration: BoxDecoration(color: colors.scorePaper, border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(4)),
+          decoration: BoxDecoration(color: colors.scorePaper, border: Border.all(color: colors.line), borderRadius: AppStyle.of(context).radius(4)),
           child: art == null ? null : CustomPaint(painter: _Thumbnail(art)),
         ),
         const SizedBox(width: 12),
@@ -114,7 +115,7 @@ class _AssetRow extends StatelessWidget {
           ]),
         ),
         if (uses.isNotEmpty)
-          ToolbarButton(icon: Icons.delete_outline_rounded, tooltip: 'Remove', onPressed: () => images.removeImage(image.id)),
+          ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove', onPressed: () => images.removeImage(image.id)),
       ]),
     );
   }

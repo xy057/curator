@@ -20,7 +20,7 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 static const gint kMinimumWidth = 960;
 static const gint kMinimumHeight = 620;
 
-// Sets the window title from Dart (window_chrome.dart).
+// Sets the window title and icon from Dart (window_chrome.dart).
 static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
                              gpointer user_data) {
   GtkWindow* window = GTK_WINDOW(user_data);
@@ -36,6 +36,20 @@ static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
         gtk_header_bar_set_title(GTK_HEADER_BAR(bar), text);
       }
       gtk_window_set_title(window, text);
+    }
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (strcmp(fl_method_call_get_name(call), "setAppIcon") == 0 &&
+             fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+    // The window's icon: the mascot's PNG, or none (the desktop file's) when null.
+    FlValue* png = fl_value_lookup_string(args, "png");
+    if (png != nullptr && fl_value_get_type(png) == FL_VALUE_TYPE_UINT8_LIST) {
+      g_autoptr(GdkPixbufLoader) loader = gdk_pixbuf_loader_new();
+      gboolean read = gdk_pixbuf_loader_write(loader, fl_value_get_uint8_list(png),
+                                              fl_value_get_length(png), nullptr);
+      read = gdk_pixbuf_loader_close(loader, nullptr) && read;
+      gtk_window_set_icon(window, read ? gdk_pixbuf_loader_get_pixbuf(loader) : nullptr);
+    } else {
+      gtk_window_set_icon(window, nullptr);
     }
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else {

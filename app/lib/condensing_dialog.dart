@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'menu_kit.dart';
@@ -54,8 +55,7 @@ class _CondensingDialogState extends State<_CondensingDialog> {
       builder: (context, _) {
         if (c.score == null) return const SizedBox.shrink();
         final colors = context.colors;
-        final refined = isRefined(context);
-        final muted = TextStyle(fontSize: refined ? 13 : 12, color: colors.textMuted);
+        final muted = TextStyle(fontSize: AppStyle.of(context).isCarbon ? 12 : 13, color: colors.textMuted);
         final pairs = c.condensable;
         final firsts = _free();
         if (!firsts.contains(_first)) _first = null;
@@ -115,7 +115,7 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                             label: c.pairName(pair),
                             trailing: c.pairs.contains(pair)
                                 ? ToolbarButton(
-                                    icon: Icons.close_rounded,
+                                    icon: AppIcon.close.of(context),
                                     tooltip: 'Remove pair',
                                     onPressed: () => c.removePair(pair),
                                   )
@@ -126,10 +126,10 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                   ),
                 ],
                 if (firsts.isNotEmpty) ...[
-                  Divider(height: refined ? 20 : 24),
+                  const Divider(height: 20),
                   Text('Add a pair',
-                      style: refined ? const TextStyle(fontSize: 14, fontWeight: FontWeight.w600) : Theme.of(context).textTheme.titleSmall),
-                  SizedBox(height: refined ? 6 : 0),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Expanded(
@@ -138,18 +138,16 @@ class _CondensingDialogState extends State<_CondensingDialog> {
                           _second = null;
                         })),
                       ),
-                      Padding(padding: EdgeInsets.symmetric(horizontal: refined ? 12 : 10), child: Text('with', style: muted)),
+                      Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('with', style: muted)),
                       Expanded(child: choose('Player', _second, seconds, (id) => setState(() => _second = id))),
                       const SizedBox(width: 12),
-                      refined
-                          ? OutlinedButton(
-                              // As tall as the fields beside it.
-                              style: dialogButtonStyle(context)
-                                  .copyWith(minimumSize: const WidgetStatePropertyAll(Size(76, 36))),
-                              onPressed: _first != null && _second != null ? _add : null,
-                              child: const Text('Add'),
-                            )
-                          : FilledButton.tonal(onPressed: _first != null && _second != null ? _add : null, child: const Text('Add')),
+                      OutlinedButton(
+                        // As tall as the fields beside it.
+                        style: dialogButtonStyle(context)
+                            .copyWith(minimumSize: WidgetStatePropertyAll(Size(76, AppStyle.of(context).field))),
+                        onPressed: _first != null && _second != null ? _add : null,
+                        child: const Text('Add'),
+                      ),
                     ],
                   ),
                   if (split.isNotEmpty) ...[

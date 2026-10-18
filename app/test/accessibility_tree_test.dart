@@ -3,6 +3,7 @@
 // update logs "Failed to update ui::AXTree" in `make run` and breaks VoiceOver's view of the
 // window for good (see accessibility_mirror.dart).
 import 'package:curated_score/app_extensions.dart';
+import 'package:curated_score/app_icons.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/assets_dialog.dart';
 import 'package:curated_score/captions_dialog.dart';
@@ -112,7 +113,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await frames('closing a lane menu');
 
-    await tester.tap(find.byIcon(Icons.graphic_eq_rounded));
+    await tester.tap(find.byIcon(AppIcon.audio.refined));
     await frames('switching to the Audio tab');
     c.anchors.selectAll(); // the selection chip, with a tooltip of its own inside
     await frames('selecting every anchor');

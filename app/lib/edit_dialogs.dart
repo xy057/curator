@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
@@ -387,11 +388,10 @@ Future<void> showCopyLaneDialog(BuildContext context, EditorController c, ScoreP
         title: Text('Copy ${c.laneName(from)} to…'),
         content: SizedBox(
           width: dialogWidth(context, 360),
-          height: math.min(420, others.length * (isRefined(context) ? dialogRowHeight : 40.0) + 8),
+          height: math.min(420, others.length * dialogRowHeight(context) + 8),
           child: ListView(children: [
             for (final part in others)
               AppCheckRow(
-                indent: true,
                 label: c.laneName(part),
                 value: chosen.contains(part.id),
                 onChanged: (on) => setState(() => on! ? chosen.add(part.id) : chosen.remove(part.id)),
@@ -456,8 +456,8 @@ class _AnchorDialogState extends State<_AnchorDialog> {
       title: Text(plain ? 'Anchor' : 'Warp'),
       content: SizedBox(
         width: dialogWidth(context, 240),
-        // The arrow is level with the fields, not their labels over them (Refined).
-        child: Row(crossAxisAlignment: isRefined(context) ? CrossAxisAlignment.end : CrossAxisAlignment.center, children: [
+        // The arrow is level with the fields, not their labels over them.
+        child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Expanded(
             child: AppTextField(
               controller: _position,
@@ -469,8 +469,8 @@ class _AnchorDialogState extends State<_AnchorDialog> {
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(10, 0, 10, isRefined(context) ? 10 : 0),
-            child: const Icon(Icons.arrow_forward_rounded, size: 18),
+            padding: EdgeInsets.fromLTRB(10, 0, 10, (AppStyle.of(context).field - 16) / 2),
+            child: Icon(AppIcon.forward.of(context), size: 18),
           ),
           Expanded(
             child: AppTextField(

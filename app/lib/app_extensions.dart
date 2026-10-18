@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'caption_settings.dart';
 import 'dialog_kit.dart';
@@ -10,14 +11,14 @@ import 'ui_kit.dart';
 /// The optional first-party components (Settings ▸ Extensions). Each is a switch for the whole
 /// app (not per project), off by default; what it adds works only while it is on.
 enum AppExtension {
-  attachImage('Attach Image', Icons.image_outlined, '1.0', 'Images that scroll with the score.',
+  attachImage('Attach Image', AppIcon.image, '1.0', 'Images that scroll with the score.',
       'image picture photo svg png jpg'),
-  captions('Captions', Icons.subtitles_outlined, '1.0', 'Timed text under the score.',
+  captions('Captions', AppIcon.captions, '1.0', 'Timed text under the score.',
       'caption subtitle commentary note text');
 
   const AppExtension(this.label, this.icon, this.version, this.summary, this.keywords);
   final String label;
-  final IconData icon;
+  final AppIcon icon;
 
   /// Shown after [label]; raised when what the extension does changes.
   final String version;
@@ -80,7 +81,6 @@ class ExtensionsDialog extends StatelessWidget {
 
         return AppDialog(
           title: const Text('Extensions in this project'),
-          contentPadding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
           divided: true,
           content: SizedBox(
             width: dialogWidth(context, 360),
@@ -97,11 +97,11 @@ class ExtensionsDialog extends StatelessWidget {
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: extensions.length,
-                  itemExtent: isRefined(context) ? 40 : 44,
+                  itemExtent: 40,
                   itemBuilder: (context, i) {
                     final e = extensions[i];
                     return _SwitchRow(
-                      icon: e.icon,
+                      icon: e.icon.of(context),
                       label: Text(e.label),
                       value: e.isOn(settings),
                       onChanged: (on) => e.set(settings, on),
@@ -118,8 +118,7 @@ class ExtensionsDialog extends StatelessWidget {
   }
 }
 
-/// A row with a switch, turned by a click anywhere on it: a list tile in [UiStyle.classic], a
-/// 40 px row in [UiStyle.refined].
+/// A row with a switch, turned by a click anywhere on it: 40 px, flush with the dialog's content.
 class _SwitchRow extends StatelessWidget {
   const _SwitchRow({this.icon, required this.label, required this.value, required this.onChanged});
   final IconData? icon;
@@ -130,15 +129,6 @@ class _SwitchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final control = AppSwitch(value: value, onChanged: onChanged);
-    if (!isRefined(context)) {
-      return ListTile(
-        dense: true,
-        leading: icon == null ? null : Icon(icon, size: 18),
-        title: label,
-        trailing: control,
-        onTap: () => onChanged(!value),
-      );
-    }
     // Flush with the dialog's other content, as its check rows are.
     return InkWell(
       hoverColor: Colors.transparent,

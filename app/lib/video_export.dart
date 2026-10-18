@@ -161,9 +161,9 @@ enum VideoPaper {
   const VideoPaper(this.label);
   final String label;
 
-  AppColors get _colors => AppColors.of(AccentColor.sky, this == light ? ui.Brightness.light : ui.Brightness.dark);
-  ui.Color get paper => _colors.scorePaper;
-  ui.Color get ink => _colors.scoreInk;
+  ui.Brightness get _brightness => this == light ? ui.Brightness.light : ui.Brightness.dark;
+  ui.Color get paper => ScorePaper.paper(_brightness);
+  ui.Color get ink => ScorePaper.ink(_brightness);
 }
 
 /// What a video looks like: its pixel size, frames a second and paper, and what it is written

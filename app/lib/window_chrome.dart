@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'app_logo.dart';
+
 /// The native window's title: the open document, and whether it has unsaved changes.
 ///
 /// macOS shows the name with the edited dot in the close button and a proxy icon for the
@@ -32,6 +34,25 @@ abstract final class WindowChrome {
       // no native window (tests)
     } on PlatformException {
       // an older runner: the title just stays as it was
+    }
+  }
+
+  static var _mascotShown = false;
+
+  /// The running app's icon in the Dock (macOS) or on the window and taskbar (Windows, Linux):
+  /// the mascot's tile, or with [mascot] off the bundled icon again. The bundle's own icon
+  /// (Finder, the Start menu) stays as it is.
+  static Future<void> showAppIcon({required bool mascot}) async {
+    if (mascot == _mascotShown) return;
+    _mascotShown = mascot;
+    try {
+      final asset = defaultTargetPlatform == TargetPlatform.macOS ? AppLogo.mascotDock : AppLogo.mascot;
+      final png = mascot ? (await rootBundle.load(asset)).buffer.asUint8List() : null;
+      await _channel.invokeMethod<void>('setAppIcon', {'png': png});
+    } on MissingPluginException {
+      // no native window (tests), or a runner without it
+    } on PlatformException {
+      // the same
     }
   }
 

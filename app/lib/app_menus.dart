@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 import 'file_names.dart';
-import 'ui_kit.dart';
 
 /// The menu bar: native on macOS, a Material menu bar at the top of the window elsewhere.
 /// Both are built from the same [PlatformMenu] description.
@@ -195,7 +194,7 @@ class AppMenus extends StatelessWidget {
                   padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6)),
                 ),
                 // The bar's own buttons keep their height; the theme's 22 px rows are its menus'.
-                children: _material(menus, bar: isRefined(context) ? _barButton : null),
+                children: _material(menus, bar: _barButton),
               ),
             ),
           ]),

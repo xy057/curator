@@ -2,6 +2,7 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'demo_project.dart';
@@ -40,5 +41,34 @@ void main() {
     }
     expect(c.score, isNotNull);
     expect(settings.recentFiles.first, demoScore.absolute.path);
+  });
+
+  testWidgets('with the mascot on, Home shows it and the running app takes it as its icon; off, the icon comes back', (tester) async {
+    desktopWindow(tester);
+    const window = MethodChannel('curated_score/window');
+    final icons = <Uint8List?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(window, (call) async {
+      if (call.method == 'setAppIcon') icons.add((call.arguments as Map)['png'] as Uint8List?);
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(window, null));
+    bool showing(String asset) => tester
+        .widgetList<Image>(find.byType(Image))
+        .any((i) => i.image is AssetImage && (i.image as AssetImage).assetName == 'assets/icon/$asset.png');
+
+    final settings = AppSettings.memory()..mascotIcon = true;
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    await tester.pumpAndSettle();
+    expect(showing('mascot'), isTrue);
+    expect(icons, hasLength(1));
+    expect(icons.single, isNotNull);
+    expect(icons.single!.sublist(1, 4), 'PNG'.codeUnits);
+
+    settings.mascotIcon = false;
+    await tester.pumpAndSettle();
+    expect(showing('app_icon'), isTrue);
+    expect(showing('mascot'), isFalse);
+    expect(icons, hasLength(2));
+    expect(icons.last, isNull, reason: "the bundle's icon again");
   });
 }

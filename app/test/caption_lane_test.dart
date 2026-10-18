@@ -1,4 +1,5 @@
 
+import 'package:curated_score/app_icons.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/caption_lane.dart';
 import 'package:curated_score/captions_dialog.dart';
@@ -36,9 +37,9 @@ void main() {
     settings.captions = true;
     await tester.pumpAndSettle();
     expect(find.byType(CaptionLane), findsOneWidget);
-    expect(find.descendant(of: find.byType(CaptionLane), matching: find.byIcon(Icons.more_horiz)), findsNothing,
+    expect(find.descendant(of: find.byType(CaptionLane), matching: find.byIcon(AppIcon.more.refined)), findsNothing,
         reason: 'no lane menu: it can\'t be moved or unpinned');
-    expect(find.descendant(of: find.byType(CaptionLane), matching: find.byIcon(Icons.push_pin)), findsOneWidget);
+    expect(find.descendant(of: find.byType(CaptionLane), matching: find.byIcon(AppIcon.pin.refined)), findsOneWidget);
 
     final bar = c.score!.timeline.measureStarts;
     c.captions.add(Caption(bar[8], bar[12], 'Strings alone'));
@@ -83,7 +84,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(texts, findsNWidgets(9));
     await tester.enterText(texts.at(8), 'Tutti');
-    await tester.tap(find.byIcon(Icons.close_rounded).at(1));
+    await tester.tap(find.byIcon(AppIcon.close.refined).at(1));
     await tester.pumpAndSettle();
     await screenshot(tester, 'captions-sheet', inside: find.byType(CaptionsDialog));
     await tester.tap(find.widgetWithText(FilledButton, 'Done'));

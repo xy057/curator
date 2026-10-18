@@ -111,9 +111,9 @@ class _Preview extends StatelessWidget {
           : TextFonts.faces(name).then((f) => f == null ? null : TextFonts.load(name, f)),
       builder: (context, _) => Container(
         height: 96,
-        decoration: BoxDecoration(color: colors.scorePaper, border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: colors.scorePaper, border: Border.all(color: colors.line), borderRadius: AppStyle.of(context).radius(8)),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: AppStyle.of(context).radius(8),
           child: CustomPaint(
             size: Size.infinite,
             painter: _PreviewPainter(

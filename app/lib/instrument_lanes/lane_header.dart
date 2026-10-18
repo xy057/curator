@@ -115,7 +115,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
         tooltip: 'Lane options',
         padding: EdgeInsets.zero,
         iconSize: 16,
-        icon: Icon(Icons.more_horiz, color: context.colors.textMuted),
+        icon: Icon(AppIcon.more.of(context), color: context.colors.textMuted),
         onSelected: (action) => _run(context, action),
         itemBuilder: (context) => [
           // A pair's lane names both players: each is renamed on its own, as on its own staff.
@@ -154,7 +154,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
         if (condensed)
           Tip(
             message: '${group.partIds.map(controller.partNameOf).join(' and ')}: one lane',
-            child: Icon(Icons.link_rounded, size: 14, color: context.colors.textMuted),
+            child: Icon(AppIcon.link.of(context), size: 14, color: context.colors.textMuted),
           ),
         menu,
       ]),

@@ -18,11 +18,12 @@ class AppSettings extends ChangeNotifier {
         _undoSteps = _prefs?.getInt(_undoKey) ?? defaultUndoSteps,
         _themeMode = ThemeMode.values.asNameMap()[_prefs?.getString(_themeKey)] ?? ThemeMode.system,
         _accent = AccentColor.values.asNameMap()[_prefs?.getString(_accentKey)] ?? AccentColor.sky,
-        _uiStyle = UiStyle.values.asNameMap()[_prefs?.getString(_uiStyleKey)] ?? UiStyle.refined,
+        _uiStyle = UiStyle.named(_prefs?.getString(_uiStyleKey)) ?? UiStyle.refined,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
         _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,
         _embedFont = _prefs?.getBool(_embedFontKey) ?? true,
+        _mascotIcon = _prefs?.getBool(_mascotIconKey) ?? false,
         _scrollFollow = (_prefs?.getDouble(_scrollFollowKey) ?? defaultScrollFollow).clamp(0.0, 1.0),
         _recent = List.unmodifiable(_prefs?.getStringList(_recentKey) ?? const <String>[]),
         _videoResolution =
@@ -43,7 +44,10 @@ class AppSettings extends ChangeNotifier {
         _captionCountdown =
             CaptionCountdown.values.asNameMap()[_prefs?.getString(_captionCountdownKey)] ?? CaptionCountdown.line,
         _captionSize = CaptionSize.values.asNameMap()[_prefs?.getString(_captionSizeKey)] ?? CaptionSize.medium,
-        _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false;
+        _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false {
+    // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
+    if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
+  }
 
   /// Defaults, kept in memory only (tests, or when there is no preferences store).
   AppSettings.memory() : this._(null);
@@ -63,6 +67,7 @@ class AppSettings extends ChangeNotifier {
   static const _uiStyleKey = 'uiStyle';
   static const _scrollFollowKey = 'scrollFollow';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
+  static const _mascotIconKey = 'mascotIcon';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
@@ -205,6 +210,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _embedFont) return;
     _embedFont = value;
     _prefs?.setBool(_embedFontKey, value);
+    notifyListeners();
+  }
+
+  /// The mascot in place of the app icon, in the app (AppLogo) and in the Dock or taskbar
+  /// (WindowChrome.showAppIcon); a click on the icon in Settings ▸ About toggles it.
+  bool get mascotIcon => _mascotIcon;
+  bool _mascotIcon;
+  set mascotIcon(bool value) {
+    if (value == _mascotIcon) return;
+    _mascotIcon = value;
+    _prefs?.setBool(_mascotIconKey, value);
     notifyListeners();
   }
 

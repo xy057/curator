@@ -103,6 +103,13 @@ class MainFlutterWindow: NSWindow {
         result(self.opener.takePending())
         return
       }
+      // The Dock icon while the app runs: the mascot's PNG, or nil for the bundle's icon.
+      if call.method == "setAppIcon" {
+        let png = (call.arguments as? [String: Any])?["png"] as? FlutterStandardTypedData
+        NSApp.applicationIconImage = png.flatMap { NSImage(data: $0.data) }
+        result(nil)
+        return
+      }
       guard call.method == "setDocument", let args = call.arguments as? [String: Any] else {
         result(FlutterMethodNotImplemented)
         return

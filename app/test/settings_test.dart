@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_extensions.dart';
+import 'package:curated_score/app_icons.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/engraving_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
@@ -24,6 +25,22 @@ void main() {
     }
     SharedPreferences.setMockInitialValues({'videoResolution': 'qhd1440'});
     expect((await AppSettings.load()).videoResolution, VideoResolution.qhd1440);
+  });
+
+  test('the mascot icon is off until turned on, and is saved', () async {
+    SharedPreferences.setMockInitialValues({});
+    final settings = await AppSettings.load();
+    expect(settings.mascotIcon, isFalse);
+    settings.mascotIcon = true;
+    expect((await AppSettings.load()).mascotIcon, isTrue);
+  });
+
+  test('the Classic style, which is gone, opens as Refined and is saved so', () async {
+    SharedPreferences.setMockInitialValues({'uiStyle': 'classic'});
+    expect((await AppSettings.load()).uiStyle, UiStyle.refined);
+    expect((await SharedPreferences.getInstance()).getString('uiStyle'), 'refined');
+    SharedPreferences.setMockInitialValues({'uiStyle': 'carbon'});
+    expect((await AppSettings.load()).uiStyle, UiStyle.carbon);
   });
 
   Future<AppSettings> open(WidgetTester tester) async {
@@ -79,9 +96,10 @@ void main() {
     expect(settings.themeMode, ThemeMode.dark);
     expect(settings.accent, AccentColor.rose);
     await shot(tester, 'settings-appearance-dark');
-    await tester.tap(find.text('Classic'));
+    await tester.tap(find.text('Carbon'));
     await tester.pumpAndSettle();
-    expect(settings.uiStyle, UiStyle.classic);
+    expect(settings.uiStyle, UiStyle.carbon);
+    await shot(tester, 'settings-appearance-carbon');
     await tester.tap(find.text('Refined'));
     await tester.pumpAndSettle();
     expect(settings.uiStyle, UiStyle.refined);
@@ -101,7 +119,7 @@ void main() {
     expect(find.text('Attach Image  1.0'), findsOneWidget, reason: 'its version after its name');
     expect(find.text(AppExtension.attachImage.summary), findsOneWidget);
     expect(find.text('Captions  1.0'), findsOneWidget);
-    final gears = tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, Icons.settings_outlined)).toList();
+    final gears = tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, AppIcon.settings.refined)).toList();
     expect(gears.first.onPressed, isNull, reason: 'Attach Image has no settings of its own yet');
     expect(gears.last.onPressed, isNotNull, reason: 'Captions has');
     expect(settings.attachImage, isFalse, reason: 'extensions start off');
@@ -113,7 +131,7 @@ void main() {
     await shot(tester, 'settings-extension');
 
     // Captions' own settings: how captions look.
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.settings_outlined).last);
+    await tester.tap(find.widgetWithIcon(IconButton, AppIcon.settings.refined).last);
     await tester.pumpAndSettle();
     expect(find.text('Countdown'), findsOneWidget);
     await tester.tap(find.text('Ring'));
@@ -329,5 +347,26 @@ void main() {
     expect(find.textContaining('Editing these values'), findsNothing);
     expect(find.widgetWithText(TextField, 'Search'), findsOneWidget, reason: 'no engraving list opened');
     expect(find.text('Engraving options'), findsOneWidget, reason: 'back on the Engraving page');
+  });
+
+  testWidgets("a click on About's icon toggles the mascot in its place, saved; another turns it off", (tester) async {
+    final settings = await open(tester);
+    await tester.tap(find.text('About'));
+    await tester.pumpAndSettle();
+    bool showing(String asset) => tester
+        .widgetList<Image>(find.byType(Image))
+        .any((i) => i.image is AssetImage && (i.image as AssetImage).assetName == 'assets/icon/$asset.png');
+    expect(showing('app_icon'), isTrue);
+    expect(showing('mascot'), isFalse);
+    await tester.tap(find.byWidgetPredicate((w) => w is Image && w.image is AssetImage));
+    await tester.pumpAndSettle();
+    expect(settings.mascotIcon, isTrue);
+    expect(showing('mascot'), isTrue);
+    expect(showing('app_icon'), isFalse);
+    await tester.tap(find.byWidgetPredicate((w) => w is Image && w.image is AssetImage));
+    await tester.pumpAndSettle();
+    expect(settings.mascotIcon, isFalse);
+    expect(showing('app_icon'), isTrue);
+    expect(File('assets/icon/mascot.png').existsSync(), isTrue);
   });
 }

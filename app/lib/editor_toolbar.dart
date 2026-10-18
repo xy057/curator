@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'assets_dialog.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
@@ -43,10 +44,8 @@ class EditorToolbar extends StatelessWidget {
   /// The time readout, which ⌘G opens to type where to go.
   final GlobalKey<TimeReadoutState>? readout;
 
-  static const height = 46.0;
-
-  /// [height], or in [UiStyle.refined] a desktop toolbar's.
-  static double heightOf(BuildContext context) => isRefined(context) ? 38 : height;
+  /// A desktop toolbar's height, as the style has it.
+  static double heightOf(BuildContext context) => AppStyle.of(context).toolbar;
 
   @override
   Widget build(BuildContext context) => Select(
@@ -72,13 +71,13 @@ class EditorToolbar extends StatelessWidget {
       decoration: BoxDecoration(color: colors.chrome, border: Border(bottom: BorderSide(color: colors.line))),
       child: Row(children: [
         ToolbarButton(
-          icon: Icons.home_outlined,
+          icon: AppIcon.home.of(context),
           tooltip: 'Close project (${shortcut('⌘W')})',
           onPressed: onClose,
         ),
         const ToolbarDivider(),
         ToolbarButton(
-          icon: Icons.skip_previous_rounded,
+          icon: AppIcon.toStart.of(context),
           tooltip: 'Go to start (Home)',
           onPressed: () => c.playback.seek(0),
         ),
@@ -96,29 +95,29 @@ class EditorToolbar extends StatelessWidget {
         const Spacer(),
         _SavingIndicator(document: document),
         ToolbarButton(
-          icon: Icons.undo_rounded,
+          icon: AppIcon.undo.of(context),
           tooltip: 'Undo (${shortcut('⌘Z')})',
           onPressed: c.canUndo ? c.undo : null,
         ),
         ToolbarButton(
-          icon: Icons.redo_rounded,
+          icon: AppIcon.redo.of(context),
           tooltip: 'Redo (${shortcut('⇧⌘Z', 'Ctrl+Y')})',
           onPressed: c.canRedo ? c.redo : null,
         ),
         const ToolbarDivider(),
         if (c.images.enabled)
           ToolbarButton(
-            icon: Icons.photo_library_outlined,
+            icon: AppIcon.assets.of(context),
             tooltip: 'Manage assets…',
             onPressed: () => showAssetsDialog(context, c),
           ),
         ToolbarButton(
-          icon: Icons.movie_outlined,
+          icon: AppIcon.export.of(context),
           tooltip: 'Export video… (${shortcut('⌘E')})',
           onPressed: c.isReengraving ? null : onExportVideo,
         ),
         ToolbarButton(
-          icon: Icons.crop_16_9_rounded,
+          icon: AppIcon.frame.of(context),
           tooltip: videoFrame ? 'Fill the window' : "Show the video's frame",
           selected: videoFrame,
           onPressed: () => onVideoFrame(!videoFrame),
@@ -127,7 +126,7 @@ class EditorToolbar extends StatelessWidget {
         const ToolbarDivider(),
         Tip(
           message: 'Score size',
-          child: Icon(Icons.format_size_rounded, size: 16, color: colors.textMuted),
+          child: Icon(AppIcon.scoreSize.of(context), size: 16, color: colors.textMuted),
         ),
         SizedBox(
           width: 132,
@@ -172,7 +171,7 @@ class RatioMenu extends StatelessWidget {
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 32),
           padding: const EdgeInsets.only(left: 8, right: 2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
         ),
         onSelected: (r) async {
           if (r != _custom) return onSelected(r);
@@ -190,7 +189,7 @@ class RatioMenu extends StatelessWidget {
           Text(ratio.label,
               style: TextStyle(
                   fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
-          Icon(Icons.arrow_drop_down_rounded, size: 18, color: colors.textMuted),
+          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
         ]),
       ),
     );
@@ -207,44 +206,40 @@ class _PlayButton extends StatelessWidget {
     final colors = context.colors;
     final playing = controller.playback.isPlaying;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    // Refined: a transport button like the others, its icon in the accent.
-    if (isRefined(context)) {
-      return ToolbarButton(
-        icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-        tooltip: playing ? 'Pause (Space)' : 'Play (Space)',
-        color: dark ? colors.accent : colors.accentStrong,
-        selected: playing,
-        onPressed: controller.playback.togglePlay,
+    // Refined: a transport button like the others, its icon in the accent. Carbon: its primary
+    // icon button, white on the accent.
+    final tip = playing ? 'Pause (Space)' : 'Play (Space)';
+    final icon = playing ? AppIcon.pause.of(context) : AppIcon.play.of(context);
+    if (CarbonColors.maybeOf(context) case final k?) {
+      return OverlaySemantics(
+        child: IconButton(
+          tooltip: tip,
+          onPressed: controller.playback.togglePlay,
+          iconSize: 16,
+          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+          padding: EdgeInsets.zero,
+          style: Theme.of(context).filledButtonTheme.style!.copyWith(
+                minimumSize: const WidgetStatePropertyAll(Size.square(32)),
+                padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+                alignment: Alignment.center,
+                iconColor: const WidgetStatePropertyAll(Colors.white),
+                foregroundColor: const WidgetStatePropertyAll(Colors.white),
+                backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.pressed)
+                    ? k.primaryActive
+                    : s.contains(WidgetState.hovered)
+                        ? k.primaryHover
+                        : k.primary),
+              ),
+          icon: Icon(icon),
+        ),
       );
     }
-    // Light: white on the strong accent; dark: the dark surface on the (light) accent. White
-    // on the plain accent was faint (sky, amber).
-    return Tip(
-      message: playing ? 'Pause (Space)' : 'Play (Space)',
-      child: Material(
-        color: dark ? colors.accent : colors.accentStrong,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: controller.playback.togglePlay,
-          child: SizedBox.square(
-            dimension: 32,
-            child: AnimatedSwitcher(
-              duration: motion(context, 160),
-              transitionBuilder: (child, animation) => ScaleTransition(
-                scale: Tween(begin: 0.6, end: 1.0).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutBack)),
-                child: FadeTransition(opacity: animation, child: child),
-              ),
-              child: Icon(
-                playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                key: ValueKey(playing),
-                size: 20,
-                color: dark ? colors.surface : Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ),
+    return ToolbarButton(
+      icon: icon,
+      tooltip: tip,
+      color: dark ? colors.accent : colors.accentStrong,
+      selected: playing,
+      onPressed: controller.playback.togglePlay,
     );
   }
 }
@@ -257,13 +252,16 @@ class _MetronomeGlyph extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = IconTheme.of(context);
     final size = icon.size ?? 18;
-    return CustomPaint(size: Size.square(size), painter: _MetronomePainter(icon.color ?? context.colors.text));
+    return CustomPaint(
+        size: Size.square(size), painter: _MetronomePainter(icon.color ?? context.colors.text, AppStyle.of(context).isCarbon));
   }
 }
 
+/// Drawn as its style's icons are: Material Symbols' light rounded stroke, or Carbon's square 2-unit one.
 class _MetronomePainter extends CustomPainter {
-  const _MetronomePainter(this.color);
+  const _MetronomePainter(this.color, this.carbon);
   final Color color;
+  final bool carbon;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -271,9 +269,9 @@ class _MetronomePainter extends CustomPainter {
     final line = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
+      ..strokeWidth = carbon ? 1.5 : 1.6
+      ..strokeJoin = carbon ? StrokeJoin.miter : StrokeJoin.round
+      ..strokeCap = carbon ? StrokeCap.butt : StrokeCap.round;
     canvas.drawPath(
         Path()
           ..moveTo(9.5, 3.5)
@@ -288,7 +286,7 @@ class _MetronomePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_MetronomePainter old) => old.color != color;
+  bool shouldRepaint(_MetronomePainter old) => old.color != color || old.carbon != carbon;
 }
 
 /// "1:10.0 / 1:31.4" and the bar.beat sounding now. A click on either (or ⌘G: [edit]) types
@@ -403,7 +401,12 @@ class TimeReadoutState extends State<TimeReadout> {
             constraints: const BoxConstraints(minWidth: 52),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             alignment: Alignment.center,
-            decoration: BoxDecoration(color: colors.accentWash, borderRadius: BorderRadius.circular(6), border: Border.all(color: colors.line)),
+            decoration: BoxDecoration(
+                color: fieldFill(context) ?? colors.accentWash,
+                borderRadius: AppStyle.of(context).radius(6),
+                border: AppStyle.of(context).isCarbon
+                    ? Border(bottom: BorderSide(color: CarbonColors.maybeOf(context)!.borderStrong))
+                    : Border.all(color: colors.line)),
             child: Text(_position(time), style: mono.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: colors.text)),
           ),
         ),
@@ -412,8 +415,8 @@ class TimeReadoutState extends State<TimeReadout> {
   }
 
   Widget _input(AppColors colors, TextStyle mono) {
-    OutlineInputBorder border(Color color) =>
-        OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: color));
+    final borders = fieldBorders(context, bad: _wrong, radius: 6);
+    final fill = fieldFill(context);
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _leave},
       child: SizedBox(
@@ -431,9 +434,11 @@ class TimeReadoutState extends State<TimeReadout> {
             isDense: true,
             hintText: 'Bar or m:ss',
             hintStyle: mono.copyWith(fontSize: 12.5, color: colors.textMuted),
+            filled: fill != null,
+            fillColor: fill,
             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            enabledBorder: border(_wrong ? Theme.of(context).colorScheme.error : colors.line),
-            focusedBorder: border(_wrong ? Theme.of(context).colorScheme.error : colors.accent),
+            enabledBorder: borders.rest,
+            focusedBorder: borders.focused,
           ),
         ),
       ),

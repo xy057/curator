@@ -5,9 +5,12 @@ List<BoxShadow> _liftShadow(AppColors colors) =>
     [BoxShadow(color: colors.text.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 2))];
 
 class _LanesPainter extends CustomPainter {
-  _LanesPainter(this.s, this.colors, Listenable repaint) : super(repaint: repaint);
+  _LanesPainter(this.s, this.colors, this.rounded, Listenable repaint) : super(repaint: repaint);
   final _InstrumentLanesState s;
   final AppColors colors;
+
+  /// The style's corners: a region's are square in Carbon.
+  final bool rounded;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -95,7 +98,7 @@ class _LanesPainter extends CustomPainter {
       // Once in every pass that plays it; square where a warp cuts it.
       for (final (:x0, :x1, :ownStart, :ownEnd) in s._xs(r.start, r.end)) {
         if (x1 < 0 || x0 > size.width) continue;
-        const round = Radius.circular(4);
+        final round = Radius.circular(rounded ? 4 : 0);
         final rect = RRect.fromLTRBAndCorners(x0, top + 4, x1, top + _laneHeight - 7,
             topLeft: ownStart ? round : Radius.zero,
             bottomLeft: ownStart ? round : Radius.zero,

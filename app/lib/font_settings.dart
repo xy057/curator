@@ -17,6 +17,7 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
@@ -28,7 +29,7 @@ const _fieldWidth = 230.0;
 /// As compact as the other settings' controls (a 32-point field, 13-point text).
 InputDecorationTheme _compact(BuildContext context) {
   final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.colors.line));
+      borderRadius: AppStyle.of(context).radius(8), borderSide: BorderSide(color: context.colors.line));
   return InputDecorationTheme(
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -59,7 +60,7 @@ Widget _field(BuildContext context, Widget menu) => SizedBox(
     );
 
 /// The other settings' dropdown arrow.
-Widget _arrow(BuildContext context) => Icon(Icons.unfold_more_rounded, size: 16, color: context.colors.textMuted);
+Widget _arrow(BuildContext context) => Icon(AppIcon.select.of(context), size: 16, color: context.colors.textMuted);
 
 /// The fonts a picker sets: the open project's ([ProjectFonts], each change an edit), or the
 /// ones new projects start with ([NewProjectFonts], by name: the app keeps no font file).
