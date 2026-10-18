@@ -332,7 +332,7 @@ class _CaptionLaneState extends State<CaptionLane> {
                   controller: c,
                   child: CustomPaint(
                     size: Size.infinite,
-                    painter: _CaptionLanePainter(this, colors, Listenable.merge([c, c.viewport, _band])),
+                    painter: _CaptionLanePainter(this, colors, AppStyle.of(context).rounded, Listenable.merge([c, c.viewport, _band])),
                   ),
                 ),
               ),
@@ -347,9 +347,10 @@ class _CaptionLaneState extends State<CaptionLane> {
 /// The captions as regions, the way the instruments' are drawn: rounded where a caption
 /// starts or ends, square where a warp cuts it; the selected one filled.
 class _CaptionLanePainter extends CustomPainter {
-  _CaptionLanePainter(this.s, this.colors, Listenable repaint) : super(repaint: repaint);
+  _CaptionLanePainter(this.s, this.colors, this.rounded, Listenable repaint) : super(repaint: repaint);
   final _CaptionLaneState s;
   final AppColors colors;
+  final bool rounded;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -362,7 +363,7 @@ class _CaptionLanePainter extends CustomPainter {
       final on = i == selected;
       for (final (:x0, :x1, :ownStart, :ownEnd) in s._xs(cap.start, cap.end)) {
         if (x1 < 0 || x0 > size.width) continue;
-        const round = Radius.circular(4);
+        final round = Radius.circular(rounded ? 4 : 0);
         final rect = RRect.fromLTRBAndCorners(x0, 4, x1, size.height - 5,
             topLeft: ownStart ? round : Radius.zero,
             bottomLeft: ownStart ? round : Radius.zero,

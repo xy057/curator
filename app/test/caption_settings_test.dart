@@ -2,7 +2,6 @@
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/caption_settings.dart';
-import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,13 +18,15 @@ void main() {
     expect(tester.widget<EditableText>(find.descendant(of: menu, matching: find.byType(EditableText))).style.fontSize, 14);
     expect(find.descendant(of: menu, matching: find.byIcon(Icons.unfold_more_rounded)), findsOneWidget);
     expect(tester.getRect(find.descendant(of: menu, matching: find.byType(EditableText))).left -
-        tester.getRect(find.descendant(of: menu, matching: find.byType(TextField))).left, fieldInset);
+        tester.getRect(find.descendant(of: menu, matching: find.byType(TextField))).left, AppStyle.refined.fieldInset);
   });
 
-  testWidgets('classic: the font select is the material one', (tester) async {
-    await tester.pumpWidget(_app(UiStyle.classic));
+  testWidgets("carbon: the font select is Carbon's 40 px field with its chevron", (tester) async {
+    await tester.pumpWidget(_app(UiStyle.carbon));
     final menu = find.byType(DropdownMenu<String>);
-    expect(tester.getSize(find.descendant(of: menu, matching: find.byType(TextField))).height, greaterThan(36));
-    expect(find.descendant(of: menu, matching: find.byIcon(Icons.unfold_more_rounded)), findsNothing);
+    expect(tester.getSize(find.descendant(of: menu, matching: find.byType(TextField))).height, 40);
+    expect(find.descendant(of: menu, matching: find.byIcon(Icons.keyboard_arrow_down_rounded)), findsOneWidget);
+    expect(tester.getRect(find.descendant(of: menu, matching: find.byType(EditableText))).left -
+        tester.getRect(find.descendant(of: menu, matching: find.byType(TextField))).left, AppStyle.carbon.fieldInset);
   });
 }

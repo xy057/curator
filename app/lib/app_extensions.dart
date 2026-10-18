@@ -80,7 +80,6 @@ class ExtensionsDialog extends StatelessWidget {
 
         return AppDialog(
           title: const Text('Extensions in this project'),
-          contentPadding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
           divided: true,
           content: SizedBox(
             width: dialogWidth(context, 360),
@@ -97,7 +96,7 @@ class ExtensionsDialog extends StatelessWidget {
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: extensions.length,
-                  itemExtent: isRefined(context) ? 40 : 44,
+                  itemExtent: 40,
                   itemBuilder: (context, i) {
                     final e = extensions[i];
                     return _SwitchRow(
@@ -118,8 +117,7 @@ class ExtensionsDialog extends StatelessWidget {
   }
 }
 
-/// A row with a switch, turned by a click anywhere on it: a list tile in [UiStyle.classic], a
-/// 40 px row in [UiStyle.refined].
+/// A row with a switch, turned by a click anywhere on it: 40 px, flush with the dialog's content.
 class _SwitchRow extends StatelessWidget {
   const _SwitchRow({this.icon, required this.label, required this.value, required this.onChanged});
   final IconData? icon;
@@ -130,15 +128,6 @@ class _SwitchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final control = AppSwitch(value: value, onChanged: onChanged);
-    if (!isRefined(context)) {
-      return ListTile(
-        dense: true,
-        leading: icon == null ? null : Icon(icon, size: 18),
-        title: label,
-        trailing: control,
-        onTap: () => onChanged(!value),
-      );
-    }
     // Flush with the dialog's other content, as its check rows are.
     return InkWell(
       hoverColor: Colors.transparent,

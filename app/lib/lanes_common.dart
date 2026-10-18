@@ -340,8 +340,8 @@ class LaneLabel extends StatelessWidget {
         height: height,
         padding: const EdgeInsets.only(left: 12),
         decoration: BoxDecoration(
-          color: Color.alphaBlend(color ?? Colors.transparent, colors.chrome.withValues(alpha: isRefined(context) ? 1 : 0)),
-          border: Border(right: BorderSide(color: colors.line), bottom: BorderSide(color: isRefined(context) ? colors.line : colors.grid)),
+          color: Color.alphaBlend(color ?? Colors.transparent, colors.chrome),
+          border: Border(right: BorderSide(color: colors.line), bottom: BorderSide(color: colors.line)),
         ),
         child: Row(children: [
           Expanded(

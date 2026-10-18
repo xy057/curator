@@ -28,7 +28,7 @@ const _fieldWidth = 230.0;
 /// As compact as the other settings' controls (a 32-point field, 13-point text).
 InputDecorationTheme _compact(BuildContext context) {
   final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.colors.line));
+      borderRadius: AppStyle.of(context).radius(8), borderSide: BorderSide(color: context.colors.line));
   return InputDecorationTheme(
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

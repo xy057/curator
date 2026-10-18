@@ -30,7 +30,7 @@ class AssetsDialog extends StatelessWidget {
           title: const Text('Assets'),
           content: SizedBox(
             width: dialogWidth(context, 480),
-            height: stored.isEmpty && unused.isEmpty && isRefined(context) ? 96 : 360,
+            height: stored.isEmpty && unused.isEmpty ? 96 : 360,
             child: stored.isEmpty && unused.isEmpty
                 ? Center(child: Text('No images', style: muted))
                 : ListView(children: [
@@ -86,7 +86,7 @@ class _AssetRow extends StatelessWidget {
         Container(
           width: 72,
           height: 48,
-          decoration: BoxDecoration(color: colors.scorePaper, border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(4)),
+          decoration: BoxDecoration(color: colors.scorePaper, border: Border.all(color: colors.line), borderRadius: AppStyle.of(context).radius(4)),
           child: art == null ? null : CustomPaint(painter: _Thumbnail(art)),
         ),
         const SizedBox(width: 12),

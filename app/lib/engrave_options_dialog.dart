@@ -74,7 +74,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
     final colors = context.colors;
     final q = _search.text.trim().toLowerCase();
     final shown = [for (final o in EngraveOption.all) if (o.key.toLowerCase().contains(q)) o];
-    final border = OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: colors.line));
+    final border = OutlineInputBorder(borderRadius: AppStyle.of(context).radius(6), borderSide: BorderSide(color: colors.line));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
@@ -251,7 +251,7 @@ class _NumberFieldState extends State<_NumberField> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final border = OutlineInputBorder(borderRadius: BorderRadius.circular(5), borderSide: BorderSide(color: colors.line));
+    final border = OutlineInputBorder(borderRadius: AppStyle.of(context).radius(5), borderSide: BorderSide(color: colors.line));
     return SizedBox(
       width: 64,
       height: 26,

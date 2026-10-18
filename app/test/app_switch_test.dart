@@ -45,11 +45,18 @@ void main() {
     expect(on.value, isFalse);
   });
 
-  testWidgets("Classic: Material's switch", (tester) async {
-    final on = await mount(tester, UiStyle.classic);
-    expect(find.byType(Switch), findsOneWidget);
-    await tester.tap(find.byType(Switch));
+  testWidgets("Carbon: its small toggle, toggled by a click or the keyboard", (tester) async {
+    final on = await mount(tester, UiStyle.carbon);
+    expect(find.byType(Switch), findsNothing);
+    expect(tester.getSize(find.byType(AppSwitch)), const Size(44, 24), reason: 'the 32 × 16 track, and a margin to click');
+    await tester.tap(find.byType(AppSwitch));
     await tester.pumpAndSettle();
     expect(on.value, isTrue);
+    expect(tester.getSemantics(find.byType(AppSwitch)), isSemantics(isToggled: true));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pumpAndSettle();
+    expect(on.value, isFalse);
   });
 }

@@ -128,7 +128,7 @@ class _TidyMenu extends StatelessWidget {
         style: IconButton.styleFrom(
           fixedSize: const Size(32, 32),
           minimumSize: const Size(32, 32),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
         ),
         icon: const Icon(Icons.cleaning_services_outlined),
         onSelected: (action) => action(),
@@ -180,7 +180,7 @@ class _TransitionMenu extends StatelessWidget {
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 32),
           padding: const EdgeInsets.only(left: 6, right: 2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
         ),
         onSelected: (s) => controller.lanes.setTransition(s == _project ? null : s),
         itemBuilder: (context) => [

@@ -43,10 +43,8 @@ class EditorToolbar extends StatelessWidget {
   /// The time readout, which ⌘G opens to type where to go.
   final GlobalKey<TimeReadoutState>? readout;
 
-  static const height = 46.0;
-
-  /// [height], or in [UiStyle.refined] a desktop toolbar's.
-  static double heightOf(BuildContext context) => isRefined(context) ? 38 : height;
+  /// A desktop toolbar's height, as the style has it.
+  static double heightOf(BuildContext context) => AppStyle.of(context).toolbar;
 
   @override
   Widget build(BuildContext context) => Select(
@@ -172,7 +170,7 @@ class RatioMenu extends StatelessWidget {
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 32),
           padding: const EdgeInsets.only(left: 8, right: 2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
         ),
         onSelected: (r) async {
           if (r != _custom) return onSelected(r);
@@ -207,44 +205,40 @@ class _PlayButton extends StatelessWidget {
     final colors = context.colors;
     final playing = controller.playback.isPlaying;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    // Refined: a transport button like the others, its icon in the accent.
-    if (isRefined(context)) {
-      return ToolbarButton(
-        icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-        tooltip: playing ? 'Pause (Space)' : 'Play (Space)',
-        color: dark ? colors.accent : colors.accentStrong,
-        selected: playing,
-        onPressed: controller.playback.togglePlay,
+    // Refined: a transport button like the others, its icon in the accent. Carbon: its primary
+    // icon button, white on the accent.
+    final tip = playing ? 'Pause (Space)' : 'Play (Space)';
+    final icon = playing ? Icons.pause_rounded : Icons.play_arrow_rounded;
+    if (CarbonColors.maybeOf(context) case final k?) {
+      return OverlaySemantics(
+        child: IconButton(
+          tooltip: tip,
+          onPressed: controller.playback.togglePlay,
+          iconSize: 16,
+          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+          padding: EdgeInsets.zero,
+          style: Theme.of(context).filledButtonTheme.style!.copyWith(
+                minimumSize: const WidgetStatePropertyAll(Size.square(32)),
+                padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+                alignment: Alignment.center,
+                iconColor: const WidgetStatePropertyAll(Colors.white),
+                foregroundColor: const WidgetStatePropertyAll(Colors.white),
+                backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.pressed)
+                    ? k.primaryActive
+                    : s.contains(WidgetState.hovered)
+                        ? k.primaryHover
+                        : k.primary),
+              ),
+          icon: Icon(icon),
+        ),
       );
     }
-    // Light: white on the strong accent; dark: the dark surface on the (light) accent. White
-    // on the plain accent was faint (sky, amber).
-    return Tip(
-      message: playing ? 'Pause (Space)' : 'Play (Space)',
-      child: Material(
-        color: dark ? colors.accent : colors.accentStrong,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: controller.playback.togglePlay,
-          child: SizedBox.square(
-            dimension: 32,
-            child: AnimatedSwitcher(
-              duration: motion(context, 160),
-              transitionBuilder: (child, animation) => ScaleTransition(
-                scale: Tween(begin: 0.6, end: 1.0).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutBack)),
-                child: FadeTransition(opacity: animation, child: child),
-              ),
-              child: Icon(
-                playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                key: ValueKey(playing),
-                size: 20,
-                color: dark ? colors.surface : Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ),
+    return ToolbarButton(
+      icon: icon,
+      tooltip: tip,
+      color: dark ? colors.accent : colors.accentStrong,
+      selected: playing,
+      onPressed: controller.playback.togglePlay,
     );
   }
 }
@@ -403,7 +397,12 @@ class TimeReadoutState extends State<TimeReadout> {
             constraints: const BoxConstraints(minWidth: 52),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             alignment: Alignment.center,
-            decoration: BoxDecoration(color: colors.accentWash, borderRadius: BorderRadius.circular(6), border: Border.all(color: colors.line)),
+            decoration: BoxDecoration(
+                color: fieldFill(context) ?? colors.accentWash,
+                borderRadius: AppStyle.of(context).radius(6),
+                border: AppStyle.of(context).isCarbon
+                    ? Border(bottom: BorderSide(color: CarbonColors.maybeOf(context)!.borderStrong))
+                    : Border.all(color: colors.line)),
             child: Text(_position(time), style: mono.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: colors.text)),
           ),
         ),
@@ -412,8 +411,8 @@ class TimeReadoutState extends State<TimeReadout> {
   }
 
   Widget _input(AppColors colors, TextStyle mono) {
-    OutlineInputBorder border(Color color) =>
-        OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: color));
+    final borders = fieldBorders(context, bad: _wrong, radius: 6);
+    final fill = fieldFill(context);
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.escape): _leave},
       child: SizedBox(
@@ -431,9 +430,11 @@ class TimeReadoutState extends State<TimeReadout> {
             isDense: true,
             hintText: 'Bar or m:ss',
             hintStyle: mono.copyWith(fontSize: 12.5, color: colors.textMuted),
+            filled: fill != null,
+            fillColor: fill,
             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            enabledBorder: border(_wrong ? Theme.of(context).colorScheme.error : colors.line),
-            focusedBorder: border(_wrong ? Theme.of(context).colorScheme.error : colors.accent),
+            enabledBorder: borders.rest,
+            focusedBorder: borders.focused,
           ),
         ),
       ),

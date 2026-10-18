@@ -155,11 +155,18 @@ void main() {
     }
   });
 
-  testWidgets("Classic: Material's segmented button", (tester) async {
-    final chosen = await mount(tester, UiStyle.classic);
-    expect(find.byType(SegmentedButton<int>), findsOneWidget);
+  testWidgets("Carbon: a content switcher, the chosen segment inverse, its label \$text-inverse", (tester) async {
+    final chosen = await mount(tester, UiStyle.carbon);
+    final k = CarbonColors.of(AccentColor.sky, Brightness.light);
+    expect(find.byType(SegmentedButton<int>), findsNothing);
+    final fill = find.byWidgetPredicate((w) => w is DecoratedBox && (w.decoration as BoxDecoration).color == k.selectedInverse);
+    expect(fill, findsOneWidget);
+    expect((tester.widget<DecoratedBox>(fill).decoration as BoxDecoration).borderRadius, isNull, reason: 'square');
     await tester.tap(find.text('Light'));
     await tester.pumpAndSettle();
     expect(chosen.value, 1);
+    expect(tester.renderObject<RenderParagraph>(find.text('Light')).text.style!.color, k.textInverse);
+    expect(tester.renderObject<RenderParagraph>(find.text('Auto')).text.style!.color, k.textSecondary);
+    expect(tester.getRect(find.text('Light')).left - tester.getRect(fill).left, 16, reason: 'labels at the start, 16 px in');
   });
 }

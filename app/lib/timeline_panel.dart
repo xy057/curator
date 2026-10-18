@@ -207,7 +207,7 @@ class _InstrumentLanesState extends State<InstrumentLanes>
                   controller: c,
                   child: CustomPaint(
                     size: Size(double.infinity, parts.length * _laneHeight),
-                    painter: _LanesPainter(this, context.colors, Listenable.merge([curation, c.viewport, c, _band, _vScroll, _frame])),
+                    painter: _LanesPainter(this, context.colors, AppStyle.of(context).rounded, Listenable.merge([curation, c.viewport, c, _band, _vScroll, _frame])),
                   ),
                 ),
               ),

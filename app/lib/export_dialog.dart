@@ -234,7 +234,6 @@ class _ExportDialogState extends State<_ExportDialog> {
   }
 
   Widget _header(BuildContext context) {
-    final colors = context.colors;
     return Container(
       height: 56,
       padding: const EdgeInsets.only(left: 24, right: 12),
@@ -247,9 +246,7 @@ class _ExportDialogState extends State<_ExportDialog> {
               _Stage.done => 'Video Exported',
               _Stage.failed => 'Couldn’t Export Video',
             },
-            style: isRefined(context)
-                ? Theme.of(context).dialogTheme.titleTextStyle
-                : TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: colors.text),
+            style: Theme.of(context).dialogTheme.titleTextStyle,
           ),
         ),
         ToolbarButton(
@@ -277,7 +274,7 @@ class _ExportDialogState extends State<_ExportDialog> {
       AspectRatio(
         aspectRatio: VideoRatio.widescreen.value,
         child: Container(
-          decoration: BoxDecoration(color: colors.accentWash, borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: colors.accentWash, borderRadius: AppStyle.of(context).radius(10)),
           padding: const EdgeInsets.all(12),
           child: Center(
             child: AspectRatio(
@@ -352,7 +349,7 @@ class _ExportDialogState extends State<_ExportDialog> {
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: colors.recordingWash, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: colors.recordingWash, borderRadius: AppStyle.of(context).radius(8)),
           child: SelectableText(VideoExport.missingFfmpegForVideo(), style: TextStyle(fontSize: 13, color: colors.text)),
         ),
       ],
@@ -420,7 +417,6 @@ class _ExportDialogState extends State<_ExportDialog> {
       _Row(
         label: 'Paper',
         child: AppSegmented<VideoPaper>(
-          style: _segments,
           expand: true,
           segments: [for (final p in VideoPaper.values) ButtonSegment(value: p, label: Text(p.label))],
           selected: _settings.videoPaper,
@@ -461,21 +457,14 @@ class _ExportDialogState extends State<_ExportDialog> {
   /// Custom…'s value in the ratio select.
   static const _customRatio = VideoRatio(0, 1);
 
-  static const _segments = ButtonStyle(
-    visualDensity: VisualDensity.compact,
-    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6)),
-    textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 13)),
-  );
-
   /// What comes out, or how it is going, and the buttons for the stage.
   Widget _footer(BuildContext context) {
-    final refined = isRefined(context);
+    final carbon = AppStyle.of(context).isCarbon;
     return DialogButtons(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(24, 14, refined ? 24 : 20, refined ? 16 : 14),
+        padding: carbon ? const EdgeInsets.fromLTRB(16, 12, 16, 12) : const EdgeInsets.fromLTRB(24, 14, 24, 16),
         child: SizedBox(
-          height: 36,
+          height: carbon ? 40 : 36,
           child: Row(children: [
             Expanded(
               child: switch (_stage) {
@@ -547,7 +536,7 @@ class _ExportDialogState extends State<_ExportDialog> {
     return Row(children: [
       SizedBox(
         width: 220,
-        child: ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: p?.fraction, minHeight: 6)),
+        child: ClipRRect(borderRadius: AppStyle.of(context).radius(3), child: LinearProgressIndicator(value: p?.fraction, minHeight: 6)),
       ),
       const SizedBox(width: 14),
       Flexible(
@@ -745,6 +734,7 @@ class _TrimmerState extends State<_Trimmer> {
                   valid: w.first != null,
                   hot: _grip ?? _hover,
                   colors: colors,
+                  rounded: AppStyle.of(context).rounded,
                   error: Theme.of(context).colorScheme.error,
                 ),
               ),
@@ -767,8 +757,10 @@ class _TrimmerPainter extends CustomPainter {
     required this.valid,
     required this.hot,
     required this.colors,
+    required this.rounded,
     required this.error,
   });
+  final bool rounded;
   final double Function(double t) x;
   final List<double> barStarts;
   final double start, musicEnd, end, still;
@@ -779,7 +771,8 @@ class _TrimmerPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const track = 8.0, r = Radius.circular(6);
+    const track = 8.0;
+    final r = Radius.circular(rounded ? 6 : 0);
     final h = size.height, top = track, bottom = h - track;
     // The whole piece.
     canvas.drawRRect(
@@ -993,11 +986,9 @@ class _BarField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final formatters = [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(5)];
     void selectAll() => controller.selection = TextSelection(baseOffset: 0, extentOffset: controller.text.length);
-    if (isRefined(context)) {
-      return AppTextField(
+    return AppTextField(
         label: label,
         controller: controller,
         bad: wrong,
@@ -1007,30 +998,9 @@ class _BarField extends StatelessWidget {
         onSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
         onTap: selectAll,
       );
-    }
-    final error = Theme.of(context).colorScheme.error;
-    OutlineInputBorder border(Color color, [double width = 1]) =>
-        OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: color, width: width));
-    return TextField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      inputFormatters: formatters,
-      style: const TextStyle(fontSize: 14, fontFeatures: [FontFeature.tabularFigures()]),
-      onChanged: (_) => onChanged(),
-      onSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
-      onTap: selectAll,
-      decoration: InputDecoration(
-        labelText: label,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        enabledBorder: border(wrong ? error : colors.line),
-        focusedBorder: border(wrong ? error : colors.accent, 1.5),
-      ),
-    );
   }
 }
 
-/// The still: the frame at [time], or, while the video is written, the [frame] last drawn for it.
 class _StillPainter extends CustomPainter {
   _StillPainter(this.export,
       {this.frame, required this.time, required this.paper, required this.transparent, required this.devicePixelRatio});

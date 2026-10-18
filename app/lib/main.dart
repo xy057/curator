@@ -912,7 +912,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
             height: 3,
             decoration: BoxDecoration(
               color: active ? colors.accent : colors.activity,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: AppStyle.of(context).radius(2),
             ),
           ),
         ),
@@ -1002,7 +1002,7 @@ class _DropHint extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.accentWash.withValues(alpha: 0.85),
               border: Border.all(color: colors.accent, width: 2),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: AppStyle.of(context).radius(16),
             ),
             child: Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [

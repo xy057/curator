@@ -700,7 +700,7 @@ class _SpeedMenu extends StatelessWidget {
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 32),
           padding: const EdgeInsets.only(left: 6, right: 2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
         ),
         onSelected: (s) => controller.playback.speed = s,
         itemBuilder: (context) => [
@@ -738,10 +738,10 @@ class _TapButton extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: c.anchors.tapArmed ? 8 : 0),
         decoration: BoxDecoration(
           color: c.anchors.tapArmed ? colors.recordingWash : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: AppStyle.of(context).radius(8),
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: AppStyle.of(context).radius(8),
           onTap: () => c.anchors.tapArmed = !c.anchors.tapArmed,
           child: SizedBox(
             height: 32,
@@ -770,17 +770,18 @@ class _TextToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    // Refined: on, the same neutral pressed fill as a toolbar button, the text not tinted.
-    final refined = isRefined(context);
+    // On: the same neutral fill as a selected toolbar button, the text not tinted.
+    final style = AppStyle.of(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final on = refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05) : colors.accentSoft;
-    final radius = BorderRadius.circular(refined ? 5 : 8);
+    final on = CarbonColors.maybeOf(context)?.backgroundSelected ??
+        (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05);
+    final radius = style.radius(5);
     return InkWell(
       borderRadius: radius,
       onTap: onPressed,
       child: AnimatedContainer(
         duration: stateDuration(motion(context, 150)),
-        height: 28,
+        height: style.control,
         padding: const EdgeInsets.symmetric(horizontal: 9),
         alignment: Alignment.center,
         decoration: BoxDecoration(color: selected ? on : Colors.transparent, borderRadius: radius),
@@ -788,7 +789,7 @@ class _TextToggle extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              color: selected ? (refined ? colors.text : colors.accentStrong) : colors.textMuted,
+              color: selected ? colors.text : colors.textMuted,
             )),
       ),
     );
@@ -931,11 +932,11 @@ class _StartFieldState extends State<_StartField> {
                 suffixText: 's',
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: AppStyle.of(context).radius(6),
                   borderSide: BorderSide(color: context.colors.line),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: AppStyle.of(context).radius(6),
                   borderSide: BorderSide(color: context.colors.accent),
                 ),
               ),

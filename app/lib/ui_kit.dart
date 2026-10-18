@@ -95,37 +95,34 @@ class _DialogRoute<T> extends DialogRoute<T> {
   }
 }
 
-/// Whether the theme is [UiStyle.refined]. A theme without an [AppStyle] (a bare [MaterialApp]'s,
-/// which hasn't the app's palette either) is not: the material widgets are used there.
-bool isRefined(BuildContext context) => Theme.of(context).extension<AppStyle>()?.style == UiStyle.refined;
+/// [ms] milliseconds of Material's motion, as the style has it ([AppStyle.duration]).
+Duration motion(BuildContext context, int ms) => AppStyle.of(context).duration(ms);
 
-/// [classic] milliseconds of motion, as [UiStyle.refined] has it: a desktop's, about three quarters as long.
-Duration motion(BuildContext context, int classic) =>
-    Duration(milliseconds: isRefined(context) ? (classic * 0.775).round() : classic);
-
-/// How far a [UiStyle.refined] field's text is in from its border: the same in a text field
-/// and a select, so what is typed and what is chosen start at one place under their labels.
-const fieldInset = 10.0;
-
-/// A field with its [label] over it: how [UiStyle.refined]'s dialogs label their fields.
+/// A field with its [label] over it, as the app's dialogs label their fields (Carbon's label-01).
 class FieldLabel extends StatelessWidget {
   const FieldLabel({super.key, required this.label, required this.child});
   final String label;
   final Widget child;
 
   @override
-  Widget build(BuildContext context) =>
-      Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.colors.textMuted)),
-        ),
-        child,
-      ]);
+  Widget build(BuildContext context) {
+    final carbon = AppStyle.of(context).isCarbon;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(
+        padding: EdgeInsets.only(bottom: carbon ? 8 : 6),
+        child: Text(label,
+            style: carbon
+                ? TextStyle(fontSize: 12, height: 16 / 12, letterSpacing: 0.32, color: context.colors.textMuted)
+                : TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.colors.textMuted)),
+      ),
+      child,
+    ]);
+  }
 }
 
-/// The compact icon button used in every toolbar: 32 × 32, its label in the tooltip; in
-/// [UiStyle.refined] 28 × 28, and when selected a neutral pressed fill under an accent icon.
+/// The compact icon button used in every toolbar: [AppStyle.control] square, its label in the
+/// tooltip; when selected a neutral fill (Carbon's $background-selected) under an accent icon
+/// (Carbon's $icon-primary).
 class ToolbarButton extends StatelessWidget {
   const ToolbarButton({
     super.key,
@@ -151,24 +148,30 @@ class ToolbarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final refined = isRefined(context);
+    final style = AppStyle.of(context);
+    final carbon = CarbonColors.maybeOf(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final size = refined ? 28.0 : 32.0;
+    final size = style.control;
+    final fill = carbon?.backgroundSelected ?? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05);
     return OverlaySemantics(
       child: IconButton(
         tooltip: tooltip,
         onPressed: onPressed,
         isSelected: selected,
-        iconSize: refined ? 16 : 18,
+        iconSize: 16,
         visualDensity: VisualDensity.compact,
         constraints: BoxConstraints.tightFor(width: size, height: size),
         padding: EdgeInsets.zero,
-        style: IconButton.styleFrom(
-          foregroundColor: selected ? (refined && dark ? colors.accent : colors.accentStrong) : (color ?? colors.text),
-          backgroundColor: selected
-              ? (refined ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05) : colors.accentSoft)
-              : null,
-          shape: refined ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)) : null,
+        style: (carbon == null
+                ? IconButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: style.radius(5)))
+                : const ButtonStyle())
+            .copyWith(
+          foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
+              ? null
+              : selected
+                  ? (carbon != null ? colors.text : dark ? colors.accent : colors.accentStrong)
+                  : (color ?? colors.text)),
+          backgroundColor: selected ? WidgetStatePropertyAll(fill) : null,
           animationDuration: motion(context, 150),
         ),
         icon: glyph ?? Icon(icon),
@@ -187,7 +190,7 @@ class ToolGroup extends StatelessWidget {
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
           border: Border.all(color: context.colors.line),
-          borderRadius: BorderRadius.circular(isRefined(context) ? 7 : 10),
+          borderRadius: AppStyle.of(context).radius(7),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: children),
       );
@@ -423,15 +426,16 @@ void appearanceChanging() {
 /// out over it; a colour animated under the still would trail it, and rebuild every frame.
 Duration stateDuration(Duration duration) => _appearanceChanging ? Duration.zero : duration;
 
-/// The app's on/off switch: always use it rather than [Switch]. In [UiStyle.refined] a small
-/// track with a white knob that slides, drawn alike on every platform; in [UiStyle.classic]
-/// Material's [Switch].
+/// The app's on/off switch: always use it rather than [Switch]. Drawn alike on every platform:
+/// in [UiStyle.refined] a small track in the accent with a white knob that slides; in
+/// [UiStyle.carbon] Carbon's small toggle, $support-success when on, a check in its knob.
 class AppSwitch extends StatefulWidget {
   const AppSwitch({super.key, required this.value, required this.onChanged});
   final bool value;
   final ValueChanged<bool>? onChanged;
 
-  static const size = Size(34, 20);
+  /// The track: Refined's, or Carbon's small toggle's.
+  static Size sizeOf(AppStyle style) => style.isCarbon ? const Size(32, 16) : const Size(34, 20);
 
   @override
   State<AppSwitch> createState() => _AppSwitchState();
@@ -445,17 +449,29 @@ class _AppSwitchState extends State<AppSwitch> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (!isRefined(context)) {
-      return Switch(value: widget.value, onChanged: widget.onChanged);
-    }
+    final style = AppStyle.of(context);
     // The app's palette, or where there is none (a dialog shown on its own) the theme's.
     final colors = theme.extension<AppColors>();
+    final carbon = CarbonColors.maybeOf(context);
     final dark = theme.brightness == Brightness.dark;
     final enabled = widget.onChanged != null;
     final accent = colors?.accent ?? theme.colorScheme.primary;
-    final on = dark ? accent : (colors?.accentStrong ?? accent);
-    final off = dark ? const Color(0xFF4A4F57) : const Color(0xFFD5DAE0);
-    final hoverShade = (dark ? Colors.white : Colors.black).withValues(alpha: _hovered && enabled ? 0.07 : 0);
+    final on = carbon?.success ?? (dark ? accent : (colors?.accentStrong ?? accent));
+    final off = carbon?.toggleOff ?? (dark ? const Color(0xFF4A4F57) : const Color(0xFFD5DAE0));
+    // Carbon's toggle shows no hover; its disabled one is drawn, not faded.
+    final hoverShade = (dark ? Colors.white : Colors.black).withValues(alpha: _hovered && enabled && carbon == null ? 0.07 : 0);
+    CustomPainter painter(double t) => carbon == null
+        ? _SwitchPainter(
+            t: t,
+            track: Color.alphaBlend(hoverShade, Color.lerp(off, on, t)!),
+            focus: _focused ? accent.withValues(alpha: 0.45) : null,
+          )
+        : _CarbonTogglePainter(
+            t: t,
+            track: enabled ? Color.lerp(off, on, t)! : carbon.buttonDisabled,
+            knob: enabled ? Colors.white : carbon.onColorDisabled,
+            focus: _focused ? (carbon.focus, carbon.focusInset) : null,
+          );
     return Semantics(
       toggled: widget.value,
       enabled: enabled,
@@ -469,22 +485,15 @@ class _AppSwitchState extends State<AppSwitch> {
         child: GestureDetector(
           onTap: enabled ? _toggle : null,
           child: Opacity(
-            opacity: enabled ? 1 : 0.45,
+            opacity: enabled || carbon != null ? 1 : 0.45,
             // The tap area is a little larger than the track, as a Material switch's is.
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: TweenAnimationBuilder<double>(
                 tween: Tween(end: widget.value ? 1 : 0),
                 duration: motion(context, 160),
-                curve: Curves.easeOutCubic,
-                builder: (context, t, _) => CustomPaint(
-                  size: AppSwitch.size,
-                  painter: _SwitchPainter(
-                    t: t,
-                    track: Color.alphaBlend(hoverShade, Color.lerp(off, on, t)!),
-                    focus: _focused ? accent.withValues(alpha: 0.45) : null,
-                  ),
-                ),
+                curve: style.curve,
+                builder: (context, t, _) => CustomPaint(size: AppSwitch.sizeOf(style), painter: painter(t)),
               ),
             ),
           ),
@@ -518,6 +527,47 @@ class _SwitchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SwitchPainter old) => old.t != t || old.track != track || old.focus != focus;
+}
+
+/// Carbon's small toggle: a 32 × 16 track, a 10 px knob 3 px in, and when on a check in the
+/// knob in the track's colour; focused, a 1 px gap ($focus-inset) and a 2 px ring ($focus).
+class _CarbonTogglePainter extends CustomPainter {
+  _CarbonTogglePainter({required this.t, required this.track, required this.knob, required this.focus});
+  final double t;
+  final Color track, knob;
+  final (Color, Color)? focus;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = size.height / 2;
+    final rect = RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(r));
+    if (focus case (final ring, final inset)) {
+      canvas.drawRRect(rect.inflate(2), Paint()..color = ring..style = PaintingStyle.stroke..strokeWidth = 2);
+      canvas.drawRRect(rect.inflate(0.5), Paint()..color = inset..style = PaintingStyle.stroke..strokeWidth = 1);
+    }
+    canvas.drawRRect(rect, Paint()..color = track);
+    const inset = 3.0, knobSize = 10.0;
+    final knobCentre = Offset(inset + knobSize / 2 + (size.width - 2 * inset - knobSize) * t, r);
+    canvas.drawCircle(knobCentre, knobSize / 2, Paint()..color = knob);
+    if (t > 0.5) {
+      // Carbon's checkmark, 6 × 5 in the knob.
+      final o = knobCentre - const Offset(3, 2.5);
+      final check = Path()
+        ..moveTo(o.dx + 0.4, o.dy + 2.6)
+        ..lineTo(o.dx + 2.3, o.dy + 4.4)
+        ..lineTo(o.dx + 5.6, o.dy + 0.6);
+      canvas.drawPath(
+          check,
+          Paint()
+            ..color = track.withValues(alpha: (t - 0.5) * 2)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.4
+            ..strokeCap = StrokeCap.square);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CarbonTogglePainter old) => old.t != t || old.track != track || old.knob != knob || old.focus != focus;
 }
 
 /// Painted in the window, but not in the still a change of appearance fades from (main.dart)
@@ -587,13 +637,14 @@ T withoutLeftOut<T>(T Function() capture) {
   }
 }
 
-/// The app's segmented control: always use it rather than [SegmentedButton]. In
-/// [UiStyle.refined] a clear track whose chosen segment, a light tint of the accent, slides to
-/// the segment chosen, each label taking the accent as the tint passes under it. A click
-/// chooses at once ([onChanged]); the tint is [LeftOutOfStills], so a change of appearance it
-/// makes (Theme, Style) fades from a still without it, not one holding it where it started. In
-/// [UiStyle.classic] Material's [SegmentedButton] (with [style]). Segments are as wide as the
-/// widest, or share the width given with [expand].
+/// The app's segmented control: always use it rather than [SegmentedButton]. A row of segments
+/// whose chosen one's fill slides to the segment clicked, each label taking the chosen colour as
+/// the fill passes under it: in [UiStyle.refined] a clear track and a light tint of the accent;
+/// in [UiStyle.carbon] Carbon's content switcher, edged in $border-inverse, the chosen segment
+/// $layer-selected-inverse. A click chooses at once ([onChanged]); the fill is
+/// [LeftOutOfStills], so a change of appearance it makes (Theme, Style) fades from a still
+/// without it, not one holding it where it started. Segments are as wide as the widest, or
+/// share the width given with [expand].
 class AppSegmented<T> extends StatefulWidget {
   const AppSegmented({
     super.key,
@@ -601,13 +652,11 @@ class AppSegmented<T> extends StatefulWidget {
     required this.selected,
     required this.onChanged,
     this.expand = false,
-    this.style,
   });
   final List<ButtonSegment<T>> segments;
   final T selected;
   final ValueChanged<T> onChanged;
   final bool expand;
-  final ButtonStyle? style;
 
   @override
   State<AppSegmented<T>> createState() => _AppSegmentedState<T>();
@@ -656,44 +705,41 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    if (!isRefined(context)) {
-      return SegmentedButton<T>(
-        style: widget.style,
-        expandedInsets: widget.expand ? EdgeInsets.zero : null,
-        showSelectedIcon: false,
-        segments: widget.segments,
-        selected: {widget.selected},
-        onSelectionChanged: (s) => widget.onChanged(s.single),
-      );
-    }
     final colors = context.colors;
+    final style = AppStyle.of(context);
+    final carbon = CarbonColors.maybeOf(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final segments = widget.segments;
     final n = segments.length;
     final index = _indexOf(widget.selected);
     final shown = index >= 0;
-    // The chosen segment: the accent's light tint, edged with the accent, its label the accent's
-    // strong shade taken toward black (or in the dark, white) until it reads on the tint (4.5:1).
-    final chosen = colors.accentSoft;
-    final edge = colors.accent.withValues(alpha: dark ? 0.5 : 0.45);
     double contrast(Color a, Color b) {
       final (x, y) = (a.computeLuminance(), b.computeLuminance());
       return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
     }
 
-    var onChosen = colors.accentStrong;
-    for (var t = 0.05; contrast(onChosen, chosen) < 4.5 && t <= 1; t += 0.05) {
+    // Refined's chosen segment: the accent's light tint, edged with the accent, its label the
+    // accent's strong shade taken toward black (or in the dark, white) until it reads on the
+    // tint (4.5:1). Carbon's: inverse, its label $text-inverse.
+    final chosen = carbon?.selectedInverse ?? colors.accentSoft;
+    var onChosen = carbon?.textInverse ?? colors.accentStrong;
+    for (var t = 0.05; carbon == null && contrast(onChosen, chosen) < 4.5 && t <= 1; t += 0.05) {
       onChosen = Color.lerp(colors.accentStrong, dark ? Colors.white : Colors.black, t)!;
     }
+    final unchosen = carbon?.textSecondary ?? colors.textMuted;
+    final inner = carbon == null ? 2.0 : 1.0;
     final control = Container(
       height: 32,
-      padding: const EdgeInsets.all(2),
-      // Clear: the track takes the colour of what it is on, its hairline marking it out.
-      decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(7)),
+      padding: EdgeInsets.all(inner),
+      // Clear: the track takes the colour of what it is on, its edge marking it out.
+      decoration: BoxDecoration(
+          border: Border.all(color: carbon?.borderInverse ?? colors.line), borderRadius: style.radius(7)),
       child: AnimatedBuilder(
         animation: _at,
         builder: (context, _) {
           final at = _at.value;
+          // How much of segment i the fill covers.
+          double covered(int i) => shown ? (1 - (at - i).abs()).clamp(0, 1).toDouble() : 0;
           return Stack(fit: StackFit.expand, children: [
             if (shown)
               Align(
@@ -704,16 +750,31 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
                   child: LeftOutOfStills(
                     moving: _moving,
                     child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: chosen,
-                        border: Border.all(color: edge),
-                        borderRadius: BorderRadius.circular(5),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.2 : 0.06), blurRadius: 2, offset: const Offset(0, 1))],
-                      ),
+                      decoration: carbon != null
+                          ? BoxDecoration(color: chosen)
+                          : BoxDecoration(
+                              color: chosen,
+                              border: Border.all(color: colors.accent.withValues(alpha: dark ? 0.5 : 0.45)),
+                              borderRadius: style.radius(5),
+                              boxShadow: [
+                                BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.2 : 0.06), blurRadius: 2, offset: const Offset(0, 1)),
+                              ],
+                            ),
                     ),
                   ),
                 ),
               ),
+            // Carbon: a short rule between two segments the fill isn't on.
+            if (carbon != null)
+              for (var i = 1; i < n; i++)
+                Align(
+                  alignment: Alignment(-1 + 2 * i / n, 0),
+                  child: Container(
+                    width: 1,
+                    height: 16,
+                    color: carbon.borderSubtle.withValues(alpha: 1 - math.max(covered(i - 1), covered(i))),
+                  ),
+                ),
             Material(
               type: MaterialType.transparency,
               child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -723,10 +784,10 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
                       segment: s,
                       chosen: s.value == widget.selected,
                       sliding: _at.isAnimating,
-                      // As much of the accent as the tint covers of this segment.
+                      // As much of the chosen colour as the fill covers of this segment.
                       color: !s.enabled
-                          ? colors.textMuted.withValues(alpha: 0.5)
-                          : Color.lerp(colors.textMuted, onChosen, shown ? (1 - (at - i).abs()).clamp(0, 1) : 0)!,
+                          ? (carbon?.textDisabled ?? colors.textMuted.withValues(alpha: 0.5))
+                          : Color.lerp(unchosen, onChosen, covered(i))!,
                       onTap: () => _choose(s.value),
                     ),
                   ),
@@ -768,21 +829,27 @@ class _SegmentState extends State<_Segment> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final theme = Theme.of(context);
+    final style = AppStyle.of(context);
+    final carbon = CarbonColors.maybeOf(context);
     final dark = theme.brightness == Brightness.dark;
     final s = widget.segment;
-    // Not chosen: a faint shade while hovered, and held down a faint tint of the accent, so a
-    // press already looks like the chosen one; none while the tint slides. Drawn here, not as
-    // the ink's overlay, so it fades out as the slide starts and back in when it lands (the
-    // ink would change colour in one frame).
+    // Not chosen: a faint shade while hovered (Carbon's $layer-hover), and held down a faint
+    // tint of the accent, so a press already looks like the chosen one (Carbon's
+    // $background-active); none while the fill slides. Drawn here, not as the ink's overlay, so
+    // it fades out as the slide starts and back in when it lands (the ink would change colour in
+    // one frame).
+    final none = colors.text.withValues(alpha: 0);
     final shade = widget.chosen || widget.sliding || !s.enabled
-        ? colors.text.withValues(alpha: 0)
+        ? none
         : _pressed
-            ? colors.accent.withValues(alpha: dark ? 0.2 : 0.14)
+            ? carbon?.backgroundActive ?? colors.accent.withValues(alpha: dark ? 0.2 : 0.14)
             : _hovered
-                ? colors.text.withValues(alpha: dark ? 0.06 : 0.045)
-                : colors.text.withValues(alpha: 0);
-    final label = theme.textTheme.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0, color: widget.color);
-    const radius = BorderRadius.all(Radius.circular(5));
+                ? carbon?.layerHover ?? colors.text.withValues(alpha: dark ? 0.06 : 0.045)
+                : none;
+    final label = carbon != null
+        ? theme.textTheme.bodyMedium!.copyWith(fontSize: 14, letterSpacing: 0.16, color: widget.color)
+        : theme.textTheme.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0, color: widget.color);
+    final radius = style.radius(5);
     Widget button = Semantics(
       button: true,
       selected: widget.chosen,
@@ -798,20 +865,24 @@ class _SegmentState extends State<_Segment> {
         onHighlightChanged: (v) => setState(() => _pressed = v),
         child: AnimatedContainer(
           duration: stateDuration(motion(context, 150)),
-          curve: Curves.easeOut,
+          curve: style.curve,
           decoration: BoxDecoration(color: shade, borderRadius: radius),
           child: IconTheme.merge(
-            data: IconThemeData(color: widget.color, size: 15),
+            data: IconThemeData(color: widget.color, size: carbon != null ? 16 : 15),
             child: DefaultTextStyle.merge(
               style: label,
               maxLines: 1,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-                  ?s.icon,
-                  if (s.icon != null && s.label != null) const SizedBox(width: 6),
-                  if (s.label case final label?) Flexible(child: label),
-                ]),
+                padding: EdgeInsets.symmetric(horizontal: carbon != null ? 16 : 12),
+                child: Row(
+                    // Carbon's content switcher sets its labels at the start.
+                    mainAxisAlignment: carbon != null ? MainAxisAlignment.start : MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ?s.icon,
+                      if (s.icon != null && s.label != null) SizedBox(width: carbon != null ? 8 : 6),
+                      if (s.label case final label?) Flexible(child: label),
+                    ]),
               ),
             ),
           ),
@@ -821,4 +892,68 @@ class _SegmentState extends State<_Segment> {
     if (s.tooltip case final tip?) button = Tip(message: tip, child: button);
     return button;
   }
+}
+
+/// A field's borders as the style draws them, at rest and focused: Refined's outline (the
+/// accent's when focused, red when [bad]); Carbon's line under a filled field, and a 2 px ring
+/// in $focus (in $support-error when [bad]).
+({InputBorder rest, InputBorder focused}) fieldBorders(BuildContext context, {bool bad = false, double radius = 8}) {
+  final colors = context.colors;
+  if (CarbonColors.maybeOf(context) case final k?) {
+    return (
+      rest: bad ? CarbonFieldBorder(ring: true, borderSide: BorderSide(color: k.error, width: 2)) : CarbonFieldBorder(borderSide: BorderSide(color: k.borderStrong)),
+      focused: CarbonFieldBorder(ring: true, borderSide: BorderSide(color: bad ? k.error : k.focus, width: 2)),
+    );
+  }
+  // No gap: it is room for a floating label (labels are over the field), and it moves the text
+  // further in than [AppStyle.fieldInset].
+  OutlineInputBorder border(Color color, [double width = 1]) =>
+      OutlineInputBorder(gapPadding: 0, borderRadius: BorderRadius.circular(radius), borderSide: BorderSide(color: color, width: width));
+  return (rest: border(bad ? colors.erase : colors.line), focused: border(bad ? colors.erase : colors.accent, 1.5));
+}
+
+/// A field's fill: Carbon's $field (a field on a layer), none in Refined.
+Color? fieldFill(BuildContext context) => CarbonColors.maybeOf(context)?.field;
+
+/// Carbon's field border: a line along the bottom of a filled field, or ([ring]) a square ring
+/// all round it (focused, or invalid). An outline to the [InputDecorator] in both, so the text
+/// sits at one place whichever it is.
+class CarbonFieldBorder extends OutlineInputBorder {
+  const CarbonFieldBorder({required super.borderSide, this.ring = false}) : super(borderRadius: BorderRadius.zero, gapPadding: 0);
+  final bool ring;
+
+  @override
+  CarbonFieldBorder copyWith({BorderSide? borderSide, BorderRadius? borderRadius, double? gapPadding}) =>
+      CarbonFieldBorder(borderSide: borderSide ?? this.borderSide, ring: ring);
+
+  @override
+  CarbonFieldBorder scale(double t) => CarbonFieldBorder(borderSide: borderSide.scale(t), ring: ring);
+
+  // Carbon's field changes its border at once.
+  @override
+  ShapeBorder? lerpFrom(ShapeBorder? a, double t) => this;
+
+  @override
+  ShapeBorder? lerpTo(ShapeBorder? b, double t) => b;
+
+  @override
+  void paint(Canvas canvas, Rect rect,
+      {double? gapStart, double gapExtent = 0.0, double gapPercentage = 0.0, TextDirection? textDirection}) {
+    final w = borderSide.width;
+    final paint = Paint()
+      ..color = borderSide.color
+      ..strokeWidth = w
+      ..style = PaintingStyle.stroke;
+    if (ring) {
+      canvas.drawRect(rect.deflate(w / 2), paint);
+    } else {
+      canvas.drawLine(rect.bottomLeft.translate(0, -w / 2), rect.bottomRight.translate(0, -w / 2), paint);
+    }
+  }
+
+  @override
+  bool operator ==(Object other) => other is CarbonFieldBorder && other.ring == ring && other.borderSide == borderSide;
+
+  @override
+  int get hashCode => Object.hash(ring, borderSide);
 }

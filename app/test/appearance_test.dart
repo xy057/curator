@@ -96,11 +96,12 @@ void main() {
 
     expect(theme().extension<AppStyle>()!.style, UiStyle.refined, reason: 'the default');
     expect(theme().splashFactory, NoSplash.splashFactory, reason: 'a press tints, no ripple');
-    settings.uiStyle = UiStyle.classic;
+    settings.uiStyle = UiStyle.carbon;
     await tester.pump();
     expect(find.byType(RawImage), findsNWidgets(images + 1), reason: 'a style cross-fades too');
-    expect(theme().extension<AppStyle>()!.style, UiStyle.classic);
-    expect(theme().splashFactory, InkSparkle.splashFactory, reason: 'Material, as it was');
+    expect(theme().extension<AppStyle>()!.style, UiStyle.carbon);
+    expect(theme().extension<CarbonColors>(), isNotNull);
+    expect(theme().splashFactory, NoSplash.splashFactory, reason: 'Carbon shows state by fills, not ripples');
     await tester.pumpAndSettle();
 
     final before = theme();
@@ -151,25 +152,56 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  test('Refined sets a desktop theme over Classic, which stays Material as it was', () {
+  test('Refined sets a desktop theme over Material', () {
     for (final brightness in Brightness.values) {
       final refined = AppColors.theme(brightness: brightness);
-      final classic = AppColors.theme(brightness: brightness, style: UiStyle.classic);
       expect(refined.textTheme.bodyMedium!.letterSpacing, 0);
-      expect(classic.textTheme.bodyMedium!.letterSpacing, isNot(0));
       expect(refined.materialTapTargetSize, MaterialTapTargetSize.shrinkWrap);
-      expect(classic.materialTapTargetSize, MaterialTapTargetSize.padded);
       expect(refined.sliderTheme.overlayColor, Colors.transparent, reason: 'no halo');
-      expect(classic.sliderTheme.overlayColor, isNull);
       expect(refined.filledButtonTheme.style!.shape!.resolve({}), isA<RoundedRectangleBorder>());
-      expect(classic.filledButtonTheme.style, isNull);
       expect(refined.inputDecorationTheme.isDense, isTrue);
-      final r = refined.extension<AppColors>()!, cl = classic.extension<AppColors>()!;
+      final r = refined.extension<AppColors>()!;
       expect(r.chrome, isNot(r.surface), reason: 'toolbars a step off the work area');
-      expect(cl.chrome, cl.surface);
       expect(r.line, AppColors.of(AccentColor.rose, brightness, UiStyle.refined).line, reason: 'greys without the accent');
-      expect(cl.line, isNot(AppColors.of(AccentColor.rose, brightness).line));
-      expect(classic.inputDecorationTheme.isDense, isFalse);
     }
+  });
+
+  test("Carbon sets IBM's tokens: White or Gray 100, Plex, square sm buttons, filled fields", () {
+    for (final (brightness, background, layer, text) in [
+      (Brightness.light, const Color(0xFFFFFFFF), const Color(0xFFF4F4F4), const Color(0xFF161616)),
+      (Brightness.dark, const Color(0xFF161616), const Color(0xFF262626), const Color(0xFFF4F4F4)),
+    ]) {
+      final carbon = AppColors.theme(brightness: brightness, style: UiStyle.carbon);
+      final c = carbon.extension<AppColors>()!;
+      expect(c.surface, background, reason: r'$background');
+      expect(c.chrome, layer, reason: r'$layer-01');
+      expect(c.text, text, reason: r'$text-primary');
+      expect(c.accentFill, const Color(0xFF0F62FE), reason: r'$button-primary, Blue 60, in both');
+      expect(carbon.textTheme.bodyMedium!.fontFamily, AppColors.carbonFont);
+      expect(carbon.textTheme.bodyMedium!.fontSize, 14, reason: 'body-compact-01');
+      expect(carbon.textTheme.bodyMedium!.letterSpacing, 0.16);
+      expect(carbon.textTheme.bodySmall!.fontSize, 12, reason: 'label-01');
+      final button = carbon.filledButtonTheme.style!;
+      expect(button.shape!.resolve({}), const RoundedRectangleBorder(), reason: 'square');
+      expect(button.shape!.resolve({WidgetState.focused}), isA<CarbonFocusBorder>());
+      expect(button.minimumSize!.resolve({})!.height, 32, reason: 'sm');
+      expect(button.alignment, Alignment.centerLeft, reason: 'its label at the left');
+      expect(button.backgroundColor!.resolve({WidgetState.hovered}), const Color(0xFF0050E6), reason: r'$button-primary-hover');
+      expect(carbon.dialogTheme.shape, const RoundedRectangleBorder());
+      expect(carbon.dialogTheme.backgroundColor, layer, reason: r'a modal on $layer-01');
+      expect(carbon.inputDecorationTheme.filled, isTrue);
+      expect(carbon.inputDecorationTheme.border, isA<UnderlineInputBorder>());
+      expect(carbon.checkboxTheme.fillColor!.resolve({WidgetState.selected}), text, reason: r'$icon-primary, not the accent');
+      expect(carbon.sliderTheme.trackHeight, 2);
+      expect(carbon.extension<AppStyle>()!.radius(8), BorderRadius.zero);
+    }
+    expect(AppColors.of(AccentColor.rose, Brightness.light, UiStyle.carbon).accent, const Color(0xFFD02670), reason: 'Magenta 60');
+  });
+
+  test('a saved Classic style opens as Carbon, which replaced it', () {
+    expect(UiStyle.named('classic'), UiStyle.carbon);
+    expect(UiStyle.named('refined'), UiStyle.refined);
+    expect(UiStyle.named('carbon'), UiStyle.carbon);
+    expect(UiStyle.named(null), isNull);
   });
 }

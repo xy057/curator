@@ -153,10 +153,9 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
         if (p != null) '${i + 1}: $p',
     ].firstOrNull;
     final invalid = problem != null;
-    final header = TextStyle(fontSize: isRefined(context) ? 12.5 : 11.5, fontWeight: FontWeight.w600, color: colors.textMuted);
+    final header = TextStyle(fontSize: AppStyle.of(context).isCarbon ? 12 : 12.5, fontWeight: FontWeight.w600, color: colors.textMuted);
     return AppDialog(
       title: const Text('Captions'),
-      contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       content: SizedBox(
         width: dialogWidth(context, 640),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -191,7 +190,6 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
           const SizedBox(height: 8),
         ]),
       ),
-      actionsPadding: const EdgeInsets.fromLTRB(16, 8, 24, 20),
       divided: true,
       leading: [TextButton.icon(onPressed: _add, icon: const Icon(Icons.add, size: 18), label: const Text('Add'))],
       status: problem == null ? null : Text(problem, style: TextStyle(color: colors.erase), overflow: TextOverflow.ellipsis),
@@ -206,7 +204,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
 
   Widget _row(BuildContext context, int i, String? problem) {
     final colors = context.colors;
-    final size = isRefined(context) ? 14.0 : 13.0; // a dialog's text
+    const size = 14.0; // a dialog's text
     final r = _rows[i];
     final a = _start(r), b = _end(r);
     // The cells at fault: a bar that isn't one, an end too soon, or (an overlap) the start.

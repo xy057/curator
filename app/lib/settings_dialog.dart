@@ -176,7 +176,7 @@ final _categories = <_Category>[
         selected: c.settings.uiStyle,
         onChanged: (v) => c.settings.uiStyle = v,
       ),
-      keywords: 'look controls switch button material classic refined theme',
+      keywords: 'look controls switch button classic refined carbon ibm theme',
     ),
   ]),
   _Category('Animation', Icons.animation_rounded, [
@@ -510,7 +510,9 @@ class _SettingsWindowState extends State<_SettingsWindow> {
           // Its outline changes with the theme at once, as every other line does, not on a Material's
           // own shape animation, which would trail the window's cross-fade.
           animationDuration: Duration.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.line)),
+          shape: AppStyle.of(context).isCarbon
+              ? const RoundedRectangleBorder()
+              : RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.line)),
           clipBehavior: Clip.antiAlias,
           child: ListenableBuilder(
             listenable: Listenable.merge([widget.settings, _search, widget.updater, ?widget.controller]),
@@ -529,30 +531,37 @@ class _SettingsWindowState extends State<_SettingsWindow> {
 
   Widget _sidebar(BuildContext context) {
     final colors = context.colors;
+    final carbon = CarbonColors.maybeOf(context);
     final searching = _search.text.trim().isNotEmpty;
     return Container(
       width: 200,
-      color: _sidebarColor(colors),
+      color: _sidebarColor(context),
       padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         SizedBox(
-          height: 30,
+          height: carbon == null ? 30 : 32,
           child: TextField(
             controller: _search,
-            style: const TextStyle(fontSize: 13),
+            style: TextStyle(fontSize: carbon == null ? 13 : 14),
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Search',
-              prefixIcon: Icon(Icons.search_rounded, size: 16, color: colors.textMuted),
-              prefixIconConstraints: const BoxConstraints(minWidth: 30),
+              prefixIcon: Icon(Icons.search_rounded, size: 16, color: carbon?.textSecondary ?? colors.textMuted),
+              prefixIconConstraints: BoxConstraints(minWidth: carbon == null ? 30 : 40),
               filled: true,
-              fillColor: colors.line.withValues(alpha: 0.6),
-              contentPadding: const EdgeInsets.symmetric(vertical: 7),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide.none),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(7),
-                borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.6)),
-              ),
+              fillColor: carbon?.field ?? colors.line.withValues(alpha: 0.6),
+              contentPadding: EdgeInsets.symmetric(vertical: carbon == null ? 7 : 8),
+              // Carbon's small search: a line under it, its focus ring.
+              border: carbon != null
+                  ? fieldBorders(context).rest
+                  : OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide.none),
+              enabledBorder: carbon != null ? fieldBorders(context).rest : null,
+              focusedBorder: carbon != null
+                  ? fieldBorders(context).focused
+                  : OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(7),
+                      borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.6)),
+                    ),
             ),
           ),
         ),
@@ -677,16 +686,23 @@ class _SettingsWindowState extends State<_SettingsWindow> {
       key: ObjectKey(item), title: item.title, note: item.note, help: item.help?.call(_ctx), control: item.control(_ctx));
 }
 
-/// The sidebar's neutral tint: a step off the dialog's surface, without the accent; in the
-/// refined light theme the (nearly white) chrome.
-Color _sidebarColor(AppColors colors) =>
-    _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.32)!;
+/// The sidebar's neutral tint: a step off the dialog's surface, without the accent; in the light
+/// theme the (nearly white) chrome; in Carbon the modal's own $layer-01.
+Color _sidebarColor(BuildContext context) {
+  final colors = context.colors;
+  if (CarbonColors.maybeOf(context) case final k?) return k.layer01;
+  return _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.32)!;
+}
 
 bool _lightChrome(AppColors colors) => colors.chrome != colors.surface && colors.surface.computeLuminance() > 0.5;
 
-/// A group's fill: a lighter step than the sidebar, so the groups sit on the page without borders.
-Color _groupColor(AppColors colors) =>
-    _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.22)!;
+/// A group's fill: a lighter step than the sidebar, so the groups sit on the page without borders
+/// (Carbon: a tile on $layer-02).
+Color _groupColor(BuildContext context) {
+  final colors = context.colors;
+  if (CarbonColors.maybeOf(context) case final k?) return k.layer02;
+  return _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.22)!;
+}
 
 class _SidebarTile extends StatefulWidget {
   const _SidebarTile({required this.icon, required this.label, required this.selected, required this.onTap});
@@ -706,13 +722,21 @@ class _SidebarTileState extends State<_SidebarTile> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final selected = widget.selected;
-    // Raised off the sidebar: white on the light grey, a lighter grey on the dark one; in the
-    // refined style a solid accent row with white text, as a desktop source list's.
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final refined = isRefined(context);
-    final solid = refined && selected;
+    final style = AppStyle.of(context);
+    final k = CarbonColors.maybeOf(context);
+    // Refined: a solid accent row with white text, as a desktop source list's. Carbon: its side
+    // nav's item, $layer-selected with a 3 px bar of the accent at its left, the text semibold.
+    final solid = k == null && selected;
+    final fill = k != null
+        ? (selected ? k.layerSelected : _hover ? k.layerHover : k.layerHover.withValues(alpha: 0))
+        : solid
+            ? colors.accentFill
+            : _hover
+                ? colors.line.withValues(alpha: 0.45)
+                : colors.line.withValues(alpha: 0);
+    final ink = k != null ? (selected || _hover ? k.textPrimary : k.textSecondary) : solid ? Colors.white : colors.text;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 1),
+      padding: EdgeInsets.only(bottom: k != null ? 0 : 1),
       child: Semantics(
         button: true,
         selected: selected,
@@ -725,35 +749,31 @@ class _SidebarTileState extends State<_SidebarTile> {
             onTap: widget.onTap,
             child: AnimatedContainer(
               duration: stateDuration(motion(context, 120)),
-              curve: Curves.easeOut,
-              height: 30,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              curve: style.curve,
+              height: k != null ? 32 : 30,
+              padding: EdgeInsets.only(left: k != null ? 13 : 8, right: 8),
               decoration: BoxDecoration(
-                color: solid
-                    ? colors.accentFill
-                    : selected
-                    ? (dark ? colors.line : colors.surface)
-                    : _hover
-                        ? colors.line.withValues(alpha: 0.45)
-                        : colors.line.withValues(alpha: 0),
-                borderRadius: BorderRadius.circular(refined ? 5 : 7),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: selected && !dark && !refined ? 0.06 : 0),
-                    blurRadius: 2,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
+                color: fill,
+                borderRadius: style.radius(5),
+                // $border-interactive: the accent, in the dark too.
+                border: k == null
+                    ? null
+                    : Border(left: BorderSide(color: selected ? colors.accent : Colors.transparent, width: 3)),
               ),
               child: Row(children: [
-                Icon(widget.icon, size: 16, color: solid ? Colors.white : selected ? colors.accentStrong : colors.textMuted),
-                const SizedBox(width: 10),
-                Text(widget.label,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: solid ? Colors.white : colors.text,
-                      fontWeight: selected && !refined ? FontWeight.w600 : FontWeight.w400,
-                    )),
+                Icon(widget.icon, size: 16, color: k != null ? ink : solid ? Colors.white : colors.textMuted),
+                SizedBox(width: k != null ? 8 : 10),
+                Flexible(
+                  child: Text(widget.label,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: k != null ? 14 : 13,
+                        letterSpacing: k != null ? 0.16 : null,
+                        color: ink,
+                        fontWeight: k != null && selected ? FontWeight.w600 : FontWeight.w400,
+                      )),
+                ),
               ]),
             ),
           ),
@@ -784,7 +804,7 @@ class _Page extends StatelessWidget {
                   style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: colors.textMuted, letterSpacing: 0.2)),
             ),
           DecoratedBox(
-            decoration: BoxDecoration(color: _groupColor(colors), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
             child: Column(children: [
               for (final (j, row) in rows.indexed) ...[
                 if (j > 0) Divider(height: 1, indent: 14, endIndent: 14, color: colors.line),
@@ -865,6 +885,14 @@ class _AccentPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final style = AppStyle.of(context);
+    // Each as the style shows it: Carbon's IBM hue (square, as Carbon's swatches are).
+    Color swatch(AccentColor accent) {
+      final c = AppColors.of(accent, Theme.of(context).brightness, style.style);
+      return dark ? c.accent : c.accentStrong;
+    }
+
+    final shape = style.rounded ? BoxShape.circle : BoxShape.rectangle;
     return Wrap(spacing: 6, children: [
       for (final accent in AccentColor.values)
         Tip(
@@ -875,20 +903,15 @@ class _AccentPicker extends StatelessWidget {
               cursor: SystemMouseCursors.click,
               child: AnimatedContainer(
                 duration: stateDuration(motion(context, 120)),
-                curve: Curves.easeOut,
+                curve: style.curve,
                 width: 24,
                 height: 24,
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: settings.accent == accent ? (dark ? accent.color : accent.strong) : Colors.transparent,
-                    width: 2,
-                  ),
+                  shape: shape,
+                  border: Border.all(color: settings.accent == accent ? swatch(accent) : Colors.transparent, width: 2),
                 ),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: dark ? accent.color : accent.strong, shape: BoxShape.circle),
-                ),
+                child: DecoratedBox(decoration: BoxDecoration(color: swatch(accent), shape: shape)),
               ),
             ),
           ),
@@ -966,7 +989,7 @@ class _UpdateControl extends StatelessWidget {
         FilledButton(onPressed: () => updater.download(release), child: Text('Download ${release.version}')),
       UpdateDownloading(:final progress) => SizedBox(
           width: 140,
-          child: LinearProgressIndicator(value: progress, borderRadius: BorderRadius.circular(2)),
+          child: LinearProgressIndicator(value: progress, borderRadius: AppStyle.of(context).radius(2)),
         ),
       UpdateDownloaded(:final path) =>
         OutlinedButton(onPressed: () => revealInFileManager(path), child: Text(_revealLabel)),
@@ -1101,7 +1124,7 @@ class _AboutPage extends StatelessWidget {
               ]),
               const SizedBox(height: 18),
               DecoratedBox(
-                decoration: BoxDecoration(color: _groupColor(colors), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
                 child: Column(children: [
                   _SettingRow(
                     title: 'Updates',
@@ -1140,7 +1163,7 @@ class _Pill extends StatelessWidget {
     final colors = context.colors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-      decoration: BoxDecoration(color: _groupColor(colors), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: _groupColor(context), borderRadius: BorderRadius.circular(20)), // a tag: a pill in Carbon too
       child: SelectableText(
         text,
         style: TextStyle(

@@ -474,49 +474,75 @@ The two themes are built once per accent and style (`_CuratedScoreAppState._buil
 `ThemeData` never equals the last, so one built per change of settings would rebuild every widget
 that reads it. The page, likewise, rebuilds only for the settings it shows (`_HomePageState._shown`).
 
-**Two styles, one look on every platform.** Settings ▸ Appearance ▸ Style (`AppSettings.uiStyle`):
-Refined, the default, is `AppColors._refined` laid over Classic, Material's theme as it was: a
-desktop editor's look. Its palette (`AppColors._refinedOf`) has neutral greys, with no accent mixed
-in, and a `chrome` tone behind toolbars, the lane-name column and the ruler (`chrome` is `surface` in
-Classic). Controls are 28 px with 5 px corners on a 13 px type scale. Segmented controls are a clear
-track whose chosen segment, a light tint of the accent, slides to the one clicked, each label taking
-the accent as the tint passes under it, and the hover and press shades (drawn by the segment, so
-they fade rather than switch) gone while it slides. A click chooses at once; an appearance change it makes (Theme, Style) fades
+**Two styles, one look on every platform: a style is a set of tokens and a theme builder.**
+Settings ▸ Appearance ▸ Style (`AppSettings.uiStyle`): Refined, the default, or Carbon (which
+replaced Classic, Material's theme as it was; a saved `classic` opens as Carbon, `UiStyle.named`).
+Each style is three things in app_colors.dart: a palette (`AppColors.of`), a theme builder laid
+over one Material base (`AppColors._refined`, `AppColors._carbon`), and an `AppStyle`, the tokens
+every widget reads instead of asking which style it is: `rounded` (`corner(r)` / `radius(r)`
+give a Refined radius, 0 in Carbon), `control` (toolbar buttons, 28 / 32), `toolbar` and
+`panelBar`, a dialog's `field` (36 / 40) and `fieldInset` (10 / 16), `row` (34 / 32), `menuRow`
+(22 / 24) and `menuInset`, `menuOpen` / `menuClose` (190 / 110 ms), and the curves. `motion(context, ms)`
+takes Material's milliseconds to the style's: about three quarters in Refined, snapped to Carbon's
+duration steps (70, 110, 150, 240, 400, 700) in Carbon. `AppStyle.of` of a theme without one (a
+bare `MaterialApp` in a test) is Refined; there are no Material fallbacks left.
+Refined's palette (`AppColors._refinedOf`) has neutral greys, with no accent mixed in, and a
+`chrome` tone behind toolbars, the lane-name column and the ruler. Controls are 28 px with 5 px
+corners on a 13 px type scale. Segmented controls are a clear track whose chosen segment, a light
+tint of the accent, slides to the one clicked, each label taking the accent as the tint passes
+under it, and the hover and press shades (drawn by the segment, so they fade rather than switch)
+gone while it slides.
+Carbon follows IBM's Carbon Design System (v11) as specified: the White theme or Gray 100, its
+named tokens in a `CarbonColors` extension (only in a Carbon theme: `CarbonColors.maybeOf`), IBM
+Plex Sans on the productive type set (12 / 14 / 16 / 20 px, Carbon's tracking), square corners,
+sm (32 px) buttons at the condensed density (label at the left, 7 / 39 px), primary / tertiary
+(outlined) / ghost (text) buttons in their state colours, fields filled with `$field` and a line
+under them (`CarbonFieldBorder`), a 2 px `$focus` ring (`CarbonFocusBorder` on a button),
+checkboxes in `$icon-primary`, monochrome 2 px sliders, the small toggle in `$support-success`
+with its check, the content switcher (edged in `$border-inverse`, the chosen segment inverse),
+24 px menus on `$layer-01`, the side nav (a 3 px bar of the accent) in Settings, and the modal
+(`$layer-01`, heading-03, footer buttons 64 px and edge to edge). An accent is an IBM hue
+(`CarbonHue`): Sky is Carbon's own Blue 60, the others Purple, Teal, Magenta, Orange and Cool
+Gray at their 60 (light) or 50 / 40 (Gray 100) grades; `$button-primary` stays the 60 in both.
+State shows as fills (`$background-hover`, `$background-active`), never ripples.
+A click on a segment chooses at once; an appearance change it makes (Theme, Style) fades
 from a still of the window, which would hold the tint where it started, so the tint is
 `LeftOutOfStills` (its own layer, hidden while `_RenderStillBoundary` takes the still) while it
 moves or a click is about to move it; at rest it stays in the still, so a change of accent
-cross-fades it as the rest of the window; there are no ripples or 48 px touch targets, and the play button is a flat transport button. Custom widgets ask `isRefined(context)` (ToolbarButton, the bottom panel's
-tab switch, the Settings sidebar, lane labels). Video export draws in the classic palette. Neither follows the platform (no `.adaptive` or Cupertino widgets), so macOS and
-Windows match. A widget that draws its own control for Refined reads `AppStyle` from the theme;
-`AppSwitch` and `AppSegmented` (ui_kit.dart) are those: always use them, never `Switch` or
-`SegmentedButton`. `AppSegmented` works its label colour out from the tint (the accent's strong
-shade taken toward black, or white, until it reads at 4.5:1), as some accents' shades don't. Text styles set in the
-refined theme are merged with the typography's geometry as `Theme.of` gives them, since a button
-lerps its label between the two styles and two text styles lerp only when both inherit or neither.
-Refined is agile: a menu opens in 190 ms (the material ones take 300) with 22 px rows, not 48 (a
-`MenuItemButton`'s too, by the theme; the Windows/Linux menu bar keeps its own buttons' height), and
-other motion runs at about three quarters of the classic time (`motion(context, classicMs)`).
+cross-fades it as the rest of the window; there are no ripples or 48 px touch targets. Custom
+widgets read `AppStyle` and, for Carbon's own colours, `CarbonColors` (ToolbarButton, the play
+button, the bottom panel's tab switch, the Settings sidebar, lane labels). The score's paper and
+ink are the same in every style (`ScorePaper`), and video export draws on them. Neither style
+follows the platform (no `.adaptive` or Cupertino widgets), so macOS and Windows match.
+`AppSwitch` and `AppSegmented` (ui_kit.dart) draw their own controls: always use them, never
+`Switch` or `SegmentedButton`. Refined's `AppSegmented` works its label colour out from the tint
+(the accent's strong shade taken toward black, or white, until it reads at 4.5:1), as some
+accents' shades don't. Text styles set in a style's theme are merged with the typography's
+geometry as `Theme.of` gives them, since a button lerps its label between the two styles and two
+text styles lerp only when both inherit or neither.
 Flutter fixes a popup menu's and a dropdown's timing and row height in the widget, not the theme,
 so `menu_kit.dart` has them: a menu is an `AppPopupMenuButton` filled with `menuItem` /
-`checkedMenuItem` / `menuDivider`, a select an `AppDropdown` (in Refined a `MenuAnchor` whose bare
-panel holds a card of the theme's menu style, so the card and its rows fade in together; the
-material one in Classic), never `PopupMenuButton` or `DropdownButton`; and a duration written for
-the classic style goes through `motion`. A theme without an `AppStyle` (a bare `MaterialApp` in a
-test) is not Refined: the material widgets are used.
+`checkedMenuItem` / `menuDivider`, a select an `AppDropdown` (a `MenuAnchor` whose bare panel
+holds a card of the theme's menu style, so the card and its rows fade in together), never
+`PopupMenuButton` or `DropdownButton`; and a duration written as Material's goes through `motion`.
 
-Dialogs are laid out for Refined by `dialog_kit.dart`: `AppDialog` (title, a body that scrolls
-in a short window, a footer with `leading` buttons, a `status` and the `actions`; the material
-`AlertDialog` in Classic), `AppTextField` (its label over it), `AppCheckRow` and `AppChip`.
-A dialog has measures of its own, roomier than the toolbars' (which are 28 px with 13 px text)
-since it is read and filled in: an 18 px title, 14 px text, 36 px fields, 34 px rows and buttons,
-24 px padding, a 14 px corner, and a body a fifth wider than Classic's (`dialogWidth`).
-Everything in a dialog starts and ends on that 24 px edge: the title, the content, a check row's
-box (no inset), and the footer's buttons, whose secondary ones (Cancel, an extra action) are
-outlined by `DialogButtons` so their edge, not their label, is on it; groups of fields are
-`dialogGap` apart. Export's footer uses `DialogButtons` too. Inside a field, typed and chosen
-text both start `fieldInset` (10 px) in from the border, so an `AppTextField`'s outline has no
-label gap and an `AppDropdown` draws its border over itself; a menu's heading is a `menuHeader`,
-on its items' edge. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
+Dialogs are laid out by `dialog_kit.dart`: `AppDialog` (title, a body that scrolls
+in a short window, a footer with `leading` buttons, a `status` and the `actions`), `AppTextField`
+(its label over it, its borders from `fieldBorders`), `AppCheckRow` and `AppChip`.
+A dialog has measures of its own, roomier than the toolbars' since it is read and filled in: in
+Refined an 18 px title, 14 px text, 36 px fields, 34 px rows and buttons, 24 px padding, a 14 px
+corner; in Carbon a 20 px heading, 14 px body, 40 px fields, 32 px rows, 16 px padding, 48 px
+over the footer, square, and the footer's buttons sharing its width (half each for one or two,
+a quarter with leading buttons or a status, which take the rest; the label at the top left,
+Cancel a secondary button). A body is a fifth wider than its content's base (`dialogWidth`).
+In Refined everything in a dialog starts and ends on that 24 px edge: the title, the content, a
+check row's box (no inset), and the footer's buttons, whose secondary ones (Cancel, an extra
+action) are outlined by `DialogButtons` so their edge, not their label, is on it (in Carbon
+`DialogButtons` makes them secondary buttons); groups of fields are `dialogGap` apart. Export's
+footer uses `DialogButtons` too. Inside a field, typed and chosen text both start
+`AppStyle.fieldInset` in from the border, so an `AppTextField`'s outline has no label gap and an
+`AppDropdown` draws its border over itself; a menu's heading is a `menuHeader`, on its items'
+edge. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
 (tests find it with `appField(label)`), a select an `AppDropdown(label: …)`, and one that filters as it is
 typed in (a long font list) a `DropdownMenu` built through `dialogMenuField`. `Export` and
 `Engraving options` are `Dialog`s of their own, in the same measures.

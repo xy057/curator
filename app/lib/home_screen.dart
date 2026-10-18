@@ -151,9 +151,9 @@ class _RecentList extends StatelessWidget {
       ]),
       const SizedBox(height: 4),
       DecoratedBox(
-        decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: AppStyle.of(context).radius(10)),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: AppStyle.of(context).radius(10),
           child: Column(children: [
             for (final (i, path) in files.indexed) ...[
               if (i > 0) Divider(height: 1, color: colors.line),
@@ -214,7 +214,7 @@ class _RecentRowState extends State<_RecentRow> {
               height: 30,
               decoration: BoxDecoration(
                 color: _exists ? colors.accentSoft : colors.grid,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: AppStyle.of(context).radius(8),
               ),
               child: Icon(
                 _isProject ? Icons.movie_filter_outlined : Icons.queue_music_rounded,

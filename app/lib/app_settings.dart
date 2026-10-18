@@ -18,7 +18,7 @@ class AppSettings extends ChangeNotifier {
         _undoSteps = _prefs?.getInt(_undoKey) ?? defaultUndoSteps,
         _themeMode = ThemeMode.values.asNameMap()[_prefs?.getString(_themeKey)] ?? ThemeMode.system,
         _accent = AccentColor.values.asNameMap()[_prefs?.getString(_accentKey)] ?? AccentColor.sky,
-        _uiStyle = UiStyle.values.asNameMap()[_prefs?.getString(_uiStyleKey)] ?? UiStyle.refined,
+        _uiStyle = UiStyle.named(_prefs?.getString(_uiStyleKey)) ?? UiStyle.refined,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
         _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,

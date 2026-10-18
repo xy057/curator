@@ -79,9 +79,10 @@ void main() {
     expect(settings.themeMode, ThemeMode.dark);
     expect(settings.accent, AccentColor.rose);
     await shot(tester, 'settings-appearance-dark');
-    await tester.tap(find.text('Classic'));
+    await tester.tap(find.text('Carbon'));
     await tester.pumpAndSettle();
-    expect(settings.uiStyle, UiStyle.classic);
+    expect(settings.uiStyle, UiStyle.carbon);
+    await shot(tester, 'settings-appearance-carbon');
     await tester.tap(find.text('Refined'));
     await tester.pumpAndSettle();
     expect(settings.uiStyle, UiStyle.refined);
