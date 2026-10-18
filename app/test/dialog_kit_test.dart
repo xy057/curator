@@ -75,7 +75,7 @@ void main() {
     expect(tester.getRect(find.text('OK')).bottom, lessThanOrEqualTo(400));
   });
 
-  testWidgets("carbon: a square modal, its two buttons 64 px and each half its width, edge to edge", (tester) async {
+  testWidgets("carbon: a square modal, its two buttons slim (40 px), each a quarter of its width, edge to edge at the right", (tester) async {
     await tester.pumpWidget(_app(
       UiStyle.carbon,
       AppDialog(
@@ -91,15 +91,15 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
     final dialog = _panel(tester);
     final cancel = tester.getRect(find.byType(TextButton).last), ok = tester.getRect(find.byType(FilledButton));
-    expect(cancel.height, 64);
-    expect(ok.height, 64);
-    expect(cancel.left, dialog.left);
+    expect(cancel.height, 40);
+    expect(ok.height, 40);
+    expect(cancel.width, moreOrLessEquals(dialog.width / 4, epsilon: 1));
     expect(ok.right, dialog.right);
     expect(cancel.right, ok.left);
     expect(cancel.width, ok.width);
     expect(ok.bottom, dialog.bottom);
-    expect(tester.getRect(find.text('OK')).left - ok.left, 16, reason: 'the label at the top left');
-    expect(tester.getRect(find.text('OK')).top - ok.top, lessThan(20));
+    expect(tester.getRect(find.text('OK')).left - ok.left, 16, reason: 'the label at the left');
+    expect(tester.getRect(find.text('OK')).center.dy, moreOrLessEquals(ok.center.dy, epsilon: 1), reason: 'and centred');
     final k = CarbonColors.of(AccentColor.sky, Brightness.light);
     final cancelStyle = Theme.of(tester.element(find.text('Cancel'))).textButtonTheme.style!;
     expect(cancelStyle.backgroundColor!.resolve(const {}), k.secondary, reason: 'Cancel is a secondary button');
@@ -108,8 +108,8 @@ void main() {
         .borderRadius, BorderRadius.zero);
   });
 
-  testWidgets('carbon: one action takes the right half; with a leading button and a status, a quarter', (tester) async {
-    for (final (leading, share) in [(false, 0.5), (true, 0.25)]) {
+  testWidgets('carbon: one action takes the right quarter, with or without a leading button and a status', (tester) async {
+    for (final (leading, share) in [(false, 0.25), (true, 0.25)]) {
       await tester.pumpWidget(_app(
         UiStyle.carbon,
         AppDialog(

@@ -24,7 +24,7 @@ double dialogWidth(BuildContext context, double base) => (base * 1.2).roundToDou
 /// its left, a [status] (a problem in what was typed) beside them, and the [actions] at its
 /// right, the default one last. [divided] draws a hairline above the footer, for a body that is a
 /// list or a table. [UiStyle.refined] sets it as a desktop editor does; [UiStyle.carbon] as
-/// Carbon's modal: square, its footer's buttons 64 px tall and edge to edge, sharing its width.
+/// Carbon's modal: square, its footer's buttons 40 px tall and edge to edge at its right.
 class AppDialog extends StatelessWidget {
   const AppDialog({
     super.key,
@@ -95,15 +95,15 @@ class AppDialog extends StatelessWidget {
     );
   }
 
-  /// Carbon's modal footer: each action as wide as half the dialog (two or fewer) or a quarter
-  /// (more, or with [leading] or a [status] beside them, which take the rest), the default one
-  /// at the right; [leading] as ghost buttons as tall as the footer.
+  /// Carbon's modal footer, slim: [_footerHeight] tall, each action a quarter of the dialog wide
+  /// (narrower when there are more than two beside [leading] or a [status], which take the rest),
+  /// the default one at the right; [leading] as ghost buttons as tall as the footer.
   Widget _carbonFooter(BuildContext context) {
     final extras = leading.isNotEmpty || status != null;
-    final slots = extras ? math.max(4, actions.length + 2) : (actions.length <= 2 ? 2 : 4);
+    final slots = math.max(4, actions.length + (extras ? 2 : 0));
     final rest = slots - actions.length;
     return SizedBox(
-      height: 64,
+      height: _footerHeight,
       child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (rest > 0)
           Expanded(
@@ -125,7 +125,10 @@ class AppDialog extends StatelessWidget {
       );
 }
 
-/// A Carbon modal's footer button: filling its slot, 64 px, its label at the top left; a
+/// Carbon's md button height, the modal footer's (its own spec has 64, which sits heavy here).
+const _footerHeight = 40.0;
+
+/// A Carbon modal's footer button: filling its slot, [_footerHeight] tall, its label at the left; a
 /// secondary one ($button-secondary) for a text or outlined button, or with [ghost] a ghost one
 /// as wide as its label.
 class _FooterButtons extends StatelessWidget {
@@ -138,9 +141,9 @@ class _FooterButtons extends StatelessWidget {
     final theme = Theme.of(context);
     final k = CarbonColors.maybeOf(context)!;
     final footer = ButtonStyle(
-      minimumSize: WidgetStatePropertyAll(ghost ? const Size(0, 64) : const Size.fromHeight(64)),
-      padding: const WidgetStatePropertyAll(EdgeInsets.fromLTRB(16, 15, 16, 0)),
-      alignment: ghost ? Alignment.centerLeft : Alignment.topLeft,
+      minimumSize: WidgetStatePropertyAll(ghost ? const Size(0, _footerHeight) : const Size.fromHeight(_footerHeight)),
+      padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16)),
+      alignment: Alignment.centerLeft,
     );
     final secondary = footer.merge(_carbonSecondary(k)).merge(theme.filledButtonTheme.style);
     return Theme(

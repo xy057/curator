@@ -501,7 +501,7 @@ under them (`CarbonFieldBorder`), a 2 px `$focus` ring (`CarbonFocusBorder` on a
 checkboxes in `$icon-primary`, monochrome 2 px sliders, the small toggle in `$support-success`
 with its check, the content switcher (edged in `$border-inverse`, the chosen segment inverse),
 24 px menus on `$layer-01`, the side nav (a 3 px bar of the accent) in Settings, and the modal
-(`$layer-01`, heading-03, footer buttons 64 px and edge to edge). An accent is an IBM hue
+(`$layer-01`, heading-03, footer buttons edge to edge at the right, slimmed to 40 px from the spec's 64). An accent is an IBM hue
 (`CarbonHue`): Sky is Carbon's own Blue 60, the others Purple, Teal, Magenta, Orange and Cool
 Gray at their 60 (light) or 50 / 40 (Gray 100) grades; `$button-primary` stays the 60 in both.
 State shows as fills (`$background-hover`, `$background-active`), never ripples.
