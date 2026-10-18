@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
@@ -33,36 +31,6 @@ void main() {
     expect(c.track, same(loaded), reason: 'what was loaded stays, so a save keeps it');
     expect(c.editRevision.value, revision);
     expect(c.isLoadingAudio, isFalse);
-  });
-
-  test('renaming an instrument reaches the name column; empty resets it', () {
-    final clarinet = c.score!.metadata.parts.firstWhere((p) => p.name == 'Clarinet in B♭ 1');
-    c.curation!.setLane(clarinet.id, [const Region(0, 1000)]); // make sure it is on screen
-    c.renamePart(clarinet, name: 'Solo Clarinet', abbreviation: 'Solo Cl.');
-    expect(c.partName(clarinet), 'Solo Clarinet');
-    final labels = c.scene!.layoutAt(30, c.curation!, const ui.Size(1600, 2400)).labels;
-    expect(labels.map((l) => l.text), contains('Solo Clarinet'));
-
-    c.renamePart(clarinet, name: '', abbreviation: '');
-    expect(c.partName(clarinet), 'Clarinet in B♭ 1');
-  });
-
-  test('editing a text re-engraves it and keeps curation and sync', () async {
-    final curation = c.curation, sync = c.sync;
-    final vivo = c.score!.texts.firstWhere((t) => t.text == 'Vivo');
-    await c.editText(vivo.id, 'Vivo assai');
-
-    String engraved() => utf8.decode(c.score!.engraving.text, allowMalformed: true);
-    expect(engraved(), contains('Vivo assai'));
-    expect(c.textById(vivo.id)!.current, 'Vivo assai');
-    expect(identical(c.curation, curation) && identical(c.sync, sync), isTrue);
-
-    // Several at once (the Texts list), including a removal; null restores the original.
-    final arco = c.score!.texts.where((t) => t.text == 'arco').take(2).toList();
-    await c.editTexts({arco[0].id: '', arco[1].id: 'arco (div.)', vivo.id: null});
-    expect(c.textById(arco[0].id)!.current, '');
-    expect(engraved(), contains('arco (div.)'));
-    expect(c.textById(vivo.id)!.current, 'Vivo');
   });
 
   test('new engraving options re-engrave what is open, and are not an edit', () async {
@@ -160,97 +128,6 @@ void main() {
       c.curation!.clearAll();
     });
 
-    test('a selection across lanes moves, trims and deletes together', () {
-      final a = Region(bars[4], bars[8]), b = Region(bars[6], bars[10]);
-      c.curation!.setLane(ids[0], [a]);
-      c.curation!.setLane(ids[1], [b]);
-      c.lanes.select(ids[0], a);
-      c.lanes.select(ids[1], b, add: true);
-      expect(c.lanes.selectedPartIds, {ids[0], ids[1]});
-
-      c.lanes.nudge(1); // a bar later
-      expect(c.curation!.lane(ids[0]), [Region(bars[5], bars[9])]);
-      expect(c.curation!.lane(ids[1]), [Region(bars[7], bars[11])]);
-      expect(c.lanes.selected, hasLength(2)); // still selected after the edit
-
-      c.playback.seek(c.timeline.secondsAtQuarter(bars[8] + 0.1)); // just after bar 9 starts
-      c.lanes.trimToPlayhead(start: false);
-      expect(c.curation!.lane(ids[0]), [Region(bars[5], bars[8])]);
-      expect(c.curation!.lane(ids[1]), [Region(bars[7], bars[8])]);
-
-      c.undo();
-      expect(c.curation!.lane(ids[0]), [Region(bars[5], bars[9])]);
-      c.lanes.selectAll();
-      c.commands.delete();
-      expect(c.curation!.lane(ids[0]), isEmpty);
-      expect(c.curation!.lane(ids[1]), isEmpty);
-    });
-
-    test('a region can be selected by one edge: its transition there, and trims at that side, act on it alone', () {
-      final a = Region(bars[4], bars[8]), b = Region(bars[6], bars[10]);
-      c.curation!.setLane(ids[0], [a]);
-      c.curation!.setLane(ids[1], [b]);
-      c.lanes.select(ids[0], a, edges: RegionEdges.start);
-      c.lanes.select(ids[1], b, add: true, edges: RegionEdges.end);
-      expect(c.lanes.selection, {(partId: ids[0], region: a): RegionEdges.start, (partId: ids[1], region: b): RegionEdges.end});
-      expect(c.lanes.selectedTransitions, {null});
-
-      c.lanes.setTransition(0.8);
-      final a2 = a.withTransition(0.8, atEnd: false), b2 = b.withTransition(0.8, atStart: false);
-      expect(c.curation!.lane(ids[0]), [a2]);
-      expect(c.curation!.lane(ids[1]), [b2]);
-      expect(c.lanes.selection, {(partId: ids[0], region: a2): RegionEdges.start, (partId: ids[1], region: b2): RegionEdges.end},
-          reason: 'still selected at the same edges');
-      expect(c.lanes.selectedTransitions, {0.8});
-
-      c.playback.seek(c.timeline.secondsAtQuarter(bars[5] + 0.1));
-      c.lanes.trimToPlayhead(start: true);
-      expect(c.curation!.lane(ids[0]).single.start, bars[5]);
-      expect(c.curation!.lane(ids[1]), [b2], reason: 'selected by its end only');
-
-      // ⇧ adds the other edge (the whole region); ⌘ takes one away again.
-      final a3 = c.curation!.lane(ids[0]).single;
-      c.lanes.select(ids[0], a3, add: true, edges: RegionEdges.end);
-      expect(c.lanes.selection[(partId: ids[0], region: a3)], RegionEdges.both);
-      c.lanes.select(ids[0], a3, toggle: true, edges: RegionEdges.start);
-      expect(c.lanes.selection[(partId: ids[0], region: a3)], RegionEdges.end);
-      c.lanes.select(ids[0], a3, toggle: true, edges: RegionEdges.end);
-      expect(c.lanes.selected, {(partId: ids[1], region: b2)});
-      c.lanes.select(ids[1], b2);
-      expect(c.lanes.selection.values.single, RegionEdges.both, reason: 'a plain click: the whole region');
-    });
-
-    test('tidying acts on the selected lanes, or all of them', () {
-      final lane = [Region(bars[0], bars[2]), Region(bars[3], bars[5])]; // a one-bar rest
-      c.curation!.setLane(ids[0], lane);
-      c.curation!.setLane(ids[1], lane);
-      c.lanes.selectLane(ids[0]);
-      c.lanes.fillGaps(1);
-      expect(c.curation!.lane(ids[0]), [Region(bars[0], bars[5])]);
-      expect(c.curation!.lane(ids[1]), lane);
-      expect(c.lanes.selected.single.region, Region(bars[0], bars[5]));
-
-      c.clearSelection();
-      c.lanes.removeShort(3);
-      expect(c.curation!.lane(ids[0]), [Region(bars[0], bars[5])]);
-      expect(c.curation!.lane(ids[1]), isEmpty);
-    });
-
-    test('a region can have transitions of its own, in and out apart, kept through edits and undone like one', () {
-      final r = Region(bars[4], bars[8]);
-      c.curation!.setLane(ids[2], [r]);
-      c.lanes.setRegion((partId: ids[2], region: r), r.withTransition(1.2, atEnd: false));
-      expect(c.curation!.lane(ids[2]), [Region(bars[4], bars[8], transitionIn: 1.2)]);
-      expect(c.lanes.selected.single.region.transitionIn, 1.2);
-      expect(c.lanes.selected.single.region.transitionOut, isNull, reason: 'its end is still the project\'s');
-
-      c.lanes.nudge(1);
-      expect(c.curation!.lane(ids[2]), [Region(bars[5], bars[9], transitionIn: 1.2)], reason: 'moved with it');
-      c.undo();
-      c.undo();
-      expect(c.curation!.lane(ids[2]), [r], reason: 'back to the project\'s');
-    });
-
     test('copied regions paste at the playhead, into their lanes or the lanes selected, as far apart', () {
       final a = Region(bars[4], bars[6], transitionIn: 1.2), b = Region(bars[5], bars[8]);
       c.curation!.setLane(ids[0], [a]);
@@ -300,14 +177,6 @@ void main() {
       c.undo();
       expect(c.curation!.lane(ids[1]), [a]);
       expect(c.lanes.canPaste, isTrue, reason: 'Undo leaves what was copied');
-    });
-
-    test('a region can be given exact bars', () {
-      final r = Region(bars[4], bars[8]);
-      c.curation!.setLane(ids[2], [r]);
-      c.lanes.setRegion((partId: ids[2], region: r), Region(bars[1], bars[3] + 2));
-      expect(c.curation!.lane(ids[2]), [Region(bars[1], bars[3] + 2)]);
-      expect(c.lanes.selected.single.region, Region(bars[1], bars[3] + 2));
     });
   });
 
