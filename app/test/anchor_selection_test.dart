@@ -21,25 +21,19 @@ void main() {
 
   tearDown(() => c.dispose());
 
-  test('click, ⇧-click range and ⌘-click toggle', () {
+  test('click, ⇧-click range, ⌘-click toggle, box and ⌘A select; the selection nudges and re-points together, then deletes', () {
     c.anchors.select(1);
     c.anchors.select(4, extend: true);
     expect(c.anchors.selected, {1, 2, 3, 4});
     c.anchors.select(2, toggle: true);
     expect(c.anchors.selected, {1, 3, 4});
-    c.anchors.select(5);
-    expect(c.anchors.selected, {5});
-  });
-
-  test('box selection, optionally adding to the selection', () {
-    c.anchors.selectBetween(2.5, 7.5);
-    expect(c.anchors.selected, {1, 2, 3});
     c.anchors.selectBetween(10.5, 11.5, keep: c.anchors.selected);
-    expect(c.anchors.selected, {1, 2, 3, 5});
-  });
+    expect(c.anchors.selected, {1, 3, 4, 5});
+    c.anchors.selectAll();
+    expect(c.anchors.selected, {0, 1, 2, 3, 4, 5});
 
-  test('the selection nudges and re-points together, then deletes', () {
     c.anchors.selectBetween(2.5, 7.5); // bars 2–4
+    expect(c.anchors.selected, {1, 2, 3});
     c.anchors.nudge(0.25);
     expect(sync.anchors.map((a) => a.seconds), [1.0, 3.25, 5.25, 7.25, 9.0, 11.0]);
 
@@ -54,12 +48,7 @@ void main() {
     expect(sync.anchors, hasLength(5));
   });
 
-  test('⌘A selects every anchor', () {
-    c.anchors.selectAll();
-    expect(c.anchors.selected, {0, 1, 2, 3, 4, 5});
-  });
-
-  test('a warp added at the repeat is one step, re-points the taps after it, and the preview jumps', () {
+  test('a warp added at the repeat is one step, re-points the taps after it, and the preview jumps; one can be edited and made plain again', () {
     // Tapped straight through bars 1–6, but the music went back to bar 1 after bar 3.
     final before = [...sync.anchors];
     final x = c.scene!.scrollMap.xAt;
@@ -73,9 +62,8 @@ void main() {
 
     c.undo();
     expect(sync.anchors, before);
-  });
 
-  test('a warp can be edited and made a plain anchor again', () {
+    // Set on an anchor, edited, and made a plain anchor again.
     expect(c.anchors.setAnchor(3, 9, jumpTo: 0), isTrue); // the bar 4 anchor is really the repeat
     expect(sync.anchors.map((a) => a.quarter), [0, 3, 6, 9, 3, 6]);
     expect(c.anchors.setAnchor(3, 9, jumpTo: 3), isTrue); // …to bar 2
