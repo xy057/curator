@@ -41,6 +41,8 @@ void main() {
     final archive = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
     expect(archive.files.first.name, 'mimetype', reason: 'identifies the file type without unzipping');
     expect(archive.findFile('score/Score.musicxml'), isNotNull);
+    final manifest = jsonDecode(utf8.decode(archive.findFile('project.json')!.content)) as Map;
+    expect(manifest['version'], ProjectState.version, reason: 'always written in the newest format');
 
     final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
     expect(opened.scoreName, 'Score.musicxml');
@@ -428,6 +430,26 @@ void main() {
       expect(doc2.isDirty, isFalse);
       expect(doc2.title, 'round.ccs');
       expect(c2.canUndo, isFalse, reason: 'a freshly opened project has no history');
+    });
+
+    test('a recording loaded while a save runs waits for it (it would delete the file the save embeds)', () async {
+      Future<void>? load;
+      bool? savingWhileLoading;
+      void startLoad() {
+        if (doc.isSaving) load ??= c.loadAudio('${dir.path}/nowhere.wav');
+      }
+      void loading() {
+        if (c.isLoadingAudio) savingWhileLoading ??= doc.isSaving;
+      }
+
+      doc.addListener(startLoad);
+      c.addListener(loading);
+      await doc.save('${dir.path}/queued.ccs');
+      doc.removeListener(startLoad);
+      expect(load, isNotNull, reason: 'asked for while saving');
+      await expectLater(load!, throwsA(anything));
+      c.removeListener(loading);
+      expect(savingWhileLoading, isFalse);
     });
 
     test("a font that isn't embedded is found where it is installed; else Bravura stands in, the choice kept", () async {

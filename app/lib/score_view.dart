@@ -171,6 +171,7 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
           : VideoFrame.fit(constraints.biggest, aspectRatio, devicePixelRatio: devicePixelRatio);
       _frame = frame;
       final colors = context.colors;
+      final panning = c.images.enabled || _drag != null;
       return Stack(children: [
         Positioned.fill(child: ColoredBox(color: aspectRatio == null ? colors.scorePaper : colors.surface)),
         Positioned.fromRect(
@@ -193,6 +194,8 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
             ),
           ),
         Positioned.fill(
+          // Kept as the overlay above comes and goes: rebuilt, it would drop a drag under way.
+          key: const ValueKey('pointer'),
           child: MenuAnchor(
             controller: _menu,
             menuChildren: _menuItems(),
@@ -208,10 +211,11 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
                   onDoubleTapDown: (d) => _onDoubleTap(d, frame),
                   onDoubleTap: () {},
                   onSecondaryTapUp: (d) => _openMenu(d, frame),
-                  onPanStart: c.images.enabled ? (d) => _onPanStart(d, frame) : null,
-                  onPanUpdate: c.images.enabled ? (d) => _onPanUpdate(d, frame) : null,
-                  onPanEnd: c.images.enabled ? (_) => _onPanEnd() : null,
-                  onPanCancel: c.images.enabled ? _onPanEnd : null,
+                  // Kept while a drag lasts: Attach Image turned off under it, its end still comes.
+                  onPanStart: panning ? (d) => _onPanStart(d, frame) : null,
+                  onPanUpdate: panning ? (d) => _onPanUpdate(d, frame) : null,
+                  onPanEnd: panning ? (_) => _onPanEnd() : null,
+                  onPanCancel: panning ? _onPanEnd : null,
                 ),
               ),
             ),

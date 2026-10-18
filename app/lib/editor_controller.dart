@@ -25,6 +25,14 @@ part 'editor/sync_editing.dart';
 
 enum BottomTab { instruments, audio }
 
+/// Where a MIDI tempo map just read took its warps from ([EditorController.loadMidiTempo]):
+/// the file it replaced, the anchors set by hand, or the score's repeats.
+enum MidiWarpsFrom { file, anchors, score }
+
+/// The warps a MIDI tempo map just read took: from where, how many, and the file it replaced
+/// (with [MidiWarpsFrom.file]).
+typedef MidiWarpsTaken = ({MidiWarpsFrom from, int count, String? file});
+
 /// The open score and everything done to it: the engraving, the recording, the curation
 /// (when each instrument is shown), the sync (where the score sits in the recording), names
 /// and texts. Loading, saving state and Undo (one history for all of it) live here; the rest
@@ -188,7 +196,7 @@ class EditorController extends ChangeNotifier {
     await _install(name, scoreBytes, score, state, arts: arts);
     if (mediaPath == null || _disposed) return null; // nothing to play it in: the window closed
     try {
-      await loadAudio(mediaPath, temporary: true, originalPath: mediaOriginal);
+      await _loadAudio(mediaPath, temporary: true, originalPath: mediaOriginal);
       return null;
     } catch (e) {
       return 'Couldn’t load the recording.\n${describeError(e)}';
@@ -791,17 +799,25 @@ class EditorController extends ChangeNotifier {
   /// Reads the tempo map of the MIDI file at [path] and follows it ([useMidiTempo]). Throws
   /// a [FormatException] (changing nothing) when it isn't a MIDI file with a tempo map. It
   /// keeps the warps the sync has (see [MidiTempoMap.warps]); with none, a file as long as the
-  /// score played with its repeats gets the score's ([scoreWarps]).
-  Future<void> loadMidiTempo(String path) async {
+  /// score played with its repeats gets the score's ([scoreWarps]). Returns where the warps
+  /// came from, so the window can say so: null when it has none.
+  Future<MidiWarpsTaken?> loadMidiTempo(String path) async {
     final bytes = await File(path).readAsBytes();
     final read = MidiTempoMap.read(bytes, name: fileNameOf(path));
     final sync = _sync;
-    if (sync == null) return;
+    if (sync == null) return null;
     // The score's form stays: the warps of the file it replaces, or those set by hand.
-    final kept = _doc.midi?.warps ?? MidiTempoMap.warpsOf(sync.anchors);
-    useMidiTempo(read.withWarps(kept.isEmpty && _playsRepeats(MidiTempoMap.lengthOf(bytes)) ? scoreWarps : kept));
+    final replaced = _doc.midi;
+    final kept = replaced?.warps ?? MidiTempoMap.warpsOf(sync.anchors);
+    final MidiWarpsTaken? taken = kept.isNotEmpty
+        ? (from: replaced == null ? MidiWarpsFrom.anchors : MidiWarpsFrom.file, count: kept.length, file: replaced?.name)
+        : _playsRepeats(MidiTempoMap.lengthOf(bytes))
+            ? (from: MidiWarpsFrom.score, count: scoreWarps.length, file: null)
+            : null;
+    useMidiTempo(read.withWarps(switch (taken?.from) { MidiWarpsFrom.score => scoreWarps, _ => kept }));
     _tab = BottomTab.audio;
     notifyListeners();
+    return taken;
   }
 
   /// The warps a MIDI file playing the score's repeats, endings and jumps needs (none when it
@@ -880,12 +896,20 @@ class EditorController extends ChangeNotifier {
   String? get mediaOriginal => _mediaOriginal;
   String? _mediaOriginal;
 
-  /// Loads the recording from [path]. A [temporary] copy (unpacked or bundled) is not the
-  /// recording's own file; [originalPath] then says where that is, if known.
+  /// Runs work that replaces a file the document saves (the recording, converted into scratch
+  /// space and deleted with it) when nothing is reading it: [ProjectDocument] makes it its
+  /// queue, so a save embedding the recording finishes first. At once without a document.
+  Future<void> Function(Future<void> Function() job) inTurn = (job) => job();
+
+  /// Loads the recording from [path] (dropped or picked), in turn ([inTurn]).
   ///
   /// A video's soundtrack becomes the track (and so what a project embeds), while the video
   /// stays the recording's own file (what a project links to).
-  Future<void> loadAudio(String path, {bool temporary = false, String? originalPath}) async {
+  Future<void> loadAudio(String path) => inTurn(() => _loadAudio(path));
+
+  /// Loads the recording from [path]. A [temporary] copy (unpacked or bundled) is not the
+  /// recording's own file; [originalPath] then says where that is, if known.
+  Future<void> _loadAudio(String path, {bool temporary = false, String? originalPath}) async {
     playback.pause();
     _loadingAudio = true;
     notifyListeners();

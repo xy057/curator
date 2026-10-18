@@ -159,13 +159,16 @@ reads the sync (scroll, timeline, video export) then works unchanged. While it d
 anchors are derived: `SyncEditing` edits no anchor (its `_sync` is null), tapping is off, and
 the Audio tab draws the tempo map large instead of the anchors and the waveform. The map
 itself is edited there, as a sequencer's tempo track: a change dragged (up and down its tempo,
-sideways its place, snapped to beats), the step after it dragged for its tempo only, ⌥-click
+sideways its place, snapped to beats, stopping a beat this side of a
+neighbour), the step after it dragged for its tempo only, ⌥-click
 on the line adding a change at the nearest beat (`inserted`: kept though it repeats the tempo,
 a point to drag), ⌥-drag drawing a step a beat (`MidiTempoMap.drawn`: the last drawn holds to
 the next change; only the stretch drawn loses repeats), Delete removing the selected change
 (`anchors.selectedTempo`; `anchors.selected` is only ever anchors). Each makes a new map (`moved` / `inserted` /
 `drawn` / `removed`) that `EditorController.editMidiTempo` follows from the same
-start; the lane's scale is held while a gesture lasts, so it doesn't re-fit under the pointer. The anchors
+start; the lane's scale is held while a gesture lasts, so it doesn't re-fit under the pointer, and
+the pointer is read on the map the gesture began from, so a step drawn doesn't move the beats
+under the pointer drawing on. The anchors
 set by hand are kept behind it (`EditorController._tapped`, saved as `sync.anchors`) and come
 back when the MIDI goes. Using or dropping one is an edit (`midi` in `EditState`, and
 `sync.midi` in the project from format 7, its tempos as `[quarter, quarters a minute]`).
@@ -179,7 +182,8 @@ quarter `at` the score goes on from `jumpTo`; where it arrives from follows (`ar
 Warps that don't fit the score (a damaged project's) are left out from the first that doesn't, the
 rest followed (`MidiTempoMap.arrivals`, as `SyncMap` would keep them); editing a warp lets them go.
 Reading a file keeps the warps the sync had: the old file's, or those set by hand
-(`MidiTempoMap.warpsOf`), so the form is set once. With none, a file nearer the score's length
+(`MidiTempoMap.warpsOf`), so the form is set once; the window says where a file's warps came from
+(`showMidiWarpsTaken`, with Remove). With none, a file nearer the score's length
 played with its repeats than straight through (`MidiTempoMap.lengthOf`, to its last track's end)
 takes the score's own (`EditorController.scoreWarps`); the Audio tab's Warps from score button puts
 them in place of the map's at any time. They come from `ScoreForm` (`ScoreMetadata.form`): the
@@ -404,8 +408,11 @@ MusicXML score lists them in a dialog (`showImportWarnings`). Opening a project,
 re-engraving after an edit, doesn't show them again.
 
 **The project format changes with a version.** `project.json`'s `state` is written by
-`ProjectState.toJson`. To change it: bump `ProjectState.version`, and add a migration from the
-old version in `ProjectState._migrations`, so older files still open. Reading checks every
+`ProjectState.toJson`, always in the newest format this build has (`ProjectState.version`),
+whatever the project uses. To change it: bump `ProjectState.version`, and add a migration from the
+old version in `ProjectState._migrations`, so older files still open. Migrations are additive: a
+new format adds fields (an older file, lacking them, gets their defaults) and never renames,
+removes or changes the meaning of one an older format wrote. Reading checks every
 field and names the damaged one.
 
 **The C and Dart structs must match.** `VBCommand` is read from Dart as 4-byte words (`Cmd`

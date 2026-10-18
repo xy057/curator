@@ -7,6 +7,7 @@ import 'package:curated_score/dialog_kit.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/lanes_common.dart';
 import 'package:curated_score/main.dart';
+import 'package:flutter/material.dart' show ScaffoldMessenger;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,6 +63,34 @@ void main() {
     expect(c.midiTempo, original);
     await tester.pump(const Duration(milliseconds: 400));
 
+    // Dragged past the change before it, it stops at the beat after that one (a beat is 1.5
+    // quarters), and past the one after it at the beat before.
+    final beforeStart = x(0);
+    gesture = await tester.startGesture(Offset(from, y(60)));
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveTo(Offset(from + (beforeStart - 40 - from) * i / 10, y(60)));
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo!.tempos, [_t(0, 135), _t(1.5, 90)]);
+    c.undo();
+    c.editMidiTempo(MidiTempoMap('tempo.mid', [_t(0, 135), _t(6, 135), _t(12, 90)]));
+    await tester.pump(const Duration(milliseconds: 400));
+    final six = x(6), past = x(14);
+    gesture = await tester.startGesture(Offset(six, y(90)));
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveTo(Offset(six + (past - six) * i / 10, y(90)));
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo!.tempos, [_t(0, 135), _t(10.5, 135), _t(12, 90)]);
+    c.undo();
+    c.undo();
+    expect(c.midiTempo, original);
+    await tester.pump(const Duration(milliseconds: 400));
+
     // The step after a change, taken anywhere along it, sets only its tempo.
     await tester.dragFrom(Offset((x(0) + x(12)) / 2, y(90)), Offset(30, y(80) - y(90)));
     await tester.pump(const Duration(milliseconds: 400));
@@ -83,6 +112,24 @@ void main() {
     expect(c.midiTempo!.tempos, [_t(0, 135), _t(3, 120), _t(12, 90)], reason: 'repeats of 80 a beat are left out');
     c.undo();
     expect(c.midiTempo, original, reason: 'one Undo step');
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // The pointer is read on the map as the drawing began: drawing much slower moves the beats
+    // after it later, but not those under a pointer drawing on (the same beats as at 135), so
+    // drawing to past the change at 12 replaces it.
+    final drawStart = x(3.2), drawEnd = x(12.5);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    gesture = await tester.startGesture(Offset(drawStart, y(60)));
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveTo(Offset(drawStart + (drawEnd - drawStart) * i / 10, y(60)));
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo!.tempos, [_t(0, 135), _t(3, 90)]);
+    c.undo();
+    expect(c.midiTempo, original);
     await tester.pump(const Duration(milliseconds: 400));
 
     // ⌥-click on the line adds a change at the nearest beat, keeping the tempo there; it is
@@ -171,6 +218,20 @@ void main() {
     await tester.pump();
     c.undo();
     expect(c.midiTempo!.warps, isEmpty, reason: 'one Undo step; a second tap, with them in place, did nothing');
+
+    // A file read says where its warps came from, and Remove takes them off (one Undo step).
+    expect(c.useScoreWarps(), isTrue);
+    showMidiWarpsTaken(tester.element(find.byType(HomePage)), c, (from: MidiWarpsFrom.score, count: 1, file: null));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400)); // slid in
+    expect(find.text('1 warp from the score’s repeats'), findsOneWidget);
+    await tester.tap(find.text('Remove'));
+    await tester.pump();
+    expect(c.midiTempo!.warps, isEmpty);
+    c.undo();
+    expect(c.midiTempo!.warps, c.scoreWarps);
+    ScaffoldMessenger.of(tester.element(find.byType(HomePage))).removeCurrentSnackBar();
+    await tester.pump(const Duration(milliseconds: 400));
 
     c.useMidiTempo(null);
     await tester.pump(const Duration(milliseconds: 400));

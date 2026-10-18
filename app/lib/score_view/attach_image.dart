@@ -57,6 +57,7 @@ mixin _AttachImage on State<ScoreView> {
   }
 
   void _onPanStart(DragStartDetails d, VideoFrame frame) {
+    if (!c.images.enabled) return;
     final i = c.images.selected, grip = _gripAt(d.localPosition, frame);
     final rect = i == null ? null : _rectOf(i, frame);
     if (i == null || grip == null || rect == null) return;
@@ -67,6 +68,7 @@ mixin _AttachImage on State<ScoreView> {
   void _onPanUpdate(DragUpdateDetails d, VideoFrame frame) {
     final drag = _drag, scene = c.scene;
     if (drag == null || scene == null) return;
+    if (!c.images.enabled) return _onPanEnd(); // turned off under it: what it moved so far stays
     final rect = drag.rectFor(frame.toLayout(d.localPosition));
     final sp = scene.style.staffSpace;
     final crop = drag.cropping ? drag.cropFor(rect) : drag.start.crop;

@@ -611,7 +611,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// neither.
   bool _addMedia(String path) {
     if (MediaFormats.isMidi(path)) {
-      unawaited(_guard(() => controller.loadMidiTempo(path), title: 'Couldn’t Use MIDI File'));
+      unawaited(_guard(() async {
+        final taken = await controller.loadMidiTempo(path);
+        if (mounted) showMidiWarpsTaken(context, controller, taken);
+      }, title: 'Couldn’t Use MIDI File'));
     } else if (MediaFormats.isRecording(path)) {
       unawaited(_guard(() => controller.loadAudio(path), title: 'Couldn’t Load Recording'));
     } else {

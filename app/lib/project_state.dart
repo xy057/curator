@@ -184,11 +184,13 @@ class ProjectState {
 
   final ViewState view;
 
-  /// The version [toJson] writes (the project file's format version).
+  /// The version [toJson] writes (the project file's format version): every save is in the
+  /// newest format, whatever the project uses.
   static const version = 15;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
-  /// [toJson] changes shape, and bump [version].
+  /// [toJson] changes shape, and bump [version]. Additive only: a new format adds fields (the
+  /// entry gives an older file their defaults), never renames, removes or redefines one.
   static final Map<int, Map<String, Object?> Function(Map<String, Object?>)> _migrations = {
     1: (state) => {...state, 'condensed': const <String>[]}, // condensing came in 2: nothing condensed
     2: (state) => {...state, 'pairs': const <Object?>[]}, // the user's own pairs came in 3: none

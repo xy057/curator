@@ -40,6 +40,7 @@ const embedLimitBytes = 2 * 1024 * 1024 * 1024;
 /// The open project: where it is saved, whether it has unsaved changes, and autosave.
 class ProjectDocument extends ChangeNotifier {
   ProjectDocument(this.controller, this.settings) {
+    controller.inTurn = _oneAtATime; // a recording replaced while a save embeds it would be gone
     controller.editRevision.addListener(_edited);
     settings.addListener(_settingsChanged);
     _settingsChanged();
@@ -74,11 +75,12 @@ class ProjectDocument extends ChangeNotifier {
 
   // MARK: One at a time
 
-  /// Opening, importing, closing and saving (autosaves too) run one at a time, in the order
-  /// asked. Interleaved, a second open could replace the score while the first was still
-  /// loading its recording, and leave one project's score under the other's path for the
-  /// next save; an autosave in the middle of an open would write the new project over the
-  /// old one's file.
+  /// Opening, importing, closing, saving (autosaves too) and loading a recording
+  /// ([EditorController.inTurn]) run one at a time, in the order asked. Interleaved, a second
+  /// open could replace the score while the first was still loading its recording, and leave
+  /// one project's score under the other's path for the next save; an autosave in the middle
+  /// of an open would write the new project over the old one's file; a recording loaded during
+  /// a save would delete the converted file it embeds.
   Future<void> _queue = Future.value();
 
   Future<T> _oneAtATime<T>(Future<T> Function() job) {

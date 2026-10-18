@@ -436,6 +436,11 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
         final seconds = from.secondsAt(t.quarter) + c.viewport.seconds(p.dx) - c.viewport.seconds(_down.dx);
         quarter = previous.quarter + (seconds - from.secondsAt(previous.quarter)) * previous.quartersPerMinute / 60;
         if (!isCommandPressed) quarter = _placed.snap(quarter);
+        // Past a neighbour it stops at the beat this side of it, rather than going back.
+        if (_index + 1 < from.tempos.length && quarter >= from.tempos[_index + 1].quarter) {
+          quarter = _placed.beatAround(from.tempos[_index + 1].quarter - 1e-7).start;
+        }
+        if (quarter <= previous.quarter) quarter = _placed.beatAround(previous.quarter + 1e-7).end;
       }
       _edit(from.moved(_index, quarter: quarter, quartersPerMinute: bpm * _placed.beatLength(quarter)));
     } else if (_scrubbing) {
@@ -444,10 +449,11 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
   }
 
   /// Draws a step at every beat the pointer passed since the last point, the tempo going
-  /// evenly from the last point's to this one's.
+  /// evenly from the last point's to this one's. The pointer is read on the map as the drawing
+  /// began ([_drawFrom]): on the one drawn, each step would move the beats under it.
   void _draw(Offset p) {
-    final midi = c.midiTempo!, sync = c.sync!, from = _drawFrom!, end = _placed.end;
-    final quarter = midi.quarterAt(c.viewport.seconds(p.dx) - sync.startSeconds).clamp(0.0, end - 1e-6);
+    final sync = c.sync!, from = _drawFrom!, end = _placed.end;
+    final quarter = from.quarterAt(c.viewport.seconds(p.dx) - sync.startSeconds).clamp(0.0, end - 1e-6);
     final bpm = _bpmOf(_scale.value!.bpm(p.dy, _size));
     final last = _last ?? (quarter, bpm);
     _last = (quarter, bpm);
@@ -813,12 +819,34 @@ Future<void> pickMidi(BuildContext context, EditorController c) async {
   final file = await openFile(acceptedTypeGroups: [midiTypes]);
   if (file == null) return;
   try {
-    await c.loadMidiTempo(file.path);
+    final taken = await c.loadMidiTempo(file.path);
+    if (context.mounted) showMidiWarpsTaken(context, c, taken);
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t use the MIDI file. ${describeError(e)}')));
     }
   }
+}
+
+/// Says where the MIDI tempo map just read took its warps from ([EditorController.loadMidiTempo]),
+/// when it took any, with Remove (one Undo step) for a file that plays straight through.
+void showMidiWarpsTaken(BuildContext context, EditorController c, MidiWarpsTaken? taken) {
+  if (taken == null) return;
+  final map = c.midiTempo;
+  final warps = taken.count == 1 ? '1 warp' : '${taken.count} warps';
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    content: Text(switch (taken.from) {
+      MidiWarpsFrom.file => 'Kept $warps from ${taken.file}',
+      MidiWarpsFrom.anchors => 'Kept $warps from the anchors',
+      MidiWarpsFrom.score => '$warps from the score’s repeats',
+    }),
+    action: SnackBarAction(
+      label: 'Remove',
+      onPressed: () {
+        if (c.midiTempo == map) c.setMidiWarps(const []);
+      },
+    ),
+  ));
 }
 
 /// "Starts at": where bar 1 sounds in the recording (the blank time before the music).
