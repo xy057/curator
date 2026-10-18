@@ -7,7 +7,6 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/controller_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
-import 'package:curated_score/media_converter.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
@@ -361,14 +360,6 @@ void main() {
     expect(resolve(MediaStorage.embed, size: embedLimitBytes + 1), MediaStorage.link);
     expect(resolve(MediaStorage.embed, original: null, size: embedLimitBytes + 1), MediaStorage.embed);
   });
-
-  test('a video becomes lossless audio (its soundtrack)', () async {
-    final out = await MediaConverter.toFlac('test/fixtures/tiny-video.mp4', '${dir.path}/audio');
-    expect(out, '${dir.path}/audio/tiny-video.flac');
-    expect(ascii.decode(File(out).readAsBytesSync().sublist(0, 4)), 'fLaC');
-    expect(MediaFormats.isVideo('Take.MOV'), isTrue);
-    expect(MediaFormats.isVideo('take.m4a'), isFalse);
-  }, skip: Platform.isMacOS ? false : 'afconvert is macOS only');
 
   group('with a score', () {
     late EditorController c;

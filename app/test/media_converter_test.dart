@@ -58,6 +58,8 @@ void main() {
     final out = await MediaConverter.toFlac(_video, '${dir.path}/out');
     expect(out, '${dir.path}/out${Platform.pathSeparator}tiny-video.flac');
     expect(isFlac(out), isTrue);
+    expect(MediaFormats.isVideo('Take.MOV'), isTrue);
+    expect(MediaFormats.isVideo('take.m4a'), isFalse);
   }, skip: Platform.isMacOS || ffmpeg != null ? false : 'no converter here');
 
   test("when afconvert can't read a file (MKV), FFmpeg takes over", () async {
