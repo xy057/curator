@@ -196,7 +196,7 @@ class EditorController extends ChangeNotifier {
     await _install(name, scoreBytes, score, state, arts: arts);
     if (mediaPath == null || _disposed) return null; // nothing to play it in: the window closed
     try {
-      await loadAudio(mediaPath, temporary: true, originalPath: mediaOriginal);
+      await _loadAudio(mediaPath, temporary: true, originalPath: mediaOriginal);
       return null;
     } catch (e) {
       return 'Couldn’t load the recording.\n${describeError(e)}';
@@ -896,12 +896,20 @@ class EditorController extends ChangeNotifier {
   String? get mediaOriginal => _mediaOriginal;
   String? _mediaOriginal;
 
-  /// Loads the recording from [path]. A [temporary] copy (unpacked or bundled) is not the
-  /// recording's own file; [originalPath] then says where that is, if known.
+  /// Runs work that replaces a file the document saves (the recording, converted into scratch
+  /// space and deleted with it) when nothing is reading it: [ProjectDocument] makes it its
+  /// queue, so a save embedding the recording finishes first. At once without a document.
+  Future<void> Function(Future<void> Function() job) inTurn = (job) => job();
+
+  /// Loads the recording from [path] (dropped or picked), in turn ([inTurn]).
   ///
   /// A video's soundtrack becomes the track (and so what a project embeds), while the video
   /// stays the recording's own file (what a project links to).
-  Future<void> loadAudio(String path, {bool temporary = false, String? originalPath}) async {
+  Future<void> loadAudio(String path) => inTurn(() => _loadAudio(path));
+
+  /// Loads the recording from [path]. A [temporary] copy (unpacked or bundled) is not the
+  /// recording's own file; [originalPath] then says where that is, if known.
+  Future<void> _loadAudio(String path, {bool temporary = false, String? originalPath}) async {
     playback.pause();
     _loadingAudio = true;
     notifyListeners();
