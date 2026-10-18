@@ -165,7 +165,9 @@ a point to drag), ⌥-drag drawing a step a beat (`MidiTempoMap.drawn`: the last
 the next change; only the stretch drawn loses repeats), Delete removing the selected change
 (`anchors.selectedTempo`; `anchors.selected` is only ever anchors). Each makes a new map (`moved` / `inserted` /
 `drawn` / `removed`) that `EditorController.editMidiTempo` follows from the same
-start; the lane's scale is held while a gesture lasts, so it doesn't re-fit under the pointer. The anchors
+start; the lane's scale is held while a gesture lasts, so it doesn't re-fit under the pointer, and
+the pointer is read on the map the gesture began from, so a step drawn doesn't move the beats
+under the pointer drawing on. The anchors
 set by hand are kept behind it (`EditorController._tapped`, saved as `sync.anchors`) and come
 back when the MIDI goes. Using or dropping one is an edit (`midi` in `EditState`, and
 `sync.midi` in the project from format 7, its tempos as `[quarter, quarters a minute]`).

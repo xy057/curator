@@ -444,10 +444,11 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
   }
 
   /// Draws a step at every beat the pointer passed since the last point, the tempo going
-  /// evenly from the last point's to this one's.
+  /// evenly from the last point's to this one's. The pointer is read on the map as the drawing
+  /// began ([_drawFrom]): on the one drawn, each step would move the beats under it.
   void _draw(Offset p) {
-    final midi = c.midiTempo!, sync = c.sync!, from = _drawFrom!, end = _placed.end;
-    final quarter = midi.quarterAt(c.viewport.seconds(p.dx) - sync.startSeconds).clamp(0.0, end - 1e-6);
+    final sync = c.sync!, from = _drawFrom!, end = _placed.end;
+    final quarter = from.quarterAt(c.viewport.seconds(p.dx) - sync.startSeconds).clamp(0.0, end - 1e-6);
     final bpm = _bpmOf(_scale.value!.bpm(p.dy, _size));
     final last = _last ?? (quarter, bpm);
     _last = (quarter, bpm);

@@ -85,6 +85,24 @@ void main() {
     expect(c.midiTempo, original, reason: 'one Undo step');
     await tester.pump(const Duration(milliseconds: 400));
 
+    // The pointer is read on the map as the drawing began: drawing much slower moves the beats
+    // after it later, but not those under a pointer drawing on (the same beats as at 135), so
+    // drawing to past the change at 12 replaces it.
+    final drawStart = x(3.2), drawEnd = x(12.5);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    gesture = await tester.startGesture(Offset(drawStart, y(60)));
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveTo(Offset(drawStart + (drawEnd - drawStart) * i / 10, y(60)));
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(c.midiTempo!.tempos, [_t(0, 135), _t(3, 90)]);
+    c.undo();
+    expect(c.midiTempo, original);
+    await tester.pump(const Duration(milliseconds: 400));
+
     // ⌥-click on the line adds a change at the nearest beat, keeping the tempo there; it is
     // selected and dragged as any other.
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
