@@ -355,28 +355,72 @@ final _projectCategories = <_Category>[
   ]),
   _Category('Condensing', AppIcon.condense, page: (c) => _CondensingPage(c), [
     _Item(
-      'Pairs',
-      (c) => '${c.controller!.condensable.where((p) => c.controller!.condensed.contains(p.id)).length} of '
-          '${c.controller!.condensable.length} share a staff.',
-      (c) => const SizedBox.shrink(),
+      'All pairs',
+      _condensedText,
+      (c) => _allPairsSwitch(c.controller!),
       keywords: 'condense condensing pair players share staff a2',
     ),
   ]),
 ];
 
-/// Project Settings ▸ Condensing: the pairs ([CondensingEditor]) filling the page.
+/// How many of the score's pairs share a staff.
+String _condensedText(_Context c) {
+  final pairs = c.controller!.condensable;
+  return '${pairs.where((p) => c.controller!.condensed.contains(p.id)).length} of ${pairs.length} share a staff.';
+}
+
+/// On while every pair shares a staff; turning it on or off turns them all.
+Widget _allPairsSwitch(EditorController c) {
+  final pairs = c.condensable;
+  final all = pairs.isNotEmpty && pairs.every((p) => c.condensed.contains(p.id));
+  return AppSwitch(
+    value: all,
+    onChanged: pairs.isEmpty ? null : (_) => c.setCondensed([for (final p in pairs) p.id], on: !all),
+  );
+}
+
+/// Project Settings ▸ Condensing, as in Dorico (Layout Options ▸ Condensing): which pairs of
+/// players share a staff, each its own switch (an Undo step); and pairs of the user's own
+/// ([CondensingAddPair]), which can be removed. The only place condensing is chosen.
 class _CondensingPage extends StatelessWidget {
   const _CondensingPage(this.c);
   final _Context c;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-        child: DecoratedBox(
-          decoration: BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
-          child: CondensingEditor(controller: c.controller!),
-        ),
-      );
+  Widget build(BuildContext context) {
+    final controller = c.controller!;
+    final pairs = controller.condensable;
+    return _Page(
+      empty: 'No players in this score can share a staff.',
+      groups: [
+        if (pairs.length > 1)
+          (null, [_SettingRow(title: 'All pairs', help: _condensedText(c), control: _allPairsSwitch(controller))]),
+        if (pairs.isNotEmpty)
+          ('Pairs', [
+            for (final pair in pairs)
+              _SettingRow(
+                title: controller.pairName(pair),
+                help: controller.pairs.contains(pair) ? 'Yours.' : null,
+                control: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (controller.pairs.contains(pair)) ...[
+                    ToolbarButton(
+                      icon: AppIcon.close.of(context),
+                      tooltip: 'Remove pair',
+                      onPressed: () => controller.removePair(pair),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  AppSwitch(
+                    value: controller.condensed.contains(pair.id),
+                    onChanged: (on) => controller.setCondensed([pair.id], on: on),
+                  ),
+                ]),
+              ),
+          ]),
+        if (CondensingAddPair.offered(controller)) ('Add a pair', [CondensingAddPair(controller: controller)]),
+      ],
+    );
+  }
 }
 
 /// Project Settings ▸ Sections: Group sections, and the brackets ([SectionsEditor]).
