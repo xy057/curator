@@ -143,7 +143,11 @@ class ScoreRenderer {
     final paint = ui.Paint()
       ..filterQuality = ui.FilterQuality.low
       ..colorFilter = inkFilter;
-    final linePaint = ui.Paint()..color = ink ?? style.ink;
+    // Drawn as the zone draws its own, in the ink on a layer tinted with it: drawn straight on
+    // the canvas, Impeller anti-aliases them differently, and the lines changed weight there.
+    final linePaint = ui.Paint()..color = style.ink;
+    final lineLayer = ui.Paint()..colorFilter = inkFilter;
+    final lines = <ui.Rect>[];
     for (final placement in placements) {
       if (placement.opacity <= 0.001) continue;
       final opacity = placement.opacity.clamp(0.0, 1.0);
@@ -174,15 +178,21 @@ class ScoreRenderer {
           paint,
         );
       }
+      final first = lines.length;
       for (final line in staff.lines) {
         final left = math.max(math.max(originX + line.left * scale, linesFrom), 0.0);
         final right = math.min(originX + line.right * scale, size.width);
         if (right <= left) continue;
         final lineY = y + (line.y - staff.info.top) * scale, half = line.thickness * scale / 2;
-        canvas.drawRect(ui.Rect.fromLTRB(left, lineY - half, right, lineY + half), linePaint);
+        lines.add(ui.Rect.fromLTRB(left, lineY - half, right, lineY + half));
       }
-      if (faded) canvas.restore();
+      if (faded) {
+        _paintLines(canvas, lines.sublist(first), linePaint, lineLayer);
+        lines.length = first;
+        canvas.restore();
+      }
     }
+    _paintLines(canvas, lines, linePaint, lineLayer);
 
     // Over the music, under the names, the frozen zone and the pointer (images on the score).
     overlay?.call(canvas, musicLeft);
@@ -270,6 +280,15 @@ class ScoreRenderer {
     _tiles.clear();
     _emptyTiles.clear();
     _tileBytes = 0;
+  }
+
+  static void _paintLines(ui.Canvas canvas, List<ui.Rect> lines, ui.Paint paint, ui.Paint layer) {
+    if (lines.isEmpty) return;
+    canvas.saveLayer(lines.reduce((a, b) => a.expandToInclude(b)).inflate(1), layer);
+    for (final line in lines) {
+      canvas.drawRect(line, paint);
+    }
+    canvas.restore();
   }
 
   static double _snap(double v, double dpr) => (v * dpr).roundToDouble() / dpr;
