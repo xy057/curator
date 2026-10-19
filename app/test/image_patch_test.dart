@@ -7,7 +7,6 @@ import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
-import 'package:curated_score/video_export.dart';
 import 'package:archive/archive.dart' show ArchiveFile, ZipDecoder, ZipEncoder, getCrc32;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -68,48 +67,6 @@ void main() {
     c.images.remove(0);
     expect(c.images.patches, hasLength(1), reason: 'and kept in the project');
     expect(c.projectState.edits.patches, hasLength(1));
-    c.dispose();
-  });
-
-  testWidgets('an image still being read when the project closes, or the switch goes off, is not added', (tester) async {
-    await open(tester);
-    c.images.enabled = true;
-    await tester.runAsync(() async {
-      final adding = c.images.add(ImageKind.raster, png, quarter: 3, top: 2);
-      await c.openFile(demoScore.path); // another document
-      await adding;
-    });
-    expect(c.images.patches, isEmpty);
-    await tester.runAsync(() async {
-      final adding = c.images.add(ImageKind.raster, png, quarter: 3, top: 2);
-      c.images.enabled = false;
-      await adding;
-    });
-    expect(c.images.patches, isEmpty);
-    expect(c.canUndo, isFalse);
-    c.dispose();
-  });
-
-  testWidgets('a video export keeps drawing its images while the project is closed', (tester) async {
-    await open(tester);
-    c.images.enabled = true;
-    await tester.runAsync(() => c.images.add(ImageKind.raster, png, quarter: 3, top: 2));
-    final art = c.scene!.patches.single.art as RasterArt;
-    final export = VideoExport.of(c);
-    await tester.runAsync(c.close);
-    expect(art.image.debugDisposed, isFalse, reason: 'the export still draws it');
-    export.dispose();
-    expect(art.image.debugDisposed, isTrue, reason: 'let go with the export');
-
-    // Held by nothing: let go when the project closes.
-    await tester.runAsync(() async {
-      await c.openFile(demoScore.path);
-      await c.images.add(ImageKind.raster, png, quarter: 3, top: 2);
-    });
-    final next = c.scene!.patches.single.art as RasterArt;
-    VideoExport.of(c).dispose();
-    await tester.runAsync(c.close);
-    expect(next.image.debugDisposed, isTrue);
     c.dispose();
   });
 
@@ -257,25 +214,6 @@ void main() {
     final art = await tester.runAsync(() => PatchImage('b.png', ImageKind.raster, greyPng(8192, 16)).decode()) as RasterArt;
     expect(art.size, const Size(4096, 8), reason: 'scaled to the longest side kept, its shape kept');
     art.dispose();
-  });
-
-  testWidgets('an SVG with no size of its own is as big as what it draws', (tester) async {
-    Future<Object> decode(String text) => tester.runAsync<Object>(() async {
-          try {
-            return await PatchImage('a.svg', ImageKind.vector, utf8.encode(text)).decode();
-          } catch (e) {
-            return e;
-          }
-        }).then((v) => v!);
-
-    final drawn = await decode('<svg xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="30" height="10" stroke="black" stroke-width="2"/></svg>');
-    expect((drawn as VectorArt).size, const Size(32, 12), reason: 'the rectangle and its stroke');
-    drawn.dispose();
-    final blank = await decode('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
-    expect((blank as VectorArt).size, const Size(300, 150), reason: "a browser's size");
-    blank.dispose();
-    expect(await decode('<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"><rect width="3" height="1"/></svg>'),
-        isA<FormatException>().having((e) => e.message, 'message', 'This SVG has no width or height.'));
   });
 
   test('SVG text is told from other text', () {

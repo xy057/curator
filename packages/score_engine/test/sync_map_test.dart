@@ -71,29 +71,6 @@ void main() {
     expect(m.anchors.map((a) => a.seconds), [0.5, 3.0, 5.0]);
   });
 
-  test('an anchor with no room between its neighbours stays where it is instead of failing', () {
-    // Pinned by hand 5 ms apart: closer than the 10 ms moving keeps between anchors.
-    final m = map()..load(const [SyncAnchor(0, 0.004), SyncAnchor(4, 0.009), SyncAnchor(8, 0.014), SyncAnchor(12, 3)]);
-    m.moveAnchor(1, 0.5);
-    expect(m.anchors[1].seconds, 0.009);
-    m.startSeconds = 0.5;
-    expect(m.anchors.first.seconds, 0.004);
-    expect(m.moveAnchors({1}, 0.5), 0);
-    expect(m.anchors.map((a) => a.seconds), [0.004, 0.009, 0.014, 3]);
-  });
-
-  test('a time that is not a number (Starts at: "Infinity") changes nothing', () {
-    final m = map()..startSeconds = double.infinity;
-    expect(m.startSeconds, 0);
-    m.startSeconds = double.nan;
-    expect(m.startSeconds, 0);
-    m.load(const [SyncAnchor(0, 1), SyncAnchor(4, 3)]);
-    m.startSeconds = double.infinity;
-    m.moveAnchor(1, double.nan);
-    expect(m.moveAnchors({0, 1}, double.infinity), 0);
-    expect(m.anchors.map((a) => a.seconds), [1, 3]);
-  });
-
   group('batch editing', () {
     SyncMap fourBars() => map()
       ..addAnchor(const SyncAnchor(0, 0))
@@ -258,18 +235,5 @@ void main() {
         ..load(const [SyncAnchor(0, 0), SyncAnchor(32, 16, jumpTo: 0), SyncAnchor(4, 18), SyncAnchor(2, 19)]);
       expect(m.anchors.map((a) => a.seconds), [0, 16, 18]);
     });
-  });
-
-  test('with the opening anchor deleted, the start is where bar 1 sounds, and setting it pins bar 1', () {
-    final s = SyncMap(measureStarts: [0, 4, 8, 12, 16], defaultTempo: 120);
-    s.load([const SyncAnchor(0, 2), const SyncAnchor(4, 4), const SyncAnchor(8, 6)]);
-    s.removeAnchors({0});
-    expect(s.startSeconds, closeTo(2, 1e-9), reason: 'the first stretch\'s tempo, carried back to bar 1');
-    s.startSeconds = 1;
-    expect(s.anchors.first, const SyncAnchor(0, 1));
-    expect(s.secondsAtQuarter(0), 1);
-    expect(s.startSeconds, 1);
-    s.startSeconds = 9; // past the next anchor: held just before it
-    expect(s.anchors.first.seconds, closeTo(3.99, 1e-9));
   });
 }

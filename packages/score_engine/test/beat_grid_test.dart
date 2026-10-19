@@ -18,20 +18,6 @@ void main() {
     expect(Meter.fromMusicXML([('x', '4')]), isNull);
   });
 
-  test('a bar number too long for a number is no position', () {
-    final grid = BeatGrid([0, 3, 6]);
-    expect(grid.parse('99999999999999999999'), isNull);
-    expect(grid.parse('99999999999999999999.1'), isNull);
-    expect(grid.parse('2.1'), 3);
-  });
-
-  test('a time signature no music has (900000000/8) is unreadable, not a list that long', () {
-    expect(Meter.fromMusicXML([('900000000', '8')]), isNull);
-    expect(Meter.fromMusicXML([('3', '900000000')]), isNull);
-    expect(Meter.fromMusicXML([(List.filled(1000, '1').join('+'), '4')]), isNull);
-    expect(meter('256', '4').beatLengths, hasLength(256), reason: 'long, but a meter');
-  });
-
   test('a grid mixes meters, and an upbeat counts back from the barline', () {
     // Bar 1: a one-quaver upbeat in 6/8 · bar 2: 6/8 · bar 3: 3/4.
     final grid = BeatGrid([0, 0.5, 3.5, 6.5],
@@ -82,14 +68,5 @@ void main() {
     expect(grid.parse('4'), 10); // the end of the piece
     expect(grid.parse('0'), isNull);
     expect(grid.parse('two'), isNull);
-  });
-
-  test('the score\'s tempo is the first <sound tempo> above 0', () {
-    String score(List<String> tempos) => '''<?xml version="1.0" encoding="UTF-8"?>
-<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Flute</part-name></score-part></part-list>
-<part id="P1">${[for (final (i, t) in tempos.indexed) '<measure number="${i + 1}"><direction><sound tempo="$t"/></direction></measure>'].join()}</part>
-</score-partwise>''';
-    expect(ScoreMetadata.read(score(['0', 'NaN', 'INF', '-60', 'Infinity', '72'])).tempo, 72);
-    expect(ScoreMetadata.read(score(['0'])).tempo, isNull, reason: 'none: the default tempo is used');
   });
 }

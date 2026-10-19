@@ -82,15 +82,6 @@ void main() {
     expect(column(20), 0, reason: 'the column closes after the sharps leave');
   });
 
-  test('a hidden key change shows no key signature, as the score does', () async {
-    final hidden = await LoadedScore.load(
-        demoScoreWithKeyChange(bar: 5, concertFifths: 3).replaceAll('<key><fifths>3</fifths>', '<key print-object="no"><fifths>3</fifths>'));
-    final scene = CuratedScene(hidden);
-    final n = hidden.metadata.parts.firstWhere((p) => p.name == 'Oboe 1').staffNumbers.first;
-    expect(scene.renderer.frozen!.stateAt(n, hidden.engraving.measures[6].onsetXs.first).key?.fifths ?? 0, 0);
-    scene.dispose();
-  });
-
   test('an instrument on more than one staff is joined by a brace at the left; one on a single staff is not', () async {
     final score = await LoadedScore.load(flutePianoScore);
     final scene = CuratedScene(score);

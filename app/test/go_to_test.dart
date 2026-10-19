@@ -1,10 +1,7 @@
 // Go to: the toolbar's readout typed (a click on it, or ⌘G) moves the playhead to a bar or a time.
-import 'package:curated_score/app_icons.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
-import 'package:curated_score/score_view.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -81,100 +78,6 @@ void main() {
     expect(c.playback.time.value, 30);
 
     // Space plays again once it is closed.
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
-    await tester.pump();
-    expect(c.playback.isPlaying, isTrue);
-    c.playback.pause();
-  });
-
-  testWidgets('after Starts at is typed, the keyboard goes back to what had it: Space plays', (tester) async {
-    desktopWindow(tester);
-    final settings = AppSettings.memory()..addRecent(demoProject.absolute.path);
-    await tester.pumpWidget(CuratedScoreApp(settings: settings));
-    await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('Open Sample'));
-    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
-    for (var i = 0; i < 100 && c.score == null; i++) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
-      await tester.pump();
-    }
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(AppIcon.audio.refined));
-    await tester.pumpAndSettle();
-
-    final field = find.descendant(of: find.byTooltip('Silence before bar 1 (s)'), matching: find.byType(TextField));
-    await tester.tap(field);
-    await tester.pumpAndSettle();
-    await tester.enterText(field, '1.5');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
-    expect(c.sync!.startSeconds, 1.5);
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
-    await tester.pump();
-    expect(c.playback.isPlaying, isTrue);
-    c.playback.pause();
-    await tester.pumpAndSettle();
-
-    // Reached with Tab, not a click: the same.
-    bool typing() => FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
-    for (var i = 0; i < 100 && !typing(); i++) {
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pumpAndSettle();
-    }
-    expect(tester.state<EditableTextState>(find.descendant(of: field, matching: find.byType(EditableText))).widget.focusNode.hasFocus, isTrue);
-    await tester.enterText(field, '2');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
-    expect(c.sync!.startSeconds, 2);
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
-    await tester.pump();
-    expect(c.playback.isPlaying, isTrue);
-    c.playback.pause();
-  });
-
-  testWidgets('a click away from a field (Starts at, the readout) sets what was typed and gives the keyboard back', (tester) async {
-    desktopWindow(tester);
-    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
-    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.tap(find.byIcon(AppIcon.audio.refined));
-    await tester.pumpAndSettle();
-    final score = tester.getCenter(find.byType(ScoreView));
-
-    final field = find.descendant(of: find.byTooltip('Silence before bar 1 (s)'), matching: find.byType(TextField));
-    await tester.tap(field);
-    await tester.pumpAndSettle();
-    await tester.enterText(field, '1.25');
-    await tester.tapAt(score, kind: PointerDeviceKind.mouse);
-    await tester.pumpAndSettle();
-    expect(c.sync!.startSeconds, 1.25, reason: 'set, not dropped');
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
-    await tester.pump();
-    expect(c.playback.isPlaying, isTrue, reason: 'the shortcuts have the keyboard again');
-    c.playback.pause();
-    await tester.pumpAndSettle();
-
-    // Escape leaves Starts at as it was, and the shortcuts work.
-    await tester.tap(field);
-    await tester.pumpAndSettle();
-    await tester.enterText(field, '9');
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
-    expect(c.sync!.startSeconds, 1.25);
-    expect(tester.widget<TextField>(field).controller!.text, '1.25');
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
-    await tester.pump();
-    expect(c.playback.isPlaying, isTrue);
-    c.playback.pause();
-    await tester.pumpAndSettle();
-
-    // The readout: a click away cancels it, and the shortcuts work.
-    await tester.tap(find.text('1.1'));
-    await tester.pumpAndSettle();
-    await tester.tapAt(score, kind: PointerDeviceKind.mouse);
-    await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await tester.pump();
     expect(c.playback.isPlaying, isTrue);

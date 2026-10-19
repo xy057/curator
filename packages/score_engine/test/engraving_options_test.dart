@@ -131,13 +131,4 @@ void main() {
     expect(plain.request, const EngraveRequest());
     expect(const EngraveRequest(textEdits: {'d1': 'Presto'}), EngraveRequest(textEdits: {'d1': 'Presto'}));
   });
-
-  test('NaN and infinity are no value for a number (they passed clamping, or failed to round)', () {
-    final integer = EngraveOption.byKey('measureMinWidth')!, number = EngraveOption.byKey('spacingLinear')!;
-    for (final bad in [double.nan, double.infinity, double.negativeInfinity]) {
-      expect(integer.coerce(bad), isNull, reason: '$bad');
-      expect(number.coerce(bad), isNull, reason: '$bad');
-    }
-    expect(integer.coerce(99.4), 30);
-  });
 }

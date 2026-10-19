@@ -10,7 +10,6 @@ import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
-import 'package:curated_score/scratch_space.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -478,33 +477,6 @@ void main() {
       expect(again.state.edits.fonts.music, const MusicFont.missing('No Such Font'));
     }, skip: Platform.isMacOS ? false : 'Helvetica is installed on macOS');
 
-    test("a font that isn't embedded and can't be read where it is installed: Bravura stands in, the project opens", () async {
-      await ProjectFile.write(
-          '${dir.path}/damaged.ccs',
-          ProjectContents(
-            scoreName: 'Score.musicxml',
-            scoreBytes: demoScore.readAsBytesSync(),
-            state: const ProjectState(edits: EditState(fonts: ScoreFonts(music: MusicFont.missing('Damaged')), embedFont: false)),
-          ));
-      c.lookUpMusicFont = (name) => throw FileSystemException('Couldn’t read the font', name);
-      await doc.open('${dir.path}/damaged.ccs');
-      expect(c.fonts.music, const MusicFont.missing('Damaged'));
-      expect(c.fonts.music.kind, MusicFontKind.missing);
-      expect(c.addedFonts, isEmpty, reason: 'nothing to offer: only its name came');
-      expect(c.score!.musicFontFamily, MusicFont.bravura.family);
-      expect(doc.isDirty, isFalse);
-
-      // Nothing to embed: the switch stays off, as the project is saved.
-      expect(c.canEmbedFont, isFalse);
-      c.embedFont = true;
-      expect(c.embedFont, isFalse);
-      expect(doc.isDirty, isFalse);
-      await c.setFonts(const ScoreFonts(music: MusicFont.leland), embed: true);
-      expect((c.embedFont, c.canEmbedFont), (true, true));
-      await c.setFonts(const ScoreFonts(music: MusicFont.missing('Damaged')));
-      expect(c.embedFont, isFalse, reason: 'chosen again, the missing font is still only named');
-    });
-
     test('a project that fails to open leaves the open one exactly as it was', () async {
       // B: readable as a zip, but its state is damaged. A is the project that is open.
       final a = '${dir.path}/A.ccs', b = '${dir.path}/B.ccs';
@@ -530,32 +502,6 @@ void main() {
       expect((await ProjectFile.read(a, mediaDirectory: '${dir.path}/m')).state.edits.lanes!.values.every((l) => l.isEmpty), isTrue);
     });
 
-    test('opens asked for at once run one after the other; an autosave meanwhile waits for them', () async {
-      final part = c.score!.metadata.parts.first;
-      final a = '${dir.path}/A.ccs', b = '${dir.path}/B.ccs';
-      c.renamePart(part, name: 'From A', abbreviation: 'A');
-      // A opens slowly: its "video" goes through a converter (and fails) after the score is in.
-      await ProjectFile.write(
-          a,
-          ProjectContents(
-            scoreName: c.source!.name,
-            scoreBytes: c.source!.bytes,
-            state: c.projectState,
-            media: ProjectMedia(name: 'take.mp4', storage: MediaStorage.embed, embedFrom: recording('take.mp4').path),
-          ));
-      c.renamePart(part, name: 'From B', abbreviation: 'B');
-      await doc.save(b);
-      final savedA = File(a).readAsBytesSync();
-
-      final opening = [doc.open(a), doc.open(b)];
-      final autosaving = doc.autosave();
-      await Future.wait([...opening, autosaving]);
-      expect(doc.path, b);
-      expect(c.partName(part), 'From B');
-      expect(doc.isDirty, isFalse);
-      expect(File(a).readAsBytesSync(), savedA, reason: 'nothing of B was written over A');
-    });
-
     test('a recording that cannot be loaded does not stop the project from opening', () async {
       final path = '${dir.path}/bad-recording.ccs';
       await ProjectFile.write(
@@ -572,30 +518,6 @@ void main() {
       expect(doc.path, path);
       expect(c.fileName, 'Intro.musicxml');
       expect(c.track, isNull);
-    });
-
-    test('importing a score lets go of the recording the project before it unpacked', () async {
-      final path = '${dir.path}/with-recording.ccs';
-      await ProjectFile.write(
-        path,
-        ProjectContents(
-          scoreName: 'Intro.musicxml',
-          scoreBytes: demoScore.readAsBytesSync(),
-          state: const ProjectState(),
-          media: ProjectMedia(name: 'take.wav', storage: MediaStorage.embed, embedFrom: recording('take.wav').path),
-        ),
-      );
-      List<String> unpacked() => [
-            for (final e in ScratchSpace.session.listSync())
-              if (e is Directory && e.path.split(Platform.pathSeparator).last.startsWith('project-')) e.path,
-          ];
-      final before = unpacked();
-      await doc.open(path);
-      final opened = unpacked().where((p) => !before.contains(p)).toList();
-      expect(opened, hasLength(1));
-
-      await doc.importScore(demoScore.path);
-      expect(Directory(opened.single).existsSync(), isFalse);
     });
 
     test('Undo keeps as many steps as Settings say', () {

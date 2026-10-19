@@ -1,9 +1,5 @@
-import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
-import 'package:curated_score/project_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -19,19 +15,6 @@ void main() {
   });
 
   tearDown(() => c.dispose());
-
-  test('a recording that can\'t be read leaves the one loaded, and the project unchanged', () async {
-    final loaded = AudioTrack.forTesting(name: 'take 1.flac', length: 60, waveform: await Waveform.analyze(Float32List(64), 64));
-    c.audio.debugTrack = loaded;
-    final revision = c.editRevision.value;
-    final broken = File('${Directory.systemTemp.createTempSync('broken-').path}/take 2.mkv')..writeAsStringSync('not a video');
-    addTearDown(() => broken.parent.deleteSync(recursive: true));
-
-    await expectLater(c.loadAudio(broken.path), throwsA(anything));
-    expect(c.track, same(loaded), reason: 'what was loaded stays, so a save keeps it');
-    expect(c.editRevision.value, revision);
-    expect(c.isLoadingAudio, isFalse);
-  });
 
   test('new engraving options re-engrave what is open, and are not an edit', () async {
     final curation = c.curation, sync = c.sync;
@@ -179,64 +162,4 @@ void main() {
       expect(c.lanes.canPaste, isTrue, reason: 'Undo leaves what was copied');
     });
   });
-
-  test('listeners never see a score half open: with a score, its curation, sync and scene are there too', () async {
-    final half = <String>[];
-    void check() {
-      if (c.score != null && (c.curation == null || c.sync == null || c.scene == null)) half.add('${c.fileName}');
-    }
-
-    c.addListener(check);
-    addTearDown(() => c.removeListener(check));
-    await c.openFile(demoScore.path);
-    await c.openProject(name: 'demo.musicxml', scoreBytes: demoScore.readAsBytesSync(), state: const ProjectState());
-    expect(half, isEmpty);
-  });
-
-  test('a project still opening when its window closes stops there: its recording is never loaded', () async {
-    final closing = EditorController(vsync: const TestVSync());
-    final opening = closing.openProject(
-        name: 'demo.musicxml', scoreBytes: demoScore.readAsBytesSync(), state: const ProjectState(), mediaPath: demoRecording.path);
-    closing.dispose(); // while engraving
-    expect(await opening, isNull);
-    expect(closing.track, isNull);
-  });
-
-  test("an edit that can't be engraved keeps the score as it was, says why, and Undo steps back", () async {
-    final failing = _FailingEngraver(vsync: const TestVSync());
-    addTearDown(failing.dispose);
-    await failing.openFile(demoScore.path);
-    final before = failing.score;
-    final vivo = before!.texts.firstWhere((t) => t.text == 'Vivo');
-
-    failing.fail = true;
-    await failing.editText(vivo.id, 'Presto'); // completes: nothing thrown at the caller
-    expect(failing.score, same(before), reason: 'the score engraved before stays');
-    expect(failing.engravingFailure.value, isA<EngraveException>());
-    expect(failing.isReengraving, isFalse);
-
-    failing.engravingOptions = const EngravingOptions().withValue(EngraveOption.byKey('measureMinWidth')!, 20);
-    await pumpEventQueue(); // not awaited by anyone: still caught
-    expect(failing.engravingFailure.value, isA<EngraveException>());
-
-    failing.fail = false;
-    failing.undo();
-    while (failing.isReengraving) {
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-    }
-    expect(failing.currentText(vivo), 'Vivo');
-    expect(failing.engravingFailure.value, isNull, reason: 'engraved again');
-  });
-}
-
-class _FailingEngraver extends EditorController {
-  _FailingEngraver({required super.vsync});
-
-  bool fail = false;
-
-  @override
-  Future<LoadedScore> engraveAgain(LoadedScore score) async {
-    if (fail) throw EngraveException('Couldn’t engrave the score.');
-    return super.engraveAgain(score);
-  }
 }

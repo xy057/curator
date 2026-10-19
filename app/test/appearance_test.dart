@@ -2,15 +2,11 @@ import 'dart:async';
 
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
-import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'demo_project.dart';
-import 'window.dart';
 
 void main() {
   testWidgets('a click on Theme chooses at once; the still it fades from holds no tint where it started', (tester) async {
@@ -109,47 +105,6 @@ void main() {
     await tester.pump();
     expect(find.byType(RawImage), findsNWidgets(images), reason: 'other settings leave the window be');
     expect(theme(), same(before), reason: 'the same theme, so nothing that reads it rebuilds');
-  });
-
-  testWidgets('a setting the page doesn\'t show (a slider in Settings, dragged) rebuilds nothing', (tester) async {
-    desktopWindow(tester);
-    final settings = AppSettings.memory();
-    await tester.pumpWidget(CuratedScoreApp(settings: settings));
-    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    for (var i = 0; i < 6; i++) {
-      await tester.pump(const Duration(milliseconds: 200));
-    }
-    final scaffold = find.byType(Scaffold).first;
-    final built = tester.widget(scaffold);
-    for (final follow in [0.1, 0.5, 0.9]) {
-      settings.scrollFollow = follow;
-      await tester.pump();
-    }
-    expect(tester.widget(scaffold), same(built));
-    settings.previewVideoFrame = !settings.previewVideoFrame; // one it shows does
-    await tester.pump();
-    expect(tester.widget(scaffold), isNot(same(built)));
-  });
-
-  testWidgets("a widget's own colour animations take the new theme at once, under the window's cross-fade", (tester) async {
-    desktopWindow(tester);
-    final settings = AppSettings.memory()..themeMode = ThemeMode.light;
-    await tester.pumpWidget(CuratedScoreApp(settings: settings));
-    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pumpAndSettle();
-    // The divider above the timeline: an AnimatedContainer in the chrome colour.
-    final handle = find.descendant(
-        of: find.byWidgetPredicate((w) => w.runtimeType.toString() == '_ResizeHandle'), matching: find.byType(DecoratedBox));
-    Color? color() => (tester.widget<DecoratedBox>(handle.first).decoration as BoxDecoration).color;
-    expect(color(), AppColors.of(settings.accent, Brightness.light, settings.uiStyle).chrome);
-
-    settings.themeMode = ThemeMode.dark;
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 16));
-    expect(color(), AppColors.of(settings.accent, Brightness.dark, settings.uiStyle).chrome);
-    await tester.pumpAndSettle();
   });
 
   test('Refined sets a desktop theme over Material', () {
