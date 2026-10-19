@@ -240,4 +240,36 @@ void main() {
     expect(petaluma.engraving.engravingDefaults['thinBarlineThickness'], 0.3);
     expect(bravura.engraving.engravingDefaults['thinBarlineThickness'], 0.16);
   });
+
+  test("a handwritten font's tall time signature digits meet on the middle line instead of overlapping", () async {
+    final work = Directory.systemTemp.createTempSync('zone_fonts');
+    FontResources.workDirectory = work.path;
+    addTearDown(() {
+      FontResources.workDirectory = null;
+      work.deleteSync(recursive: true);
+    });
+    final bytes = await File('assets/fonts/Petaluma.otf').readAsBytes();
+    await (FontLoader('packages/score_engine/Petaluma')..addFont(Future.value(ByteData.sublistView(bytes)))).load();
+    final score = await LoadedScore.load(demoScore(), fonts: const ScoreFonts(music: MusicFont.petaluma));
+    final curation = Curation(score.metadata.parts.map((p) => p.id));
+    for (final p in score.metadata.parts) {
+      curation.setLane(p.id, [Region(0, score.timeline.measureStarts.last)]);
+    }
+    final scene = CuratedScene(score);
+    addTearDown(scene.dispose);
+    const size = ui.Size(800, 600);
+    final image = scene.renderFrame(800, 600, time: 0.5, curation: curation, devicePixelRatio: 1);
+    final pixels = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!.buffer.asUint8List();
+    image.dispose();
+    final sp = scene.style.staffSpace, right = scene.renderer.musicLeftFor(scene.keyColumnAt(0.5, curation, size));
+    final staff = scene.layoutAt(0.5, curation, size).placements.firstWhere((p) => p.y > 4 * sp);
+    final middle = staff.y + 2 * sp;
+    // Rows with ink in the 6/8's columns: Petaluma's 6 is 2.9 staff spaces tall, its 8 3.4.
+    final rows = [
+      for (var y = (middle - 4 * sp).round(); y <= (middle + 4 * sp).round(); y++)
+        if ([for (var x = (right - 3 * sp).round(); x < (right - 1.5 * sp).round(); x++) pixels[(y * 800 + x) * 4]].any((v) => v < 128)) y,
+    ];
+    final tall = (rows.last - rows.first) / sp;
+    expect(tall, greaterThan(5.4), reason: 'one number a half height either side of the middle line, not a staff space');
+  });
 }

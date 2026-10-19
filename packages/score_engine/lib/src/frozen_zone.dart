@@ -23,7 +23,8 @@ class FrozenZone {
         _digitWidth = _scaled(data, 1.9, [for (var c = 0xE080; c <= 0xE089; c++) c]),
         _lineThickness = data.engravingDefaults['staffLineThickness'] ?? 0.13,
         _startLineThickness = data.engravingDefaults['thinBarlineThickness'] ?? 0.16,
-        _brace = data.glyphs[0xE000] ?? _bravuraBrace {
+        _brace = data.glyphs[0xE000] ?? _bravuraBrace,
+        _boxes = data.glyphs {
     for (final sig in data.signatures) {
       switch (sig) {
         case ClefSignature():
@@ -91,6 +92,7 @@ class FrozenZone {
   double _lineThickness; // the engraving's own staff lines when it has them
   final double _startLineThickness; // a thin barline's
   final GlyphBox _brace;
+  final Map<int, GlyphBox> _boxes;
 
   /// Bravura's [value], for glyphs as wide as the widest of [codepoints] in this font.
   static double _scaled(EngravingData data, double value, List<int> codepoints) {
@@ -256,14 +258,19 @@ class FrozenZone {
   }
 
   /// A time signature centred on [centerX]: the two numbers either side of the middle line,
-  /// or common / cut time on it. SMuFL time signature digits are centred on their baseline.
+  /// or common / cut time on it. SMuFL time signature digits are centred on their baseline:
+  /// a staff space above and below the middle line, or meeting on it when they are taller
+  /// than two (a handwritten font's, as Verovio stacks Petaluma's).
   void _paintTime(ui.Canvas canvas, TimeSignature time, double centerX, double middleY) {
     final sp = style.staffSpace;
+    double offset(String digits) =>
+        math.max(1.0, digits.runes.map((c) => (_boxes[c]?.height ?? 2) / 2).fold(0.0, math.max)) * sp;
     if (time.symbol != null) {
       _drawCentered(canvas, String.fromCharCode(time.symbol!), centerX, middleY);
     } else if (time.count > 0 && time.unit > 0) {
-      _drawCentered(canvas, _numerator(time), centerX, middleY - sp);
-      _drawCentered(canvas, _digits(time.unit), centerX, middleY + sp);
+      final numerator = _numerator(time), denominator = _digits(time.unit);
+      _drawCentered(canvas, numerator, centerX, middleY - offset(numerator));
+      _drawCentered(canvas, denominator, centerX, middleY + offset(denominator));
     }
   }
 
