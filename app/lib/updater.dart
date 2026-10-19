@@ -7,7 +7,7 @@ import 'file_names.dart';
 
 /// This build's version: `version` in pubspec.yaml without the build number (a test keeps them
 /// equal). The Release workflow tags each release `v` + this.
-const appVersion = '0.5.2';
+const appVersion = '0.5.3';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (a test keeps them equal).
 const appBuild = 62;
