@@ -49,10 +49,8 @@ class AppMenus extends StatelessWidget {
   /// File ▸ Close: back to the start screen; null (greyed out) while nothing is open.
   final VoidCallback? onClose;
 
-  /// Score ▸ Project Settings… (⇧⌘,); null (greyed out) while nothing is open.
+  /// File ▸ Project Settings… (⇧⌘,); null (greyed out) while nothing is open.
   final VoidCallback? onProjectSettings;
-
-  /// Score menu; null (greyed out) while nothing is open.
 
   /// File ▸ Export Video…; null (greyed out) while nothing is open.
   final VoidCallback? onExportVideo;
@@ -113,8 +111,13 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(label: 'Export Video…', shortcut: _key(LogicalKeyboardKey.keyE), onSelected: onExportVideo),
           ]),
-          // The app's settings; on macOS the Curator menu has them too, with the shortcut.
+          // The open project's settings, then the app's; on macOS the Curator menu has the
+          // app's too, with the shortcut.
           PlatformMenuItemGroup(members: [
+            PlatformMenuItem(
+                label: 'Project Settings…',
+                shortcut: _key(LogicalKeyboardKey.comma, shift: true),
+                onSelected: onProjectSettings),
             PlatformMenuItem(label: 'Settings…', shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
           ]),
         ]),
@@ -139,14 +142,6 @@ class AppMenus extends StatelessWidget {
               onSelected: onDelete,
             ),
             PlatformMenuItem(label: 'Select All', shortcut: _key(LogicalKeyboardKey.keyA), onSelected: onSelectAll),
-          ]),
-        ]),
-        PlatformMenu(label: 'Score', menus: [
-          PlatformMenuItemGroup(members: [
-            PlatformMenuItem(
-                label: 'Project Settings…',
-                shortcut: _key(LogicalKeyboardKey.comma, shift: true),
-                onSelected: onProjectSettings),
           ]),
         ]),
         if (_mac)

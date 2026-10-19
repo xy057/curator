@@ -651,8 +651,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     snapshot?.dispose();
   }
 
-  void _projectSettings({String? page}) =>
-      showProjectSettingsDialog(context, settings, controller, page: page, replaceScore: _replaceScore);
+  void _projectSettings() => showProjectSettingsDialog(context, settings, controller, replaceScore: _replaceScore);
 
   /// Project Settings ▸ Project Info ▸ Score ▸ Replace…: another score file under this
   /// project's edits and recording; asks first when the two differ.
@@ -854,7 +853,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     // Working in the timeline leaves the image selected in the score.
     final timeline = Listener(
       onPointerDown: (_) => controller.images.select(null),
-      child: BottomPanel(controller: controller, onCondensing: () => _projectSettings(page: 'Condensing')),
+      child: BottomPanel(controller: controller),
     );
     final toolbarHeight = EditorToolbar.heightOf(context);
     return LayoutBuilder(builder: (context, constraints) {

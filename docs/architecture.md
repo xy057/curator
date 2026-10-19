@@ -42,7 +42,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
 | `caption_settings.dart` | Settings ▸ Extensions ▸ Captions' own settings: font, position, countdown, size, with a preview |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
-| `settings_dialog.dart` | Settings… (⌘,, the app's) and Score ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
+| `settings_dialog.dart` | Settings… (⌘,, the app's) and File ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Fonts: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
