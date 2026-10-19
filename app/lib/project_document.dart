@@ -135,7 +135,7 @@ class ProjectDocument extends ChangeNotifier {
     settings.addRecent(path);
   });
 
-  /// Score ▸ Replace Score…: the score file at [path], engraved with this project's edits
+  /// Project Info ▸ Replace Score: the score file at [path], engraved with this project's edits
   /// carried over (see [EditorController.prepareReplacement]); nothing changes yet.
   Future<ScoreReplacement> prepareReplacement(String path) =>
       _oneAtATime(() => controller.prepareReplacement(path));

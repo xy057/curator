@@ -11,6 +11,8 @@ import 'app_extensions.dart';
 import 'app_icons.dart';
 import 'app_logo.dart';
 import 'app_settings.dart';
+import 'audio_panel.dart' show pickAudio;
+import 'condensing_editor.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'engrave_options_dialog.dart';
@@ -49,8 +51,9 @@ Future<void> showSettingsDialog(
 
 /// Score ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
 /// ([_projectCategories]). Each change is an edit: an Undo step, saved with the project.
+/// [replaceScore] is Project Info's Replace… (the app's, which asks first).
 Future<void> showProjectSettingsDialog(BuildContext context, AppSettings settings, EditorController controller,
-        {String? page}) =>
+        {String? page, Future<void> Function()? replaceScore}) =>
     _showWindow(
       context,
       _SettingsWindow(
@@ -59,6 +62,7 @@ Future<void> showProjectSettingsDialog(BuildContext context, AppSettings setting
         controller: controller,
         updater: Updater(), // nothing here asks it
         page: page,
+        replaceScore: replaceScore,
       ),
     );
 
@@ -123,7 +127,12 @@ class _Category {
   final String? empty;
 }
 
-typedef _Context = ({AppSettings settings, EditorController? controller, Updater updater});
+typedef _Context = ({
+  AppSettings settings,
+  EditorController? controller,
+  Updater updater,
+  Future<void> Function()? replaceScore,
+});
 
 final _categories = <_Category>[
   _Category('General', AppIcon.general, [
@@ -290,6 +299,25 @@ final _categories = <_Category>[
 
 /// The open project's settings (Score ▸ Project Settings…): each change an edit.
 final _projectCategories = <_Category>[
+  _Category('Project Info', AppIcon.about, [
+    _Item(
+      'Score',
+      (c) => c.controller!.fileName ?? '',
+      (c) => OutlinedButton(onPressed: c.replaceScore, child: const Text('Replace…')),
+      keywords: 'replace score file musicxml mei import',
+    ),
+    _Item(
+      'Recording',
+      (c) => c.controller!.track?.name ?? 'None.',
+      (c) => Builder(
+        builder: (context) => OutlinedButton(
+          onPressed: c.controller!.isLoadingAudio ? null : () => pickAudio(context, c.controller!),
+          child: Text(c.controller!.track == null ? 'Add…' : 'Replace…'),
+        ),
+      ),
+      keywords: 'add recording audio file video sound',
+    ),
+  ]),
   _Category('Animation', AppIcon.transition, [
     _Item(
       'Staff transition',
@@ -325,7 +353,31 @@ final _projectCategories = <_Category>[
       keywords: 'bracket barline barlines group sections family instrument woodwinds brass strings percussion printed',
     ),
   ]),
+  _Category('Condensing', AppIcon.condense, page: (c) => _CondensingPage(c), [
+    _Item(
+      'Pairs',
+      (c) => '${c.controller!.condensable.where((p) => c.controller!.condensed.contains(p.id)).length} of '
+          '${c.controller!.condensable.length} share a staff.',
+      (c) => const SizedBox.shrink(),
+      keywords: 'condense condensing pair players share staff a2',
+    ),
+  ]),
 ];
+
+/// Project Settings ▸ Condensing: the pairs ([CondensingEditor]) filling the page.
+class _CondensingPage extends StatelessWidget {
+  const _CondensingPage(this.c);
+  final _Context c;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
+          child: CondensingEditor(controller: c.controller!),
+        ),
+      );
+}
 
 /// Project Settings ▸ Sections: Group sections, and the brackets ([SectionsEditor]).
 class _SectionsPage extends StatelessWidget {
@@ -467,8 +519,10 @@ String _autosaveLabel(Duration d) => switch (d) {
     };
 
 class _SettingsWindow extends StatefulWidget {
-  const _SettingsWindow({required this.kind, required this.settings, this.controller, required this.updater, this.page});
+  const _SettingsWindow(
+      {required this.kind, required this.settings, this.controller, required this.updater, this.page, this.replaceScore});
   final _Window kind;
+  final Future<void> Function()? replaceScore;
   final AppSettings settings;
   final EditorController? controller;
   final Updater updater;
@@ -497,7 +551,12 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     super.dispose();
   }
 
-  _Context get _ctx => (settings: widget.settings, controller: widget.controller, updater: widget.updater);
+  _Context get _ctx => (
+        settings: widget.settings,
+        controller: widget.controller,
+        updater: widget.updater,
+        replaceScore: widget.replaceScore,
+      );
 
   /// Items matching the search, with their category; null when not searching.
   List<(_Category, _Item)>? get _matches {

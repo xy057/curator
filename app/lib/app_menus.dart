@@ -20,9 +20,6 @@ class AppMenus extends StatelessWidget {
     this.onOpenRecent,
     this.onClearRecent,
     this.onProjectSettings,
-    this.onCondensing,
-    this.onAddRecording,
-    this.onReplaceScore,
     this.onExportVideo,
     this.onClose,
     this.onUndo,
@@ -56,9 +53,6 @@ class AppMenus extends StatelessWidget {
   final VoidCallback? onProjectSettings;
 
   /// Score menu; null (greyed out) while nothing is open.
-  final VoidCallback? onCondensing;
-  final VoidCallback? onAddRecording;
-  final VoidCallback? onReplaceScore;
 
   /// File ▸ Export Video…; null (greyed out) while nothing is open.
   final VoidCallback? onExportVideo;
@@ -148,9 +142,6 @@ class AppMenus extends StatelessWidget {
           ]),
         ]),
         PlatformMenu(label: 'Score', menus: [
-          PlatformMenuItem(label: 'Condensing…', onSelected: onCondensing),
-          PlatformMenuItem(label: 'Add Recording…', onSelected: onAddRecording),
-          PlatformMenuItem(label: 'Replace Score…', onSelected: onReplaceScore),
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(
                 label: 'Project Settings…',

@@ -1,4 +1,4 @@
-// Score ▸ Replace Score…: another score file under the open project's edits. Instruments are
+// Project Info ▸ Replace Score: another score file under the open project's edits. Instruments are
 // matched by name when their ids move, positions by bar, texts by where they are; what differs
 // is listed in a warning before anything changes.
 import 'dart:io';

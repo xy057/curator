@@ -19,7 +19,6 @@ import 'app_menus.dart';
 import 'app_settings.dart';
 import 'audio_panel.dart';
 import 'bottom_panel.dart';
-import 'condensing_dialog.dart';
 import 'controller_settings.dart';
 import 'dialog_kit.dart';
 import 'edit_dialogs.dart';
@@ -652,12 +651,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     snapshot?.dispose();
   }
 
-  void _condensing() => showCondensingDialog(context, controller);
-  void _projectSettings() => showProjectSettingsDialog(context, settings, controller);
-  void _addRecording() => pickAudio(context, controller);
+  void _projectSettings({String? page}) =>
+      showProjectSettingsDialog(context, settings, controller, page: page, replaceScore: _replaceScore);
 
-  /// Score ▸ Replace Score…: another score file under this project's edits and recording;
-  /// asks first when the two differ.
+  /// Project Settings ▸ Project Info ▸ Score ▸ Replace…: another score file under this
+  /// project's edits and recording; asks first when the two differ.
   Future<void> _replaceScore() async {
     final file = await openFile(acceptedTypeGroups: const [_scoreTypes]);
     if (file == null || !mounted) return;
@@ -702,9 +700,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onClearRecent: settings.clearRecent,
           onClose: _hasScore.value ? _close : null,
           onProjectSettings: _hasScore.value ? _projectSettings : null,
-          onCondensing: _hasScore.value ? _condensing : null,
-          onAddRecording: _hasScore.value ? _addRecording : null,
-          onReplaceScore: _hasScore.value ? _replaceScore : null,
           onExportVideo: _canExport.value ? _exportVideo : null,
           onUndo: edit != null && edit.undo ? controller.undo : null,
           onRedo: edit != null && edit.redo ? controller.redo : null,
@@ -859,7 +854,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     // Working in the timeline leaves the image selected in the score.
     final timeline = Listener(
       onPointerDown: (_) => controller.images.select(null),
-      child: BottomPanel(controller: controller),
+      child: BottomPanel(controller: controller, onCondensing: () => _projectSettings(page: 'Condensing')),
     );
     final toolbarHeight = EditorToolbar.heightOf(context);
     return LayoutBuilder(builder: (context, constraints) {

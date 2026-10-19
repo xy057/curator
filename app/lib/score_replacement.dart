@@ -5,7 +5,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'project_state.dart';
 
-/// Score ▸ Replace Score…: how a project made for one score file reads against another, and
+/// Project Info ▸ Replace Score: how a project made for one score file reads against another, and
 /// what differs between them.
 ///
 /// Instruments are matched by name and id ([parts]), so a part that moved (an instrument

@@ -206,7 +206,7 @@ class EditorController extends ChangeNotifier {
     }
   }
 
-  /// Score ▸ Replace Score…: engraves the score file at [path] with this project's edits
+  /// Project Info ▸ Replace Score: engraves the score file at [path] with this project's edits
   /// carried over to it ([ScoreSwap]), and says what differs. Nothing changes until
   /// [replaceScore].
   Future<ScoreReplacement> prepareReplacement(String path) async {

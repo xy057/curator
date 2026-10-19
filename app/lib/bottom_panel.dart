@@ -15,8 +15,11 @@ import 'ui_kit.dart';
 /// Both share one time axis, so zoom and scroll carry over. With Captions on, its lane is
 /// pinned under the ruler in both.
 class BottomPanel extends StatelessWidget {
-  const BottomPanel({super.key, required this.controller});
+  const BottomPanel({super.key, required this.controller, required this.onCondensing});
   final EditorController controller;
+
+  /// Opens Project Settings ▸ Condensing.
+  final VoidCallback onCondensing;
 
   static const _switch = Duration(milliseconds: 220);
 
@@ -59,7 +62,7 @@ class BottomPanel extends StatelessWidget {
                 transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
                 child: audio
                     ? AudioToolbar(key: const ValueKey('audio'), controller: c)
-                    : InstrumentsToolbar(key: const ValueKey('instruments'), controller: c),
+                    : InstrumentsToolbar(key: const ValueKey('instruments'), controller: c, onCondensing: onCondensing),
               ),
             ),
             const ToolbarDivider(),

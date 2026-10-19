@@ -4,15 +4,17 @@ import 'package:score_engine/score_engine.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_settings.dart';
-import 'condensing_dialog.dart';
 import 'editor_controller.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 /// Instruments tab tools (right of the tab switch). Every button explains itself on hover.
 class InstrumentsToolbar extends StatelessWidget {
-  const InstrumentsToolbar({super.key, required this.controller});
+  const InstrumentsToolbar({super.key, required this.controller, required this.onCondensing});
   final EditorController controller;
+
+  /// Opens Project Settings ▸ Condensing.
+  final VoidCallback onCondensing;
 
   /// Each tool's icon and hover text: its name, then what each key changes.
   static Map<LaneTool, (AppIcon, String)> get _tools => {
@@ -65,7 +67,7 @@ class InstrumentsToolbar extends StatelessWidget {
               ToolbarButton(
                 icon: AppIcon.condense.of(context),
                 tooltip: 'Condensing…',
-                onPressed: () => showCondensingDialog(context, c),
+                onPressed: onCondensing,
               ),
               const ToolbarDivider(),
             ],

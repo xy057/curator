@@ -45,7 +45,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Score ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Fonts: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
-| `score_replacement.dart` | Score ▸ Replace Score…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
+| `condensing_editor.dart` | Project Settings ▸ Condensing: which pairs of players share a staff, and the user's own pairs |
+| `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned): its edits (`EditState`, also Undo's snapshots), image files and view; Undo and Redo |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
@@ -414,7 +415,7 @@ half done: `_install` sets every part before anything notifies (captions last, a
 their style can notify at once), and a controller disposed while engraving takes nothing on,
 its recording included.
 
-**Replacing the score keeps the project.** Score ▸ Replace Score… engraves another score
+**Replacing the score keeps the project.** Project Settings ▸ Project Info ▸ Score ▸ Replace… engraves another score
 file with the project's edits carried over to it (`EditorController.prepareReplacement`,
 `ScoreSwap`), and only then swaps it in, like opening, keeping the recording, the path and
 the view (`replaceScore`). Instruments are matched by id and name, then by name (an
