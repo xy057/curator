@@ -124,6 +124,9 @@ void main() {
     expect(frame.brackets, hasLength(4));
     expect(frame.brackets.first.top, frame.placements[1].y);
     expect(frame.joins.first.barlines, isFalse);
+    scene.sectionOverrides = {'P17': 'bracket-1'}; // bracketed on its own by the user: it is
+    expect(scene.layoutAt(30, curation, size).brackets.first.top, frame.placements.first.y);
+    scene.sectionOverrides = const {};
 
     // A section down to one instrument keeps its bracket: Oboe 1 alone in the woodwinds.
     for (final p in score.metadata.parts.take(9)) {

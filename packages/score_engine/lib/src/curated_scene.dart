@@ -260,7 +260,7 @@ class SceneSettings {
   final List<Caption> captions;
   final CaptionStyle captionStyle;
   final bool sections;
-  final Map<String, InstrumentFamily?> sectionOverrides;
+  final Map<String, String?> sectionOverrides;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -364,26 +364,34 @@ class CuratedScene {
   }
 
   /// Whether the instruments are grouped in sections as a printed score groups them: each
-  /// section (the woodwinds, the brass, the percussion, the voices, the strings: [ScorePart.section])
-  /// bracketed, its barlines run on between its staves (not the voices', which leave room for
-  /// the words), and the starting line through every staff. A section is a run of its
-  /// instruments in [partOrder]; one moved away from the rest starts a section of its own.
+  /// section ([sectionOf]: the woodwinds, the brass… or a group of the user's) bracketed, its
+  /// barlines run on between its staves (not a choir's, which leave room for the words), and
+  /// the starting line through every staff. A section is a run of its instruments in
+  /// [partOrder]; one moved away from the rest starts a section of its own.
   /// Only drawn: nothing is planned or engraved again.
   bool sections = false;
 
   /// The user's choice of section for some instruments (part id → section; null: none, standing
-  /// alone) over [ScorePart.section]. A pair takes its first player's.
-  Map<String, InstrumentFamily?> get sectionOverrides => _sectionOverrides;
-  Map<String, InstrumentFamily?> _sectionOverrides = const {};
-  set sectionOverrides(Map<String, InstrumentFamily?> value) {
+  /// alone) over their own ([ScorePart.section]'s name). A section is any name: a family's
+  /// joins that family's instruments, another one only those given it. A pair takes its first
+  /// player's.
+  Map<String, String?> get sectionOverrides => _sectionOverrides;
+  Map<String, String?> _sectionOverrides = const {};
+  set sectionOverrides(Map<String, String?> value) {
     if (mapEquals(value, _sectionOverrides)) return;
     _sectionOverrides = Map.unmodifiable(value);
     _sectionRuns = _sectionRunsOf(_order);
   }
 
-  /// [part]'s section: the user's choice, else its own.
-  InstrumentFamily? sectionOf(ScorePart part) =>
-      _sectionOverrides.containsKey(part.id) ? _sectionOverrides[part.id] : part.section;
+  /// Whether the user put [part] in a section other than its own.
+  bool _ownSection(ScorePart part) {
+    final section = _sectionOverrides[part.id];
+    return section != null && section != part.section?.name;
+  }
+
+  /// [part]'s section: the user's choice, else its own family's name; null: none.
+  String? sectionOf(ScorePart part) =>
+      _sectionOverrides.containsKey(part.id) ? _sectionOverrides[part.id] : part.section?.name;
 
   /// The pairs of players (ids from [LoadedScore.condensed]) that share a staff while both
   /// are shown. Changing it re-plans the layout; nothing is engraved again.
@@ -455,7 +463,8 @@ class CuratedScene {
   }
 
   /// The sections in [_order]: runs of its staves (start and end, inclusive) whose instruments
-  /// are of one section, two instruments or more (bracketed even while only one shows); [outset] when one of them is on more than one
+  /// are of one section, two instruments or more, or one the user put in it (bracketed even
+  /// while only one shows); [outset] when one of them is on more than one
   /// staff (its brace takes the room beside the staves).
   late List<({int start, int end, bool barlines, bool outset})> _sectionRuns = _sectionRunsOf(_order);
 
@@ -467,11 +476,12 @@ class CuratedScene {
     for (var i = 1; i <= order.length; i++) {
       final section = sectionOf(partOf(order[start].partId));
       if (i < order.length && section != null && sectionOf(partOf(order[i].partId)) == section) continue;
-      if (section != null && {for (var j = start; j < i; j++) order[j].partId}.length > 1) {
+      final run = [for (var j = start; j < i; j++) partOf(order[j].partId)];
+      if (section != null && ({for (final p in run) p.id}.length > 1 || run.any(_ownSection))) {
         runs.add((
           start: start,
           end: i - 1,
-          barlines: section != InstrumentFamily.voices,
+          barlines: [for (var j = start; j < i; j++) partOf(order[j].partId)].any((p) => p.family != InstrumentFamily.voices),
           outset: [for (var j = start; j < i; j++) partOf(order[j].partId)].any((p) => p.shownStaffNumbers.length > 1),
         ));
       }

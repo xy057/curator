@@ -366,17 +366,6 @@ class EditorController extends ChangeNotifier {
     playback._markDirty(); // only the score shows it: nothing to rebuild
   }
 
-  /// Whether the score groups its instruments in sections, as printed (Settings ▸ Engraving;
-  /// see [CuratedScene.sections]). A view setting, not an edit.
-  bool get groupSections => _groupSections;
-  bool _groupSections = false;
-  set groupSections(bool value) {
-    if (value == _groupSections) return;
-    _groupSections = value;
-    _showSettings();
-    playback._markDirty(); // only the score shows it: nothing to rebuild
-  }
-
   CuratedScene _makeScene(LoadedScore score) {
     final scene = CuratedScene(score, style: RenderStyle(staffSpace: _staffSpace))..settings = sceneSettings;
     if (_sync != null) scene.setTimeline(_sync!);
@@ -393,34 +382,71 @@ class EditorController extends ChangeNotifier {
       patches: images._scenePatches,
       captions: captions._sceneCaptions,
       captionStyle: captions._style,
-      sections: _groupSections,
-      sectionOverrides: _doc.sections);
+      sections: _doc.groupSections,
+      sectionOverrides: {..._doc.sections, ...?_previewSections});
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
 
-  /// [part]'s section (Project Settings ▸ Sections): the user's choice, else its own; null:
-  /// none, standing alone.
-  InstrumentFamily? sectionOf(ScorePart part) =>
-      _doc.sections.containsKey(part.id) ? _doc.sections[part.id] : part.section;
+  /// [part]'s section (Project Settings ▸ Sections, see [CuratedScene.sectionOf]): the user's
+  /// choice, else its family's name; null: none, standing alone.
+  String? sectionOf(ScorePart part) =>
+      _doc.sections.containsKey(part.id) ? _doc.sections[part.id] : part.section?.name;
 
-  /// Whether the user chose [part]'s section ([setSection]).
-  bool hasOwnSection(ScorePart part) => _doc.sections.containsKey(part.id);
+  /// Whether the score groups its instruments in sections, as printed (Project Settings ▸
+  /// Sections; see [CuratedScene.sections]).
+  bool get groupSections => _doc.groupSections;
 
-  /// Puts [part] in [section] (null: none, standing alone), one Undo step; [own] false gives it
-  /// back its own section.
-  void setSection(ScorePart part, InstrumentFamily? section, {bool own = true}) {
+  /// Groups the instruments in sections, or stops: one Undo step.
+  void setGroupSections(bool on) {
+    if (on == _doc.groupSections) return;
+    _doc = _doc.copyWith(groupSections: on);
+    _showSettings();
+    _edited();
+  }
+
+  /// Whether the user chose any instrument's section.
+  bool get hasOwnSections => _doc.sections.isNotEmpty;
+
+  /// Puts instruments (part id → section, null: none) in their sections: one Undo step. One
+  /// put back in its own family's is no longer the user's choice.
+  void setSections(Map<String, String?> sections) {
+    final parts = {for (final p in _score!.metadata.parts) p.id: p};
     final next = {..._doc.sections};
-    if (own) {
-      next[part.id] = section;
-    } else {
-      next.remove(part.id);
-    }
-    if (mapEquals(next, _doc.sections)) return;
+    sections.forEach((id, section) {
+      if (parts[id] case final part?) {
+        if (section == part.section?.name) {
+          next.remove(id);
+        } else {
+          next[id] = section;
+        }
+      }
+    });
+    _previewSections = null;
+    if (mapEquals(next, _doc.sections)) return _showSettings();
     _doc = _doc.copyWith(sections: Map.unmodifiable(next));
     _showSettings();
     _edited();
   }
+
+  /// Every instrument back in its own family's section: one Undo step.
+  void resetSections() {
+    _previewSections = null;
+    if (_doc.sections.isEmpty) return _showSettings();
+    _doc = _doc.copyWith(sections: const {});
+    _showSettings();
+    _edited();
+  }
+
+  /// Shows instruments in other sections (as [setSections] takes them) without an edit, while
+  /// a bracket is dragged; null: as they are.
+  void previewSections(Map<String, String?>? sections) {
+    _previewSections = sections;
+    _showSettings();
+    playback._markDirty();
+  }
+
+  Map<String, String?>? _previewSections;
 
   // MARK: Editing names and texts
 
