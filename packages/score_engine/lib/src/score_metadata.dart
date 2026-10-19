@@ -82,6 +82,17 @@ class ScorePart {
   List<int> get shownStaffNumbers => [for (final n in staffNumbers) if (!silentStaves.contains(n)) n];
 
   InstrumentFamily get family => InstrumentFamily.classify(sound: sound, name: name);
+
+  /// The section a printed score brackets it with; null for an instrument standing on its own
+  /// (keyboards, harp, guitar and the like).
+  InstrumentFamily? get section => switch (family) {
+        InstrumentFamily.keyboards || InstrumentFamily.other => null,
+        InstrumentFamily.strings
+            when (sound ?? '').toLowerCase().startsWith('pluck.') ||
+                RegExp('harp|guitar|lute|mandolin', caseSensitive: false).hasMatch(name) =>
+          null,
+        final family => family,
+      };
 }
 
 class ScoreMetadata {

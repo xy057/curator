@@ -247,6 +247,7 @@ class SceneSettings {
     this.patches = const [],
     this.captions = const [],
     this.captionStyle = const CaptionStyle(),
+    this.sections = false,
   });
 
   /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
@@ -257,6 +258,7 @@ class SceneSettings {
   final List<ScenePatch> patches;
   final List<Caption> captions;
   final CaptionStyle captionStyle;
+  final bool sections;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -335,7 +337,7 @@ class CuratedScene {
   Map<String, ({String name, String abbreviation})> names = const {};
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
-  /// [patches], [captions], [captionStyle]); setting it changes only what differs.
+  /// [patches], [captions], [captionStyle], [sections]); setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
       condensed: condensed,
@@ -343,7 +345,8 @@ class CuratedScene {
       scrollFollow: scrollFollow,
       patches: patches,
       captions: captions,
-      captionStyle: captionStyle);
+      captionStyle: captionStyle,
+      sections: sections);
   set settings(SceneSettings value) {
     names = value.names;
     condensed = value.condensed;
@@ -352,7 +355,16 @@ class CuratedScene {
     patches = value.patches;
     captions = value.captions;
     captionStyle = value.captionStyle;
+    sections = value.sections;
   }
+
+  /// Whether the instruments are grouped in sections as a printed score groups them: each
+  /// section (the woodwinds, the brass, the percussion, the voices, the strings: [ScorePart.section])
+  /// bracketed, its barlines run on between its staves (not the voices', which leave room for
+  /// the words), and the starting line through every staff. A section is a run of its
+  /// instruments in [partOrder]; one moved away from the rest starts a section of its own.
+  /// Only drawn: nothing is planned or engraved again.
+  bool sections = false;
 
   /// The pairs of players (ids from [LoadedScore.condensed]) that share a staff while both
   /// are shown. Changing it re-plans the layout; nothing is engraved again.
@@ -393,6 +405,7 @@ class CuratedScene {
     _partOrder = next;
     _order = _plannedOrder();
     _twins = _twinsOf(_order);
+    _sectionRuns = _sectionRunsOf(_order);
     _orderVersion++;
   }
 
@@ -420,6 +433,32 @@ class CuratedScene {
           if (_staffIndex[n] != null) (staffIndex: _staffIndex[n]!, partId: id),
       ],
     ];
+  }
+
+  /// The sections in [_order]: runs of its staves (start and end, inclusive) whose instruments
+  /// are of one section, two instruments or more (bracketed even while only one shows); [outset] when one of them is on more than one
+  /// staff (its brace takes the room beside the staves).
+  late List<({int start, int end, bool barlines, bool outset})> _sectionRuns = _sectionRunsOf(_order);
+
+  List<({int start, int end, bool barlines, bool outset})> _sectionRunsOf(List<PlannedStaff> order) {
+    final parts = {for (final p in score.metadata.parts) p.id: p};
+    ScorePart partOf(String id) => parts[id] ?? parts[_groups[id]!.partIds.first]!; // a pair: its first player
+    final runs = <({int start, int end, bool barlines, bool outset})>[];
+    var start = 0;
+    for (var i = 1; i <= order.length; i++) {
+      final section = partOf(order[start].partId).section;
+      if (i < order.length && section != null && partOf(order[i].partId).section == section) continue;
+      if (section != null && {for (var j = start; j < i; j++) order[j].partId}.length > 1) {
+        runs.add((
+          start: start,
+          end: i - 1,
+          barlines: section != InstrumentFamily.voices,
+          outset: [for (var j = start; j < i; j++) partOf(order[j].partId)].any((p) => p.shownStaffNumbers.length > 1),
+        ));
+      }
+      start = i;
+    }
+    return runs;
   }
 
   /// A shared staff and its players' own take each other's place: when one is hidden while
@@ -551,6 +590,9 @@ class CuratedScene {
         placements: frame.placements,
         labels: frame.labels,
         braces: frame.braces,
+        brackets: frame.brackets,
+        joins: frame.joins,
+        outsetBrackets: sections && _sectionRuns.any((r) => r.outset),
         devicePixelRatio: devicePixelRatio,
         keyColumn: keyColumnAt(time, curation, size),
         paper: paper,
@@ -672,9 +714,15 @@ class CuratedScene {
     }
   }
 
-  /// Where every visible staff and label sits at [time]: a lookup into the plan.
-  ({List<StaffPlacement> placements, List<StaffLabel> labels, List<StaffBrace> braces}) layoutAt(
-      double time, Curation curation, ui.Size size) {
+  /// Where every visible staff and label sits at [time]: a lookup into the plan. With
+  /// [sections], the sections' brackets and the joins between staves too.
+  ({
+    List<StaffPlacement> placements,
+    List<StaffLabel> labels,
+    List<StaffBrace> braces,
+    List<StaffBracket> brackets,
+    List<StaffJoin> joins,
+  }) layoutAt(double time, Curation curation, ui.Size size) {
     final visibility = _visibilityAt(time, curation);
     final above = captionStyle.position == CaptionPosition.top ? _captionReserve : 0.0;
     final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin + above];
@@ -683,12 +731,13 @@ class CuratedScene {
     final placements = <StaffPlacement>[];
     final labels = <StaffLabel>[];
     final braces = <StaffBrace>[];
+    final placed = <int, StaffPlacement>{}; // order index → its placement
     for (var i = 0; i < _order.length; i++) {
       final (:staffIndex, :partId) = _order[i];
       final v = (visibility[partId] ?? 0).clamp(0.0, 1.0);
       if (v <= 0) continue;
       final opacity = fadeFor(v);
-      placements.add(StaffPlacement(staffIndex: staffIndex, y: tops[i], opacity: opacity));
+      placements.add(placed[i] = StaffPlacement(staffIndex: staffIndex, y: tops[i], opacity: opacity));
 
       final group = _groups[partId];
       if (group != null) {
@@ -726,7 +775,37 @@ class CuratedScene {
         }
       }
     }
-    return (placements: placements, labels: labels, braces: braces);
+    if (!sections) return (placements: placements, labels: labels, braces: braces, brackets: const [], joins: const []);
+
+    final brackets = <StaffBracket>[];
+    final joins = <StaffJoin>[];
+    double heightOf(StaffPlacement p) => display.staves[p.staffIndex].info.height * renderer.scale;
+    final runOf = <int, ({int start, int end, bool barlines, bool outset})>{
+      for (final run in _sectionRuns)
+        for (var i = run.start; i <= run.end; i++) i: run,
+    };
+    final shown = placed.keys.toList();
+    for (var k = 1; k < shown.length; k++) {
+      final above = placed[shown[k - 1]]!, below = placed[shown[k]]!;
+      if (renderer.barlinesThrough[above.staffIndex] == below.staffIndex) continue; // one instrument's: its brace has it
+      final run = runOf[shown[k - 1]];
+      joins.add(StaffJoin(above: above, below: below, barlines: run != null && run == runOf[shown[k]] && run.barlines));
+    }
+    for (final run in _sectionRuns) {
+      final staves = [for (var i = run.start; i <= run.end; i++) ?placed[i]];
+      if (staves.isEmpty) continue;
+      // Bracketed while any of its staves shows, one alone too. A staff coming or going at either
+      // end takes the bracket's end with it as it fades, and the bracket fades with the last.
+      final first = staves.first, last = staves.last;
+      final second = staves.length > 1 ? staves[1] : first, next = staves.length > 1 ? staves[staves.length - 2] : last;
+      final nextBottom = next.y + heightOf(next), lastBottom = last.y + heightOf(last);
+      brackets.add(StaffBracket(
+          top: second.y + (first.y - second.y) * first.opacity,
+          bottom: nextBottom + (lastBottom - nextBottom) * last.opacity,
+          opacity: staves.map((p) => p.opacity).reduce(math.max),
+          outset: run.outset));
+    }
+    return (placements: placements, labels: labels, braces: braces, brackets: brackets, joins: joins);
   }
 
   // MARK: Hit testing

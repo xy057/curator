@@ -23,6 +23,7 @@ class FrozenZone {
         _digitWidth = _scaled(data, 1.9, [for (var c = 0xE080; c <= 0xE089; c++) c]),
         _lineThickness = data.engravingDefaults['staffLineThickness'] ?? 0.13,
         _startLineThickness = data.engravingDefaults['thinBarlineThickness'] ?? 0.16,
+        _bracketThickness = data.engravingDefaults['bracketThickness'] ?? 0.5,
         _brace = data.glyphs[0xE000] ?? _bravuraBrace,
         _boxes = data.glyphs {
     for (final sig in data.signatures) {
@@ -91,6 +92,7 @@ class FrozenZone {
   final double _clefWidth, _sharpStep, _flatStep, _digitWidth;
   double _lineThickness; // the engraving's own staff lines when it has them
   final double _startLineThickness; // a thin barline's
+  final double _bracketThickness;
   final GlyphBox _brace;
   final Map<int, GlyphBox> _boxes;
 
@@ -113,6 +115,7 @@ class FrozenZone {
   };
   static const GlyphBox _bravuraBrace = (x: 2 / 250, y: 0, width: 80 / 250, height: 997 / 250, advance: 84 / 250);
   static const _braceWidth = 1.0, _braceGap = 0.35; // fits beside the names up to 10 px a staff space
+  static const _bracketGap = 0.25;
 
   /// The widest key column in the piece, in staff spaces.
   late final double maxKeyColumn;
@@ -242,11 +245,8 @@ class FrozenZone {
   void paintBrace(ui.Canvas canvas, {required double left, required List<({double top, double height})> staves}) {
     if (staves.length < 2) return;
     final sp = style.staffSpace;
-    final ink = ui.Paint()..color = style.ink;
-    // Only between the staves: each staff draws its own stretch, and drawn twice a line comes out heavier.
     for (var i = 1; i < staves.length; i++) {
-      final above = staves[i - 1];
-      canvas.drawRect(ui.Rect.fromLTRB(left, above.top + above.height, left + _startLineThickness * sp, staves[i].top), ink);
+      paintJoin(canvas, left: left, top: staves[i - 1].top + staves[i - 1].height, bottom: staves[i].top);
     }
     final top = staves.first.top, bottom = staves.last.top + staves.last.height;
     final brace = _brace;
@@ -255,6 +255,31 @@ class FrozenZone {
     canvas.scale(_braceWidth / brace.width, (bottom - top) / (brace.height * sp));
     _drawGlyph(canvas, 0xE000, -brace.x * sp, brace.y * sp); // its ink's lower left corner at the origin
     canvas.restore();
+  }
+
+  /// The starting line at [left] run on between two staves, from [top] (the bottom line of the
+  /// one above) to [bottom] (the top line of the one below): only between them, as each staff
+  /// draws its own stretch, and drawn twice a line comes out heavier.
+  void paintJoin(ui.Canvas canvas, {required double left, required double top, required double bottom}) {
+    if (bottom <= top) return;
+    canvas.drawRect(
+        ui.Rect.fromLTRB(left, top, left + _startLineThickness * style.staffSpace, bottom), ui.Paint()..color = style.ink);
+  }
+
+  /// How far left of the zone a bracket reaches, logical pixels (see [paintBracket]).
+  double bracketReach({bool outset = false}) =>
+      (_bracketGap + _bracketThickness + (outset ? _braceGap + _braceWidth : 0)) * style.staffSpace;
+
+  /// A section's bracket just left of the zone at [left], from [top] (its first staff's top
+  /// line) to [bottom] (its last staff's bottom line): a line as thick as the font's
+  /// `bracketThickness`, with the font's hooks curling over the staves at its ends.
+  /// [outset]: set further left, clear of the braces.
+  void paintBracket(ui.Canvas canvas, {required double left, required double top, required double bottom, bool outset = false}) {
+    final sp = style.staffSpace;
+    final x = left - bracketReach(outset: outset);
+    canvas.drawRect(ui.Rect.fromLTRB(x, top, x + _bracketThickness * sp, bottom), ui.Paint()..color = style.ink);
+    _drawGlyph(canvas, 0xE003, x, top); // bracketTop: its ink above the baseline
+    _drawGlyph(canvas, 0xE004, x, bottom); // bracketBottom: below it
   }
 
   /// A time signature centred on [centerX]: the two numbers either side of the middle line,

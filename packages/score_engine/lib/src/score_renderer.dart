@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'display_list.dart';
+import 'engraving.dart';
 import 'frozen_zone.dart';
 
 /// Where a staff is drawn in the current frame.
@@ -18,6 +19,26 @@ class StaffBrace {
   const StaffBrace({required this.staves, required this.opacity});
   final List<({double top, double height})> staves;
   final double opacity;
+}
+
+/// A section's bracket (the woodwinds, the strings…), from its first staff's top line to its
+/// last staff's bottom line, logical pixels.
+class StaffBracket {
+  const StaffBracket({required this.top, required this.bottom, required this.opacity, this.outset = false});
+  final double top, bottom;
+  final double opacity;
+
+  /// Further left, clear of the braces: an instrument of the section is on more than one staff.
+  final bool outset;
+}
+
+/// Two staves shown one above the other, of different instruments: the starting line runs on
+/// between them, and with [barlines] (the same section) the barlines too.
+class StaffJoin {
+  const StaffJoin({required this.above, required this.below, required this.barlines});
+  final StaffPlacement above, below;
+  final bool barlines;
+  double get opacity => math.min(above.opacity, below.opacity);
 }
 
 class StaffLabel {
@@ -104,6 +125,9 @@ class ScoreRenderer {
     required List<StaffPlacement> placements,
     required List<StaffLabel> labels,
     List<StaffBrace> braces = const [],
+    List<StaffBracket> brackets = const [],
+    List<StaffJoin> joins = const [],
+    bool outsetBrackets = false,
     required double devicePixelRatio,
     double? keyColumn,
     ui.Color? paper,
@@ -192,6 +216,30 @@ class ScoreRenderer {
         canvas.restore();
       }
     }
+
+    // Barlines run on between the staves of a section. The room between them changes as staves
+    // come and go, so unlike an instrument's they are drawn each frame, each barline's strokes
+    // from where the staff above's end to where the staff below's begin.
+    for (final join in joins) {
+      final opacity = join.opacity;
+      if (!join.barlines || opacity <= 0.001) continue;
+      final above = display.staves[join.above.staffIndex].info, below = display.staves[join.below.staffIndex].info;
+      final top = _snap(join.above.y, devicePixelRatio) + (above.height + _bleed(above)) * scale;
+      final bottom = _snap(join.below.y, devicePixelRatio) - _bleed(below) * scale;
+      if (bottom <= top) continue;
+      final first = lines.length;
+      for (var i = _firstStrokeFrom(left); i < _barlineStrokes.length && _barlineStrokes[i].x - _barlineStrokes[i].width <= right; i++) {
+        final (:x, :width) = _barlineStrokes[i];
+        final centre = originX + x * scale, half = width * scale / 2;
+        lines.add(ui.Rect.fromLTRB(centre - half, top, centre + half, bottom));
+      }
+      if (opacity < 0.999 && lines.length > first) {
+        canvas.saveLayer(null, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, opacity));
+        _paintLines(canvas, lines.sublist(first), linePaint, lineLayer);
+        lines.length = first;
+        canvas.restore();
+      }
+    }
     _paintLines(canvas, lines, linePaint, lineLayer);
 
     // Over the music, under the names, the frozen zone and the pointer (images on the score).
@@ -201,7 +249,10 @@ class ScoreRenderer {
       canvas.restore();
     }
 
-    _paintHeader(canvas, size, labels, musicLeft, clear ? null : paperColor, inkFilter);
+    // Names stop short of a bracket set out past the braces.
+    final nameRight = math.min(style.headerWidth - 14,
+        style.headerWidth - (outsetBrackets ? frozen?.bracketReach(outset: true) ?? 0 : 0) - 4);
+    _paintHeader(canvas, size, labels, musicLeft, clear ? null : paperColor, inkFilter, nameRight: nameRight);
     final zone = frozen;
     if (zone != null) {
       canvas.saveLayer(ui.Offset.zero & size, ui.Paint()..colorFilter = inkFilter);
@@ -232,6 +283,28 @@ class ScoreRenderer {
         zone.paintBrace(canvas,
             left: style.headerWidth,
             staves: [for (final s in brace.staves) (top: _snap(s.top, devicePixelRatio), height: s.height)]);
+        if (faded) canvas.restore();
+      }
+      for (final join in joins) {
+        final opacity = join.opacity;
+        if (opacity <= 0.001) continue;
+        final faded = opacity < 0.999;
+        if (faded) canvas.saveLayer(null, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, opacity));
+        zone.paintJoin(canvas,
+            left: style.headerWidth,
+            top: _snap(join.above.y, devicePixelRatio) + display.staves[join.above.staffIndex].info.height * scale,
+            bottom: _snap(join.below.y, devicePixelRatio));
+        if (faded) canvas.restore();
+      }
+      for (final bracket in brackets) {
+        if (bracket.opacity <= 0.001) continue;
+        final faded = bracket.opacity < 0.999;
+        if (faded) canvas.saveLayer(null, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, bracket.opacity));
+        zone.paintBracket(canvas,
+            left: style.headerWidth,
+            top: _snap(bracket.top, devicePixelRatio),
+            bottom: _snap(bracket.bottom, devicePixelRatio),
+            outset: bracket.outset);
         if (faded) canvas.restore();
       }
       canvas.restore();
@@ -293,6 +366,41 @@ class ScoreRenderer {
 
   static double _snap(double v, double dpr) => (v * dpr).roundToDouble() / dpr;
 
+  /// How far a staff's barlines reach past its outer lines, device units: one-line
+  /// (percussion) staves' a staff space.
+  double _bleed(StaffInfo staff) => display.data.staffSpace * (staff.lines <= 1 ? 1.0 : 0.08);
+
+  /// Every barline's vertical strokes (centre and width, device units) in x order, once each:
+  /// what a join between two staves draws of them.
+  late final List<({double x, double width})> _barlineStrokes = () {
+    final strokes = <(double, double)>{};
+    for (final item in display.barlines.items) {
+      if (item is! ShapeItem) continue;
+      final b = item.path.getBounds();
+      final stroke = item.stroke?.strokeWidth;
+      if (stroke != null && b.width < 1e-3 && b.height > 0) {
+        strokes.add((b.left, stroke));
+      } else if (stroke == null && item.fill != null && b.height > 4 * b.width) {
+        strokes.add((b.center.dx, b.width));
+      }
+    }
+    return [for (final (x, width) in strokes) (x: x, width: width)]..sort((a, b) => a.x.compareTo(b.x));
+  }();
+
+  /// The first of [_barlineStrokes] reaching past [x].
+  int _firstStrokeFrom(double x) {
+    var low = 0, high = _barlineStrokes.length;
+    while (low < high) {
+      final mid = (low + high) >> 1;
+      if (_barlineStrokes[mid].x + _barlineStrokes[mid].width < x) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low;
+  }
+
   _Tile? _tile(int staffIndex, int index) {
     final key = (staffIndex, index);
     final cached = _tiles.remove(key);
@@ -323,7 +431,7 @@ class ScoreRenderer {
 
     // Vertical extent: the staff lines plus whatever ink reaches outside them in this tile.
     // One-line (percussion) staves get barlines a staff space above and below the line.
-    final bleed = display.data.staffSpace * (staff.info.lines <= 1 ? 1.0 : 0.08);
+    final bleed = _bleed(staff.info);
     // Barlines run on to the next staff of the instrument, to its top line: from there on
     // that staff draws them.
     final through = barlinesThrough[staffIndex];
@@ -381,13 +489,14 @@ class ScoreRenderer {
   }
 
   /// [paper]: null when the music under the header was cut out instead (see-through paper).
-  void _paintHeader(
-      ui.Canvas canvas, ui.Size size, List<StaffLabel> labels, double left, ui.Color? paper, ui.ColorFilter ink) {
+  /// [nameRight]: where the names end, right-aligned.
+  void _paintHeader(ui.Canvas canvas, ui.Size size, List<StaffLabel> labels, double left, ui.Color? paper,
+      ui.ColorFilter ink, {required double nameRight}) {
     // Names and the frozen zone sit on paper; the music fades out as it slides underneath.
     if (paper != null) _coverHeader(canvas, size, left, ui.Paint(), paper);
     for (final label in labels) {
       if (label.opacity <= 0.001) continue;
-      final width = style.headerWidth - 18;
+      final width = nameRight - 4;
       var paragraph = _label(label.text, width);
       if (paragraph.maxIntrinsicWidth > width && label.shortText.isNotEmpty) {
         paragraph = _label(label.shortText, width);

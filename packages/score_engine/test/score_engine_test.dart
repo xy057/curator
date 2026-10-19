@@ -99,6 +99,41 @@ void main() {
     scene.dispose();
   });
 
+  test('grouped in sections, each family is bracketed and barred through, as printed', () {
+    final scene = CuratedScene(score);
+    const size = ui.Size(1600, 2400);
+    final curation = Curation(score.metadata.parts.map((p) => p.id));
+    for (final p in score.metadata.parts) {
+      curation.setLane(p.id, [Region(0, score.timeline.measureStarts.last)]);
+    }
+    expect(scene.layoutAt(30, curation, size).brackets, isEmpty); // off by default
+
+    scene.sections = true;
+    var frame = scene.layoutAt(30, curation, size);
+    // Woodwinds, brass, percussion, strings; the barlines break only between them.
+    expect(frame.brackets, hasLength(4));
+    expect(frame.joins, hasLength(20)); // the starting line through all 21 staves
+    expect([for (final (i, j) in frame.joins.indexed) if (!j.barlines) i], [8, 12, 15]);
+    expect(frame.brackets.first.top, frame.placements.first.y);
+
+    // Violin I moved to the top stands alone: no bracket, no barlines down into the woodwinds.
+    scene.partOrder = ['P17'];
+    frame = scene.layoutAt(30, curation, size);
+    expect(frame.brackets, hasLength(4));
+    expect(frame.brackets.first.top, frame.placements[1].y);
+    expect(frame.joins.first.barlines, isFalse);
+
+    // A section down to one instrument keeps its bracket: Oboe 1 alone in the woodwinds.
+    for (final p in score.metadata.parts.take(9)) {
+      if (p.id != 'P4') curation.setLane(p.id, const []);
+    }
+    frame = scene.layoutAt(30, curation, size);
+    final oboe = frame.placements[1]; // Violin I, then Oboe 1
+    expect(frame.brackets, hasLength(4));
+    expect((frame.brackets.first.top, frame.brackets.first.opacity), (oboe.y, 1.0));
+    scene.dispose();
+  });
+
   test('a video frame is the preview drawn offscreen, at any pixel size', () async {
     final scene = CuratedScene(score);
     final curation = Curation(score.metadata.parts.map((p) => p.id));

@@ -365,6 +365,17 @@ class EditorController extends ChangeNotifier {
     playback._markDirty(); // only the score shows it: nothing to rebuild
   }
 
+  /// Whether the score groups its instruments in sections, as printed (Settings ▸ Engraving;
+  /// see [CuratedScene.sections]). A view setting, not an edit.
+  bool get groupSections => _groupSections;
+  bool _groupSections = false;
+  set groupSections(bool value) {
+    if (value == _groupSections) return;
+    _groupSections = value;
+    _showSettings();
+    playback._markDirty(); // only the score shows it: nothing to rebuild
+  }
+
   CuratedScene _makeScene(LoadedScore score) {
     final scene = CuratedScene(score, style: RenderStyle(staffSpace: _staffSpace))..settings = sceneSettings;
     if (_sync != null) scene.setTimeline(_sync!);
@@ -372,7 +383,7 @@ class EditorController extends ChangeNotifier {
   }
 
   /// What the scene shows besides the score, the time, the curation and the sync: the names,
-  /// condensing, order, scroll, and the extensions' images and captions (none while off).
+  /// condensing, order, scroll, sections, and the extensions' images and captions (none while off).
   SceneSettings get sceneSettings => SceneSettings(
       names: _doc.partNames,
       condensed: _doc.condensed,
@@ -380,7 +391,8 @@ class EditorController extends ChangeNotifier {
       scrollFollow: _scrollFollow,
       patches: images._scenePatches,
       captions: captions._sceneCaptions,
-      captionStyle: captions._style);
+      captionStyle: captions._style,
+      sections: _groupSections);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
