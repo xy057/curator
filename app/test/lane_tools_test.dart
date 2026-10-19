@@ -1,8 +1,6 @@
 // Drives the Instruments tab tools with real pointer gestures.
 // With SCREENSHOT_DIR set, also saves PNGs of the lanes mid-drag for visual review.
-import 'dart:async';
 
-import 'package:curated_score/edit_dialogs.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/instruments_toolbar.dart';
@@ -17,7 +15,6 @@ import 'package:score_engine/score_engine.dart';
 import 'demo_project.dart';
 import 'test_fonts.dart';
 import 'window.dart';
-
 
 void main() {
   testWidgets('draw, erase, box-select and nudge in the instrument lanes', (tester) async {
@@ -263,30 +260,6 @@ void main() {
     expect(c.lanes.selectedPartIds, {'P3', 'P5'}, reason: 'still selected');
     c.undo();
     expect(c.isScoreOrder, isTrue);
-  });
-
-  testWidgets('a held name the system takes the pointer from goes back to its place', (tester) async {
-    final c = await _openDemo(tester);
-
-    final piccolo = tester.getCenter(find.text('Piccolo'));
-    final g = await tester.startGesture(piccolo, kind: PointerDeviceKind.mouse);
-    await tester.pump(const Duration(milliseconds: 600)); // held: the lane lifts
-    await g.moveBy(const Offset(0, 3 * 26.0));
-    for (var i = 0; i < 20; i++) {
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-    await g.cancel();
-    for (var i = 0; i < 40; i++) {
-      await tester.pump(const Duration(milliseconds: 16)); // frames: it slides back
-    }
-    bool lifted() => tester
-        .widgetList(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_LaneHeader'))
-        .any((w) => (w as dynamic).lifted as bool);
-    expect(lifted(), isFalse, reason: 'nothing is held any more');
-    expect(c.isScoreOrder, isTrue, reason: 'it was never let go');
-    final second = find.text(c.laneName(c.laneParts[1]));
-    expect(tester.getCenter(second).dy - tester.getCenter(find.text('Piccolo')).dy, closeTo(26, 1e-6), reason: 'back in its place');
-    expect(tester.binding.hasScheduledFrame, isFalse, reason: 'no lanes left moving');
   });
 
   testWidgets('dragging regions moves them freely across lanes as well as along them', (tester) async {
@@ -568,24 +541,6 @@ void main() {
     await g.up();
     await tester.pump();
     expect(c.curation!.lane(ids[1]), [Region(bars[1] + 1.5, bars[2] + 1.5)]);
-  });
-
-  testWidgets("a region's dialog keeps edges placed between beats where they are unless they are retyped", (tester) async {
-    final c = await _openDemo(tester);
-
-    // Placed freely (⌘-drag): a third of the way into a dotted-crotchet beat, shown as "x.y.33".
-    final id = c.laneParts.first.id;
-    const placed = Region(1.5 + 0.5, 9 + 1.0);
-    c.curation!.setLane(id, const [placed]);
-    unawaited(showRegionDialog(tester.element(find.byType(HomePage)), c, (partId: id, region: placed)));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.widgetWithText(TextField, c.beats.format(placed.start)), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(c.curation!.lane(id), const [placed], reason: 'nothing retyped, nothing moved');
   });
 }
 

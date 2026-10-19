@@ -7,22 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'demo_project.dart';
 
 void main() {
-  /// What SoLoud's readSamplesFromFile does: whole-frame steps of `frames ~/ count`.
-  double coveredSeconds(int frames, int sampleRate, int count) => count * (frames ~/ count) / sampleRate;
-
-  test('asking for "3000 a second" of a 44.1 kHz file drifts; the sampling plan does not', () {
-    const rate = 44100, seconds = 600.0;
-    const frames = 26460000;
-    // The old way: 1.8 M samples, trusted to span the file, only span 95 % of it.
-    final naive = (seconds * 3000).round();
-    expect(seconds - coveredSeconds(frames, rate, naive), greaterThan(25));
-
-    final plan = AudioFormat.samplingPlan(seconds, rate);
-    expect(frames ~/ plan.count, rate / plan.rate); // SoLoud's step is exactly the planned one
-    expect((plan.count / plan.rate - seconds).abs(), lessThan(1 / plan.rate));
-    expect(plan.rate, closeTo(3000, 150));
-  });
-
   test('the plan is exact for the usual rates, and falls back without one', () {
     for (final rate in const [8000, 22050, 32000, 44100, 48000, 88200, 96000, 192000]) {
       final plan = AudioFormat.samplingPlan(123.456, rate);

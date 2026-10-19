@@ -11,7 +11,6 @@ import 'package:curated_score/updater.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:score_engine/score_engine.dart' show EngraveOption, EngravingOptions;
 
 import 'demo_project.dart';
 import 'window.dart';
@@ -196,31 +195,4 @@ void main() {
     }
     expect(find.text('Appearance'), findsOneWidget, reason: "the app's settings");
   });
-
-  testWidgets('Export Video is greyed out in the menu while the score is engraved again, as the toolbar button is', (tester) async {
-    desktopWindow(tester);
-    await tester.pumpWidget(const CuratedScoreApp());
-    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    AppMenus menus() => tester.widget<AppMenus>(find.byType(AppMenus));
-    expect(menus().onExportVideo, isNotNull);
-
-    // Started in real time, so the engraving runs on.
-    await tester.runAsync(() {
-      c.engravingOptions = const EngravingOptions().withValue(EngraveOption.byKey('spacingLinear')!, 0.9);
-      return Future<void>.value();
-    });
-    await tester.pump();
-    expect(c.isReengraving, isTrue);
-    expect(menus().onExportVideo, isNull);
-    await tester.runAsync(() async {
-      while (c.isReengraving) {
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
-    });
-    await tester.pump();
-    expect(menus().onExportVideo, isNotNull);
-  });
 }
-

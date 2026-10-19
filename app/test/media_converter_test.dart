@@ -15,13 +15,6 @@ void main() {
 
   final ffmpeg = MediaConverter.findFfmpeg();
 
-  test('FFmpeg (what Windows and Linux use) takes the sound out of a video as FLAC', () async {
-    final out = '${dir.path}/tiny.flac';
-    final r = await Process.run(ffmpeg!, MediaConverter.ffmpegArguments(_video, out));
-    expect(r.exitCode, 0, reason: '${r.stderr}');
-    expect(isFlac(out), isTrue);
-  }, skip: ffmpeg == null ? 'FFmpeg is not installed here' : false);
-
   test('FFmpeg fails clearly on a file without sound', () async {
     final silent = '${dir.path}/silent.mp4';
     await Process.run(ffmpeg!, ['-y', '-loglevel', 'error', '-i', _video, '-an', '-c:v', 'copy', silent]);

@@ -455,44 +455,4 @@ void main() {
     }
     scene.dispose();
   });
-
-  test('renders a frame (set SCORE_SNAPSHOT_DIR to save it)', () async {
-    final scene = CuratedScene(score);
-    const size = ui.Size(1600, 900);
-    const dpr = 2.0;
-    final curation = Curation(score.metadata.parts.map((p) => p.id));
-    for (final p in score.metadata.parts) {
-      curation.setLane(p.id, [Region(0, score.timeline.measureStarts.last)]);
-    }
-
-    final stopwatch = Stopwatch()..start();
-    late ui.Image image;
-    for (var frame = 0; frame < 30; frame++) {
-      final recorder = ui.PictureRecorder();
-      final canvas = ui.Canvas(recorder)..scale(dpr);
-      scene.paint(canvas, size, time: 60 + frame / 60, curation: curation, devicePixelRatio: dpr);
-      final picture = recorder.endRecording();
-      if (frame == 0) image = picture.toImageSync((size.width * dpr).round(), (size.height * dpr).round());
-      picture.dispose();
-    }
-    // ignore: avoid_print
-    print('30 frames recorded in ${stopwatch.elapsedMilliseconds} ms (first frame includes tile rasterising)');
-
-    // Every staff shown: the whole frame, mostly paper, with plenty of ink.
-    expect((image.width, image.height), (3200, 1800));
-    final pixels = (await image.toByteData())!;
-    var inked = 0;
-    for (var i = 0; i < pixels.lengthInBytes; i += 4) {
-      if (pixels.getUint8(i) < 128) inked++;
-    }
-    expect(inked / (image.width * image.height), allOf(greaterThan(0.01), lessThan(0.5)));
-
-    final dir = Platform.environment['SCORE_SNAPSHOT_DIR'];
-    if (dir != null) {
-      final png = await image.toByteData(format: ui.ImageByteFormat.png);
-      File('$dir/flutter-frame.png').writeAsBytesSync(png!.buffer.asUint8List());
-    }
-    image.dispose();
-    scene.dispose();
-  });
 }

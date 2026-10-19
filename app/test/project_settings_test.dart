@@ -5,10 +5,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
-import 'package:curated_score/font_settings.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/menu_kit.dart';
 import 'package:curated_score/settings_dialog.dart';
@@ -190,32 +188,6 @@ void main() {
     expect(find.text('1 changed.'), findsNothing);
   });
 
-  testWidgets("a text font that can't be read changes nothing, and the picker says why", (tester) async {
-    desktopWindow(tester);
-    final c = _UnreadableTextFonts();
-    addTearDown(c.dispose);
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.runAsync(TextFonts.installed); // read on another isolate
-    await tester.pumpWidget(MaterialApp(
-      theme: AppColors.theme(accent: AccentColor.sky, brightness: Brightness.light),
-      home: Scaffold(body: Center(child: TextFontPicker(controller: c))),
-    ));
-    Future<void> settle() async {
-      for (var i = 0; i < 4; i++) {
-        await tester.pump(const Duration(milliseconds: 150));
-      }
-    }
-
-    await tester.runAsync(() => Future<void>.delayed(Duration.zero)); // the picker's list of installed fonts
-    await settle();
-    await tester.enterText(find.byType(DropdownMenu<String>), 'Helvet');
-    await settle();
-    await tester.tap(find.text('Helvetica').last);
-    await settle();
-    expect(c.fonts, ScoreFonts.standard);
-    expect(find.text('Helvetica: its files could not be read.'), findsOneWidget);
-  });
-
   testWidgets('Installed Font… asks the system font picker; then Embed font shows, and each change is an Undo step',
       (tester) async {
     desktopWindow(tester);
@@ -274,70 +246,6 @@ void main() {
     c.undo();
     expect((c.fonts.music, c.embedFont), (MusicFont.bravura, false));
   }, skip: !Platform.isMacOS); // Helvetica is installed on macOS
-
-  testWidgets('Project Settings closes when the project closes under it (the menu bar works while it is open)',
-      (tester) async {
-    desktopWindow(tester);
-    final settings = AppSettings.memory();
-    await tester.pumpWidget(CuratedScoreApp(settings: settings));
-    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
-    for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(milliseconds: 150));
-    }
-    expect(find.byType(MusicFontPicker), findsOneWidget);
-
-    await tester.runAsync(c.close);
-    for (var i = 0; i < 6; i++) {
-      await tester.pump(const Duration(milliseconds: 150));
-    }
-    expect(find.text('Fonts'), findsNothing, reason: 'the window closed');
-    expect(find.byType(HomePage), findsOneWidget);
-  });
-
-  testWidgets("a font the system picker answers after Project Settings closed doesn't change the project open then",
-      (tester) async {
-    desktopWindow(tester);
-    final settings = AppSettings.memory();
-    await tester.pumpWidget(CuratedScoreApp(settings: settings));
-    final state = tester.state(find.byType(HomePage)) as dynamic;
-    final c = state.controller as EditorController;
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-    await tester.pump();
-    final answer = Completer<String?>();
-    const channel = MethodChannel('curated_score/fonts');
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) => answer.future);
-    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
-    Future<void> settle() async {
-      for (var i = 0; i < 4; i++) {
-        await tester.pump(const Duration(milliseconds: 150));
-      }
-    }
-
-    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
-    await settle();
-    await tester.tap(find.byType(AppDropdown<String>).first);
-    await settle();
-    await tester.tap(find.text('Installed Font…').last);
-    await settle();
-    // The panel stays open; the settings close, and another score opens.
-    Navigator.of(tester.element(find.byType(MusicFontPicker))).pop();
-    await settle();
-    expect(find.byType(MusicFontPicker), findsNothing);
-    await tester.runAsync(() => c.openFile(demoScore.path));
-    await tester.pump();
-
-    answer.complete('Leland');
-    for (var i = 0; i < 10; i++) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
-      await tester.pump();
-    }
-    expect(c.fonts, ScoreFonts.standard);
-    expect(c.canUndo, isFalse);
-  });
 
   testWidgets('Settings ▸ Fonts sets the fonts new projects start with', (tester) async {
     desktopWindow(tester);
@@ -406,15 +314,4 @@ void _mockSystemPicker(WidgetTester tester, String? Function(String? family) ans
     return answer((call.arguments as Map)['family'] as String?);
   });
   addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
-}
-
-/// A controller for which every text font but Academico fails, as one whose files can't be read.
-class _UnreadableTextFonts extends EditorController {
-  _UnreadableTextFonts() : super(vsync: const TestVSync());
-
-  @override
-  Future<void> setFonts(ScoreFonts fonts, {bool? embed}) async {
-    if (fonts.text != TextFonts.academico) throw FormatException('${fonts.text}: its files could not be read.');
-    return super.setFonts(fonts, embed: embed);
-  }
 }

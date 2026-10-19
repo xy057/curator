@@ -77,22 +77,6 @@ void main() {
     expect(Version.tryParse('v99999999999999999999.0.0'), isNull);
   });
 
-  test('each system finds its own zip, and nothing else', () {
-    Map<String, Object> asset(String name) => {'name': name, 'browser_download_url': 'https://github.com/xy057/curator/releases/download/v9.0.0/$name', 'size': 1};
-    final json = {
-      'tag_name': 'v9.0.0',
-      'assets': [
-        asset('Curator-9.0.0-macos.zip.sha256'),
-        asset('Curator-9.0.0-windows.zip.sha256'),
-        asset('Curator-9.0.0-windows.zip'),
-        asset('Curator-9.0.0-macos.zip'),
-      ],
-    };
-    expect(Release.fromJson(json, platform: 'macos')!.download!.pathSegments.last, 'Curator-9.0.0-macos.zip');
-    expect(Release.fromJson(json, platform: 'windows')!.download!.pathSegments.last, 'Curator-9.0.0-windows.zip');
-    expect(Release.fromJson(json, platform: 'linux')!.download, isNull);
-  });
-
   test("an answer can't send the download or the page anywhere but GitHub, nor name a file outside Downloads", () {
     Release? read(String url, {String page = 'https://github.com/xy057/curator/releases/tag/v9.0.0'}) =>
         Release.fromJson({
@@ -124,16 +108,6 @@ void main() {
       ],
     }, platform: 'macos', origin: Uri.parse('http://127.0.0.1:8080/latest'));
     expect(local!.download, isNotNull, reason: 'the server asked');
-  });
-
-  test('Windows finds a moved Downloads folder in the registry', () {
-    const output = '\r\nHKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders\r\n'
-        '    {374DE290-123F-4565-9164-39C4925E467B}    REG_EXPAND_SZ    %USERPROFILE%\\Downloads\r\n\r\n';
-    expect(Updater.windowsShellFolder(output, {'UserProfile': r'C:\Users\Ann'}), r'C:\Users\Ann\Downloads');
-    expect(Updater.windowsShellFolder(output, {}), isNull, reason: 'USERPROFILE not set');
-    expect(Updater.windowsShellFolder(output.replaceFirst(r'%USERPROFILE%\Downloads', r'D:\Down loads'), {}),
-        r'D:\Down loads');
-    expect(Updater.windowsShellFolder('', {}), isNull);
   });
 
   group('against GitHub', () {

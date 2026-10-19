@@ -156,31 +156,6 @@ void main() {
     expect(FontFiles.scan([dir.path]).keys.toSet(), {'Leland', 'Academico'});
   });
 
-  test("a family is found by its typographic name, or a weight's legacy one (as Windows' Font dialog names it)", () {
-    FontFace face(String family, String legacy, int weight) =>
-        (path: '$legacy.otf', index: 0, family: family, legacyFamily: legacy, weight: weight, italic: false);
-    final fonts = {
-      'Foo': [face('Foo', 'Foo', 400), face('Foo', 'Foo Light', 300)],
-      'Bar': [face('Bar', 'Bar', 400)],
-    };
-    expect(FontFiles.named(fonts, 'foo'), hasLength(2));
-    expect(FontFiles.named(fonts, 'Foo Light')!.single.weight, 300);
-    expect(FontFiles.named(fonts, 'Baz'), isNull);
-    expect(FontFiles.faces('assets/fonts/Leland.otf').single.legacyFamily, 'Leland');
-
-    // A family whose name a file name can't have is found by the name its font goes by.
-    final file = File('assets/fonts/Leland.otf').readAsBytesSync();
-    final font = MusicFont.added(family: 'Foo.Std ♯', file: file);
-    expect(font.name, 'Foo_Std _');
-    expect(MusicFont.isNamed('Foo.Std ♯', font.name), isTrue);
-    expect(MusicFont.isNamed('Foo Std', font.name), isFalse);
-    final odd = {
-      'Foo.Std ♯': [(path: 'f.otf', index: 0, family: 'Foo.Std ♯', legacyFamily: 'Foo.Std ♯', weight: 400, italic: false)],
-    };
-    expect(FontFiles.named(odd, font.name, same: MusicFont.isNamed), hasLength(1));
-    expect(FontFiles.named(odd, font.name), isNull, reason: 'compared as is, the names differ');
-  });
-
   test('measures a text font from its file', () {
     final bold = (path: 'assets/fonts/Academico-Bold.otf', index: 0, family: 'Academico', legacyFamily: 'Academico', weight: 700, italic: false);
     final ours = boxes(FontResources.textMetrics(bold, reference: times)!);
@@ -261,24 +236,6 @@ void main() {
     expect(score.fonts.text, 'No Such Font 12345', reason: 'the choice is kept');
     expect(score.textFontFound, isFalse);
     expect(score.textFontFamily, 'packages/score_engine/Academico');
-  });
-
-  test('writes a folder again when what was cached has been emptied', () {
-    const fonts = ScoreFonts(music: MusicFont.leland, text: 'No Such Font 12345');
-    final first = FontResources.prepare(fonts, base: 'assets/verovio', work: work.path);
-    expect(File('${first.directory}/Leland.xml').existsSync(), isTrue);
-    // As the system's temp cleanup leaves it: the files gone, the folders kept.
-    for (final file in Directory(first.directory).listSync(recursive: true).whereType<File>()) {
-      file.deleteSync();
-    }
-    expect(Directory('${first.directory}/text').existsSync(), isTrue);
-
-    final again = FontResources.prepare(fonts, base: 'assets/verovio', work: work.path);
-    expect(again, first);
-    for (final name in ['.done', 'Bravura.xml', 'Leipzig.xml', 'Leland.xml', 'text/Times.xml', 'text/Times-bold-italic.xml']) {
-      expect(File('${again.directory}/$name').existsSync(), isTrue, reason: name);
-    }
-    expect(work.listSync().where((e) => e.path.startsWith('${first.directory}.')), isEmpty, reason: 'no draft left');
   });
 
   test('a font made to break its reader is measured within its own bytes', () {

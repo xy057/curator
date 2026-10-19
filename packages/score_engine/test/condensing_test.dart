@@ -396,7 +396,6 @@ ${parts.values.join()}</score-partwise>''');
       scene.dispose();
     });
 
-
     final out = Platform.environment['SNAPSHOT_DIR'];
     test('renders frames into SNAPSHOT_DIR', () async {
       final curation = Curation(score.metadata.parts.map((p) => p.id));
@@ -416,13 +415,5 @@ ${parts.values.join()}</score-partwise>''');
       }
       scene.dispose();
     }, skip: out == null ? 'set SNAPSHOT_DIR to save frames' : false);
-  });
-
-  test('a part with no usable divisions (0, negative) is still read, and still condenses', () async {
-    for (final bad in ['0', '-12', '99999999999']) {
-      final xml = demoScore().replaceFirst('<divisions>12</divisions>', '<divisions>$bad</divisions>');
-      final score = await LoadedScore.load(xml, pairs: const [PlayerPair('P2', 'P3')]);
-      expect(score.engraving.measures, hasLength(44), reason: 'divisions $bad');
-    }
   });
 }

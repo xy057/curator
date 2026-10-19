@@ -327,7 +327,7 @@ page, the toolbar, the score view, the bottom panel, the lanes and their names e
 a `Select` (ui_kit.dart) only when what they show changes; painters listen for themselves.
 Resizing the window rebuilds nothing either: a layout builder returns children built outside it
 (the same widgets, so only laid out again), and only what changes with the window's size reads
-`MediaQuery.sizeOf` (`test/resize_rebuild_test.dart`). The score's `SpacingPlan` and
+`MediaQuery.sizeOf`. The score's `SpacingPlan` and
 `KeyColumnPlan` are made again at each new size, so they work a segment's keyframe out only when a
 frame first needs it. The lanes repaint at every frame of playback and read the controller for
 each lane, so what they read is kept until what it comes from is replaced: `laneParts` and
@@ -580,8 +580,7 @@ flutter/flutter#190357). The overlay is then sent with no parent, the desktop en
 the update ("Failed to update ui::AXTree" in `make run`), and its tree stays broken. So:
 `Tip`, never `Tooltip` (and `ToolbarButton` for icon buttons); a `Slider` inside
 `OverlaySemantics`; `showAppDialog`, never `showDialog`; and a fade over any of them keeps its
-semantics (`alwaysIncludeSemantics: true`). `test/accessibility_tree_test.dart` replays every
-update through a model of the engine's tree (`test/accessibility_mirror.dart`).
+semantics (`alwaysIncludeSemantics: true`).
 
 **Fonts: engraving and drawing agree.** Verovio lays out with the metrics of the same fonts
 the renderer draws. A project chooses its fonts (Project Settings ▸ Fonts, `ScoreFonts`: an edit,
