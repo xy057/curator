@@ -56,9 +56,14 @@ class RotatedGlyphItem extends DisplayItem {
   }
 }
 
+/// A staff line, run on through every measure it continues into, in device units.
+typedef StaffLine = ({double y, double left, double right, double thickness});
+
 /// Everything drawn for one staff, bucketed by x so a tile only touches nearby items.
+/// The staff lines are kept apart ([lines]): they are drawn each frame, so they start exactly
+/// where the frozen zone's lines stop.
 class StaffLayer {
-  StaffLayer(this.info, this.items, {required double binWidth}) : _binWidth = binWidth {
+  StaffLayer(this.info, this.items, {required double binWidth, this.lines = const []}) : _binWidth = binWidth {
     final maxX = items.fold<double>(0, (m, i) => math.max(m, i.bounds.right));
     final count = (maxX / binWidth).floor() + 1;
     _bins = List.generate(count, (_) => <int>[]);
@@ -76,6 +81,7 @@ class StaffLayer {
 
   final StaffInfo info;
   final List<DisplayItem> items;
+  final List<StaffLine> lines;
   final double _binWidth;
   late final List<List<int>> _bins;
   late final List<double> _binTop, _binBottom; // ink extent per bin, relative to the top line
@@ -83,8 +89,13 @@ class StaffLayer {
 
   /// Where the staff's ink begins (its staff lines, which start before the first barline);
   /// null for an empty staff.
-  late final double? inkLeft =
-      items.isEmpty ? null : items.fold<double>(double.infinity, (m, i) => math.min(m, i.bounds.left));
+  late final double? inkLeft = items.isEmpty && lines.isEmpty
+      ? null
+      : math.min(items.fold<double>(double.infinity, (m, i) => math.min(m, i.bounds.left)),
+          lines.fold<double>(double.infinity, (m, l) => math.min(m, l.left)));
+
+  /// Whether a staff line runs anywhere in [left, right].
+  bool hasLinesIn(double left, double right) => lines.any((l) => l.right >= left && l.left <= right);
 
   /// Items whose bounds may intersect [left, right].
   Iterable<DisplayItem> itemsIn(double left, double right) sync* {
@@ -193,7 +204,10 @@ class ScoreDisplayList {
     final builder = _ItemBuilder(data, style);
     final byStaff = <int, List<DisplayItem>>{};
     final barlineItems = <DisplayItem>[];
+    final lines = <int, List<StaffLine>>{};
     final barLineClass = data.classNames.indexOf('barLine');
+    final staffClass = data.classNames.indexOf('staff');
+    final staffInfo = {for (final info in data.staves) info.n: info};
     final keyClasses = {
       for (final (i, name) in data.classNames.indexed)
         if (name == 'keySig' || name == 'keyAccid') i,
@@ -206,6 +220,13 @@ class ScoreDisplayList {
       if (withoutKeySignatures.contains(staff) && keyClasses.contains(data.commandInts[i * Cmd.words + Cmd.classIndex])) {
         continue;
       }
+      if (data.commandInts[i * Cmd.words + Cmd.classIndex] == staffClass) {
+        final line = _staffLine(data, i, staffInfo[staff]);
+        if (line != null) {
+          lines.putIfAbsent(staff, () => []).add(line);
+          continue;
+        }
+      }
       final item = builder.item(i);
       if (item == null) continue;
       (staff == 0 ? barlineItems : byStaff.putIfAbsent(staff, () => [])).add(item);
@@ -213,9 +234,47 @@ class ScoreDisplayList {
     final binWidth = data.staffSpace * 16;
     return ScoreDisplayList._(
       data,
-      [for (final info in data.staves) StaffLayer(info, byStaff[info.n] ?? [], binWidth: binWidth)],
+      [
+        for (final info in data.staves)
+          StaffLayer(info, byStaff[info.n] ?? [], binWidth: binWidth, lines: _joined(lines[info.n] ?? const []))
+      ],
       StaffLayer(const StaffInfo(n: 0, top: 0, height: 0, lines: 0), barlineItems, binWidth: binWidth),
     );
+  }
+
+  /// Command [i] as a staff line: a plain horizontal stroke within the staff (a ledger line,
+  /// drawn as 'staff' too, lies outside it); null for anything else.
+  static StaffLine? _staffLine(EngravingData data, int i, StaffInfo? staff) {
+    final ints = data.commandInts, floats = data.commandFloats, base = i * Cmd.words;
+    if (staff == null ||
+        ints[base + Cmd.kind] != VBKind.path ||
+        ints[base + Cmd.count] != 2 ||
+        ints[base + Cmd.flags] != VBFlag.stroke ||
+        floats[base + Cmd.dash] > 0) {
+      return null;
+    }
+    final e = ints[base + Cmd.start];
+    if (data.pathInts[e * 7] != VBPathOp.move || data.pathInts[(e + 1) * 7] != VBPathOp.line) return null;
+    final f = data.pathFloats;
+    final x0 = f[e * 7 + 1], y0 = f[e * 7 + 2], x1 = f[(e + 1) * 7 + 1], y1 = f[(e + 1) * 7 + 2];
+    final slack = data.staffSpace / 4;
+    if (y0 != y1 || y0 < staff.top - slack || y0 > staff.top + staff.height + slack) return null;
+    return (y: y0, left: math.min(x0, x1), right: math.max(x0, x1), thickness: floats[base + Cmd.strokeWidth]);
+  }
+
+  /// Each measure's lines joined into one run while they meet, so no seam shows between them.
+  static List<StaffLine> _joined(List<StaffLine> lines) {
+    final sorted = [...lines]..sort((a, b) => a.y != b.y ? a.y.compareTo(b.y) : a.left.compareTo(b.left));
+    final out = <StaffLine>[];
+    for (final line in sorted) {
+      final last = out.lastOrNull;
+      if (last != null && last.y == line.y && last.thickness == line.thickness && line.left <= last.right + 0.5) {
+        out.last = (y: last.y, left: last.left, right: math.max(last.right, line.right), thickness: last.thickness);
+      } else {
+        out.add(line);
+      }
+    }
+    return out;
   }
 }
 

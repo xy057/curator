@@ -134,18 +134,39 @@ class ScoreRenderer {
     final firstTile = math.max(0, (left / _tileUnits).floor());
     final lastTile = (right / _tileUnits).floor() + 1; // one ahead, so new tiles are ready early
 
+    // The staff lines start where the frozen zone's stop, past the fade: drawn there twice (the
+    // music's, faded, under the zone's), a line came out heavier on the pixel rows it only
+    // partly covers, plainly so in light ink on dark paper. On a whole device pixel, so the two
+    // meet without a seam.
+    final linesFrom =
+        frozen == null ? -double.infinity : ((musicLeft + _fade) * devicePixelRatio).ceilToDouble() / devicePixelRatio;
     final paint = ui.Paint()
       ..filterQuality = ui.FilterQuality.low
       ..colorFilter = inkFilter;
+    final linePaint = ui.Paint()..color = ink ?? style.ink;
     for (final placement in placements) {
       if (placement.opacity <= 0.001) continue;
-      paint.color = ui.Color.fromRGBO(0, 0, 0, placement.opacity.clamp(0.0, 1.0));
+      final opacity = placement.opacity.clamp(0.0, 1.0);
       final y = _snap(placement.y, devicePixelRatio);
+      final staff = display.staves[placement.staffIndex];
+      final tiles = <(double, _Tile)>[];
+      var top = y, bottom = y + staff.info.height * scale;
       for (var t = firstTile; t <= lastTile; t++) {
         final tile = _tile(placement.staffIndex, t);
         if (tile == null) continue;
         final x = originX + t * tileWidth;
         if (x > size.width || x + tileWidth < 0) continue; // prepared, but off screen
+        tiles.add((x, tile));
+        top = math.min(top, y + tile.top);
+        bottom = math.max(bottom, y + tile.top + tile.image.height / devicePixelRatio);
+      }
+      // A staff fading in or out fades as one: lines and notes over them blend as they do at full.
+      final faded = opacity < 0.999;
+      if (faded) {
+        canvas.saveLayer(
+            ui.Rect.fromLTRB(0, top - 1, size.width, bottom + 1), ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, opacity));
+      }
+      for (final (x, tile) in tiles) {
         canvas.drawImageRect(
           tile.image,
           ui.Rect.fromLTWH(0, 0, tile.image.width.toDouble(), tile.image.height.toDouble()),
@@ -153,6 +174,14 @@ class ScoreRenderer {
           paint,
         );
       }
+      for (final line in staff.lines) {
+        final left = math.max(math.max(originX + line.left * scale, linesFrom), 0.0);
+        final right = math.min(originX + line.right * scale, size.width);
+        if (right <= left) continue;
+        final lineY = y + (line.y - staff.info.top) * scale, half = line.thickness * scale / 2;
+        canvas.drawRect(ui.Rect.fromLTRB(left, lineY - half, right, lineY + half), linePaint);
+      }
+      if (faded) canvas.restore();
     }
 
     // Over the music, under the names, the frozen zone and the pointer (images on the score).
@@ -183,7 +212,7 @@ class ScoreRenderer {
             scoreX: edgeX,
             keyColumn: column,
             fadeWidth: _fade,
-            linesTo: inkLeft == null ? 0 : originX + inkLeft * scale);
+            linesTo: math.max(linesFrom, inkLeft == null ? 0 : originX + inkLeft * scale));
         if (faded) canvas.restore();
       }
       for (final brace in braces) {
@@ -271,7 +300,7 @@ class ScoreRenderer {
     final s = scale, dpr = _tileDpr;
     final left = index * _tileUnits, right = left + _tileUnits;
     final items = staff.itemsIn(left, right).toList();
-    if (items.isEmpty) return null;
+    if (items.isEmpty && !staff.hasLinesIn(left, right)) return null; // lines alone: still its barlines
 
     // Vertical extent: the staff lines plus whatever ink reaches outside them in this tile.
     // One-line (percussion) staves get barlines a staff space above and below the line.
