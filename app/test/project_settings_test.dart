@@ -1,4 +1,4 @@
-// Drives File ▸ Project Settings… with real taps: its Fonts page and Undo through font
+// Drives File ▸ Project Settings… with real taps: its fonts and Undo through font
 // changes, the staff transition, and the project's own engraving options; its Sections page.
 // With SCREENSHOT_DIR set, also saves PNGs of the Fonts and Sections pages for visual review.
 import 'dart:async';
@@ -24,7 +24,7 @@ import 'test_fonts.dart';
 import 'window.dart';
 
 void main() {
-  testWidgets('Project Settings ▸ Fonts engraves the score in another music and text font, each an Undo step',
+  testWidgets('Project Settings ▸ Engraving: the fonts engrave the score in another music and text font, each an Undo step',
       (tester) async {
     desktopWindow(tester);
     final settings = AppSettings.memory();
@@ -48,11 +48,11 @@ void main() {
     }
 
     expect(c.fonts, ScoreFonts.standard);
-    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Fonts'));
+    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Engraving'));
     await tester.runAsync(TextFonts.installed); // read on another isolate
     await settle();
-    expect(find.text('Music'), findsOneWidget);
-    expect(find.text('Caption'), findsNothing, reason: 'Captions is off');
+    expect(find.text('Music font'), findsOneWidget);
+    expect(find.text('Caption font'), findsNothing, reason: 'Captions is off');
 
     // Music: Leland, from the list.
     await tester.tap(find.byType(AppDropdown<String>).first);
@@ -99,9 +99,18 @@ void main() {
     await engraved();
     expect(c.score!.fonts.music, MusicFont.leland);
 
+    // Save as default: the fonts for new projects.
+    await tester.scrollUntilVisible(find.text('Save'), 300,
+        scrollable: find.descendant(of: find.byType(ListView).last, matching: find.byType(Scrollable)).first);
+    await settle();
+    await tester.tap(find.text('Save'));
+    await settle();
+    expect(settings.musicFont, MusicFont.leland.name);
+    expect(find.text('Same as default.'), findsOneWidget);
+
     await tester.tap(find.byTooltip('Close'));
     await settle();
-    expect(find.text('Music'), findsNothing);
+    expect(find.text('Music font'), findsNothing);
   });
 
   testWidgets('Project Settings ▸ Sections: a bracket dragged over another instrument, shown as it moves; two selected bracketed; each an Undo step',

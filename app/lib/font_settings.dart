@@ -1,4 +1,4 @@
-/// Project Settings ▸ Fonts: the music font (a bundled SMuFL font, one installed with SMuFL
+/// Project Settings ▸ Engraving ▸ Fonts: the music font (a bundled SMuFL font, one installed with SMuFL
 /// metadata, another installed one from the system's own font picker, or a font file) and
 /// whether it is embedded, and the text font (Academico or any installed family) the score is
 /// engraved in; with Captions on, the font its captions are drawn in (Default: the app's,

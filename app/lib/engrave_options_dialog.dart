@@ -12,18 +12,13 @@ import 'menu_kit.dart';
 import 'ui_kit.dart';
 
 /// Engraving options (at the foot of the Engraving page, after a warning): every Verovio option
-/// that is safe to change ([EngraveOption.all]) by its code name, for those who know Verovio.
-/// A change is saved at once (for every score) and re-engraves the open score (or the demo),
-/// shown beside the list.
-///
-/// With [project] (Project Settings ▸ Engraving), the open project's own, over the app's: each
-/// change an edit, a reset going back to the app's value.
-Future<void> showEngraveOptionsDialog(BuildContext context, AppSettings settings,
-        {EditorController? controller, bool project = false}) =>
+/// that is safe to change ([EngraveOption.all]) by its code name, for those who know Verovio:
+/// the open project's (Project Settings ▸ Engraving), each change an edit that re-engraves the
+/// score, shown beside the list; a reset goes back to the house style.
+Future<void> showEngraveOptionsDialog(BuildContext context, AppSettings settings, EditorController controller) =>
     showAppDialog<void>(
       context: context,
-      builder: (context) =>
-          _EngraveOptionsDialog(target: EngravingTarget(settings, controller, project: project)),
+      builder: (context) => _EngraveOptionsDialog(target: EngravingTarget(settings, controller)),
     );
 
 class _EngraveOptionsDialog extends StatefulWidget {
@@ -54,7 +49,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
       clipBehavior: Clip.antiAlias,
       insetPadding: const EdgeInsets.all(32),
       child: ListenableBuilder(
-        listenable: Listenable.merge([target.settings, _search, ?c]),
+        listenable: Listenable.merge([target.settings, _search, c]),
         builder: (context, _) {
           return SizedBox(
             width: math.min(1200, size.width - 64),
@@ -101,7 +96,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
           IconButton(
             icon: Icon(AppIcon.reset.of(context), size: 18),
             tooltip: 'Reset All',
-            onPressed: target.own.isEmpty ? null : () => target.own = const EngravingOptions(),
+            onPressed: target.anyChanged ? target.resetAll : null,
           ),
           IconButton(
             icon: Icon(AppIcon.close.of(context), size: 18),
@@ -121,8 +116,7 @@ class _EngraveOptionsDialogState extends State<_EngraveOptionsDialog> {
               option: option,
               value: target.valueOf(option),
               changed: target.isChanged(option),
-              // The house style's, or in a project the app's.
-              base: '${target.project ? 'app' : 'default'}: ${formatOptionValue(target.baseOf(option))}',
+              base: 'default: ${formatOptionValue(target.baseOf(option))}',
               onChanged: (v) => target.set(option, v),
             );
           },

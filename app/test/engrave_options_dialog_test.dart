@@ -1,4 +1,4 @@
-// Settings ▸ Engraving ▸ Engraving options with a score open: the preview beside the list shows
+// Project Settings ▸ Engraving ▸ Engraving options with a score open: the preview beside the list shows
 // the score engraved again after each change. With SCREENSHOT_DIR set, saves PNGs.
 import 'dart:async';
 
@@ -44,7 +44,7 @@ void main() {
       await settle();
     }
 
-    unawaited(showEngraveOptionsDialog(tester.element(find.byType(HomePage)), settings, controller: c));
+    unawaited(showEngraveOptionsDialog(tester.element(find.byType(HomePage)), settings, c));
     await settle();
     final preview = find.descendant(of: find.byType(Dialog), matching: find.byType(Slider));
     expect(preview, findsOneWidget, reason: 'a preview, scrubbed with its own slider');
@@ -71,12 +71,12 @@ void main() {
     await tester.drag(preview, const Offset(200, 0));
     await settle();
     expect(c.playback.time.value, 20);
-    expect(settings.engravingOptions.valueOf(EngraveOption.byKey('spacingLinear')!), 0.95);
+    expect(c.projectEngraving.valueOf(EngraveOption.byKey('spacingLinear')!), 0.95);
     Navigator.pop(tester.element(find.byType(Dialog)));
     await settle();
 
-    // Settings ▸ Engraving shows the same preview above its sliders.
-    unawaited(showSettingsDialog(tester.element(find.byType(HomePage)), settings, controller: c, page: 'Engraving'));
+    // Project Settings ▸ Engraving shows the same preview above its sliders.
+    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Engraving'));
     await settle();
     final pagePreview = find.descendant(of: find.byType(EngravingPreview), matching: find.byType(CustomPaint));
     expect(pagePreview, findsWidgets);

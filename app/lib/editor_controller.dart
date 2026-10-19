@@ -480,7 +480,8 @@ class EditorController extends ChangeNotifier {
   bool get isReengraving => _reengraving || _preparingFonts > 0;
   int _preparingFonts = 0;
 
-  /// The Verovio options scores are engraved with (Settings ▸ Engraving, for every project; under [projectEngraving]). Not
+  /// The Verovio options scores are engraved with (the app's defaults, from Project Settings ▸
+  /// Engraving ▸ Save as default; under [projectEngraving]). Not
   /// an edit: changing them re-engraves what is open, and the project stays as it was.
   EngravingOptions get engravingOptions => _engravingOptions;
   EngravingOptions _engravingOptions = const EngravingOptions();
@@ -599,7 +600,7 @@ class EditorController extends ChangeNotifier {
 
   // MARK: Fonts
 
-  /// The music and text fonts the score is engraved in (Project Settings ▸ Fonts). The engraving
+  /// The music and text fonts the score is engraved in (Project Settings ▸ Engraving). The engraving
   /// catches up a moment later ([isReengraving]).
   ScoreFonts get fonts => _doc.fonts;
 
@@ -637,7 +638,7 @@ class EditorController extends ChangeNotifier {
     await engraved;
   }
 
-  /// Whether an added music font is saved inside the project (Project Settings ▸ Fonts): an
+  /// Whether an added music font is saved inside the project (Project Settings ▸ Engraving): an
   /// edit. Off, only its name is saved and the font is looked for where the project opens.
   /// A missing font has nothing to embed: it can't be switched on ([canEmbedFont]).
   bool get embedFont => _doc.embedFont;

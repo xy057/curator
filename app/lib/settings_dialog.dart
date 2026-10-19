@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show EngravingOptions, MusicFont, verovioVersion;
+import 'package:score_engine/score_engine.dart' show EngraveOption, MusicFont, verovioVersion;
 
 import 'app_colors.dart';
 import 'app_extensions.dart';
@@ -223,7 +223,6 @@ final _categories = <_Category>[
     _Item('Text', (_) => 'For new projects.', (c) => TextFontPicker.forNewProjects(settings: c.settings),
         keywords: 'font academico family typeface default'),
   ]),
-  _engravingCategory(project: false),
   _Category('Recording', AppIcon.audio, [
     _Item(
       'Save the recording',
@@ -326,25 +325,7 @@ final _projectCategories = <_Category>[
       keywords: 'fade duration enter leave glide',
     ),
   ]),
-  _Category('Fonts', AppIcon.fonts, [
-    _Item('Music', null, (c) => MusicFontPicker(controller: c.controller!), keywords: 'font smufl bravura leland petaluma notation'),
-    _Item(
-      'Embed font',
-      null,
-      (c) => EmbedFontSwitch(controller: c.controller!),
-      shown: (c) => !c.controller!.fonts.music.isBundled, // a bundled one is in every copy of the app
-      keywords: 'font embed include file installed',
-    ),
-    _Item('Text', null, (c) => TextFontPicker(controller: c.controller!), keywords: 'font academico family typeface'),
-    _Item(
-      'Caption',
-      null,
-      (c) => TextFontPicker(controller: c.controller!, caption: true),
-      shown: (c) => c.controller!.captions.enabled,
-      keywords: 'font captions family typeface',
-    ),
-  ]),
-  _engravingCategory(project: true),
+  _engravingCategory(),
   _Category('Sections', AppIcon.lanes, page: (c) => _SectionsPage(c), [
     _Item(
       'Group sections',
@@ -456,17 +437,37 @@ class _SectionsPage extends StatelessWidget {
   }
 }
 
-/// Engraving: the options most scores want changed ([EngravingSetting.all]) under a preview
-/// of the open score (or the demo), and every other one in Engraving options, by code name. The app's apply to
-/// every project; a project's over them.
-_Category _engravingCategory({required bool project}) {
-  EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller, project: project);
+/// Project Settings ▸ Engraving: the fonts, the options most scores want changed
+/// ([EngravingSetting.all]) under a preview of the score, every other one in Engraving options
+/// by code name, and Save as default (the app's, for other projects).
+_Category _engravingCategory() {
+  EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller!);
   return _Category(
     'Engraving',
     AppIcon.music,
     header: (c) => SizedBox(
         height: 170, child: EngravingPreviewHost(settings: c.settings, controller: c.controller, scale: 0.5)),
     [
+      _Item('Music font', null, (c) => MusicFontPicker(controller: c.controller!),
+          group: 'Fonts', keywords: 'font smufl bravura leland petaluma notation'),
+      _Item(
+        'Embed font',
+        null,
+        (c) => EmbedFontSwitch(controller: c.controller!),
+        shown: (c) => !c.controller!.fonts.music.isBundled, // a bundled one is in every copy of the app
+        group: 'Fonts',
+        keywords: 'font embed include file installed',
+      ),
+      _Item('Text font', null, (c) => TextFontPicker(controller: c.controller!),
+          group: 'Fonts', keywords: 'font academico family typeface'),
+      _Item(
+        'Caption font',
+        null,
+        (c) => TextFontPicker(controller: c.controller!, caption: true),
+        shown: (c) => c.controller!.captions.enabled,
+        group: 'Fonts',
+        keywords: 'font captions family typeface',
+      ),
       for (final s in EngravingSetting.all)
         _Item(
           s.title,
@@ -477,34 +478,40 @@ _Category _engravingCategory({required bool project}) {
         ),
       _Item(
         'Engraving options',
-        (c) => _changedText(target(c).own, project ? 'Overrides the app’s.' : 'Every project.'),
-        (c) => _EngraveOptionButton(c, project: project),
+        (c) => switch (EngraveOption.all.where(target(c).isChanged).length) {
+          0 => 'None changed.',
+          1 => '1 changed.',
+          final n => '$n changed.',
+        },
+        (c) => _EngraveOptionButton(c),
         group: 'All options',
         keywords: 'engrave engraving verovio advanced expert options code spacing slur tie beam stem '
             'thickness margin bar number lyric',
+      ),
+      _Item(
+        'Save as default',
+        (c) => target(c).isDefault ? 'Same as default.' : 'Fonts and engraving, for other projects.',
+        (c) => OutlinedButton(
+          onPressed: target(c).isDefault ? null : target(c).saveAsDefault,
+          child: const Text('Save'),
+        ),
+        group: 'Default',
+        keywords: 'default save app every new project fonts engraving house style',
       ),
     ],
   );
 }
 
-/// How many of [options] are set, or [none] while there are none.
-String _changedText(EngravingOptions options, String none) => switch (options.overrides.length) {
-      0 => none,
-      1 => '1 changed.',
-      final n => '$n changed.',
-    };
-
-/// Opens the engraving options, the app's or the project's, after the warning.
+/// Opens the project's engraving options, after the warning.
 class _EngraveOptionButton extends StatelessWidget {
-  const _EngraveOptionButton(this.c, {required this.project});
+  const _EngraveOptionButton(this.c);
   final _Context c;
-  final bool project;
 
   @override
   Widget build(BuildContext context) => OutlinedButton(
         onPressed: () async {
           if (!await _confirmEngraving(context) || !context.mounted) return;
-          unawaited(showEngraveOptionsDialog(context, c.settings, controller: c.controller, project: project));
+          unawaited(showEngraveOptionsDialog(context, c.settings, c.controller!));
         },
         child: const Text('Open…'),
       );

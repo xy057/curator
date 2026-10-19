@@ -203,7 +203,7 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Whether new projects embed their music font (Project Settings ▸ Fonts ▸ Embed font).
+  /// Whether new projects embed their music font (Project Settings ▸ Engraving ▸ Embed font).
   bool get embedFont => _embedFont;
   bool _embedFont;
   set embedFont(bool value) {

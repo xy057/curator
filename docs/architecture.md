@@ -10,7 +10,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `src/verovio_bridge.cpp` | A Verovio device context that records drawing calls (paths, glyphs, text) per staff, plus measures, onsets and clef/key/time signatures, behind a C API |
-| `engraving_options.dart` | The Verovio options the user may change (Settings ▸ Engraving: the common ones by plain name, every one in Engraving options by code name; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
+| `engraving_options.dart` | The Verovio options the user may change (Project Settings ▸ Engraving: the common ones by plain name, every one in Engraving options by code name; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
 | `lib/src/native/bindings.dart`, `engraving.dart` | FFI bindings; `Engraver.engrave` runs Verovio on an isolate and copies everything into plain Dart data (`EngravingData`) |
 | `score_metadata.dart`, `score_text.dart` | What the MusicXML says: parts, staves, meters, where each part plays; the editable texts, with text edits applied before engraving |
 | `text_dynamics.dart` | Dynamics another program wrote as text (`TextDynamics`), made dynamics before engraving |
@@ -43,7 +43,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `caption_settings.dart` | Settings ▸ Extensions ▸ Captions' own settings: font, position, countdown, size, with a preview |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and File ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
-| `font_settings.dart` | Project Settings ▸ Fonts: the music and text font a project is engraved in, and its caption font |
+| `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
@@ -246,7 +246,7 @@ font, position (`CaptionPosition`: under the staves or above them, which then si
 the bar's room), countdown (`CaptionCountdown`: the hairline, a ring left of the text that
 empties clockwise, or none) and size (`CaptionSize`; the room grows with it). Position,
 countdown and size are the app's (the extension's settings button; `AppSettings.caption*`,
-not edits). The font is the project's when it has one (Project Settings ▸ Fonts ▸ Caption, shown while
+not edits). The font is the project's when it has one (Project Settings ▸ Engraving ▸ Caption, shown while
 the switch is on: an edit, saved as `fonts.caption` from format 12), else the app's ('' is the
 score's text font); an installed family is read and registered before it is drawn
 (`CaptionEditing._applyStyle`, the latest call winning), and one not installed here falls back
@@ -478,11 +478,13 @@ options, flags) is one `EngraveRequest`; the score keeps the one it was engraved
 (`LoadedScore.request`), and an edit that changes the controller's (`_requestFor`) engraves again.
 Dart then sends every option in
 `EngraveOption.all`, with the house style's value unless the user changed it, so the house
-style lives in that list alone. They are set twice over: the app's (Settings ▸ Engraving, in
-`AppSettings`; not part of a project, not an edit), and the open project's over them (Project
-Settings ▸ Engraving, `EditorController.projectEngraving`: an edit, saved as `state.engraving`
-from format 13). A project's keep a value set back to the house style's (`keepDefault`), so
-it still wins over the app's; a reset there goes back to the app's value. Only its options are ever sent, so none of the fixed ones can be
+style lives in that list alone. They are set twice over: the app's defaults (in `AppSettings`;
+not part of a project, not an edit, set only by Project Settings ▸ Engraving ▸ Save as default,
+which also saves the project's fonts for new projects), and the open project's over them
+(Project Settings ▸ Engraving, `EditorController.projectEngraving`: an edit, saved as
+`state.engraving` from format 13). A project's keep a value set back to the house style's
+(`keepDefault`), so it still wins over the app's; a reset there goes back to the house style,
+over a default too. Only its options are ever sent, so none of the fixed ones can be
 overridden; none may change the bars or the staves (`expand`, `transpose`, `mdiv*` stay out).
 Their types, ranges and choices are checked against Verovio's own list
 (`Engraver.availableOptions`); an out-of-range value would be dropped by Verovio without a
@@ -492,8 +494,8 @@ The Engraving page offers the options most scores want changed (`EngravingSettin
 half-size preview of the open score (with none, `EngravingPreviewHost` engraves the bundled demo in a
 controller of its own, with the app's options, for as long as the preview is shown); a slider sets its option only when let go, so a drag is one
 engraving and, in a project, one Undo step. Every option, by code name, stays behind its last row,
-Engraving options, after a warning. Both read and write through `EngravingTarget` (the app's, or the
-project's over them), which shows a line thickness left unset as the open score's font's own.
+Engraving options, after a warning. Both read and write through `EngravingTarget` (the
+project's, over the app's), which shows a line thickness left unset as the open score's font's own.
 
 **Colours are chosen when drawing.** The engraving is recorded as ink only; the renderer
 tints tiles, names and the frozen zone with the ink colour as it composites them
@@ -613,7 +615,7 @@ the update ("Failed to update ui::AXTree" in `make run`), and its tree stays bro
 semantics (`alwaysIncludeSemantics: true`).
 
 **Fonts: engraving and drawing agree.** Verovio lays out with the metrics of the same fonts
-the renderer draws. A project chooses its fonts (Project Settings ▸ Fonts, `ScoreFonts`: an edit,
+the renderer draws. A project chooses its fonts (Project Settings ▸ Engraving, `ScoreFonts`: an edit,
 `fonts` in `EditState`, saved from format 9; changing it re-engraves, as a text edit does).
 Music: a bundled SMuFL font (Bravura, Leland, Petaluma, Leipzig, Gootville: each an OTF in
 pubspec and Verovio's own metrics in `assets/verovio/<Name>.xml`; Leipzig's are there anyway

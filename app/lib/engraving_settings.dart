@@ -15,8 +15,8 @@ import 'project_file.dart';
 import 'scratch_space.dart';
 import 'ui_kit.dart';
 
-/// The engraving options most scores want changed, by plain name: the Engraving page of
-/// Settings and of Project Settings. Every other one is in Engraving options, by code name.
+/// The engraving options most scores want changed, by plain name: Project Settings ▸
+/// Engraving. Every other one is in Engraving options, by code name.
 class EngravingSetting {
   const EngravingSetting(this.group, this.title, this.key, {this.step = 1, this.keywords = ''});
 
@@ -52,48 +52,82 @@ class EngravingSetting {
   ];
 }
 
-/// The engraving options a control changes: the app's, or with [project] the open
-/// project's, over the app's (each change an edit, a reset going back to the app's value).
+/// The engraving options a control changes: the open project's, over the app's defaults
+/// ([AppSettings.engravingOptions], set only by [saveAsDefault]). Each change is an edit; a
+/// reset goes back to the house style, even over a default.
 class EngravingTarget {
-  EngravingTarget(this.settings, this.controller, {required bool project}) : project = project && controller != null;
+  EngravingTarget(this.settings, this.controller);
   final AppSettings settings;
-  final EditorController? controller;
-  final bool project;
+  final EditorController controller;
 
-  EngravingOptions get own => project ? controller!.projectEngraving : settings.engravingOptions;
-  set own(EngravingOptions options) {
-    if (project) {
-      controller!.setProjectEngraving(options);
-    } else {
-      settings.engravingOptions = options;
-    }
-  }
+  EngravingOptions get own => controller.projectEngraving;
+  set own(EngravingOptions options) => controller.setProjectEngraving(options);
 
   /// What the score is engraved with.
-  EngravingOptions get effective => project ? own.over(settings.engravingOptions) : own;
+  EngravingOptions get effective => own.over(settings.engravingOptions);
 
-  bool isChanged(EngraveOption option) => own.isChanged(option);
+  /// Whether [option] is engraved other than the house style.
+  bool isChanged(EngraveOption option) => valueOf(option) != baseOf(option);
 
-  /// Sets [option] here; null resets it.
-  void set(EngraveOption option, Object? value) => own = own.withValue(option, value, keepDefault: project);
+  /// Whether any option is.
+  bool get anyChanged => EngraveOption.all.any(isChanged);
+
+  /// Sets [option] here; null resets it to the house style (kept here over a default).
+  void set(EngraveOption option, Object? value) {
+    if (value == null && settings.engravingOptions.isChanged(option)) value = baseOf(option);
+    own = own.withValue(option, value, keepDefault: true);
+  }
+
+  /// Every option back to the house style.
+  void resetAll() {
+    var options = const EngravingOptions();
+    for (final option in EngraveOption.all) {
+      if (settings.engravingOptions.isChanged(option)) options = options.withValue(option, baseOf(option), keepDefault: true);
+    }
+    own = options;
+  }
 
   /// [option]'s value as engraved: set, or the house style's, or for a line the open score's
   /// font's own (Verovio takes the font's engraving defaults unless one is set).
   Object valueOf(EngraveOption option) {
     final options = effective;
     if (options.isChanged(option)) return options.valueOf(option);
-    return fontDefault(option) ?? option.defaultValue;
+    return baseOf(option);
   }
 
-  /// What a reset goes back to: in a project the app's, else the house style's.
-  Object baseOf(EngraveOption option) => project && settings.engravingOptions.isChanged(option)
-      ? settings.engravingOptions.valueOf(option)
-      : fontDefault(option) ?? option.defaultValue;
+  /// The house style's value: what a reset goes back to.
+  Object baseOf(EngraveOption option) => fontDefault(option) ?? option.defaultValue;
 
   double? fontDefault(EngraveOption option) => switch (option.smuflKey) {
-        final name? => controller?.fonts.music.engravingDefaults[name],
+        final name? => controller.fonts.music.engravingDefaults[name],
         null => null,
       };
+
+  /// The engraving as engraved here, as the app's: what every project engraves with unless
+  /// it sets its own.
+  EngravingOptions get _asDefault {
+    var options = const EngravingOptions();
+    for (final option in EngraveOption.all) {
+      if (isChanged(option)) options = options.withValue(option, valueOf(option), keepDefault: true);
+    }
+    return options;
+  }
+
+  /// Whether this project's fonts and engraving are already the app's defaults.
+  bool get isDefault =>
+      settings.engravingOptions == _asDefault &&
+      settings.musicFont == controller.fonts.music.name &&
+      settings.textFont == controller.fonts.text &&
+      settings.embedFont == controller.embedFont;
+
+  /// This project's fonts (for new projects) and engraving (for every project not setting
+  /// its own) made the app's.
+  void saveAsDefault() {
+    settings.engravingOptions = _asDefault;
+    settings.musicFont = controller.fonts.music.name;
+    settings.textFont = controller.fonts.text;
+    settings.embedFont = controller.embedFont;
+  }
 }
 
 /// One option as a slider (with its value) or a switch, and a reset once changed.

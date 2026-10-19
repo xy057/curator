@@ -7,7 +7,7 @@ import 'dialog_kit.dart';
 import 'ui_kit.dart';
 
 /// Settings ▸ Extensions ▸ Captions ▸ settings: how captions look in every project. A project
-/// may choose its own font (Project Settings ▸ Fonts).
+/// may choose its own font (Project Settings ▸ Engraving).
 class CaptionSettings extends StatefulWidget {
   const CaptionSettings({super.key, required this.settings});
   final AppSettings settings;
