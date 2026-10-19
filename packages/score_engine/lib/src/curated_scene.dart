@@ -260,7 +260,7 @@ class SceneSettings {
   final List<Caption> captions;
   final CaptionStyle captionStyle;
   final bool sections;
-  final Map<String, InstrumentFamily?> sectionOverrides;
+  final Map<String, String?> sectionOverrides;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -364,26 +364,28 @@ class CuratedScene {
   }
 
   /// Whether the instruments are grouped in sections as a printed score groups them: each
-  /// section (the woodwinds, the brass, the percussion, the voices, the strings: [ScorePart.section])
-  /// bracketed, its barlines run on between its staves (not the voices', which leave room for
-  /// the words), and the starting line through every staff. A section is a run of its
-  /// instruments in [partOrder]; one moved away from the rest starts a section of its own.
+  /// section ([sectionOf]: the woodwinds, the brass… or a group of the user's) bracketed, its
+  /// barlines run on between its staves (not a choir's, which leave room for the words), and
+  /// the starting line through every staff. A section is a run of its instruments in
+  /// [partOrder]; one moved away from the rest starts a section of its own.
   /// Only drawn: nothing is planned or engraved again.
   bool sections = false;
 
   /// The user's choice of section for some instruments (part id → section; null: none, standing
-  /// alone) over [ScorePart.section]. A pair takes its first player's.
-  Map<String, InstrumentFamily?> get sectionOverrides => _sectionOverrides;
-  Map<String, InstrumentFamily?> _sectionOverrides = const {};
-  set sectionOverrides(Map<String, InstrumentFamily?> value) {
+  /// alone) over their own ([ScorePart.section]'s name). A section is any name: a family's
+  /// joins that family's instruments, another one only those given it. A pair takes its first
+  /// player's.
+  Map<String, String?> get sectionOverrides => _sectionOverrides;
+  Map<String, String?> _sectionOverrides = const {};
+  set sectionOverrides(Map<String, String?> value) {
     if (mapEquals(value, _sectionOverrides)) return;
     _sectionOverrides = Map.unmodifiable(value);
     _sectionRuns = _sectionRunsOf(_order);
   }
 
-  /// [part]'s section: the user's choice, else its own.
-  InstrumentFamily? sectionOf(ScorePart part) =>
-      _sectionOverrides.containsKey(part.id) ? _sectionOverrides[part.id] : part.section;
+  /// [part]'s section: the user's choice, else its own family's name; null: none.
+  String? sectionOf(ScorePart part) =>
+      _sectionOverrides.containsKey(part.id) ? _sectionOverrides[part.id] : part.section?.name;
 
   /// The pairs of players (ids from [LoadedScore.condensed]) that share a staff while both
   /// are shown. Changing it re-plans the layout; nothing is engraved again.
@@ -471,7 +473,7 @@ class CuratedScene {
         runs.add((
           start: start,
           end: i - 1,
-          barlines: section != InstrumentFamily.voices,
+          barlines: [for (var j = start; j < i; j++) partOf(order[j].partId)].any((p) => p.family != InstrumentFamily.voices),
           outset: [for (var j = start; j < i; j++) partOf(order[j].partId)].any((p) => p.shownStaffNumbers.length > 1),
         ));
       }

@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show EngravingOptions, InstrumentFamily, MusicFont, verovioVersion;
+import 'package:score_engine/score_engine.dart' show EngravingOptions, MusicFont, verovioVersion;
 
 import 'app_colors.dart';
 import 'app_extensions.dart';
@@ -20,6 +20,7 @@ import 'file_names.dart';
 import 'font_settings.dart';
 import 'menu_kit.dart';
 import 'project_file.dart';
+import 'sections_editor.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
 
@@ -326,72 +327,36 @@ final _projectCategories = <_Category>[
   ]),
 ];
 
-/// Project Settings ▸ Sections: the app's Group sections, and the section each instrument is
-/// bracketed in, top to bottom: its own, or one the user chose (an edit; reset gives its own back).
+/// Project Settings ▸ Sections: the app's Group sections, and the brackets ([SectionsEditor]).
 class _SectionsPage extends StatelessWidget {
   const _SectionsPage(this.c);
   final _Context c;
 
-  /// What the menu offers: a family's name, or 'none'.
-  static const _none = 'none';
-  static final _choices = [
-    for (final f in InstrumentFamily.values)
-      if (f != InstrumentFamily.other) f.name,
-    _none,
-  ];
-
+  /// Laid out as a [_Page], but the brackets fill the rest of it and scroll on their own, so
+  /// their buttons stay in view.
   @override
   Widget build(BuildContext context) {
-    final controller = c.controller!;
-    final parts = {for (final p in controller.score!.metadata.parts) p.id: p};
-    final colors = context.colors;
-    return _Page(groups: [
-      (
-        null,
-        [
-          _SettingRow(
+    final decoration = BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        DecoratedBox(
+          decoration: decoration,
+          child: _SettingRow(
               title: 'Group sections',
               help: 'Every project.',
               control: AppSwitch(value: c.settings.groupSections, onChanged: (v) => c.settings.groupSections = v)),
-        ]
-      ),
-      (
-        'Instruments',
-        [
-          for (final id in controller.partOrder)
-            if (parts[id] case final part?)
-              _SettingRow(
-                key: ValueKey(id),
-                title: controller.partName(part),
-                help: null,
-                control: Row(mainAxisSize: MainAxisSize.min, children: [
-                  SettingsDropdown<String>(
-                    value: controller.sectionOf(part)?.name ?? _none,
-                    width: 140,
-                    onChanged: (v) => controller.setSection(part, InstrumentFamily.values.asNameMap()[v]),
-                    items: [
-                      for (final v in _choices)
-                        DropdownMenuItem(
-                            value: v, child: Text(InstrumentFamily.values.asNameMap()[v]?.label ?? 'None')),
-                    ],
-                  ),
-                  SizedBox(
-                    width: 32,
-                    child: controller.hasOwnSection(part)
-                        ? IconButton(
-                            icon: Icon(AppIcon.reset.of(context), size: 15),
-                            tooltip: 'Reset',
-                            visualDensity: VisualDensity.compact,
-                            color: colors.textMuted,
-                            onPressed: () => controller.setSection(part, null, own: false),
-                          )
-                        : null,
-                  ),
-                ]),
-              ),
-        ],
-      ),
-    ]);
+        ),
+        const SizedBox(height: 18),
+        Expanded(
+          child: DecoratedBox(
+            decoration: decoration,
+            child: ClipRRect(
+                borderRadius: AppStyle.of(context).radius(10), child: SectionsEditor(controller: c.controller!)),
+          ),
+        ),
+      ]),
+    );
   }
 }
 

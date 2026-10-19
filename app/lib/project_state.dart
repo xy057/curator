@@ -81,9 +81,10 @@ class EditState {
   /// order. Parts it lacks follow in score order.
   final List<String> partOrder;
 
-  /// The section the user put some instruments in (Project Settings ▸ Sections), by part id;
-  /// null: none, standing alone. Others are in their own ([ScorePart.section]).
-  final Map<String, InstrumentFamily?> sections;
+  /// The section the user put some instruments in (Project Settings ▸ Sections), by part id:
+  /// a family's name (with that family) or one of the user's (`bracket-2`); null: none,
+  /// standing alone. Others are in their own ([ScorePart.section]).
+  final Map<String, String?> sections;
 
   /// Images on the score (Attach Image), bottom to top.
   final List<ImagePatch> patches;
@@ -145,7 +146,7 @@ class EditState {
     Set<String>? condensed,
     List<PlayerPair>? pairs,
     List<String>? partOrder,
-    Map<String, InstrumentFamily?>? sections,
+    Map<String, String?>? sections,
     List<ImagePatch>? patches,
     List<Caption>? captions,
     Object? captionFont = _kept,
@@ -194,7 +195,7 @@ class ProjectState {
 
   /// The version [toJson] writes (the project file's format version): every save is in the
   /// newest format, whatever the project uses.
-  static const version = 16;
+  static const version = 17;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version]. Additive only: a new format adds fields (the
@@ -215,6 +216,7 @@ class ProjectState {
     13: (state) => state, // not embedding a font came in 14: every added font embedded
     14: (state) => state, // a MIDI tempo map's warps came in 15: none
     15: (state) => state, // instruments' sections came in 16: none, their own
+    16: (state) => state, // sections of the user's own came in 17 (16's were families' names): none
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -295,7 +297,7 @@ class ProjectState {
           for (final MapEntry(key: id, value: name) in r.map('sections').entries)
             id: switch (name) {
               'none' => null,
-              final String n when InstrumentFamily.values.asNameMap()[n] != null => InstrumentFamily.values.asNameMap()[n],
+              final String n when n.trim().isNotEmpty => n,
               _ => throw FormatException('The project is damaged: ${r.where}.sections.$id is not a section.'),
             },
         },
@@ -440,7 +442,7 @@ class ProjectState {
       'pairs': [for (final p in pairs) p.partIds],
       'partOrder': partOrder,
       if (sections.isNotEmpty)
-        'sections': {for (final MapEntry(key: id, value: s) in sections.entries) id: s?.name ?? 'none'},
+        'sections': {for (final MapEntry(key: id, value: s) in sections.entries) id: s ?? 'none'},
       'patches': [
         for (final p in patches)
           {

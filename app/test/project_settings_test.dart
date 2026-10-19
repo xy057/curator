@@ -3,16 +3,19 @@
 // With SCREENSHOT_DIR set, also saves PNGs of the Fonts and Sections pages for visual review.
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/menu_kit.dart';
+import 'package:curated_score/sections_editor.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -101,7 +104,7 @@ void main() {
     expect(find.text('Music'), findsNothing);
   });
 
-  testWidgets('Project Settings ▸ Sections puts an instrument in another section, an Undo step; Reset gives its own back',
+  testWidgets('Project Settings ▸ Sections: a bracket dragged over another instrument, shown as it moves; two selected bracketed; each an Undo step',
       (tester) async {
     desktopWindow(tester);
     final settings = AppSettings.memory();
@@ -116,30 +119,51 @@ void main() {
       }
     }
 
-    final snare = c.score!.metadata.parts.firstWhere((p) => p.name == 'Snare Drum');
-    expect(c.sectionOf(snare), isNull, reason: 'the file leaves it out of its brackets');
     unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Sections'));
     await settle();
     await tester.tap(find.byType(AppSwitch).first); // Group sections, the app's
     await settle();
-    expect(settings.groupSections, isTrue);
     expect(c.scene!.sections, isTrue);
 
-    final page = find.ancestor(of: find.byType(SettingsDropdown<String>).first, matching: find.byType(Scrollable)).first;
-    final name = find.descendant(of: page, matching: find.text('Snare Drum')); // not its lane behind
-    await tester.scrollUntilVisible(name, 200, scrollable: page);
+    // Rows 36 points high, staves 16 points high in their middle; brackets left of the staves at 174.
+    final paint = find.descendant(of: find.byType(SectionsEditor), matching: find.byType(CustomPaint)).last;
+    Offset at(double x, int row, {double dy = 18}) => tester.getTopLeft(paint) + Offset(x, row * 36 + dy);
+    final list = tester.state<ScrollableState>(find.ancestor(of: paint, matching: find.byType(Scrollable)).first).position;
+    Future<void> scrollTo(int row) async {
+      list.jumpTo(math.min(row * 36.0, list.maxScrollExtent));
+      await settle();
+    }
+    final parts = c.score!.metadata.parts;
+    final horn = parts.firstWhere((p) => p.id == 'P10');
+    expect(c.sectionOf(horn), 'brass');
+
+    // The woodwinds' bracket ends at Bassoon 2 (row 8): its end dragged down over Horn 1.
+    await scrollTo(6);
+    final drag = await tester.startGesture(at(162, 8, dy: 28));
+    await drag.moveBy(const Offset(0, 20));
+    await tester.pump();
+    await drag.moveBy(const Offset(0, 20));
+    await tester.pump();
+    expect(c.scene!.sectionOverrides, {'P10': 'woodwinds'}, reason: 'the score shows it while it moves');
+    expect(c.sectionOf(horn), 'brass', reason: 'not an edit yet');
+    await drag.up();
     await settle();
-    final row = find.ancestor(of: name, matching: find.byType(Row)).first;
-    await tester.tap(find.descendant(of: row, matching: find.byType(SettingsDropdown<String>)));
+    expect(c.sectionOf(horn), 'woodwinds');
+
+    // The trumpets (rows 11 and 12) selected and bracketed on their own.
+    await scrollTo(10);
+    await tester.tapAt(at(60, 11));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.tapAt(at(60, 12));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await settle();
-    await tester.tap(find.text('Percussion').last);
+    await tester.tap(find.text('Bracket'));
     await settle();
-    expect(c.sectionOf(snare), InstrumentFamily.percussion);
-    expect(c.scene!.sectionOverrides, {snare.id: InstrumentFamily.percussion});
+    expect(c.scene!.sectionOverrides, {'P10': 'woodwinds', 'P12': 'bracket-1', 'P13': 'bracket-1'});
     final dir = Platform.environment['SCREENSHOT_DIR'];
     if (dir != null) {
       await tester.runAsync(loadTestFonts);
-      await settle();
+      await scrollTo(4);
       await tester.runAsync(() async {
         final view = tester.binding.renderViews.first;
         final image = await (view.debugLayer! as OffsetLayer).toImage(Offset.zero & tester.view.physicalSize);
@@ -148,12 +172,12 @@ void main() {
       });
     }
 
-    await tester.tap(find.descendant(of: row, matching: find.byTooltip('Reset')));
+    c.undo();
+    expect(c.scene!.sectionOverrides, {'P10': 'woodwinds'});
+    await tester.tap(find.text('Reset'));
     await settle();
-    expect(c.sectionOf(snare), isNull);
-    c.undo();
-    expect(c.sectionOf(snare), InstrumentFamily.percussion);
-    c.undo();
     expect(c.scene!.sectionOverrides, isEmpty);
+    c.undo();
+    expect(c.sectionOf(horn), 'woodwinds');
   });
 }

@@ -44,6 +44,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Score ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Fonts: the music and text font a project is engraved in, and its caption font |
+| `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
 | `score_replacement.dart` | Score ▸ Replace Score…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned): its edits (`EditState`, also Undo's snapshots), image files and view; Undo and Redo |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -383,10 +384,16 @@ A section is a run, in the instruments' order, of two instruments or more of one
 `ScorePart.section` (woodwinds, brass, percussion, voices, strings; keyboards, harp and guitar stand
 alone). Families first, as exports group them every which way, then the file: where its part-list
 brackets anything, an instrument it leaves out of every bracket stands alone too
-(`ScorePart.bracketed`: no bracket, no barlines joined to it). Last, the user: Project Settings ▸
-Sections puts any instrument in a section of their choosing, or none (`EditState.sections`, by part
-id, an edit saved as `sections` from format 16; `CuratedScene.sectionOverrides`; Reset gives its
-own back; the page also holds the app's switch). Each section gets a
+(`ScorePart.bracketed`: no bracket, no barlines joined to it). Last, the user, in Project Settings ▸
+Sections (`SectionsEditor`; the page also holds the app's switch): the instruments as staves in
+lane order, bracketed as the score has them; a bracket's end dragged takes in or lets go of
+instruments, a drag down the bracket column draws one, and instruments selected as lanes are
+(⌘-click a range, ⇧-click adds) are bracketed or unbracketed by its buttons. A section is then any
+name (`EditState.sections`, by part id: a family's name joins that family, `bracket-2` only those
+given it, null none; an edit saved as `sections` from format 16, any name from 17;
+`CuratedScene.sectionOverrides`); one put back in its own family's is no longer the user's, and
+Reset gives every instrument its own. While a bracket is dragged the score behind shows it
+(`EditorController.previewSections`, not an edit); letting go is one Undo step. Each section gets a
 bracket (`StaffBracket`, the font's hooks at its ends; set out past the braces when one of its
 instruments has them, the names then stopping short of it), its barlines run on between its staves
 (not the voices', which leave room for words), and the starting line runs through every staff
