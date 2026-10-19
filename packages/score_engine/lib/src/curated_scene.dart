@@ -383,6 +383,12 @@ class CuratedScene {
     _sectionRuns = _sectionRunsOf(_order);
   }
 
+  /// Whether the user put [part] in a section other than its own.
+  bool _ownSection(ScorePart part) {
+    final section = _sectionOverrides[part.id];
+    return section != null && section != part.section?.name;
+  }
+
   /// [part]'s section: the user's choice, else its own family's name; null: none.
   String? sectionOf(ScorePart part) =>
       _sectionOverrides.containsKey(part.id) ? _sectionOverrides[part.id] : part.section?.name;
@@ -457,7 +463,8 @@ class CuratedScene {
   }
 
   /// The sections in [_order]: runs of its staves (start and end, inclusive) whose instruments
-  /// are of one section, two instruments or more (bracketed even while only one shows); [outset] when one of them is on more than one
+  /// are of one section, two instruments or more, or one the user put in it (bracketed even
+  /// while only one shows); [outset] when one of them is on more than one
   /// staff (its brace takes the room beside the staves).
   late List<({int start, int end, bool barlines, bool outset})> _sectionRuns = _sectionRunsOf(_order);
 
@@ -469,7 +476,8 @@ class CuratedScene {
     for (var i = 1; i <= order.length; i++) {
       final section = sectionOf(partOf(order[start].partId));
       if (i < order.length && section != null && sectionOf(partOf(order[i].partId)) == section) continue;
-      if (section != null && {for (var j = start; j < i; j++) order[j].partId}.length > 1) {
+      final run = [for (var j = start; j < i; j++) partOf(order[j].partId)];
+      if (section != null && ({for (final p in run) p.id}.length > 1 || run.any(_ownSection))) {
         runs.add((
           start: start,
           end: i - 1,

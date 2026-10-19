@@ -172,6 +172,14 @@ void main() {
       });
     }
 
+    // Horn 2 (row 10), alone, bracketed on its own.
+    await tester.tapAt(at(60, 10));
+    await settle();
+    await tester.tap(find.text('Bracket'));
+    await settle();
+    expect(c.scene!.sectionOverrides['P11'], 'bracket-2');
+    c.undo();
+
     c.undo();
     expect(c.scene!.sectionOverrides, {'P10': 'woodwinds'});
     await tester.tap(find.text('Reset'));

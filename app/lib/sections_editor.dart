@@ -49,13 +49,15 @@ class _SectionsEditorState extends State<SectionsEditor> {
   /// The parts a row stands for: a condensed pair's two players.
   List<String> _idsOf(ScorePart part) => controller.condensedGroupOf(part.id)?.partIds ?? [part.id];
 
-  /// The bracketed runs of [keys]: two rows or more in a row of one section.
-  static List<({int start, int end})> _runs(List<String?> keys) {
-    final runs = <({int start, int end})>[];
+  /// The bracketed runs of [keys] (one per row), as the score brackets them: rows in a row of
+  /// one section, two or more, or one the user put in it.
+  List<({int start, int end})> _runs(List<String?> keys) {
+    final rows = _rows, runs = <({int start, int end})>[];
+    bool own(int i) => keys[i] != null && keys[i] != rows[i].section?.name;
     var start = 0;
     for (var i = 1; i <= keys.length; i++) {
       if (i < keys.length && keys[i] != null && keys[i] == keys[start]) continue;
-      if (keys[start] != null && i - 1 > start) runs.add((start: start, end: i - 1));
+      if (keys[start] != null && (i - 1 > start || own(start))) runs.add((start: start, end: i - 1));
       start = i;
     }
     return runs;
@@ -87,11 +89,17 @@ class _SectionsEditorState extends State<SectionsEditor> {
   /// The run whose end is under [p] (in the bracket column), and which end.
   ({int run, bool top})? _endAt(Offset p, List<({int start, int end})> runs) {
     if (p.dx < _nameWidth || p.dx > _staffLeft + 4) return null;
+    ({int run, bool top})? nearest;
+    var distance = 8.0;
     for (final (i, run) in runs.indexed) {
-      if ((p.dy - _staffTop(run.start)).abs() <= 8) return (run: i, top: true);
-      if ((p.dy - _staffTop(run.end) - _staffHeight).abs() <= 8) return (run: i, top: false);
+      for (final (top, y) in [(true, _staffTop(run.start)), (false, _staffTop(run.end) + _staffHeight)]) {
+        if ((p.dy - y).abs() <= distance) {
+          distance = (p.dy - y).abs();
+          nearest = (run: i, top: top);
+        }
+      }
     }
-    return null;
+    return nearest;
   }
 
   bool _inGutter(Offset p) => p.dx >= _nameWidth && p.dx <= _staffLeft;
@@ -123,21 +131,21 @@ class _SectionsEditorState extends State<SectionsEditor> {
     final keys = [..._keys], row = _rowAt(d.localPosition.dy);
     if (drag.drawing) {
       final (a, b) = (math.min(drag.start, row), math.max(drag.start, row));
-      if (b > a) {
-        final key = _freshKey(keys);
-        for (var i = a; i <= b; i++) {
-          keys[i] = key;
-        }
+      final key = _freshKey(keys);
+      for (var i = a; i <= b; i++) {
+        keys[i] = key;
       }
     } else {
       final key = keys[drag.start];
-      final (a, b) = drag.top ? (math.min(row, drag.end - 1), drag.end) : (drag.start, math.max(row, drag.start + 1));
+      final (a, b) = drag.top ? (math.min(row, drag.end), drag.end) : (drag.start, math.max(row, drag.start));
       for (var i = drag.start; i <= drag.end; i++) {
         keys[i] = null; // let go of, unless still within
       }
       for (var i = a; i <= b; i++) {
         keys[i] = key;
       }
+      // Down to one instrument in its own family's: one of its own, or the bracket would go.
+      if (a == b && key == _rows[a].section?.name) keys[a] = _freshKey(keys);
     }
     setState(() => _draft = keys);
     controller.previewSections(_changes(keys));
@@ -187,7 +195,7 @@ class _SectionsEditorState extends State<SectionsEditor> {
 
   List<int> get _selectedRows => [for (final (i, r) in _rows.indexed) if (_selected.contains(r.id)) i];
 
-  /// The selected rows next to each other, two or more.
+  /// The selected rows, those next to each other together.
   List<({int start, int end})> get _selectedRuns {
     final rows = _selectedRows, runs = <({int start, int end})>[];
     for (var i = 0; i < rows.length;) {
@@ -195,7 +203,7 @@ class _SectionsEditorState extends State<SectionsEditor> {
       while (j + 1 < rows.length && rows[j + 1] == rows[j] + 1) {
         j++;
       }
-      if (j > i) runs.add((start: rows[i], end: rows[j]));
+      runs.add((start: rows[i], end: rows[j]));
       i = j + 1;
     }
     return runs;

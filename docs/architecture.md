@@ -382,7 +382,8 @@ in the project from format 5, empty for the score's order); the lanes follow it
 `AppSettings.groupSections`, app-wide, off by default; `CuratedScene.sections`, in `SceneSettings`).
 A section is a run, in the instruments' order, of two instruments or more of one
 `ScorePart.section` (woodwinds, brass, percussion, voices, strings; keyboards, harp and guitar stand
-alone). Families first, as exports group them every which way, then the file: where its part-list
+alone), or of one the user put in a section of their own (a family's lone instrument is otherwise
+left bare, as printed; the editor gives a bracket dragged down to one instrument a section of its own). Families first, as exports group them every which way, then the file: where its part-list
 brackets anything, an instrument it leaves out of every bracket stands alone too
 (`ScorePart.bracketed`: no bracket, no barlines joined to it). Last, the user, in Project Settings ▸
 Sections (`SectionsEditor`; the page also holds the app's switch): the instruments as staves in
