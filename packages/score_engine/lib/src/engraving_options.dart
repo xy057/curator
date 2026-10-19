@@ -206,18 +206,23 @@ class EngravingOptions {
   /// The Verovio options to engrave with in [font]: every offered option, overridden or not,
   /// so the house style lives in [EngraveOption.all] alone.
   String verovioJson(MusicFont font) {
-    final smufl = <String, Object>{...font.engravingDefaults};
     final options = <String, Object>{'font': font.name, 'fontFallback': 'Bravura'};
     for (final option in EngraveOption.all) {
-      final name = option.smuflKey;
-      if (name == null) {
-        options[option.key] = valueOf(option);
-      } else if (isChanged(option)) {
-        smufl[name] = valueOf(option);
-      }
+      if (option.smuflKey == null) options[option.key] = valueOf(option);
     }
-    options['engravingDefaults'] = smufl;
+    options['engravingDefaults'] = engravingDefaults(font);
     return jsonEncode(options);
+  }
+
+  /// The SMuFL engraving defaults to engrave with in [font] (staff spaces): the font's own,
+  /// with the ones changed here.
+  Map<String, double> engravingDefaults(MusicFont font) {
+    final smufl = {...font.engravingDefaults};
+    for (final option in EngraveOption.all) {
+      final name = option.smuflKey;
+      if (name != null && isChanged(option)) smufl[name] = (valueOf(option) as num).toDouble();
+    }
+    return smufl;
   }
 
   @override

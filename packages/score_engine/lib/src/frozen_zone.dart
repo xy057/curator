@@ -16,7 +16,14 @@ import 'native/bindings.dart' show VBKind;
 /// engraved at cue size appears full size here, and key signatures are positioned for the
 /// clef in force, as an engraver would.
 class FrozenZone {
-  FrozenZone(EngravingData data, this.style) {
+  FrozenZone(EngravingData data, this.style)
+      : _clefWidth = _scaled(data, 2.8, [0xE050, 0xE05C, 0xE062]),
+        _sharpStep = _scaled(data, 1.1, [0xE262]),
+        _flatStep = _scaled(data, 1.0, [0xE260]),
+        _digitWidth = _scaled(data, 1.9, [for (var c = 0xE080; c <= 0xE089; c++) c]),
+        _lineThickness = data.engravingDefaults['staffLineThickness'] ?? 0.13,
+        _startLineThickness = data.engravingDefaults['thinBarlineThickness'] ?? 0.16,
+        _brace = data.glyphs[0xE000] ?? _bravuraBrace {
     for (final sig in data.signatures) {
       switch (sig) {
         case ClefSignature():
@@ -77,11 +84,32 @@ class FrozenZone {
   /// Recorded commands of the opening clefs/keys, to be left out of the scrolling score.
   final Set<int> openingCommands = {};
 
-  // Layout in staff spaces.
-  static const _padLeft = 0.8, _clefWidth = 2.8, _clefGap = 1.0, _sharpStep = 1.1, _flatStep = 1.0, _padRight = 1.4;
-  static const _meterGap = 1.1, _digitWidth = 1.9;
-  double _lineThickness = 0.13; // staff spaces; the engraving's own when it has staff lines
-  static const _startLineThickness = 0.16;
+  // Layout in staff spaces. The glyphs' room is Bravura's, in proportion to this font's
+  // glyphs (a wider sharp, a wider step); the lines are as thick as the engraving's.
+  static const _padLeft = 0.8, _clefGap = 1.0, _padRight = 1.4, _meterGap = 1.1;
+  final double _clefWidth, _sharpStep, _flatStep, _digitWidth;
+  double _lineThickness; // the engraving's own staff lines when it has them
+  final double _startLineThickness; // a thin barline's
+  final GlyphBox _brace;
+
+  /// Bravura's [value], for glyphs as wide as the widest of [codepoints] in this font.
+  static double _scaled(EngravingData data, double value, List<int> codepoints) {
+    double? widest(Map<int, GlyphBox> glyphs) =>
+        codepoints.map((c) => glyphs[c]?.advance).nonNulls.fold<double?>(null, (m, a) => m == null ? a : math.max(m, a));
+    final own = widest(data.glyphs), bravura = widest(_bravuraGlyphs);
+    return own == null || bravura == null ? value : value * own / bravura;
+  }
+
+  /// The advances [_scaled] measures against, and Bravura's brace (from Bravura.xml).
+  static const Map<int, GlyphBox> _bravuraGlyphs = {
+    0xE050: (x: 0, y: 0, width: 0, height: 0, advance: 671 / 250),
+    0xE05C: (x: 0, y: 0, width: 0, height: 0, advance: 699 / 250),
+    0xE062: (x: 0, y: 0, width: 0, height: 0, advance: 684 / 250),
+    0xE262: (x: 0, y: 0, width: 0, height: 0, advance: 249 / 250),
+    0xE260: (x: 0, y: 0, width: 0, height: 0, advance: 226 / 250),
+    0xE080: (x: 0, y: 0, width: 0, height: 0, advance: 470 / 250), // the widest digits, 0 and 4
+  };
+  static const GlyphBox _bravuraBrace = (x: 2 / 250, y: 0, width: 80 / 250, height: 997 / 250, advance: 84 / 250);
   static const _braceWidth = 1.0, _braceGap = 0.35; // fits beside the names up to 10 px a staff space
 
   /// The widest key column in the piece, in staff spaces.
@@ -94,7 +122,7 @@ class FrozenZone {
   double get maxWidth => widthFor(maxKeyColumn);
 
   /// Room a key signature takes after the clef, in staff spaces (none for no accidentals).
-  static double _keyColumn(KeySignature key) =>
+  double _keyColumn(KeySignature key) =>
       key.fifths == 0 ? 0 : _clefGap + key.fifths.abs().clamp(0, 7) * (key.fifths > 0 ? _sharpStep : _flatStep);
 
   /// The widest key column staff [staff] needs while the zone's right edge is anywhere between
@@ -121,7 +149,7 @@ class FrozenZone {
     }
   }
 
-  static double _keyColumnOrZero(KeySignature? key) => key == null ? 0 : _keyColumn(key);
+  double _keyColumnOrZero(KeySignature? key) => key == null ? 0 : _keyColumn(key);
 
   /// Where the time signature column starts, and its width, in staff spaces from the zone's left.
   double _meterLeft(double keyColumn) => _padLeft + _clefWidth + keyColumn + (_meterDigits == 0 ? 0 : _meterGap);
@@ -207,8 +235,8 @@ class FrozenZone {
 
   /// A brace just left of the zone at [left] joining one instrument's [staves] (top line and
   /// height, logical pixels, top to bottom), and the starting line run on between them.
-  /// Bravura's brace is one em (four staff spaces) tall and 0.08 em wide (2 to 82 of 1000
-  /// units): it is stretched to the staves and kept one staff space wide, as Verovio does.
+  /// The font's brace (Bravura's is one em tall and 0.08 em wide) is stretched to the staves
+  /// and kept one staff space wide, as Verovio does.
   void paintBrace(ui.Canvas canvas, {required double left, required List<({double top, double height})> staves}) {
     if (staves.length < 2) return;
     final sp = style.staffSpace;
@@ -219,11 +247,11 @@ class FrozenZone {
       canvas.drawRect(ui.Rect.fromLTRB(left, above.top + above.height, left + _startLineThickness * sp, staves[i].top), ink);
     }
     final top = staves.first.top, bottom = staves.last.top + staves.last.height;
-    final em = 4 * sp;
+    final brace = _brace;
     canvas.save();
     canvas.translate(left - (_braceGap + _braceWidth) * sp, bottom);
-    canvas.scale(_braceWidth * sp / (0.080 * em), (bottom - top) / (0.997 * em));
-    _drawGlyph(canvas, 0xE000, -0.002 * em, 0);
+    canvas.scale(_braceWidth / brace.width, (bottom - top) / (brace.height * sp));
+    _drawGlyph(canvas, 0xE000, -brace.x * sp, brace.y * sp); // its ink's lower left corner at the origin
     canvas.restore();
   }
 
