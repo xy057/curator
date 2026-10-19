@@ -34,6 +34,7 @@ void main() {
     c.renamePart(parts.last, name: 'Basses', abbreviation: 'Cb.');
     c.setStaffSpace(9);
     c.scrollFollow = 0.8;
+    c.groupSections = true;
     c.setCondensed(['cond-P2-P3'], on: true);
     c.moveLane('P17', 0);
     c.curation!.transition = 0.7;

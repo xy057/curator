@@ -337,6 +337,14 @@ _Category _engravingCategory({required bool project}) {
           group: s.group,
           keywords: 'engrave engraving ${s.group} ${s.keywords} ${s.key}',
         ),
+      if (!project)
+        _Item(
+          'Group sections',
+          (_) => 'Brackets and barlines as printed.',
+          (c) => AppSwitch(value: c.settings.groupSections, onChanged: (v) => c.settings.groupSections = v),
+          group: 'Layout',
+          keywords: 'bracket brace barline barlines group sections family woodwinds brass strings percussion printed score system',
+        ),
       _Item(
         'Engraving options',
         (c) => _changedText(target(c).own, project ? 'Overrides the app’s.' : 'Every project.'),

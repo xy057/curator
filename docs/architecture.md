@@ -377,6 +377,20 @@ it only re-plans the layout, like condensing. It is an edit (`partOrder` in `Edi
 in the project from format 5, empty for the score's order); the lanes follow it
 (`EditorController.laneParts`), and a condensed pair moves as one.
 
+**Sections are grouped as printed when asked** (Settings ▸ Engraving ▸ Group sections,
+`AppSettings.groupSections`, app-wide, off by default; `CuratedScene.sections`, in `SceneSettings`).
+A section is a run, in the instruments' order, of two instruments or more of one
+`ScorePart.section` (woodwinds, brass, percussion, voices, strings; keyboards, harp and guitar stand
+alone): the file's own part-groups aren't read, as exports group them every which way. Each gets a
+bracket (`StaffBracket`, the font's hooks at its ends; set out past the braces when one of its
+instruments has them, the names then stopping short of it), its barlines run on between its staves
+(not the voices', which leave room for words), and the starting line runs through every staff
+(`StaffJoin`). The room between staves changes as they come and go, so unlike an instrument's
+barlines (baked into its tiles) these are drawn each frame: each barline's strokes
+(`ScoreRenderer._barlineStrokes`) from where the staff above's end to where the one below's begin.
+A bracket's ends follow a staff fading in or out at either end, and it fades with its second staff.
+Only drawn: nothing is planned or engraved again.
+
 **Opening is all or nothing.** A project is read and validated (`ProjectState.fromJson`),
 then engraved, and only then swapped in, in one synchronous step. If anything before the swap
 fails, what was open stays open, with its path — so a later save can't write one project
