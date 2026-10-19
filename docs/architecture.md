@@ -383,7 +383,10 @@ A section is a run, in the instruments' order, of two instruments or more of one
 `ScorePart.section` (woodwinds, brass, percussion, voices, strings; keyboards, harp and guitar stand
 alone). Families first, as exports group them every which way, then the file: where its part-list
 brackets anything, an instrument it leaves out of every bracket stands alone too
-(`ScorePart.bracketed`: no bracket, no barlines joined to it). Each section gets a
+(`ScorePart.bracketed`: no bracket, no barlines joined to it). Last, the user: Project Settings ▸
+Sections puts any instrument in a section of their choosing, or none (`EditState.sections`, by part
+id, an edit saved as `sections` from format 16; `CuratedScene.sectionOverrides`; Reset gives its
+own back; the page also holds the app's switch). Each section gets a
 bracket (`StaffBracket`, the font's hooks at its ends; set out past the braces when one of its
 instruments has them, the names then stopping short of it), its barlines run on between its staves
 (not the voices', which leave room for words), and the starting line runs through every staff

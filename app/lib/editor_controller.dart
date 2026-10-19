@@ -287,6 +287,7 @@ class EditorController extends ChangeNotifier {
       textEdits: Map.unmodifiable(edits.textEdits),
       pairs: List.unmodifiable({for (final p in edits.pairs) ?score.condensing.pair(p.first, p.second)}),
       partOrder: CuratedScene.orderedPartIds(score.metadata.parts, edits.partOrder),
+      sections: Map.unmodifiable(edits.sections),
     );
     // The pairs that can condense follow the score and the pairs just taken on.
     _doc = _doc.copyWith(condensed: Set.unmodifiable({for (final g in condensable) if (edits.condensed.contains(g.id)) g.id}));
@@ -392,10 +393,34 @@ class EditorController extends ChangeNotifier {
       patches: images._scenePatches,
       captions: captions._sceneCaptions,
       captionStyle: captions._style,
-      sections: _groupSections);
+      sections: _groupSections,
+      sectionOverrides: _doc.sections);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
+
+  /// [part]'s section (Project Settings ▸ Sections): the user's choice, else its own; null:
+  /// none, standing alone.
+  InstrumentFamily? sectionOf(ScorePart part) =>
+      _doc.sections.containsKey(part.id) ? _doc.sections[part.id] : part.section;
+
+  /// Whether the user chose [part]'s section ([setSection]).
+  bool hasOwnSection(ScorePart part) => _doc.sections.containsKey(part.id);
+
+  /// Puts [part] in [section] (null: none, standing alone), one Undo step; [own] false gives it
+  /// back its own section.
+  void setSection(ScorePart part, InstrumentFamily? section, {bool own = true}) {
+    final next = {..._doc.sections};
+    if (own) {
+      next[part.id] = section;
+    } else {
+      next.remove(part.id);
+    }
+    if (mapEquals(next, _doc.sections)) return;
+    _doc = _doc.copyWith(sections: Map.unmodifiable(next));
+    _showSettings();
+    _edited();
+  }
 
   // MARK: Editing names and texts
 
