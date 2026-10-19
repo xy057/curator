@@ -135,6 +135,10 @@ abstract final class Cmd {
   static const rotation = 20; // glyph: degrees clockwise about its origin
 }
 
+/// A music font glyph's ink box and advance, in staff spaces: [x] and [y] its lower left
+/// corner from the origin (y up, as SMuFL has it).
+typedef GlyphBox = ({double x, double y, double width, double height, double advance});
+
 /// Everything Verovio produced for one score, as plain data that can cross isolates.
 /// All geometry is in Verovio device units with y pointing down.
 class EngravingData {
@@ -151,6 +155,8 @@ class EngravingData {
     required this.signatures,
     required this.sourceIds,
     required this.warnings,
+    this.glyphs = const {},
+    this.engravingDefaults = const {},
   })  : commandInts = commandBytes.buffer.asInt32List(commandBytes.offsetInBytes, commandBytes.length ~/ 4),
         commandFloats = commandBytes.buffer.asFloat32List(commandBytes.offsetInBytes, commandBytes.length ~/ 4),
         pathInts = pathBytes.buffer.asInt32List(pathBytes.offsetInBytes, pathBytes.length ~/ 4),
@@ -184,7 +190,33 @@ class EngravingData {
   /// 'harp-pedals'"), each once, in the order it met them; empty when it read everything.
   final List<String> warnings;
 
+  /// The music font's glyphs (codepoint → box), as Verovio measured them: Bravura's where the
+  /// font has none (Verovio's fallback).
+  final Map<int, GlyphBox> glyphs;
+
+  /// The SMuFL engraving defaults it was engraved with (staff spaces): the font's own, with
+  /// the user's changes.
+  final Map<String, double> engravingDefaults;
+
   int get commandCount => commandInts.length ~/ Cmd.words;
+
+  EngravingData _with({required Map<int, GlyphBox> glyphs, required Map<String, double> engravingDefaults}) =>
+      EngravingData._(
+        width: width,
+        staffSpace: staffSpace,
+        staves: staves,
+        measures: measures,
+        commandBytes: commandInts.buffer.asUint8List(commandInts.offsetInBytes, commandInts.lengthInBytes),
+        pathBytes: pathInts.buffer.asUint8List(pathInts.offsetInBytes, pathInts.lengthInBytes),
+        text: text,
+        classNames: classNames,
+        fontNames: fontNames,
+        signatures: signatures,
+        sourceIds: sourceIds,
+        warnings: warnings,
+        glyphs: Map.unmodifiable(glyphs),
+        engravingDefaults: Map.unmodifiable(engravingDefaults),
+      );
 }
 
 /// The Verovio this engine was built with, e.g. `6.3.0`.
@@ -200,7 +232,39 @@ abstract final class Engraver {
     EngravingOptions options = const EngravingOptions(),
   }) {
     final json = options.verovioJson(font);
-    return Isolate.run(() => _engrave(musicXML, resourceDirectory, json));
+    final defaults = options.engravingDefaults(font), name = font.name;
+    return Isolate.run(() {
+      final data = _engrave(musicXML, resourceDirectory, json);
+      return data._with(glyphs: glyphMetrics(resourceDirectory, name), engravingDefaults: defaults);
+    });
+  }
+
+  /// Font [name]'s glyph boxes from Verovio's metrics in [resourceDirectory] (`<name>.xml`),
+  /// over Bravura's.
+  static Map<int, GlyphBox> glyphMetrics(String resourceDirectory, String name) {
+    final glyphs = <int, GlyphBox>{};
+    for (final font in {'Bravura', name}) {
+      final file = File('$resourceDirectory/$font.xml');
+      if (!file.existsSync()) continue;
+      final xml = file.readAsStringSync();
+      final unitsPerEm = double.tryParse(RegExp(r'units-per-em="([^"]+)"').firstMatch(xml)?.group(1) ?? '') ?? 1000;
+      final perSpace = unitsPerEm / 4; // SMuFL: one em is four staff spaces
+      for (final g in RegExp(r'<g ([^>]*)>').allMatches(xml)) {
+        final attributes = {for (final a in RegExp(r'([\w-]+)="([^"]*)"').allMatches(g.group(1)!)) a.group(1)!: a.group(2)!};
+        final code = int.tryParse(attributes['c'] ?? '', radix: 16);
+        double? number(String key) => double.tryParse(attributes[key] ?? '');
+        final (x, y, w, h) = (number('x'), number('y'), number('w'), number('h'));
+        if (code == null || x == null || y == null || w == null || h == null) continue;
+        glyphs[code] = (
+          x: x / perSpace,
+          y: y / perSpace,
+          width: w / perSpace,
+          height: h / perSpace,
+          advance: (number('h-a-x') ?? x + w) / perSpace,
+        );
+      }
+    }
+    return glyphs;
   }
 
   /// Every option Verovio knows, with its type, default and range: what [EngraveOption]s are

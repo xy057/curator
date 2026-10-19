@@ -211,4 +211,33 @@ void main() {
       expectKeysFit(c, t - 2, t + 2);
     });
   });
+
+  test("the zone is laid out for the music font's own glyphs and lines", () async {
+    final work = Directory.systemTemp.createTempSync('zone_fonts');
+    FontResources.workDirectory = work.path;
+    addTearDown(() {
+      FontResources.workDirectory = null;
+      work.deleteSync(recursive: true);
+    });
+    final thin = EngraveOption.byKey('engravingDefaults.thinBarlineThickness')!;
+    final petaluma = await LoadedScore.load(demoScoreWithKeyChange(bar: 5, concertFifths: 3),
+        fonts: const ScoreFonts(music: MusicFont.petaluma), options: const EngravingOptions().withValue(thin, 0.3));
+    final bravura = await LoadedScore.load(demoScoreWithKeyChange(bar: 5, concertFifths: 3));
+    // Petaluma's sharp is 380 units wide to Bravura's 249, its widest clef 776 to 699, its
+    // widest digit 680 to 470: each takes Bravura's room in that proportion.
+    expect(petaluma.engraving.glyphs[0xE262]?.advance, 380 / 250);
+    double sharps(LoadedScore score) {
+      final n = score.metadata.parts.firstWhere((p) => p.name == 'Oboe 1').staffNumbers.first;
+      return FrozenZone(score.engraving, const RenderStyle()).keyColumnChanges(n).single.after;
+    }
+
+    expect(sharps(bravura), closeTo(1.0 + 3 * 1.1, 1e-9));
+    expect(sharps(petaluma), closeTo(1.0 + 3 * 1.1 * 380 / 249, 1e-9));
+    final style = const RenderStyle();
+    double width(LoadedScore score) => FrozenZone(score.engraving, style).widthFor(0) / style.staffSpace;
+    expect(width(petaluma) - width(bravura), closeTo(2.8 * (776 / 699 - 1) + 1.9 * (680 / 470 - 1), 1e-9));
+    // The lines are the engraving's: a thin barline as the user set it.
+    expect(petaluma.engraving.engravingDefaults['thinBarlineThickness'], 0.3);
+    expect(bravura.engraving.engravingDefaults['thinBarlineThickness'], 0.16);
+  });
 }
