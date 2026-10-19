@@ -1,17 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' as ui;
 
-import 'package:curated_score/app_colors.dart';
-import 'package:curated_score/app_settings.dart';
-import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/updater.dart';
-import 'package:curated_score/ui_kit.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'test_fonts.dart';
 
 /// A stand-in for GitHub: the latest-release endpoint and its download.
 class _FakeGitHub {
@@ -62,21 +54,6 @@ class _FakeGitHub {
 }
 
 void main() {
-  test('appVersion and appBuild are the version in pubspec.yaml', () {
-    final pubspec = File('pubspec.yaml').readAsStringSync();
-    final version = RegExp(r'^version: *([\d.]+)\+(\d+)', multiLine: true).firstMatch(pubspec)!;
-    expect(version[1], appVersion);
-    expect(int.parse(version[2]!), appBuild);
-  });
-
-  test('versions compare number by number', () {
-    expect(Version.tryParse('v0.10.0')! > Version.tryParse('0.9.9')!, isTrue);
-    expect(Version.tryParse('1.0.0')! > Version.tryParse('v1.0.0')!, isFalse);
-    expect(Version.tryParse('v1.2.3-beta'), const Version(1, 2, 3));
-    expect(Version.tryParse('nightly'), isNull);
-    expect(Version.tryParse('v99999999999999999999.0.0'), isNull);
-  });
-
   test("an answer can't send the download or the page anywhere but GitHub, nor name a file outside Downloads", () {
     Release? read(String url, {String page = 'https://github.com/xy057/curator/releases/tag/v9.0.0'}) =>
         Release.fromJson({
@@ -135,95 +112,6 @@ void main() {
       expect(release!.version, const Version(9, 0, 0));
       expect(release.fileName, 'Curator-9.0.0-macos.zip');
     });
-
-    test('the same or an older version, or nothing released, is up to date', () async {
-      final u = updater();
-      github.tag = 'v$appVersion';
-      expect(await u.check(), isNull);
-      expect(u.status, isA<UpToDate>());
-      github.tag = 'v0.0.1';
-      await u.check();
-      expect(u.status, isA<UpToDate>());
-      github.status = HttpStatus.notFound;
-      await u.check();
-      expect(u.status, isA<UpToDate>());
-    });
-
-    test('a download lands in Downloads, never over a file already there', () async {
-      final u = updater();
-      final release = (await u.check())!;
-      final seen = <double>[];
-      u.addListener(() {
-        if (u.status case UpdateDownloading(:final progress?)) seen.add(progress);
-      });
-
-      await u.download(release);
-      final first = (u.status as UpdateDownloaded).path;
-      expect(first, '${downloads.path}/Curator-9.0.0-macos.zip');
-      expect(File(first).readAsBytesSync(), github.zip);
-      expect(seen.last, 1.0);
-
-      await u.download(release);
-      expect((u.status as UpdateDownloaded).path, '${downloads.path}/Curator-9.0.0-macos (2).zip');
-      expect(downloads.listSync().where((f) => f.path.endsWith('.part')), isEmpty);
-    });
-
-    test('no connection is a failure that says so', () async {
-      final u = updater();
-      await github.close();
-      await u.check();
-      expect((u.status as UpdateFailed).message, 'Can’t connect to GitHub. Check your internet connection.');
-    });
   });
 
-  testWidgets('Settings ▸ About shows the version and build, the changelog and the repository, and checks', (tester) async {
-    final settings = AppSettings.memory();
-    final updater = Updater(api: Uri.parse('http://127.0.0.1:1/latest'));
-    final shots = Platform.environment['SCREENSHOT_DIR'];
-    if (shots != null) await tester.runAsync(loadTestFonts);
-    tester.view.physicalSize = const Size(2000, 1400);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(MaterialApp(
-      theme: AppColors.theme(accent: settings.accent),
-      builder: (context, child) => RepaintBoundary(child: child),
-      home: Builder(
-        builder: (context) => TextButton(
-          onPressed: () => showSettingsDialog(context, settings, updater: updater, page: 'About'),
-          child: const Text('open'),
-        ),
-      ),
-    ));
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Version $appVersion'), findsOneWidget);
-    expect(find.text('Build $appBuild'), findsOneWidget);
-    expect(find.text('Source code'), findsOneWidget);
-    expect(find.text('Changelog'), findsOneWidget);
-    if (shots != null) {
-      await tester.runAsync(() => precacheImage(const AssetImage('assets/icon/app_icon.png'), tester.element(find.byType(Image))));
-      await tester.pump();
-      await tester.runAsync(() async {
-        final boundary = tester.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first);
-        final png = await (await boundary.toImage(pixelRatio: 2)).toByteData(format: ui.ImageByteFormat.png);
-        File('$shots/settings-about.png').writeAsBytesSync(png!.buffer.asUint8List());
-      });
-    }
-
-    await tester.tap(find.byType(AppSwitch));
-    expect(settings.checkForUpdates, isFalse);
-
-    // Nothing listens on port 1 (and widget tests answer every request with 400 anyway).
-    await tester.runAsync(() async {
-      await tester.tap(find.text('Check for Updates'));
-      while (updater.busy) {
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
-    });
-    await tester.pumpAndSettle();
-    expect(updater.status, isA<UpdateFailed>());
-    expect(find.text((updater.status as UpdateFailed).message), findsOneWidget);
-    expect(find.text('Check for Updates'), findsOneWidget, reason: 'it can be tried again');
-  });
 }

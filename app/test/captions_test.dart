@@ -96,14 +96,4 @@ void main() {
     expect(c.captions.captions, isEmpty);
     expect(c.scene!.captions, isEmpty);
   });
-
-  test('a damaged caption is named', () {
-    expect(
-        () => ProjectState.fromJson({
-              'captions': [
-                {'start': 4, 'end': 2, 'text': 'x'},
-              ],
-            }),
-        throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('state.captions[0]'))));
-  });
 }

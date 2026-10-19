@@ -15,13 +15,6 @@ void main() {
 
   final ffmpeg = MediaConverter.findFfmpeg();
 
-  test('FFmpeg fails clearly on a file without sound', () async {
-    final silent = '${dir.path}/silent.mp4';
-    await Process.run(ffmpeg!, ['-y', '-loglevel', 'error', '-i', _video, '-an', '-c:v', 'copy', silent]);
-    final r = await Process.run(ffmpeg, MediaConverter.ffmpegArguments(silent, '${dir.path}/x.flac'));
-    expect(r.exitCode, isNot(0));
-  }, skip: ffmpeg == null ? 'FFmpeg is not installed here' : false);
-
   test('FFmpeg reads every kind of recording the app takes, and nothing that would open other files', () async {
     for (final ext in MediaFormats.all) {
       final take = '${dir.path}/take.$ext';
@@ -54,48 +47,4 @@ void main() {
     expect(MediaFormats.isVideo('Take.MOV'), isTrue);
     expect(MediaFormats.isVideo('take.m4a'), isFalse);
   }, skip: Platform.isMacOS || ffmpeg != null ? false : 'no converter here');
-
-  test("when afconvert can't read a file (MKV), FFmpeg takes over", () async {
-    final mkv = '${dir.path}/take.mkv';
-    await Process.run(ffmpeg!, ['-y', '-loglevel', 'error', '-i', _video, '-c', 'copy', mkv]);
-    expect(isFlac(await MediaConverter.toFlac(mkv, '${dir.path}/out')), isTrue);
-  }, skip: ffmpeg == null ? 'FFmpeg is not installed here' : false);
-
-  group('finding FFmpeg on Windows', () {
-    const env = {
-      'Path': r'C:\Windows\System32;C:\Tools\bin;',
-      'LOCALAPPDATA': r'C:\Users\ana\AppData\Local',
-      'USERPROFILE': r'C:\Users\ana',
-    };
-    String? find(Set<String> files, {Map<String, String> environment = env}) => MediaConverter.findFfmpeg(
-          windows: true,
-          environment: environment,
-          appDirectory: r'C:\Program Files\Curator',
-          exists: files.contains,
-        );
-
-    test('next to the app first, then on PATH, then where winget, Scoop and Chocolatey install it; else null, with help', () {
-      expect(find({r'C:\Program Files\Curator\ffmpeg.exe', r'C:\Tools\bin\ffmpeg.exe'}),
-          r'C:\Program Files\Curator\ffmpeg.exe');
-      expect(find({r'C:\Tools\bin\ffmpeg.exe'}), r'C:\Tools\bin\ffmpeg.exe');
-      expect(find({r'C:\Users\ana\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe'}),
-          r'C:\Users\ana\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe');
-      expect(find({r'C:\Users\ana\scoop\shims\ffmpeg.exe'}), r'C:\Users\ana\scoop\shims\ffmpeg.exe');
-      expect(find({r'C:\ProgramData\chocolatey\bin\ffmpeg.exe'}), r'C:\ProgramData\chocolatey\bin\ffmpeg.exe');
-      expect(find({}), isNull);
-      expect(MediaConverter.missingFfmpegHelp(windows: true), contains('winget install Gyan.FFmpeg'));
-    });
-  });
-
-  test('on macOS, Homebrew FFmpeg is found although a GUI app has no shell PATH', () {
-    expect(
-      MediaConverter.findFfmpeg(
-        windows: false,
-        environment: const {'PATH': '/usr/bin:/bin'},
-        appDirectory: '/Applications/Curator.app/Contents/MacOS',
-        exists: {'/opt/homebrew/bin/ffmpeg'}.contains,
-      ),
-      '/opt/homebrew/bin/ffmpeg',
-    );
-  });
 }

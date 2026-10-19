@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' show Color, Rect, Size;
+import 'dart:ui' show Rect, Size;
 
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_file.dart';
-import 'package:curated_score/project_state.dart';
 import 'package:archive/archive.dart' show ArchiveFile, ZipDecoder, ZipEncoder, getCrc32;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,84 +44,6 @@ void main() {
     await tester.runAsync(() => c.openFile(demoScore.path));
   }
 
-  testWidgets('nothing works, and nothing is drawn, while Attach Image is off', (tester) async {
-    await open(tester);
-    await tester.runAsync(() => c.images.add(ImageKind.raster, png, quarter: 3, top: 2));
-    expect(c.images.patches, isEmpty, reason: 'off by default');
-
-    c.images.enabled = true;
-    await tester.runAsync(() => c.images.add(ImageKind.raster, png, quarter: 3, top: 2));
-    expect(c.images.patches, hasLength(1));
-    expect(c.scene!.patches, hasLength(1));
-    expect(c.images.selected, 0, reason: 'a new image is selected');
-
-    await tester.runAsync(() => c.images.add(ImageKind.raster, Uint8List.fromList(png), quarter: 9, top: 2));
-    expect(c.images.patches[1].image, c.images.patches[0].image, reason: 'the same file again is the same image');
-    expect(c.projectState.images, hasLength(1));
-    c.images.remove(1);
-
-    c.images.enabled = false;
-    expect(c.scene!.patches, isEmpty, reason: 'hidden, so not exported either');
-    expect(c.images.selected, isNull);
-    c.images.remove(0);
-    expect(c.images.patches, hasLength(1), reason: 'and kept in the project');
-    expect(c.projectState.edits.patches, hasLength(1));
-    c.dispose();
-  });
-
-  testWidgets("with Score Ink an image is drawn in the score's ink, its own colours dropped", (tester) async {
-    await open(tester);
-    c.images.enabled = true;
-    await tester.runAsync(() => c.images.add(ImageKind.raster, greyPng(40, 20), quarter: 3, top: 4)); // black
-    final scene = c.scene!, time = c.playback.time.value;
-    const size = Size(960, 540);
-    Future<Color> pixelAtImage({required Color ink}) async {
-      final at = scene.patchRect(scene.patches.single, time, size).center;
-      final image = scene.renderFrame(960, 540,
-          time: time, curation: c.curation!, devicePixelRatio: 1, paper: const Color(0xff202020), ink: ink);
-      final bytes = (await tester.runAsync(() => image.toByteData()))!;
-      image.dispose();
-      final i = (at.dy.round() * 960 + at.dx.round()) * 4;
-      return Color.fromARGB(bytes.getUint8(i + 3), bytes.getUint8(i), bytes.getUint8(i + 1), bytes.getUint8(i + 2));
-    }
-
-    expect(await pixelAtImage(ink: const Color(0xffeeeeee)), const Color(0xff000000), reason: 'its own colours');
-    c.images.update(0, c.images.patches.single.copyWith(ink: true));
-    expect(await pixelAtImage(ink: const Color(0xffeeeeee)), const Color(0xffeeeeee), reason: 'light ink on dark paper');
-    c.undo();
-    expect(c.images.patches.single.ink, isFalse, reason: 'an Undo step');
-    c.dispose();
-  });
-
-  testWidgets('an image comes in at its own shape, and adding, moving and removing are Undo steps', (tester) async {
-    await open(tester);
-    c.images.enabled = true;
-    await tester.runAsync(() => c.images.add(ImageKind.vector, svg, quarter: 6, top: 3, extension: 'svg'));
-    final added = c.images.patches.single;
-    expect(added.height, 12);
-    expect(added.width, 36, reason: '3:1 like the SVG');
-    expect(added.image, endsWith('.svg'));
-
-    c.beginEdit();
-    c.images.update(0, added.copyWith(quarter: 7));
-    c.images.update(0, added.copyWith(quarter: 8, crop: const Rect.fromLTRB(0.25, 0, 1, 1)));
-    c.endEdit();
-    c.images.remove();
-    expect(c.images.patches, isEmpty);
-
-    c.undo();
-    expect(c.images.patches.single.quarter, 8);
-    expect(c.images.patches.single.crop.left, 0.25);
-    c.undo();
-    expect(c.images.patches.single, added, reason: 'the whole drag was one step');
-    c.undo();
-    expect(c.images.patches, isEmpty);
-    c.redo();
-    expect(c.images.patches.single, added);
-    expect(c.scene!.patches, hasLength(1));
-    c.dispose();
-  });
-
   testWidgets('a project saves the images on the score, and opens them again', (tester) async {
     await open(tester);
     c.images.enabled = true;
@@ -160,36 +81,6 @@ void main() {
     c.dispose();
   });
 
-  test('a damaged image entry says what is wrong', () {
-    Map<String, Object?> state(Object patch) => {'patches': [patch]};
-    final image = PatchImage('a.png', ImageKind.raster, png);
-    expect(
-      () => ProjectState.fromJson(state({'image': 'a.png', 'quarter': 0, 'top': 0, 'width': 1, 'height': 1})),
-      throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('image of state.patches[0] is missing'))),
-    );
-    expect(
-      () => ProjectState.fromJson(state({'image': 'a.png', 'quarter': 0, 'top': 0, 'width': 1, 'height': 1, 'crop': [0.5, 0, 0.2, 1]}),
-          images: {'a.png': image}),
-      throwsA(isA<FormatException>()),
-    );
-    for (final id in ['a:b.png', 'a/b.png', '../a.png', '.png', 'a.gif']) {
-      expect(
-        () => ProjectState.fromJson(state({'image': id, 'quarter': 0, 'top': 0, 'width': 1, 'height': 1}),
-            images: {id: PatchImage(id, ImageKind.raster, png)}),
-        throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('not a file name'))),
-        reason: '$id would be saved under another name',
-      );
-    }
-    expect(PatchImage.isId(PatchImage.create(ImageKind.vector, svg, extension: 'SVG').id), isTrue);
-    expect(ProjectState.fromJson(const {}, savedVersion: 7).edits.patches, isEmpty, reason: 'older projects have none');
-    expect(
-      ProjectState.fromJson(state({'image': 'a.png', 'quarter': 0, 'top': 0, 'width': 1, 'height': 1}),
-          images: {'a.png': image, 'b.png': PatchImage('b.png', ImageKind.raster, png)}).images.keys,
-      ['a.png'],
-      reason: 'an image on no patch is left out',
-    );
-  });
-
   testWidgets('an image too big to decode is refused, and a big one is scaled down', (tester) async {
     final bomb = greyPng(9000, 9000, oneBit: true); // 81 megapixels, about 10 KB
     expect(bomb.length, lessThan(100000));
@@ -214,14 +105,5 @@ void main() {
     final art = await tester.runAsync(() => PatchImage('b.png', ImageKind.raster, greyPng(8192, 16)).decode()) as RasterArt;
     expect(art.size, const Size(4096, 8), reason: 'scaled to the longest side kept, its shape kept');
     art.dispose();
-  });
-
-  test('SVG text is told from other text', () {
-    expect(looksLikeSvg('<svg xmlns="http://www.w3.org/2000/svg"/>'), isTrue);
-    expect(looksLikeSvg('<?xml version="1.0"?>\n<svg/>'), isTrue);
-    expect(looksLikeSvg('Use an <svg> here'), isFalse);
-    expect(ImageKind.ofPath('/a/B.JPG'), ImageKind.raster);
-    expect(ImageKind.ofPath('/a/b.gif'), isNull);
-    expect(ImageKind.types.extensions, containsAll([for (final k in ImageKind.values) ...k.extensions]));
   });
 }

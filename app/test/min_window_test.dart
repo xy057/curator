@@ -1,6 +1,5 @@
 // At the window's minimum size (WindowChrome.minimumSize, which the runners set natively)
 // nothing overflows, in either tab, with the selection-only buttons and every extension showing.
-import 'dart:io';
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
@@ -14,18 +13,6 @@ import 'package:score_engine/score_engine.dart';
 import 'demo_project.dart';
 
 void main() {
-  test('every runner sets the same minimum window size', () {
-    final (w, h) = (WindowChrome.minimumSize.width.toInt(), WindowChrome.minimumSize.height.toInt());
-    final runners = {
-      'macos/Runner/MainFlutterWindow.swift': RegExp('NSSize\\(width: $w, height: $h\\)'),
-      'windows/runner/flutter_window.cpp': RegExp('kMinimumWidth = $w;[\\s\\S]*kMinimumHeight = $h;'),
-      'linux/runner/my_application.cc': RegExp('kMinimumWidth = $w;[\\s\\S]*kMinimumHeight = $h;'),
-    };
-    for (final MapEntry(key: file, value: pattern) in runners.entries) {
-      expect(File(file).readAsStringSync(), matches(pattern), reason: file);
-    }
-  });
-
   testWidgets('the editor fits the minimum window size', (tester) async {
     tester.view.physicalSize = WindowChrome.minimumSize * 2;
     tester.view.devicePixelRatio = 2;

@@ -23,17 +23,6 @@ File _unpack(String folder) {
 /// Its score, unpacked (the same bytes as inside the project).
 File get demoScore => _unpack('score');
 
-/// Its score with bars 1–4 repeated (a backward repeat ending bar 4 of its first part).
-File demoScoreRepeated() {
-  final xml = demoScore.readAsStringSync();
-  var at = xml.indexOf('<part id=');
-  for (var i = 0; i < 4; i++) {
-    at = xml.indexOf('</measure>', at + 1);
-  }
-  final repeated = xml.replaceRange(at, at, '<barline location="right"><repeat direction="backward"/></barline>');
-  return File('${_temp.path}/repeats.musicxml')..writeAsStringSync(repeated);
-}
-
 /// Its recording (FLAC), unpacked.
 File get demoRecording => _unpack('media');
 

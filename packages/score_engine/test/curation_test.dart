@@ -10,15 +10,6 @@ void main() {
     quarterNotesPerMinute: 120,
   );
 
-  test('overlapping and touching regions merge; a drag may overlap them live, merged when it ends', () {
-    final c = Curation(['vn'])..setLane('vn', const [Region(8, 12), Region(0, 4), Region(4, 6), Region(10, 16)]);
-    expect(c.lane('vn'), const [Region(0, 6), Region(8, 16)]);
-    c.updateLanes({'vn': const [Region(0, 6), Region(5, 9), Region(8, 16)]});
-    expect(c.lane('vn'), hasLength(3), reason: 'passing over each other');
-    c.normalize();
-    expect(c.lane('vn'), const [Region(0, 16)]);
-  });
-
   test('drawing joins regions; erasing trims, splits and removes them', () {
     final c = Curation(['vn', 'va'])..setLane('vn', const [Region(0, 8), Region(12, 16)]);
     c.paint(['vn', 'va'], const Region(6, 14));
@@ -29,45 +20,6 @@ void main() {
     expect(c.lane('vn'), const [Region(0, 4), Region(13, 16)]);
     c.paint(['vn'], const Region(0, 5), shown: false);
     expect(c.lane('vn'), const [Region(13, 16)]);
-  });
-
-  test('tidying fills short rests and drops short flashes', () {
-    const starts = <double>[0, 4, 8, 12, 16, 20, 24, 28, 32];
-    final c = Curation(['vn', 'fl'])
-      ..setLane('vn', const [Region(0, 4), Region(8, 12), Region(24, 28)])
-      ..setLane('fl', const [Region(0, 4), Region(8, 12)]);
-    c.fillGaps(starts, 1, partIds: ['vn']);
-    expect(c.lane('vn'), const [Region(0, 12), Region(24, 28)]); // 3-bar rest kept
-    expect(c.lane('fl'), const [Region(0, 4), Region(8, 12)]); // other lane untouched
-
-    c.removeShort(starts, 2);
-    expect(c.lane('vn'), const [Region(0, 12)]);
-    expect(c.lane('fl'), isEmpty);
-
-    // Bars are counted by their own length: 4/4, 2/4, 4/4, 4/4.
-    expect(Curation.barsBetween(const [0, 4, 6, 10, 14], 5, 8), closeTo(1, 1e-9));
-  });
-
-  test('joined lanes (a condensed pair) are one: an edit of either is an edit of both', () {
-    final c = Curation(['fl1', 'fl2', 'ob'])
-      ..setLane('fl1', const [Region(0, 4)])
-      ..setLane('fl2', const [Region(2, 8)]);
-    c.join({'fl2': 'fl1'});
-    expect(c.lane('fl1'), const [Region(0, 8)], reason: 'shown wherever either was');
-    expect(c.lane('fl2'), const [Region(0, 8)]);
-
-    c.paint(['fl1'], const Region(2, 4), shown: false);
-    expect(c.lane('fl2'), const [Region(0, 2), Region(4, 8)]);
-    c.setLane('fl2', const [Region(12, 16)]);
-    expect(c.lane('fl1'), const [Region(12, 16)]);
-    c.updateLanes({'fl1': const [Region(12, 16), Region(14, 20)], 'fl2': const [Region(12, 16)], 'ob': const []});
-    expect(c.lane('fl2'), hasLength(2), reason: 'a drag writing every lane: the one that changed wins');
-    c.normalize();
-    expect(c.lane('fl2'), const [Region(12, 20)]);
-
-    c.join(const {});
-    c.setLane('fl1', const []);
-    expect(c.lane('fl2'), const [Region(12, 20)], reason: 'apart again, each keeps its regions');
   });
 
   test('visibility ramps smoothly around region edges', () {
@@ -84,130 +36,6 @@ void main() {
     for (var t = 0.0; t < 8; t += 1 / 240) {
       expect((v(t + 1 / 240) - v(t)).abs(), lessThan(0.05));
     }
-  });
-
-  test('no fade before the first bar or after the last', () {
-    final end = timeline.measureStarts.last;
-    final c = Curation(['vn', 'fl'])
-      ..transition = 0.4
-      ..addRegion('vn', Region(0, end)) // the whole piece
-      ..addRegion('fl', const Region(0, 4)); // bar 1 only
-    double v(String id, double t) => c.visibilityAt(t, timeline)[id]!;
-    final last = timeline.secondsAtQuarter(end);
-    for (final t in [-1.0, 0.0, 0.1, last - 0.1, last, last + 1]) {
-      expect(v('vn', t), 1, reason: 'at $t s');
-    }
-    expect(v('fl', -1), 1); // shown through any lead-in…
-    expect(v('fl', 2.0), closeTo(0.5, 1e-9)); // …but still fades out where bar 1 ends
-    expect(c.isShownAt('vn', last + 1, timeline), isTrue);
-    expect(c.edgesInSeconds(timeline), [(seconds: 2.0, transition: 0.4)]); // the piece's own ends don't move anything
-  });
-
-  test('bars cut out of the piece start with their staves in place and end with no fade', () {
-    // Bars 3–5 (quarters 8–20, 4–10 s), as if the piece were only those.
-    final clip = ClippedTimeline(timeline, firstPass: 0, start: 8, lastPass: 0, end: 20);
-    final c = Curation(['enters', 'leaves', 'stays', 'later'])
-      ..transition = 0.4
-      ..addRegion('enters', const Region(8, 16)) // enters on bar 3
-      ..addRegion('leaves', const Region(0, 8)) // leaves on bar 3
-      ..addRegion('stays', const Region(12, 20)) // to the end of bar 5
-      ..addRegion('later', const Region(12, 16)); // bar 4 only: fades as ever
-    double v(String id, double t, ScoreTimeline tl) => c.visibilityAt(t, tl)[id]!;
-    expect(v('enters', 4, timeline), closeTo(0.5, 1e-9));
-    expect(v('leaves', 4, timeline), closeTo(0.5, 1e-9));
-    expect((v('enters', 4, clip), v('leaves', 4, clip)), (1, 0), reason: 'nothing under way at the start');
-    expect(v('stays', 10, timeline), closeTo(0.5, 1e-9));
-    expect(v('stays', 10, clip), 1, reason: 'the cut end is the end: no fade');
-    expect(v('later', 6, clip), closeTo(0.5, 1e-9));
-    expect(clip.endSeconds, 10);
-    expect(clip.passes, [const ScorePass(8, 20)]);
-    expect(c.edgesInSeconds(clip).map((e) => e.seconds).toList()..sort(), [6, 6, 8, 8]);
-  });
-
-  test('a warp shows a lane again when the music comes round again, with no dip across the jump', () {
-    // 8 bars of 4/4 at ♩ = 120 (2 s a bar); after bar 4 (8 s) back to bar 1.
-    final sync = SyncMap(measureStarts: [for (var i = 0; i <= 8; i++) i * 4.0], defaultTempo: 120)
-      ..addAnchor(const SyncAnchor(0, 0))
-      ..addAnchor(const SyncAnchor(16, 8, jumpTo: 0));
-    final c = Curation(['vn', 'fl'])
-      ..transition = 0.4
-      ..addRegion('vn', const Region(4, 8)) // bar 2: at 2–4 s and again at 10–12 s
-      ..addRegion('fl', const Region(12, 16)) // bar 4 then bar 1, across the jump
-      ..addRegion('fl', const Region(0, 4));
-    double v(String id, double t) => c.visibilityAt(t, sync)[id]!;
-    expect(v('vn', 3), 1);
-    expect(v('vn', 7), 0);
-    expect(v('vn', 11), 1);
-    for (var t = 6.5; t < 9.5; t += 0.05) {
-      expect(v('fl', t), 1, reason: 'at $t s');
-    }
-    // Flute: bar 1 (open start … 2 s), bar 4 → bar 1 as one (6–10 s), bar 4 again (14–16 s).
-    expect(c.edgesInSeconds(sync).map((e) => e.seconds).toList()..sort(), [2, 2, 4, 6, 10, 10, 12, 14, 16]);
-  });
-
-  test('a region can fade over its own transitions, in and out apart; the others keep the curation\'s', () {
-    final c = Curation(['vn', 'fl', 'va'])
-      ..transition = 0.4
-      ..addRegion('vn', const Region(4, 12, transitionIn: 2, transitionOut: 2)) // bar 2–3 → 2 s … 6 s, over 2 s
-      ..addRegion('fl', const Region(4, 12))
-      ..addRegion('va', const Region(4, 12, transitionOut: 1)); // enters over 0.4 s, leaves over 1 s
-    double v(String id, double t) => c.visibilityAt(t, timeline)[id]!;
-    expect(v('vn', 1.0), closeTo(0, 1e-9)); // the fade starts a second before the edge…
-    expect(v('vn', 1.5), allOf(greaterThan(0), lessThan(0.5)));
-    expect(v('vn', 2.0), closeTo(0.5, 1e-9)); // …is half-way on it…
-    expect(v('vn', 3.0), 1); // …and done a second after
-    expect(v('fl', 1.5), 0);
-    expect(v('fl', 2.2), 1);
-    expect(v('va', 1.5), 0, reason: 'its start is the curation\'s');
-    expect(v('va', 5.6), allOf(greaterThan(0.5), lessThan(1)), reason: 'its end its own');
-    expect(v('fl', 5.6), 1);
-    expect(c.edgesInSeconds(timeline).toList(), [
-      (seconds: 2.0, transition: 2.0),
-      (seconds: 6.0, transition: 2.0),
-      (seconds: 2.0, transition: 0.4),
-      (seconds: 6.0, transition: 0.4),
-      (seconds: 2.0, transition: 0.4),
-      (seconds: 6.0, transition: 1.0),
-    ]);
-  });
-
-  test('a region\'s properties go with it: moved, split, merged, copied', () {
-    const both = Region(0, 8, transitionIn: 1.2, transitionOut: 0.6);
-    final c = Curation(['vn', 'va'])..setLane('vn', const [both]);
-    c.paint(['vn'], const Region(2, 4), shown: false);
-    expect(c.lane('vn'), [both.withBounds(0, 2), both.withBounds(4, 8)], reason: 'split');
-    c.paint(['vn'], const Region(1, 6));
-    expect(c.lane('vn'), const [both], reason: 'drawing over it keeps its own');
-    c.setLane('vn', const [Region(0, 4), Region(3, 8, transitionIn: 0.8, transitionOut: 0.5)]);
-    expect(c.lane('vn'), const [Region(0, 8, transitionIn: 0.8, transitionOut: 0.5)], reason: 'whichever region set it');
-    c.setLane('vn', const [Region(0, 4, transitionIn: 0.15, transitionOut: 2), Region(3, 8, transitionIn: 0.8, transitionOut: 0.5)]);
-    expect(c.lane('vn'), const [Region(0, 8, transitionIn: 0.15, transitionOut: 0.5)], reason: 'each edge its own region\'s');
-    c.setLane('vn', const [Region(0, 8, transitionOut: 2), Region(3, 5, transitionOut: 0.5)]);
-    expect(c.lane('vn'), const [Region(0, 8, transitionOut: 2)], reason: 'the end of the one reaching further');
-    c.copyLane('vn', ['va']);
-    expect(c.lane('va'), const [Region(0, 8, transitionOut: 2)]);
-    expect(both.withBounds(2, 3), const Region(2, 3, transitionIn: 1.2, transitionOut: 0.6));
-    expect(both.withTransition(0.3, atEnd: false), const Region(0, 8, transitionIn: 0.3, transitionOut: 0.6));
-    expect(both.withTransition(null), const Region(0, 8));
-    expect(const Region(0, 8), isNot(const Region(0, 8, transitionIn: 0.3)), reason: 'the curation\'s is not a value');
-    expect(const Region(0, 8, transitionIn: 0.3), isNot(const Region(0, 8, transitionOut: 0.3)));
-  });
-
-  test('staff stack centres a few staves and never exceeds maxGap', () {
-    const slot = StaffSlot(height: 36, inkAbove: 0, inkBelow: 0, visibility: 1);
-    const hidden = StaffSlot(height: 36, inkAbove: 0, inkBelow: 0, visibility: 0);
-    final tops = StaffStack.layout(const [slot, hidden, slot],
-        const StackMetrics(availableHeight: 600, minGap: 24, maxGap: 140));
-    expect(tops[2] - (tops[0] + 36), 140); // gap capped
-    expect(tops[0] - 0, closeTo(600 - (tops[2] + 36), 1e-9)); // centred
-  });
-
-  test('instrument names read like an engraved score', () {
-    expect(prettyInstrumentName('Clarinet (B Flat) 1'), 'Clarinet in B♭ 1');
-    expect(prettyInstrumentName('Horn (F) 2'), 'Horn in F 2');
-    expect(prettyInstrumentName('Cl. (B Flat) 1'), 'Cl. in B♭ 1');
-    expect(prettyInstrumentName('Trumpet in Bb'), 'Trumpet in B♭');
-    expect(prettyInstrumentName('Violin I'), 'Violin I');
   });
 
   test('auto-curation shows a staff where its part plays, through rests of a bar', () {

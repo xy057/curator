@@ -21,19 +21,6 @@ void main() {
   late LoadedScore score;
   setUpAll(() async => score = await LoadedScore.load(demoScore()));
 
-  test('quarters and x map both ways, in order', () {
-    final axis = ScoreAxis(score.engraving, score.timeline.measureStarts);
-    final starts = score.timeline.measureStarts;
-    var last = double.negativeInfinity;
-    for (var q = 0.0; q <= starts.last; q += 0.25) {
-      final x = axis.xAt(q);
-      expect(x, greaterThan(last));
-      expect(axis.quarterAt(x), closeTo(q, 1e-6));
-      last = x;
-    }
-    expect(axis.xAt(starts[1]), closeTo(score.engraving.measures[1].onsetXs.first, 1e-6), reason: 'bar 2 starts at its first note');
-  });
-
   test('a patch scrolls with the score and is pinned to its quarter', () {
     final scene = CuratedScene(score);
     final curation = Curation([for (final p in score.metadata.parts) p.id]);

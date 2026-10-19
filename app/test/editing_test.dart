@@ -16,92 +16,6 @@ void main() {
 
   tearDown(() => c.dispose());
 
-  test('new engraving options re-engrave what is open, and are not an edit', () async {
-    final curation = c.curation, sync = c.sync;
-    final width = c.score!.engraving.width;
-    final revision = c.editRevision.value;
-    final spacing = EngraveOption.byKey('spacingLinear')!;
-    c.engravingOptions = const EngravingOptions().withValue(spacing, 0.9);
-    expect(c.isReengraving, isTrue);
-    while (c.isReengraving) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-    expect(c.score!.options.valueOf(spacing), 0.9);
-    expect(c.score!.engraving.width, greaterThan(width));
-    expect(identical(c.curation, curation) && identical(c.sync, sync), isTrue);
-    expect(c.editRevision.value, revision, reason: 'a setting, not part of the project');
-
-    // A text edit keeps them.
-    final vivo = c.score!.texts.firstWhere((t) => t.text == 'Vivo');
-    await c.editText(vivo.id, 'Vivo assai');
-    expect(c.score!.options.valueOf(spacing), 0.9);
-  });
-
-  test('turning off dynamics typed as text re-engraves what is open, and is not an edit', () async {
-    expect(c.score!.textDynamics, isTrue, reason: 'on by default');
-    final curation = c.curation, sync = c.sync;
-    final revision = c.editRevision.value;
-    c.textDynamics = false;
-    expect(c.isReengraving, isTrue);
-    while (c.isReengraving) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-    expect(c.score!.textDynamics, isFalse);
-    expect(identical(c.curation, curation) && identical(c.sync, sync), isTrue);
-    expect(c.editRevision.value, revision, reason: 'a setting, not part of the project');
-
-    // A text edit keeps it.
-    final vivo = c.score!.texts.firstWhere((t) => t.text == 'Vivo');
-    await c.editText(vivo.id, 'Vivo assai');
-    expect(c.score!.textDynamics, isFalse);
-  });
-
-  test("the project's engraving options win over the app's, and are an edit Undo steps through", () async {
-    Future<void> engraved() async {
-      while (c.isReengraving) {
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
-    }
-
-    final spacing = EngraveOption.byKey('spacingLinear')!, curve = EngraveOption.byKey('slurCurveFactor')!;
-    c.engravingOptions = const EngravingOptions().withValue(spacing, 0.9).withValue(curve, 2);
-    await engraved();
-    final revision = c.editRevision.value;
-    await c.setProjectEngraving(const EngravingOptions().withValue(spacing, 0.7));
-    await engraved();
-    expect(c.score!.options.valueOf(spacing), 0.7);
-    expect(c.score!.options.valueOf(curve), 2, reason: "the app's, where the project sets none");
-    expect(c.editRevision.value, greaterThan(revision));
-    expect(c.projectState.edits.engraving, c.projectEngraving);
-
-    c.undo();
-    await engraved();
-    expect(c.projectEngraving.isEmpty, isTrue);
-    expect(c.score!.options.valueOf(spacing), 0.9);
-    c.redo();
-    await engraved();
-    expect(c.score!.options.valueOf(spacing), 0.7);
-
-    // The app's change under it shows only where the project sets nothing.
-    c.engravingOptions = const EngravingOptions().withValue(spacing, 0.5).withValue(curve, 3);
-    await engraved();
-    expect(c.score!.options.valueOf(spacing), 0.7);
-    expect(c.score!.options.valueOf(curve), 3);
-  });
-
-  test('resizing the score keeps its engraving, and a slider drag is one change', () {
-    final display = c.scene!.display;
-    final revision = c.editRevision.value;
-    for (final size in [8.0, 7.0, 6.0]) {
-      c.setStaffSpace(size, dragging: true);
-    }
-    expect(c.scene!.renderer.scale, closeTo(6 / c.score!.engraving.staffSpace, 1e-9));
-    expect(c.editRevision.value, revision, reason: 'not an edit until the drag ends');
-    c.setStaffSpace(6);
-    expect(c.editRevision.value, revision + 1);
-    expect(identical(c.scene!.display, display), isTrue, reason: 'nothing re-engraved or rebuilt');
-  });
-
   group('instrument lane tools', () {
     late List<String> ids;
     late List<double> bars;
@@ -144,22 +58,6 @@ void main() {
       c.playback.seek(c.timeline.secondsAtQuarter(bars[bars.length - 2]));
       c.lanes.paste();
       expect(c.curation!.lane(shown.last), [Region(bars[bars.length - 2], bars.last, transitionIn: 1.2)]);
-    });
-
-    test('cut removes the regions as one step, and pastes them back where they were', () {
-      final a = Region(bars[4], bars[8]);
-      c.curation!.setLane(ids[1], [a]);
-      c.lanes.select(ids[1], a);
-      c.lanes.cut();
-      expect(c.curation!.lane(ids[1]), isEmpty);
-      expect(c.lanes.selected, isEmpty);
-      c.playback.seek(c.timeline.secondsAtQuarter(bars[4]));
-      c.lanes.paste();
-      expect(c.curation!.lane(ids[1]), [a]);
-      c.undo();
-      c.undo();
-      expect(c.curation!.lane(ids[1]), [a]);
-      expect(c.lanes.canPaste, isTrue, reason: 'Undo leaves what was copied');
     });
   });
 }

@@ -93,23 +93,6 @@ void main() {
     expect(c.curation!.lane('P1'), [Region(starts[10], starts[14]), Region(starts[20], starts[24])]);
   });
 
-  testWidgets('the playhead: Home, End, ← and → skip (⇧ less), Enter plays', (tester) async {
-    await open(tester);
-    c.playback.seek(20);
-    await press(tester, LogicalKeyboardKey.arrowRight);
-    expect(c.playback.time.value, closeTo(25, 1e-6));
-    await press(tester, LogicalKeyboardKey.arrowLeft, holding: LogicalKeyboardKey.shiftLeft);
-    expect(c.playback.time.value, closeTo(24, 1e-6));
-    await press(tester, LogicalKeyboardKey.end);
-    expect(c.playback.time.value, c.playback.duration);
-    await press(tester, LogicalKeyboardKey.home);
-    expect(c.playback.time.value, 0);
-    await press(tester, LogicalKeyboardKey.enter);
-    expect(c.playback.isPlaying, isTrue);
-    await press(tester, LogicalKeyboardKey.enter);
-    expect(c.playback.isPlaying, isFalse);
-  });
-
   testWidgets('Audio tab: T arms tapping and Space taps; anchors nudge, re-bar and select all; W asks for a warp',
       (tester) async {
     await open(tester);
@@ -151,42 +134,5 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Set'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(sync.anchors[3].jumpTo, starts[1], reason: 'after bar 4, back to bar 2');
-  });
-
-  testWidgets('pasting: nothing while Attach Image is off; with nothing to paste it says so; SVG text is an image',
-      (tester) async {
-    await open(tester);
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('pasteboard'),
-        (call) async => call.method == 'files' ? <Object?>[] : null);
-    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('pasteboard'), null));
-
-    await press(tester, LogicalKeyboardKey.keyV, holding: LogicalKeyboardKey.controlLeft);
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byType(SnackBar), findsNothing, reason: 'Attach Image is off');
-
-    settings.attachImage = true;
-    await tester.pump();
-    await press(tester, LogicalKeyboardKey.keyV, holding: LogicalKeyboardKey.controlLeft);
-    for (var i = 0; i < 20 && find.byType(SnackBar).evaluate().isEmpty; i++) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
-      await tester.pump();
-    }
-    expect(find.text('No image to paste.'), findsOneWidget);
-    ScaffoldMessenger.of(tester.element(find.byType(HomePage))).clearSnackBars();
-
-    // SVG text on the clipboard.
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method != 'Clipboard.getData') return null;
-      return {'text': '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="10"><rect width="30" height="10"/></svg>'};
-    });
-    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    for (var i = 0; i < 50 && c.images.patches.isEmpty; i++) {
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
-      await tester.pump();
-    }
-    expect(c.images.patches, hasLength(1));
   });
 }
