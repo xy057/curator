@@ -388,7 +388,8 @@ instruments has them, the names then stopping short of it), its barlines run on 
 (`StaffJoin`). The room between staves changes as they come and go, so unlike an instrument's
 barlines (baked into its tiles) these are drawn each frame: each barline's strokes
 (`ScoreRenderer._barlineStrokes`) from where the staff above's end to where the one below's begin.
-A bracket's ends follow a staff fading in or out at either end, and it fades with its second staff.
+A section stays bracketed while any of its staves shows, one alone too; the bracket's ends follow
+a staff fading in or out at either end, and it fades with the last.
 Only drawn: nothing is planned or engraved again.
 
 **Opening is all or nothing.** A project is read and validated (`ProjectState.fromJson`),

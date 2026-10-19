@@ -436,7 +436,7 @@ class CuratedScene {
   }
 
   /// The sections in [_order]: runs of its staves (start and end, inclusive) whose instruments
-  /// are of one section, two instruments or more; [outset] when one of them is on more than one
+  /// are of one section, two instruments or more (bracketed even while only one shows); [outset] when one of them is on more than one
   /// staff (its brace takes the room beside the staves).
   late List<({int start, int end, bool barlines, bool outset})> _sectionRuns = _sectionRunsOf(_order);
 
@@ -793,17 +793,16 @@ class CuratedScene {
     }
     for (final run in _sectionRuns) {
       final staves = [for (var i = run.start; i <= run.end; i++) ?placed[i]];
-      if (staves.length < 2) continue;
-      // A staff coming or going at either end takes the bracket's end with it as it fades, and
-      // a bracket coming or going fades with its second staff.
-      final first = staves.first, second = staves[1], last = staves.last, next = staves[staves.length - 2];
-      final top = second.y + (first.y - second.y) * first.opacity;
+      if (staves.isEmpty) continue;
+      // Bracketed while any of its staves shows, one alone too. A staff coming or going at either
+      // end takes the bracket's end with it as it fades, and the bracket fades with the last.
+      final first = staves.first, last = staves.last;
+      final second = staves.length > 1 ? staves[1] : first, next = staves.length > 1 ? staves[staves.length - 2] : last;
       final nextBottom = next.y + heightOf(next), lastBottom = last.y + heightOf(last);
-      final opacities = [for (final p in staves) p.opacity]..sort();
       brackets.add(StaffBracket(
-          top: top,
+          top: second.y + (first.y - second.y) * first.opacity,
           bottom: nextBottom + (lastBottom - nextBottom) * last.opacity,
-          opacity: opacities[opacities.length - 2],
+          opacity: staves.map((p) => p.opacity).reduce(math.max),
           outset: run.outset));
     }
     return (placements: placements, labels: labels, braces: braces, brackets: brackets, joins: joins);

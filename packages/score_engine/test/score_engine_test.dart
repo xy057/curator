@@ -122,6 +122,15 @@ void main() {
     expect(frame.brackets, hasLength(4));
     expect(frame.brackets.first.top, frame.placements[1].y);
     expect(frame.joins.first.barlines, isFalse);
+
+    // A section down to one instrument keeps its bracket: Oboe 1 alone in the woodwinds.
+    for (final p in score.metadata.parts.take(9)) {
+      if (p.id != 'P4') curation.setLane(p.id, const []);
+    }
+    frame = scene.layoutAt(30, curation, size);
+    final oboe = frame.placements[1]; // Violin I, then Oboe 1
+    expect(frame.brackets, hasLength(4));
+    expect((frame.brackets.first.top, frame.brackets.first.opacity), (oboe.y, 1.0));
     scene.dispose();
   });
 
