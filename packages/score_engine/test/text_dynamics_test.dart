@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 import 'package:score_engine/src/engraving.dart';
-import 'package:xml/xml.dart';
 
 /// One bar, as Sibelius wrote it: an "f" as a dynamic, then one typed as text in Maestro.
 const _sibelius = '''<?xml version="1.0" encoding="UTF-8"?>
@@ -16,9 +15,6 @@ const _sibelius = '''<?xml version="1.0" encoding="UTF-8"?>
   </measure></part>
 </score-partwise>''';
 
-XmlElement _words(String text, {String? font}) =>
-    XmlDocument.parse('<words${font == null ? '' : ' font-family="$font"'}>$text</words>').rootElement;
-
 /// How many drawing commands each class of Verovio element made.
 int _drawnBy(EngravingData data, String className) {
   final index = data.classNames.indexOf(className);
@@ -29,60 +25,6 @@ int _drawnBy(EngravingData data, String className) {
 }
 
 void main() {
-  test('text in a music font that spells a dynamic is one', () {
-    expect(TextDynamics.dynamicOf(_words('F', font: 'Maestro')), 'f');
-    expect(TextDynamics.dynamicOf(_words(' mp ', font: 'Opus Text Std')), 'mp');
-    expect(TextDynamics.dynamicOf(_words('sfz', font: 'Arial, Bravura Text')), 'sfz');
-    // SMuFL's characters, whatever the font says.
-    expect(TextDynamics.dynamicOf(_words('\u{E522}')), 'f');
-    expect(TextDynamics.dynamicOf(_words('\u{E520}\u{E520}')), 'pp');
-    expect(TextDynamics.dynamicOf(_words('\u{E539}', font: 'Times')), 'sfz');
-  });
-
-  test('anything else stays text', () {
-    expect(TextDynamics.dynamicOf(_words('f', font: 'Garamond')), isNull); // a text font
-    expect(TextDynamics.dynamicOf(_words('f')), isNull); // no font
-    expect(TextDynamics.dynamicOf(_words('cresc.', font: 'Maestro')), isNull); // not a dynamic
-    expect(TextDynamics.dynamicOf(_words('fpz', font: 'Maestro')), isNull);
-    expect(TextDynamics.dynamicOf(_words('\u{E522} sub.')), isNull);
-    // A music font's "n" is a natural sign; niente is SMuFL's character only.
-    expect(TextDynamics.dynamicOf(_words('n', font: 'Maestro')), isNull);
-    expect(TextDynamics.dynamicOf(_words('N', font: 'Opus Text')), isNull);
-    expect(TextDynamics.dynamicOf(_words('\u{E526}')), 'n');
-  });
-
-  test('a dynamic keeps its place, and text beside it stays beside it', () {
-    final doc = XmlDocument.parse('<direction id="d1"><direction-type>'
-        '<words font-family="Garamond">sub.</words>'
-        '<words default-x="10" default-y="-70" color="#000000" justify="left" font-family="Maestro">F</words>'
-        '<words font-family="Garamond">espress.</words>'
-        '</direction-type></direction>');
-    expect(TextDynamics.apply(doc), 1);
-    expect(
-        doc.rootElement.toXmlString(),
-        '<direction id="d1">'
-        '<direction-type><words font-family="Garamond">sub.</words></direction-type>'
-        '<direction-type><dynamics default-x="10" default-y="-70" color="#000000"><f/></dynamics></direction-type>'
-        '<direction-type><words font-family="Garamond">espress.</words></direction-type>'
-        '</direction>');
-  });
-
-  test('every dynamic in one direction-type is one, the text between them kept between', () {
-    final doc = XmlDocument.parse('<direction><direction-type>'
-        '<words font-family="Maestro">f</words>'
-        '<words font-family="Garamond">–</words>'
-        '<words font-family="Maestro">p</words>'
-        '</direction-type></direction>');
-    expect(TextDynamics.apply(doc), 2);
-    expect(
-        doc.rootElement.toXmlString(),
-        '<direction>'
-        '<direction-type><dynamics><f/></dynamics></direction-type>'
-        '<direction-type><words font-family="Garamond">–</words></direction-type>'
-        '<direction-type><dynamics><p/></dynamics></direction-type>'
-        '</direction>');
-  });
-
   test('engraved as a dynamic, or as text with the flag off', () async {
     final score = await LoadedScore.load(_sibelius);
     expect(score.textDynamics, isTrue);

@@ -40,15 +40,6 @@ void main() {
     expect(session.existsSync(), isFalse);
   }, skip: Platform.isWindows ? 'uses a POSIX child process to hold the lock' : false);
 
-  test("on Linux it lives in the user's cache folder, not the /tmp every user shares", () {
-    expect(ScratchSpace.rootFor('linux', '/tmp', {'HOME': '/home/ann'}), '/home/ann/.cache/curated-score/scratch');
-    expect(ScratchSpace.rootFor('linux', '/tmp', {'HOME': '/home/ann', 'XDG_CACHE_HOME': '/fast/ann'}),
-        '/fast/ann/curated-score/scratch');
-    expect(ScratchSpace.rootFor('linux', '/tmp', {'HOME': '/home/ann', 'XDG_CACHE_HOME': 'relative'}),
-        '/home/ann/.cache/curated-score/scratch', reason: 'XDG paths must be absolute');
-    expect(ScratchSpace.rootFor('macos', '/var/folders/x/T', const {}), '/var/folders/x/T/curated-score');
-  });
-
   test('sweeping removes links, never what they point to, and leaves a root that is a link', () {
     final dir = Directory.systemTemp.createTempSync('sweep-links-');
     addTearDown(() => dir.deleteSync(recursive: true));

@@ -38,9 +38,6 @@ String demoScoreWithKeyChanges(Map<int, int> concertFifths) {
   return doc.toXmlString();
 }
 
-/// The demo with its 6/8 written as the additive [beats] (e.g. "2+2+2"), the same bar length.
-String demoScoreWithBeats(String beats) => demoScore().replaceAll('<beats>6</beats>', '<beats>$beats</beats>');
-
 /// A flute and a two-staff piano, two bars; in the second the right hand crosses down to the
 /// left hand's staff for a low G (cross-staff).
 const flutePianoScore = '''<?xml version="1.0" encoding="UTF-8"?>
