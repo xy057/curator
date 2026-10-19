@@ -780,6 +780,12 @@ class CuratedScene {
     final brackets = <StaffBracket>[];
     final joins = <StaffJoin>[];
     double heightOf(StaffPlacement p) => display.staves[p.staffIndex].info.height * renderer.scale;
+    // A staff of fewer lines (a snare drum's one) is bracketed as a five-line staff about its middle.
+    ({double top, double bottom}) extentOf(StaffPlacement p) {
+      final height = heightOf(p), room = math.max(height, 4 * _style.staffSpace);
+      final middle = p.y + height / 2;
+      return (top: middle - room / 2, bottom: middle + room / 2);
+    }
     final runOf = <int, ({int start, int end, bool barlines, bool outset})>{
       for (final run in _sectionRuns)
         for (var i = run.start; i <= run.end; i++) i: run,
@@ -798,9 +804,10 @@ class CuratedScene {
       // end takes the bracket's end with it as it fades, and the bracket fades with the last.
       final first = staves.first, last = staves.last;
       final second = staves.length > 1 ? staves[1] : first, next = staves.length > 1 ? staves[staves.length - 2] : last;
-      final nextBottom = next.y + heightOf(next), lastBottom = last.y + heightOf(last);
+      final firstTop = extentOf(first).top, secondTop = extentOf(second).top;
+      final nextBottom = extentOf(next).bottom, lastBottom = extentOf(last).bottom;
       brackets.add(StaffBracket(
-          top: second.y + (first.y - second.y) * first.opacity,
+          top: secondTop + (firstTop - secondTop) * first.opacity,
           bottom: nextBottom + (lastBottom - nextBottom) * last.opacity,
           opacity: staves.map((p) => p.opacity).reduce(math.max),
           outset: run.outset));

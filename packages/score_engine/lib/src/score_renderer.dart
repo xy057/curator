@@ -22,7 +22,7 @@ class StaffBrace {
 }
 
 /// A section's bracket (the woodwinds, the strings…), from its first staff's top line to its
-/// last staff's bottom line, logical pixels.
+/// last staff's bottom line, logical pixels (a staff of fewer lines taken as five).
 class StaffBracket {
   const StaffBracket({required this.top, required this.bottom, required this.opacity, this.outset = false});
   final double top, bottom;
