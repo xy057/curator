@@ -110,10 +110,12 @@ void main() {
 
     scene.sections = true;
     var frame = scene.layoutAt(30, curation, size);
-    // Woodwinds, brass, percussion, strings; the barlines break only between them.
+    // Woodwinds, brass, percussion, strings; the barlines break only between them. The snare
+    // drum, outside the file's brackets, stands alone.
     expect(frame.brackets, hasLength(4));
     expect(frame.joins, hasLength(20)); // the starting line through all 21 staves
-    expect([for (final (i, j) in frame.joins.indexed) if (!j.barlines) i], [8, 12, 15]);
+    expect([for (final (i, j) in frame.joins.indexed) if (!j.barlines) i], [8, 12, 14, 15]);
+    expect(frame.brackets[2].bottom, frame.placements[14].y + 4 * scene.style.staffSpace); // down to the glockenspiel
     expect(frame.brackets.first.top, frame.placements.first.y);
 
     // Violin I moved to the top stands alone: no bracket, no barlines down into the woodwinds.
