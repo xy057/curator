@@ -366,17 +366,6 @@ class EditorController extends ChangeNotifier {
     playback._markDirty(); // only the score shows it: nothing to rebuild
   }
 
-  /// Whether the score groups its instruments in sections, as printed (Settings ▸ Engraving;
-  /// see [CuratedScene.sections]). A view setting, not an edit.
-  bool get groupSections => _groupSections;
-  bool _groupSections = false;
-  set groupSections(bool value) {
-    if (value == _groupSections) return;
-    _groupSections = value;
-    _showSettings();
-    playback._markDirty(); // only the score shows it: nothing to rebuild
-  }
-
   CuratedScene _makeScene(LoadedScore score) {
     final scene = CuratedScene(score, style: RenderStyle(staffSpace: _staffSpace))..settings = sceneSettings;
     if (_sync != null) scene.setTimeline(_sync!);
@@ -393,7 +382,7 @@ class EditorController extends ChangeNotifier {
       patches: images._scenePatches,
       captions: captions._sceneCaptions,
       captionStyle: captions._style,
-      sections: _groupSections,
+      sections: _doc.groupSections,
       sectionOverrides: {..._doc.sections, ...?_previewSections});
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
@@ -403,6 +392,18 @@ class EditorController extends ChangeNotifier {
   /// choice, else its family's name; null: none, standing alone.
   String? sectionOf(ScorePart part) =>
       _doc.sections.containsKey(part.id) ? _doc.sections[part.id] : part.section?.name;
+
+  /// Whether the score groups its instruments in sections, as printed (Project Settings ▸
+  /// Sections; see [CuratedScene.sections]).
+  bool get groupSections => _doc.groupSections;
+
+  /// Groups the instruments in sections, or stops: one Undo step.
+  void setGroupSections(bool on) {
+    if (on == _doc.groupSections) return;
+    _doc = _doc.copyWith(groupSections: on);
+    _showSettings();
+    _edited();
+  }
 
   /// Whether the user chose any instrument's section.
   bool get hasOwnSections => _doc.sections.isNotEmpty;

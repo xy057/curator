@@ -121,9 +121,9 @@ void main() {
 
     unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Sections'));
     await settle();
-    await tester.tap(find.byType(AppSwitch).first); // Group sections, the app's
+    await tester.tap(find.byType(AppSwitch).first); // Group sections, the project's
     await settle();
-    expect(c.scene!.sections, isTrue);
+    expect((c.groupSections, c.scene!.sections, c.projectState.edits.groupSections), (true, true, true));
 
     // Rows 36 points high, staves 16 points high in their middle; brackets left of the staves at 174.
     final paint = find.descendant(of: find.byType(SectionsEditor), matching: find.byType(CustomPaint)).last;

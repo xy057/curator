@@ -320,14 +320,14 @@ final _projectCategories = <_Category>[
   _Category('Sections', AppIcon.lanes, page: (c) => _SectionsPage(c), [
     _Item(
       'Group sections',
-      (_) => 'Every project.',
-      (c) => AppSwitch(value: c.settings.groupSections, onChanged: (v) => c.settings.groupSections = v),
+      null,
+      (c) => AppSwitch(value: c.controller!.groupSections, onChanged: c.controller!.setGroupSections),
       keywords: 'bracket barline barlines group sections family instrument woodwinds brass strings percussion printed',
     ),
   ]),
 ];
 
-/// Project Settings ▸ Sections: the app's Group sections, and the brackets ([SectionsEditor]).
+/// Project Settings ▸ Sections: Group sections, and the brackets ([SectionsEditor]).
 class _SectionsPage extends StatelessWidget {
   const _SectionsPage(this.c);
   final _Context c;
@@ -344,8 +344,8 @@ class _SectionsPage extends StatelessWidget {
           decoration: decoration,
           child: _SettingRow(
               title: 'Group sections',
-              help: 'Every project.',
-              control: AppSwitch(value: c.settings.groupSections, onChanged: (v) => c.settings.groupSections = v)),
+              help: null,
+              control: AppSwitch(value: c.controller!.groupSections, onChanged: c.controller!.setGroupSections)),
         ),
         const SizedBox(height: 18),
         Expanded(
@@ -378,14 +378,6 @@ _Category _engravingCategory({required bool project}) {
           (c) => EngravingControl(target: target(c), setting: s),
           group: s.group,
           keywords: 'engrave engraving ${s.group} ${s.keywords} ${s.key}',
-        ),
-      if (!project)
-        _Item(
-          'Group sections',
-          (_) => 'Brackets and barlines as printed.',
-          (c) => AppSwitch(value: c.settings.groupSections, onChanged: (v) => c.settings.groupSections = v),
-          group: 'Layout',
-          keywords: 'bracket brace barline barlines group sections family woodwinds brass strings percussion printed score system',
         ),
       _Item(
         'Engraving options',

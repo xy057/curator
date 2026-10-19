@@ -378,15 +378,16 @@ it only re-plans the layout, like condensing. It is an edit (`partOrder` in `Edi
 in the project from format 5, empty for the score's order); the lanes follow it
 (`EditorController.laneParts`), and a condensed pair moves as one.
 
-**Sections are grouped as printed when asked** (Settings ▸ Engraving ▸ Group sections,
-`AppSettings.groupSections`, app-wide, off by default; `CuratedScene.sections`, in `SceneSettings`).
+**Sections are grouped as printed when asked** (Project Settings ▸ Sections ▸ Group sections,
+`EditState.groupSections`, an edit saved from format 17, off for a new project; `CuratedScene.sections`,
+in `SceneSettings`).
 A section is a run, in the instruments' order, of two instruments or more of one
 `ScorePart.section` (woodwinds, brass, percussion, voices, strings; keyboards, harp and guitar stand
 alone), or of one the user put in a section of their own (a family's lone instrument is otherwise
 left bare, as printed; the editor gives a bracket dragged down to one instrument a section of its own). Families first, as exports group them every which way, then the file: where its part-list
 brackets anything, an instrument it leaves out of every bracket stands alone too
 (`ScorePart.bracketed`: no bracket, no barlines joined to it). Last, the user, in Project Settings ▸
-Sections (`SectionsEditor`; the page also holds the app's switch): the instruments as staves in
+Sections (`SectionsEditor`, under the switch): the instruments as staves in
 lane order, bracketed as the score has them; a bracket's end dragged takes in or lets go of
 instruments, a drag down the bracket column draws one, and instruments selected as lanes are
 (⌘-click a range, ⇧-click adds) are bracketed or unbracketed by its buttons. A section is then any

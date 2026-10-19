@@ -37,7 +37,6 @@ class AppSettings extends ChangeNotifier {
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
         _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? true,
-        _groupSections = _prefs?.getBool(_groupSectionsKey) ?? false,
         _attachImage = _prefs?.getBool(_attachImageKey) ?? false,
         _captions = _prefs?.getBool(_captionsKey) ?? false,
         _captionFont = _prefs?.getString(_captionFontKey) ?? '',
@@ -73,7 +72,7 @@ class AppSettings extends ChangeNotifier {
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
-  static const _textDynamicsKey = 'textDynamics', _groupSectionsKey = 'groupSections';
+  static const _textDynamicsKey = 'textDynamics';
 
   static double _readFps(SharedPreferences? prefs) {
     try {
@@ -400,17 +399,6 @@ class AppSettings extends ChangeNotifier {
     } on FormatException {
       return const EngravingOptions();
     }
-  }
-
-  /// Whether the score groups its instruments in sections, as printed: brackets, barlines
-  /// through each section ([CuratedScene.sections]). Off by default.
-  bool get groupSections => _groupSections;
-  bool _groupSections;
-  set groupSections(bool value) {
-    if (value == _groupSections) return;
-    _groupSections = value;
-    _prefs?.setBool(_groupSectionsKey, value);
-    notifyListeners();
   }
 
   // MARK: Flags

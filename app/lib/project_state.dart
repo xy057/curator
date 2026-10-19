@@ -39,6 +39,7 @@ class EditState {
     this.pairs = const [],
     this.partOrder = const [],
     this.sections = const {},
+    this.groupSections = false,
     this.patches = const [],
     this.captions = const [],
     this.captionFont,
@@ -86,6 +87,9 @@ class EditState {
   /// standing alone. Others are in their own ([ScorePart.section]).
   final Map<String, String?> sections;
 
+  /// Whether the score groups its instruments in sections, as printed ([CuratedScene.sections]).
+  final bool groupSections;
+
   /// Images on the score (Attach Image), bottom to top.
   final List<ImagePatch> patches;
 
@@ -123,6 +127,7 @@ class EditState {
       listEquals(pairs, other.pairs) &&
       listEquals(partOrder, other.partOrder) &&
       mapEquals(sections, other.sections) &&
+      groupSections == other.groupSections &&
       listEquals(patches, other.patches) &&
       listEquals(captions, other.captions) &&
       captionFont == other.captionFont &&
@@ -147,6 +152,7 @@ class EditState {
     List<PlayerPair>? pairs,
     List<String>? partOrder,
     Map<String, String?>? sections,
+    bool? groupSections,
     List<ImagePatch>? patches,
     List<Caption>? captions,
     Object? captionFont = _kept,
@@ -166,6 +172,7 @@ class EditState {
         pairs: pairs ?? this.pairs,
         partOrder: partOrder ?? this.partOrder,
         sections: sections ?? this.sections,
+        groupSections: groupSections ?? this.groupSections,
         patches: patches ?? this.patches,
         captions: captions ?? this.captions,
         captionFont: identical(captionFont, _kept) ? this.captionFont : captionFont as String?,
@@ -216,7 +223,7 @@ class ProjectState {
     13: (state) => state, // not embedding a font came in 14: every added font embedded
     14: (state) => state, // a MIDI tempo map's warps came in 15: none
     15: (state) => state, // instruments' sections came in 16: none, their own
-    16: (state) => state, // sections of the user's own came in 17 (16's were families' names): none
+    16: (state) => state, // grouping sections, and sections of the user's own, came in 17 (16's were families' names): off, none
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -301,6 +308,7 @@ class ProjectState {
               _ => throw FormatException('The project is damaged: ${r.where}.sections.$id is not a section.'),
             },
         },
+        groupSections: r.boolean('groupSections') ?? false,
         patches: patches,
         // Kept apart (those saved before captions couldn't overlap show as they did).
         captions: separateCaptions([
@@ -425,7 +433,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving) = edits;
+        :sections, :groupSections, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -441,6 +449,7 @@ class ProjectState {
       'condensed': [...condensed],
       'pairs': [for (final p in pairs) p.partIds],
       'partOrder': partOrder,
+      if (groupSections) 'groupSections': true,
       if (sections.isNotEmpty)
         'sections': {for (final MapEntry(key: id, value: s) in sections.entries) id: s ?? 'none'},
       'patches': [
