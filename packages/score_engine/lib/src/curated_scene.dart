@@ -248,6 +248,7 @@ class SceneSettings {
     this.captions = const [],
     this.captionStyle = const CaptionStyle(),
     this.sections = false,
+    this.sectionOverrides = const {},
   });
 
   /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
@@ -259,6 +260,7 @@ class SceneSettings {
   final List<Caption> captions;
   final CaptionStyle captionStyle;
   final bool sections;
+  final Map<String, InstrumentFamily?> sectionOverrides;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -337,7 +339,8 @@ class CuratedScene {
   Map<String, ({String name, String abbreviation})> names = const {};
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
-  /// [patches], [captions], [captionStyle], [sections]); setting it changes only what differs.
+  /// [patches], [captions], [captionStyle], [sections], [sectionOverrides]); setting it changes
+  /// only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
       condensed: condensed,
@@ -346,7 +349,8 @@ class CuratedScene {
       patches: patches,
       captions: captions,
       captionStyle: captionStyle,
-      sections: sections);
+      sections: sections,
+      sectionOverrides: sectionOverrides);
   set settings(SceneSettings value) {
     names = value.names;
     condensed = value.condensed;
@@ -356,6 +360,7 @@ class CuratedScene {
     captions = value.captions;
     captionStyle = value.captionStyle;
     sections = value.sections;
+    sectionOverrides = value.sectionOverrides;
   }
 
   /// Whether the instruments are grouped in sections as a printed score groups them: each
@@ -365,6 +370,20 @@ class CuratedScene {
   /// instruments in [partOrder]; one moved away from the rest starts a section of its own.
   /// Only drawn: nothing is planned or engraved again.
   bool sections = false;
+
+  /// The user's choice of section for some instruments (part id → section; null: none, standing
+  /// alone) over [ScorePart.section]. A pair takes its first player's.
+  Map<String, InstrumentFamily?> get sectionOverrides => _sectionOverrides;
+  Map<String, InstrumentFamily?> _sectionOverrides = const {};
+  set sectionOverrides(Map<String, InstrumentFamily?> value) {
+    if (mapEquals(value, _sectionOverrides)) return;
+    _sectionOverrides = Map.unmodifiable(value);
+    _sectionRuns = _sectionRunsOf(_order);
+  }
+
+  /// [part]'s section: the user's choice, else its own.
+  InstrumentFamily? sectionOf(ScorePart part) =>
+      _sectionOverrides.containsKey(part.id) ? _sectionOverrides[part.id] : part.section;
 
   /// The pairs of players (ids from [LoadedScore.condensed]) that share a staff while both
   /// are shown. Changing it re-plans the layout; nothing is engraved again.
@@ -446,8 +465,8 @@ class CuratedScene {
     final runs = <({int start, int end, bool barlines, bool outset})>[];
     var start = 0;
     for (var i = 1; i <= order.length; i++) {
-      final section = partOf(order[start].partId).section;
-      if (i < order.length && section != null && partOf(order[i].partId).section == section) continue;
+      final section = sectionOf(partOf(order[start].partId));
+      if (i < order.length && section != null && sectionOf(partOf(order[i].partId)) == section) continue;
       if (section != null && {for (var j = start; j < i; j++) order[j].partId}.length > 1) {
         runs.add((
           start: start,

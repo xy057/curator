@@ -173,6 +173,9 @@ void main() {
       final vivo = c.score!.texts.firstWhere((t) => t.text == 'Vivo');
       await c.editText(vivo.id, 'Presto');
       c.moveLane('P17', 0);
+      final parts = c.score!.metadata.parts;
+      c.setSection(parts[15], InstrumentFamily.percussion); // the snare drum, back with the timpani
+      c.setSection(parts[0], null); // the piccolo alone
       final starts = c.score!.timeline.measureStarts;
       c.sync!.addAnchor(SyncAnchor(starts[8], 20, jumpTo: starts[4])); // a warp: back to bar 5
       c.useMidiTempo(MidiTempoMap('tempo.mid', const [(quarter: 0, quartersPerMinute: 96), (quarter: 24, quartersPerMinute: 80)]));
@@ -203,6 +206,7 @@ void main() {
       expect(c2.scene!.condensed, {'cond-P2-P3', 'cond-P6-P12'});
       expect(c2.textById(vivo.id)!.current, 'Presto');
       expect(c2.partOrder.first, 'P17');
+      expect(c2.scene!.sectionOverrides, {'P16': InstrumentFamily.percussion, 'P1': null});
       expect(c2.midiTempo!.name, 'tempo.mid');
       expect(c2.projectState.edits.anchors.where((a) => a.isWarp), hasLength(1), reason: 'the anchors kept behind the MIDI file');
       expect(c2.score!.fonts.music, MusicFont.leland);

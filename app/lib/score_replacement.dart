@@ -201,6 +201,7 @@ class ScoreSwap {
           condensed: {for (final id in edits.condensed) ?condensedId(id)},
           pairs: pairs(edits.pairs),
           partOrder: [for (final id in edits.partOrder) ?parts[id]],
+          sections: {for (final MapEntry(key: id, value: s) in edits.sections.entries) ?parts[id]: s},
           patches: patches,
           captions: separateCaptions(captions),
         ),
