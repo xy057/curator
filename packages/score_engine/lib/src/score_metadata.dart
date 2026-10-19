@@ -59,6 +59,7 @@ class ScorePart {
     required this.staffNumbers,
     this.silentStaves = const {},
     this.isUnpitchedPercussion = false,
+    this.bracketed = true,
   });
 
   final String id;
@@ -78,14 +79,20 @@ class ScorePart {
   /// Uses a percussion clef: drawn without key signatures, like any engraved score.
   final bool isUnpitchedPercussion;
 
+  /// False when the file brackets other instruments but leaves this one out of every bracket
+  /// (a snare drum after the timpani's): it then stands on its own ([section]).
+  final bool bracketed;
+
   /// The staves that are actually shown.
   List<int> get shownStaffNumbers => [for (final n in staffNumbers) if (!silentStaves.contains(n)) n];
 
   InstrumentFamily get family => InstrumentFamily.classify(sound: sound, name: name);
 
-  /// The section a printed score brackets it with; null for an instrument standing on its own
-  /// (keyboards, harp, guitar and the like).
+  /// The section a printed score brackets it with, by its family; null for an instrument
+  /// standing on its own (keyboards, harp, guitar and the like, or one the file leaves out of
+  /// its brackets).
   InstrumentFamily? get section => switch (family) {
+        _ when !bracketed => null,
         InstrumentFamily.keyboards || InstrumentFamily.other => null,
         InstrumentFamily.strings
             when (sound ?? '').toLowerCase().startsWith('pluck.') ||
@@ -167,6 +174,7 @@ class ScoreMetadata {
       ];
     }
 
+    final unbracketed = _unbracketed(root);
     var next = 1;
     final parts = <ScorePart>[];
     for (final element in root.findAllElements('score-part')) {
@@ -180,6 +188,7 @@ class ScoreMetadata {
         sound: element.findAllElements('instrument-sound').firstOrNull?.innerText.trim(),
         staffNumbers: [for (var n = next; n < next + count; n++) n],
         isUnpitchedPercussion: percussion.contains(id),
+        bracketed: !unbracketed.contains(id),
         silentStaves: {
           // Only for multi-staff parts: a single staff always stays, even if it rests throughout.
           if (count > 1)
@@ -222,6 +231,32 @@ class ScoreMetadata {
       form: ScoreForm.fromDocument(doc),
     );
   }
+}
+
+/// The parts the part-list leaves out of every bracket (a `<part-group>` drawn as a bracket or
+/// a square one), when it brackets any; a group started again under a number still open ends
+/// the one before.
+Set<String> _unbracketed(XmlElement root) {
+  final list = root.findElements('part-list').firstOrNull;
+  if (list == null) return const {};
+  final open = <String, String>{}; // number → group symbol
+  final out = <String>{};
+  var brackets = false;
+  for (final e in list.childElements) {
+    if (e.name.local == 'part-group') {
+      final number = e.getAttribute('number') ?? '1';
+      if (e.getAttribute('type') == 'start') {
+        open[number] = e.getElement('group-symbol')?.innerText.trim() ?? 'none';
+      } else if (e.getAttribute('type') == 'stop') {
+        open.remove(number);
+      }
+    } else if (e.name.local == 'score-part') {
+      final bracketed = open.values.any((symbol) => symbol == 'bracket' || symbol == 'square');
+      brackets |= bracketed;
+      if (!bracketed) out.add(e.getAttribute('id') ?? '');
+    }
+  }
+  return brackets ? out : const {};
 }
 
 /// Text of a MusicXML `<part-name-display>` / `<part-abbreviation-display>`, with

@@ -381,7 +381,9 @@ in the project from format 5, empty for the score's order); the lanes follow it
 `AppSettings.groupSections`, app-wide, off by default; `CuratedScene.sections`, in `SceneSettings`).
 A section is a run, in the instruments' order, of two instruments or more of one
 `ScorePart.section` (woodwinds, brass, percussion, voices, strings; keyboards, harp and guitar stand
-alone): the file's own part-groups aren't read, as exports group them every which way. Each gets a
+alone). Families first, as exports group them every which way, then the file: where its part-list
+brackets anything, an instrument it leaves out of every bracket stands alone too
+(`ScorePart.bracketed`: no bracket, no barlines joined to it). Each section gets a
 bracket (`StaffBracket`, the font's hooks at its ends; set out past the braces when one of its
 instruments has them, the names then stopping short of it), its barlines run on between its staves
 (not the voices', which leave room for words), and the starting line runs through every staff
