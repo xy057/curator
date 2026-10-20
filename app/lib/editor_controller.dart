@@ -352,18 +352,36 @@ class EditorController extends ChangeNotifier {
     _tab = BottomTab.instruments;
   }
 
-  /// The staff transition a newly imported score starts with (Settings ▸ Animation).
+  /// The staff transition a newly imported score starts with (the one saved by Project
+  /// Settings ▸ Animation ▸ Save as default).
   double defaultTransition = 0.3;
 
-  /// How closely the scroll follows the notes, 0–1 (Settings ▸ Animation; see
-  /// [ScrollMap.follow]). A view setting, not an edit.
-  double get scrollFollow => _scrollFollow;
-  double _scrollFollow = 0.4;
-  set scrollFollow(double value) {
-    if (value == _scrollFollow) return;
-    _scrollFollow = value;
+  /// How closely the scroll follows the notes in a project that hasn't set its own (the one
+  /// saved by Save as default).
+  double get defaultScrollFollow => _defaultScrollFollow;
+  double _defaultScrollFollow = 0.4;
+  set defaultScrollFollow(double value) {
+    if (value == _defaultScrollFollow) return;
+    _defaultScrollFollow = value;
+    if (_doc.scrollFollow == null) _scrollChanged();
+  }
+
+  /// How closely the scroll follows the notes, 0–1 (Project Settings ▸ Animation; see
+  /// [ScrollMap.follow]).
+  double get scrollFollow => _doc.scrollFollow ?? _defaultScrollFollow;
+
+  /// Sets [scrollFollow]: an Undo step (one for a whole drag, inside [beginEdit] / [endEdit]).
+  void setScrollFollow(double value) {
+    if (value == _doc.scrollFollow) return;
+    _doc = _doc.copyWith(scrollFollow: value);
+    _showSettings();
+    _edited();
+  }
+
+  void _scrollChanged() {
     _showSettings();
     playback._markDirty(); // only the score shows it: nothing to rebuild
+    notifyListeners();
   }
 
   CuratedScene _makeScene(LoadedScore score) {
@@ -378,7 +396,7 @@ class EditorController extends ChangeNotifier {
       names: _doc.partNames,
       condensed: _doc.condensed,
       partOrder: _doc.partOrder,
-      scrollFollow: _scrollFollow,
+      scrollFollow: scrollFollow,
       patches: images._scenePatches,
       captions: captions._sceneCaptions,
       captionStyle: captions._style,

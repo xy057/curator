@@ -74,17 +74,22 @@ void main() {
     expect(c.score!.textFontFamily, 'Curator text Helvetica');
     expect(c.projectState.edits.fonts, c.fonts);
     final dir = Platform.environment['SCREENSHOT_DIR'];
+    // The whole window, the dialog included (its layer is in physical pixels).
+    Future<void> shoot(String name) async {
+      if (dir == null) return;
+      await tester.runAsync(() async {
+        final view = tester.binding.renderViews.first;
+        final image = await (view.debugLayer! as OffsetLayer).toImage(Offset.zero & tester.view.physicalSize);
+        final png = await image.toByteData(format: ui.ImageByteFormat.png);
+        File('$dir/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
+      });
+    }
+
     if (dir != null) {
       await tester.runAsync(loadTestFonts);
       c.setStaffSpace(6); // a new scene, drawn with the fonts just loaded
       await settle();
-      await tester.runAsync(() async {
-        // The whole window, the dialog included (its layer is in physical pixels).
-        final view = tester.binding.renderViews.first;
-        final image = await (view.debugLayer! as OffsetLayer).toImage(Offset.zero & tester.view.physicalSize);
-        final png = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$dir/project-settings-fonts.png').writeAsBytesSync(png!.buffer.asUint8List());
-      });
+      await shoot('project-settings-fonts');
     }
 
     // Each was its own Undo step.
@@ -106,6 +111,27 @@ void main() {
     await tester.tap(find.text('Save'));
     await settle();
     expect(settings.musicFont, MusicFont.leland.name);
+    expect(find.text('Same as default.'), findsOneWidget);
+
+    // Animation: the scroll is the project's, a drag one Undo step; Save as default makes it the app's.
+    await tester.tap(find.text('Animation').first);
+    await settle();
+    expect(c.scrollFollow, AppSettings.defaultScrollFollow);
+    await tester.drag(find.byType(Slider).last, const Offset(60, 0));
+    await settle();
+    await shoot('project-settings-animation');
+    final follow = c.scrollFollow;
+    expect(follow, greaterThan(AppSettings.defaultScrollFollow));
+    expect(c.projectState.edits.scrollFollow, follow);
+    expect(settings.scrollFollow, AppSettings.defaultScrollFollow, reason: "the project's, not the app's");
+    c.undo();
+    await settle();
+    expect(c.scrollFollow, AppSettings.defaultScrollFollow);
+    c.redo();
+    await settle();
+    await tester.tap(find.text('Save'));
+    await settle();
+    expect(settings.scrollFollow, follow);
     expect(find.text('Same as default.'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Close'));

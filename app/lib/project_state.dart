@@ -30,6 +30,7 @@ class EditState {
   const EditState({
     this.lanes,
     this.transition,
+    this.scrollFollow,
     this.anchors = const [],
     this.leadIn = 0,
     this.midi,
@@ -55,6 +56,10 @@ class EditState {
   /// Seconds for a staff to enter or leave where its region doesn't set its own; null: the
   /// default for new projects. Never null in Undo.
   final double? transition;
+
+  /// How closely the scroll follows the notes, 0–1 (see [ScrollMap.follow]); null: the app's
+  /// default (Save as default).
+  final double? scrollFollow;
 
   /// The tempo track: where the score is pinned to the recording (warps among them), and the
   /// start before any anchor.
@@ -114,6 +119,7 @@ class EditState {
   bool operator ==(Object other) =>
       other is EditState &&
       transition == other.transition &&
+      scrollFollow == other.scrollFollow &&
       leadIn == other.leadIn &&
       midi == other.midi &&
       switch ((lanes, other.lanes)) {
@@ -139,10 +145,11 @@ class EditState {
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
 
   /// This state with the fields given instead of its own. A field that may be null is
-  /// cleared by passing null ([lanes], [transition], [midi], [captionFont]); left out, it stays.
+  /// cleared by passing null ([lanes], [transition], [scrollFollow], [midi], [captionFont]); left out, it stays.
   EditState copyWith({
     Object? lanes = _kept,
     Object? transition = _kept,
+    Object? scrollFollow = _kept,
     List<SyncAnchor>? anchors,
     double? leadIn,
     Object? midi = _kept,
@@ -163,6 +170,7 @@ class EditState {
       EditState(
         lanes: identical(lanes, _kept) ? this.lanes : lanes as Map<String, List<Region>>?,
         transition: identical(transition, _kept) ? this.transition : transition as double?,
+        scrollFollow: identical(scrollFollow, _kept) ? this.scrollFollow : scrollFollow as double?,
         anchors: anchors ?? this.anchors,
         leadIn: leadIn ?? this.leadIn,
         midi: identical(midi, _kept) ? this.midi : midi as MidiTempoMap?,
@@ -264,6 +272,11 @@ class ProjectState {
           final s? when s < 0 || s > maxTransition =>
             throw FormatException('The project is damaged: ${curation.where}.transition is not a length of time.'),
           final s => s,
+        },
+        scrollFollow: switch (curation.number('scrollFollow')) {
+          final f? when f < 0 || f > 1 =>
+            throw FormatException('The project is damaged: ${curation.where}.scrollFollow is not between 0 and 1.'),
+          final f => f,
         },
         anchors: [
           for (final (i, anchor) in sync.list('anchors').indexed)
@@ -432,7 +445,7 @@ class ProjectState {
   }
 
   Map<String, Object?> toJson() {
-    final EditState(:lanes, :transition, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
+    final EditState(:lanes, :transition, :scrollFollow, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
         :sections, :groupSections, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
@@ -472,6 +485,7 @@ class ProjectState {
       },
       'curation': {
         'transition': ?transition,
+        'scrollFollow': ?scrollFollow,
         'lanes': {
           for (final MapEntry(key: id, value: lane) in (lanes ?? const <String, List<Region>>{}).entries)
             id: [for (final r in lane) {'start': r.start, 'end': r.end, 'transitionIn': ?r.transitionIn, 'transitionOut': ?r.transitionOut}],

@@ -191,25 +191,6 @@ final _categories = <_Category>[
       keywords: 'look controls switch button classic refined carbon ibm theme',
     ),
   ]),
-  _Category('Animation', AppIcon.transition, [
-    _Item(
-      'Staff transition',
-      (_) => 'For new projects.',
-      (c) => _TransitionPicker(value: c.settings.transition, onChanged: (s) => c.settings.transition = s),
-      keywords: 'fade duration enter leave glide default',
-    ),
-    _Item(
-      'Scrolling',
-      (c) => switch (c.settings.scrollFollow) {
-        0 => 'Glides from beat to beat: the speed changes only with the tempo.',
-        1 => 'Every note is under the playhead exactly as it sounds: slower through long notes, quicker through runs.',
-        _ => 'A blend: the beats land on time, and the speed follows the notes '
-            '${(c.settings.scrollFollow * 100).round()}% of the way.',
-      },
-      (c) => _ScrollFollowSlider(settings: c.settings),
-      keywords: 'scroll speed smooth snap note beat follow onset glide motion pointer',
-    ),
-  ]),
   _Category('Recording', AppIcon.audio, [
     _Item(
       'Save the recording',
@@ -311,6 +292,30 @@ final _projectCategories = <_Category>[
       (c) => _TransitionPicker(value: c.controller?.curation?.transition, onChanged: (s) => c.controller?.setTransition(s)),
       keywords: 'fade duration enter leave glide',
     ),
+    _Item(
+      'Scrolling',
+      (c) => switch (c.controller!.scrollFollow) {
+        0 => 'Glides from beat to beat: the speed changes only with the tempo.',
+        1 => 'Every note is under the playhead exactly as it sounds: slower through long notes, quicker through runs.',
+        final f => 'A blend: the beats land on time, and the speed follows the notes ${(f * 100).round()}% of the way.',
+      },
+      (c) => _ScrollFollowSlider(controller: c.controller!),
+      keywords: 'scroll speed smooth snap note beat follow onset glide motion pointer',
+    ),
+    _Item(
+      'Save as default',
+      (c) => _animationIsDefault(c) ? 'Same as default.' : 'Transition and scrolling, for other projects.',
+      (c) => OutlinedButton(
+        onPressed: _animationIsDefault(c)
+            ? null
+            : () => c.settings
+              ..transition = c.controller!.curation!.transition
+              ..scrollFollow = c.controller!.scrollFollow,
+        child: const Text('Save'),
+      ),
+      group: 'Default',
+      keywords: 'default save app every new project animation transition scroll',
+    ),
   ]),
   _engravingCategory(),
   _Category('Sections', AppIcon.lanes, page: (c) => _SectionsPage(c), [
@@ -330,6 +335,10 @@ final _projectCategories = <_Category>[
     ),
   ]),
 ];
+
+/// Whether the project's animation is the app's default (Save as default).
+bool _animationIsDefault(_Context c) =>
+    c.settings.transition == c.controller!.curation!.transition && c.settings.scrollFollow == c.controller!.scrollFollow;
 
 /// How many of the score's pairs share a staff.
 String _condensedText(_Context c) {
@@ -1080,10 +1089,11 @@ class _TransitionPicker extends StatelessWidget {
   }
 }
 
-/// Beats ⟷ Notes: how closely the scroll follows the notes, live in the preview.
+/// Beats ⟷ Notes: how closely the project's scroll follows the notes, live in the score; a
+/// drag is one Undo step.
 class _ScrollFollowSlider extends StatelessWidget {
-  const _ScrollFollowSlider({required this.settings});
-  final AppSettings settings;
+  const _ScrollFollowSlider({required this.controller});
+  final EditorController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -1095,10 +1105,12 @@ class _ScrollFollowSlider extends StatelessWidget {
         width: 150,
         child: OverlaySemantics(
           child: Slider(
-            value: settings.scrollFollow,
+            value: controller.scrollFollow,
             divisions: 20,
-            label: '${(settings.scrollFollow * 100).round()}%',
-            onChanged: (v) => settings.scrollFollow = v,
+            label: '${(controller.scrollFollow * 100).round()}%',
+            onChangeStart: (_) => controller.beginEdit(),
+            onChanged: controller.setScrollFollow,
+            onChangeEnd: (_) => controller.endEdit(),
           ),
         ),
       ),

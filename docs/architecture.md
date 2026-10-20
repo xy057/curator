@@ -118,8 +118,9 @@ a bar (`12`, `12.2`: where it first sounds) or a time (`1:10.5`, `1:02:03`), rea
 `Playback.goTo`. Closing it hands the keyboard back to what had it, or the window's
 shortcuts would stop (focus falls to the route's scope, above them).
 
-**The scroll follows the beats, the notes, or a blend.** `ScrollMap.follow` (Settings ▸
-Animation ▸ Scrolling, `AppSettings.scrollFollow`, app-wide, 0.4 by default, copied into video export) runs
+**The scroll follows the beats, the notes, or a blend.** `ScrollMap.follow` (Project
+Settings ▸ Animation ▸ Scrolling, `EditState.scrollFollow`, an Undo step saved with the project; a project
+without its own takes `AppSettings.scrollFollow`, 0.4 until Save as default; copied into video export) runs
 from 0, beats, to 1, notes. At 0 (as before 0.2) every beat of the time signature is under the
 pointer as it sounds and a monotone cubic (Fritsch–Carlson) glides between them. At 1 every
 onset the engraving records (a note or rest starting in any staff) is; engraved spacing grows

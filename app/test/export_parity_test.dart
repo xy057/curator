@@ -33,7 +33,7 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50))); // the style is applied
     c.renamePart(parts.last, name: 'Basses', abbreviation: 'Cb.');
     c.setStaffSpace(9);
-    c.scrollFollow = 0.8;
+    c.setScrollFollow(0.8);
     c.setGroupSections(true);
     c.setCondensed(['cond-P2-P3'], on: true);
     c.moveLane('P17', 0);

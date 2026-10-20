@@ -170,7 +170,8 @@ class AppSettings extends ChangeNotifier {
   /// Choices offered for how long a staff takes to enter or leave, seconds.
   static const transitionChoices = [0.15, 0.3, 0.5, 0.8, 1.2];
 
-  /// The staff transition new projects start with (each project saves its own).
+  /// The staff transition new projects start with (each project saves its own; Project
+  /// Settings ▸ Animation ▸ Save as default).
   double get transition => _transition;
   double _transition;
   set transition(double value) {
@@ -226,7 +227,8 @@ class AppSettings extends ChangeNotifier {
 
   static const defaultScrollFollow = 0.4;
 
-  /// How closely the score's scroll follows the notes, 0–1: 0 glides from beat to beat (as
+  /// How closely the scroll follows the notes in a project without its own (Project Settings ▸
+  /// Animation ▸ Save as default), 0–1: 0 glides from beat to beat (as
   /// before 0.2), 1 puts every note under the pointer exactly as it sounds; in between, a
   /// blend. It applies to the preview and to exported videos.
   double get scrollFollow => _scrollFollow;
