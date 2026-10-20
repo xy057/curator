@@ -76,8 +76,8 @@ class _ViewportGesturesState extends State<ViewportGestures> {
 }
 
 /// Bar numbers at the times they sound (so a tempo change is visible as uneven bars), time
-/// ticks, and the playhead. Click or drag to move the playhead. Where the staves shown don't
-/// fit the video's frame it is red, and a warning by its name says at which bars.
+/// ticks, and the playhead. Click or drag to move the playhead. While notation runs off the
+/// video's frame it is red, and a warning by its name says at which bars.
 class BarRuler extends StatelessWidget {
   const BarRuler({super.key, required this.controller});
   final EditorController controller;
@@ -107,7 +107,7 @@ class BarRuler extends StatelessWidget {
               builder: (context, bars) => bars == null
                   ? const SizedBox.shrink()
                   : Tip(
-                      message: 'Staves overflow the video frame: ${bars.join(', ')}',
+                      message: 'Notation runs off the video frame: ${bars.join(', ')}',
                       child: Icon(AppIcon.warning.of(context), size: 14, color: warn),
                     ),
             ),
@@ -146,7 +146,7 @@ class _RulerPainter extends CustomPainter {
   final EditorController c;
   final AppColors colors;
 
-  /// Where the staves overflow the video's frame.
+  /// Where notation runs off the video's frame.
   final Color warn;
 
   @override
@@ -195,7 +195,7 @@ class _RulerPainter extends CustomPainter {
   bool shouldRepaint(_RulerPainter old) => true;
 }
 
-/// The bars where the staves shown overflow the video's frame ([EditorController.overflowing]),
+/// The bars where notation runs off the video's frame ([EditorController.overflowing]),
 /// as runs ("12–18", or "30" alone), each pass its own; only those [within] a stretch of the
 /// performance, when given. Null where they all fit.
 List<String>? overflowBars(EditorController c, {({double start, double end})? within}) {

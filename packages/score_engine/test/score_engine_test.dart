@@ -99,17 +99,19 @@ void main() {
     scene.dispose();
   });
 
-  test('overflowing is where the staves shown are too tall for the frame', () {
+  test('overflowing is while something drawn is past the frame\'s top or bottom', () {
     final scene = CuratedScene(score);
     final curation = Curation(score.metadata.parts.map((p) => p.id));
     final starts = score.timeline.measureStarts;
-    // Strings throughout; everyone from bar 33.
-    for (final (i, p) in score.metadata.parts.indexed) {
-      curation.setLane(p.id, [Region(i < 16 ? starts[32] : 0, starts.last)]);
+    // Strings throughout: their high notes and dynamics reach past a short frame's edges only
+    // in places, and only while those are in view does it say so.
+    for (final p in score.metadata.parts.skip(16)) {
+      curation.setLane(p.id, [Region(0, starts.last)]);
     }
-    expect(scene.overflowing(curation, const ui.Size(1600, 900)),
-        [(start: score.timeline.secondsAtQuarter(starts[32]), end: score.scrollMap.duration + 5)]);
-    expect(scene.overflowing(curation, const ui.Size(1600, 6000)), isEmpty);
+    final tight = scene.overflowing(curation, const ui.Size(1100, 620));
+    expect(tight, isNotEmpty);
+    expect(tight.any((o) => o.start < 50 && o.end > 40), isFalse, reason: 'in between, everything fits');
+    expect(scene.overflowing(curation, const ui.Size(1250, 700)), isEmpty);
     scene.dispose();
   });
 

@@ -935,7 +935,7 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Where the staves shown don't fit the video's frame, in playback time
+  /// When notation runs off the video's frame, in playback time
   /// ([CuratedScene.overflowing]).
   List<({double start, double end})> get overflowing {
     final scene = this.scene, curation = _curation;

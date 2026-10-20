@@ -546,10 +546,11 @@ class CuratedScene {
 
   /// What a plan for this curation and frame size is made from: a new key, a new plan.
   Object _planKeyFor(Curation curation, ui.Size size) =>
-      (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve);
+      (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _captionAbove);
 
   SpacingPlan _buildPlan(Curation curation, ui.Size size) {
     final pointerX = renderer.pointerX(size.width);
+    final top = verticalMargin + _captionAbove; // the plan's 0 in the frame
     return SpacingPlan.build(
       staves: display.staves,
       order: _order,
@@ -562,11 +563,16 @@ class CuratedScene {
       transition: curation.transition,
       scale: renderer.scale,
       metrics: _metrics(size),
+      musicLeft: (pointerX - renderer.musicLeft) / renderer.scale,
+      screen: (top: -top, bottom: size.height - top),
     );
   }
 
-  /// Where the staves shown don't fit a frame of [size] ([SpacingPlan.overflowing]), in
-  /// playback time. Planned apart from the frames painted, so asking at another size (the
+  /// The room the captions take above the staves (none while they show under them).
+  double get _captionAbove => captionStyle.position == CaptionPosition.top ? _captionReserve : 0;
+
+  /// When something drawn is off the top or bottom of a frame of [size]
+  /// ([SpacingPlan.overflowing]), in playback time. Planned apart from the frames painted, so asking at another size (the
   /// video's) never makes the preview plan again.
   List<({double start, double end})> overflowing(Curation curation, ui.Size size) {
     final key = _planKeyFor(curation, size);
@@ -779,8 +785,7 @@ class CuratedScene {
     List<StaffJoin> joins,
   }) layoutAt(double time, Curation curation, ui.Size size) {
     final visibility = _visibilityAt(time, curation);
-    final above = captionStyle.position == CaptionPosition.top ? _captionReserve : 0.0;
-    final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin + above];
+    final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin + _captionAbove];
     final parts = {for (final p in score.metadata.parts) p.id: p};
 
     final placements = <StaffPlacement>[];

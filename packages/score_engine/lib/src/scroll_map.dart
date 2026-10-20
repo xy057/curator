@@ -333,6 +333,19 @@ class ScrollMap {
     }
   }
 
+  /// When, between times [t0] and [t1], the scroll's x is between [lo] and [hi]: one stretch per
+  /// pass that gets there (the scroll never goes back within a pass).
+  Iterable<({double start, double end})> timesBetween(double lo, double hi, double t0, double t1) sync* {
+    for (var k = _passAt(t0); k <= _passAt(t1); k++) {
+      final a = math.max(t0, _starts[k]), b = k + 1 < _starts.length ? math.min(t1, _starts[k + 1]) : t1;
+      final curve = _curves[k];
+      if (b <= a || curve.xAt(a) > hi || curve.xAt(b) < lo) continue;
+      final start = curve.xAt(a) >= lo ? a : curve.timeAt(lo, from: a, to: b) ?? a;
+      final end = curve.xAt(b) <= hi ? b : curve.timeAt(hi, from: a, to: b) ?? b;
+      if (end > start) yield (start: start, end: end);
+    }
+  }
+
   /// Every time at which the score reaches [x] (one per pass that plays it), in order.
   List<double> timesAt(double x) => [
         for (var k = 0; k < _curves.length; k++)

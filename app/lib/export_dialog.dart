@@ -110,7 +110,7 @@ class _ExportDialogState extends State<_ExportDialog> {
   /// Whether this FFmpeg can write [codec] (yes until it has said).
   bool _canWrite(VideoCodec codec) => _encoders?.intersection(codec.encoders.toSet()).isNotEmpty ?? true;
 
-  /// The bars exported where the staves overflow the frame ([overflowBars]); null where they fit.
+  /// The bars exported where notation runs off the frame ([overflowBars]); null where none does.
   List<String>? get _overflow => overflowBars(widget.controller, within: _range);
 
   /// The overflow ticked to export anyway: Export waits for it again once it changes.
@@ -944,7 +944,7 @@ class _FrameRateState extends State<_FrameRate> {
   }
 }
 
-/// The staves overflow the frame at [bars]: a warning (Carbon's inline error notification) with
+/// Notation runs off the frame at [bars]: a warning (Carbon's inline error notification) with
 /// a box to tick to export anyway.
 class _OverflowNotice extends StatelessWidget {
   const _OverflowNotice({required this.bars, required this.taken, required this.onTaken});
@@ -986,7 +986,7 @@ class _OverflowNotice extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Staves overflow the frame', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: text)),
+              Text('Notation runs off the frame', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: text)),
               const SizedBox(height: 2),
               Text('Bars ${bars.join(', ')}', style: TextStyle(fontSize: 13, color: k?.textSecondary ?? colors.textMuted)),
             ]),
