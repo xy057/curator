@@ -122,7 +122,7 @@ class AppSettings extends ChangeNotifier {
   }
 
   /// Whether saves embed the recording's audio or link to the recording, in a project that
-  /// hasn't chosen (Project Settings ▸ Project Info): set before projects had their own.
+  /// hasn't chosen (Project Settings ▸ Project Info ▸ Save as default).
   MediaStorage get mediaStorage => _media;
   MediaStorage _media;
   set mediaStorage(MediaStorage value) {

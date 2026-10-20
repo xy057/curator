@@ -283,6 +283,18 @@ final _projectCategories = <_Category>[
       shown: (c) => c.controller!.track != null,
       keywords: 'embed link media audio video file save',
     ),
+    _Item(
+      'Save as default',
+      (c) => _mediaStorage(c) == c.settings.mediaStorage ? 'Same as default.' : 'Embed or link, for other projects.',
+      (c) => OutlinedButton(
+        onPressed:
+            _mediaStorage(c) == c.settings.mediaStorage ? null : () => c.settings.mediaStorage = _mediaStorage(c),
+        child: const Text('Save'),
+      ),
+      shown: (c) => c.controller!.track != null,
+      group: 'Default',
+      keywords: 'default save app every new project recording embed link',
+    ),
   ]),
   _Category('Animation', AppIcon.transition, [
     _Item(

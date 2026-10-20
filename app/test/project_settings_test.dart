@@ -126,10 +126,16 @@ void main() {
     await settle();
     expect((c.mediaStorage, c.projectState.edits.mediaStorage), (MediaStorage.link, MediaStorage.link));
     expect(settings.mediaStorage, MediaStorage.embed, reason: "the project's, not the app's");
+    expect(find.text('Embed or link, for other projects.'), findsOneWidget);
     await shoot('project-settings-info');
+    await tester.tap(find.text('Save'));
+    await settle();
+    expect(settings.mediaStorage, MediaStorage.link, reason: 'Save as default');
+    expect(find.text('Same as default.'), findsOneWidget);
     c.undo();
     await settle();
     expect(c.mediaStorage, isNull);
+    settings.mediaStorage = MediaStorage.embed;
 
     // Animation: the scroll is the project's, a drag one Undo step; Save as default makes it the app's.
     await tester.tap(find.text('Animation').first);
