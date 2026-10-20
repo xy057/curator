@@ -305,6 +305,7 @@ class CuratedScene {
     renderer.dispose();
     renderer = ScoreRenderer(display, _style, frozen: FrozenZone(score.engraving, _style), barlinesThrough: _barlinesThrough);
     _plan = null;
+    _fitPlan = null;
   }
 
   /// How the score lines up with the recording (the tempo track). Defaults to the score's
@@ -419,6 +420,10 @@ class CuratedScene {
   SpacingPlan? _plan;
   KeyColumnPlan? _keyPlan;
   Object? _planKey;
+
+  /// [overflowing]'s plan, for a size the frames aren't painted at.
+  SpacingPlan? _fitPlan;
+  Object? _fitKey;
 
   /// The instruments from top to bottom (part ids): the score's order unless the user moved
   /// some. Changing it re-plans the layout; nothing is engraved again (every staff is drawn
@@ -539,25 +544,52 @@ class CuratedScene {
         maxGap: maxGap,
       );
 
+  /// What a plan for this curation and frame size is made from: a new key, a new plan.
+  Object _planKeyFor(Curation curation, ui.Size size) =>
+      (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _captionAbove);
+
+  SpacingPlan _buildPlan(Curation curation, ui.Size size) {
+    final pointerX = renderer.pointerX(size.width);
+    final top = verticalMargin + _captionAbove; // the plan's 0 in the frame
+    return SpacingPlan.build(
+      staves: display.staves,
+      order: _order,
+      scrollMap: scrollMap,
+      edges: curation.edgesInSeconds(timeline),
+      isShown: (id, seconds) => _isShown(curation, id, seconds),
+      twins: _twins,
+      visibleLeft: pointerX / renderer.scale,
+      visibleRight: (size.width - pointerX) / renderer.scale,
+      transition: curation.transition,
+      scale: renderer.scale,
+      metrics: _metrics(size),
+      musicLeft: (pointerX - renderer.musicLeft) / renderer.scale,
+      screen: (top: -top, bottom: size.height - top),
+    );
+  }
+
+  /// The room the captions take above the staves (none while they show under them).
+  double get _captionAbove => captionStyle.position == CaptionPosition.top ? _captionReserve : 0;
+
+  /// When something drawn is off the top or bottom of a frame of [size]
+  /// ([SpacingPlan.overflowing]), in playback time. Planned apart from the frames painted, so asking at another size (the
+  /// video's) never makes the preview plan again.
+  List<({double start, double end})> overflowing(Curation curation, ui.Size size) {
+    final key = _planKeyFor(curation, size);
+    if (_plan != null && _planKey == key) return _plan!.overflowing;
+    if (_fitPlan == null || _fitKey != key) {
+      _fitPlan = _buildPlan(curation, size);
+      _fitKey = key;
+    }
+    return _fitPlan!.overflowing;
+  }
+
   /// The layout plan for this curation and frame size, rebuilt only when either changes.
   SpacingPlan _planFor(Curation curation, ui.Size size) {
-    final key =
-        (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve);
+    final key = _planKeyFor(curation, size);
     if (_plan == null || _planKey != key) {
       final pointerX = renderer.pointerX(size.width);
-      _plan = SpacingPlan.build(
-        staves: display.staves,
-        order: _order,
-        scrollMap: scrollMap,
-        edges: curation.edgesInSeconds(timeline),
-        isShown: (id, seconds) => _isShown(curation, id, seconds),
-        twins: _twins,
-        visibleLeft: pointerX / renderer.scale,
-        visibleRight: (size.width - pointerX) / renderer.scale,
-        transition: curation.transition,
-        scale: renderer.scale,
-        metrics: _metrics(size),
-      );
+      _plan = _buildPlan(curation, size);
       final zone = renderer.frozen;
       _keyPlan = zone == null
           ? null
@@ -753,8 +785,7 @@ class CuratedScene {
     List<StaffJoin> joins,
   }) layoutAt(double time, Curation curation, ui.Size size) {
     final visibility = _visibilityAt(time, curation);
-    final above = captionStyle.position == CaptionPosition.top ? _captionReserve : 0.0;
-    final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin + above];
+    final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin + _captionAbove];
     final parts = {for (final p in score.metadata.parts) p.id: p};
 
     final placements = <StaffPlacement>[];

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' show Size;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -923,6 +924,23 @@ class EditorController extends ChangeNotifier {
   }
 
   bool _staffSpaceChanged = false;
+
+  /// The points a video's frame is laid out in (its ratio's, `VideoFormat.layoutOf`): what
+  /// [overflowing] checks the staves against, whatever the preview shows.
+  Size get videoLayout => _videoLayout;
+  Size _videoLayout = const Size(960, 540);
+  set videoLayout(Size value) {
+    if (value == _videoLayout) return;
+    _videoLayout = value;
+    notifyListeners();
+  }
+
+  /// When notation runs off the video's frame, in playback time
+  /// ([CuratedScene.overflowing]).
+  List<({double start, double end})> get overflowing {
+    final scene = this.scene, curation = _curation;
+    return scene == null || curation == null ? const [] : scene.overflowing(curation, _videoLayout);
+  }
 
   // MARK: MIDI tempo map
 

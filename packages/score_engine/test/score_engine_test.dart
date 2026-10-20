@@ -99,6 +99,22 @@ void main() {
     scene.dispose();
   });
 
+  test('overflowing is while something drawn is past the frame\'s top or bottom', () {
+    final scene = CuratedScene(score);
+    final curation = Curation(score.metadata.parts.map((p) => p.id));
+    final starts = score.timeline.measureStarts;
+    // Strings throughout: their high notes and dynamics reach past a short frame's edges only
+    // in places, and only while those are in view does it say so.
+    for (final p in score.metadata.parts.skip(16)) {
+      curation.setLane(p.id, [Region(0, starts.last)]);
+    }
+    final tight = scene.overflowing(curation, const ui.Size(1100, 620));
+    expect(tight, isNotEmpty);
+    expect(tight.any((o) => o.start < 50 && o.end > 40), isFalse, reason: 'in between, everything fits');
+    expect(scene.overflowing(curation, const ui.Size(1250, 700)), isEmpty);
+    scene.dispose();
+  });
+
   test('grouped in sections, each family is bracketed and barred through, as printed', () {
     final scene = CuratedScene(score);
     const size = ui.Size(1600, 2400);

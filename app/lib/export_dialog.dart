@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +17,7 @@ import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
 import 'file_names.dart';
+import 'lanes_common.dart';
 import 'media_converter.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
@@ -108,8 +110,16 @@ class _ExportDialogState extends State<_ExportDialog> {
   /// Whether this FFmpeg can write [codec] (yes until it has said).
   bool _canWrite(VideoCodec codec) => _encoders?.intersection(codec.encoders.toSet()).isNotEmpty ?? true;
 
+  /// The bars exported where notation runs off the frame ([overflowBars]); null where none does.
+  List<String>? get _overflow => overflowBars(widget.controller, within: _range);
+
+  /// The overflow ticked to export anyway: Export waits for it again once it changes.
+  List<String>? _overflowTaken;
+
+  bool get _overflowCleared => switch (_overflow) { null => true, final bars => listEquals(bars, _overflowTaken) };
+
   /// Whether the video as chosen can be written.
-  bool get _writable => _ffmpeg != null && _range != null && _canWrite(_format.codec);
+  bool get _writable => _ffmpeg != null && _range != null && _canWrite(_format.codec) && _overflowCleared;
 
   void _setWhole() => _setBars(1, _export.bars);
 
@@ -452,6 +462,14 @@ class _ExportDialogState extends State<_ExportDialog> {
           ),
         ),
       ),
+      if (_overflow case final bars?) ...[
+        const SizedBox(height: 12),
+        _OverflowNotice(
+          bars: bars,
+          taken: listEquals(bars, _overflowTaken),
+          onTaken: (on) => setState(() => _overflowTaken = on ? bars : null),
+        ),
+      ],
     ]);
   }
 
@@ -922,6 +940,63 @@ class _FrameRateState extends State<_FrameRate> {
         (_custom, 'Custom…', true),
       ],
       onChanged: (f) => f == _custom ? _type() : widget.onChanged(f),
+    );
+  }
+}
+
+/// Notation runs off the frame at [bars]: a warning (Carbon's inline error notification) with
+/// a box to tick to export anyway.
+class _OverflowNotice extends StatelessWidget {
+  const _OverflowNotice({required this.bars, required this.taken, required this.onTaken});
+  final List<String> bars;
+  final bool taken;
+  final ValueChanged<bool> onTaken;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final k = CarbonColors.maybeOf(context);
+    final error = k?.error ?? Theme.of(context).colorScheme.error;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final text = k?.textPrimary ?? colors.text;
+    return Container(
+      padding: EdgeInsets.fromLTRB(k != null ? 13 : 12, 10, 12, 4),
+      decoration: k != null
+          // $notification-background-error, $support-error edging it and down its left.
+          ? BoxDecoration(
+              color: dark ? k.layer01 : const Color(0xFFFFF1F1),
+              border: Border(
+                left: BorderSide(color: error, width: 3),
+                top: BorderSide(color: error.withValues(alpha: 0.4)),
+                right: BorderSide(color: error.withValues(alpha: 0.4)),
+                bottom: BorderSide(color: error.withValues(alpha: 0.4)),
+              ),
+            )
+          : BoxDecoration(
+              color: error.withValues(alpha: dark ? 0.14 : 0.07),
+              border: Border.all(color: error.withValues(alpha: 0.35)),
+              borderRadius: AppStyle.of(context).radius(8),
+            ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon((k != null ? AppIcon.failed : AppIcon.warning).of(context), size: 16, color: error),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Notation runs off the frame', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: text)),
+              const SizedBox(height: 2),
+              Text('Bars ${bars.join(', ')}', style: TextStyle(fontSize: 13, color: k?.textSecondary ?? colors.textMuted)),
+            ]),
+          ),
+        ]),
+        Padding(
+          padding: const EdgeInsets.only(left: 26),
+          child: AppCheckRow(value: taken, onChanged: (v) => onTaken(v ?? false), label: 'Export anyway'),
+        ),
+      ]),
     );
   }
 }

@@ -39,6 +39,12 @@ class SpacingPlan {
     required double transition,
     required double scale,
     required StackMetrics metrics,
+    /// How far left of the pointer the music shows (past the names and the frozen zone), in
+    /// device units like [visibleLeft].
+    required double musicLeft,
+    /// The frame's top and bottom edges, in the layout's pixels (its top is 0): what
+    /// [overflowing] checks the ink against.
+    required ({double top, double bottom}) screen,
     Map<int, List<int>> twins = const {},
   }) {
     // An instrument's staves (a piano's two) are laid out as one: they keep the distance the
@@ -59,7 +65,7 @@ class SpacingPlan {
     final unitTwins = {for (final MapEntry(:key, :value) in twins.entries) unitOf[key]: [for (final j in value) unitOf[j]]};
 
     final bounds = _Bounds.of(edges, scrollMap.duration, transition);
-    return SpacingPlan._(bounds, _Keyframes(bounds.length - 1, (i) {
+    return SpacingPlan._(bounds, _Keyframes<_Keyframe>(bounds.length - 1, (i) {
       final middle = (bounds.at[i] + bounds.at[i + 1]) / 2;
       // Everything on screen from a little before the segment starts to a little after it ends
       // (on both sides of a warp, when one jumps in between).
@@ -86,23 +92,66 @@ class SpacingPlan {
             return StaffSlot(height: height, inkAbove: above, inkBelow: below, visibility: shown[u] ? 1 : 0);
           }(),
       ];
-      final tops = _parkHidden(StaffStack.layout(slots, metrics), slots, shown, metrics, unitTwins);
-      return [for (final (k, u) in unitOf.indexed) tops[u] + offsets[k]];
+      final unitTops = _parkHidden(StaffStack.layout(slots, metrics), slots, shown, metrics, unitTwins);
+      final tops = [for (final (k, u) in unitOf.indexed) unitTops[u] + offsets[k]];
+
+      // Ink past the screen's top or bottom: while it scrolls past, between the names and the
+      // frame's right edge. A staff whose lines are off it, the whole segment.
+      final off = <({double start, double end})>[];
+      final (t0, t1) = (bounds.at[i], bounds.at[i + 1]);
+      for (final (k, s) in order.indexed) {
+        if (!shown[unitOf[k]]) continue;
+        final staff = staves[s.staffIndex];
+        final y = tops[k];
+        if (y < screen.top || y + staff.info.height * scale > screen.bottom) {
+          off.add((start: t0, end: t1));
+          continue;
+        }
+        final ink = staff.maxInk(left, right);
+        if (y - ink.above * scale >= screen.top && y + (staff.info.height + ink.below) * scale <= screen.bottom) continue;
+        for (final item in staff.itemsIn(left, right)) {
+          final b = item.bounds;
+          if (y + (b.top - staff.info.top) * scale >= screen.top && y + (b.bottom - staff.info.top) * scale <= screen.bottom) continue;
+          off.addAll(scrollMap.timesBetween(b.left - visibleRight, b.right + musicLeft, t0, t1));
+        }
+      }
+      return (tops: tops, offScreen: _merged(off));
     }));
   }
 
+  /// [stretches] sorted, and those that overlap or meet made one.
+  static List<({double start, double end})> _merged(Iterable<({double start, double end})> stretches) {
+    final sorted = [...stretches]..sort((a, b) => a.start.compareTo(b.start));
+    final merged = <({double start, double end})>[];
+    for (final s in sorted) {
+      if (merged.isNotEmpty && s.start <= merged.last.end + 1e-6) {
+        if (s.end > merged.last.end) merged.last = (start: merged.last.start, end: s.end);
+      } else {
+        merged.add(s);
+      }
+    }
+    return merged;
+  }
+
   final _Bounds _bounds;
-  final _Keyframes _keyframes; // [segment][staff in order]: top line, logical pixels
+  final _Keyframes<_Keyframe> _keyframes; // [segment]: each staff's top line in order, logical pixels
+
+  /// When something drawn (a note, a dynamic, a slur, a staff's lines) is on screen but past
+  /// its top or bottom edge, as the keyframes place the staves: stretches of playback time,
+  /// merged where they meet. Works out every keyframe.
+  late final List<({double start, double end})> overflowing =
+      List.unmodifiable(_merged([for (var i = 0; i < _keyframes.length; i++) ..._keyframes[i].offScreen]));
 
   /// Top line of every planned staff at playback time [t], logical pixels from the top of
   /// the available area. Hidden staves report where they would appear.
-  List<double> topsAt(double t) => _blendAt(_bounds, _keyframes, t);
+  List<double> topsAt(double t) => _blendAt(_bounds, _keyframes, (k) => k.tops, t);
 
-  /// The keyframe of the segment of [bounds] around [t], blended towards the neighbouring
-  /// keyframe inside the transition window of the nearer bound (each bound has its own).
-  static List<double> _blendAt(_Bounds bounds, _Keyframes keyframes, double t) {
+  /// The [values] of the keyframe of the segment of [bounds] around [t], blended towards the
+  /// neighbouring keyframe's inside the transition window of the nearer bound (each bound has
+  /// its own).
+  static List<double> _blendAt<T>(_Bounds bounds, _Keyframes<T> keyframes, List<double> Function(T) values, double t) {
     final i = segmentAt(bounds.length, t, (i) => bounds.at[i]).clamp(0, keyframes.length - 1);
-    final own = keyframes[i];
+    final own = values(keyframes[i]);
     final start = bounds.at[i], end = bounds.at[i + 1];
     final fadeIn = bounds.transition[i], fadeOut = bounds.transition[i + 1];
     final inStart = i > 0 && fadeIn > 0 && t < start + fadeIn / 2;
@@ -117,7 +166,7 @@ class SpacingPlan {
       p = _smooth(((t - (end - fadeOut / 2)) / fadeOut).clamp(0.0, 1.0));
     }
     if (other == null || p == 0) return own;
-    final to = keyframes[other];
+    final to = values(keyframes[other]);
     return [for (var k = 0; k < own.length; k++) own[k] + (to[k] - own[k]) * p];
   }
 
@@ -162,14 +211,17 @@ class SpacingPlan {
   static double _smooth(double x) => x * x * (3 - 2 * x);
 }
 
+/// A segment's layout: where each staff's top line is, and when ink drawn there is off screen.
+typedef _Keyframe = ({List<double> tops, List<({double start, double end})> offScreen});
+
 /// A plan's keyframes, one per segment, each worked out the first time it is asked for.
-class _Keyframes {
+class _Keyframes<T> {
   _Keyframes(int length, this._compute) : _done = List.filled(length, null);
-  final List<double> Function(int segment) _compute;
-  final List<List<double>?> _done;
+  final T Function(int segment) _compute;
+  final List<T?> _done;
 
   int get length => _done.length;
-  List<double> operator [](int segment) => _done[segment] ??= _compute(segment);
+  T operator [](int segment) => _done[segment] ??= _compute(segment);
 }
 
 /// Where a plan's segments meet, in playback time, each with the seconds it glides over: from
@@ -246,7 +298,7 @@ class KeyColumnPlan {
     ];
     final bounds = _Bounds.of([...edges, for (final t in keyBounds) (seconds: t, transition: transition)], scrollMap.duration, transition);
 
-    return KeyColumnPlan._(bounds, _Keyframes(bounds.length - 1, (i) {
+    return KeyColumnPlan._(bounds, _Keyframes<List<double>>(bounds.length - 1, (i) {
       final middle = (bounds.at[i] + bounds.at[i + 1]) / 2;
       var column = 0.0;
       for (final (:min, :max) in scrollMap.xStretches(bounds.at[i] - bounds.transition[i] / 2, bounds.at[i + 1] + bounds.transition[i + 1] / 2)) {
@@ -260,8 +312,8 @@ class KeyColumnPlan {
   }
 
   final _Bounds _bounds;
-  final _Keyframes _keyframes; // [segment][0]: key column, staff spaces
+  final _Keyframes<List<double>> _keyframes; // [segment][0]: key column, staff spaces
 
   /// The key column's width at playback time [t], in staff spaces.
-  double columnAt(double t) => SpacingPlan._blendAt(_bounds, _keyframes, t).first;
+  double columnAt(double t) => SpacingPlan._blendAt(_bounds, _keyframes, (k) => k, t).first;
 }

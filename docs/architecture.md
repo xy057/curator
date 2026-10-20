@@ -294,6 +294,17 @@ name goes back to its place.
 The playhead is a layer of its own over every lane (`WithPlayhead`): playback moves it every frame
 and repaints only it, so a lane's painter listens to edits and the viewport, never to the time. The
 Instruments tab paints only the lanes scrolled into view.
+The bar ruler is red while notation runs off the video's frame (`EditorController.overflowing`, a
+`SpacingPlan` for `videoLayout`, its ratio's: for each keyframe, every item drawn (a note, a dynamic, a
+slur) whose bounds, where the keyframe puts its staff, pass the frame's top or bottom edge, for as long
+as it is in view between the names and the right edge, `ScrollMap.timesBetween`; a staff whose lines
+are off it, the whole segment. The margins and the caption bar are on screen, so ink there is not off
+it), and a warning by its name lists those bars.
+Export says so too, for the bars it writes (`overflowBars(within:)`: a warning under the Picture
+rows, Carbon's inline error notification there), and Export… waits until Export anyway is ticked;
+ticked for those bars only, so bars that change (another ratio, score size or range) ask again.
+`CuratedScene.overflowing` plans that size apart from the frames painted, so the preview at
+another size never plans again for it.
 
 **A region carries its properties.** Besides its bounds a region has properties of its own
 (so far its transitions: how long its staff glides in at its start, `Region.transitionIn`, and

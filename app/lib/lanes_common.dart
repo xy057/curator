@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'ui_kit.dart';
 import 'editor_controller.dart';
 
@@ -75,7 +76,8 @@ class _ViewportGesturesState extends State<ViewportGestures> {
 }
 
 /// Bar numbers at the times they sound (so a tempo change is visible as uneven bars), time
-/// ticks, and the playhead. Click or drag to move the playhead.
+/// ticks, and the playhead. Click or drag to move the playhead. While notation runs off the
+/// video's frame it is red, and a warning by its name says at which bars.
 class BarRuler extends StatelessWidget {
   const BarRuler({super.key, required this.controller});
   final EditorController controller;
@@ -84,18 +86,32 @@ class BarRuler extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final colors = context.colors;
+    final warn = Theme.of(context).colorScheme.error;
     return SizedBox(
       height: kRulerHeight,
       child: Row(children: [
         Container(
           width: kLaneHeaderWidth,
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.only(left: 12),
+          padding: const EdgeInsets.only(left: 12, right: 8),
           decoration: BoxDecoration(
             color: colors.chrome,
             border: Border(bottom: BorderSide(color: colors.line), right: BorderSide(color: colors.line)),
           ),
-          child: Text('Bar', style: TextStyle(fontSize: 11, color: colors.textMuted)),
+          child: Row(children: [
+            Text('Bar', style: TextStyle(fontSize: 11, color: colors.textMuted)),
+            const Spacer(),
+            Select(
+              listenable: Listenable.merge([c, c.curation]),
+              select: () => overflowBars(c),
+              equals: listEquals,
+              builder: (context, bars) => bars == null
+                  ? const SizedBox.shrink()
+                  : Tip(
+                      message: 'Notation runs off the video frame: ${bars.join(', ')}',
+                      child: Icon(AppIcon.warning.of(context), size: 14, color: warn),
+                    ),
+            ),
+          ]),
         ),
         Expanded(
           child: Listener(
@@ -115,7 +131,7 @@ class BarRuler extends StatelessWidget {
               handle: true,
               child: CustomPaint(
                 size: Size.infinite,
-                painter: _RulerPainter(c, colors),
+                painter: _RulerPainter(c, colors, warn),
               ),
             ),
           ),
@@ -126,9 +142,12 @@ class BarRuler extends StatelessWidget {
 }
 
 class _RulerPainter extends CustomPainter {
-  _RulerPainter(this.c, this.colors) : super(repaint: Listenable.merge([c.viewport, c]));
+  _RulerPainter(this.c, this.colors, this.warn) : super(repaint: Listenable.merge([c.viewport, c, c.curation]));
   final EditorController c;
   final AppColors colors;
+
+  /// Where notation runs off the video's frame.
+  final Color warn;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -137,6 +156,13 @@ class _RulerPainter extends CustomPainter {
     canvas.clipRect(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, Paint()..color = colors.chrome);
     canvas.drawLine(Offset(0, size.height - 0.5), Offset(size.width, size.height - 0.5), Paint()..color = colors.line);
+    for (final o in c.overflowing) {
+      final x0 = math.max(v.x(o.start), -1.0), x1 = math.min(v.x(o.end), size.width + 1);
+      if (x1 <= x0) continue;
+      canvas
+        ..drawRect(Rect.fromLTRB(x0, 0, x1, size.height), Paint()..color = warn.withValues(alpha: 0.18))
+        ..drawRect(Rect.fromLTRB(x0, size.height - 2, x1, size.height), Paint()..color = warn);
+    }
 
     final starts = tl.measureStarts;
     final tick = Paint()..color = colors.activity;
@@ -167,6 +193,32 @@ class _RulerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RulerPainter old) => true;
+}
+
+/// The bars where notation runs off the video's frame ([EditorController.overflowing]),
+/// as runs ("12–18", or "30" alone), each pass its own; only those [within] a stretch of the
+/// performance, when given. Null where they all fit.
+List<String>? overflowBars(EditorController c, {({double start, double end})? within}) {
+  final stretches = c.overflowing;
+  if (stretches.isEmpty || c.score == null) return null;
+  final tl = c.timeline, lastBar = tl.measureStarts.length - 2;
+  final (start, end) = (math.max(0.0, within?.start ?? 0), math.min(tl.endSeconds, within?.end ?? double.infinity));
+  int bar(double seconds) => c.beats.measureAt(tl.quarterAtSeconds(seconds)).clamp(0, lastBar) + 1;
+  final runs = <String>[];
+  for (final o in stretches) {
+    final from = math.max(o.start, start), to = math.min(o.end, end);
+    if (to - from <= 1e-6) continue;
+    // A warp jumps elsewhere in the score: the bars of each pass are a run of their own.
+    for (var k = tl.passAt(from); k <= tl.passAt(to - 1e-6); k++) {
+      final p = tl.passes[k];
+      final lo = math.max(from, tl.secondsAtQuarter(p.start, pass: k));
+      final hi = math.min(to, tl.secondsAtQuarter(p.end, pass: k));
+      if (hi - lo <= 1e-6) continue;
+      final (a, b) = (bar(lo), bar(hi - 1e-6));
+      runs.add(a == b ? '$a' : '$a–$b');
+    }
+  }
+  return runs.isEmpty ? null : runs;
 }
 
 /// [child] (a lane's painting) with the playhead over it, on a layer of its own: playback

@@ -5,6 +5,7 @@
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/media_converter.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/gestures.dart';
@@ -182,6 +183,26 @@ void main() {
     await tester.drag(find.byType(Slider).last, const Offset(-120, 0));
     await tester.pump();
     expect(c.staffSpace, lessThan(before));
+
+    // Notation off the frame (the largest score): a warning, and Export waits for its
+    // box; the smallest score in a tall frame clears it.
+    bool canExport() => tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Export…')).onPressed != null;
+    final ffmpeg = MediaConverter.findFfmpeg() != null;
+    await tester.drag(find.byType(Slider).last, const Offset(600, 0));
+    await tester.pump();
+    expect(c.staffSpace, EditorController.maxStaffSpace);
+    expect(find.text('Notation runs off the frame'), findsOneWidget);
+    expect(canExport(), isFalse);
+    await tester.tap(find.text('Export anyway'));
+    await tester.pump();
+    expect(canExport(), ffmpeg);
+    await shoot('export-dialog-overflow');
+    await tester.drag(find.byType(Slider).last, const Offset(-600, 0));
+    await tester.pump();
+    await choose('16:9', '9:16');
+    expect(find.text('Notation runs off the frame'), findsNothing);
+    expect(canExport(), ffmpeg);
+    await choose('9:16', '16:9');
 
     await tester.pump(const Duration(seconds: 1)); // the slider's value bubble fades
     await tester.tap(find.byTooltip('Close'));
