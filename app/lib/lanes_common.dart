@@ -196,15 +196,17 @@ class _RulerPainter extends CustomPainter {
 }
 
 /// The bars where the staves shown overflow the video's frame ([EditorController.overflowing]),
-/// as runs ("12–18", or "30" alone), each pass its own; null where they all fit.
-List<String>? overflowBars(EditorController c) {
+/// as runs ("12–18", or "30" alone), each pass its own; only those [within] a stretch of the
+/// performance, when given. Null where they all fit.
+List<String>? overflowBars(EditorController c, {({double start, double end})? within}) {
   final stretches = c.overflowing;
   if (stretches.isEmpty || c.score == null) return null;
-  final tl = c.timeline, end = tl.endSeconds, lastBar = tl.measureStarts.length - 2;
+  final tl = c.timeline, lastBar = tl.measureStarts.length - 2;
+  final (start, end) = (math.max(0.0, within?.start ?? 0), math.min(tl.endSeconds, within?.end ?? double.infinity));
   int bar(double seconds) => c.beats.measureAt(tl.quarterAtSeconds(seconds)).clamp(0, lastBar) + 1;
   final runs = <String>[];
   for (final o in stretches) {
-    final from = math.max(o.start, 0.0), to = math.min(o.end, end);
+    final from = math.max(o.start, start), to = math.min(o.end, end);
     if (to - from <= 1e-6) continue;
     // A warp jumps elsewhere in the score: the bars of each pass are a run of their own.
     for (var k = tl.passAt(from); k <= tl.passAt(to - 1e-6); k++) {

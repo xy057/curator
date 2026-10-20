@@ -297,6 +297,9 @@ Instruments tab paints only the lanes scrolled into view.
 The bar ruler is red where the staves shown don't fit the video's frame (`EditorController.overflowing`:
 the segments of a `SpacingPlan` for `videoLayout`, its ratio's, whose ink kept the least gap apart runs
 past the available height, `StaffStack.overflows`), and a warning by its name lists those bars.
+Export says so too, for the bars it writes (`overflowBars(within:)`: a warning under the Picture
+rows, Carbon's inline error notification there), and Export… waits until Export anyway is ticked;
+ticked for those bars only, so an overflow that changes (another ratio, score size or range) asks again.
 `CuratedScene.overflowing` plans that size apart from the frames painted, so the preview at
 another size never plans again for it.
 
