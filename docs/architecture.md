@@ -463,9 +463,9 @@ draw dynamics (Maestro, Opus Text, Bravura Text…; any case, as exporters map g
 font's table), or in SMuFL's dynamics characters (U+E520–E53D) in any font. It keeps its place and
 colour, not its font; text beside it in the same direction-type moves into direction-types of its
 own, so Verovio still sets it beside the dynamic. The texts list is read before, so it and saved
-edits' ids don't change. Settings ▸ Flags ▸ Dynamics typed as text (`AppSettings.textDynamics`, on
-by default; not an edit) turns it off: `EditorController.textDynamics` re-engraves, as the
-engraving options do.
+edits' ids don't change. Project Settings ▸ Flags ▸ Dynamics typed as text (`EditState.textDynamics`,
+an Undo step that re-engraves; a project without its own takes `AppSettings.textDynamics`, on
+until Save as default) turns it off.
 
 **Verovio is pinned and patched.** `make setup` clones the tagged release and applies
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
@@ -707,7 +707,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
   project saves*), so Settings holds only what is the same for every project. Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extensions**.
 - **A flag**: a fix for how other programs write their files, on by default, as an `_Item` on
-  Settings ▸ Flags with a switch to turn it off (`AppSettings`, the app's, never a project's).
+  Project Settings ▸ Flags with a switch to turn it off: the project's (`EditState`, an edit),
+  else the app's default (`AppSettings`), which that page's Save as default sets.
 - **An extension**: a `CuratorExtension` (`extensions/extension.dart`), listed in
   `Extensions.all`; the built-in ones are in `extensions/built_in.dart`. Each gives a stable
   `id`, its name, icon, version, one-line summary, search words, its own settings (`settings`,

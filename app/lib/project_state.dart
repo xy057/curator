@@ -58,6 +58,7 @@ class EditState {
     this.engraving = const EngravingOptions(),
     this.mediaStorage,
     this.extensions = const {},
+    this.textDynamics,
   });
 
   /// When each instrument is shown, with each region's own properties; null when the project
@@ -134,6 +135,10 @@ class EditState {
   /// [CuratorExtension.id]; one left out follows the app's.
   final Map<String, bool> extensions;
 
+  /// Whether dynamics written as text are engraved as dynamics (Project Settings ▸ Flags,
+  /// [TextDynamics]); null: the app's (Save as default).
+  final bool? textDynamics;
+
   @override
   bool operator ==(Object other) =>
       other is EditState &&
@@ -160,13 +165,14 @@ class EditState {
       embedFont == other.embedFont &&
       engraving == other.engraving &&
       mediaStorage == other.mediaStorage &&
-      mapEquals(extensions, other.extensions);
+      mapEquals(extensions, other.extensions) &&
+      textDynamics == other.textDynamics;
 
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
 
   /// This state with the fields given instead of its own. A field that may be null is
-  /// cleared by passing null ([lanes], [transition], [scrollFollow], [midi], [captionFont]); left out, it stays.
+  /// cleared by passing null ([lanes], [transition], [scrollFollow], [midi], [captionFont], [textDynamics]); left out, it stays.
   EditState copyWith({
     Object? lanes = _kept,
     Object? transition = _kept,
@@ -189,6 +195,7 @@ class EditState {
     EngravingOptions? engraving,
     MediaStorage? mediaStorage,
     Map<String, bool>? extensions,
+    Object? textDynamics = _kept,
   }) =>
       EditState(
         lanes: identical(lanes, _kept) ? this.lanes : lanes as Map<String, List<Region>>?,
@@ -212,6 +219,7 @@ class EditState {
         engraving: engraving ?? this.engraving,
         mediaStorage: mediaStorage ?? this.mediaStorage,
         extensions: extensions ?? this.extensions,
+        textDynamics: identical(textDynamics, _kept) ? this.textDynamics : textDynamics as bool?,
       );
 }
 
@@ -370,6 +378,7 @@ class ProjectState {
           for (final MapEntry(key: name, value: on) in r.map('extensions').entries)
             name: on is bool ? on : throw FormatException('The project is damaged: ${r.where}.extensions.$name is not on or off.'),
         }),
+        textDynamics: r.child('flags').boolean('textDynamics'),
       ),
       images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
       view: ViewState(
@@ -481,7 +490,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :mediaStorage, :extensions) = edits;
+        :sections, :groupSections, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :mediaStorage, :extensions, :textDynamics) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -495,6 +504,7 @@ class ProjectState {
       if (!engraving.isEmpty) 'engraving': engraving.toJson(),
       'mediaStorage': ?mediaStorage?.name,
       if (extensions.isNotEmpty) 'extensions': extensions,
+      if (textDynamics != null) 'flags': {'textDynamics': textDynamics},
       'textEdits': textEdits,
       'condensed': [...condensed],
       'pairs': [for (final p in pairs) p.partIds],

@@ -554,14 +554,28 @@ class EditorController extends ChangeNotifier {
     if (_score != null) unawaited(_reengrave());
   }
 
-  /// Whether dynamics written as text ("f" in a music font) are engraved as dynamics
-  /// (Settings ▸ Flags, [TextDynamics]). Not an edit: changing it re-engraves what is open.
-  bool get textDynamics => _textDynamics;
-  bool _textDynamics = true;
-  set textDynamics(bool value) {
-    if (value == _textDynamics) return;
-    _textDynamics = value;
-    if (_score != null) unawaited(_reengrave());
+  /// Whether dynamics written as text ("f" in a music font) are engraved as dynamics in a
+  /// project that hasn't chosen ([TextDynamics]; the app's, from Project Settings ▸ Flags ▸
+  /// Save as default). Not an edit: changing it re-engraves what is open.
+  bool get defaultTextDynamics => _defaultTextDynamics;
+  bool _defaultTextDynamics = true;
+  set defaultTextDynamics(bool value) {
+    if (value == _defaultTextDynamics) return;
+    _defaultTextDynamics = value;
+    if (_score != null && _doc.textDynamics == null) unawaited(_reengrave());
+  }
+
+  /// Whether this project engraves dynamics written as text as dynamics (Project Settings ▸
+  /// Flags): its own choice, else the app's.
+  bool get textDynamics => _doc.textDynamics ?? _defaultTextDynamics;
+
+  /// Sets [textDynamics] for this project: one Undo step, re-engraving the score.
+  Future<void> setTextDynamics(bool on) async {
+    if (_score == null || on == _doc.textDynamics) return;
+    _doc = _doc.copyWith(textDynamics: on);
+    final engraved = _reengrave();
+    _edited();
+    await engraved;
   }
 
   /// The options this project sets over [engravingOptions] (Project Settings ▸ Engraving):
@@ -633,13 +647,13 @@ class EditorController extends ChangeNotifier {
   Future<LoadedScore> engraveAgain(LoadedScore score) => score.withRequest(_wanted);
 
   /// What a score with [edits] is engraved with: their texts, pairs of players, fonts and
-  /// engraving options (over the app's), and the app's flags.
+  /// engraving options (over the app's), and flags (the project's, else the app's).
   EngraveRequest _requestFor(EditState edits) => EngraveRequest(
       textEdits: edits.textEdits,
       pairs: edits.pairs,
       fonts: edits.fonts,
       options: edits.engraving.over(_engravingOptions),
-      textDynamics: _textDynamics);
+      textDynamics: edits.textDynamics ?? _defaultTextDynamics);
 
   /// What the score is to be engraved with now (an engraving may still be catching up).
   EngraveRequest get _wanted =>

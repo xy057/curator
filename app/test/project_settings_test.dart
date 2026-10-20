@@ -176,6 +176,24 @@ void main() {
     await tester.tap(find.text('Done'));
     await settle();
 
+    // Flags: the project's, re-engraving; Save as default makes it the app's.
+    await tester.tap(find.text('Flags').first);
+    await settle();
+    expect(c.textDynamics, isTrue, reason: 'on by default');
+    await tester.tap(find.byType(AppSwitch).first);
+    await settle();
+    await engraved();
+    expect((c.textDynamics, c.projectState.edits.textDynamics, settings.textDynamics), (false, false, true));
+    await shoot('project-settings-flags');
+    c.undo();
+    await engraved();
+    expect(c.textDynamics, isTrue);
+    c.redo();
+    await engraved();
+    await tester.tap(find.text('Save'));
+    await settle();
+    expect(settings.textDynamics, isFalse);
+
     // Animation: the scroll is the project's, a drag one Undo step; Save as default makes it the app's.
     await tester.tap(find.text('Animation').first);
     await settle();

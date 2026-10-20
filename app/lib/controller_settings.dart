@@ -20,6 +20,6 @@ extension ControllerSettings on EditorController {
         countdown: settings.captionCountdown,
         size: settings.captionSize);
     engravingOptions = settings.engravingOptions;
-    textDynamics = settings.textDynamics;
+    defaultTextDynamics = settings.textDynamics;
   }
 }

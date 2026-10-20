@@ -191,15 +191,6 @@ final _categories = <_Category>[
       keywords: 'look controls switch button classic refined carbon ibm theme',
     ),
   ]),
-  // Fixes for how other programs write their files, on by default; a switch to turn one off.
-  _Category('Flags', AppIcon.flags, [
-    _Item(
-      'Dynamics typed as text',
-      (_) => 'Engraves “f” set in a music font as a dynamic.',
-      (c) => AppSwitch(value: c.settings.textDynamics, onChanged: (v) => c.settings.textDynamics = v),
-      keywords: 'flag dynamics text words music font maestro opus sibelius finale import musicxml forte piano',
-    ),
-  ]),
   // The page is _AboutPage; these rows are what the search finds.
   _Category('About', AppIcon.about, page: (c) => _AboutPage(c), [
     _Item(
@@ -359,7 +350,29 @@ final _projectCategories = <_Category>[
       keywords: 'default save app every new project extensions',
     ),
   ], empty: 'No extensions yet.'),
+  // Fixes for how other programs write their files, on by default; a switch to turn one off.
+  _Category('Flags', AppIcon.flags, [
+    _Item(
+      'Dynamics typed as text',
+      (_) => 'Engraves “f” set in a music font as a dynamic.',
+      (c) => AppSwitch(value: c.controller!.textDynamics, onChanged: c.controller!.setTextDynamics),
+      keywords: 'flag dynamics text words music font maestro opus sibelius finale import musicxml forte piano',
+    ),
+    _Item(
+      'Save as default',
+      (c) => _flagsAreDefault(c) ? 'Same as default.' : 'Flags, for other projects.',
+      (c) => OutlinedButton(
+        onPressed: _flagsAreDefault(c) ? null : () => c.settings.textDynamics = c.controller!.textDynamics,
+        child: const Text('Save'),
+      ),
+      group: 'Default',
+      keywords: 'default save app every new project flags',
+    ),
+  ]),
 ];
+
+/// Whether the project's flags are the app's default (Save as default).
+bool _flagsAreDefault(_Context c) => c.controller!.textDynamics == c.settings.textDynamics;
 
 /// Whether the project's extensions are the app's default (Save as default).
 bool _extensionsAreDefault(_Context c) =>

@@ -417,7 +417,8 @@ class AppSettings extends ChangeNotifier {
   // MARK: Flags
 
   /// Dynamics a notation program wrote as text ("f" in a music font) are engraved as dynamics
-  /// ([TextDynamics]). On by default.
+  /// ([TextDynamics]) in a project that hasn't chosen (Project Settings ▸ Flags ▸ Save as
+  /// default). On by default.
   bool get textDynamics => _textDynamics;
   bool _textDynamics;
   set textDynamics(bool value) {
