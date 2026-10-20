@@ -13,7 +13,6 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
-import 'app_extensions.dart';
 import 'app_icons.dart';
 import 'app_menus.dart';
 import 'app_settings.dart';
@@ -25,6 +24,7 @@ import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'editor_toolbar.dart';
 import 'error_text.dart';
+import 'extensions/extensions_dialog.dart';
 import 'export_dialog.dart';
 import 'file_names.dart';
 import 'home_screen.dart';

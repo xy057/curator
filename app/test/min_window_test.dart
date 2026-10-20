@@ -20,8 +20,7 @@ void main() {
 
     // Every extension on: Attach Image's toolbar buttons and the pinned Captions lane.
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()
-      ..attachImage = true
-      ..captions = true));
+      ..extensionDefaults = {'attachImage': true, 'captions': true}));
     await tester.pump(const Duration(seconds: 1));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.tap(find.text('Open Sample'));

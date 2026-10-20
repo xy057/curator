@@ -1,70 +1,15 @@
 import 'package:flutter/material.dart';
 
-import 'app_colors.dart';
-import 'app_icons.dart';
-import 'app_settings.dart';
-import 'caption_settings.dart';
-import 'dialog_kit.dart';
-import 'editor_controller.dart';
-import 'ui_kit.dart';
-
-/// The optional first-party components (Project Settings ▸ Extensions). Each is a switch per
-/// project (one that hasn't chosen takes the app's, off until Save as default); what it adds
-/// works only while it is on.
-enum AppExtension {
-  attachImage('Attach Image', AppIcon.image, '1.0', 'Images that scroll with the score.',
-      'image picture photo svg png jpg'),
-  captions('Captions', AppIcon.captions, '1.0', 'Timed text under the score.',
-      'caption subtitle commentary note text');
-
-  const AppExtension(this.label, this.icon, this.version, this.summary, this.keywords);
-  final String label;
-  final AppIcon icon;
-
-  /// Shown after [label]; raised when what the extension does changes.
-  final String version;
-
-  /// One short line under [label].
-  final String summary;
-
-  /// For Settings' search.
-  final String keywords;
-
-  /// The extension's own settings, in a dialog from its row's settings button (greyed out
-  /// while this is null).
-  Widget Function(BuildContext context, AppSettings settings)? get settings => switch (this) {
-        attachImage => null,
-        captions => (context, settings) => CaptionSettings(settings: settings),
-      };
-
-  /// Whether it is on in [controller]'s project.
-  bool isOn(EditorController controller) => controller.extensionOn(name);
-
-  /// Turns it on or off in [controller]'s project: an Undo step.
-  void set(EditorController controller, bool on) => controller.setExtension(name, on);
-
-  /// Whether it is on in a project that hasn't chosen (Save as default).
-  bool isDefaultOn(AppSettings settings) => switch (this) {
-        attachImage => settings.attachImage,
-        captions => settings.captions,
-      };
-
-  void setDefault(AppSettings settings, bool on) => switch (this) {
-        attachImage => settings.attachImage = on,
-        captions => settings.captions = on,
-      };
-
-  /// The extensions what [controller] has open uses (images on the score…).
-  static List<AppExtension> usedBy(EditorController controller) => [
-        if (controller.images.patches.isNotEmpty) attachImage,
-        if (controller.captions.captions.isNotEmpty || controller.captions.font != null) captions,
-      ];
-}
+import '../app_colors.dart';
+import '../dialog_kit.dart';
+import '../editor_controller.dart';
+import '../ui_kit.dart';
+import 'extension.dart';
 
 /// After a project opens: when it uses extensions that are off, lists them with a switch
 /// each (and one for all), so it can show as it was made.
 Future<void> promptForExtensions(BuildContext context, EditorController controller) async {
-  final used = AppExtension.usedBy(controller);
+  final used = Extensions.usedBy(controller);
   if (used.every((e) => e.isOn(controller))) return;
   await showAppDialog<void>(context: context, builder: (_) => ExtensionsDialog(controller: controller, extensions: used));
 }
@@ -73,7 +18,7 @@ Future<void> promptForExtensions(BuildContext context, EditorController controll
 class ExtensionsDialog extends StatelessWidget {
   const ExtensionsDialog({super.key, required this.controller, required this.extensions});
   final EditorController controller;
-  final List<AppExtension> extensions;
+  final List<CuratorExtension> extensions;
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +26,7 @@ class ExtensionsDialog extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final allOn = extensions.every((e) => e.isOn(controller));
-        void setAll(bool on) => controller.setExtensions({for (final e in extensions) e.name: on});
+        void setAll(bool on) => controller.setExtensions({for (final e in extensions) e.id: on});
 
         return AppDialog(
           title: const Text('Extensions in this project'),
@@ -105,7 +50,7 @@ class ExtensionsDialog extends StatelessWidget {
                   itemBuilder: (context, i) {
                     final e = extensions[i];
                     return _SwitchRow(
-                      icon: e.icon.of(context),
+                      icon: e.icon(context),
                       label: Text(e.label),
                       value: e.isOn(controller),
                       onChanged: (on) => e.set(controller, on),

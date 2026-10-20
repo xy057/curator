@@ -1,7 +1,7 @@
 
-import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/extensions/extension.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:curated_score/score_view.dart';
@@ -39,7 +39,7 @@ void main() {
     await rightClick(spot);
     expect(find.text('Add Caption…'), findsNothing, reason: 'Captions is off');
 
-    settings.captions = true;
+    settings.setExtensionDefault('captions', true);
     await tester.pump();
     await rightClick(spot);
     expect(find.text('Add Caption…'), findsOneWidget);
@@ -80,14 +80,14 @@ void main() {
     // Saved and read back.
     final state = ProjectState.fromJson(c.projectState.toJson());
     expect(state.edits.captions, c.captions.captions);
-    expect(AppExtension.usedBy(c), [AppExtension.captions]);
+    expect(Extensions.usedBy(c), [Extensions.captions]);
 
     // Off: kept, not drawn.
-    settings.captions = false;
+    settings.setExtensionDefault('captions', false);
     await tester.pump();
     expect(c.scene!.captions, isEmpty);
     expect(c.captions.captions, hasLength(1));
-    settings.captions = true;
+    settings.setExtensionDefault('captions', true);
     await tester.pump();
 
     c.undo();

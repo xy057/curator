@@ -1,4 +1,3 @@
-import 'app_extensions.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 
@@ -14,7 +13,7 @@ extension ControllerSettings on EditorController {
     defaultTransition = settings.transition;
     newProjectFonts = (music: settings.musicFont, text: settings.textFont, embed: settings.embedFont);
     defaultScrollFollow = settings.scrollFollow;
-    defaultExtensions = {for (final e in AppExtension.values) e.name: e.isDefaultOn(settings)};
+    defaultExtensions = settings.extensionDefaults;
     captions.configure(
         font: settings.captionFont,
         position: settings.captionPosition,

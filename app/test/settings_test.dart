@@ -7,6 +7,7 @@ import 'package:curated_score/settings_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'test_fonts.dart';
 
@@ -75,5 +76,13 @@ void main() {
     expect(find.text('Animation'), findsNothing, reason: "the project's, in Project Settings");
 
     expect(find.text('Extensions'), findsNothing, reason: "the project's, in Project Settings");
+  });
+
+  test("an extension's own switch, from before defaults went by id, is its default", () async {
+    SharedPreferences.setMockInitialValues({'captions': true, 'attachImage': false});
+    final old = await AppSettings.load();
+    expect(old.extensionDefaults, {'captions': true, 'attachImage': false});
+    old.setExtensionDefault('com.example.later', true); // any id: none is known by name here
+    expect((await AppSettings.load()).extensionDefaults, {'captions': true, 'attachImage': false, 'com.example.later': true});
   });
 }

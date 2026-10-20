@@ -37,8 +37,7 @@ class AppSettings extends ChangeNotifier {
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
         _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? true,
-        _attachImage = _prefs?.getBool(_attachImageKey) ?? false,
-        _captions = _prefs?.getBool(_captionsKey) ?? false,
+        _extensionDefaults = _readExtensionDefaults(_prefs),
         _captionFont = _prefs?.getString(_captionFontKey) ?? '',
         _captionPosition = CaptionPosition.values.asNameMap()[_prefs?.getString(_captionPositionKey)] ?? CaptionPosition.bottom,
         _captionCountdown =
@@ -81,7 +80,7 @@ class AppSettings extends ChangeNotifier {
       return defaultVideoFps; // not a number
     }
   }
-  static const _attachImageKey = 'attachImage', _captionsKey = 'captions';
+  static const _extensionDefaultsKey = 'extensionDefaults';
   static const _captionFontKey = 'captionFont', _captionPositionKey = 'captionPosition';
   static const _captionCountdownKey = 'captionCountdown', _captionSizeKey = 'captionSize';
   static const defaultAutosave = Duration(minutes: 2);
@@ -325,24 +324,35 @@ class AppSettings extends ChangeNotifier {
 
   // MARK: Extension
 
-  /// The Attach Image extension. Off by default; everything it adds works only while it is on.
-  bool get attachImage => _attachImage;
-  bool _attachImage;
-  set attachImage(bool value) {
-    if (value == _attachImage) return;
-    _attachImage = value;
-    _prefs?.setBool(_attachImageKey, value);
+  /// The extensions on in a project that hasn't chosen, by extension id (Project Settings ▸
+  /// Extensions ▸ Save as default); one left out is off.
+  Map<String, bool> get extensionDefaults => _extensionDefaults;
+  Map<String, bool> _extensionDefaults;
+  set extensionDefaults(Map<String, bool> value) {
+    if (mapEquals(value, _extensionDefaults)) return;
+    _extensionDefaults = Map.unmodifiable(value);
+    _prefs?.setString(_extensionDefaultsKey, jsonEncode(value));
     notifyListeners();
   }
 
-  /// The Captions extension. Off by default; everything it adds works only while it is on.
-  bool get captions => _captions;
-  bool _captions;
-  set captions(bool value) {
-    if (value == _captions) return;
-    _captions = value;
-    _prefs?.setBool(_captionsKey, value);
-    notifyListeners();
+  bool extensionDefault(String id) => _extensionDefaults[id] ?? false;
+  void setExtensionDefault(String id, bool on) => extensionDefaults = {..._extensionDefaults, id: on};
+
+  /// Until build 69 each extension had a switch of its own, under its id: taken as its default.
+  static Map<String, bool> _readExtensionDefaults(SharedPreferences? prefs) {
+    try {
+      if (prefs?.getString(_extensionDefaultsKey) case final json?) {
+        return Map.unmodifiable({
+          for (final MapEntry(:key, :value) in (jsonDecode(json) as Map<String, Object?>).entries)
+            if (value is bool) key: value,
+        });
+      }
+      return Map.unmodifiable({
+        for (final id in const ['attachImage', 'captions']) id: ?prefs?.getBool(id),
+      });
+    } catch (_) {
+      return const {}; // not readable: all off
+    }
   }
 
   /// The Captions extension's own settings (its settings button), for every project.

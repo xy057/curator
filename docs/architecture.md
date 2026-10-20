@@ -41,6 +41,9 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
 | `caption_settings.dart` | Project Settings ▸ Extensions ▸ Captions' own settings (the app's): font, position, countdown, size, with a preview |
+| `extensions/extension.dart` | `CuratorExtension`, what the app knows of an extension (by id), and `Extensions`, every one there is |
+| `extensions/built_in.dart` | Attach Image and Captions as `CuratorExtension`s |
+| `extensions/extensions_dialog.dart` | On opening a project that uses extensions that are off: a switch for each |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and File ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
@@ -54,7 +57,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
-| `app_menus.dart` | The menu bar (native on macOS): File (Settings… at its foot, on macOS too), Edit, Score (Project Settings… at its foot). Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu |
+| `app_menus.dart` | The menu bar (native on macOS): File (Project Settings… then Settings… at its foot, on macOS too), Edit. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's toolbar |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
@@ -705,18 +708,28 @@ on Windows wherever the registry says that folder now is): it never replaces the
   (import, curate, sync, export) and matter less go under **Extensions**.
 - **A flag**: a fix for how other programs write their files, on by default, as an `_Item` on
   Settings ▸ Flags with a switch to turn it off (`AppSettings`, the app's, never a project's).
-- **An extension**: a value of `AppExtension` (`app_extensions.dart`: its name, icon, version,
-  one-line summary, search words, its own settings (`settings`, a dialog's content, or null)
-  and its default, a `bool` in `AppSettings`), which Project Settings ▸ Extensions lists: name
-  and version, the summary under them, a settings button (greyed out without settings) and the
-  switch. The switch is the project's (`EditState.extensions` by name, an Undo step,
-  `EditorController.extensionOn`); one the project hasn't set follows the app's default, off
-  until Save as default on that page. Say in `AppExtension.usedBy` when an open
-  project uses it: opening a project that uses extensions that are off shows them in a dialog,
-  each with its switch (and "All" when there are several). Everything the extension adds (menu items, toolbar buttons, drop targets, shortcuts,
-  what it draws or exports) works only while its switch is on, and is hidden or inert otherwise.
-  **Attach Image** (default `AppSettings.attachImage`) is the first one, **Captions**
-  (`AppSettings.captions`) the second.
+- **An extension**: a `CuratorExtension` (`extensions/extension.dart`), listed in
+  `Extensions.all`; the built-in ones are in `extensions/built_in.dart`. Each gives a stable
+  `id`, its name, icon, version, one-line summary, search words, its own settings (`settings`,
+  a dialog's content, or null; the app's), `isUsedBy` (whether an open project uses it) and
+  `apply` (turns its part of the editor on or off). Project Settings ▸ Extensions lists each:
+  name and version, the summary under them, a settings button (greyed out without settings)
+  and the switch. The switch is the project's (`EditState.extensions` by id, an Undo step,
+  `EditorController.extensionOn`); one the project hasn't set follows the app's default
+  (`AppSettings.extensionDefaults` by id), off until Save as default on that page. Opening a
+  project that uses extensions that are off shows them in a dialog (`extensions_dialog.dart`),
+  each with its switch (and "All" when there are several). Everything the extension adds (menu
+  items, toolbar buttons, drop targets, shortcuts, what it draws or exports) works only while
+  its switch is on, and is hidden or inert otherwise. **Attach Image** is the first one,
+  **Captions** the second.
+
+  Nothing in the app names an extension but its own code: the switches, defaults, project
+  file and dialogs go by id, so one more needs only its class and a place in `Extensions.all`.
+  This is ready for extensions from elsewhere (`ExtensionOrigin.thirdParty`, reverse-domain
+  ids), but none can be added yet: there is no loading, no sandbox and no API for adding to
+  the editor's menus, toolbars or drawing. A built-in extension still adds those by hand,
+  behind `images.enabled` / `captions.enabled`. Project files keep switches for ids this
+  version doesn't know, so a newer version's choices survive.
 - **Interface text** follows Apple's HIG *Writing*, in US English: Title Case for menu items,
   buttons and dialog titles that are fragments ("Copy Lane To…", "Couldn’t Export Video"),
   sentence case for tooltips, labels, help lines and messages; an ellipsis only where more

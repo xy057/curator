@@ -9,6 +9,7 @@ import 'package:score_engine/score_engine.dart';
 import 'audio_track.dart';
 import 'edit_history.dart';
 import 'error_text.dart';
+import 'extensions/extension.dart';
 import 'file_names.dart';
 import 'image_patch.dart';
 import 'latest.dart';
@@ -412,7 +413,7 @@ class EditorController extends ChangeNotifier {
   String? sectionOf(ScorePart part) =>
       _doc.sections.containsKey(part.id) ? _doc.sections[part.id] : part.section?.name;
 
-  /// The extensions on in a project that hasn't chosen, by [AppExtension] name (Settings, saved
+  /// The extensions on in a project that hasn't chosen, by [CuratorExtension.id] (Settings, saved
   /// by Project Settings ▸ Extensions ▸ Save as default).
   Map<String, bool> get defaultExtensions => _defaultExtensions;
   Map<String, bool> _defaultExtensions = const {};
@@ -437,10 +438,11 @@ class EditorController extends ChangeNotifier {
     _edited();
   }
 
-  /// Turns [images] and [captions] on or off as the project says.
+  /// Turns each extension's part of the editor on or off as the project says.
   void _applyExtensions() {
-    images.enabled = extensionOn('attachImage');
-    captions.enabled = extensionOn('captions');
+    for (final e in Extensions.all) {
+      e.apply(this, extensionOn(e.id));
+    }
   }
 
   /// Whether saves embed the recording or link to it (Project Settings ▸ Project Info); null:

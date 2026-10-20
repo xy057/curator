@@ -7,11 +7,11 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:curated_score/app_extensions.dart';
 import 'package:curated_score/app_icons.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/extensions/extension.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/menu_kit.dart';
 import 'package:curated_score/project_file.dart';
@@ -143,7 +143,7 @@ void main() {
     await tester.tap(find.text('Extensions').first);
     await settle();
     expect(find.text('Attach Image  1.0'), findsOneWidget, reason: 'its version after its name');
-    expect(find.text(AppExtension.attachImage.summary), findsOneWidget);
+    expect(find.text(Extensions.attachImage.summary), findsOneWidget);
     final gears = tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, AppIcon.settings.refined)).toList();
     expect(gears.first.onPressed, isNull, reason: 'Attach Image has no settings of its own yet');
     expect(gears.last.onPressed, isNotNull, reason: 'Captions has');
@@ -152,7 +152,7 @@ void main() {
     await settle();
     expect((c.images.enabled, c.captions.enabled), (true, false), reason: 'each its own switch');
     expect(c.projectState.edits.extensions, {'attachImage': true});
-    expect(settings.attachImage, isFalse, reason: "the project's, not the app's");
+    expect(settings.extensionDefault('attachImage'), isFalse, reason: "the project's, not the app's");
     await shoot('project-settings-extensions');
     c.undo();
     await settle();
@@ -161,7 +161,7 @@ void main() {
     await settle();
     await tester.tap(find.text('Save'));
     await settle();
-    expect(settings.attachImage, isTrue);
+    expect(settings.extensionDefaults, {'attachImage': true, 'captions': false});
     expect(find.text('Same as default.'), findsOneWidget);
 
     // Captions' own settings: how captions look (the app's).

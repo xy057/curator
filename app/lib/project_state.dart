@@ -131,7 +131,7 @@ class EditState {
   final MediaStorage? mediaStorage;
 
   /// The extensions this project turned on or off (Project Settings ▸ Extensions), by
-  /// [AppExtension] name; one left out follows the app's.
+  /// [CuratorExtension.id]; one left out follows the app's.
   final Map<String, bool> extensions;
 
   @override

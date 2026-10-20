@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart' show EngraveOption, verovioVersion;
 
 import 'app_colors.dart';
-import 'app_extensions.dart';
 import 'app_icons.dart';
 import 'app_logo.dart';
 import 'app_settings.dart';
@@ -17,6 +16,7 @@ import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'engrave_options_dialog.dart';
 import 'engraving_settings.dart';
+import 'extensions/extension.dart';
 import 'export_dialog.dart' show revealInFileManager;
 import 'file_names.dart';
 import 'font_settings.dart';
@@ -331,7 +331,7 @@ final _projectCategories = <_Category>[
   // lower priority, each one optional, off by default. Each is a switch for this project (an
   // Undo step); what it adds works only while it is on.
   _Category('Extensions', AppIcon.extensions, [
-    for (final e in AppExtension.values)
+    for (final e in Extensions.all)
       _Item(
         e.label,
         (_) => e.summary,
@@ -349,11 +349,10 @@ final _projectCategories = <_Category>[
       (c) => OutlinedButton(
         onPressed: _extensionsAreDefault(c)
             ? null
-            : () {
-                for (final e in AppExtension.values) {
-                  e.setDefault(c.settings, e.isOn(c.controller!));
-                }
-              },
+            : () => c.settings.extensionDefaults = {
+                  ...c.settings.extensionDefaults,
+                  for (final e in Extensions.all) e.id: e.isOn(c.controller!),
+                },
         child: const Text('Save'),
       ),
       group: 'Default',
@@ -364,7 +363,7 @@ final _projectCategories = <_Category>[
 
 /// Whether the project's extensions are the app's default (Save as default).
 bool _extensionsAreDefault(_Context c) =>
-    AppExtension.values.every((e) => e.isOn(c.controller!) == e.isDefaultOn(c.settings));
+    Extensions.all.every((e) => e.isOn(c.controller!) == c.settings.extensionDefault(e.id));
 
 /// How the project's saves keep the recording.
 MediaStorage _mediaStorage(_Context c) => c.controller!.mediaStorage ?? c.settings.mediaStorage;
@@ -1189,7 +1188,7 @@ class _UpdateControl extends StatelessWidget {
 /// Opens [extension]'s own settings; greyed out when it has none.
 class _ExtensionSettingsButton extends StatelessWidget {
   const _ExtensionSettingsButton(this.extension, this.settings);
-  final AppExtension extension;
+  final CuratorExtension extension;
   final AppSettings settings;
 
   @override
