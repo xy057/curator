@@ -852,7 +852,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     // Working in the timeline leaves the image selected in the score.
     final timeline = Listener(
       onPointerDown: (_) => controller.images.select(null),
-      child: BottomPanel(controller: controller),
+      child: BottomPanel(controller: controller, onProjectSettings: _projectSettings),
     );
     final toolbarHeight = EditorToolbar.heightOf(context);
     return LayoutBuilder(builder: (context, constraints) {

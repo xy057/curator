@@ -141,7 +141,8 @@ void main() {
     await settle();
     expect(find.text('Attach Image  1.0'), findsOneWidget, reason: 'its version after its name');
     expect(find.text(Extensions.attachImage.summary), findsOneWidget);
-    final gears = tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, AppIcon.settings.refined)).toList();
+    // The page's two, after the timeline toolbar's Project Settings (the same icon).
+    final gears = tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, AppIcon.settings.refined)).toList().reversed.take(2).toList().reversed.toList();
     expect(gears.first.onPressed, isNull, reason: 'Attach Image has no settings of its own yet');
     expect(gears.last.onPressed, isNotNull, reason: 'Captions has');
     expect((c.images.enabled, c.captions.enabled), (false, false), reason: 'extensions start off');
@@ -216,6 +217,14 @@ void main() {
     await tester.tap(find.byTooltip('Close'));
     await settle();
     expect(find.text('Music font'), findsNothing);
+
+    // The timeline's toolbar opens them too, at its right end.
+    await tester.tap(find.byTooltip(RegExp(r'^Project Settings \(')));
+    await settle();
+    expect(find.text('Project Info'), findsWidgets);
+    await shoot('project-settings-from-toolbar');
+    await tester.tap(find.byTooltip('Close'));
+    await settle();
   });
 
   testWidgets('Project Settings ▸ Sections: a bracket dragged over another instrument, shown as it moves; two selected bracketed; each an Undo step',

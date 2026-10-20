@@ -13,10 +13,13 @@ import 'ui_kit.dart';
 /// The DAW-like panel under the preview. The switch at its top-left changes between the
 /// Instruments tab (when each staff is shown) and the Audio tab (syncing to the recording).
 /// Both share one time axis, so zoom and scroll carry over. With Captions on, its lane is
-/// pinned under the ruler in both.
+/// pinned under the ruler in both. Project Settings… sits at its right end.
 class BottomPanel extends StatelessWidget {
-  const BottomPanel({super.key, required this.controller});
+  const BottomPanel({super.key, required this.controller, this.onProjectSettings});
   final EditorController controller;
+
+  /// Opens Project Settings (File ▸ Project Settings…).
+  final VoidCallback? onProjectSettings;
 
   static const _switch = Duration(milliseconds: 220);
 
@@ -68,6 +71,12 @@ class BottomPanel extends StatelessWidget {
               icon: AppIcon.fit.of(context),
               tooltip: 'Fit',
               onPressed: c.viewport.fit,
+            ),
+            const ToolbarDivider(),
+            ToolbarButton(
+              icon: AppIcon.settings.of(context),
+              tooltip: 'Project Settings (${shortcut('⇧⌘,')})',
+              onPressed: onProjectSettings,
             ),
           ]),
         ),
