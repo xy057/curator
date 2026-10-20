@@ -4,12 +4,15 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/menu_kit.dart';
+import 'package:curated_score/project_file.dart';
 import 'package:curated_score/sections_editor.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/ui_kit.dart';
@@ -112,6 +115,21 @@ void main() {
     await settle();
     expect(settings.musicFont, MusicFont.leland.name);
     expect(find.text('Same as default.'), findsOneWidget);
+
+    // Project Info: with a recording, whether saves embed it is the project's, an Undo step.
+    final waveform = await tester.runAsync(() => Waveform.analyze(Float32List(1000), 100));
+    c.audio.debugTrack = AudioTrack.forTesting(name: 'take.wav', length: 10, waveform: waveform!);
+    await tester.tap(find.text('Project Info').first);
+    await settle();
+    expect(find.text('In the project file.'), findsOneWidget);
+    await tester.tap(find.text('Link'));
+    await settle();
+    expect((c.mediaStorage, c.projectState.edits.mediaStorage), (MediaStorage.link, MediaStorage.link));
+    expect(settings.mediaStorage, MediaStorage.embed, reason: "the project's, not the app's");
+    await shoot('project-settings-info');
+    c.undo();
+    await settle();
+    expect(c.mediaStorage, isNull);
 
     // Animation: the scroll is the project's, a drag one Undo step; Save as default makes it the app's.
     await tester.tap(find.text('Animation').first);

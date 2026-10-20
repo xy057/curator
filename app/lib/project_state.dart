@@ -5,6 +5,15 @@ import 'package:score_engine/score_engine.dart';
 
 import 'image_patch.dart';
 
+/// How a project keeps its recording.
+enum MediaStorage {
+  /// A copy travels inside the .ccs: bigger, but self-contained.
+  embed,
+
+  /// Only the recording's location is saved: small, but the file has to stay where it is.
+  link,
+}
+
 /// An instrument's name as the user set it: the full name and the short one.
 typedef PartName = ({String name, String abbreviation});
 
@@ -47,6 +56,7 @@ class EditState {
     this.fonts = ScoreFonts.standard,
     this.embedFont = true,
     this.engraving = const EngravingOptions(),
+    this.mediaStorage,
   });
 
   /// When each instrument is shown, with each region's own properties; null when the project
@@ -115,6 +125,10 @@ class EditState {
   /// The engraving options this project sets over the app's (Project Settings ▸ Engraving).
   final EngravingOptions engraving;
 
+  /// Whether saves embed the recording or link to it (Project Settings ▸ Project Info); null:
+  /// the app's (Settings, before projects had their own).
+  final MediaStorage? mediaStorage;
+
   @override
   bool operator ==(Object other) =>
       other is EditState &&
@@ -139,7 +153,8 @@ class EditState {
       captionFont == other.captionFont &&
       fonts == other.fonts &&
       embedFont == other.embedFont &&
-      engraving == other.engraving;
+      engraving == other.engraving &&
+      mediaStorage == other.mediaStorage;
 
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
@@ -166,6 +181,7 @@ class EditState {
     ScoreFonts? fonts,
     bool? embedFont,
     EngravingOptions? engraving,
+    MediaStorage? mediaStorage,
   }) =>
       EditState(
         lanes: identical(lanes, _kept) ? this.lanes : lanes as Map<String, List<Region>>?,
@@ -187,6 +203,7 @@ class EditState {
         fonts: fonts ?? this.fonts,
         embedFont: embedFont ?? this.embedFont,
         engraving: engraving ?? this.engraving,
+        mediaStorage: mediaStorage ?? this.mediaStorage,
       );
 }
 
@@ -335,6 +352,11 @@ class ProjectState {
         embedFont: r.child('fonts').boolean('embed') ?? true,
         // An option this version doesn't know (or no longer offers) is left out, as the app's are.
         engraving: EngravingOptions.fromJson(r.map('engraving'), keepDefault: true),
+        mediaStorage: switch (r.string('mediaStorage')) {
+          null => null,
+          final s => MediaStorage.values.asNameMap()[s] ??
+              (throw FormatException('The project is damaged: ${r.where}.mediaStorage is not embed or link.')),
+        },
       ),
       images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
       view: ViewState(
@@ -446,7 +468,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving) = edits;
+        :sections, :groupSections, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :mediaStorage) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -458,6 +480,7 @@ class ProjectState {
           if (!embedded) 'embed': false,
         },
       if (!engraving.isEmpty) 'engraving': engraving.toJson(),
+      'mediaStorage': ?mediaStorage?.name,
       'textEdits': textEdits,
       'condensed': [...condensed],
       'pairs': [for (final p in pairs) p.partIds],

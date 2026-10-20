@@ -25,7 +25,7 @@ void main() {
   ProjectContents contents({ProjectMedia? media}) => ProjectContents(
         scoreName: 'Score.musicxml',
         scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
-        state: const ProjectState(edits: EditState(textEdits: {'d1': 'hello'})),
+        state: const ProjectState(edits: EditState(textEdits: {'d1': 'hello'}, mediaStorage: MediaStorage.link)),
         media: media,
       );
 
@@ -46,6 +46,7 @@ void main() {
     expect(opened.scoreName, 'Score.musicxml');
     expect(utf8.decode(opened.scoreBytes), '<score-partwise/>');
     expect(opened.state.edits.textEdits, {'d1': 'hello'});
+    expect(opened.state.edits.mediaStorage, MediaStorage.link, reason: "the project's own");
     expect(opened.media, isNull);
   });
 

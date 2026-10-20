@@ -411,6 +411,17 @@ class EditorController extends ChangeNotifier {
   String? sectionOf(ScorePart part) =>
       _doc.sections.containsKey(part.id) ? _doc.sections[part.id] : part.section?.name;
 
+  /// Whether saves embed the recording or link to it (Project Settings ▸ Project Info); null:
+  /// the app's.
+  MediaStorage? get mediaStorage => _doc.mediaStorage;
+
+  /// Sets [mediaStorage]: one Undo step, saved with the project.
+  void setMediaStorage(MediaStorage value) {
+    if (value == _doc.mediaStorage) return;
+    _doc = _doc.copyWith(mediaStorage: value);
+    _edited();
+  }
+
   /// Whether the score groups its instruments in sections, as printed (Project Settings ▸
   /// Sections; see [CuratedScene.sections]).
   bool get groupSections => _doc.groupSections;

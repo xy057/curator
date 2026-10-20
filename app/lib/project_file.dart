@@ -11,14 +11,7 @@ import 'image_patch.dart';
 import 'media_converter.dart';
 import 'project_state.dart';
 
-/// How a project keeps its recording.
-enum MediaStorage {
-  /// A copy travels inside the .ccs: bigger, but self-contained.
-  embed,
-
-  /// Only the recording's location is saved: small, but the file has to stay where it is.
-  link,
-}
+export 'project_state.dart' show MediaStorage;
 
 /// A Curator project (.ccs): a zip archive holding
 ///
@@ -61,7 +54,7 @@ abstract final class ProjectFile {
     } else {
       mediaEntry = null;
       if (media != null && media.originalPath == null) {
-        throw FileSystemException('“${media.name}” can’t be linked. Choose Embed in Settings ▸ Recording');
+        throw FileSystemException('“${media.name}” can’t be linked. Choose Embed in Project Settings ▸ Project Info');
       }
     }
     final scoreEntry = 'score/${_safeName(c.scoreName)}';

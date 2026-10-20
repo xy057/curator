@@ -191,24 +191,6 @@ final _categories = <_Category>[
       keywords: 'look controls switch button classic refined carbon ibm theme',
     ),
   ]),
-  _Category('Recording', AppIcon.audio, [
-    _Item(
-      'Save the recording',
-      (c) => switch (c.settings.mediaStorage) {
-        MediaStorage.embed => 'The audio is stored in the project file.',
-        MediaStorage.link => 'The project points to the recording; keep it nearby.',
-      },
-      (c) => Builder(builder: (context) => AppSegmented<MediaStorage>(
-        segments: [
-          ButtonSegment(value: MediaStorage.embed, label: Text('Embed'), icon: Icon(AppIcon.embed.of(context), size: 16)),
-          ButtonSegment(value: MediaStorage.link, label: Text('Link'), icon: Icon(AppIcon.link.of(context), size: 16)),
-        ],
-        selected: c.settings.mediaStorage,
-        onChanged: (v) => c.settings.mediaStorage = v,
-      )),
-      keywords: 'embed link media audio video file',
-    ),
-  ]),
   // First-party components that are not part of the main work (import, curate, sync, export):
   // lower priority, each one optional.
   // Each one is a switch for the whole app (AppExtension), off by default; what it adds
@@ -284,6 +266,23 @@ final _projectCategories = <_Category>[
       ),
       keywords: 'add recording audio file video sound',
     ),
+    _Item(
+      'Save the recording',
+      (c) => switch (_mediaStorage(c)) {
+        MediaStorage.embed => 'In the project file.',
+        MediaStorage.link => 'Linked; keep it nearby.',
+      },
+      (c) => Builder(builder: (context) => AppSegmented<MediaStorage>(
+        segments: [
+          ButtonSegment(value: MediaStorage.embed, label: Text('Embed'), icon: Icon(AppIcon.embed.of(context), size: 16)),
+          ButtonSegment(value: MediaStorage.link, label: Text('Link'), icon: Icon(AppIcon.link.of(context), size: 16)),
+        ],
+        selected: _mediaStorage(c),
+        onChanged: c.controller!.setMediaStorage,
+      )),
+      shown: (c) => c.controller!.track != null,
+      keywords: 'embed link media audio video file save',
+    ),
   ]),
   _Category('Animation', AppIcon.transition, [
     _Item(
@@ -335,6 +334,9 @@ final _projectCategories = <_Category>[
     ),
   ]),
 ];
+
+/// How the project's saves keep the recording.
+MediaStorage _mediaStorage(_Context c) => c.controller!.mediaStorage ?? c.settings.mediaStorage;
 
 /// Whether the project's animation is the app's default (Save as default).
 bool _animationIsDefault(_Context c) =>

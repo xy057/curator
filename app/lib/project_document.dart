@@ -16,7 +16,7 @@ const sampleProjectAsset = 'assets/demo/WI275 - 01 Intro.ccs';
 
 /// How this save stores the recording.
 ///
-/// [preferred] is the choice in Settings. [originalPath] is the recording's own file, if it
+/// [preferred] is the project's choice (Project Settings ▸ Project Info), else the app's. [originalPath] is the recording's own file, if it
 /// still exists (a recording unpacked from a project has none).
 /// [sizeBytes] is the size of the recording.
 ///
@@ -33,7 +33,7 @@ MediaStorage resolveMediaStorage({
   return preferred;
 }
 
-/// Recordings above this size are linked even when Settings say "embed" (see
+/// Recordings above this size are linked even when the project says "embed" (see
 /// [resolveMediaStorage]).
 const embedLimitBytes = 2 * 1024 * 1024 * 1024;
 
@@ -210,7 +210,7 @@ class ProjectDocument extends ChangeNotifier {
       media = ProjectMedia(
         name: track.name,
         storage: resolveMediaStorage(
-          preferred: settings.mediaStorage,
+          preferred: controller.mediaStorage ?? settings.mediaStorage,
           originalPath: originalExists ? original : null,
           sizeBytes: File(track.path).existsSync() ? File(track.path).lengthSync() : 0,
         ),
