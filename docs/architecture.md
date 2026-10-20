@@ -294,6 +294,11 @@ name goes back to its place.
 The playhead is a layer of its own over every lane (`WithPlayhead`): playback moves it every frame
 and repaints only it, so a lane's painter listens to edits and the viewport, never to the time. The
 Instruments tab paints only the lanes scrolled into view.
+The bar ruler is red where the staves shown don't fit the video's frame (`EditorController.overflowing`:
+the segments of a `SpacingPlan` for `videoLayout`, its ratio's, whose ink kept the least gap apart runs
+past the available height, `StaffStack.overflows`), and a warning by its name lists those bars.
+`CuratedScene.overflowing` plans that size apart from the frames painted, so the preview at
+another size never plans again for it.
 
 **A region carries its properties.** Besides its bounds a region has properties of its own
 (so far its transitions: how long its staff glides in at its start, `Region.transitionIn`, and

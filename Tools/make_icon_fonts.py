@@ -120,6 +120,7 @@ ICONS = [
     ('done', 'Finished.', 'check_circle:fill', 'checkmark--filled'),
     ('failed', 'Failed.', 'error:fill', 'error--filled'),
     ('invalid', 'A value that is not allowed.', 'error:fill', 'warning--filled'),
+    ('warning', 'Something to look at.', 'warning:fill', 'warning--filled'),
 ]
 
 

@@ -59,7 +59,7 @@ class SpacingPlan {
     final unitTwins = {for (final MapEntry(:key, :value) in twins.entries) unitOf[key]: [for (final j in value) unitOf[j]]};
 
     final bounds = _Bounds.of(edges, scrollMap.duration, transition);
-    return SpacingPlan._(bounds, _Keyframes(bounds.length - 1, (i) {
+    return SpacingPlan._(bounds, _Keyframes<_Keyframe>(bounds.length - 1, (i) {
       final middle = (bounds.at[i] + bounds.at[i + 1]) / 2;
       // Everything on screen from a little before the segment starts to a little after it ends
       // (on both sides of a warp, when one jumps in between).
@@ -87,22 +87,42 @@ class SpacingPlan {
           }(),
       ];
       final tops = _parkHidden(StaffStack.layout(slots, metrics), slots, shown, metrics, unitTwins);
-      return [for (final (k, u) in unitOf.indexed) tops[u] + offsets[k]];
+      return (
+        tops: [for (final (k, u) in unitOf.indexed) tops[u] + offsets[k]],
+        overflows: StaffStack.overflows(slots, metrics),
+      );
     }));
   }
 
   final _Bounds _bounds;
-  final _Keyframes _keyframes; // [segment][staff in order]: top line, logical pixels
+  final _Keyframes<_Keyframe> _keyframes; // [segment]: each staff's top line in order, logical pixels
+
+  /// Where the staves shown need more height than the frame has ([StaffStack.overflows]): the
+  /// segments' stretches of playback time, merged where they meet. Works out every keyframe.
+  late final List<({double start, double end})> overflowing = () {
+    final stretches = <({double start, double end})>[];
+    for (var i = 0; i < _keyframes.length; i++) {
+      if (!_keyframes[i].overflows) continue;
+      final (start, end) = (_bounds.at[i], _bounds.at[i + 1]);
+      if (stretches.isNotEmpty && stretches.last.end == start) {
+        stretches.last = (start: stretches.last.start, end: end);
+      } else {
+        stretches.add((start: start, end: end));
+      }
+    }
+    return List<({double start, double end})>.unmodifiable(stretches);
+  }();
 
   /// Top line of every planned staff at playback time [t], logical pixels from the top of
   /// the available area. Hidden staves report where they would appear.
-  List<double> topsAt(double t) => _blendAt(_bounds, _keyframes, t);
+  List<double> topsAt(double t) => _blendAt(_bounds, _keyframes, (k) => k.tops, t);
 
-  /// The keyframe of the segment of [bounds] around [t], blended towards the neighbouring
-  /// keyframe inside the transition window of the nearer bound (each bound has its own).
-  static List<double> _blendAt(_Bounds bounds, _Keyframes keyframes, double t) {
+  /// The [values] of the keyframe of the segment of [bounds] around [t], blended towards the
+  /// neighbouring keyframe's inside the transition window of the nearer bound (each bound has
+  /// its own).
+  static List<double> _blendAt<T>(_Bounds bounds, _Keyframes<T> keyframes, List<double> Function(T) values, double t) {
     final i = segmentAt(bounds.length, t, (i) => bounds.at[i]).clamp(0, keyframes.length - 1);
-    final own = keyframes[i];
+    final own = values(keyframes[i]);
     final start = bounds.at[i], end = bounds.at[i + 1];
     final fadeIn = bounds.transition[i], fadeOut = bounds.transition[i + 1];
     final inStart = i > 0 && fadeIn > 0 && t < start + fadeIn / 2;
@@ -117,7 +137,7 @@ class SpacingPlan {
       p = _smooth(((t - (end - fadeOut / 2)) / fadeOut).clamp(0.0, 1.0));
     }
     if (other == null || p == 0) return own;
-    final to = keyframes[other];
+    final to = values(keyframes[other]);
     return [for (var k = 0; k < own.length; k++) own[k] + (to[k] - own[k]) * p];
   }
 
@@ -162,14 +182,17 @@ class SpacingPlan {
   static double _smooth(double x) => x * x * (3 - 2 * x);
 }
 
+/// A segment's layout: where each staff's top line is, and whether the staves overflow.
+typedef _Keyframe = ({List<double> tops, bool overflows});
+
 /// A plan's keyframes, one per segment, each worked out the first time it is asked for.
-class _Keyframes {
+class _Keyframes<T> {
   _Keyframes(int length, this._compute) : _done = List.filled(length, null);
-  final List<double> Function(int segment) _compute;
-  final List<List<double>?> _done;
+  final T Function(int segment) _compute;
+  final List<T?> _done;
 
   int get length => _done.length;
-  List<double> operator [](int segment) => _done[segment] ??= _compute(segment);
+  T operator [](int segment) => _done[segment] ??= _compute(segment);
 }
 
 /// Where a plan's segments meet, in playback time, each with the seconds it glides over: from
@@ -246,7 +269,7 @@ class KeyColumnPlan {
     ];
     final bounds = _Bounds.of([...edges, for (final t in keyBounds) (seconds: t, transition: transition)], scrollMap.duration, transition);
 
-    return KeyColumnPlan._(bounds, _Keyframes(bounds.length - 1, (i) {
+    return KeyColumnPlan._(bounds, _Keyframes<List<double>>(bounds.length - 1, (i) {
       final middle = (bounds.at[i] + bounds.at[i + 1]) / 2;
       var column = 0.0;
       for (final (:min, :max) in scrollMap.xStretches(bounds.at[i] - bounds.transition[i] / 2, bounds.at[i + 1] + bounds.transition[i + 1] / 2)) {
@@ -260,8 +283,8 @@ class KeyColumnPlan {
   }
 
   final _Bounds _bounds;
-  final _Keyframes _keyframes; // [segment][0]: key column, staff spaces
+  final _Keyframes<List<double>> _keyframes; // [segment][0]: key column, staff spaces
 
   /// The key column's width at playback time [t], in staff spaces.
-  double columnAt(double t) => SpacingPlan._blendAt(_bounds, _keyframes, t).first;
+  double columnAt(double t) => SpacingPlan._blendAt(_bounds, _keyframes, (k) => k, t).first;
 }

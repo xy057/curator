@@ -99,6 +99,20 @@ void main() {
     scene.dispose();
   });
 
+  test('overflowing is where the staves shown are too tall for the frame', () {
+    final scene = CuratedScene(score);
+    final curation = Curation(score.metadata.parts.map((p) => p.id));
+    final starts = score.timeline.measureStarts;
+    // Strings throughout; everyone from bar 33.
+    for (final (i, p) in score.metadata.parts.indexed) {
+      curation.setLane(p.id, [Region(i < 16 ? starts[32] : 0, starts.last)]);
+    }
+    expect(scene.overflowing(curation, const ui.Size(1600, 900)),
+        [(start: score.timeline.secondsAtQuarter(starts[32]), end: score.scrollMap.duration + 5)]);
+    expect(scene.overflowing(curation, const ui.Size(1600, 6000)), isEmpty);
+    scene.dispose();
+  });
+
   test('grouped in sections, each family is bracketed and barred through, as printed', () {
     final scene = CuratedScene(score);
     const size = ui.Size(1600, 2400);

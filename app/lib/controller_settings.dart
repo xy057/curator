@@ -1,13 +1,14 @@
 import 'app_settings.dart';
 import 'editor_controller.dart';
+import 'video_export.dart';
 
 /// Settings (the app's, the same for every project) as the editor follows them.
 extension ControllerSettings on EditorController {
   /// Takes what [settings] say for every project: how far Undo goes back, what a project
-  /// starts with (its transition, scroll and fonts), the extensions a project starts
-  /// with and
-  /// the captions' look, and the engraving options and flags (re-engraving what is open when
-  /// they change). Call it again whenever they change: what is the same already changes nothing.
+  /// starts with (its transition, scroll and fonts), the extensions a project starts with,
+  /// the captions' look, the video's frame (its ratio), and the engraving options and flags
+  /// (re-engraving what is open when they change). Call it again whenever they change: what
+  /// is the same already changes nothing.
   void takeSettings(AppSettings settings) {
     undoLimit = settings.undoSteps;
     defaultTransition = settings.transition;
@@ -21,5 +22,6 @@ extension ControllerSettings on EditorController {
         size: settings.captionSize);
     engravingOptions = settings.engravingOptions;
     defaultTextDynamics = settings.textDynamics;
+    videoLayout = VideoFormat.layoutOf(settings.videoRatio.value);
   }
 }

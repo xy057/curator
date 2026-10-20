@@ -220,7 +220,10 @@ enum AppIcon {
   failed(IconData(0xE046, fontFamily: _refined), IconData(0xE046, fontFamily: _carbon)),
 
   /// A value that is not allowed. Refined: error (filled); Carbon: warning--filled.
-  invalid(IconData(0xE047, fontFamily: _refined), IconData(0xE047, fontFamily: _carbon));
+  invalid(IconData(0xE047, fontFamily: _refined), IconData(0xE047, fontFamily: _carbon)),
+
+  /// Something to look at. Refined: warning (filled); Carbon: warning--filled.
+  warning(IconData(0xE048, fontFamily: _refined), IconData(0xE048, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

@@ -34,6 +34,20 @@ class StackMetrics {
 }
 
 abstract final class StaffStack {
+  /// The gap [layout] squeezes to, at the least, in a full frame.
+  static const _squeezed = 4.0;
+
+  /// Whether the shown [slots] need more height than [metrics] have: their ink, kept the least
+  /// gap apart, runs past the available area, into the margins or off the frame.
+  static bool overflows(List<StaffSlot> slots, StackMetrics metrics) {
+    var ink = 0.0, weight = 0.0;
+    for (final slot in slots) {
+      ink += (slot.inkAbove + slot.height + slot.inkBelow) * slot.visibility;
+      weight += slot.visibility;
+    }
+    return weight > 0 && ink + _squeezed * (weight - 1) > metrics.availableHeight + 1e-6;
+  }
+
   /// y of each slot's top staff line, in logical pixels from the top of the available area.
   ///
   /// Evaluated ahead of playback, once per segment of the curation (see SpacingPlan), with
@@ -53,7 +67,7 @@ abstract final class StaffStack {
     final free = metrics.availableHeight - ink;
     var gap = (free / (weight + 1)).clamp(metrics.minGap, metrics.maxGap);
     if (ink + gap * (weight + 1) > metrics.availableHeight) {
-      gap = (free / (weight + 1)).clamp(4.0, metrics.minGap);
+      gap = (free / (weight + 1)).clamp(_squeezed, metrics.minGap);
     }
 
     // Centre the group vertically in whatever room is left over.
