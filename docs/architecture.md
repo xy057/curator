@@ -634,9 +634,10 @@ family by its typographic name or a weight's legacy one, as Windows' Font dialog
 found, or found but unreadable, it is `MusicFont.missing` (`MusicFontKind`: bundled, added,
 missing): engraved and drawn in Bravura, the choice kept and saved again, Embed font off and
 disabled (nothing to embed), and the window says so once (a snack bar the user closes). The
-pickers set a `FontTarget`: `ProjectFonts` (edits) or `NewProjectFonts` (Settings, by name); a
-late answer from the system picker applies only to the project it was chosen for. Settings ▸ Fonts holds what new projects
-start with (`AppSettings.musicFont`/`textFont`/`embedFont`, by name: installed fonts only;
+pickers set the project's fonts (edits); a late answer from the system picker applies only to
+the project it was chosen for. What new projects start with is the fonts of the one last saved
+as the default (Project Settings ▸ Engraving ▸ Save as default:
+`AppSettings.musicFont`/`textFont`/`embedFont`, by name, as the app keeps no font file;
 `EditorController.newProjectFonts`); one not installed where a score is imported is Bravura or
 Academico. Settings rows are keyed by item, so a control keeps its state when a `shown` row
 above it comes or goes.

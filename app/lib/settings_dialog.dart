@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show EngraveOption, MusicFont, verovioVersion;
+import 'package:score_engine/score_engine.dart' show EngraveOption, verovioVersion;
 
 import 'app_colors.dart';
 import 'app_extensions.dart';
@@ -209,19 +209,6 @@ final _categories = <_Category>[
       (c) => _ScrollFollowSlider(settings: c.settings),
       keywords: 'scroll speed smooth snap note beat follow onset glide motion pointer',
     ),
-  ]),
-  _Category('Fonts', AppIcon.fonts, [
-    _Item('Music', (_) => 'For new projects.', (c) => MusicFontPicker.forNewProjects(settings: c.settings),
-        keywords: 'font smufl bravura leland petaluma notation default'),
-    _Item(
-      'Embed font',
-      (_) => 'For new projects.',
-      (c) => EmbedFontSwitch.forNewProjects(settings: c.settings),
-      shown: (c) => MusicFont.bundledNamed(c.settings.musicFont) == null,
-      keywords: 'font embed include file installed default',
-    ),
-    _Item('Text', (_) => 'For new projects.', (c) => TextFontPicker.forNewProjects(settings: c.settings),
-        keywords: 'font academico family typeface default'),
   ]),
   _Category('Recording', AppIcon.audio, [
     _Item(

@@ -145,7 +145,7 @@ class EditorController extends ChangeNotifier {
     await _install(fileNameOf(path), bytes, score, ProjectState(edits: edits));
   }
 
-  /// The fonts a newly imported score starts with (Settings ▸ Fonts), by name.
+  /// The fonts a newly imported score starts with (Save as default), by name.
   ({String music, String text, bool embed}) newProjectFonts =
       (music: MusicFont.bravura.name, text: TextFonts.academico, embed: true);
 
