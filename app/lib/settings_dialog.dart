@@ -112,7 +112,7 @@ class _Item {
 }
 
 class _Category {
-  const _Category(this.label, this.icon, this.items, {this.empty, this.page, this.header});
+  const _Category(this.label, this.icon, this.items, {this.empty, this.page, this.header, this.saveDefault});
   final String label;
   final AppIcon icon;
   final List<_Item> items;
@@ -125,7 +125,19 @@ class _Category {
 
   /// Shown in place of the items while there are none.
   final String? empty;
+
+  /// A project page whose settings can become the app's, for other projects: a slim Save as
+  /// Default button beside the page's title.
+  final _SaveDefault? saveDefault;
 }
+
+/// Save as Default on a project page: [isDefault] while the app's already match the project's;
+/// [save] makes them so. Offered while [shown] (null: always).
+typedef _SaveDefault = ({
+  bool Function(_Context)? shown,
+  bool Function(_Context) isDefault,
+  void Function(_Context) save,
+});
 
 typedef _Context = ({
   AppSettings settings,
@@ -256,19 +268,11 @@ final _projectCategories = <_Category>[
       shown: (c) => c.controller!.track != null,
       keywords: 'embed link media audio video file save',
     ),
-    _Item(
-      'Save as default',
-      (c) => _mediaStorage(c) == c.settings.mediaStorage ? 'Same as default.' : 'Embed or link, for other projects.',
-      (c) => OutlinedButton(
-        onPressed:
-            _mediaStorage(c) == c.settings.mediaStorage ? null : () => c.settings.mediaStorage = _mediaStorage(c),
-        child: const Text('Save'),
-      ),
-      shown: (c) => c.controller!.track != null,
-      group: 'Default',
-      keywords: 'default save app every new project recording embed link',
-    ),
-  ]),
+  ], saveDefault: (
+    shown: (c) => c.controller!.track != null,
+    isDefault: (c) => _mediaStorage(c) == c.settings.mediaStorage,
+    save: (c) => c.settings.mediaStorage = _mediaStorage(c),
+  )),
   _Category('Animation', AppIcon.transition, [
     _Item(
       'Staff transition',
@@ -286,21 +290,13 @@ final _projectCategories = <_Category>[
       (c) => _ScrollFollowSlider(controller: c.controller!),
       keywords: 'scroll speed smooth snap note beat follow onset glide motion pointer',
     ),
-    _Item(
-      'Save as default',
-      (c) => _animationIsDefault(c) ? 'Same as default.' : 'Transition and scrolling, for other projects.',
-      (c) => OutlinedButton(
-        onPressed: _animationIsDefault(c)
-            ? null
-            : () => c.settings
-              ..transition = c.controller!.curation!.transition
-              ..scrollFollow = c.controller!.scrollFollow,
-        child: const Text('Save'),
-      ),
-      group: 'Default',
-      keywords: 'default save app every new project animation transition scroll',
-    ),
-  ]),
+  ], saveDefault: (
+    shown: null,
+    isDefault: _animationIsDefault,
+    save: (c) => c.settings
+      ..transition = c.controller!.curation!.transition
+      ..scrollFollow = c.controller!.scrollFollow,
+  )),
   _engravingCategory(),
   _Category('Sections', AppIcon.lanes, page: (c) => _SectionsPage(c), [
     _Item(
@@ -334,22 +330,14 @@ final _projectCategories = <_Category>[
         note: e.version,
         keywords: '${e.keywords} extension',
       ),
-    _Item(
-      'Save as default',
-      (c) => _extensionsAreDefault(c) ? 'Same as default.' : 'Extensions, for other projects.',
-      (c) => OutlinedButton(
-        onPressed: _extensionsAreDefault(c)
-            ? null
-            : () => c.settings.extensionDefaults = {
-                  ...c.settings.extensionDefaults,
-                  for (final e in Extensions.all) e.id: e.isOn(c.controller!),
-                },
-        child: const Text('Save'),
-      ),
-      group: 'Default',
-      keywords: 'default save app every new project extensions',
-    ),
-  ], empty: 'No extensions yet.'),
+  ], empty: 'No extensions yet.', saveDefault: (
+    shown: null,
+    isDefault: _extensionsAreDefault,
+    save: (c) => c.settings.extensionDefaults = {
+          ...c.settings.extensionDefaults,
+          for (final e in Extensions.all) e.id: e.isOn(c.controller!),
+        },
+  )),
   // Fixes for how other programs write their files, on by default; a switch to turn one off.
   _Category('Flags', AppIcon.flags, [
     _Item(
@@ -358,17 +346,11 @@ final _projectCategories = <_Category>[
       (c) => AppSwitch(value: c.controller!.textDynamics, onChanged: c.controller!.setTextDynamics),
       keywords: 'flag dynamics text words music font maestro opus sibelius finale import musicxml forte piano',
     ),
-    _Item(
-      'Save as default',
-      (c) => _flagsAreDefault(c) ? 'Same as default.' : 'Flags, for other projects.',
-      (c) => OutlinedButton(
-        onPressed: _flagsAreDefault(c) ? null : () => c.settings.textDynamics = c.controller!.textDynamics,
-        child: const Text('Save'),
-      ),
-      group: 'Default',
-      keywords: 'default save app every new project flags',
-    ),
-  ]),
+  ], saveDefault: (
+    shown: null,
+    isDefault: _flagsAreDefault,
+    save: (c) => c.settings.textDynamics = c.controller!.textDynamics,
+  )),
 ];
 
 /// Whether the project's flags are the app's default (Save as default).
@@ -488,6 +470,7 @@ _Category _engravingCategory() {
     AppIcon.music,
     header: (c) => SizedBox(
         height: 170, child: EngravingPreviewHost(settings: c.settings, controller: c.controller, scale: 0.5)),
+    saveDefault: (shown: null, isDefault: (c) => target(c).isDefault, save: (c) => target(c).saveAsDefault()),
     [
       _Item('Music font', null, (c) => MusicFontPicker(controller: c.controller!),
           group: 'Fonts', keywords: 'font smufl bravura leland petaluma notation'),
@@ -528,16 +511,6 @@ _Category _engravingCategory() {
         group: 'All options',
         keywords: 'engrave engraving verovio advanced expert options code spacing slur tie beam stem '
             'thickness margin bar number lyric',
-      ),
-      _Item(
-        'Save as default',
-        (c) => target(c).isDefault ? 'Same as default.' : 'Fonts and engraving, for other projects.',
-        (c) => OutlinedButton(
-          onPressed: target(c).isDefault ? null : target(c).saveAsDefault,
-          child: const Text('Save'),
-        ),
-        group: 'Default',
-        keywords: 'default save app every new project fonts engraving house style',
       ),
     ],
   );
@@ -839,6 +812,8 @@ class _SettingsWindowState extends State<_SettingsWindow> {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text),
             ),
           ),
+          if (matches == null && cat.saveDefault != null && (cat.saveDefault!.shown?.call(_ctx) ?? true))
+            _SaveDefaultButton(isDefault: cat.saveDefault!.isDefault(_ctx), onPressed: () => cat.saveDefault!.save(_ctx)),
           if (widget.kind == _Window.project && (widget.controller?.isReengraving ?? false))
             const Padding(
               padding: EdgeInsets.only(right: 8),
@@ -973,6 +948,45 @@ class _SidebarTileState extends State<_SidebarTile> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Save as Default, slim beside a page's title: once saved (or already the same), a muted
+/// check and "Default" in its place.
+class _SaveDefaultButton extends StatelessWidget {
+  const _SaveDefaultButton({required this.isDefault, required this.onPressed});
+  final bool isDefault;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    // Slimmer than the rows' buttons: it belongs to the page, not to a setting.
+    final style = OutlinedButton.styleFrom(
+      minimumSize: const Size(0, 26),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(13)),
+      side: BorderSide(color: colors.line),
+      // The theme's, so it keeps the app's font.
+      textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12, fontWeight: FontWeight.w500),
+      disabledForegroundColor: colors.textMuted,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Tip(
+        message: isDefault ? 'Other projects start with these' : 'Use these for other projects',
+        child: isDefault
+            ? OutlinedButton.icon(
+                style: style.copyWith(side: const WidgetStatePropertyAll(BorderSide(color: Colors.transparent))),
+                onPressed: null,
+                icon: Icon(AppIcon.check.of(context), size: 13),
+                label: const Text('Default'),
+              )
+            : OutlinedButton(style: style, onPressed: onPressed, child: const Text('Save as Default')),
       ),
     );
   }

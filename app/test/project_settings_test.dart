@@ -110,13 +110,10 @@ void main() {
     expect(c.score!.fonts.music, MusicFont.leland);
 
     // Save as default: the fonts for new projects.
-    await tester.scrollUntilVisible(find.text('Save'), 300,
-        scrollable: find.descendant(of: find.byType(ListView).last, matching: find.byType(Scrollable)).first);
-    await settle();
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Save as Default'));
     await settle();
     expect(settings.musicFont, MusicFont.leland.name);
-    expect(find.text('Same as default.'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Default'), findsOneWidget, reason: 'saved: a check in its place');
 
     // Project Info: with a recording, whether saves embed it is the project's, an Undo step.
     final waveform = await tester.runAsync(() => Waveform.analyze(Float32List(1000), 100));
@@ -128,12 +125,12 @@ void main() {
     await settle();
     expect((c.mediaStorage, c.projectState.edits.mediaStorage), (MediaStorage.link, MediaStorage.link));
     expect(settings.mediaStorage, MediaStorage.embed, reason: "the project's, not the app's");
-    expect(find.text('Embed or link, for other projects.'), findsOneWidget);
+    expect(find.text('Save as Default'), findsOneWidget, reason: 'beside the title, the recording not yet the default');
     await shoot('project-settings-info');
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Save as Default'));
     await settle();
     expect(settings.mediaStorage, MediaStorage.link, reason: 'Save as default');
-    expect(find.text('Same as default.'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Default'), findsOneWidget, reason: 'saved: a check in its place');
     c.undo();
     await settle();
     expect(c.mediaStorage, isNull);
@@ -159,10 +156,10 @@ void main() {
     expect(c.images.enabled, isFalse);
     c.redo();
     await settle();
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Save as Default'));
     await settle();
     expect(settings.extensionDefaults, {'attachImage': true, 'captions': false});
-    expect(find.text('Same as default.'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Default'), findsOneWidget, reason: 'saved: a check in its place');
 
     // Captions' own settings: how captions look (the app's).
     await tester.tap(find.widgetWithIcon(IconButton, AppIcon.settings.refined).last);
@@ -190,9 +187,10 @@ void main() {
     expect(c.textDynamics, isTrue);
     c.redo();
     await engraved();
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Save as Default'));
     await settle();
     expect(settings.textDynamics, isFalse);
+    await shoot('project-settings-flags-saved');
 
     // Animation: the scroll is the project's, a drag one Undo step; Save as default makes it the app's.
     await tester.tap(find.text('Animation').first);
@@ -210,10 +208,10 @@ void main() {
     expect(c.scrollFollow, AppSettings.defaultScrollFollow);
     c.redo();
     await settle();
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Save as Default'));
     await settle();
     expect(settings.scrollFollow, follow);
-    expect(find.text('Same as default.'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Default'), findsOneWidget, reason: 'saved: a check in its place');
 
     await tester.tap(find.byTooltip('Close'));
     await settle();

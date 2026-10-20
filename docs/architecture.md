@@ -704,7 +704,9 @@ on Windows wherever the registry says that folder now is): it never replaces the
 
 - **A setting**: an `_Item` in `settings_dialog.dart`'s `_categories`, backed by a field in
   `AppSettings` (the editor takes what concerns it in `takeSettings`, controller_settings.dart); a project's own, in `_projectCategories`, backed by an edit (see *Something a
-  project saves*), so Settings holds only what is the same for every project. Settings of first-party components that are not part of the main work
+  project saves*), so Settings holds only what is the same for every project. A project page whose settings
+  can become the app's defaults gives its `_Category` a `saveDefault`: a slim Save as Default
+  button beside the page's title (a check and "Default" once they match), never a row. Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extensions**.
 - **A flag**: a fix for how other programs write their files, on by default, as an `_Item` on
   Project Settings ▸ Flags with a switch to turn it off: the project's (`EditState`, an edit),
