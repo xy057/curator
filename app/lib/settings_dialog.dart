@@ -191,24 +191,6 @@ final _categories = <_Category>[
       keywords: 'look controls switch button classic refined carbon ibm theme',
     ),
   ]),
-  // First-party components that are not part of the main work (import, curate, sync, export):
-  // lower priority, each one optional.
-  // Each one is a switch for the whole app (AppExtension), off by default; what it adds
-  // works only while it is on.
-  _Category('Extensions', AppIcon.extensions, [
-    for (final e in AppExtension.values)
-      _Item(
-        e.label,
-        (_) => e.summary,
-        (c) => Row(mainAxisSize: MainAxisSize.min, children: [
-          _ExtensionSettingsButton(e, c.settings),
-          const SizedBox(width: 6),
-          AppSwitch(value: e.isOn(c.settings), onChanged: (v) => e.set(c.settings, v)),
-        ]),
-        note: e.version,
-        keywords: '${e.keywords} extension',
-      ),
-  ], empty: 'No extensions yet.'),
   // Fixes for how other programs write their files, on by default; a switch to turn one off.
   _Category('Flags', AppIcon.flags, [
     _Item(
@@ -345,7 +327,44 @@ final _projectCategories = <_Category>[
       keywords: 'condense condensing pair players share staff a2',
     ),
   ]),
+  // First-party components that are not part of the main work (import, curate, sync, export):
+  // lower priority, each one optional, off by default. Each is a switch for this project (an
+  // Undo step); what it adds works only while it is on.
+  _Category('Extensions', AppIcon.extensions, [
+    for (final e in AppExtension.values)
+      _Item(
+        e.label,
+        (_) => e.summary,
+        (c) => Row(mainAxisSize: MainAxisSize.min, children: [
+          _ExtensionSettingsButton(e, c.settings),
+          const SizedBox(width: 6),
+          AppSwitch(value: e.isOn(c.controller!), onChanged: (v) => e.set(c.controller!, v)),
+        ]),
+        note: e.version,
+        keywords: '${e.keywords} extension',
+      ),
+    _Item(
+      'Save as default',
+      (c) => _extensionsAreDefault(c) ? 'Same as default.' : 'Extensions, for other projects.',
+      (c) => OutlinedButton(
+        onPressed: _extensionsAreDefault(c)
+            ? null
+            : () {
+                for (final e in AppExtension.values) {
+                  e.setDefault(c.settings, e.isOn(c.controller!));
+                }
+              },
+        child: const Text('Save'),
+      ),
+      group: 'Default',
+      keywords: 'default save app every new project extensions',
+    ),
+  ], empty: 'No extensions yet.'),
 ];
+
+/// Whether the project's extensions are the app's default (Save as default).
+bool _extensionsAreDefault(_Context c) =>
+    AppExtension.values.every((e) => e.isOn(c.controller!) == e.isDefaultOn(c.settings));
 
 /// How the project's saves keep the recording.
 MediaStorage _mediaStorage(_Context c) => c.controller!.mediaStorage ?? c.settings.mediaStorage;

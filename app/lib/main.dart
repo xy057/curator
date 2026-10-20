@@ -247,9 +247,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// settings (a slider in Settings changes them many times a second).
   late final _shown = ValueNotifier(_shownSettings);
 
-  ({List<String> recent, bool attachImage, bool videoFrame, VideoRatio videoRatio}) get _shownSettings => (
+  ({List<String> recent, bool videoFrame, VideoRatio videoRatio}) get _shownSettings => (
         recent: settings.recentFiles,
-        attachImage: settings.attachImage,
         videoFrame: settings.previewVideoFrame,
         videoRatio: settings.videoRatio,
       );
@@ -382,7 +381,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         final problem = await document.open(path);
         if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name);
         if (problem != null && mounted) _recordingProblem(problem);
-        if (mounted) await promptForExtensions(context, settings, controller);
+        if (mounted) await promptForExtensions(context, controller);
       }, title: 'Couldn’t Open Project');
     } else {
       await _guard(() async {
@@ -771,7 +770,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                               ),
                       ),
                       _Busy(visible: controller.isLoading, message: 'Engraving…'),
-                      _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: settings.attachImage),
+                      _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: controller.images.enabled),
                     ],
                   ),
                 ),
@@ -988,7 +987,7 @@ class _DropHint extends StatelessWidget {
       _DropArea.project => (AppIcon.drop.of(context), 'Drop to open', 'A project or a MusicXML score'),
       _DropArea.audio => (AppIcon.audio.of(context), 'Drop to add', 'A MIDI tempo map or a recording'),
       _DropArea.image when attachImage => (AppIcon.image.of(context), 'Drop to add an image', 'SVG, PNG or JPEG'),
-      _DropArea.image => (AppIcon.noImage.of(context), 'Attach Image is off', 'Turn on in Settings ▸ Extensions'),
+      _DropArea.image => (AppIcon.noImage.of(context), 'Attach Image is off', 'Turn on in Project Settings ▸ Extensions'),
     };
     final hint = IgnorePointer(
       child: AnimatedOpacity(

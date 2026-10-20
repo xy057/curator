@@ -40,7 +40,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
-| `caption_settings.dart` | Settings ▸ Extensions ▸ Captions' own settings: font, position, countdown, size, with a preview |
+| `caption_settings.dart` | Project Settings ▸ Extensions ▸ Captions' own settings (the app's): font, position, countdown, size, with a preview |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and File ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
@@ -707,14 +707,15 @@ on Windows wherever the registry says that folder now is): it never replaces the
   Settings ▸ Flags with a switch to turn it off (`AppSettings`, the app's, never a project's).
 - **An extension**: a value of `AppExtension` (`app_extensions.dart`: its name, icon, version,
   one-line summary, search words, its own settings (`settings`, a dialog's content, or null)
-  and its switch, a `bool` in `AppSettings`), which the Extensions page lists: name and
-  version, the summary under them, a settings button (greyed out without settings) and the
-  switch. The switch
-  is the app's, never a project's, and off by default. Say in `AppExtension.usedBy` when an open
+  and its default, a `bool` in `AppSettings`), which Project Settings ▸ Extensions lists: name
+  and version, the summary under them, a settings button (greyed out without settings) and the
+  switch. The switch is the project's (`EditState.extensions` by name, an Undo step,
+  `EditorController.extensionOn`); one the project hasn't set follows the app's default, off
+  until Save as default on that page. Say in `AppExtension.usedBy` when an open
   project uses it: opening a project that uses extensions that are off shows them in a dialog,
   each with its switch (and "All" when there are several). Everything the extension adds (menu items, toolbar buttons, drop targets, shortcuts,
   what it draws or exports) works only while its switch is on, and is hidden or inert otherwise.
-  **Attach Image** (`AppSettings.attachImage`) is the first one, **Captions**
+  **Attach Image** (default `AppSettings.attachImage`) is the first one, **Captions**
   (`AppSettings.captions`) the second.
 - **Interface text** follows Apple's HIG *Writing*, in US English: Title Case for menu items,
   buttons and dialog titles that are fragments ("Copy Lane To…", "Couldn’t Export Video"),

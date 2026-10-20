@@ -46,7 +46,7 @@ void main() {
 
   testWidgets('a project saves the images on the score, and opens them again', (tester) async {
     await open(tester);
-    c.images.enabled = true;
+    c.setExtension('attachImage', true); // the project's: saved with it
     await tester.runAsync(() async {
       await c.images.add(ImageKind.raster, png, quarter: 3, top: 2, extension: 'png');
       await c.images.add(ImageKind.vector, svg, quarter: 12, top: 5);
@@ -71,10 +71,11 @@ void main() {
     expect(opened!.state.edits.patches, state.edits.patches);
     expect(opened.state.images.values.single.bytes, svg);
 
-    final again = EditorController(vsync: const TestVSync())..images.enabled = true;
+    final again = EditorController(vsync: const TestVSync());
     await tester.runAsync(
         () => again.openProject(name: 'demo.musicxml', scoreBytes: opened.scoreBytes, state: opened.state));
     expect(again.images.patches, state.edits.patches);
+    expect(again.images.enabled, isTrue, reason: 'Attach Image on in the project, though off in the app');
     expect(again.scene!.patches.single.crop, const Rect.fromLTRB(0, 0.5, 0.5, 1));
     expect(again.scene!.patches.single.ink, isTrue);
     again.dispose();

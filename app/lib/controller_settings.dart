@@ -1,10 +1,12 @@
+import 'app_extensions.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
 
 /// Settings (the app's, the same for every project) as the editor follows them.
 extension ControllerSettings on EditorController {
   /// Takes what [settings] say for every project: how far Undo goes back, what a project
-  /// starts with (its transition, scroll and fonts), the extensions' switches and
+  /// starts with (its transition, scroll and fonts), the extensions a project starts
+  /// with and
   /// the captions' look, and the engraving options and flags (re-engraving what is open when
   /// they change). Call it again whenever they change: what is the same already changes nothing.
   void takeSettings(AppSettings settings) {
@@ -12,8 +14,7 @@ extension ControllerSettings on EditorController {
     defaultTransition = settings.transition;
     newProjectFonts = (music: settings.musicFont, text: settings.textFont, embed: settings.embedFont);
     defaultScrollFollow = settings.scrollFollow;
-    images.enabled = settings.attachImage;
-    captions.enabled = settings.captions;
+    defaultExtensions = {for (final e in AppExtension.values) e.name: e.isDefaultOn(settings)};
     captions.configure(
         font: settings.captionFont,
         position: settings.captionPosition,

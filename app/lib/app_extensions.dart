@@ -8,8 +8,9 @@ import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'ui_kit.dart';
 
-/// The optional first-party components (Settings ▸ Extensions). Each is a switch for the whole
-/// app (not per project), off by default; what it adds works only while it is on.
+/// The optional first-party components (Project Settings ▸ Extensions). Each is a switch per
+/// project (one that hasn't chosen takes the app's, off until Save as default); what it adds
+/// works only while it is on.
 enum AppExtension {
   attachImage('Attach Image', AppIcon.image, '1.0', 'Images that scroll with the score.',
       'image picture photo svg png jpg'),
@@ -36,12 +37,19 @@ enum AppExtension {
         captions => (context, settings) => CaptionSettings(settings: settings),
       };
 
-  bool isOn(AppSettings settings) => switch (this) {
+  /// Whether it is on in [controller]'s project.
+  bool isOn(EditorController controller) => controller.extensionOn(name);
+
+  /// Turns it on or off in [controller]'s project: an Undo step.
+  void set(EditorController controller, bool on) => controller.setExtension(name, on);
+
+  /// Whether it is on in a project that hasn't chosen (Save as default).
+  bool isDefaultOn(AppSettings settings) => switch (this) {
         attachImage => settings.attachImage,
         captions => settings.captions,
       };
 
-  void set(AppSettings settings, bool on) => switch (this) {
+  void setDefault(AppSettings settings, bool on) => switch (this) {
         attachImage => settings.attachImage = on,
         captions => settings.captions = on,
       };
@@ -55,29 +63,25 @@ enum AppExtension {
 
 /// After a project opens: when it uses extensions that are off, lists them with a switch
 /// each (and one for all), so it can show as it was made.
-Future<void> promptForExtensions(BuildContext context, AppSettings settings, EditorController controller) async {
+Future<void> promptForExtensions(BuildContext context, EditorController controller) async {
   final used = AppExtension.usedBy(controller);
-  if (used.every((e) => e.isOn(settings))) return;
-  await showAppDialog<void>(context: context, builder: (_) => ExtensionsDialog(settings: settings, extensions: used));
+  if (used.every((e) => e.isOn(controller))) return;
+  await showAppDialog<void>(context: context, builder: (_) => ExtensionsDialog(controller: controller, extensions: used));
 }
 
 /// The extensions a project uses, each with its switch.
 class ExtensionsDialog extends StatelessWidget {
-  const ExtensionsDialog({super.key, required this.settings, required this.extensions});
-  final AppSettings settings;
+  const ExtensionsDialog({super.key, required this.controller, required this.extensions});
+  final EditorController controller;
   final List<AppExtension> extensions;
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: settings,
+      listenable: controller,
       builder: (context, _) {
-        final allOn = extensions.every((e) => e.isOn(settings));
-        void setAll(bool on) {
-          for (final e in extensions) {
-            e.set(settings, on);
-          }
-        }
+        final allOn = extensions.every((e) => e.isOn(controller));
+        void setAll(bool on) => controller.setExtensions({for (final e in extensions) e.name: on});
 
         return AppDialog(
           title: const Text('Extensions in this project'),
@@ -103,8 +107,8 @@ class ExtensionsDialog extends StatelessWidget {
                     return _SwitchRow(
                       icon: e.icon.of(context),
                       label: Text(e.label),
-                      value: e.isOn(settings),
-                      onChanged: (on) => e.set(settings, on),
+                      value: e.isOn(controller),
+                      onChanged: (on) => e.set(controller, on),
                     );
                   },
                 ),

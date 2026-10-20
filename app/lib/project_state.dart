@@ -57,6 +57,7 @@ class EditState {
     this.embedFont = true,
     this.engraving = const EngravingOptions(),
     this.mediaStorage,
+    this.extensions = const {},
   });
 
   /// When each instrument is shown, with each region's own properties; null when the project
@@ -129,6 +130,10 @@ class EditState {
   /// the app's (Settings, before projects had their own).
   final MediaStorage? mediaStorage;
 
+  /// The extensions this project turned on or off (Project Settings ▸ Extensions), by
+  /// [AppExtension] name; one left out follows the app's.
+  final Map<String, bool> extensions;
+
   @override
   bool operator ==(Object other) =>
       other is EditState &&
@@ -154,7 +159,8 @@ class EditState {
       fonts == other.fonts &&
       embedFont == other.embedFont &&
       engraving == other.engraving &&
-      mediaStorage == other.mediaStorage;
+      mediaStorage == other.mediaStorage &&
+      mapEquals(extensions, other.extensions);
 
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
@@ -182,6 +188,7 @@ class EditState {
     bool? embedFont,
     EngravingOptions? engraving,
     MediaStorage? mediaStorage,
+    Map<String, bool>? extensions,
   }) =>
       EditState(
         lanes: identical(lanes, _kept) ? this.lanes : lanes as Map<String, List<Region>>?,
@@ -204,6 +211,7 @@ class EditState {
         embedFont: embedFont ?? this.embedFont,
         engraving: engraving ?? this.engraving,
         mediaStorage: mediaStorage ?? this.mediaStorage,
+        extensions: extensions ?? this.extensions,
       );
 }
 
@@ -357,6 +365,11 @@ class ProjectState {
           final s => MediaStorage.values.asNameMap()[s] ??
               (throw FormatException('The project is damaged: ${r.where}.mediaStorage is not embed or link.')),
         },
+        // One this version doesn't know is kept, so a newer version's choice survives a save here.
+        extensions: Map.unmodifiable({
+          for (final MapEntry(key: name, value: on) in r.map('extensions').entries)
+            name: on is bool ? on : throw FormatException('The project is damaged: ${r.where}.extensions.$name is not on or off.'),
+        }),
       ),
       images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
       view: ViewState(
@@ -468,7 +481,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :mediaStorage) = edits;
+        :sections, :groupSections, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :mediaStorage, :extensions) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -481,6 +494,7 @@ class ProjectState {
         },
       if (!engraving.isEmpty) 'engraving': engraving.toJson(),
       'mediaStorage': ?mediaStorage?.name,
+      if (extensions.isNotEmpty) 'extensions': extensions,
       'textEdits': textEdits,
       'condensed': [...condensed],
       'pairs': [for (final p in pairs) p.partIds],

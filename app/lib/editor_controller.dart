@@ -306,6 +306,7 @@ class EditorController extends ChangeNotifier {
     _scene = _makeScene(score);
     // Last: working out their style can notify at once, and listeners must find all of it open.
     captions._load(edits.captions, edits.captionFont);
+    _applyExtensions();
     _history.clear();
     _committed = _editState; // a fresh document: nothing to undo
     anchors._restoreView(view);
@@ -410,6 +411,37 @@ class EditorController extends ChangeNotifier {
   /// choice, else its family's name; null: none, standing alone.
   String? sectionOf(ScorePart part) =>
       _doc.sections.containsKey(part.id) ? _doc.sections[part.id] : part.section?.name;
+
+  /// The extensions on in a project that hasn't chosen, by [AppExtension] name (Settings, saved
+  /// by Project Settings ▸ Extensions ▸ Save as default).
+  Map<String, bool> get defaultExtensions => _defaultExtensions;
+  Map<String, bool> _defaultExtensions = const {};
+  set defaultExtensions(Map<String, bool> value) {
+    if (mapEquals(value, _defaultExtensions)) return;
+    _defaultExtensions = value;
+    _applyExtensions();
+  }
+
+  /// Whether the extension named [name] is on in this project: its own choice, else the app's.
+  bool extensionOn(String name) => _doc.extensions[name] ?? _defaultExtensions[name] ?? false;
+
+  /// Turns an extension on or off in this project: one Undo step, saved with it.
+  void setExtension(String name, bool on) => setExtensions({name: on});
+
+  /// Turns several extensions on or off in this project at once: one Undo step.
+  void setExtensions(Map<String, bool> choices) {
+    final next = {..._doc.extensions, ...choices};
+    if (mapEquals(next, _doc.extensions)) return;
+    _doc = _doc.copyWith(extensions: Map.unmodifiable(next));
+    _applyExtensions();
+    _edited();
+  }
+
+  /// Turns [images] and [captions] on or off as the project says.
+  void _applyExtensions() {
+    images.enabled = extensionOn('attachImage');
+    captions.enabled = extensionOn('captions');
+  }
 
   /// Whether saves embed the recording or link to it (Project Settings ▸ Project Info); null:
   /// the app's.
@@ -1112,6 +1144,7 @@ class EditorController extends ChangeNotifier {
           leadIn: state.leadIn);
       images._restore(state.patches);
       captions._restore(state.captions, state.captionFont);
+      _applyExtensions();
       _showSettings();
     } finally {
       _restoring = false;
