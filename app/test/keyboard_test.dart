@@ -1,6 +1,7 @@
 // The window's keyboard shortcuts (HomePage's bindings): tools, nudging and trimming in the
 // Instruments tab; tap mode, nudging and re-barring anchors, and W in the Audio tab; moving the
 // playhead; Escape; Undo and Redo; Cut, Copy and Paste of regions; pasting an image.
+import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
@@ -106,8 +107,16 @@ void main() {
     expect(c.anchors.tapArmed, isTrue);
     await press(tester, LogicalKeyboardKey.space);
     expect(c.playback.isPlaying, isTrue, reason: 'the first tap starts playback');
-    await press(tester, LogicalKeyboardKey.escape);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
     expect((c.anchors.tapArmed, c.playback.isPlaying), (false, false));
+    // The tap button's wash fades out to none, never through grey (as to transparent black).
+    final tap = find.descendant(of: find.byTooltip('Tap anchors (T)'), matching: find.byType(DecoratedBox)).first;
+    final fill = (tester.widget<DecoratedBox>(tap).decoration as BoxDecoration).color!;
+    expect(fill.a, inExclusiveRange(0, 1));
+    expect(fill.withValues(alpha: 1), isSameColorAs(tester.element(tap).colors.recordingWash));
+    await tester.pump(const Duration(milliseconds: 100));
 
     c.anchors.select(2);
     await press(tester, LogicalKeyboardKey.arrowRight);

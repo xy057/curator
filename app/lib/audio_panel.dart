@@ -744,7 +744,8 @@ class _TapButton extends StatelessWidget {
         height: 32,
         padding: EdgeInsets.symmetric(horizontal: c.anchors.tapArmed ? 8 : 0),
         decoration: BoxDecoration(
-          color: c.anchors.tapArmed ? colors.recordingWash : Colors.transparent,
+          // The wash at no opacity, not Colors.transparent (black), which would dim it through grey.
+          color: colors.recordingWash.withValues(alpha: c.anchors.tapArmed ? 1 : 0),
           borderRadius: AppStyle.of(context).radius(8),
         ),
         child: InkWell(
