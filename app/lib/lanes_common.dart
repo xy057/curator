@@ -92,6 +92,8 @@ class BarRuler extends StatelessWidget {
       child: Row(children: [
         Container(
           width: kLaneHeaderWidth,
+          // Aligned, so it fills the ruler's height rather than its row's.
+          alignment: Alignment.centerLeft,
           padding: const EdgeInsets.only(left: 12, right: 8),
           decoration: BoxDecoration(
             color: colors.chrome,
