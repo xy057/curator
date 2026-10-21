@@ -701,9 +701,10 @@ the smoke test (`app/integration_test/app_smoke_test.dart`, `make smoke`: the ap
 the sample, engraves, draws and exports), and `make check` has passed on macOS (the other tests
 don't run on Windows), where the version is
 `app/pubspec.yaml`'s. Its actions are pinned to commits, not tags; only the job that publishes
-may write to the repository. To release again, bump that version and `appVersion` in
-`updater.dart` together (`updater_test.dart` checks they match); a version already released
-stops the run before it builds. The app finds its download by that name (the asset whose
+may write to the repository. To release again, bump that version and `appVersion` / `appBuild`
+in `updater.dart` together (`make versions` checks they match, from `make check` and as the
+workflow's first step: one left behind would offer the app its own release); a version already
+released stops the run before it builds. The app finds its download by that name (the asset whose
 name ends `-macos.zip` or `-windows.zip`; the launch notice stays quiet when there is none), so
 keep that suffix if the workflow is changed. Neither build is notarized or signed (macOS ad hoc only), so
 macOS Gatekeeper and Windows SmartScreen warn the first time; the release notes say how to open
