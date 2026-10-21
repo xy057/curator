@@ -157,7 +157,10 @@ class _RecentList extends StatelessWidget {
           child: Column(children: [
             for (final (i, path) in files.indexed) ...[
               if (i > 0) Divider(height: 1, color: colors.line),
-              _RecentRow(path: path, onOpen: () => onOpen(path), onRemove: () => onRemove(path)),
+              // A hover repaints its own row, not the list.
+              RepaintBoundary(
+                child: _RecentRow(path: path, onOpen: () => onOpen(path), onRemove: () => onRemove(path)),
+              ),
             ],
           ]),
         ),
@@ -206,7 +209,9 @@ class _RecentRowState extends State<_RecentRow> {
         onTap: _exists ? widget.onOpen : null,
         child: AnimatedContainer(
           duration: stateDuration(motion(context, 120)),
-          color: _hover && _exists ? colors.accentWash : Colors.transparent,
+          // From the wash at no opacity, not Colors.transparent (black): a fade from black dims the
+          // row through grey on the way.
+          color: colors.accentWash.withValues(alpha: _hover && _exists ? 1 : 0),
           padding: const EdgeInsets.fromLTRB(12, 9, 6, 9),
           child: Row(children: [
             Container(
