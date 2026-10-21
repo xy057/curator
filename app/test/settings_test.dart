@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,8 +22,8 @@ void main() {
     await tester.pumpWidget(ListenableBuilder(
       listenable: settings,
       builder: (context, _) => MaterialApp(
-        theme: AppColors.theme(accent: settings.accent),
-        darkTheme: AppColors.theme(accent: settings.accent, brightness: Brightness.dark),
+        theme: AppColors.theme(accent: settings.accent, style: settings.uiStyle),
+        darkTheme: AppColors.theme(accent: settings.accent, brightness: Brightness.dark, style: settings.uiStyle),
         themeMode: settings.themeMode,
         themeAnimationDuration: Duration.zero, // as the app: the window cross-fades over a still instead
         builder: (context, child) => RepaintBoundary(child: child),
@@ -69,6 +70,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(settings.uiStyle, UiStyle.carbon);
     await shot(tester, 'settings-appearance-carbon');
+    // A hover fades a segment's shade in from none, never through the text colour (white here).
+    final segment = find.ancestor(of: find.text('Refined'), matching: find.byType(AnimatedContainer)).first;
+    final shade = find.descendant(of: segment, matching: find.byType(DecoratedBox)).first;
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(segment));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+    final fill = (tester.widget<DecoratedBox>(shade).decoration as BoxDecoration).color!;
+    expect(fill.a, inExclusiveRange(0, 1));
+    expect(fill.withValues(alpha: 1), isSameColorAs(CarbonColors.maybeOf(tester.element(segment))!.layerHover));
+    await mouse.removePointer();
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Refined'));
     await tester.pumpAndSettle();
     expect(settings.uiStyle, UiStyle.refined);

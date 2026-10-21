@@ -837,8 +837,9 @@ class _SegmentState extends State<_Segment> {
     // tint of the accent, so a press already looks like the chosen one (Carbon's
     // $background-active); none while the fill slides. Drawn here, not as the ink's overlay, so
     // it fades out as the slide starts and back in when it lands (the ink would change colour in
-    // one frame).
-    final none = colors.text.withValues(alpha: 0);
+    // one frame). None is the hover's shade at no opacity: from another colour at none, the fade
+    // passes through that colour (Carbon's text, near black or white, at half the shade's opacity).
+    final none = (carbon?.layerHover ?? colors.text).withValues(alpha: 0);
     final shade = widget.chosen || widget.sliding || !s.enabled
         ? none
         : _pressed
