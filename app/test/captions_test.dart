@@ -39,7 +39,7 @@ void main() {
     await rightClick(spot);
     expect(find.text('Add Caption…'), findsNothing, reason: 'Captions is off');
 
-    settings.setExtensionDefault('captions', true);
+    c.setExtension('captions', true); // the project's
     await tester.pump();
     await rightClick(spot);
     expect(find.text('Add Caption…'), findsOneWidget);
@@ -82,13 +82,14 @@ void main() {
     expect(state.edits.captions, c.captions.captions);
     expect(Extensions.usedBy(c), [Extensions.captions]);
 
-    // Off: kept, not drawn.
-    settings.setExtensionDefault('captions', false);
+    // Off: kept, not drawn; an Undo step.
+    c.setExtension('captions', false);
     await tester.pump();
     expect(c.scene!.captions, isEmpty);
     expect(c.captions.captions, hasLength(1));
-    settings.setExtensionDefault('captions', true);
+    c.undo();
     await tester.pump();
+    expect(c.scene!.captions, hasLength(1));
 
     c.undo();
     expect(c.captions.captions.single.text, 'The horns answer, softly');

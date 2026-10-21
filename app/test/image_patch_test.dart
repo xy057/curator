@@ -6,6 +6,7 @@ import 'dart:ui' show Rect, Size;
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_file.dart';
+import 'package:curated_score/project_state.dart';
 import 'package:archive/archive.dart' show ArchiveFile, ZipDecoder, ZipEncoder, getCrc32;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -79,6 +80,22 @@ void main() {
     expect(again.scene!.patches.single.crop, const Rect.fromLTRB(0, 0.5, 0.5, 1));
     expect(again.scene!.patches.single.ink, isTrue);
     again.dispose();
+
+    // Saved before projects kept their extensions: one it uses takes the app's old switch when
+    // that was on; else it stays unchosen (the open dialog asks), and once kept it is stored off.
+    final old = ProjectState(edits: opened.state.edits.copyWith(extensions: const {}), images: opened.state.images);
+    for (final legacy in [true, false]) {
+      final o = EditorController(vsync: const TestVSync())..legacyExtensions = {'attachImage': legacy};
+      await tester.runAsync(() => o.openProject(name: 'demo.musicxml', scoreBytes: opened.scoreBytes, state: old));
+      expect((o.images.enabled, o.extensionChosen('attachImage')), (legacy, legacy));
+      if (!legacy) {
+        final revision = o.editRevision.value;
+        o.keepExtensions(['attachImage']);
+        expect(o.projectState.edits.extensions, {'attachImage': false});
+        expect((o.canUndo, o.editRevision.value), (false, revision + 1), reason: 'saved with it, nothing to undo');
+      }
+      o.dispose();
+    }
     c.dispose();
   });
 

@@ -12,8 +12,8 @@ enum ExtensionOrigin { builtIn, thirdParty }
 /// to list it, switch it per project and ask for it when a project uses it.
 ///
 /// Everything here is by [id], never by type, so the app's own code needs no change for one
-/// more: the project saves the switches by id (`EditState.extensions`), Settings the defaults
-/// (`AppSettings.extensionDefaults`), and the editor turns each on through [apply].
+/// more: each project saves its switches by id (`EditState.extensions`; there is no app-wide
+/// default), and the editor turns each on through [apply].
 ///
 /// What an extension adds to the editor (its menu items, toolbar buttons, drop targets, what
 /// it draws and exports) is still wired into the app by hand, behind its switch: the built-in
@@ -21,7 +21,7 @@ enum ExtensionOrigin { builtIn, thirdParty }
 abstract class CuratorExtension {
   const CuratorExtension();
 
-  /// Stable for good: projects and Settings save switches under it. Built-in ones are one
+  /// Stable for good: projects save their switches under it. Built-in ones are one
   /// word ('captions'); one from elsewhere would need a reverse-domain id
   /// ('com.example.lyrics') so the two can never clash.
   String get id;
@@ -44,15 +44,15 @@ abstract class CuratorExtension {
   /// while null). They are the app's, for every project.
   Widget Function(BuildContext context, AppSettings settings)? get settings => null;
 
-  /// Whether the open project uses it (images on the score…): opening one that does while
-  /// it is off asks to turn it on.
+  /// Whether the open project uses it (images on the score…): opening one that does but
+  /// never chose to have it on or off asks.
   bool isUsedBy(EditorController controller);
 
   /// Turns what it adds to [controller] on or off, as the project's switch says: on opening,
-  /// on Undo, and whenever the switch or the app's default changes.
+  /// on Undo, and whenever the switch changes.
   void apply(EditorController controller, bool on);
 
-  /// Whether it is on in [controller]'s project (its own choice, else the app's).
+  /// Whether it is on in [controller]'s project.
   bool isOn(EditorController controller) => controller.extensionOn(id);
 
   /// Turns it on or off in [controller]'s project: an Undo step.

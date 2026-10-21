@@ -315,8 +315,8 @@ final _projectCategories = <_Category>[
     ),
   ]),
   // First-party components that are not part of the main work (import, curate, sync, export):
-  // lower priority, each one optional, off by default. Each is a switch for this project (an
-  // Undo step); what it adds works only while it is on.
+  // lower priority, each one optional, off by default. Each is a switch for this project only
+  // (an Undo step, no app-wide default); what it adds works only while it is on.
   _Category('Extensions', AppIcon.extensions, [
     for (final e in Extensions.all)
       _Item(
@@ -330,14 +330,7 @@ final _projectCategories = <_Category>[
         note: e.version,
         keywords: '${e.keywords} extension',
       ),
-  ], empty: 'No extensions yet.', saveDefault: (
-    shown: null,
-    isDefault: _extensionsAreDefault,
-    save: (c) => c.settings.extensionDefaults = {
-          ...c.settings.extensionDefaults,
-          for (final e in Extensions.all) e.id: e.isOn(c.controller!),
-        },
-  )),
+  ], empty: 'No extensions yet.'),
   // Fixes for how other programs write their files, on by default; a switch to turn one off.
   _Category('Flags', AppIcon.flags, [
     _Item(
@@ -355,10 +348,6 @@ final _projectCategories = <_Category>[
 
 /// Whether the project's flags are the app's default (Save as default).
 bool _flagsAreDefault(_Context c) => c.controller!.textDynamics == c.settings.textDynamics;
-
-/// Whether the project's extensions are the app's default (Save as default).
-bool _extensionsAreDefault(_Context c) =>
-    Extensions.all.every((e) => e.isOn(c.controller!) == c.settings.extensionDefault(e.id));
 
 /// How the project's saves keep the recording.
 MediaStorage _mediaStorage(_Context c) => c.controller!.mediaStorage ?? c.settings.mediaStorage;

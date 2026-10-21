@@ -729,16 +729,20 @@ on Windows wherever the registry says that folder now is): it never replaces the
   a dialog's content, or null; the app's), `isUsedBy` (whether an open project uses it) and
   `apply` (turns its part of the editor on or off). Project Settings ▸ Extensions lists each:
   name and version, the summary under them, a settings button (greyed out without settings)
-  and the switch. The switch is the project's (`EditState.extensions` by id, an Undo step,
-  `EditorController.extensionOn`); one the project hasn't set follows the app's default
-  (`AppSettings.extensionDefaults` by id), off until Save as default on that page. Opening a
-  project that uses extensions that are off shows them in a dialog (`extensions_dialog.dart`),
-  each with its switch (and "All" when there are several). Everything the extension adds (menu
+  and the switch. The switch is the project's only (`EditState.extensions` by id, an Undo step,
+  `EditorController.extensionOn`); there is no app-wide default, and one the project never chose
+  is off. The app's old switches (`AppSettings.legacyExtensions`: a switch each until build 69,
+  then Save as default) are deprecated, read but never written: a project saved before it kept
+  its own takes one it uses that was on there, as it opens. Opening a project that uses
+  extensions it never chose shows them in a dialog (`extensions_dialog.dart`), each with its
+  switch (and "All" when there are several); what the dialog ends with is the project's
+  (`EditorController.keepExtensions`: one left off is stored off, no Undo step but saved), so
+  it asks once. Everything the extension adds (menu
   items, toolbar buttons, drop targets, shortcuts, what it draws or exports) works only while
   its switch is on, and is hidden or inert otherwise. **Attach Image** is the first one,
   **Captions** the second.
 
-  Nothing in the app names an extension but its own code: the switches, defaults, project
+  Nothing in the app names an extension but its own code: the switches, the project
   file and dialogs go by id, so one more needs only its class and a place in `Extensions.all`.
   This is ready for extensions from elsewhere (`ExtensionOrigin.thirdParty`, reverse-domain
   ids), but none can be added yet: there is no loading, no sandbox and no API for adding to

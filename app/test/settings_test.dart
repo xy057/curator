@@ -92,11 +92,10 @@ void main() {
     expect(find.text('Extensions'), findsNothing, reason: "the project's, in Project Settings");
   });
 
-  test("an extension's own switch, from before defaults went by id, is its default", () async {
-    SharedPreferences.setMockInitialValues({'captions': true, 'attachImage': false});
-    final old = await AppSettings.load();
-    expect(old.extensionDefaults, {'captions': true, 'attachImage': false});
-    old.setExtensionDefault('com.example.later', true); // any id: none is known by name here
-    expect((await AppSettings.load()).extensionDefaults, {'captions': true, 'attachImage': false, 'com.example.later': true});
+  test("the app's old extension switches are still read, for projects saved before they kept their own", () async {
+    SharedPreferences.setMockInitialValues({'captions': true, 'attachImage': false}); // until build 69
+    expect((await AppSettings.load()).legacyExtensions, {'captions': true, 'attachImage': false});
+    SharedPreferences.setMockInitialValues({'extensionDefaults': '{"captions": false, "com.example.later": true}'}); // builds 69–70
+    expect((await AppSettings.load()).legacyExtensions, {'captions': false, 'com.example.later': true});
   });
 }
