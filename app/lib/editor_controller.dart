@@ -358,6 +358,7 @@ class EditorController extends ChangeNotifier {
     _fileName = null;
     _mediaOriginal = null;
     _doc = const EditState();
+    _previewSections = null;
     _tab = BottomTab.instruments;
   }
 
@@ -1196,6 +1197,7 @@ class EditorController extends ChangeNotifier {
       images._restore(state.patches);
       captions._restore(state.captions, state.captionFont);
       _applyExtensions();
+      _previewSections = null; // a bracket's drag ends with an edit or none: not under Undo
       _showSettings();
     } finally {
       _restoring = false;
