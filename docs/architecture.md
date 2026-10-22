@@ -304,7 +304,9 @@ Export says so too, for the bars it writes (`overflowBars(within:)`: a warning u
 rows, Carbon's inline error notification there), and Export… waits until Export anyway is ticked;
 ticked for those bars only, so bars that change (another ratio, score size or range) ask again.
 `CuratedScene.overflowing` plans that size apart from the frames painted, so the preview at
-another size never plans again for it.
+another size never plans again for it. It plans every segment (about 20 ms for 350 bars), so
+while a gesture lasts (a region or anchor dragged, the score size slid) the controller keeps the
+answer from before and works it out once as the gesture ends; Export's dialog rebuilds then too.
 
 **A region carries its properties.** Besides its bounds a region has properties of its own
 (so far its transitions: how long its staff glides in at its start, `Region.transitionIn`, and
@@ -701,9 +703,10 @@ the smoke test (`app/integration_test/app_smoke_test.dart`, `make smoke`: the ap
 the sample, engraves, draws and exports), and `make check` has passed on macOS (the other tests
 don't run on Windows), where the version is
 `app/pubspec.yaml`'s. Its actions are pinned to commits, not tags; only the job that publishes
-may write to the repository. To release again, bump that version and `appVersion` in
-`updater.dart` together (`updater_test.dart` checks they match); a version already released
-stops the run before it builds. The app finds its download by that name (the asset whose
+may write to the repository. To release again, bump that version and `appVersion` / `appBuild`
+in `updater.dart` together (`make versions` checks they match, from `make check` and as the
+workflow's first step: one left behind would offer the app its own release); a version already
+released stops the run before it builds. The app finds its download by that name (the asset whose
 name ends `-macos.zip` or `-windows.zip`; the launch notice stays quiet when there is none), so
 keep that suffix if the workflow is changed. Neither build is notarized or signed (macOS ad hoc only), so
 macOS Gatekeeper and Windows SmartScreen warn the first time; the release notes say how to open
@@ -728,16 +731,20 @@ on Windows wherever the registry says that folder now is): it never replaces the
   a dialog's content, or null; the app's), `isUsedBy` (whether an open project uses it) and
   `apply` (turns its part of the editor on or off). Project Settings ▸ Extensions lists each:
   name and version, the summary under them, a settings button (greyed out without settings)
-  and the switch. The switch is the project's (`EditState.extensions` by id, an Undo step,
-  `EditorController.extensionOn`); one the project hasn't set follows the app's default
-  (`AppSettings.extensionDefaults` by id), off until Save as default on that page. Opening a
-  project that uses extensions that are off shows them in a dialog (`extensions_dialog.dart`),
-  each with its switch (and "All" when there are several). Everything the extension adds (menu
+  and the switch. The switch is the project's only (`EditState.extensions` by id, an Undo step,
+  `EditorController.extensionOn`); there is no app-wide default, and one the project never chose
+  is off. The app's old switches (`AppSettings.legacyExtensions`: a switch each until build 69,
+  then Save as default) are deprecated, read but never written: a project saved before it kept
+  its own takes one it uses that was on there, as it opens. Opening a project that uses
+  extensions it never chose shows them in a dialog (`extensions_dialog.dart`), each with its
+  switch (and "All" when there are several); what the dialog ends with is the project's
+  (`EditorController.keepExtensions`: one left off is stored off, no Undo step but saved), so
+  it asks once. Everything the extension adds (menu
   items, toolbar buttons, drop targets, shortcuts, what it draws or exports) works only while
   its switch is on, and is hidden or inert otherwise. **Attach Image** is the first one,
   **Captions** the second.
 
-  Nothing in the app names an extension but its own code: the switches, defaults, project
+  Nothing in the app names an extension but its own code: the switches, the project
   file and dialogs go by id, so one more needs only its class and a place in `Extensions.all`.
   This is ready for extensions from elsewhere (`ExtensionOrigin.thirdParty`, reverse-domain
   ids), but none can be added yet: there is no loading, no sandbox and no API for adding to

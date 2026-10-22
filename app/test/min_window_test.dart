@@ -18,9 +18,7 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
 
-    // Every extension on: Attach Image's toolbar buttons and the pinned Captions lane.
-    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()
-      ..extensionDefaults = {'attachImage': true, 'captions': true}));
+    await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     await tester.pump(const Duration(seconds: 1));
     final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     await tester.tap(find.text('Open Sample'));
@@ -30,6 +28,8 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 500));
 
+    // Every extension on: Attach Image's toolbar buttons and the pinned Captions lane.
+    c.setExtensions({'attachImage': true, 'captions': true});
     final bar = c.score!.timeline.measureStarts;
     c.captions.add(Caption(bar[0], bar[4], 'A caption long enough to need more room than its lane has'));
     c.lanes.selectAll(); // trim / remove buttons and the selection summary

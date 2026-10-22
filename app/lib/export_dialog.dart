@@ -457,7 +457,8 @@ class _ExportDialogState extends State<_ExportDialog> {
                 c.setStaffSpace(v, dragging: true);
                 _export.staffSpace = c.staffSpace;
               }),
-              onChangeEnd: c.setStaffSpace,
+              // Rebuilt then too: the warning below catches up as the slide ends.
+              onChangeEnd: (v) => setState(() => c.setStaffSpace(v)),
             ),
           ),
         ),

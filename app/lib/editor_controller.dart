@@ -308,6 +308,12 @@ class EditorController extends ChangeNotifier {
     _scene = _makeScene(score);
     // Last: working out their style can notify at once, and listeners must find all of it open.
     captions._load(edits.captions, edits.captionFont);
+    // Saved before each project kept its own: one it uses that the app had on stays on.
+    _doc = _doc.copyWith(extensions: Map.unmodifiable({
+      ..._doc.extensions,
+      for (final e in Extensions.all)
+        if (!extensionChosen(e.id) && (legacyExtensions[e.id] ?? false) && e.isUsedBy(this)) e.id: true,
+    }));
     _applyExtensions();
     _history.clear();
     _committed = _editState; // a fresh document: nothing to undo
@@ -352,6 +358,8 @@ class EditorController extends ChangeNotifier {
     _fileName = null;
     _mediaOriginal = null;
     _doc = const EditState();
+    _previewSections = null;
+    _overflowing = null;
     _tab = BottomTab.instruments;
   }
 
@@ -414,18 +422,17 @@ class EditorController extends ChangeNotifier {
   String? sectionOf(ScorePart part) =>
       _doc.sections.containsKey(part.id) ? _doc.sections[part.id] : part.section?.name;
 
-  /// The extensions on in a project that hasn't chosen, by [CuratorExtension.id] (Settings, saved
-  /// by Project Settings ▸ Extensions ▸ Save as default).
-  Map<String, bool> get defaultExtensions => _defaultExtensions;
-  Map<String, bool> _defaultExtensions = const {};
-  set defaultExtensions(Map<String, bool> value) {
-    if (mapEquals(value, _defaultExtensions)) return;
-    _defaultExtensions = value;
-    _applyExtensions();
-  }
+  /// Deprecated: the extensions the app once switched on for every project
+  /// ([AppSettings.legacyExtensions]). A project that never chose one it uses takes it from here
+  /// when it opens, if on, so it shows as it was made; nothing else reads them.
+  Map<String, bool> legacyExtensions = const {};
 
-  /// Whether the extension named [name] is on in this project: its own choice, else the app's.
-  bool extensionOn(String name) => _doc.extensions[name] ?? _defaultExtensions[name] ?? false;
+  /// Whether the extension named [name] is on in this project (each project keeps its own; one
+  /// it never chose is off).
+  bool extensionOn(String name) => _doc.extensions[name] ?? false;
+
+  /// Whether this project chose to have the extension named [name] on or off.
+  bool extensionChosen(String name) => _doc.extensions.containsKey(name);
 
   /// Turns an extension on or off in this project: one Undo step, saved with it.
   void setExtension(String name, bool on) => setExtensions({name: on});
@@ -437,6 +444,18 @@ class EditorController extends ChangeNotifier {
     _doc = _doc.copyWith(extensions: Map.unmodifiable(next));
     _applyExtensions();
     _edited();
+  }
+
+  /// The project keeps the extensions named [names] as they are: one it never chose is stored
+  /// off, so opening it doesn't ask again. Nothing shows differently, so it is no Undo step, but
+  /// the project has changed (it is saved with it).
+  void keepExtensions(Iterable<String> names) {
+    final unchosen = {for (final name in names) if (!extensionChosen(name)) name: false};
+    if (_score == null || unchosen.isEmpty) return;
+    Map<String, bool> kept(EditState state) => Map.unmodifiable({...state.extensions, ...unchosen});
+    _doc = _doc.copyWith(extensions: kept(_doc));
+    if (_committed case final committed?) _committed = committed.copyWith(extensions: kept(committed));
+    editRevision.value++;
   }
 
   /// Turns each extension's part of the editor on or off as the project says.
@@ -936,11 +955,17 @@ class EditorController extends ChangeNotifier {
   }
 
   /// When notation runs off the video's frame, in playback time
-  /// ([CuratedScene.overflowing]).
+  /// ([CuratedScene.overflowing]). Working it out plans the whole piece (tens of milliseconds
+  /// in a long score), so while a gesture lasts (a region dragged, the score size slid) it is
+  /// the answer from before: it catches up as the gesture ends.
   List<({double start, double end})> get overflowing {
     final scene = this.scene, curation = _curation;
-    return scene == null || curation == null ? const [] : scene.overflowing(curation, _videoLayout);
+    if (scene == null || curation == null) return const [];
+    if (_overflowing case final held? when _gestures > 0 || _staffSpaceChanged) return held;
+    return _overflowing = scene.overflowing(curation, _videoLayout);
   }
+
+  List<({double start, double end})>? _overflowing;
 
   // MARK: MIDI tempo map
 
@@ -1179,6 +1204,7 @@ class EditorController extends ChangeNotifier {
       images._restore(state.patches);
       captions._restore(state.captions, state.captionFont);
       _applyExtensions();
+      _previewSections = null; // a bracket's drag ends with an edit or none: not under Undo
       _showSettings();
     } finally {
       _restoring = false;

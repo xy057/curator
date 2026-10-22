@@ -37,7 +37,7 @@ class AppSettings extends ChangeNotifier {
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
         _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? true,
-        _extensionDefaults = _readExtensionDefaults(_prefs),
+        legacyExtensions = _readLegacyExtensions(_prefs),
         _captionFont = _prefs?.getString(_captionFontKey) ?? '',
         _captionPosition = CaptionPosition.values.asNameMap()[_prefs?.getString(_captionPositionKey)] ?? CaptionPosition.bottom,
         _captionCountdown =
@@ -80,7 +80,7 @@ class AppSettings extends ChangeNotifier {
       return defaultVideoFps; // not a number
     }
   }
-  static const _extensionDefaultsKey = 'extensionDefaults';
+  static const _extensionDefaultsKey = 'extensionDefaults'; // deprecated: read, never written
   static const _captionFontKey = 'captionFont', _captionPositionKey = 'captionPosition';
   static const _captionCountdownKey = 'captionCountdown', _captionSizeKey = 'captionSize';
   static const defaultAutosave = Duration(minutes: 2);
@@ -324,22 +324,13 @@ class AppSettings extends ChangeNotifier {
 
   // MARK: Extension
 
-  /// The extensions on in a project that hasn't chosen, by extension id (Project Settings ▸
-  /// Extensions ▸ Save as default); one left out is off.
-  Map<String, bool> get extensionDefaults => _extensionDefaults;
-  Map<String, bool> _extensionDefaults;
-  set extensionDefaults(Map<String, bool> value) {
-    if (mapEquals(value, _extensionDefaults)) return;
-    _extensionDefaults = Map.unmodifiable(value);
-    _prefs?.setString(_extensionDefaultsKey, jsonEncode(value));
-    notifyListeners();
-  }
+  /// Deprecated: the extensions the app once switched on for every project, by extension id
+  /// (until build 69 a switch each in Settings, then Save as default). Nothing sets them any
+  /// more: each project keeps its own (`EditState.extensions`). Read only for a project saved
+  /// before it did, which takes one it uses that was on here ([EditorController.legacyExtensions]).
+  final Map<String, bool> legacyExtensions;
 
-  bool extensionDefault(String id) => _extensionDefaults[id] ?? false;
-  void setExtensionDefault(String id, bool on) => extensionDefaults = {..._extensionDefaults, id: on};
-
-  /// Until build 69 each extension had a switch of its own, under its id: taken as its default.
-  static Map<String, bool> _readExtensionDefaults(SharedPreferences? prefs) {
+  static Map<String, bool> _readLegacyExtensions(SharedPreferences? prefs) {
     try {
       if (prefs?.getString(_extensionDefaultsKey) case final json?) {
         return Map.unmodifiable({

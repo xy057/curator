@@ -136,7 +136,7 @@ void main() {
     expect(c.mediaStorage, isNull);
     settings.mediaStorage = MediaStorage.embed;
 
-    // Extensions: each a switch for this project, an Undo step; Save as default makes them the app's.
+    // Extensions: each a switch for this project only, an Undo step; no Save as default.
     await tester.tap(find.text('Extensions').first);
     await settle();
     expect(find.text('Attach Image  1.0'), findsOneWidget, reason: 'its version after its name');
@@ -150,17 +150,13 @@ void main() {
     await settle();
     expect((c.images.enabled, c.captions.enabled), (true, false), reason: 'each its own switch');
     expect(c.projectState.edits.extensions, {'attachImage': true});
-    expect(settings.extensionDefault('attachImage'), isFalse, reason: "the project's, not the app's");
+    expect(find.text('Save as Default'), findsNothing, reason: 'no app-wide default');
     await shoot('project-settings-extensions');
     c.undo();
     await settle();
     expect(c.images.enabled, isFalse);
     c.redo();
     await settle();
-    await tester.tap(find.text('Save as Default'));
-    await settle();
-    expect(settings.extensionDefaults, {'attachImage': true, 'captions': false});
-    expect(find.widgetWithText(OutlinedButton, 'Default'), findsOneWidget, reason: 'saved: a check in its place');
 
     // Captions' own settings: how captions look (the app's).
     await tester.tap(find.widgetWithIcon(IconButton, AppIcon.settings.refined).last);

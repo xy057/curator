@@ -82,6 +82,14 @@ class _SectionsEditorState extends State<SectionsEditor> {
     };
   }
 
+  @override
+  void dispose() {
+    // Closing the window mid-drag ends the drag first (an edit, as a cancelled one is); should
+    // it not, the score still lets go of the bracket it was showing.
+    if (_draft != null) controller.previewSections(null);
+    super.dispose();
+  }
+
   int _rowAt(double y) => (y / _rowHeight).floor().clamp(0, _rows.length - 1);
 
   // MARK: Pointer

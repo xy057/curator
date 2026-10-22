@@ -6,12 +6,17 @@ import '../editor_controller.dart';
 import '../ui_kit.dart';
 import 'extension.dart';
 
-/// After a project opens: when it uses extensions that are off, lists them with a switch
-/// each (and one for all), so it can show as it was made.
+/// After a project opens: when it uses extensions it never chose to have on or off, lists them
+/// with a switch each (and one for all), so it can show as it was made. The project keeps what
+/// the dialog ends with, so it asks once.
 Future<void> promptForExtensions(BuildContext context, EditorController controller) async {
-  final used = Extensions.usedBy(controller);
-  if (used.every((e) => e.isOn(controller))) return;
-  await showAppDialog<void>(context: context, builder: (_) => ExtensionsDialog(controller: controller, extensions: used));
+  final unchosen = [
+    for (final e in Extensions.usedBy(controller))
+      if (!controller.extensionChosen(e.id)) e,
+  ];
+  if (unchosen.isEmpty) return;
+  await showAppDialog<void>(context: context, builder: (_) => ExtensionsDialog(controller: controller, extensions: unchosen));
+  controller.keepExtensions([for (final e in unchosen) e.id]);
 }
 
 /// The extensions a project uses, each with its switch.

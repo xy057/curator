@@ -7,6 +7,7 @@ import 'dart:ui' show AppExitResponse;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show LicenseEntry, LicenseEntryWithLineBreaks, LicenseRegistry;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -45,10 +46,18 @@ Future<void> main() async {
   final keep = ScratchSpace.session.path;
   unawaited(Isolate.run(() => ScratchSpace.sweep(keep: keep)).catchError((_) {}));
   FontResources.workDirectory = ScratchSpace.folder('fonts').path; // metrics of fonts not bundled
+  LicenseRegistry.addLicense(_iconFontLicenses);
   final settings = await AppSettings.load();
   final updater = Updater();
   if (settings.checkForUpdates) unawaited(updater.check());
   runApp(CuratedScoreApp(settings: settings, updater: updater));
+}
+
+/// The icon fonts' licence, which goes with them (assets/fonts): read only when asked for.
+Stream<LicenseEntry> _iconFontLicenses() async* {
+  for (final (package, file) in [('Carbon Icons', 'CarbonIcons'), ('Material Symbols', 'MaterialSymbols')]) {
+    yield LicenseEntryWithLineBreaks([package], await rootBundle.loadString('assets/fonts/$file-LICENSE.txt'));
+  }
 }
 
 class CuratedScoreApp extends StatefulWidget {

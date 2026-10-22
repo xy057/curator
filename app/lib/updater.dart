@@ -5,11 +5,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'file_names.dart';
 
-/// This build's version: `version` in pubspec.yaml without the build number (a test keeps them
-/// equal). The Release workflow tags each release `v` + this.
+/// This build's version: `version` in pubspec.yaml without the build number (`make versions`
+/// checks they agree; `make check` and the Release workflow run it). The Release workflow tags
+/// each release `v` + this.
 const appVersion = '0.5.3';
 
-/// This build's number: what follows `+` in pubspec.yaml's `version` (a test keeps them equal).
+/// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
 const appBuild = 70;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
