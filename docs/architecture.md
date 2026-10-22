@@ -304,7 +304,9 @@ Export says so too, for the bars it writes (`overflowBars(within:)`: a warning u
 rows, Carbon's inline error notification there), and Export… waits until Export anyway is ticked;
 ticked for those bars only, so bars that change (another ratio, score size or range) ask again.
 `CuratedScene.overflowing` plans that size apart from the frames painted, so the preview at
-another size never plans again for it.
+another size never plans again for it. It plans every segment (about 20 ms for 350 bars), so
+while a gesture lasts (a region or anchor dragged, the score size slid) the controller keeps the
+answer from before and works it out once as the gesture ends; Export's dialog rebuilds then too.
 
 **A region carries its properties.** Besides its bounds a region has properties of its own
 (so far its transitions: how long its staff glides in at its start, `Region.transitionIn`, and

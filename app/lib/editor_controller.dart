@@ -359,6 +359,7 @@ class EditorController extends ChangeNotifier {
     _mediaOriginal = null;
     _doc = const EditState();
     _previewSections = null;
+    _overflowing = null;
     _tab = BottomTab.instruments;
   }
 
@@ -954,11 +955,17 @@ class EditorController extends ChangeNotifier {
   }
 
   /// When notation runs off the video's frame, in playback time
-  /// ([CuratedScene.overflowing]).
+  /// ([CuratedScene.overflowing]). Working it out plans the whole piece (tens of milliseconds
+  /// in a long score), so while a gesture lasts (a region dragged, the score size slid) it is
+  /// the answer from before: it catches up as the gesture ends.
   List<({double start, double end})> get overflowing {
     final scene = this.scene, curation = _curation;
-    return scene == null || curation == null ? const [] : scene.overflowing(curation, _videoLayout);
+    if (scene == null || curation == null) return const [];
+    if (_overflowing case final held? when _gestures > 0 || _staffSpaceChanged) return held;
+    return _overflowing = scene.overflowing(curation, _videoLayout);
   }
+
+  List<({double start, double end})>? _overflowing;
 
   // MARK: MIDI tempo map
 
