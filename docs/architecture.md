@@ -526,7 +526,7 @@ fade, too slow with many lanes. A Material animates a change of its shape on its
 still: one with an outline sets `animationDuration: Duration.zero`, or (a popup menu, which can't)
 takes `_SteadyBorder`. A widget's own colour animation (a hover, a selection) takes `stateDuration`, which is none in
 the frame the appearance changes, so it doesn't trail the cross-fade either.
-The two themes are built once per accent and style (`_CuratedScoreAppState._buildThemes`): a new
+The two themes are built once per accent, style, density and motion (`_CuratedScoreAppState._buildThemes`): a new
 `ThemeData` never equals the last, so one built per change of settings would rebuild every widget
 that reads it. The page, likewise, rebuilds only for the settings it shows (`_HomePageState._shown`).
 
@@ -543,6 +543,17 @@ give a Refined radius, 0 in Carbon), `control` (toolbar buttons, 28 / 32), `tool
 takes Material's milliseconds to the style's: about three quarters in Refined, snapped to Carbon's
 duration steps (70, 110, 150, 240, 400, 700) in Carbon. `AppStyle.of` of a theme without one (a
 bare `MaterialApp` in a test) is Refined; there are no Material fallbacks left.
+Three more settings under Appearance shape every style: **Text size** (`TextSize`, 0.9 / 1 / 1.15)
+is a `TextScaler` over the system's, set in `MaterialApp.builder`, so it reaches every `Text` but
+not text painted on a canvas (bar numbers, region and anchor labels, which keep to their lanes) nor
+the score. **Density** (`UiDensity`) is the `AppStyle` at a density (`AppStyle.at`): `control`,
+`toolbar` and `panelBar` 4 px smaller or bigger, `row` and `menuRow` 2 (a whole Carbon step, xs
+24 px, crowded the toolbars' icons); a dialog's `field` stays, and the theme builders take their
+button and menu-row heights from it, so a size written as a number elsewhere doesn't follow.
+**Reduce motion** is `AppStyle.still`: `duration` (so `motion`) gives none, menus open and close at
+once, a fixed duration goes through `AppStyle.moving`, the appearance cross-fade is skipped and
+`MediaQuery.disableAnimations` is set; what the score does (scrolling, staff transitions) is the
+project's and unchanged. A change of text size or density cross-fades as a change of theme does.
 Refined's palette (`AppColors._refinedOf`) has neutral greys, with no accent mixed in, and a
 `chrome` tone behind toolbars, the lane-name column and the ruler. Controls are 28 px with 5 px
 corners on a 13 px type scale. Segmented controls are a clear track whose chosen segment, a light
@@ -559,8 +570,13 @@ checkboxes in `$icon-primary`, monochrome 2 px sliders, the small toggle in `$su
 with its check, the content switcher (edged in `$border-inverse`, the chosen segment inverse),
 24 px menus on `$layer-01`, the side nav (a 3 px bar of the accent) in Settings, and the modal
 (`$layer-01`, heading-03, footer buttons edge to edge at the right, slimmed to 40 px from the spec's 64). An accent is an IBM hue
-(`CarbonHue`): Sky is Carbon's own Blue 60, the others Purple, Teal, Magenta, Orange and Cool
-Gray at their 60 (light) or 50 / 40 (Gray 100) grades; `$button-primary` stays the 60 in both.
+(`CarbonHue`, a field of the `AccentColor`): Sky is Carbon's own Blue 60, the others Purple, Cyan,
+Teal, Green, Magenta, Orange, Warm Gray (Sand) and Cool Gray at their 60 (light) or 50 / 40
+(Gray 100) grades; `$button-primary` stays the 60 in both. An `AccentColor` is a swatch
+(`AccentColor.values`, saved by name) or the user's own (`AccentColor.custom`, after the swatches,
+chosen in `color_dialog.dart`; saved as "custom" plus `AppSettings.customAccent`), whose Refined
+strong shade and Carbon grades are worked out from it in HSL (the fill at most 42 % light, so white
+reads on it).
 State shows as fills (`$background-hover`, `$background-active`), never ripples.
 A click on a segment chooses at once; an appearance change it makes (Theme, Style) fades
 from a still of the window, which would hold the tint where it started, so the tint is
