@@ -17,7 +17,7 @@ class AppSettings extends ChangeNotifier {
         _media = MediaStorage.values.asNameMap()[_prefs?.getString(_mediaKey)] ?? MediaStorage.embed,
         _undoSteps = _prefs?.getInt(_undoKey) ?? defaultUndoSteps,
         _themeMode = ThemeMode.values.asNameMap()[_prefs?.getString(_themeKey)] ?? ThemeMode.system,
-        _accent = AccentColor.values.asNameMap()[_prefs?.getString(_accentKey)] ?? AccentColor.sky,
+        _accent = AccentColor.named(_prefs?.getString(_accentKey)) ?? AccentColor.sky,
         _uiStyle = UiStyle.named(_prefs?.getString(_uiStyleKey)) ?? UiStyle.refined,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,

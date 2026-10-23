@@ -1,21 +1,87 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
-/// The accent colours offered under Settings ▸ Appearance.
-enum AccentColor {
-  sky('Sky', Color(0xFF4DA8F0), Color(0xFF1F8AE0)),
-  indigo('Indigo', Color(0xFF6D7BEA), Color(0xFF4454D6)),
-  teal('Teal', Color(0xFF2BB3A3), Color(0xFF12897C)),
-  violet('Violet', Color(0xFFA078E3), Color(0xFF7C4DCF)),
-  rose('Rose', Color(0xFFEC7393), Color(0xFFD1456A)),
-  amber('Amber', Color(0xFFF2A83E), Color(0xFFC77D12)),
-  graphite('Graphite', Color(0xFF8A94A1), Color(0xFF59636F));
+/// An accent colour (Settings ▸ Appearance): one of the swatches, [values], or one of the user's
+/// own ([AccentColor.custom]), from which each style works out the shades it needs.
+@immutable
+class AccentColor {
+  const AccentColor._(this.name, this.label, this.color, this.strong, this.carbon);
 
-  const AccentColor(this.label, this.color, this.strong);
+  /// [color] as the user chose it: its strong shade and its IBM-like grades worked out from it.
+  factory AccentColor.custom(Color color) {
+    color = color.withValues(alpha: 1);
+    final hsl = HSLColor.fromColor(color);
+    Color at(double lightness, [double saturation = 1]) =>
+        hsl.withLightness(lightness.clamp(0, 1)).withSaturation((hsl.saturation * saturation).clamp(0, 1)).toColor();
+    final l = hsl.lightness;
+    final fill = math.min(l, 0.42); // white reads on it, as on Carbon's 60 grades
+    return AccentColor._(
+      'custom',
+      'Custom',
+      color,
+      at(math.min(l - 0.1, 0.5)),
+      CarbonHue(at(fill), at(fill - 0.05), at(fill - 0.18), at(0.9, 0.9), at(math.max(l, 0.55)), at(math.max(l, 0.68)),
+          at(0.2)),
+    );
+  }
+
+  static const sky = AccentColor._('sky', 'Sky', Color(0xFF4DA8F0), Color(0xFF1F8AE0),
+      // Blue: Carbon's own $interactive, $button-primary(-hover, -active) and $highlight.
+      CarbonHue(Color(0xFF0F62FE), Color(0xFF0050E6), Color(0xFF002D9C), Color(0xFFD0E2FF), Color(0xFF4589FF),
+          Color(0xFF78A9FF), Color(0xFF002D9C)));
+  static const indigo = AccentColor._('indigo', 'Indigo', Color(0xFF6D7BEA), Color(0xFF4454D6),
+      CarbonHue(Color(0xFF6929C4), Color(0xFF5923A8), Color(0xFF491D8B), Color(0xFFE8DAFF), Color(0xFFA56EFF),
+          Color(0xFFBE95FF), Color(0xFF491D8B))); // Purple 70
+  static const cyan = AccentColor._('cyan', 'Cyan', Color(0xFF3BB8D6), Color(0xFF168FAD),
+      CarbonHue(Color(0xFF0072C3), Color(0xFF0066AF), Color(0xFF003A6D), Color(0xFFBAE6FF), Color(0xFF1192E8),
+          Color(0xFF33B1FF), Color(0xFF003A6D)));
+  static const teal = AccentColor._('teal', 'Teal', Color(0xFF2BB3A3), Color(0xFF12897C),
+      CarbonHue(Color(0xFF007D79), Color(0xFF006D6B), Color(0xFF004144), Color(0xFF9EF0F0), Color(0xFF009D9A),
+          Color(0xFF08BDBA), Color(0xFF004144)));
+  static const green = AccentColor._('green', 'Green', Color(0xFF5CBF6A), Color(0xFF2F9441),
+      CarbonHue(Color(0xFF198038), Color(0xFF166F31), Color(0xFF044317), Color(0xFFA7F0BA), Color(0xFF24A148),
+          Color(0xFF42BE65), Color(0xFF044317)));
+  static const violet = AccentColor._('violet', 'Violet', Color(0xFFA078E3), Color(0xFF7C4DCF),
+      CarbonHue(Color(0xFF8A3FFC), Color(0xFF7A34E0), Color(0xFF491D8B), Color(0xFFE8DAFF), Color(0xFFBE95FF),
+          Color(0xFFD4BBFF), Color(0xFF491D8B))); // Purple 60
+  static const rose = AccentColor._('rose', 'Rose', Color(0xFFEC7393), Color(0xFFD1456A),
+      CarbonHue(Color(0xFFD02670), Color(0xFFB81F62), Color(0xFF740937), Color(0xFFFFD6E8), Color(0xFFEE5396),
+          Color(0xFFFF7EB6), Color(0xFF740937))); // Magenta
+  static const amber = AccentColor._('amber', 'Amber', Color(0xFFF2A83E), Color(0xFFC77D12),
+      CarbonHue(Color(0xFFBA4E00), Color(0xFFA24300), Color(0xFF5E2900), Color(0xFFFFD9BE), Color(0xFFEB6200),
+          Color(0xFFFF832B), Color(0xFF5E2900))); // Orange
+  static const sand = AccentColor._('sand', 'Sand', Color(0xFFB09A86), Color(0xFF85705D),
+      CarbonHue(Color(0xFF736F6F), Color(0xFF635F5F), Color(0xFF3C3838), Color(0xFFE5E0DF), Color(0xFF8F8B8B),
+          Color(0xFFADA8A8), Color(0xFF3C3838))); // Warm Gray
+  static const graphite = AccentColor._('graphite', 'Graphite', Color(0xFF8A94A1), Color(0xFF59636F),
+      CarbonHue(Color(0xFF697077), Color(0xFF5B6268), Color(0xFF343A3F), Color(0xFFDDE1E6), Color(0xFF878D96),
+          Color(0xFFA2A9B0), Color(0xFF343A3F))); // Cool Gray
+
+  /// The swatches, in the order shown.
+  static const values = [sky, indigo, cyan, teal, green, violet, rose, amber, sand, graphite];
+
+  /// The swatch saved as [name]; null for another name (a custom one is saved as its colour).
+  static AccentColor? named(String? name) => values.where((a) => a.name == name).firstOrNull;
+
+  /// What it is saved as: a swatch's name, or "custom".
+  final String name;
   final String label;
   final Color color;
 
   /// The darker shade for lines and selected things on a light background.
   final Color strong;
+
+  /// The IBM hue that stands in for it in [UiStyle.carbon].
+  final CarbonHue carbon;
+
+  bool get isCustom => name == 'custom';
+
+  @override
+  bool operator ==(Object other) => other is AccentColor && other.name == name && other.color == color;
+
+  @override
+  int get hashCode => Object.hash(name, color);
 }
 
 /// How the controls look (Settings ▸ Appearance ▸ Style), the same on every platform.
@@ -146,27 +212,10 @@ class AppStyle extends ThemeExtension<AppStyle> {
 
 /// An IBM palette hue standing in for an [AccentColor] in [UiStyle.carbon]: its grades for a
 /// light theme (the 60 a button's fill, 20 a highlight) and for Gray 100 (50 and 40, 80).
+@immutable
 class CarbonHue {
   const CarbonHue(this.fill, this.hover, this.active, this.soft, this.dark, this.darkStrong, this.darkSoft);
   final Color fill, hover, active, soft, dark, darkStrong, darkSoft;
-
-  static CarbonHue of(AccentColor accent) => switch (accent) {
-        // Blue: Carbon's own $interactive, $button-primary(-hover, -active) and $highlight.
-        AccentColor.sky => const CarbonHue(Color(0xFF0F62FE), Color(0xFF0050E6), Color(0xFF002D9C), Color(0xFFD0E2FF),
-            Color(0xFF4589FF), Color(0xFF78A9FF), Color(0xFF002D9C)),
-        AccentColor.indigo => const CarbonHue(Color(0xFF6929C4), Color(0xFF5923A8), Color(0xFF491D8B), Color(0xFFE8DAFF),
-            Color(0xFFA56EFF), Color(0xFFBE95FF), Color(0xFF491D8B)), // Purple 70
-        AccentColor.teal => const CarbonHue(Color(0xFF007D79), Color(0xFF006D6B), Color(0xFF004144), Color(0xFF9EF0F0),
-            Color(0xFF009D9A), Color(0xFF08BDBA), Color(0xFF004144)),
-        AccentColor.violet => const CarbonHue(Color(0xFF8A3FFC), Color(0xFF7A34E0), Color(0xFF491D8B), Color(0xFFE8DAFF),
-            Color(0xFFBE95FF), Color(0xFFD4BBFF), Color(0xFF491D8B)), // Purple 60
-        AccentColor.rose => const CarbonHue(Color(0xFFD02670), Color(0xFFB81F62), Color(0xFF740937), Color(0xFFFFD6E8),
-            Color(0xFFEE5396), Color(0xFFFF7EB6), Color(0xFF740937)), // Magenta
-        AccentColor.amber => const CarbonHue(Color(0xFFBA4E00), Color(0xFFA24300), Color(0xFF5E2900), Color(0xFFFFD9BE),
-            Color(0xFFEB6200), Color(0xFFFF832B), Color(0xFF5E2900)), // Orange
-        AccentColor.graphite => const CarbonHue(Color(0xFF697077), Color(0xFF5B6268), Color(0xFF343A3F), Color(0xFFDDE1E6),
-            Color(0xFF878D96), Color(0xFFA2A9B0), Color(0xFF343A3F)), // Cool Gray
-      };
 }
 
 /// [UiStyle.carbon]'s tokens beyond the shared [AppColors], named as Carbon names them: the
@@ -217,7 +266,7 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
   });
 
   factory CarbonColors.of(AccentColor accent, Brightness brightness) {
-    final h = CarbonHue.of(accent);
+    final h = accent.carbon;
     if (brightness == Brightness.light) {
       return CarbonColors._(
         layer01: const Color(0xFFF4F4F4),
@@ -397,7 +446,7 @@ class AppColors extends ThemeExtension<AppColors> {
   /// [UiStyle.carbon]'s palette: the White theme ($background white, $layer-01 #f4f4f4 for the
   /// chrome) or Gray 100, the accent an IBM hue ([CarbonHue]).
   factory AppColors._carbonOf(AccentColor accent, Brightness brightness) {
-    final h = CarbonHue.of(accent);
+    final h = accent.carbon;
     final light = brightness == Brightness.light;
     final surface = light ? const Color(0xFFFFFFFF) : const Color(0xFF161616);
     final a = light ? h.fill : h.dark;
