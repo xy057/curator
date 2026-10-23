@@ -223,6 +223,12 @@ final _categories = <_Category>[
       ),
       keywords: 'compact comfortable spacing size toolbar rows tight roomy',
     ),
+    _Item(
+      'Reduce motion',
+      null,
+      (c) => AppSwitch(value: c.settings.reduceMotion, onChanged: (v) => c.settings.reduceMotion = v),
+      keywords: 'animation animations fade slide still accessibility',
+    ),
   ]),
   // The page is _AboutPage; these rows are what the search finds.
   _Category('About', AppIcon.about, page: (c) => _AboutPage(c), [

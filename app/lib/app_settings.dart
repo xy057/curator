@@ -22,6 +22,7 @@ class AppSettings extends ChangeNotifier {
         _uiStyle = UiStyle.named(_prefs?.getString(_uiStyleKey)) ?? UiStyle.refined,
         _textSize = TextSize.values.asNameMap()[_prefs?.getString(_textSizeKey)] ?? TextSize.medium,
         _density = UiDensity.values.asNameMap()[_prefs?.getString(_densityKey)] ?? UiDensity.standard,
+        _reduceMotion = _prefs?.getBool(_reduceMotionKey) ?? false,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
         _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,
@@ -69,7 +70,7 @@ class AppSettings extends ChangeNotifier {
   static const _autosaveKey = 'autosaveSeconds', _mediaKey = 'mediaStorage', _undoKey = 'undoSteps';
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
   static const _uiStyleKey = 'uiStyle', _customAccentKey = 'customAccent', _textSizeKey = 'textSize';
-  static const _densityKey = 'density';
+  static const _densityKey = 'density', _reduceMotionKey = 'reduceMotion';
   static const _scrollFollowKey = 'scrollFollow';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _mascotIconKey = 'mascotIcon';
@@ -202,6 +203,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _density) return;
     _density = value;
     _prefs?.setString(_densityKey, value.name);
+    notifyListeners();
+  }
+
+  /// The interface without motion: no fades, slides or cross-fades (the score still scrolls and
+  /// its staves still come and go as the project says).
+  bool get reduceMotion => _reduceMotion;
+  bool _reduceMotion;
+  set reduceMotion(bool value) {
+    if (value == _reduceMotion) return;
+    _reduceMotion = value;
+    _prefs?.setBool(_reduceMotionKey, value);
     notifyListeners();
   }
 

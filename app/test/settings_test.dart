@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -95,6 +96,12 @@ void main() {
     await tester.tap(find.text('Refined'));
     await tester.pumpAndSettle();
     expect(settings.uiStyle, UiStyle.refined);
+    await tester.tap(find.text('Large'));
+    await tester.tap(find.text('Compact'));
+    await tester.tap(find.byType(AppSwitch));
+    await tester.pumpAndSettle();
+    expect((settings.textSize, settings.density, settings.reduceMotion), (TextSize.large, UiDensity.compact, true));
+    await shot(tester, 'settings-appearance-more');
 
     expect(find.text('Animation'), findsNothing, reason: "the project's, in Project Settings");
 

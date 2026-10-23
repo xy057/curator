@@ -129,6 +129,7 @@ class AppStyle extends ThemeExtension<AppStyle> {
   const AppStyle._({
     required this.style,
     this.density = UiDensity.standard,
+    this.still = false,
     required this.rounded,
     required this.control,
     required this.toolbar,
@@ -185,17 +186,19 @@ class AppStyle extends ThemeExtension<AppStyle> {
 
   factory AppStyle.of(BuildContext context) => Theme.of(context).extension<AppStyle>() ?? refined;
 
-  static AppStyle forStyle(UiStyle style, [UiDensity density = UiDensity.standard]) =>
-      switch (style) { UiStyle.refined => refined, UiStyle.carbon => carbon }.at(density);
+  static AppStyle forStyle(UiStyle style, {UiDensity density = UiDensity.standard, bool still = false}) =>
+      switch (style) { UiStyle.refined => refined, UiStyle.carbon => carbon }.at(density, still: still);
 
   /// This style at [density]: controls and toolbars 4 px smaller or bigger, rows and menus 2 (a
   /// whole Carbon size step, xs 24 px, crowds the toolbars' icons).
-  AppStyle at(UiDensity density) {
-    if (density == this.density) return this;
+  /// [still]: with no motion (Settings ▸ Appearance ▸ Reduce motion).
+  AppStyle at(UiDensity density, {bool still = false}) {
+    if (density == this.density && still == this.still) return this;
     final step = 4.0 * (density.index - this.density.index);
     return AppStyle._(
       style: style,
       density: density,
+      still: still,
       rounded: rounded,
       control: control + step,
       toolbar: toolbar + step,
@@ -205,8 +208,8 @@ class AppStyle extends ThemeExtension<AppStyle> {
       row: row + step / 2,
       menuRow: math.max(rounded ? 20 : 24, menuRow + step / 2),
       menuInset: menuInset,
-      menuOpen: menuOpen,
-      menuClose: menuClose,
+      menuOpen: still ? Duration.zero : menuOpen,
+      menuClose: still ? Duration.zero : menuClose,
       curve: curve,
       enterCurve: enterCurve,
       exitCurve: exitCurve,
@@ -215,6 +218,12 @@ class AppStyle extends ThemeExtension<AppStyle> {
 
   final UiStyle style;
   final UiDensity density;
+
+  /// Whether the interface keeps still: every [duration] none (the score still moves).
+  final bool still;
+
+  /// [duration], or none while the interface keeps [still]: for motion not given as Material's.
+  Duration moving(Duration duration) => still ? Duration.zero : duration;
   bool get isCarbon => style == UiStyle.carbon;
 
   /// Whether corners are rounded: Carbon's are square (but a toggle's and a radio's).
@@ -247,6 +256,7 @@ class AppStyle extends ThemeExtension<AppStyle> {
   /// [ms] of Material's motion, as this style has it: Refined's about three quarters as long,
   /// Carbon's on its own duration steps.
   Duration duration(int ms) {
+    if (still) return Duration.zero;
     if (rounded) return Duration(milliseconds: (ms * 0.775).round());
     const steps = [70, 110, 150, 240, 400, 700]; // $duration-fast-01 … $duration-slow-02
     final want = ms * 0.7;
@@ -625,9 +635,10 @@ class AppColors extends ThemeExtension<AppColors> {
     Brightness brightness = Brightness.light,
     UiStyle style = UiStyle.refined,
     UiDensity density = UiDensity.standard,
+    bool still = false,
   }) {
     final c = AppColors.of(accent, brightness, style);
-    final measures = AppStyle.forStyle(style, density);
+    final measures = AppStyle.forStyle(style, density: density, still: still);
     final dark = brightness == Brightness.dark;
     final carbon = style == UiStyle.carbon ? CarbonColors.of(accent, brightness) : null;
     // Material's theme, in the style's palette, under the style's own: what it doesn't set.

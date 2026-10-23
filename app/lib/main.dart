@@ -115,6 +115,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
     if (appearance == _appearance) return;
     _appearance = appearance;
     appearanceChanging(); // before the window rebuilds in it
+    if (settings.reduceMotion) return; // no cross-fade
     final boundary = _windowKey.currentContext?.findRenderObject() as _RenderStillBoundary?;
     final still = boundary?.still(View.of(context).devicePixelRatio);
     if (still == null) return;
@@ -143,18 +144,18 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
   // The same widget each build: a change of settings rebuilds only what reads them (or the theme).
   late final _home = HomePage(settings: settings, updater: widget.updater);
 
-  // Built once per accent, style and density: a new ThemeData never equals the last (its extensions and button
+  // Built once per accent, style, density and motion: a new ThemeData never equals the last (its extensions and button
   // styles compare by identity), so one per build would rebuild every widget that reads the
   // theme at any change of settings, each tick of a slider among them.
-  (AccentColor, UiStyle, UiDensity)? _themesFor;
+  (AccentColor, UiStyle, UiDensity, bool)? _themesFor;
   late ThemeData _light, _dark;
 
   void _buildThemes() {
-    final key = (settings.accent, settings.uiStyle, settings.density);
+    final key = (settings.accent, settings.uiStyle, settings.density, settings.reduceMotion);
     if (_themesFor == key) return;
     _themesFor = key;
-    _light = AppColors.theme(accent: key.$1, brightness: Brightness.light, style: key.$2, density: key.$3);
-    _dark = AppColors.theme(accent: key.$1, brightness: Brightness.dark, style: key.$2, density: key.$3);
+    _light = AppColors.theme(accent: key.$1, brightness: Brightness.light, style: key.$2, density: key.$3, still: key.$4);
+    _dark = AppColors.theme(accent: key.$1, brightness: Brightness.dark, style: key.$2, density: key.$3, still: key.$4);
   }
 
   @override
@@ -177,7 +178,8 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
               MediaQuery(
                 // Over the system's own text size (Windows has one).
                 data: MediaQuery.of(context).copyWith(
-                    textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1) * settings.textSize.scale)),
+                    textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1) * settings.textSize.scale),
+                    disableAnimations: settings.reduceMotion || MediaQuery.disableAnimationsOf(context)),
                 child: child!,
               ),
               ValueListenableBuilder(
