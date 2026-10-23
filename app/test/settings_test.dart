@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -66,6 +67,15 @@ void main() {
     expect(settings.themeMode, ThemeMode.dark);
     expect(settings.accent, AccentColor.rose);
     await shot(tester, 'settings-appearance-dark');
+    await tester.tap(find.byTooltip('Custom…'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, '#EC7393'), '#2a9d8f');
+    await tester.pump();
+    await shot(tester, 'settings-custom-color');
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(settings.accent, AccentColor.custom(const Color(0xFF2A9D8F)));
+    expect(settings.customAccent, const Color(0xFF2A9D8F));
     await tester.tap(find.text('Carbon'));
     await tester.pumpAndSettle();
     expect(settings.uiStyle, UiStyle.carbon);
@@ -86,6 +96,14 @@ void main() {
     await tester.tap(find.text('Refined'));
     await tester.pumpAndSettle();
     expect(settings.uiStyle, UiStyle.refined);
+    await tester.tap(find.text('Large'));
+    await tester.tap(find.text('Compact'));
+    await tester.ensureVisible(find.byType(AppSwitch));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(AppSwitch));
+    await tester.pumpAndSettle();
+    expect((settings.textSize, settings.density, settings.reduceMotion), (TextSize.large, UiDensity.compact, true));
+    await shot(tester, 'settings-appearance-more');
 
     expect(find.text('Animation'), findsNothing, reason: "the project's, in Project Settings");
 

@@ -115,7 +115,7 @@ class _Entrance extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: 1),
-        duration: Duration(milliseconds: 420 + delay * 70),
+        duration: AppStyle.of(context).moving(Duration(milliseconds: 420 + delay * 70)),
         curve: Interval(delay * 0.12, 1, curve: Curves.easeOutCubic),
         builder: (context, t, child) => Opacity(
           opacity: t,

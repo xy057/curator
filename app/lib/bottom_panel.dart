@@ -54,7 +54,7 @@ class BottomPanel extends StatelessWidget {
             const ToolbarDivider(),
             Expanded(
               child: AnimatedSwitcher(
-                duration: _switch,
+                duration: AppStyle.of(context).moving(_switch),
                 switchInCurve: Curves.easeOutCubic,
                 switchOutCurve: Curves.easeInCubic,
                 layoutBuilder: (current, previous) =>
@@ -93,7 +93,7 @@ class BottomPanel extends StatelessWidget {
                 if (c.captions.enabled) CaptionLane(controller: c),
                 Expanded(
                   child: AnimatedSwitcher(
-                    duration: _switch,
+                    duration: AppStyle.of(context).moving(_switch),
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
                     transitionBuilder: (child, animation) => FadeTransition(

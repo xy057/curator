@@ -220,7 +220,18 @@ class PulsingDot extends StatefulWidget {
 }
 
 class _PulsingDotState extends State<PulsingDot> with SingleTickerProviderStateMixin {
-  late final _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))..repeat(reverse: true);
+  late final _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+
+  // Pulses unless the interface keeps still (Reduce motion), then a steady dot.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppStyle.of(context).still) {
+      _pulse.value = 0;
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {

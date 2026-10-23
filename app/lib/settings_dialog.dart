@@ -10,6 +10,7 @@ import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_logo.dart';
 import 'app_settings.dart';
+import 'color_dialog.dart';
 import 'audio_panel.dart' show pickAudio;
 import 'condensing_editor.dart';
 import 'dialog_kit.dart';
@@ -190,7 +191,7 @@ final _categories = <_Category>[
       'Accent color',
       null,
       (c) => _AccentPicker(settings: c.settings),
-      keywords: 'color colour scheme',
+      keywords: 'color colour scheme custom hex',
     ),
     _Item(
       'Style',
@@ -201,6 +202,32 @@ final _categories = <_Category>[
         onChanged: (v) => c.settings.uiStyle = v,
       ),
       keywords: 'look controls switch button classic refined carbon ibm theme',
+    ),
+    _Item(
+      'Text size',
+      null,
+      (c) => AppSegmented<TextSize>(
+        segments: [for (final s in TextSize.values) ButtonSegment(value: s, label: Text(s.label))],
+        selected: c.settings.textSize,
+        onChanged: (v) => c.settings.textSize = v,
+      ),
+      keywords: 'font type bigger smaller larger scale zoom accessibility',
+    ),
+    _Item(
+      'Density',
+      null,
+      (c) => AppSegmented<UiDensity>(
+        segments: [for (final d in UiDensity.values) ButtonSegment(value: d, label: Text(d.label))],
+        selected: c.settings.density,
+        onChanged: (v) => c.settings.density = v,
+      ),
+      keywords: 'compact comfortable spacing size toolbar rows tight roomy',
+    ),
+    _Item(
+      'Reduce motion',
+      null,
+      (c) => AppSwitch(value: c.settings.reduceMotion, onChanged: (v) => c.settings.reduceMotion = v),
+      keywords: 'animation animations fade slide still accessibility',
     ),
   ]),
   // The page is _AboutPage; these rows are what the search finds.
@@ -1075,7 +1102,8 @@ class _Dropdown<T> extends StatelessWidget {
       );
 }
 
-/// A row of colour swatches; the chosen one is ringed.
+/// A row of colour swatches, then the user's own (a colour wheel until there is one), which asks
+/// for a colour; the chosen one is ringed.
 class _AccentPicker extends StatelessWidget {
   const _AccentPicker({required this.settings});
   final AppSettings settings;
@@ -1091,12 +1119,10 @@ class _AccentPicker extends StatelessWidget {
     }
 
     final shape = style.rounded ? BoxShape.circle : BoxShape.rectangle;
-    return Wrap(spacing: 6, children: [
-      for (final accent in AccentColor.values)
-        Tip(
-          message: accent.label,
+    Widget item(String tip, bool chosen, Color ring, Decoration fill, VoidCallback onTap) => Tip(
+          message: tip,
           child: GestureDetector(
-            onTap: () => settings.accent = accent,
+            onTap: onTap,
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: AnimatedContainer(
@@ -1107,13 +1133,39 @@ class _AccentPicker extends StatelessWidget {
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: shape,
-                  border: Border.all(color: settings.accent == accent ? swatch(accent) : Colors.transparent, width: 2),
+                  border: Border.all(color: chosen ? ring : Colors.transparent, width: 2),
                 ),
-                child: DecoratedBox(decoration: BoxDecoration(color: swatch(accent), shape: shape)),
+                child: DecoratedBox(decoration: fill),
               ),
             ),
           ),
-        ),
+        );
+
+    final custom = settings.customAccent;
+    final own = custom == null ? null : AccentColor.custom(custom);
+    Future<void> pick() async {
+      final color = await showColorDialog(context, initial: custom ?? settings.accent.color);
+      if (color != null) settings.accent = AccentColor.custom(color);
+    }
+
+    return Wrap(spacing: 6, children: [
+      for (final accent in AccentColor.values)
+        item(accent.label, settings.accent == accent, swatch(accent), BoxDecoration(color: swatch(accent), shape: shape),
+            () => settings.accent = accent),
+      item(
+        'Custom…',
+        settings.accent.isCustom,
+        own == null ? context.colors.text : swatch(own),
+        own == null
+            ? BoxDecoration(
+                shape: shape,
+                gradient: SweepGradient(colors: [
+                  for (var d = 0; d <= 360; d += 60) HSLColor.fromAHSL(1, d % 360, 0.75, 0.6).toColor(),
+                ]),
+              )
+            : BoxDecoration(color: swatch(own), shape: shape),
+        pick,
+      ),
     ]);
   }
 }

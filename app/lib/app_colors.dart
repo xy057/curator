@@ -1,21 +1,87 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
-/// The accent colours offered under Settings ▸ Appearance.
-enum AccentColor {
-  sky('Sky', Color(0xFF4DA8F0), Color(0xFF1F8AE0)),
-  indigo('Indigo', Color(0xFF6D7BEA), Color(0xFF4454D6)),
-  teal('Teal', Color(0xFF2BB3A3), Color(0xFF12897C)),
-  violet('Violet', Color(0xFFA078E3), Color(0xFF7C4DCF)),
-  rose('Rose', Color(0xFFEC7393), Color(0xFFD1456A)),
-  amber('Amber', Color(0xFFF2A83E), Color(0xFFC77D12)),
-  graphite('Graphite', Color(0xFF8A94A1), Color(0xFF59636F));
+/// An accent colour (Settings ▸ Appearance): one of the swatches, [values], or one of the user's
+/// own ([AccentColor.custom]), from which each style works out the shades it needs.
+@immutable
+class AccentColor {
+  const AccentColor._(this.name, this.label, this.color, this.strong, this.carbon);
 
-  const AccentColor(this.label, this.color, this.strong);
+  /// [color] as the user chose it: its strong shade and its IBM-like grades worked out from it.
+  factory AccentColor.custom(Color color) {
+    color = color.withValues(alpha: 1);
+    final hsl = HSLColor.fromColor(color);
+    Color at(double lightness, [double saturation = 1]) =>
+        hsl.withLightness(lightness.clamp(0, 1)).withSaturation((hsl.saturation * saturation).clamp(0, 1)).toColor();
+    final l = hsl.lightness;
+    final fill = math.min(l, 0.42); // white reads on it, as on Carbon's 60 grades
+    return AccentColor._(
+      'custom',
+      'Custom',
+      color,
+      at(math.min(l - 0.1, 0.5)),
+      CarbonHue(at(fill), at(fill - 0.05), at(fill - 0.18), at(0.9, 0.9), at(math.max(l, 0.55)), at(math.max(l, 0.68)),
+          at(0.2)),
+    );
+  }
+
+  static const sky = AccentColor._('sky', 'Sky', Color(0xFF4DA8F0), Color(0xFF1F8AE0),
+      // Blue: Carbon's own $interactive, $button-primary(-hover, -active) and $highlight.
+      CarbonHue(Color(0xFF0F62FE), Color(0xFF0050E6), Color(0xFF002D9C), Color(0xFFD0E2FF), Color(0xFF4589FF),
+          Color(0xFF78A9FF), Color(0xFF002D9C)));
+  static const indigo = AccentColor._('indigo', 'Indigo', Color(0xFF6D7BEA), Color(0xFF4454D6),
+      CarbonHue(Color(0xFF6929C4), Color(0xFF5923A8), Color(0xFF491D8B), Color(0xFFE8DAFF), Color(0xFFA56EFF),
+          Color(0xFFBE95FF), Color(0xFF491D8B))); // Purple 70
+  static const cyan = AccentColor._('cyan', 'Cyan', Color(0xFF3BB8D6), Color(0xFF168FAD),
+      CarbonHue(Color(0xFF0072C3), Color(0xFF0066AF), Color(0xFF003A6D), Color(0xFFBAE6FF), Color(0xFF1192E8),
+          Color(0xFF33B1FF), Color(0xFF003A6D)));
+  static const teal = AccentColor._('teal', 'Teal', Color(0xFF2BB3A3), Color(0xFF12897C),
+      CarbonHue(Color(0xFF007D79), Color(0xFF006D6B), Color(0xFF004144), Color(0xFF9EF0F0), Color(0xFF009D9A),
+          Color(0xFF08BDBA), Color(0xFF004144)));
+  static const green = AccentColor._('green', 'Green', Color(0xFF5CBF6A), Color(0xFF2F9441),
+      CarbonHue(Color(0xFF198038), Color(0xFF166F31), Color(0xFF044317), Color(0xFFA7F0BA), Color(0xFF24A148),
+          Color(0xFF42BE65), Color(0xFF044317)));
+  static const violet = AccentColor._('violet', 'Violet', Color(0xFFA078E3), Color(0xFF7C4DCF),
+      CarbonHue(Color(0xFF8A3FFC), Color(0xFF7A34E0), Color(0xFF491D8B), Color(0xFFE8DAFF), Color(0xFFBE95FF),
+          Color(0xFFD4BBFF), Color(0xFF491D8B))); // Purple 60
+  static const rose = AccentColor._('rose', 'Rose', Color(0xFFEC7393), Color(0xFFD1456A),
+      CarbonHue(Color(0xFFD02670), Color(0xFFB81F62), Color(0xFF740937), Color(0xFFFFD6E8), Color(0xFFEE5396),
+          Color(0xFFFF7EB6), Color(0xFF740937))); // Magenta
+  static const amber = AccentColor._('amber', 'Amber', Color(0xFFF2A83E), Color(0xFFC77D12),
+      CarbonHue(Color(0xFFBA4E00), Color(0xFFA24300), Color(0xFF5E2900), Color(0xFFFFD9BE), Color(0xFFEB6200),
+          Color(0xFFFF832B), Color(0xFF5E2900))); // Orange
+  static const sand = AccentColor._('sand', 'Sand', Color(0xFFB09A86), Color(0xFF85705D),
+      CarbonHue(Color(0xFF736F6F), Color(0xFF635F5F), Color(0xFF3C3838), Color(0xFFE5E0DF), Color(0xFF8F8B8B),
+          Color(0xFFADA8A8), Color(0xFF3C3838))); // Warm Gray
+  static const graphite = AccentColor._('graphite', 'Graphite', Color(0xFF8A94A1), Color(0xFF59636F),
+      CarbonHue(Color(0xFF697077), Color(0xFF5B6268), Color(0xFF343A3F), Color(0xFFDDE1E6), Color(0xFF878D96),
+          Color(0xFFA2A9B0), Color(0xFF343A3F))); // Cool Gray
+
+  /// The swatches, in the order shown.
+  static const values = [sky, indigo, cyan, teal, green, violet, rose, amber, sand, graphite];
+
+  /// The swatch saved as [name]; null for another name (a custom one is saved as its colour).
+  static AccentColor? named(String? name) => values.where((a) => a.name == name).firstOrNull;
+
+  /// What it is saved as: a swatch's name, or "custom".
+  final String name;
   final String label;
   final Color color;
 
   /// The darker shade for lines and selected things on a light background.
   final Color strong;
+
+  /// The IBM hue that stands in for it in [UiStyle.carbon].
+  final CarbonHue carbon;
+
+  bool get isCustom => name == 'custom';
+
+  @override
+  bool operator ==(Object other) => other is AccentColor && other.name == name && other.color == color;
+
+  @override
+  int get hashCode => Object.hash(name, color);
 }
 
 /// How the controls look (Settings ▸ Appearance ▸ Style), the same on every platform.
@@ -33,6 +99,28 @@ enum UiStyle {
   static UiStyle? named(String? name) => name == 'classic' ? refined : values.asNameMap()[name];
 }
 
+/// How big the interface's text is (Settings ▸ Appearance ▸ Text size): the score's is its own.
+enum TextSize {
+  small('Small', 0.9),
+  medium('Medium', 1),
+  large('Large', 1.15);
+
+  const TextSize(this.label, this.scale);
+  final String label;
+  final double scale;
+}
+
+/// How tightly the interface is set (Settings ▸ Appearance ▸ Density): toolbars, their controls,
+/// rows and menus; a dialog's fields stay as they are.
+enum UiDensity {
+  compact('Compact'),
+  standard('Standard'),
+  roomy('Roomy');
+
+  const UiDensity(this.label);
+  final String label;
+}
+
 /// A [UiStyle]'s measures and motion, which the app's widgets read rather than asking which
 /// style it is: corners, control sizes, menu rows, how long things take. Read it with
 /// [AppStyle.of]; a theme without one (a bare [MaterialApp]'s) is [refined].
@@ -40,6 +128,8 @@ enum UiStyle {
 class AppStyle extends ThemeExtension<AppStyle> {
   const AppStyle._({
     required this.style,
+    this.density = UiDensity.standard,
+    this.still = false,
     required this.rounded,
     required this.control,
     required this.toolbar,
@@ -96,9 +186,44 @@ class AppStyle extends ThemeExtension<AppStyle> {
 
   factory AppStyle.of(BuildContext context) => Theme.of(context).extension<AppStyle>() ?? refined;
 
-  static AppStyle forStyle(UiStyle style) => switch (style) { UiStyle.refined => refined, UiStyle.carbon => carbon };
+  static AppStyle forStyle(UiStyle style, {UiDensity density = UiDensity.standard, bool still = false}) =>
+      switch (style) { UiStyle.refined => refined, UiStyle.carbon => carbon }.at(density, still: still);
+
+  /// This style at [density]: controls and toolbars 4 px smaller or bigger, rows and menus 2 (a
+  /// whole Carbon size step, xs 24 px, crowds the toolbars' icons).
+  /// [still]: with no motion (Settings ▸ Appearance ▸ Reduce motion).
+  AppStyle at(UiDensity density, {bool still = false}) {
+    if (density == this.density && still == this.still) return this;
+    final step = 4.0 * (density.index - this.density.index);
+    return AppStyle._(
+      style: style,
+      density: density,
+      still: still,
+      rounded: rounded,
+      control: control + step,
+      toolbar: toolbar + step,
+      panelBar: panelBar + step,
+      field: field,
+      fieldInset: fieldInset,
+      row: row + step / 2,
+      menuRow: math.max(rounded ? 20 : 24, menuRow + step / 2),
+      menuInset: menuInset,
+      menuOpen: still ? Duration.zero : menuOpen,
+      menuClose: still ? Duration.zero : menuClose,
+      curve: curve,
+      enterCurve: enterCurve,
+      exitCurve: exitCurve,
+    );
+  }
 
   final UiStyle style;
+  final UiDensity density;
+
+  /// Whether the interface keeps still: every [duration] none (the score still moves).
+  final bool still;
+
+  /// [duration], or none while the interface keeps [still]: for motion not given as Material's.
+  Duration moving(Duration duration) => still ? Duration.zero : duration;
   bool get isCarbon => style == UiStyle.carbon;
 
   /// Whether corners are rounded: Carbon's are square (but a toggle's and a radio's).
@@ -131,6 +256,7 @@ class AppStyle extends ThemeExtension<AppStyle> {
   /// [ms] of Material's motion, as this style has it: Refined's about three quarters as long,
   /// Carbon's on its own duration steps.
   Duration duration(int ms) {
+    if (still) return Duration.zero;
     if (rounded) return Duration(milliseconds: (ms * 0.775).round());
     const steps = [70, 110, 150, 240, 400, 700]; // $duration-fast-01 … $duration-slow-02
     final want = ms * 0.7;
@@ -146,27 +272,10 @@ class AppStyle extends ThemeExtension<AppStyle> {
 
 /// An IBM palette hue standing in for an [AccentColor] in [UiStyle.carbon]: its grades for a
 /// light theme (the 60 a button's fill, 20 a highlight) and for Gray 100 (50 and 40, 80).
+@immutable
 class CarbonHue {
   const CarbonHue(this.fill, this.hover, this.active, this.soft, this.dark, this.darkStrong, this.darkSoft);
   final Color fill, hover, active, soft, dark, darkStrong, darkSoft;
-
-  static CarbonHue of(AccentColor accent) => switch (accent) {
-        // Blue: Carbon's own $interactive, $button-primary(-hover, -active) and $highlight.
-        AccentColor.sky => const CarbonHue(Color(0xFF0F62FE), Color(0xFF0050E6), Color(0xFF002D9C), Color(0xFFD0E2FF),
-            Color(0xFF4589FF), Color(0xFF78A9FF), Color(0xFF002D9C)),
-        AccentColor.indigo => const CarbonHue(Color(0xFF6929C4), Color(0xFF5923A8), Color(0xFF491D8B), Color(0xFFE8DAFF),
-            Color(0xFFA56EFF), Color(0xFFBE95FF), Color(0xFF491D8B)), // Purple 70
-        AccentColor.teal => const CarbonHue(Color(0xFF007D79), Color(0xFF006D6B), Color(0xFF004144), Color(0xFF9EF0F0),
-            Color(0xFF009D9A), Color(0xFF08BDBA), Color(0xFF004144)),
-        AccentColor.violet => const CarbonHue(Color(0xFF8A3FFC), Color(0xFF7A34E0), Color(0xFF491D8B), Color(0xFFE8DAFF),
-            Color(0xFFBE95FF), Color(0xFFD4BBFF), Color(0xFF491D8B)), // Purple 60
-        AccentColor.rose => const CarbonHue(Color(0xFFD02670), Color(0xFFB81F62), Color(0xFF740937), Color(0xFFFFD6E8),
-            Color(0xFFEE5396), Color(0xFFFF7EB6), Color(0xFF740937)), // Magenta
-        AccentColor.amber => const CarbonHue(Color(0xFFBA4E00), Color(0xFFA24300), Color(0xFF5E2900), Color(0xFFFFD9BE),
-            Color(0xFFEB6200), Color(0xFFFF832B), Color(0xFF5E2900)), // Orange
-        AccentColor.graphite => const CarbonHue(Color(0xFF697077), Color(0xFF5B6268), Color(0xFF343A3F), Color(0xFFDDE1E6),
-            Color(0xFF878D96), Color(0xFFA2A9B0), Color(0xFF343A3F)), // Cool Gray
-      };
 }
 
 /// [UiStyle.carbon]'s tokens beyond the shared [AppColors], named as Carbon names them: the
@@ -217,7 +326,7 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
   });
 
   factory CarbonColors.of(AccentColor accent, Brightness brightness) {
-    final h = CarbonHue.of(accent);
+    final h = accent.carbon;
     if (brightness == Brightness.light) {
       return CarbonColors._(
         layer01: const Color(0xFFF4F4F4),
@@ -397,7 +506,7 @@ class AppColors extends ThemeExtension<AppColors> {
   /// [UiStyle.carbon]'s palette: the White theme ($background white, $layer-01 #f4f4f4 for the
   /// chrome) or Gray 100, the accent an IBM hue ([CarbonHue]).
   factory AppColors._carbonOf(AccentColor accent, Brightness brightness) {
-    final h = CarbonHue.of(accent);
+    final h = accent.carbon;
     final light = brightness == Brightness.light;
     final surface = light ? const Color(0xFFFFFFFF) : const Color(0xFF161616);
     final a = light ? h.fill : h.dark;
@@ -525,8 +634,11 @@ class AppColors extends ThemeExtension<AppColors> {
     AccentColor accent = AccentColor.sky,
     Brightness brightness = Brightness.light,
     UiStyle style = UiStyle.refined,
+    UiDensity density = UiDensity.standard,
+    bool still = false,
   }) {
     final c = AppColors.of(accent, brightness, style);
+    final measures = AppStyle.forStyle(style, density: density, still: still);
     final dark = brightness == Brightness.dark;
     final carbon = style == UiStyle.carbon ? CarbonColors.of(accent, brightness) : null;
     // Material's theme, in the style's palette, under the style's own: what it doesn't set.
@@ -554,7 +666,7 @@ class AppColors extends ThemeExtension<AppColors> {
       canvasColor: c.surface,
       dividerColor: c.line,
       visualDensity: VisualDensity.compact,
-      extensions: [c, AppStyle.forStyle(style), ?carbon],
+      extensions: [c, measures, ?carbon],
       splashFactory: InkSparkle.splashFactory,
       dividerTheme: DividerThemeData(color: c.line, space: 1, thickness: 1),
       sliderTheme: SliderThemeData(
@@ -602,7 +714,7 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, width: 520),
     );
-    return carbon == null ? _refined(theme, c, dark) : _carbon(theme, c, carbon, dark);
+    return carbon == null ? _refined(theme, c, measures, dark) : _carbon(theme, c, measures, carbon, dark);
   }
 
   /// Carbon's typeface, IBM Plex Sans (bundled: Light, Regular, SemiBold), and what stands in for
@@ -612,16 +724,16 @@ class AppColors extends ThemeExtension<AppColors> {
 
   /// [UiStyle.refined] over Material's: what a desktop app does, not a phone. A press
   /// shows as a tint, not a ripple, and a hover as a fainter one.
-  static ThemeData _refined(ThemeData theme, AppColors c, bool dark) {
+  static ThemeData _refined(ThemeData theme, AppColors c, AppStyle m, bool dark) {
     // Text styles as Theme.of gives them (merged with the typography's geometry, not
     // inherited): a button lerps its label from one style to the other when the style changes,
     // and two text styles lerp only when both inherit or neither does.
     final type = theme.typography.englishLike.merge(theme.textTheme);
-    // Buttons: 28 px, a 5 px corner, the label in a medium weight, as a desktop app's.
+    // Buttons: 28 px (the density's control), a 5 px corner, the label in a medium weight, as a desktop app's.
     const shape = WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5))));
     final label = WidgetStatePropertyAll(
         type.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0));
-    const size = WidgetStatePropertyAll(Size(64, 28));
+    final size = WidgetStatePropertyAll(Size(64, m.control));
     const padding = WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12));
     const quick = Duration(milliseconds: 95);
     final button = ButtonStyle(
@@ -765,8 +877,8 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
-          // 22 px rows, as a popup menu's and a desktop menu's.
-          minimumSize: const WidgetStatePropertyAll(Size(0, 22)),
+          // 22 px rows (the density's), as a popup menu's and a desktop menu's.
+          minimumSize: WidgetStatePropertyAll(Size(0, m.menuRow)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8)),
           shape: const WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4)))),
           textStyle: WidgetStatePropertyAll(type.bodyMedium!.copyWith(fontSize: 13, letterSpacing: 0)),
@@ -797,7 +909,7 @@ class AppColors extends ThemeExtension<AppColors> {
   /// (v11): no corners, Plex on Carbon's productive type set, sm (32 px) buttons whose label sits
   /// at the left with room at the right, fields filled with a line under them, a 2 px focus ring,
   /// and state shown by fills ($background-hover, $background-active), never ripples.
-  static ThemeData _carbon(ThemeData theme, AppColors c, CarbonColors k, bool dark) {
+  static ThemeData _carbon(ThemeData theme, AppColors c, AppStyle m, CarbonColors k, bool dark) {
     final type = theme.typography.englishLike.merge(theme.textTheme);
     final t = theme.textTheme;
     // Carbon's type tokens: size / line height, its tracking, and weight (Plex Regular or SemiBold).
@@ -823,7 +935,7 @@ class AppColors extends ThemeExtension<AppColors> {
     final button = ButtonStyle(
       shape: shape(),
       textStyle: WidgetStatePropertyAll(label),
-      minimumSize: const WidgetStatePropertyAll(Size(0, 32)),
+      minimumSize: WidgetStatePropertyAll(Size(0, m.control)),
       // The condensed density's inline padding: the label at the left, room for an icon at the right.
       padding: const WidgetStatePropertyAll(EdgeInsets.fromLTRB(7, 0, 39, 0)),
       alignment: Alignment.centerLeft,
@@ -969,8 +1081,8 @@ class AppColors extends ThemeExtension<AppColors> {
       dropdownMenuTheme: DropdownMenuThemeData(menuStyle: menu, textStyle: menuText, inputDecorationTheme: fields),
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
-          minimumSize: WidgetStatePropertyAll(Size(0, AppStyle.carbon.menuRow)),
-          padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: AppStyle.carbon.menuInset)),
+          minimumSize: WidgetStatePropertyAll(Size(0, m.menuRow)),
+          padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: m.menuInset)),
           shape: shape(),
           textStyle: WidgetStatePropertyAll(menuText),
           foregroundColor: states(k.textSecondary, hover: k.textPrimary, press: k.textPrimary, disabled: k.textDisabled),
