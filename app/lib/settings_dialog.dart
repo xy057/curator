@@ -203,6 +203,16 @@ final _categories = <_Category>[
       ),
       keywords: 'look controls switch button classic refined carbon ibm theme',
     ),
+    _Item(
+      'Text size',
+      null,
+      (c) => AppSegmented<TextSize>(
+        segments: [for (final s in TextSize.values) ButtonSegment(value: s, label: Text(s.label))],
+        selected: c.settings.textSize,
+        onChanged: (v) => c.settings.textSize = v,
+      ),
+      keywords: 'font type bigger smaller larger scale zoom accessibility',
+    ),
   ]),
   // The page is _AboutPage; these rows are what the search finds.
   _Category('About', AppIcon.about, page: (c) => _AboutPage(c), [

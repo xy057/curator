@@ -99,6 +99,17 @@ enum UiStyle {
   static UiStyle? named(String? name) => name == 'classic' ? refined : values.asNameMap()[name];
 }
 
+/// How big the interface's text is (Settings ▸ Appearance ▸ Text size): the score's is its own.
+enum TextSize {
+  small('Small', 0.9),
+  medium('Medium', 1),
+  large('Large', 1.15);
+
+  const TextSize(this.label, this.scale);
+  final String label;
+  final double scale;
+}
+
 /// A [UiStyle]'s measures and motion, which the app's widgets read rather than asking which
 /// style it is: corners, control sizes, menu rows, how long things take. Read it with
 /// [AppStyle.of]; a theme without one (a bare [MaterialApp]'s) is [refined].

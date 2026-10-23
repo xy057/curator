@@ -20,6 +20,7 @@ class AppSettings extends ChangeNotifier {
         _customAccent = _readColor(_prefs, _customAccentKey),
         _accent = AccentColor.named(_prefs?.getString(_accentKey)) ?? AccentColor.sky,
         _uiStyle = UiStyle.named(_prefs?.getString(_uiStyleKey)) ?? UiStyle.refined,
+        _textSize = TextSize.values.asNameMap()[_prefs?.getString(_textSizeKey)] ?? TextSize.medium,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
         _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,
@@ -66,7 +67,7 @@ class AppSettings extends ChangeNotifier {
 
   static const _autosaveKey = 'autosaveSeconds', _mediaKey = 'mediaStorage', _undoKey = 'undoSteps';
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
-  static const _uiStyleKey = 'uiStyle', _customAccentKey = 'customAccent';
+  static const _uiStyleKey = 'uiStyle', _customAccentKey = 'customAccent', _textSizeKey = 'textSize';
   static const _scrollFollowKey = 'scrollFollow';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _mascotIconKey = 'mascotIcon';
@@ -179,6 +180,16 @@ class AppSettings extends ChangeNotifier {
     if (value == _uiStyle) return;
     _uiStyle = value;
     _prefs?.setString(_uiStyleKey, value.name);
+    notifyListeners();
+  }
+
+  /// How big the interface's text is.
+  TextSize get textSize => _textSize;
+  TextSize _textSize;
+  set textSize(TextSize value) {
+    if (value == _textSize) return;
+    _textSize = value;
+    _prefs?.setString(_textSizeKey, value.name);
     notifyListeners();
   }
 

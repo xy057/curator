@@ -84,9 +84,9 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
     ..addStatusListener((status) {
       if (status == AnimationStatus.completed) _showBefore(null);
     });
-  late (Brightness, AccentColor, UiStyle) _appearance;
+  late (Brightness, AccentColor, UiStyle, TextSize) _appearance;
 
-  (Brightness, AccentColor, UiStyle) get _currentAppearance => (
+  (Brightness, AccentColor, UiStyle, TextSize) get _currentAppearance => (
         switch (settings.themeMode) {
           ThemeMode.light => Brightness.light,
           ThemeMode.dark => Brightness.dark,
@@ -94,6 +94,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
         },
         settings.accent,
         settings.uiStyle,
+        settings.textSize,
       );
 
   @override
@@ -172,7 +173,12 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
           builder: (context, child) => _StillBoundary(
             key: _windowKey,
             child: Stack(fit: StackFit.expand, children: [
-              child!,
+              MediaQuery(
+                // Over the system's own text size (Windows has one).
+                data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1) * settings.textSize.scale)),
+                child: child!,
+              ),
               ValueListenableBuilder(
                 valueListenable: _before,
                 builder: (context, before, _) => before == null
