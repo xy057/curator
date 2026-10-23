@@ -66,6 +66,15 @@ void main() {
     expect(settings.themeMode, ThemeMode.dark);
     expect(settings.accent, AccentColor.rose);
     await shot(tester, 'settings-appearance-dark');
+    await tester.tap(find.byTooltip('Custom…'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, '#EC7393'), '#2a9d8f');
+    await tester.pump();
+    await shot(tester, 'settings-custom-color');
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(settings.accent, AccentColor.custom(const Color(0xFF2A9D8F)));
+    expect(settings.customAccent, const Color(0xFF2A9D8F));
     await tester.tap(find.text('Carbon'));
     await tester.pumpAndSettle();
     expect(settings.uiStyle, UiStyle.carbon);

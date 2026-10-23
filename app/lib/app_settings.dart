@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart' show ThemeMode;
+import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart'
     show CaptionCountdown, CaptionPosition, CaptionSize, EngravingOptions, MusicFont, TextDynamics, TextFonts;
@@ -17,6 +17,7 @@ class AppSettings extends ChangeNotifier {
         _media = MediaStorage.values.asNameMap()[_prefs?.getString(_mediaKey)] ?? MediaStorage.embed,
         _undoSteps = _prefs?.getInt(_undoKey) ?? defaultUndoSteps,
         _themeMode = ThemeMode.values.asNameMap()[_prefs?.getString(_themeKey)] ?? ThemeMode.system,
+        _customAccent = _readColor(_prefs, _customAccentKey),
         _accent = AccentColor.named(_prefs?.getString(_accentKey)) ?? AccentColor.sky,
         _uiStyle = UiStyle.named(_prefs?.getString(_uiStyleKey)) ?? UiStyle.refined,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
@@ -46,6 +47,8 @@ class AppSettings extends ChangeNotifier {
         _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
+    final custom = _customAccent;
+    if (_prefs?.getString(_accentKey) == 'custom' && custom != null) _accent = AccentColor.custom(custom);
   }
 
   /// Defaults, kept in memory only (tests, or when there is no preferences store).
@@ -63,7 +66,7 @@ class AppSettings extends ChangeNotifier {
 
   static const _autosaveKey = 'autosaveSeconds', _mediaKey = 'mediaStorage', _undoKey = 'undoSteps';
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
-  static const _uiStyleKey = 'uiStyle';
+  static const _uiStyleKey = 'uiStyle', _customAccentKey = 'customAccent';
   static const _scrollFollowKey = 'scrollFollow';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _mascotIconKey = 'mascotIcon';
@@ -72,6 +75,14 @@ class AppSettings extends ChangeNotifier {
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
   static const _textDynamicsKey = 'textDynamics';
+
+  static Color? _readColor(SharedPreferences? prefs, String key) {
+    try {
+      return switch (prefs?.getInt(key)) { final argb? => Color(argb), _ => null };
+    } catch (_) {
+      return null; // not a number
+    }
+  }
 
   static double _readFps(SharedPreferences? prefs) {
     try {
@@ -143,15 +154,23 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The colour of selections, regions, the playhead…
+  /// The colour of selections, regions, the playhead…: a swatch, or the user's own.
   AccentColor get accent => _accent;
   AccentColor _accent;
   set accent(AccentColor value) {
     if (value == _accent) return;
     _accent = value;
     _prefs?.setString(_accentKey, value.name);
+    if (value.isCustom) {
+      _customAccent = value.color;
+      _prefs?.setInt(_customAccentKey, value.color.toARGB32());
+    }
     notifyListeners();
   }
+
+  /// The user's own accent colour, the last one chosen, kept while a swatch is the accent.
+  Color? get customAccent => _customAccent;
+  Color? _customAccent;
 
   /// How the controls look: quiet desktop ones, or Material's as before.
   UiStyle get uiStyle => _uiStyle;
