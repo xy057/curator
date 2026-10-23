@@ -115,7 +115,7 @@ enum TextSize {
 enum UiDensity {
   compact('Compact'),
   standard('Standard'),
-  comfortable('Comfortable');
+  roomy('Roomy');
 
   const UiDensity(this.label);
   final String label;

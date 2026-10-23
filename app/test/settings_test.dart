@@ -98,6 +98,8 @@ void main() {
     expect(settings.uiStyle, UiStyle.refined);
     await tester.tap(find.text('Large'));
     await tester.tap(find.text('Compact'));
+    await tester.ensureVisible(find.byType(AppSwitch));
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(AppSwitch));
     await tester.pumpAndSettle();
     expect((settings.textSize, settings.density, settings.reduceMotion), (TextSize.large, UiDensity.compact, true));
