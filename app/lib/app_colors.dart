@@ -110,6 +110,17 @@ enum TextSize {
   final double scale;
 }
 
+/// How tightly the interface is set (Settings ▸ Appearance ▸ Density): toolbars, their controls,
+/// rows and menus; a dialog's fields stay as they are.
+enum UiDensity {
+  compact('Compact'),
+  standard('Standard'),
+  comfortable('Comfortable');
+
+  const UiDensity(this.label);
+  final String label;
+}
+
 /// A [UiStyle]'s measures and motion, which the app's widgets read rather than asking which
 /// style it is: corners, control sizes, menu rows, how long things take. Read it with
 /// [AppStyle.of]; a theme without one (a bare [MaterialApp]'s) is [refined].
@@ -117,6 +128,7 @@ enum TextSize {
 class AppStyle extends ThemeExtension<AppStyle> {
   const AppStyle._({
     required this.style,
+    this.density = UiDensity.standard,
     required this.rounded,
     required this.control,
     required this.toolbar,
@@ -173,9 +185,36 @@ class AppStyle extends ThemeExtension<AppStyle> {
 
   factory AppStyle.of(BuildContext context) => Theme.of(context).extension<AppStyle>() ?? refined;
 
-  static AppStyle forStyle(UiStyle style) => switch (style) { UiStyle.refined => refined, UiStyle.carbon => carbon };
+  static AppStyle forStyle(UiStyle style, [UiDensity density = UiDensity.standard]) =>
+      switch (style) { UiStyle.refined => refined, UiStyle.carbon => carbon }.at(density);
+
+  /// This style at [density]: controls and toolbars 4 px smaller or bigger, rows and menus 2 (a
+  /// whole Carbon size step, xs 24 px, crowds the toolbars' icons).
+  AppStyle at(UiDensity density) {
+    if (density == this.density) return this;
+    final step = 4.0 * (density.index - this.density.index);
+    return AppStyle._(
+      style: style,
+      density: density,
+      rounded: rounded,
+      control: control + step,
+      toolbar: toolbar + step,
+      panelBar: panelBar + step,
+      field: field,
+      fieldInset: fieldInset,
+      row: row + step / 2,
+      menuRow: math.max(rounded ? 20 : 24, menuRow + step / 2),
+      menuInset: menuInset,
+      menuOpen: menuOpen,
+      menuClose: menuClose,
+      curve: curve,
+      enterCurve: enterCurve,
+      exitCurve: exitCurve,
+    );
+  }
 
   final UiStyle style;
+  final UiDensity density;
   bool get isCarbon => style == UiStyle.carbon;
 
   /// Whether corners are rounded: Carbon's are square (but a toggle's and a radio's).
@@ -585,8 +624,10 @@ class AppColors extends ThemeExtension<AppColors> {
     AccentColor accent = AccentColor.sky,
     Brightness brightness = Brightness.light,
     UiStyle style = UiStyle.refined,
+    UiDensity density = UiDensity.standard,
   }) {
     final c = AppColors.of(accent, brightness, style);
+    final measures = AppStyle.forStyle(style, density);
     final dark = brightness == Brightness.dark;
     final carbon = style == UiStyle.carbon ? CarbonColors.of(accent, brightness) : null;
     // Material's theme, in the style's palette, under the style's own: what it doesn't set.
@@ -614,7 +655,7 @@ class AppColors extends ThemeExtension<AppColors> {
       canvasColor: c.surface,
       dividerColor: c.line,
       visualDensity: VisualDensity.compact,
-      extensions: [c, AppStyle.forStyle(style), ?carbon],
+      extensions: [c, measures, ?carbon],
       splashFactory: InkSparkle.splashFactory,
       dividerTheme: DividerThemeData(color: c.line, space: 1, thickness: 1),
       sliderTheme: SliderThemeData(
@@ -662,7 +703,7 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, width: 520),
     );
-    return carbon == null ? _refined(theme, c, dark) : _carbon(theme, c, carbon, dark);
+    return carbon == null ? _refined(theme, c, measures, dark) : _carbon(theme, c, measures, carbon, dark);
   }
 
   /// Carbon's typeface, IBM Plex Sans (bundled: Light, Regular, SemiBold), and what stands in for
@@ -672,16 +713,16 @@ class AppColors extends ThemeExtension<AppColors> {
 
   /// [UiStyle.refined] over Material's: what a desktop app does, not a phone. A press
   /// shows as a tint, not a ripple, and a hover as a fainter one.
-  static ThemeData _refined(ThemeData theme, AppColors c, bool dark) {
+  static ThemeData _refined(ThemeData theme, AppColors c, AppStyle m, bool dark) {
     // Text styles as Theme.of gives them (merged with the typography's geometry, not
     // inherited): a button lerps its label from one style to the other when the style changes,
     // and two text styles lerp only when both inherit or neither does.
     final type = theme.typography.englishLike.merge(theme.textTheme);
-    // Buttons: 28 px, a 5 px corner, the label in a medium weight, as a desktop app's.
+    // Buttons: 28 px (the density's control), a 5 px corner, the label in a medium weight, as a desktop app's.
     const shape = WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5))));
     final label = WidgetStatePropertyAll(
         type.labelLarge!.copyWith(fontSize: 13, fontWeight: FontWeight.w500, letterSpacing: 0));
-    const size = WidgetStatePropertyAll(Size(64, 28));
+    final size = WidgetStatePropertyAll(Size(64, m.control));
     const padding = WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12));
     const quick = Duration(milliseconds: 95);
     final button = ButtonStyle(
@@ -825,8 +866,8 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
-          // 22 px rows, as a popup menu's and a desktop menu's.
-          minimumSize: const WidgetStatePropertyAll(Size(0, 22)),
+          // 22 px rows (the density's), as a popup menu's and a desktop menu's.
+          minimumSize: WidgetStatePropertyAll(Size(0, m.menuRow)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8)),
           shape: const WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4)))),
           textStyle: WidgetStatePropertyAll(type.bodyMedium!.copyWith(fontSize: 13, letterSpacing: 0)),
@@ -857,7 +898,7 @@ class AppColors extends ThemeExtension<AppColors> {
   /// (v11): no corners, Plex on Carbon's productive type set, sm (32 px) buttons whose label sits
   /// at the left with room at the right, fields filled with a line under them, a 2 px focus ring,
   /// and state shown by fills ($background-hover, $background-active), never ripples.
-  static ThemeData _carbon(ThemeData theme, AppColors c, CarbonColors k, bool dark) {
+  static ThemeData _carbon(ThemeData theme, AppColors c, AppStyle m, CarbonColors k, bool dark) {
     final type = theme.typography.englishLike.merge(theme.textTheme);
     final t = theme.textTheme;
     // Carbon's type tokens: size / line height, its tracking, and weight (Plex Regular or SemiBold).
@@ -883,7 +924,7 @@ class AppColors extends ThemeExtension<AppColors> {
     final button = ButtonStyle(
       shape: shape(),
       textStyle: WidgetStatePropertyAll(label),
-      minimumSize: const WidgetStatePropertyAll(Size(0, 32)),
+      minimumSize: WidgetStatePropertyAll(Size(0, m.control)),
       // The condensed density's inline padding: the label at the left, room for an icon at the right.
       padding: const WidgetStatePropertyAll(EdgeInsets.fromLTRB(7, 0, 39, 0)),
       alignment: Alignment.centerLeft,
@@ -1029,8 +1070,8 @@ class AppColors extends ThemeExtension<AppColors> {
       dropdownMenuTheme: DropdownMenuThemeData(menuStyle: menu, textStyle: menuText, inputDecorationTheme: fields),
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
-          minimumSize: WidgetStatePropertyAll(Size(0, AppStyle.carbon.menuRow)),
-          padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: AppStyle.carbon.menuInset)),
+          minimumSize: WidgetStatePropertyAll(Size(0, m.menuRow)),
+          padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: m.menuInset)),
           shape: shape(),
           textStyle: WidgetStatePropertyAll(menuText),
           foregroundColor: states(k.textSecondary, hover: k.textPrimary, press: k.textPrimary, disabled: k.textDisabled),

@@ -216,10 +216,10 @@ class _PlayButton extends StatelessWidget {
           tooltip: tip,
           onPressed: controller.playback.togglePlay,
           iconSize: 16,
-          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+          constraints: BoxConstraints.tightFor(width: AppStyle.of(context).control, height: AppStyle.of(context).control),
           padding: EdgeInsets.zero,
           style: Theme.of(context).filledButtonTheme.style!.copyWith(
-                minimumSize: const WidgetStatePropertyAll(Size.square(32)),
+                minimumSize: WidgetStatePropertyAll(Size.square(AppStyle.of(context).control)),
                 padding: const WidgetStatePropertyAll(EdgeInsets.zero),
                 alignment: Alignment.center,
                 iconColor: const WidgetStatePropertyAll(Colors.white),

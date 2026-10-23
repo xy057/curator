@@ -84,9 +84,9 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
     ..addStatusListener((status) {
       if (status == AnimationStatus.completed) _showBefore(null);
     });
-  late (Brightness, AccentColor, UiStyle, TextSize) _appearance;
+  late (Brightness, AccentColor, UiStyle, TextSize, UiDensity) _appearance;
 
-  (Brightness, AccentColor, UiStyle, TextSize) get _currentAppearance => (
+  (Brightness, AccentColor, UiStyle, TextSize, UiDensity) get _currentAppearance => (
         switch (settings.themeMode) {
           ThemeMode.light => Brightness.light,
           ThemeMode.dark => Brightness.dark,
@@ -95,6 +95,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
         settings.accent,
         settings.uiStyle,
         settings.textSize,
+        settings.density,
       );
 
   @override
@@ -142,18 +143,18 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
   // The same widget each build: a change of settings rebuilds only what reads them (or the theme).
   late final _home = HomePage(settings: settings, updater: widget.updater);
 
-  // Built once per accent and style: a new ThemeData never equals the last (its extensions and button
+  // Built once per accent, style and density: a new ThemeData never equals the last (its extensions and button
   // styles compare by identity), so one per build would rebuild every widget that reads the
   // theme at any change of settings, each tick of a slider among them.
-  (AccentColor, UiStyle)? _themesFor;
+  (AccentColor, UiStyle, UiDensity)? _themesFor;
   late ThemeData _light, _dark;
 
   void _buildThemes() {
-    final key = (settings.accent, settings.uiStyle);
+    final key = (settings.accent, settings.uiStyle, settings.density);
     if (_themesFor == key) return;
     _themesFor = key;
-    _light = AppColors.theme(accent: key.$1, brightness: Brightness.light, style: key.$2);
-    _dark = AppColors.theme(accent: key.$1, brightness: Brightness.dark, style: key.$2);
+    _light = AppColors.theme(accent: key.$1, brightness: Brightness.light, style: key.$2, density: key.$3);
+    _dark = AppColors.theme(accent: key.$1, brightness: Brightness.dark, style: key.$2, density: key.$3);
   }
 
   @override

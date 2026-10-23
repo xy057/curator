@@ -213,6 +213,16 @@ final _categories = <_Category>[
       ),
       keywords: 'font type bigger smaller larger scale zoom accessibility',
     ),
+    _Item(
+      'Density',
+      null,
+      (c) => AppSegmented<UiDensity>(
+        segments: [for (final d in UiDensity.values) ButtonSegment(value: d, label: Text(d.label))],
+        selected: c.settings.density,
+        onChanged: (v) => c.settings.density = v,
+      ),
+      keywords: 'compact comfortable spacing size toolbar rows tight roomy',
+    ),
   ]),
   // The page is _AboutPage; these rows are what the search finds.
   _Category('About', AppIcon.about, page: (c) => _AboutPage(c), [

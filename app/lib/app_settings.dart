@@ -21,6 +21,7 @@ class AppSettings extends ChangeNotifier {
         _accent = AccentColor.named(_prefs?.getString(_accentKey)) ?? AccentColor.sky,
         _uiStyle = UiStyle.named(_prefs?.getString(_uiStyleKey)) ?? UiStyle.refined,
         _textSize = TextSize.values.asNameMap()[_prefs?.getString(_textSizeKey)] ?? TextSize.medium,
+        _density = UiDensity.values.asNameMap()[_prefs?.getString(_densityKey)] ?? UiDensity.standard,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
         _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,
@@ -68,6 +69,7 @@ class AppSettings extends ChangeNotifier {
   static const _autosaveKey = 'autosaveSeconds', _mediaKey = 'mediaStorage', _undoKey = 'undoSteps';
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
   static const _uiStyleKey = 'uiStyle', _customAccentKey = 'customAccent', _textSizeKey = 'textSize';
+  static const _densityKey = 'density';
   static const _scrollFollowKey = 'scrollFollow';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _mascotIconKey = 'mascotIcon';
@@ -190,6 +192,16 @@ class AppSettings extends ChangeNotifier {
     if (value == _textSize) return;
     _textSize = value;
     _prefs?.setString(_textSizeKey, value.name);
+    notifyListeners();
+  }
+
+  /// How tightly toolbars, rows and menus are set.
+  UiDensity get density => _density;
+  UiDensity _density;
+  set density(UiDensity value) {
+    if (value == _density) return;
+    _density = value;
+    _prefs?.setString(_densityKey, value.name);
     notifyListeners();
   }
 
