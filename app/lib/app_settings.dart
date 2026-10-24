@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart'
-    show CaptionCountdown, CaptionPosition, CaptionSize, EngravingOptions, MusicFont, TextDynamics, TextFonts;
+    show CaptionCountdown, CaptionPosition, CaptionSize, EngravingOptions, MusicFont, ScoreMotion, TextDynamics, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
@@ -29,6 +29,7 @@ class AppSettings extends ChangeNotifier {
         _embedFont = _prefs?.getBool(_embedFontKey) ?? true,
         _mascotIcon = _prefs?.getBool(_mascotIconKey) ?? false,
         _scrollFollow = (_prefs?.getDouble(_scrollFollowKey) ?? defaultScrollFollow).clamp(0.0, 1.0),
+        _motion = _readMotion(_prefs?.getString(_motionKey)),
         _recent = List.unmodifiable(_prefs?.getStringList(_recentKey) ?? const <String>[]),
         _videoResolution =
             VideoResolution.values.asNameMap()[_prefs?.getString(_videoResolutionKey)] ?? defaultVideoResolution,
@@ -71,7 +72,7 @@ class AppSettings extends ChangeNotifier {
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
   static const _uiStyleKey = 'uiStyle', _customAccentKey = 'customAccent', _textSizeKey = 'textSize';
   static const _densityKey = 'density', _reduceMotionKey = 'reduceMotion';
-  static const _scrollFollowKey = 'scrollFollow';
+  static const _scrollFollowKey = 'scrollFollow', _motionKey = 'scoreMotion';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _mascotIconKey = 'mascotIcon';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
@@ -293,6 +294,25 @@ class AppSettings extends ChangeNotifier {
     _scrollFollow = value;
     _prefs?.setDouble(_scrollFollowKey, value);
     notifyListeners();
+  }
+
+  /// How the score moves in a project without its own (Project Settings ▸ Advanced ▸ Save as
+  /// default): the house style until then.
+  ScoreMotion get motion => _motion;
+  ScoreMotion _motion;
+  set motion(ScoreMotion value) {
+    if (value == _motion) return;
+    _motion = value;
+    _prefs?.setString(_motionKey, jsonEncode(value.toJson()));
+    notifyListeners();
+  }
+
+  static ScoreMotion _readMotion(String? json) {
+    try {
+      return json == null ? ScoreMotion.standard : ScoreMotion.fromJson((jsonDecode(json) as Map).cast<String, Object?>());
+    } catch (_) {
+      return ScoreMotion.standard; // not a motion: a newer version's, or damaged
+    }
   }
 
   // MARK: Export Video (the choices made last time)

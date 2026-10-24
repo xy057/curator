@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
 import 'auto_curate.dart';
+import 'score_motion.dart';
 import 'scroll_map.dart';
 import 'search.dart';
 
@@ -346,14 +347,14 @@ class Curation extends ChangeNotifier {
 
   /// 0…1 for every part at [seconds]. Each region edge is a smooth ramp of that edge's
   /// transition ([transitionInOf], [transitionOutOf]) centred on the edge, so the result is continuous in time.
-  /// Regions reaching the start or end of the piece don't fade there.
-  Map<String, double> visibilityAt(double seconds, ScoreTimeline timeline) => {
+  /// Regions reaching the start or end of the piece don't fade there. [curve] shapes each ramp.
+  Map<String, double> visibilityAt(double seconds, ScoreTimeline timeline, {MotionCurve curve = MotionCurve.smooth}) => {
         for (final entry in _lanes.entries)
           entry.key: () {
             var v = 0.0;
             for (final (:start, :end, :fadeIn, :fadeOut) in _spans(entry.value, timeline)) {
               if (seconds < start - fadeIn / 2 || seconds > end + fadeOut / 2) continue;
-              v = math.max(v, _smooth(math.min(_ramp(seconds - start, fadeIn), _ramp(end - seconds, fadeOut))));
+              v = math.max(v, curve.inside(math.min(_ramp(seconds - start, fadeIn), _ramp(end - seconds, fadeOut))));
             }
             return v;
           }(),
@@ -362,8 +363,6 @@ class Curation extends ChangeNotifier {
   /// 0…1 at [past] seconds past an edge whose ramp lasts [length], centred on it.
   static double _ramp(double past, double length) =>
       length > 0 ? ((past + length / 2) / length).clamp(0.0, 1.0) : (past >= 0 ? 1.0 : 0.0);
-
-  static double _smooth(double t) => t * t * (3 - 2 * t);
 
   // MARK: Saving
 

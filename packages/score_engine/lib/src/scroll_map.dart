@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'beat_grid.dart';
 import 'engraving.dart';
+import 'score_motion.dart';
 import 'search.dart';
 
 /// A position in the performed score: measure index plus quarter notes into it.
@@ -134,7 +135,7 @@ class ConstantTempoTimeline implements ScoreTimeline {
 /// Part of a performance, as if it were all there is: from score quarter [start] in pass
 /// [firstPass] to [end] in pass [lastPass] of [whole]. Times stay the performance's own; only
 /// the passes are cut, so what reads them treats the cut as the score's ends: the scroll comes
-/// to rest after [end] ([ScrollMap.settle]), and a lane shown at [start] is shown from the
+/// to rest after [end] ([ScoreMotion.settle]), and a lane shown at [start] is shown from the
 /// beginning, with no transition there (see [Curation.visibilityAt]). The music either side
 /// is still engraved, so the frame shows it.
 class ClippedTimeline implements ScoreTimeline {
@@ -193,7 +194,7 @@ class ClippedTimeline implements ScoreTimeline {
 /// Each pass of the performance (see [ScoreTimeline.passes]) has a curve of its own: where a
 /// warp jumps, so does the score.
 class ScrollMap {
-  ScrollMap._(this._beatCurves, this._onsetCurves, this._starts, this.follow)
+  ScrollMap._(this._beatCurves, this._onsetCurves, this._starts, this.follow, this.motion)
       : _curves = [
           for (var k = 0; k < _starts.length; k++)
             follow <= 0
@@ -203,7 +204,8 @@ class ScrollMap {
                     : _Blend(_beatCurves[k], _onsetCurves[k], follow),
         ];
 
-  factory ScrollMap(EngravingData score, ScoreTimeline timeline, {BeatGrid? beats, double follow = 1}) {
+  factory ScrollMap(EngravingData score, ScoreTimeline timeline,
+      {BeatGrid? beats, double follow = 1, ScoreMotion motion = ScoreMotion.standard}) {
     final measures = score.measures;
     final starts = timeline.measureStarts;
     // Each measure's onsets as (quarters into it, x), closed by the next measure's first
@@ -273,11 +275,11 @@ class ScrollMap {
     for (final (k, pass) in timeline.passes.indexed) {
       final (bt, bx) = anchors(beatQuarters, pass, k);
       final (ot, ox) = anchors(onsetQuarters, pass, k);
-      beatCurves.add(_Curve(bt, bx, followsNotes: false));
-      onsetCurves.add(_Curve(ot, ox, followsNotes: true));
+      beatCurves.add(_Curve(bt, bx, followsNotes: false, floor: motion.slowest, tail: motion));
+      onsetCurves.add(_Curve(ot, ox, followsNotes: true, floor: motion.slowest, tail: motion));
       passStarts.add(k == 0 ? double.negativeInfinity : timeline.secondsAtQuarter(pass.start, pass: k));
     }
-    return ScrollMap._(beatCurves, onsetCurves, passStarts, follow.isFinite ? follow.clamp(0, 1) : 1);
+    return ScrollMap._(beatCurves, onsetCurves, passStarts, follow.isFinite ? follow.clamp(0, 1) : 1, motion);
   }
 
   /// How closely the scroll follows the notes: 0 glides from beat to beat, 1 puts every
@@ -288,7 +290,19 @@ class ScrollMap {
   /// are shared, and each curve is solved once.
   ScrollMap withFollow(double follow) {
     final f = follow.isFinite ? follow.clamp(0.0, 1.0) : 1.0;
-    return f == this.follow ? this : ScrollMap._(_beatCurves, _onsetCurves, _starts, f);
+    return f == this.follow ? this : ScrollMap._(_beatCurves, _onsetCurves, _starts, f, motion);
+  }
+
+  /// How the scroll comes to rest and how slow it may go ([ScoreMotion.settle],
+  /// [ScoreMotion.settleCurve], [ScoreMotion.slowest]); the rest of a motion it ignores.
+  final ScoreMotion motion;
+
+  /// The same scroll, moving as [motion] says. Cheap unless the slowest speed changes: then the
+  /// notes' curves are solved again (when first used).
+  ScrollMap withMotion(ScoreMotion motion) {
+    if (motion.scrollsLike(this.motion)) return this;
+    List<_Curve> moved(List<_Curve> curves) => [for (final c in curves) c.moving(motion)];
+    return ScrollMap._(moved(_beatCurves), moved(_onsetCurves), _starts, follow, motion);
   }
 
   final List<_Curve> _beatCurves;
@@ -305,12 +319,12 @@ class ScrollMap {
   int _passAt(double t) => segmentAt(_starts.length + 1, t, (i) => i < _starts.length ? _starts[i] : double.infinity);
 
   /// How long the score takes to come to rest after the final barline reaches the pointer.
-  static const settle = 2.5;
+  double get settle => motion.settle;
 
   /// x in device units at playback time [t]. Before the first anchor the score keeps moving
   /// at its opening speed, so it scrolls in smoothly; after the last it slows to rest over
-  /// [settle] seconds, travelling a third of what it would at that speed, so the last bars
-  /// stay on screen.
+  /// [settle] seconds along [ScoreMotion.settleCurve] (by default travelling a third of what
+  /// it would at that speed, so the last bars stay on screen).
   double xAt(double t) => _curves[_passAt(t)].xAt(t);
 
   /// The leftmost and rightmost x shown between times [t0] and [t1] (a warp between them
@@ -425,26 +439,47 @@ class _Blend extends _Scroll {
 /// stretch's mean speed (or stop, or run back), its tangents are held back, so the score
 /// always moves on.
 class _Curve extends _Scroll {
-  _Curve(this.times, this.xs, {required this.followsNotes});
+  _Curve(this.times, this.xs, {required this.followsNotes, required this.floor, required this.tail})
+      : _solved = _Solved();
+
+  _Curve._sharing(_Curve curve, this.tail)
+      : times = curve.times,
+        xs = curve.xs,
+        followsNotes = curve.followsNotes,
+        floor = curve.floor,
+        _solved = curve._solved;
+
+  /// This curve coming to rest as [motion] says; the tangents are shared unless its slowest
+  /// speed is another (only the notes' curve has one).
+  _Curve moving(ScoreMotion motion) => followsNotes && motion.slowest != floor
+      ? _Curve(times, xs, followsNotes: true, floor: motion.slowest, tail: motion)
+      : _Curve._sharing(this, motion);
 
   @override
   final List<double> times;
   @override
   final List<double> xs;
   final bool followsNotes;
-  late final List<double> _tangents = followsNotes ? _tangentsOf(times, xs) : _monotoneTangents(times, xs);
+  final _Solved _solved;
+  List<double> get _tangents => _solved.tangents ??= followsNotes ? _tangentsOf(times, xs, floor) : _monotoneTangents(times, xs);
+
+  /// How it comes to rest after the last anchor ([ScoreMotion.settle], [ScoreMotion.settleCurve]).
+  final ScoreMotion tail;
 
   /// The slowest the score may move between two onsets, relative to its mean speed there.
-  static const floor = 0.25;
+  final double floor;
 
   @override
   double xAt(double t) {
     if (times.length < 2) return xs.firstOrNull ?? 0;
     if (t <= times.first) return xs.first + _tangents.first * (t - times.first);
     if (t >= times.last) {
-      // Speed v·(1 − u)², u from 0 to 1 over the settle: it eases to rest, no jolt.
-      final u = math.min((t - times.last) / ScrollMap.settle, 1.0), rest = 1 - u;
-      return xs.last + _tangents.last * ScrollMap.settle * (1 - rest * rest * rest) / 3;
+      // Eased to rest along the curve, leaving at the speed it arrived when the curve starts at
+      // a slope of 1 or more (the house curve, 1 − (1 − u)³: speed v·(1 − u)², a third as far).
+      final settle = tail.settle, curve = tail.settleCurve;
+      if (settle <= 0) return xs.last;
+      final u = math.min((t - times.last) / settle, 1.0);
+      return xs.last + _tangents.last * settle * curve.at(u) / math.max(curve.startSlope, 1);
     }
 
     final lo = segmentAt(times.length, t, (i) => times[i]), hi = lo + 1;
@@ -488,7 +523,7 @@ class _Curve extends _Scroll {
 
   /// The tangents (speeds at the anchors): the least relative acceleration, subject to the
   /// floor, by Gauss–Seidel sweeps each clamped to the bounds the neighbours leave.
-  static List<double> _tangentsOf(List<double> t, List<double> x) {
+  static List<double> _tangentsOf(List<double> t, List<double> x, double floor) {
     final n = t.length;
     if (n < 2) return List.filled(n, 0);
     final secants = [for (var k = 0; k < n - 1; k++) (x[k + 1] - x[k]) / (t[k + 1] - t[k])];
@@ -539,4 +574,10 @@ class _Curve extends _Scroll {
     }
     return m;
   }
+}
+
+/// A curve's tangents, solved when first used and shared by the curves that only come to rest
+/// differently.
+class _Solved {
+  List<double>? tangents;
 }

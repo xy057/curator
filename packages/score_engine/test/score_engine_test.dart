@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
@@ -49,6 +50,15 @@ void main() {
       expect(x, greaterThanOrEqualTo(previous - 1e-9));
       previous = x;
     }
+
+    // After the final barline it comes to rest over the settle: by default a third as far as it
+    // would go at its last speed; a linear curve keeps that speed all the way, then stops.
+    final end = map.duration, v = (map.xAt(end) - map.xAt(end - 1e-3)) / 1e-3;
+    expect(map.xAt(end + 10) - map.xAt(end), closeTo(v * 2.5 / 3, 0.05));
+    final linear = map.withMotion(const ScoreMotion(settle: 1, settleCurve: MotionCurve.linear));
+    expect(linear.xAt(end + 0.5) - linear.xAt(end), closeTo(v * 0.5, 0.05));
+    expect(linear.xAt(end + 10) - linear.xAt(end), closeTo(v, 0.05));
+    expect(linear.xAt(2), map.xAt(2), reason: 'only the ending moves differently');
   });
 
   test('at a warp the score jumps at once, and scrolls on smoothly on either side', () {
@@ -75,7 +85,7 @@ void main() {
     }
   });
 
-  test('staves stay still between transitions and only move while an instrument enters', () {
+  test('staves stay still between transitions and only move while an instrument enters, along the curve set', () {
     final scene = CuratedScene(score);
     const size = ui.Size(1600, 900);
     final curation = Curation(score.metadata.parts.map((p) => p.id))..transition = 0.3;
@@ -96,6 +106,29 @@ void main() {
     for (var t = entrance + 1; t < score.scrollMap.duration; t += 0.25) {
       expect(tops(t), after, reason: 'staves moved at $t s after the entrance settled');
     }
+
+    // A curve typed as an equation: scaled to run 0 → 1, or refused saying why.
+    final cubic = MotionCurve.parse(' 3t^2 - 2t**3 + 5 ');
+    expect([cubic.at(0), cubic.at(0.25), cubic.at(1)], [0, closeTo(MotionCurve.smooth.at(0.25), 1e-12), 1]);
+    expect(MotionCurve.parse('t<0.5 ? 2t*t : 1-2(1-t)^2').at(0.75), closeTo(0.875, 1e-12));
+    expect(MotionCurve.parse('sin(pi*t/2)').startSlope, closeTo(math.pi / 2, 1e-6));
+    expect(MotionCurve.problemWith('sin(pi*t)'), 'f(1) must differ from f(0).');
+    expect(MotionCurve.problemWith('2*q'), 'Unknown name “q”.');
+    expect(MotionCurve.problemWith('(t'), 'Missing “)”.');
+    final motion = ScoreMotion(glide: MotionCurve.linear, settle: 3, inkDelay: 0.2);
+    expect(ScoreMotion.fromJson(motion.toJson()), motion);
+    expect(ScoreMotion.fromJson(const {}), ScoreMotion.standard);
+    expect(() => ScoreMotion.fromJson(const {'settle': 99}), throwsFormatException);
+
+    // Linear: the staves are halfway there halfway through the glide, where smoothstep's are too,
+    // but a quarter of the way through they have moved further.
+    final start = entrance - 0.15, middle = tops(entrance), quarter = tops(start + 0.075);
+    scene.motion = motion;
+    expect(tops(entrance), [for (final y in middle) closeTo(y, 1e-6)]);
+    // The double bass, last in every frame (the piccolo comes in above).
+    double share(List<double> ys) => (ys.last - steady.last) / (after.last - steady.last);
+    expect(share(tops(start + 0.075)), closeTo(0.25, 1e-6));
+    expect(share(quarter), closeTo(MotionCurve.smooth.at(0.25), 1e-6));
     scene.dispose();
   });
 

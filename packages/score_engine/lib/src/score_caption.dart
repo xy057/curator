@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 
+import 'score_motion.dart';
 import 'scroll_map.dart';
 
 /// A caption (the Captions extension): [text] shown in a bar under the score while the
@@ -147,9 +148,6 @@ class CaptionBar {
   /// Room the staves leave for the bar (on top of the scene's margin), as the text's size.
   double get reserve => 36.0 * fontSize / 14;
 
-  /// How long a caption takes to fade in and out, seconds.
-  static const fade = 0.4;
-
   /// From the frame's edge to the hairline, and from there to the text.
   static const _bottom = 16.0, _gap = 8.0;
 
@@ -202,18 +200,22 @@ class CaptionBar {
     return ui.Rect.fromLTRB(size.width / 2 - w / 2, math.min(top, line - 2), size.width / 2 + w / 2, math.max(top + p.height, line + 2));
   }
 
-  /// Draws what shows at [time]: the span under way, if any.
-  void paint(ui.Canvas canvas, ui.Size size, double time, List<CaptionSpan> spans, List<Caption> captions, ui.Color ink) {
+  /// Draws what shows at [time]: the span under way, if any. It fades in and out over
+  /// [ScoreMotion.captionFade], rising [ScoreMotion.captionRise] into place along
+  /// [ScoreMotion.captionCurve].
+  void paint(ui.Canvas canvas, ui.Size size, double time, List<CaptionSpan> spans, List<Caption> captions, ui.Color ink,
+      {ScoreMotion motion = ScoreMotion.standard}) {
+    final fade = motion.captionFade, curve = motion.captionCurve;
     for (final s in spans) {
       if (time < s.start || time >= s.end) continue;
-      double ease(double t) => t * t * (3 - 2 * t);
-      final into = ((time - s.start) / fade).clamp(0.0, 1.0), left = ((s.end - time) / fade).clamp(0.0, 1.0);
-      final opacity = ease(math.min(into, left));
+      final into = fade > 0 ? ((time - s.start) / fade).clamp(0.0, 1.0) : 1.0;
+      final left = fade > 0 ? ((s.end - time) / fade).clamp(0.0, 1.0) : 1.0;
+      final opacity = curve.inside(math.min(into, left));
       if (opacity <= 0.001) continue;
       final (:p, :firstLine) = _laidOut(captions[s.caption].text, _width(size));
       final (:top, :line) = _place(p, size);
       // It comes in from the frame's edge side: up from below, down from above.
-      final rise = (1 - ease(into)) * 4 * (style.position == CaptionPosition.top ? -1 : 1);
+      final rise = (1 - curve.at(into)) * motion.captionRise * (style.position == CaptionPosition.top ? -1 : 1);
       final cx = size.width / 2, at = ui.Offset(cx - p.width / 2, top + rise);
       // The layer (to tint and fade the text) only as big as the text, not the frame: a full
       // frame offscreen each frame is costly at 4K. A little over, for glyphs that overhang.

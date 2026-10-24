@@ -34,7 +34,7 @@ class Playback {
   /// and fades out: [CuratedScene.endOf]), whichever is longer.
   double get duration {
     if (_editor.score == null) return 0;
-    return math.max(CuratedScene.endOf(_editor.timeline), _editor.track?.length ?? 0);
+    return math.max(CuratedScene.endOf(_editor.timeline, _editor.motion), _editor.track?.length ?? 0);
   }
 
   /// Playback speed (0.5 = half speed, lower pitch): handy for tapping fast passages.

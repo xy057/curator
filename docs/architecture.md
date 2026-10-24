@@ -27,6 +27,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
 | `score_caption.dart` | Captions (`Caption`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
+| `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
 | `zip_entries.dart` | `ZipEntries`: an entry of someone else's zip (a project, an .mxl), its bytes counted as they unpack and refused past a limit |
 
@@ -48,6 +49,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and File ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
+| `motion_settings.dart` | Project Settings ▸ Advanced: the motion's rows (`MotionSetting.all`), a slider or a curve each, and the Custom Curve dialog |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned): its edits (`EditState`, also Undo's snapshots), image files and view; Undo and Redo |
@@ -135,6 +137,21 @@ above a quarter of each stretch's mean speed so the score never stalls or runs b
 between, x is the weighted mean of the two curves: both put every beat on time and never run
 back, so the blend does too. The anchors are read when the map is built; changing `follow`
 (`withFollow`) reuses them, and each curve is solved once, when first used.
+
+**How the score moves is the project's** (Project Settings ▸ Advanced, `EditState.motion`, an Undo
+step saved as `state.motion` from format 20; a project without its own takes `AppSettings.motion`,
+the house style until Save as default; `CuratedScene.motion`, in `SceneSettings`). A `ScoreMotion`
+holds every curve and length the scene animates with: the staves' glide (`SpacingPlan` and
+`KeyColumnPlan`'s blend) and fade (`Curation.visibilityAt`'s ramp, then the ink after `inkDelay`,
+`ScoreMotion.inkFor`); the scroll's settle and slowest speed (`ScrollMap.withMotion`: a new slowest
+speed solves the notes' curves again, a new settle only re-ends them); the ending's fade
+(`CuratedScene.endOf(timeline, motion)`, so playback's duration and a clipped video's end follow);
+captions' fade and rise; the bar numbers' row lead and the tempo's cross-fade. Each curve is a
+`MotionCurve`: an equation in `t` (presets by name, or the user's own), parsed once into a Dart
+closure and cached, scaled so it always runs from 0 to 1; between them it may overshoot (a glide
+goes past and back), while opacities are held inside. The settle leaves at the speed it arrived
+when its curve starts at a slope of 1 or more (`startSlope`). The staff transition's length stays a
+region's property (Animation), and the interface's own motion stays the app's (Reduce motion).
 
 **The metronome clicks the beats as they sound** (C, or the toolbar's button by Play; an aid
 for aligning the tempo, `Playback.metronome`: neither saved, an edit, nor in a video). Each frame
@@ -771,7 +788,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
   `AppSettings` (the editor takes what concerns it in `takeSettings`, controller_settings.dart); a project's own, in `_projectCategories`, backed by an edit (see *Something a
   project saves*), so Settings holds only what is the same for every project. A project page whose settings
   can become the app's defaults gives its `_Category` a `saveDefault`: a slim Save as Default
-  button beside the page's title (a check and "Default" once they match), never a row. Settings of first-party components that are not part of the main work
+  button beside the page's title (a check and "Default" once they match), never a row; while they
+  differ, Reset to Default before it puts the app's back on the page (`reset`, one Undo step). Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extensions**.
 - **A flag**: a fix for how other programs write their files, on by default, as an `_Item` on
   Project Settings ▸ Flags with a switch to turn it off: the project's (`EditState`, an edit),

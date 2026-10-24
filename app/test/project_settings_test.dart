@@ -2,6 +2,7 @@
 // changes, the staff transition, and the project's own engraving options; its Sections page.
 // With SCREENSHOT_DIR set, also saves PNGs of the Fonts and Sections pages for visual review.
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -14,7 +15,8 @@ import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/extensions/extension.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/menu_kit.dart';
-import 'package:curated_score/project_file.dart';
+import 'package:curated_score/motion_settings.dart';
+import 'package:curated_score/project_state.dart';
 import 'package:curated_score/sections_editor.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/ui_kit.dart';
@@ -25,6 +27,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
+import 'finders.dart';
 import 'test_fonts.dart';
 import 'window.dart';
 
@@ -209,6 +212,55 @@ void main() {
     await settle();
     expect(settings.scrollFollow, follow);
     expect(find.widgetWithText(OutlinedButton, 'Default'), findsOneWidget, reason: 'saved: a check in its place');
+
+    // Advanced: the motion is the project's; a slider is one Undo step, a curve typed as an
+    // equation; saved with the project, and Save as default makes it the app's.
+    await tester.tap(find.text('Advanced').first);
+    await settle();
+    expect(c.motion, ScoreMotion.standard);
+    expect(find.text('Caption curve'), findsNothing, reason: 'Captions is off');
+    await tester.drag(find.descendant(of: find.byType(MotionControl), matching: find.byType(Slider)).first, const Offset(60, 0)); // ink delay
+    await settle();
+    final delay = c.motion.inkDelay;
+    expect(delay, greaterThan(ScoreMotion.standard.inkDelay));
+    expect(c.projectState.edits.motion?.inkDelay, delay);
+    c.undo();
+    await settle();
+    expect(c.projectState.edits.motion, isNull);
+    c.redo();
+    await settle();
+    await tester.tap(find.byType(CurveThumbnail).first); // glide
+    await settle();
+    await tester.enterText(appField('f(t)'), 'sin(q)');
+    await settle();
+    expect(find.text('Unknown name “q”.'), findsOneWidget);
+    await tester.enterText(appField('f(t)'), '1-(1-t)^2');
+    await settle();
+    await shoot('project-settings-curve');
+    await tester.tap(find.text('Done'));
+    await settle();
+    expect((c.motion.glide.expression, c.motion.inkDelay), ('1-(1-t)^2', delay));
+    expect(find.text('Custom'), findsOneWidget);
+    await shoot('project-settings-advanced');
+    final saved = c.projectState;
+    expect(ProjectState.fromJson(jsonDecode(jsonEncode(saved.toJson())) as Map<String, Object?>).edits.motion, c.motion);
+    await tester.tap(find.text('Save as Default'));
+    await settle();
+    expect(settings.motion, c.motion);
+    expect(find.text('Reset to Default'), findsNothing, reason: 'already the default');
+
+    // Reset to Default: the page back to the saved defaults, one Undo step for all of it.
+    c.setMotion(ScoreMotion.standard.withValue('settle', 4.0).withValue('glide', MotionCurve.easeIn));
+    await settle();
+    await shoot('project-settings-reset');
+    await tester.tap(find.text('Reset to Default'));
+    await settle();
+    expect(c.motion, settings.motion);
+    c.undo();
+    await settle();
+    expect((c.motion.settle, c.motion.glide), (4.0, MotionCurve.easeIn));
+    c.redo();
+    await settle();
 
     await tester.tap(find.byTooltip('Close'));
     await settle();
