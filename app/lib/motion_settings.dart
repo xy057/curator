@@ -241,6 +241,66 @@ class _CurvePainter extends CustomPainter {
   bool shouldRepaint(_CurvePainter old) => old.curve != curve || old.ink != ink || old.line != line || old.grid != grid;
 }
 
+/// What an equation may use ([MotionCurve]'s grammar), set as mathematics: the domain, the
+/// operators and constants, then every function.
+class _Syntax extends StatelessWidget {
+  const _Syntax();
+
+  /// Each line as mathematics (`^{…}` raised, `_{…}` lowered: drawn smaller, as many fonts lack
+  /// the Unicode super- and subscripts), with how it is typed beside it.
+  static const _lines = [
+    ('f(t),  0 ≤ t ≤ 1', 'f(0) ≠ f(1)'),
+    ('a + b   a − b   a × b   a ÷ b   a^{b}', '+  -  *  /  ^'),
+    ('3t^{2}', '3t^2'),
+    ('π   e', 'pi  e'),
+    ('c if a < b, else d', 'a < b ? c : d'),
+    ('sin  cos  tan  asin  acos  atan', ''),
+    ('e^{x}   ln x   log_{10} x', 'exp  ln  log'),
+    ('√x   |x|   sgn x', 'sqrt  abs  sign'),
+    ('floor x   ceil x   round x', ''),
+    ('min(a, b, …)  max(a, b, …)', ''),
+    ('a^{b}  clamp(x, lo, hi)', 'pow(a, b)'),
+    ('a + (b − a)t', 'mix(a, b, t)'),
+    ('smoothstep(a, b, x)', ''),
+  ];
+
+  static final _script = RegExp(r'([\^_])\{([^}]*)\}');
+
+  static List<InlineSpan> _spans(String line, TextStyle style) {
+    final spans = <InlineSpan>[];
+    var at = 0;
+    for (final m in _script.allMatches(line)) {
+      if (m.start > at) spans.add(TextSpan(text: line.substring(at, m.start)));
+      final small = style.copyWith(fontSize: style.fontSize! * 0.72, height: 1);
+      spans.add(WidgetSpan(
+        alignment: PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
+        child: Transform.translate(
+            offset: Offset(0.5, m[1] == '^' ? -style.fontSize! * 0.38 : style.fontSize! * 0.22),
+            child: Text(m[2]!, style: small)),
+      ));
+      at = m.end;
+    }
+    if (at < line.length) spans.add(TextSpan(text: line.substring(at)));
+    return spans;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final math = TextStyle(fontSize: 12.5, height: 1.5, color: colors.textMuted, fontStyle: FontStyle.italic);
+    final note = TextStyle(
+        fontSize: 12, height: 1.5, color: colors.textMuted.withValues(alpha: 0.75));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      for (final (expression, typed) in _lines)
+        Row(children: [
+          Expanded(child: Text.rich(TextSpan(style: math, children: _spans(expression, math)))),
+          if (typed.isNotEmpty) Text(typed, style: note),
+        ]),
+    ]);
+  }
+}
+
 /// Asks for a curve as an equation in t, starting at [initial], plotted as it is typed. Null
 /// when cancelled.
 Future<MotionCurve?> showCurveDialog(BuildContext context, {required MotionCurve initial}) =>
@@ -285,12 +345,14 @@ class _CurveDialogState extends State<_CurveDialog> {
             controller: _text,
             label: 'f(t)',
             hint: 't*t*(3-2*t)',
-            helper: _problem ?? 't from 0 to 1; sin, cos, exp, sqrt, pow, min, max…',
+            helper: _problem,
             bad: _problem != null,
             autofocus: true,
             onChanged: _typed,
             onSubmitted: (_) => curve == null ? null : Navigator.pop(context, curve),
           ),
+          SizedBox(height: dialogGap(context) * 0.75),
+          const _Syntax(),
         ]),
       ),
       actions: [
