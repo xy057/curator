@@ -266,10 +266,8 @@ and under it a hairline as wide as the text that draws in to its middle as the c
 runs out; it rises `ScoreMotion.captionRise` points into place as it fades in over `ScoreMotion.captionFade`, and fades out
 as its time ends. It is part of `paint`, so the preview and a video show the same.
 How it looks is a `CaptionStyle` (`CuratedScene.captionStyle`, copied into video export): its
-font, position (`CaptionPosition`: under the staves or above them, which then sit lower by
-the bar's room), countdown (`CaptionCountdown`: the hairline, a ring left of the text that
-empties clockwise, or none) and size (`CaptionSize`; the room grows with it). Position,
-countdown and size are the app's (the extension's settings button; `AppSettings.caption*`,
+font, countdown (`CaptionCountdown`: the hairline, a ring left of the text that
+empties clockwise, or none) and size (`CaptionSize`; the room grows with it). Countdown and size are the app's (the extension's settings button; `AppSettings.caption*`,
 not edits). The font is the project's when it has one (Project Settings ▸ Engraving ▸ Caption, shown while
 the switch is on: an edit, saved as `fonts.caption` from format 12), else the app's ('' is the
 score's text font); an installed family is read and registered before it is drawn
@@ -462,7 +460,7 @@ in `SceneSettings`). Every bar's number as the score prints it (`ScoreMetadata.b
 none on an upbeat, a split bar's second half or a bar numbered as the one before; the ruler and Go to
 still count bars from 1) is set at its
 top left, small, italic and in half the ink, in a row of its own just above the room the staves
-have (`_rowBottom`: the top margin, under captions shown above), so it stays put however the stack
+have (`_rowBottom`: the top margin), so it stays put however the stack
 grows or shrinks. Only staves squeezed into a full frame reach up into it: then the row rises, and
 never comes down. `_liftFor` keeps, per plan (and score size), the most the row has had to rise up to each 0.1 s
 (the top two shown staves' ink, checked against each staff's highest ink first, so most steps cost

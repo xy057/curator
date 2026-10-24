@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart'
-    show CaptionCountdown, CaptionPosition, CaptionSize, EngravingOptions, MusicFont, ScoreMotion, TextDynamics, TextFonts;
+    show CaptionCountdown, CaptionSize, EngravingOptions, MusicFont, ScoreMotion, TextDynamics, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
@@ -42,7 +42,6 @@ class AppSettings extends ChangeNotifier {
         _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? true,
         legacyExtensions = _readLegacyExtensions(_prefs),
         _captionFont = _prefs?.getString(_captionFontKey) ?? '',
-        _captionPosition = CaptionPosition.values.asNameMap()[_prefs?.getString(_captionPositionKey)] ?? CaptionPosition.bottom,
         _captionCountdown =
             CaptionCountdown.values.asNameMap()[_prefs?.getString(_captionCountdownKey)] ?? CaptionCountdown.line,
         _captionSize = CaptionSize.values.asNameMap()[_prefs?.getString(_captionSizeKey)] ?? CaptionSize.medium,
@@ -95,7 +94,7 @@ class AppSettings extends ChangeNotifier {
     }
   }
   static const _extensionDefaultsKey = 'extensionDefaults'; // deprecated: read, never written
-  static const _captionFontKey = 'captionFont', _captionPositionKey = 'captionPosition';
+  static const _captionFontKey = 'captionFont';
   static const _captionCountdownKey = 'captionCountdown', _captionSizeKey = 'captionSize';
   static const defaultAutosave = Duration(minutes: 2);
 
@@ -416,15 +415,6 @@ class AppSettings extends ChangeNotifier {
     if (value == _captionFont) return;
     _captionFont = value;
     _prefs?.setString(_captionFontKey, value);
-    notifyListeners();
-  }
-
-  CaptionPosition get captionPosition => _captionPosition;
-  CaptionPosition _captionPosition;
-  set captionPosition(CaptionPosition value) {
-    if (value == _captionPosition) return;
-    _captionPosition = value;
-    _prefs?.setString(_captionPositionKey, value.name);
     notifyListeners();
   }
 

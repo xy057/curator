@@ -74,7 +74,6 @@ class _CaptionSettingsState extends State<CaptionSettings> {
                 ),
               ),
             ),
-            row('Position', segments(s.captionPosition, const [(CaptionPosition.bottom, 'Bottom'), (CaptionPosition.top, 'Top')], (v) => s.captionPosition = v)),
             row(
               'Countdown',
               segments(s.captionCountdown,
@@ -119,7 +118,6 @@ class _Preview extends StatelessWidget {
             painter: _PreviewPainter(
               CaptionStyle(
                   fontFamily: family,
-                  position: settings.captionPosition,
                   countdown: settings.captionCountdown,
                   size: settings.captionSize),
               colors.scoreInk,
