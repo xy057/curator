@@ -1,4 +1,4 @@
-import 'dart:ui' show Rect;
+import 'dart:ui' show Color, Rect;
 
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart';
@@ -51,6 +51,10 @@ class EditState {
     this.sections = const {},
     this.groupSections = false,
     this.barNumbers = true,
+    this.colorNames = false,
+    this.nameColors = const {},
+    this.nameGroups = const [],
+    this.nameGroupOf = const {},
     this.patches = const [],
     this.captions = const [],
     this.captionFont,
@@ -112,6 +116,20 @@ class EditState {
   /// ([CuratedScene.barNumbers]); on for a new project.
   final bool barNumbers;
 
+  /// Whether the instruments are named in their family's colour (Project Settings ▸
+  /// Instruments, [CuratedScene.nameColors]).
+  final bool colorNames;
+
+  /// The colours the user gave some families' groups; the others are [defaultNameColors]'.
+  final Map<InstrumentFamily, Color> nameColors;
+
+  /// Groups of the user's own, besides the families' (which can't be removed).
+  final List<NameGroup> nameGroups;
+
+  /// The group the user put some instruments in, by part id: a family's name or a
+  /// [NameGroup.id]; null: none, named in the ink. Others are in their family's.
+  final Map<String, String?> nameGroupOf;
+
   /// Images on the score (Attach Image), bottom to top.
   final List<ImagePatch> patches;
 
@@ -164,6 +182,10 @@ class EditState {
       mapEquals(sections, other.sections) &&
       groupSections == other.groupSections &&
       barNumbers == other.barNumbers &&
+      colorNames == other.colorNames &&
+      mapEquals(nameColors, other.nameColors) &&
+      listEquals(nameGroups, other.nameGroups) &&
+      mapEquals(nameGroupOf, other.nameGroupOf) &&
       listEquals(patches, other.patches) &&
       listEquals(captions, other.captions) &&
       captionFont == other.captionFont &&
@@ -194,6 +216,10 @@ class EditState {
     Map<String, String?>? sections,
     bool? groupSections,
     bool? barNumbers,
+    bool? colorNames,
+    Map<InstrumentFamily, Color>? nameColors,
+    List<NameGroup>? nameGroups,
+    Map<String, String?>? nameGroupOf,
     List<ImagePatch>? patches,
     List<Caption>? captions,
     Object? captionFont = _kept,
@@ -219,6 +245,10 @@ class EditState {
         sections: sections ?? this.sections,
         groupSections: groupSections ?? this.groupSections,
         barNumbers: barNumbers ?? this.barNumbers,
+        colorNames: colorNames ?? this.colorNames,
+        nameColors: nameColors ?? this.nameColors,
+        nameGroups: nameGroups ?? this.nameGroups,
+        nameGroupOf: nameGroupOf ?? this.nameGroupOf,
         patches: patches ?? this.patches,
         captions: captions ?? this.captions,
         captionFont: identical(captionFont, _kept) ? this.captionFont : captionFont as String?,
@@ -230,6 +260,41 @@ class EditState {
         textDynamics: identical(textDynamics, _kept) ? this.textDynamics : textDynamics as bool?,
       );
 }
+
+/// The colour each family's names take (Project Settings ▸ Instruments) until the user gives it
+/// another: mid tones, read on white paper and on dark. Other instruments keep the ink.
+const defaultNameColors = <InstrumentFamily, Color>{
+  InstrumentFamily.woodwinds: Color(0xFF3B7DD8), // blue
+  InstrumentFamily.brass: Color(0xFFD4A20C), // yellow
+  InstrumentFamily.percussion: Color(0xFFC8553D), // red
+  InstrumentFamily.keyboards: Color(0xFF8E5CC4), // violet
+  InstrumentFamily.voices: Color(0xFF3F9A5A), // green
+  InstrumentFamily.strings: Color(0xFFA86B3C), // wood
+};
+
+/// A group of instruments the user made (Project Settings ▸ Instruments): their names are
+/// drawn in its colour.
+@immutable
+class NameGroup {
+  const NameGroup(this.id, this.name, this.color);
+
+  /// `group-1`, `group-2`…: never a family's name.
+  final String id;
+  final String name;
+  final Color color;
+
+  NameGroup copyWith({String? name, Color? color}) => NameGroup(id, name ?? this.name, color ?? this.color);
+
+  @override
+  bool operator ==(Object other) => other is NameGroup && other.id == id && other.name == name && other.color == color;
+
+  @override
+  int get hashCode => Object.hash(id, name, color);
+}
+
+/// A group as Project Settings ▸ Instruments shows it: a family's ([family] set; it can't be
+/// removed) or the user's ([NameGroup]).
+typedef NameGroupInfo = ({String id, String name, Color color, InstrumentFamily? family});
 
 /// Everything a project stores besides the score and the recording (`project.json` →
 /// `state`): the edits, the image files they show, and the view. Reading it checks every
@@ -251,7 +316,7 @@ class ProjectState {
 
   /// The version [toJson] writes (the project file's format version): every save is in the
   /// newest format, whatever the project uses.
-  static const version = 18;
+  static const version = 19;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version]. Additive only: a new format adds fields (the
@@ -274,6 +339,7 @@ class ProjectState {
     15: (state) => state, // instruments' sections came in 16: none, their own
     16: (state) => state, // grouping sections, and sections of the user's own, came in 17 (16's were families' names): off, none
     17: (state) => {...state, 'barNumbers': false}, // bar numbers came in 18: off, as made
+    18: (state) => state, // names in their family's colour came in 19: off
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -365,6 +431,23 @@ class ProjectState {
         },
         groupSections: r.boolean('groupSections') ?? false,
         barNumbers: r.boolean('barNumbers') ?? true,
+        colorNames: r.boolean('colorNames') ?? false,
+        // A family this version doesn't know is left out.
+        nameColors: {
+          for (final MapEntry(key: name, value: hex) in r.map('nameColors').entries)
+            ?InstrumentFamily.values.asNameMap()[name]: _color(hex) ?? (throw FormatException('The project is damaged: ${r.where}.nameColors.$name is not a colour.')),
+        },
+        nameGroups: [
+          for (final (i, g) in r.list('nameGroups').indexed) _nameGroup(JsonReader(g, '${r.where}.nameGroups[$i]')),
+        ],
+        nameGroupOf: {
+          for (final MapEntry(key: id, value: group) in r.map('nameGroupOf').entries)
+            id: switch (group) {
+              'none' => null,
+              final String g when g.trim().isNotEmpty => g,
+              _ => throw FormatException('The project is damaged: ${r.where}.nameGroupOf.$id is not a group.'),
+            },
+        },
         patches: patches,
         // Kept apart (those saved before captions couldn't overlap show as they did).
         captions: separateCaptions([
@@ -473,6 +556,24 @@ class ProjectState {
         image: image, quarter: quarter, top: top, width: size('width'), height: size('height'), crop: crop, ink: r.boolean('ink') ?? false);
   }
 
+  static String _hex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+
+  static NameGroup _nameGroup(JsonReader r) {
+    final id = r.string('id', required: true)!;
+    if (!id.startsWith('group-')) throw FormatException('The project is damaged: ${r.where}.id is not a group of the user\'s.');
+    return NameGroup(
+      id,
+      r.string('name', required: true)!,
+      _color(r.string('color', required: true)) ?? (throw FormatException('The project is damaged: ${r.where}.color is not a colour.')),
+    );
+  }
+
+  /// "#A86B3C"; null for anything else.
+  static Color? _color(Object? hex) => switch (hex) {
+        final String s when RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(s) => Color(0xFF000000 | int.parse(s.substring(1), radix: 16)),
+        _ => null,
+      };
+
   static Caption _caption(JsonReader r) {
     final start = r.number('start', required: true)!, end = r.number('end', required: true)!;
     if (start < 0) throw FormatException('The project is damaged: ${r.where} starts before the score.');
@@ -500,7 +601,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :barNumbers, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :mediaStorage, :extensions, :textDynamics) = edits;
+        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :mediaStorage, :extensions, :textDynamics) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -521,6 +622,18 @@ class ProjectState {
       'partOrder': partOrder,
       if (groupSections) 'groupSections': true,
       if (!barNumbers) 'barNumbers': false,
+      if (colorNames) 'colorNames': true,
+      if (nameColors.isNotEmpty)
+        'nameColors': {
+          for (final MapEntry(key: family, value: color) in nameColors.entries)
+            family.name: _hex(color),
+        },
+      if (nameGroups.isNotEmpty)
+        'nameGroups': [
+          for (final g in nameGroups) {'id': g.id, 'name': g.name, 'color': _hex(g.color)},
+        ],
+      if (nameGroupOf.isNotEmpty)
+        'nameGroupOf': {for (final MapEntry(key: id, value: g) in nameGroupOf.entries) id: g ?? 'none'},
       if (sections.isNotEmpty)
         'sections': {for (final MapEntry(key: id, value: s) in sections.entries) id: s ?? 'none'},
       'patches': [

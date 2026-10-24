@@ -36,6 +36,9 @@ void main() {
     c.setScrollFollow(0.8);
     c.setGroupSections(true);
     c.setBarNumbers(true);
+    c.setColorNames(true);
+    c.setNameGroupColor('strings', const ui.Color(0xFF8A5A2B));
+    c.setNameGroup(parts.first, c.addNameGroup('Solo'));
     c.setCondensed(['cond-P2-P3'], on: true);
     c.moveLane('P17', 0);
     c.curation!.transition = 0.7;

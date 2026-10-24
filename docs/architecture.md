@@ -424,6 +424,18 @@ A section stays bracketed while any of its staves shows, one alone too; the brac
 a staff fading in or out at either end, and it fades with the last.
 Only drawn: nothing is planned or engraved again.
 
+**Names can take their group's colour** (Project Settings ▸ Instruments ▸ Color names,
+`EditState.colorNames`, an edit saved from format 19, off for a new project; `CuratedScene.nameColors`,
+by part id, in `SceneSettings`). Each instrument's name in the name column is drawn in its group's
+colour instead of the ink (a pair in its first player's). The groups (`EditorController.nameGroups`)
+are the families' (woodwinds blue, brass yellow, percussion red, keyboards violet, voices green,
+strings wood: `defaultNameColors`, each recoloured in `EditState.nameColors`), which can't be
+removed, then the user's (`NameGroup`, `group-N`: added, renamed, recoloured, removed). An
+instrument is in its `ScorePart.family`'s group (none for other families) unless the user chose
+another or none (`EditState.nameGroupOf`, by part id; removing a group sends its instruments back
+to their families'). This is not the Sections page's brackets. Only the name's layer is tinted
+another colour (`StaffLabel.color`); the paragraphs cached in the ink serve every colour.
+
 **Bar numbers are drawn, not engraved** (Project Settings ▸ Engraving ▸ Bar numbers,
 `EditState.barNumbers`, an edit saved from format 18, on for a new project, off for one saved before; `CuratedScene.barNumbers`,
 in `SceneSettings`). Every bar's number (its index + 1, as the ruler and Go to count) is set at its

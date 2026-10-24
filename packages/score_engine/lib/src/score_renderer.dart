@@ -43,9 +43,17 @@ class StaffJoin {
 
 class StaffLabel {
   const StaffLabel(
-      {required this.text, this.shortText = '', required this.centerY, required this.opacity, this.partId = ''});
+      {required this.text,
+      this.shortText = '',
+      required this.centerY,
+      required this.opacity,
+      this.partId = '',
+      this.color});
   final String text;
   final String partId;
+
+  /// Drawn in this instead of the ink (its instrument's group's, [CuratedScene.nameColors]).
+  final ui.Color? color;
 
   /// Used instead of [text] when the full name does not fit the name column.
   final String shortText;
@@ -501,11 +509,12 @@ class ScoreRenderer {
       if (paragraph.maxIntrinsicWidth > width && label.shortText.isNotEmpty) {
         paragraph = _label(label.shortText, width);
       }
+      final color = label.color;
       canvas.saveLayer(
           null,
           ui.Paint()
             ..color = ui.Color.fromRGBO(0, 0, 0, label.opacity)
-            ..colorFilter = ink);
+            ..colorFilter = color == null ? ink : ui.ColorFilter.mode(color, ui.BlendMode.srcIn));
       canvas.drawParagraph(paragraph, ui.Offset(4, label.centerY - paragraph.height / 2));
       canvas.restore();
     }

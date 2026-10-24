@@ -23,6 +23,8 @@ import 'file_names.dart';
 import 'font_settings.dart';
 import 'menu_kit.dart';
 import 'project_file.dart';
+import 'project_state.dart' show NameGroupInfo;
+import 'edit_dialogs.dart' show showNameGroupDialog;
 import 'sections_editor.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
@@ -325,6 +327,16 @@ final _projectCategories = <_Category>[
       ..scrollFollow = c.controller!.scrollFollow,
   )),
   _engravingCategory(),
+  _Category('Instruments', AppIcon.score, page: (c) => _InstrumentsPage(c), [
+    _Item(
+      'Color names',
+      null,
+      (c) => AppSwitch(value: c.controller!.colorNames, onChanged: c.controller!.setColorNames),
+      keywords: 'color colour names labels instrument family section group woodwinds brass strings percussion',
+    ),
+    _Item('Groups', null, (_) => const SizedBox.shrink(),
+        keywords: 'color colour group groups add remove rename family woodwinds brass strings percussion'),
+  ]),
   _Category('Sections', AppIcon.lanes, page: (c) => _SectionsPage(c), [
     _Item(
       'Group sections',
@@ -1175,6 +1187,159 @@ class _AccentPicker extends StatelessWidget {
       ),
     ]);
   }
+}
+
+/// Project Settings ▸ Instruments: Color names, then the groups (the families', which stay, and
+/// the user's, added, renamed and removed here), each a colour; then which group each
+/// instrument is in.
+class _InstrumentsPage extends StatelessWidget {
+  const _InstrumentsPage(this.c);
+  final _Context c;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = c.controller!;
+    final groups = controller.nameGroups;
+    final parts = controller.laneParts;
+    int members(String id) => parts.where((p) => controller.nameGroupOf(p) == id).length;
+    return _Page(groups: [
+      (null, [
+        _SettingRow(
+            title: 'Color names',
+            help: null,
+            control: AppSwitch(value: controller.colorNames, onChanged: controller.setColorNames)),
+      ]),
+      if (controller.colorNames) ...[
+        ('Groups', [
+          for (final g in groups)
+            _SettingRow(
+              key: ValueKey(g.id),
+              title: g.name,
+              note: switch (members(g.id)) { 0 => null, final n => '$n' },
+              help: null,
+              control: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (g.family == null) ...[
+                  TextButton(
+                    onPressed: () async {
+                      final name = await showNameGroupDialog(context, rename: g.name);
+                      if (name != null) controller.renameNameGroup(g.id, name);
+                    },
+                    child: const Text('Rename…'),
+                  ),
+                  ToolbarButton(
+                    icon: AppIcon.close.of(context),
+                    tooltip: 'Remove group',
+                    onPressed: () => controller.removeNameGroup(g.id),
+                  ),
+                ] else if (controller.ownNameGroupColor(g.id))
+                  IconButton(
+                    icon: Icon(AppIcon.reset.of(context), size: 15),
+                    tooltip: 'Reset',
+                    visualDensity: VisualDensity.compact,
+                    color: context.colors.textMuted,
+                    onPressed: () => controller.setNameGroupColor(g.id, null),
+                  ),
+                const SizedBox(width: 8),
+                _ColorSwatch(
+                  color: g.color,
+                  title: g.name,
+                  onChanged: (color) => controller.setNameGroupColor(g.id, color),
+                ),
+              ]),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                icon: Icon(AppIcon.add.of(context), size: 16),
+                label: const Text('Add Group…'),
+                onPressed: () async {
+                  final name = await showNameGroupDialog(context);
+                  if (name != null) controller.addNameGroup(name);
+                },
+              ),
+            ),
+          ),
+        ]),
+        ('Instruments', [
+          for (final part in parts)
+            _SettingRow(
+              key: ValueKey(part.id),
+              title: controller.laneName(part),
+              help: null,
+              control: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (controller.ownNameGroup(part))
+                  IconButton(
+                    icon: Icon(AppIcon.reset.of(context), size: 15),
+                    tooltip: 'Reset',
+                    visualDensity: VisualDensity.compact,
+                    color: context.colors.textMuted,
+                    onPressed: () => controller.resetNameGroup(part),
+                  ),
+                const SizedBox(width: 6),
+                SettingsDropdown<String>(
+                  value: controller.nameGroupOf(part) ?? '',
+                  width: 170,
+                  items: [
+                    for (final g in groups)
+                      DropdownMenuItem(value: g.id, child: _GroupLabel(g)),
+                    const DropdownMenuItem(value: '', child: Text('None')),
+                  ],
+                  onChanged: (id) => controller.setNameGroup(part, id.isEmpty ? null : id),
+                ),
+              ]),
+            ),
+        ]),
+      ],
+    ]);
+  }
+}
+
+/// A group in a menu: its colour, then its name.
+class _GroupLabel extends StatelessWidget {
+  const _GroupLabel(this.group);
+  final NameGroupInfo group;
+
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+              color: group.color, shape: AppStyle.of(context).rounded ? BoxShape.circle : BoxShape.rectangle),
+        ),
+        const SizedBox(width: 8),
+        Flexible(child: Text(group.name, overflow: TextOverflow.ellipsis)),
+      ]);
+}
+
+/// A colour that asks for another when clicked.
+class _ColorSwatch extends StatelessWidget {
+  const _ColorSwatch({required this.color, required this.title, required this.onChanged});
+  final Color color;
+  final String title;
+  final ValueChanged<Color> onChanged;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: () async {
+          final chosen = await showColorDialog(context, initial: color, title: title);
+          if (chosen != null) onChanged(chosen);
+        },
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: color,
+              shape: AppStyle.of(context).rounded ? BoxShape.circle : BoxShape.rectangle,
+              border: Border.all(color: context.colors.text.withValues(alpha: 0.15)),
+            ),
+          ),
+        ),
+      );
 }
 
 /// A staff transition time; nothing when [value] is null.
