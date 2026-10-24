@@ -177,15 +177,18 @@ an opacity. The fonts themselves stay on the Engraving page. Two sorts of text, 
   tells them (a metronome mark or `<sound tempo>`). A file's own `font-size` (points) is still ignored.
   The letter spacing reaches the drawing through `VBCommand.letterSpacing`.
 - **Music symbols**, every glyph Verovio sets in the music font: clefs, key and time signatures,
-  noteheads, rests, dynamics, articulations, accidentals, ornaments, fermatas, breath marks and
-  caesuras, tuplet numbers, pedal and octave marks, segno and coda; with fingering and chord symbols
-  (the text font's, a chord's accidentals the music font's). `TextKind.isSymbol`, the page's Music
+  noteheads, flags, rests (and a multi-bar rest's number), accidentals, articulations, dynamics,
+  ornaments, fermatas, breath marks and caesuras, tremolos (and their number), arpeggios, tuplet numbers,
+  pedal and octave marks, bar repeats (and their count), segno and coda; with augmentation dots (drawn
+  as circles), fingering and chord symbols (the text font's, a chord's accidentals the music font's).
+  Stems, beams, ledger lines and staff lines are lines, set by the Engraving page's thicknesses. `TextKind.isSymbol`, the page's Music
   symbols group: a size alone, the font having one face and its glyphs set one by one.
   `ScoreTypography.verovioOptions` passes each changed size as the patched Verovio's own option
   (`curatedDynamScale`…, `TextKind.verovioScale`), which scales the staff size its draw functions use
   (`CuratedSize`; fingering's and chord symbols' point size), so the layout follows: Verovio lays out by
   the boxes drawing makes. Noteheads are sized in `Doc`'s glyph metrics too (`CuratedGlyphSize`), so
-  stems, dots, ledger lines and accidentals keep to them. Two placements the patch adds so big ones keep
+  stems, dots, ledger lines and accidentals keep to them; their lines and spaces stay the staff's, so
+much bigger noteheads crowd a chord's thirds. Two placements the patch adds so big ones keep
   clear: an accidental moves left of its note's articulations, and a caesura sits midway between the
   notes or rests either side. The frozen zone draws its clef, key and time signature at the same sizes
   (`FrozenZone(typography:)`, its columns widening with them).

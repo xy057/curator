@@ -38,7 +38,8 @@ String engravedText(LoadedScore s) => utf8.decode(s.engraving.text, allowMalform
 
 /// A bar of every music symbol the typography sizes: a clef, key and time signature, segno,
 /// pedal, 8va, a dynamic, a chord symbol, an accidental, an articulation, fingering, a trill, a
-/// fermata, a breath mark; then a triplet, a caesura, a rest and a coda.
+/// fermata, a breath mark; then a triplet (flagged), a caesura, a rest and a coda; an arpeggiated
+/// chord, a dotted note with a tremolo; and a bar repeat.
 String symbolsScore() {
   String note(String step, int duration, {String type = 'quarter', int alter = 0, String extra = '', String notations = ''}) =>
       '<note><pitch><step>$step</step>${alter != 0 ? '<alter>$alter</alter>' : ''}<octave>5</octave></pitch>'
@@ -64,7 +65,28 @@ String symbolsScore() {
       '${note('B', 2, type: 'eighth', extra: triplet, notations: '<tuplet type="stop"/>')}'
       '${note('C', 12, type: 'half', notations: '<articulations><caesura/></articulations>')}'
       '<note><rest/><duration>6</duration><type>quarter</type></note>${direction('<octave-shift type="stop" size="8"/>')}${direction('<pedal type="stop" line="no"/>')}'
-      '${direction('<coda/>')}</measure></part></score-partwise>';
+      '${direction('<coda/>')}</measure>'
+      '<measure number="3">'
+      '${note('C', 6, notations: '<arpeggiate/>')}<note><chord/><pitch><step>E</step><octave>5</octave></pitch>'
+      '<duration>6</duration><type>quarter</type><notations><arpeggiate/></notations></note>'
+      '${note('G', 9, extra: '<dot/>', notations: '<ornaments><tremolo type="single">3</tremolo></ornaments>')}'
+      '${note('A', 3, type: 'eighth')}${note('B', 6)}</measure>'
+      '<measure number="4"><attributes><measure-style><measure-repeat type="start">1</measure-repeat></measure-style></attributes>'
+      '<note><rest measure="yes"/><duration>24</duration></note></measure>'
+      '<measure number="5"><attributes><measure-style><measure-repeat type="stop"/></measure-style></attributes>'
+      '${note('C', 24, type: 'whole')}</measure></part></score-partwise>';
+}
+
+/// The width of the first augmentation dot (drawn as a circle).
+double dotWidth(LoadedScore s) {
+  final d = s.engraving, dots = d.classNames.indexOf('dots');
+  for (var i = 0; i < d.commandCount; i++) {
+    final b = i * Cmd.words;
+    if (d.commandInts[b + Cmd.kind] == VBKind.path && d.commandInts[b + Cmd.classIndex] == dots) {
+      return d.pathFloats[d.commandInts[b + Cmd.start] * 7 + 3];
+    }
+  }
+  throw StateError('No dot.');
 }
 
 void main() {
@@ -108,38 +130,51 @@ void main() {
       'keySignatures': ((0xE260, 0xE260), 1.45),
       'timeSignatures': ((0xE080, 0xE089), 2.1),
       'noteheads': ((0xE0A4, 0xE0A4), 1.15),
+      'flags': ((0xE240, 0xE24F), 1.55),
+      'dots': ('dot', 1.75),
       'rests': ((0xE4E5, 0xE4E5), 1.35),
-      'dynamics': ((0xE520, 0xE54F), 1.5),
-      'articulations': ((0xE4A0, 0xE4BF), 1.6),
       'accidentals': ((0xE262, 0xE262), 1.7),
+      'articulations': ((0xE4A0, 0xE4BF), 1.6),
+      'dynamics': ((0xE520, 0xE54F), 1.5),
       'ornaments': ((0xE560, 0xE5AF), 0.5),
       'fermatas': ((0xE4C0, 0xE4CD), 2.0),
       'breathMarks': ((0xE4CE, 0xE4D6), 1.8),
-      'tupletNumbers': ((0xE880, 0xE88F), 1.25),
+      'tremolos': ((0xE220, 0xE22F), 2.3),
+      'arpeggios': ((0xEAA9, 0xEAA9), 1.65),
+      'tupletNumbers': ((0xE883, 0xE883), 1.25),
       'fingering': ('4', 1.4),
       'chordSymbols': ('C', 1.3),
       'pedal': ((0xE650, 0xE65F), 1.9),
       'octave': ((0xE510, 0xE51F), 0.6),
+      'barRepeats': ((0xE500, 0xE50F), 1.2),
       'segnoCoda': ((0xE047, 0xE048), 2.2),
     };
     expect(symbols.keys, [for (final k in TextKind.values) if (k.isSymbol) k.name]);
-    var sized = ScoreTypography.standard;
-    for (final MapEntry(:key, value: (_, scale)) in symbols.entries) {
-      sized = sized.withValue('$key.size', scale);
+    final plain = await LoadedScore.load(symbolsScore());
+    double sizeOf(LoadedScore s, Object what) => switch (what) {
+          (int, int) range => glyphOf(s, range.$1, range.$2).size,
+          'dot' => dotWidth(s),
+          _ => runOf(s, what as String).size,
+        };
+    // Each its own size, bigger (the ornaments and octave marks smaller), then all at 60%.
+    for (final small in [false, true]) {
+      var sized = ScoreTypography.standard;
+      for (final MapEntry(:key, value: (_, scale)) in symbols.entries) {
+        sized = sized.withValue('$key.size', small ? 0.6 : scale);
+      }
+      final big = await plain.withEdits(typography: sized);
+      for (final MapEntry(:key, value: (what, scale)) in symbols.entries) {
+        final was = sizeOf(plain, what);
+        expect(sizeOf(big, what), closeTo(was * (small ? 0.6 : scale), was * 0.03), reason: '$key${small ? ' small' : ''}');
+      }
+      // They keep clear: a sharp moves aside from its note's accent, a caesura sits between its
+      // note and the rest after; the frozen zone's clef, key and time are as big.
+      expect(glyphOf(big, 0xE262, 0xE262).box.overlaps(glyphOf(big, 0xE4A0, 0xE4A1).box), isFalse);
+      expect(glyphOf(big, 0xE4D1, 0xE4D1).box.overlaps(glyphOf(big, 0xE4E5, 0xE4E5).box), isFalse);
+      final zone = FrozenZone(big.engraving, const RenderStyle(), typography: sized).maxWidth;
+      final house = FrozenZone(plain.engraving, const RenderStyle()).maxWidth;
+      expect(zone, small ? lessThan(house * 0.8) : greaterThan(house * 1.3));
     }
-    final plain = await LoadedScore.load(symbolsScore()), big = await plain.withEdits(typography: sized);
-    double sizeOf(LoadedScore s, Object what) =>
-        what is (int, int) ? glyphOf(s, what.$1, what.$2).size : runOf(s, what as String).size;
-    for (final MapEntry(:key, value: (what, scale)) in symbols.entries) {
-      final was = sizeOf(plain, what);
-      expect(sizeOf(big, what), closeTo(was * scale, was * 0.02), reason: key);
-    }
-    // Big ones keep clear: a sharp moves aside from its note's accent, a caesura sits between its
-    // note and the rest after; the frozen zone's clef, key and time are as big.
-    expect(glyphOf(big, 0xE262, 0xE262).box.overlaps(glyphOf(big, 0xE4A0, 0xE4A1).box), isFalse);
-    expect(glyphOf(big, 0xE4D1, 0xE4D1).box.overlaps(glyphOf(big, 0xE4E5, 0xE4E5).box), isFalse);
-    expect(FrozenZone(big.engraving, const RenderStyle(), typography: sized).maxWidth,
-        greaterThan(FrozenZone(plain.engraving, const RenderStyle()).maxWidth * 1.3));
 
     // Only the drawn kinds differ: the same engraving.
     final drawn = typography.withValue('barNumbers.opacity', 0.8).withValue('names.face', TextFace.italic);
