@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
@@ -11,14 +10,12 @@ import 'image_patch.dart';
 import 'media_converter.dart';
 import 'project_state.dart';
 
-export 'project_state.dart' show MediaStorage;
-
 /// A Curator project (.ccs): a zip archive holding
 ///
 ///     mimetype          application/x-curated-score (stored first, uncompressed)
 ///     project.json      format version, where things are, and every edit made in the app
 ///     score/<name>      the source score file, byte for byte
-///     media/<name>      the recording, when it is embedded
+///     media/<name>      the recording
 ///     images/<id>       each image on the score (Attach Image), byte for byte
 ///     fonts/<name>.font an added music font the score is engraved in, and its SMuFL
 ///     fonts/<name>.json metadata (if it has some); neither when it isn't embedded
@@ -40,36 +37,22 @@ abstract final class ProjectFile {
   /// Runs on a background isolate: embedding a long video takes a moment.
   static Future<void> write(String path, ProjectContents contents) => Isolate.run(() => _write(path, contents));
 
-  /// Reads a project. An embedded recording is unpacked into [mediaDirectory]; a linked one
-  /// is looked for next to the project first (so a folder can be moved as a whole), then at
-  /// its original location, and only when it is a recording ([MediaFormats]).
+  /// Reads a project. Its recording is unpacked into [mediaDirectory]. A project saved before
+  /// recordings were always embedded may link to one instead: that is looked for next to the
+  /// project first (so a folder can be moved as a whole), then at its original location, and
+  /// only when it is a recording ([MediaFormats]). The next save embeds it.
   static Future<OpenedProject> read(String path, {required String mediaDirectory}) =>
       Isolate.run(() => _read(path, mediaDirectory));
 
   static void _write(String path, ProjectContents c) {
     final media = c.media;
-    final String? mediaEntry;
-    if (media != null && media.storage == MediaStorage.embed) {
-      mediaEntry = 'media/${_safeName(media.name)}';
-    } else {
-      mediaEntry = null;
-      if (media != null && media.originalPath == null) {
-        throw FileSystemException('“${media.name}” can’t be linked. Choose Embed in Project Settings ▸ Project Info');
-      }
-    }
+    final mediaEntry = media == null ? null : 'media/${_safeName(media.name)}';
     final scoreEntry = 'score/${_safeName(c.scoreName)}';
     final manifest = {
       'format': mimeType,
       'version': formatVersion,
       'score': {'name': c.scoreName, 'entry': scoreEntry},
-      if (media != null)
-        'media': {
-          'name': media.name,
-          'entry': ?mediaEntry,
-          // Kept for embedded media too, so switching to "link" later knows where it came from.
-          'path': ?media.originalPath,
-          if (media.originalPath != null) 'relativePath': _relative(media.originalPath!, File(path).parent.path),
-        },
+      if (media != null) 'media': {'name': media.name, 'entry': mediaEntry},
       'state': c.state.toJson(),
     };
 
@@ -94,7 +77,7 @@ abstract final class ProjectFile {
       }
       if (mediaEntry != null) {
         final source = media!.embedFrom;
-        if (source == null || !File(source).existsSync()) {
+        if (!File(source).existsSync()) {
           throw FileSystemException('Can’t find the recording to embed', source);
         }
         mediaStream = InputFileStream(source);
@@ -163,7 +146,6 @@ abstract final class ProjectFile {
         media = ProjectMediaLocation(
           name: name,
           path: playable ?? linked,
-          originalPath: linked,
           missingPath: playable == null && linked == null ? (original ?? relative) : null,
         );
       }
@@ -219,17 +201,6 @@ abstract final class ProjectFile {
   }
 
   static String _join(String dir, String name) => '$dir${Platform.pathSeparator}$name';
-
-  /// [target] relative to [from] (both absolute), with '/' separators.
-  static String _relative(String target, String from) {
-    List<String> parts(String p) => p.replaceAll('\\', '/').split('/').where((s) => s.isNotEmpty).toList();
-    final t = parts(target), f = parts(from);
-    var common = 0;
-    while (common < math.min(t.length, f.length) && t[common] == f[common]) {
-      common++;
-    }
-    return [for (var i = common; i < f.length; i++) '..', ...t.skip(common)].join('/');
-  }
 }
 
 /// Everything a save writes.
@@ -246,16 +217,12 @@ class ProjectContents {
 
 /// The recording, as a save should store it.
 class ProjectMedia {
-  const ProjectMedia({required this.name, required this.storage, this.embedFrom, this.originalPath});
+  const ProjectMedia({required this.name, required this.embedFrom});
 
   final String name;
-  final MediaStorage storage;
 
-  /// The file whose bytes are embedded (the playable copy; for embed only).
-  final String? embedFrom;
-
-  /// The recording's own file on disk, if there is one: what a link points to.
-  final String? originalPath;
+  /// The file whose bytes are embedded (the playable copy).
+  final String embedFrom;
 }
 
 /// What [ProjectFile.read] found.
@@ -269,15 +236,12 @@ class OpenedProject {
 }
 
 class ProjectMediaLocation {
-  const ProjectMediaLocation({required this.name, this.path, this.originalPath, this.missingPath});
+  const ProjectMediaLocation({required this.name, this.path, this.missingPath});
 
   final String name;
 
   /// A file that can be played: the unpacked copy, or the linked original. Null when missing.
   final String? path;
-
-  /// The recording's own file, when it still exists.
-  final String? originalPath;
 
   /// Where a linked recording was expected, when it could not be found.
   final String? missingPath;

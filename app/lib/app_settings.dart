@@ -7,14 +7,12 @@ import 'package:score_engine/score_engine.dart'
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
-import 'project_file.dart';
 import 'video_export.dart';
 
 /// Preferences that apply to every project (Settings…, ⌘,).
 class AppSettings extends ChangeNotifier {
   AppSettings._(this._prefs)
       : _autosave = Duration(seconds: _prefs?.getInt(_autosaveKey) ?? defaultAutosave.inSeconds),
-        _media = MediaStorage.values.asNameMap()[_prefs?.getString(_mediaKey)] ?? MediaStorage.embed,
         _undoSteps = _prefs?.getInt(_undoKey) ?? defaultUndoSteps,
         _themeMode = ThemeMode.values.asNameMap()[_prefs?.getString(_themeKey)] ?? ThemeMode.system,
         _customAccent = _readColor(_prefs, _customAccentKey),
@@ -68,7 +66,7 @@ class AppSettings extends ChangeNotifier {
 
   final SharedPreferences? _prefs;
 
-  static const _autosaveKey = 'autosaveSeconds', _mediaKey = 'mediaStorage', _undoKey = 'undoSteps';
+  static const _autosaveKey = 'autosaveSeconds', _undoKey = 'undoSteps';
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
   static const _uiStyleKey = 'uiStyle', _customAccentKey = 'customAccent', _textSizeKey = 'textSize';
   static const _densityKey = 'density', _reduceMotionKey = 'reduceMotion';
@@ -133,17 +131,6 @@ class AppSettings extends ChangeNotifier {
     if (value == _undoSteps) return;
     _undoSteps = value;
     _prefs?.setInt(_undoKey, value);
-    notifyListeners();
-  }
-
-  /// Whether saves embed the recording's audio or link to the recording, in a project that
-  /// hasn't chosen (Project Settings ▸ Project Info ▸ Save as default).
-  MediaStorage get mediaStorage => _media;
-  MediaStorage _media;
-  set mediaStorage(MediaStorage value) {
-    if (value == _media) return;
-    _media = value;
-    _prefs?.setString(_mediaKey, value.name);
     notifyListeners();
   }
 

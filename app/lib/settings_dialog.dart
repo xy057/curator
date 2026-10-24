@@ -23,7 +23,6 @@ import 'file_names.dart';
 import 'font_settings.dart';
 import 'menu_kit.dart';
 import 'motion_settings.dart';
-import 'project_file.dart';
 import 'project_state.dart' show NameGroupInfo;
 import 'edit_dialogs.dart' show showNameGroupDialog;
 import 'sections_editor.dart';
@@ -275,37 +274,20 @@ final _projectCategories = <_Category>[
     _Item(
       'Recording',
       (c) => c.controller!.track?.name ?? 'None.',
-      (c) => Builder(
-        builder: (context) => OutlinedButton(
-          onPressed: c.controller!.isLoadingAudio ? null : () => pickAudio(context, c.controller!),
-          child: Text(c.controller!.track == null ? 'Add…' : 'Replace…'),
-        ),
-      ),
-      keywords: 'add recording audio file video sound',
+      (c) => Builder(builder: (context) {
+        final controller = c.controller!, busy = controller.isLoadingAudio;
+        return Row(mainAxisSize: MainAxisSize.min, spacing: 8, children: [
+          if (controller.track != null)
+            OutlinedButton(onPressed: busy ? null : controller.removeAudio, child: const Text('Remove')),
+          OutlinedButton(
+            onPressed: busy ? null : () => pickAudio(context, controller),
+            child: Text(controller.track == null ? 'Add…' : 'Replace…'),
+          ),
+        ]);
+      }),
+      keywords: 'add remove delete recording audio file video sound',
     ),
-    _Item(
-      'Save the recording',
-      (c) => switch (_mediaStorage(c)) {
-        MediaStorage.embed => 'In the project file.',
-        MediaStorage.link => 'Linked; keep it nearby.',
-      },
-      (c) => Builder(builder: (context) => AppSegmented<MediaStorage>(
-        segments: [
-          ButtonSegment(value: MediaStorage.embed, label: Text('Embed'), icon: Icon(AppIcon.embed.of(context), size: 16)),
-          ButtonSegment(value: MediaStorage.link, label: Text('Link'), icon: Icon(AppIcon.link.of(context), size: 16)),
-        ],
-        selected: _mediaStorage(c),
-        onChanged: c.controller!.setMediaStorage,
-      )),
-      shown: (c) => c.controller!.track != null,
-      keywords: 'embed link media audio video file save',
-    ),
-  ], saveDefault: (
-    shown: (c) => c.controller!.track != null,
-    isDefault: (c) => _mediaStorage(c) == c.settings.mediaStorage,
-    save: (c) => c.settings.mediaStorage = _mediaStorage(c),
-    reset: (c) => c.controller!.setMediaStorage(c.settings.mediaStorage),
-  )),
+  ]),
   _Category('Animation', AppIcon.transition, [
     _Item(
       'Staff transition',
@@ -427,9 +409,6 @@ _Category _advancedCategory() {
 
 /// Whether the project's flags are the app's default (Save as default).
 bool _flagsAreDefault(_Context c) => c.controller!.textDynamics == c.settings.textDynamics;
-
-/// How the project's saves keep the recording.
-MediaStorage _mediaStorage(_Context c) => c.controller!.mediaStorage ?? c.settings.mediaStorage;
 
 /// Whether the project's animation is the app's default (Save as default).
 bool _animationIsDefault(_Context c) =>
