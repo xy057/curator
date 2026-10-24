@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.5.4+75
+version: 0.5.4+76
 
 environment:
   sdk: ^3.13.4
@@ -18,7 +18,7 @@ dependencies:
   shared_preferences: ^2.5.6 # Settings and Open Recent
   flutter_svg: ^2.3.0
   vector_graphics_compiler: ^1.1.0 # what an SVG with no size of its own draws (Attach Image)
-  pasteboard: ^0.5.0
+  pasteboard: ^0.6.0
 
 dev_dependencies:
   flutter_test:
