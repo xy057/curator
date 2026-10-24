@@ -131,5 +131,6 @@ void main() {
     await tester.tap(find.text('Animation').first);
     await settle();
     expect(find.byTooltip('Hide Preview'), findsNothing, reason: 'not an engraving page');
+    expect(find.text('Bar numbers'), findsOneWidget, reason: 'the drawn row of bar numbers: Animation, not Engraving');
   });
 }

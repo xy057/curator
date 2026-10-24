@@ -306,6 +306,12 @@ final _projectCategories = <_Category>[
       (c) => _ScrollFollowSlider(controller: c.controller!),
       keywords: 'scroll speed smooth snap note beat follow onset glide motion pointer',
     ),
+    _Item(
+      'Bar numbers',
+      null,
+      (c) => AppSwitch(value: c.controller!.barNumbers, onChanged: c.controller!.setBarNumbers),
+      keywords: 'bar measure numbers numbering count tempo row',
+    ),
   ], saveDefault: (
     shown: null,
     isDefault: _animationIsDefault,
@@ -613,13 +619,6 @@ _Category _engravingCategory() {
           group: s.group,
           keywords: 'engrave engraving ${s.group} ${s.keywords} ${s.key}',
         ),
-      _Item(
-        'Bar numbers',
-        null,
-        (c) => AppSwitch(value: c.controller!.barNumbers, onChanged: c.controller!.setBarNumbers),
-        group: 'Notation',
-        keywords: 'bar measure numbers numbering count',
-      ),
     ],
   );
 }
