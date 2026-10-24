@@ -8,7 +8,9 @@ import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/engraving_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/motion_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -74,6 +76,29 @@ void main() {
     expect(c.projectEngraving.valueOf(EngraveOption.byKey('leftMarginNote')!), greaterThan(1));
     expect(find.byTooltip('Reset'), findsOneWidget);
 
+    // Its number typed over: set on Return, kept in range; Escape puts it back.
+    final margin = EngraveOption.byKey('leftMarginNote')!;
+    final field = find.descendant(of: find.byType(SliderValueField), matching: find.byType(TextField));
+    Future<void> type(String text, {bool escape = false}) async {
+      await tester.enterText(field, text);
+      if (escape) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      } else {
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+      }
+      await tester.pump();
+      await engraved();
+    }
+
+    await type('1.25');
+    expect(c.projectEngraving.valueOf(margin), 1.25);
+    expect(find.descendant(of: field, matching: find.text('1.25')), findsOneWidget);
+    await type('999');
+    expect(c.projectEngraving.valueOf(margin), margin.max);
+    await type('1', escape: true);
+    expect(c.projectEngraving.valueOf(margin), margin.max);
+    expect(find.text('Notes · Space before'), findsOneWidget, reason: 'Escape leaves the field, not the window');
+
     // A choice is a menu, by name.
     await tester.enterText(find.widgetWithText(TextField, 'Search'), 'multiRestStyle');
     await settle();
@@ -93,6 +118,11 @@ void main() {
       expect(preview, findsNothing, reason: page);
       expect(find.byTooltip('Show Preview'), findsOneWidget, reason: page);
     }
+    // A percent typed as one.
+    await tester.enterText(field.first, '150');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle();
+    expect(find.descendant(of: field.first, matching: find.text('150%')), findsOneWidget);
     await screenshot(tester, 'typography-no-preview', inside: find.byTooltip('Show Preview'), outermost: true, pixelRatio: 1);
     await tester.tap(find.byTooltip('Show Preview'));
     await settle();

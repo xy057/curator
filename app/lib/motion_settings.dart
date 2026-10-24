@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart' show MotionCurve, ScoreMotion;
 
 import 'app_colors.dart';
@@ -90,7 +91,7 @@ class MotionControl extends StatelessWidget {
     } else {
       final range = ScoreMotion.ranges[s.key]!;
       control = SettingSlider(
-          value: value as double, min: range.min, max: range.max, step: s.step!, format: s.format, onChanged: (v) => target.set(s.key, v));
+          value: value as double, min: range.min, max: range.max, step: s.step!, format: s.format, scale: s.percent ? 100 : 1, onChanged: (v) => target.set(s.key, v));
     }
     return Row(mainAxisSize: MainAxisSize.min, children: [
       control,
@@ -99,7 +100,8 @@ class MotionControl extends StatelessWidget {
   }
 }
 
-/// A setting's slider and its value as text: set when let go (one Undo step), snapped to [step].
+/// A setting's slider and its value, typed or dragged: set when let go or typed (one Undo step),
+/// a drag snapped to [step]. [scale] is the shown number per unit of value (100 for a percent).
 class SettingSlider extends StatefulWidget {
   const SettingSlider(
       {super.key,
@@ -108,8 +110,9 @@ class SettingSlider extends StatefulWidget {
       required this.max,
       required this.step,
       required this.format,
+      this.scale = 1,
       required this.onChanged});
-  final double value, min, max, step;
+  final double value, min, max, step, scale;
   final String Function(double) format;
   final ValueChanged<double> onChanged;
 
@@ -126,11 +129,10 @@ class _SettingSliderState extends State<SettingSlider> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final shown = _dragging ?? widget.value;
     return Row(mainAxisSize: MainAxisSize.min, children: [
       SizedBox(
-        width: 160,
+        width: 152,
         child: OverlaySemantics(
           child: Slider(
             value: shown.clamp(widget.min, widget.max),
@@ -145,13 +147,115 @@ class _SettingSliderState extends State<SettingSlider> {
           ),
         ),
       ),
-      SizedBox(
-        width: 56,
-        child: Text(widget.format(shown),
-            textAlign: TextAlign.right,
-            style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
-      ),
+      SliderValueField(
+          value: shown, min: widget.min, max: widget.max, scale: widget.scale, format: widget.format, onChanged: widget.onChanged),
     ]);
+  }
+}
+
+/// A slider's value as text, typed over to set it: the bare number while typing ("25" for 25%),
+/// set on Return or clicking away and kept to [min]–[max]; Escape, or no number, puts it back.
+class SliderValueField extends StatefulWidget {
+  const SliderValueField(
+      {super.key,
+      required this.value,
+      required this.min,
+      required this.max,
+      required this.format,
+      this.scale = 1,
+      this.width = 64,
+      required this.onChanged});
+  final double value, min, max, scale, width;
+  final String Function(double) format;
+  final ValueChanged<double> onChanged;
+
+  @override
+  State<SliderValueField> createState() => _SliderValueFieldState();
+}
+
+class _SliderValueFieldState extends State<SliderValueField> {
+  late final _text = TextEditingController(text: widget.format(widget.value));
+  final _focus = FocusNode();
+
+  /// Focus just came by a click, whose caret would undo the selection made then.
+  bool _clicked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_focusChanged);
+  }
+
+  @override
+  void didUpdateWidget(SliderValueField old) {
+    super.didUpdateWidget(old);
+    if (!_focus.hasFocus) _text.text = widget.format(widget.value);
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    _text.dispose();
+    super.dispose();
+  }
+
+  String get _bare => formatOptionValue(widget.value * widget.scale);
+
+  void _focusChanged() {
+    if (_focus.hasFocus) {
+      _text.value = TextEditingValue(text: _bare, selection: TextSelection(baseOffset: 0, extentOffset: _bare.length));
+      _clicked = true;
+      return;
+    }
+    final typed = RegExp(r'-?\d*\.?\d+').firstMatch(_text.text.replaceAll(',', '.'))?.group(0);
+    final number = typed == null ? null : double.tryParse(typed);
+    if (number != null && typed != _bare) {
+      final value = double.parse((number / widget.scale).clamp(widget.min, widget.max).toStringAsFixed(6));
+      if (value != widget.value) widget.onChanged(value);
+    }
+    _text.text = widget.format(widget.value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final focused = fieldBorders(context, radius: 4).focused;
+    const none = OutlineInputBorder(borderSide: BorderSide.none, borderRadius: BorderRadius.all(Radius.circular(4)));
+    return SizedBox(
+      width: widget.width,
+      height: 26,
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            _text.text = _bare;
+            _focus.unfocus();
+          },
+        },
+        child: TextField(
+          controller: _text,
+          focusNode: _focus,
+          textAlign: TextAlign.right,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+          style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: Colors.transparent,
+            hoverColor: colors.line.withValues(alpha: 0.5),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            border: none,
+            enabledBorder: none,
+            focusedBorder: focused,
+          ),
+          onTap: () {
+            if (_clicked) _text.selection = TextSelection(baseOffset: 0, extentOffset: _text.text.length);
+            _clicked = false;
+          },
+          onEditingComplete: _focus.unfocus,
+          onTapOutside: (_) => _focus.unfocus(),
+        ),
+      ),
+    );
   }
 }
 

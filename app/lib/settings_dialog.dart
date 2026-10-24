@@ -1476,6 +1476,14 @@ class _ScrollFollowSlider extends StatelessWidget {
         ),
       ),
       Text('Notes', style: label),
+      SliderValueField(
+          value: controller.scrollFollow,
+          min: 0,
+          max: 1,
+          scale: 100,
+          width: 52,
+          format: (v) => '${(v * 100).round()}%',
+          onChanged: controller.setScrollFollow),
     ]);
   }
 }

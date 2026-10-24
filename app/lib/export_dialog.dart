@@ -20,6 +20,7 @@ import 'file_names.dart';
 import 'lanes_common.dart';
 import 'media_converter.dart';
 import 'menu_kit.dart';
+import 'motion_settings.dart' show SliderValueField;
 import 'ui_kit.dart';
 import 'video_export.dart';
 
@@ -444,24 +445,39 @@ class _ExportDialogState extends State<_ExportDialog> {
       _Row(
         label: 'Score size',
         // The project's score size (the toolbar's slider): the video frames it like the editor.
-        child: OverlaySemantics(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(overlayShape: const RoundSliderOverlayShape(overlayRadius: 14)),
-            child: Slider(
-              value: c.staffSpace,
-              min: EditorController.minStaffSpace,
-              max: EditorController.maxStaffSpace,
-              divisions: 14,
-              label: c.staffSpace.toStringAsFixed(1),
-              onChanged: (v) => setState(() {
-                c.setStaffSpace(v, dragging: true);
-                _export.staffSpace = c.staffSpace;
-              }),
-              // Rebuilt then too: the warning below catches up as the slide ends.
-              onChangeEnd: (v) => setState(() => c.setStaffSpace(v)),
+        child: Row(children: [
+          Expanded(
+            child: OverlaySemantics(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(overlayShape: const RoundSliderOverlayShape(overlayRadius: 14)),
+                child: Slider(
+                  value: c.staffSpace,
+                  min: EditorController.minStaffSpace,
+                  max: EditorController.maxStaffSpace,
+                  divisions: 14,
+                  label: c.staffSpace.toStringAsFixed(1),
+                  onChanged: (v) => setState(() {
+                    c.setStaffSpace(v, dragging: true);
+                    _export.staffSpace = c.staffSpace;
+                  }),
+                  // Rebuilt then too: the warning below catches up as the slide ends.
+                  onChangeEnd: (v) => setState(() => c.setStaffSpace(v)),
+                ),
+              ),
             ),
           ),
-        ),
+          SliderValueField(
+            value: c.staffSpace,
+            min: EditorController.minStaffSpace,
+            max: EditorController.maxStaffSpace,
+            width: 44,
+            format: (v) => v.toStringAsFixed(1),
+            onChanged: (v) => setState(() {
+              c.setStaffSpace(v);
+              _export.staffSpace = c.staffSpace;
+            }),
+          ),
+        ]),
       ),
       if (_overflow case final bars?) ...[
         const SizedBox(height: 12),

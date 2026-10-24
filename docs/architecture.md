@@ -50,7 +50,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and File ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
-| `motion_settings.dart` | Project Settings ▸ Advanced: the motion's rows (`MotionSetting.all`), a slider or a curve each, and the Custom Curve dialog; `SettingSlider`, a setting's slider set when let go |
+| `motion_settings.dart` | Project Settings ▸ Advanced: the motion's rows (`MotionSetting.all`), a slider or a curve each, and the Custom Curve dialog; `SettingSlider`, a setting's slider set when let go, its number typed over in a `SliderValueField` (also Scroll follow's and Export's Score size) |
 | `typography_settings.dart` | Project Settings ▸ Typography: a row per property of each kind of text (`TypographySetting.all`), a slider or a style each |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |

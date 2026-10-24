@@ -6,6 +6,7 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/media_converter.dart';
+import 'package:curated_score/motion_settings.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/gestures.dart';
@@ -88,16 +89,18 @@ void main() {
         (VideoCodec.prores, VideoResolution.qhd1440, 60, VideoPaper.dark));
     expect(find.textContaining('16:9 · 2560 × 1440 · 60 fps'), findsOneWidget);
 
-    // Any frame rate, typed: Custom… turns the select into a field.
+    // Any frame rate, typed: Custom… turns the select into a field (not a slider's number).
+    Finder typedField() => find.byElementPredicate((e) =>
+        e.widget is TextField && e.findAncestorWidgetOfExactType<Dialog>() != null && e.findAncestorWidgetOfExactType<SliderValueField>() == null).last;
     await choose('60', 'Custom…');
-    final rate = find.descendant(of: find.byType(Dialog), matching: find.byType(TextField)).last;
+    final rate = typedField();
     await tester.enterText(rate, '23.976');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     expect(settings.videoFps, 24000 / 1001);
     expect(find.textContaining('23.976 fps'), findsOneWidget);
     await choose('23.976', 'Custom…');
-    await tester.enterText(find.descendant(of: find.byType(Dialog), matching: find.byType(TextField)).last, '500');
+    await tester.enterText(typedField(), '500');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     expect(settings.videoFps, 24000 / 1001, reason: 'out of range: kept as it was');
@@ -184,11 +187,12 @@ void main() {
     await tester.pump();
     expect(c.staffSpace, lessThan(before));
 
-    // Notation off the frame (the largest score): a warning, and Export waits for its
-    // box; the smallest score in a tall frame clears it.
+    // Notation off the frame (the largest score, typed: kept in range): a warning, and Export
+    // waits for its box; the smallest score in a tall frame clears it.
     bool canExport() => tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Export…')).onPressed != null;
     final ffmpeg = MediaConverter.findFfmpeg() != null;
-    await tester.drag(find.byType(Slider).last, const Offset(600, 0));
+    await tester.enterText(find.descendant(of: find.byType(SliderValueField), matching: find.byType(TextField)), '99');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
     expect(c.staffSpace, EditorController.maxStaffSpace);
     expect(find.text('Notation runs off the frame'), findsOneWidget);
