@@ -24,15 +24,16 @@ import 'ui_kit.dart';
 
 const _fieldWidth = 230.0;
 
-/// As compact as the other settings' controls (a 32-point field, 13-point text).
+/// As compact as the other settings' controls (a 32-point field, 13-point text), its text and
+/// arrow where a [SettingsDropdown]'s are (the field sets its text 3 points further in).
 InputDecorationTheme _compact(BuildContext context) {
   final border = OutlineInputBorder(
       borderRadius: AppStyle.of(context).radius(8), borderSide: BorderSide(color: context.colors.line));
   return InputDecorationTheme(
     isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    contentPadding: const EdgeInsets.fromLTRB(7, 8, 10, 8),
     constraints: const BoxConstraints.tightFor(height: 32),
-    suffixIconConstraints: const BoxConstraints.tightFor(width: 32, height: 32),
+    suffixIconConstraints: const BoxConstraints.tightFor(width: 26, height: 32),
     border: border,
     enabledBorder: border,
   );
