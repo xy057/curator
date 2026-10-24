@@ -226,7 +226,7 @@ String get verovioVersion => vb_version().toDartString();
 abstract final class Engraver {
   /// Engraves MusicXML into one endless system. Runs on a background isolate.
   /// [resourceDirectory] must contain Verovio's font metrics (`Bravura.xml`, `text/`…).
-  /// [verovioOptions] go to Verovio as they are (the typography's symbol sizes).
+  /// [verovioOptions] go to Verovio as they are (the typography's: `ScoreTypography.verovioOptions`).
   static Future<EngravingData> engrave(
     String musicXML, {
     required String resourceDirectory,

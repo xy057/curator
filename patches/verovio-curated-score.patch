@@ -12,7 +12,7 @@ index 221244d..0647ae4 100644
      Mensur m_currentMensur;
      /** The meter signature (time signature) */
 diff --git a/include/vrv/options.h b/include/vrv/options.h
-index 50b0a70..daf5293 100644
+index 50b0a70..d6d6571 100644
 --- a/include/vrv/options.h
 +++ b/include/vrv/options.h
 @@ -259,6 +259,13 @@ private:
@@ -29,7 +29,7 @@ index 50b0a70..daf5293 100644
  //----------------------------------------------------------------------------
  // OptionInt
  //----------------------------------------------------------------------------
-@@ -711,6 +718,28 @@ public:
+@@ -711,6 +718,32 @@ public:
      OptionJson m_engravingDefaultsFile;
      OptionDbl m_extenderLineMinSpace;
      OptionDbl m_fingeringScale;
@@ -55,10 +55,14 @@ index 50b0a70..daf5293 100644
 +    OptionDbl m_curatedTremScale; // [curated-score patch]
 +    OptionDbl m_curatedArpegScale; // [curated-score patch]
 +    OptionDbl m_curatedMRptScale; // [curated-score patch]
++    OptionInt m_curatedFingFace; // [curated-score patch]
++    OptionDbl m_curatedFingTracking; // [curated-score patch]
++    OptionInt m_curatedHarmFace; // [curated-score patch]
++    OptionDbl m_curatedHarmTracking; // [curated-score patch]
      OptionString m_font;
      OptionArray m_fontAddCustom;
      OptionIntMap m_fontFallback;
-@@ -906,6 +935,13 @@ private:
+@@ -906,6 +939,13 @@ private:
      std::vector<OptionGrp *> m_grps;
  };
  
@@ -342,10 +346,10 @@ index f20540d..297169b 100644
                      Text *text = new Text();
                      text->SetText(UTF8to32(textStr));
 diff --git a/src/options.cpp b/src/options.cpp
-index 7e3ec3c..a11c572 100644
+index 7e3ec3c..3142c34 100644
 --- a/src/options.cpp
 +++ b/src/options.cpp
-@@ -1303,6 +1303,94 @@ Options::Options()
+@@ -1303,6 +1303,110 @@ Options::Options()
      m_fingeringScale.Init(0.75, 0.25, 1);
      this->Register(&m_fingeringScale, "fingeringScale", &m_generalLayout);
  
@@ -437,11 +441,27 @@ index 7e3ec3c..a11c572 100644
 +    m_curatedMRptScale.Init(1.0, 0.5, 2.5);
 +    this->Register(&m_curatedMRptScale, "curatedMRptScale", &m_generalLayout);
 +
++    m_curatedFingFace.SetInfo("Fingering face", "[curated-score patch] The face of fingering: 0 as written, 1 regular, 2 italic, 3 bold, 4 bold italic");
++    m_curatedFingFace.Init(0, 0, 4);
++    this->Register(&m_curatedFingFace, "curatedFingFace", &m_generalLayout);
++
++    m_curatedFingTracking.SetInfo("Fingering letter spacing", "[curated-score patch] The letter spacing of fingering, ems");
++    m_curatedFingTracking.Init(0.0, -0.1, 0.5);
++    this->Register(&m_curatedFingTracking, "curatedFingTracking", &m_generalLayout);
++
++    m_curatedHarmFace.SetInfo("Chord symbols face", "[curated-score patch] The face of chord symbols: 0 as written, 1 regular, 2 italic, 3 bold, 4 bold italic");
++    m_curatedHarmFace.Init(0, 0, 4);
++    this->Register(&m_curatedHarmFace, "curatedHarmFace", &m_generalLayout);
++
++    m_curatedHarmTracking.SetInfo("Chord symbols letter spacing", "[curated-score patch] The letter spacing of chord symbols, ems");
++    m_curatedHarmTracking.Init(0.0, -0.1, 0.5);
++    this->Register(&m_curatedHarmTracking, "curatedHarmTracking", &m_generalLayout);
++
      m_font.SetInfo("Font", "Set the music font");
      m_font.Init("Leipzig");
      this->Register(&m_font, "font", &m_generalLayout);
 diff --git a/src/view_control.cpp b/src/view_control.cpp
-index 436fca5..35b9611 100644
+index 436fca5..004c809 100644
 --- a/src/view_control.cpp
 +++ b/src/view_control.cpp
 @@ -863,21 +863,22 @@ void View::DrawOctave(
@@ -628,7 +648,25 @@ index 436fca5..35b9611 100644
          int x = drawingX;
          int y = fermata->GetDrawingY();
  
-@@ -2128,7 +2153,8 @@ void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *sys
+@@ -2092,6 +2117,17 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
+     dc->EndGraphic(fermata, this);
+ }
+ 
++// [curated-score patch] A text's face (0 as written, 1 regular, 2 italic, 3 bold, 4 bold italic) and
++// letter spacing (ems) from the app's typography.
++static void CuratedLook(FontInfo &font, int face, double tracking)
++{
++    if (face > 0) {
++        font.SetStyle(((face == 2) || (face == 4)) ? FONTSTYLE_italic : FONTSTYLE_normal);
++        font.SetWeight((face >= 3) ? FONTWEIGHT_bold : FONTWEIGHT_normal);
++    }
++    if (tracking != 0.0) font.SetLetterSpacing(tracking * font.GetPointSize());
++}
++
+ void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *system)
+ {
+     assert(dc);
+@@ -2128,9 +2164,12 @@ void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *sys
          params.m_x = x;
          params.m_y = y;
          params.m_staffSize = staffSize;
@@ -637,8 +675,12 @@ index 436fca5..35b9611 100644
 +            m_doc->GetFingeringFont(staffSize)->GetPointSize() * m_doc->GetOptions()->m_curatedFingScale.GetValue() + 0.5);
  
          fingTxt.SetPointSize(params.m_pointSize);
++        CuratedLook(fingTxt, m_doc->GetOptions()->m_curatedFingFace.GetValue(), // [curated-score patch]
++            m_doc->GetOptions()->m_curatedFingTracking.GetValue());
  
-@@ -2334,7 +2360,8 @@ void View::DrawHarm(DeviceContext *dc, Harm *harm, Measure *measure, System *sys
+         dc->SetFont(&fingTxt);
+ 
+@@ -2334,9 +2373,12 @@ void View::DrawHarm(DeviceContext *dc, Harm *harm, Measure *measure, System *sys
              this->DrawFb(dc, staff, dynamic_cast<Fb *>(harm->GetFirst()), params);
          }
          else {
@@ -647,8 +689,12 @@ index 436fca5..35b9611 100644
 +                m_doc->GetDrawingLyricFont(staffSize)->GetPointSize() * m_doc->GetOptions()->m_curatedHarmScale.GetValue() + 0.5);
  
              harmTxt.SetPointSize(params.m_pointSize);
++            CuratedLook(harmTxt, m_doc->GetOptions()->m_curatedHarmFace.GetValue(), // [curated-score patch]
++                m_doc->GetOptions()->m_curatedHarmTracking.GetValue());
  
-@@ -2387,7 +2414,7 @@ void View::DrawMordent(DeviceContext *dc, Mordent *mordent, Measure *measure, Sy
+             dc->SetFont(&harmTxt);
+ 
+@@ -2387,7 +2429,7 @@ void View::DrawMordent(DeviceContext *dc, Mordent *mordent, Measure *measure, Sy
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), mordent, mordent->GetStart(), staff)) {
              continue;
          }
@@ -657,7 +703,7 @@ index 436fca5..35b9611 100644
          int x = drawingX;
          int y = mordent->GetDrawingY();
  
-@@ -2556,8 +2583,8 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
+@@ -2556,8 +2598,8 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
          if (bounceStar && (pedal->GetDir() == pedalLog_DIR_bounce)) {
              str.push_back(code);
              // Get the staff size of the first staff
@@ -668,7 +714,7 @@ index 436fca5..35b9611 100644
              drawingX -= m_doc->GetGlyphWidth(SMUFL_E655_keyboardPedalUp, staffSize, false);
          }
          if (pedal->GetDir() != pedalLog_DIR_up) {
-@@ -2569,7 +2596,7 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
+@@ -2569,7 +2611,7 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
              if (!system->SetCurrentFloatingPositioner(staff->GetN(), pedal, pedal->GetStart(), staff)) {
                  continue;
              }
@@ -677,7 +723,7 @@ index 436fca5..35b9611 100644
              int x = drawingX;
              int y = pedal->GetDrawingY();
  
-@@ -2715,7 +2742,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
+@@ -2715,7 +2757,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), repeatMark, repeatMark->GetStart(), staff)) {
              continue;
          }
@@ -686,7 +732,7 @@ index 436fca5..35b9611 100644
          int x = drawingX;
          int y = repeatMark->GetDrawingY();
  
-@@ -2845,7 +2872,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
+@@ -2845,7 +2887,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), trill, trill->GetStart(), staff)) {
              continue;
          }
@@ -695,7 +741,7 @@ index 436fca5..35b9611 100644
          int x = drawingX;
          int y = trill->GetDrawingY();
  
-@@ -2953,7 +2980,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
+@@ -2953,7 +2995,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), turn, turn->GetStart(), staff)) {
              continue;
          }

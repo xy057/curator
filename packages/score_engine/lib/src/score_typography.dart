@@ -37,10 +37,12 @@ enum TextKind {
   expressions('Expressions', TextLook(face: TextFace.asWritten), engraved: true),
   rehearsal('Rehearsal marks', TextLook(face: TextFace.asWritten), engraved: true),
   lyrics('Lyrics', TextLook(face: TextFace.asWritten), engraved: true),
+  fingering.optioned('Fingering', 'Fing'),
+  chordSymbols.optioned('Chord symbols', 'Harm'),
   clefs.symbol('Clefs', 'curatedClefScale'),
   keySignatures.symbol('Key signatures', 'curatedKeySigScale'),
   timeSignatures.symbol('Time signatures', 'curatedMeterSigScale'),
-  noteheads.symbol('Noteheads', 'curatedNoteheadScale'),
+  noteheads.symbol('Noteheads', 'curatedNoteheadScale', maxSize: 1),
   flags.symbol('Flags', 'curatedFlagScale'),
   dots.symbol('Dots', 'curatedDotScale'),
   rests.symbol('Rests', 'curatedRestScale'),
@@ -53,17 +55,28 @@ enum TextKind {
   tremolos.symbol('Tremolos', 'curatedTremScale'),
   arpeggios.symbol('Arpeggios', 'curatedArpegScale'),
   tupletNumbers.symbol('Tuplet numbers', 'curatedTupletNumScale'),
-  fingering.symbol('Fingering', 'curatedFingScale'),
-  chordSymbols.symbol('Chord symbols', 'curatedHarmScale'),
   pedal.symbol('Pedal marks', 'curatedPedalScale'),
   octave.symbol('Octave marks', 'curatedOctaveScale'),
   barRepeats.symbol('Bar repeats', 'curatedMRptScale'),
   segnoCoda.symbol('Segno and coda', 'curatedRepeatMarkScale');
 
-  const TextKind(this.label, this.house, {this.engraved = false}) : verovioScale = null;
-  const TextKind.symbol(this.label, String this.verovioScale)
+  const TextKind(this.label, this.house, {this.engraved = false})
+      : verovioScale = null,
+        _verovio = null,
+        maxSize = 2.5;
+  const TextKind.symbol(this.label, String this.verovioScale, {this.maxSize = 2.5})
       : house = const TextLook(face: TextFace.asWritten),
-        engraved = true;
+        engraved = true,
+        _verovio = null;
+
+  /// Text Verovio sets by options of its own ([verovioOptions]) rather than the MusicXML:
+  /// `curated<name>Scale`, `…Face` and `…Tracking`.
+  const TextKind.optioned(this.label, String name)
+      : house = const TextLook(face: TextFace.asWritten),
+        engraved = true,
+        verovioScale = 'curated${name}Scale',
+        _verovio = name,
+        maxSize = 2.5;
 
   /// [captions]' house look, for a default value.
   static const captionsHouse = TextLook(tracking: 0.01);
@@ -76,10 +89,15 @@ enum TextKind {
   /// engraving is all one ink).
   final bool engraved;
 
-  /// For a music-font symbol, the patched Verovio's option scaling its size (and nothing else:
-  /// the font has one face, and its symbols are set glyph by glyph).
+  /// The patched Verovio's option scaling its size: a music-font symbol's (and nothing else of
+  /// it: the font has one face, and its symbols are set glyph by glyph), or an [optioned] text's.
   final String? verovioScale;
-  bool get isSymbol => verovioScale != null;
+  final String? _verovio;
+  bool get isSymbol => verovioScale != null && _verovio == null;
+
+  /// The largest its size goes: a notehead's no bigger than its staff space (bigger, a chord's
+  /// thirds would run into each other).
+  final double maxSize;
 }
 
 /// How one kind of text looks: its [size] as a share of the house size (the names' 13 points,
@@ -107,11 +125,11 @@ class TextLook {
 
   /// Reads [toJson]'s map over [house]: a key left out is the house's. Throws a
   /// [FormatException] naming the key that is wrong.
-  factory TextLook.fromJson(Map<String, Object?> json, TextLook house) {
+  factory TextLook.fromJson(Map<String, Object?> json, TextLook house, {double maxSize = 2.5}) {
     double number(String key, double fallback) {
       final v = json[key];
       if (v == null) return fallback;
-      final range = ranges[key]!;
+      final range = key == 'size' ? (min: ranges[key]!.min, max: maxSize) : ranges[key]!;
       if (v is! num || !v.isFinite || v < range.min || v > range.max) {
         throw FormatException('$key is not between ${range.min} and ${range.max}.');
       }
@@ -169,7 +187,7 @@ class ScoreTypography {
   ScoreTypography withValue(String key, Object value) {
     final (kind, property) = _split(key);
     final json = {...this[kind].toJson(), property: value is TextFace ? value.name : value};
-    return withLook(kind, TextLook.fromJson(json, kind.house));
+    return withLook(kind, TextLook.fromJson(json, kind.house, maxSize: kind.maxSize));
   }
 
   static (TextKind, String) _split(String key) {
@@ -192,7 +210,7 @@ class ScoreTypography {
       if (v == null) continue;
       if (v is! Map) throw FormatException('${kind.name} is not a text look.');
       try {
-        typography = typography.withLook(kind, TextLook.fromJson(v.cast<String, Object?>(), kind.house));
+        typography = typography.withLook(kind, TextLook.fromJson(v.cast<String, Object?>(), kind.house, maxSize: kind.maxSize));
       } on FormatException catch (e) {
         throw FormatException('${kind.name}.${e.message}');
       }
@@ -204,10 +222,16 @@ class ScoreTypography {
   bool engravesLike(ScoreTypography other) =>
       TextKind.values.every((k) => !k.engraved || this[k] == other[k]);
 
-  /// The patched Verovio's options for the symbols' sizes, those changed only.
-  Map<String, double> get verovioOptions => {
+  /// The patched Verovio's options for the symbols' sizes and the [TextKind.optioned] texts' looks,
+  /// those changed only.
+  Map<String, num> get verovioOptions => {
         for (final kind in TextKind.values)
-          if (kind.isSymbol && this[kind].size != 1) kind.verovioScale!: this[kind].size,
+          if (kind.verovioScale != null) ...{
+            if (this[kind].size != 1) kind.verovioScale!: this[kind].size,
+            if (kind._verovio != null && this[kind].face != TextFace.asWritten)
+              'curated${kind._verovio}Face': this[kind].face.index,
+            if (kind._verovio != null && this[kind].tracking != 0) 'curated${kind._verovio}Tracking': this[kind].tracking,
+          },
       };
 
   /// Writes the engraved kinds' looks into [doc] for Verovio (after the text edits and dynamics
@@ -216,7 +240,7 @@ class ScoreTypography {
   /// (`curated-score-size`, a percent of the text's size; `curated-score-tracking`, in MEI's
   /// virtual units). [textSize] is the engraving's text size, virtual units (`lyricSize`).
   void applyTo(XmlDocument doc, {required double textSize}) {
-    if (TextKind.values.every((k) => !k.engraved || k.isSymbol || this[k] == k.house)) return;
+    if (TextKind.values.every((k) => !k.engraved || k.verovioScale != null || this[k] == k.house)) return;
     void set(XmlElement e, TextKind kind) {
       final look = this[kind];
       if (look.face != TextFace.asWritten) {

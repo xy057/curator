@@ -103,7 +103,12 @@ class TypographyControl extends StatelessWidget {
     } else {
       final range = TextLook.ranges[s.property]!;
       control = SettingSlider(
-          value: value as double, min: range.min, max: range.max, step: s.step, format: s.format, onChanged: (v) => target.set(s.key, v));
+          value: value as double,
+          min: range.min,
+          max: s.property == 'size' ? s.kind.maxSize : range.max,
+          step: s.step,
+          format: s.format,
+          onChanged: (v) => target.set(s.key, v));
     }
     return Row(mainAxisSize: MainAxisSize.min, children: [
       control,

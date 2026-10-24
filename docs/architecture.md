@@ -180,7 +180,7 @@ an opacity. The fonts themselves stay on the Engraving page. Two sorts of text, 
   noteheads, flags, rests (and a multi-bar rest's number), accidentals, articulations, dynamics,
   ornaments, fermatas, breath marks and caesuras, tremolos (and their number), arpeggios, tuplet numbers,
   pedal and octave marks, bar repeats (and their count), segno and coda; with augmentation dots (drawn
-  as circles), fingering and chord symbols (the text font's, a chord's accidentals the music font's).
+  as circles).
   Stems, beams, ledger lines and staff lines are lines, set by the Engraving page's thicknesses. `TextKind.isSymbol`, the page's Music
   symbols group: a size alone, the font having one face and its glyphs set one by one.
   `ScoreTypography.verovioOptions` passes each changed size as the patched Verovio's own option
@@ -188,7 +188,12 @@ an opacity. The fonts themselves stay on the Engraving page. Two sorts of text, 
   (`CuratedSize`; fingering's and chord symbols' point size), so the layout follows: Verovio lays out by
   the boxes drawing makes. Noteheads are sized in `Doc`'s glyph metrics too (`CuratedGlyphSize`), so
   stems, dots, ledger lines and accidentals keep to them; their lines and spaces stay the staff's, so
-much bigger noteheads crowd a chord's thirds. Two placements the patch adds so big ones keep
+a notehead goes no bigger than its staff space (`TextKind.maxSize`, 100%): bigger, a chord's thirds
+  run into each other and heads rise into what is set above the staff.
+- **Fingering and chord symbols** are text Verovio builds itself (`TextKind.optioned`): size, face and
+  letter spacing go as the patched Verovio's options (`curatedFingScale` / `…Face` / `…Tracking`, the
+  same for `Harm`), applied to the text's font in `DrawFing` / `DrawHarm`; a chord's accidentals, in
+  the music font, follow its size. Two placements the patch adds so big ones keep
   clear: an accidental moves left of its note's articulations, and a caesura sits midway between the
   notes or rests either side. The frozen zone draws its clef, key and time signature at the same sizes
   (`FrozenZone(typography:)`, its columns widening with them).

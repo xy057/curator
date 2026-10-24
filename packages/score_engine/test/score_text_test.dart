@@ -54,7 +54,7 @@ String symbolsScore() {
       '<time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>'
       '${direction('<segno/>')}${direction('<pedal type="start" line="no"/>')}'
       '${direction('<octave-shift type="down" size="8"/>')}${direction('<dynamics><mf/></dynamics>')}'
-      '<harmony><root><root-step>C</root-step></root><kind>major</kind></harmony>'
+      '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>major</kind></harmony>'
       '${note('C', 6, alter: 1, notations: '<articulations><accent/></articulations><technical><fingering>4</fingering></technical>')}'
       '${note('D', 6, notations: '<ornaments><trill-mark/></ornaments>')}'
       '${note('E', 6, notations: '<fermata type="upright"/>')}'
@@ -129,7 +129,7 @@ void main() {
       'clefs': ((0xE050, 0xE07F), 1.3),
       'keySignatures': ((0xE260, 0xE260), 1.45),
       'timeSignatures': ((0xE080, 0xE089), 2.1),
-      'noteheads': ((0xE0A4, 0xE0A4), 1.15),
+      'noteheads': ((0xE0A4, 0xE0A4), 0.85),
       'flags': ((0xE240, 0xE24F), 1.55),
       'dots': ('dot', 1.75),
       'rests': ((0xE4E5, 0xE4E5), 1.35),
@@ -142,14 +142,13 @@ void main() {
       'tremolos': ((0xE220, 0xE22F), 2.3),
       'arpeggios': ((0xEAA9, 0xEAA9), 1.65),
       'tupletNumbers': ((0xE883, 0xE883), 1.25),
-      'fingering': ('4', 1.4),
-      'chordSymbols': ('C', 1.3),
       'pedal': ((0xE650, 0xE65F), 1.9),
       'octave': ((0xE510, 0xE51F), 0.6),
       'barRepeats': ((0xE500, 0xE50F), 1.2),
       'segnoCoda': ((0xE047, 0xE048), 2.2),
     };
     expect(symbols.keys, [for (final k in TextKind.values) if (k.isSymbol) k.name]);
+    expect(() => ScoreTypography.standard.withValue('noteheads.size', 1.1), throwsFormatException);
     final plain = await LoadedScore.load(symbolsScore());
     double sizeOf(LoadedScore s, Object what) => switch (what) {
           (int, int) range => glyphOf(s, range.$1, range.$2).size,
@@ -162,10 +161,27 @@ void main() {
       for (final MapEntry(:key, value: (_, scale)) in symbols.entries) {
         sized = sized.withValue('$key.size', small ? 0.6 : scale);
       }
+      // Fingering and chord symbols, text set by options of their own: size, face, letter spacing.
+      sized = sized
+          .withValue('fingering.size', small ? 0.6 : 1.4)
+          .withValue('fingering.face', TextFace.bold)
+          .withValue('fingering.tracking', 0.1)
+          .withValue('chordSymbols.size', small ? 0.6 : 1.3)
+          .withValue('chordSymbols.face', TextFace.italic)
+          .withValue('chordSymbols.tracking', 0.05);
       final big = await plain.withEdits(typography: sized);
       for (final MapEntry(:key, value: (what, scale)) in symbols.entries) {
         final was = sizeOf(plain, what);
         expect(sizeOf(big, what), closeTo(was * (small ? 0.6 : scale), was * 0.03), reason: '$key${small ? ' small' : ''}');
+      }
+      for (final (words, scale, flag) in [
+        ('4', small ? 0.6 : 1.4, VBFlag.bold),
+        ('C', small ? 0.6 : 1.3, VBFlag.italic),
+        (String.fromCharCode(0xEA66), small ? 0.6 : 1.3, 0), // the chord's sharp, in the music font
+      ]) {
+        final was = runOf(plain, words), now = runOf(big, words);
+        expect(now.size, closeTo(was.size * scale, was.size * 0.03), reason: words);
+        if (flag != 0) expect((now.flags & flag, now.spacing > 0), (flag, true), reason: words);
       }
       // They keep clear: a sharp moves aside from its note's accent, a caesura sits between its
       // note and the rest after; the frozen zone's clef, key and time are as big.
