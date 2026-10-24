@@ -18,7 +18,7 @@ dependencies:
   shared_preferences: ^2.5.6 # Settings and Open Recent
   flutter_svg: ^2.3.0
   vector_graphics_compiler: ^1.1.0 # what an SVG with no size of its own draws (Attach Image)
-  pasteboard: ^0.5.0
+  pasteboard: ^0.6.0
 
 dev_dependencies:
   flutter_test:
