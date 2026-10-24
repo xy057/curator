@@ -435,9 +435,10 @@ off that time is, so the move is gentle and still a function of time). Drawn in 
 overlay, so the names and frozen zone cover them as they cover the music.
 While it is on, the tempo marks (`ScoreTextKind.tempo`, a pair's copy with them) are set apart from the
 music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and
-the plan with them) and the one the playhead last passed is drawn as engraved at the frame's left
-in that row, on the numbers' baseline, made smaller only to fit the names' width; one gives way to
-the next over two staff spaces of scroll. The off-frame check doesn't count either.
+the plan with them) and the one the playhead last passed is written at the frame's left in that
+row, on the numbers' baseline: its words as edited (no metronome mark), plain, in the text font at
+the names' size, cut short with an ellipsis past their width; one gives way to the next over two
+staff spaces of scroll. The off-frame check doesn't count either.
 
 **Opening is all or nothing.** A project is read and validated (`ProjectState.fromJson`),
 then engraved, and only then swapped in, in one synchronous step. If anything before the swap

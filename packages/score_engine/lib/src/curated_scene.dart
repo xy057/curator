@@ -853,8 +853,8 @@ class CuratedScene {
   }
 
   /// The tempo mark the playhead last passed, at the frame's left in the bar numbers' row, on
-  /// their baseline, as engraved (made smaller to fit the names' width). One gives way to the
-  /// next over a couple of staff spaces.
+  /// their baseline: its words (as edited) in the text font, plain, at the names' size, cut
+  /// short to fit their width. One gives way to the next over a couple of staff spaces.
   void _paintTempo(ui.Canvas canvas, ui.Size size, double scrollX, ui.Color ink, double shift) {
     final marks = display.apart;
     if (marks.isEmpty) return;
@@ -869,21 +869,35 @@ class CuratedScene {
     for (var i = 0; i < marks.length; i++) {
       final opacity = arrived(i) * (i + 1 < marks.length ? 1 - arrived(i + 1) : 1);
       if (opacity <= 0.001) continue;
-      final b = marks[i].bounds;
-      final k = renderer.scale * math.min(1.0, (_style.headerWidth - 16) / (b.width * renderer.scale));
+      final text = _tempoText(marks[i].id);
+      if (text == null) continue;
       canvas
         ..saveLayer(
             null,
             ui.Paint()
               ..color = ui.Color.fromRGBO(0, 0, 0, opacity)
               ..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn))
-        ..translate(8 - b.left * k, baseline - marks[i].baseline * k)
-        ..scale(k);
-      for (final item in marks[i].items) {
-        item.paint(canvas);
-      }
-      canvas.restore();
+        ..drawParagraph(text, ui.Offset(8, baseline - text.alphabeticBaseline))
+        ..restore();
     }
+  }
+
+  late final _tempoTexts = {
+    for (final text in score.texts)
+      if (text.kind == ScoreTextKind.tempo) text.id: score.currentText(text),
+  };
+  final _tempoParagraphs = <String, ui.Paragraph>{};
+
+  ui.Paragraph? _tempoText(String id) {
+    final words = _tempoTexts[id];
+    if (words == null || words.isEmpty) return null;
+    return _tempoParagraphs.putIfAbsent(words, () {
+      final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
+          fontFamily: _style.textFontFamily, fontSize: _style.labelFontSize, maxLines: 1, ellipsis: '…'))
+        ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
+        ..addText(words);
+      return builder.build()..layout(ui.ParagraphConstraints(width: _style.headerWidth - 16));
+    });
   }
 
   // MARK: Images
@@ -1057,5 +1071,8 @@ class CuratedScene {
     _frozen?.dispose();
     _captionBar.dispose();
     _disposeBarNumbers();
+    for (final p in _tempoParagraphs.values) {
+      p.dispose();
+    }
   }
 }
