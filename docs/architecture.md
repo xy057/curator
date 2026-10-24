@@ -176,11 +176,14 @@ an opacity. The fonts themselves stay on the Engraving page. Two sorts of text, 
   lays the text out with them, so the music makes room; tempo and expression are told apart as Verovio
   tells them (a metronome mark or `<sound tempo>`). A file's own `font-size` (points) is still ignored.
   The letter spacing reaches the drawing through `VBCommand.letterSpacing`.
-- **Music symbols** set in the music font (dynamics, tuplet numbers, ornaments, fermatas, pedal and
-  octave marks, segno and coda; `TextKind.isSymbol`, the page's Music symbols group) have a size alone:
-  the font has one face, and its glyphs are set one by one. `ScoreTypography.verovioOptions` passes
+- **Music symbols** set in the music font (dynamics, articulations, accidentals, ornaments, fermatas,
+  breath marks and caesuras, tuplet numbers, pedal and octave marks, segno and coda), with fingering
+  and chord symbols (the text font's, a chord's accidentals the music font's); `TextKind.isSymbol`, the
+  page's Music symbols group: a size alone, the font having one face and its glyphs set one by one.
+  Clefs, key and time signatures, notes and rests are the music itself, sized by the staff. `ScoreTypography.verovioOptions` passes
   each changed size as the patched Verovio's own option (`curatedDynamScale`…, `TextKind.verovioScale`),
-  which scales the staff size its draw functions use (`CuratedSize`), so the layout follows too.
+  which scales the staff size its draw functions use (`CuratedSize`; fingering's and chord symbols' point
+size), so the layout follows too: Verovio lays out by the boxes drawing makes.
 
 **The metronome clicks the beats as they sound** (C, or the toolbar's button by Play; an aid
 for aligning the tempo, `Playback.metronome`: neither saved, an edit, nor in a video). Each frame

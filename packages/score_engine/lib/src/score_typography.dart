@@ -26,7 +26,8 @@ enum TextFace {
 /// The kinds of text in the score, each set on its own (Project Settings ▸ Typography). The
 /// first four are drawn by the scene and change nothing but the drawing; the rest Verovio
 /// engraves, so changing them engraves again, and the music makes room for them. The last are
-/// music-font (SMuFL) symbols: only their size is theirs.
+/// the music font's (SMuFL) symbols, with fingering and chord symbols (the text font's, their
+/// accidentals the music font's): only their size is theirs.
 enum TextKind {
   names('Names', TextLook()),
   barNumbers('Bar numbers', TextLook(face: TextFace.italic, opacity: 0.5)),
@@ -37,9 +38,14 @@ enum TextKind {
   rehearsal('Rehearsal marks', TextLook(face: TextFace.asWritten), engraved: true),
   lyrics('Lyrics', TextLook(face: TextFace.asWritten), engraved: true),
   dynamics.symbol('Dynamics', 'curatedDynamScale'),
-  tupletNumbers.symbol('Tuplet numbers', 'curatedTupletNumScale'),
+  articulations.symbol('Articulations', 'curatedArticScale'),
+  accidentals.symbol('Accidentals', 'curatedAccidScale'),
   ornaments.symbol('Ornaments', 'curatedOrnamentScale'),
   fermatas.symbol('Fermatas', 'curatedFermataScale'),
+  breathMarks.symbol('Breath marks', 'curatedBreathScale'),
+  tupletNumbers.symbol('Tuplet numbers', 'curatedTupletNumScale'),
+  fingering.symbol('Fingering', 'curatedFingScale'),
+  chordSymbols.symbol('Chord symbols', 'curatedHarmScale'),
   pedal.symbol('Pedal marks', 'curatedPedalScale'),
   octave.symbol('Octave marks', 'curatedOctaveScale'),
   segnoCoda.symbol('Segno and coda', 'curatedRepeatMarkScale');
