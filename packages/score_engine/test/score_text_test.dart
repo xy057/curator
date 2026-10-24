@@ -202,9 +202,11 @@ void main() {
         if (flag != 0) expect((now.flags & flag, now.spacing > 0), (flag, true), reason: words);
       }
       // They keep clear: a sharp moves aside from its note's accent, a caesura sits between its
-      // note and the rest after; the frozen zone's clef, key and time are as big.
+      // note and the rest after, a fermata above the trill's wavy line; the frozen zone's clef,
+      // key and time are as big.
       expect(glyphOf(big, 0xE262, 0xE262).box.overlaps(glyphOf(big, 0xE4A0, 0xE4A1).box), isFalse);
       expect(glyphOf(big, 0xE4D1, 0xE4D1).box.overlaps(glyphOf(big, 0xE4E5, 0xE4E5).box), isFalse);
+      expect(glyphOf(big, 0xE4C0, 0xE4C0).box.bottom, lessThan(glyphOf(big, 0xE59D, 0xE59D).box.top));
       final zone = FrozenZone(big.engraving, const RenderStyle(), typography: sized).maxWidth;
       final house = FrozenZone(plain.engraving, const RenderStyle()).maxWidth;
       expect(zone, small ? lessThan(house * 0.8) : greaterThan(house * 1.3));
