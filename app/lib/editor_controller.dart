@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui' show Size;
+import 'dart:ui' show Color, Size;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -402,7 +402,8 @@ class EditorController extends ChangeNotifier {
   }
 
   /// What the scene shows besides the score, the time, the curation and the sync: the names,
-  /// condensing, order, scroll, sections, bar numbers, and the extensions' images and captions (none while off).
+  /// condensing, order, scroll, sections, bar numbers, the names' colours, and the extensions'
+  /// images and captions (none while off).
   SceneSettings get sceneSettings => SceneSettings(
       names: _doc.partNames,
       condensed: _doc.condensed,
@@ -413,7 +414,8 @@ class EditorController extends ChangeNotifier {
       captionStyle: captions._style,
       sections: _doc.groupSections,
       sectionOverrides: {..._doc.sections, ...?_previewSections},
-      barNumbers: _doc.barNumbers);
+      barNumbers: _doc.barNumbers,
+      nameColors: _doc.colorNames ? {for (final f in defaultNameColors.keys) f: nameColor(f)} : const {});
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
@@ -497,6 +499,38 @@ class EditorController extends ChangeNotifier {
   void setBarNumbers(bool on) {
     if (on == _doc.barNumbers) return;
     _doc = _doc.copyWith(barNumbers: on);
+    _showSettings();
+    _edited();
+  }
+
+  /// Whether the instruments are named in their family's colour (Project Settings ▸
+  /// Instruments; see [CuratedScene.nameColors]).
+  bool get colorNames => _doc.colorNames;
+
+  /// Colours the names by family, or puts them back in the ink: one Undo step.
+  void setColorNames(bool on) {
+    if (on == _doc.colorNames) return;
+    _doc = _doc.copyWith(colorNames: on);
+    _showSettings();
+    _edited();
+  }
+
+  /// The colour [family]'s instruments are named in: the user's, else [defaultNameColors]'.
+  Color nameColor(InstrumentFamily family) => _doc.nameColors[family] ?? defaultNameColors[family]!;
+
+  /// Whether the user gave [family]'s names a colour of their own.
+  bool ownNameColor(InstrumentFamily family) => _doc.nameColors.containsKey(family);
+
+  /// Gives [family]'s names [color]; null: the default's again. One Undo step.
+  void setNameColor(InstrumentFamily family, Color? color) {
+    final colors = {..._doc.nameColors};
+    if (color == null || color == defaultNameColors[family]) {
+      colors.remove(family);
+    } else {
+      colors[family] = color;
+    }
+    if (mapEquals(colors, _doc.nameColors)) return;
+    _doc = _doc.copyWith(nameColors: Map.unmodifiable(colors));
     _showSettings();
     _edited();
   }

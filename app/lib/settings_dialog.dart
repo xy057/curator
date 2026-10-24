@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show EngraveOption, verovioVersion;
+import 'package:score_engine/score_engine.dart' show EngraveOption, InstrumentFamily, verovioVersion;
 
 import 'app_colors.dart';
 import 'app_icons.dart';
@@ -23,6 +23,7 @@ import 'file_names.dart';
 import 'font_settings.dart';
 import 'menu_kit.dart';
 import 'project_file.dart';
+import 'project_state.dart' show defaultNameColors;
 import 'sections_editor.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
@@ -325,6 +326,23 @@ final _projectCategories = <_Category>[
       ..scrollFollow = c.controller!.scrollFollow,
   )),
   _engravingCategory(),
+  _Category('Instruments', AppIcon.score, [
+    _Item(
+      'Color names',
+      null,
+      (c) => AppSwitch(value: c.controller!.colorNames, onChanged: c.controller!.setColorNames),
+      keywords: 'color colour names labels instrument family section group woodwinds brass strings percussion',
+    ),
+    for (final family in defaultNameColors.keys)
+      _Item(
+        family.label,
+        null,
+        (c) => _NameColorPicker(controller: c.controller!, family: family),
+        group: 'Colors',
+        shown: (c) => c.controller!.colorNames,
+        keywords: 'color colour names labels instrument family section group',
+      ),
+  ]),
   _Category('Sections', AppIcon.lanes, page: (c) => _SectionsPage(c), [
     _Item(
       'Group sections',
@@ -1172,6 +1190,48 @@ class _AccentPicker extends StatelessWidget {
               )
             : BoxDecoration(color: swatch(own), shape: shape),
         pick,
+      ),
+    ]);
+  }
+}
+
+/// The colour [family]'s names take: a swatch asking for another, and Reset once it is the user's.
+class _NameColorPicker extends StatelessWidget {
+  const _NameColorPicker({required this.controller, required this.family});
+  final EditorController controller;
+  final InstrumentFamily family;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AppStyle.of(context);
+    final color = controller.nameColor(family);
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (controller.ownNameColor(family))
+        IconButton(
+          icon: Icon(AppIcon.reset.of(context), size: 15),
+          tooltip: 'Reset',
+          visualDensity: VisualDensity.compact,
+          color: context.colors.textMuted,
+          onPressed: () => controller.setNameColor(family, null),
+        ),
+      const SizedBox(width: 6),
+      GestureDetector(
+        onTap: () async {
+          final chosen = await showColorDialog(context, initial: color, title: family.label);
+          if (chosen != null) controller.setNameColor(family, chosen);
+        },
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: color,
+              shape: style.rounded ? BoxShape.circle : BoxShape.rectangle,
+              border: Border.all(color: context.colors.text.withValues(alpha: 0.15)),
+            ),
+          ),
+        ),
       ),
     ]);
   }

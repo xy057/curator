@@ -250,6 +250,7 @@ class SceneSettings {
     this.sections = false,
     this.sectionOverrides = const {},
     this.barNumbers = false,
+    this.nameColors = const {},
   });
 
   /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
@@ -263,6 +264,7 @@ class SceneSettings {
   final bool sections;
   final Map<String, String?> sectionOverrides;
   final bool barNumbers;
+  final Map<InstrumentFamily, ui.Color> nameColors;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -356,7 +358,8 @@ class CuratedScene {
   Map<String, ({String name, String abbreviation})> names = const {};
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
-  /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [barNumbers]);
+  /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [barNumbers],
+  /// [nameColors]);
   /// setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
@@ -368,7 +371,8 @@ class CuratedScene {
       captionStyle: captionStyle,
       sections: sections,
       sectionOverrides: sectionOverrides,
-      barNumbers: barNumbers);
+      barNumbers: barNumbers,
+      nameColors: nameColors);
   set settings(SceneSettings value) {
     names = value.names;
     condensed = value.condensed;
@@ -380,7 +384,12 @@ class CuratedScene {
     sections = value.sections;
     sectionOverrides = value.sectionOverrides;
     barNumbers = value.barNumbers;
+    nameColors = value.nameColors;
   }
+
+  /// The colour each family's instruments are named in ([ScorePart.family]: a pair its first
+  /// player's); a family left out, and every one while empty, is named in the ink.
+  Map<InstrumentFamily, ui.Color> nameColors = const {};
 
   /// Whether the instruments are grouped in sections as a printed score groups them: each
   /// section ([sectionOf]: the woodwinds, the brass… or a group of the user's) bracketed, its
@@ -1061,7 +1070,8 @@ class CuratedScene {
             shortText: CondensedGroup.nameFor(name(a, short: true), name(b, short: true)),
             centerY: tops[i] + display.staves[staffIndex].info.height * renderer.scale / 2,
             opacity: opacity,
-            partId: group.id));
+            partId: group.id,
+            color: nameColors[parts[a]!.family]));
         continue;
       }
       final part = parts[partId]!;
@@ -1075,7 +1085,8 @@ class CuratedScene {
             shortText: named?.abbreviation ?? part.abbreviation,
             centerY: (tops[i] + bottom) / 2,
             opacity: opacity,
-            partId: part.id));
+            partId: part.id,
+            color: nameColors[part.family]));
         if (staves.length > 1) {
           braces.add(StaffBrace(staves: [
             for (var j = i; j <= last; j++)
