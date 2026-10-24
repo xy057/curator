@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show EngraveOption, TextKind, verovioVersion;
+import 'package:score_engine/score_engine.dart' show TextKind, verovioVersion;
 
 import 'app_colors.dart';
 import 'app_icons.dart';
@@ -15,7 +15,6 @@ import 'audio_panel.dart' show pickAudio;
 import 'condensing_editor.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
-import 'engrave_options_dialog.dart';
 import 'engraving_settings.dart';
 import 'extensions/extension.dart';
 import 'export_dialog.dart' show revealInFileManager;
@@ -116,13 +115,14 @@ class _Item {
 }
 
 class _Category {
-  const _Category(this.label, this.icon, this.items, {this.empty, this.page, this.header, this.saveDefault});
+  const _Category(this.label, this.icon, this.items, {this.empty, this.page, this.preview = false, this.saveDefault});
   final String label;
   final AppIcon icon;
   final List<_Item> items;
 
-  /// Above the page's rows, staying put while they scroll; null for none.
-  final Widget? Function(_Context)? header;
+  /// The score as engraved above the page's rows, staying put while they scroll: an engraving
+  /// page's, while [AppSettings.engravingPreview] (Hide Preview, by the page's title).
+  final bool preview;
 
   /// A page of its own in place of the rows of [items], which then only answer the search.
   final Widget Function(_Context)? page;
@@ -318,6 +318,7 @@ final _projectCategories = <_Category>[
   )),
   _engravingCategory(),
   _typographyCategory(),
+  _advancedEngravingCategory(),
   _Category('Instruments', AppIcon.score, page: (c) => _InstrumentsPage(c), [
     _Item(
       'Color names',
@@ -416,8 +417,7 @@ _Category _typographyCategory() {
   return _Category(
     'Typography',
     AppIcon.fonts,
-    header: (c) => SizedBox(
-        height: 170, child: EngravingPreviewHost(settings: c.settings, controller: c.controller, scale: 0.5)),
+    preview: true,
     saveDefault: (
       shown: null,
       isDefault: (c) => target(c).isDefault,
@@ -437,6 +437,33 @@ _Category _typographyCategory() {
             _ => null,
           },
           keywords: 'font text type typography engraving ${s.kind.label} ${s.kind.isSymbol ? 'music symbol smufl glyph ' : ''}${s.keywords}',
+        ),
+    ],
+  );
+}
+
+/// Project Settings ▸ Advanced Engraving: every other engraving option ([EngravingSetting.advanced]),
+/// by plain name as on Engraving, under the same preview; Save as default is Engraving's too.
+_Category _advancedEngravingCategory() {
+  EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller!);
+  return _Category(
+    'Advanced Engraving',
+    AppIcon.general,
+    preview: true,
+    saveDefault: (
+      shown: null,
+      isDefault: (c) => target(c).isDefault,
+      save: (c) => target(c).saveAsDefault(),
+      reset: (c) => target(c).resetToDefault(),
+    ),
+    [
+      for (final s in EngravingSetting.advanced)
+        _Item(
+          s.title,
+          null,
+          (c) => EngravingControl(target: target(c), setting: s),
+          group: s.group,
+          keywords: 'engrave engraving advanced verovio ${s.group} ${s.keywords} ${s.key}',
         ),
     ],
   );
@@ -542,16 +569,15 @@ class _SectionsPage extends StatelessWidget {
   }
 }
 
-/// Project Settings ▸ Engraving: the fonts, the options most scores want changed
-/// ([EngravingSetting.all]) under a preview of the score, every other one in Engraving options
-/// by code name, and Save as default (the app's, for other projects).
+/// Project Settings ▸ Engraving: the fonts and the options most scores want changed
+/// ([EngravingSetting.all]) under a preview of the score, every other one on Advanced Engraving,
+/// and Save as default (the app's, for other projects).
 _Category _engravingCategory() {
   EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller!);
   return _Category(
     'Engraving',
     AppIcon.music,
-    header: (c) => SizedBox(
-        height: 170, child: EngravingPreviewHost(settings: c.settings, controller: c.controller, scale: 0.5)),
+    preview: true,
     saveDefault: (
       shown: null,
       isDefault: (c) => target(c).isDefault,
@@ -594,51 +620,8 @@ _Category _engravingCategory() {
         group: 'Notation',
         keywords: 'bar measure numbers numbering count',
       ),
-      _Item(
-        'Engraving options',
-        (c) => switch (EngraveOption.all.where(target(c).isChanged).length) {
-          0 => 'None changed.',
-          1 => '1 changed.',
-          final n => '$n changed.',
-        },
-        (c) => _EngraveOptionButton(c),
-        group: 'All options',
-        keywords: 'engrave engraving verovio advanced expert options code spacing slur tie beam stem '
-            'thickness margin bar number lyric',
-      ),
     ],
   );
-}
-
-/// Opens the project's engraving options, after the warning.
-class _EngraveOptionButton extends StatelessWidget {
-  const _EngraveOptionButton(this.c);
-  final _Context c;
-
-  @override
-  Widget build(BuildContext context) => OutlinedButton(
-        onPressed: () async {
-          if (!await _confirmEngraving(context) || !context.mounted) return;
-          unawaited(showEngraveOptionsDialog(context, c.settings, c.controller!));
-        },
-        child: const Text('Open…'),
-      );
-}
-
-/// Asked each time before the engraving options open: their values go straight to Verovio.
-Future<bool> _confirmEngraving(BuildContext context) async {
-  final go = await showAppDialog<bool>(
-    context: context,
-    builder: (context) => AppDialog(
-      title: const Text('Advanced Engraving'),
-      content: const Text('Some values can break the layout or stop engraving.'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continue')),
-      ],
-    ),
-  );
-  return go ?? false;
 }
 
 Widget _launchSwitch(_Context c) =>
@@ -875,10 +858,12 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         groups.last.$2.add(_row(item));
       }
       page = _Page(key: ValueKey(_page), empty: cat.empty, groups: groups);
-      if (cat.header?.call(_ctx) case final header?) {
+      if (cat.preview && widget.settings.engravingPreview) {
         final colors = context.colors;
         page = Column(key: ValueKey(_page), crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          header,
+          SizedBox(
+              height: 170,
+              child: EngravingPreviewHost(settings: widget.settings, controller: widget.controller, scale: 0.5)),
           Divider(height: 1, color: colors.line),
           Expanded(child: page),
         ]);
@@ -918,6 +903,18 @@ class _SettingsWindowState extends State<_SettingsWindow> {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text),
             ),
           ),
+          if (matches == null && cat.preview)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: IconButton(
+                tooltip: widget.settings.engravingPreview ? 'Hide Preview' : 'Show Preview',
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                color: colors.textMuted,
+                onPressed: () => widget.settings.engravingPreview = !widget.settings.engravingPreview,
+                icon: Icon((widget.settings.engravingPreview ? AppIcon.noImage : AppIcon.image).of(context)),
+              ),
+            ),
           if (matches == null && cat.saveDefault != null && (cat.saveDefault!.shown?.call(_ctx) ?? true))
             _SaveDefaultButton(
                 isDefault: cat.saveDefault!.isDefault(_ctx),

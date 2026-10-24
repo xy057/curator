@@ -6,19 +6,20 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
-import 'app_icons.dart';
 import 'app_settings.dart';
 import 'controller_settings.dart';
 import 'editor_controller.dart';
+import 'menu_kit.dart';
+import 'motion_settings.dart' show ResetSlot, SettingSlider;
 import 'project_document.dart' show sampleProjectAsset;
 import 'project_file.dart';
 import 'scratch_space.dart';
 import 'ui_kit.dart';
 
-/// The engraving options most scores want changed, by plain name: Project Settings ▸
-/// Engraving. Every other one is in Engraving options, by code name.
+/// An engraving option by plain name, under a heading: the ones most scores want changed on
+/// Project Settings ▸ Engraving ([all]), every other one on Advanced Engraving ([advanced]).
 class EngravingSetting {
-  const EngravingSetting(this.group, this.title, this.key, {this.step = 1, this.keywords = ''});
+  const EngravingSetting(this.group, this.title, this.key, {this.ownStep, this.labels = const {}, this.keywords = ''});
 
   /// The page's heading it is under.
   final String group;
@@ -27,28 +28,125 @@ class EngravingSetting {
   /// [EngraveOption.key].
   final String key;
 
-  /// A slider's step; integers always go by 1.
-  final double step;
+  /// The slider's step as given; null: [step] works it out.
+  final double? ownStep;
+
+  /// A choice's names, by value ([EngraveOption.choices]).
+  final Map<String, String> labels;
   final String keywords;
 
   EngraveOption get option => EngraveOption.byKey(key)!;
 
+  /// A slider's step: integers go by 1; a number by its own, or about a hundredth of its range.
+  double get step {
+    if (option.kind == EngraveOptionKind.integer) return 1;
+    if (ownStep case final step?) return step;
+    final span = option.max! - option.min!;
+    return span <= 1 ? 0.01 : (span <= 5 ? 0.05 : 0.1);
+  }
+
   static const all = [
-    EngravingSetting('Spacing', 'Note spacing', 'spacingLinear', step: 0.01, keywords: 'width wide narrow'),
-    EngravingSetting('Spacing', 'Spacing ratio', 'spacingNonLinear', step: 0.01, keywords: 'long short duration'),
+    EngravingSetting('Spacing', 'Note spacing', 'spacingLinear', ownStep: 0.01, keywords: 'width wide narrow'),
+    EngravingSetting('Spacing', 'Spacing ratio', 'spacingNonLinear', ownStep: 0.01, keywords: 'long short duration'),
     EngravingSetting('Spacing', 'Minimum bar width', 'measureMinWidth', keywords: 'measure'),
     EngravingSetting('Spacing', 'Even spacing', 'evenNoteSpacing', keywords: 'equal'),
-    EngravingSetting('Line thickness', 'Staff lines', 'engravingDefaults.staffLineThickness', step: 0.005,
+    EngravingSetting('Line thickness', 'Staff lines', 'engravingDefaults.staffLineThickness', ownStep: 0.005,
         keywords: 'weight'),
-    EngravingSetting('Line thickness', 'Stems', 'engravingDefaults.stemThickness', step: 0.005, keywords: 'weight'),
-    EngravingSetting('Line thickness', 'Ledger lines', 'engravingDefaults.legerLineThickness', step: 0.01,
+    EngravingSetting('Line thickness', 'Stems', 'engravingDefaults.stemThickness', ownStep: 0.005, keywords: 'weight'),
+    EngravingSetting('Line thickness', 'Ledger lines', 'engravingDefaults.legerLineThickness', ownStep: 0.01,
         keywords: 'leger weight'),
-    EngravingSetting('Line thickness', 'Barlines', 'engravingDefaults.thinBarlineThickness', step: 0.01,
+    EngravingSetting('Line thickness', 'Barlines', 'engravingDefaults.thinBarlineThickness', ownStep: 0.01,
         keywords: 'bar line weight'),
-    EngravingSetting('Notation', 'Slur curvature', 'slurCurveFactor', step: 0.05, keywords: 'curve'),
+    EngravingSetting('Notation', 'Slur curvature', 'slurCurveFactor', ownStep: 0.05, keywords: 'curve'),
     EngravingSetting('Notation', 'Maximum beam slope', 'beamMaxSlope', keywords: 'angle'),
-    EngravingSetting('Notation', 'Grace note size', 'graceFactor', step: 0.05, keywords: 'small'),
-    EngravingSetting('Notation', 'Lyric size', 'lyricSize', step: 0.1, keywords: 'text words'),
+    EngravingSetting('Notation', 'Grace note size', 'graceFactor', ownStep: 0.05, keywords: 'small'),
+    EngravingSetting('Notation', 'Lyric size', 'lyricSize', ownStep: 0.1, keywords: 'text words'),
+  ];
+
+  static const _thickness = 'Line thickness', _before = 'Space before', _after = 'Space after';
+  static const _above = 'Space above', _below = 'Space below';
+
+  /// Every option not in [all], in page order ([EngraveOption.all] has each once, here or there).
+  static const advanced = [
+    EngravingSetting('Notes and rests', 'Align grace notes', 'graceRhythmAlign', keywords: 'rhythm'),
+    EngravingSetting('Notes and rests', 'Ledger line length', 'engravingDefaults.legerLineExtension',
+        keywords: 'leger extension'),
+    EngravingSetting('Notes and rests', 'Multi-bar rests', 'multiRestStyle',
+        labels: {'auto': 'Automatic', 'default': 'H-bar', 'block': 'Block', 'symbols': 'Rest symbols'},
+        keywords: 'multirest measure style'),
+    EngravingSetting('Notes and rests', 'Bar number interval', 'mnumInterval', keywords: 'measure numbers every'),
+    EngravingSetting('Tuplets', 'Number by the noteheads', 'tupletNumHead', keywords: 'triplet side'),
+    EngravingSetting('Tuplets', 'Angled brackets on beams', 'tupletAngledOnBeams', keywords: 'triplet slope'),
+    EngravingSetting('Slurs and ties', 'Maximum slur slope', 'slurMaxSlope', keywords: 'angle'),
+    EngravingSetting('Slurs and ties', 'Slur symmetry', 'slurSymmetry', keywords: 'even'),
+    EngravingSetting('Slurs and ties', 'Slur clearance', 'slurMargin', keywords: 'margin distance'),
+    EngravingSetting('Slurs and ties', 'Minimum tie length', 'tieMinLength', keywords: 'short'),
+    EngravingSetting('Dynamics and lines', 'Dynamics distance', 'dynamDist', keywords: 'dynamic staff'),
+    EngravingSetting('Dynamics and lines', 'Dynamics as one glyph', 'dynamSingleGlyphs', keywords: 'dynamic smufl'),
+    EngravingSetting('Dynamics and lines', 'Hairpin opening', 'hairpinSize', keywords: 'crescendo diminuendo wedge'),
+    EngravingSetting('Dynamics and lines', 'Alternative octave marks', 'octaveAlternativeSymbols',
+        keywords: '8va 8vb ottava'),
+    EngravingSetting(_thickness, 'Thick barlines', 'engravingDefaults.thickBarlineThickness', keywords: 'bar line'),
+    EngravingSetting(_thickness, 'Slur ends', 'engravingDefaults.slurEndpointThickness', ownStep: 0.005),
+    EngravingSetting(_thickness, 'Slur middles', 'engravingDefaults.slurMidpointThickness'),
+    EngravingSetting(_thickness, 'Tie ends', 'engravingDefaults.tieEndpointThickness', ownStep: 0.005),
+    EngravingSetting(_thickness, 'Tie middles', 'engravingDefaults.tieMidpointThickness'),
+    EngravingSetting(_thickness, 'Brackets', 'engravingDefaults.bracketThickness', keywords: 'system'),
+    EngravingSetting(_thickness, 'Sub-brackets', 'engravingDefaults.subBracketThickness', keywords: 'system'),
+    EngravingSetting(_thickness, 'Hairpins', 'engravingDefaults.hairpinThickness', keywords: 'crescendo wedge'),
+    EngravingSetting(_thickness, 'Octave lines', 'engravingDefaults.octaveLineThickness', keywords: '8va ottava'),
+    EngravingSetting(_thickness, 'Pedal lines', 'engravingDefaults.pedalLineThickness'),
+    EngravingSetting(_thickness, 'Ending brackets', 'engravingDefaults.repeatEndingLineThickness',
+        keywords: 'volta repeat'),
+    EngravingSetting(_thickness, 'Lyric lines', 'engravingDefaults.lyricLineThickness', keywords: 'extender'),
+    EngravingSetting(_thickness, 'Tuplet brackets', 'engravingDefaults.tupletBracketThickness', keywords: 'triplet'),
+    EngravingSetting(_thickness, 'Text boxes', 'engravingDefaults.textEnclosureThickness', keywords: 'enclosure'),
+    EngravingSetting(_thickness, 'Multi-bar rests', 'engravingDefaults.hBarThickness', keywords: 'h-bar'),
+    EngravingSetting('Barlines', 'Double barline gap', 'engravingDefaults.barlineSeparation', keywords: 'separation'),
+    EngravingSetting('Barlines', 'Repeat dot gap', 'engravingDefaults.repeatBarlineDotSeparation'),
+    EngravingSetting('Barlines', 'Dash length', 'engravingDefaults.dashedBarlineDashLength', keywords: 'dashed'),
+    EngravingSetting('Barlines', 'Dash gap', 'engravingDefaults.dashedBarlineGapLength', keywords: 'dashed'),
+    EngravingSetting(_before, 'Anything', 'defaultLeftMargin', keywords: 'default margin left'),
+    EngravingSetting(_before, 'Accidentals', 'leftMarginAccid', keywords: 'margin left'),
+    EngravingSetting(_before, 'Barlines', 'leftMarginBarLine', keywords: 'margin left'),
+    EngravingSetting(_before, 'Opening barlines', 'leftMarginLeftBarLine', keywords: 'margin left'),
+    EngravingSetting(_before, 'Closing barlines', 'leftMarginRightBarLine', keywords: 'margin left'),
+    EngravingSetting(_before, 'Beat repeats', 'leftMarginBeatRpt', keywords: 'margin left'),
+    EngravingSetting(_before, 'Chords', 'leftMarginChord', keywords: 'margin left'),
+    EngravingSetting(_before, 'Clefs', 'leftMarginClef', keywords: 'margin left'),
+    EngravingSetting(_before, 'Key signatures', 'leftMarginKeySig', keywords: 'margin left'),
+    EngravingSetting(_before, 'Mensuration signs', 'leftMarginMensur', keywords: 'margin left'),
+    EngravingSetting(_before, 'Time signatures', 'leftMarginMeterSig', keywords: 'margin left meter'),
+    EngravingSetting(_before, 'Whole-bar rests', 'leftMarginMRest', keywords: 'margin left measure'),
+    EngravingSetting(_before, 'Multi-bar rests', 'leftMarginMultiRest', keywords: 'margin left'),
+    EngravingSetting(_before, 'Multi-bar repeats', 'leftMarginMultiRpt', keywords: 'margin left'),
+    EngravingSetting(_before, 'Notes', 'leftMarginNote', keywords: 'margin left'),
+    EngravingSetting(_before, 'Rests', 'leftMarginRest', keywords: 'margin left'),
+    EngravingSetting(_before, 'Tablature rhythms', 'leftMarginTabDurSym', keywords: 'margin left tab'),
+    EngravingSetting(_after, 'Anything', 'defaultRightMargin', keywords: 'default margin right'),
+    EngravingSetting(_after, 'Accidentals', 'rightMarginAccid', keywords: 'margin right'),
+    EngravingSetting(_after, 'Barlines', 'rightMarginBarLine', keywords: 'margin right'),
+    EngravingSetting(_after, 'Opening barlines', 'rightMarginLeftBarLine', keywords: 'margin right'),
+    EngravingSetting(_after, 'Closing barlines', 'rightMarginRightBarLine', keywords: 'margin right'),
+    EngravingSetting(_after, 'Beat repeats', 'rightMarginBeatRpt', keywords: 'margin right'),
+    EngravingSetting(_after, 'Chords', 'rightMarginChord', keywords: 'margin right'),
+    EngravingSetting(_after, 'Clefs', 'rightMarginClef', keywords: 'margin right'),
+    EngravingSetting(_after, 'Key signatures', 'rightMarginKeySig', keywords: 'margin right'),
+    EngravingSetting(_after, 'Mensuration signs', 'rightMarginMensur', keywords: 'margin right'),
+    EngravingSetting(_after, 'Time signatures', 'rightMarginMeterSig', keywords: 'margin right meter'),
+    EngravingSetting(_after, 'Whole-bar rests', 'rightMarginMRest', keywords: 'margin right measure'),
+    EngravingSetting(_after, 'Multi-bar rests', 'rightMarginMultiRest', keywords: 'margin right'),
+    EngravingSetting(_after, 'Multi-bar repeats', 'rightMarginMultiRpt', keywords: 'margin right'),
+    EngravingSetting(_after, 'Notes', 'rightMarginNote', keywords: 'margin right'),
+    EngravingSetting(_after, 'Rests', 'rightMarginRest', keywords: 'margin right'),
+    EngravingSetting(_after, 'Tablature rhythms', 'rightMarginTabDurSym', keywords: 'margin right tab'),
+    EngravingSetting(_above, 'Anything', 'defaultTopMargin', keywords: 'default margin top'),
+    EngravingSetting(_above, 'Articulations', 'topMarginArtic', keywords: 'margin top'),
+    EngravingSetting(_above, 'Chord symbols', 'topMarginHarm', keywords: 'margin top harmony'),
+    EngravingSetting(_below, 'Anything', 'defaultBottomMargin', keywords: 'default margin bottom'),
+    EngravingSetting(_below, 'Articulations', 'bottomMarginArtic', keywords: 'margin bottom'),
+    EngravingSetting(_below, 'Chord symbols', 'bottomMarginHarm', keywords: 'margin bottom harmony'),
+    EngravingSetting(_below, 'Octave marks', 'bottomMarginOctave', keywords: 'margin bottom 8va ottava'),
   ];
 }
 
@@ -138,83 +236,39 @@ class EngravingTarget {
   }
 }
 
-/// One option as a slider (with its value) or a switch, and a reset once changed.
-class EngravingControl extends StatefulWidget {
+/// One option as a slider (with its value), a switch or a menu, and a reset once changed: as
+/// every settings page's rows.
+class EngravingControl extends StatelessWidget {
   const EngravingControl({super.key, required this.target, required this.setting});
   final EngravingTarget target;
   final EngravingSetting setting;
 
   @override
-  State<EngravingControl> createState() => _EngravingControlState();
-}
-
-class _EngravingControlState extends State<EngravingControl> {
-  /// The value under the thumb while dragging: set (and engraved) only once let go.
-  num? _dragging;
-
-  EngraveOption get option => widget.setting.option;
-
-  num _snap(double v) {
-    if (option.kind == EngraveOptionKind.integer) return v.round();
-    final step = widget.setting.step;
-    return double.parse(((v / step).round() * step).toStringAsFixed(4));
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final target = widget.target;
+    final option = setting.option;
     final value = target.valueOf(option);
-    final changed = target.isChanged(option);
-    final Widget control;
-    if (option.kind == EngraveOptionKind.toggle) {
-      control = AppSwitch(value: value as bool, onChanged: (v) => target.set(option, v));
-    } else {
-      final min = option.min!.toDouble(), max = option.max!.toDouble();
-      final shown = _dragging ?? value as num;
-      final step = option.kind == EngraveOptionKind.integer ? 1.0 : widget.setting.step;
-      control = Row(mainAxisSize: MainAxisSize.min, children: [
-        SizedBox(
-          width: 160,
-          child: OverlaySemantics(
-            child: Slider(
-              value: shown.toDouble().clamp(min, max),
-              min: min,
-              max: max,
-              divisions: math.max(1, ((max - min) / step).round()),
-              onChanged: (v) => setState(() => _dragging = _snap(v)),
-              onChangeEnd: (v) {
-                target.set(option, _snap(v));
-                setState(() => _dragging = null);
-              },
-            ),
-          ),
+    final control = switch (option.kind) {
+      EngraveOptionKind.toggle => AppSwitch(value: value as bool, onChanged: (v) => target.set(option, v)),
+      EngraveOptionKind.choice => SettingsDropdown<String>(
+          value: value as String,
+          width: 132,
+          items: [
+            for (final c in option.choices) DropdownMenuItem(value: c, child: Text(setting.labels[c] ?? c)),
+          ],
+          onChanged: (v) => target.set(option, v),
         ),
-        SizedBox(
-          width: 40,
-          child: Text(
-            formatOptionValue(shown),
-            textAlign: TextAlign.right,
-            style: TextStyle(
-                fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()]),
-          ),
+      _ => SettingSlider(
+          value: (value as num).toDouble(),
+          min: option.min!.toDouble(),
+          max: option.max!.toDouble(),
+          step: setting.step,
+          format: (v) => formatOptionValue(option.kind == EngraveOptionKind.integer ? v.round() : v),
+          onChanged: (v) => target.set(option, v),
         ),
-      ]);
-    }
+    };
     return Row(mainAxisSize: MainAxisSize.min, children: [
       control,
-      SizedBox(
-        width: 32,
-        child: changed
-            ? IconButton(
-                icon: Icon(AppIcon.reset.of(context), size: 15),
-                tooltip: 'Reset',
-                visualDensity: VisualDensity.compact,
-                color: colors.textMuted,
-                onPressed: () => target.set(option, null),
-              )
-            : null,
-      ),
+      ResetSlot(changed: target.isChanged(option), color: context.colors.textMuted, onReset: () => target.set(option, null)),
     ]);
   }
 }

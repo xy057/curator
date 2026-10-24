@@ -10,7 +10,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `src/verovio_bridge.cpp` | A Verovio device context that records drawing calls (paths, glyphs, text) per staff, plus measures, onsets and clef/key/time signatures, behind a C API |
-| `engraving_options.dart` | The Verovio options the user may change (Project Settings ▸ Engraving: the common ones by plain name, every one in Engraving options by code name; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
+| `engraving_options.dart` | The Verovio options the user may change (Project Settings ▸ Engraving: the common ones by plain name, Advanced Engraving every other; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
 | `lib/src/native/bindings.dart`, `engraving.dart` | FFI bindings; `Engraver.engrave` runs Verovio on an isolate and copies everything into plain Dart data (`EngravingData`) |
 | `score_metadata.dart`, `score_text.dart` | What the MusicXML says: parts, staves, meters, where each part plays; the editable texts, with text edits applied before engraving |
 | `text_dynamics.dart` | Dynamics another program wrote as text (`TextDynamics`), made dynamics before engraving |
@@ -612,12 +612,17 @@ Their types, ranges and choices are checked against Verovio's own list
 (`Engraver.availableOptions`); an out-of-range value would be dropped by Verovio without a
 word. Changing them re-engraves the open score, as a text edit does.
 The Engraving page offers the options most scores want changed (`EngravingSetting.all`, in
-`engraving_settings.dart`: a plain name, a heading, a slider step) as sliders and switches under a
-half-size preview of the open score (with none, `EngravingPreviewHost` engraves the bundled demo in a
-controller of its own, with the app's options, for as long as the preview is shown); a slider sets its option only when let go, so a drag is one
-engraving and, in a project, one Undo step. Every option, by code name, stays behind its last row,
-Engraving options, after a warning. Both read and write through `EngravingTarget` (the
-project's, over the app's), which shows a line thickness left unset as the open score's font's own.
+`engraving_settings.dart`: a plain name, a heading, a slider step) and Advanced Engraving every
+other one (`EngravingSetting.advanced`; together they hold each option in `EngraveOption.all`
+once, which `engraving_pages_test` checks), all as `EngravingControl`s: sliders, switches and a menu
+with the other pages' `SettingSlider` and `ResetSlot`, found by plain or code name in the search.
+Both, and Typography, are `_Category(preview: true)`: a half-size preview of the open score above
+the rows (with none, `EngravingPreviewHost` engraves the bundled demo in a controller of its own,
+with the app's options, for as long as the preview is shown), hidden on all three at once by the
+button by the page's title (`AppSettings.engravingPreview`, app-wide, not an edit). A slider sets
+its option only when let go, so a drag is one engraving and, in a project, one Undo step. Every
+row reads and writes through `EngravingTarget` (the project's, over the app's), which shows a line
+thickness left unset as the open score's font's own.
 
 **Colours are chosen when drawing.** The engraving is recorded as ink only; the renderer
 tints tiles, names and the frozen zone with the ink colour as it composites them
@@ -738,8 +743,8 @@ footer uses `DialogButtons` too. Inside a field, typed and chosen text both star
 `AppDropdown` draws its border over itself; a menu's heading is a `menuHeader`, on its items'
 edge. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
 (tests find it with `appField(label)`), a select an `AppDropdown(label: …)`, and one that filters as it is
-typed in (a long font list) a `DropdownMenu` built through `dialogMenuField`. `Export` and
-`Engraving options` are `Dialog`s of their own, in the same measures.
+typed in (a long font list) a `DropdownMenu` built through `dialogMenuField`. `Export` is a
+`Dialog` of its own, in the same measures.
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that
