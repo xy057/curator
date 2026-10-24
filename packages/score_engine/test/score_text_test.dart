@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show Rect;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
@@ -23,19 +24,21 @@ String engravedText(LoadedScore s) => utf8.decode(s.engraving.text, allowMalform
   throw StateError('No “$words”.');
 }
 
-/// The size of the first music-font glyph from [first] to [last] (SMuFL code points).
-double glyphSize(LoadedScore s, int first, int last) {
-  final d = s.engraving;
+/// The size and box of the first music-font glyph from [first] to [last] (SMuFL code points).
+({double size, Rect box}) glyphOf(LoadedScore s, int first, int last) {
+  final d = s.engraving, f = d.commandFloats;
   for (var i = 0; i < d.commandCount; i++) {
     final b = i * Cmd.words, code = d.commandInts[b + Cmd.codepoint];
-    if (d.commandInts[b + Cmd.kind] == VBKind.glyph && code >= first && code <= last) return d.commandFloats[b + Cmd.size];
+    if (d.commandInts[b + Cmd.kind] == VBKind.glyph && code >= first && code <= last) {
+      return (size: f[b + Cmd.size], box: Rect.fromLTWH(f[b + Cmd.bounds], f[b + Cmd.bounds + 1], f[b + Cmd.bounds + 2], f[b + Cmd.bounds + 3]));
+    }
   }
   throw StateError('No glyph from ${first.toRadixString(16)}.');
 }
 
-/// A bar of every music symbol the typography sizes: segno, pedal, 8va, a dynamic, a chord
-/// symbol, an accidental, an articulation, fingering, a trill, a fermata, a breath mark; then a
-/// triplet, a caesura and a coda.
+/// A bar of every music symbol the typography sizes: a clef, key and time signature, segno,
+/// pedal, 8va, a dynamic, a chord symbol, an accidental, an articulation, fingering, a trill, a
+/// fermata, a breath mark; then a triplet, a caesura, a rest and a coda.
 String symbolsScore() {
   String note(String step, int duration, {String type = 'quarter', int alter = 0, String extra = '', String notations = ''}) =>
       '<note><pitch><step>$step</step>${alter != 0 ? '<alter>$alter</alter>' : ''}<octave>5</octave></pitch>'
@@ -46,7 +49,7 @@ String symbolsScore() {
   const triplet = '<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>';
   return '<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0">'
       '<part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1">'
-      '<measure number="1"><attributes><divisions>6</divisions><key><fifths>0</fifths></key>'
+      '<measure number="1"><attributes><divisions>6</divisions><key><fifths>-1</fifths></key>'
       '<time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>'
       '${direction('<segno/>')}${direction('<pedal type="start" line="no"/>')}'
       '${direction('<octave-shift type="down" size="8"/>')}${direction('<dynamics><mf/></dynamics>')}'
@@ -60,7 +63,7 @@ String symbolsScore() {
       '${note('A', 2, type: 'eighth', extra: triplet)}'
       '${note('B', 2, type: 'eighth', extra: triplet, notations: '<tuplet type="stop"/>')}'
       '${note('C', 12, type: 'half', notations: '<articulations><caesura/></articulations>')}'
-      '${note('D', 6)}${direction('<octave-shift type="stop" size="8"/>')}${direction('<pedal type="stop" line="no"/>')}'
+      '<note><rest/><duration>6</duration><type>quarter</type></note>${direction('<octave-shift type="stop" size="8"/>')}${direction('<pedal type="stop" line="no"/>')}'
       '${direction('<coda/>')}</measure></part></score-partwise>';
 }
 
@@ -99,11 +102,16 @@ void main() {
     expect(after.spacing, greaterThan(0));
     expect(runOf(styled, 'pizz.').size, runOf(score, 'pizz.').size); // an expression: as it was
 
-    // The music symbols, each its own size (SMuFL code points, or a text); the notes as they were.
+    // The music symbols, each its own size (SMuFL code points, or a text).
     final symbols = <String, (Object, double)>{
+      'clefs': ((0xE050, 0xE07F), 1.3),
+      'keySignatures': ((0xE260, 0xE260), 1.45),
+      'timeSignatures': ((0xE080, 0xE089), 2.1),
+      'noteheads': ((0xE0A4, 0xE0A4), 1.15),
+      'rests': ((0xE4E5, 0xE4E5), 1.35),
       'dynamics': ((0xE520, 0xE54F), 1.5),
       'articulations': ((0xE4A0, 0xE4BF), 1.6),
-      'accidentals': ((0xE260, 0xE26F), 1.7),
+      'accidentals': ((0xE262, 0xE262), 1.7),
       'ornaments': ((0xE560, 0xE5AF), 0.5),
       'fermatas': ((0xE4C0, 0xE4CD), 2.0),
       'breathMarks': ((0xE4CE, 0xE4D6), 1.8),
@@ -121,11 +129,17 @@ void main() {
     }
     final plain = await LoadedScore.load(symbolsScore()), big = await plain.withEdits(typography: sized);
     double sizeOf(LoadedScore s, Object what) =>
-        what is (int, int) ? glyphSize(s, what.$1, what.$2) : runOf(s, what as String).size;
-    for (final MapEntry(:key, value: (what, scale)) in [...symbols.entries, const MapEntry('notes', ((0xE0A4, 0xE0A4), 1.0))]) {
+        what is (int, int) ? glyphOf(s, what.$1, what.$2).size : runOf(s, what as String).size;
+    for (final MapEntry(:key, value: (what, scale)) in symbols.entries) {
       final was = sizeOf(plain, what);
       expect(sizeOf(big, what), closeTo(was * scale, was * 0.02), reason: key);
     }
+    // Big ones keep clear: a sharp moves aside from its note's accent, a caesura sits between its
+    // note and the rest after; the frozen zone's clef, key and time are as big.
+    expect(glyphOf(big, 0xE262, 0xE262).box.overlaps(glyphOf(big, 0xE4A0, 0xE4A1).box), isFalse);
+    expect(glyphOf(big, 0xE4D1, 0xE4D1).box.overlaps(glyphOf(big, 0xE4E5, 0xE4E5).box), isFalse);
+    expect(FrozenZone(big.engraving, const RenderStyle(), typography: sized).maxWidth,
+        greaterThan(FrozenZone(plain.engraving, const RenderStyle()).maxWidth * 1.3));
 
     // Only the drawn kinds differ: the same engraving.
     final drawn = typography.withValue('barNumbers.opacity', 0.8).withValue('names.face', TextFace.italic);

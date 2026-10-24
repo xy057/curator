@@ -12,7 +12,7 @@ index 221244d..0647ae4 100644
      Mensur m_currentMensur;
      /** The meter signature (time signature) */
 diff --git a/include/vrv/options.h b/include/vrv/options.h
-index 50b0a70..e5d7a9f 100644
+index 50b0a70..34768f5 100644
 --- a/include/vrv/options.h
 +++ b/include/vrv/options.h
 @@ -259,6 +259,13 @@ private:
@@ -29,7 +29,7 @@ index 50b0a70..e5d7a9f 100644
  //----------------------------------------------------------------------------
  // OptionInt
  //----------------------------------------------------------------------------
-@@ -711,6 +718,18 @@ public:
+@@ -711,6 +718,23 @@ public:
      OptionJson m_engravingDefaultsFile;
      OptionDbl m_extenderLineMinSpace;
      OptionDbl m_fingeringScale;
@@ -45,9 +45,28 @@ index 50b0a70..e5d7a9f 100644
 +    OptionDbl m_curatedBreathScale; // [curated-score patch]
 +    OptionDbl m_curatedFingScale; // [curated-score patch]
 +    OptionDbl m_curatedHarmScale; // [curated-score patch]
++    OptionDbl m_curatedClefScale; // [curated-score patch]
++    OptionDbl m_curatedKeySigScale; // [curated-score patch]
++    OptionDbl m_curatedMeterSigScale; // [curated-score patch]
++    OptionDbl m_curatedRestScale; // [curated-score patch]
++    OptionDbl m_curatedNoteheadScale; // [curated-score patch]
      OptionString m_font;
      OptionArray m_fontAddCustom;
      OptionIntMap m_fontFallback;
+@@ -906,6 +930,13 @@ private:
+     std::vector<OptionGrp *> m_grps;
+ };
+ 
++// [curated-score patch] The size noteheads (SMuFL's noteheads range) are drawn and measured at, so
++// stems, dots, ledger lines and accidentals keep to them; any other glyph's is the staff's.
++inline int CuratedGlyphSize(char32_t code, int staffSize, const Options &options)
++{
++    return ((code >= 0xE0A0) && (code <= 0xE0FF)) ? CuratedSize(staffSize, options.m_curatedNoteheadScale) : staffSize;
++}
++
+ } // namespace vrv
+ 
+ #endif // CUSTOM_VEROVIO_OPTIONS
 diff --git a/include/vrv/vrv.h b/include/vrv/vrv.h
 index d8070ce..a35e805 100644
 --- a/include/vrv/vrv.h
@@ -71,6 +90,95 @@ index d8070ce..a35e805 100644
  
  /**
   * Functions for logging in milliseconds the elapsed time of an
+diff --git a/src/adjustaccidxfunctor.cpp b/src/adjustaccidxfunctor.cpp
+index 34bdd89..accf3a8 100644
+--- a/src/adjustaccidxfunctor.cpp
++++ b/src/adjustaccidxfunctor.cpp
+@@ -9,6 +9,7 @@
+ 
+ //----------------------------------------------------------------------------
+ 
++#include "artic.h" // [curated-score patch]
+ #include "doc.h"
+ #include "score.h"
+ 
+@@ -125,6 +126,23 @@ FunctorCode AdjustAccidXFunctor::VisitAlignmentReference(AlignmentReference *ali
+         --j;
+     }
+ 
++    // [curated-score patch] Clear of the articulations on their note or chord: sized up (Project
++    // Settings ▸ Typography), one can reach across to them.
++    const int margin = m_doc->GetDrawingUnit(staffSize) / 3;
++    for (Accid *accid : accids) {
++        Object *parent = accid->GetFirstAncestor(CHORD);
++        if (!parent) parent = accid->GetFirstAncestor(NOTE);
++        if (!parent || !accid->HasContentBB()) continue;
++        for (Object *object : parent->FindAllDescendantsByType(ARTIC)) {
++            Artic *artic = vrv_cast<Artic *>(object);
++            if (!artic->HasContentBB() || !accid->VerticalContentOverlap(artic)) continue;
++            const int overlap = accid->GetContentRight() + margin - artic->GetContentLeft();
++            if ((overlap > 0) && (accid->GetContentLeft() < artic->GetContentRight())) {
++                accid->SetDrawingXRel(accid->GetDrawingXRel() - overlap);
++            }
++        }
++    }
++
+     return FUNCTOR_SIBLINGS;
+ }
+ 
+diff --git a/src/doc.cpp b/src/doc.cpp
+index 430072a..db1536c 100644
+--- a/src/doc.cpp
++++ b/src/doc.cpp
+@@ -1866,6 +1866,7 @@ void Doc::ResetFocus()
+ 
+ int Doc::GetGlyphHeight(char32_t code, int staffSize, bool graceSize) const
+ {
++    staffSize = CuratedGlyphSize(code, staffSize, *m_options); // [curated-score patch]
+     int x, y, w, h;
+     const Resources &resources = this->GetResources();
+     const Glyph *glyph = resources.GetGlyph(code);
+@@ -1879,6 +1880,7 @@ int Doc::GetGlyphHeight(char32_t code, int staffSize, bool graceSize) const
+ 
+ int Doc::GetGlyphWidth(char32_t code, int staffSize, bool graceSize) const
+ {
++    staffSize = CuratedGlyphSize(code, staffSize, *m_options); // [curated-score patch]
+     int x, y, w, h;
+     const Resources &resources = this->GetResources();
+     const Glyph *glyph = resources.GetGlyph(code);
+@@ -1892,6 +1894,7 @@ int Doc::GetGlyphWidth(char32_t code, int staffSize, bool graceSize) const
+ 
+ int Doc::GetGlyphAdvX(char32_t code, int staffSize, bool graceSize) const
+ {
++    staffSize = CuratedGlyphSize(code, staffSize, *m_options); // [curated-score patch]
+     const Resources &resources = this->GetResources();
+     const Glyph *glyph = resources.GetGlyph(code);
+     if (!glyph) return 0;
+@@ -1905,6 +1908,8 @@ int Doc::GetGlyphAdvX(char32_t code, int staffSize, bool graceSize) const
+ Point Doc::ConvertFontPoint(const Glyph *glyph, const Point &fontPoint, int staffSize, bool graceSize) const
+ {
+     assert(glyph);
++    staffSize = CuratedGlyphSize( // [curated-score patch]
++        char32_t(std::strtoul(glyph->GetCodeStr().c_str(), nullptr, 16)), staffSize, *m_options);
+ 
+     Point point;
+     point.x = fontPoint.x * m_drawingSmuflFontSize / glyph->GetUnitsPerEm();
+@@ -1922,6 +1927,7 @@ Point Doc::ConvertFontPoint(const Glyph *glyph, const Point &fontPoint, int staf
+ 
+ int Doc::GetGlyphLeft(char32_t code, int staffSize, bool graceSize) const
+ {
++    staffSize = CuratedGlyphSize(code, staffSize, *m_options); // [curated-score patch]
+     int x, y, w, h;
+     const Resources &resources = this->GetResources();
+     const Glyph *glyph = resources.GetGlyph(code);
+@@ -1940,6 +1946,7 @@ int Doc::GetGlyphRight(char32_t code, int staffSize, bool graceSize) const
+ 
+ int Doc::GetGlyphBottom(char32_t code, int staffSize, bool graceSize) const
+ {
++    staffSize = CuratedGlyphSize(code, staffSize, *m_options); // [curated-score patch]
+     int x, y, w, h;
+     const Resources &resources = this->GetResources();
+     const Glyph *glyph = resources.GetGlyph(code);
 diff --git a/src/drawinginterface.cpp b/src/drawinginterface.cpp
 index 8a0ed02..131e979 100644
 --- a/src/drawinginterface.cpp
@@ -229,10 +337,10 @@ index f20540d..297169b 100644
                      Text *text = new Text();
                      text->SetText(UTF8to32(textStr));
 diff --git a/src/options.cpp b/src/options.cpp
-index 7e3ec3c..d219c4f 100644
+index 7e3ec3c..a2077ae 100644
 --- a/src/options.cpp
 +++ b/src/options.cpp
-@@ -1303,6 +1303,54 @@ Options::Options()
+@@ -1303,6 +1303,74 @@ Options::Options()
      m_fingeringScale.Init(0.75, 0.25, 1);
      this->Register(&m_fingeringScale, "fingeringScale", &m_generalLayout);
  
@@ -284,11 +392,31 @@ index 7e3ec3c..d219c4f 100644
 +    m_curatedHarmScale.Init(1.0, 0.5, 2.5);
 +    this->Register(&m_curatedHarmScale, "curatedHarmScale", &m_generalLayout);
 +
++    m_curatedClefScale.SetInfo("Clefs scale", "[curated-score patch] The size of clefs against the staff's");
++    m_curatedClefScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedClefScale, "curatedClefScale", &m_generalLayout);
++
++    m_curatedKeySigScale.SetInfo("Key signatures scale", "[curated-score patch] The size of key signatures against the staff's");
++    m_curatedKeySigScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedKeySigScale, "curatedKeySigScale", &m_generalLayout);
++
++    m_curatedMeterSigScale.SetInfo("Time signatures scale", "[curated-score patch] The size of time signatures against the staff's");
++    m_curatedMeterSigScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedMeterSigScale, "curatedMeterSigScale", &m_generalLayout);
++
++    m_curatedRestScale.SetInfo("Rests scale", "[curated-score patch] The size of rests against the staff's");
++    m_curatedRestScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedRestScale, "curatedRestScale", &m_generalLayout);
++
++    m_curatedNoteheadScale.SetInfo("Noteheads scale", "[curated-score patch] The size of noteheads against the staff's");
++    m_curatedNoteheadScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedNoteheadScale, "curatedNoteheadScale", &m_generalLayout);
++
      m_font.SetInfo("Font", "Set the music font");
      m_font.Init("Leipzig");
      this->Register(&m_font, "font", &m_generalLayout);
 diff --git a/src/view_control.cpp b/src/view_control.cpp
-index 436fca5..eb69387 100644
+index 436fca5..3c2718f 100644
 --- a/src/view_control.cpp
 +++ b/src/view_control.cpp
 @@ -863,21 +863,22 @@ void View::DrawOctave(
@@ -353,7 +481,7 @@ index 436fca5..eb69387 100644
              dc->ResetFont();
          }
      }
-@@ -1722,9 +1724,10 @@ void View::DrawCaesura(DeviceContext *dc, Caesura *caesura, Measure *measure, Sy
+@@ -1722,9 +1724,31 @@ void View::DrawCaesura(DeviceContext *dc, Caesura *caesura, Measure *measure, Sy
          }
  
          const int staffSize = staff->m_drawingStaffSize;
@@ -363,10 +491,31 @@ index 436fca5..eb69387 100644
 -                                            : m_doc->GetGlyphHeight(code, staffSize, false);
 +        const int glyphHeight = (symbolDef) ? symbolDef->GetSymbolHeight(m_doc, symbolSize, false)
 +                                            : m_doc->GetGlyphHeight(code, symbolSize, false);
++        // [curated-score patch] Midway between the notes or rests either side of it, clear of both (a bigger
++        // rest or caesura meets one where Verovio puts it, at a time just before the next); where they leave room.
++        Layer *layer = vrv_cast<Layer *>(staff->FindDescendantByType(LAYER));
++        if (!symbolDef && layer) {
++            const int anchor = caesura->GetStart()->GetDrawingX();
++            const LayerElement *before = NULL, *after = NULL;
++            for (ClassId classId : { NOTE, REST, CHORD }) {
++                for (Object *object : layer->FindAllDescendantsByType(classId)) {
++                    const LayerElement *element = vrv_cast<LayerElement *>(object);
++                    if (!element->HasContentHorizontalBB() || element->GetFirstAncestor(CHORD)) continue;
++                    const int at = element->GetDrawingX();
++                    if ((at <= anchor) && (!before || (at > before->GetDrawingX()))) before = element;
++                    if ((at > anchor) && (!after || (at < after->GetDrawingX()))) after = element;
++                }
++            }
++            if (before && after) {
++                const int room = after->GetContentLeft() - before->GetContentRight();
++                const int width = m_doc->GetGlyphWidth(code, symbolSize, false);
++                if (room > width) x = before->GetContentRight() + (room - width) / 2;
++            }
++        }
          int y = (caesura->HasPlace() && (caesura->GetPlace() != STAFFREL_within))
              ? caesura->GetDrawingY()
              : staff->GetDrawingY() - glyphHeight / 2;
-@@ -1733,10 +1736,10 @@ void View::DrawCaesura(DeviceContext *dc, Caesura *caesura, Measure *measure, Sy
+@@ -1733,10 +1757,10 @@ void View::DrawCaesura(DeviceContext *dc, Caesura *caesura, Measure *measure, Sy
          this->CalcOffset(dc, x, y);
  
          if (symbolDef) {
@@ -379,7 +528,7 @@ index 436fca5..eb69387 100644
          }
      }
  
-@@ -1917,36 +1920,37 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
+@@ -1917,36 +1941,37 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
      assert(staff);
      assert(dynam);
  
@@ -425,7 +574,7 @@ index 436fca5..eb69387 100644
  
      // draw closing symbol
      if (enclosingBack) {
-@@ -1954,7 +1958,7 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
+@@ -1954,7 +1979,7 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
          close.push_back(enclosingBack);
  
          params.m_x += width + unit / 6;
@@ -434,7 +583,7 @@ index 436fca5..eb69387 100644
      }
  
      dc->ResetFont();
-@@ -2029,7 +2033,7 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
+@@ -2029,7 +2054,7 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), fermata, fermata->GetStart(), staff)) {
              continue;
          }
@@ -443,7 +592,7 @@ index 436fca5..eb69387 100644
          int x = drawingX;
          int y = fermata->GetDrawingY();
  
-@@ -2128,7 +2132,8 @@ void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *sys
+@@ -2128,7 +2153,8 @@ void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *sys
          params.m_x = x;
          params.m_y = y;
          params.m_staffSize = staffSize;
@@ -453,7 +602,7 @@ index 436fca5..eb69387 100644
  
          fingTxt.SetPointSize(params.m_pointSize);
  
-@@ -2334,7 +2339,8 @@ void View::DrawHarm(DeviceContext *dc, Harm *harm, Measure *measure, System *sys
+@@ -2334,7 +2360,8 @@ void View::DrawHarm(DeviceContext *dc, Harm *harm, Measure *measure, System *sys
              this->DrawFb(dc, staff, dynamic_cast<Fb *>(harm->GetFirst()), params);
          }
          else {
@@ -463,7 +612,7 @@ index 436fca5..eb69387 100644
  
              harmTxt.SetPointSize(params.m_pointSize);
  
-@@ -2387,7 +2393,7 @@ void View::DrawMordent(DeviceContext *dc, Mordent *mordent, Measure *measure, Sy
+@@ -2387,7 +2414,7 @@ void View::DrawMordent(DeviceContext *dc, Mordent *mordent, Measure *measure, Sy
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), mordent, mordent->GetStart(), staff)) {
              continue;
          }
@@ -472,7 +621,7 @@ index 436fca5..eb69387 100644
          int x = drawingX;
          int y = mordent->GetDrawingY();
  
-@@ -2556,8 +2562,8 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
+@@ -2556,8 +2583,8 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
          if (bounceStar && (pedal->GetDir() == pedalLog_DIR_bounce)) {
              str.push_back(code);
              // Get the staff size of the first staff
@@ -483,7 +632,7 @@ index 436fca5..eb69387 100644
              drawingX -= m_doc->GetGlyphWidth(SMUFL_E655_keyboardPedalUp, staffSize, false);
          }
          if (pedal->GetDir() != pedalLog_DIR_up) {
-@@ -2569,7 +2575,7 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
+@@ -2569,7 +2596,7 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
              if (!system->SetCurrentFloatingPositioner(staff->GetN(), pedal, pedal->GetStart(), staff)) {
                  continue;
              }
@@ -492,7 +641,7 @@ index 436fca5..eb69387 100644
              int x = drawingX;
              int y = pedal->GetDrawingY();
  
-@@ -2715,7 +2721,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
+@@ -2715,7 +2742,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), repeatMark, repeatMark->GetStart(), staff)) {
              continue;
          }
@@ -501,7 +650,7 @@ index 436fca5..eb69387 100644
          int x = drawingX;
          int y = repeatMark->GetDrawingY();
  
-@@ -2845,7 +2851,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
+@@ -2845,7 +2872,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), trill, trill->GetStart(), staff)) {
              continue;
          }
@@ -510,7 +659,7 @@ index 436fca5..eb69387 100644
          int x = drawingX;
          int y = trill->GetDrawingY();
  
-@@ -2953,7 +2959,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
+@@ -2953,7 +2980,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), turn, turn->GetStart(), staff)) {
              continue;
          }
@@ -520,7 +669,7 @@ index 436fca5..eb69387 100644
          int y = turn->GetDrawingY();
  
 diff --git a/src/view_element.cpp b/src/view_element.cpp
-index 63f87fd..0bf342b 100644
+index 63f87fd..29ac7c9 100644
 --- a/src/view_element.cpp
 +++ b/src/view_element.cpp
 @@ -291,6 +291,7 @@ void View::DrawAccid(DeviceContext *dc, LayerElement *element, Layer *layer, Sta
@@ -603,6 +752,150 @@ index 63f87fd..0bf342b 100644
      }
  
      dc->EndGraphic(element, this);
+@@ -761,7 +763,7 @@ void View::DrawClef(DeviceContext *dc, LayerElement *element, Layer *layer, Staf
+         resources.SetCurrentFont(clef->GetFontname());
+     }
+ 
+-    this->DrawSmuflCode(dc, x, y, sym, staff->m_drawingStaffSize, false);
++    this->DrawSmuflCode(dc, x, y, sym, CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedClefScale), false); // [curated-score patch]
+ 
+     // Possibly draw enclosing brackets
+     this->DrawClefEnclosing(dc, clef, staff, sym, x, y);
+@@ -1090,7 +1092,7 @@ void View::DrawKeySig(DeviceContext *dc, LayerElement *element, Layer *layer, St
+         }
+     }
+ 
+-    dc->SetFont(m_doc->GetDrawingSmuflFont(staff->m_drawingStaffSize, false));
++    dc->SetFont(m_doc->GetDrawingSmuflFont(CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedKeySigScale), false)); // [curated-score patch]
+ 
+     ListOfObjects childList = keySig->GetList();
+     for (Object *child : childList) {
+@@ -1136,7 +1138,8 @@ void View::DrawMeterSig(DeviceContext *dc, LayerElement *element, Layer *layer,
+ void View::DrawKeySigCancellation(
+     DeviceContext *dc, KeySig *keySig, Staff *staff, Clef *clef, int clefLocOffset, int beginCancel, int &x)
+ {
+-    const int naturalGlyphWidth = m_doc->GetGlyphWidth(SMUFL_E261_accidentalNatural, staff->m_drawingStaffSize, false);
++    const int symbolSize = CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedKeySigScale); // [curated-score patch]
++    const int naturalGlyphWidth = m_doc->GetGlyphWidth(SMUFL_E261_accidentalNatural, symbolSize, false);
+     const int naturalStep = m_doc->GetDrawingUnit(staff->m_drawingStaffSize) * TEMP_KEYSIG_NATURAL_STEP;
+ 
+     for (int i = beginCancel; i < keySig->m_drawingCancelAccidCount; ++i) {
+@@ -1147,7 +1150,7 @@ void View::DrawKeySigCancellation(
+ 
+         dc->StartCustomGraphic("keyAccid");
+ 
+-        this->DrawSmuflCode(dc, x, y, SMUFL_E261_accidentalNatural, staff->m_drawingStaffSize, false);
++        this->DrawSmuflCode(dc, x, y, SMUFL_E261_accidentalNatural, symbolSize, false);
+ 
+         dc->EndCustomGraphic();
+ 
+@@ -1163,7 +1166,8 @@ void View::DrawKeyAccid(DeviceContext *dc, KeyAccid *keyAccid, Staff *staff, Cle
+ 
+     dc->StartCustomGraphic("keyAccid", "", keyAccid->GetID());
+ 
+-    this->DrawSmuflString(dc, x, y, symbolStr, HORIZONTALALIGNMENT_left, staff->m_drawingStaffSize, false);
++    this->DrawSmuflString(dc, x, y, symbolStr, HORIZONTALALIGNMENT_left, // [curated-score patch]
++        CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedKeySigScale), false);
+ 
+     dc->EndCustomGraphic();
+ 
+@@ -1190,7 +1194,7 @@ void View::DrawMeterSig(DeviceContext *dc, MeterSig *meterSig, Staff *staff, int
+     int y = staff->GetDrawingY() - m_doc->GetDrawingUnit(staff->m_drawingStaffSize) * (staff->m_drawingLines - 1);
+     int x = meterSig->GetDrawingX() + horizOffset;
+ 
+-    const int glyphSize = staff->GetDrawingStaffNotationSize();
++    const int glyphSize = CuratedSize(staff->GetDrawingStaffNotationSize(), m_doc->GetOptions()->m_curatedMeterSigScale); // [curated-score patch]
+ 
+     if (enclosingFront) {
+         this->DrawSmuflCode(dc, x, y, enclosingFront, glyphSize, false);
+@@ -1254,15 +1258,16 @@ void View::DrawMRest(DeviceContext *dc, LayerElement *element, Layer *layer, Sta
+ 
+     char32_t rest = isDouble ? SMUFL_E4E2_restDoubleWhole : SMUFL_E4E3_restWhole;
+ 
+-    x -= m_doc->GetGlyphWidth(rest, staffSize, drawingCueSize) / 2;
++    const int restSize = CuratedSize(staffSize, m_doc->GetOptions()->m_curatedRestScale); // [curated-score patch]
++    x -= m_doc->GetGlyphWidth(rest, restSize, drawingCueSize) / 2;
+ 
+-    this->DrawSmuflCode(dc, x, y, rest, staffSize, drawingCueSize);
++    this->DrawSmuflCode(dc, x, y, rest, restSize, drawingCueSize);
+ 
+     // single legder line for whole rest glyphs
+     if (!isDouble
+         && (y > staff->GetDrawingY()
+             || y < staff->GetDrawingY() - (staff->m_drawingLines - 1) * m_doc->GetDrawingDoubleUnit(staffSize))) {
+-        const int width = m_doc->GetGlyphWidth(rest, staffSize, drawingCueSize);
++        const int width = m_doc->GetGlyphWidth(rest, restSize, drawingCueSize);
+         int ledgerLineThickness
+             = m_doc->GetOptions()->m_ledgerLineThickness.GetValue() * m_doc->GetDrawingUnit(staffSize);
+         int ledgerLineExtension
+@@ -1588,7 +1593,8 @@ void View::DrawNote(DeviceContext *dc, LayerElement *element, Layer *layer, Staf
+                 dc->SetCustomGraphicColor(note->GetHeadColor());
+             }
+ 
+-            this->DrawSmuflCode(dc, x, y, fontNo, staff->m_drawingStaffSize, drawingCueSize, true);
++            this->DrawSmuflCode(dc, x, y, fontNo, // [curated-score patch]
++                CuratedGlyphSize(fontNo, staff->m_drawingStaffSize, *m_doc->GetOptions()), drawingCueSize, true);
+ 
+             // handle notehead enclosure
+             if (note->HasHeadMod()) {
+@@ -1667,22 +1673,23 @@ void View::DrawRest(DeviceContext *dc, LayerElement *element, Layer *layer, Staf
+     char32_t enclosingFront, enclosingBack;
+     std::tie(enclosingFront, enclosingBack) = rest->GetEnclosingGlyphs();
+ 
+-    const int drawingWidth = m_doc->GetGlyphWidth(drawingGlyph, staffSize, drawingCueSize);
++    const int restSize = CuratedSize(staffSize, m_doc->GetOptions()->m_curatedRestScale); // [curated-score patch]
++    const int drawingWidth = m_doc->GetGlyphWidth(drawingGlyph, restSize, drawingCueSize);
+     int drawingUnit = m_doc->GetDrawingUnit(staffSize);
+     if (drawingCueSize) drawingUnit *= m_doc->GetOptions()->m_graceFactor.GetValue();
+ 
+     if (enclosingFront) {
+-        const int parenOffset = m_doc->GetGlyphWidth(enclosingFront, staffSize, drawingCueSize);
+-        this->DrawSmuflCode(dc, x - parenOffset, y, enclosingFront, staffSize, drawingCueSize);
++        const int parenOffset = m_doc->GetGlyphWidth(enclosingFront, restSize, drawingCueSize);
++        this->DrawSmuflCode(dc, x - parenOffset, y, enclosingFront, restSize, drawingCueSize);
+     }
+ 
+-    this->DrawSmuflCode(dc, x, y, drawingGlyph, staffSize, drawingCueSize);
++    this->DrawSmuflCode(dc, x, y, drawingGlyph, restSize, drawingCueSize);
+ 
+     if (enclosingBack) {
+-        int parenOffset = m_doc->GetGlyphWidth(enclosingBack, staffSize, drawingCueSize)
+-            - m_doc->GetGlyphAdvX(enclosingBack, staffSize, drawingCueSize);
++        int parenOffset = m_doc->GetGlyphWidth(enclosingBack, restSize, drawingCueSize)
++            - m_doc->GetGlyphAdvX(enclosingBack, restSize, drawingCueSize);
+         if (rest->HasDots()) parenOffset += rest->GetDots() * drawingUnit * 3 / 2;
+-        this->DrawSmuflCode(dc, x + drawingWidth + parenOffset, y, enclosingBack, staffSize, drawingCueSize);
++        this->DrawSmuflCode(dc, x + drawingWidth + parenOffset, y, enclosingBack, restSize, drawingCueSize);
+     }
+ 
+     /************ Draw children (dots) ************/
+@@ -1690,7 +1697,7 @@ void View::DrawRest(DeviceContext *dc, LayerElement *element, Layer *layer, Staf
+ 
+     // Draw legder lines for half, whole, and breve rests
+     if ((drawingDur == DURATION_1 || drawingDur == DURATION_2 || drawingDur == DURATION_breve)) {
+-        const int width = m_doc->GetGlyphWidth(drawingGlyph, staffSize, drawingCueSize);
++        const int width = m_doc->GetGlyphWidth(drawingGlyph, restSize, drawingCueSize);
+         const int ledgerLineThickness = m_doc->GetOptions()->m_ledgerLineThickness.GetValue() * drawingUnit;
+         const int ledgerLineExtension = m_doc->GetOptions()->m_ledgerLineExtension.GetValue() * drawingUnit;
+         const int topMargin = staff->GetDrawingY();
+@@ -1707,7 +1714,7 @@ void View::DrawRest(DeviceContext *dc, LayerElement *element, Layer *layer, Staf
+         }
+         // double ledger line for breve rests
+         else if (drawingDur == DURATION_breve && (y >= topMargin || y <= bottomMargin)) {
+-            const int height = m_doc->GetGlyphHeight(drawingGlyph, staffSize, drawingCueSize);
++            const int height = m_doc->GetGlyphHeight(drawingGlyph, restSize, drawingCueSize);
+             dc->DeactivateGraphicX();
+             if (y != topMargin) {
+                 this->DrawHorizontalLine(
+@@ -2240,7 +2247,7 @@ int View::DrawMeterSigFigures(DeviceContext *dc, int x, int y, MeterSig *meterSi
+     }
+     if (den) timeSigCombDenominator = this->IntToTimeSigFigures(den);
+ 
+-    const int glyphSize = staff->GetDrawingStaffNotationSize();
++    const int glyphSize = CuratedSize(staff->GetDrawingStaffNotationSize(), m_doc->GetOptions()->m_curatedMeterSigScale); // [curated-score patch]
+ 
+     dc->SetFont(m_doc->GetDrawingSmuflFont(glyphSize, false));
+ 
 diff --git a/src/view_tuplet.cpp b/src/view_tuplet.cpp
 index 6118792..b1ee9d3 100644
 --- a/src/view_tuplet.cpp

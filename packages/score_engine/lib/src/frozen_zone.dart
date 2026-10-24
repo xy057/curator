@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'display_list.dart';
 import 'engraving.dart';
 import 'native/bindings.dart' show VBKind;
+import 'score_typography.dart';
 
 /// The frozen zone at the left of every staff, like Dorico's galley view: the clef, key and
 /// time signature currently in force stay visible while the music scrolls. A change takes over
@@ -14,13 +15,16 @@ import 'native/bindings.dart' show VBKind;
 ///
 /// Signatures are redrawn from their musical meaning (not copied glyphs), so a clef change
 /// engraved at cue size appears full size here, and key signatures are positioned for the
-/// clef in force, as an engraver would.
+/// clef in force, as an engraver would. Each is the size [typography] sets, as engraved.
 class FrozenZone {
-  FrozenZone(EngravingData data, this.style)
-      : _clefWidth = _scaled(data, 2.8, [0xE050, 0xE05C, 0xE062]),
-        _sharpStep = _scaled(data, 1.1, [0xE262]),
-        _flatStep = _scaled(data, 1.0, [0xE260]),
-        _digitWidth = _scaled(data, 1.9, [for (var c = 0xE080; c <= 0xE089; c++) c]),
+  FrozenZone(EngravingData data, this.style, {ScoreTypography typography = ScoreTypography.standard})
+      : _clefScale = typography[TextKind.clefs].size,
+        _keyScale = typography[TextKind.keySignatures].size,
+        _timeScale = typography[TextKind.timeSignatures].size,
+        _clefWidth = _scaled(data, 2.8, [0xE050, 0xE05C, 0xE062]) * typography[TextKind.clefs].size,
+        _sharpStep = _scaled(data, 1.1, [0xE262]) * typography[TextKind.keySignatures].size,
+        _flatStep = _scaled(data, 1.0, [0xE260]) * typography[TextKind.keySignatures].size,
+        _digitWidth = _scaled(data, 1.9, [for (var c = 0xE080; c <= 0xE089; c++) c]) * typography[TextKind.timeSignatures].size,
         _lineThickness = data.engravingDefaults['staffLineThickness'] ?? 0.13,
         _startLineThickness = data.engravingDefaults['thinBarlineThickness'] ?? 0.16,
         _bracketThickness = data.engravingDefaults['bracketThickness'] ?? 0.5,
@@ -90,6 +94,7 @@ class FrozenZone {
   // glyphs (a wider sharp, a wider step); the lines are as thick as the engraving's.
   static const _padLeft = 0.8, _clefGap = 1.0, _padRight = 1.4, _meterGap = 1.1;
   final double _clefWidth, _sharpStep, _flatStep, _digitWidth;
+  final double _clefScale, _keyScale, _timeScale; // their glyphs' size, a share of the staff's
   double _lineThickness; // the engraving's own staff lines when it has them
   final double _startLineThickness; // a thin barline's
   final double _bracketThickness;
@@ -216,7 +221,7 @@ class FrozenZone {
       final glyph = _clefGlyph(clef);
       if (glyph != null) {
         final line = clef.shape == ClefShape.percussion || lines == 1 ? (lines + 1) / 2 : clef.line.toDouble();
-        _drawGlyph(canvas, glyph, x, top + (lines - line) * sp);
+        _drawGlyph(canvas, glyph, x, top + (lines - line) * sp, _clefScale);
       }
     }
     final columnLeft = x + _clefWidth * sp;
@@ -232,7 +237,7 @@ class FrozenZone {
     }
     final steps = _keySteps(key.fifths, clef);
     for (final step in steps) {
-      _drawGlyph(canvas, key.fifths > 0 ? 0xE262 : 0xE260, x, top + height - step * sp / 2);
+      _drawGlyph(canvas, key.fifths > 0 ? 0xE262 : 0xE260, x, top + height - step * sp / 2, _keyScale);
       x += (key.fifths > 0 ? _sharpStep : _flatStep) * sp;
     }
     if (cut) canvas.restore();
@@ -287,7 +292,7 @@ class FrozenZone {
   /// a staff space above and below the middle line, or meeting on it when they are taller
   /// than two (a handwritten font's, as Verovio stacks Petaluma's).
   void _paintTime(ui.Canvas canvas, TimeSignature time, double centerX, double middleY) {
-    final sp = style.staffSpace;
+    final sp = style.staffSpace * _timeScale;
     double offset(String digits) =>
         math.max(1.0, digits.runes.map((c) => (_boxes[c]?.height ?? 2) / 2).fold(0.0, math.max)) * sp;
     if (time.symbol != null) {
@@ -308,7 +313,7 @@ class FrozenZone {
       : _digits(time.count);
 
   void _drawCentered(ui.Canvas canvas, String text, double centerX, double baselineY) {
-    final paragraph = _paragraph(text);
+    final paragraph = _paragraph(text, _timeScale);
     canvas.drawParagraph(paragraph, ui.Offset(centerX - paragraph.longestLine / 2, baselineY - paragraph.alphabeticBaseline));
   }
 
@@ -356,7 +361,7 @@ class FrozenZone {
     return [for (final s in (fifths > 0 ? trebleSharps : trebleFlats).take(count)) s + shift];
   }
 
-  final _glyphs = <String, ui.Paragraph>{};
+  final _glyphs = <(String, double), ui.Paragraph>{};
 
   void dispose() {
     for (final paragraph in _glyphs.values) {
@@ -365,8 +370,9 @@ class FrozenZone {
     _glyphs.clear();
   }
 
-  ui.Paragraph _paragraph(String text) => _glyphs.putIfAbsent(text, () {
-        final size = 4 * style.staffSpace; // SMuFL: one em is four staff spaces
+  /// [text] in the music font at [scale] × the staff's size.
+  ui.Paragraph _paragraph(String text, [double scale = 1]) => _glyphs.putIfAbsent((text, scale), () {
+        final size = 4 * style.staffSpace * scale; // SMuFL: one em is four staff spaces
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(fontFamily: style.musicFontFamily, fontSize: size))
           ..pushStyle(ui.TextStyle(
               color: style.ink,
@@ -377,8 +383,8 @@ class FrozenZone {
         return builder.build()..layout(ui.ParagraphConstraints(width: size * 4));
       });
 
-  void _drawGlyph(ui.Canvas canvas, int codepoint, double x, double baselineY) {
-    final paragraph = _paragraph(String.fromCharCode(codepoint));
+  void _drawGlyph(ui.Canvas canvas, int codepoint, double x, double baselineY, [double scale = 1]) {
+    final paragraph = _paragraph(String.fromCharCode(codepoint), scale);
     canvas.drawParagraph(paragraph, ui.Offset(x, baselineY - paragraph.alphabeticBaseline));
   }
 }

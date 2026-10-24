@@ -377,7 +377,7 @@ class CuratedScene {
 
   ScoreRenderer get renderer => _renderer ??= () {
         final display = this.display;
-        final frozen = _frozen ?? FrozenZone(score.engraving, _style);
+        final frozen = _frozen ?? FrozenZone(score.engraving, _style, typography: score.typography);
         _frozen = null; // the renderer's now
         return ScoreRenderer(display, _style, frozen: frozen, barlinesThrough: _barlinesThrough)
           ..names = _typography[TextKind.names];
@@ -386,7 +386,8 @@ class CuratedScene {
 
   /// A frozen zone made for its opening commands, kept for the first renderer.
   FrozenZone? _frozen;
-  late final Set<int> _openingCommands = (_frozen ??= FrozenZone(score.engraving, _style)).openingCommands;
+  late final Set<int> _openingCommands =
+      (_frozen ??= FrozenZone(score.engraving, _style, typography: score.typography)).openingCommands;
   final _staffIndex = <int, int>{};
 
   /// Instrument names chosen by the user (part id → name / short name), shown in the name column.
