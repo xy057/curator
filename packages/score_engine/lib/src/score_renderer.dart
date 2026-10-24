@@ -52,7 +52,7 @@ class StaffLabel {
   final String text;
   final String partId;
 
-  /// Drawn in this instead of the ink (its instrument's family, [CuratedScene.nameColors]).
+  /// Drawn in this instead of the ink (its instrument's group's, [CuratedScene.nameColors]).
   final ui.Color? color;
 
   /// Used instead of [text] when the full name does not fit the name column.

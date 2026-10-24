@@ -180,7 +180,11 @@ void main() {
       c.setGroupSections(true);
       c.setBarNumbers(false); // on for a new project
       c.setColorNames(true);
-      c.setNameColor(InstrumentFamily.brass, const Color(0xFFE0B000));
+      c.setNameGroupColor('brass', const Color(0xFFE0B000));
+      final solo = c.addNameGroup('Solo');
+      c.setNameGroupColor(solo, const Color(0xFF123456));
+      c.setNameGroup(parts[0], solo); // the piccolo in a group of its own
+      c.setNameGroup(parts[15], null); // the snare drum in the ink
       c.setSections({parts[15].id: 'percussion', parts[0].id: null, 'P10': 'bracket-1', 'P11': 'bracket-1'});
       final starts = c.score!.timeline.measureStarts;
       c.sync!.addAnchor(SyncAnchor(starts[8], 20, jumpTo: starts[4])); // a warp: back to bar 5
@@ -213,8 +217,10 @@ void main() {
       expect(c2.textById(vivo.id)!.current, 'Presto');
       expect(c2.partOrder.first, 'P17');
       expect((c2.scene!.sections, c2.scene!.barNumbers), (true, false));
-      expect(c2.scene!.nameColors[InstrumentFamily.brass], const Color(0xFFE0B000));
-      expect(c2.scene!.nameColors[InstrumentFamily.strings], defaultNameColors[InstrumentFamily.strings]);
+      expect(c2.scene!.nameColors['P10'], const Color(0xFFE0B000), reason: 'a horn: brass, recoloured');
+      expect(c2.scene!.nameColors[parts[0].id], const Color(0xFF123456));
+      expect(c2.scene!.nameColors.containsKey(parts[15].id), isFalse);
+      expect(c2.scene!.nameColors[parts.last.id], defaultNameColors[InstrumentFamily.strings]);
       expect(c2.scene!.sectionOverrides, {'P16': 'percussion', 'P1': null, 'P10': 'bracket-1', 'P11': 'bracket-1'});
       expect(c2.midiTempo!.name, 'tempo.mid');
       expect(c2.projectState.edits.anchors.where((a) => a.isWarp), hasLength(1), reason: 'the anchors kept behind the MIDI file');

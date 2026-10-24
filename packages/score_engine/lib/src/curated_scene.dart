@@ -264,7 +264,7 @@ class SceneSettings {
   final bool sections;
   final Map<String, String?> sectionOverrides;
   final bool barNumbers;
-  final Map<InstrumentFamily, ui.Color> nameColors;
+  final Map<String, ui.Color> nameColors;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -387,9 +387,9 @@ class CuratedScene {
     nameColors = value.nameColors;
   }
 
-  /// The colour each family's instruments are named in ([ScorePart.family]: a pair its first
-  /// player's); a family left out, and every one while empty, is named in the ink.
-  Map<InstrumentFamily, ui.Color> nameColors = const {};
+  /// The colour some instruments are named in, by part id (a pair in its first player's); one
+  /// left out is named in the ink.
+  Map<String, ui.Color> nameColors = const {};
 
   /// Whether the instruments are grouped in sections as a printed score groups them: each
   /// section ([sectionOf]: the woodwinds, the brass… or a group of the user's) bracketed, its
@@ -1071,7 +1071,7 @@ class CuratedScene {
             centerY: tops[i] + display.staves[staffIndex].info.height * renderer.scale / 2,
             opacity: opacity,
             partId: group.id,
-            color: nameColors[parts[a]!.family]));
+            color: nameColors[a]));
         continue;
       }
       final part = parts[partId]!;
@@ -1086,7 +1086,7 @@ class CuratedScene {
             centerY: (tops[i] + bottom) / 2,
             opacity: opacity,
             partId: part.id,
-            color: nameColors[part.family]));
+            color: nameColors[part.id]));
         if (staves.length > 1) {
           braces.add(StaffBrace(staves: [
             for (var j = i; j <= last; j++)

@@ -415,7 +415,7 @@ class EditorController extends ChangeNotifier {
       sections: _doc.groupSections,
       sectionOverrides: {..._doc.sections, ...?_previewSections},
       barNumbers: _doc.barNumbers,
-      nameColors: _doc.colorNames ? {for (final f in defaultNameColors.keys) f: nameColor(f)} : const {});
+      nameColors: _nameColors);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
@@ -515,24 +515,120 @@ class EditorController extends ChangeNotifier {
     _edited();
   }
 
-  /// The colour [family]'s instruments are named in: the user's, else [defaultNameColors]'.
-  Color nameColor(InstrumentFamily family) => _doc.nameColors[family] ?? defaultNameColors[family]!;
+  /// The groups instruments can be named in the colour of: the families' (which can't be
+  /// removed), then the user's own.
+  List<NameGroupInfo> get nameGroups => [
+        for (final MapEntry(key: f, value: color) in defaultNameColors.entries)
+          (id: f.name, name: f.label, color: _doc.nameColors[f] ?? color, family: f),
+        for (final g in _doc.nameGroups) (id: g.id, name: g.name, color: g.color, family: null),
+      ];
 
-  /// Whether the user gave [family]'s names a colour of their own.
-  bool ownNameColor(InstrumentFamily family) => _doc.nameColors.containsKey(family);
+  /// The group [id], if there is one.
+  NameGroupInfo? nameGroup(String id) => nameGroups.where((g) => g.id == id).firstOrNull;
 
-  /// Gives [family]'s names [color]; null: the default's again. One Undo step.
-  void setNameColor(InstrumentFamily family, Color? color) {
-    final colors = {..._doc.nameColors};
-    if (color == null || color == defaultNameColors[family]) {
-      colors.remove(family);
+  /// The group [part]'s family puts it in; null for one with none (named in the ink).
+  String? _familyGroup(ScorePart part) => defaultNameColors.containsKey(part.family) ? part.family.name : null;
+
+  /// The group [part] is named in the colour of: the user's choice, else its family's; null: none.
+  String? nameGroupOf(ScorePart part) {
+    if (!_doc.nameGroupOf.containsKey(part.id)) return _familyGroup(part);
+    final group = _doc.nameGroupOf[part.id];
+    return group == null || nameGroup(group) != null ? group : _familyGroup(part);
+  }
+
+  /// Whether the user put [part] in a group other than its family's.
+  bool ownNameGroup(ScorePart part) => nameGroupOf(part) != _familyGroup(part);
+
+  /// Puts [part] in [group] (null: none); its family's takes it back to that. One Undo step.
+  void setNameGroup(ScorePart part, String? group) {
+    final next = {..._doc.nameGroupOf};
+    if (group == _familyGroup(part)) {
+      next.remove(part.id);
     } else {
-      colors[family] = color;
+      next[part.id] = group;
     }
-    if (mapEquals(colors, _doc.nameColors)) return;
-    _doc = _doc.copyWith(nameColors: Map.unmodifiable(colors));
+    _setNameGroups(nameGroupOf: next);
+  }
+
+  /// Puts [part] back in its family's group. One Undo step.
+  void resetNameGroup(ScorePart part) => setNameGroup(part, _familyGroup(part));
+
+  /// Gives group [id] [color]; for a family's, null is its own again. One Undo step.
+  void setNameGroupColor(String id, Color? color) {
+    final family = InstrumentFamily.values.asNameMap()[id];
+    if (family != null) {
+      final colors = {..._doc.nameColors};
+      if (color == null || color == defaultNameColors[family]) {
+        colors.remove(family);
+      } else {
+        colors[family] = color;
+      }
+      _setNameGroups(nameColors: colors);
+    } else if (color != null) {
+      _setNameGroups(groups: [for (final g in _doc.nameGroups) g.id == id ? g.copyWith(color: color) : g]);
+    }
+  }
+
+  /// Whether the user changed family group [id]'s colour.
+  bool ownNameGroupColor(String id) => _doc.nameColors.containsKey(InstrumentFamily.values.asNameMap()[id]);
+
+  /// Adds a group of the user's called [name], in a colour the others don't have yet; its id.
+  /// One Undo step.
+  String addNameGroup(String name) {
+    var n = 1;
+    while (_doc.nameGroups.any((g) => g.id == 'group-$n')) {
+      n++;
+    }
+    final used = {for (final g in nameGroups) g.color};
+    final color = _extraGroupColors.firstWhere((c) => !used.contains(c),
+        orElse: () => _extraGroupColors[_doc.nameGroups.length % _extraGroupColors.length]);
+    _setNameGroups(groups: [..._doc.nameGroups, NameGroup('group-$n', name, color)]);
+    return 'group-$n';
+  }
+
+  static const _extraGroupColors = [
+    Color(0xFF2A9D8F), // teal
+    Color(0xFFD0507A), // pink
+    Color(0xFFE07B24), // orange
+    Color(0xFF5C7A99), // slate
+    Color(0xFF7F8F2E), // olive
+  ];
+
+  /// Renames the user's group [id]. One Undo step.
+  void renameNameGroup(String id, String name) {
+    if (name.trim().isEmpty) return;
+    _setNameGroups(groups: [for (final g in _doc.nameGroups) g.id == id ? g.copyWith(name: name.trim()) : g]);
+  }
+
+  /// Removes the user's group [id]; its instruments go back to their families'. One Undo step.
+  void removeNameGroup(String id) => _setNameGroups(
+        groups: [for (final g in _doc.nameGroups) if (g.id != id) g],
+        nameGroupOf: {
+          for (final MapEntry(key: part, value: g) in _doc.nameGroupOf.entries) if (g != id) part: g,
+        },
+      );
+
+  void _setNameGroups(
+      {Map<InstrumentFamily, Color>? nameColors, List<NameGroup>? groups, Map<String, String?>? nameGroupOf}) {
+    final next = _doc.copyWith(
+      nameColors: nameColors == null ? null : Map.unmodifiable(nameColors),
+      nameGroups: groups == null ? null : List.unmodifiable(groups),
+      nameGroupOf: nameGroupOf == null ? null : Map.unmodifiable(nameGroupOf),
+    );
+    if (next == _doc) return;
+    _doc = next;
     _showSettings();
     _edited();
+  }
+
+  /// Each instrument's name colour, by part id, while [colorNames]; those in no group left out.
+  Map<String, Color> get _nameColors {
+    if (!_doc.colorNames) return const {};
+    final colors = {for (final g in nameGroups) g.id: g.color};
+    return {
+      for (final part in _score?.metadata.parts ?? const <ScorePart>[])
+        if (nameGroupOf(part) case final g?) part.id: colors[g]!,
+    };
   }
 
   /// Whether the user chose any instrument's section.

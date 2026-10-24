@@ -568,3 +568,51 @@ Future<String?> confirmSavePath(BuildContext context, String path, String extens
   );
   return replace == true ? full : null;
 }
+
+/// Asks for a group's name (Project Settings ▸ Instruments): a new one's, or [rename]'s new
+/// name. Null when cancelled.
+Future<String?> showNameGroupDialog(BuildContext context, {String? rename}) =>
+    showAppDialog<String>(context: context, builder: (context) => _NameGroupDialog(rename: rename));
+
+class _NameGroupDialog extends StatefulWidget {
+  const _NameGroupDialog({this.rename});
+  final String? rename;
+
+  @override
+  State<_NameGroupDialog> createState() => _NameGroupDialogState();
+}
+
+class _NameGroupDialogState extends State<_NameGroupDialog> {
+  late final _name = TextEditingController(text: widget.rename ?? '');
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _done() {
+    final name = _name.text.trim();
+    if (name.isNotEmpty) Navigator.pop(context, name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final adding = widget.rename == null;
+    return AppDialog(
+      title: Text(adding ? 'Add Group' : 'Rename Group'),
+      content: SizedBox(
+        width: dialogWidth(context, 320),
+        child: AppTextField(controller: _name, label: 'Name', autofocus: true, onSubmitted: (_) => _done()),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ListenableBuilder(
+          listenable: _name,
+          builder: (context, _) => FilledButton(
+              onPressed: _name.text.trim().isEmpty ? null : _done, child: Text(adding ? 'Add' : 'Rename')),
+        ),
+      ],
+    );
+  }
+}
