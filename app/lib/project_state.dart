@@ -5,15 +5,6 @@ import 'package:score_engine/score_engine.dart';
 
 import 'image_patch.dart';
 
-/// How a project keeps its recording.
-enum MediaStorage {
-  /// A copy travels inside the .ccs: bigger, but self-contained.
-  embed,
-
-  /// Only the recording's location is saved: small, but the file has to stay where it is.
-  link,
-}
-
 /// An instrument's name as the user set it: the full name and the short one.
 typedef PartName = ({String name, String abbreviation});
 
@@ -62,7 +53,6 @@ class EditState {
     this.fonts = ScoreFonts.standard,
     this.embedFont = true,
     this.engraving = const EngravingOptions(),
-    this.mediaStorage,
     this.extensions = const {},
     this.textDynamics,
   });
@@ -155,10 +145,6 @@ class EditState {
   /// The engraving options this project sets over the app's (Project Settings ▸ Engraving).
   final EngravingOptions engraving;
 
-  /// Whether saves embed the recording or link to it (Project Settings ▸ Project Info); null:
-  /// the app's (Settings, before projects had their own).
-  final MediaStorage? mediaStorage;
-
   /// The extensions this project turned on or off (Project Settings ▸ Extensions), by
   /// [CuratorExtension.id]; one left out follows the app's.
   final Map<String, bool> extensions;
@@ -198,7 +184,6 @@ class EditState {
       fonts == other.fonts &&
       embedFont == other.embedFont &&
       engraving == other.engraving &&
-      mediaStorage == other.mediaStorage &&
       mapEquals(extensions, other.extensions) &&
       textDynamics == other.textDynamics;
 
@@ -234,7 +219,6 @@ class EditState {
     ScoreFonts? fonts,
     bool? embedFont,
     EngravingOptions? engraving,
-    MediaStorage? mediaStorage,
     Map<String, bool>? extensions,
     Object? textDynamics = _kept,
   }) =>
@@ -264,7 +248,6 @@ class EditState {
         fonts: fonts ?? this.fonts,
         embedFont: embedFont ?? this.embedFont,
         engraving: engraving ?? this.engraving,
-        mediaStorage: mediaStorage ?? this.mediaStorage,
         extensions: extensions ?? this.extensions,
         textDynamics: identical(textDynamics, _kept) ? this.textDynamics : textDynamics as bool?,
       );
@@ -472,11 +455,7 @@ class ProjectState {
         embedFont: r.child('fonts').boolean('embed') ?? true,
         // An option this version doesn't know (or no longer offers) is left out, as the app's are.
         engraving: EngravingOptions.fromJson(r.map('engraving'), keepDefault: true),
-        mediaStorage: switch (r.string('mediaStorage')) {
-          null => null,
-          final s => MediaStorage.values.asNameMap()[s] ??
-              (throw FormatException('The project is damaged: ${r.where}.mediaStorage is not embed or link.')),
-        },
+        // mediaStorage (to format 20) is left: saves always embed the recording.
         // One this version doesn't know is kept, so a newer version's choice survives a save here.
         extensions: Map.unmodifiable({
           for (final MapEntry(key: name, value: on) in r.map('extensions').entries)
@@ -622,7 +601,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :motion, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :mediaStorage, :extensions, :textDynamics) = edits;
+        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -634,7 +613,6 @@ class ProjectState {
           if (!embedded) 'embed': false,
         },
       if (!engraving.isEmpty) 'engraving': engraving.toJson(),
-      'mediaStorage': ?mediaStorage?.name,
       if (extensions.isNotEmpty) 'extensions': extensions,
       if (textDynamics != null) 'flags': {'textDynamics': textDynamics},
       'motion': ?motion?.toJson(),

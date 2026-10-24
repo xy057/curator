@@ -118,26 +118,18 @@ void main() {
     expect(settings.musicFont, MusicFont.leland.name);
     expect(find.widgetWithText(OutlinedButton, 'Default'), findsOneWidget, reason: 'saved: a check in its place');
 
-    // Project Info: with a recording, whether saves embed it is the project's, an Undo step.
+    // Project Info: a recording can be removed; saves always embed it.
     final waveform = await tester.runAsync(() => Waveform.analyze(Float32List(1000), 100));
     c.audio.debugTrack = AudioTrack.forTesting(name: 'take.wav', length: 10, waveform: waveform!);
     await tester.tap(find.text('Project Info').first);
     await settle();
-    expect(find.text('In the project file.'), findsOneWidget);
-    await tester.tap(find.text('Link'));
-    await settle();
-    expect((c.mediaStorage, c.projectState.edits.mediaStorage), (MediaStorage.link, MediaStorage.link));
-    expect(settings.mediaStorage, MediaStorage.embed, reason: "the project's, not the app's");
-    expect(find.text('Save as Default'), findsOneWidget, reason: 'beside the title, the recording not yet the default');
+    expect(find.text('take.wav'), findsOneWidget);
+    expect(find.text('Save as Default'), findsNothing, reason: 'nothing here has a default');
     await shoot('project-settings-info');
-    await tester.tap(find.text('Save as Default'));
+    await tester.tap(find.text('Remove'));
     await settle();
-    expect(settings.mediaStorage, MediaStorage.link, reason: 'Save as default');
-    expect(find.widgetWithText(OutlinedButton, 'Default'), findsOneWidget, reason: 'saved: a check in its place');
-    c.undo();
-    await settle();
-    expect(c.mediaStorage, isNull);
-    settings.mediaStorage = MediaStorage.embed;
+    expect(c.track, isNull);
+    expect(find.text('Add…'), findsOneWidget);
 
     // Extensions: each a switch for this project only, an Undo step; no Save as default.
     await tester.tap(find.text('Extensions').first);

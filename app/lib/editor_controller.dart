@@ -179,7 +179,7 @@ class EditorController extends ChangeNotifier {
   Future<MusicFont?> Function(String name) lookUpMusicFont = MusicFont.findInstalled;
 
   /// Opens a saved project: the source score with its edits, then the recording at
-  /// [mediaPath] (if any; [mediaOriginal] is its own file, when it still exists).
+  /// [mediaPath] (if any).
   ///
   /// Either the project opens or nothing changes: the score is engraved before anything is
   /// replaced. A recording that can't be loaded doesn't stop it; the reason is returned.
@@ -188,7 +188,6 @@ class EditorController extends ChangeNotifier {
     required Uint8List scoreBytes,
     required ProjectState state,
     String? mediaPath,
-    String? mediaOriginal,
   }) async {
     var edits = state.edits;
     // A font the project only names is looked for here; not found, Bravura stands in.
@@ -203,7 +202,7 @@ class EditorController extends ChangeNotifier {
     await _install(name, scoreBytes, score, state, arts: arts);
     if (mediaPath == null || _disposed) return null; // nothing to play it in: the window closed
     try {
-      await _loadAudio(mediaPath, temporary: true, originalPath: mediaOriginal);
+      await _loadAudio(mediaPath);
       return null;
     } catch (e) {
       return 'Couldn’t load the recording.\n${describeError(e)}';
@@ -277,13 +276,10 @@ class EditorController extends ChangeNotifier {
       {Map<String, PatchArt> arts = const {}, bool keepRecording = false}) async {
     if (_disposed) return arts.values.forEach(ImageEditing._dispose); // the window closed while engraving
     playback.pause();
-    final mediaOriginal = _mediaOriginal, tab = _tab;
+    final tab = _tab;
     if (!keepRecording) await audio.unload();
     _closeDocument();
-    if (keepRecording) {
-      _mediaOriginal = mediaOriginal;
-      _tab = tab;
-    }
+    if (keepRecording) _tab = tab;
     final edits = state.edits, view = state.view;
     _score = score;
     _source = (name: name, bytes: bytes);
@@ -361,7 +357,6 @@ class EditorController extends ChangeNotifier {
     _score = null;
     _source = null;
     _fileName = null;
-    _mediaOriginal = null;
     _doc = const EditState();
     _previewSections = null;
     _overflowing = null;
@@ -493,17 +488,6 @@ class EditorController extends ChangeNotifier {
     for (final e in Extensions.all) {
       e.apply(this, extensionOn(e.id));
     }
-  }
-
-  /// Whether saves embed the recording or link to it (Project Settings ▸ Project Info); null:
-  /// the app's.
-  MediaStorage? get mediaStorage => _doc.mediaStorage;
-
-  /// Sets [mediaStorage]: one Undo step, saved with the project.
-  void setMediaStorage(MediaStorage value) {
-    if (value == _doc.mediaStorage) return;
-    _doc = _doc.copyWith(mediaStorage: value);
-    _edited();
   }
 
   /// Whether the score groups its instruments in sections, as printed (Project Settings ▸
@@ -1245,11 +1229,6 @@ class EditorController extends ChangeNotifier {
   bool get isLoadingAudio => _loadingAudio;
   AudioTrack? get track => audio.track;
 
-  /// The recording's own file, when it has one (what a project links to). A recording
-  /// unpacked from a project or copied from the app bundle has none.
-  String? get mediaOriginal => _mediaOriginal;
-  String? _mediaOriginal;
-
   /// Runs work that replaces a file the document saves (the recording, converted into scratch
   /// space and deleted with it) when nothing is reading it: [ProjectDocument] makes it its
   /// queue, so a save embedding the recording finishes first. At once without a document.
@@ -1257,19 +1236,25 @@ class EditorController extends ChangeNotifier {
 
   /// Loads the recording from [path] (dropped or picked), in turn ([inTurn]).
   ///
-  /// A video's soundtrack becomes the track (and so what a project embeds), while the video
-  /// stays the recording's own file (what a project links to).
+  /// A video's soundtrack becomes the track (and so what a project embeds).
   Future<void> loadAudio(String path) => inTurn(() => _loadAudio(path));
 
-  /// Loads the recording from [path]. A [temporary] copy (unpacked or bundled) is not the
-  /// recording's own file; [originalPath] then says where that is, if known.
-  Future<void> _loadAudio(String path, {bool temporary = false, String? originalPath}) async {
+  /// Takes the recording out of the project (Project Settings ▸ Project Info ▸ Remove), in
+  /// turn ([inTurn]). Not an Undo step, like loading one.
+  Future<void> removeAudio() => inTurn(() async {
+    if (audio.track == null) return;
+    playback.pause();
+    await audio.unload();
+    _edited();
+    notifyListeners();
+  });
+
+  Future<void> _loadAudio(String path) async {
     playback.pause();
     _loadingAudio = true;
     notifyListeners();
     try {
       await audio.load(path);
-      _mediaOriginal = temporary ? originalPath : path;
       _edited();
       _tab = BottomTab.audio;
       viewport.requestFit();

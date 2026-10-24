@@ -14,29 +14,6 @@ import 'scratch_space.dart';
 /// The demo project, bundled with the app.
 const sampleProjectAsset = 'assets/demo/WI275 - 01 Intro.ccs';
 
-/// How this save stores the recording.
-///
-/// [preferred] is the project's choice (Project Settings ▸ Project Info), else the app's. [originalPath] is the recording's own file, if it
-/// still exists (a recording unpacked from a project has none).
-/// [sizeBytes] is the size of the recording.
-///
-/// With nothing to link to, the recording is embedded: a project should never be saved
-/// pointing nowhere. A recording larger than [embedLimitBytes] is linked when it can be, so
-/// every (auto)save doesn't rewrite gigabytes of video.
-MediaStorage resolveMediaStorage({
-  required MediaStorage preferred,
-  required String? originalPath,
-  required int sizeBytes,
-}) {
-  if (originalPath == null) return MediaStorage.embed;
-  if (sizeBytes > embedLimitBytes) return MediaStorage.link;
-  return preferred;
-}
-
-/// Recordings above this size are linked even when the project says "embed" (see
-/// [resolveMediaStorage]).
-const embedLimitBytes = 2 * 1024 * 1024 * 1024;
-
 /// The open project: where it is saved, whether it has unsaved changes, and autosave.
 class ProjectDocument extends ChangeNotifier {
   ProjectDocument(this.controller, this.settings) {
@@ -107,7 +84,6 @@ class ProjectDocument extends ChangeNotifier {
         scoreBytes: project.scoreBytes,
         state: project.state,
         mediaPath: project.media?.path,
-        mediaOriginal: project.media?.originalPath,
       );
       final missing = project.media?.missingPath;
       recordingProblem = problem ?? (missing == null ? null : 'Can’t find the linked recording:\n$missing');
@@ -203,26 +179,11 @@ class ProjectDocument extends ChangeNotifier {
   ProjectContents _contents() {
     final source = controller.source!;
     final track = controller.track;
-    ProjectMedia? media;
-    if (track != null) {
-      final original = controller.mediaOriginal;
-      final originalExists = original != null && File(original).existsSync();
-      media = ProjectMedia(
-        name: track.name,
-        storage: resolveMediaStorage(
-          preferred: controller.mediaStorage ?? settings.mediaStorage,
-          originalPath: originalExists ? original : null,
-          sizeBytes: File(track.path).existsSync() ? File(track.path).lengthSync() : 0,
-        ),
-        embedFrom: track.path,
-        originalPath: originalExists ? original : null,
-      );
-    }
     return ProjectContents(
       scoreName: source.name,
       scoreBytes: source.bytes,
       state: controller.projectState,
-      media: media,
+      media: track == null ? null : ProjectMedia(name: track.name, embedFrom: track.path),
     );
   }
 
