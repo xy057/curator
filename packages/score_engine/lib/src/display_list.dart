@@ -175,7 +175,7 @@ class RenderStyle {
 
 /// The engraving converted to drawable items, one layer per staff.
 class ScoreDisplayList {
-  ScoreDisplayList._(this.data, this.staves, this.barlines);
+  ScoreDisplayList._(this.data, this.staves, this.barlines, this.apart);
 
   final EngravingData data;
   final List<StaffLayer> staves;
@@ -183,11 +183,16 @@ class ScoreDisplayList {
   /// System barlines; each staff draws the slice that crosses its own lines.
   final StaffLayer barlines;
 
+  /// The texts [build] was asked to set apart (by source id), each as drawn on one staff,
+  /// left to right: not in any staff's layer. [baseline]: its first text's (a box's height is
+  /// the music font's line, far taller than its ink).
+  final List<({String id, List<DisplayItem> items, ui.Rect bounds, double baseline})> apart;
+
   /// Releases the laid-out text and glyphs (glyphs are shared between items).
   void dispose() {
     final paragraphs = <ui.Paragraph>{
-      for (final layer in [...staves, barlines])
-        for (final item in layer.items)
+      for (final items in [...staves.map((s) => s.items), barlines.items, ...apart.map((a) => a.items)])
+        for (final item in items)
           if (item case ParagraphItem(:final paragraph) || RotatedGlyphItem(:final paragraph)) paragraph,
     };
     for (final paragraph in paragraphs) {
@@ -198,9 +203,10 @@ class ScoreDisplayList {
   /// [withoutKeySignatures]: staff numbers (unpitched percussion) whose key signatures are
   /// dropped: Verovio draws a key change on every staff of the system, percussion included.
   /// [hiddenCommands]: recorded commands to leave out (the opening clefs and keys, which the
-  /// frozen zone shows instead).
+  /// frozen zone shows instead). [apart]: texts kept out of the staves ([ScoreDisplayList.apart]),
+  /// source id → the id they are kept by (a copy of a text drawn by the same).
   static ScoreDisplayList build(EngravingData data, RenderStyle style,
-      {Set<int> withoutKeySignatures = const {}, Set<int> hiddenCommands = const {}}) {
+      {Set<int> withoutKeySignatures = const {}, Set<int> hiddenCommands = const {}, Map<String, String> apart = const {}}) {
     final builder = _ItemBuilder(data, style);
     final byStaff = <int, List<DisplayItem>>{};
     final barlineItems = <DisplayItem>[];
@@ -212,6 +218,11 @@ class ScoreDisplayList {
       for (final (i, name) in data.classNames.indexed)
         if (name == 'keySig' || name == 'keyAccid') i,
     };
+    final apartSources = {
+      for (final (i, id) in data.sourceIds.indexed)
+        i: ?apart[id],
+    };
+    final apartItems = <String, ({int staff, List<DisplayItem> items})>{};
     for (var i = 0; i < data.commandCount; i++) {
       if (hiddenCommands.contains(i)) continue;
       final staff = data.commandInts[i * Cmd.words + Cmd.staff];
@@ -227,6 +238,15 @@ class ScoreDisplayList {
           continue;
         }
       }
+      final source = data.commandInts[i * Cmd.words + Cmd.source];
+      if (apartSources[source] case final id?) {
+        // One staff's drawing of it: a pair's shared staff draws its player's again.
+        final kept = apartItems.putIfAbsent(id, () => (staff: staff, items: []));
+        if (kept.staff == staff) {
+          if (builder.item(i) case final item?) kept.items.add(item);
+        }
+        continue;
+      }
       final item = builder.item(i);
       if (item == null) continue;
       (staff == 0 ? barlineItems : byStaff.putIfAbsent(staff, () => [])).add(item);
@@ -239,6 +259,19 @@ class ScoreDisplayList {
           StaffLayer(info, byStaff[info.n] ?? [], binWidth: binWidth, lines: _joined(lines[info.n] ?? const []))
       ],
       StaffLayer(const StaffInfo(n: 0, top: 0, height: 0, lines: 0), barlineItems, binWidth: binWidth),
+      [
+        for (final MapEntry(key: id, value: (:items, staff: _)) in apartItems.entries)
+          if (items.isNotEmpty)
+            (
+              id: id,
+              items: items,
+              bounds: items.map((i) => i.bounds).reduce((a, b) => a.expandToInclude(b)),
+              baseline: switch (items.whereType<ParagraphItem>().firstOrNull) {
+                final p? => p.offset.dy + p.paragraph.alphabeticBaseline,
+                null => items.first.bounds.bottom,
+              },
+            ),
+      ]..sort((a, b) => a.bounds.left.compareTo(b.bounds.left)),
     );
   }
 

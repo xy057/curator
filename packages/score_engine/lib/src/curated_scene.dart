@@ -269,16 +269,6 @@ class SceneSettings {
 class CuratedScene {
   CuratedScene(this.score, {RenderStyle style = const RenderStyle()})
       : _style = style.copyWith(musicFontFamily: score.musicFontFamily, textFontFamily: score.textFontFamily) {
-    final frozen = FrozenZone(score.engraving, _style);
-    display = ScoreDisplayList.build(
-      score.engraving,
-      _style,
-      withoutKeySignatures: {
-        for (final part in score.metadata.parts)
-          if (part.isUnpitchedPercussion) ...part.staffNumbers,
-      },
-      hiddenCommands: frozen.openingCommands,
-    );
     for (final (i, staff) in score.engraving.staves.indexed) {
       _staffIndex[staff.n] = i;
     }
@@ -288,7 +278,6 @@ class CuratedScene {
         _barlinesThrough[staves[k - 1]] = staves[k];
       }
     }
-    renderer = ScoreRenderer(display, _style, frozen: frozen, barlinesThrough: _barlinesThrough);
   }
 
   /// Staff index → the next staff of the same instrument: a piano's barlines run on between them.
@@ -304,8 +293,8 @@ class CuratedScene {
   void setStaffSpace(double staffSpace) {
     if (staffSpace == _style.staffSpace) return;
     _style = _style.copyWith(staffSpace: staffSpace);
-    renderer.dispose();
-    renderer = ScoreRenderer(display, _style, frozen: FrozenZone(score.engraving, _style), barlinesThrough: _barlinesThrough);
+    _renderer?.dispose();
+    _renderer = null;
     _plan = null;
     _fitPlan = null;
     _disposeBarNumbers(); // laid out for the old size
@@ -335,8 +324,32 @@ class CuratedScene {
     scrollMap = next;
     _timelineVersion++;
   }
-  late final ScoreDisplayList display;
-  late ScoreRenderer renderer;
+  /// The engraving as drawable items: made when first drawn, again when [barNumbers] sets the
+  /// tempo marks apart or puts them back.
+  ScoreDisplayList get display => _display ??= ScoreDisplayList.build(
+        score.engraving,
+        _style,
+        withoutKeySignatures: {
+          for (final part in score.metadata.parts)
+            if (part.isUnpitchedPercussion) ...part.staffNumbers,
+        },
+        hiddenCommands: _openingCommands,
+        apart: barNumbers ? _tempoIds : const {},
+      );
+  ScoreDisplayList? _display;
+  int _displayVersion = 0;
+
+  ScoreRenderer get renderer => _renderer ??= () {
+        final display = this.display;
+        final frozen = _frozen ?? FrozenZone(score.engraving, _style);
+        _frozen = null; // the renderer's now
+        return ScoreRenderer(display, _style, frozen: frozen, barlinesThrough: _barlinesThrough);
+      }();
+  ScoreRenderer? _renderer;
+
+  /// A frozen zone made for its opening commands, kept for the first renderer.
+  FrozenZone? _frozen;
+  late final Set<int> _openingCommands = (_frozen ??= FrozenZone(score.engraving, _style)).openingCommands;
   final _staffIndex = <int, int>{};
 
   /// Instrument names chosen by the user (part id → name / short name), shown in the name column.
@@ -551,7 +564,7 @@ class CuratedScene {
 
   /// What a plan for this curation and frame size is made from: a new key, a new plan.
   Object _planKeyFor(Curation curation, ui.Size size) =>
-      (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _captionAbove);
+      (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _captionAbove, _displayVersion);
 
   SpacingPlan _buildPlan(Curation curation, ui.Size size) {
     final pointerX = renderer.pointerX(size.width);
@@ -643,6 +656,7 @@ class CuratedScene {
       ui.Color? paper,
       ui.Color? ink}) {
     final frame = layoutAt(time, curation, size);
+    final rowShift = barNumbers ? _rowShiftAt(time, curation, size) : 0.0;
     final scrollX = scrollMap.xAt(time);
     final paperColor = paper ?? style.paper;
     final faded = ((time - (end - fadeOut)) / fadeOut).clamp(0.0, 1.0);
@@ -669,7 +683,7 @@ class CuratedScene {
                 canvas
                   ..save()
                   ..clipRect(ui.Rect.fromLTRB(musicLeft, 0, size.width, size.height));
-                if (barNumbers) _paintBarNumbers(canvas, size, frame.placements, scrollX, ink ?? style.ink);
+                if (barNumbers) _paintBarNumbers(canvas, size, scrollX, ink ?? style.ink, rowShift);
                 for (final patch in patches) {
                   final rect = _patchRect(patch, scrollX, size);
                   if (rect.right < musicLeft || rect.left > size.width) continue;
@@ -677,6 +691,7 @@ class CuratedScene {
                 }
                 canvas.restore();
               });
+    if (barNumbers) _paintTempo(canvas, size, scrollX, ink ?? style.ink, rowShift);
     if (captions.isNotEmpty) _captionBar.paint(canvas, size, time, _captionSpans, captions, ink ?? style.ink);
     if (fadeLayer) {
       canvas.restore();
@@ -735,15 +750,29 @@ class CuratedScene {
 
   // MARK: Bar numbers
 
-  /// Whether every bar's number is shown at its left under the lowest staff: small, grey and
-  /// italic, below the ink there. Only drawn: nothing is planned or engraved again.
-  bool barNumbers = false;
+  /// Whether every bar's number is shown at its top left, small, grey and italic, in a row
+  /// above the staves that stays put as they come and go, and the tempo marks at the frame's
+  /// left in that row (set apart from the music: the display list is made again).
+  bool get barNumbers => _barNumbers;
+  bool _barNumbers = false;
+  set barNumbers(bool value) {
+    if (value == _barNumbers) return;
+    _barNumbers = value;
+    if (_tempoIds.isEmpty || _display == null) return;
+    _renderer?.dispose();
+    _renderer = null;
+    _display!.dispose();
+    _display = null;
+    _displayVersion++;
+  }
+
+  /// Each tempo mark's source id, and its copy's on a pair's shared staff → its own.
+  late final _tempoIds = {
+    for (final text in score.texts)
+      if (text.kind == ScoreTextKind.tempo) ...{text.id: text.id, '${Condenser.idPrefix}${text.id}': text.id},
+  };
 
   final _barNumberText = <int, ui.Paragraph>{};
-
-  /// Below the bottom line, device units: how far down bar m's ink reaches on staff s, under
-  /// its number (by `s * bars + m`).
-  final _inkUnderNumber = <int, double>{};
 
   ui.Paragraph _barNumber(int bar) => _barNumberText.putIfAbsent(bar, () {
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
@@ -758,12 +787,52 @@ class CuratedScene {
       p.dispose();
     }
     _barNumberText.clear();
-    _inkUnderNumber.clear();
   }
 
-  void _paintBarNumbers(ui.Canvas canvas, ui.Size size, List<StaffPlacement> placements, double scrollX, ui.Color ink) {
-    final shown = [for (final p in placements) if (p.opacity > 0.001) p];
-    if (shown.isEmpty) return;
+  /// The row's bottom in a frame, before any move: just above the room the staves have.
+  double get _rowBottom => verticalMargin + _captionAbove - 6;
+
+  /// The highest the row's top may go: under the captions shown above, else near the top.
+  double get _rowTopLimit => _captionAbove > 0 ? _captionAbove + 8 : 4;
+
+  /// How far the row is lifted at [time]: none, unless staves squeezed into a full frame reach
+  /// up into it. Then it rises ahead of them and settles back after, eased over
+  /// [_rowEase] seconds either side, so the move is gentle and still a function of time.
+  double _rowShiftAt(double time, Curation curation, ui.Size size) {
+    var shift = 0.0;
+    const steps = 6;
+    for (var k = -steps; k <= steps; k++) {
+      final dt = k * _rowEase / steps;
+      final need = _rowNeedAt(time + dt, curation, size);
+      if (need <= 0) continue;
+      final u = 1 - dt.abs() / _rowEase, eased = u * u * (3 - 2 * u);
+      shift = math.max(shift, need * eased);
+    }
+    final room = _rowBottom - _style.staffSpace * 1.6 - _rowTopLimit;
+    return shift.clamp(0.0, math.max(0.0, room));
+  }
+
+  static const _rowEase = 0.8;
+
+  /// How far the row would have to rise at [time] to stay clear of the top staves' ink.
+  double _rowNeedAt(double time, Curation curation, ui.Size size) {
+    final plan = _planFor(curation, size);
+    final tops = plan.topsAt(time);
+    final visibility = _visibilityAt(time, curation);
+    final (left, right) = renderer.visibleRange(scrollMap.xAt(time), size.width);
+    var need = 0.0, checked = 0;
+    for (var i = 0; i < _order.length && checked < 2; i++) {
+      final v = (visibility[_order[i].partId] ?? 0).clamp(0.0, 1.0);
+      if (v <= 0) continue;
+      checked++;
+      final staff = display.staves[_order[i].staffIndex];
+      final top = tops[i] + verticalMargin + _captionAbove - staff.maxInk(left, right).above * renderer.scale;
+      need = math.max(need, (_rowBottom + 3 - top) * fadeFor(v));
+    }
+    return need;
+  }
+
+  void _paintBarNumbers(ui.Canvas canvas, ui.Size size, double scrollX, ui.Color ink, double shift) {
     final measures = score.engraving.measures;
     final scale = renderer.scale, sp = _style.staffSpace;
     final originX = renderer.pointerX(size.width) - scrollX * scale;
@@ -771,27 +840,50 @@ class CuratedScene {
     canvas.saveLayer(
         null,
         ui.Paint()
-          ..color = ui.Color.fromRGBO(0, 0, 0, 0.5 * shown.map((p) => p.opacity).reduce(math.max))
+          ..color = const ui.Color.fromRGBO(0, 0, 0, 0.5)
           ..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn));
     for (var m = 0; m < measures.length; m++) {
       final bar = measures[m];
       if (bar.right < left) continue;
       if (bar.left > right) break;
       final text = _barNumber(m);
-      final width = text.maxIntrinsicWidth / scale;
-      // Under each staff's ink there; a staff coming or going below the others takes the
-      // number down or up with it as it fades.
-      double? top;
-      for (final p in shown) {
-        final staff = display.staves[p.staffIndex];
-        final below = _inkUnderNumber.putIfAbsent(p.staffIndex * measures.length + m,
-            () => staff.maxInk(bar.left, bar.left + width).below);
-        final y = p.y + staff.info.height * scale + math.max(sp, below * scale + sp / 2);
-        top = top == null ? y : top + math.max(0.0, y - top) * p.opacity;
-      }
-      canvas.drawParagraph(text, ui.Offset(originX + bar.left * scale, top!));
+      canvas.drawParagraph(text, ui.Offset(originX + bar.left * scale + sp * 0.3, _rowBottom - shift - text.height));
     }
     canvas.restore();
+  }
+
+  /// The tempo mark the playhead last passed, at the frame's left in the bar numbers' row, on
+  /// their baseline, as engraved (made smaller to fit the names' width). One gives way to the
+  /// next over a couple of staff spaces.
+  void _paintTempo(ui.Canvas canvas, ui.Size size, double scrollX, ui.Color ink, double shift) {
+    final marks = display.apart;
+    if (marks.isEmpty) return;
+    final fade = 2 * display.data.staffSpace;
+    double arrived(int i) {
+      final t = ((scrollX - marks[i].bounds.left) / fade + 0.5).clamp(0.0, 1.0);
+      return t * t * (3 - 2 * t);
+    }
+
+    final number = _barNumber(0);
+    final baseline = _rowBottom - shift - number.height + number.alphabeticBaseline;
+    for (var i = 0; i < marks.length; i++) {
+      final opacity = arrived(i) * (i + 1 < marks.length ? 1 - arrived(i + 1) : 1);
+      if (opacity <= 0.001) continue;
+      final b = marks[i].bounds;
+      final k = renderer.scale * math.min(1.0, (_style.headerWidth - 16) / (b.width * renderer.scale));
+      canvas
+        ..saveLayer(
+            null,
+            ui.Paint()
+              ..color = ui.Color.fromRGBO(0, 0, 0, opacity)
+              ..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn))
+        ..translate(8 - b.left * k, baseline - marks[i].baseline * k)
+        ..scale(k);
+      for (final item in marks[i].items) {
+        item.paint(canvas);
+      }
+      canvas.restore();
+    }
   }
 
   // MARK: Images
@@ -960,8 +1052,9 @@ class CuratedScene {
   }
 
   void dispose() {
-    renderer.dispose();
-    display.dispose();
+    _renderer?.dispose();
+    _display?.dispose();
+    _frozen?.dispose();
     _captionBar.dispose();
     _disposeBarNumbers();
   }

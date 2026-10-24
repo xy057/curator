@@ -427,11 +427,17 @@ Only drawn: nothing is planned or engraved again.
 **Bar numbers are drawn, not engraved** (Project Settings ▸ Engraving ▸ Bar numbers,
 `EditState.barNumbers`, an edit saved from format 18, off for a new project; `CuratedScene.barNumbers`,
 in `SceneSettings`). Every bar's number (its index + 1, as the ruler and Go to count) is set at its
-left barline under the lowest staff shown, small, italic and in half the ink, a staff space below
-the bottom line or half one below that staff's ink under the number (`StaffLayer.maxInk`, kept per
-staff and bar). A staff coming or going below the others takes the numbers down or up with it as it
-fades. Drawn in the renderer's overlay, so the names and frozen zone cover them as they cover the
-music. Only drawn: nothing is planned or engraved again, and the off-frame check doesn't count them.
+top left, small, italic and in half the ink, in a row of its own just above the room the staves
+have (`_rowBottom`: the top margin, under captions shown above), so it stays put however the stack
+grows or shrinks. Only staves squeezed into a full frame reach up into it: then the row rises ahead
+of them and settles back after (`_rowShiftAt`: the most any time within 0.8 s needs, eased by how far
+off that time is, so the move is gentle and still a function of time). Drawn in the renderer's
+overlay, so the names and frozen zone cover them as they cover the music.
+While it is on, the tempo marks (`ScoreTextKind.tempo`, a pair's copy with them) are set apart from the
+music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and
+the plan with them) and the one the playhead last passed is drawn as engraved at the frame's left
+in that row, on the numbers' baseline, made smaller only to fit the names' width; one gives way to
+the next over two staff spaces of scroll. The off-frame check doesn't count either.
 
 **Opening is all or nothing.** A project is read and validated (`ProjectState.fromJson`),
 then engraved, and only then swapped in, in one synchronous step. If anything before the swap
