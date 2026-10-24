@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'curation.dart';
 import 'display_list.dart';
 import 'frozen_zone.dart';
+import 'score_motion.dart';
 import 'scroll_map.dart';
 import 'search.dart';
 import 'staff_stack.dart';
@@ -37,6 +38,7 @@ class SpacingPlan {
     required double visibleLeft,
     required double visibleRight,
     required double transition,
+    MotionCurve glide = MotionCurve.smooth,
     required double scale,
     required StackMetrics metrics,
     /// How far left of the pointer the music shows (past the names and the frozen zone), in
@@ -64,7 +66,7 @@ class SpacingPlan {
     final unitOf = [for (final (u, unit) in units.indexed) ...List.filled(unit.length, u)];
     final unitTwins = {for (final MapEntry(:key, :value) in twins.entries) unitOf[key]: [for (final j in value) unitOf[j]]};
 
-    final bounds = _Bounds.of(edges, scrollMap.duration, transition);
+    final bounds = _Bounds.of(edges, scrollMap.duration, transition, glide);
     return SpacingPlan._(bounds, _Keyframes<_Keyframe>(bounds.length - 1, (i) {
       final middle = (bounds.at[i] + bounds.at[i + 1]) / 2;
       // Everything on screen from a little before the segment starts to a little after it ends
@@ -160,12 +162,12 @@ class SpacingPlan {
     var p = 0.0;
     if (inStart && (!inEnd || (t - start) <= (end - t))) {
       other = i - 1;
-      p = 1 - _smooth(((t - (start - fadeIn / 2)) / fadeIn).clamp(0.0, 1.0));
+      p = 1 - bounds.glide.at((t - (start - fadeIn / 2)) / fadeIn);
     } else if (inEnd) {
       other = i + 1;
-      p = _smooth(((t - (end - fadeOut / 2)) / fadeOut).clamp(0.0, 1.0));
+      p = bounds.glide.at((t - (end - fadeOut / 2)) / fadeOut);
     }
-    if (other == null || p == 0) return own;
+    if (other == null || p == 0) return own; // an overshoot goes past [to] and back
     final to = values(keyframes[other]);
     return [for (var k = 0; k < own.length; k++) own[k] + (to[k] - own[k]) * p];
   }
@@ -207,8 +209,6 @@ class SpacingPlan {
     }
     return result;
   }
-
-  static double _smooth(double x) => x * x * (3 - 2 * x);
 }
 
 /// A segment's layout: where each staff's top line is, and when ink drawn there is off screen.
@@ -226,11 +226,11 @@ class _Keyframes<T> {
 
 /// Where a plan's segments meet, in playback time, each with the seconds it glides over: from
 /// 5 s before the performance to 5 s after it, where edges fall together the longest of their
-/// transitions.
+/// transitions; and how every glide goes ([glide]).
 class _Bounds {
-  _Bounds._(this.at, this.transition);
+  _Bounds._(this.at, this.transition, this.glide);
 
-  factory _Bounds.of(Iterable<RegionEdge> edges, double duration, double transition) {
+  factory _Bounds.of(Iterable<RegionEdge> edges, double duration, double transition, MotionCurve glide) {
     final sorted = [
       (seconds: -5.0, transition: transition),
       for (final e in edges)
@@ -246,11 +246,12 @@ class _Bounds {
         transitions.add(e.transition);
       }
     }
-    return _Bounds._(at, transitions);
+    return _Bounds._(at, transitions, glide);
   }
 
   final List<double> at;
   final List<double> transition;
+  final MotionCurve glide;
   int get length => at.length;
 }
 
@@ -281,6 +282,7 @@ class KeyColumnPlan {
     required double minReach,
     required double maxReach,
     required double transition,
+    MotionCurve glide = MotionCurve.smooth,
   }) {
     final half = transition / 2;
     const margin = 1e-3; // seconds, so a segment reaching up to a key change leaves it out
@@ -296,7 +298,8 @@ class KeyColumnPlan {
       // A warp jumps between keys: wider before it, narrower after.
       for (final w in scrollMap.warpTimes) ...[w - half - margin, w + half + margin],
     ];
-    final bounds = _Bounds.of([...edges, for (final t in keyBounds) (seconds: t, transition: transition)], scrollMap.duration, transition);
+    final bounds = _Bounds.of(
+        [...edges, for (final t in keyBounds) (seconds: t, transition: transition)], scrollMap.duration, transition, glide);
 
     return KeyColumnPlan._(bounds, _Keyframes<List<double>>(bounds.length - 1, (i) {
       final middle = (bounds.at[i] + bounds.at[i + 1]) / 2;

@@ -110,7 +110,7 @@ void main() {
       final r = export.barRange(5, 12)!;
       final timeline = c.timeline, starts = timeline.measureStarts;
       expect(r.start, closeTo(timeline.secondsAtQuarter(starts[4]), 1e-9));
-      expect(r.end, closeTo(timeline.secondsAtQuarter(starts[12]) + ScrollMap.settle + CuratedScene.fadeOut, 1e-9),
+      expect(r.end, closeTo(timeline.secondsAtQuarter(starts[12]) + ScoreMotion.standard.ending, 1e-9),
           reason: 'B ends as the piece does: the score comes to rest, then fades');
       expect(export.showBars(5, 12), isTrue);
       expect(export.span, r);

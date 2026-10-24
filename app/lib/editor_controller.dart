@@ -389,6 +389,27 @@ class EditorController extends ChangeNotifier {
     _edited();
   }
 
+  /// How the score moves in a project that hasn't set its own (the one saved by Project
+  /// Settings ▸ Advanced ▸ Save as default).
+  ScoreMotion get defaultMotion => _defaultMotion;
+  ScoreMotion _defaultMotion = ScoreMotion.standard;
+  set defaultMotion(ScoreMotion value) {
+    if (value == _defaultMotion) return;
+    _defaultMotion = value;
+    if (_doc.motion == null) _scrollChanged();
+  }
+
+  /// How the score moves (Project Settings ▸ Advanced; see [CuratedScene.motion]).
+  ScoreMotion get motion => _doc.motion ?? _defaultMotion;
+
+  /// Sets [motion]: an Undo step.
+  void setMotion(ScoreMotion value) {
+    if (value == _doc.motion) return;
+    _doc = _doc.copyWith(motion: value);
+    _showSettings();
+    _edited();
+  }
+
   void _scrollChanged() {
     _showSettings();
     playback._markDirty(); // only the score shows it: nothing to rebuild
@@ -402,13 +423,14 @@ class EditorController extends ChangeNotifier {
   }
 
   /// What the scene shows besides the score, the time, the curation and the sync: the names,
-  /// condensing, order, scroll, sections, bar numbers, the names' colours, and the extensions'
+  /// condensing, order, scroll, motion, sections, bar numbers, the names' colours, and the extensions'
   /// images and captions (none while off).
   SceneSettings get sceneSettings => SceneSettings(
       names: _doc.partNames,
       condensed: _doc.condensed,
       partOrder: _doc.partOrder,
       scrollFollow: scrollFollow,
+      motion: motion,
       patches: images._scenePatches,
       captions: captions._sceneCaptions,
       captionStyle: captions._style,

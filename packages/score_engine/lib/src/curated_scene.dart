@@ -15,6 +15,7 @@ import 'curation.dart';
 import 'score_fonts.dart';
 import 'score_caption.dart';
 import 'score_metadata.dart';
+import 'score_motion.dart';
 import 'score_patch.dart';
 import 'score_renderer.dart';
 import 'score_text.dart';
@@ -251,6 +252,7 @@ class SceneSettings {
     this.sectionOverrides = const {},
     this.barNumbers = false,
     this.nameColors = const {},
+    this.motion = ScoreMotion.standard,
   });
 
   /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
@@ -265,6 +267,7 @@ class SceneSettings {
   final Map<String, String?> sectionOverrides;
   final bool barNumbers;
   final Map<String, ui.Color> nameColors;
+  final ScoreMotion motion;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -312,7 +315,7 @@ class CuratedScene {
   /// Follows a new or edited tempo track: rebuilds the scroll mapping and the layout plan.
   void setTimeline(ScoreTimeline timeline) {
     _timeline = timeline;
-    scrollMap = ScrollMap(score.engraving, timeline, beats: score.beats, follow: scrollFollow);
+    scrollMap = ScrollMap(score.engraving, timeline, beats: score.beats, follow: scrollFollow, motion: _motion);
     _timelineVersion++;
   }
 
@@ -359,7 +362,7 @@ class CuratedScene {
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
   /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [barNumbers],
-  /// [nameColors]);
+  /// [nameColors], [motion]);
   /// setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
@@ -372,7 +375,8 @@ class CuratedScene {
       sections: sections,
       sectionOverrides: sectionOverrides,
       barNumbers: barNumbers,
-      nameColors: nameColors);
+      nameColors: nameColors,
+      motion: motion);
   set settings(SceneSettings value) {
     names = value.names;
     condensed = value.condensed;
@@ -385,6 +389,21 @@ class CuratedScene {
     sectionOverrides = value.sectionOverrides;
     barNumbers = value.barNumbers;
     nameColors = value.nameColors;
+    motion = value.motion;
+  }
+
+  /// How the score moves (Project Settings ▸ Advanced): staves' glides and fades, the scroll's
+  /// coming to rest, the ending's fade, captions, the bar numbers' row and the tempo at the left.
+  ScoreMotion get motion => _motion;
+  ScoreMotion _motion = ScoreMotion.standard;
+  set motion(ScoreMotion value) {
+    if (value == _motion) return;
+    _motion = value;
+    final next = scrollMap.withMotion(value);
+    if (!identical(next, scrollMap)) {
+      scrollMap = next;
+      _timelineVersion++;
+    }
   }
 
   /// The colour some instruments are named in, by part id (a pair in its first player's); one
@@ -554,7 +573,7 @@ class CuratedScene {
   /// 0…1 for every planned staff: a pair's shared staff is as visible as its less visible
   /// player, and each player's own staff has what is left, so one fades as the other comes.
   Map<String, double> _visibilityAt(double time, Curation curation) {
-    final v = {...curation.visibilityAt(time, timeline)};
+    final v = {...curation.visibilityAt(time, timeline, curve: _motion.fade)};
     for (final g in score.condensed) {
       if (!_condensed.contains(g.id)) continue;
       final a = v[g.partIds[0]] ?? 0, b = v[g.partIds[1]] ?? 0;
@@ -573,7 +592,7 @@ class CuratedScene {
 
   /// What a plan for this curation and frame size is made from: a new key, a new plan.
   Object _planKeyFor(Curation curation, ui.Size size) =>
-      (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _captionAbove, _displayVersion);
+      (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _captionAbove, _displayVersion, _motion.glide);
 
   SpacingPlan _buildPlan(Curation curation, ui.Size size) {
     final pointerX = renderer.pointerX(size.width);
@@ -588,6 +607,7 @@ class CuratedScene {
       visibleLeft: pointerX / renderer.scale,
       visibleRight: (size.width - pointerX) / renderer.scale,
       transition: curation.transition,
+      glide: _motion.glide,
       scale: renderer.scale,
       metrics: _metrics(size),
       musicLeft: (pointerX - renderer.musicLeft) / renderer.scale,
@@ -630,6 +650,7 @@ class CuratedScene {
               minReach: (pointerX - renderer.musicLeftFor(0)) / renderer.scale,
               maxReach: (pointerX - renderer.musicLeft) / renderer.scale,
               transition: curation.transition,
+              glide: _motion.glide,
             );
       _planKey = key;
     }
@@ -647,16 +668,15 @@ class CuratedScene {
   /// once while nothing moves.
   static Future<void> warmUp() => ScoreRenderer.warmUp();
 
-  /// How long the frame takes to fade to paper before the [paint]'s `end`.
-  static const fadeOut = 1.5;
-
   /// When a performance (and its video) ends: the score comes to rest after the final
-  /// barline ([ScrollMap.settle]), then fades out.
-  static double endOf(ScoreTimeline timeline) => timeline.endSeconds + ScrollMap.settle + fadeOut;
+  /// barline ([ScoreMotion.settle]), then fades out ([ScoreMotion.endFade]).
+  static double endOf(ScoreTimeline timeline, [ScoreMotion motion = ScoreMotion.standard]) =>
+      timeline.endSeconds + motion.ending;
 
   /// Draws the frame at [time]. [paper] and [ink] override the style's colours (a dark
-  /// theme); changing them costs nothing (see ScoreRenderer). Over the last [fadeOut]
-  /// seconds before [end] everything fades to paper (on see-through paper, out to nothing).
+  /// theme); changing them costs nothing (see ScoreRenderer). Over the last
+  /// [ScoreMotion.endFade] seconds before [end] everything fades to paper (on see-through
+  /// paper, out to nothing).
   void paint(ui.Canvas canvas, ui.Size size,
       {required double time,
       required Curation curation,
@@ -668,9 +688,10 @@ class CuratedScene {
     final rowShift = barNumbers ? _rowShiftAt(time, curation, size) : 0.0;
     final scrollX = scrollMap.xAt(time);
     final paperColor = paper ?? style.paper;
-    final faded = ((time - (end - fadeOut)) / fadeOut).clamp(0.0, 1.0);
+    final fadeOut = _motion.endFade;
+    final faded = fadeOut > 0 ? ((time - (end - fadeOut)) / fadeOut).clamp(0.0, 1.0) : (time >= end ? 1.0 : 0.0);
     // Eased, so it leaves gently and settles into the paper.
-    final fade = faded * faded * (3 - 2 * faded);
+    final fade = _motion.endCurve.inside(faded);
     // Paper painted over see-through paper would show nothing: the whole frame fades instead.
     final fadeLayer = fade > 0 && paperColor.a < 1;
     if (fadeLayer) canvas.saveLayer(ui.Offset.zero & size, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, 1 - fade));
@@ -701,7 +722,7 @@ class CuratedScene {
                 canvas.restore();
               });
     if (barNumbers) _paintTempo(canvas, size, scrollX, ink ?? style.ink, rowShift);
-    if (captions.isNotEmpty) _captionBar.paint(canvas, size, time, _captionSpans, captions, ink ?? style.ink);
+    if (captions.isNotEmpty) _captionBar.paint(canvas, size, time, _captionSpans, captions, ink ?? style.ink, motion: _motion);
     if (fadeLayer) {
       canvas.restore();
     } else if (fade > 0) {
@@ -816,19 +837,17 @@ class CuratedScene {
 
   /// How far the row is lifted at [time]: none, unless staves squeezed into a full frame reach
   /// up into it. It only ever rises, to the most needed so far, never settling back, and each
-  /// rise is eased in over the [_rowEase] seconds before the staves get there: the highest
-  /// needed so far ([_liftFor], a step at each [_liftStep]) averaged over the time ahead with
-  /// smoothstep's bell as the weight, so the move starts and ends at rest. Still a function of
-  /// time.
+  /// rise is eased in over the [ScoreMotion.rowLead] seconds before the staves get there: the
+  /// highest needed so far ([_liftFor], a step at each [_liftStep]) averaged over the time ahead
+  /// with the slope of [ScoreMotion.rowCurve] as the weight (smoothstep's bell: the move starts
+  /// and ends at rest). Still a function of time.
   double _rowShiftAt(double time, Curation curation, ui.Size size) {
     final lift = _liftFor(curation, size);
-    double eased(double x) {
-      final u = (x / _rowEase).clamp(0.0, 1.0);
-      return u * u * (3 - 2 * u);
-    }
+    final lead = _motion.rowLead, curve = _motion.rowCurve;
+    double eased(double x) => curve.at(x / lead);
 
     var shift = 0.0;
-    final first = (time / _liftStep).floor(), last = ((time + _rowEase) / _liftStep).floor();
+    final first = (time / _liftStep).floor(), last = ((time + lead) / _liftStep).floor();
     for (var i = first; i <= last; i++) {
       final weight = eased((i + 1) * _liftStep - time) - eased(math.max(i * _liftStep, time) - time);
       shift += lift[i.clamp(0, lift.length - 1)] * weight;
@@ -837,13 +856,13 @@ class CuratedScene {
     return shift.clamp(0.0, math.max(0.0, room));
   }
 
-  static const _rowEase = 1.2, _liftStep = 0.1;
+  static const _liftStep = 0.1;
 
   /// The most the row has had to rise up to each [_liftStep] of the playback, made once per plan.
   Float64List _liftFor(Curation curation, ui.Size size) {
     final key = _planKeyFor(curation, size);
     if (_liftKey == key) return _lift;
-    final steps = (endOf(timeline) / _liftStep).ceil() + 1;
+    final steps = (endOf(timeline, _motion) / _liftStep).ceil() + 1;
     final lift = Float64List(steps);
     var most = 0.0;
     for (var i = 0; i < steps; i++) {
@@ -943,14 +962,14 @@ class CuratedScene {
 
   /// [_tempoSpanList]'s words at the frame's left in the bar numbers' row, on their baseline,
   /// in the text font's italic at the names' size, cut short to fit their width. One gives way
-  /// to the next over a couple of staff spaces of scroll.
+  /// to the next over [ScoreMotion.tempoFade] staff spaces of scroll.
   void _paintTempo(ui.Canvas canvas, ui.Size size, double scrollX, ui.Color ink, double shift) {
     final spans = _tempoSpanList;
     if (spans.isEmpty) return;
-    final fade = 2 * display.data.staffSpace;
+    final fade = _motion.tempoFade * display.data.staffSpace, curve = _motion.tempoCurve;
     double arrived(int i) {
-      final t = ((scrollX - spans[i].x) / fade + 0.5).clamp(0.0, 1.0);
-      return t * t * (3 - 2 * t);
+      final past = scrollX - spans[i].x;
+      return fade > 0 ? curve.inside(past / fade + 0.5) : (past >= 0 ? 1.0 : 0.0);
     }
 
     final number = _barNumber(0);
@@ -1054,7 +1073,7 @@ class CuratedScene {
       final (:staffIndex, :partId) = _order[i];
       final v = (visibility[partId] ?? 0).clamp(0.0, 1.0);
       if (v <= 0) continue;
-      final opacity = fadeFor(v);
+      final opacity = _motion.inkFor(v);
       placements.add(placed[i] = StaffPlacement(staffIndex: staffIndex, y: tops[i], opacity: opacity));
 
       final group = _groups[partId];
@@ -1144,12 +1163,6 @@ class CuratedScene {
       if (label.opacity > 0.5 && (label.centerY - point.dy).abs() < style.labelFontSize) return label.partId;
     }
     return null;
-  }
-
-  /// Ink fades in just behind the space opening up, so a staff lands in room already made.
-  static double fadeFor(double v) {
-    final t = ((v - 0.1) / 0.9).clamp(0.0, 1.0);
-    return t * t * (3 - 2 * t);
   }
 
   void dispose() {

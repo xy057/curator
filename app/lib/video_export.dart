@@ -479,7 +479,7 @@ class VideoExport {
     final to = _sync.spans(starts[last - 1], starts[last]).where((s) => s.endSeconds > from.startSeconds + 1e-6).firstOrNull;
     if (to == null) return null;
     final clip = ClippedTimeline(_sync, firstPass: from.pass, start: from.start, lastPass: to.pass, end: to.end);
-    final end = last == bars ? duration : CuratedScene.endOf(clip);
+    final end = last == bars ? duration : CuratedScene.endOf(clip, _scene.motion);
     return (timeline: clip, start: start, musicEnd: to.endSeconds, end: end);
   }
 
@@ -610,7 +610,7 @@ class VideoExport {
     final start = from ?? span.start, end = to ?? span.end;
     final frames = format.frameCount(end - start);
     final fadeOut = _musicEnd < end - 1e-6
-        ? (at: _musicEnd - start, length: ScrollMap.settle)
+        ? (at: _musicEnd - start, length: _scene.motion.settle)
         : end < duration - 1e-6
             ? (at: end - start - VideoEncoder.declick, length: VideoEncoder.declick)
             : null;

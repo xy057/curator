@@ -71,7 +71,7 @@ void main() {
       c.timeline.secondsAtQuarter(starts[3]) - 0.5, // the piccolo gliding in over its own 2 s
       c.timeline.secondsAtQuarter(starts[6], pass: 1) - 0.4, // a caption running out, second time round
       c.timeline.secondsAtQuarter(starts[12], pass: 0) - 0.05, // just before the warp
-      c.playback.duration - CuratedScene.fadeOut / 2, // fading to paper
+      c.playback.duration - ScoreMotion.standard.endFade / 2, // fading to paper
     ];
     expect(passes, hasLength(2));
     for (final t in times) {

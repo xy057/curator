@@ -22,6 +22,7 @@ import 'export_dialog.dart' show revealInFileManager;
 import 'file_names.dart';
 import 'font_settings.dart';
 import 'menu_kit.dart';
+import 'motion_settings.dart';
 import 'project_file.dart';
 import 'project_state.dart' show NameGroupInfo;
 import 'edit_dialogs.dart' show showNameGroupDialog;
@@ -383,7 +384,34 @@ final _projectCategories = <_Category>[
     isDefault: _flagsAreDefault,
     save: (c) => c.settings.textDynamics = c.controller!.textDynamics,
   )),
+  _advancedCategory(),
 ];
+
+/// Project Settings ▸ Advanced: how the score moves, every curve and length of time in it
+/// ([MotionSetting.all]), each over the app's default (Save as default).
+_Category _advancedCategory() {
+  MotionTarget target(_Context c) => MotionTarget(c.settings, c.controller!);
+  return _Category(
+    'Advanced',
+    AppIcon.settings,
+    saveDefault: (shown: null, isDefault: (c) => target(c).isDefault, save: (c) => target(c).saveAsDefault()),
+    [
+      for (final s in MotionSetting.all)
+        _Item(
+          s.title,
+          null,
+          (c) => MotionControl(target: target(c), setting: s),
+          group: s.group,
+          shown: switch (s.group) {
+            MotionSetting.captions => (c) => c.controller!.captions.enabled,
+            MotionSetting.barNumbers => (c) => c.controller!.barNumbers,
+            _ => null,
+          },
+          keywords: 'animation motion curve easing equation ${s.group} ${s.keywords}',
+        ),
+    ],
+  );
+}
 
 /// Whether the project's flags are the app's default (Save as default).
 bool _flagsAreDefault(_Context c) => c.controller!.textDynamics == c.settings.textDynamics;
