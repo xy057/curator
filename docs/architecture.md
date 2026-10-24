@@ -83,10 +83,11 @@ score's ends, so the scroll comes to rest after the last bar and the frame fades
 transition under way there. The music either side is still engraved, so the frame shows it.
 Bar 1 starts at time 0 and the last bar runs to the end, so all the bars are exactly the whole
 video. Frames are `renderFrame(start + i / fps)`; the sound is read from the start (`-ss`,
-fading in over 10 ms) and fades out over the settle after the last bar.
+fading in over 10 ms) and fades out over the settle after the last bar (a settle of 0 cuts it,
+over the same 10 ms).
 The end is a function of time too: after the final barline the score eases to rest over
-`ScrollMap.settle` seconds (its last bars stay on screen), and the frame fades to paper over the
-last `CuratedScene.fadeOut` seconds before `paint`'s `end` (the playback's duration: the piece's
+`ScoreMotion.settle` seconds (its last bars stay on screen), and the frame fades to paper over the
+last `ScoreMotion.endFade` seconds before `paint`'s `end` (the playback's duration: the piece's
 `CuratedScene.endOf`, or the recording if longer), in the preview as in a video.
 A video has any ratio (`VideoRatio`: a preset or one typed, 1:4 to 4:1, chosen in the
 toolbar beside the frame toggle, which choosing one turns on); its size
@@ -262,7 +263,7 @@ free stretch around a caption (`captionRoom`; the dialogs flag one running into 
 `captionOverlapping`). The scene draws it in `CaptionBar` under the staves, which leave
 `CaptionBar.reserve` for it while there are any: the text centred in the score's text font,
 and under it a hairline as wide as the text that draws in to its middle as the caption's time
-runs out; it rises 4 points into place as it fades in over `CaptionBar.fade`, and fades out
+runs out; it rises `ScoreMotion.captionRise` points into place as it fades in over `ScoreMotion.captionFade`, and fades out
 as its time ends. It is part of `paint`, so the preview and a video show the same.
 How it looks is a `CaptionStyle` (`CuratedScene.captionStyle`, copied into video export): its
 font, position (`CaptionPosition`: under the staves or above them, which then sit lower by
