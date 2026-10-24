@@ -178,9 +178,12 @@ an opacity. The fonts themselves stay on the Engraving page. Two sorts of text, 
   The letter spacing reaches the drawing through `VBCommand.letterSpacing`.
 - **Music symbols**, every glyph Verovio sets in the music font: clefs, key and time signatures,
   noteheads, flags, rests (and a multi-bar rest's number), accidentals, articulations, dynamics,
-  ornaments, fermatas, breath marks and caesuras, tremolos (and their number), arpeggios, tuplet numbers,
-  pedal and octave marks, bar repeats (and their count), segno and coda; with augmentation dots (drawn
-  as circles).
+  ornaments (and a trill's wavy line), fermatas, breath marks and caesuras, tremolos (and their number),
+  arpeggios, glissandos (wavy), tuplet numbers, pedal and octave marks, bar repeats (and their count),
+  repeat dots, tablature (fret numbers, lute rhythm signs; the tab clef is a clef), segno and coda; with
+  augmentation dots (drawn as circles). Every music-font draw in Verovio's views is one of these, but
+  for notation MusicXML can't bring in (neumes, mensural, clusters, a serpent barline) and the
+  braces and brackets, stretched to their staves.
   Stems, beams, ledger lines and staff lines are lines, set by the Engraving page's thicknesses. `TextKind.isSymbol`, the page's Music
   symbols group: a size alone, the font having one face and its glyphs set one by one.
   `ScoreTypography.verovioOptions` passes each changed size as the patched Verovio's own option

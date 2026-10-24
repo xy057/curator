@@ -12,7 +12,7 @@ index 221244d..0647ae4 100644
      Mensur m_currentMensur;
      /** The meter signature (time signature) */
 diff --git a/include/vrv/options.h b/include/vrv/options.h
-index 50b0a70..d6d6571 100644
+index 50b0a70..19996c5 100644
 --- a/include/vrv/options.h
 +++ b/include/vrv/options.h
 @@ -259,6 +259,13 @@ private:
@@ -29,7 +29,7 @@ index 50b0a70..d6d6571 100644
  //----------------------------------------------------------------------------
  // OptionInt
  //----------------------------------------------------------------------------
-@@ -711,6 +718,32 @@ public:
+@@ -711,6 +718,35 @@ public:
      OptionJson m_engravingDefaultsFile;
      OptionDbl m_extenderLineMinSpace;
      OptionDbl m_fingeringScale;
@@ -55,6 +55,9 @@ index 50b0a70..d6d6571 100644
 +    OptionDbl m_curatedTremScale; // [curated-score patch]
 +    OptionDbl m_curatedArpegScale; // [curated-score patch]
 +    OptionDbl m_curatedMRptScale; // [curated-score patch]
++    OptionDbl m_curatedRepeatDotScale; // [curated-score patch]
++    OptionDbl m_curatedGlissScale; // [curated-score patch]
++    OptionDbl m_curatedTabScale; // [curated-score patch]
 +    OptionInt m_curatedFingFace; // [curated-score patch]
 +    OptionDbl m_curatedFingTracking; // [curated-score patch]
 +    OptionInt m_curatedHarmFace; // [curated-score patch]
@@ -62,7 +65,7 @@ index 50b0a70..d6d6571 100644
      OptionString m_font;
      OptionArray m_fontAddCustom;
      OptionIntMap m_fontFallback;
-@@ -906,6 +939,13 @@ private:
+@@ -906,6 +942,13 @@ private:
      std::vector<OptionGrp *> m_grps;
  };
  
@@ -346,10 +349,10 @@ index f20540d..297169b 100644
                      Text *text = new Text();
                      text->SetText(UTF8to32(textStr));
 diff --git a/src/options.cpp b/src/options.cpp
-index 7e3ec3c..3142c34 100644
+index 7e3ec3c..aec0a28 100644
 --- a/src/options.cpp
 +++ b/src/options.cpp
-@@ -1303,6 +1303,110 @@ Options::Options()
+@@ -1303,6 +1303,122 @@ Options::Options()
      m_fingeringScale.Init(0.75, 0.25, 1);
      this->Register(&m_fingeringScale, "fingeringScale", &m_generalLayout);
  
@@ -441,6 +444,18 @@ index 7e3ec3c..3142c34 100644
 +    m_curatedMRptScale.Init(1.0, 0.5, 2.5);
 +    this->Register(&m_curatedMRptScale, "curatedMRptScale", &m_generalLayout);
 +
++    m_curatedRepeatDotScale.SetInfo("Repeat dots scale", "[curated-score patch] The size of repeat dots against the staff's");
++    m_curatedRepeatDotScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedRepeatDotScale, "curatedRepeatDotScale", &m_generalLayout);
++
++    m_curatedGlissScale.SetInfo("Glissandos scale", "[curated-score patch] The size of glissandos against the staff's");
++    m_curatedGlissScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedGlissScale, "curatedGlissScale", &m_generalLayout);
++
++    m_curatedTabScale.SetInfo("Tablature scale", "[curated-score patch] The size of tablature against the staff's");
++    m_curatedTabScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedTabScale, "curatedTabScale", &m_generalLayout);
++
 +    m_curatedFingFace.SetInfo("Fingering face", "[curated-score patch] The face of fingering: 0 as written, 1 regular, 2 italic, 3 bold, 4 bold italic");
 +    m_curatedFingFace.Init(0, 0, 4);
 +    this->Register(&m_curatedFingFace, "curatedFingFace", &m_generalLayout);
@@ -461,7 +476,7 @@ index 7e3ec3c..3142c34 100644
      m_font.Init("Leipzig");
      this->Register(&m_font, "font", &m_generalLayout);
 diff --git a/src/view_control.cpp b/src/view_control.cpp
-index 436fca5..004c809 100644
+index 436fca5..8a27c85 100644
 --- a/src/view_control.cpp
 +++ b/src/view_control.cpp
 @@ -863,21 +863,22 @@ void View::DrawOctave(
@@ -503,7 +518,17 @@ index 436fca5..004c809 100644
              data_HORIZONTALALIGNMENT alignment = HORIZONTALALIGNMENT_left;
              dc->SetFont(m_doc->GetDrawingSmuflFont(staffSize, false));
              this->DrawSmuflString(dc, x2, y, str, alignment, staffSize);
-@@ -1586,8 +1587,8 @@ void View::DrawArpeg(DeviceContext *dc, Arpeg *arpeg, Measure *measure, System *
+@@ -1226,7 +1227,8 @@ void View::DrawTrillExtension(
+         dc->StartGraphic(trill, "", trill->GetID(), SPANNING);
+     }
+ 
+-    this->DrawSmuflLine(dc, orig, length, staff->m_drawingStaffSize, false, SMUFL_E59D_ornamentZigZagLineNoRightEnd, 0,
++    this->DrawSmuflLine(dc, orig, length, CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedOrnamentScale), false, // [curated-score patch]
++        SMUFL_E59D_ornamentZigZagLineNoRightEnd, 0,
+         SMUFL_E59E_ornamentZigZagLineWithRightEnd);
+ 
+     if (graphic) {
+@@ -1586,8 +1588,8 @@ void View::DrawArpeg(DeviceContext *dc, Arpeg *arpeg, Measure *measure, System *
          const int angle = -90;
          dc->RotateGraphic(Point(this->ToDeviceContextX(x), this->ToDeviceContextY(y)), angle);
  
@@ -514,7 +539,7 @@ index 436fca5..004c809 100644
  
          dc->EndGraphic(arpeg, this);
  
-@@ -1676,6 +1677,7 @@ void View::DrawBreath(DeviceContext *dc, Breath *breath, Measure *measure, Syste
+@@ -1676,6 +1678,7 @@ void View::DrawBreath(DeviceContext *dc, Breath *breath, Measure *measure, Syste
              continue;
          }
          const int staffSize = staff->m_drawingStaffSize;
@@ -522,7 +547,7 @@ index 436fca5..004c809 100644
          int x = drawingX;
          int y = breath->GetDrawingY();
  
-@@ -1683,11 +1685,11 @@ void View::DrawBreath(DeviceContext *dc, Breath *breath, Measure *measure, Syste
+@@ -1683,11 +1686,11 @@ void View::DrawBreath(DeviceContext *dc, Breath *breath, Measure *measure, Syste
          this->CalcOffset(dc, x, y);
  
          if (symbolDef) {
@@ -537,7 +562,7 @@ index 436fca5..004c809 100644
              dc->ResetFont();
          }
      }
-@@ -1722,9 +1724,31 @@ void View::DrawCaesura(DeviceContext *dc, Caesura *caesura, Measure *measure, Sy
+@@ -1722,9 +1725,31 @@ void View::DrawCaesura(DeviceContext *dc, Caesura *caesura, Measure *measure, Sy
          }
  
          const int staffSize = staff->m_drawingStaffSize;
@@ -571,7 +596,7 @@ index 436fca5..004c809 100644
          int y = (caesura->HasPlace() && (caesura->GetPlace() != STAFFREL_within))
              ? caesura->GetDrawingY()
              : staff->GetDrawingY() - glyphHeight / 2;
-@@ -1733,10 +1757,10 @@ void View::DrawCaesura(DeviceContext *dc, Caesura *caesura, Measure *measure, Sy
+@@ -1733,10 +1758,10 @@ void View::DrawCaesura(DeviceContext *dc, Caesura *caesura, Measure *measure, Sy
          this->CalcOffset(dc, x, y);
  
          if (symbolDef) {
@@ -584,7 +609,7 @@ index 436fca5..004c809 100644
          }
      }
  
-@@ -1917,36 +1941,37 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
+@@ -1917,36 +1942,37 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
      assert(staff);
      assert(dynam);
  
@@ -630,7 +655,7 @@ index 436fca5..004c809 100644
  
      // draw closing symbol
      if (enclosingBack) {
-@@ -1954,7 +1979,7 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
+@@ -1954,7 +1980,7 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
          close.push_back(enclosingBack);
  
          params.m_x += width + unit / 6;
@@ -639,7 +664,7 @@ index 436fca5..004c809 100644
      }
  
      dc->ResetFont();
-@@ -2029,7 +2054,7 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
+@@ -2029,7 +2055,7 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), fermata, fermata->GetStart(), staff)) {
              continue;
          }
@@ -648,7 +673,7 @@ index 436fca5..004c809 100644
          int x = drawingX;
          int y = fermata->GetDrawingY();
  
-@@ -2092,6 +2117,17 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
+@@ -2092,6 +2118,17 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
      dc->EndGraphic(fermata, this);
  }
  
@@ -666,7 +691,7 @@ index 436fca5..004c809 100644
  void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *system)
  {
      assert(dc);
-@@ -2128,9 +2164,12 @@ void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *sys
+@@ -2128,9 +2165,12 @@ void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *sys
          params.m_x = x;
          params.m_y = y;
          params.m_staffSize = staffSize;
@@ -680,7 +705,17 @@ index 436fca5..004c809 100644
  
          dc->SetFont(&fingTxt);
  
-@@ -2334,9 +2373,12 @@ void View::DrawHarm(DeviceContext *dc, Harm *harm, Measure *measure, System *sys
+@@ -2256,7 +2296,8 @@ void View::DrawGliss(DeviceContext *dc, Gliss *gliss, int x1, int x2, Staff *sta
+             const char32_t glissGlyph = SMUFL_EAAF_wiggleGlissando;
+             const int height = m_doc->GetGlyphHeight(glissGlyph, staff->m_drawingStaffSize, false);
+             const Point orig(x1, y1 - height / 2);
+-            this->DrawSmuflLine(dc, orig, length, staff->m_drawingStaffSize, false, glissGlyph);
++            this->DrawSmuflLine(dc, orig, length, CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedGlissScale), false, // [curated-score patch]
++                glissGlyph);
+             break;
+         }
+         case LINEFORM_dashed:
+@@ -2334,9 +2375,12 @@ void View::DrawHarm(DeviceContext *dc, Harm *harm, Measure *measure, System *sys
              this->DrawFb(dc, staff, dynamic_cast<Fb *>(harm->GetFirst()), params);
          }
          else {
@@ -694,7 +729,7 @@ index 436fca5..004c809 100644
  
              dc->SetFont(&harmTxt);
  
-@@ -2387,7 +2429,7 @@ void View::DrawMordent(DeviceContext *dc, Mordent *mordent, Measure *measure, Sy
+@@ -2387,7 +2431,7 @@ void View::DrawMordent(DeviceContext *dc, Mordent *mordent, Measure *measure, Sy
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), mordent, mordent->GetStart(), staff)) {
              continue;
          }
@@ -703,7 +738,7 @@ index 436fca5..004c809 100644
          int x = drawingX;
          int y = mordent->GetDrawingY();
  
-@@ -2556,8 +2598,8 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
+@@ -2556,8 +2600,8 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
          if (bounceStar && (pedal->GetDir() == pedalLog_DIR_bounce)) {
              str.push_back(code);
              // Get the staff size of the first staff
@@ -714,7 +749,7 @@ index 436fca5..004c809 100644
              drawingX -= m_doc->GetGlyphWidth(SMUFL_E655_keyboardPedalUp, staffSize, false);
          }
          if (pedal->GetDir() != pedalLog_DIR_up) {
-@@ -2569,7 +2611,7 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
+@@ -2569,7 +2613,7 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
              if (!system->SetCurrentFloatingPositioner(staff->GetN(), pedal, pedal->GetStart(), staff)) {
                  continue;
              }
@@ -723,7 +758,7 @@ index 436fca5..004c809 100644
              int x = drawingX;
              int y = pedal->GetDrawingY();
  
-@@ -2715,7 +2757,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
+@@ -2715,7 +2759,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), repeatMark, repeatMark->GetStart(), staff)) {
              continue;
          }
@@ -732,7 +767,7 @@ index 436fca5..004c809 100644
          int x = drawingX;
          int y = repeatMark->GetDrawingY();
  
-@@ -2845,7 +2887,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
+@@ -2845,7 +2889,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), trill, trill->GetStart(), staff)) {
              continue;
          }
@@ -741,7 +776,7 @@ index 436fca5..004c809 100644
          int x = drawingX;
          int y = trill->GetDrawingY();
  
-@@ -2953,7 +2995,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
+@@ -2953,7 +2997,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), turn, turn->GetStart(), staff)) {
              continue;
          }
@@ -1130,6 +1165,85 @@ index 63f87fd..76f2bda 100644
          const int yNum = (y > ySymbol + symHeight / 2)
              ? staff->GetDrawingY() + m_doc->GetDrawingUnit(staffNotationSize) + extend.m_height / 2
              : ySymbol + 3 * m_doc->GetDrawingUnit(staffNotationSize) + extend.m_height / 2;
+diff --git a/src/view_page.cpp b/src/view_page.cpp
+index 700d72d..0695ca0 100644
+--- a/src/view_page.cpp
++++ b/src/view_page.cpp
+@@ -961,7 +961,8 @@ void View::DrawBarLineDots(DeviceContext *dc, Staff *staff, BarLine *barLine)
+     const int barLineSeparation = m_doc->GetDrawingUnit(100) * m_options->m_barLineSeparation.GetValue();
+     const int xShift = thickBarLineWidth + dotSeparation + barLineSeparation + barLineWidth;
+     const int staffSize = staff->m_drawingStaffSize;
+-    const int dotWidth = m_doc->GetGlyphWidth(SMUFL_E044_repeatDot, staffSize, false);
++    const int dotSize = CuratedSize(staffSize, m_doc->GetOptions()->m_curatedRepeatDotScale); // [curated-score patch]
++    const int dotWidth = m_doc->GetGlyphWidth(SMUFL_E044_repeatDot, dotSize, false);
+ 
+     const int x1 = x - barLineWidth / 2 - (dotSeparation + dotWidth);
+     const int x2 = x + xShift;
+@@ -973,18 +974,18 @@ void View::DrawBarLineDots(DeviceContext *dc, Staff *staff, BarLine *barLine)
+ 
+     if (barLine->GetForm() == BARRENDITION_rptstart) {
+         for (int y = yTop; y >= yBottom; y -= yInc) {
+-            this->DrawSmuflCode(dc, x2 - thickBarLineWidth / 2, y, SMUFL_E044_repeatDot, staffSize, false);
++            this->DrawSmuflCode(dc, x2 - thickBarLineWidth / 2, y, SMUFL_E044_repeatDot, dotSize, false);
+         }
+     }
+     if (barLine->GetForm() == BARRENDITION_rptboth) {
+         for (int y = yTop; y >= yBottom; y -= yInc) {
+             this->DrawSmuflCode(
+-                dc, x2 + barLineSeparation + barLineWidth / 2, y, SMUFL_E044_repeatDot, staffSize, false);
++                dc, x2 + barLineSeparation + barLineWidth / 2, y, SMUFL_E044_repeatDot, dotSize, false);
+         }
+     }
+     if ((barLine->GetForm() == BARRENDITION_rptend) || (barLine->GetForm() == BARRENDITION_rptboth)) {
+         for (int y = yTop; y >= yBottom; y -= yInc) {
+-            this->DrawSmuflCode(dc, x1, y, SMUFL_E044_repeatDot, staffSize, false);
++            this->DrawSmuflCode(dc, x1, y, SMUFL_E044_repeatDot, dotSize, false);
+         }
+     }
+ 
+@@ -1111,8 +1112,9 @@ void View::DrawMeterSigGrp(DeviceContext *dc, Layer *layer, Staff *staff)
+         if ((meterSigGrp->GetFunc() == meterSigGrpLog_FUNC_mixed) && (iter != std::prev(childList.end()))) {
+             // draw plus sign here
+             const int plusX = x + width + unit / 2;
+-            this->DrawSmuflCode(dc, plusX, y, SMUFL_E08C_timeSigPlus, glyphSize, false);
+-            offset += width + unit + m_doc->GetGlyphWidth(SMUFL_E08C_timeSigPlus, glyphSize, false);
++            const int plusSize = CuratedSize(glyphSize, m_doc->GetOptions()->m_curatedMeterSigScale); // [curated-score patch]
++            this->DrawSmuflCode(dc, plusX, y, SMUFL_E08C_timeSigPlus, plusSize, false);
++            offset += width + unit + m_doc->GetGlyphWidth(SMUFL_E08C_timeSigPlus, plusSize, false);
+         }
+         else {
+             offset += width + unit;
+diff --git a/src/view_tab.cpp b/src/view_tab.cpp
+index 233a284..199f0f7 100644
+--- a/src/view_tab.cpp
++++ b/src/view_tab.cpp
+@@ -61,7 +61,7 @@ void View::DrawTabClef(DeviceContext *dc, LayerElement *element, Layer *layer, S
+ 
+     dc->StartGraphic(element, "", element->GetID());
+ 
+-    this->DrawSmuflCode(dc, x, y, sym, glyphSize, false);
++    this->DrawSmuflCode(dc, x, y, sym, CuratedSize(glyphSize, m_doc->GetOptions()->m_curatedClefScale), false); // [curated-score patch]
+ 
+     // Possibly draw enclosing brackets
+     this->DrawClefEnclosing(dc, clef, staff, sym, x, y);
+@@ -107,7 +107,7 @@ void View::DrawTabNote(DeviceContext *dc, LayerElement *element, Layer *layer, S
+ 
+     this->CalcOffset(dc, x, y);
+ 
+-    int glyphSize = staff->GetDrawingStaffNotationSize();
++    int glyphSize = CuratedSize(staff->GetDrawingStaffNotationSize(), m_doc->GetOptions()->m_curatedTabScale); // [curated-score patch]
+     bool drawingCueSize = false;
+     int overline = 0;
+     int strike = 0;
+@@ -232,7 +232,7 @@ void View::DrawTabDurSym(DeviceContext *dc, LayerElement *element, Layer *layer,
+     int x = element->GetDrawingX();
+     int y = element->GetDrawingY();
+ 
+-    const int glyphSize = staff->GetDrawingStaffNotationSize();
++    const int glyphSize = CuratedSize(staff->GetDrawingStaffNotationSize(), m_doc->GetOptions()->m_curatedTabScale); // [curated-score patch]
+ 
+     const int drawingDur = (tabGrp->GetDurGes() != DURATION_NONE) ? tabGrp->GetActualDurGes() : tabGrp->GetActualDur();
+ 
 diff --git a/src/view_tuplet.cpp b/src/view_tuplet.cpp
 index 6118792..b1ee9d3 100644
 --- a/src/view_tuplet.cpp

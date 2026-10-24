@@ -39,7 +39,8 @@ String engravedText(LoadedScore s) => utf8.decode(s.engraving.text, allowMalform
 /// A bar of every music symbol the typography sizes: a clef, key and time signature, segno,
 /// pedal, 8va, a dynamic, a chord symbol, an accidental, an articulation, fingering, a trill, a
 /// fermata, a breath mark; then a triplet (flagged), a caesura, a rest and a coda; an arpeggiated
-/// chord, a dotted note with a tremolo; and a bar repeat.
+/// chord, a dotted note with a tremolo, a wavy glissando; and a bar repeat. The trill has its wavy
+/// line, bar 2 ends with a repeat; a guitar plays a fret on a tab staff below.
 String symbolsScore() {
   String note(String step, int duration, {String type = 'quarter', int alter = 0, String extra = '', String notations = ''}) =>
       '<note><pitch><step>$step</step>${alter != 0 ? '<alter>$alter</alter>' : ''}<octave>5</octave></pitch>'
@@ -49,15 +50,16 @@ String symbolsScore() {
       '<direction placement="above"><direction-type>$type</direction-type>$sound</direction>';
   const triplet = '<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>';
   return '<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0">'
-      '<part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1">'
+      '<part-list><score-part id="P1"><part-name>Piano</part-name></score-part>'
+      '<score-part id="P2"><part-name>Guitar</part-name></score-part></part-list><part id="P1">'
       '<measure number="1"><attributes><divisions>6</divisions><key><fifths>-1</fifths></key>'
       '<time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>'
       '${direction('<segno/>')}${direction('<pedal type="start" line="no"/>')}'
       '${direction('<octave-shift type="down" size="8"/>')}${direction('<dynamics><mf/></dynamics>')}'
       '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>major</kind></harmony>'
       '${note('C', 6, alter: 1, notations: '<articulations><accent/></articulations><technical><fingering>4</fingering></technical>')}'
-      '${note('D', 6, notations: '<ornaments><trill-mark/></ornaments>')}'
-      '${note('E', 6, notations: '<fermata type="upright"/>')}'
+      '${note('D', 6, notations: '<ornaments><trill-mark/><wavy-line type="start"/></ornaments>')}'
+      '${note('E', 6, notations: '<fermata type="upright"/><ornaments><wavy-line type="stop"/></ornaments>')}'
       '${note('F', 6, notations: '<articulations><breath-mark/></articulations>')}</measure>'
       '<measure number="2">'
       '${note('G', 2, type: 'eighth', extra: triplet, notations: '<tuplet type="start" bracket="yes"/>')}'
@@ -65,16 +67,24 @@ String symbolsScore() {
       '${note('B', 2, type: 'eighth', extra: triplet, notations: '<tuplet type="stop"/>')}'
       '${note('C', 12, type: 'half', notations: '<articulations><caesura/></articulations>')}'
       '<note><rest/><duration>6</duration><type>quarter</type></note>${direction('<octave-shift type="stop" size="8"/>')}${direction('<pedal type="stop" line="no"/>')}'
-      '${direction('<coda/>')}</measure>'
+      '${direction('<coda/>')}<barline location="right"><bar-style>light-heavy</bar-style><repeat direction="backward"/></barline></measure>'
       '<measure number="3">'
       '${note('C', 6, notations: '<arpeggiate/>')}<note><chord/><pitch><step>E</step><octave>5</octave></pitch>'
       '<duration>6</duration><type>quarter</type><notations><arpeggiate/></notations></note>'
       '${note('G', 9, extra: '<dot/>', notations: '<ornaments><tremolo type="single">3</tremolo></ornaments>')}'
-      '${note('A', 3, type: 'eighth')}${note('B', 6)}</measure>'
+      '${note('A', 3, type: 'eighth', notations: '<glissando type="start" line-type="wavy"/>')}'
+      '${note('B', 6, notations: '<glissando type="stop" line-type="wavy"/>')}</measure>'
       '<measure number="4"><attributes><measure-style><measure-repeat type="start">1</measure-repeat></measure-style></attributes>'
       '<note><rest measure="yes"/><duration>24</duration></note></measure>'
       '<measure number="5"><attributes><measure-style><measure-repeat type="stop"/></measure-style></attributes>'
-      '${note('C', 24, type: 'whole')}</measure></part></score-partwise>';
+      '${note('C', 24, type: 'whole')}</measure></part><part id="P2">'
+      '<measure number="1"><attributes><divisions>6</divisions><key><fifths>-1</fifths></key>'
+      '<time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>TAB</sign><line>5</line></clef>'
+      '<staff-details><staff-lines>6</staff-lines></staff-details></attributes>'
+      '<note><pitch><step>F</step><alter>1</alter><octave>4</octave></pitch><duration>24</duration><type>whole</type>'
+      '<notations><technical><string>2</string><fret>7</fret></technical></notations></note></measure>'
+      '${[for (var m = 2; m <= 5; m++) '<measure number="$m"><note><rest measure="yes"/><duration>24</duration></note></measure>'].join()}'
+      '</part></score-partwise>';
 }
 
 /// The width of the first augmentation dot (drawn as a circle).
@@ -141,10 +151,13 @@ void main() {
       'breathMarks': ((0xE4CE, 0xE4D6), 1.8),
       'tremolos': ((0xE220, 0xE22F), 2.3),
       'arpeggios': ((0xEAA9, 0xEAA9), 1.65),
+      'glissandos': ((0xEAAF, 0xEAAF), 1.85),
       'tupletNumbers': ((0xE883, 0xE883), 1.25),
       'pedal': ((0xE650, 0xE65F), 1.9),
       'octave': ((0xE510, 0xE51F), 0.6),
       'barRepeats': ((0xE500, 0xE50F), 1.2),
+      'repeatDots': ((0xE044, 0xE044), 1.5),
+      'tablature': ('7', 1.45),
       'segnoCoda': ((0xE047, 0xE048), 2.2),
     };
     expect(symbols.keys, [for (final k in TextKind.values) if (k.isSymbol) k.name]);
@@ -173,6 +186,11 @@ void main() {
       for (final MapEntry(:key, value: (what, scale)) in symbols.entries) {
         final was = sizeOf(plain, what);
         expect(sizeOf(big, what), closeTo(was * (small ? 0.6 : scale), was * 0.03), reason: '$key${small ? ' small' : ''}');
+      }
+      // Parts that follow their kind: the trill's wavy line, the tab clef.
+      for (final (code, kind) in [(0xE59D, 'ornaments'), (0xE06D, 'clefs')]) {
+        final was = glyphOf(plain, code, code).size, scale = small ? 0.6 : symbols[kind]!.$2;
+        expect(glyphOf(big, code, code).size, closeTo(was * scale, was * 0.03), reason: code.toRadixString(16));
       }
       for (final (words, scale, flag) in [
         ('4', small ? 0.6 : 1.4, VBFlag.bold),

@@ -54,10 +54,13 @@ enum TextKind {
   breathMarks.symbol('Breath marks', 'curatedBreathScale'),
   tremolos.symbol('Tremolos', 'curatedTremScale'),
   arpeggios.symbol('Arpeggios', 'curatedArpegScale'),
+  glissandos.symbol('Glissandos', 'curatedGlissScale'),
   tupletNumbers.symbol('Tuplet numbers', 'curatedTupletNumScale'),
   pedal.symbol('Pedal marks', 'curatedPedalScale'),
   octave.symbol('Octave marks', 'curatedOctaveScale'),
   barRepeats.symbol('Bar repeats', 'curatedMRptScale'),
+  repeatDots.symbol('Repeat dots', 'curatedRepeatDotScale'),
+  tablature.symbol('Tablature', 'curatedTabScale'),
   segnoCoda.symbol('Segno and coda', 'curatedRepeatMarkScale');
 
   const TextKind(this.label, this.house, {this.engraved = false})
