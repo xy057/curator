@@ -300,6 +300,8 @@ class CuratedScene {
     _style = _style.copyWith(staffSpace: staffSpace);
     _renderer?.dispose();
     _renderer = null;
+    _frozen?.dispose(); // made for the old size, before any renderer took it
+    _frozen = null;
     _plan = null;
     _fitPlan = null;
     _liftKey = Object(); // the row's rises were for the old size: never a plan's key
