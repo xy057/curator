@@ -417,7 +417,9 @@ class EditorController extends ChangeNotifier {
   }
 
   CuratedScene _makeScene(LoadedScore score) {
-    final scene = CuratedScene(score, style: RenderStyle(staffSpace: _staffSpace))..settings = sceneSettings;
+    final scene = CuratedScene(score, style: RenderStyle(staffSpace: _staffSpace))
+      ..settings = sceneSettings
+      ..holdBarRow = _gestures > 0 || _staffSpaceChanged;
     if (_sync != null) scene.setTimeline(_sync!);
     return scene;
   }
@@ -1087,11 +1089,13 @@ class EditorController extends ChangeNotifier {
       _staffSpace = value;
       _scene?.setStaffSpace(value);
       _staffSpaceChanged = true;
+      _holdBarRow();
       playback._markDirty();
       notifyListeners();
     }
     if (!dragging && _staffSpaceChanged) {
       _staffSpaceChanged = false;
+      _holdBarRow();
       _edited();
     }
   }
@@ -1315,14 +1319,27 @@ class EditorController extends ChangeNotifier {
   bool get canRedo => _history.canRedo;
 
   /// Starts a gesture (a drag): everything it changes becomes one Undo step at [endEdit].
-  void beginEdit() => _gestures++;
+  void beginEdit() {
+    _gestures++;
+    _holdBarRow();
+  }
 
   /// Ends a gesture: merges what it left overlapping, and records it.
   void endEdit() {
     if (_gestures == 0 || _disposed) return;
     _gestures--;
     _curation?.normalize();
+    _holdBarRow();
     if (_record()) notifyListeners();
+  }
+
+  /// The bar numbers' row keeps its rises while a gesture lasts ([CuratedScene.holdBarRow]),
+  /// as [overflowing] keeps its answer, and catches up in the next frame once it ends.
+  void _holdBarRow() {
+    final scene = _scene, hold = _gestures > 0 || _staffSpaceChanged;
+    if (scene == null || scene.holdBarRow == hold) return;
+    scene.holdBarRow = hold;
+    if (!hold) playback._markDirty();
   }
 
   /// Records an Undo step if the document changed since the last (not inside a gesture);

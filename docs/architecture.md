@@ -464,9 +464,11 @@ still count bars from 1) is set at its
 top left, small, italic and in half the ink, in a row of its own just above the room the staves
 have (`_rowBottom`: the top margin, under captions shown above), so it stays put however the stack
 grows or shrinks. Only staves squeezed into a full frame reach up into it: then the row rises, and
-never comes down. `_liftFor` keeps, per plan, the most the row has had to rise up to each 0.1 s
+never comes down. `_liftFor` keeps, per plan (and score size), the most the row has had to rise up to each 0.1 s
 (the top two shown staves' ink, checked against each staff's highest ink first, so most steps cost
-one lookup); `_rowShiftAt` averages that over the next 1.2 s with smoothstep's bell as the weight,
+one lookup), worked out only as far as a
+frame asks, so an edit costs the steps up to the playhead, and kept as it was while a gesture lasts
+(`holdBarRow`, set by the controller as for the off-frame check; a video never holds); `_rowShiftAt` averages that over the next 1.2 s with smoothstep's bell as the weight,
 so each rise starts and ends at rest, is done before the staves get there, and is still a function
 of time. Drawn in the renderer's
 overlay, so the names and frozen zone cover them as they cover the music.
