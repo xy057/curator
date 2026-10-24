@@ -50,6 +50,7 @@ class EditState {
     this.partOrder = const [],
     this.sections = const {},
     this.groupSections = false,
+    this.barNumbers = true,
     this.patches = const [],
     this.captions = const [],
     this.captionFont,
@@ -107,6 +108,10 @@ class EditState {
   /// Whether the score groups its instruments in sections, as printed ([CuratedScene.sections]).
   final bool groupSections;
 
+  /// Whether every bar's number is shown above the staves, with the tempo marks at the left
+  /// ([CuratedScene.barNumbers]); on for a new project.
+  final bool barNumbers;
+
   /// Images on the score (Attach Image), bottom to top.
   final List<ImagePatch> patches;
 
@@ -158,6 +163,7 @@ class EditState {
       listEquals(partOrder, other.partOrder) &&
       mapEquals(sections, other.sections) &&
       groupSections == other.groupSections &&
+      barNumbers == other.barNumbers &&
       listEquals(patches, other.patches) &&
       listEquals(captions, other.captions) &&
       captionFont == other.captionFont &&
@@ -187,6 +193,7 @@ class EditState {
     List<String>? partOrder,
     Map<String, String?>? sections,
     bool? groupSections,
+    bool? barNumbers,
     List<ImagePatch>? patches,
     List<Caption>? captions,
     Object? captionFont = _kept,
@@ -211,6 +218,7 @@ class EditState {
         partOrder: partOrder ?? this.partOrder,
         sections: sections ?? this.sections,
         groupSections: groupSections ?? this.groupSections,
+        barNumbers: barNumbers ?? this.barNumbers,
         patches: patches ?? this.patches,
         captions: captions ?? this.captions,
         captionFont: identical(captionFont, _kept) ? this.captionFont : captionFont as String?,
@@ -243,7 +251,7 @@ class ProjectState {
 
   /// The version [toJson] writes (the project file's format version): every save is in the
   /// newest format, whatever the project uses.
-  static const version = 17;
+  static const version = 18;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version]. Additive only: a new format adds fields (the
@@ -265,6 +273,7 @@ class ProjectState {
     14: (state) => state, // a MIDI tempo map's warps came in 15: none
     15: (state) => state, // instruments' sections came in 16: none, their own
     16: (state) => state, // grouping sections, and sections of the user's own, came in 17 (16's were families' names): off, none
+    17: (state) => {...state, 'barNumbers': false}, // bar numbers came in 18: off, as made
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -355,6 +364,7 @@ class ProjectState {
             },
         },
         groupSections: r.boolean('groupSections') ?? false,
+        barNumbers: r.boolean('barNumbers') ?? true,
         patches: patches,
         // Kept apart (those saved before captions couldn't overlap show as they did).
         captions: separateCaptions([
@@ -490,7 +500,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :mediaStorage, :extensions, :textDynamics) = edits;
+        :sections, :groupSections, :barNumbers, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :mediaStorage, :extensions, :textDynamics) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -510,6 +520,7 @@ class ProjectState {
       'pairs': [for (final p in pairs) p.partIds],
       'partOrder': partOrder,
       if (groupSections) 'groupSections': true,
+      if (!barNumbers) 'barNumbers': false,
       if (sections.isNotEmpty)
         'sections': {for (final MapEntry(key: id, value: s) in sections.entries) id: s ?? 'none'},
       'patches': [

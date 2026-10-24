@@ -424,6 +424,29 @@ A section stays bracketed while any of its staves shows, one alone too; the brac
 a staff fading in or out at either end, and it fades with the last.
 Only drawn: nothing is planned or engraved again.
 
+**Bar numbers are drawn, not engraved** (Project Settings ▸ Engraving ▸ Bar numbers,
+`EditState.barNumbers`, an edit saved from format 18, on for a new project, off for one saved before; `CuratedScene.barNumbers`,
+in `SceneSettings`). Every bar's number (its index + 1, as the ruler and Go to count) is set at its
+top left, small, italic and in half the ink, in a row of its own just above the room the staves
+have (`_rowBottom`: the top margin, under captions shown above), so it stays put however the stack
+grows or shrinks. Only staves squeezed into a full frame reach up into it: then the row rises, and
+never comes down. `_liftFor` keeps, per plan, the most the row has had to rise up to each 0.1 s
+(the top two shown staves' ink, checked against each staff's highest ink first, so most steps cost
+one lookup); `_rowShiftAt` averages that over the next 1.2 s with smoothstep's bell as the weight,
+so each rise starts and ends at rest, is done before the staves get there, and is still a function
+of time. Drawn in the renderer's
+overlay, so the names and frozen zone cover them as they cover the music.
+While it is on, the texts that speak of the speed (`ScoreText.tempoRole`: a tempo mark; a change for a
+while, "rit.", "accel.", "allarg." and the like; or "a tempo"; a pair's copy with them) are set apart from
+the music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and
+the plan with them), and what they say where the playhead is (`_tempoSpanList`) is written at the
+frame's left in that row: the tempo mark last passed, or a change in its stead from where it is
+written until its dashes or bracket end (`ScoreText.extended`; Verovio draws them with it, so its
+right edge is where), "a tempo" or another mark comes ("a tempo" itself shows the tempo again).
+The words are as edited (no metronome mark), on the numbers' baseline, in the text font's italic at
+the names' size, cut short with an ellipsis past their width; one gives way to the next over two
+staff spaces of scroll. The off-frame check doesn't count either.
+
 **Opening is all or nothing.** A project is read and validated (`ProjectState.fromJson`),
 then engraved, and only then swapped in, in one synchronous step. If anything before the swap
 fails, what was open stays open, with its path — so a later save can't write one project

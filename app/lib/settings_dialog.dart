@@ -517,6 +517,13 @@ _Category _engravingCategory() {
           keywords: 'engrave engraving ${s.group} ${s.keywords} ${s.key}',
         ),
       _Item(
+        'Bar numbers',
+        null,
+        (c) => AppSwitch(value: c.controller!.barNumbers, onChanged: c.controller!.setBarNumbers),
+        group: 'Notation',
+        keywords: 'bar measure numbers numbering count',
+      ),
+      _Item(
         'Engraving options',
         (c) => switch (EngraveOption.all.where(target(c).isChanged).length) {
           0 => 'None changed.',

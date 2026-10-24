@@ -402,7 +402,7 @@ class EditorController extends ChangeNotifier {
   }
 
   /// What the scene shows besides the score, the time, the curation and the sync: the names,
-  /// condensing, order, scroll, sections, and the extensions' images and captions (none while off).
+  /// condensing, order, scroll, sections, bar numbers, and the extensions' images and captions (none while off).
   SceneSettings get sceneSettings => SceneSettings(
       names: _doc.partNames,
       condensed: _doc.condensed,
@@ -412,7 +412,8 @@ class EditorController extends ChangeNotifier {
       captions: captions._sceneCaptions,
       captionStyle: captions._style,
       sections: _doc.groupSections,
-      sectionOverrides: {..._doc.sections, ...?_previewSections});
+      sectionOverrides: {..._doc.sections, ...?_previewSections},
+      barNumbers: _doc.barNumbers);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
@@ -484,6 +485,18 @@ class EditorController extends ChangeNotifier {
   void setGroupSections(bool on) {
     if (on == _doc.groupSections) return;
     _doc = _doc.copyWith(groupSections: on);
+    _showSettings();
+    _edited();
+  }
+
+  /// Whether every bar's number is shown under the staves (Project Settings ▸ Engraving; see
+  /// [CuratedScene.barNumbers]).
+  bool get barNumbers => _doc.barNumbers;
+
+  /// Shows the bar numbers, or hides them: one Undo step.
+  void setBarNumbers(bool on) {
+    if (on == _doc.barNumbers) return;
+    _doc = _doc.copyWith(barNumbers: on);
     _showSettings();
     _edited();
   }

@@ -22,5 +22,11 @@ void main() {
 
     final removed = await score.withTextEdits({vivo.id: ''});
     expect(engravedText(removed), isNot(contains('Vivo')));
+
+    // What the words say of the speed (the bar numbers' row shows them at the frame's left).
+    final rit = score.texts.firstWhere((t) => t.text == 'poco rit.');
+    expect([for (final w in ['Vivo', 'poco rit.', 'accel.', 'a tempo', 'dolce']) rit.tempoRole(w)],
+        [TempoRole.none, TempoRole.change, TempoRole.change, TempoRole.back, TempoRole.none]);
+    expect(vivo.tempoRole('Vivo'), TempoRole.tempo);
   });
 }
