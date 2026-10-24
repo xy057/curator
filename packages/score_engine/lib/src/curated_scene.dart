@@ -249,6 +249,7 @@ class SceneSettings {
     this.captionStyle = const CaptionStyle(),
     this.sections = false,
     this.sectionOverrides = const {},
+    this.barNumbers = false,
   });
 
   /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
@@ -261,6 +262,7 @@ class SceneSettings {
   final CaptionStyle captionStyle;
   final bool sections;
   final Map<String, String?> sectionOverrides;
+  final bool barNumbers;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -306,6 +308,7 @@ class CuratedScene {
     renderer = ScoreRenderer(display, _style, frozen: FrozenZone(score.engraving, _style), barlinesThrough: _barlinesThrough);
     _plan = null;
     _fitPlan = null;
+    _disposeBarNumbers(); // laid out for the old size
   }
 
   /// How the score lines up with the recording (the tempo track). Defaults to the score's
@@ -340,8 +343,8 @@ class CuratedScene {
   Map<String, ({String name, String abbreviation})> names = const {};
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
-  /// [patches], [captions], [captionStyle], [sections], [sectionOverrides]); setting it changes
-  /// only what differs.
+  /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [barNumbers]);
+  /// setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
       condensed: condensed,
@@ -351,7 +354,8 @@ class CuratedScene {
       captions: captions,
       captionStyle: captionStyle,
       sections: sections,
-      sectionOverrides: sectionOverrides);
+      sectionOverrides: sectionOverrides,
+      barNumbers: barNumbers);
   set settings(SceneSettings value) {
     names = value.names;
     condensed = value.condensed;
@@ -362,6 +366,7 @@ class CuratedScene {
     captionStyle = value.captionStyle;
     sections = value.sections;
     sectionOverrides = value.sectionOverrides;
+    barNumbers = value.barNumbers;
   }
 
   /// Whether the instruments are grouped in sections as a printed score groups them: each
@@ -658,12 +663,13 @@ class CuratedScene {
         keyColumn: keyColumnAt(time, curation, size),
         paper: paper,
         ink: ink,
-        overlay: patches.isEmpty
+        overlay: patches.isEmpty && !barNumbers
             ? null
             : (canvas, musicLeft) {
                 canvas
                   ..save()
                   ..clipRect(ui.Rect.fromLTRB(musicLeft, 0, size.width, size.height));
+                if (barNumbers) _paintBarNumbers(canvas, size, frame.placements, scrollX, ink ?? style.ink);
                 for (final patch in patches) {
                   final rect = _patchRect(patch, scrollX, size);
                   if (rect.right < musicLeft || rect.left > size.width) continue;
@@ -726,6 +732,67 @@ class CuratedScene {
 
   /// Where caption [index]'s text is drawn in a frame of [size] (points).
   ui.Rect captionRect(int index, ui.Size size) => _captionBar.rectOf(_captions[index].text, size);
+
+  // MARK: Bar numbers
+
+  /// Whether every bar's number is shown at its left under the lowest staff: small, grey and
+  /// italic, below the ink there. Only drawn: nothing is planned or engraved again.
+  bool barNumbers = false;
+
+  final _barNumberText = <int, ui.Paragraph>{};
+
+  /// Below the bottom line, device units: how far down bar m's ink reaches on staff s, under
+  /// its number (by `s * bars + m`).
+  final _inkUnderNumber = <int, double>{};
+
+  ui.Paragraph _barNumber(int bar) => _barNumberText.putIfAbsent(bar, () {
+        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
+            fontFamily: _style.textFontFamily, fontSize: _style.staffSpace * 1.3, fontStyle: ui.FontStyle.italic, maxLines: 1))
+          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
+          ..addText('${bar + 1}');
+        return builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
+      });
+
+  void _disposeBarNumbers() {
+    for (final p in _barNumberText.values) {
+      p.dispose();
+    }
+    _barNumberText.clear();
+    _inkUnderNumber.clear();
+  }
+
+  void _paintBarNumbers(ui.Canvas canvas, ui.Size size, List<StaffPlacement> placements, double scrollX, ui.Color ink) {
+    final shown = [for (final p in placements) if (p.opacity > 0.001) p];
+    if (shown.isEmpty) return;
+    final measures = score.engraving.measures;
+    final scale = renderer.scale, sp = _style.staffSpace;
+    final originX = renderer.pointerX(size.width) - scrollX * scale;
+    final (left, right) = renderer.visibleRange(scrollX, size.width);
+    canvas.saveLayer(
+        null,
+        ui.Paint()
+          ..color = ui.Color.fromRGBO(0, 0, 0, 0.5 * shown.map((p) => p.opacity).reduce(math.max))
+          ..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn));
+    for (var m = 0; m < measures.length; m++) {
+      final bar = measures[m];
+      if (bar.right < left) continue;
+      if (bar.left > right) break;
+      final text = _barNumber(m);
+      final width = text.maxIntrinsicWidth / scale;
+      // Under each staff's ink there; a staff coming or going below the others takes the
+      // number down or up with it as it fades.
+      double? top;
+      for (final p in shown) {
+        final staff = display.staves[p.staffIndex];
+        final below = _inkUnderNumber.putIfAbsent(p.staffIndex * measures.length + m,
+            () => staff.maxInk(bar.left, bar.left + width).below);
+        final y = p.y + staff.info.height * scale + math.max(sp, below * scale + sp / 2);
+        top = top == null ? y : top + math.max(0.0, y - top) * p.opacity;
+      }
+      canvas.drawParagraph(text, ui.Offset(originX + bar.left * scale, top!));
+    }
+    canvas.restore();
+  }
 
   // MARK: Images
 
@@ -896,5 +963,6 @@ class CuratedScene {
     renderer.dispose();
     display.dispose();
     _captionBar.dispose();
+    _disposeBarNumbers();
   }
 }

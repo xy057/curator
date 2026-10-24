@@ -35,6 +35,7 @@ void main() {
     c.setStaffSpace(9);
     c.setScrollFollow(0.8);
     c.setGroupSections(true);
+    c.setBarNumbers(true);
     c.setCondensed(['cond-P2-P3'], on: true);
     c.moveLane('P17', 0);
     c.curation!.transition = 0.7;

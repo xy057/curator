@@ -424,6 +424,15 @@ A section stays bracketed while any of its staves shows, one alone too; the brac
 a staff fading in or out at either end, and it fades with the last.
 Only drawn: nothing is planned or engraved again.
 
+**Bar numbers are drawn, not engraved** (Project Settings ▸ Engraving ▸ Bar numbers,
+`EditState.barNumbers`, an edit saved from format 18, off for a new project; `CuratedScene.barNumbers`,
+in `SceneSettings`). Every bar's number (its index + 1, as the ruler and Go to count) is set at its
+left barline under the lowest staff shown, small, italic and in half the ink, a staff space below
+the bottom line or half one below that staff's ink under the number (`StaffLayer.maxInk`, kept per
+staff and bar). A staff coming or going below the others takes the numbers down or up with it as it
+fades. Drawn in the renderer's overlay, so the names and frozen zone cover them as they cover the
+music. Only drawn: nothing is planned or engraved again, and the off-frame check doesn't count them.
+
 **Opening is all or nothing.** A project is read and validated (`ProjectState.fromJson`),
 then engraved, and only then swapped in, in one synchronous step. If anything before the swap
 fails, what was open stays open, with its path — so a later save can't write one project
