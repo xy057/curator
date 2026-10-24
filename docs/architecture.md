@@ -439,7 +439,7 @@ overlay, so the names and frozen zone cover them as they cover the music.
 While it is on, the tempo marks (`ScoreTextKind.tempo`, a pair's copy with them) are set apart from the
 music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and
 the plan with them) and the one the playhead last passed is written at the frame's left in that
-row, on the numbers' baseline: its words as edited (no metronome mark), plain, in the text font at
+row, on the numbers' baseline: its words as edited (no metronome mark), in the text font's italic at
 the names' size, cut short with an ellipsis past their width; one gives way to the next over two
 staff spaces of scroll. The off-frame check doesn't count either.
 

@@ -883,7 +883,7 @@ class CuratedScene {
   }
 
   /// The tempo mark the playhead last passed, at the frame's left in the bar numbers' row, on
-  /// their baseline: its words (as edited) in the text font, plain, at the names' size, cut
+  /// their baseline: its words (as edited) in the text font, italic, at the names' size, cut
   /// short to fit their width. One gives way to the next over a couple of staff spaces.
   void _paintTempo(ui.Canvas canvas, ui.Size size, double scrollX, ui.Color ink, double shift) {
     final marks = display.apart;
@@ -923,7 +923,11 @@ class CuratedScene {
     if (words == null || words.isEmpty) return null;
     return _tempoParagraphs.putIfAbsent(words, () {
       final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-          fontFamily: _style.textFontFamily, fontSize: _style.labelFontSize, maxLines: 1, ellipsis: '…'))
+          fontFamily: _style.textFontFamily,
+          fontSize: _style.labelFontSize,
+          fontStyle: ui.FontStyle.italic,
+          maxLines: 1,
+          ellipsis: '…'))
         ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
         ..addText(words);
       return builder.build()..layout(ui.ParagraphConstraints(width: _style.headerWidth - 16));
