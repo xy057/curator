@@ -152,11 +152,16 @@ class EditorController extends ChangeNotifier {
       (music: MusicFont.bravura.name, text: TextFonts.academico, embed: true);
 
   /// [newProjectFonts] as found here: one not installed is Bravura or Academico.
-  Future<EditState> _newProjectEdits() async {
+  Future<({ScoreFonts fonts, bool embed})> defaultFonts() async {
     final wanted = newProjectFonts;
     final music = await findInstalledMusicFont(wanted.music) ?? MusicFont.bravura;
     final text = wanted.text == TextFonts.academico || await TextFonts.faces(wanted.text) != null ? wanted.text : TextFonts.academico;
-    return EditState(fonts: ScoreFonts(music: music, text: text), embedFont: wanted.embed);
+    return (fonts: ScoreFonts(music: music, text: text), embed: wanted.embed);
+  }
+
+  Future<EditState> _newProjectEdits() async {
+    final (:fonts, :embed) = await defaultFonts();
+    return EditState(fonts: fonts, embedFont: embed);
   }
 
   /// The music font installed here as [name]; null when there is none, or it can't be read

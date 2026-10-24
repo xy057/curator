@@ -247,6 +247,20 @@ void main() {
     await tester.tap(find.text('Save as Default'));
     await settle();
     expect(settings.motion, c.motion);
+    expect(find.text('Reset to Default'), findsNothing, reason: 'already the default');
+
+    // Reset to Default: the page back to the saved defaults, one Undo step for all of it.
+    c.setMotion(ScoreMotion.standard.withValue('settle', 4.0).withValue('glide', MotionCurve.easeIn));
+    await settle();
+    await shoot('project-settings-reset');
+    await tester.tap(find.text('Reset to Default'));
+    await settle();
+    expect(c.motion, settings.motion);
+    c.undo();
+    await settle();
+    expect((c.motion.settle, c.motion.glide), (4.0, MotionCurve.easeIn));
+    c.redo();
+    await settle();
 
     await tester.tap(find.byTooltip('Close'));
     await settle();

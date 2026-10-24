@@ -131,16 +131,18 @@ class _Category {
   final String? empty;
 
   /// A project page whose settings can become the app's, for other projects: a slim Save as
-  /// Default button beside the page's title.
+  /// Default button beside the page's title, and Reset to Default before it.
   final _SaveDefault? saveDefault;
 }
 
 /// Save as Default on a project page: [isDefault] while the app's already match the project's;
-/// [save] makes them so. Offered while [shown] (null: always).
+/// [save] makes them so, and [reset] the project's the app's (one Undo step). Offered while
+/// [shown] (null: always).
 typedef _SaveDefault = ({
   bool Function(_Context)? shown,
   bool Function(_Context) isDefault,
   void Function(_Context) save,
+  FutureOr<void> Function(_Context) reset,
 });
 
 typedef _Context = ({
@@ -302,6 +304,7 @@ final _projectCategories = <_Category>[
     shown: (c) => c.controller!.track != null,
     isDefault: (c) => _mediaStorage(c) == c.settings.mediaStorage,
     save: (c) => c.settings.mediaStorage = _mediaStorage(c),
+    reset: (c) => c.controller!.setMediaStorage(c.settings.mediaStorage),
   )),
   _Category('Animation', AppIcon.transition, [
     _Item(
@@ -326,6 +329,9 @@ final _projectCategories = <_Category>[
     save: (c) => c.settings
       ..transition = c.controller!.curation!.transition
       ..scrollFollow = c.controller!.scrollFollow,
+    reset: (c) => c.controller!
+      ..setTransition(c.settings.transition)
+      ..setScrollFollow(c.settings.scrollFollow),
   )),
   _engravingCategory(),
   _Category('Instruments', AppIcon.score, page: (c) => _InstrumentsPage(c), [
@@ -383,6 +389,7 @@ final _projectCategories = <_Category>[
     shown: null,
     isDefault: _flagsAreDefault,
     save: (c) => c.settings.textDynamics = c.controller!.textDynamics,
+    reset: (c) => c.controller!.setTextDynamics(c.settings.textDynamics),
   )),
   _advancedCategory(),
 ];
@@ -394,7 +401,12 @@ _Category _advancedCategory() {
   return _Category(
     'Advanced',
     AppIcon.settings,
-    saveDefault: (shown: null, isDefault: (c) => target(c).isDefault, save: (c) => target(c).saveAsDefault()),
+    saveDefault: (
+      shown: null,
+      isDefault: (c) => target(c).isDefault,
+      save: (c) => target(c).saveAsDefault(),
+      reset: (c) => target(c).resetToDefault(),
+    ),
     [
       for (final s in MotionSetting.all)
         _Item(
@@ -526,7 +538,12 @@ _Category _engravingCategory() {
     AppIcon.music,
     header: (c) => SizedBox(
         height: 170, child: EngravingPreviewHost(settings: c.settings, controller: c.controller, scale: 0.5)),
-    saveDefault: (shown: null, isDefault: (c) => target(c).isDefault, save: (c) => target(c).saveAsDefault()),
+    saveDefault: (
+      shown: null,
+      isDefault: (c) => target(c).isDefault,
+      save: (c) => target(c).saveAsDefault(),
+      reset: (c) => target(c).resetToDefault(),
+    ),
     [
       _Item('Music font', null, (c) => MusicFontPicker(controller: c.controller!),
           group: 'Fonts', keywords: 'font smufl bravura leland petaluma notation'),
@@ -725,6 +742,16 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     });
   }
 
+  /// [page]'s settings back to the app's defaults: one Undo step however many it changes.
+  Future<void> _resetPage(_SaveDefault page) async {
+    final controller = widget.controller!..beginEdit();
+    try {
+      await page.reset(_ctx);
+    } finally {
+      controller.endEdit();
+    }
+  }
+
   Iterable<_Item> _shownItems(_Category cat) => cat.items.where((item) => item.shown?.call(_ctx) ?? true);
 
   @override
@@ -876,7 +903,10 @@ class _SettingsWindowState extends State<_SettingsWindow> {
             ),
           ),
           if (matches == null && cat.saveDefault != null && (cat.saveDefault!.shown?.call(_ctx) ?? true))
-            _SaveDefaultButton(isDefault: cat.saveDefault!.isDefault(_ctx), onPressed: () => cat.saveDefault!.save(_ctx)),
+            _SaveDefaultButton(
+                isDefault: cat.saveDefault!.isDefault(_ctx),
+                onPressed: () => cat.saveDefault!.save(_ctx),
+                onReset: () => _resetPage(cat.saveDefault!)),
           if (widget.kind == _Window.project && (widget.controller?.isReengraving ?? false))
             const Padding(
               padding: EdgeInsets.only(right: 8),
@@ -1019,9 +1049,12 @@ class _SidebarTileState extends State<_SidebarTile> {
 /// Save as Default, slim beside a page's title: once saved (or already the same), a muted
 /// check and "Default" in its place.
 class _SaveDefaultButton extends StatelessWidget {
-  const _SaveDefaultButton({required this.isDefault, required this.onPressed});
+  const _SaveDefaultButton({required this.isDefault, required this.onPressed, required this.onReset});
   final bool isDefault;
   final VoidCallback onPressed;
+
+  /// Reset to Default: the page as the app's defaults (shown only while it differs).
+  final VoidCallback onReset;
 
   @override
   Widget build(BuildContext context) {
@@ -1040,17 +1073,26 @@ class _SaveDefaultButton extends StatelessWidget {
     );
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: Tip(
-        message: isDefault ? 'Other projects start with these' : 'Use these for other projects',
-        child: isDefault
-            ? OutlinedButton.icon(
-                style: style.copyWith(side: const WidgetStatePropertyAll(BorderSide(color: Colors.transparent))),
-                onPressed: null,
-                icon: Icon(AppIcon.check.of(context), size: 13),
-                label: const Text('Default'),
-              )
-            : OutlinedButton(style: style, onPressed: onPressed, child: const Text('Save as Default')),
-      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (!isDefault) ...[
+          Tip(
+            message: 'Use the saved defaults here',
+            child: OutlinedButton(style: style, onPressed: onReset, child: const Text('Reset to Default')),
+          ),
+          const SizedBox(width: 6),
+        ],
+        Tip(
+          message: isDefault ? 'Other projects start with these' : 'Use these for other projects',
+          child: isDefault
+              ? OutlinedButton.icon(
+                  style: style.copyWith(side: const WidgetStatePropertyAll(BorderSide(color: Colors.transparent))),
+                  onPressed: null,
+                  icon: Icon(AppIcon.check.of(context), size: 13),
+                  label: const Text('Default'),
+                )
+              : OutlinedButton(style: style, onPressed: onPressed, child: const Text('Save as Default')),
+        ),
+      ]),
     );
   }
 }

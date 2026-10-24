@@ -68,6 +68,9 @@ class MotionTarget {
 
   bool get isDefault => settings.motion == controller.motion;
   void saveAsDefault() => settings.motion = controller.motion;
+
+  /// The project's motion back to the app's default.
+  void resetToDefault() => controller.setMotion(settings.motion);
 }
 
 /// A row's control: a slider (set when let go, one Undo step) or a curve, and Reset once changed.
