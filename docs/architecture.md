@@ -455,7 +455,9 @@ another colour (`StaffLabel.color`); the paragraphs cached in the ink serve ever
 
 **Bar numbers are drawn, not engraved** (Project Settings ▸ Engraving ▸ Bar numbers,
 `EditState.barNumbers`, an edit saved from format 18, on for a new project, off for one saved before; `CuratedScene.barNumbers`,
-in `SceneSettings`). Every bar's number (its index + 1, as the ruler and Go to count) is set at its
+in `SceneSettings`). Every bar's number as the score prints it (`ScoreMetadata.barNumbers`: MusicXML's `text`, else `number`;
+none on an upbeat, a split bar's second half or a bar numbered as the one before; the ruler and Go to
+still count bars from 1) is set at its
 top left, small, italic and in half the ink, in a row of its own just above the room the staves
 have (`_rowBottom`: the top margin, under captions shown above), so it stays put however the stack
 grows or shrinks. Only staves squeezed into a full frame reach up into it: then the row rises, and

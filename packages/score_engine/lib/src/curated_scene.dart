@@ -812,13 +812,14 @@ class CuratedScene {
     for (final id in _tempoRoles.keys) ...{id: id, '${Condenser.idPrefix}$id': id},
   };
 
-  final _barNumberText = <int, ui.Paragraph>{};
+  final _barNumberText = <String, ui.Paragraph>{};
 
-  ui.Paragraph _barNumber(int bar) => _barNumberText.putIfAbsent(bar, () {
+  /// A bar's number ([ScoreMetadata.barNumbers]) laid out.
+  ui.Paragraph _barNumber(String number) => _barNumberText.putIfAbsent(number, () {
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
             fontFamily: _style.textFontFamily, fontSize: _style.staffSpace * 1.3, fontStyle: ui.FontStyle.italic, maxLines: 1))
           ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
-          ..addText('${bar + 1}');
+          ..addText(number);
         return builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
       });
 
@@ -900,7 +901,7 @@ class CuratedScene {
   final _inkAboveOf = <int, double>{};
 
   void _paintBarNumbers(ui.Canvas canvas, ui.Size size, double scrollX, ui.Color ink, double shift) {
-    final measures = score.engraving.measures;
+    final measures = score.engraving.measures, numbers = score.metadata.barNumbers;
     final scale = renderer.scale, sp = _style.staffSpace;
     final originX = renderer.pointerX(size.width) - scrollX * scale;
     final (left, right) = renderer.visibleRange(scrollX, size.width);
@@ -913,7 +914,9 @@ class CuratedScene {
       final bar = measures[m];
       if (bar.right < left) continue;
       if (bar.left > right) break;
-      final text = _barNumber(m);
+      final number = m < numbers.length ? numbers[m] : '${m + 1}';
+      if (number == null) continue; // an upbeat, a split bar's second half
+      final text = _barNumber(number);
       canvas.drawParagraph(text, ui.Offset(originX + bar.left * scale + sp * 0.3, _rowBottom - shift - text.height));
     }
     canvas.restore();
@@ -972,7 +975,7 @@ class CuratedScene {
       return fade > 0 ? curve.inside(past / fade + 0.5) : (past >= 0 ? 1.0 : 0.0);
     }
 
-    final number = _barNumber(0);
+    final number = _barNumber('1');
     final baseline = _rowBottom - shift - number.height + number.alphabeticBaseline;
     for (var i = 0; i < spans.length; i++) {
       final opacity = arrived(i) * (i + 1 < spans.length ? 1 - arrived(i + 1) : 1);

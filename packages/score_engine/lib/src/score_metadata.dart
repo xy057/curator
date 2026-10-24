@@ -110,6 +110,7 @@ class ScoreMetadata {
     required this.activeMeasures,
     this.meters = const [],
     this.pickups = const {},
+    this.barNumbers = const [],
     this.form = ScoreForm.straight,
   });
 
@@ -128,6 +129,11 @@ class ScoreMetadata {
 
   /// Incomplete measures (`implicit="yes"`): upbeats, and the second half of split bars.
   final Set<int> pickups;
+
+  /// Each measure's number as the score prints it (MusicXML 4's `text`, else `number`), null
+  /// where none is printed: an incomplete measure (an upbeat, a split bar's second half), or one
+  /// numbered as the bar before. A measure with none counts on from the one before.
+  final List<String?> barNumbers;
 
   /// Its repeats, endings and jumps (see [ScoreForm.playedOrder]).
   final ScoreForm form;
@@ -208,6 +214,9 @@ class ScoreMetadata {
     // Time signatures from the first part (MusicXML repeats them in every part).
     final meters = <Meter?>[];
     final pickups = <int>{};
+    final barNumbers = <String?>[];
+    String? previous;
+    var counted = 0; // the last number's leading digits
     Meter? meter;
     for (final (i, measure) in (root.findElements('part').firstOrNull?.findElements('measure') ?? const <XmlElement>[]).indexed) {
       final time = measure.findElements('attributes').expand((a) => a.findElements('time')).firstOrNull;
@@ -218,7 +227,15 @@ class ScoreMetadata {
         ]); // senza misura has neither: null, so quarters
       }
       meters.add(meter);
-      if (measure.getAttribute('implicit') == 'yes') pickups.add(i);
+      final implicit = measure.getAttribute('implicit') == 'yes';
+      if (implicit) pickups.add(i);
+      final number = switch ((measure.getAttribute('text') ?? measure.getAttribute('number'))?.trim()) {
+        final n? when n.isNotEmpty => n,
+        _ => '${counted + 1}',
+      };
+      barNumbers.add(implicit || number == previous ? null : number);
+      previous = number;
+      counted = int.tryParse(RegExp(r'^\d*').stringMatch(number)!) ?? counted;
     }
 
     return ScoreMetadata(
@@ -228,6 +245,7 @@ class ScoreMetadata {
       activeMeasures: activeMeasures,
       meters: meters,
       pickups: pickups,
+      barNumbers: barNumbers,
       form: ScoreForm.fromDocument(doc),
     );
   }
