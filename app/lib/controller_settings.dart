@@ -18,7 +18,6 @@ extension ControllerSettings on EditorController {
     legacyExtensions = settings.legacyExtensions;
     captions.configure(
         font: settings.captionFont,
-        position: settings.captionPosition,
         countdown: settings.captionCountdown,
         size: settings.captionSize);
     engravingOptions = settings.engravingOptions;

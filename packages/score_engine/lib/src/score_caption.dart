@@ -94,10 +94,7 @@ List<CaptionSpan> captionSpans(List<Caption> captions, ScoreTimeline timeline) {
   ];
 }
 
-/// Where the caption bar sits: under the staves or above them.
-enum CaptionPosition { bottom, top }
-
-/// How a caption shows its time running out: a hairline under (or over) the text that draws in
+/// How a caption shows its time running out: a hairline under the text that draws in
 /// to its middle, a small ring beside it that empties, or not at all.
 enum CaptionCountdown { line, ring, none }
 
@@ -114,10 +111,8 @@ enum CaptionSize {
 /// How captions look. [fontFamily] is a family the renderer can draw; null: the score's text font.
 @immutable
 class CaptionStyle {
-  const CaptionStyle(
-      {this.fontFamily, this.position = CaptionPosition.bottom, this.countdown = CaptionCountdown.line, this.size = CaptionSize.medium});
+  const CaptionStyle({this.fontFamily, this.countdown = CaptionCountdown.line, this.size = CaptionSize.medium});
   final String? fontFamily;
-  final CaptionPosition position;
   final CaptionCountdown countdown;
   final CaptionSize size;
 
@@ -125,14 +120,13 @@ class CaptionStyle {
   bool operator ==(Object other) =>
       other is CaptionStyle &&
       other.fontFamily == fontFamily &&
-      other.position == position &&
       other.countdown == countdown &&
       other.size == size;
   @override
-  int get hashCode => Object.hash(fontFamily, position, countdown, size);
+  int get hashCode => Object.hash(fontFamily, countdown, size);
 }
 
-/// The bar the captions show in, under the staves (or above them): the text, centred, and
+/// The bar the captions show in, under the staves: the text, centred, and
 /// its countdown ([CaptionStyle.countdown]). A caption glides gently into place as it fades
 /// in, and fades out as its time ends.
 class CaptionBar {
@@ -188,9 +182,8 @@ class CaptionBar {
   double _width(ui.Size size) => math.min(size.width - 2 * _side, _maxWidth);
 
   /// The text's top-left, with no rise, and the countdown line's y.
-  ({double top, double line}) _place(ui.Paragraph p, ui.Size size) => style.position == CaptionPosition.top
-      ? (top: _bottom + _gap, line: _bottom)
-      : (top: size.height - _bottom - _gap - p.height, line: size.height - _bottom);
+  ({double top, double line}) _place(ui.Paragraph p, ui.Size size) =>
+      (top: size.height - _bottom - _gap - p.height, line: size.height - _bottom);
 
   /// Where [text] is drawn in a frame of [size] (for hit tests).
   ui.Rect rectOf(String text, ui.Size size) {
@@ -214,8 +207,8 @@ class CaptionBar {
       if (opacity <= 0.001) continue;
       final (:p, :firstLine) = _laidOut(captions[s.caption].text, _width(size));
       final (:top, :line) = _place(p, size);
-      // It comes in from the frame's edge side: up from below, down from above.
-      final rise = (1 - curve.at(into)) * motion.captionRise * (style.position == CaptionPosition.top ? -1 : 1);
+      // It comes in from the frame's edge: up from below.
+      final rise = (1 - curve.at(into)) * motion.captionRise;
       final cx = size.width / 2, at = ui.Offset(cx - p.width / 2, top + rise);
       // The layer (to tint and fade the text) only as big as the text, not the frame: a full
       // frame offscreen each frame is costly at 4K. A little over, for glyphs that overhang.

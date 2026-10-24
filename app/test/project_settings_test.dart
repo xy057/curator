@@ -158,10 +158,9 @@ void main() {
     await settle();
     expect(find.text('Countdown'), findsOneWidget);
     await tester.tap(find.text('Ring'));
-    await tester.tap(find.text('Top'));
     await settle();
     expect(settings.captionCountdown, CaptionCountdown.ring);
-    expect(settings.captionPosition, CaptionPosition.top);
+    expect(find.text('Top'), findsNothing, reason: 'captions show only under the staves');
     await tester.tap(find.text('Done'));
     await settle();
 

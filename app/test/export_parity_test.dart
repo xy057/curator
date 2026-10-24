@@ -29,7 +29,7 @@ void main() {
     c.images.update(0, c.images.patches[0].copyWith(ink: true));
     c.captions.add(Caption(starts[1], starts[6], 'The horns answer'));
     c.captions.configure(
-        font: '', position: CaptionPosition.top, countdown: CaptionCountdown.ring, size: CaptionSize.large);
+        font: '', countdown: CaptionCountdown.ring, size: CaptionSize.large);
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50))); // the style is applied
     c.renamePart(parts.last, name: 'Basses', abbreviation: 'Cb.');
     c.setStaffSpace(9);

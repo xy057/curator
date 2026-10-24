@@ -37,15 +37,13 @@ class CaptionEditing {
   /// a family, or '' for the score's text font.
   String get defaultFont => _defaultFont;
   String _defaultFont = '';
-  CaptionPosition _position = CaptionPosition.bottom;
   CaptionCountdown _countdown = CaptionCountdown.line;
   CaptionSize _size = CaptionSize.medium;
 
   /// Takes the app's caption settings.
-  void configure({required String font, required CaptionPosition position, required CaptionCountdown countdown, required CaptionSize size}) {
-    if (font == _defaultFont && position == _position && countdown == _countdown && size == _size) return;
+  void configure({required String font, required CaptionCountdown countdown, required CaptionSize size}) {
+    if (font == _defaultFont && countdown == _countdown && size == _size) return;
     _defaultFont = font;
-    _position = position;
     _countdown = countdown;
     _size = size;
     _applyStyle();
@@ -87,7 +85,7 @@ class CaptionEditing {
     }
     if (!turn.isLatest) return;
     _fontFound = found;
-    _style = CaptionStyle(fontFamily: family, position: _position, countdown: _countdown, size: _size);
+    _style = CaptionStyle(fontFamily: family, countdown: _countdown, size: _size);
     _editor._showSettings();
     _editor.playback._markDirty(); // the preview repaints only when asked
     _editor._changed();

@@ -595,11 +595,11 @@ class CuratedScene {
 
   /// What a plan for this curation and frame size is made from: a new key, a new plan.
   Object _planKeyFor(Curation curation, ui.Size size) =>
-      (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _captionAbove, _displayVersion, _motion.glide);
+      (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _displayVersion, _motion.glide);
 
   SpacingPlan _buildPlan(Curation curation, ui.Size size) {
     final pointerX = renderer.pointerX(size.width);
-    final top = verticalMargin + _captionAbove; // the plan's 0 in the frame
+    final top = verticalMargin; // the plan's 0 in the frame
     return SpacingPlan.build(
       staves: display.staves,
       order: _order,
@@ -617,9 +617,6 @@ class CuratedScene {
       screen: (top: -top, bottom: size.height - top),
     );
   }
-
-  /// The room the captions take above the staves (none while they show under them).
-  double get _captionAbove => captionStyle.position == CaptionPosition.top ? _captionReserve : 0;
 
   /// When something drawn is off the top or bottom of a frame of [size]
   /// ([SpacingPlan.overflowing]), in playback time. Planned apart from the frames painted, so asking at another size (the
@@ -834,10 +831,10 @@ class CuratedScene {
   }
 
   /// The row's bottom in a frame, before any move: just above the room the staves have.
-  double get _rowBottom => verticalMargin + _captionAbove - 6;
+  double get _rowBottom => verticalMargin - 6;
 
-  /// The highest the row's top may go: under the captions shown above, else near the top.
-  double get _rowTopLimit => _captionAbove > 0 ? _captionAbove + 8 : 4;
+  /// The highest the row's top may go: near the top.
+  static const _rowTopLimit = 4.0;
 
   /// How far the row is lifted at [time]: none, unless staves squeezed into a full frame reach
   /// up into it. It only ever rises, to the most needed so far, never settling back, and each
@@ -895,7 +892,7 @@ class CuratedScene {
   /// How far the row would have to rise at [time] to stay clear of the top staves' ink.
   double _rowNeedAt(double time, Curation curation, ui.Size size) {
     final tops = _planFor(curation, size).topsAt(time);
-    final scale = renderer.scale, clear = _rowBottom + 3 - verticalMargin - _captionAbove;
+    final scale = renderer.scale, clear = _rowBottom + 3 - verticalMargin;
     double? left, right;
     var need = 0.0, checked = 0;
     for (var i = 0; i < _order.length && checked < 2; i++) {
@@ -1080,7 +1077,7 @@ class CuratedScene {
     List<StaffJoin> joins,
   }) layoutAt(double time, Curation curation, ui.Size size) {
     final visibility = _visibilityAt(time, curation);
-    final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin + _captionAbove];
+    final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin];
     final parts = {for (final p in score.metadata.parts) p.id: p};
 
     final placements = <StaffPlacement>[];
