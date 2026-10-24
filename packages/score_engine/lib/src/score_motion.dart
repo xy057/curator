@@ -7,8 +7,8 @@ import 'package:flutter/foundation.dart';
 ///
 /// Whatever it is written as, a curve always starts at 0 and ends at 1: its value is scaled
 /// so that `f(0)` and `f(1)` land there, so `3t^2-2t^3+5` is the same as smoothstep. Between
-/// them it may leave 0–1 (an overshoot): a glide then goes past its place and comes back,
-/// while what can't (an opacity) is held inside.
+/// them it may leave 0–1 (an overshoot) by up to 1: a glide then goes past its place and comes
+/// back, while what can't (an opacity) is held inside.
 ///
 /// Written: numbers, `t` (or `x`), `pi`, `e`; `+ - * /`, `^` (or `**`), brackets; a number
 /// before a name or bracket multiplies (`3t^2`); and `sin cos tan asin acos atan exp ln log
@@ -110,14 +110,23 @@ class MotionCurve {
     final f0 = f(0), f1 = f(1);
     if (!f0.isFinite || !f1.isFinite) throw const FormatException('Undefined at t = 0 or 1.');
     if ((f1 - f0).abs() < 1e-9) throw const FormatException('f(1) must differ from f(0).');
-    for (var i = 1; i < 64; i++) {
-      final t = i / 64;
-      if (!f(t).isFinite) throw FormatException('Undefined at t = ${t.toStringAsFixed(2)}.');
-    }
     final span = f1 - f0;
+    for (var i = 1; i < _checks; i++) {
+      final t = i / _checks, v = (f(t) - f0) / span;
+      if (!v.isFinite) throw FormatException('Undefined at t = ${t.toStringAsFixed(2)}.');
+      if (v < -_reach || v > 1 + _reach) throw FormatException('Too far past 0–1 at t = ${t.toStringAsFixed(2)}.');
+    }
     if (_cache.length > 256) _cache.removeWhere((k, _) => !_house.contains(k));
-    return _cache[expression] = (t) => (f(t) - f0) / span;
+    return _cache[expression] = (t) {
+      // Between the points checked it may still be undefined, or spike: a straight line there,
+      // and never further past 0–1 than it may go.
+      final v = (f(t) - f0) / span;
+      return v.isFinite ? v.clamp(-_reach, 1 + _reach) : t;
+    };
   }
+
+  /// Points a curve is checked at; how far past 0 and 1 it may go.
+  static const _checks = 1024, _reach = 1.0;
 
   static final _house = {for (final (_, e) in presets) e.expression};
 }

@@ -83,10 +83,11 @@ score's ends, so the scroll comes to rest after the last bar and the frame fades
 transition under way there. The music either side is still engraved, so the frame shows it.
 Bar 1 starts at time 0 and the last bar runs to the end, so all the bars are exactly the whole
 video. Frames are `renderFrame(start + i / fps)`; the sound is read from the start (`-ss`,
-fading in over 10 ms) and fades out over the settle after the last bar.
+fading in over 10 ms) and fades out over the settle after the last bar (a settle of 0 cuts it,
+over the same 10 ms).
 The end is a function of time too: after the final barline the score eases to rest over
-`ScrollMap.settle` seconds (its last bars stay on screen), and the frame fades to paper over the
-last `CuratedScene.fadeOut` seconds before `paint`'s `end` (the playback's duration: the piece's
+`ScoreMotion.settle` seconds (its last bars stay on screen), and the frame fades to paper over the
+last `ScoreMotion.endFade` seconds before `paint`'s `end` (the playback's duration: the piece's
 `CuratedScene.endOf`, or the recording if longer), in the preview as in a video.
 A video has any ratio (`VideoRatio`: a preset or one typed, 1:4 to 4:1, chosen in the
 toolbar beside the frame toggle, which choosing one turns on); its size
@@ -148,8 +149,10 @@ speed solves the notes' curves again, a new settle only re-ends them); the endin
 (`CuratedScene.endOf(timeline, motion)`, so playback's duration and a clipped video's end follow);
 captions' fade and rise; the bar numbers' row lead and the tempo's cross-fade. Each curve is a
 `MotionCurve`: an equation in `t` (presets by name, or the user's own), parsed once into a Dart
-closure and cached, scaled so it always runs from 0 to 1; between them it may overshoot (a glide
-goes past and back), while opacities are held inside. The settle leaves at the speed it arrived
+closure and cached, scaled so it always runs from 0 to 1; between them it may overshoot by up to 1 (a glide
+goes past and back), while opacities are held inside. It is checked at 1024 points (undefined or
+further out: refused, saying where); between them a value undefined is the straight line's, and one
+further out is held at the limit, so no frame can be NaN. The settle leaves at the speed it arrived
 when its curve starts at a slope of 1 or more (`startSlope`). The staff transition's length stays a
 region's property (Animation), and the interface's own motion stays the app's (Reduce motion).
 
@@ -260,7 +263,7 @@ free stretch around a caption (`captionRoom`; the dialogs flag one running into 
 `captionOverlapping`). The scene draws it in `CaptionBar` under the staves, which leave
 `CaptionBar.reserve` for it while there are any: the text centred in the score's text font,
 and under it a hairline as wide as the text that draws in to its middle as the caption's time
-runs out; it rises 4 points into place as it fades in over `CaptionBar.fade`, and fades out
+runs out; it rises `ScoreMotion.captionRise` points into place as it fades in over `ScoreMotion.captionFade`, and fades out
 as its time ends. It is part of `paint`, so the preview and a video show the same.
 How it looks is a `CaptionStyle` (`CuratedScene.captionStyle`, copied into video export): its
 font, position (`CaptionPosition`: under the staves or above them, which then sit lower by
@@ -455,13 +458,17 @@ another colour (`StaffLabel.color`); the paragraphs cached in the ink serve ever
 
 **Bar numbers are drawn, not engraved** (Project Settings ▸ Engraving ▸ Bar numbers,
 `EditState.barNumbers`, an edit saved from format 18, on for a new project, off for one saved before; `CuratedScene.barNumbers`,
-in `SceneSettings`). Every bar's number (its index + 1, as the ruler and Go to count) is set at its
+in `SceneSettings`). Every bar's number as the score prints it (`ScoreMetadata.barNumbers`: MusicXML's `text`, else `number`;
+none on an upbeat, a split bar's second half or a bar numbered as the one before; the ruler and Go to
+still count bars from 1) is set at its
 top left, small, italic and in half the ink, in a row of its own just above the room the staves
 have (`_rowBottom`: the top margin, under captions shown above), so it stays put however the stack
 grows or shrinks. Only staves squeezed into a full frame reach up into it: then the row rises, and
-never comes down. `_liftFor` keeps, per plan, the most the row has had to rise up to each 0.1 s
+never comes down. `_liftFor` keeps, per plan (and score size), the most the row has had to rise up to each 0.1 s
 (the top two shown staves' ink, checked against each staff's highest ink first, so most steps cost
-one lookup); `_rowShiftAt` averages that over the next 1.2 s with smoothstep's bell as the weight,
+one lookup), worked out only as far as a
+frame asks, so an edit costs the steps up to the playhead, and kept as it was while a gesture lasts
+(`holdBarRow`, set by the controller as for the off-frame check; a video never holds); `_rowShiftAt` averages that over the next 1.2 s with smoothstep's bell as the weight,
 so each rise starts and ends at rest, is done before the staves get there, and is still a function
 of time. Drawn in the renderer's
 overlay, so the names and frozen zone cover them as they cover the music.

@@ -300,8 +300,11 @@ class CuratedScene {
     _style = _style.copyWith(staffSpace: staffSpace);
     _renderer?.dispose();
     _renderer = null;
+    _frozen?.dispose(); // made for the old size, before any renderer took it
+    _frozen = null;
     _plan = null;
     _fitPlan = null;
+    _liftKey = Object(); // the row's rises were for the old size: never a plan's key
     _disposeBarNumbers(); // laid out for the old size
   }
 
@@ -812,13 +815,14 @@ class CuratedScene {
     for (final id in _tempoRoles.keys) ...{id: id, '${Condenser.idPrefix}$id': id},
   };
 
-  final _barNumberText = <int, ui.Paragraph>{};
+  final _barNumberText = <String, ui.Paragraph>{};
 
-  ui.Paragraph _barNumber(int bar) => _barNumberText.putIfAbsent(bar, () {
+  /// A bar's number ([ScoreMetadata.barNumbers]) laid out.
+  ui.Paragraph _barNumber(String number) => _barNumberText.putIfAbsent(number, () {
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
             fontFamily: _style.textFontFamily, fontSize: _style.staffSpace * 1.3, fontStyle: ui.FontStyle.italic, maxLines: 1))
           ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
-          ..addText('${bar + 1}');
+          ..addText(number);
         return builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
       });
 
@@ -842,12 +846,12 @@ class CuratedScene {
   /// with the slope of [ScoreMotion.rowCurve] as the weight (smoothstep's bell: the move starts
   /// and ends at rest). Still a function of time.
   double _rowShiftAt(double time, Curation curation, ui.Size size) {
-    final lift = _liftFor(curation, size);
     final lead = _motion.rowLead, curve = _motion.rowCurve;
     double eased(double x) => curve.at(x / lead);
 
     var shift = 0.0;
     final first = (time / _liftStep).floor(), last = ((time + lead) / _liftStep).floor();
+    final lift = _liftFor(curation, size, last);
     for (var i = first; i <= last; i++) {
       final weight = eased((i + 1) * _liftStep - time) - eased(math.max(i * _liftStep, time) - time);
       shift += lift[i.clamp(0, lift.length - 1)] * weight;
@@ -858,23 +862,35 @@ class CuratedScene {
 
   static const _liftStep = 0.1;
 
-  /// The most the row has had to rise up to each [_liftStep] of the playback, made once per plan.
-  Float64List _liftFor(Curation curation, ui.Size size) {
+  /// The most the row has had to rise up to each [_liftStep] of the playback, worked out once
+  /// per plan and only as far as [upTo] (and the first step): an edit late in a long score costs
+  /// the steps up to the playhead, not the whole piece, and what a step holds never depends on
+  /// how far it was asked before. While [holdBarRow] the steps worked out are kept.
+  Float64List _liftFor(Curation curation, ui.Size size, int upTo) {
     final key = _planKeyFor(curation, size);
-    if (_liftKey == key) return _lift;
-    final steps = (endOf(timeline, _motion) / _liftStep).ceil() + 1;
-    final lift = Float64List(steps);
-    var most = 0.0;
-    for (var i = 0; i < steps; i++) {
-      most = math.max(most, _rowNeedAt(i * _liftStep, curation, size));
-      lift[i] = most;
+    if (_liftKey != key && !(holdBarRow && _liftDone > 0)) {
+      _liftKey = key;
+      _lift = Float64List((endOf(timeline, _motion) / _liftStep).ceil() + 1);
+      _liftDone = 0;
     }
-    _liftKey = key;
-    return _lift = lift;
+    final end = math.max(0, math.min(upTo, _lift.length - 1));
+    for (; _liftDone <= end; _liftDone++) {
+      final i = _liftDone;
+      _lift[i] = math.max(i > 0 ? _lift[i - 1] : 0.0, _rowNeedAt(i * _liftStep, curation, size));
+    }
+    return _lift;
   }
 
   Object? _liftKey;
   Float64List _lift = Float64List(0);
+
+  /// How many of [_lift]'s steps are worked out.
+  int _liftDone = 0;
+
+  /// Whether the bar numbers' row keeps the rises worked out before, whatever changes: while a
+  /// gesture lasts (a region dragged, the score size slid), when working them out again at every
+  /// move would cost a long score's frames. It catches up when let go; a video never holds.
+  bool holdBarRow = false;
 
   /// How far the row would have to rise at [time] to stay clear of the top staves' ink.
   double _rowNeedAt(double time, Curation curation, ui.Size size) {
@@ -900,7 +916,7 @@ class CuratedScene {
   final _inkAboveOf = <int, double>{};
 
   void _paintBarNumbers(ui.Canvas canvas, ui.Size size, double scrollX, ui.Color ink, double shift) {
-    final measures = score.engraving.measures;
+    final measures = score.engraving.measures, numbers = score.metadata.barNumbers;
     final scale = renderer.scale, sp = _style.staffSpace;
     final originX = renderer.pointerX(size.width) - scrollX * scale;
     final (left, right) = renderer.visibleRange(scrollX, size.width);
@@ -913,7 +929,9 @@ class CuratedScene {
       final bar = measures[m];
       if (bar.right < left) continue;
       if (bar.left > right) break;
-      final text = _barNumber(m);
+      final number = m < numbers.length ? numbers[m] : '${m + 1}';
+      if (number == null) continue; // an upbeat, a split bar's second half
+      final text = _barNumber(number);
       canvas.drawParagraph(text, ui.Offset(originX + bar.left * scale + sp * 0.3, _rowBottom - shift - text.height));
     }
     canvas.restore();
@@ -972,7 +990,7 @@ class CuratedScene {
       return fade > 0 ? curve.inside(past / fade + 0.5) : (past >= 0 ? 1.0 : 0.0);
     }
 
-    final number = _barNumber(0);
+    final number = _barNumber('1');
     final baseline = _rowBottom - shift - number.height + number.alphabeticBaseline;
     for (var i = 0; i < spans.length; i++) {
       final opacity = arrived(i) * (i + 1 < spans.length ? 1 - arrived(i + 1) : 1);

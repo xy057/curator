@@ -30,6 +30,12 @@ void main() {
     expect(parts.last.family, InstrumentFamily.strings);
     expect(parts.last.staffNumbers, [21]);
     expect(score.metadata.tempo, 93);
+    expect(score.metadata.barNumbers, [for (var m = 1; m <= 44; m++) '$m']);
+    // Numbered as printed: no number on an upbeat or a split bar's second half.
+    final measures = ['number="0" implicit="yes"', 'number="1"', 'number="2"', 'number="2" implicit="yes"', 'number="3" text="3a"', ''];
+    final xml = '<score-partwise><part-list><score-part id="P1"><part-name>A</part-name></score-part></part-list>'
+        '<part id="P1">${measures.map((m) => '<measure $m/>').join()}</part></score-partwise>';
+    expect(ScoreMetadata.read(xml).barNumbers, [null, '1', '2', null, '3a', '4']);
   });
 
   test('scroll map puts every onset under the pointer as it sounds, and never runs backwards', () {
@@ -115,6 +121,9 @@ void main() {
     expect(MotionCurve.problemWith('sin(pi*t)'), 'f(1) must differ from f(0).');
     expect(MotionCurve.problemWith('2*q'), 'Unknown name “q”.');
     expect(MotionCurve.problemWith('(t'), 'Missing “)”.');
+    expect(MotionCurve.problemWith('1/(t-0.3)'), startsWith('Too far past 0–1'));
+    // Undefined only between the points checked: a straight line there, never NaN.
+    expect(MotionCurve.parse('t + 0*sqrt(abs(t-0.3)-0.0001)').at(0.3), 0.3);
     final motion = ScoreMotion(glide: MotionCurve.linear, settle: 3, inkDelay: 0.2);
     expect(ScoreMotion.fromJson(motion.toJson()), motion);
     expect(ScoreMotion.fromJson(const {}), ScoreMotion.standard);
