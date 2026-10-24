@@ -425,7 +425,7 @@ a staff fading in or out at either end, and it fades with the last.
 Only drawn: nothing is planned or engraved again.
 
 **Bar numbers are drawn, not engraved** (Project Settings ▸ Engraving ▸ Bar numbers,
-`EditState.barNumbers`, an edit saved from format 18, off for a new project; `CuratedScene.barNumbers`,
+`EditState.barNumbers`, an edit saved from format 18, on for a new project, off for one saved before; `CuratedScene.barNumbers`,
 in `SceneSettings`). Every bar's number (its index + 1, as the ruler and Go to count) is set at its
 top left, small, italic and in half the ink, in a row of its own just above the room the staves
 have (`_rowBottom`: the top margin, under captions shown above), so it stays put however the stack

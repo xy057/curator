@@ -50,7 +50,7 @@ class EditState {
     this.partOrder = const [],
     this.sections = const {},
     this.groupSections = false,
-    this.barNumbers = false,
+    this.barNumbers = true,
     this.patches = const [],
     this.captions = const [],
     this.captionFont,
@@ -108,7 +108,8 @@ class EditState {
   /// Whether the score groups its instruments in sections, as printed ([CuratedScene.sections]).
   final bool groupSections;
 
-  /// Whether every bar's number is shown under the staves ([CuratedScene.barNumbers]).
+  /// Whether every bar's number is shown above the staves, with the tempo marks at the left
+  /// ([CuratedScene.barNumbers]); on for a new project.
   final bool barNumbers;
 
   /// Images on the score (Attach Image), bottom to top.
@@ -272,7 +273,7 @@ class ProjectState {
     14: (state) => state, // a MIDI tempo map's warps came in 15: none
     15: (state) => state, // instruments' sections came in 16: none, their own
     16: (state) => state, // grouping sections, and sections of the user's own, came in 17 (16's were families' names): off, none
-    17: (state) => state, // bar numbers came in 18: off
+    17: (state) => {...state, 'barNumbers': false}, // bar numbers came in 18: off, as made
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -363,7 +364,7 @@ class ProjectState {
             },
         },
         groupSections: r.boolean('groupSections') ?? false,
-        barNumbers: r.boolean('barNumbers') ?? false,
+        barNumbers: r.boolean('barNumbers') ?? true,
         patches: patches,
         // Kept apart (those saved before captions couldn't overlap show as they did).
         captions: separateCaptions([
@@ -519,7 +520,7 @@ class ProjectState {
       'pairs': [for (final p in pairs) p.partIds],
       'partOrder': partOrder,
       if (groupSections) 'groupSections': true,
-      if (barNumbers) 'barNumbers': true,
+      if (!barNumbers) 'barNumbers': false,
       if (sections.isNotEmpty)
         'sections': {for (final MapEntry(key: id, value: s) in sections.entries) id: s ?? 'none'},
       'patches': [
