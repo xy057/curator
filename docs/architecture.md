@@ -436,10 +436,14 @@ one lookup); `_rowShiftAt` averages that over the next 1.2 s with smoothstep's b
 so each rise starts and ends at rest, is done before the staves get there, and is still a function
 of time. Drawn in the renderer's
 overlay, so the names and frozen zone cover them as they cover the music.
-While it is on, the tempo marks (`ScoreTextKind.tempo`, a pair's copy with them) are set apart from the
-music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and
-the plan with them) and the one the playhead last passed is written at the frame's left in that
-row, on the numbers' baseline: its words as edited (no metronome mark), in the text font's italic at
+While it is on, the texts that speak of the speed (`ScoreText.tempoRole`: a tempo mark; a change for a
+while, "rit.", "accel.", "allarg." and the like; or "a tempo"; a pair's copy with them) are set apart from
+the music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and
+the plan with them), and what they say where the playhead is (`_tempoSpanList`) is written at the
+frame's left in that row: the tempo mark last passed, or a change in its stead from where it is
+written until its dashes or bracket end (`ScoreText.extended`; Verovio draws them with it, so its
+right edge is where), "a tempo" or another mark comes ("a tempo" itself shows the tempo again).
+The words are as edited (no metronome mark), on the numbers' baseline, in the text font's italic at
 the names' size, cut short with an ellipsis past their width; one gives way to the next over two
 staff spaces of scroll. The off-frame check doesn't count either.
 

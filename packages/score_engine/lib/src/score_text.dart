@@ -13,6 +13,7 @@ class ScoreText {
     required this.measure,
     required this.text,
     required this.kind,
+    this.extended = false,
   });
 
   /// Stable id: the MusicXML `<direction>` id (assigned in document order if missing), with
@@ -24,9 +25,29 @@ class ScoreText {
   final int measure;
   final String text;
   final ScoreTextKind kind;
+
+  /// Whether dashes or a bracket run on from it (`rit. - - -`), to where it ends.
+  final bool extended;
+
+  /// What [current] (this text, as shown) says of the speed.
+  TempoRole tempoRole(String current) {
+    if (kind == ScoreTextKind.rehearsal) return TempoRole.none;
+    final words = current.toLowerCase();
+    if (_back.hasMatch(words)) return TempoRole.back;
+    if (_change.hasMatch(words)) return TempoRole.change;
+    return kind == ScoreTextKind.tempo ? TempoRole.tempo : TempoRole.none;
+  }
+
+  static final _back = RegExp(r'^\W*(a|in) tempo\b');
+  static final _change = RegExp(r'\b(rit|ritard|ritardando|riten|ritenuto|rall|rallent|rallentando|allarg|allargando|'
+      r'largando|accel|accelerando|string|stringendo|stretto|slentando|incalzando|affrettando|trattenuto)\b');
 }
 
 enum ScoreTextKind { direction, tempo, rehearsal }
+
+/// What a text says of the speed: nothing, a tempo ("Allegro"), a change for a while ("rit.",
+/// "accel.": until its dashes end or another mark comes), or back to the tempo ("a tempo").
+enum TempoRole { none, tempo, change, back }
 
 /// The MusicXML prepared for engraving: every direction has an id, text edits are applied,
 /// dynamics written as text are dynamics (see [TextDynamics]), and the players that can share
@@ -74,6 +95,8 @@ class PreparedScore {
               measure: m,
               text: text,
               kind: isTempo ? ScoreTextKind.tempo : ScoreTextKind.direction,
+              extended: [for (final t in types) ...t.findElements('dashes'), for (final t in types) ...t.findElements('bracket')]
+                  .any((e) => e.getAttribute('type') == 'start'),
             ));
             final edit = edits[id];
             if (edit != null) _replaceWords(words, edit);

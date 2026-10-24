@@ -765,12 +765,21 @@ class CuratedScene {
     _display = null;
     _displayVersion++;
     _inkAboveOf.clear();
+    _tempoSpans = null;
   }
 
-  /// Each tempo mark's source id, and its copy's on a pair's shared staff → its own.
-  late final _tempoIds = {
+  /// What every text that speaks of the speed says ([ScoreText.tempoRole]), by id, with its
+  /// words as shown.
+  late final _tempoRoles = {
     for (final text in score.texts)
-      if (text.kind == ScoreTextKind.tempo) ...{text.id: text.id, '${Condenser.idPrefix}${text.id}': text.id},
+      if (text.tempoRole(score.currentText(text)) case final role when role != TempoRole.none)
+        text.id: (role: role, words: score.currentText(text), extended: text.extended),
+  };
+
+  /// Each of those texts' source id, and its copy's on a pair's shared staff → its own: set
+  /// apart from the music.
+  late final _tempoIds = {
+    for (final id in _tempoRoles.keys) ...{id: id, '${Condenser.idPrefix}$id': id},
   };
 
   final _barNumberText = <int, ui.Paragraph>{};
@@ -882,25 +891,66 @@ class CuratedScene {
     canvas.restore();
   }
 
-  /// The tempo mark the playhead last passed, at the frame's left in the bar numbers' row, on
-  /// their baseline: its words (as edited) in the text font, italic, at the names' size, cut
-  /// short to fit their width. One gives way to the next over a couple of staff spaces.
+  /// What the frame's left shows from each score x on, left to right (null: nothing): the
+  /// tempo mark the playhead last passed, or a change of speed ("rit.") in its stead from where
+  /// it is written until its dashes end, "a tempo" or another mark comes.
+  List<({double x, String? words})> get _tempoSpanList {
+    if (_tempoSpans case final spans?) return spans;
+    final events = <({double x, int order, String id, bool end})>[];
+    for (final mark in display.apart) {
+      final role = _tempoRoles[mark.id];
+      if (role == null) continue;
+      events.add((x: mark.bounds.left, order: 1, id: mark.id, end: false));
+      if (role.role == TempoRole.change && role.extended) {
+        events.add((x: mark.bounds.right, order: 0, id: mark.id, end: true)); // where its dashes stop
+      }
+    }
+    events.sort((a, b) => a.x != b.x ? a.x.compareTo(b.x) : a.order.compareTo(b.order));
+    final spans = <({double x, String? words})>[];
+    String? tempo, change;
+    for (final e in events) {
+      final role = _tempoRoles[e.id]!;
+      if (e.end) {
+        if (change == e.id) change = null;
+      } else {
+        switch (role.role) {
+          case TempoRole.tempo:
+            tempo = e.id;
+            change = null;
+          case TempoRole.change:
+            change = e.id;
+          case TempoRole.back:
+            change = null;
+          case TempoRole.none:
+        }
+      }
+      final words = switch (change ?? tempo) { final id? => _tempoRoles[id]!.words, null => null };
+      if (spans.isEmpty ? words != null : spans.last.words != words) spans.add((x: e.x, words: words));
+    }
+    return _tempoSpans = spans;
+  }
+
+  List<({double x, String? words})>? _tempoSpans;
+
+  /// [_tempoSpanList]'s words at the frame's left in the bar numbers' row, on their baseline,
+  /// in the text font's italic at the names' size, cut short to fit their width. One gives way
+  /// to the next over a couple of staff spaces of scroll.
   void _paintTempo(ui.Canvas canvas, ui.Size size, double scrollX, ui.Color ink, double shift) {
-    final marks = display.apart;
-    if (marks.isEmpty) return;
+    final spans = _tempoSpanList;
+    if (spans.isEmpty) return;
     final fade = 2 * display.data.staffSpace;
     double arrived(int i) {
-      final t = ((scrollX - marks[i].bounds.left) / fade + 0.5).clamp(0.0, 1.0);
+      final t = ((scrollX - spans[i].x) / fade + 0.5).clamp(0.0, 1.0);
       return t * t * (3 - 2 * t);
     }
 
     final number = _barNumber(0);
     final baseline = _rowBottom - shift - number.height + number.alphabeticBaseline;
-    for (var i = 0; i < marks.length; i++) {
-      final opacity = arrived(i) * (i + 1 < marks.length ? 1 - arrived(i + 1) : 1);
-      if (opacity <= 0.001) continue;
-      final text = _tempoText(marks[i].id);
-      if (text == null) continue;
+    for (var i = 0; i < spans.length; i++) {
+      final opacity = arrived(i) * (i + 1 < spans.length ? 1 - arrived(i + 1) : 1);
+      final words = spans[i].words;
+      if (opacity <= 0.001 || words == null || words.isEmpty) continue;
+      final text = _tempoText(words);
       canvas
         ..saveLayer(
             null,
@@ -912,27 +962,19 @@ class CuratedScene {
     }
   }
 
-  late final _tempoTexts = {
-    for (final text in score.texts)
-      if (text.kind == ScoreTextKind.tempo) text.id: score.currentText(text),
-  };
   final _tempoParagraphs = <String, ui.Paragraph>{};
 
-  ui.Paragraph? _tempoText(String id) {
-    final words = _tempoTexts[id];
-    if (words == null || words.isEmpty) return null;
-    return _tempoParagraphs.putIfAbsent(words, () {
-      final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-          fontFamily: _style.textFontFamily,
-          fontSize: _style.labelFontSize,
-          fontStyle: ui.FontStyle.italic,
-          maxLines: 1,
-          ellipsis: '…'))
-        ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
-        ..addText(words);
-      return builder.build()..layout(ui.ParagraphConstraints(width: _style.headerWidth - 16));
-    });
-  }
+  ui.Paragraph _tempoText(String words) => _tempoParagraphs.putIfAbsent(words, () {
+        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
+            fontFamily: _style.textFontFamily,
+            fontSize: _style.labelFontSize,
+            fontStyle: ui.FontStyle.italic,
+            maxLines: 1,
+            ellipsis: '…'))
+          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
+          ..addText(words);
+        return builder.build()..layout(ui.ParagraphConstraints(width: _style.headerWidth - 16));
+      });
 
   // MARK: Images
 
