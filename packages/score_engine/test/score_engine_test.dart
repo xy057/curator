@@ -121,6 +121,9 @@ void main() {
     expect(MotionCurve.problemWith('sin(pi*t)'), 'f(1) must differ from f(0).');
     expect(MotionCurve.problemWith('2*q'), 'Unknown name “q”.');
     expect(MotionCurve.problemWith('(t'), 'Missing “)”.');
+    expect(MotionCurve.problemWith('1/(t-0.3)'), startsWith('Too far past 0–1'));
+    // Undefined only between the points checked: a straight line there, never NaN.
+    expect(MotionCurve.parse('t + 0*sqrt(abs(t-0.3)-0.0001)').at(0.3), 0.3);
     final motion = ScoreMotion(glide: MotionCurve.linear, settle: 3, inkDelay: 0.2);
     expect(ScoreMotion.fromJson(motion.toJson()), motion);
     expect(ScoreMotion.fromJson(const {}), ScoreMotion.standard);

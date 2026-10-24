@@ -148,8 +148,10 @@ speed solves the notes' curves again, a new settle only re-ends them); the endin
 (`CuratedScene.endOf(timeline, motion)`, so playback's duration and a clipped video's end follow);
 captions' fade and rise; the bar numbers' row lead and the tempo's cross-fade. Each curve is a
 `MotionCurve`: an equation in `t` (presets by name, or the user's own), parsed once into a Dart
-closure and cached, scaled so it always runs from 0 to 1; between them it may overshoot (a glide
-goes past and back), while opacities are held inside. The settle leaves at the speed it arrived
+closure and cached, scaled so it always runs from 0 to 1; between them it may overshoot by up to 1 (a glide
+goes past and back), while opacities are held inside. It is checked at 1024 points (undefined or
+further out: refused, saying where); between them a value undefined is the straight line's, and one
+further out is held at the limit, so no frame can be NaN. The settle leaves at the speed it arrived
 when its curve starts at a slope of 1 or more (`startSlope`). The staff transition's length stays a
 region's property (Animation), and the interface's own motion stays the app's (Reduce motion).
 
