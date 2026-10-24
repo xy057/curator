@@ -857,14 +857,17 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         groups.last.$2.add(_row(item));
       }
       page = _Page(key: ValueKey(_page), empty: cat.empty, groups: groups);
-      if (cat.preview && widget.settings.engravingPreview) {
+      // Shown or hidden, the rows stay where they are: the same tree, keeping their scroll.
+      if (cat.preview) {
         final colors = context.colors;
         page = Column(key: ValueKey(_page), crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          SizedBox(
-              height: 170,
-              child: EngravingPreviewHost(settings: widget.settings, controller: widget.controller, scale: 0.5)),
-          Divider(height: 1, color: colors.line),
-          Expanded(child: page),
+          if (widget.settings.engravingPreview) ...[
+            SizedBox(
+                height: 170,
+                child: EngravingPreviewHost(settings: widget.settings, controller: widget.controller, scale: 0.5)),
+            Divider(height: 1, color: colors.line),
+          ],
+          Expanded(key: const ValueKey('rows'), child: page),
         ]);
       }
     } else {

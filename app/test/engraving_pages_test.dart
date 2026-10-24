@@ -1,5 +1,6 @@
 // Project Settings ▸ Advanced Engraving with a score open: every other engraving option by plain
-// name, the score engraved again after each change; and Hide Preview on every engraving page.
+// name, the score engraved again after each change; and Hide Preview on every engraving page,
+// the rows kept where they were scrolled.
 // With SCREENSHOT_DIR set, saves PNGs.
 import 'dart:async';
 
@@ -107,11 +108,18 @@ void main() {
     await settle();
     expect(painter().shouldRepaint(before), isTrue, reason: 'the preview draws the new engraving');
 
-    // Hidden on one engraving page, hidden on all, and remembered; shown again likewise.
+    // Hidden on one engraving page, hidden on all, and remembered; shown again likewise. The
+    // rows stay scrolled where they were.
+    ScrollPosition rows() => tester
+        .state<ScrollableState>(find.descendant(of: find.byKey(const ValueKey('rows')), matching: find.byType(Scrollable)).first)
+        .position;
+    rows().jumpTo(400);
+    await tester.pump();
     await tester.tap(find.byTooltip('Hide Preview'));
     await settle();
     expect(preview, findsNothing);
     expect(settings.engravingPreview, isFalse);
+    expect(rows().pixels, 400);
     for (final page in ['Engraving', 'Typography']) {
       await tester.tap(find.text(page).first);
       await settle();
@@ -128,6 +136,7 @@ void main() {
     await settle();
     expect(preview, findsOneWidget);
     expect(settings.engravingPreview, isTrue);
+    expect(rows().pixels, 0, reason: 'Typography, at its top');
     await tester.tap(find.text('Animation').first);
     await settle();
     expect(find.byTooltip('Hide Preview'), findsNothing, reason: 'not an engraving page');
