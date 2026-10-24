@@ -226,13 +226,15 @@ String get verovioVersion => vb_version().toDartString();
 abstract final class Engraver {
   /// Engraves MusicXML into one endless system. Runs on a background isolate.
   /// [resourceDirectory] must contain Verovio's font metrics (`Bravura.xml`, `text/`…).
+  /// [verovioOptions] go to Verovio as they are (the typography's symbol sizes).
   static Future<EngravingData> engrave(
     String musicXML, {
     required String resourceDirectory,
     MusicFont font = MusicFont.bravura,
     EngravingOptions options = const EngravingOptions(),
+    Map<String, Object> verovioOptions = const {},
   }) {
-    final json = options.verovioJson(font);
+    final json = options.verovioJson(font, verovioOptions);
     final defaults = options.engravingDefaults(font), name = font.name;
     return Isolate.run(() {
       final data = _engrave(musicXML, resourceDirectory, json);

@@ -430,13 +430,13 @@ _Category _typographyCategory() {
           s.title,
           null,
           (c) => TypographyControl(target: target(c), setting: s),
-          group: s.kind.label,
+          group: s.group,
           shown: switch (s.kind) {
             TextKind.captions => (c) => c.controller!.captions.enabled,
             TextKind.barNumbers || TextKind.tempoRow => (c) => c.controller!.barNumbers,
             _ => null,
           },
-          keywords: 'font text type typography engraving ${s.kind.label} ${s.keywords}',
+          keywords: 'font text type typography engraving ${s.kind.label} ${s.kind.isSymbol ? 'music symbol smufl glyph ' : ''}${s.keywords}',
         ),
     ],
   );

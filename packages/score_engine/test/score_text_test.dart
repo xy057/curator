@@ -23,6 +23,16 @@ String engravedText(LoadedScore s) => utf8.decode(s.engraving.text, allowMalform
   throw StateError('No “$words”.');
 }
 
+/// The size of the first music-font glyph from [first] to [last] (SMuFL code points).
+double glyphSize(LoadedScore s, int first, int last) {
+  final d = s.engraving;
+  for (var i = 0; i < d.commandCount; i++) {
+    final b = i * Cmd.words, code = d.commandInts[b + Cmd.codepoint];
+    if (d.commandInts[b + Cmd.kind] == VBKind.glyph && code >= first && code <= last) return d.commandFloats[b + Cmd.size];
+  }
+  throw StateError('No glyph from ${first.toRadixString(16)}.');
+}
+
 void main() {
   late LoadedScore score;
 
@@ -50,13 +60,22 @@ void main() {
     final typography = ScoreTypography.standard
         .withValue('tempo.size', 1.5)
         .withValue('tempo.face', TextFace.bold)
-        .withValue('tempo.tracking', 0.1);
+        .withValue('tempo.tracking', 0.1)
+        .withValue('dynamics.size', 1.5)
+        .withValue('fermatas.size', 2.0)
+        .withValue('ornaments.size', 0.5)
+        .withValue('tupletNumbers.size', 1.25);
     final styled = await score.withEdits(typography: typography);
     final before = runOf(score, 'Vivo'), after = runOf(styled, 'Vivo');
     expect(after.size, closeTo(before.size * 1.5, 1));
     expect(after.flags & VBFlag.bold, isNot(0));
     expect(after.spacing, greaterThan(0));
     expect(runOf(styled, 'pizz.').size, runOf(score, 'pizz.').size); // an expression: as it was
+    // The music symbols, each its own size; the notes as they were.
+    for (final (first, last, scale) in [(0xE520, 0xE54F, 1.5), (0xE4C0, 0xE4DF, 2.0), (0xE566, 0xE566, 0.5), (0xE880, 0xE88F, 1.25), (0xE0A4, 0xE0A4, 1.0)]) {
+      final was = glyphSize(score, first, last);
+      expect(glyphSize(styled, first, last), closeTo(was * scale, was * 0.02), reason: first.toRadixString(16));
+    }
 
     // Only the drawn kinds differ: the same engraving.
     final drawn = typography.withValue('barNumbers.opacity', 0.8).withValue('names.face', TextFace.italic);

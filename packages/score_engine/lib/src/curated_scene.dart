@@ -185,6 +185,7 @@ class LoadedScore {
       resourceDirectory: resources.directory,
       font: fonts.music.isMissing ? MusicFont.bravura : fonts.music,
       options: options,
+      verovioOptions: typography.verovioOptions,
     );
     final timeline = ConstantTempoTimeline(engraving.measures,
         quarterNotesPerMinute: tempo ?? metadata.tempo ?? 100);

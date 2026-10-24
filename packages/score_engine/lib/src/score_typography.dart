@@ -25,7 +25,8 @@ enum TextFace {
 
 /// The kinds of text in the score, each set on its own (Project Settings ▸ Typography). The
 /// first four are drawn by the scene and change nothing but the drawing; the rest Verovio
-/// engraves, so changing them engraves again, and the music makes room for them.
+/// engraves, so changing them engraves again, and the music makes room for them. The last are
+/// music-font (SMuFL) symbols: only their size is theirs.
 enum TextKind {
   names('Names', TextLook()),
   barNumbers('Bar numbers', TextLook(face: TextFace.italic, opacity: 0.5)),
@@ -34,9 +35,19 @@ enum TextKind {
   tempo('Tempo marks', TextLook(face: TextFace.asWritten), engraved: true),
   expressions('Expressions', TextLook(face: TextFace.asWritten), engraved: true),
   rehearsal('Rehearsal marks', TextLook(face: TextFace.asWritten), engraved: true),
-  lyrics('Lyrics', TextLook(face: TextFace.asWritten), engraved: true);
+  lyrics('Lyrics', TextLook(face: TextFace.asWritten), engraved: true),
+  dynamics.symbol('Dynamics', 'curatedDynamScale'),
+  tupletNumbers.symbol('Tuplet numbers', 'curatedTupletNumScale'),
+  ornaments.symbol('Ornaments', 'curatedOrnamentScale'),
+  fermatas.symbol('Fermatas', 'curatedFermataScale'),
+  pedal.symbol('Pedal marks', 'curatedPedalScale'),
+  octave.symbol('Octave marks', 'curatedOctaveScale'),
+  segnoCoda.symbol('Segno and coda', 'curatedRepeatMarkScale');
 
-  const TextKind(this.label, this.house, {this.engraved = false});
+  const TextKind(this.label, this.house, {this.engraved = false}) : verovioScale = null;
+  const TextKind.symbol(this.label, String this.verovioScale)
+      : house = const TextLook(face: TextFace.asWritten),
+        engraved = true;
 
   /// [captions]' house look, for a default value.
   static const captionsHouse = TextLook(tracking: 0.01);
@@ -48,6 +59,11 @@ enum TextKind {
   /// Engraved by Verovio: a face may be [TextFace.asWritten], and there is no opacity (the
   /// engraving is all one ink).
   final bool engraved;
+
+  /// For a music-font symbol, the patched Verovio's option scaling its size (and nothing else:
+  /// the font has one face, and its symbols are set glyph by glyph).
+  final String? verovioScale;
+  bool get isSymbol => verovioScale != null;
 }
 
 /// How one kind of text looks: its [size] as a share of the house size (the names' 13 points,
@@ -172,13 +188,19 @@ class ScoreTypography {
   bool engravesLike(ScoreTypography other) =>
       TextKind.values.every((k) => !k.engraved || this[k] == other[k]);
 
+  /// The patched Verovio's options for the symbols' sizes, those changed only.
+  Map<String, double> get verovioOptions => {
+        for (final kind in TextKind.values)
+          if (kind.isSymbol && this[kind].size != 1) kind.verovioScale!: this[kind].size,
+      };
+
   /// Writes the engraved kinds' looks into [doc] for Verovio (after the text edits and dynamics
   /// typed as text, before condensing copies them): a face as MusicXML's `font-style` and
   /// `font-weight`, a size and letter spacing as the patched importer's own attributes
   /// (`curated-score-size`, a percent of the text's size; `curated-score-tracking`, in MEI's
   /// virtual units). [textSize] is the engraving's text size, virtual units (`lyricSize`).
   void applyTo(XmlDocument doc, {required double textSize}) {
-    if (TextKind.values.every((k) => !k.engraved || this[k] == k.house)) return;
+    if (TextKind.values.every((k) => !k.engraved || k.isSymbol || this[k] == k.house)) return;
     void set(XmlElement e, TextKind kind) {
       final look = this[kind];
       if (look.face != TextFace.asWritten) {

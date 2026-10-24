@@ -11,7 +11,8 @@ import 'menu_kit.dart';
 import 'motion_settings.dart' show ResetSlot, SettingSlider;
 
 /// One of Project Settings ▸ Typography's rows: a property of one kind of text, by its
-/// [ScoreTypography.valueOf] key, under the kind's name.
+/// [ScoreTypography.valueOf] key, under the kind's name; a music symbol's size, by the symbol's
+/// name under [symbols].
 class TypographySetting {
   const TypographySetting(this.kind, this.property);
   final TextKind kind;
@@ -21,7 +22,13 @@ class TypographySetting {
 
   String get key => '${kind.name}.$property';
 
+  /// The music symbols' group.
+  static const symbols = 'Music symbols';
+
+  String get group => kind.isSymbol ? symbols : kind.label;
+
   String get title => switch (property) {
+        _ when kind.isSymbol => kind.label,
         'size' => 'Size',
         'face' => 'Style',
         'tracking' => 'Letter spacing',
@@ -44,10 +51,11 @@ class TypographySetting {
   String format(double value) => property == 'tracking' ? '${formatOptionValue(value)} em' : '${(value * 100).round()}%';
 
   /// Every row in page order: each kind's size, style, letter spacing, and opacity for those
-  /// drawn (the engraving is all one ink).
+  /// drawn (the engraving is all one ink); a music symbol's size alone.
   static final all = [
     for (final kind in TextKind.values)
-      for (final property in ['size', 'face', 'tracking', if (!kind.engraved) 'opacity']) TypographySetting(kind, property),
+      for (final property in kind.isSymbol ? ['size'] : ['size', 'face', 'tracking', if (!kind.engraved) 'opacity'])
+        TypographySetting(kind, property),
   ];
 }
 

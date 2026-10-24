@@ -204,9 +204,9 @@ class EngravingOptions {
   Map<String, Object> toJson() => overrides;
 
   /// The Verovio options to engrave with in [font]: every offered option, overridden or not,
-  /// so the house style lives in [EngraveOption.all] alone.
-  String verovioJson(MusicFont font) {
-    final options = <String, Object>{'font': font.name, 'fontFallback': 'Bravura'};
+  /// so the house style lives in [EngraveOption.all] alone; and [more] (the typography's).
+  String verovioJson(MusicFont font, [Map<String, Object> more = const {}]) {
+    final options = <String, Object>{'font': font.name, 'fontFallback': 'Bravura', ...more};
     for (final option in EngraveOption.all) {
       if (option.smuflKey == null) options[option.key] = valueOf(option);
     }

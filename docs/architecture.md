@@ -28,7 +28,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
 | `score_caption.dart` | Captions (`Caption`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
-| `score_typography.dart` | How each kind of text in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), and the engraved kinds written into the MusicXML for Verovio |
+| `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
 | `zip_entries.dart` | `ZipEntries`: an entry of someone else's zip (a project, an .mxl), its bytes counted as they unpack and refused past a limit |
 
@@ -176,6 +176,11 @@ an opacity. The fonts themselves stay on the Engraving page. Two sorts of text, 
   lays the text out with them, so the music makes room; tempo and expression are told apart as Verovio
   tells them (a metronome mark or `<sound tempo>`). A file's own `font-size` (points) is still ignored.
   The letter spacing reaches the drawing through `VBCommand.letterSpacing`.
+- **Music symbols** set in the music font (dynamics, tuplet numbers, ornaments, fermatas, pedal and
+  octave marks, segno and coda; `TextKind.isSymbol`, the page's Music symbols group) have a size alone:
+  the font has one face, and its glyphs are set one by one. `ScoreTypography.verovioOptions` passes
+  each changed size as the patched Verovio's own option (`curatedDynamScale`…, `TextKind.verovioScale`),
+  which scales the staff size its draw functions use (`CuratedSize`), so the layout follows too.
 
 **The metronome clicks the beats as they sound** (C, or the toolbar's button by Play; an aid
 for aligning the tempo, `Playback.metronome`: neither saved, an edit, nor in a video). Each frame
@@ -562,8 +567,8 @@ until Save as default) turns it off.
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
 keep their written key), MusicXML direction ids (so texts can be edited), the app's typography
-(`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, and a rehearsal
-mark's `font-style`), cancelling naturals
+(`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, a rehearsal
+mark's `font-style`, and the `curated…Scale` options sizing music symbols), cancelling naturals
 at a key change to C (a key change was applied twice, the second time cancelling itself), and a
 log per thread (engravings run side by side on isolates, each reading its own). Mark changes in
 Verovio's code with `[curated-score patch]`.

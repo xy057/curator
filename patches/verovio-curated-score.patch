@@ -11,6 +11,38 @@ index 221244d..0647ae4 100644
      /** The mensur */
      Mensur m_currentMensur;
      /** The meter signature (time signature) */
+diff --git a/include/vrv/options.h b/include/vrv/options.h
+index 50b0a70..de3eec7 100644
+--- a/include/vrv/options.h
++++ b/include/vrv/options.h
+@@ -259,6 +259,13 @@ private:
+     bool m_definitionFactor;
+ };
+ 
++// [curated-score patch] The size a kind of music-font symbol is drawn and laid out at: its staff's,
++// scaled by the app's typography (Project Settings ▸ Typography).
++inline int CuratedSize(int staffSize, const OptionDbl &scale)
++{
++    return int(staffSize * scale.GetValue() + 0.5);
++}
++
+ //----------------------------------------------------------------------------
+ // OptionInt
+ //----------------------------------------------------------------------------
+@@ -711,6 +718,13 @@ public:
+     OptionJson m_engravingDefaultsFile;
+     OptionDbl m_extenderLineMinSpace;
+     OptionDbl m_fingeringScale;
++    OptionDbl m_curatedDynamScale; // [curated-score patch]
++    OptionDbl m_curatedTupletNumScale; // [curated-score patch]
++    OptionDbl m_curatedOrnamentScale; // [curated-score patch]
++    OptionDbl m_curatedFermataScale; // [curated-score patch]
++    OptionDbl m_curatedPedalScale; // [curated-score patch]
++    OptionDbl m_curatedOctaveScale; // [curated-score patch]
++    OptionDbl m_curatedRepeatMarkScale; // [curated-score patch]
+     OptionString m_font;
+     OptionArray m_fontAddCustom;
+     OptionIntMap m_fontFallback;
 diff --git a/include/vrv/vrv.h b/include/vrv/vrv.h
 index d8070ce..a35e805 100644
 --- a/include/vrv/vrv.h
@@ -191,6 +223,222 @@ index f20540d..297169b 100644
  
                      Text *text = new Text();
                      text->SetText(UTF8to32(textStr));
+diff --git a/src/options.cpp b/src/options.cpp
+index 7e3ec3c..583daed 100644
+--- a/src/options.cpp
++++ b/src/options.cpp
+@@ -1303,6 +1303,34 @@ Options::Options()
+     m_fingeringScale.Init(0.75, 0.25, 1);
+     this->Register(&m_fingeringScale, "fingeringScale", &m_generalLayout);
+ 
++    m_curatedDynamScale.SetInfo("Dynamics scale", "[curated-score patch] The size of dynamics against the staff's");
++    m_curatedDynamScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedDynamScale, "curatedDynamScale", &m_generalLayout);
++
++    m_curatedTupletNumScale.SetInfo("Tuplet numbers scale", "[curated-score patch] The size of tuplet numbers against the staff's");
++    m_curatedTupletNumScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedTupletNumScale, "curatedTupletNumScale", &m_generalLayout);
++
++    m_curatedOrnamentScale.SetInfo("Ornaments scale", "[curated-score patch] The size of ornaments against the staff's");
++    m_curatedOrnamentScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedOrnamentScale, "curatedOrnamentScale", &m_generalLayout);
++
++    m_curatedFermataScale.SetInfo("Fermatas scale", "[curated-score patch] The size of fermatas against the staff's");
++    m_curatedFermataScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedFermataScale, "curatedFermataScale", &m_generalLayout);
++
++    m_curatedPedalScale.SetInfo("Pedal marks scale", "[curated-score patch] The size of pedal marks against the staff's");
++    m_curatedPedalScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedPedalScale, "curatedPedalScale", &m_generalLayout);
++
++    m_curatedOctaveScale.SetInfo("Octave marks scale", "[curated-score patch] The size of octave marks against the staff's");
++    m_curatedOctaveScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedOctaveScale, "curatedOctaveScale", &m_generalLayout);
++
++    m_curatedRepeatMarkScale.SetInfo("Segno and coda scale", "[curated-score patch] The size of segno and coda against the staff's");
++    m_curatedRepeatMarkScale.Init(1.0, 0.5, 2.5);
++    this->Register(&m_curatedRepeatMarkScale, "curatedRepeatMarkScale", &m_generalLayout);
++
+     m_font.SetInfo("Font", "Set the music font");
+     m_font.Init("Leipzig");
+     this->Register(&m_font, "font", &m_generalLayout);
+diff --git a/src/view_control.cpp b/src/view_control.cpp
+index 436fca5..7f35ca6 100644
+--- a/src/view_control.cpp
++++ b/src/view_control.cpp
+@@ -863,21 +863,22 @@ void View::DrawOctave(
+     std::u32string str;
+     str.push_back(code);
+ 
+-    dc->SetFont(m_doc->GetDrawingSmuflFont(staff->m_drawingStaffSize, false));
++    const int symbolSize = CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedOctaveScale); // [curated-score patch]
++    dc->SetFont(m_doc->GetDrawingSmuflFont(symbolSize, false));
+     TextExtend extend;
+     dc->GetSmuflTextExtent(str, &extend);
+     const int yCode = (disPlace == STAFFREL_basic_above) ? y1 - extend.m_height : y1;
+     const int octaveX = altSymbols ? x1 - extend.m_width / 2 : x1 - extend.m_width;
+-    this->DrawSmuflCode(dc, octaveX, yCode, code, staff->m_drawingStaffSize, false);
++    this->DrawSmuflCode(dc, octaveX, yCode, code, symbolSize, false);
+     if (((spanningType == SPANNING_END) || (spanningType == SPANNING_MIDDLE))
+         && !m_doc->GetOptions()->m_octaveNoSpanningParentheses.GetValue()) {
+-        const int leftWidth = m_doc->GetGlyphWidth(SMUFL_E51A_octaveParensLeft, staff->m_drawingStaffSize, false);
+-        const int rightWidth = m_doc->GetGlyphWidth(SMUFL_E51B_octaveParensRight, staff->m_drawingStaffSize, false);
+-        const int octaveWidth = m_doc->GetGlyphWidth(code, staff->m_drawingStaffSize, false);
++        const int leftWidth = m_doc->GetGlyphWidth(SMUFL_E51A_octaveParensLeft, symbolSize, false);
++        const int rightWidth = m_doc->GetGlyphWidth(SMUFL_E51B_octaveParensRight, symbolSize, false);
++        const int octaveWidth = m_doc->GetGlyphWidth(code, symbolSize, false);
+         this->DrawSmuflCode(
+-            dc, octaveX - leftWidth, yCode, SMUFL_E51A_octaveParensLeft, staff->m_drawingStaffSize, false);
++            dc, octaveX - leftWidth, yCode, SMUFL_E51A_octaveParensLeft, symbolSize, false);
+         this->DrawSmuflCode(
+-            dc, octaveX + octaveWidth, yCode, SMUFL_E51B_octaveParensRight, staff->m_drawingStaffSize, false);
++            dc, octaveX + octaveWidth, yCode, SMUFL_E51B_octaveParensRight, symbolSize, false);
+         x1 += rightWidth;
+     }
+     dc->ResetFont();
+@@ -1169,7 +1170,7 @@ void View::DrawPedalLine(
+         else {
+             std::u32string str;
+             str.push_back(SMUFL_E655_keyboardPedalUp);
+-            const int staffSize = staff->m_drawingStaffSize;
++            const int staffSize = CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedPedalScale); // [curated-score patch]
+             data_HORIZONTALALIGNMENT alignment = HORIZONTALALIGNMENT_left;
+             dc->SetFont(m_doc->GetDrawingSmuflFont(staffSize, false));
+             this->DrawSmuflString(dc, x2, y, str, alignment, staffSize);
+@@ -1917,36 +1918,37 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
+     assert(staff);
+     assert(dynam);
+ 
+-    dc->SetFont(m_doc->GetDrawingSmuflFont(staff->m_drawingStaffSize, false));
++    const int symbolSize = CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedDynamScale); // [curated-score patch]
++    dc->SetFont(m_doc->GetDrawingSmuflFont(symbolSize, false));
+ 
+     char32_t enclosingFront, enclosingBack;
+     std::tie(enclosingFront, enclosingBack) = dynam->GetEnclosingGlyphs();
+ 
+     // calculate width of the symbol-only dynamic; generally it consists of only one symbol, but in case when it's
+     // combination of different dynamics glyphs we need to get total width of all elements
+-    const int left = m_doc->GetGlyphLeft(dynamSymbol.at(0), staff->m_drawingStaffSize, false);
++    const int left = m_doc->GetGlyphLeft(dynamSymbol.at(0), symbolSize, false);
+     int width = 0;
+     for (int i = 0; i < (int)dynamSymbol.size(); ++i) {
+         if (i == (int)dynamSymbol.size() - 1) {
+-            width += m_doc->GetGlyphRight(dynamSymbol.at(i), staff->m_drawingStaffSize, false);
++            width += m_doc->GetGlyphRight(dynamSymbol.at(i), symbolSize, false);
+         }
+         else {
+-            width += m_doc->GetGlyphAdvX(dynamSymbol.at(i), staff->m_drawingStaffSize, false);
++            width += m_doc->GetGlyphAdvX(dynamSymbol.at(i), symbolSize, false);
+         }
+     }
+ 
+     // draw opening symbol
+-    const int unit = m_doc->GetDrawingUnit(staff->m_drawingStaffSize);
++    const int unit = m_doc->GetDrawingUnit(symbolSize);
+     if (enclosingFront) {
+         std::u32string open;
+         open.push_back(enclosingFront);
+ 
+-        this->DrawSmuflString(dc, params.m_x, params.m_y + unit, open, alignment, staff->m_drawingStaffSize);
+-        params.m_x += m_doc->GetGlyphWidth(enclosingFront, staff->m_drawingStaffSize, false) - left + unit / 6;
++        this->DrawSmuflString(dc, params.m_x, params.m_y + unit, open, alignment, symbolSize);
++        params.m_x += m_doc->GetGlyphWidth(enclosingFront, symbolSize, false) - left + unit / 6;
+     }
+ 
+     // draw dynamics itself
+-    this->DrawSmuflString(dc, params.m_x, params.m_y, dynamSymbol, alignment, staff->m_drawingStaffSize);
++    this->DrawSmuflString(dc, params.m_x, params.m_y, dynamSymbol, alignment, symbolSize);
+ 
+     // draw closing symbol
+     if (enclosingBack) {
+@@ -1954,7 +1956,7 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
+         close.push_back(enclosingBack);
+ 
+         params.m_x += width + unit / 6;
+-        this->DrawSmuflString(dc, params.m_x, params.m_y + unit, close, alignment, staff->m_drawingStaffSize);
++        this->DrawSmuflString(dc, params.m_x, params.m_y + unit, close, alignment, symbolSize);
+     }
+ 
+     dc->ResetFont();
+@@ -2029,7 +2031,7 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
+         if (!system->SetCurrentFloatingPositioner(staff->GetN(), fermata, fermata->GetStart(), staff)) {
+             continue;
+         }
+-        const int staffSize = staff->GetDrawingStaffNotationSize();
++        const int staffSize = CuratedSize(staff->GetDrawingStaffNotationSize(), m_doc->GetOptions()->m_curatedFermataScale); // [curated-score patch]
+         int x = drawingX;
+         int y = fermata->GetDrawingY();
+ 
+@@ -2387,7 +2389,7 @@ void View::DrawMordent(DeviceContext *dc, Mordent *mordent, Measure *measure, Sy
+         if (!system->SetCurrentFloatingPositioner(staff->GetN(), mordent, mordent->GetStart(), staff)) {
+             continue;
+         }
+-        const int staffSize = staff->m_drawingStaffSize;
++        const int staffSize = CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedOrnamentScale); // [curated-score patch]
+         int x = drawingX;
+         int y = mordent->GetDrawingY();
+ 
+@@ -2556,8 +2558,8 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
+         if (bounceStar && (pedal->GetDir() == pedalLog_DIR_bounce)) {
+             str.push_back(code);
+             // Get the staff size of the first staff
+-            const int staffSize
+-                = (staffList.begin() != staffList.end()) ? (*staffList.begin())->m_drawingStaffSize : 100;
++            const int staffSize = CuratedSize( // [curated-score patch]
++                (staffList.begin() != staffList.end()) ? (*staffList.begin())->m_drawingStaffSize : 100, m_doc->GetOptions()->m_curatedPedalScale);
+             drawingX -= m_doc->GetGlyphWidth(SMUFL_E655_keyboardPedalUp, staffSize, false);
+         }
+         if (pedal->GetDir() != pedalLog_DIR_up) {
+@@ -2569,7 +2571,7 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
+             if (!system->SetCurrentFloatingPositioner(staff->GetN(), pedal, pedal->GetStart(), staff)) {
+                 continue;
+             }
+-            const int staffSize = staff->m_drawingStaffSize;
++            const int staffSize = CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedPedalScale); // [curated-score patch]
+             int x = drawingX;
+             int y = pedal->GetDrawingY();
+ 
+@@ -2715,7 +2717,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
+         if (!system->SetCurrentFloatingPositioner(staff->GetN(), repeatMark, repeatMark->GetStart(), staff)) {
+             continue;
+         }
+-        const int staffSize = staff->m_drawingStaffSize;
++        const int staffSize = CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedRepeatMarkScale); // [curated-score patch]
+         int x = drawingX;
+         int y = repeatMark->GetDrawingY();
+ 
+@@ -2845,7 +2847,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
+         if (!system->SetCurrentFloatingPositioner(staff->GetN(), trill, trill->GetStart(), staff)) {
+             continue;
+         }
+-        const int staffSize = staff->m_drawingStaffSize;
++        const int staffSize = CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedOrnamentScale); // [curated-score patch]
+         int x = drawingX;
+         int y = trill->GetDrawingY();
+ 
+@@ -2953,7 +2955,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
+         if (!system->SetCurrentFloatingPositioner(staff->GetN(), turn, turn->GetStart(), staff)) {
+             continue;
+         }
+-        const int staffSize = staff->m_drawingStaffSize;
++        const int staffSize = CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedOrnamentScale); // [curated-score patch]
+         int x = drawingX;
+         int y = turn->GetDrawingY();
+ 
+diff --git a/src/view_tuplet.cpp b/src/view_tuplet.cpp
+index 6118792..b1ee9d3 100644
+--- a/src/view_tuplet.cpp
++++ b/src/view_tuplet.cpp
+@@ -182,7 +182,8 @@ void View::DrawTupletNum(DeviceContext *dc, LayerElement *element, Layer *layer,
+     std::u32string notes;
+ 
+     const bool drawingCueSize = tuplet->GetDrawingCueSize();
+-    const int glyphSize = staff->GetDrawingStaffNotationSize();
++    const int glyphSize = CuratedSize( // [curated-score patch]
++        staff->GetDrawingStaffNotationSize(), m_doc->GetOptions()->m_curatedTupletNumScale);
+     dc->SetFont(m_doc->GetDrawingSmuflFont(glyphSize, drawingCueSize));
+     notes = IntToTupletFigures((short int)tuplet->GetNum());
+     if (tuplet->GetNumFormat() == tupletVis_NUMFORMAT_ratio) {
 diff --git a/src/vrv.cpp b/src/vrv.cpp
 index 9ab9747..d6d4119 100644
 --- a/src/vrv.cpp
