@@ -79,6 +79,7 @@ typedef struct {
     float bounds[4];     // glyph: ink box x, y, width, height (device units, y down)
     int32_t sourceIndex; // text: index into the source-id table (the MusicXML element), or -1
     float rotation;      // glyph: degrees clockwise about (x, y), e.g. -90 for an arpeggio wiggle
+    float letterSpacing; // text: added between its characters (device units)
 } VBCommand;
 
 typedef struct {

@@ -32,6 +32,7 @@ class EditState {
     this.transition,
     this.scrollFollow,
     this.motion,
+    this.typography,
     this.anchors = const [],
     this.leadIn = 0,
     this.midi,
@@ -72,6 +73,10 @@ class EditState {
   /// How the score moves (Project Settings ▸ Advanced, [CuratedScene.motion]); null: the app's
   /// default (Save as default).
   final ScoreMotion? motion;
+
+  /// How the score's texts look (Project Settings ▸ Typography; the engraved ones in the
+  /// engraving, the rest in [CuratedScene.typography]); null: the app's default (Save as default).
+  final ScoreTypography? typography;
 
   /// The tempo track: where the score is pinned to the recording (warps among them), and the
   /// start before any anchor.
@@ -159,6 +164,7 @@ class EditState {
       transition == other.transition &&
       scrollFollow == other.scrollFollow &&
       motion == other.motion &&
+      typography == other.typography &&
       leadIn == other.leadIn &&
       midi == other.midi &&
       switch ((lanes, other.lanes)) {
@@ -191,13 +197,15 @@ class EditState {
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
 
   /// This state with the fields given instead of its own. A field that may be null is
-  /// cleared by passing null ([lanes], [transition], [scrollFollow], [motion], [midi], [captionFont], [textDynamics]); left
+  /// cleared by passing null ([lanes], [transition], [scrollFollow], [motion], [typography], [midi], [captionFont],
+  /// [textDynamics]); left
   /// out, it stays.
   EditState copyWith({
     Object? lanes = _kept,
     Object? transition = _kept,
     Object? scrollFollow = _kept,
     Object? motion = _kept,
+    Object? typography = _kept,
     List<SyncAnchor>? anchors,
     double? leadIn,
     Object? midi = _kept,
@@ -227,6 +235,7 @@ class EditState {
         transition: identical(transition, _kept) ? this.transition : transition as double?,
         scrollFollow: identical(scrollFollow, _kept) ? this.scrollFollow : scrollFollow as double?,
         motion: identical(motion, _kept) ? this.motion : motion as ScoreMotion?,
+        typography: identical(typography, _kept) ? this.typography : typography as ScoreTypography?,
         anchors: anchors ?? this.anchors,
         leadIn: leadIn ?? this.leadIn,
         midi: identical(midi, _kept) ? this.midi : midi as MidiTempoMap?,
@@ -308,7 +317,7 @@ class ProjectState {
 
   /// The version [toJson] writes (the project file's format version): every save is in the
   /// newest format, whatever the project uses.
-  static const version = 20;
+  static const version = 21;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version]. Additive only: a new format adds fields (the
@@ -333,6 +342,7 @@ class ProjectState {
     17: (state) => {...state, 'barNumbers': false}, // bar numbers came in 18: off, as made
     18: (state) => state, // names in their family's colour came in 19: off
     19: (state) => state, // the score's motion came in 20: none, the app's
+    20: (state) => state, // the score's typography came in 21: none, the app's
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -380,6 +390,7 @@ class ProjectState {
           final f => f,
         },
         motion: r.isAbsent('motion') ? null : _motion(r),
+        typography: r.isAbsent('typography') ? null : _typography(r),
         anchors: [
           for (final (i, anchor) in sync.list('anchors').indexed)
             () {
@@ -599,8 +610,18 @@ class ProjectState {
   }
 
 
+  /// [r]'s `typography`, saying which of its looks is damaged.
+  static ScoreTypography _typography(JsonReader r) {
+    final json = r.map('typography');
+    try {
+      return ScoreTypography.fromJson(json);
+    } on FormatException catch (e) {
+      throw FormatException('The project is damaged: ${r.where}.typography.${e.message}');
+    }
+  }
+
   Map<String, Object?> toJson() {
-    final EditState(:lanes, :transition, :scrollFollow, :motion, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
+    final EditState(:lanes, :transition, :scrollFollow, :motion, :typography, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
         :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
@@ -616,6 +637,7 @@ class ProjectState {
       if (extensions.isNotEmpty) 'extensions': extensions,
       if (textDynamics != null) 'flags': {'textDynamics': textDynamics},
       'motion': ?motion?.toJson(),
+      'typography': ?typography?.toJson(),
       'textEdits': textEdits,
       'condensed': [...condensed],
       'pairs': [for (final p in pairs) p.partIds],

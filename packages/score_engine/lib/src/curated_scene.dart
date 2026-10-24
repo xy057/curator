@@ -19,6 +19,7 @@ import 'score_motion.dart';
 import 'score_patch.dart';
 import 'score_renderer.dart';
 import 'score_text.dart';
+import 'score_typography.dart';
 import 'scroll_map.dart';
 import 'spacing_plan.dart';
 import 'staff_stack.dart';
@@ -34,6 +35,7 @@ class EngraveRequest {
     this.fonts = ScoreFonts.standard,
     this.options = const EngravingOptions(),
     this.textDynamics = true,
+    this.typography = ScoreTypography.standard,
   });
 
   /// Text id → new text ('' removes it).
@@ -47,6 +49,9 @@ class EngraveRequest {
   /// See [TextDynamics].
   final bool textDynamics;
 
+  /// How the engraved texts look; only those count ([ScoreTypography.engravesLike]).
+  final ScoreTypography typography;
+
   @override
   bool operator ==(Object other) =>
       other is EngraveRequest &&
@@ -54,7 +59,8 @@ class EngraveRequest {
       listEquals(other.pairs, pairs) &&
       other.fonts == fonts &&
       other.options == options &&
-      other.textDynamics == textDynamics;
+      other.textDynamics == textDynamics &&
+      other.typography.engravesLike(typography);
 
   @override
   int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics);
@@ -70,6 +76,7 @@ class LoadedScore {
       required this.textFontFound,
       required this.options,
       required this.textDynamics,
+      required this.typography,
       required this.condensed,
       required this.condensing,
       required this.pairs});
@@ -110,6 +117,9 @@ class LoadedScore {
   /// Whether dynamics written as text were engraved as dynamics ([TextDynamics]).
   final bool textDynamics;
 
+  /// How its engraved texts look (its drawn ones are the scene's, [CuratedScene.typography]).
+  final ScoreTypography typography;
+
   /// The pairs of players that can share a staff, each engraved on one of its own (the
   /// scene shows it while both are shown and the pair is condensed).
   final List<CondensedGroup> condensed;
@@ -130,7 +140,13 @@ class LoadedScore {
 
   /// What it was engraved with.
   EngraveRequest get request =>
-      EngraveRequest(textEdits: textEdits, pairs: pairs, fonts: fonts, options: options, textDynamics: textDynamics);
+      EngraveRequest(
+          textEdits: textEdits,
+          pairs: pairs,
+          fonts: fonts,
+          options: options,
+          textDynamics: textDynamics,
+          typography: typography);
 
   /// Engraves [musicXML] as [request] asks.
   static Future<LoadedScore> engrave(String musicXML, EngraveRequest request, {String? resourceDirectory, double? tempo}) =>
@@ -141,7 +157,8 @@ class LoadedScore {
           textEdits: request.textEdits,
           pairs: request.pairs,
           options: request.options,
-          textDynamics: request.textDynamics);
+          textDynamics: request.textDynamics,
+          typography: request.typography);
 
   static Future<LoadedScore> load(
     String musicXML, {
@@ -152,11 +169,16 @@ class LoadedScore {
     List<PlayerPair> pairs = const [],
     EngravingOptions options = const EngravingOptions(),
     bool textDynamics = true,
+    ScoreTypography typography = ScoreTypography.standard,
   }) async {
     final doc = ScoreMetadata.parse(musicXML);
     final metadata = ScoreMetadata.fromDocument(doc);
-    final prepared =
-        PreparedScore.prepare(doc, textEdits, metadata: metadata, pairs: pairs, textDynamics: textDynamics);
+    final prepared = PreparedScore.prepare(doc, textEdits,
+        metadata: metadata,
+        pairs: pairs,
+        textDynamics: textDynamics,
+        typography: typography,
+        textSize: (options.valueOf(EngraveOption.byKey('lyricSize')!) as num).toDouble());
     final resources = await prepareFonts(fonts, resourceDirectory: resourceDirectory);
     final engraving = await Engraver.engrave(
       prepared.musicXML,
@@ -175,6 +197,7 @@ class LoadedScore {
         textFontFound: resources.textFound,
         options: options,
         textDynamics: textDynamics,
+        typography: typography,
         condensed: prepared.condensed,
         condensing: prepared.condensing!,
         pairs: List.unmodifiable(pairs));
@@ -204,20 +227,22 @@ class LoadedScore {
   /// Re-engraves as [request] asks (the structure, and so the curation and sync, stay valid).
   Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo);
 
-  /// Re-engraves with different text edits, pairs of players, fonts, engraving options or
-  /// [textDynamics]; what isn't given stays.
+  /// Re-engraves with different text edits, pairs of players, fonts, engraving options,
+  /// [textDynamics] or [typography]; what isn't given stays.
   Future<LoadedScore> withEdits(
           {Map<String, String>? textEdits,
           List<PlayerPair>? pairs,
           ScoreFonts? fonts,
           EngravingOptions? options,
-          bool? textDynamics}) =>
+          bool? textDynamics,
+          ScoreTypography? typography}) =>
       withRequest(EngraveRequest(
           textEdits: textEdits ?? this.textEdits,
           pairs: pairs ?? this.pairs,
           fonts: fonts ?? this.fonts,
           options: options ?? this.options,
-          textDynamics: textDynamics ?? this.textDynamics));
+          textDynamics: textDynamics ?? this.textDynamics,
+          typography: typography ?? this.typography));
 }
 
 /// Where Verovio's font metrics live on disk (bundled as package assets).
@@ -253,6 +278,7 @@ class SceneSettings {
     this.barNumbers = false,
     this.nameColors = const {},
     this.motion = ScoreMotion.standard,
+    this.typography = ScoreTypography.standard,
   });
 
   /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
@@ -268,6 +294,7 @@ class SceneSettings {
   final bool barNumbers;
   final Map<String, ui.Color> nameColors;
   final ScoreMotion motion;
+  final ScoreTypography typography;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -351,7 +378,8 @@ class CuratedScene {
         final display = this.display;
         final frozen = _frozen ?? FrozenZone(score.engraving, _style);
         _frozen = null; // the renderer's now
-        return ScoreRenderer(display, _style, frozen: frozen, barlinesThrough: _barlinesThrough);
+        return ScoreRenderer(display, _style, frozen: frozen, barlinesThrough: _barlinesThrough)
+          ..names = _typography[TextKind.names];
       }();
   ScoreRenderer? _renderer;
 
@@ -379,7 +407,8 @@ class CuratedScene {
       sectionOverrides: sectionOverrides,
       barNumbers: barNumbers,
       nameColors: nameColors,
-      motion: motion);
+      motion: motion,
+      typography: typography);
   set settings(SceneSettings value) {
     names = value.names;
     condensed = value.condensed;
@@ -393,6 +422,7 @@ class CuratedScene {
     barNumbers = value.barNumbers;
     nameColors = value.nameColors;
     motion = value.motion;
+    typography = value.typography;
   }
 
   /// How the score moves (Project Settings ▸ Advanced): staves' glides and fades, the scroll's
@@ -406,6 +436,24 @@ class CuratedScene {
     if (!identical(next, scrollMap)) {
       scrollMap = next;
       _timelineVersion++;
+    }
+  }
+
+  /// How the texts the scene draws look (Project Settings ▸ Typography): the names, the bar
+  /// numbers, the tempo at the left, captions. The engraved ones are the score's
+  /// ([LoadedScore.typography]); a change here only redraws.
+  ScoreTypography get typography => _typography;
+  ScoreTypography _typography = ScoreTypography.standard;
+  set typography(ScoreTypography value) {
+    if (value == _typography) return;
+    final old = _typography;
+    _typography = value;
+    _renderer?.names = value[TextKind.names];
+    if (value[TextKind.barNumbers] != old[TextKind.barNumbers]) _disposeBarNumbers();
+    if (value[TextKind.tempoRow] != old[TextKind.tempoRow]) _disposeTempoTexts();
+    if (value[TextKind.captions] != old[TextKind.captions]) {
+      _captionBar.dispose();
+      _captionBar = CaptionBar(_style.textFontFamily, _captionBar.style, value[TextKind.captions]);
     }
   }
 
@@ -747,7 +795,7 @@ class CuratedScene {
   set captionStyle(CaptionStyle value) {
     if (value == _captionBar.style) return;
     _captionBar.dispose();
-    _captionBar = CaptionBar(_style.textFontFamily, value);
+    _captionBar = CaptionBar(_style.textFontFamily, value, _typography[TextKind.captions]);
   }
 
   late CaptionBar _captionBar = CaptionBar(_style.textFontFamily);
@@ -814,11 +862,16 @@ class CuratedScene {
 
   final _barNumberText = <String, ui.Paragraph>{};
 
-  /// A bar's number ([ScoreMetadata.barNumbers]) laid out.
+  /// A bar's number ([ScoreMetadata.barNumbers]) laid out, as [TextKind.barNumbers] looks.
   ui.Paragraph _barNumber(String number) => _barNumberText.putIfAbsent(number, () {
+        final look = _typography[TextKind.barNumbers], fontSize = _style.staffSpace * 1.3 * look.size;
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-            fontFamily: _style.textFontFamily, fontSize: _style.staffSpace * 1.3, fontStyle: ui.FontStyle.italic, maxLines: 1))
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
+            fontFamily: _style.textFontFamily,
+            fontSize: fontSize,
+            fontStyle: look.face.fontStyle,
+            fontWeight: look.face.fontWeight,
+            maxLines: 1))
+          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
           ..addText(number);
         return builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
       });
@@ -920,7 +973,7 @@ class CuratedScene {
     canvas.saveLayer(
         null,
         ui.Paint()
-          ..color = const ui.Color.fromRGBO(0, 0, 0, 0.5)
+          ..color = ui.Color.fromRGBO(0, 0, 0, _typography[TextKind.barNumbers].opacity)
           ..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn));
     for (var m = 0; m < measures.length; m++) {
       final bar = measures[m];
@@ -998,7 +1051,7 @@ class CuratedScene {
         ..saveLayer(
             null,
             ui.Paint()
-              ..color = ui.Color.fromRGBO(0, 0, 0, opacity)
+              ..color = ui.Color.fromRGBO(0, 0, 0, opacity * _typography[TextKind.tempoRow].opacity)
               ..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn))
         ..drawParagraph(text, ui.Offset(8, baseline - text.alphabeticBaseline))
         ..restore();
@@ -1007,17 +1060,27 @@ class CuratedScene {
 
   final _tempoParagraphs = <String, ui.Paragraph>{};
 
+  /// [words] laid out as [TextKind.tempoRow] looks.
   ui.Paragraph _tempoText(String words) => _tempoParagraphs.putIfAbsent(words, () {
+        final look = _typography[TextKind.tempoRow], fontSize = _style.labelFontSize * look.size;
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
             fontFamily: _style.textFontFamily,
-            fontSize: _style.labelFontSize,
-            fontStyle: ui.FontStyle.italic,
+            fontSize: fontSize,
+            fontStyle: look.face.fontStyle,
+            fontWeight: look.face.fontWeight,
             maxLines: 1,
             ellipsis: '…'))
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000)))
+          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
           ..addText(words);
         return builder.build()..layout(ui.ParagraphConstraints(width: _style.headerWidth - 16));
       });
+
+  void _disposeTempoTexts() {
+    for (final p in _tempoParagraphs.values) {
+      p.dispose();
+    }
+    _tempoParagraphs.clear();
+  }
 
   // MARK: Images
 
@@ -1175,7 +1238,9 @@ class CuratedScene {
   String? partLabelAt(ui.Offset point, double time, Curation curation, ui.Size size) {
     if (point.dx > style.headerWidth) return null;
     for (final label in layoutAt(time, curation, size).labels) {
-      if (label.opacity > 0.5 && (label.centerY - point.dy).abs() < style.labelFontSize) return label.partId;
+      if (label.opacity > 0.5 && (label.centerY - point.dy).abs() < style.labelFontSize * _typography[TextKind.names].size) {
+        return label.partId;
+      }
     }
     return null;
   }
@@ -1186,8 +1251,6 @@ class CuratedScene {
     _frozen?.dispose();
     _captionBar.dispose();
     _disposeBarNumbers();
-    for (final p in _tempoParagraphs.values) {
-      p.dispose();
-    }
+    _disposeTempoTexts();
   }
 }

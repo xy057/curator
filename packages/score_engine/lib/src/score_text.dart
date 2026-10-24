@@ -2,6 +2,7 @@ import 'package:xml/xml.dart';
 
 import 'condensing.dart';
 import 'score_metadata.dart';
+import 'score_typography.dart';
 import 'text_dynamics.dart';
 
 /// A piece of text written in the score (a direction like "arco" or "dolce", a tempo mark, or
@@ -70,9 +71,14 @@ class PreparedScore {
   /// [edits]: text id → new text ('' removes it). [metadata] is what [doc] says; with it,
   /// shared staves are added (after the edits, so they copy the edited texts), for the
   /// built-in pairs and the user's [pairs]. [textDynamics] off leaves dynamics written as text
-  /// as text.
+  /// as text. The engraved texts take [typography]'s looks ([textSize]: the engraving's, in
+  /// virtual units).
   static PreparedScore prepare(XmlDocument doc, Map<String, String> edits,
-      {ScoreMetadata? metadata, List<PlayerPair> pairs = const [], bool textDynamics = true}) {
+      {ScoreMetadata? metadata,
+      List<PlayerPair> pairs = const [],
+      bool textDynamics = true,
+      ScoreTypography typography = ScoreTypography.standard,
+      double textSize = 4.5}) {
     final texts = <ScoreText>[];
     var counter = 0;
     for (final part in doc.rootElement.findElements('part')) {
@@ -130,6 +136,7 @@ class PreparedScore {
     }
     // After the edits (an edited "F" is read as edited) and before condensing (which copies it).
     if (textDynamics) TextDynamics.apply(doc);
+    typography.applyTo(doc, textSize: textSize);
     final options = metadata == null ? null : Condenser.options(doc, metadata);
     final condensed =
         metadata == null ? const <CondensedGroup>[] : Condenser.condense(doc, metadata, custom: pairs, options: options);

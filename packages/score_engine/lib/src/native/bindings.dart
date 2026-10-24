@@ -60,6 +60,7 @@ final class VBCommand extends Struct {
   @Array(4) external Array<Float> bounds;
   @Int32() external int sourceIndex;
   @Float() external double rotation;
+  @Float() external double letterSpacing;
 }
 
 final class VBPathElement extends Struct {

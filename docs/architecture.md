@@ -28,6 +28,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
 | `score_caption.dart` | Captions (`Caption`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
+| `score_typography.dart` | How each kind of text in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), and the engraved kinds written into the MusicXML for Verovio |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
 | `zip_entries.dart` | `ZipEntries`: an entry of someone else's zip (a project, an .mxl), its bytes counted as they unpack and refused past a limit |
 
@@ -49,7 +50,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and File ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
-| `motion_settings.dart` | Project Settings ▸ Advanced: the motion's rows (`MotionSetting.all`), a slider or a curve each, and the Custom Curve dialog |
+| `motion_settings.dart` | Project Settings ▸ Advanced: the motion's rows (`MotionSetting.all`), a slider or a curve each, and the Custom Curve dialog; `SettingSlider`, a setting's slider set when let go |
+| `typography_settings.dart` | Project Settings ▸ Typography: a row per property of each kind of text (`TypographySetting.all`), a slider or a style each |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned): its edits (`EditState`, also Undo's snapshots), image files and view; Undo and Redo |
@@ -155,6 +157,25 @@ further out: refused, saying where); between them a value undefined is the strai
 further out is held at the limit, so no frame can be NaN. The settle leaves at the speed it arrived
 when its curve starts at a slope of 1 or more (`startSlope`). The staff transition's length stays a
 region's property (Animation), and the interface's own motion stays the app's (Reduce motion).
+
+**How the score's texts look is the project's** (Project Settings ▸ Typography, `EditState.typography`,
+an Undo step saved as `state.typography` from format 21; a project without its own takes
+`AppSettings.typography`, the house style until Save as default). A `ScoreTypography` holds a `TextLook`
+per `TextKind`: a size (a share of the house size), a face (`TextFace`: Regular, Italic, Bold, Bold
+Italic, or for engraved kinds As written, the file's own), letter spacing in ems and, for drawn kinds,
+an opacity. The fonts themselves stay on the Engraving page. Two sorts of text, kept apart:
+- **Drawn** by the scene (names, bar numbers, the tempo at the left, captions): `CuratedScene.typography`,
+  in `SceneSettings`; a change only redraws (the renderer's names, the bar numbers' and tempo's
+  paragraphs, the caption bar made again; a caption's size changes the room the staves leave).
+- **Engraved** by Verovio (tempo marks, expressions, rehearsal marks, lyrics): `EngraveRequest.typography`,
+  compared by `engravesLike`, so only these engrave again. `ScoreTypography.applyTo` (in
+  `PreparedScore.prepare`, after dynamics typed as text, before condensing copies them) writes a face as
+  MusicXML's `font-style` / `font-weight`, and a size and letter spacing as the patched importer's own
+  attributes, `curated-score-size` (percent) and `curated-score-tracking` (MEI virtual units: ems × the
+  engraving's text size, `lyricSize`, × the size), which become a `rend`'s or `syl`'s typography. Verovio
+  lays the text out with them, so the music makes room; tempo and expression are told apart as Verovio
+  tells them (a metronome mark or `<sound tempo>`). A file's own `font-size` (points) is still ignored.
+  The letter spacing reaches the drawing through `VBCommand.letterSpacing`.
 
 **The metronome clicks the beats as they sound** (C, or the toolbar's button by Play; an aid
 for aligning the tempo, `Playback.metronome`: neither saved, an edit, nor in a video). Each frame
@@ -520,7 +541,7 @@ removes or changes the meaning of one an older format wrote. Reading checks ever
 field and names the damaged one.
 
 **The C and Dart structs must match.** `VBCommand` is read from Dart as 4-byte words (`Cmd`
-in `engraving.dart`). The bridge `static_assert`s every field's word index, and
+in `engraving.dart`), and declared again for FFI in `native/bindings.dart`. The bridge `static_assert`s every field's word index, and
 `Engraver` compares every struct's size with the library's (`vb_struct_size`) before reading.
 Change both sides together.
 
@@ -540,7 +561,9 @@ until Save as default) turns it off.
 **Verovio is pinned and patched.** `make setup` clones the tagged release and applies
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
-keep their written key), MusicXML direction ids (so texts can be edited), cancelling naturals
+keep their written key), MusicXML direction ids (so texts can be edited), the app's typography
+(`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, and a rehearsal
+mark's `font-style`), cancelling naturals
 at a key change to C (a key change was applied twice, the second time cancelling itself), and a
 log per thread (engravings run side by side on isolates, each reading its own). Mark changes in
 Verovio's code with `[curated-score patch]`.

@@ -410,6 +410,35 @@ class EditorController extends ChangeNotifier {
     _edited();
   }
 
+  /// How the score's texts look in a project that hasn't set its own (the one saved by Project
+  /// Settings ▸ Typography ▸ Save as default). Not an edit: changing it redraws, and re-engraves
+  /// when an engraved text's look changes.
+  ScoreTypography get defaultTypography => _defaultTypography;
+  ScoreTypography _defaultTypography = ScoreTypography.standard;
+  set defaultTypography(ScoreTypography value) {
+    if (value == _defaultTypography) return;
+    final engraved = _wanted;
+    _defaultTypography = value;
+    if (_doc.typography != null) return;
+    if (_score != null && _wanted != engraved) unawaited(_reengrave());
+    _scrollChanged();
+  }
+
+  /// How the score's texts look (Project Settings ▸ Typography): its own, else the app's.
+  ScoreTypography get typography => _doc.typography ?? _defaultTypography;
+
+  /// Sets [typography]: an Undo step. A drawn text's look only redraws; an engraved one's
+  /// engraves again, and the future completes when it is engraved.
+  Future<void> setTypography(ScoreTypography value) async {
+    if (_score == null || value == _doc.typography) return;
+    final before = _wanted;
+    _doc = _doc.copyWith(typography: value);
+    final engraved = _wanted != before ? _reengrave() : null;
+    _showSettings();
+    _edited();
+    await engraved;
+  }
+
   void _scrollChanged() {
     _showSettings();
     playback._markDirty(); // only the score shows it: nothing to rebuild
@@ -425,7 +454,7 @@ class EditorController extends ChangeNotifier {
   }
 
   /// What the scene shows besides the score, the time, the curation and the sync: the names,
-  /// condensing, order, scroll, motion, sections, bar numbers, the names' colours, and the extensions'
+  /// condensing, order, scroll, motion, typography, sections, bar numbers, the names' colours, and the extensions'
   /// images and captions (none while off).
   SceneSettings get sceneSettings => SceneSettings(
       names: _doc.partNames,
@@ -433,6 +462,7 @@ class EditorController extends ChangeNotifier {
       partOrder: _doc.partOrder,
       scrollFollow: scrollFollow,
       motion: motion,
+      typography: typography,
       patches: images._scenePatches,
       captions: captions._sceneCaptions,
       captionStyle: captions._style,
@@ -823,13 +853,14 @@ class EditorController extends ChangeNotifier {
   Future<LoadedScore> engraveAgain(LoadedScore score) => score.withRequest(_wanted);
 
   /// What a score with [edits] is engraved with: their texts, pairs of players, fonts and
-  /// engraving options (over the app's), and flags (the project's, else the app's).
+  /// engraving options (over the app's), and flags and typography (the project's, else the app's).
   EngraveRequest _requestFor(EditState edits) => EngraveRequest(
       textEdits: edits.textEdits,
       pairs: edits.pairs,
       fonts: edits.fonts,
       options: edits.engraving.over(_engravingOptions),
-      textDynamics: edits.textDynamics ?? _defaultTextDynamics);
+      textDynamics: edits.textDynamics ?? _defaultTextDynamics,
+      typography: edits.typography ?? _defaultTypography);
 
   /// What the score is to be engraved with now (an engraving may still be catching up).
   EngraveRequest get _wanted =>

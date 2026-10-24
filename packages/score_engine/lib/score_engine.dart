@@ -21,6 +21,7 @@ export 'src/score_fonts.dart';
 export 'src/score_form.dart';
 export 'src/score_patch.dart';
 export 'src/score_text.dart';
+export 'src/score_typography.dart';
 export 'src/scroll_map.dart';
 export 'src/spacing_plan.dart';
 export 'src/staff_stack.dart';

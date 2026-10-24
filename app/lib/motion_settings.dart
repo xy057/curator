@@ -74,72 +74,107 @@ class MotionTarget {
 }
 
 /// A row's control: a slider (set when let go, one Undo step) or a curve, and Reset once changed.
-class MotionControl extends StatefulWidget {
+class MotionControl extends StatelessWidget {
   const MotionControl({super.key, required this.target, required this.setting});
   final MotionTarget target;
   final MotionSetting setting;
 
   @override
-  State<MotionControl> createState() => _MotionControlState();
-}
-
-class _MotionControlState extends State<MotionControl> {
-  /// The value under the thumb while dragging.
-  double? _dragging;
-
-  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final s = widget.setting, target = widget.target;
+    final s = setting;
     final value = target.valueOf(s.key);
     final Widget control;
     if (value is MotionCurve) {
       control = CurvePicker(value: value, onChanged: (e) => target.set(s.key, e));
     } else {
-      final range = ScoreMotion.ranges[s.key]!, step = s.step!;
-      double snap(double v) => double.parse(((v / step).round() * step).clamp(range.min, range.max).toStringAsFixed(4));
-      final shown = _dragging ?? value as double;
-      control = Row(mainAxisSize: MainAxisSize.min, children: [
-        SizedBox(
-          width: 160,
-          child: OverlaySemantics(
-            child: Slider(
-              value: shown.clamp(range.min, range.max),
-              min: range.min,
-              max: range.max,
-              divisions: math.max(1, ((range.max - range.min) / step).round()),
-              onChanged: (v) => setState(() => _dragging = snap(v)),
-              onChangeEnd: (v) {
-                target.set(s.key, snap(v));
-                setState(() => _dragging = null);
-              },
-            ),
-          ),
-        ),
-        SizedBox(
-          width: 48,
-          child: Text(s.format(shown),
-              textAlign: TextAlign.right,
-              style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
-        ),
-      ]);
+      final range = ScoreMotion.ranges[s.key]!;
+      control = SettingSlider(
+          value: value as double, min: range.min, max: range.max, step: s.step!, format: s.format, onChanged: (v) => target.set(s.key, v));
     }
     return Row(mainAxisSize: MainAxisSize.min, children: [
       control,
+      ResetSlot(changed: target.isChanged(s.key), color: colors.textMuted, onReset: () => target.reset(s.key)),
+    ]);
+  }
+}
+
+/// A setting's slider and its value as text: set when let go (one Undo step), snapped to [step].
+class SettingSlider extends StatefulWidget {
+  const SettingSlider(
+      {super.key,
+      required this.value,
+      required this.min,
+      required this.max,
+      required this.step,
+      required this.format,
+      required this.onChanged});
+  final double value, min, max, step;
+  final String Function(double) format;
+  final ValueChanged<double> onChanged;
+
+  @override
+  State<SettingSlider> createState() => _SettingSliderState();
+}
+
+class _SettingSliderState extends State<SettingSlider> {
+  /// The value under the thumb while dragging.
+  double? _dragging;
+
+  double _snap(double v) =>
+      double.parse(((v / widget.step).round() * widget.step).clamp(widget.min, widget.max).toStringAsFixed(4));
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final shown = _dragging ?? widget.value;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
       SizedBox(
+        width: 160,
+        child: OverlaySemantics(
+          child: Slider(
+            value: shown.clamp(widget.min, widget.max),
+            min: widget.min,
+            max: widget.max,
+            divisions: math.max(1, ((widget.max - widget.min) / widget.step).round()),
+            onChanged: (v) => setState(() => _dragging = _snap(v)),
+            onChangeEnd: (v) {
+              widget.onChanged(_snap(v));
+              setState(() => _dragging = null);
+            },
+          ),
+        ),
+      ),
+      SizedBox(
+        width: 56,
+        child: Text(widget.format(shown),
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
+      ),
+    ]);
+  }
+}
+
+/// Room after a row's control for its Reset, shown once [changed].
+class ResetSlot extends StatelessWidget {
+  const ResetSlot({super.key, required this.changed, required this.color, required this.onReset});
+  final bool changed;
+  final Color color;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
         width: 32,
-        child: target.isChanged(s.key)
+        child: changed
             ? IconButton(
                 icon: Icon(AppIcon.reset.of(context), size: 15),
                 tooltip: 'Reset',
                 visualDensity: VisualDensity.compact,
-                color: colors.textMuted,
-                onPressed: () => target.reset(s.key),
+                color: color,
+                onPressed: onReset,
               )
             : null,
-      ),
-    ]);
-  }
+      );
 }
 
 /// A curve: its shape, then a menu of the named ones and the user's own (Custom…, an equation).

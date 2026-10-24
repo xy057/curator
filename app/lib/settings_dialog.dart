@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show EngraveOption, verovioVersion;
+import 'package:score_engine/score_engine.dart' show EngraveOption, TextKind, verovioVersion;
 
 import 'app_colors.dart';
 import 'app_icons.dart';
@@ -23,6 +23,7 @@ import 'file_names.dart';
 import 'font_settings.dart';
 import 'menu_kit.dart';
 import 'motion_settings.dart';
+import 'typography_settings.dart';
 import 'project_state.dart' show NameGroupInfo;
 import 'edit_dialogs.dart' show showNameGroupDialog;
 import 'sections_editor.dart';
@@ -316,6 +317,7 @@ final _projectCategories = <_Category>[
       ..setScrollFollow(c.settings.scrollFollow),
   )),
   _engravingCategory(),
+  _typographyCategory(),
   _Category('Instruments', AppIcon.score, page: (c) => _InstrumentsPage(c), [
     _Item(
       'Color names',
@@ -402,6 +404,39 @@ _Category _advancedCategory() {
             _ => null,
           },
           keywords: 'animation motion curve easing equation ${s.group} ${s.keywords}',
+        ),
+    ],
+  );
+}
+
+/// Project Settings ▸ Typography: how each kind of text in the score looks ([TypographySetting.all]),
+/// over the app's default (Save as default), under the score as it shows them.
+_Category _typographyCategory() {
+  TypographyTarget target(_Context c) => TypographyTarget(c.settings, c.controller!);
+  return _Category(
+    'Typography',
+    AppIcon.fonts,
+    header: (c) => SizedBox(
+        height: 170, child: EngravingPreviewHost(settings: c.settings, controller: c.controller, scale: 0.5)),
+    saveDefault: (
+      shown: null,
+      isDefault: (c) => target(c).isDefault,
+      save: (c) => target(c).saveAsDefault(),
+      reset: (c) => target(c).resetToDefault(),
+    ),
+    [
+      for (final s in TypographySetting.all)
+        _Item(
+          s.title,
+          null,
+          (c) => TypographyControl(target: target(c), setting: s),
+          group: s.kind.label,
+          shown: switch (s.kind) {
+            TextKind.captions => (c) => c.controller!.captions.enabled,
+            TextKind.barNumbers || TextKind.tempoRow => (c) => c.controller!.barNumbers,
+            _ => null,
+          },
+          keywords: 'font text type typography engraving ${s.kind.label} ${s.keywords}',
         ),
     ],
   );
@@ -860,7 +895,9 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         groups: [
           for (final c in _categories)
             if (matches.where((m) => m.$1 == c).toList() case final inCat when inCat.isNotEmpty)
-              (c.label, [for (final (_, item) in inCat) _row(item)]),
+              (c.label, [
+                for (final (_, item) in inCat) _row(item, withGroup: c.items.where((i) => i.title == item.title).length > 1),
+              ]),
         ],
       );
     }
@@ -923,9 +960,15 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     ]);
   }
 
-  // Keyed, so a control keeps its state when a row above it comes or goes (`shown`).
-  Widget _row(_Item item) => _SettingRow(
-      key: ObjectKey(item), title: item.title, note: item.note, help: item.help?.call(_ctx), control: item.control(_ctx));
+  // Keyed, so a control keeps its state when a row above it comes or goes (`shown`). Found by a
+  // search, away from its heading, a row whose title its page repeats names its group
+  // ("Size · Lyrics").
+  Widget _row(_Item item, {bool withGroup = false}) => _SettingRow(
+      key: ObjectKey(item),
+      title: withGroup && item.group != null ? '${item.title} · ${item.group}' : item.title,
+      note: item.note,
+      help: item.help?.call(_ctx),
+      control: item.control(_ctx));
 }
 
 /// The sidebar's neutral tint: a step off the dialog's surface, without the accent; in the light

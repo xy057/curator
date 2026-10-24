@@ -126,13 +126,14 @@ class TimeSignature extends Signature {
 /// Field positions (in 4-byte words) inside one recorded command; mirrors VBCommand (the
 /// bridge's static_asserts pin the same indices on the C side).
 abstract final class Cmd {
-  static const words = 21;
+  static const words = 22;
   static const kind = 0, staff = 1, flags = 2, classIndex = 3;
   static const strokeWidth = 4, dash = 5, gap = 6, x = 7, y = 8, size = 9;
   static const codepoint = 10, alignment = 11, start = 12, count = 13, fontIndex = 14;
   static const bounds = 15; // x, y, w, h
   static const source = 19; // index into sourceIds, or -1
   static const rotation = 20; // glyph: degrees clockwise about its origin
+  static const letterSpacing = 21; // text: added between its characters
 }
 
 /// A music font glyph's ink box and advance, in staff spaces: [x] and [y] its lower left

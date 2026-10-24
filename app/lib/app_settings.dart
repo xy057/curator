@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart'
-    show CaptionCountdown, CaptionSize, EngravingOptions, MusicFont, ScoreMotion, TextDynamics, TextFonts;
+    show CaptionCountdown, CaptionSize, EngravingOptions, MusicFont, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
@@ -28,6 +28,7 @@ class AppSettings extends ChangeNotifier {
         _mascotIcon = _prefs?.getBool(_mascotIconKey) ?? false,
         _scrollFollow = (_prefs?.getDouble(_scrollFollowKey) ?? defaultScrollFollow).clamp(0.0, 1.0),
         _motion = _readMotion(_prefs?.getString(_motionKey)),
+        _typography = _readTypography(_prefs?.getString(_typographyKey)),
         _recent = List.unmodifiable(_prefs?.getStringList(_recentKey) ?? const <String>[]),
         _videoResolution =
             VideoResolution.values.asNameMap()[_prefs?.getString(_videoResolutionKey)] ?? defaultVideoResolution,
@@ -69,7 +70,7 @@ class AppSettings extends ChangeNotifier {
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
   static const _uiStyleKey = 'uiStyle', _customAccentKey = 'customAccent', _textSizeKey = 'textSize';
   static const _densityKey = 'density', _reduceMotionKey = 'reduceMotion';
-  static const _scrollFollowKey = 'scrollFollow', _motionKey = 'scoreMotion';
+  static const _scrollFollowKey = 'scrollFollow', _motionKey = 'scoreMotion', _typographyKey = 'scoreTypography';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _mascotIconKey = 'mascotIcon';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
@@ -298,6 +299,27 @@ class AppSettings extends ChangeNotifier {
       return json == null ? ScoreMotion.standard : ScoreMotion.fromJson((jsonDecode(json) as Map).cast<String, Object?>());
     } catch (_) {
       return ScoreMotion.standard; // not a motion: a newer version's, or damaged
+    }
+  }
+
+  /// How the score's texts look in a project without its own (Project Settings ▸ Typography ▸
+  /// Save as default): the house style until then.
+  ScoreTypography get typography => _typography;
+  ScoreTypography _typography;
+  set typography(ScoreTypography value) {
+    if (value == _typography) return;
+    _typography = value;
+    _prefs?.setString(_typographyKey, jsonEncode(value.toJson()));
+    notifyListeners();
+  }
+
+  static ScoreTypography _readTypography(String? json) {
+    try {
+      return json == null
+          ? ScoreTypography.standard
+          : ScoreTypography.fromJson((jsonDecode(json) as Map).cast<String, Object?>());
+    } catch (_) {
+      return ScoreTypography.standard; // not a typography: a newer version's, or damaged
     }
   }
 
