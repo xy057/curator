@@ -429,9 +429,12 @@ Only drawn: nothing is planned or engraved again.
 in `SceneSettings`). Every bar's number (its index + 1, as the ruler and Go to count) is set at its
 top left, small, italic and in half the ink, in a row of its own just above the room the staves
 have (`_rowBottom`: the top margin, under captions shown above), so it stays put however the stack
-grows or shrinks. Only staves squeezed into a full frame reach up into it: then the row rises ahead
-of them and settles back after (`_rowShiftAt`: the most any time within 0.8 s needs, eased by how far
-off that time is, so the move is gentle and still a function of time). Drawn in the renderer's
+grows or shrinks. Only staves squeezed into a full frame reach up into it: then the row rises, and
+never comes down. `_liftFor` keeps, per plan, the most the row has had to rise up to each 0.1 s
+(the top two shown staves' ink, checked against each staff's highest ink first, so most steps cost
+one lookup); `_rowShiftAt` averages that over the next 1.2 s with smoothstep's bell as the weight,
+so each rise starts and ends at rest, is done before the staves get there, and is still a function
+of time. Drawn in the renderer's
 overlay, so the names and frozen zone cover them as they cover the music.
 While it is on, the tempo marks (`ScoreTextKind.tempo`, a pair's copy with them) are set apart from the
 music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and

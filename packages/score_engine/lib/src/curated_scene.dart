@@ -764,6 +764,7 @@ class CuratedScene {
     _display!.dispose();
     _display = null;
     _displayVersion++;
+    _inkAboveOf.clear();
   }
 
   /// Each tempo mark's source id, and its copy's on a pair's shared staff → its own.
@@ -796,41 +797,70 @@ class CuratedScene {
   double get _rowTopLimit => _captionAbove > 0 ? _captionAbove + 8 : 4;
 
   /// How far the row is lifted at [time]: none, unless staves squeezed into a full frame reach
-  /// up into it. Then it rises ahead of them and settles back after, eased over
-  /// [_rowEase] seconds either side, so the move is gentle and still a function of time.
+  /// up into it. It only ever rises, to the most needed so far, never settling back, and each
+  /// rise is eased in over the [_rowEase] seconds before the staves get there: the highest
+  /// needed so far ([_liftFor], a step at each [_liftStep]) averaged over the time ahead with
+  /// smoothstep's bell as the weight, so the move starts and ends at rest. Still a function of
+  /// time.
   double _rowShiftAt(double time, Curation curation, ui.Size size) {
+    final lift = _liftFor(curation, size);
+    double eased(double x) {
+      final u = (x / _rowEase).clamp(0.0, 1.0);
+      return u * u * (3 - 2 * u);
+    }
+
     var shift = 0.0;
-    const steps = 6;
-    for (var k = -steps; k <= steps; k++) {
-      final dt = k * _rowEase / steps;
-      final need = _rowNeedAt(time + dt, curation, size);
-      if (need <= 0) continue;
-      final u = 1 - dt.abs() / _rowEase, eased = u * u * (3 - 2 * u);
-      shift = math.max(shift, need * eased);
+    final first = (time / _liftStep).floor(), last = ((time + _rowEase) / _liftStep).floor();
+    for (var i = first; i <= last; i++) {
+      final weight = eased((i + 1) * _liftStep - time) - eased(math.max(i * _liftStep, time) - time);
+      shift += lift[i.clamp(0, lift.length - 1)] * weight;
     }
     final room = _rowBottom - _style.staffSpace * 1.6 - _rowTopLimit;
     return shift.clamp(0.0, math.max(0.0, room));
   }
 
-  static const _rowEase = 0.8;
+  static const _rowEase = 1.2, _liftStep = 0.1;
+
+  /// The most the row has had to rise up to each [_liftStep] of the playback, made once per plan.
+  Float64List _liftFor(Curation curation, ui.Size size) {
+    final key = _planKeyFor(curation, size);
+    if (_liftKey == key) return _lift;
+    final steps = (endOf(timeline) / _liftStep).ceil() + 1;
+    final lift = Float64List(steps);
+    var most = 0.0;
+    for (var i = 0; i < steps; i++) {
+      most = math.max(most, _rowNeedAt(i * _liftStep, curation, size));
+      lift[i] = most;
+    }
+    _liftKey = key;
+    return _lift = lift;
+  }
+
+  Object? _liftKey;
+  Float64List _lift = Float64List(0);
 
   /// How far the row would have to rise at [time] to stay clear of the top staves' ink.
   double _rowNeedAt(double time, Curation curation, ui.Size size) {
-    final plan = _planFor(curation, size);
-    final tops = plan.topsAt(time);
-    final visibility = _visibilityAt(time, curation);
-    final (left, right) = renderer.visibleRange(scrollMap.xAt(time), size.width);
+    final tops = _planFor(curation, size).topsAt(time);
+    final scale = renderer.scale, clear = _rowBottom + 3 - verticalMargin - _captionAbove;
+    double? left, right;
     var need = 0.0, checked = 0;
     for (var i = 0; i < _order.length && checked < 2; i++) {
-      final v = (visibility[_order[i].partId] ?? 0).clamp(0.0, 1.0);
-      if (v <= 0) continue;
+      // Shown or not, no fade: cheaper, and a staff only fading in counts a little early.
+      if (!_isShown(curation, _order[i].partId, time)) continue;
       checked++;
       final staff = display.staves[_order[i].staffIndex];
-      final top = tops[i] + verticalMargin + _captionAbove - staff.maxInk(left, right).above * renderer.scale;
-      need = math.max(need, (_rowBottom + 3 - top) * fadeFor(v));
+      if (tops[i] - _inkAbove(_order[i].staffIndex) * scale >= clear) continue; // clear wherever it is
+      if (left == null) (left, right) = renderer.visibleRange(scrollMap.xAt(time), size.width);
+      need = math.max(need, clear - (tops[i] - staff.maxInk(left, right!).above * scale));
     }
     return need;
   }
+
+  /// How far a staff's ink reaches above its top line anywhere, device units, by staff index.
+  double _inkAbove(int staffIndex) => _inkAboveOf.putIfAbsent(staffIndex,
+      () => display.staves[staffIndex].maxInk(-1e9, 1e9).above);
+  final _inkAboveOf = <int, double>{};
 
   void _paintBarNumbers(ui.Canvas canvas, ui.Size size, double scrollX, ui.Color ink, double shift) {
     final measures = score.engraving.measures;
