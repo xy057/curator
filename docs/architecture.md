@@ -533,12 +533,11 @@ While it is on, rehearsal marks leave the music too (their ids in `apart` with t
 stand in the row at their bar's left (`ScoreText.measure`, as edited), boxed, in full ink, bold
 unless Typography ▸ Rehearsal marks gives a face, 1.8 staff spaces at its size; the bar's number
 follows the box. Off, Verovio engraves them over the top staff as before.
-Each of the two is a flag (Project Settings ▸ Flags ▸ Tempo at left, Rehearsal marks in bar
-numbers: `EditState.tempoAtLeft` / `rehearsalInRow`, saved under `flags` from format 22, null
-taking `AppSettings`'s, on until Save as default; `CuratedScene.tempoAtLeft` / `rehearsalInRow`,
-in `SceneSettings`): off, that kind stays in the music with the row on. Changing one only
-redraws (the display list made again); Flags ▸ Reset to Default sets all three in one Undo step
-(`EditorController.setFlags`).
+That is a flag (Project Settings ▸ Flags ▸ Rehearsal marks in bar numbers:
+`EditState.rehearsalInRow`, saved under `flags` from format 22, null taking `AppSettings`'s, on
+until Save as default; `CuratedScene.rehearsalInRow`, in `SceneSettings`): off, they stay in the
+music with the row on. Changing it only redraws (the display list made again); Flags ▸ Reset to
+Default sets both flags in one Undo step (`EditorController.setFlags`).
 While it is on, the texts that speak of the speed (`ScoreText.tempoRole`: a tempo mark; a change for a
 while, "rit.", "accel.", "allarg." and the like; or "a tempo"; a pair's copy with them) are set apart from
 the music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and

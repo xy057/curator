@@ -56,7 +56,6 @@ class EditState {
     this.engraving = const EngravingOptions(),
     this.extensions = const {},
     this.textDynamics,
-    this.tempoAtLeft,
     this.rehearsalInRow,
   });
 
@@ -160,10 +159,8 @@ class EditState {
   /// [TextDynamics]); null: the app's (Save as default).
   final bool? textDynamics;
 
-  /// Whether, while [barNumbers] are shown, the tempo marks show at the frame's left and the
-  /// rehearsal marks at their bars in that row, out of the music (Project Settings ▸ Flags,
-  /// [CuratedScene.tempoAtLeft], [CuratedScene.rehearsalInRow]); null: the app's.
-  final bool? tempoAtLeft;
+  /// Whether, while [barNumbers] are shown, the rehearsal marks show at their bars in that row,
+  /// out of the music (Project Settings ▸ Flags, [CuratedScene.rehearsalInRow]); null: the app's.
   final bool? rehearsalInRow;
 
   @override
@@ -200,7 +197,6 @@ class EditState {
       engraving == other.engraving &&
       mapEquals(extensions, other.extensions) &&
       textDynamics == other.textDynamics &&
-      tempoAtLeft == other.tempoAtLeft &&
       rehearsalInRow == other.rehearsalInRow;
 
   @override
@@ -208,7 +204,7 @@ class EditState {
 
   /// This state with the fields given instead of its own. A field that may be null is
   /// cleared by passing null ([lanes], [transition], [scrollFollow], [motion], [typography], [midi], [captionFont],
-  /// [textDynamics], [tempoAtLeft], [rehearsalInRow]); left
+  /// [textDynamics], [rehearsalInRow]); left
   /// out, it stays.
   EditState copyWith({
     Object? lanes = _kept,
@@ -239,7 +235,6 @@ class EditState {
     EngravingOptions? engraving,
     Map<String, bool>? extensions,
     Object? textDynamics = _kept,
-    Object? tempoAtLeft = _kept,
     Object? rehearsalInRow = _kept,
   }) =>
       EditState(
@@ -271,7 +266,6 @@ class EditState {
         engraving: engraving ?? this.engraving,
         extensions: extensions ?? this.extensions,
         textDynamics: identical(textDynamics, _kept) ? this.textDynamics : textDynamics as bool?,
-        tempoAtLeft: identical(tempoAtLeft, _kept) ? this.tempoAtLeft : tempoAtLeft as bool?,
         rehearsalInRow: identical(rehearsalInRow, _kept) ? this.rehearsalInRow : rehearsalInRow as bool?,
       );
 }
@@ -357,7 +351,7 @@ class ProjectState {
     18: (state) => state, // names in their family's colour came in 19: off
     19: (state) => state, // the score's motion came in 20: none, the app's
     20: (state) => state, // the score's typography came in 21: none, the app's
-    21: (state) => state, // the tempo and rehearsal marks' flags came in 22: none, the app's
+    21: (state) => state, // the rehearsal marks' flag came in 22: none, the app's
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -488,7 +482,6 @@ class ProjectState {
             name: on is bool ? on : throw FormatException('The project is damaged: ${r.where}.extensions.$name is not on or off.'),
         }),
         textDynamics: r.child('flags').boolean('textDynamics'),
-        tempoAtLeft: r.child('flags').boolean('tempoAtLeft'),
         rehearsalInRow: r.child('flags').boolean('rehearsalInRow'),
       ),
       images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
@@ -639,7 +632,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :motion, :typography, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :tempoAtLeft, :rehearsalInRow) = edits;
+        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :rehearsalInRow) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -652,8 +645,8 @@ class ProjectState {
         },
       if (!engraving.isEmpty) 'engraving': engraving.toJson(),
       if (extensions.isNotEmpty) 'extensions': extensions,
-      if (textDynamics != null || tempoAtLeft != null || rehearsalInRow != null)
-        'flags': {'textDynamics': ?textDynamics, 'tempoAtLeft': ?tempoAtLeft, 'rehearsalInRow': ?rehearsalInRow},
+      if (textDynamics != null || rehearsalInRow != null)
+        'flags': {'textDynamics': ?textDynamics, 'rehearsalInRow': ?rehearsalInRow},
       'motion': ?motion?.toJson(),
       'typography': ?typography?.toJson(),
       'textEdits': textEdits,

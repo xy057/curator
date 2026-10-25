@@ -394,12 +394,6 @@ final _projectCategories = <_Category>[
       keywords: 'flag dynamics text words music font maestro opus sibelius finale import musicxml forte piano',
     ),
     _Item(
-      'Tempo at left',
-      (_) => 'With bar numbers, shows tempo marks at the left, out of the music.',
-      (c) => AppSwitch(value: c.controller!.tempoAtLeft, onChanged: c.controller!.setTempoAtLeft),
-      keywords: 'flag tempo marks metronome bar numbers row left allegro rit accel',
-    ),
-    _Item(
       'Rehearsal marks in bar numbers',
       (_) => 'With bar numbers, shows rehearsal marks beside them, out of the music.',
       (c) => AppSwitch(value: c.controller!.rehearsalInRow, onChanged: c.controller!.setRehearsalInRow),
@@ -411,12 +405,10 @@ final _projectCategories = <_Category>[
     save: (c) {
       c.settings
         ..textDynamics = c.controller!.textDynamics
-        ..tempoAtLeft = c.controller!.tempoAtLeft
         ..rehearsalInRow = c.controller!.rehearsalInRow;
     },
     reset: (c) => c.controller!.setFlags(
         textDynamics: c.settings.textDynamics,
-        tempoAtLeft: c.settings.tempoAtLeft,
         rehearsalInRow: c.settings.rehearsalInRow),
   )),
   _advancedCategory(),
@@ -516,7 +508,6 @@ _Category _advancedEngravingCategory() {
 /// Whether the project's flags are the app's default (Save as default).
 bool _flagsAreDefault(_Context c) =>
     c.controller!.textDynamics == c.settings.textDynamics &&
-    c.controller!.tempoAtLeft == c.settings.tempoAtLeft &&
     c.controller!.rehearsalInRow == c.settings.rehearsalInRow;
 
 /// Whether the project's animation is the app's default (Save as default).
