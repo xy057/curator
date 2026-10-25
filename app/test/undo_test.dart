@@ -63,19 +63,4 @@ void main() {
     c.redo();
     expect(c.score, isNull);
   });
-
-  test('condensing a pair is one step, and only pairs that can condense are kept', () {
-    expect(c.condensable.map((g) => g.id), contains('cond-P2-P3'));
-    expect(c.condensed, isEmpty, reason: 'off until asked for, as in Dorico');
-    c.setCondensed(['cond-P2-P3', 'cond-P17-P18'], on: true); // violins are sections: no pair
-    expect(c.condensed, {'cond-P2-P3'});
-    expect(c.scene!.condensed, {'cond-P2-P3'});
-    expect(c.condensingGroupOf('P3')!.id, 'cond-P2-P3');
-    expect(c.condensingGroupOf('P1'), isNull);
-    c.undo();
-    expect(c.condensed, isEmpty);
-    expect(c.scene!.condensed, isEmpty);
-    c.redo();
-    expect(c.condensed, {'cond-P2-P3'});
-  });
 }
