@@ -53,7 +53,7 @@ Future<void> showSettingsDialog(
       ),
     );
 
-/// File ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
+/// Edit ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
 /// ([_projectCategories]). Each change is an edit: an Undo step, saved with the project.
 /// [replaceScore] is Project Info's Replace… (the app's, which asks first).
 Future<void> showProjectSettingsDialog(BuildContext context, AppSettings settings, EditorController controller,
@@ -282,7 +282,7 @@ final _categories = <_Category>[
   ]),
 ];
 
-/// The open project's settings (File ▸ Project Settings…): each change an edit.
+/// The open project's settings (Edit ▸ Project Settings…): each change an edit.
 final _projectCategories = <_Category>[
   _Category('Project Info', AppIcon.about, [
     _Item(

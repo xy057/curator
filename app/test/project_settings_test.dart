@@ -1,4 +1,4 @@
-// Drives File ▸ Project Settings… with real taps: its fonts and Undo through font
+// Drives Edit ▸ Project Settings… with real taps: its fonts and Undo through font
 // changes, the staff transition, and the project's own engraving options; its Sections page.
 // With SCREENSHOT_DIR set, also saves PNGs of the Fonts and Sections pages for visual review.
 import 'dart:async';

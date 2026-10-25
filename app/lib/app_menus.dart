@@ -49,7 +49,7 @@ class AppMenus extends StatelessWidget {
   /// File ▸ Close: back to the start screen; null (greyed out) while nothing is open.
   final VoidCallback? onClose;
 
-  /// File ▸ Project Settings… (⇧⌘,); null (greyed out) while nothing is open.
+  /// Edit ▸ Project Settings… (⇧⌘,); null (greyed out) while nothing is open.
   final VoidCallback? onProjectSettings;
 
   /// File ▸ Export Video…; null (greyed out) while nothing is open.
@@ -111,15 +111,6 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(label: 'Export Video…', shortcut: _key(LogicalKeyboardKey.keyE), onSelected: onExportVideo),
           ]),
-          // The open project's settings, then the app's; on macOS the Curator menu has the
-          // app's too, with the shortcut.
-          PlatformMenuItemGroup(members: [
-            PlatformMenuItem(
-                label: 'Project Settings…',
-                shortcut: _key(LogicalKeyboardKey.comma, shift: true),
-                onSelected: onProjectSettings),
-            PlatformMenuItem(label: 'Settings…', shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
-          ]),
         ]),
         PlatformMenu(label: 'Edit', menus: [
           PlatformMenuItemGroup(members: [
@@ -142,6 +133,15 @@ class AppMenus extends StatelessWidget {
               onSelected: onDelete,
             ),
             PlatformMenuItem(label: 'Select All', shortcut: _key(LogicalKeyboardKey.keyA), onSelected: onSelectAll),
+          ]),
+          // The open project's settings, then the app's; on macOS the Curator menu has the
+          // app's too, with the shortcut.
+          PlatformMenuItemGroup(members: [
+            PlatformMenuItem(
+                label: 'Project Settings…',
+                shortcut: _key(LogicalKeyboardKey.comma, shift: true),
+                onSelected: onProjectSettings),
+            PlatformMenuItem(label: 'Settings…', shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
           ]),
         ]),
         if (_mac)
