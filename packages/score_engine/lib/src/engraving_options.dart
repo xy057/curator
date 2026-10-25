@@ -79,6 +79,7 @@ class EngraveOption {
     const EngraveOption.toggle('octaveAlternativeSymbols', false),
     const EngraveOption.choice('multiRestStyle', 'auto', choices: ['auto', 'default', 'block', 'symbols']),
     const EngraveOption.number('lyricSize', 4.5, min: 2, max: 8),
+    const EngraveOption.toggle('lyricVerseCollapse', false),
 
     // Line thicknesses and lengths: the font's SMuFL engraving defaults, in staff spaces
     // (Verovio's ranges for them, which are in half spaces, halved).

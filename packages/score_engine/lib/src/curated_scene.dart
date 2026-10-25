@@ -25,8 +25,8 @@ import 'spacing_plan.dart';
 import 'staff_stack.dart';
 
 /// What a score is engraved with besides its MusicXML: the text edits, the user's own pairs of
-/// players, the fonts, the engraving options and whether dynamics typed as text are made
-/// dynamics. Equal requests engrave a score the same, so a change of any is one to engrave.
+/// players, the fonts, the engraving options, whether dynamics typed as text are made
+/// dynamics and whether syllables are centred under their notes. Equal requests engrave a score the same, so a change of any is one to engrave.
 @immutable
 class EngraveRequest {
   const EngraveRequest({
@@ -36,6 +36,7 @@ class EngraveRequest {
     this.options = const EngravingOptions(),
     this.textDynamics = true,
     this.typography = ScoreTypography.standard,
+    this.centredLyrics = false,
   });
 
   /// Text id → new text ('' removes it).
@@ -52,6 +53,10 @@ class EngraveRequest {
   /// How the engraved texts look; only those count ([ScoreTypography.engravesLike]).
   final ScoreTypography typography;
 
+  /// Each syllable centred under its notehead, but one an extender follows (Verovio sets
+  /// them at the note's left).
+  final bool centredLyrics;
+
   @override
   bool operator ==(Object other) =>
       other is EngraveRequest &&
@@ -60,10 +65,11 @@ class EngraveRequest {
       other.fonts == fonts &&
       other.options == options &&
       other.textDynamics == textDynamics &&
+      other.centredLyrics == centredLyrics &&
       other.typography.engravesLike(typography);
 
   @override
-  int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics);
+  int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics, centredLyrics);
 }
 
 /// A score that is engraved and ready to show.
@@ -77,6 +83,7 @@ class LoadedScore {
       required this.options,
       required this.textDynamics,
       required this.typography,
+      required this.centredLyrics,
       required this.condensed,
       required this.condensing,
       required this.pairs});
@@ -120,6 +127,9 @@ class LoadedScore {
   /// How its engraved texts look (its drawn ones are the scene's, [CuratedScene.typography]).
   final ScoreTypography typography;
 
+  /// Whether its syllables were centred under their notes ([EngraveRequest.centredLyrics]).
+  final bool centredLyrics;
+
   /// The pairs of players that can share a staff, each engraved on one of its own (the
   /// scene shows it while both are shown and the pair is condensed).
   final List<CondensedGroup> condensed;
@@ -146,7 +156,8 @@ class LoadedScore {
           fonts: fonts,
           options: options,
           textDynamics: textDynamics,
-          typography: typography);
+          typography: typography,
+          centredLyrics: centredLyrics);
 
   /// Engraves [musicXML] as [request] asks.
   static Future<LoadedScore> engrave(String musicXML, EngraveRequest request, {String? resourceDirectory, double? tempo}) =>
@@ -158,7 +169,8 @@ class LoadedScore {
           pairs: request.pairs,
           options: request.options,
           textDynamics: request.textDynamics,
-          typography: request.typography);
+          typography: request.typography,
+          centredLyrics: request.centredLyrics);
 
   static Future<LoadedScore> load(
     String musicXML, {
@@ -170,6 +182,7 @@ class LoadedScore {
     EngravingOptions options = const EngravingOptions(),
     bool textDynamics = true,
     ScoreTypography typography = ScoreTypography.standard,
+    bool centredLyrics = false,
   }) async {
     final doc = ScoreMetadata.parse(musicXML);
     final metadata = ScoreMetadata.fromDocument(doc);
@@ -185,7 +198,7 @@ class LoadedScore {
       resourceDirectory: resources.directory,
       font: fonts.music.isMissing ? MusicFont.bravura : fonts.music,
       options: options,
-      verovioOptions: typography.verovioOptions,
+      verovioOptions: {...typography.verovioOptions, if (centredLyrics) 'curatedLyricCentre': true},
     );
     final timeline = ConstantTempoTimeline(engraving.measures,
         quarterNotesPerMinute: tempo ?? metadata.tempo ?? 100);
@@ -199,6 +212,7 @@ class LoadedScore {
         options: options,
         textDynamics: textDynamics,
         typography: typography,
+        centredLyrics: centredLyrics,
         condensed: prepared.condensed,
         condensing: prepared.condensing!,
         pairs: List.unmodifiable(pairs));
@@ -229,21 +243,23 @@ class LoadedScore {
   Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo);
 
   /// Re-engraves with different text edits, pairs of players, fonts, engraving options,
-  /// [textDynamics] or [typography]; what isn't given stays.
+  /// [textDynamics], [typography] or [centredLyrics]; what isn't given stays.
   Future<LoadedScore> withEdits(
           {Map<String, String>? textEdits,
           List<PlayerPair>? pairs,
           ScoreFonts? fonts,
           EngravingOptions? options,
           bool? textDynamics,
-          ScoreTypography? typography}) =>
+          ScoreTypography? typography,
+          bool? centredLyrics}) =>
       withRequest(EngraveRequest(
           textEdits: textEdits ?? this.textEdits,
           pairs: pairs ?? this.pairs,
           fonts: fonts ?? this.fonts,
           options: options ?? this.options,
           textDynamics: textDynamics ?? this.textDynamics,
-          typography: typography ?? this.typography));
+          typography: typography ?? this.typography,
+          centredLyrics: centredLyrics ?? this.centredLyrics));
 }
 
 /// Where Verovio's font metrics live on disk (bundled as package assets).
