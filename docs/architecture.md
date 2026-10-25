@@ -60,6 +60,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned): its edits (`EditState`, also Undo's snapshots), image files and view; Undo and Redo |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
+| `settings_file.dart` | The `.ccf` format: a project's score-wide settings, for other projects (Project Settings ▸ Export… / Import…) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
@@ -638,6 +639,23 @@ old version in `ProjectState._migrations`, so older files still open. Migrations
 new format adds fields (an older file, lacking them, gets their defaults) and never renames,
 removes or changes the meaning of one an older format wrote. Reading checks every
 field and names the damaged one.
+
+**Project Settings travel as a settings file** (`.ccf`, `SettingsFile`; Import… and Export… at the
+foot of Project Settings' sidebar). It is a zip as a project is: `mimetype`
+(`application/x-curator-settings`, first, stored), `settings.json` (format, version, and `state` as a
+project's `toJson` writes it, cut to the score-wide keys: fonts, engraving, extensions, flags, motion,
+typography, groupSections, barNumbers, playheadColor, colorNames, nameColors, and `curation`'s
+transition and scrollFollow) and an embedded added music font's `fonts/<name>.font` / `.json`
+(`ProjectFile.addFont` / `fontFilesIn`, shared). Read through `ProjectState.fromJson`, so it is
+checked and migrated as a project is, with the same version; one from a newer version is refused.
+Only what a page sets for the whole score: what it sets per instrument (brackets, groups' members,
+pairs and condensing, names) stays, as another score's instruments differ, and so do the user's own
+name groups. Export writes the settings as the score shows them (`EditorController.exportedSettings`:
+the app's defaults filled in where the project has none, the engraving options over the app's,
+every extension on or off), so another project takes them as they look here. Import
+(`EditorController.importSettings`) gets the fonts ready first (a font only named is looked for
+here, Bravura standing in; one that can't be read changes nothing), then puts the file's in place
+of the project's as one Undo step, engraving again if they change the engraving.
 
 **The C and Dart structs must match.** `VBCommand` is read from Dart as 4-byte words (`Cmd`
 in `engraving.dart`), and declared again for FFI in `native/bindings.dart`. The bridge `static_assert`s every field's word index, and

@@ -10,6 +10,7 @@ import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
+import 'package:curated_score/settings_file.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -260,5 +261,46 @@ void main() {
       final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/m');
       expect(opened.state.edits.lanes![c.score!.metadata.parts.first.id], [const Region(0, 8)]);
     });
+  });
+
+  test('a settings file (.ccf) carries the score-wide Project Settings to another project, as one Undo step; never the instruments\' own', () async {
+    final a = EditorController(vsync: const TestVSync()), b = EditorController(vsync: const TestVSync());
+    addTearDown(a.dispose);
+    addTearDown(b.dispose);
+    await a.openFile(demoScore.path);
+    await b.openFile(demoScore.path);
+    final part = a.score!.metadata.parts.first;
+    final option = EngraveOption.all.firstWhere((o) => o.kind == EngraveOptionKind.number);
+    a
+      ..setTransition(0.8)
+      ..setScrollFollow(0.9)
+      ..setBarNumbers(false)
+      ..setGroupSections(true)
+      ..setPlayheadColor(const Color(0xFFC8553D))
+      ..renamePart(part, name: 'Solo Piccolo', abbreviation: 'Picc.'); // the instrument's: stays
+    await a.setFonts(const ScoreFonts(music: MusicFont.leland));
+    await a.setProjectEngraving(EngravingOptions().withValue(option, option.max, keepDefault: true));
+    await a.setCenteredLyrics(true);
+    final path = '${dir.path}/house.ccf';
+    await SettingsFile.write(path, a.exportedSettings);
+
+    final archive = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
+    expect(archive.files.first.name, 'mimetype');
+    final state = (jsonDecode(utf8.decode(archive.findFile('settings.json')!.content)) as Map)['state'] as Map;
+    expect(state.keys, isNot(contains('partNames')));
+    expect(state['curation'], {'transition': 0.8, 'scrollFollow': 0.9});
+
+    await b.importSettings(await SettingsFile.read(path));
+    expect((b.curation!.transition, b.scrollFollow, b.barNumbers, b.groupSections, b.playheadColor),
+        (0.8, 0.9, false, true, const Color(0xFFC8553D)));
+    expect((b.fonts.music, b.score!.fonts.music, b.centeredLyrics), (MusicFont.leland, MusicFont.leland, true));
+    expect(b.projectEngraving.overrides[option.key], option.max);
+    expect(b.partName(part), 'Piccolo');
+    b.undo();
+    expect((b.curation!.transition, b.fonts, b.barNumbers), (0.3, ScoreFonts.standard, true));
+    expect(b.canUndo, isFalse, reason: 'one step');
+
+    final bad = File('${dir.path}/bad.ccf')..writeAsStringSync('not a zip');
+    await expectLater(SettingsFile.read(bad.path), throwsFormatException);
   });
 }
