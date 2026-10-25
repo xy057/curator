@@ -112,14 +112,14 @@ String lyricScore(List<List<String>> lyrics) => '<?xml version="1.0" encoding="U
     '${[for (final l in lyrics) '<note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>${l.join()}</note>'].join()}'
     '</measure></part></score-partwise>';
 
-/// Where the first run of engraved text that says [words] is drawn, and how wide its box is.
-({double x, double y, double width}) textAt(LoadedScore s, String words) {
+/// Where the first run of engraved text that says [words] is drawn.
+({double x, double y}) textAt(LoadedScore s, String words) {
   final d = s.engraving;
   for (var i = 0; i < d.commandCount; i++) {
     final b = i * Cmd.words, start = d.commandInts[b + Cmd.start];
     if (d.commandInts[b + Cmd.kind] == VBKind.text &&
         utf8.decode(d.text.sublist(start, start + d.commandInts[b + Cmd.count])) == words) {
-      return (x: d.commandFloats[b + Cmd.x], y: d.commandFloats[b + Cmd.y], width: d.commandFloats[b + Cmd.bounds + 2]);
+      return (x: d.commandFloats[b + Cmd.x], y: d.commandFloats[b + Cmd.y]);
     }
   }
   throw StateError('No “$words”.');
@@ -271,5 +271,30 @@ void main() {
     final closed = await s.withEdits(options: const EngravingOptions().withValue(EngraveOption.byKey('lyricVerseCollapse')!, true));
     double gap(LoadedScore s) => textAt(s, 'third').y - textAt(s, 'first').y;
     expect(gap(closed), closeTo(gap(s) / 2, 1)); // verse 2's line is gone
+  });
+
+  test('centred lyrics: a syllable centred under its notehead, one an extender follows left as it was', () async {
+    const stop = '<lyric number="1"><extend type="stop"/></lyric>';
+    final s = await LoadedScore.load(lyricScore([
+      [lyric('WW')],
+      [lyric('WWWW')],
+      [lyric('mel', extend: true)],
+      [stop],
+    ]));
+    final centred = await s.withEdits(centredLyrics: true);
+    expect(centred.request, isNot(s.request));
+    List<Rect> heads(LoadedScore s) => [
+          for (var i = 0; i < s.engraving.commandCount; i++)
+            if (s.engraving.commandInts[i * Cmd.words + Cmd.kind] == VBKind.glyph &&
+                s.engraving.commandInts[i * Cmd.words + Cmd.codepoint] == 0xE0A4)
+              Rect.fromLTWH(s.engraving.commandFloats[i * Cmd.words + Cmd.bounds], 0,
+                  s.engraving.commandFloats[i * Cmd.words + Cmd.bounds + 2], 1),
+        ];
+    // Runs have no width here, but "WWWW" is twice "WW": centred, it reaches twice as far left.
+    final h = heads(centred);
+    final half = h[0].center.dx - textAt(centred, 'WW').x;
+    expect(half, greaterThan(0));
+    expect(h[1].center.dx - textAt(centred, 'WWWW').x, closeTo(2 * half, 2));
+    expect(h[2].left - textAt(centred, 'mel').x, closeTo(heads(s)[2].left - textAt(s, 'mel').x, 1));
   });
 }

@@ -537,7 +537,13 @@ That is a flag (Project Settings ▸ Flags ▸ Rehearsal marks in bar numbers:
 `EditState.rehearsalInRow`, saved under `flags` from format 22, null taking `AppSettings`'s, on
 until Save as default; `CuratedScene.rehearsalInRow`, in `SceneSettings`): off, they stay in the
 music with the row on. Changing it only redraws (the display list made again); Flags ▸ Reset to
-Default sets both flags in one Undo step (`EditorController.setFlags`).
+Default sets every flag in one Undo step (`EditorController.setFlags`).
+Flags ▸ Centred lyrics (`EditState.centredLyrics`, under `flags` from format 23, null taking
+`AppSettings`'s, off until Save as default; `EngraveRequest.centredLyrics`, an Undo step that
+re-engraves) centres each syllable, or an elision's syllables together, under its notehead, as
+Verovio otherwise sets them from just left of it; one an extender follows stays there, so a
+melisma's line runs on. The patched `curatedLyricCentre` option moves it in Verovio's syllable
+spacing, before syllables are kept apart, so the music still makes room.
 While it is on, the texts that speak of the speed (`ScoreText.tempoRole`: a tempo mark; a change for a
 while, "rit.", "accel.", "allarg." and the like; or "a tempo"; a pair's copy with them) are set apart from
 the music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and
@@ -614,7 +620,8 @@ so any other is verse 1: in a part with such a token, `PreparedScore.prepare` nu
 **Verovio is pinned and patched.** `make setup` clones the tagged release and applies
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
-keep their written key), MusicXML direction ids (so texts can be edited), a lyric's `placement="above"` (verses above the staff, verse 1 on top), the app's typography
+keep their written key), MusicXML direction ids (so texts can be edited), a lyric's `placement="above"` (verses above the staff, verse 1 on top), syllables centred
+under their noteheads (`curatedLyricCentre`), the app's typography
 (`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, a rehearsal
 mark's `font-style`, the `curated…Scale` options sizing music symbols, accidentals clear of
 articulations and caesuras between their neighbours), engraving fixes (a rehearsal mark set a fifth
@@ -894,7 +901,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
   button beside the page's title (a check and "Default" once they match), never a row; while they
   differ, Reset to Default before it puts the app's back on the page (`reset`, one Undo step). Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extensions**.
-- **A flag**: a fix for how other programs write their files, on by default, as an `_Item` on
+- **A flag**: a fix for how other programs write their files, on by default (Centred lyrics, a
+  house style, is off), as an `_Item` on
   Project Settings ▸ Flags with a switch to turn it off: the project's (`EditState`, an edit),
   else the app's default (`AppSettings`), which that page's Save as default sets.
 - **An extension**: a `CuratorExtension` (`extensions/extension.dart`), listed in
