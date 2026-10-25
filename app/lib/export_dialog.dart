@@ -1005,10 +1005,10 @@ class _OverflowNotice extends StatelessWidget {
                 bottom: BorderSide(color: error.withValues(alpha: 0.4)),
               ),
             )
+          // Refined: a wash of the error colour with a bar of it down the left, no box around it.
           : BoxDecoration(
               color: error.withValues(alpha: dark ? 0.14 : 0.07),
-              border: Border.all(color: error.withValues(alpha: 0.35)),
-              borderRadius: AppStyle.of(context).radius(8),
+              border: Border(left: BorderSide(color: error, width: 3)),
             ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1021,7 +1021,9 @@ class _OverflowNotice extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Notation runs off the frame', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: text)),
               const SizedBox(height: 2),
-              Text('Bars ${bars.join(', ')}', style: TextStyle(fontSize: 13, color: k?.textSecondary ?? colors.textMuted)),
+              // On Refined's wash, a quieter shade of the wash's own hue, not a grey.
+              Text('Bars ${bars.join(', ')}',
+                  style: TextStyle(fontSize: 13, color: k?.textSecondary ?? Color.lerp(colors.text, error, 0.4))),
             ]),
           ),
         ]),
