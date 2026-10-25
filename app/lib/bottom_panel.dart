@@ -18,7 +18,7 @@ class BottomPanel extends StatelessWidget {
   const BottomPanel({super.key, required this.controller, this.onProjectSettings});
   final EditorController controller;
 
-  /// Opens Project Settings (File ▸ Project Settings…).
+  /// Opens Project Settings (Edit ▸ Project Settings…).
   final VoidCallback? onProjectSettings;
 
   static const _switch = Duration(milliseconds: 220);
