@@ -1266,7 +1266,10 @@ class _SidebarTileState extends State<_SidebarTile> {
         ? (selected || _hover ? k.textPrimary : k.textSecondary)
         : tinted
             ? colors.accentOn(fill, dark: Theme.of(context).brightness == Brightness.dark)
-            : colors.text;
+            // The rows not chosen a step quieter, so the chosen one stands out without more weight.
+            : _hover
+                ? colors.text
+                : Color.lerp(colors.text, colors.textMuted, 0.4)!;
     return Padding(
       padding: EdgeInsets.only(bottom: k != null ? 0 : 1),
       child: Semantics(

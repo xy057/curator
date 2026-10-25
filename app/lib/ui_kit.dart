@@ -170,7 +170,12 @@ class ToolbarButton extends StatelessWidget {
               ? null
               : selected
                   ? (carbon != null ? colors.text : dark ? colors.accent : colors.accentStrong)
-                  : (color ?? colors.text)),
+                  : color ??
+                      // Refined: an icon at rest a little softer than text (a glyph is heavier than
+                      // the words beside it), full strength under the pointer.
+                      (carbon != null || s.contains(WidgetState.hovered) || s.contains(WidgetState.pressed)
+                          ? colors.text
+                          : Color.lerp(colors.text, colors.textMuted, 0.35))),
           backgroundColor: selected ? WidgetStatePropertyAll(fill) : null,
           animationDuration: motion(context, 150),
         ),
