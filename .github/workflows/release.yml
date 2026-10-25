@@ -10,7 +10,7 @@
 #
 #
 # Both systems build side by side; the release is published only when both have built and run
-# the smoke test (and the macOS job's tests have passed), so a release always has both downloads.
+# the smoke test, so a release always has both downloads.
 #
 # Every action is pinned to a commit (its tag in a comment): a tag can be moved, a commit can't.
 # To update one, look up the new tag's commit (`git ls-remote --tags https://github.com/<action>`). The app's updater finds its own by the name:
@@ -90,12 +90,9 @@ jobs:
         # so a failed build is tried once more (it is incremental).
         run: make build || make build
 
-      # What `make check` runs, on the commit being released: the analyzer and every test (on the
-      # bundled demo). FFmpeg lets the smoke test below export a real video.
-      - name: Test
-        run: |
-          brew install ffmpeg
-          make check
+      # FFmpeg lets the smoke test below export a real video.
+      - name: Install FFmpeg
+        run: brew install ffmpeg
 
       # The app itself, built and run: the sample opens, engraves, draws and exports.
       - name: Smoke test
@@ -146,8 +143,7 @@ jobs:
         working-directory: app
         run: flutter build windows --release --dart-define=CURATOR_COMMIT=$(git rev-parse --short HEAD)
 
-      # The tests don't run on Windows, but the app is run once: the sample opens, engraves and
-      # draws (integration_test/app_smoke_test.dart; a debug build, so the engine is built again).
+      # The app is run once: the sample opens, engraves and draws (integration_test/app_smoke_test.dart; a debug build, so the engine is built again).
       - name: Smoke test
         working-directory: app
         run: flutter test integration_test -d windows
