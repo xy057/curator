@@ -73,7 +73,17 @@ Future<void> showProjectSettingsDialog(BuildContext context, AppSettings setting
       ),
     );
 
-Future<void> _showWindow(BuildContext context, _SettingsWindow window) => showGeneralDialog<void>(
+/// Whether a settings window, app's or project's, is up (until it is gone, its fade-out
+/// included): opening another then does nothing, so ⌘, held down doesn't stack them.
+bool _windowShown = false;
+
+Future<void> _showWindow(BuildContext context, _SettingsWindow window) {
+  if (_windowShown) return Future.value();
+  _windowShown = true;
+  return _presentWindow(context, window);
+}
+
+Future<void> _presentWindow(BuildContext context, _SettingsWindow window) => showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Close settings',
@@ -761,6 +771,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   void dispose() {
     widget.controller?.removeListener(_controllerChanged);
     _search.dispose();
+    _windowShown = false;
     super.dispose();
   }
 
