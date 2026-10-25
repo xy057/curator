@@ -946,8 +946,7 @@ macOS and `flutter build windows` on Windows (Verovio fetched and patched by han
 `make`), zips each as `Curator-<version>-<macos|windows>.zip` (the Windows zip carries the
 Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built and run
 the smoke test (`app/integration_test/app_smoke_test.dart`, `make smoke`: the app as built opens
-the sample, engraves, draws and exports), and `make check` has passed on macOS (the other tests
-don't run on Windows), where the version is
+the sample, engraves, draws and exports; `make check` isn't run there), where the version is
 `app/pubspec.yaml`'s. Its actions are pinned to commits, not tags; only the job that publishes
 may write to the repository. To release again, bump that version and `appVersion` / `appBuild`
 in `updater.dart` together (`make versions` checks they match, from `make check` and as the
