@@ -326,7 +326,11 @@ engraving is as it was. Horizontal ones never overlap. In the Spacers lane they 
 edited as the Captions lane's are (one `SpanLane`, the Instruments tab's tools): Draw drags one
 out (a click: one beat), Select moves one by its middle or trims an edge, Erase cuts them back;
 unlike captions they change once a drag ends (`SpanLaneModel.live` off), each change engraving
-again. Its name's buttons add a vertical spacer, add a horizontal one over the beat the playhead
+again. A gesture's erased pieces name the stretches as `SpanLaneModel.begin` found them (a live
+model's change as it goes). They are fitted to the score's bars where a project opens and after
+Replace Score (`Spacers.fitted`: in a bar it has, at a beat there, none past the end or into
+the next), engraving again if that changed them; `Spacers.barLengths` takes each bar's longest
+part, as Verovio engraves it. Its name's buttons add a vertical spacer, add a horizontal one over the beat the playhead
 is in, and Remove Spacer takes out the one selected, or the spacers' lanes selected. In the
 preview (`_SpacerHandles`) the one under the pointer is outlined (only there: a video shows
 nothing); click selects one (one selection with the images and captions,
@@ -897,7 +901,8 @@ pickers set the project's fonts (edits); a late answer from the system picker ap
 the project it was chosen for. What new projects start with is the fonts of the one last saved
 as the default (Project Settings ▸ Engraving ▸ Save as default:
 `AppSettings.musicFont`/`textFont`/`embedFont`, by name, as the app keeps no font file;
-`EditorController.newProjectFonts`); one not installed where a score is imported is Bravura or
+`EditorController.newProjectFonts`); a music font not installed where a score is imported is
+kept by name, as a project naming one is (Bravura standing in, the snack bar), a text font
 Academico. Settings rows are keyed by item, so a control keeps its state when a `shown` row
 above it comes or goes.
 Text: Academico (metrics written under Verovio's `Times*` names by

@@ -154,17 +154,18 @@ class EditorController extends ChangeNotifier {
   ({String music, String text, bool embed}) newProjectFonts =
       (music: MusicFont.bravura.name, text: TextFonts.academico, embed: true);
 
-  /// [newProjectFonts] as found here: one not installed is Bravura or Academico.
+  /// [newProjectFonts] as found here: a music font not installed is kept by name, Bravura
+  /// standing in (as for a project naming one); a text font not installed is Academico.
   Future<({ScoreFonts fonts, bool embed})> defaultFonts() async {
     final wanted = newProjectFonts;
-    final music = await findInstalledMusicFont(wanted.music) ?? MusicFont.bravura;
+    final music = await findInstalledMusicFont(wanted.music) ?? MusicFont.missing(wanted.music);
     final text = wanted.text == TextFonts.academico || await TextFonts.faces(wanted.text) != null ? wanted.text : TextFonts.academico;
     return (fonts: ScoreFonts(music: music, text: text), embed: wanted.embed);
   }
 
   Future<EditState> _newProjectEdits() async {
     final (:fonts, :embed) = await defaultFonts();
-    return EditState(fonts: fonts, embedFont: embed);
+    return EditState(fonts: fonts, embedFont: embed && !fonts.music.isMissing); // a missing one can't be
   }
 
   /// The music font installed here as [name]; null when there is none, or it can't be read
@@ -294,6 +295,7 @@ class EditorController extends ChangeNotifier {
       pairs: List.unmodifiable({for (final p in edits.pairs) ?score.condensing.pair(p.first, p.second)}),
       partOrder: _orderedPartIds(score, edits.partOrder, edits.spacers),
       sections: Map.unmodifiable(edits.sections),
+      gaps: Spacers.fitted(edits.gaps, score.timeline.measureStarts),
     );
     // The pairs that can condense follow the score and the pairs just taken on.
     _doc = _doc.copyWith(condensed: Set.unmodifiable({for (final g in condensable) if (edits.condensed.contains(g.id)) g.id}));
@@ -320,11 +322,9 @@ class EditorController extends ChangeNotifier {
         if (!extensionChosen(e.id) && (legacyExtensions[e.id] ?? false) && e.isUsedBy(this)) e.id: true,
     }));
     _applyExtensions();
-    // Engraved before a switch it had on in the app's old settings came on: again, with its spacers.
-    final attach = Extensions.attachImage.id;
-    if (extensionOn(attach) != (edits.extensions[attach] ?? false) && (_doc.spacers.isNotEmpty || _doc.gaps.isNotEmpty)) {
-      unawaited(_reengrave());
-    }
+    // Engraved with what it held: again where opening changed that (a switch it had on in the
+    // app's old settings came on, with its spacers; spacers fitted to the score's bars).
+    if (_wanted != score.request) unawaited(_reengrave());
     _history.clear();
     _committed = _editState; // a fresh document: nothing to undo
     anchors._restoreView(view);
