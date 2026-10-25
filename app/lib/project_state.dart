@@ -548,11 +548,13 @@ class ProjectState {
   static HorizontalSpacer _gap(JsonReader r) {
     final bar = r.number('bar', required: true)!, offset = r.number('offset', required: true)!;
     final width = r.number('width') ?? HorizontalSpacer.defaultWidth;
+    final length = r.number('length') ?? HorizontalSpacer.defaultLength;
     if (bar < 0 || bar != bar.roundToDouble() || offset < 0) throw FormatException('The project is damaged: ${r.where} is not in a bar.');
+    if (length < HorizontalSpacer.minLength - 1e-9) throw FormatException('The project is damaged: ${r.where}.length is too short.');
     if (width < HorizontalSpacer.minWidth || width > HorizontalSpacer.maxWidth) {
       throw FormatException('The project is damaged: ${r.where}.width is out of range.');
     }
-    return HorizontalSpacer(bar: bar.toInt(), offset: offset, width: width);
+    return HorizontalSpacer(bar: bar.toInt(), offset: offset, length: length, width: width);
   }
 
   static ScoreFonts _fonts(JsonReader r, Map<String, ({Uint8List file, Uint8List? metadata})> files) {
@@ -754,7 +756,7 @@ class ProjectState {
         ],
       if (gaps.isNotEmpty)
         'gaps': [
-          for (final g in gaps) {'bar': g.bar, 'offset': g.offset, 'width': g.width},
+          for (final g in gaps) {'bar': g.bar, 'offset': g.offset, 'length': g.length, 'width': g.width},
         ],
       'partNames': {
         for (final MapEntry(key: id, value: p) in partNames.entries) id: {'name': p.name, 'abbreviation': p.abbreviation},

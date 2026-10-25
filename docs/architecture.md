@@ -26,7 +26,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
-| `spacers.dart` | Spacers (Attach Image): `VerticalSpacer`, an empty part of its own (`Spacers.write`), and `HorizontalSpacer`, a blank between beats (`Spacers.verovioOption`) |
+| `spacers.dart` | Spacers (Attach Image): `VerticalSpacer`, an empty part of its own (`Spacers.write`), and `HorizontalSpacer`, a stretch of the score made wider (`Spacers.verovioOption`) |
 | `score_caption.dart` | Captions (`Caption`), their markup (`captionRuns`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
 | `subtitles.dart` | Captions as subtitles: SRT and WebVTT read (`parseSubtitles`) and written (`writeSubtitles`), placed in the score (`captionsFromCues`) and timed from it (`captionCues`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
@@ -43,7 +43,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
-| `spacer_dialogs.dart`, `spacer_lane.dart`, `score_view/spacer_handles.dart` | Attach Image's spacers: their dialogs; the Spacers lane (pinned under the ruler: add and remove buttons, horizontal ones as marks); selecting, moving and resizing them in the score view |
+| `span_lane.dart` | `SpanLane`: a lane pinned under the ruler whose stretches (`SpanLaneModel`) are drawn, moved, trimmed and erased the way regions are; the Captions and Spacers lanes are two |
+| `spacer_dialogs.dart`, `spacer_lane.dart`, `score_view/spacer_handles.dart` | Attach Image's spacers: their dialogs; the Spacers lane (a `SpanLane` of the horizontal ones, with add and remove buttons); selecting, moving and resizing them in the score view |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
 | `caption_settings.dart` | Project Settings ▸ Extensions ▸ Captions' own settings (the app's): font, countdown, size, alignment, backing, with a preview |
 | `extensions/extension.dart` | `CuratorExtension`, what the app knows of an extension (by id), and `Extensions`, every one there is |
@@ -314,23 +315,30 @@ and keys as heard, written in its `SpacerKey` (Transposition: concert pitch, B�
 What else it shows is only drawn (`SceneSettings.spacers`): its height in staff spaces, its five
 staff lines or none (`StaffLayer.reach` makes room for a taller one; without lines it is an empty
 layer of that height), and Name and clef (`frozen`: the frozen zone's name, clef, key and time;
-off, `ScoreRenderer`'s `bare` staves show none and the key column leaves them out). Add
-Horizontal Spacer opens a blank of `HorizontalSpacer.width` staff spaces in every staff before
-what sounds at the beat the playhead is in (a bar's first beat: after its barline), however the bar is
-spaced: the patched `curatedSpacers` option shifts Verovio's alignments from there on, so the
-rest of the engraving is as it was. Remove Spacer takes out the one selected, or the spacers'
-lanes selected. Each horizontal one is a mark in the lane: click selects it, drag moves it to a
-beat (⌘ anywhere). In the preview (`_SpacerHandles`) the one under the pointer is outlined
-(only there: the lanes show where they are, a video shows nothing); click selects one (one
-selection with the images and captions, `SpacerEditing.selectedVertical` / `selectedHorizontal`,
-a horizontal one kept by its place; Delete removes it), drag moves it (a vertical one dropped
-between two staves, `moveVertical`; a horizontal one to the nearest beat, ⌘ anywhere,
-`moveHorizontal`) and a handle resizes it as an image's does: a vertical one's top and bottom
-set its height, drawn as it goes, a horizontal one's sides its width, engraved when let go.
-Double-click (or right-click ▸ Edit Spacer…) edits either. Every change is an Undo
+off, `ScoreRenderer`'s `bare` staves show none and the key column leaves them out). A horizontal
+spacer is a stretch of the score (any beats, across barlines) made `HorizontalSpacer.width` staff
+spaces wider whatever its spacing: what sounds in it spreads apart evenly by time, what starts
+at its start stays and what follows moves the whole width (the patched `curatedSpacers`
+option: `Spacers.verovioOption` splits it at barlines, sharing the width out by time, and
+Verovio's alignments in each piece move as far as their time is across it), so the rest of the
+engraving is as it was. Horizontal ones never overlap. In the Spacers lane they are stretches
+edited as the Captions lane's are (one `SpanLane`, the Instruments tab's tools): Draw drags one
+out (a click: one beat), Select moves one by its middle or trims an edge, Erase cuts them back;
+unlike captions they change once a drag ends (`SpanLaneModel.live` off), each change engraving
+again. Its name's buttons add a vertical spacer, add a horizontal one over the beat the playhead
+is in, and Remove Spacer takes out the one selected, or the spacers' lanes selected. In the
+preview (`_SpacerHandles`) the one under the pointer is outlined (only there: a video shows
+nothing); click selects one (one selection with the images and captions,
+`SpacerEditing.selectedVertical` / `selectedHorizontal`, a horizontal one kept by its place;
+Delete removes it), drag moves it (a vertical one dropped between two staves, `moveVertical`; a
+horizontal one to the nearest beat, ⌘ anywhere, `moveHorizontal`), and a handle resizes it as an
+image's does: a vertical one's top and bottom set its height, drawn as it goes, a horizontal
+one's right-hand side how much wider it makes its stretch, engraved when let go.
+Double-click (or right-click ▸ Edit Spacer…) edits either.
+Every change is an Undo
 step (`spacers` and `gaps` in `EditState`, format 24); a vertical one's key and any horizontal
 one re-engrave (`EngraveRequest`), the rest only redraws. While Attach Image is off they stay
-in the project, unengraved; Replace Score keeps vertical ones and the horizontal ones whose bar
+in the project, unengraved; Replace Score keeps vertical ones and the horizontal ones whose first bar
 is still there.
 
 **A caption shows under the score** (the Captions extension). A `Caption` is a text and
@@ -654,7 +662,7 @@ so any other is verse 1: in a part with such a token, `PreparedScore.prepare` nu
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
 keep their written key), MusicXML direction ids (so texts can be edited), a lyric's `placement="above"` (verses above the staff, verse 1 on top), syllables centred
-under their noteheads (`curatedLyricCentre`), blanks between beats (`curatedSpacers`), the app's typography
+under their noteheads (`curatedLyricCentre`), stretches made wider (`curatedSpacers`), the app's typography
 (`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, a rehearsal
 mark's `font-style`, the `curated…Scale` options sizing music symbols, accidentals clear of
 articulations and caesuras between their neighbours), engraving fixes (a rehearsal mark set a fifth

@@ -26,7 +26,7 @@ class _VerticalSpacerDialogState extends State<_VerticalSpacerDialog> {
   late final VerticalSpacer _spacer = c.spacers.verticalOf(widget.id)!;
   late final ScorePart? _part = c.score!.metadata.parts.where((p) => p.id == widget.id).firstOrNull;
   late final _name = TextEditingController(text: _part == null ? Spacers.nameOf(widget.id) : c.partName(_part));
-  late final _height = TextEditingController(text: _number(_spacer.height));
+  late final _height = TextEditingController(text: spacerNumber(_spacer.height));
   late SpacerKey _key = _spacer.key;
   late bool _lines = _spacer.lines, _frozen = _spacer.frozen;
 
@@ -41,7 +41,7 @@ class _VerticalSpacerDialogState extends State<_VerticalSpacerDialog> {
   Widget build(BuildContext context) {
     final height = double.tryParse(_height.text.trim());
     final error = height == null || height < VerticalSpacer.minHeight || height > VerticalSpacer.maxHeight
-        ? 'Enter ${_number(VerticalSpacer.minHeight)} to ${_number(VerticalSpacer.maxHeight)} staff spaces'
+        ? 'Enter ${spacerNumber(VerticalSpacer.minHeight)} to ${spacerNumber(VerticalSpacer.maxHeight)} staff spaces'
         : null;
     void save() {
       if (error != null) return;
@@ -107,7 +107,7 @@ class _VerticalSpacerDialogState extends State<_VerticalSpacerDialog> {
   }
 }
 
-/// Horizontal spacer [index]'s width; Remove closes it.
+/// How much wider horizontal spacer [index] makes its stretch; Remove takes it out.
 Future<void> showHorizontalSpacerDialog(BuildContext context, EditorController c, int index) =>
     showAppDialog<void>(context: context, builder: (context) => _HorizontalSpacerDialog(controller: c, index: index));
 
@@ -122,7 +122,7 @@ class _HorizontalSpacerDialog extends StatefulWidget {
 
 class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
   EditorController get c => widget.controller;
-  late final _width = TextEditingController(text: _number(c.spacers.horizontal[widget.index].width));
+  late final _width = TextEditingController(text: spacerNumber(c.spacers.horizontal[widget.index].width));
 
   @override
   void dispose() {
@@ -134,7 +134,7 @@ class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
   Widget build(BuildContext context) {
     final width = double.tryParse(_width.text.trim());
     final error = width == null || width < HorizontalSpacer.minWidth || width > HorizontalSpacer.maxWidth
-        ? 'Enter ${_number(HorizontalSpacer.minWidth)} to ${_number(HorizontalSpacer.maxWidth)} staff spaces'
+        ? 'Enter ${spacerNumber(HorizontalSpacer.minWidth)} to ${spacerNumber(HorizontalSpacer.maxWidth)} staff spaces'
         : null;
     void save() {
       if (error != null) return;
@@ -148,7 +148,7 @@ class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
         width: dialogWidth(context, 280),
         child: AppTextField(
           controller: _width,
-          label: 'Width (staff spaces)',
+          label: 'Extra width (staff spaces)',
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => setState(() {}),
@@ -174,4 +174,4 @@ class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
 }
 
 /// [v] without a trailing ".0".
-String _number(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';
+String spacerNumber(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';

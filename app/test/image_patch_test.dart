@@ -100,7 +100,7 @@ void main() {
     c.dispose();
   });
 
-  testWidgets('spacers: a vertical one is a lane of its own, a horizontal one a blank; moved, saved, undone, off with the extension', (tester) async {
+  testWidgets('spacers: a vertical one is a lane of its own, a horizontal one a stretch widened; moved, saved, undone, off with the extension', (tester) async {
     await open(tester);
     final first = c.score!.metadata.parts.first.id;
     await tester.runAsync(() => c.spacers.addVertical(below: first));
@@ -110,8 +110,8 @@ void main() {
     expect(c.partOrder.indexOf('spacer-1'), c.partOrder.indexOf(first) + 1);
     expect(c.laneParts.map((p) => p.id), contains('spacer-1'));
     final beat = c.score!.timeline.measureStarts[4] + 1;
-    await tester.runAsync(() => c.spacers.addHorizontal(beat));
-    expect(c.spacers.horizontal, [const HorizontalSpacer(bar: 4, offset: 1)]);
+    await tester.runAsync(() => c.spacers.addHorizontal(beat, beat + 4)); // across a barline
+    expect(c.spacers.horizontal, [const HorizontalSpacer(bar: 4, offset: 1, length: 4)]);
     expect(c.scene!.gapRects(c.timeline.secondsAtQuarter(beat), const Size(960, 540)), isNotEmpty);
 
     final state = ProjectState.fromJson(jsonDecode(jsonEncode(c.projectState.toJson())) as Map<String, Object?>);
@@ -126,7 +126,7 @@ void main() {
     // Moved (the selection with it), to the top, then removed by Delete.
     expect(c.spacers.selectedHorizontal, 0, reason: 'a new one is selected');
     await tester.runAsync(() => c.spacers.moveHorizontal(0, beat + 1));
-    expect((c.spacers.horizontal.single.offset, c.spacers.selectedHorizontal), (2.0, 0));
+    expect((c.spacers.horizontal.single.offset, c.spacers.horizontal.single.length, c.spacers.selectedHorizontal), (2.0, 4.0, 0));
     c.spacers.moveVertical('spacer-1', 0);
     expect(c.laneParts.first.id, 'spacer-1');
     c.commands.delete();

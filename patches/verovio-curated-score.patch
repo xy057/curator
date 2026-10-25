@@ -1,27 +1,30 @@
 diff --git a/include/vrv/calcalignmentxposfunctor.h b/include/vrv/calcalignmentxposfunctor.h
-index 2680dc6..4ec15d8 100644
+index 2680dc6..b441d9b 100644
 --- a/include/vrv/calcalignmentxposfunctor.h
 +++ b/include/vrv/calcalignmentxposfunctor.h
-@@ -10,6 +10,9 @@
+@@ -10,6 +10,10 @@
  
  #include "functor.h"
  
 +#include <map>
++#include <tuple>
 +#include <vector>
 +
  namespace vrv {
  
  //----------------------------------------------------------------------------
-@@ -74,6 +77,12 @@ private:
+@@ -74,6 +78,14 @@ private:
      std::list<Alignment *> m_timestamps;
      // The MeasureAligner
      MeasureAligner *m_measureAligner;
-+    // [curated-score patch] The spacers (curatedSpacers) by measure index: (quarters into it, units wide), by time
-+    std::map<int, std::vector<std::pair<double, int>>> m_curatedSpacers;
++    // [curated-score patch] The spacers (curatedSpacers) by measure index: the stretch each widens
++    // (quarters into it, from and to) and by how many units
++    std::map<int, std::vector<std::tuple<double, double, int>>> m_curatedSpacers;
 +    // [curated-score patch] Each measure's index in the document, worked out on the first measure
 +    std::map<const Measure *, int> m_curatedMeasureIndex;
-+    // [curated-score patch] The current measure's spacers still to open, by time
-+    std::vector<std::pair<double, int>> m_curatedPending;
++    // [curated-score patch] The current measure's spacers, and how far they have moved its alignments so far
++    std::vector<std::tuple<double, double, int>> m_curatedPending;
++    int m_curatedApplied = 0;
  };
  
  } // namespace vrv
@@ -203,7 +206,7 @@ index 9a7db65..fcb9ca7 100644
      if (m_previousContainer == NULL) {
          m_previousContainer = container;
 diff --git a/src/calcalignmentxposfunctor.cpp b/src/calcalignmentxposfunctor.cpp
-index 63eac3e..cbbf6ec 100644
+index 63eac3e..daca0c0 100644
 --- a/src/calcalignmentxposfunctor.cpp
 +++ b/src/calcalignmentxposfunctor.cpp
 @@ -9,7 +9,14 @@
@@ -221,21 +224,28 @@ index 63eac3e..cbbf6ec 100644
  #include "system.h"
  
  //----------------------------------------------------------------------------
-@@ -38,6 +45,13 @@ FunctorCode CalcAlignmentXPosFunctor::VisitAlignment(Alignment *alignment)
+@@ -38,6 +45,20 @@ FunctorCode CalcAlignmentXPosFunctor::VisitAlignment(Alignment *alignment)
      int intervalXRel = 0;
      Fraction intervalTime = alignment->GetTime() - m_previousTime;
  
-+    // [curated-score patch] A spacer opens its blank before the first alignment at or after its time
-+    while (!m_curatedPending.empty() && !alignment->HasTimestampOnly()
-+        && alignment->GetTime().ToDouble() * 4 >= m_curatedPending.front().first - 1e-9) {
-+        m_previousXRel += m_curatedPending.front().second;
-+        m_curatedPending.erase(m_curatedPending.begin());
++    // [curated-score patch] A spacer widens its stretch: an alignment in it moves right as far as
++    // its time is across it, one after it by the whole width (one at its start stays)
++    if (!m_curatedPending.empty() && !alignment->HasTimestampOnly()) {
++        const double quarters = alignment->GetTime().ToDouble() * 4;
++        double wanted = 0;
++        for (const auto &[from, to, units] : m_curatedPending) {
++            wanted += units * std::clamp((quarters - from) / std::max(to - from, 1e-9), 0.0, 1.0);
++        }
++        if (int(wanted) > m_curatedApplied) {
++            m_previousXRel += int(wanted) - m_curatedApplied;
++            m_curatedApplied = int(wanted);
++        }
 +    }
 +
      if (alignment->GetType() > ALIGNMENT_MEASURE_RIGHT_BARLINE) {
          intervalTime = 0;
      }
-@@ -101,6 +115,28 @@ FunctorCode CalcAlignmentXPosFunctor::VisitMeasure(Measure *measure)
+@@ -101,6 +122,30 @@ FunctorCode CalcAlignmentXPosFunctor::VisitMeasure(Measure *measure)
      // We un-measured music we never have a left barline, so do not add a default space
      m_previousXRel = (measure->IsMeasuredMusic()) ? m_doc->GetDrawingUnit(100) : 0;
  
@@ -248,13 +258,15 @@ index 63eac3e..cbbf6ec 100644
 +        std::string entry;
 +        while (std::getline(list, entry, ',')) {
 +            int at = 0;
-+            double quarters = 0, spaces = 0;
-+            if (sscanf(entry.c_str(), "%d:%lf:%lf", &at, &quarters, &spaces) != 3 || spaces <= 0) continue;
-+            m_curatedSpacers[at].push_back({ quarters, int(spaces * 2 * m_doc->GetDrawingUnit(100)) });
++            double from = 0, to = 0, spaces = 0;
++            if (sscanf(entry.c_str(), "%d:%lf:%lf:%lf", &at, &from, &to, &spaces) != 4 || spaces <= 0 || to <= from) {
++                continue;
++            }
++            m_curatedSpacers[at].push_back({ from, to, int(spaces * 2 * m_doc->GetDrawingUnit(100)) });
 +        }
-+        for (auto &[at, spacers] : m_curatedSpacers) std::sort(spacers.begin(), spacers.end());
 +    }
 +    m_curatedPending.clear();
++    m_curatedApplied = 0;
 +    if (auto index = m_curatedMeasureIndex.find(measure); index != m_curatedMeasureIndex.end()) {
 +        if (auto spacers = m_curatedSpacers.find(index->second); spacers != m_curatedSpacers.end()) {
 +            m_curatedPending = spacers->second;
@@ -583,7 +595,7 @@ index f20540d..633b18c 100644
                      Text *text = new Text();
                      text->SetText(UTF8to32(textStr));
 diff --git a/src/options.cpp b/src/options.cpp
-index 7e3ec3c..dd49f23 100644
+index 7e3ec3c..131f850 100644
 --- a/src/options.cpp
 +++ b/src/options.cpp
 @@ -1303,6 +1303,130 @@ Options::Options()
@@ -674,7 +686,7 @@ index 7e3ec3c..dd49f23 100644
 +    m_curatedLyricCentre.Init(false);
 +    this->Register(&m_curatedLyricCentre, "curatedLyricCentre", &m_generalLayout);
 +
-+    m_curatedSpacers.SetInfo("Spacers", "[curated-score patch] Blank space before a time in a measure: \"measure:quarters:staff spaces\", comma separated (measures counted from 0)");
++    m_curatedSpacers.SetInfo("Spacers", "[curated-score patch] Stretches of a measure widened: \"measure:from:to:staff spaces\" (quarters into it; measures counted from 0), comma separated");
 +    m_curatedSpacers.Init("");
 +    this->Register(&m_curatedSpacers, "curatedSpacers", &m_generalLayout);
 +

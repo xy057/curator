@@ -222,7 +222,53 @@ void main() {
     expect(c.lanes.selectedPartIds, {ids[0], ids[1]});
     expect(c.curation!.lane(ids[0]), [Region(bars[0], bars[1])]);
   });
+
+  testWidgets('the Spacers lane draws, moves, trims and erases horizontal spacers as the lanes do regions', (tester) async {
+    final c = await _openDemo(tester);
+    c.setExtension('attachImage', true);
+    await tester.pump();
+    final bars = c.timeline.measureStarts;
+    final lane = tester.getRect(find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter.runtimeType.toString() == '_SpanLanePainter'));
+    Offset at(double quarter) => lane.topLeft + Offset(c.viewport.x(c.timeline.secondsAtQuarter(quarter)), 12);
+    List<(double, double)> spans() => [for (final (i, _) in c.spacers.horizontal.indexed) (c.spacers.startOf(i), c.spacers.endOf(i))];
+    Future<void> drag(double from, double to) async {
+      final g = await tester.startGesture(at(from));
+      await g.moveTo(at((from + to) / 2));
+      await g.moveTo(at(to));
+      await tester.pump();
+      await g.up();
+      await tester.pump();
+      while (c.isReengraving) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+      }
+    }
+
+    // Draw (D): bar 3 widened, and selected.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+    await drag(bars[2], bars[3]);
+    expect(spans(), [(bars[2], bars[3])]);
+    expect(c.spacers.selectedHorizontal, 0);
+    expect(c.score!.gaps, c.spacers.horizontal, reason: 'engraved');
+
+    // Select (V): moved a bar on by its middle, its end trimmed a bar further; each one Undo step.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+    await drag((bars[2] + bars[3]) / 2, (bars[3] + bars[4]) / 2);
+    expect(spans(), [(bars[3], bars[4])]);
+    await drag(bars[4], bars[5]);
+    expect(spans(), [(bars[3], bars[5])]);
+    expect(c.spacers.horizontal.single.width, HorizontalSpacer.defaultWidth);
+
+    // Erase (E): its first bar cut off, the rest as wide.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+    await drag(bars[3], bars[4]);
+    expect(spans(), [(bars[4], bars[5])]);
+    c.undo();
+    expect(spans(), [(bars[3], bars[5])]);
+  });
 }
+
 
 /// The desktop window with the demo open in the editor.
 Future<EditorController> _openDemo(WidgetTester tester) async {

@@ -38,7 +38,7 @@ part 'score_view/spacer_handles.dart';
 ///
 /// Spacers (added in the bottom panel's Spacers lane) are outlined under the pointer: click one
 /// to select it, drag it to move it, drag a handle to resize it ([_SpacerHandles]); double-click
-/// one (or right-click it) to change or remove it.
+/// one (or right-click it) to change or remove it. A horizontal one is the stretch it widens.
 ///
 /// With Captions on, right-click ▸ Add Caption… adds one from where it was clicked;
 /// double-click the caption showing (or right-click it) to change or remove it.

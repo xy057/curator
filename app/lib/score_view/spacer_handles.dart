@@ -3,8 +3,9 @@ part of '../score_view.dart';
 /// Spacers in the score view (Attach Image): the one under the pointer is outlined, a click
 /// selects one (outlined, with its handles), a drag moves it and a handle resizes it, as an
 /// image's do. A vertical one moves among the staves (dropped between two) and its top or
-/// bottom handle sets its height, drawn as it goes; a horizontal one moves to another beat
-/// (⌘: anywhere) and its side handles set its width, engraved when it is let go.
+/// bottom handle sets its height, drawn as it goes; a horizontal one (the stretch it widens)
+/// moves to another beat (⌘: anywhere) and its right-hand handle sets how much wider it makes
+/// the stretch, engraved when it is let go (its beats are set in the Spacers lane).
 mixin _SpacerHandles on State<ScoreView> {
   EditorController get c => widget.controller;
 
@@ -71,8 +72,9 @@ mixin _SpacerHandles on State<ScoreView> {
     return null;
   }
 
-  /// A vertical spacer's height is set at its top and bottom, a horizontal one's width at its sides.
-  static List<_Grip> _spacerGrips(bool vertical) => vertical ? const [_Grip.top, _Grip.bottom] : const [_Grip.left, _Grip.right];
+  /// A vertical spacer's height is set at its top and bottom, a horizontal one's width at its
+  /// right (its left, where the stretch starts, stays put).
+  static List<_Grip> _spacerGrips(bool vertical) => vertical ? const [_Grip.top, _Grip.bottom] : const [_Grip.right];
 
   /// What of the selected spacer is at [view] (view points): a handle, its body, or nothing.
   _Grip? _spacerGripAt(Offset view, VideoFrame frame) {
@@ -161,20 +163,18 @@ mixin _SpacerHandles on State<ScoreView> {
         c.spacers.setVertical(
             spacer.copyWith(height: height.clamp(spacer.lines ? 4.0 : VerticalSpacer.minHeight, VerticalSpacer.maxHeight)));
       case (null, _Grip.body):
-        final q = scene.quarterAtFrameX(r.right + delta.dx, time, frame.layout);
+        final q = scene.quarterAtFrameX(r.left + delta.dx, time, frame.layout);
         final quarter = isCommandPressed ? q : _nearestBeat(q);
         final x = scene.frameXAtQuarter(quarter, time, frame.layout);
         drag
           ..quarter = quarter
-          ..ghost = Rect.fromLTRB(x - r.width, r.top, x, r.bottom);
-      case (null, final grip):
-        final width = ((drag.width + grip.dx * delta.dx / sp) * 2).round() / 2;
+          ..ghost = Rect.fromLTWH(x, r.top, r.width, r.height);
+      case (null, _):
+        final width = ((drag.width + delta.dx / sp) * 2).round() / 2;
         final w = width.clamp(HorizontalSpacer.minWidth, HorizontalSpacer.maxWidth).toDouble();
         drag
           ..newWidth = w
-          ..ghost = grip.dx > 0
-              ? Rect.fromLTWH(r.left, r.top, w * sp, r.height)
-              : Rect.fromLTRB(r.right - w * sp, r.top, r.right, r.bottom);
+          ..ghost = Rect.fromLTRB(r.left, r.top, r.right + (w - drag.width) * sp, r.bottom);
     }
     _spacerTick.value++;
   }
