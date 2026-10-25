@@ -42,6 +42,7 @@ class AppSettings extends ChangeNotifier {
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
         _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? true,
         _rehearsalInRow = _prefs?.getBool(_rehearsalInRowKey) ?? true,
+        _centredLyrics = _prefs?.getBool(_centredLyricsKey) ?? false,
         legacyExtensions = _readLegacyExtensions(_prefs),
         _captionFont = _prefs?.getString(_captionFontKey) ?? '',
         _captionCountdown =
@@ -83,7 +84,7 @@ class AppSettings extends ChangeNotifier {
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
-  static const _rehearsalInRowKey = 'rehearsalInRow';
+  static const _rehearsalInRowKey = 'rehearsalInRow', _centredLyricsKey = 'centredLyrics';
 
   static Color? _readColor(SharedPreferences? prefs, String key) {
     try {
@@ -548,6 +549,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _rehearsalInRow) return;
     _rehearsalInRow = value;
     _prefs?.setBool(_rehearsalInRowKey, value);
+    notifyListeners();
+  }
+
+  /// Each syllable is centred under its notehead, but one an extender follows
+  /// ([EngraveRequest.centredLyrics]), in a project that hasn't chosen. Off by default.
+  bool get centredLyrics => _centredLyrics;
+  bool _centredLyrics;
+  set centredLyrics(bool value) {
+    if (value == _centredLyrics) return;
+    _centredLyrics = value;
+    _prefs?.setBool(_centredLyricsKey, value);
     notifyListeners();
   }
 

@@ -399,17 +399,25 @@ final _projectCategories = <_Category>[
       (c) => AppSwitch(value: c.controller!.rehearsalInRow, onChanged: c.controller!.setRehearsalInRow),
       keywords: 'flag rehearsal marks letters box bar numbers row',
     ),
+    _Item(
+      'Centred lyrics',
+      (_) => 'Centres syllables under their notes.',
+      (c) => AppSwitch(value: c.controller!.centredLyrics, onChanged: c.controller!.setCentredLyrics),
+      keywords: 'flag lyrics syllables words text centre center align alignment choral',
+    ),
   ], saveDefault: (
     shown: null,
     isDefault: _flagsAreDefault,
     save: (c) {
       c.settings
         ..textDynamics = c.controller!.textDynamics
-        ..rehearsalInRow = c.controller!.rehearsalInRow;
+        ..rehearsalInRow = c.controller!.rehearsalInRow
+        ..centredLyrics = c.controller!.centredLyrics;
     },
     reset: (c) => c.controller!.setFlags(
         textDynamics: c.settings.textDynamics,
-        rehearsalInRow: c.settings.rehearsalInRow),
+        rehearsalInRow: c.settings.rehearsalInRow,
+        centredLyrics: c.settings.centredLyrics),
   )),
   _advancedCategory(),
 ];
@@ -508,7 +516,8 @@ _Category _advancedEngravingCategory() {
 /// Whether the project's flags are the app's default (Save as default).
 bool _flagsAreDefault(_Context c) =>
     c.controller!.textDynamics == c.settings.textDynamics &&
-    c.controller!.rehearsalInRow == c.settings.rehearsalInRow;
+    c.controller!.rehearsalInRow == c.settings.rehearsalInRow &&
+    c.controller!.centredLyrics == c.settings.centredLyrics;
 
 /// Whether the project's animation is the app's default (Save as default).
 bool _animationIsDefault(_Context c) =>

@@ -26,6 +26,7 @@ extension ControllerSettings on EditorController {
     engravingOptions = settings.engravingOptions;
     defaultTextDynamics = settings.textDynamics;
     defaultRehearsalInRow = settings.rehearsalInRow;
+    defaultCentredLyrics = settings.centredLyrics;
     videoLayout = VideoFormat.layoutOf(settings.videoRatio.value);
   }
 }
