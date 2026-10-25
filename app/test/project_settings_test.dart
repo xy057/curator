@@ -182,15 +182,15 @@ void main() {
     await settle();
     expect(settings.textDynamics, isFalse);
     await shoot('project-settings-flags-saved');
-    expect(c.centredLyrics, isFalse, reason: 'off by default');
+    expect(c.centeredLyrics, isFalse, reason: 'off by default');
     await tester.tap(find.byType(AppSwitch).last);
     await settle();
     await engraved();
-    expect((c.centredLyrics, c.projectState.edits.centredLyrics, settings.centredLyrics), (true, true, false));
-    expect(c.score!.centredLyrics, isTrue, reason: 'engraved centred');
+    expect((c.centeredLyrics, c.projectState.edits.centeredLyrics, settings.centeredLyrics), (true, true, false));
+    expect(c.score!.centeredLyrics, isTrue, reason: 'engraved centred');
     c.undo();
     await engraved();
-    expect(c.score!.centredLyrics, isFalse);
+    expect(c.score!.centeredLyrics, isFalse);
 
     // Animation: the scroll is the project's, a drag one Undo step; Save as default makes it the app's.
     await tester.tap(find.text('Animation').first);

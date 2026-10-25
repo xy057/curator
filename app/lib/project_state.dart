@@ -57,7 +57,7 @@ class EditState {
     this.extensions = const {},
     this.textDynamics,
     this.rehearsalInRow,
-    this.centredLyrics,
+    this.centeredLyrics,
     this.spacers = const [],
     this.gaps = const [],
   });
@@ -174,8 +174,8 @@ class EditState {
   final bool? rehearsalInRow;
 
   /// Whether each syllable is centred under its notehead, but one an extender follows (Project
-  /// Settings ▸ Flags, [EngraveRequest.centredLyrics]); null: the app's.
-  final bool? centredLyrics;
+  /// Settings ▸ Flags, [EngraveRequest.centeredLyrics]); null: the app's.
+  final bool? centeredLyrics;
 
   @override
   bool operator ==(Object other) =>
@@ -212,7 +212,7 @@ class EditState {
       mapEquals(extensions, other.extensions) &&
       textDynamics == other.textDynamics &&
       rehearsalInRow == other.rehearsalInRow &&
-      centredLyrics == other.centredLyrics &&
+      centeredLyrics == other.centeredLyrics &&
       listEquals(spacers, other.spacers) &&
       listEquals(gaps, other.gaps);
 
@@ -221,7 +221,7 @@ class EditState {
 
   /// This state with the fields given instead of its own. A field that may be null is
   /// cleared by passing null ([lanes], [transition], [scrollFollow], [motion], [typography], [midi], [captionFont],
-  /// [textDynamics], [rehearsalInRow], [centredLyrics]); left
+  /// [textDynamics], [rehearsalInRow], [centeredLyrics]); left
   /// out, it stays.
   EditState copyWith({
     Object? lanes = _kept,
@@ -253,7 +253,7 @@ class EditState {
     Map<String, bool>? extensions,
     Object? textDynamics = _kept,
     Object? rehearsalInRow = _kept,
-    Object? centredLyrics = _kept,
+    Object? centeredLyrics = _kept,
     List<VerticalSpacer>? spacers,
     List<HorizontalSpacer>? gaps,
   }) =>
@@ -287,7 +287,7 @@ class EditState {
         extensions: extensions ?? this.extensions,
         textDynamics: identical(textDynamics, _kept) ? this.textDynamics : textDynamics as bool?,
         rehearsalInRow: identical(rehearsalInRow, _kept) ? this.rehearsalInRow : rehearsalInRow as bool?,
-        centredLyrics: identical(centredLyrics, _kept) ? this.centredLyrics : centredLyrics as bool?,
+        centeredLyrics: identical(centeredLyrics, _kept) ? this.centeredLyrics : centeredLyrics as bool?,
         spacers: spacers ?? this.spacers,
         gaps: gaps ?? this.gaps,
       );
@@ -508,7 +508,7 @@ class ProjectState {
         }),
         textDynamics: r.child('flags').boolean('textDynamics'),
         rehearsalInRow: r.child('flags').boolean('rehearsalInRow'),
-        centredLyrics: r.child('flags').boolean('centredLyrics'),
+        centeredLyrics: r.child('flags').boolean('centredLyrics'),
         spacers: [
           for (final (i, spacer) in r.list('spacers').indexed) _spacer(JsonReader(spacer, '${r.where}.spacers[$i]')),
         ],
@@ -691,7 +691,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :motion, :typography, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :rehearsalInRow, :centredLyrics, :spacers, :gaps) = edits;
+        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :rehearsalInRow, :centeredLyrics, :spacers, :gaps) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -704,8 +704,9 @@ class ProjectState {
         },
       if (!engraving.isEmpty) 'engraving': engraving.toJson(),
       if (extensions.isNotEmpty) 'extensions': extensions,
-      if (textDynamics != null || rehearsalInRow != null || centredLyrics != null)
-        'flags': {'textDynamics': ?textDynamics, 'rehearsalInRow': ?rehearsalInRow, 'centredLyrics': ?centredLyrics},
+      if (textDynamics != null || rehearsalInRow != null || centeredLyrics != null)
+        // centredLyrics: the flag's first spelling, kept so saved projects read the same.
+        'flags': {'textDynamics': ?textDynamics, 'rehearsalInRow': ?rehearsalInRow, 'centredLyrics': ?centeredLyrics},
       'motion': ?motion?.toJson(),
       'typography': ?typography?.toJson(),
       'textEdits': textEdits,
