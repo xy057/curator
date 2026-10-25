@@ -203,6 +203,7 @@ class _ExportDialogState extends State<_ExportDialog> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final setup = _stage == _Stage.setup;
+    final carbon = AppStyle.of(context).isCarbon;
     final screen = MediaQuery.sizeOf(context);
     return Dialog(
       insetPadding: const EdgeInsets.all(32),
@@ -222,8 +223,11 @@ class _ExportDialogState extends State<_ExportDialog> {
                   bottom: 0,
                   right: 0,
                   width: _sidebarWidth + 1,
+                  // Refined: a tone strong enough to part the column alone (the well), no line as well.
                   child: DecoratedBox(
-                    decoration: BoxDecoration(color: colors.chrome, border: Border(left: BorderSide(color: colors.line))),
+                    decoration: carbon
+                        ? BoxDecoration(color: colors.chrome, border: Border(left: BorderSide(color: colors.line)))
+                        : BoxDecoration(color: colors.well),
                   ),
                 ),
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
