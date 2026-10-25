@@ -370,7 +370,7 @@ class CuratedScene {
             if (part.isUnpitchedPercussion) ...part.staffNumbers,
         },
         hiddenCommands: _openingCommands,
-        apart: barNumbers ? _tempoIds : const {},
+        apart: barNumbers ? {..._tempoIds, ..._rehearsalIds} : const {},
       );
   ScoreDisplayList? _display;
   int _displayVersion = 0;
@@ -451,7 +451,9 @@ class CuratedScene {
     final old = _typography;
     _typography = value;
     _renderer?.names = value[TextKind.names];
-    if (value[TextKind.barNumbers] != old[TextKind.barNumbers]) _disposeBarNumbers();
+    if (value[TextKind.barNumbers] != old[TextKind.barNumbers] || value[TextKind.rehearsal] != old[TextKind.rehearsal]) {
+      _disposeBarNumbers();
+    }
     if (value[TextKind.tempoRow] != old[TextKind.tempoRow]) _disposeTempoTexts();
     if (value[TextKind.captions] != old[TextKind.captions]) {
       _captionBar.dispose();
@@ -833,14 +835,15 @@ class CuratedScene {
   // MARK: Bar numbers
 
   /// Whether every bar's number is shown at its top left, small, grey and italic, in a row
-  /// above the staves that stays put as they come and go, and the tempo marks at the frame's
-  /// left in that row (set apart from the music: the display list is made again).
+  /// above the staves that stays put as they come and go, the rehearsal marks in it at their bars,
+  /// and the tempo marks at the frame's left in that row (both set apart from the music: the
+  /// display list is made again).
   bool get barNumbers => _barNumbers;
   bool _barNumbers = false;
   set barNumbers(bool value) {
     if (value == _barNumbers) return;
     _barNumbers = value;
-    if (_tempoIds.isEmpty || _display == null) return;
+    if ((_tempoIds.isEmpty && _rehearsalIds.isEmpty) || _display == null) return;
     _renderer?.dispose();
     _renderer = null;
     _display!.dispose();
@@ -864,7 +867,48 @@ class CuratedScene {
     for (final id in _tempoRoles.keys) ...{id: id, '${Condenser.idPrefix}$id': id},
   };
 
+  /// Each bar's rehearsal mark as shown, by measure index: drawn in the bar numbers' row.
+  late final _rehearsals = <int, String>{
+    for (final text in score.texts.reversed)
+      if (text.kind == ScoreTextKind.rehearsal && score.currentText(text).trim().isNotEmpty)
+        text.measure: score.currentText(text).trim(),
+  };
+
+  /// Every rehearsal mark's id, and its copy's on a pair's shared staff → its own: set apart
+  /// from the music while the row shows them.
+  late final _rehearsalIds = {
+    for (final text in score.texts)
+      if (text.kind == ScoreTextKind.rehearsal) ...{text.id: text.id, '${Condenser.idPrefix}${text.id}': text.id},
+  };
+
   final _barNumberText = <String, ui.Paragraph>{};
+  final _rehearsalText = <String, ui.Paragraph>{};
+
+  /// A rehearsal mark laid out as [TextKind.rehearsal] looks: bold unless the user chose a
+  /// face, larger than the bar numbers.
+  ui.Paragraph _rehearsal(String mark) => _rehearsalText.putIfAbsent(mark, () {
+        final look = _typography[TextKind.rehearsal], fontSize = _style.staffSpace * 1.8 * look.size;
+        final face = look.face == TextFace.asWritten ? TextFace.bold : look.face;
+        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
+            fontFamily: _style.textFontFamily,
+            fontSize: fontSize,
+            fontStyle: face.fontStyle,
+            fontWeight: face.fontWeight,
+            maxLines: 1))
+          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
+          ..addText(mark);
+        return builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
+      });
+
+  /// Where a rehearsal mark's box is drawn with its left at [x], its bottom at the row's.
+  ({ui.Rect box, ui.Offset text}) _rehearsalBox(ui.Paragraph text, double x, double bottom) {
+    final fontSize = _style.staffSpace * 1.8 * _typography[TextKind.rehearsal].size;
+    final pad = fontSize * 0.28, capHeight = fontSize * 0.7;
+    final height = capHeight + 2 * pad, width = math.max(text.longestLine + 2 * pad, height);
+    final box = ui.Rect.fromLTWH(x, bottom - height, width, height);
+    final baseline = bottom - pad;
+    return (box: box, text: ui.Offset(box.center.dx - text.longestLine / 2, baseline - text.alphabeticBaseline));
+  }
 
   /// A bar's number ([ScoreMetadata.barNumbers]) laid out, as [TextKind.barNumbers] looks.
   ui.Paragraph _barNumber(String number) => _barNumberText.putIfAbsent(number, () {
@@ -881,10 +925,11 @@ class CuratedScene {
       });
 
   void _disposeBarNumbers() {
-    for (final p in _barNumberText.values) {
+    for (final p in [..._barNumberText.values, ..._rehearsalText.values]) {
       p.dispose();
     }
     _barNumberText.clear();
+    _rehearsalText.clear();
   }
 
   /// The row's bottom in a frame, before any move: just above the room the staves have.
@@ -974,6 +1019,16 @@ class CuratedScene {
     final scale = renderer.scale, sp = _style.staffSpace;
     final originX = renderer.pointerX(size.width) - scrollX * scale;
     final (left, right) = renderer.visibleRange(scrollX, size.width);
+    // A rehearsal mark, in full ink, stands at its bar's left; the bar's number goes after it.
+    final marks = <int, ({ui.Rect box, ui.Offset text})>{};
+    for (var m = 0; m < measures.length; m++) {
+      final bar = measures[m];
+      if (bar.right < left) continue;
+      if (bar.left > right) break;
+      if (_rehearsals[m] case final mark?) {
+        marks[m] = _rehearsalBox(_rehearsal(mark), originX + bar.left * scale + sp * 0.3, _rowBottom - shift + 1);
+      }
+    }
     canvas.saveLayer(
         null,
         ui.Paint()
@@ -986,9 +1041,23 @@ class CuratedScene {
       final number = m < numbers.length ? numbers[m] : '${m + 1}';
       if (number == null) continue; // an upbeat, a split bar's second half
       final text = _barNumber(number);
-      canvas.drawParagraph(text, ui.Offset(originX + bar.left * scale + sp * 0.3, _rowBottom - shift - text.height));
+      final x = marks[m]?.box.right ?? originX + bar.left * scale;
+      canvas.drawParagraph(text, ui.Offset(x + sp * 0.3, _rowBottom - shift - text.height));
     }
     canvas.restore();
+    if (marks.isEmpty) return;
+    final line = ui.Paint()
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = sp * 0.16 * _typography[TextKind.rehearsal].size
+      ..color = ink;
+    for (final MapEntry(key: m, value: (:box, :text)) in marks.entries) {
+      final mark = _rehearsal(_rehearsals[m]!);
+      canvas
+        ..drawRect(box, line)
+        ..saveLayer(null, ui.Paint()..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn))
+        ..drawParagraph(mark, text)
+        ..restore();
+    }
   }
 
   /// What the frame's left shows from each score x on, left to right (null: nothing): the
