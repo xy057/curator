@@ -712,7 +712,8 @@ that has no context holds the `AppIcon` and resolves it where it is drawn. Tools
 builds both fonts and app_icons.dart from its table, from the pinned releases: add an icon there.
 The metronome, which neither set has, is painted in the style's stroke.
 The app icon shows in the app as `AppLogo` (Home, Settings ▸ About): the icon, or the mascot on the
-same tile while `AppSettings.mascotIcon` is on, which a click on About's icon toggles (saved). The
+same tile while `AppSettings.mascotIcon` is on, which a click on About's icon toggles (saved);
+Tools/make_mascot_icon.swift draws that tile, both sizes, from the official art (Tools/mascot.png). The
 running app takes it too: `WindowChrome.showAppIcon` sends the tile's PNG (512 px on macOS,
 256 elsewhere; null for the bundle's own) over the runners' `curated_score/window` channel as
 `setAppIcon`: the Dock icon on macOS (`NSApp.applicationIconImage`), the window's icons on Windows
