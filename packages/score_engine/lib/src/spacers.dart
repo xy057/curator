@@ -263,6 +263,26 @@ abstract final class Spacers {
     return lengths;
   }
 
+  /// [gaps] as they fit a score whose bars start at [measureStarts] (score quarters, its end
+  /// last), in its order: each in a bar it has, from a beat that is there, not past the end and
+  /// cut where the next starts (another score, or a damaged file, can have them otherwise); one
+  /// left shorter than [HorizontalSpacer.minLength] goes.
+  static List<HorizontalSpacer> fitted(List<HorizontalSpacer> gaps, List<double> measureStarts) {
+    final bars = measureStarts.length - 1;
+    if (bars < 1) return const [];
+    double start(HorizontalSpacer g) => measureStarts[g.bar] + g.offset;
+    final kept = [
+      for (final g in gaps)
+        if (g.bar >= 0 && g.bar < bars && g.offset < measureStarts[g.bar + 1] - measureStarts[g.bar] - 1e-9) g,
+    ]..sort((a, b) => start(a).compareTo(start(b)));
+    return [
+      for (final (i, g) in kept.indexed)
+        if (math.min(start(g) + g.length, i + 1 < kept.length ? start(kept[i + 1]) : measureStarts.last) - start(g)
+            case final length when length >= HorizontalSpacer.minLength - 1e-9)
+          length == g.length ? g : g.copyWith(length: length),
+    ];
+  }
+
   /// The patched Verovio's `curatedSpacers` for [spacers] in bars [barLengths] quarters long:
   /// each split at the barlines it crosses, its width shared out by time; null for none.
   static String? verovioOption(List<HorizontalSpacer> spacers, List<double> barLengths) {
