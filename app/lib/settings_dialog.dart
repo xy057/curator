@@ -1247,17 +1247,22 @@ class _SidebarTileState extends State<_SidebarTile> {
     final selected = widget.selected;
     final style = AppStyle.of(context);
     final k = CarbonColors.maybeOf(context);
-    // Refined: a solid accent row with white text, as a desktop source list's. Carbon: its side
-    // nav's item, $layer-selected with a 3 px bar of the accent at its left, the text semibold.
-    final solid = k == null && selected;
+    // Refined: the accent's light tint, as a chosen segment's, the label in the accent and
+    // semibold (the solid accent is left for the default button). Carbon: its side nav's item,
+    // $layer-selected with a 3 px bar of the accent at its left, the text semibold.
+    final tinted = k == null && selected;
     final fill = k != null
         ? (selected ? k.layerSelected : _hover ? k.layerHover : k.layerHover.withValues(alpha: 0))
-        : solid
-            ? colors.accentFill
+        : tinted
+            ? colors.accentSoft
             : _hover
                 ? colors.line.withValues(alpha: 0.45)
                 : colors.line.withValues(alpha: 0);
-    final ink = k != null ? (selected || _hover ? k.textPrimary : k.textSecondary) : solid ? Colors.white : colors.text;
+    final ink = k != null
+        ? (selected || _hover ? k.textPrimary : k.textSecondary)
+        : tinted
+            ? colors.accentOn(fill, dark: Theme.of(context).brightness == Brightness.dark)
+            : colors.text;
     return Padding(
       padding: EdgeInsets.only(bottom: k != null ? 0 : 1),
       child: Semantics(
@@ -1284,7 +1289,7 @@ class _SidebarTileState extends State<_SidebarTile> {
                     : Border(left: BorderSide(color: selected ? colors.accent : Colors.transparent, width: 3)),
               ),
               child: Row(children: [
-                Icon(widget.icon, size: 16, color: k != null ? ink : solid ? Colors.white : colors.textMuted),
+                Icon(widget.icon, size: 16, color: k != null || tinted ? ink : colors.textMuted),
                 SizedBox(width: k != null ? 8 : 10),
                 Flexible(
                   child: Text(widget.label,
@@ -1294,7 +1299,7 @@ class _SidebarTileState extends State<_SidebarTile> {
                         fontSize: k != null ? 14 : 13,
                         letterSpacing: k != null ? 0.16 : null,
                         color: ink,
-                        fontWeight: k != null && selected ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                       )),
                 ),
               ]),

@@ -630,6 +630,21 @@ class AppColors extends ThemeExtension<AppColors> {
 
   final Color? _fill;
 
+  /// The accent's strong shade taken toward black (or in the dark, white) until it reads on
+  /// [tint] at 4.5:1: a chosen thing's label on [accentSoft], as some accents' shades don't.
+  Color accentOn(Color tint, {required bool dark}) {
+    double contrast(Color a, Color b) {
+      final (x, y) = (a.computeLuminance(), b.computeLuminance());
+      return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
+    }
+
+    var on = accentStrong;
+    for (var t = 0.05; contrast(on, tint) < 4.5 && t <= 1; t += 0.05) {
+      on = Color.lerp(accentStrong, dark ? Colors.white : Colors.black, t)!;
+    }
+    return on;
+  }
+
   static ThemeData theme({
     AccentColor accent = AccentColor.sky,
     Brightness brightness = Brightness.light,

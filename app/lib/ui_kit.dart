@@ -724,19 +724,10 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
     final n = segments.length;
     final index = _indexOf(widget.selected);
     final shown = index >= 0;
-    double contrast(Color a, Color b) {
-      final (x, y) = (a.computeLuminance(), b.computeLuminance());
-      return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
-    }
-
     // Refined's chosen segment: the accent's light tint, edged with the accent, its label the
-    // accent's strong shade taken toward black (or in the dark, white) until it reads on the
-    // tint (4.5:1). Carbon's: inverse, its label $text-inverse.
+    // accent reading on the tint (AppColors.accentOn). Carbon's: inverse, its label $text-inverse.
     final chosen = carbon?.selectedInverse ?? colors.accentSoft;
-    var onChosen = carbon?.textInverse ?? colors.accentStrong;
-    for (var t = 0.05; carbon == null && contrast(onChosen, chosen) < 4.5 && t <= 1; t += 0.05) {
-      onChosen = Color.lerp(colors.accentStrong, dark ? Colors.white : Colors.black, t)!;
-    }
+    final onChosen = carbon?.textInverse ?? colors.accentOn(chosen, dark: dark);
     final unchosen = carbon?.textSecondary ?? colors.textMuted;
     final inner = carbon == null ? 2.0 : 1.0;
     final control = Container(
