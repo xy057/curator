@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
@@ -134,16 +136,17 @@ abstract final class Spacers {
   static String nameOf(String id) => 'Spacer ${id.substring(idPrefix.length)}';
 
   /// Adds a part to [doc] for each of [spacers], after the score's own (so no staff number
-  /// changes): the bars of the first part with a key, empty (a rest that isn't drawn, so the
-  /// spacing doesn't change), with its time signatures and barlines (repeats, endings) and its
-  /// keys as heard, written in the spacer's [VerticalSpacer.key]; a treble clef.
+  /// changes): the bars of the first part with a key, as long as they are engraved
+  /// ([barLengths]) and empty (a rest that isn't drawn, so the spacing doesn't change), with its
+  /// time signatures and barlines (repeats, endings) and its keys as heard, written in the
+  /// spacer's [VerticalSpacer.key]; a treble clef.
   static void write(XmlDocument doc, List<VerticalSpacer> spacers) {
     final root = doc.rootElement;
     final partList = root.getElement('part-list');
     final parts = root.findElements('part').toList();
     if (spacers.isEmpty || partList == null || parts.isEmpty) return;
     final reference = parts.firstWhere((p) => p.findAllElements('key').isNotEmpty, orElse: () => parts.first);
-    final bars = _barsOf(reference);
+    final bars = _barsOf(reference), lengths = barLengths(doc);
     for (final spacer in spacers) {
       if (root.findElements('part').any((p) => p.getAttribute('id') == spacer.id)) continue;
       partList.children.add(_element('score-part', attributes: {'id': spacer.id}, children: [
@@ -164,7 +167,8 @@ abstract final class Spacers {
               ]),
             _element('note', attributes: {'print-object': 'no'}, children: [
               _element('rest', attributes: {'measure': 'yes'}),
-              _element('duration', text: '${bar.length}'),
+              // As long as the bar is engraved, should this part's be short.
+              _element('duration', text: '${i < lengths.length ? math.max(bar.length, (lengths[i] * bar.divisions).round()) : bar.length}'),
               _element('voice', text: '1'),
             ]),
             for (final b in bar.measure.findElements('barline')) if (b.getAttribute('location') != 'left') b.copy(),
@@ -242,10 +246,21 @@ abstract final class Spacers {
 
   static int _duration(XmlElement e) => int.tryParse(e.getElement('duration')?.innerText.trim() ?? '') ?? 0;
 
-  /// How long each bar of [doc] is, quarters (its first part's).
+  /// How long each bar of [doc] is, quarters: its longest part's, as it is engraved (one part's
+  /// bar can be short, a rest left out).
   static List<double> barLengths(XmlDocument doc) {
-    final part = doc.rootElement.findElements('part').firstOrNull;
-    return part == null ? const [] : [for (final b in _barsOf(part)) b.length / b.divisions];
+    final lengths = <double>[];
+    for (final part in doc.rootElement.findElements('part')) {
+      for (final (i, b) in _barsOf(part).indexed) {
+        final length = b.length / b.divisions;
+        if (i == lengths.length) {
+          lengths.add(length);
+        } else if (length > lengths[i]) {
+          lengths[i] = length;
+        }
+      }
+    }
+    return lengths;
   }
 
   /// The patched Verovio's `curatedSpacers` for [spacers] in bars [barLengths] quarters long:
