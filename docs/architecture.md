@@ -168,7 +168,7 @@ an opacity. The fonts themselves stay on the Engraving page. Two sorts of text, 
 - **Drawn** by the scene (names, bar numbers, the tempo at the left, captions): `CuratedScene.typography`,
   in `SceneSettings`; a change only redraws (the renderer's names, the bar numbers' and tempo's
   paragraphs, the caption bar made again; a caption's size changes the room the staves leave).
-- **Engraved** by Verovio (tempo marks, expressions, rehearsal marks, lyrics): `EngraveRequest.typography`,
+- **Engraved** by Verovio (tempo marks, expressions, rehearsal marks (drawn in the bar numbers' row while it is on), lyrics): `EngraveRequest.typography`,
   compared by `engravesLike`, so only these engrave again. `ScoreTypography.applyTo` (in
   `PreparedScore.prepare`, after dynamics typed as text, before condensing copies them) writes a face as
   MusicXML's `font-style` / `font-weight`, and a size and letter spacing as the patched importer's own
@@ -529,6 +529,10 @@ frame asks, so an edit costs the steps up to the playhead, and kept as it was wh
 so each rise starts and ends at rest, is done before the staves get there, and is still a function
 of time. Drawn in the renderer's
 overlay, so the names and frozen zone cover them as they cover the music.
+While it is on, rehearsal marks leave the music too (their ids in `apart` with the tempo marks') and
+stand in the row at their bar's left (`ScoreText.measure`, as edited), boxed, in full ink, bold
+unless Typography ▸ Rehearsal marks gives a face, 1.8 staff spaces at its size; the bar's number
+follows the box. Off, Verovio engraves them over the top staff as before.
 While it is on, the texts that speak of the speed (`ScoreText.tempoRole`: a tempo mark; a change for a
 while, "rit.", "accel.", "allarg." and the like; or "a tempo"; a pair's copy with them) are set apart from
 the music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and
