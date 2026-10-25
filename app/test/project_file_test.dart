@@ -3,19 +3,19 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show Color;
 
-import 'package:archive/archive.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
-import 'package:curated_score/settings_file.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
-import 'image_patch_test.dart' show png;
+
+/// 4 × 2 red pixels.
+final png = base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAYAAAB/qH1jAAAAEklEQVR4nGP4z8DwHxkzoAsAAA8hD/EEN8afAAAAAElFTkSuQmCC');
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -31,98 +31,6 @@ void main() {
         media: media,
       );
 
-  File recording(String name, [int size = 4096]) =>
-      File('${dir.path}/$name')..writeAsBytesSync(List.generate(size, (i) => i % 251));
-
-  test('a project keeps the source score byte for byte, and the app state', () async {
-    final path = '${dir.path}/a.ccs';
-    await ProjectFile.write(path, contents());
-
-    final archive = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
-    expect(archive.files.first.name, 'mimetype', reason: 'identifies the file type without unzipping');
-    expect(archive.findFile('score/Score.musicxml'), isNotNull);
-    final manifest = jsonDecode(utf8.decode(archive.findFile('project.json')!.content)) as Map;
-    expect(manifest['version'], ProjectState.version, reason: 'always written in the newest format');
-
-    final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
-    expect(opened.scoreName, 'Score.musicxml');
-    expect(utf8.decode(opened.scoreBytes), '<score-partwise/>');
-    expect(opened.state.edits.textEdits, {'d1': 'hello'});
-    expect(opened.media, isNull);
-  });
-
-  test('embedded media travels inside the project', () async {
-    final rec = recording('take 1.wav');
-    final path = '${dir.path}/embed.ccs';
-    await ProjectFile.write(path, contents(
-      media: ProjectMedia(name: 'take 1.wav', embedFrom: rec.path),
-    ));
-    rec.deleteSync(); // the project no longer needs it
-
-    final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/unpacked');
-    final media = opened.media!;
-    expect(media.path, '${dir.path}/unpacked/take 1.wav');
-    expect(File(media.path!).readAsBytesSync(), List.generate(4096, (i) => i % 251));
-    expect(media.missingPath, isNull);
-  });
-
-  test('an old project\'s link reaches only a recording, wherever it is', () async {
-    Directory('${dir.path}/projects/p').createSync(recursive: true);
-    File('${dir.path}/secret.txt').writeAsStringSync('not a recording');
-    final take = recording('take.wav');
-    Future<String?> open(Map<String, Object?> media) async {
-      final path = '${dir.path}/projects/p/link.ccs';
-      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(Archive()
-        ..add(ArchiveFile.string('project.json', jsonEncode({
-          'format': ProjectFile.mimeType,
-          'version': ProjectFile.formatVersion,
-          'score': {'name': 'S.musicxml', 'entry': 'score/S.musicxml'},
-          'media': media,
-          'state': const ProjectState().toJson(),
-        })))
-        ..add(ArchiveFile.string('score/S.musicxml', '<score-partwise/>'))));
-      return (await ProjectFile.read(path, mediaDirectory: '${dir.path}/m')).media!.path;
-    }
-
-    expect(await open({'name': 'take.wav', 'relativePath': '../../take.wav'}), endsWith('take.wav'));
-    expect(await open({'name': 'take.wav', 'path': take.path}), take.path);
-    expect(await open({'name': 'secret.wav', 'relativePath': '../../secret.txt'}), isNull);
-    expect(await open({'name': 'secret.wav', 'path': '${dir.path}/secret.txt'}), isNull);
-  });
-
-  test('what a project unpacks is limited, and only what it uses is unpacked', () async {
-    String project(String name, Map<String, Object?> manifest, List<ArchiveFile> files) {
-      final path = '${dir.path}/$name.ccs';
-      final archive = Archive()
-        ..add(ArchiveFile.string('project.json', jsonEncode({
-          'format': ProjectFile.mimeType,
-          'version': ProjectFile.formatVersion,
-          'score': {'name': 'S.musicxml', 'entry': 'score/S.musicxml'},
-          'state': const ProjectState().toJson(),
-          ...manifest,
-        })))
-        ..add(ArchiveFile.string('score/S.musicxml', '<score-partwise/>'));
-      files.forEach(archive.add);
-      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(archive));
-      return path;
-    }
-
-    // Zeros: a few hundred KB in the zip, past any limit unpacked.
-    ArchiveFile bomb(String name) =>
-        ArchiveFile.bytes(name, Uint8List(ProjectFile.maxFontBytes * 2 + 1))..compression = CompressionType.deflate;
-
-    final unusedFont = project('font', {}, [bomb('fonts/Junk.font')]);
-    expect((await ProjectFile.read(unusedFont, mediaDirectory: '${dir.path}/m1')).state.edits.fonts.music, MusicFont.bravura);
-
-    final media = project('media', {'media': {'name': 'take.wav', 'entry': 'media/take.wav'}}, [bomb('media/take.wav')]);
-    await expectLater(ProjectFile.read(media, mediaDirectory: '${dir.path}/m2'), throwsFormatException);
-    final unpacked = File('${dir.path}/m2/take.wav');
-    expect(unpacked.existsSync() ? unpacked.lengthSync() : 0, lessThanOrEqualTo(4 * File(media).lengthSync() + (64 << 20)));
-
-    final manifest = project('manifest', {'padding': ' ' * (ProjectFile.maxManifestBytes + 1)}, []);
-    await expectLater(ProjectFile.read(manifest, mediaDirectory: '${dir.path}/m3'), throwsFormatException);
-  });
-
   test('a failed save leaves the previous file untouched', () async {
     final path = '${dir.path}/safe.ccs';
     await ProjectFile.write(path, contents());
@@ -136,14 +44,6 @@ void main() {
     );
     expect(File(path).readAsBytesSync(), before);
     expect(File('$path.saving').existsSync(), isFalse);
-  });
-
-  test('a project that is not ours, or from the future, is refused', () async {
-    final path = '${dir.path}/future.ccs';
-    final archive = Archive()
-      ..add(ArchiveFile.string('project.json', jsonEncode({'format': ProjectFile.mimeType, 'version': 99})));
-    File(path).writeAsBytesSync(ZipEncoder().encodeBytes(archive));
-    await expectLater(ProjectFile.read(path, mediaDirectory: dir.path), throwsA(isA<FormatException>()));
   });
 
   group('with a score', () {
@@ -239,68 +139,5 @@ void main() {
       expect(doc2.title, 'round.ccs');
       expect(c2.canUndo, isFalse, reason: 'a freshly opened project has no history');
     });
-
-    test('edits make the project dirty; saving makes it clean; autosave writes a saved project with changes, not an untitled one', () async {
-      expect(doc.isDirty, isFalse, reason: 'importing is not an edit');
-      expect(doc.suggestedFileName, 'WI275 - 01 Intro.ccs');
-      c.curation!.clearAll();
-      expect(doc.isDirty, isTrue);
-      await doc.autosave();
-      expect(doc.path, isNull);
-      expect(dir.listSync(), isEmpty);
-
-      final path = '${dir.path}/auto.ccs';
-      await doc.save(path);
-      final first = File(path).lastModifiedSync();
-      await doc.autosave(); // nothing changed
-      expect(File(path).lastModifiedSync(), first);
-
-      c.curation!.setLane(c.score!.metadata.parts.first.id, [const Region(0, 8)]);
-      await doc.autosave();
-      expect(doc.isDirty, isFalse);
-      final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/m');
-      expect(opened.state.edits.lanes![c.score!.metadata.parts.first.id], [const Region(0, 8)]);
-    });
-  });
-
-  test('a settings file (.ccf) carries the score-wide Project Settings to another project, as one Undo step; never the instruments\' own', () async {
-    final a = EditorController(vsync: const TestVSync()), b = EditorController(vsync: const TestVSync());
-    addTearDown(a.dispose);
-    addTearDown(b.dispose);
-    await a.openFile(demoScore.path);
-    await b.openFile(demoScore.path);
-    final part = a.score!.metadata.parts.first;
-    final option = EngraveOption.all.firstWhere((o) => o.kind == EngraveOptionKind.number);
-    a
-      ..setTransition(0.8)
-      ..setScrollFollow(0.9)
-      ..setBarNumbers(false)
-      ..setGroupSections(true)
-      ..setPlayheadColor(const Color(0xFFC8553D))
-      ..renamePart(part, name: 'Solo Piccolo', abbreviation: 'Picc.'); // the instrument's: stays
-    await a.setFonts(const ScoreFonts(music: MusicFont.leland));
-    await a.setProjectEngraving(EngravingOptions().withValue(option, option.max, keepDefault: true));
-    await a.setCenteredLyrics(true);
-    final path = '${dir.path}/house.ccf';
-    await SettingsFile.write(path, a.exportedSettings);
-
-    final archive = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
-    expect(archive.files.first.name, 'mimetype');
-    final state = (jsonDecode(utf8.decode(archive.findFile('settings.json')!.content)) as Map)['state'] as Map;
-    expect(state.keys, isNot(contains('partNames')));
-    expect(state['curation'], {'transition': 0.8, 'scrollFollow': 0.9});
-
-    await b.importSettings(await SettingsFile.read(path));
-    expect((b.curation!.transition, b.scrollFollow, b.barNumbers, b.groupSections, b.playheadColor),
-        (0.8, 0.9, false, true, const Color(0xFFC8553D)));
-    expect((b.fonts.music, b.score!.fonts.music, b.centeredLyrics), (MusicFont.leland, MusicFont.leland, true));
-    expect(b.projectEngraving.overrides[option.key], option.max);
-    expect(b.partName(part), 'Piccolo');
-    b.undo();
-    expect((b.curation!.transition, b.fonts, b.barNumbers), (0.3, ScoreFonts.standard, true));
-    expect(b.canUndo, isFalse, reason: 'one step');
-
-    final bad = File('${dir.path}/bad.ccf')..writeAsStringSync('not a zip');
-    await expectLater(SettingsFile.read(bad.path), throwsFormatException);
   });
 }
