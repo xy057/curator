@@ -700,7 +700,13 @@ project's and unchanged. A change of text size or density cross-fades as a chang
 Refined's palette (`AppColors._refinedOf`) takes every grey from a scale defined up front
 (`RefinedGreys`: a cool 50–900 and the dark theme's own steps; a new grey is a shade of it,
 never a literal), with no accent mixed in, and a
-`chrome` tone behind toolbars, the lane-name column and the ruler. Controls are 28 px with 5 px
+`chrome` tone behind toolbars, the lane-name column and the ruler. Depth comes from
+`elevation(1–5)`, two-part shadows (a broad soft one and a tight dark one): the default button at
+1 (2 on hover, flat when pressed), Home's Recent card at 1, dialogs and the Settings window at the
+top. A region is set apart by a tone or a line, not both: Settings' and Export's sidebars are the
+`well` grey with no dividing line (hairlines stay only where content scrolls under a header or
+over a footer). Resting icons and unchosen sidebar rows are a step softer than text, full
+strength on hover. Controls are 28 px with 5 px
 corners on a 13 px type scale. Segmented controls are a clear track whose chosen segment, a light
 tint of the accent, slides to the one clicked, each label taking the accent as the tint passes
 under it, and the hover and press shades (drawn by the segment, so they fade rather than switch)
