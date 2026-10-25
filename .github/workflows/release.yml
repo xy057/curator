@@ -91,7 +91,7 @@ jobs:
         run: make build || make build
 
       # What `make check` runs, on the commit being released: the analyzer and every test (on the
-      # bundled demo). FFmpeg makes the video tests write real videos instead of skipping.
+      # bundled demo). FFmpeg lets the smoke test below export a real video.
       - name: Test
         run: |
           brew install ffmpeg

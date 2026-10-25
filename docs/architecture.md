@@ -212,7 +212,7 @@ while playing, the beat sounding (`BeatGrid.beatAt`, per pass, so a repeat click
 once if it began since the last frame's time: a late frame still clicks, a seek into a beat
 doesn't. The bar's first beat is higher. The clicks are WAVs made in memory
 (`AudioEngine.clickWav`) and play through SoLoud beside the recording, at full speed whatever
-the playback's; tests take them through `AudioEngine.debugClick`.
+the playback's.
 
 **A place in the score can sound more than once.** A warp is an anchor that jumps: the
 score arrives at `quarter` and, at that same moment, goes on from `jumpTo` (back for a
@@ -718,7 +718,7 @@ Project Settings ▸ Engraving is one sidebar entry with three tabs (`_Category.
 under its title): Engraving, Typography and Advanced. The Engraving tab offers the options most
 scores want changed (`EngravingSetting.all`, in `engraving_settings.dart`: a plain name, a heading,
 a slider step) and Advanced every other one (`EngravingSetting.advanced`; together they hold each option in `EngraveOption.all`
-once, which `engraving_pages_test` checks), all as `EngravingControl`s: sliders, switches and a menu
+once), all as `EngravingControl`s: sliders, switches and a menu
 with the other pages' `SettingSlider` and `ResetSlot`, found by plain or code name in the search.
 All three are `_Category(preview: true)`: a half-size preview of the open score above the rows
 (with none, `EngravingPreviewHost` engraves the bundled demo in a controller of its own, with the
@@ -857,8 +857,8 @@ action) are outlined by `DialogButtons` so their edge, not their label, is on it
 footer uses `DialogButtons` too. Inside a field, typed and chosen text both start
 `AppStyle.fieldInset` in from the border, so an `AppTextField`'s outline has no label gap and an
 `AppDropdown` draws its border over itself; a menu's heading is a `menuHeader`, on its items'
-edge. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`
-(tests find it with `appField(label)`), a select an `AppDropdown(label: …)`, and one that filters as it is
+edge. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`,
+a select an `AppDropdown(label: …)`, and one that filters as it is
 typed in (a long font list) a `DropdownMenu` built through `dialogMenuField`. `Export` is a
 `Dialog` of its own, in the same measures.
 
@@ -914,7 +914,7 @@ scratch space, once per pair of fonts, and again when the system's temp cleanup 
 vendored, public domain / MIT). stb_truetype trusts its fonts, and a project brings its own
 music font, so our copy is changed (its "CURATOR CHANGES" note): every read is checked against
 the font file's bytes (`InFont` in `font_metrics.cpp`), and composite glyphs nest only so deep.
-Keep those changes when updating it; a test measures a font made to break it. A font that
+Keep those changes when updating it. A font that
 can't be read is never taken on (`EditorController.setFonts` prepares it first,
 `LoadedScore.prepareFonts`), so a project never saves one it couldn't open with; its picker says
 why under the field. A text font not installed here falls back to Academico, the
@@ -928,9 +928,8 @@ converted audio, a closed project's unpacked media), the app deletes its folder 
 and at start-up it sweeps folders whose lock is free (their app crashed).
 
 **Tests run on the demo.** Every test uses `app/assets/demo/WI275 - 01 Intro.ccs` (a 44-bar
-6/8 orchestral intro with its recording and curation), so a fresh clone runs them all. The
-engine tests build variants of it where they need something it lacks (a key change, an
-additive meter). `Samples/` is for trying things by hand only. A test's tap that something
+6/8 orchestral intro with its recording and curation), so a fresh clone runs them all.
+The suite is ten essential tests; add one only for a core path none of them covers. `Samples/` is for trying things by hand only. A test's tap that something
 else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app as built
 (opening a window): what only a bundle has, its native library and resources, is checked there.
 
@@ -1010,8 +1009,7 @@ on Windows wherever the registry says that folder now is): it never replaces the
   and `_restore` load the model. If it changes the engraving it goes in `EngraveRequest` too. Replace Score carries it as it is unless
   `ScoreSwap.carry` maps it (a part id or a position). Only the view (`ViewState`) is saved
   without being an edit. If it changes what is drawn, it goes in `SceneSettings` (and the
-  controller's `sceneSettings`), which `VideoExport.of` takes; set it in
-  `test/export_parity_test.dart`, which checks that a video frame is the preview's.
+  controller's `sceneSettings`), which `VideoExport.of` takes.
 - **A Verovio change**: edit `third_party/verovio`, then
   `git -C packages/score_engine/third_party/verovio diff > patches/verovio-curated-score.patch`,
   then `make setup` (it re-applies the patches from a clean tree, and records that it did).
