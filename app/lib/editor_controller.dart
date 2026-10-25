@@ -559,6 +559,17 @@ class EditorController extends ChangeNotifier {
     _edited();
   }
 
+  /// The playback line's colour (Project Settings ▸ Instruments); null: the accent's.
+  Color? get playheadColor => _doc.playheadColor;
+
+  /// Colours the playback line, or gives it back the accent's (null): one Undo step.
+  void setPlayheadColor(Color? color) {
+    if (color == _doc.playheadColor) return;
+    _doc = _doc.copyWith(playheadColor: color);
+    _showSettings();
+    _edited();
+  }
+
   /// Whether the instruments are named in their family's colour (Project Settings ▸
   /// Instruments; see [CuratedScene.nameColors]).
   bool get colorNames => _doc.colorNames;

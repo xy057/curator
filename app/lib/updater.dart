@@ -11,7 +11,7 @@ import 'file_names.dart';
 const appVersion = '0.6.0';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
-const appBuild = 113;
+const appBuild = 114;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
