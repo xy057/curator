@@ -228,7 +228,7 @@ class LoadedScore {
       verovioOptions: {
         ...typography.verovioOptions,
         if (centredLyrics) 'curatedLyricCentre': true,
-        'curatedSpacers': ?Spacers.verovioOption(gaps),
+        if (gaps.isNotEmpty) 'curatedSpacers': ?Spacers.verovioOption(gaps, Spacers.barLengths(doc)),
       },
     );
     final timeline = ConstantTempoTimeline(engraving.measures,
@@ -1321,26 +1321,19 @@ class CuratedScene {
     ]..sort((a, b) => a.rect.top.compareTo(b.rect.top));
   }
 
-  /// Where each horizontal spacer's blank ([LoadedScore.gaps], by index) is at [time] in a frame
-  /// of [size] (points), between the margins. The editor outlines them.
+  /// Where each horizontal spacer ([LoadedScore.gaps], by index) is at [time] in a frame of
+  /// [size] (points): the stretch it widens, between the margins. The editor outlines them.
   List<({int index, ui.Rect rect})> gapRects(double time, ui.Size size) {
-    final scrollX = scrollMap.xAt(time), pointerX = renderer.pointerX(size.width), scale = renderer.scale;
-    final measures = score.engraving.measures, sp = score.engraving.staffSpace;
-    final out = <({int index, ui.Rect rect})>[];
-    for (final (i, gap) in score.gaps.indexed) {
-      if (gap.bar < 0 || gap.bar >= measures.length) continue;
-      final m = measures[gap.bar];
-      var right = m.right;
-      for (var k = 0; k < m.onsetTimes.length; k++) {
-        if (m.onsetTimes[k] >= gap.offset - 1e-9) {
-          right = m.onsetXs[k];
-          break;
-        }
-      }
-      final x = pointerX + (right - scrollX) * scale;
-      out.add((index: i, rect: ui.Rect.fromLTRB(x - gap.width * sp * scale, verticalMargin, x, size.height - verticalMargin)));
-    }
-    return out;
+    final starts = score.timeline.measureStarts;
+    return [
+      for (final (i, gap) in score.gaps.indexed)
+        if (gap.bar >= 0 && gap.bar < starts.length - 1)
+          (
+            index: i,
+            rect: ui.Rect.fromLTRB(frameXAtQuarter(starts[gap.bar] + gap.offset, time, size), verticalMargin,
+                frameXAtQuarter(starts[gap.bar] + gap.offset + gap.length, time, size), size.height - verticalMargin),
+          ),
+    ];
   }
 
   /// The frame at [time] as an image of [width] × [height] pixels, laid out at

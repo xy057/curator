@@ -50,28 +50,36 @@ void main() {
     scene.dispose();
   });
 
-  test('spacers: a vertical one is an empty part of its own, a horizontal one a blank between beats', () async {
+  test('spacers: a vertical one is an empty part of its own, a horizontal one a stretch made wider', () async {
     const spacers = [
       VerticalSpacer(id: 'spacer-1', key: SpacerKey.bFlat, lines: true, frozen: true, height: 10),
       VerticalSpacer(id: 'spacer-2'),
     ];
-    const gap = HorizontalSpacer(bar: 4, offset: 1.5, width: 8);
+    // Bar 5's second half and bar 6's first (6/8: three quarters a bar), 8 staff spaces wider.
+    const gap = HorizontalSpacer(bar: 4, offset: 1.5, length: 3, width: 8);
     final spaced = await LoadedScore.load(demoScore(), spacers: spacers, gaps: const [gap]);
     expect([for (final p in spaced.metadata.parts.skip(score.metadata.parts.length)) p.id], ['spacer-1', 'spacer-2']);
     expect(spaced.metadata.parts.last.name, 'Spacer 2');
     expect(spaced.condensing.partners.keys, isNot(contains('spacer-1')), reason: 'never paired');
     expect(spaced.engraving.measures.length, score.engraving.measures.length);
 
-    // The blank: before the onsets at and after 1.5 quarters into bar 5, as wide as asked; the rest as it was.
+    // What sounds in it spreads apart by time, half the width in each bar; the rest as it was.
     final sp = spaced.engraving.staffSpace;
     final (plain, wide) = (score.engraving.measures, spaced.engraving.measures);
     for (var k = 0; k < plain[3].onsetXs.length; k++) {
       expect(wide[3].onsetXs[k], closeTo(plain[3].onsetXs[k], 1), reason: 'bar 4 unchanged');
     }
+    double moved(int m, int k) => wide[m].onsetXs[k] - wide[m].left - (plain[m].onsetXs[k] - plain[m].left);
     for (var k = 0; k < plain[4].onsetXs.length; k++) {
-      final moved = wide[4].onsetXs[k] - wide[4].left - (plain[4].onsetXs[k] - plain[4].left);
-      expect(moved, plain[4].onsetTimes[k] < gap.offset ? closeTo(0, 1) : closeTo(8 * sp, sp / 2));
+      final t = plain[4].onsetTimes[k];
+      expect(moved(4, k), closeTo(8 * sp * ((t - 1.5) / 3).clamp(0, 1), sp / 2), reason: 'bar 5 at $t');
     }
+    expect((wide[4].right - wide[4].left) - (plain[4].right - plain[4].left), closeTo(4 * sp, sp / 2));
+    for (var k = 0; k < plain[5].onsetXs.length; k++) {
+      final t = plain[5].onsetTimes[k];
+      expect(moved(5, k), closeTo(4 * sp * (t / 1.5).clamp(0, 1), sp / 2), reason: 'bar 6 at $t');
+    }
+    expect(Spacers.verovioOption(const [gap], const [3, 3, 3, 3, 3, 3]), '4:1.5:3.0:4.0,5:0.0:1.5:4.0');
 
     // Its key: the score's as heard, in B♭.
     final flute = score.metadata.parts.firstWhere((p) => p.name.contains('Flute')).staffNumbers.first;

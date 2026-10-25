@@ -87,28 +87,35 @@ class VerticalSpacer {
   int get hashCode => Object.hash(id, key, frozen, lines, height);
 }
 
-/// A blank of [width] staff spaces opened in every staff before what sounds at a beat
-/// ([offset] quarters into bar [bar], counted from 0), as wide as asked whatever the spacing
-/// around it: the engraving either side stays as it was (the patched Verovio's
-/// `curatedSpacers`). A beat where nothing starts opens it before the next thing that does.
+/// A stretch of the score widened (the Attach Image extension): [length] quarters from [offset]
+/// quarters into bar [bar] (counted from 0), across bars or not, made [width] staff spaces wider
+/// whatever its spacing (the patched Verovio's `curatedSpacers`). What sounds in it spreads apart
+/// evenly by time: what starts at its start stays, what follows it moves [width] to the right,
+/// and the engraving either side is as it was.
 @immutable
 class HorizontalSpacer {
-  const HorizontalSpacer({required this.bar, required this.offset, this.width = defaultWidth});
+  const HorizontalSpacer({required this.bar, required this.offset, this.length = defaultLength, this.width = defaultWidth});
 
   final int bar;
   final double offset;
+
+  /// How long it is, quarters.
+  final double length;
+
+  /// How much wider it makes the stretch, staff spaces.
   final double width;
 
+  static const defaultLength = 1.0, minLength = 0.25;
   static const defaultWidth = 8.0, minWidth = 1.0, maxWidth = 80.0;
 
-  HorizontalSpacer copyWith({int? bar, double? offset, double? width}) =>
-      HorizontalSpacer(bar: bar ?? this.bar, offset: offset ?? this.offset, width: width ?? this.width);
+  HorizontalSpacer copyWith({int? bar, double? offset, double? length, double? width}) => HorizontalSpacer(
+      bar: bar ?? this.bar, offset: offset ?? this.offset, length: length ?? this.length, width: width ?? this.width);
 
   @override
   bool operator ==(Object other) =>
-      other is HorizontalSpacer && other.bar == bar && other.offset == offset && other.width == width;
+      other is HorizontalSpacer && other.bar == bar && other.offset == offset && other.length == length && other.width == width;
   @override
-  int get hashCode => Object.hash(bar, offset, width);
+  int get hashCode => Object.hash(bar, offset, length, width);
 }
 
 abstract final class Spacers {
@@ -235,8 +242,28 @@ abstract final class Spacers {
 
   static int _duration(XmlElement e) => int.tryParse(e.getElement('duration')?.innerText.trim() ?? '') ?? 0;
 
-  /// The patched Verovio's `curatedSpacers` for [spacers]; null for none.
-  static String? verovioOption(List<HorizontalSpacer> spacers) => spacers.isEmpty
-      ? null
-      : [for (final s in spacers) '${s.bar}:${s.offset}:${s.width}'].join(',');
+  /// How long each bar of [doc] is, quarters (its first part's).
+  static List<double> barLengths(XmlDocument doc) {
+    final part = doc.rootElement.findElements('part').firstOrNull;
+    return part == null ? const [] : [for (final b in _barsOf(part)) b.length / b.divisions];
+  }
+
+  /// The patched Verovio's `curatedSpacers` for [spacers] in bars [barLengths] quarters long:
+  /// each split at the barlines it crosses, its width shared out by time; null for none.
+  static String? verovioOption(List<HorizontalSpacer> spacers, List<double> barLengths) {
+    final starts = [0.0];
+    for (final l in barLengths) {
+      starts.add(starts.last + l);
+    }
+    final pieces = <String>[];
+    for (final s in spacers) {
+      if (s.bar < 0 || s.bar >= barLengths.length || s.length <= 0) continue;
+      final from = starts[s.bar] + s.offset, to = from + s.length;
+      for (var m = s.bar; m < barLengths.length && starts[m] < to - 1e-9; m++) {
+        final a = (from > starts[m] ? from : starts[m]) - starts[m], b = (to < starts[m + 1] ? to : starts[m + 1]) - starts[m];
+        if (b - a > 1e-9) pieces.add('$m:$a:$b:${s.width * (b - a) / s.length}');
+      }
+    }
+    return pieces.isEmpty ? null : pieces.join(',');
+  }
 }

@@ -57,10 +57,10 @@ void main() {
     await screenshot(tester, 'app-condensed');
     controller.undo();
 
-    // Spacers: a staff of nothing with lines below the clarinet, selected, and a blank in bar 37.
+    // Spacers: a staff of nothing with lines below the clarinet, selected, and bars 37–38 widened.
     controller.setExtension('attachImage', true);
     await tester.runAsync(() async {
-      await controller.spacers.addHorizontal(controller.timeline.measureStarts[36] + 1);
+      await controller.spacers.addHorizontal(controller.timeline.measureStarts[36] + 1.5, controller.timeline.measureStarts[37] + 1.5);
       await controller.spacers.addVertical(below: controller.laneParts[2].id);
       await controller.spacers.setVertical(controller.spacers.vertical.single.copyWith(lines: true, frozen: true));
     });

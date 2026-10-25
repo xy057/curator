@@ -30,7 +30,7 @@ void main() {
     await tester.runAsync(() async {
       await c.spacers.addVertical(below: parts.first.id);
       await c.spacers.setVertical(c.spacers.vertical.single.copyWith(lines: true, frozen: true, height: 8));
-      await c.spacers.addHorizontal(starts[4] + 1);
+      await c.spacers.addHorizontal(starts[4] + 1.5, starts[6]);
     });
     c.captions.add(Caption(starts[1], starts[6], 'The horns answer'));
     c.captions.configure(
