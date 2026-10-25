@@ -63,7 +63,7 @@ typedef StaffLine = ({double y, double left, double right, double thickness});
 /// The staff lines are kept apart ([lines]): they are drawn each frame, so they start exactly
 /// where the frozen zone's lines stop.
 class StaffLayer {
-  StaffLayer(this.info, this.items, {required double binWidth, this.lines = const []}) : _binWidth = binWidth {
+  StaffLayer(this.info, this.items, {required double binWidth, this.lines = const [], this.reach = 0}) : _binWidth = binWidth {
     final maxX = items.fold<double>(0, (m, i) => math.max(m, i.bounds.right));
     final count = (maxX / binWidth).floor() + 1;
     _bins = List.generate(count, (_) => <int>[]);
@@ -82,6 +82,10 @@ class StaffLayer {
   final StaffInfo info;
   final List<DisplayItem> items;
   final List<StaffLine> lines;
+
+  /// Room kept above the top line and below the bottom one as if ink were there, device units
+  /// (a vertical spacer taller than its lines).
+  final double reach;
   final double _binWidth;
   late final List<List<int>> _bins;
   late final List<double> _binTop, _binBottom; // ink extent per bin, relative to the top line
@@ -113,7 +117,7 @@ class StaffLayer {
   /// How far ink reaches above the top line and below the bottom line anywhere in an x range,
   /// in device units. Used ahead of time by the spacing plan, never per frame.
   ({double above, double below}) maxInk(double left, double right) {
-    var above = 0.0, below = 0.0;
+    var above = reach, below = reach;
     if (_bins.isEmpty) return (above: above, below: below);
     final first = math.max(0, ((left - _maxItemWidth) / _binWidth).floor());
     final last = math.min(_bins.length - 1, (right / _binWidth).floor());
@@ -205,8 +209,14 @@ class ScoreDisplayList {
   /// [hiddenCommands]: recorded commands to leave out (the opening clefs and keys, which the
   /// frozen zone shows instead). [apart]: texts kept out of the staves ([ScoreDisplayList.apart]),
   /// source id → the id they are kept by (a copy of a text drawn by the same).
+  /// [spacers]: staff numbers of vertical spacers, each with its height in staff spaces and
+  /// whether its lines are drawn: with them, room kept about the lines to that height (at
+  /// least theirs); without, nothing drawn, a staff that tall about the lines' middle.
   static ScoreDisplayList build(EngravingData data, RenderStyle style,
-      {Set<int> withoutKeySignatures = const {}, Set<int> hiddenCommands = const {}, Map<String, String> apart = const {}}) {
+      {Set<int> withoutKeySignatures = const {},
+      Set<int> hiddenCommands = const {},
+      Map<String, String> apart = const {},
+      Map<int, ({double height, bool lines})> spacers = const {}}) {
     final builder = _ItemBuilder(data, style);
     final byStaff = <int, List<DisplayItem>>{};
     final barlineItems = <DisplayItem>[];
@@ -256,7 +266,21 @@ class ScoreDisplayList {
       data,
       [
         for (final info in data.staves)
-          StaffLayer(info, byStaff[info.n] ?? [], binWidth: binWidth, lines: _joined(lines[info.n] ?? const []))
+          switch (spacers[info.n]) {
+            null => StaffLayer(info, byStaff[info.n] ?? [], binWidth: binWidth, lines: _joined(lines[info.n] ?? const [])),
+            (:final height, lines: true) => StaffLayer(info, byStaff[info.n] ?? [],
+                binWidth: binWidth,
+                lines: _joined(lines[info.n] ?? const []),
+                reach: math.max(0.0, height * data.staffSpace - info.height) / 2),
+            (:final height, lines: false) => StaffLayer(
+                StaffInfo(
+                    n: info.n,
+                    top: info.top + (info.height - height * data.staffSpace) / 2,
+                    height: height * data.staffSpace,
+                    lines: 0),
+                const [],
+                binWidth: binWidth),
+          }
       ],
       StaffLayer(const StaffInfo(n: 0, top: 0, height: 0, lines: 0), barlineItems, binWidth: binWidth),
       [

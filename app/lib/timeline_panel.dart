@@ -13,6 +13,7 @@ import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
 import 'menu_kit.dart';
+import 'spacer_dialogs.dart';
 import 'ui_kit.dart';
 
 part 'instrument_lanes/lane_header.dart';

@@ -43,14 +43,19 @@ class EditCommands {
       _open &&
       (_editor.images._selected != null ||
           _editor.captions._selected != null ||
+          _editor.spacers.hasSelection ||
           (_syncing ? !_anchors._isEmpty : _lanes.selected.isNotEmpty));
 
-  /// Delete: a selected image goes first, then a selected caption, then what is selected in
+  /// Delete: a selected image goes first, then a selected caption, a selected spacer, then what is selected in
   /// the tab showing.
   void delete() {
     if (!_open) return;
     if (_editor.images._selected != null) return _editor.images.remove();
     if (_editor.captions._selected != null) return _editor.captions.remove();
+    if (_editor.spacers.hasSelection) {
+      _editor.spacers.removeSelected();
+      return;
+    }
     _syncing ? _anchors.delete() : _lanes.delete();
   }
 

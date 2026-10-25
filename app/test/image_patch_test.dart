@@ -9,6 +9,7 @@ import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:archive/archive.dart' show ArchiveFile, ZipDecoder, ZipEncoder, getCrc32;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:score_engine/score_engine.dart' show HorizontalSpacer;
 
 import 'demo_project.dart';
 
@@ -96,6 +97,52 @@ void main() {
       }
       o.dispose();
     }
+    c.dispose();
+  });
+
+  testWidgets('spacers: a vertical one is a lane of its own, a horizontal one a stretch widened; moved, saved, undone, off with the extension', (tester) async {
+    await open(tester);
+    final first = c.score!.metadata.parts.first.id;
+    await tester.runAsync(() => c.spacers.addVertical(below: first));
+    expect(c.spacers.vertical, isEmpty, reason: 'Attach Image off');
+    c.setExtension('attachImage', true);
+    await tester.runAsync(() => c.spacers.addVertical(below: first));
+    expect(c.partOrder.indexOf('spacer-1'), c.partOrder.indexOf(first) + 1);
+    expect(c.laneParts.map((p) => p.id), contains('spacer-1'));
+    final beat = c.score!.timeline.measureStarts[4] + 1;
+    await tester.runAsync(() => c.spacers.addHorizontal(beat, beat + 4)); // across a barline
+    expect(c.spacers.horizontal, [const HorizontalSpacer(bar: 4, offset: 1, length: 4)]);
+    expect(c.scene!.gapRects(c.timeline.secondsAtQuarter(beat), const Size(960, 540)), isNotEmpty);
+
+    final state = ProjectState.fromJson(jsonDecode(jsonEncode(c.projectState.toJson())) as Map<String, Object?>);
+    expect(state.edits.spacers, c.spacers.vertical);
+    expect(state.edits.gaps, c.spacers.horizontal);
+
+    await tester.runAsync(() async => c.undo());
+    expect(c.spacers.horizontal, isEmpty);
+    await tester.runAsync(() async => c.redo());
+    expect(c.spacers.horizontal, hasLength(1));
+
+    // Moved (the selection with it), to the top, then removed by Delete.
+    expect(c.spacers.selectedHorizontal, 0, reason: 'a new one is selected');
+    await tester.runAsync(() => c.spacers.moveHorizontal(0, beat + 1));
+    expect((c.spacers.horizontal.single.offset, c.spacers.horizontal.single.length, c.spacers.selectedHorizontal), (2.0, 4.0, 0));
+    c.spacers.moveVertical('spacer-1', 0);
+    expect(c.laneParts.first.id, 'spacer-1');
+    c.commands.delete();
+    expect(c.spacers.horizontal, isEmpty);
+    c.spacers.selectVertical('spacer-1');
+    await tester.runAsync(() async => c.commands.delete());
+    expect(c.spacers.vertical, isEmpty);
+    await tester.runAsync(() async => c.undo());
+    expect(c.spacers.vertical, hasLength(1));
+
+    c.setExtension('attachImage', false); // kept, not engraved
+    while (c.isReengraving) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+    }
+    expect(c.score!.metadata.parts.map((p) => p.id), isNot(contains('spacer-1')));
+    expect(c.spacers.vertical, hasLength(1));
     c.dispose();
   });
 

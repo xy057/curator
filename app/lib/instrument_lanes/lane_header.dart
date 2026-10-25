@@ -3,6 +3,8 @@ part of '../timeline_panel.dart';
 /// What a lane's ⋯ menu offers.
 enum _LaneAction {
   rename('Rename…'),
+  spacer('Edit Spacer…'), // a vertical spacer's lane: its dialog names it too
+  removeSpacer('Remove Spacer'),
   renameFirst('Rename…'), // a condensed pair's lane: one player, or the other (named in the menu)
   renameSecond('Rename…'),
   select('Select All in Lane'),
@@ -67,7 +69,9 @@ class _LaneHeaderState extends State<_LaneHeader> {
     _downAt = null;
     if (down == null || widget.lifted || (e.position - down).distance > 6) return;
     final doubleClick = _clicks.press(e.timeStamp, e.position);
-    if (doubleClick && controller.condensedGroupOf(part.id) == null) {
+    if (doubleClick && controller.spacers.verticalOf(part.id) != null) {
+      showVerticalSpacerDialog(context, controller, part.id);
+    } else if (doubleClick && controller.condensedGroupOf(part.id) == null) {
       showRenameDialog(context, controller, part);
     } else if (isCommandPressed) {
       controller.lanes.selectLaneRange(part.id);
@@ -81,6 +85,10 @@ class _LaneHeaderState extends State<_LaneHeader> {
     switch (action) {
       case _LaneAction.rename:
         showRenameDialog(context, controller, part);
+      case _LaneAction.spacer:
+        showVerticalSpacerDialog(context, controller, part.id);
+      case _LaneAction.removeSpacer:
+        controller.spacers.removeVertical(part.id);
       case _LaneAction.renameFirst || _LaneAction.renameSecond:
         final group = controller.condensedGroupOf(part.id)!;
         final id = action == _LaneAction.renameFirst ? group.first : group.second;
@@ -109,7 +117,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
     PopupMenuItem<_LaneAction> item(BuildContext context, _LaneAction a) =>
         menuItem(context, value: a, child: Text(a.label));
     final group = controller.condensedGroupOf(part.id);
-    final condensed = group != null;
+    final condensed = group != null, spacer = controller.spacers.verticalOf(part.id) != null;
     final menu = OverlaySemantics(
       child: AppPopupMenuButton<_LaneAction>(
         tooltip: 'Lane options',
@@ -122,6 +130,9 @@ class _LaneHeaderState extends State<_LaneHeader> {
           if (group case final group?) ...[
             menuItem(context, value: _LaneAction.renameFirst, child: Text('Rename ${controller.partNameOf(group.first)}…')),
             menuItem(context, value: _LaneAction.renameSecond, child: Text('Rename ${controller.partNameOf(group.second)}…')),
+          ] else if (spacer) ...[
+            item(context, _LaneAction.spacer),
+            item(context, _LaneAction.removeSpacer),
           ] else
             item(context, _LaneAction.rename),
           menuDivider(context),
@@ -129,7 +140,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
           item(context, _LaneAction.copy),
           menuDivider(context),
           item(context, _LaneAction.showThroughout),
-          item(context, _LaneAction.autoCurate),
+          if (!spacer) item(context, _LaneAction.autoCurate), // nothing plays in it
           item(context, _LaneAction.clear),
           menuDivider(context),
           item(context, _LaneAction.moveToTop),
@@ -156,6 +167,8 @@ class _LaneHeaderState extends State<_LaneHeader> {
             message: '${group.partIds.map(controller.partNameOf).join(' and ')}: one lane',
             child: Icon(AppIcon.link.of(context), size: 14, color: context.colors.textMuted),
           ),
+        if (spacer)
+          Tip(message: 'Spacer', child: Icon(AppIcon.verticalSpacer.of(context), size: 14, color: context.colors.textMuted)),
         menu,
       ]),
       child: Listener(

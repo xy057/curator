@@ -58,6 +58,8 @@ class EditState {
     this.textDynamics,
     this.rehearsalInRow,
     this.centredLyrics,
+    this.spacers = const [],
+    this.gaps = const [],
   });
 
   /// When each instrument is shown, with each region's own properties; null when the project
@@ -138,6 +140,13 @@ class EditState {
   /// Captions under the score (Captions), in the order they were added.
   final List<Caption> captions;
 
+  /// Vertical spacers (Attach Image): staves of nothing, each an instrument of its own, in the
+  /// order they were added.
+  final List<VerticalSpacer> spacers;
+
+  /// Horizontal spacers (Attach Image): blanks between beats, in the score's order.
+  final List<HorizontalSpacer> gaps;
+
   /// The font captions are drawn in (a text font family); null: the app's (Settings).
   final String? captionFont;
 
@@ -203,7 +212,9 @@ class EditState {
       mapEquals(extensions, other.extensions) &&
       textDynamics == other.textDynamics &&
       rehearsalInRow == other.rehearsalInRow &&
-      centredLyrics == other.centredLyrics;
+      centredLyrics == other.centredLyrics &&
+      listEquals(spacers, other.spacers) &&
+      listEquals(gaps, other.gaps);
 
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
@@ -243,6 +254,8 @@ class EditState {
     Object? textDynamics = _kept,
     Object? rehearsalInRow = _kept,
     Object? centredLyrics = _kept,
+    List<VerticalSpacer>? spacers,
+    List<HorizontalSpacer>? gaps,
   }) =>
       EditState(
         lanes: identical(lanes, _kept) ? this.lanes : lanes as Map<String, List<Region>>?,
@@ -275,6 +288,8 @@ class EditState {
         textDynamics: identical(textDynamics, _kept) ? this.textDynamics : textDynamics as bool?,
         rehearsalInRow: identical(rehearsalInRow, _kept) ? this.rehearsalInRow : rehearsalInRow as bool?,
         centredLyrics: identical(centredLyrics, _kept) ? this.centredLyrics : centredLyrics as bool?,
+        spacers: spacers ?? this.spacers,
+        gaps: gaps ?? this.gaps,
       );
 }
 
@@ -333,7 +348,7 @@ class ProjectState {
 
   /// The version [toJson] writes (the project file's format version): every save is in the
   /// newest format, whatever the project uses.
-  static const version = 23;
+  static const version = 24;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version]. Additive only: a new format adds fields (the
@@ -361,6 +376,7 @@ class ProjectState {
     20: (state) => state, // the score's typography came in 21: none, the app's
     21: (state) => state, // the rehearsal marks' flag came in 22: none, the app's
     22: (state) => state, // the centred lyrics' flag came in 23: none, the app's
+    23: (state) => state, // spacers came in 24: none
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -493,6 +509,12 @@ class ProjectState {
         textDynamics: r.child('flags').boolean('textDynamics'),
         rehearsalInRow: r.child('flags').boolean('rehearsalInRow'),
         centredLyrics: r.child('flags').boolean('centredLyrics'),
+        spacers: [
+          for (final (i, spacer) in r.list('spacers').indexed) _spacer(JsonReader(spacer, '${r.where}.spacers[$i]')),
+        ],
+        gaps: [
+          for (final (i, gap) in r.list('gaps').indexed) _gap(JsonReader(gap, '${r.where}.gaps[$i]')),
+        ]..sort((a, b) => a.bar != b.bar ? a.bar.compareTo(b.bar) : a.offset.compareTo(b.offset)),
       ),
       images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
       view: ViewState(
@@ -506,6 +528,33 @@ class ProjectState {
         time: view.number('time'),
       ),
     );
+  }
+
+  static VerticalSpacer _spacer(JsonReader r) {
+    final id = r.string('id', required: true)!;
+    if (!Spacers.isSpacer(id)) throw FormatException('The project is damaged: ${r.where}.id is not a spacer\'s.');
+    final height = r.number('height') ?? VerticalSpacer.defaultHeight;
+    if (height < VerticalSpacer.minHeight || height > VerticalSpacer.maxHeight) {
+      throw FormatException('The project is damaged: ${r.where}.height is out of range.');
+    }
+    return VerticalSpacer(
+        id: id,
+        key: SpacerKey.named(r.string('key')),
+        frozen: r.boolean('frozen') ?? false,
+        lines: r.boolean('lines') ?? false,
+        height: height);
+  }
+
+  static HorizontalSpacer _gap(JsonReader r) {
+    final bar = r.number('bar', required: true)!, offset = r.number('offset', required: true)!;
+    final width = r.number('width') ?? HorizontalSpacer.defaultWidth;
+    final length = r.number('length') ?? HorizontalSpacer.defaultLength;
+    if (bar < 0 || bar != bar.roundToDouble() || offset < 0) throw FormatException('The project is damaged: ${r.where} is not in a bar.');
+    if (length < HorizontalSpacer.minLength - 1e-9) throw FormatException('The project is damaged: ${r.where}.length is too short.');
+    if (width < HorizontalSpacer.minWidth || width > HorizontalSpacer.maxWidth) {
+      throw FormatException('The project is damaged: ${r.where}.width is out of range.');
+    }
+    return HorizontalSpacer(bar: bar.toInt(), offset: offset, length: length, width: width);
   }
 
   static ScoreFonts _fonts(JsonReader r, Map<String, ({Uint8List file, Uint8List? metadata})> files) {
@@ -642,7 +691,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :motion, :typography, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :rehearsalInRow, :centredLyrics) = edits;
+        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :rehearsalInRow, :centredLyrics, :spacers, :gaps) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -694,6 +743,21 @@ class ProjectState {
       'captions': [
         for (final c in captions) {'start': c.start, 'end': c.end, 'text': c.text},
       ],
+      if (spacers.isNotEmpty)
+        'spacers': [
+          for (final s in spacers)
+            {
+              'id': s.id,
+              if (s.key != SpacerKey.c) 'key': s.key.name,
+              if (s.frozen) 'frozen': true,
+              if (s.lines) 'lines': true,
+              'height': s.height,
+            },
+        ],
+      if (gaps.isNotEmpty)
+        'gaps': [
+          for (final g in gaps) {'bar': g.bar, 'offset': g.offset, 'length': g.length, 'width': g.width},
+        ],
       'partNames': {
         for (final MapEntry(key: id, value: p) in partNames.entries) id: {'name': p.name, 'abbreviation': p.abbreviation},
       },

@@ -1,3 +1,33 @@
+diff --git a/include/vrv/calcalignmentxposfunctor.h b/include/vrv/calcalignmentxposfunctor.h
+index 2680dc6..b441d9b 100644
+--- a/include/vrv/calcalignmentxposfunctor.h
++++ b/include/vrv/calcalignmentxposfunctor.h
+@@ -10,6 +10,10 @@
+ 
+ #include "functor.h"
+ 
++#include <map>
++#include <tuple>
++#include <vector>
++
+ namespace vrv {
+ 
+ //----------------------------------------------------------------------------
+@@ -74,6 +78,14 @@ private:
+     std::list<Alignment *> m_timestamps;
+     // The MeasureAligner
+     MeasureAligner *m_measureAligner;
++    // [curated-score patch] The spacers (curatedSpacers) by measure index: the stretch each widens
++    // (quarters into it, from and to) and by how many units
++    std::map<int, std::vector<std::tuple<double, double, int>>> m_curatedSpacers;
++    // [curated-score patch] Each measure's index in the document, worked out on the first measure
++    std::map<const Measure *, int> m_curatedMeasureIndex;
++    // [curated-score patch] The current measure's spacers, and how far they have moved its alignments so far
++    std::vector<std::tuple<double, double, int>> m_curatedPending;
++    int m_curatedApplied = 0;
+ };
+ 
+ } // namespace vrv
 diff --git a/include/vrv/drawinginterface.h b/include/vrv/drawinginterface.h
 index 221244d..0647ae4 100644
 --- a/include/vrv/drawinginterface.h
@@ -12,7 +42,7 @@ index 221244d..0647ae4 100644
      Mensur m_currentMensur;
      /** The meter signature (time signature) */
 diff --git a/include/vrv/options.h b/include/vrv/options.h
-index 50b0a70..5eec9a2 100644
+index 50b0a70..f7dc9e4 100644
 --- a/include/vrv/options.h
 +++ b/include/vrv/options.h
 @@ -259,6 +259,13 @@ private:
@@ -29,7 +59,7 @@ index 50b0a70..5eec9a2 100644
  //----------------------------------------------------------------------------
  // OptionInt
  //----------------------------------------------------------------------------
-@@ -711,6 +718,36 @@ public:
+@@ -711,6 +718,37 @@ public:
      OptionJson m_engravingDefaultsFile;
      OptionDbl m_extenderLineMinSpace;
      OptionDbl m_fingeringScale;
@@ -57,6 +87,7 @@ index 50b0a70..5eec9a2 100644
 +    OptionDbl m_curatedMRptScale; // [curated-score patch]
 +    OptionDbl m_curatedRepeatDotScale; // [curated-score patch]
 +    OptionBool m_curatedLyricCentre; // [curated-score patch]
++    OptionString m_curatedSpacers; // [curated-score patch]
 +    OptionDbl m_curatedGlissScale; // [curated-score patch]
 +    OptionDbl m_curatedTabScale; // [curated-score patch]
 +    OptionInt m_curatedFingFace; // [curated-score patch]
@@ -66,7 +97,7 @@ index 50b0a70..5eec9a2 100644
      OptionString m_font;
      OptionArray m_fontAddCustom;
      OptionIntMap m_fontFallback;
-@@ -906,6 +943,13 @@ private:
+@@ -906,6 +944,13 @@ private:
      std::vector<OptionGrp *> m_grps;
  };
  
@@ -174,6 +205,77 @@ index 9a7db65..fcb9ca7 100644
      // Not much to do when we hit the first syllable of the system
      if (m_previousContainer == NULL) {
          m_previousContainer = container;
+diff --git a/src/calcalignmentxposfunctor.cpp b/src/calcalignmentxposfunctor.cpp
+index 63eac3e..daca0c0 100644
+--- a/src/calcalignmentxposfunctor.cpp
++++ b/src/calcalignmentxposfunctor.cpp
+@@ -9,7 +9,14 @@
+ 
+ //----------------------------------------------------------------------------
+ 
++#include <algorithm>
++#include <cstdio>
++#include <sstream>
++
++//----------------------------------------------------------------------------
++
+ #include "doc.h"
++#include "measure.h"
+ #include "system.h"
+ 
+ //----------------------------------------------------------------------------
+@@ -38,6 +45,20 @@ FunctorCode CalcAlignmentXPosFunctor::VisitAlignment(Alignment *alignment)
+     int intervalXRel = 0;
+     Fraction intervalTime = alignment->GetTime() - m_previousTime;
+ 
++    // [curated-score patch] A spacer widens its stretch: an alignment in it moves right as far as
++    // its time is across it, one after it by the whole width (one at its start stays)
++    if (!m_curatedPending.empty() && !alignment->HasTimestampOnly()) {
++        const double quarters = alignment->GetTime().ToDouble() * 4;
++        double wanted = 0;
++        for (const auto &[from, to, units] : m_curatedPending) {
++            wanted += units * std::clamp((quarters - from) / std::max(to - from, 1e-9), 0.0, 1.0);
++        }
++        if (int(wanted) > m_curatedApplied) {
++            m_previousXRel += int(wanted) - m_curatedApplied;
++            m_curatedApplied = int(wanted);
++        }
++    }
++
+     if (alignment->GetType() > ALIGNMENT_MEASURE_RIGHT_BARLINE) {
+         intervalTime = 0;
+     }
+@@ -101,6 +122,30 @@ FunctorCode CalcAlignmentXPosFunctor::VisitMeasure(Measure *measure)
+     // We un-measured music we never have a left barline, so do not add a default space
+     m_previousXRel = (measure->IsMeasuredMusic()) ? m_doc->GetDrawingUnit(100) : 0;
+ 
++    // [curated-score patch] This measure's spacers (curatedSpacers), widths in units: a staff space is two
++    if (m_curatedMeasureIndex.empty()) {
++        ListOfObjects measures = m_doc->FindAllDescendantsByType(MEASURE, false);
++        int index = 0;
++        for (Object *object : measures) m_curatedMeasureIndex[vrv_cast<Measure *>(object)] = index++;
++        std::stringstream list(m_doc->GetOptions()->m_curatedSpacers.GetValue());
++        std::string entry;
++        while (std::getline(list, entry, ',')) {
++            int at = 0;
++            double from = 0, to = 0, spaces = 0;
++            if (sscanf(entry.c_str(), "%d:%lf:%lf:%lf", &at, &from, &to, &spaces) != 4 || spaces <= 0 || to <= from) {
++                continue;
++            }
++            m_curatedSpacers[at].push_back({ from, to, int(spaces * 2 * m_doc->GetDrawingUnit(100)) });
++        }
++    }
++    m_curatedPending.clear();
++    m_curatedApplied = 0;
++    if (auto index = m_curatedMeasureIndex.find(measure); index != m_curatedMeasureIndex.end()) {
++        if (auto spacers = m_curatedSpacers.find(index->second); spacers != m_curatedSpacers.end()) {
++            m_curatedPending = spacers->second;
++        }
++    }
++
+     measure->m_measureAligner.Process(*this);
+ 
+     return FUNCTOR_SIBLINGS;
 diff --git a/src/doc.cpp b/src/doc.cpp
 index 430072a..09a1620 100644
 --- a/src/doc.cpp
@@ -493,10 +595,10 @@ index f20540d..633b18c 100644
                      Text *text = new Text();
                      text->SetText(UTF8to32(textStr));
 diff --git a/src/options.cpp b/src/options.cpp
-index 7e3ec3c..92043df 100644
+index 7e3ec3c..131f850 100644
 --- a/src/options.cpp
 +++ b/src/options.cpp
-@@ -1303,6 +1303,126 @@ Options::Options()
+@@ -1303,6 +1303,130 @@ Options::Options()
      m_fingeringScale.Init(0.75, 0.25, 1);
      this->Register(&m_fingeringScale, "fingeringScale", &m_generalLayout);
  
@@ -583,6 +685,10 @@ index 7e3ec3c..92043df 100644
 +    m_curatedLyricCentre.SetInfo("Lyric centre", "[curated-score patch] Centre a syllable under its notehead, unless an extender follows it");
 +    m_curatedLyricCentre.Init(false);
 +    this->Register(&m_curatedLyricCentre, "curatedLyricCentre", &m_generalLayout);
++
++    m_curatedSpacers.SetInfo("Spacers", "[curated-score patch] Stretches of a measure widened: \"measure:from:to:staff spaces\" (quarters into it; measures counted from 0), comma separated");
++    m_curatedSpacers.Init("");
++    this->Register(&m_curatedSpacers, "curatedSpacers", &m_generalLayout);
 +
 +    m_curatedArpegScale.SetInfo("Arpeggios scale", "[curated-score patch] The size of arpeggios against the staff's");
 +    m_curatedArpegScale.Init(1.0, 0.5, 2.5);

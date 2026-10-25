@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
 import 'score_metadata.dart';
+import 'spacers.dart';
 
 /// Two players of one instrument (Flute 1 and Flute 2) sharing one staff, like Dorico's
 /// condensing: the curated view shows the shared staff while both instruments are shown, and
@@ -153,7 +154,7 @@ abstract final class Condenser {
     final elements = {for (final p in doc.rootElement.findElements('part')) p.getAttribute('id') ?? '': p};
     final single = [
       for (final p in metadata.parts)
-        if (p.staffNumbers.length == 1 && elements[p.id] != null) p,
+        if (p.staffNumbers.length == 1 && elements[p.id] != null && !Spacers.isSpacer(p.id)) p,
     ];
     final written = {for (final p in single) p.id: '${p.isUnpitchedPercussion}\n${_writtenAs(elements[p.id]!)}'};
     final partners = {
