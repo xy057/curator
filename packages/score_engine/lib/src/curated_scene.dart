@@ -37,7 +37,7 @@ class EngraveRequest {
     this.options = const EngravingOptions(),
     this.textDynamics = true,
     this.typography = ScoreTypography.standard,
-    this.centredLyrics = false,
+    this.centeredLyrics = false,
     this.spacers = const [],
     this.gaps = const [],
   });
@@ -58,7 +58,7 @@ class EngraveRequest {
 
   /// Each syllable centred under its notehead, but one an extender follows (Verovio sets
   /// them at the note's left).
-  final bool centredLyrics;
+  final bool centeredLyrics;
 
   /// Vertical spacers, each a part of its own; only what they engrave counts
   /// ([VerticalSpacer.engravesLike]).
@@ -78,11 +78,11 @@ class EngraveRequest {
       other.fonts == fonts &&
       other.options == options &&
       other.textDynamics == textDynamics &&
-      other.centredLyrics == centredLyrics &&
+      other.centeredLyrics == centeredLyrics &&
       other.typography.engravesLike(typography);
 
   @override
-  int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics, centredLyrics, spacers.length, gaps.length);
+  int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics, centeredLyrics, spacers.length, gaps.length);
 }
 
 /// A score that is engraved and ready to show.
@@ -96,7 +96,7 @@ class LoadedScore {
       required this.options,
       required this.textDynamics,
       required this.typography,
-      required this.centredLyrics,
+      required this.centeredLyrics,
       required this.condensed,
       required this.condensing,
       required this.pairs,
@@ -142,8 +142,8 @@ class LoadedScore {
   /// How its engraved texts look (its drawn ones are the scene's, [CuratedScene.typography]).
   final ScoreTypography typography;
 
-  /// Whether its syllables were centred under their notes ([EngraveRequest.centredLyrics]).
-  final bool centredLyrics;
+  /// Whether its syllables were centred under their notes ([EngraveRequest.centeredLyrics]).
+  final bool centeredLyrics;
 
   /// The pairs of players that can share a staff, each engraved on one of its own (the
   /// scene shows it while both are shown and the pair is condensed).
@@ -177,7 +177,7 @@ class LoadedScore {
           options: options,
           textDynamics: textDynamics,
           typography: typography,
-          centredLyrics: centredLyrics,
+          centeredLyrics: centeredLyrics,
           spacers: spacers,
           gaps: gaps);
 
@@ -192,7 +192,7 @@ class LoadedScore {
           options: request.options,
           textDynamics: request.textDynamics,
           typography: request.typography,
-          centredLyrics: request.centredLyrics,
+          centeredLyrics: request.centeredLyrics,
           spacers: request.spacers,
           gaps: request.gaps);
 
@@ -206,7 +206,7 @@ class LoadedScore {
     EngravingOptions options = const EngravingOptions(),
     bool textDynamics = true,
     ScoreTypography typography = ScoreTypography.standard,
-    bool centredLyrics = false,
+    bool centeredLyrics = false,
     List<VerticalSpacer> spacers = const [],
     List<HorizontalSpacer> gaps = const [],
   }) async {
@@ -227,7 +227,7 @@ class LoadedScore {
       options: options,
       verovioOptions: {
         ...typography.verovioOptions,
-        if (centredLyrics) 'curatedLyricCentre': true,
+        if (centeredLyrics) 'curatedLyricCentre': true,
         if (gaps.isNotEmpty) 'curatedSpacers': ?Spacers.verovioOption(gaps, Spacers.barLengths(doc)),
       },
     );
@@ -243,7 +243,7 @@ class LoadedScore {
         options: options,
         textDynamics: textDynamics,
         typography: typography,
-        centredLyrics: centredLyrics,
+        centeredLyrics: centeredLyrics,
         condensed: prepared.condensed,
         condensing: prepared.condensing!,
         pairs: List.unmodifiable(pairs),
@@ -276,7 +276,7 @@ class LoadedScore {
   Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo);
 
   /// Re-engraves with different text edits, pairs of players, fonts, engraving options,
-  /// [textDynamics], [typography], [centredLyrics] or spacers; what isn't given stays.
+  /// [textDynamics], [typography], [centeredLyrics] or spacers; what isn't given stays.
   Future<LoadedScore> withEdits(
           {Map<String, String>? textEdits,
           List<PlayerPair>? pairs,
@@ -284,7 +284,7 @@ class LoadedScore {
           EngravingOptions? options,
           bool? textDynamics,
           ScoreTypography? typography,
-          bool? centredLyrics,
+          bool? centeredLyrics,
           List<VerticalSpacer>? spacers,
           List<HorizontalSpacer>? gaps}) =>
       withRequest(EngraveRequest(
@@ -294,7 +294,7 @@ class LoadedScore {
           options: options ?? this.options,
           textDynamics: textDynamics ?? this.textDynamics,
           typography: typography ?? this.typography,
-          centredLyrics: centredLyrics ?? this.centredLyrics,
+          centeredLyrics: centeredLyrics ?? this.centeredLyrics,
           spacers: spacers ?? this.spacers,
           gaps: gaps ?? this.gaps));
 }
@@ -332,6 +332,7 @@ class SceneSettings {
     this.barNumbers = false,
     this.rehearsalInRow = true,
     this.nameColors = const {},
+    this.pointerColor,
     this.motion = ScoreMotion.standard,
     this.typography = ScoreTypography.standard,
     this.spacers = const [],
@@ -350,6 +351,7 @@ class SceneSettings {
   final bool barNumbers;
   final bool rehearsalInRow;
   final Map<String, ui.Color> nameColors;
+  final ui.Color? pointerColor;
   final ScoreMotion motion;
   final ScoreTypography typography;
   final List<VerticalSpacer> spacers;
@@ -455,7 +457,7 @@ class CuratedScene {
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
   /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [barNumbers],
-  /// [rehearsalInRow], [nameColors], [motion]);
+  /// [rehearsalInRow], [nameColors], [pointerColor], [motion]);
   /// setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
@@ -470,6 +472,7 @@ class CuratedScene {
       barNumbers: barNumbers,
       rehearsalInRow: rehearsalInRow,
       nameColors: nameColors,
+      pointerColor: pointerColor,
       motion: motion,
       typography: typography,
       spacers: spacers);
@@ -486,6 +489,7 @@ class CuratedScene {
     barNumbers = value.barNumbers;
     rehearsalInRow = value.rehearsalInRow;
     nameColors = value.nameColors;
+    pointerColor = value.pointerColor;
     motion = value.motion;
     typography = value.typography;
     spacers = value.spacers;
@@ -562,6 +566,9 @@ class CuratedScene {
   /// The colour some instruments are named in, by part id (a pair in its first player's); one
   /// left out is named in the ink.
   Map<String, ui.Color> nameColors = const {};
+
+  /// The playback line's colour; null: [RenderStyle.pointer].
+  ui.Color? pointerColor;
 
   /// Whether the instruments are grouped in sections as a printed score groups them: each
   /// section ([sectionOf]: the woodwinds, the brass… or a group of the user's) bracketed, its
@@ -857,6 +864,7 @@ class CuratedScene {
         keyColumn: keyColumnAt(time, curation, size),
         paper: paper,
         ink: ink,
+        pointer: pointerColor,
         overlay: patches.isEmpty && !barNumbers
             ? null
             : (canvas, musicLeft) {

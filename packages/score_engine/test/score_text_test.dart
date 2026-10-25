@@ -281,7 +281,7 @@ void main() {
       [lyric('mel', extend: true)],
       [stop],
     ]));
-    final centred = await s.withEdits(centredLyrics: true);
+    final centred = await s.withEdits(centeredLyrics: true);
     expect(centred.request, isNot(s.request));
     List<Rect> heads(LoadedScore s) => [
           for (var i = 0; i < s.engraving.commandCount; i++)
