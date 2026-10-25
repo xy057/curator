@@ -1392,11 +1392,13 @@ class EditorController extends ChangeNotifier {
         lanes._lanes.isEmpty &&
         anchors._isEmpty &&
         images._selected == null &&
-        captions._selected == null) {
+        captions._selected == null &&
+        spacers._selected == null) {
       return;
     }
     images._deselect();
     captions._selected = null;
+    spacers._selected = null;
     lanes._clear();
     anchors._deselect();
     notifyListeners();

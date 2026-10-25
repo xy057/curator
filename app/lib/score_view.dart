@@ -6,18 +6,20 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import 'package:flutter/gestures.dart' show DragStartBehavior, kPrimaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show ScenePatch;
+import 'package:score_engine/score_engine.dart' show HorizontalSpacer, ScenePatch, VerticalSpacer;
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'edit_dialogs.dart';
 import 'error_text.dart';
 import 'image_patch.dart';
+import 'lanes_common.dart' show isCommandPressed;
 import 'spacer_dialogs.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
 
 part 'score_view/attach_image.dart';
+part 'score_view/spacer_handles.dart';
 
 /// The curated score preview, drawn by CuratedScene.paint: a frame is a function of the
 /// time alone, which video export reuses (CuratedScene.renderFrame, VideoExport).
@@ -34,15 +36,15 @@ part 'score_view/attach_image.dart';
 /// corner to resize it; double-click it (or right-click ▸ Crop) and the handles crop it.
 /// A file dropped on it is added as an image where it is dropped ([ScoreViewState.dropImage]).
 ///
-/// It also adds spacers: a vertical one (a staff of nothing, below the staff clicked) or a
-/// horizontal one (a blank before the beat nearest the click), outlined faintly while it is on
-/// (not in a video); double-click one (or right-click it) to change or remove it.
+/// Spacers (added in the bottom panel's Spacers lane) are outlined under the pointer: click one
+/// to select it, drag it to move it, drag a handle to resize it ([_SpacerHandles]); double-click
+/// one (or right-click it) to change or remove it.
 ///
 /// With Captions on, right-click ▸ Add Caption… adds one from where it was clicked;
 /// double-click the caption showing (or right-click it) to change or remove it.
-/// Where the context menu was opened: the patch, caption or spacer there, the score quarter and
-/// staff spaces down, and the staff nearest.
-typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double quarter, double top, String? staff});
+/// Where the context menu was opened: the patch, caption or spacer there, and the score quarter
+/// and staff spaces down.
+typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double quarter, double top});
 
 class ScoreView extends StatefulWidget {
   const ScoreView({super.key, required this.controller, this.aspectRatio});
@@ -55,7 +57,7 @@ class ScoreView extends StatefulWidget {
   State<ScoreView> createState() => ScoreViewState();
 }
 
-class ScoreViewState extends State<ScoreView> with _AttachImage {
+class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage {
   void _onDoubleTap(TapDownDetails details, VideoFrame frame) {
     final scene = c.scene, curation = c.curation;
     if (scene == null || curation == null) return;
@@ -92,34 +94,8 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
   final _menu = MenuController();
 
   /// Where the context menu was opened: the patch, caption or spacer there, or the place a new
-  /// image, caption or spacer goes (a vertical one below [staff]).
+  /// image or caption goes.
   _MenuAt? _menuAt;
-
-  /// The vertical spacer shown at [p] (layout points), by part id.
-  String? _spacerAt(Offset p, VideoFrame frame) {
-    final scene = c.scene, curation = c.curation;
-    if (!c.spacers.enabled || scene == null || curation == null || c.spacers.vertical.isEmpty) return null;
-    for (final r in scene.spacerRects(c.playback.time.value, curation, frame.layout)) {
-      if (r.opacity > 0.5 && r.rect.contains(p)) return r.id;
-    }
-    return null;
-  }
-
-  /// The horizontal spacer at [p] (layout points), an index into [SpacerEditing.horizontal].
-  int? _gapAt(Offset p, VideoFrame frame) {
-    final scene = c.scene;
-    if (!c.spacers.enabled || scene == null || scene.score.gaps.length != c.spacers.horizontal.length) return null;
-    for (final g in scene.gapRects(c.playback.time.value, frame.layout)) {
-      if (Rect.fromLTRB(g.rect.left - 2, g.rect.top, g.rect.right + 2, g.rect.bottom).contains(p)) return g.index;
-    }
-    return null;
-  }
-
-  /// The beat nearest score quarter [q].
-  double _nearestBeat(double q) {
-    final beats = c.beats, m = beats.measureAt(q);
-    return [...beats.beatsIn(m), ...beats.beatsIn(m + 1)].reduce((a, b) => (a - q).abs() <= (b - q).abs() ? a : b);
-  }
 
   /// The caption under [p] (layout points), when its text shows there.
   int? _captionAt(Offset p, VideoFrame frame) {
@@ -143,7 +119,6 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
           gap: gap,
           quarter: scene.quarterAtFrameX(p.dx, time, frame.layout),
           top: p.dy / scene.style.staffSpace,
-          staff: c.curation == null ? null : scene.partNearest(p.dy, time, c.curation!, frame.layout),
         ));
     _menu.open(position: d.localPosition);
   }
@@ -199,10 +174,6 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
           shortcut: SingleActivator(LogicalKeyboardKey.keyV, meta: mac, control: !mac),
           child: const Text('Paste'),
         ),
-        const Divider(height: 9),
-        MenuItemButton(onPressed: () => c.spacers.addVertical(below: at.staff), child: const Text('Add Vertical Spacer')),
-        MenuItemButton(
-            onPressed: () => c.spacers.addHorizontal(_nearestBeat(at.quarter)), child: const Text('Add Horizontal Spacer')),
       ],
       if (c.captions.enabled)
         MenuItemButton(
@@ -240,7 +211,7 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
           : VideoFrame.fit(constraints.biggest, aspectRatio, devicePixelRatio: devicePixelRatio);
       _frame = frame;
       final colors = context.colors;
-      final panning = c.images.enabled || _drag != null;
+      final panning = c.images.enabled || _drag != null || _spacerDrag != null;
       return Stack(children: [
         Positioned.fill(child: ColoredBox(color: aspectRatio == null ? colors.scorePaper : colors.surface)),
         Positioned.fromRect(
@@ -258,7 +229,7 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
         ),
         if (c.spacers.enabled && (c.spacers.vertical.isNotEmpty || c.spacers.horizontal.isNotEmpty))
           Positioned.fill(
-            child: IgnorePointer(child: CustomPaint(painter: _SpacerOutlines(c, frame, colors))),
+            child: IgnorePointer(child: CustomPaint(painter: _SpacerOverlay(this, frame, colors))),
           ),
         if (c.images.enabled && c.images.selected != null)
           Positioned.fill(
@@ -285,10 +256,27 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
                   onDoubleTap: () {},
                   onSecondaryTapUp: (d) => _openMenu(d, frame),
                   // Kept while a drag lasts: Attach Image turned off under it, its end still comes.
-                  onPanStart: panning ? (d) => _onPanStart(d, frame) : null,
-                  onPanUpdate: panning ? (d) => _onPanUpdate(d, frame) : null,
-                  onPanEnd: panning ? (_) => _onPanEnd() : null,
-                  onPanCancel: panning ? _onPanEnd : null,
+                  onPanStart: panning
+                      ? (d) {
+                          _onPanStart(d, frame);
+                          if (_drag == null) _spacerPanStart(d, frame);
+                        }
+                      : null,
+                  onPanUpdate: panning
+                      ? (d) => _spacerDrag != null ? _spacerPanUpdate(d, frame) : _onPanUpdate(d, frame)
+                      : null,
+                  onPanEnd: panning
+                      ? (_) {
+                          _onPanEnd();
+                          _spacerPanEnd();
+                        }
+                      : null,
+                  onPanCancel: panning
+                      ? () {
+                          _onPanEnd();
+                          _spacerPanEnd(commit: false);
+                        }
+                      : null,
                 ),
               ),
             ),
@@ -347,52 +335,4 @@ class _ScorePainter extends CustomPainter {
       old.scale != scale ||
       old.colors.scorePaper != colors.scorePaper ||
       old.colors.scoreInk != colors.scoreInk;
-}
-
-/// The spacers' outlines, faint and dashed, so what is blank can be found (the editor's only:
-/// a video shows the blank).
-class _SpacerOutlines extends CustomPainter {
-  _SpacerOutlines(this.controller, this.frame, this.colors) : super(repaint: Listenable.merge([controller.playback.repaint, controller]));
-  final EditorController controller;
-  final VideoFrame frame;
-  final AppColors colors;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final scene = controller.scene, curation = controller.curation;
-    if (scene == null || curation == null) return;
-    final time = controller.playback.time.value;
-    canvas
-      ..save()
-      ..clipRect(frame.rect);
-    final ink = colors.textMuted.withValues(alpha: 0.45);
-    for (final r in scene.spacerRects(time, curation, frame.layout)) {
-      _dashed(canvas, frame.toView(r.rect).deflate(1), ink.withValues(alpha: ink.a * r.opacity));
-    }
-    for (final g in scene.gapRects(time, frame.layout)) {
-      _dashed(canvas, frame.toView(g.rect), ink);
-    }
-    canvas.restore();
-  }
-
-  static void _dashed(Canvas canvas, Rect r, Color color) {
-    const dash = 4.0, gap = 3.0;
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1;
-    void line(Offset a, Offset b) {
-      final length = (b - a).distance, step = (b - a) / length;
-      for (var d = 0.0; d < length; d += dash + gap) {
-        canvas.drawLine(a + step * d, a + step * (d + dash).clamp(0, length), paint);
-      }
-    }
-
-    line(r.topLeft, r.topRight);
-    line(r.topRight, r.bottomRight);
-    line(r.bottomRight, r.bottomLeft);
-    line(r.bottomLeft, r.topLeft);
-  }
-
-  @override
-  bool shouldRepaint(_SpacerOutlines old) => old.frame != frame || old.colors != colors;
 }

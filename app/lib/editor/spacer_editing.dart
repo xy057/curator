@@ -21,8 +21,47 @@ class SpacerEditing {
   /// The vertical spacer that is part [partId]; null for an instrument.
   VerticalSpacer? verticalOf(String partId) => vertical.where((s) => s.id == partId).firstOrNull;
 
-  /// Adds a vertical spacer just below [below]'s lane (null: at the bottom), shown throughout:
-  /// one Undo step. It shows once engraved again.
+  /// The selected vertical spacer (its part id), if one is.
+  String? get selectedVertical => _selected is String && verticalOf(_selected as String) != null ? _selected as String : null;
+
+  /// The selected horizontal spacer (an index into [horizontal]), if one is.
+  int? get selectedHorizontal {
+    if (_selected case ({int bar, double offset}) at) {
+      final i = horizontal.indexWhere((g) => g.bar == at.bar && g.offset == at.offset);
+      return i < 0 ? null : i;
+    }
+    return null;
+  }
+
+  bool get hasSelection => selectedVertical != null || selectedHorizontal != null;
+
+  /// A vertical spacer's id, or where a horizontal one is (kept by place, not index, so Undo and
+  /// re-sorting keep it).
+  Object? _selected;
+
+  /// Selects vertical spacer [id] (null: none), and nothing else.
+  void selectVertical(String? id) => _select(id == null || verticalOf(id) == null ? null : id);
+
+  /// Selects horizontal spacer [index] (null: none), and nothing else.
+  void selectHorizontal(int? index) => _select(index == null || index < 0 || index >= horizontal.length
+      ? null
+      : (bar: horizontal[index].bar, offset: horizontal[index].offset));
+
+  void _select(Object? what) {
+    if (what == _selected) return;
+    if (what != null) _editor.clearSelection();
+    _selected = what;
+    _editor._changed();
+  }
+
+  /// Removes the selected spacer: one Undo step.
+  Future<void> removeSelected() async {
+    if (selectedVertical case final id?) return removeVertical(id);
+    if (selectedHorizontal case final i?) return removeHorizontal(i);
+  }
+
+  /// Adds a vertical spacer just below [below]'s lane (null: at the bottom), shown throughout,
+  /// and selects it: one Undo step. It shows once engraved again.
   Future<void> addVertical({String? below}) async {
     final e = _editor, score = e._score;
     if (!enabled || score == null) return;
@@ -35,6 +74,7 @@ class SpacerEditing {
     e._doc = e._doc.copyWith(
         spacers: List.unmodifiable([...vertical, VerticalSpacer(id: id)]), partOrder: List.unmodifiable(order));
     e._curation!.setLane(id, [Region(0, score.timeline.measureStarts.last)]);
+    _selected = id;
     await _engrave();
   }
 
@@ -53,12 +93,15 @@ class SpacerEditing {
   }
 
   /// Takes the vertical spacer [id] out of the score, its lane with it: one Undo step.
-  Future<void> removeVertical(String id) async {
-    final e = _editor;
-    if (!enabled || verticalOf(id) == null) return;
+  Future<void> removeVertical(String id) => removeVerticals([id]);
+
+  /// Takes the vertical spacers [ids] out of the score, their lanes with them: one Undo step.
+  Future<void> removeVerticals(Iterable<String> ids) async {
+    final e = _editor, gone = {for (final id in ids) if (verticalOf(id) != null) id};
+    if (!enabled || gone.isEmpty) return;
     e._doc = e._doc.copyWith(
-      spacers: List.unmodifiable([for (final s in vertical) if (s.id != id) s]),
-      partOrder: List.unmodifiable([for (final p in e._doc.partOrder) if (p != id) p]),
+      spacers: List.unmodifiable([for (final s in vertical) if (!gone.contains(s.id)) s]),
+      partOrder: List.unmodifiable([for (final p in e._doc.partOrder) if (!gone.contains(p)) p]),
     );
     await _engrave();
   }
@@ -71,8 +114,8 @@ class SpacerEditing {
     return i < 0 ? null : i;
   }
 
-  /// Opens a horizontal spacer before what sounds at score quarter [quarter] (a beat): one Undo
-  /// step. Nothing when one is there already.
+  /// Opens a horizontal spacer before what sounds at score quarter [quarter] (a beat), and
+  /// selects it: one Undo step. Nothing when one is there already.
   Future<void> addHorizontal(double quarter) async {
     final at = _place(quarter);
     if (!enabled || at == null || horizontalAt(quarter) != null) return;
@@ -80,7 +123,33 @@ class SpacerEditing {
     final gaps = [...horizontal, HorizontalSpacer(bar: at.bar, offset: at.offset)]
       ..sort((a, b) => a.bar != b.bar ? a.bar.compareTo(b.bar) : a.offset.compareTo(b.offset));
     e._doc = e._doc.copyWith(gaps: List.unmodifiable(gaps));
+    e.clearSelection();
+    _selected = at;
     await _engrave();
+  }
+
+  /// Moves horizontal spacer [index] to score quarter [quarter], its width kept: one Undo step.
+  /// Nothing when another is there.
+  Future<void> moveHorizontal(int index, double quarter) async {
+    final at = _place(quarter);
+    if (!enabled || at == null || index < 0 || index >= horizontal.length) return;
+    final was = horizontal[index];
+    if (was.bar == at.bar && (was.offset - at.offset).abs() < 1e-6) return;
+    if (horizontalAt(quarter) != null) return;
+    final moved = was.copyWith(bar: at.bar, offset: at.offset);
+    final gaps = [for (final (i, g) in horizontal.indexed) i == index ? moved : g]
+      ..sort((a, b) => a.bar != b.bar ? a.bar.compareTo(b.bar) : a.offset.compareTo(b.offset));
+    final e = _editor;
+    e._doc = e._doc.copyWith(gaps: List.unmodifiable(gaps));
+    if (_selected == (bar: was.bar, offset: was.offset)) _selected = at;
+    await _engrave();
+  }
+
+  /// Moves vertical spacer [id] to just before the [to]th of the other lanes (their count:
+  /// to the bottom), its staff with it: one Undo step.
+  void moveVertical(String id, int to) {
+    if (!enabled || verticalOf(id) == null) return;
+    _editor.moveLane(id, to);
   }
 
   /// Makes horizontal spacer [index] [width] staff spaces wide: one Undo step.
@@ -112,6 +181,12 @@ class SpacerEditing {
       bar++;
     }
     return (bar: bar, offset: quarter - starts[bar]);
+  }
+
+  /// The quarter horizontal spacer [index] opens at.
+  double quarterOf(int index) {
+    final g = horizontal[index];
+    return _editor._score!.timeline.measureStarts[g.bar] + g.offset;
   }
 
   /// Engraves the score again with the spacers as they are now, and records the step.

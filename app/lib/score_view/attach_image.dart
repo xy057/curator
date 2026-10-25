@@ -2,9 +2,8 @@ part of '../score_view.dart';
 
 /// Attach Image in the score view: selecting an image, moving, resizing and cropping it by
 /// its handles, and adding one from a file, the clipboard or a drop.
-mixin _AttachImage on State<ScoreView> {
-  EditorController get c => widget.controller;
-
+/// An image on top of a spacer ([_SpacerHandles]) takes the pointer first.
+mixin _AttachImage on State<ScoreView>, _SpacerHandles {
   _PatchDrag? _drag;
   MouseCursor _cursor = MouseCursor.defer;
 
@@ -53,6 +52,7 @@ mixin _AttachImage on State<ScoreView> {
     if (!c.images.enabled || e.buttons != kPrimaryButton) return;
     if (_gripAt(e.localPosition, frame) != null) return; // the selected one, to drag
     final hit = _patchAt(frame.toLayout(e.localPosition), frame);
+    if (hit == null && _spacerPointerDown(e.localPosition, frame)) return c.images.select(null);
     c.images.select(hit, crop: hit != null && hit == c.images.selected && c.images.cropping);
   }
 
@@ -91,7 +91,9 @@ mixin _AttachImage on State<ScoreView> {
   }
 
   void _onHover(PointerHoverEvent e, VideoFrame frame) {
-    final cursor = c.images.enabled ? (_gripAt(e.localPosition, frame)?.cursor ?? MouseCursor.defer) : MouseCursor.defer;
+    final cursor = c.images.enabled
+        ? (_gripAt(e.localPosition, frame)?.cursor ?? _spacerHover(e.localPosition, frame) ?? MouseCursor.defer)
+        : MouseCursor.defer;
     if (cursor != _cursor) setState(() => _cursor = cursor);
   }
 

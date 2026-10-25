@@ -100,7 +100,7 @@ void main() {
     c.dispose();
   });
 
-  testWidgets('spacers: a vertical one is a lane of its own, a horizontal one a blank; saved, undone, off with the extension', (tester) async {
+  testWidgets('spacers: a vertical one is a lane of its own, a horizontal one a blank; moved, saved, undone, off with the extension', (tester) async {
     await open(tester);
     final first = c.score!.metadata.parts.first.id;
     await tester.runAsync(() => c.spacers.addVertical(below: first));
@@ -122,6 +122,20 @@ void main() {
     expect(c.spacers.horizontal, isEmpty);
     await tester.runAsync(() async => c.redo());
     expect(c.spacers.horizontal, hasLength(1));
+
+    // Moved (the selection with it), to the top, then removed by Delete.
+    expect(c.spacers.selectedHorizontal, 0, reason: 'a new one is selected');
+    await tester.runAsync(() => c.spacers.moveHorizontal(0, beat + 1));
+    expect((c.spacers.horizontal.single.offset, c.spacers.selectedHorizontal), (2.0, 0));
+    c.spacers.moveVertical('spacer-1', 0);
+    expect(c.laneParts.first.id, 'spacer-1');
+    c.commands.delete();
+    expect(c.spacers.horizontal, isEmpty);
+    c.spacers.selectVertical('spacer-1');
+    await tester.runAsync(() async => c.commands.delete());
+    expect(c.spacers.vertical, isEmpty);
+    await tester.runAsync(() async => c.undo());
+    expect(c.spacers.vertical, hasLength(1));
 
     c.setExtension('attachImage', false); // kept, not engraved
     while (c.isReengraving) {
