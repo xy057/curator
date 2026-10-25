@@ -3,6 +3,7 @@ import 'dart:ffi' show Abi;
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart' show RenderStyle, TextKind, verovioVersion;
@@ -25,7 +26,9 @@ import 'menu_kit.dart';
 import 'motion_settings.dart';
 import 'typography_settings.dart';
 import 'project_state.dart' show NameGroupInfo;
-import 'edit_dialogs.dart' show showNameGroupDialog;
+import 'edit_dialogs.dart' show confirmSavePath, showNameGroupDialog;
+import 'error_text.dart';
+import 'settings_file.dart';
 import 'sections_editor.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
@@ -893,6 +896,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
             },
           ),
         const Spacer(),
+        if (widget.kind == _Window.project && widget.controller != null) _SettingsFileButtons(widget.controller!),
         Padding(
           padding: const EdgeInsets.only(left: 8),
           child: Text(
@@ -1081,6 +1085,55 @@ class _TitleBar extends StatelessWidget {
           ),
         ),
       ]);
+}
+
+/// At the foot of Project Settings' sidebar: Import… and Export… the score-wide settings as a
+/// settings file ([SettingsFile]), for other projects. An import is one Undo step.
+class _SettingsFileButtons extends StatelessWidget {
+  const _SettingsFileButtons(this.controller);
+  final EditorController controller;
+
+  static const _types = [XTypeGroup(label: 'Curator settings', extensions: [SettingsFile.extension])];
+
+  Future<void> _import(BuildContext context) async {
+    final file = await openFile(acceptedTypeGroups: _types);
+    if (file == null || !context.mounted) return;
+    await _guard(context, 'Couldn’t Import Settings', () async => controller.importSettings(await SettingsFile.read(file.path)));
+  }
+
+  Future<void> _export(BuildContext context) async {
+    final location = await getSaveLocation(
+        acceptedTypeGroups: _types, suggestedName: '${stemOf(controller.fileName ?? 'Settings')}.${SettingsFile.extension}');
+    if (location == null || !context.mounted) return;
+    final path = await confirmSavePath(context, location.path, SettingsFile.extension);
+    if (path == null || !context.mounted) return;
+    await _guard(context, 'Couldn’t Export Settings', () => SettingsFile.write(path, controller.exportedSettings));
+  }
+
+  static Future<void> _guard(BuildContext context, String title, Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e) {
+      if (!context.mounted) return;
+      await showAppDialog<void>(
+        context: context,
+        builder: (context) => AppDialog(
+          title: Text(title),
+          content: SingleChildScrollView(child: Text(describeError(e))),
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Wrap(spacing: 2, children: [
+          TextButton(onPressed: () => _import(context), child: const Text('Import…')),
+          TextButton(onPressed: () => _export(context), child: const Text('Export…')),
+        ]),
+      );
 }
 
 /// A page title's icon button: muted, 32 points square.

@@ -1023,6 +1023,80 @@ class EditorController extends ChangeNotifier {
     _edited();
   }
 
+  // MARK: Settings files
+
+  /// Project Settings ▸ Export…: the score-wide settings as the score shows them, the app's
+  /// defaults filled in where the project has none of its own, so another project takes them as
+  /// they look here ([SettingsFile.of] keeps only these).
+  EditState get exportedSettings => _doc.copyWith(
+        transition: _curation!.transition,
+        scrollFollow: scrollFollow,
+        motion: motion,
+        typography: typography,
+        captionFont: captions.font ?? (captions.defaultFont.isEmpty ? null : captions.defaultFont),
+        engraving: _doc.engraving.over(_engravingOptions),
+        extensions: {..._doc.extensions, for (final e in Extensions.all) e.id: extensionOn(e.id)},
+        textDynamics: textDynamics,
+        rehearsalInRow: rehearsalInRow,
+        centeredLyrics: centeredLyrics,
+      );
+
+  /// Project Settings ▸ Import…: [settings] (a settings file's) in place of the project's
+  /// score-wide settings, one Undo step; each instrument's own (brackets, groups, pairs) stay. A
+  /// music font only named is looked for here, Bravura standing in; one that can't be read
+  /// throws, and nothing changes. The future completes when the score is engraved.
+  Future<void> importSettings(EditState settings) async {
+    final score = _score;
+    if (score == null) return;
+    var fonts = settings.fonts;
+    if (fonts.music.isMissing) {
+      if (await findInstalledMusicFont(fonts.music.name) case final found?) fonts = fonts.copyWith(music: found);
+    }
+    _preparingFonts++;
+    notifyListeners();
+    try {
+      await LoadedScore.prepareFonts(fonts);
+    } finally {
+      _preparingFonts--;
+      if (!_disposed) notifyListeners();
+    }
+    if (_score != score) return; // closed, or another score opened, meanwhile
+    if (fonts.music.isAdded && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
+    final engraved = _wanted;
+    beginEdit(); // the transition is the curation's: one step with the rest
+    try {
+      _doc = _doc.copyWith(
+        scrollFollow: settings.scrollFollow,
+        motion: settings.motion,
+        typography: settings.typography,
+        barNumbers: settings.barNumbers,
+        playheadColor: settings.playheadColor,
+        colorNames: settings.colorNames,
+        nameColors: Map.unmodifiable(settings.nameColors),
+        groupSections: settings.groupSections,
+        fonts: fonts,
+        embedFont: settings.embedFont && !fonts.music.isMissing,
+        engraving: settings.engraving,
+        extensions: Map.unmodifiable({..._doc.extensions, ...settings.extensions}),
+        textDynamics: settings.textDynamics,
+        rehearsalInRow: settings.rehearsalInRow,
+        centeredLyrics: settings.centeredLyrics,
+      );
+      if (settings.transition case final seconds?) _curation!.transition = seconds;
+      if (settings.captionFont != captions._font) {
+        captions._font = settings.captionFont;
+        unawaited(captions._applyStyle());
+      }
+      _applyExtensions();
+      _showSettings();
+    } finally {
+      endEdit();
+    }
+    final engraving = _wanted != engraved ? _reengrave() : null;
+    _edited();
+    await engraving;
+  }
+
   // MARK: Condensing
 
   /// The pairs of players that can share a staff: the score's own (Flute 1 and 2, Horn 3

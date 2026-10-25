@@ -70,11 +70,7 @@ abstract final class ProjectFile {
         if (image == null || !PatchImage.isId(id)) throw FileSystemException('An image on the score is missing', id);
         zip.add(ArchiveFile.bytes('images/$id', image.bytes)..compression = image.kind == ImageKind.vector ? CompressionType.deflate : CompressionType.none);
       }
-      final music = c.state.edits.fonts.music;
-      if (music.file case final file? when c.state.edits.embedFont) {
-        zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.font', file));
-        if (music.metadata case final metadata?) zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.json', metadata));
-      }
+      addFont(zip, c.state.edits);
       if (mediaEntry != null) {
         final source = media!.embedFrom;
         if (!File(source).existsSync()) {
@@ -163,24 +159,36 @@ abstract final class ProjectFile {
           })
             if ((PatchImage.kindOfId(id), archive.findFile('images/$id')) case (final kind?, final file?) when file.isFile)
               id: PatchImage(id, kind, ZipEntries.read(file, limit: PatchImage.maxBytes)),
-        }, fontFiles: {
-          // Only the music font the score is engraved in.
-          if (stateJson['fonts'] case {'music': final String name})
-            if (archive.findFile('fonts/$name.font') case final file? when file.isFile)
-              name: (
-                file: ZipEntries.read(file, limit: maxFontBytes),
-                metadata: switch (archive.findFile('fonts/$name.json')) {
-                  final json? => ZipEntries.read(json, limit: maxFontBytes),
-                  null => null,
-                },
-              ),
-        }),
+        }, fontFiles: fontFilesIn(archive, stateJson)),
         media: media,
       );
     } finally {
       input.closeSync();
     }
   }
+
+  /// Adds the added music font [edits] are engraved in, and its metadata, when it is embedded
+  /// (`fonts/<name>.font`, `.json`); a project and a settings file ([SettingsFile]) alike.
+  static void addFont(ZipEncoder zip, EditState edits) {
+    final music = edits.fonts.music;
+    if (music.file case final file? when edits.embedFont) {
+      zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.font', file));
+      if (music.metadata case final metadata?) zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.json', metadata));
+    }
+  }
+
+  /// The files of the music font [stateJson] names, from [archive] ([addFont]'s): only that one.
+  static Map<String, ({Uint8List file, Uint8List? metadata})> fontFilesIn(Archive archive, Map<String, Object?> stateJson) => {
+        if (stateJson['fonts'] case {'music': final String name})
+          if (archive.findFile('fonts/$name.font') case final file? when file.isFile)
+            name: (
+              file: ZipEntries.read(file, limit: maxFontBytes),
+              metadata: switch (archive.findFile('fonts/$name.json')) {
+                final json? => ZipEntries.read(json, limit: maxFontBytes),
+                null => null,
+              },
+            ),
+      };
 
   /// A file name that is safe as a zip entry and on every file system.
   static String _safeName(String name) {
