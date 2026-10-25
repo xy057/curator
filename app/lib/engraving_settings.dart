@@ -228,8 +228,9 @@ class EngravingTarget {
     settings.embedFont = controller.embedFont;
   }
 
-  /// This project's fonts and engraving back to the app's defaults (fonts not installed here:
-  /// Bravura or Academico, as for a new project). Call inside one edit.
+  /// This project's fonts and engraving back to the app's defaults (fonts not installed here
+  /// as for a new project: a music font kept by name, Bravura standing in; Academico). Call
+  /// inside one edit.
   Future<void> resetToDefault() async {
     final (:fonts, :embed) = await controller.defaultFonts();
     await controller.setFonts(fonts, embed: embed);
