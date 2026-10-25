@@ -61,6 +61,7 @@ class EngravingSetting {
     EngravingSetting('Notation', 'Maximum beam slope', 'beamMaxSlope', keywords: 'angle'),
     EngravingSetting('Notation', 'Grace note size', 'graceFactor', ownStep: 0.05, keywords: 'small'),
     EngravingSetting('Notation', 'Lyric size', 'lyricSize', ownStep: 0.1, keywords: 'text words'),
+    EngravingSetting('Notation', 'Close up verses', 'lyricVerseCollapse', keywords: 'lyrics gaps collapse empty lines'),
   ];
 
   static const _thickness = 'Line thickness', _before = 'Space before', _after = 'Space after';
