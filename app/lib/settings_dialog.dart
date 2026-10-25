@@ -798,13 +798,15 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final size = MediaQuery.sizeOf(context);
+    final refined = AppStyle.of(context).style == UiStyle.refined;
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 760, maxHeight: (size.height - 64).clamp(360, 500)),
         child: Material(
           color: Theme.of(context).dialogTheme.backgroundColor,
-          elevation: 16,
-          shadowColor: Colors.black.withValues(alpha: 0.14),
+          // Refined: a dialog's elevation, the top one.
+          elevation: refined ? 24 : 16,
+          shadowColor: refined ? Theme.of(context).dialogTheme.shadowColor : Colors.black.withValues(alpha: 0.14),
           // Its outline changes with the theme at once, as every other line does, not on a Material's
           // own shape animation, which would trail the window's cross-fade.
           animationDuration: Duration.zero,
@@ -818,7 +820,8 @@ class _SettingsWindowState extends State<_SettingsWindow> {
                 ? const SizedBox.shrink()
                 : Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     _sidebar(context),
-                    VerticalDivider(width: 1, color: colors.line),
+                    // Refined: the sidebar's tone alone parts it from the page, no line as well.
+                    if (AppStyle.of(context).isCarbon) VerticalDivider(width: 1, color: colors.line),
                     Expanded(child: _content(context)),
                   ]),
           ),
@@ -1209,12 +1212,13 @@ class _EngravingWindowState extends State<_EngravingWindow> {
   }
 }
 
-/// The sidebar's neutral tint: a step off the dialog's surface, without the accent; in the light
-/// theme the (nearly white) chrome; in Carbon the modal's own $layer-01.
+/// The sidebar's neutral tint: a step off the dialog's surface, without the accent, strong enough
+/// to stand without a dividing line (light: the well, a step past the nearly white chrome); in
+/// Carbon the modal's own $layer-01.
 Color _sidebarColor(BuildContext context) {
   final colors = context.colors;
   if (CarbonColors.maybeOf(context) case final k?) return k.layer01;
-  return _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.32)!;
+  return _lightChrome(colors) ? colors.well : Color.lerp(colors.surface, colors.line, 0.32)!;
 }
 
 bool _lightChrome(AppColors colors) => colors.chrome != colors.surface && colors.surface.computeLuminance() > 0.5;
