@@ -468,7 +468,7 @@ class _AppSwitchState extends State<AppSwitch> {
     final enabled = widget.onChanged != null;
     final accent = colors?.accent ?? theme.colorScheme.primary;
     final on = carbon?.success ?? (dark ? accent : (colors?.accentStrong ?? accent));
-    final off = carbon?.toggleOff ?? (dark ? const Color(0xFF4A4F57) : const Color(0xFFD5DAE0));
+    final off = carbon?.toggleOff ?? (dark ? RefinedGreys.dark600 : RefinedGreys.g300);
     // Carbon's toggle shows no hover; its disabled one is drawn, not faded.
     final hoverShade = (dark ? Colors.white : Colors.black).withValues(alpha: _hovered && enabled && carbon == null ? 0.07 : 0);
     CustomPainter painter(double t) => carbon == null
