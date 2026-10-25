@@ -591,7 +591,10 @@ every `<words>` that spells one of MusicXML's dynamics (`f`, `mp`, `sfz`…): in
 draw dynamics (Maestro, Opus Text, Bravura Text…; any case, as exporters map glyphs through their
 font's table), or in SMuFL's dynamics characters (U+E520–E53D) in any font. It keeps its place and
 colour, not its font; text beside it in the same direction-type moves into direction-types of its
-own, so Verovio still sets it beside the dynamic. The texts list is read before, so it and saved
+own, so Verovio still sets it beside the dynamic.
+A direction-type that repeats one before it in its direction, but for its offsets, goes (exporters
+write "pizz.pizz.", "mf mf" and two hairpins so), and a rehearsal mark's text is trimmed, as
+spaces after it widen its box on one side; both in `PreparedScore.prepare`, before the texts list. The texts list is read before, so it and saved
 edits' ids don't change. Project Settings ▸ Flags ▸ Dynamics typed as text (`EditState.textDynamics`,
 an Undo step that re-engraves; a project without its own takes `AppSettings.textDynamics`, on
 until Save as default) turns it off.
@@ -602,7 +605,10 @@ while a patch is newer than the tree. Patches: per-part key changes (transposing
 keep their written key), MusicXML direction ids (so texts can be edited), the app's typography
 (`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, a rehearsal
 mark's `font-style`, the `curated…Scale` options sizing music symbols, accidentals clear of
-articulations and caesuras between their neighbours), cancelling naturals
+articulations and caesuras between their neighbours), engraving fixes (a rehearsal mark set a fifth
+larger than other text, in a box as roomy at the sides as above and below and at least square,
+a space clear of the music and of notes beside it; text boxes as thick as the font says, not
+half; a space between a tempo's words and its metronome mark, which keeps its own weight), cancelling naturals
 at a key change to C (a key change was applied twice, the second time cancelling itself), and a
 log per thread (engravings run side by side on isolates, each reading its own). Mark changes in
 Verovio's code with `[curated-score patch]`.
