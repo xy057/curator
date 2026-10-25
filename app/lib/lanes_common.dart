@@ -247,7 +247,8 @@ class WithPlayhead extends StatelessWidget {
 }
 
 class _PlayheadPainter extends CustomPainter {
-  _PlayheadPainter(this.c, this.colors, {required this.handle}) : super(repaint: Listenable.merge([c.playback.time, c.viewport]));
+  // The controller too: the project's playback line colour can change under it.
+  _PlayheadPainter(this.c, this.colors, {required this.handle}) : super(repaint: Listenable.merge([c.playback.time, c.viewport, c]));
   final EditorController c;
   final AppColors colors;
   final bool handle;
@@ -266,15 +267,16 @@ class _PlayheadPainter extends CustomPainter {
 /// The playhead line (and a handle at the bottom of the ruler).
 void _paintPlayhead(Canvas canvas, Size size, EditorController c, AppColors colors, {bool handle = false}) {
   final px = c.viewport.x(c.playback.time.value);
+  final color = c.playheadColor ?? colors.accentStrong;
   if (handle) {
     final path = Path()
       ..moveTo(px - 6, size.height - 9)
       ..lineTo(px + 6, size.height - 9)
       ..lineTo(px, size.height)
       ..close();
-    canvas.drawPath(path, Paint()..color = colors.accentStrong);
+    canvas.drawPath(path, Paint()..color = color);
   } else {
-    canvas.drawRect(Rect.fromLTWH(px - 0.75, 0, 1.5, size.height), Paint()..color = colors.accentStrong);
+    canvas.drawRect(Rect.fromLTWH(px - 0.75, 0, 1.5, size.height), Paint()..color = color);
   }
 }
 

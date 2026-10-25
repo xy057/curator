@@ -554,6 +554,11 @@ another or none (`EditState.nameGroupOf`, by part id; removing a group sends its
 to their families'). This is not the Sections page's brackets. Only the name's layer is tinted
 another colour (`StaffLabel.color`); the paragraphs cached in the ink serve every colour.
 
+**The playback line can take a colour of its own** (Project Settings ▸ Instruments ▸ Playback line
+color, above Color names; `EditState.playheadColor`, an edit saved from format 25, null for the accent's).
+Only the lanes' playhead (`_paintPlayhead`: the line and the ruler's handle) takes it; its painter
+listens to the controller too, so a change repaints it alone. The score and the video have none.
+
 **Bar numbers are drawn, not engraved** (Project Settings ▸ Animation ▸ Bar numbers,
 `EditState.barNumbers`, an edit saved from format 18, on for a new project, off for one saved before; `CuratedScene.barNumbers`,
 in `SceneSettings`). Every bar's number as the score prints it (`ScoreMetadata.barNumbers`: MusicXML's `text`, else `number`;

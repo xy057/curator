@@ -344,6 +344,12 @@ final _projectCategories = <_Category>[
   _Category.tabbed('Engraving', AppIcon.music, [_engravingCategory(), _typographyCategory(), _advancedEngravingCategory()]),
   _Category('Instruments', AppIcon.score, page: (c) => _InstrumentsPage(c), [
     _Item(
+      'Playback line color',
+      null,
+      (c) => _PlayheadColor(c.controller!),
+      keywords: 'color colour playback line playhead cursor position',
+    ),
+    _Item(
       'Color names',
       null,
       (c) => AppSwitch(value: c.controller!.colorNames, onChanged: c.controller!.setColorNames),
@@ -1555,6 +1561,7 @@ class _InstrumentsPage extends StatelessWidget {
     int members(String id) => parts.where((p) => controller.nameGroupOf(p) == id).length;
     return _Page(groups: [
       (null, [
+        _SettingRow(title: 'Playback line color', help: null, control: _PlayheadColor(controller)),
         _SettingRow(
             title: 'Color names',
             help: null,
@@ -1645,6 +1652,30 @@ class _InstrumentsPage extends StatelessWidget {
       ],
     ]);
   }
+}
+
+/// The playback line's colour: the accent's until one is chosen, which Reset gives back.
+class _PlayheadColor extends StatelessWidget {
+  const _PlayheadColor(this.controller);
+  final EditorController controller;
+
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+        if (controller.playheadColor != null)
+          IconButton(
+            icon: Icon(AppIcon.reset.of(context), size: 15),
+            tooltip: 'Reset',
+            visualDensity: VisualDensity.compact,
+            color: context.colors.textMuted,
+            onPressed: () => controller.setPlayheadColor(null),
+          ),
+        const SizedBox(width: 8),
+        _ColorSwatch(
+          color: controller.playheadColor ?? context.colors.accentStrong,
+          title: 'Playback line',
+          onChanged: controller.setPlayheadColor,
+        ),
+      ]);
 }
 
 /// A group in a menu: its colour, then its name.
