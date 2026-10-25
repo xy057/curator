@@ -101,6 +101,9 @@ class _HorizontalSpacers implements SpanLaneModel {
   void update(int index, double start, double end) => c.spacers.setHorizontalSpan(index, start, end);
 
   @override
+  void begin() {} // nothing changes until a drag ends
+
+  @override
   void replaceAll(List<({int from, double start, double end})> pieces) => c.spacers.replaceHorizontal(pieces);
 
   @override

@@ -208,8 +208,8 @@ class ScoreSwap {
           sections: {for (final MapEntry(key: id, value: s) in edits.sections.entries) ?_to(id): s},
           patches: patches,
           captions: separateCaptions(captions),
-          // A blank keeps its bar and beat while the bar is there.
-          gaps: [for (final g in edits.gaps) if (g.bar < measuresAfter.length - 1) g],
+          // A blank keeps its bar and beat while they are there, and never runs into the next.
+          gaps: Spacers.fitted(edits.gaps, measuresAfter),
         ),
         images: {for (final p in patches) p.image: state.images[p.image]!},
         view: state.view,

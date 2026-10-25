@@ -29,7 +29,12 @@ abstract interface class SpanLaneModel {
   /// Stretch [index] moved or trimmed to [start]–[end].
   void update(int index, double start, double end);
 
-  /// Every stretch at once, after erasing: each a piece of stretch [from] (an index into [spans]).
+  /// A drag that may change the stretches begins: until the next, [replaceAll]'s pieces are of
+  /// the stretches as they are now (a [live] model's have changed by then).
+  void begin();
+
+  /// Every stretch at once, after erasing: each a piece of stretch [from] (an index into [spans]
+  /// as they were at [begin]).
   void replaceAll(List<({int from, double start, double end})> pieces);
 
   /// A new one drawn over [start]–[end].
@@ -202,6 +207,7 @@ class _SpanLaneState extends State<SpanLane> {
       c.clearSelection();
       final draw = tool == LaneTool.draw;
       if (!draw && model.live) c.beginEdit();
+      model.begin();
       _drag = _Drag(draw ? _Kind.draw : _Kind.erase, downAt: p, downQ: _snap(q, pass), pass: pass, from: model.spans);
       return;
     }
@@ -220,6 +226,7 @@ class _SpanLaneState extends State<SpanLane> {
       return;
     }
     if (model.live) c.beginEdit();
+    model.begin();
     _drag = _Drag(hit.kind, downAt: p, downQ: q, pass: pass, index: hit.index, from: model.spans);
     if (hit.kind == _Kind.move) setState(() => _cursor = SystemMouseCursors.grabbing);
   }

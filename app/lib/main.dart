@@ -404,6 +404,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     } else {
       await _guard(() async {
         await document.importScore(path);
+        if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
         final warnings = controller.score?.warnings ?? const [];
         if (warnings.isNotEmpty && mounted) await showImportWarnings(context, controller.fileName ?? path, warnings);
       });

@@ -27,12 +27,15 @@ class _CaptionLaneState extends State<CaptionLane> {
   EditorController get controller => widget.controller;
   final _nameClicks = DoubleClicks();
 
+  /// Kept: it holds the captions as an erase found them.
+  late final _model = _Captions(controller, context);
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return SpanLane(
       controller: controller,
-      model: _Captions(controller, context),
+      model: _model,
       header: Listener(
         onPointerUp: (e) {
           if (_nameClicks.press(e.timeStamp, e.position)) showCaptionsDialog(context, controller);
@@ -58,6 +61,9 @@ class _Captions implements SpanLaneModel {
 
   List<Caption> get _captions => c.captions.captions;
 
+  /// The captions as a drag found them: erasing changes them as it goes, its pieces are of these.
+  List<Caption> _before = const [];
+
   @override
   List<Span> get spans => [for (final cap in _captions) (start: cap.start, end: cap.end)];
 
@@ -75,8 +81,13 @@ class _Captions implements SpanLaneModel {
       c.captions.update(index, _captions[index].copyWith(start: start, end: end));
 
   @override
-  void replaceAll(List<({int from, double start, double end})> pieces) =>
-      c.captions.replaceAll([for (final p in pieces) _captions[p.from].copyWith(start: p.start, end: p.end)]);
+  void begin() => _before = _captions;
+
+  @override
+  void replaceAll(List<({int from, double start, double end})> pieces) => c.captions.replaceAll([
+        for (final p in pieces)
+          if (p.from >= 0 && p.from < _before.length) _before[p.from].copyWith(start: p.start, end: p.end),
+      ]);
 
   @override
   void drawn(double start, double end) => showCaptionDialog(context, c, draft: Caption(start, end, ''));
