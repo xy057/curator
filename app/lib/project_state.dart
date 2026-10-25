@@ -121,7 +121,7 @@ class EditState {
   /// ([CuratedScene.barNumbers]); on for a new project.
   final bool barNumbers;
 
-  /// The playback line's colour (Project Settings ▸ Instruments); null: the accent's.
+  /// The playback line's colour (Project Settings ▸ Instruments); null: the score's own blue ([RenderStyle.pointer]).
   final Color? playheadColor;
 
   /// Whether the instruments are named in their family's colour (Project Settings ▸
@@ -384,7 +384,7 @@ class ProjectState {
     21: (state) => state, // the rehearsal marks' flag came in 22: none, the app's
     22: (state) => state, // the centred lyrics' flag came in 23: none, the app's
     23: (state) => state, // spacers came in 24: none
-    24: (state) => state, // the playback line's colour came in 25: none, the accent's
+    24: (state) => state, // the playback line's colour came in 25: none, its own blue
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that

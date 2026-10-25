@@ -5,7 +5,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show TextKind, verovioVersion;
+import 'package:score_engine/score_engine.dart' show RenderStyle, TextKind, verovioVersion;
 
 import 'app_colors.dart';
 import 'app_icons.dart';
@@ -347,7 +347,7 @@ final _projectCategories = <_Category>[
       'Playback line color',
       null,
       (c) => _PlayheadColor(c.controller!),
-      keywords: 'color colour playback line playhead cursor position',
+      keywords: 'color colour playback line playhead pointer cursor position score video',
     ),
     _Item(
       'Color names',
@@ -1654,7 +1654,8 @@ class _InstrumentsPage extends StatelessWidget {
   }
 }
 
-/// The playback line's colour: the accent's until one is chosen, which Reset gives back.
+/// The playback line's colour (over the score, in the video too): its own blue until one is chosen,
+/// which Reset gives back.
 class _PlayheadColor extends StatelessWidget {
   const _PlayheadColor(this.controller);
   final EditorController controller;
@@ -1671,7 +1672,7 @@ class _PlayheadColor extends StatelessWidget {
           ),
         const SizedBox(width: 8),
         _ColorSwatch(
-          color: controller.playheadColor ?? context.colors.accentStrong,
+          color: controller.playheadColor ?? const RenderStyle().pointer,
           title: 'Playback line',
           onChanged: controller.setPlayheadColor,
         ),
