@@ -43,6 +43,7 @@ class ImageEditing {
     if (index == _selected && cropping == _cropping) return;
     _selected = index;
     _cropping = cropping;
+    if (index != null) _editor.spacers._selected = null;
     _editor._changed();
   }
 

@@ -1291,40 +1291,34 @@ class CuratedScene {
   double quarterAtFrameX(double x, double time, ui.Size size) =>
       axis.quarterAt(scrollMap.xAt(time) + (x - renderer.pointerX(size.width)) / renderer.scale);
 
+  /// Frame x (points) of score quarter [quarter] at [time]: [quarterAtFrameX] the other way.
+  double frameXAtQuarter(double quarter, double time, ui.Size size) =>
+      renderer.pointerX(size.width) + (axis.xAt(quarter) - scrollMap.xAt(time)) * renderer.scale;
+
   // MARK: Spacers
 
   /// Where each vertical spacer shown at [time] is in a frame of [size] (points): its height,
   /// from where the music starts to the frame's right edge. The editor outlines them.
-  List<({String id, ui.Rect rect, double opacity})> spacerRects(double time, Curation curation, ui.Size size) {
+  List<({String id, ui.Rect rect, double opacity})> spacerRects(double time, Curation curation, ui.Size size) =>
+      [for (final r in staffRects(time, curation, size)) if (Spacers.isSpacer(r.id)) r];
+
+  /// Where each staff shown at [time] is in a frame of [size] (points), top to bottom, by part id
+  /// (a pair's shared staff by its own): its lines (a spacer's height), from where the music
+  /// starts to the frame's right edge.
+  List<({String id, ui.Rect rect, double opacity})> staffRects(double time, Curation curation, ui.Size size) {
     final frame = layoutAt(time, curation, size);
     final ids = {for (final s in _order) s.staffIndex: s.partId};
     final left = renderer.musicLeftFor(keyColumnAt(time, curation, size)), scale = renderer.scale;
     return [
       for (final p in frame.placements)
-        if (ids[p.staffIndex] case final id? when Spacers.isSpacer(id))
+        if (ids[p.staffIndex] case final id?)
           (
             id: id,
             rect: ui.Rect.fromLTRB(left, p.y - display.staves[p.staffIndex].reach * scale, size.width,
                 p.y + (display.staves[p.staffIndex].info.height + display.staves[p.staffIndex].reach) * scale),
             opacity: p.opacity,
           ),
-    ];
-  }
-
-  /// The part (or a pair's shared staff, by its id) whose staff is nearest frame y [y] (points)
-  /// at [time]; null with none shown.
-  String? partNearest(double y, double time, Curation curation, ui.Size size) {
-    final ids = {for (final s in _order) s.staffIndex: s.partId};
-    String? nearest;
-    var distance = double.infinity;
-    for (final p in layoutAt(time, curation, size).placements) {
-      if (p.opacity < 0.5) continue;
-      final staff = display.staves[p.staffIndex], reach = staff.reach * renderer.scale;
-      final top = p.y - reach, bottom = p.y + staff.info.height * renderer.scale + reach;
-      final d = y < top ? top - y : (y > bottom ? y - bottom : 0.0);
-      if (d < distance) (distance, nearest) = (d, ids[p.staffIndex]);
-    }
-    return nearest;
+    ]..sort((a, b) => a.rect.top.compareTo(b.rect.top));
   }
 
   /// Where each horizontal spacer's blank ([LoadedScore.gaps], by index) is at [time] in a frame

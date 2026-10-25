@@ -167,6 +167,8 @@ class _LaneHeaderState extends State<_LaneHeader> {
             message: '${group.partIds.map(controller.partNameOf).join(' and ')}: one lane',
             child: Icon(AppIcon.link.of(context), size: 14, color: context.colors.textMuted),
           ),
+        if (spacer)
+          Tip(message: 'Spacer', child: Icon(AppIcon.verticalSpacer.of(context), size: 14, color: context.colors.textMuted)),
         menu,
       ]),
       child: Listener(
