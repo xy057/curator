@@ -41,6 +41,8 @@ class AppSettings extends ChangeNotifier {
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
         _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? true,
+        _tempoAtLeft = _prefs?.getBool(_tempoAtLeftKey) ?? true,
+        _rehearsalInRow = _prefs?.getBool(_rehearsalInRowKey) ?? true,
         legacyExtensions = _readLegacyExtensions(_prefs),
         _captionFont = _prefs?.getString(_captionFontKey) ?? '',
         _captionCountdown =
@@ -82,6 +84,7 @@ class AppSettings extends ChangeNotifier {
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
+  static const _tempoAtLeftKey = 'tempoAtLeft', _rehearsalInRowKey = 'rehearsalInRow';
 
   static Color? _readColor(SharedPreferences? prefs, String key) {
     try {
@@ -535,6 +538,28 @@ class AppSettings extends ChangeNotifier {
     if (value == _textDynamics) return;
     _textDynamics = value;
     _prefs?.setBool(_textDynamicsKey, value);
+    notifyListeners();
+  }
+
+  /// While bar numbers are shown, tempo marks leave the music for the frame's left in their row
+  /// ([CuratedScene.tempoAtLeft]), in a project that hasn't chosen. On by default.
+  bool get tempoAtLeft => _tempoAtLeft;
+  bool _tempoAtLeft;
+  set tempoAtLeft(bool value) {
+    if (value == _tempoAtLeft) return;
+    _tempoAtLeft = value;
+    _prefs?.setBool(_tempoAtLeftKey, value);
+    notifyListeners();
+  }
+
+  /// While bar numbers are shown, rehearsal marks leave the music for their bars in that row
+  /// ([CuratedScene.rehearsalInRow]), in a project that hasn't chosen. On by default.
+  bool get rehearsalInRow => _rehearsalInRow;
+  bool _rehearsalInRow;
+  set rehearsalInRow(bool value) {
+    if (value == _rehearsalInRow) return;
+    _rehearsalInRow = value;
+    _prefs?.setBool(_rehearsalInRowKey, value);
     notifyListeners();
   }
 

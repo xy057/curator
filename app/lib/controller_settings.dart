@@ -25,6 +25,8 @@ extension ControllerSettings on EditorController {
         plate: settings.captionPlate);
     engravingOptions = settings.engravingOptions;
     defaultTextDynamics = settings.textDynamics;
+    defaultTempoAtLeft = settings.tempoAtLeft;
+    defaultRehearsalInRow = settings.rehearsalInRow;
     videoLayout = VideoFormat.layoutOf(settings.videoRatio.value);
   }
 }
