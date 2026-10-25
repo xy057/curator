@@ -199,7 +199,15 @@ class _PatchDrag {
   /// Where the patch goes with the pointer at [p].
   Rect rectFor(Offset p) {
     final d = p - origin;
-    if (grip == _Grip.body) return rect.shift(d);
+    if (grip == _Grip.body && !cropping) return rect.shift(d);
+    if (grip == _Grip.body) {
+      // Cropping, it moves over the image, never off it: an empty crop draws nothing (NaN).
+      final f = _full;
+      return rect.shift(Offset(
+        d.dx.clamp(math.min(0.0, f.left - rect.left), math.max(0.0, f.right - rect.right)),
+        d.dy.clamp(math.min(0.0, f.top - rect.top), math.max(0.0, f.bottom - rect.bottom)),
+      ));
+    }
     if (cropping) {
       // A patch already smaller than minSide may stay that small, never smaller.
       final f = _full, minWidth = math.min(minSide, rect.width), minHeight = math.min(minSide, rect.height);
