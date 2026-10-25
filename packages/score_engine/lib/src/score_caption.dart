@@ -95,9 +95,83 @@ List<CaptionSpan> captionSpans(List<Caption> captions, ScoreTimeline timeline) {
   ];
 }
 
+/// A stretch of a caption's text in one face: [italic] and [bold] as its markup asks.
+typedef CaptionRun = ({String text, bool italic, bool bold});
+
+/// [text] as it is drawn: `*italic*` and `**bold**` (`***both***`), as in Markdown. A marker
+/// opens before a letter and closes after one, so a lone `*` (or one between spaces, `5 * 3`)
+/// is a star; `\*` is one too. One left open is drawn as typed.
+List<CaptionRun> captionRuns(String text) {
+  // The markers and the text between them, in order.
+  final parts = <(String, bool)>[]; // (text, is a marker)
+  final plain = StringBuffer();
+  for (var i = 0; i < text.length; i++) {
+    final ch = text[i];
+    if (ch == r'\' && i + 1 < text.length && text[i + 1] == '*') {
+      plain.write('*');
+      i++;
+    } else if (ch == '*') {
+      if (plain.isNotEmpty) parts.add((plain.toString(), false));
+      plain.clear();
+      final double = i + 1 < text.length && text[i + 1] == '*';
+      parts.add((double ? '**' : '*', true));
+      if (double) i++;
+    } else {
+      plain.write(ch);
+    }
+  }
+  if (plain.isNotEmpty) parts.add((plain.toString(), false));
+
+  // The letter next to marker [i] past any markers beside it ([step] -1: before it); null at
+  // either end of the text.
+  String? letter(int i, int step) {
+    for (var j = i + step; j >= 0 && j < parts.length; j += step) {
+      final (s, marker) = parts[j];
+      if (!marker) return step < 0 ? s[s.length - 1] : s[0];
+    }
+    return null;
+  }
+
+  bool solid(String? ch) => ch != null && ch.trim().isNotEmpty;
+  // Which markers act: an opener before a letter, its closer after one; one never closed is text.
+  final acts = List.filled(parts.length, false);
+  final open = <String, int>{};
+  for (final (i, (s, marker)) in parts.indexed) {
+    if (!marker) continue;
+    if (open[s] case final at? when solid(letter(i, -1))) {
+      acts[at] = acts[i] = true;
+      open.remove(s);
+    } else if (solid(letter(i, 1))) {
+      open[s] = i;
+    }
+  }
+
+  final runs = <CaptionRun>[];
+  var italic = false, bold = false;
+  for (final (i, (s, marker)) in parts.indexed) {
+    if (marker && acts[i]) {
+      s == '**' ? bold = !bold : italic = !italic;
+      continue;
+    }
+    if (runs.lastOrNull case final last? when last.italic == italic && last.bold == bold) {
+      runs[runs.length - 1] = (text: last.text + s, italic: italic, bold: bold);
+    } else {
+      runs.add((text: s, italic: italic, bold: bold));
+    }
+  }
+  return runs;
+}
+
+/// [text] without its markup: what it says.
+String captionPlain(String text) => captionRuns(text).map((r) => r.text).join();
+
 /// How a caption shows its time running out: a hairline under the text that draws in
 /// to its middle, a small ring beside it that empties, or not at all.
 enum CaptionCountdown { line, ring, none }
+
+/// Where a caption's text sits across the frame. Its countdown line draws in to the text's
+/// middle when centred, else to the side it is set against.
+enum CaptionAlign { left, center, right }
 
 /// The caption text's size, points.
 enum CaptionSize {
@@ -110,26 +184,37 @@ enum CaptionSize {
 }
 
 /// How captions look. [fontFamily] is a family the renderer can draw; null: the score's text font.
+/// [plate]: a soft backing behind the text, so it reads over staves and images.
 @immutable
 class CaptionStyle {
-  const CaptionStyle({this.fontFamily, this.countdown = CaptionCountdown.line, this.size = CaptionSize.medium});
+  const CaptionStyle(
+      {this.fontFamily,
+      this.countdown = CaptionCountdown.line,
+      this.size = CaptionSize.medium,
+      this.align = CaptionAlign.center,
+      this.plate = false});
   final String? fontFamily;
   final CaptionCountdown countdown;
   final CaptionSize size;
+  final CaptionAlign align;
+  final bool plate;
 
   @override
   bool operator ==(Object other) =>
       other is CaptionStyle &&
       other.fontFamily == fontFamily &&
       other.countdown == countdown &&
-      other.size == size;
+      other.size == size &&
+      other.align == align &&
+      other.plate == plate;
   @override
-  int get hashCode => Object.hash(fontFamily, countdown, size);
+  int get hashCode => Object.hash(fontFamily, countdown, size, align, plate);
 }
 
-/// The bar the captions show in, under the staves: the text, centred, and
-/// its countdown ([CaptionStyle.countdown]). A caption glides gently into place as it fades
-/// in, and fades out as its time ends.
+/// The bar the captions show in, under the staves: the text, set as [CaptionStyle.align] says
+/// with its markup's faces ([captionRuns]), its countdown ([CaptionStyle.countdown]) and, if
+/// asked, a plate behind them. A caption glides gently into place as it fades in, and fades
+/// out as its time ends.
 class CaptionBar {
   CaptionBar(this.fontFamily, [this.style = const CaptionStyle(), this.look = TextKind.captionsHouse]);
 
@@ -153,10 +238,23 @@ class CaptionBar {
   /// Space either side of the text, and the widest it gets.
   static const _side = 24.0, _maxWidth = 560.0;
 
+  /// The plate's margin around what it backs, and its corners.
+  static const _platePad = (x: 12.0, y: 6.0), _plateRadius = 6.0;
+
+  /// The ring's radius, and the room it takes left of the text.
+  double get _ringRadius => fontSize * 0.36;
+  double get _ringRoom => style.countdown == CaptionCountdown.ring ? 2 * _ringRadius + 10 : 0;
+
   /// Each text laid out, with its first line's height (where the ring sits).
   final _paragraphs = <(String, double), ({ui.Paragraph p, double firstLine})>{};
 
   ui.Paragraph _paragraph(String text, double width) => _laidOut(text, width).p;
+
+  ui.TextAlign get _textAlign => switch (style.align) {
+        CaptionAlign.left => ui.TextAlign.left,
+        CaptionAlign.center => ui.TextAlign.center,
+        CaptionAlign.right => ui.TextAlign.right,
+      };
 
   ({ui.Paragraph p, double firstLine}) _laidOut(String text, double width) => _paragraphs.putIfAbsent((text, width), () {
         if (_paragraphs.length > 64) _clear();
@@ -166,12 +264,21 @@ class CaptionBar {
           fontStyle: look.face.fontStyle,
           fontWeight: look.face.fontWeight,
           height: 1.3,
-          textAlign: ui.TextAlign.center,
+          textAlign: _textAlign,
           maxLines: 2,
           ellipsis: '…',
         ))
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
-          ..addText(text.trim());
+          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)));
+        // Emphasis turns an italic face upright, as in print; bold is bold.
+        for (final run in captionRuns(text.trim())) {
+          builder
+            ..pushStyle(ui.TextStyle(
+              fontStyle: run.italic != look.face.isItalic ? ui.FontStyle.italic : ui.FontStyle.normal,
+              fontWeight: run.bold || look.face.isBold ? ui.FontWeight.bold : ui.FontWeight.normal,
+            ))
+            ..addText(run.text)
+            ..pop();
+        }
         final p = builder.build()..layout(ui.ParagraphConstraints(width: width));
         return (p: p, firstLine: p.computeLineMetrics().firstOrNull?.height ?? p.height);
       });
@@ -186,25 +293,64 @@ class CaptionBar {
   /// Frees the texts laid out; the bar can't be drawn after.
   void dispose() => _clear();
 
-  double _width(ui.Size size) => math.min(size.width - 2 * _side, _maxWidth);
+  /// The paragraph's width: set against the left, it starts after the ring.
+  double _width(ui.Size size) => math.min(size.width - 2 * _side - (style.align == CaptionAlign.left ? _ringRoom : 0), _maxWidth);
 
-  /// The text's top-left, with no rise, and the countdown line's y.
-  ({double top, double line}) _place(ui.Paragraph p, ui.Size size) =>
-      (top: size.height - _bottom - _gap - p.height, line: size.height - _bottom);
+  /// Where [p] goes in a frame of [size], with no rise: the paragraph's left, its text's left
+  /// edge and width (its longest line), its top, and the countdown line's y.
+  ({double left, double textLeft, double textWidth, double top, double line}) _place(ui.Paragraph p, ui.Size size) {
+    final textWidth = p.longestLine;
+    final (left, textLeft) = switch (style.align) {
+      CaptionAlign.left => (_side + _ringRoom, _side + _ringRoom),
+      CaptionAlign.center => (size.width / 2 - p.width / 2, size.width / 2 - textWidth / 2),
+      CaptionAlign.right => (size.width - _side - p.width, size.width - _side - textWidth),
+    };
+    return (
+      left: left,
+      textLeft: textLeft,
+      textWidth: textWidth,
+      top: size.height - _bottom - _gap - p.height,
+      line: size.height - _bottom,
+    );
+  }
+
+  /// The countdown line's full stretch under a text at [textLeft], [textWidth] wide: as wide
+  /// as the text (64 at least), set against the same side.
+  (double, double) _lineSpan(double textLeft, double textWidth) {
+    final w = math.max(textWidth, 64.0);
+    return switch (style.align) {
+      CaptionAlign.left => (textLeft, textLeft + w),
+      CaptionAlign.center => (textLeft + textWidth / 2 - w / 2, textLeft + textWidth / 2 + w / 2),
+      CaptionAlign.right => (textLeft + textWidth - w, textLeft + textWidth),
+    };
+  }
+
+  /// What the plate backs, before its margin: the text, its ring and its line.
+  ui.Rect _backed(ui.Paragraph p, ui.Size size, double rise) {
+    final (:left, :textLeft, :textWidth, :top, :line) = _place(p, size);
+    final (a, b) = _lineSpan(textLeft, textWidth);
+    final l = math.min(a, textLeft - _ringRoom), r = math.max(b, textLeft + textWidth);
+    final bottom = style.countdown == CaptionCountdown.line ? line + 1 : top + rise + p.height;
+    return ui.Rect.fromLTRB(l, top + rise, r, bottom);
+  }
+
+  ui.Rect _padded(ui.Rect r) => ui.Rect.fromLTRB(r.left - _platePad.x, r.top - _platePad.y, r.right + _platePad.x, r.bottom + _platePad.y);
 
   /// Where [text] is drawn in a frame of [size] (for hit tests).
   ui.Rect rectOf(String text, ui.Size size) {
     final p = _paragraph(text, _width(size));
-    final (:top, :line) = _place(p, size);
-    final w = math.max(p.longestLine, 64.0) + (style.countdown == CaptionCountdown.ring ? 40 : 0);
-    return ui.Rect.fromLTRB(size.width / 2 - w / 2, math.min(top, line - 2), size.width / 2 + w / 2, math.max(top + p.height, line + 2));
+    final (:left, :textLeft, :textWidth, :top, :line) = _place(p, size);
+    final (a, b) = _lineSpan(textLeft, textWidth);
+    final rect = ui.Rect.fromLTRB(
+        math.min(a, textLeft - _ringRoom), math.min(top, line - 2), math.max(b, textLeft + textWidth), math.max(top + p.height, line + 2));
+    return style.plate ? _padded(rect) : rect;
   }
 
   /// Draws what shows at [time]: the span under way, if any. It fades in and out over
   /// [ScoreMotion.captionFade], rising [ScoreMotion.captionRise] into place along
-  /// [ScoreMotion.captionCurve].
+  /// [ScoreMotion.captionCurve]. A plate takes [paper]'s colour, a touch of [ink] in it.
   void paint(ui.Canvas canvas, ui.Size size, double time, List<CaptionSpan> spans, List<Caption> captions, ui.Color ink,
-      {ScoreMotion motion = ScoreMotion.standard}) {
+      {ScoreMotion motion = ScoreMotion.standard, ui.Color paper = const ui.Color(0xFFFFFFFF)}) {
     final fade = motion.captionFade, curve = motion.captionCurve;
     for (final s in spans) {
       if (time < s.start || time >= s.end) continue;
@@ -213,10 +359,18 @@ class CaptionBar {
       final opacity = curve.inside(math.min(into, left));
       if (opacity <= 0.001) continue;
       final (:p, :firstLine) = _laidOut(captions[s.caption].text, _width(size));
-      final (:top, :line) = _place(p, size);
+      final (left: x, :textLeft, :textWidth, :top, :line) = _place(p, size);
       // It comes in from the frame's edge: up from below.
       final rise = (1 - curve.at(into)) * motion.captionRise;
-      final cx = size.width / 2, at = ui.Offset(cx - p.width / 2, top + rise);
+      final at = ui.Offset(x, top + rise);
+
+      if (style.plate) {
+        // Paper on see-through paper would be nothing: the plate is always solid paper.
+        final tone = ui.Color.lerp(paper.withValues(alpha: 1), ink, 0.05)!;
+        canvas.drawRRect(ui.RRect.fromRectAndRadius(_padded(_backed(p, size, rise)), const ui.Radius.circular(_plateRadius)),
+            ui.Paint()..color = tone.withValues(alpha: 0.92 * opacity));
+      }
+
       // The layer (to tint and fade the text) only as big as the text, not the frame: a full
       // frame offscreen each frame is costly at 4K. A little over, for glyphs that overhang.
       canvas.saveLayer((at & ui.Size(p.width, p.height)).inflate(4),
@@ -234,16 +388,21 @@ class CaptionBar {
       final track = ink.withValues(alpha: 0.12 * opacity), rest = ink.withValues(alpha: 0.5 * opacity);
       switch (style.countdown) {
         case CaptionCountdown.line:
-          // A hairline as wide as the text, drawing in to its middle.
-          final half = math.max(p.longestLine, 64.0) / 2;
-          canvas.drawLine(ui.Offset(cx - half, line), ui.Offset(cx + half, line), stroke..color = track);
+          // A hairline as wide as the text, drawing in to its middle (or its side).
+          final (a, b) = _lineSpan(textLeft, textWidth);
+          canvas.drawLine(ui.Offset(a, line), ui.Offset(b, line), stroke..color = track);
           if (remaining > 0) {
-            canvas.drawLine(ui.Offset(cx - half * remaining, line), ui.Offset(cx + half * remaining, line), stroke..color = rest);
+            final (from, to) = switch (style.align) {
+              CaptionAlign.left => (a, a + (b - a) * remaining),
+              CaptionAlign.center => ((a + b) / 2 - (b - a) / 2 * remaining, (a + b) / 2 + (b - a) / 2 * remaining),
+              CaptionAlign.right => (b - (b - a) * remaining, b),
+            };
+            canvas.drawLine(ui.Offset(from, line), ui.Offset(to, line), stroke..color = rest);
           }
         case CaptionCountdown.ring:
           // A small ring left of the first line, emptying clockwise from the top.
-          final r = fontSize * 0.36;
-          final centre = ui.Offset(cx - p.longestLine / 2 - r - 10, top + rise + firstLine / 2);
+          final r = _ringRadius;
+          final centre = ui.Offset(textLeft - r - 10, top + rise + firstLine / 2);
           canvas.drawCircle(centre, r, stroke..color = track);
           if (remaining > 0) {
             canvas.drawArc(ui.Rect.fromCircle(center: centre, radius: r), -math.pi / 2, 2 * math.pi * remaining, false,

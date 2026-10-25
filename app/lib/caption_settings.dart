@@ -6,7 +6,8 @@ import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'ui_kit.dart';
 
-/// Project Settings ▸ Extensions ▸ Captions ▸ settings: how captions look in every project. A project
+/// Project Settings ▸ Extensions ▸ Captions ▸ settings: how captions look in every project: font,
+/// countdown, size, alignment and a backing. A project
 /// may choose its own font (Project Settings ▸ Engraving).
 class CaptionSettings extends StatefulWidget {
   const CaptionSettings({super.key, required this.settings});
@@ -85,6 +86,13 @@ class _CaptionSettingsState extends State<CaptionSettings> {
               segments(s.captionSize, const [(CaptionSize.small, 'S'), (CaptionSize.medium, 'M'), (CaptionSize.large, 'L')],
                   (v) => s.captionSize = v),
             ),
+            row(
+              'Align',
+              segments(s.captionAlign,
+                  const [(CaptionAlign.left, 'Left'), (CaptionAlign.center, 'Center'), (CaptionAlign.right, 'Right')],
+                  (v) => s.captionAlign = v),
+            ),
+            row('Backing', AppSwitch(value: s.captionPlate, onChanged: (v) => s.captionPlate = v)),
             const SizedBox(height: 8),
             _Preview(settings: s),
           ]),
@@ -119,8 +127,11 @@ class _Preview extends StatelessWidget {
               CaptionStyle(
                   fontFamily: family,
                   countdown: settings.captionCountdown,
-                  size: settings.captionSize),
+                  size: settings.captionSize,
+                  align: settings.captionAlign,
+                  plate: settings.captionPlate),
               colors.scoreInk,
+              colors.scorePaper,
             ),
           ),
         ),
@@ -130,18 +141,18 @@ class _Preview extends StatelessWidget {
 }
 
 class _PreviewPainter extends CustomPainter {
-  _PreviewPainter(this.style, this.ink);
+  _PreviewPainter(this.style, this.ink, this.paper);
   final CaptionStyle style;
-  final Color ink;
+  final Color ink, paper;
 
-  static const _captions = [Caption(0, 1, 'The horns answer, softly')];
+  static const _captions = [Caption(0, 1, 'The *horns* answer, softly')];
 
   @override
   void paint(Canvas canvas, Size size) {
     CaptionBar(TextFonts.familyOf(TextFonts.academico), style)
-        .paint(canvas, size, 6, const [(caption: 0, start: 0.0, end: 10.0)], _captions, ink);
+        .paint(canvas, size, 6, const [(caption: 0, start: 0.0, end: 10.0)], _captions, ink, paper: paper);
   }
 
   @override
-  bool shouldRepaint(_PreviewPainter old) => old.style != style || old.ink != ink;
+  bool shouldRepaint(_PreviewPainter old) => old.style != style || old.ink != ink || old.paper != paper;
 }

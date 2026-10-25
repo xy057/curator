@@ -26,7 +26,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
-| `score_caption.dart` | Captions (`Caption`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
+| `score_caption.dart` | Captions (`Caption`), their markup (`captionRuns`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
+| `subtitles.dart` | Captions as subtitles: SRT and WebVTT read (`parseSubtitles`) and written (`writeSubtitles`), placed in the score (`captionsFromCues`) and timed from it (`captionCues`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
@@ -42,7 +43,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
-| `caption_settings.dart` | Project Settings ▸ Extensions ▸ Captions' own settings (the app's): font, position, countdown, size, with a preview |
+| `caption_settings.dart` | Project Settings ▸ Extensions ▸ Captions' own settings (the app's): font, countdown, size, alignment, backing, with a preview |
 | `extensions/extension.dart` | `CuratorExtension`, what the app knows of an extension (by id), and `Extensions`, every one there is |
 | `extensions/built_in.dart` | Attach Image and Captions as `CuratorExtension`s |
 | `extensions/extensions_dialog.dart` | On opening a project that uses extensions that are off: a switch for each |
@@ -306,14 +307,19 @@ a time: every edit keeps them apart (`separateCaptions` in `CaptionEditing._set`
 reading a project, an earlier one ending where the next starts), and the editors stop at the
 free stretch around a caption (`captionRoom`; the dialogs flag one running into another,
 `captionOverlapping`). The scene draws it in `CaptionBar` under the staves, which leave
-`CaptionBar.reserve` for it while there are any: the text centred in the score's text font,
-and under it a hairline as wide as the text that draws in to its middle as the caption's time
-runs out; it rises `ScoreMotion.captionRise` points into place as it fades in over `ScoreMotion.captionFade`, and fades out
+`CaptionBar.reserve` for it while there are any: the text (centred by default) in the score's text font,
+and under it a hairline as wide as the text that draws in to its middle (or, set left or right, to
+that side) as the caption's time runs out; it rises `ScoreMotion.captionRise` points into place as it fades in over `ScoreMotion.captionFade`, and fades out
 as its time ends. It is part of `paint`, so the preview and a video show the same.
 How it looks is a `CaptionStyle` (`CuratedScene.captionStyle`, copied into video export): its
 font, countdown (`CaptionCountdown`: the hairline, a ring left of the text that
-empties clockwise, or none) and size (`CaptionSize`; the room grows with it). Countdown and size are the app's (the extension's settings button; `AppSettings.caption*`,
-not edits). The font is the project's when it has one (Project Settings ▸ Engraving ▸ Caption, shown while
+empties clockwise, or none), size (`CaptionSize`; the room grows with it), alignment
+(`CaptionAlign`) and backing (`plate`: a rounded plate in the paper's colour, a touch of ink in it,
+always solid, so it reads over staves, images and see-through paper). All but the font are the app's (the extension's settings button; `AppSettings.caption*`,
+not edits). A caption's text may mark `*italic*` and `**bold**` (`captionRuns`, Markdown's
+rule: a marker opens before a letter and closes after one, `\*` is a star, one never closed is
+typed text); emphasis in an italic face is upright. The bar, the lane and subtitle files draw it;
+the dialogs keep it as typed. The font is the project's when it has one (Project Settings ▸ Engraving ▸ Caption, shown while
 the switch is on: an edit, saved as `fonts.caption` from format 12), else the app's ('' is the
 score's text font); an installed family is read and registered before it is drawn
 (`CaptionEditing._applyStyle`, the latest call winning), and one not installed here falls back
@@ -332,7 +338,15 @@ until it has one), Select moves one, trims an edge, selects it for Delete
 its dialog, Erase cuts captions back or in two; edges snap as the lanes' do, and a drag is
 one Undo step. A double-click on the lane's name opens the Captions sheet (`CaptionsDialog`): a row per caption, From / Until /
 Text cells, Tab across and ↑ / ↓ / Enter down the column, Add, ×; Done applies it all as one
-Undo step (`CaptionEditing.replaceAll`). A cell's widgets never change while typing (a
+Undo step (`CaptionEditing.replaceAll`). The sheet's Import… reads an SRT or WebVTT file
+(`decodeSubtitles`: UTF-8, UTF-16 by its mark, else Latin-1; 8 MB at most) into rows, in place of
+them or around them (a subtitle running into a row is left out): each cue goes where the sync
+has its music (`captionsFromCues`, `quarterAtSeconds`), so a cue heard again on a repeat makes one
+caption, and cues past the music go. `<i>` / `<b>` become markup; other tags go. Export… writes
+the rows (SRT or WebVTT by the name chosen) timed as the recording plays them, once per pass
+(`captionCues`). Export's Subtitles switch (shown while Captions is on with captions; not for a
+PNG sequence; `AppSettings.videoSubtitles`) writes an .srt beside the movie, replacing one of that
+name, timed from the video's start and cut to its bars (`VideoExport.subtitles`, the clipped timeline). A cell's widgets never change while typing (a
 row's problem shows by the buttons, not around the row), or the cell would lose the keyboard. Every change is an Undo step
 (`captions` in `EditState`); a project keeps them in `state.captions` (format 11). While the
 switch is off they stay in the project but are not drawn, exported or editable.

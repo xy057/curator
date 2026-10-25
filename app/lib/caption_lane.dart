@@ -76,7 +76,15 @@ class _CaptionLaneState extends State<CaptionLane> {
     if (_labels[key] case final label?) return label;
     if (_labels.length >= 64) _clearLabels();
     return _labels[key] = TextPainter(
-      text: TextSpan(text: text, style: TextStyle(fontSize: 11, color: color)),
+      // Its markup's faces, as the score shows it.
+      text: TextSpan(style: TextStyle(fontSize: 11, color: color), children: [
+        for (final run in captionRuns(text))
+          TextSpan(
+            text: run.text,
+            style: TextStyle(
+                fontStyle: run.italic ? FontStyle.italic : null, fontWeight: run.bold ? FontWeight.bold : null),
+          ),
+      ]),
       textDirection: TextDirection.ltr,
       maxLines: 1,
       ellipsis: '…',

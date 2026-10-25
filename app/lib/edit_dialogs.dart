@@ -312,6 +312,7 @@ class _CaptionDialogState extends State<_CaptionDialog> {
           AppTextField(
             controller: _text,
             label: 'Text',
+            hint: '*italic*  **bold**',
             autofocus: true,
             maxLength: 160,
             onChanged: (_) => setState(() {}),

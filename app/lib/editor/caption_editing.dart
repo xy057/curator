@@ -39,13 +39,22 @@ class CaptionEditing {
   String _defaultFont = '';
   CaptionCountdown _countdown = CaptionCountdown.line;
   CaptionSize _size = CaptionSize.medium;
+  CaptionAlign _align = CaptionAlign.center;
+  bool _plate = false;
 
   /// Takes the app's caption settings.
-  void configure({required String font, required CaptionCountdown countdown, required CaptionSize size}) {
-    if (font == _defaultFont && countdown == _countdown && size == _size) return;
+  void configure(
+      {required String font,
+      required CaptionCountdown countdown,
+      required CaptionSize size,
+      CaptionAlign align = CaptionAlign.center,
+      bool plate = false}) {
+    if (font == _defaultFont && countdown == _countdown && size == _size && align == _align && plate == _plate) return;
     _defaultFont = font;
     _countdown = countdown;
     _size = size;
+    _align = align;
+    _plate = plate;
     _applyStyle();
   }
 
@@ -85,7 +94,7 @@ class CaptionEditing {
     }
     if (!turn.isLatest) return;
     _fontFound = found;
-    _style = CaptionStyle(fontFamily: family, countdown: _countdown, size: _size);
+    _style = CaptionStyle(fontFamily: family, countdown: _countdown, size: _size, align: _align, plate: _plate);
     _editor._showSettings();
     _editor.playback._markDirty(); // the preview repaints only when asked
     _editor._changed();

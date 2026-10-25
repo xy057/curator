@@ -41,11 +41,11 @@ class CaptionsExtension extends CuratorExtension {
   @override
   IconData icon(BuildContext context) => AppIcon.captions.of(context);
   @override
-  String get version => '1.0';
+  String get version => '1.1';
   @override
   String get summary => 'Timed text under the score.';
   @override
-  String get keywords => 'caption subtitle commentary note text';
+  String get keywords => 'caption subtitle commentary note text srt vtt webvtt';
 
   @override
   Widget Function(BuildContext context, AppSettings settings) get settings =>

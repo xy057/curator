@@ -119,6 +119,12 @@ class _ExportDialogState extends State<_ExportDialog> {
 
   bool get _overflowCleared => switch (_overflow) { null => true, final bars => listEquals(bars, _overflowTaken) };
 
+  /// Captions to write as subtitles: the extension on, with some.
+  bool get _hasCaptions => widget.controller.captions.enabled && widget.controller.captions.captions.isNotEmpty;
+
+  /// Whether an .srt is written beside the video.
+  bool get _subtitles => _hasCaptions && _settings.videoSubtitles && !_format.codec.isSequence;
+
   /// Whether the video as chosen can be written.
   bool get _writable => _ffmpeg != null && _range != null && _canWrite(_format.codec) && _overflowCleared;
 
@@ -166,6 +172,7 @@ class _ExportDialogState extends State<_ExportDialog> {
       _progress = null;
     });
     try {
+      final subtitles = _subtitles;
       final written = await _export.write(path,
           format: format,
           ffmpeg: _ffmpeg,
@@ -174,6 +181,7 @@ class _ExportDialogState extends State<_ExportDialog> {
           onProgress: (p) {
             if (mounted) setState(() => (_progress = p, _still = start + format.timeOf(p.frame - 1)));
           });
+      if (subtitles) await _export.writeSubtitlesBeside(written);
       if (mounted) setState(() => (_stage = _Stage.done, _output = written));
     } on VideoExportCancelled {
       if (mounted) setState(() => _stage = _Stage.setup);
@@ -407,6 +415,14 @@ class _ExportDialogState extends State<_ExportDialog> {
         label: 'Frame rate',
         child: _FrameRate(fps: _settings.videoFps, onChanged: (f) => setState(() => _settings.videoFps = f)),
       ),
+      if (_hasCaptions)
+        _Row(
+          label: 'Subtitles',
+          tip: format.codec.isSequence ? 'Not with a PNG sequence' : '.srt beside the video',
+          child: AppSwitch(
+              value: _subtitles,
+              onChanged: format.codec.isSequence ? null : (v) => setState(() => _settings.videoSubtitles = v)),
+        ),
       SizedBox(height: dialogGap(context) + 8),
       const _Heading('Picture'),
       _Row(

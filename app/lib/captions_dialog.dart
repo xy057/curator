@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
@@ -7,13 +9,18 @@ import 'package:score_engine/score_engine.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'dialog_kit.dart';
+import 'edit_dialogs.dart';
 import 'editor_controller.dart';
+import 'error_text.dart';
+import 'file_names.dart';
 import 'ui_kit.dart';
 
 /// The Captions sheet (double-click the Captions lane): every caption as a row of From, Until
 /// and Text cells, in the order they show. Tab goes across, ↑ / ↓ and Enter up and down;
 /// Done applies everything as one Undo step, and a row left without text goes. [focus] (an
-/// index into the captions) starts on that caption's text.
+/// index into the captions) starts on that caption's text. Import… brings in an SRT or WebVTT
+/// file's subtitles as rows (placed in the score by the sync), Export… writes the rows as one,
+/// timed as the recording plays them.
 Future<void> showCaptionsDialog(BuildContext context, EditorController c, {int? focus}) async {
   final result = await showAppDialog<List<Caption>>(
       context: context, builder: (context) => CaptionsDialog(controller: c, focus: focus));
@@ -57,6 +64,11 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
   BeatGrid get _beats => c.beats;
   late final List<_Row> _rows;
   final _scroll = ScrollController();
+
+  /// What Import… or Export… last did, shown while no row has a problem.
+  String? _notice;
+
+  static const _types = [XTypeGroup(label: 'SubRip', extensions: ['srt']), XTypeGroup(label: 'WebVTT', extensions: ['vtt'])];
 
   static const _rowHeight = 34.0;
 
@@ -136,6 +148,78 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
 
   void _remove(int i) => setState(() => _rows.removeAt(i).dispose());
 
+  /// The rows as captions, those whose bars read.
+  List<Caption> get _valid => [
+        for (final r in _rows)
+          if ((_start(r), _end(r)) case (final a?, final b?) when b > a) Caption(a, b, r.text.text),
+      ];
+
+  /// Reads a subtitle file into rows: in place of these, or (Add) around them, a subtitle
+  /// running into a row left out.
+  Future<void> _import() async {
+    final file = await openFile(acceptedTypeGroups: _types);
+    if (file == null || !mounted) return;
+    final List<Caption> read;
+    try {
+      if (await file.length() > maxSubtitleBytes) throw const SubtitleException('This subtitle file is too large.');
+      read = captionsFromCues(parseSubtitles(decodeSubtitles(await file.readAsBytes())), c.timeline, _beats.totalQuarters);
+    } catch (e) {
+      if (mounted) setState(() => _notice = describeError(e));
+      return;
+    }
+    if (!mounted) return;
+    if (read.isEmpty) return setState(() => _notice = 'No subtitles fall within the music.');
+    var add = false;
+    if (_rows.isNotEmpty) {
+      final replace = await showAppDialog<bool>(
+        context: context,
+        builder: (context) => AppDialog(
+          title: const Text('Replace the captions?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Add')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Replace')),
+          ],
+        ),
+      );
+      if (replace == null || !mounted) return;
+      add = !replace;
+    }
+    final kept = add ? _valid : const <Caption>[];
+    final taken = [for (final cap in read) if (captionOverlapping(kept, cap.start, cap.end) == null) cap];
+    setState(() {
+      if (!add) {
+        for (final r in _rows) {
+          r.dispose();
+        }
+        _rows.clear();
+      }
+      _rows
+        ..addAll([for (final cap in taken) _Row(cap, _beats)])
+        ..sort((a, b) => (_start(a) ?? 0).compareTo(_start(b) ?? 0));
+      final left = read.length - taken.length;
+      _notice = '${taken.length} imported${left > 0 ? ', $left overlapping left out' : ''}';
+    });
+  }
+
+  /// Writes the rows as SRT or WebVTT (the name chosen says which).
+  Future<void> _export() async {
+    final captions = _valid;
+    final title = c.score?.metadata.title.replaceAll(RegExp(r'[/\\:]'), '-').trim() ?? '';
+    final location = await getSaveLocation(acceptedTypeGroups: _types, suggestedName: '${title.isEmpty ? 'Captions' : title}.srt');
+    if (location == null || !mounted) return;
+    final format = SubtitleFormat.ofPath(location.path) ??
+        (location.activeFilter?.label == SubtitleFormat.vtt.label ? SubtitleFormat.vtt : SubtitleFormat.srt);
+    final path = await confirmSavePath(context, location.path, format.extension);
+    if (path == null || !mounted) return;
+    try {
+      await File(path).writeAsString(writeSubtitles(captionCues(captions, c.timeline), format));
+      if (mounted) setState(() => _notice = 'Exported “${fileNameOf(path)}”');
+    } catch (e) {
+      if (mounted) setState(() => _notice = describeError(e));
+    }
+  }
+
   void _done() {
     if (_problems().any((p) => p != null)) return;
     // In the captions' own order (new ones last), so a sheet left as it was changes nothing.
@@ -154,6 +238,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
         if (p != null) '${i + 1}: $p',
     ].firstOrNull;
     final invalid = problem != null;
+    final status = problem ?? _notice;
     final header = TextStyle(fontSize: AppStyle.of(context).isCarbon ? 12 : 12.5, fontWeight: FontWeight.w600, color: colors.textMuted);
     return AppDialog(
       title: const Text('Captions'),
@@ -192,8 +277,14 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
         ]),
       ),
       divided: true,
-      leading: [TextButton.icon(onPressed: _add, icon: Icon(AppIcon.add.of(context), size: 18), label: const Text('Add'))],
-      status: problem == null ? null : Text(problem, style: TextStyle(color: colors.erase), overflow: TextOverflow.ellipsis),
+      leading: [
+        TextButton.icon(onPressed: _add, icon: Icon(AppIcon.add.of(context), size: 18), label: const Text('Add')),
+        TextButton(onPressed: _import, child: const Text('Import…')),
+        TextButton(onPressed: invalid || _rows.isEmpty ? null : _export, child: const Text('Export…')),
+      ],
+      status: status == null
+          ? null
+          : Text(status, style: TextStyle(color: problem != null ? colors.erase : colors.textMuted), overflow: TextOverflow.ellipsis),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(onPressed: invalid ? null : _done, child: const Text('Done')),

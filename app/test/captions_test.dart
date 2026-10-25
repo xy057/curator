@@ -82,6 +82,13 @@ void main() {
     expect(state.edits.captions, c.captions.captions);
     expect(Extensions.usedBy(c), [Extensions.captions]);
 
+    // The extension's settings reach the scene: set against the left, backed.
+    settings
+      ..captionAlign = CaptionAlign.left
+      ..captionPlate = true;
+    await tester.pump();
+    expect(c.scene!.captionStyle, isA<CaptionStyle>().having((s) => s.align, 'align', CaptionAlign.left).having((s) => s.plate, 'plate', true));
+
     // Off: kept, not drawn; an Undo step.
     c.setExtension('captions', false);
     await tester.pump();

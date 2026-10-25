@@ -20,7 +20,9 @@ extension ControllerSettings on EditorController {
     captions.configure(
         font: settings.captionFont,
         countdown: settings.captionCountdown,
-        size: settings.captionSize);
+        size: settings.captionSize,
+        align: settings.captionAlign,
+        plate: settings.captionPlate);
     engravingOptions = settings.engravingOptions;
     defaultTextDynamics = settings.textDynamics;
     videoLayout = VideoFormat.layoutOf(settings.videoRatio.value);
