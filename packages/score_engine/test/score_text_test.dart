@@ -263,4 +263,13 @@ void main() {
     expect(textAt(s, 'first').y, lessThan(textAt(s, 'second').y));
     expect(textAt(s, 'second').y, lessThan(textAt(s, 'refrain').y));
   });
+
+  test('Close up verses: a verse missing from a line leaves no gap', () async {
+    final s = await LoadedScore.load(lyricScore([
+      [lyric('first'), lyric('third', number: '3')],
+    ]));
+    final closed = await s.withEdits(options: const EngravingOptions().withValue(EngraveOption.byKey('lyricVerseCollapse')!, true));
+    double gap(LoadedScore s) => textAt(s, 'third').y - textAt(s, 'first').y;
+    expect(gap(closed), closeTo(gap(s) / 2, 1)); // verse 2's line is gone
+  });
 }
