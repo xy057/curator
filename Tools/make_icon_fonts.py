@@ -102,6 +102,8 @@ ICONS = [
     # Images and captions
     ('image', 'An image.', 'image', 'image'),
     ('noImage', 'No image.', 'hide_image', 'no-image'),
+    ('verticalSpacer', 'A vertical spacer: a staff of nothing.', 'height', 'arrows--vertical'),
+    ('horizontalSpacer', 'A horizontal spacer: a blank between beats.', 'width', 'arrows--horizontal'),
     ('pin', 'Pinned in place.', 'push_pin:fill', 'pin--filled'),
     ('link', 'Linked, not copied in.', 'link', 'link'),
     ('embed', 'Copied into the project.', 'inventory_2', 'box'),

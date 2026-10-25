@@ -6,17 +6,20 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import 'package:flutter/gestures.dart' show DragStartBehavior, kPrimaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:score_engine/score_engine.dart' show ScenePatch;
+import 'package:score_engine/score_engine.dart' show HorizontalSpacer, ScenePatch, VerticalSpacer;
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'edit_dialogs.dart';
 import 'error_text.dart';
 import 'image_patch.dart';
+import 'lanes_common.dart' show isCommandPressed;
+import 'spacer_dialogs.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
 
 part 'score_view/attach_image.dart';
+part 'score_view/spacer_handles.dart';
 
 /// The curated score preview, drawn by CuratedScene.paint: a frame is a function of the
 /// time alone, which video export reuses (CuratedScene.renderFrame, VideoExport).
@@ -33,8 +36,16 @@ part 'score_view/attach_image.dart';
 /// corner to resize it; double-click it (or right-click ▸ Crop) and the handles crop it.
 /// A file dropped on it is added as an image where it is dropped ([ScoreViewState.dropImage]).
 ///
+/// Spacers (added in the bottom panel's Spacers lane) are outlined under the pointer: click one
+/// to select it, drag it to move it, drag a handle to resize it ([_SpacerHandles]); double-click
+/// one (or right-click it) to change or remove it. A horizontal one is the stretch it widens.
+///
 /// With Captions on, right-click ▸ Add Caption… adds one from where it was clicked;
 /// double-click the caption showing (or right-click it) to change or remove it.
+/// Where the context menu was opened: the patch, caption or spacer there, and the score quarter
+/// and staff spaces down.
+typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double quarter, double top});
+
 class ScoreView extends StatefulWidget {
   const ScoreView({super.key, required this.controller, this.aspectRatio});
   final EditorController controller;
@@ -46,7 +57,7 @@ class ScoreView extends StatefulWidget {
   State<ScoreView> createState() => ScoreViewState();
 }
 
-class ScoreViewState extends State<ScoreView> with _AttachImage {
+class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage {
   void _onDoubleTap(TapDownDetails details, VideoFrame frame) {
     final scene = c.scene, curation = c.curation;
     if (scene == null || curation == null) return;
@@ -62,6 +73,14 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
       showCaptionDialog(context, c, index: i);
       return;
     }
+    if (_gapAt(p, frame) case final i?) {
+      showHorizontalSpacerDialog(context, c, i);
+      return;
+    }
+    if (_spacerAt(p, frame) case final id?) {
+      showVerticalSpacerDialog(context, c, id);
+      return;
+    }
 
     final partId = scene.partLabelAt(p, c.playback.time.value, curation, size);
     if (partId == null) return;
@@ -74,9 +93,9 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
 
   final _menu = MenuController();
 
-  /// Where the context menu was opened: the patch or caption there, or the place a new
+  /// Where the context menu was opened: the patch, caption or spacer there, or the place a new
   /// image or caption goes.
-  ({int? patch, int? caption, double quarter, double top})? _menuAt;
+  _MenuAt? _menuAt;
 
   /// The caption under [p] (layout points), when its text shows there.
   int? _captionAt(Offset p, VideoFrame frame) {
@@ -89,11 +108,16 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
     if (!(c.images.enabled || c.captions.enabled) || scene == null || !frame.rect.contains(d.localPosition)) return;
     final p = frame.toLayout(d.localPosition);
     final hit = _patchAt(p, frame), caption = hit == null ? _captionAt(p, frame) : null;
+    final gap = hit == null && caption == null ? _gapAt(p, frame) : null;
+    final spacer = hit == null && caption == null && gap == null ? _spacerAt(p, frame) : null;
     if (hit != null && hit != c.images.selected) c.images.select(hit);
+    final time = c.playback.time.value;
     setState(() => _menuAt = (
           patch: hit,
           caption: caption,
-          quarter: scene.quarterAtFrameX(p.dx, c.playback.time.value, frame.layout),
+          spacer: spacer,
+          gap: gap,
+          quarter: scene.quarterAtFrameX(p.dx, time, frame.layout),
           top: p.dy / scene.style.staffSpace,
         ));
     _menu.open(position: d.localPosition);
@@ -127,6 +151,20 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
         MenuItemButton(onPressed: () => c.captions.remove(i), child: const Text('Remove Caption')),
       ];
     }
+    if (at.gap case final i?) {
+      if (i >= c.spacers.horizontal.length) return const [];
+      return [
+        MenuItemButton(onPressed: () => showHorizontalSpacerDialog(context, c, i), child: const Text('Edit Spacer…')),
+        MenuItemButton(onPressed: () => c.spacers.removeHorizontal(i), child: const Text('Remove Spacer')),
+      ];
+    }
+    if (at.spacer case final id?) {
+      if (c.spacers.verticalOf(id) == null) return const [];
+      return [
+        MenuItemButton(onPressed: () => showVerticalSpacerDialog(context, c, id), child: const Text('Edit Spacer…')),
+        MenuItemButton(onPressed: () => c.spacers.removeVertical(id), child: const Text('Remove Spacer')),
+      ];
+    }
     final mac = defaultTargetPlatform == TargetPlatform.macOS;
     return [
       if (c.images.enabled) ...[
@@ -157,6 +195,8 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
           patches: c.images.patches,
           captions: c.captions.enabled,
           captionList: c.captions.captions,
+          spacers: c.spacers.vertical,
+          gaps: c.spacers.horizontal,
           reengraving: c.isReengraving,
         ),
         builder: (context, _) => _view(context),
@@ -171,7 +211,7 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
           : VideoFrame.fit(constraints.biggest, aspectRatio, devicePixelRatio: devicePixelRatio);
       _frame = frame;
       final colors = context.colors;
-      final panning = c.images.enabled || _drag != null;
+      final panning = c.images.enabled || _drag != null || _spacerDrag != null;
       return Stack(children: [
         Positioned.fill(child: ColoredBox(color: aspectRatio == null ? colors.scorePaper : colors.surface)),
         Positioned.fromRect(
@@ -187,6 +227,10 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
             ),
           ),
         ),
+        if (c.spacers.enabled && (c.spacers.vertical.isNotEmpty || c.spacers.horizontal.isNotEmpty))
+          Positioned.fill(
+            child: IgnorePointer(child: CustomPaint(painter: _SpacerOverlay(this, frame, colors))),
+          ),
         if (c.images.enabled && c.images.selected != null)
           Positioned.fill(
             child: IgnorePointer(
@@ -212,10 +256,27 @@ class ScoreViewState extends State<ScoreView> with _AttachImage {
                   onDoubleTap: () {},
                   onSecondaryTapUp: (d) => _openMenu(d, frame),
                   // Kept while a drag lasts: Attach Image turned off under it, its end still comes.
-                  onPanStart: panning ? (d) => _onPanStart(d, frame) : null,
-                  onPanUpdate: panning ? (d) => _onPanUpdate(d, frame) : null,
-                  onPanEnd: panning ? (_) => _onPanEnd() : null,
-                  onPanCancel: panning ? _onPanEnd : null,
+                  onPanStart: panning
+                      ? (d) {
+                          _onPanStart(d, frame);
+                          if (_drag == null) _spacerPanStart(d, frame);
+                        }
+                      : null,
+                  onPanUpdate: panning
+                      ? (d) => _spacerDrag != null ? _spacerPanUpdate(d, frame) : _onPanUpdate(d, frame)
+                      : null,
+                  onPanEnd: panning
+                      ? (_) {
+                          _onPanEnd();
+                          _spacerPanEnd();
+                        }
+                      : null,
+                  onPanCancel: panning
+                      ? () {
+                          _onPanEnd();
+                          _spacerPanEnd(commit: false);
+                        }
+                      : null,
                 ),
               ),
             ),

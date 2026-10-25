@@ -174,59 +174,65 @@ enum AppIcon {
   /// No image. Refined: hide_image; Carbon: no-image.
   noImage(IconData(0xE037, fontFamily: _refined), IconData(0xE037, fontFamily: _carbon)),
 
+  /// A vertical spacer: a staff of nothing. Refined: height; Carbon: arrows--vertical.
+  verticalSpacer(IconData(0xE038, fontFamily: _refined), IconData(0xE038, fontFamily: _carbon)),
+
+  /// A horizontal spacer: a blank between beats. Refined: width; Carbon: arrows--horizontal.
+  horizontalSpacer(IconData(0xE039, fontFamily: _refined), IconData(0xE039, fontFamily: _carbon)),
+
   /// Pinned in place. Refined: push_pin (filled); Carbon: pin--filled.
-  pin(IconData(0xE038, fontFamily: _refined), IconData(0xE038, fontFamily: _carbon)),
+  pin(IconData(0xE03A, fontFamily: _refined), IconData(0xE03A, fontFamily: _carbon)),
 
   /// Linked, not copied in. Refined: link; Carbon: link.
-  link(IconData(0xE039, fontFamily: _refined), IconData(0xE039, fontFamily: _carbon)),
+  link(IconData(0xE03B, fontFamily: _refined), IconData(0xE03B, fontFamily: _carbon)),
 
   /// Copied into the project. Refined: inventory_2; Carbon: box.
-  embed(IconData(0xE03A, fontFamily: _refined), IconData(0xE03A, fontFamily: _carbon)),
+  embed(IconData(0xE03C, fontFamily: _refined), IconData(0xE03C, fontFamily: _carbon)),
 
   /// Captions. Refined: subtitles; Carbon: closed-caption.
-  captions(IconData(0xE03B, fontFamily: _refined), IconData(0xE03B, fontFamily: _carbon)),
+  captions(IconData(0xE03D, fontFamily: _refined), IconData(0xE03D, fontFamily: _carbon)),
 
   /// Settings. Refined: settings; Carbon: settings.
-  settings(IconData(0xE03C, fontFamily: _refined), IconData(0xE03C, fontFamily: _carbon)),
+  settings(IconData(0xE03E, fontFamily: _refined), IconData(0xE03E, fontFamily: _carbon)),
 
   /// General settings. Refined: tune; Carbon: settings--adjust.
-  general(IconData(0xE03D, fontFamily: _refined), IconData(0xE03D, fontFamily: _carbon)),
+  general(IconData(0xE03F, fontFamily: _refined), IconData(0xE03F, fontFamily: _carbon)),
 
   /// Appearance. Refined: palette; Carbon: color-palette.
-  appearance(IconData(0xE03E, fontFamily: _refined), IconData(0xE03E, fontFamily: _carbon)),
+  appearance(IconData(0xE040, fontFamily: _refined), IconData(0xE040, fontFamily: _carbon)),
 
   /// Fonts. Refined: text_fields; Carbon: text--font.
-  fonts(IconData(0xE03F, fontFamily: _refined), IconData(0xE03F, fontFamily: _carbon)),
+  fonts(IconData(0xE041, fontFamily: _refined), IconData(0xE041, fontFamily: _carbon)),
 
   /// Extensions. Refined: extension; Carbon: extensions.
-  extensions(IconData(0xE040, fontFamily: _refined), IconData(0xE040, fontFamily: _carbon)),
+  extensions(IconData(0xE042, fontFamily: _refined), IconData(0xE042, fontFamily: _carbon)),
 
   /// Feature flags. Refined: flag; Carbon: flag.
-  flags(IconData(0xE041, fontFamily: _refined), IconData(0xE041, fontFamily: _carbon)),
+  flags(IconData(0xE043, fontFamily: _refined), IconData(0xE043, fontFamily: _carbon)),
 
   /// About. Refined: info; Carbon: information.
-  about(IconData(0xE042, fontFamily: _refined), IconData(0xE042, fontFamily: _carbon)),
+  about(IconData(0xE044, fontFamily: _refined), IconData(0xE044, fontFamily: _carbon)),
 
   /// The system's appearance. Refined: brightness_auto; Carbon: contrast.
-  auto(IconData(0xE043, fontFamily: _refined), IconData(0xE043, fontFamily: _carbon)),
+  auto(IconData(0xE045, fontFamily: _refined), IconData(0xE045, fontFamily: _carbon)),
 
   /// Light. Refined: light_mode; Carbon: light.
-  light(IconData(0xE044, fontFamily: _refined), IconData(0xE044, fontFamily: _carbon)),
+  light(IconData(0xE046, fontFamily: _refined), IconData(0xE046, fontFamily: _carbon)),
 
   /// Dark. Refined: dark_mode; Carbon: asleep.
-  dark(IconData(0xE045, fontFamily: _refined), IconData(0xE045, fontFamily: _carbon)),
+  dark(IconData(0xE047, fontFamily: _refined), IconData(0xE047, fontFamily: _carbon)),
 
   /// Finished. Refined: check_circle (filled); Carbon: checkmark--filled.
-  done(IconData(0xE046, fontFamily: _refined), IconData(0xE046, fontFamily: _carbon)),
+  done(IconData(0xE048, fontFamily: _refined), IconData(0xE048, fontFamily: _carbon)),
 
   /// Failed. Refined: error (filled); Carbon: error--filled.
-  failed(IconData(0xE047, fontFamily: _refined), IconData(0xE047, fontFamily: _carbon)),
+  failed(IconData(0xE049, fontFamily: _refined), IconData(0xE049, fontFamily: _carbon)),
 
   /// A value that is not allowed. Refined: error (filled); Carbon: warning--filled.
-  invalid(IconData(0xE048, fontFamily: _refined), IconData(0xE048, fontFamily: _carbon)),
+  invalid(IconData(0xE04A, fontFamily: _refined), IconData(0xE04A, fontFamily: _carbon)),
 
   /// Something to look at. Refined: warning (filled); Carbon: warning--filled.
-  warning(IconData(0xE049, fontFamily: _refined), IconData(0xE049, fontFamily: _carbon));
+  warning(IconData(0xE04B, fontFamily: _refined), IconData(0xE04B, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

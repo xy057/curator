@@ -57,6 +57,19 @@ void main() {
     await screenshot(tester, 'app-condensed');
     controller.undo();
 
+    // Spacers: a staff of nothing with lines below the clarinet, selected, and bars 37–38 widened.
+    controller.setExtension('attachImage', true);
+    await tester.runAsync(() async {
+      await controller.spacers.addHorizontal(controller.timeline.measureStarts[36] + 1.5, controller.timeline.measureStarts[37] + 1.5);
+      await controller.spacers.addVertical(below: controller.laneParts[2].id);
+      await controller.spacers.setVertical(controller.spacers.vertical.single.copyWith(lines: true, frozen: true));
+    });
+    await tester.pump(const Duration(milliseconds: 50));
+    await screenshot(tester, 'app-spacers');
+    controller.setExtension('attachImage', false);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await tester.pump(const Duration(milliseconds: 50));
+
     // Audio tab with the demo recording and its sync through the closing ritardando.
     final recording = await tester.runAsync(demoWaveform);
     if (recording == null) return;

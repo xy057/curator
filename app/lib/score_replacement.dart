@@ -15,7 +15,7 @@ import 'project_state.dart';
 /// left out and counted ([differences]).
 class ScoreSwap {
   ScoreSwap({required this.before, required this.after, required this.textsBefore, required this.textsAfter})
-    : parts = _matchParts(before.parts, after.parts);
+    : parts = _matchParts([for (final p in before.parts) if (!Spacers.isSpacer(p.id)) p], after.parts);
 
   final ScoreMetadata before, after;
 
@@ -24,6 +24,10 @@ class ScoreSwap {
 
   /// Old part id → new part id, for every instrument found in both files.
   final Map<String, String> parts;
+
+  /// [id]'s part in the new file: its match, or a vertical spacer's own (the project's, in
+  /// either file).
+  String? _to(String id) => parts[id] ?? (Spacers.isSpacer(id) ? id : null);
 
   /// Matched by id and name, then by name (in score order), then by id alone (renamed).
   static Map<String, String> _matchParts(List<ScorePart> before, List<ScorePart> after) {
@@ -54,7 +58,7 @@ class ScoreSwap {
   /// Instruments only in the old file: their lanes and names go.
   List<ScorePart> get removed => [
     for (final p in before.parts)
-      if (!parts.containsKey(p.id)) p,
+      if (!parts.containsKey(p.id) && !Spacers.isSpacer(p.id)) p,
   ];
 
   /// Instruments matched by id whose name changed.
@@ -132,7 +136,7 @@ class ScoreSwap {
     if (edits.lanes case final old?) {
       lanes = {};
       for (final MapEntry(key: id, value: lane) in old.entries) {
-        final to = parts[id];
+        final to = _to(id);
         if (to == null) continue;
         lanes[to] = [];
         for (final r in lane) {
@@ -196,14 +200,16 @@ class ScoreSwap {
           lanes: lanes,
           anchors: anchors,
           midi: midi,
-          partNames: {for (final MapEntry(key: id, value: name) in edits.partNames.entries) ?parts[id]: name},
+          partNames: {for (final MapEntry(key: id, value: name) in edits.partNames.entries) ?_to(id): name},
           textEdits: textEdits(edits.textEdits),
           condensed: {for (final id in edits.condensed) ?condensedId(id)},
           pairs: pairs(edits.pairs),
-          partOrder: [for (final id in edits.partOrder) ?parts[id]],
-          sections: {for (final MapEntry(key: id, value: s) in edits.sections.entries) ?parts[id]: s},
+          partOrder: [for (final id in edits.partOrder) ?_to(id)],
+          sections: {for (final MapEntry(key: id, value: s) in edits.sections.entries) ?_to(id): s},
           patches: patches,
           captions: separateCaptions(captions),
+          // A blank keeps its bar and beat while the bar is there.
+          gaps: [for (final g in edits.gaps) if (g.bar < measuresAfter.length - 1) g],
         ),
         images: {for (final p in patches) p.image: state.images[p.image]!},
         view: state.view,
