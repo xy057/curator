@@ -697,7 +697,9 @@ button and menu-row heights from it, so a size written as a number elsewhere doe
 once, a fixed duration goes through `AppStyle.moving`, the appearance cross-fade is skipped and
 `MediaQuery.disableAnimations` is set; what the score does (scrolling, staff transitions) is the
 project's and unchanged. A change of text size or density cross-fades as a change of theme does.
-Refined's palette (`AppColors._refinedOf`) has neutral greys, with no accent mixed in, and a
+Refined's palette (`AppColors._refinedOf`) takes every grey from a scale defined up front
+(`RefinedGreys`: a cool 50–900 and the dark theme's own steps; a new grey is a shade of it,
+never a literal), with no accent mixed in, and a
 `chrome` tone behind toolbars, the lane-name column and the ruler. Controls are 28 px with 5 px
 corners on a 13 px type scale. Segmented controls are a clear track whose chosen segment, a light
 tint of the accent, slides to the one clicked, each label taking the accent as the tint passes
