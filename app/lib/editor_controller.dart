@@ -23,6 +23,7 @@ part 'editor/commands.dart';
 part 'editor/image_editing.dart';
 part 'editor/lane_editing.dart';
 part 'editor/playback.dart';
+part 'editor/spacer_editing.dart';
 part 'editor/sync_editing.dart';
 
 enum BottomTab { instruments, audio }
@@ -45,6 +46,7 @@ typedef MidiWarpsTaken = ({MidiWarpsFrom from, int count, String? file});
 ///  * [anchors]: editing in the Audio tab (tapping, the anchor selection);
 ///  * [images]: images on the score (the Attach Image extension);
 ///  * [captions]: captions under the score (the Captions extension);
+///  * [spacers]: room for images (the Attach Image extension): spacer staves, blanks between beats;
 ///  * [commands]: what the Edit menu and the keys do in the tab showing.
 ///
 /// All of them notify through this controller, so a widget listens to one thing.
@@ -58,6 +60,7 @@ class EditorController extends ChangeNotifier {
   late final anchors = SyncEditing._(this);
   late final images = ImageEditing._(this);
   late final captions = CaptionEditing._(this);
+  late final spacers = SpacerEditing._(this);
   late final commands = EditCommands._(this);
 
   /// Zoom and scroll shared by both tabs of the bottom panel.
@@ -289,7 +292,7 @@ class EditorController extends ChangeNotifier {
       partNames: Map.unmodifiable(edits.partNames),
       textEdits: Map.unmodifiable(edits.textEdits),
       pairs: List.unmodifiable({for (final p in edits.pairs) ?score.condensing.pair(p.first, p.second)}),
-      partOrder: CuratedScene.orderedPartIds(score.metadata.parts, edits.partOrder),
+      partOrder: _orderedPartIds(score, edits.partOrder, edits.spacers),
       sections: Map.unmodifiable(edits.sections),
     );
     // The pairs that can condense follow the score and the pairs just taken on.
@@ -300,8 +303,9 @@ class EditorController extends ChangeNotifier {
       ..load(_doc.midi?.anchors(start: edits.leadIn, totalQuarters: score.timeline.measureStarts.last) ?? edits.anchors,
           leadIn: edits.leadIn)
       ..addListener(_syncChanged);
-    final parts = [for (final p in score.metadata.parts) p.id];
-    _curation = Curation(parts)
+    // A spacer keeps its lane while it isn't engraved (Attach Image off).
+    final parts = [for (final p in score.metadata.parts) p.id, for (final s in edits.spacers) s.id];
+    _curation = Curation({...parts})
       ..load(edits.lanes ?? Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
           transition: edits.transition ?? defaultTransition);
     _joinLanes();
@@ -316,6 +320,11 @@ class EditorController extends ChangeNotifier {
         if (!extensionChosen(e.id) && (legacyExtensions[e.id] ?? false) && e.isUsedBy(this)) e.id: true,
     }));
     _applyExtensions();
+    // Engraved before a switch it had on in the app's old settings came on: again, with its spacers.
+    final attach = Extensions.attachImage.id;
+    if (extensionOn(attach) != (edits.extensions[attach] ?? false) && (_doc.spacers.isNotEmpty || _doc.gaps.isNotEmpty)) {
+      unawaited(_reengrave());
+    }
     _history.clear();
     _committed = _editState; // a fresh document: nothing to undo
     anchors._restoreView(view);
@@ -470,7 +479,8 @@ class EditorController extends ChangeNotifier {
       sectionOverrides: {..._doc.sections, ...?_previewSections},
       barNumbers: _doc.barNumbers,
       rehearsalInRow: rehearsalInRow,
-      nameColors: _nameColors);
+      nameColors: _nameColors,
+      spacers: images.enabled ? _doc.spacers : const []);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
@@ -499,7 +509,9 @@ class EditorController extends ChangeNotifier {
   void setExtensions(Map<String, bool> choices) {
     final next = {..._doc.extensions, ...choices};
     if (mapEquals(next, _doc.extensions)) return;
+    final engraved = _wanted;
     _doc = _doc.copyWith(extensions: Map.unmodifiable(next));
+    if (_score != null && _wanted != engraved) unawaited(_reengrave()); // spacers come or go
     _applyExtensions();
     _edited();
   }
@@ -921,7 +933,10 @@ class EditorController extends ChangeNotifier {
       options: edits.engraving.over(_engravingOptions),
       textDynamics: edits.textDynamics ?? _defaultTextDynamics,
       typography: edits.typography ?? _defaultTypography,
-      centredLyrics: edits.centredLyrics ?? _defaultCentredLyrics);
+      centredLyrics: edits.centredLyrics ?? _defaultCentredLyrics,
+      // Only while Attach Image is on.
+      spacers: (edits.extensions[Extensions.attachImage.id] ?? false) ? edits.spacers : const [],
+      gaps: (edits.extensions[Extensions.attachImage.id] ?? false) ? edits.gaps : const []);
 
   /// What the score is to be engraved with now (an engraving may still be catching up).
   EngraveRequest get _wanted =>
@@ -1085,7 +1100,7 @@ class EditorController extends ChangeNotifier {
     final parts = {for (final p in _score?.metadata.parts ?? const <ScorePart>[]) p.id: p};
     final lanes = List<ScorePart>.unmodifiable([
       for (final id in _doc.partOrder)
-        if (condensedGroupOf(id)?.partIds.last != id) parts[id]!,
+        if (condensedGroupOf(id)?.partIds.last != id) ?parts[id], // a spacer not engraved (yet) has none
     ]);
     _laneParts = (key, lanes);
     return lanes;
@@ -1123,11 +1138,20 @@ class EditorController extends ChangeNotifier {
   void restoreScoreOrder() => _setPartOrder(const []);
 
   void _setPartOrder(List<String> ids) {
-    final next = CuratedScene.orderedPartIds(_score!.metadata.parts, ids);
+    final next = _orderedPartIds(_score!, ids, _doc.spacers);
     if (listEquals(next, _doc.partOrder)) return;
     _doc = _doc.copyWith(partOrder: next);
     _showSettings();
     _edited();
+  }
+
+  /// Every part of [score] and spacer of [spacers] once (a spacer is in the order while it isn't
+  /// engraved too: Attach Image off, or engraving): those in [ids] in that order, then the
+  /// score's others in its order, then the other spacers.
+  static List<String> _orderedPartIds(LoadedScore score, List<String> ids, List<VerticalSpacer> spacers) {
+    final known = {for (final p in score.metadata.parts) p.id, for (final s in spacers) s.id};
+    final ordered = <String>{for (final id in ids) if (known.contains(id)) id};
+    return List.unmodifiable([...ordered, for (final id in known) if (!ordered.contains(id)) id]);
   }
 
   /// A lane's name: the instrument's, or a condensed pair's shared one ("Flute 1.2").

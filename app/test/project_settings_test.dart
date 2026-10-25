@@ -134,7 +134,7 @@ void main() {
     // Extensions: each a switch for this project only, an Undo step; no Save as default.
     await tester.tap(find.text('Extensions').first);
     await settle();
-    expect(find.text('Attach Image  1.0'), findsOneWidget, reason: 'its version after its name');
+    expect(find.text('Attach Image  1.1'), findsOneWidget, reason: 'its version after its name');
     expect(find.text(Extensions.attachImage.summary), findsOneWidget);
     // The page's two, after the timeline toolbar's Project Settings (the same icon).
     final gears = tester.widgetList<IconButton>(find.widgetWithIcon(IconButton, AppIcon.settings.refined)).toList().reversed.take(2).toList().reversed.toList();
