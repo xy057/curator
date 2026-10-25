@@ -554,6 +554,11 @@ another or none (`EditState.nameGroupOf`, by part id; removing a group sends its
 to their families'). This is not the Sections page's brackets. Only the name's layer is tinted
 another colour (`StaffLabel.color`); the paragraphs cached in the ink serve every colour.
 
+**The playback line can take a colour of its own** (Project Settings ▸ Instruments ▸ Playback line
+color, above Color names; `EditState.playheadColor`, an edit saved from format 25, null for
+`RenderStyle.pointer`'s blue; `CuratedScene.pointerColor`, in `SceneSettings`). It is the score's fixed
+pointer, so the preview and the video draw it alike. The lanes' playhead keeps the accent.
+
 **Bar numbers are drawn, not engraved** (Project Settings ▸ Animation ▸ Bar numbers,
 `EditState.barNumbers`, an edit saved from format 18, on for a new project, off for one saved before; `CuratedScene.barNumbers`,
 in `SceneSettings`). Every bar's number as the score prints it (`ScoreMetadata.barNumbers`: MusicXML's `text`, else `number`;
@@ -579,8 +584,8 @@ That is a flag (Project Settings ▸ Flags ▸ Rehearsal marks in bar numbers:
 until Save as default; `CuratedScene.rehearsalInRow`, in `SceneSettings`): off, they stay in the
 music with the row on. Changing it only redraws (the display list made again); Flags ▸ Reset to
 Default sets every flag in one Undo step (`EditorController.setFlags`).
-Flags ▸ Centred lyrics (`EditState.centredLyrics`, under `flags` from format 23, null taking
-`AppSettings`'s, off until Save as default; `EngraveRequest.centredLyrics`, an Undo step that
+Flags ▸ Centred lyrics (`EditState.centeredLyrics`, under `flags` from format 23, null taking
+`AppSettings`'s, off until Save as default; `EngraveRequest.centeredLyrics`, an Undo step that
 re-engraves) centres each syllable, or an elision's syllables together, under its notehead, as
 Verovio otherwise sets them from just left of it; one an extender follows stays there, so a
 melisma's line runs on. The patched `curatedLyricCentre` option moves it in Verovio's syllable

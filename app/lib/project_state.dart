@@ -44,6 +44,7 @@ class EditState {
     this.sections = const {},
     this.groupSections = false,
     this.barNumbers = true,
+    this.playheadColor,
     this.colorNames = false,
     this.nameColors = const {},
     this.nameGroups = const [],
@@ -57,7 +58,7 @@ class EditState {
     this.extensions = const {},
     this.textDynamics,
     this.rehearsalInRow,
-    this.centredLyrics,
+    this.centeredLyrics,
     this.spacers = const [],
     this.gaps = const [],
   });
@@ -120,6 +121,9 @@ class EditState {
   /// ([CuratedScene.barNumbers]); on for a new project.
   final bool barNumbers;
 
+  /// The playback line's colour (Project Settings ▸ Instruments); null: the score's own blue ([RenderStyle.pointer]).
+  final Color? playheadColor;
+
   /// Whether the instruments are named in their family's colour (Project Settings ▸
   /// Instruments, [CuratedScene.nameColors]).
   final bool colorNames;
@@ -174,8 +178,8 @@ class EditState {
   final bool? rehearsalInRow;
 
   /// Whether each syllable is centred under its notehead, but one an extender follows (Project
-  /// Settings ▸ Flags, [EngraveRequest.centredLyrics]); null: the app's.
-  final bool? centredLyrics;
+  /// Settings ▸ Flags, [EngraveRequest.centeredLyrics]); null: the app's.
+  final bool? centeredLyrics;
 
   @override
   bool operator ==(Object other) =>
@@ -199,6 +203,7 @@ class EditState {
       mapEquals(sections, other.sections) &&
       groupSections == other.groupSections &&
       barNumbers == other.barNumbers &&
+      playheadColor == other.playheadColor &&
       colorNames == other.colorNames &&
       mapEquals(nameColors, other.nameColors) &&
       listEquals(nameGroups, other.nameGroups) &&
@@ -212,7 +217,7 @@ class EditState {
       mapEquals(extensions, other.extensions) &&
       textDynamics == other.textDynamics &&
       rehearsalInRow == other.rehearsalInRow &&
-      centredLyrics == other.centredLyrics &&
+      centeredLyrics == other.centeredLyrics &&
       listEquals(spacers, other.spacers) &&
       listEquals(gaps, other.gaps);
 
@@ -220,8 +225,8 @@ class EditState {
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
 
   /// This state with the fields given instead of its own. A field that may be null is
-  /// cleared by passing null ([lanes], [transition], [scrollFollow], [motion], [typography], [midi], [captionFont],
-  /// [textDynamics], [rehearsalInRow], [centredLyrics]); left
+  /// cleared by passing null ([lanes], [transition], [scrollFollow], [motion], [typography], [midi], [captionFont], [playheadColor],
+  /// [textDynamics], [rehearsalInRow], [centeredLyrics]); left
   /// out, it stays.
   EditState copyWith({
     Object? lanes = _kept,
@@ -240,6 +245,7 @@ class EditState {
     Map<String, String?>? sections,
     bool? groupSections,
     bool? barNumbers,
+    Object? playheadColor = _kept,
     bool? colorNames,
     Map<InstrumentFamily, Color>? nameColors,
     List<NameGroup>? nameGroups,
@@ -253,7 +259,7 @@ class EditState {
     Map<String, bool>? extensions,
     Object? textDynamics = _kept,
     Object? rehearsalInRow = _kept,
-    Object? centredLyrics = _kept,
+    Object? centeredLyrics = _kept,
     List<VerticalSpacer>? spacers,
     List<HorizontalSpacer>? gaps,
   }) =>
@@ -274,6 +280,7 @@ class EditState {
         sections: sections ?? this.sections,
         groupSections: groupSections ?? this.groupSections,
         barNumbers: barNumbers ?? this.barNumbers,
+        playheadColor: identical(playheadColor, _kept) ? this.playheadColor : playheadColor as Color?,
         colorNames: colorNames ?? this.colorNames,
         nameColors: nameColors ?? this.nameColors,
         nameGroups: nameGroups ?? this.nameGroups,
@@ -287,7 +294,7 @@ class EditState {
         extensions: extensions ?? this.extensions,
         textDynamics: identical(textDynamics, _kept) ? this.textDynamics : textDynamics as bool?,
         rehearsalInRow: identical(rehearsalInRow, _kept) ? this.rehearsalInRow : rehearsalInRow as bool?,
-        centredLyrics: identical(centredLyrics, _kept) ? this.centredLyrics : centredLyrics as bool?,
+        centeredLyrics: identical(centeredLyrics, _kept) ? this.centeredLyrics : centeredLyrics as bool?,
         spacers: spacers ?? this.spacers,
         gaps: gaps ?? this.gaps,
       );
@@ -348,7 +355,7 @@ class ProjectState {
 
   /// The version [toJson] writes (the project file's format version): every save is in the
   /// newest format, whatever the project uses.
-  static const version = 24;
+  static const version = 25;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version]. Additive only: a new format adds fields (the
@@ -377,6 +384,7 @@ class ProjectState {
     21: (state) => state, // the rehearsal marks' flag came in 22: none, the app's
     22: (state) => state, // the centred lyrics' flag came in 23: none, the app's
     23: (state) => state, // spacers came in 24: none
+    24: (state) => state, // the playback line's colour came in 25: none, its own blue
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -470,6 +478,10 @@ class ProjectState {
         },
         groupSections: r.boolean('groupSections') ?? false,
         barNumbers: r.boolean('barNumbers') ?? true,
+        playheadColor: switch (r.string('playheadColor')) {
+          null => null,
+          final hex => _color(hex) ?? (throw FormatException('The project is damaged: ${r.where}.playheadColor is not a colour.')),
+        },
         colorNames: r.boolean('colorNames') ?? false,
         // A family this version doesn't know is left out.
         nameColors: {
@@ -508,7 +520,7 @@ class ProjectState {
         }),
         textDynamics: r.child('flags').boolean('textDynamics'),
         rehearsalInRow: r.child('flags').boolean('rehearsalInRow'),
-        centredLyrics: r.child('flags').boolean('centredLyrics'),
+        centeredLyrics: r.child('flags').boolean('centredLyrics'),
         spacers: [
           for (final (i, spacer) in r.list('spacers').indexed) _spacer(JsonReader(spacer, '${r.where}.spacers[$i]')),
         ],
@@ -691,7 +703,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :motion, :typography, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :rehearsalInRow, :centredLyrics, :spacers, :gaps) = edits;
+        :sections, :groupSections, :barNumbers, :playheadColor, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :rehearsalInRow, :centeredLyrics, :spacers, :gaps) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -704,8 +716,9 @@ class ProjectState {
         },
       if (!engraving.isEmpty) 'engraving': engraving.toJson(),
       if (extensions.isNotEmpty) 'extensions': extensions,
-      if (textDynamics != null || rehearsalInRow != null || centredLyrics != null)
-        'flags': {'textDynamics': ?textDynamics, 'rehearsalInRow': ?rehearsalInRow, 'centredLyrics': ?centredLyrics},
+      if (textDynamics != null || rehearsalInRow != null || centeredLyrics != null)
+        // centredLyrics: the flag's first spelling, kept so saved projects read the same.
+        'flags': {'textDynamics': ?textDynamics, 'rehearsalInRow': ?rehearsalInRow, 'centredLyrics': ?centeredLyrics},
       'motion': ?motion?.toJson(),
       'typography': ?typography?.toJson(),
       'textEdits': textEdits,
@@ -714,6 +727,7 @@ class ProjectState {
       'partOrder': partOrder,
       if (groupSections) 'groupSections': true,
       if (!barNumbers) 'barNumbers': false,
+      if (playheadColor != null) 'playheadColor': _hex(playheadColor),
       if (colorNames) 'colorNames': true,
       if (nameColors.isNotEmpty)
         'nameColors': {

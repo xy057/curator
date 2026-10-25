@@ -480,6 +480,7 @@ class EditorController extends ChangeNotifier {
       barNumbers: _doc.barNumbers,
       rehearsalInRow: rehearsalInRow,
       nameColors: _nameColors,
+      pointerColor: _doc.playheadColor,
       spacers: images.enabled ? _doc.spacers : const []);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
@@ -555,6 +556,17 @@ class EditorController extends ChangeNotifier {
   void setBarNumbers(bool on) {
     if (on == _doc.barNumbers) return;
     _doc = _doc.copyWith(barNumbers: on);
+    _showSettings();
+    _edited();
+  }
+
+  /// The playback line's colour (Project Settings ▸ Instruments); null: the score's own blue ([RenderStyle.pointer]).
+  Color? get playheadColor => _doc.playheadColor;
+
+  /// Colours the playback line, or gives it back its own blue (null): one Undo step.
+  void setPlayheadColor(Color? color) {
+    if (color == _doc.playheadColor) return;
+    _doc = _doc.copyWith(playheadColor: color);
     _showSettings();
     _edited();
   }
@@ -819,36 +831,36 @@ class EditorController extends ChangeNotifier {
     _edited();
   }
 
-  /// Whether syllables are centred under their noteheads ([EngraveRequest.centredLyrics]) in a
+  /// Whether syllables are centred under their noteheads ([EngraveRequest.centeredLyrics]) in a
   /// project that hasn't chosen: the app's, from Project Settings ▸ Flags ▸ Save as default.
   /// Not an edit: changing it re-engraves what is open.
-  bool get defaultCentredLyrics => _defaultCentredLyrics;
-  bool _defaultCentredLyrics = false;
-  set defaultCentredLyrics(bool value) {
-    if (value == _defaultCentredLyrics) return;
-    _defaultCentredLyrics = value;
-    if (_score != null && _doc.centredLyrics == null) unawaited(_reengrave());
+  bool get defaultCenteredLyrics => _defaultCenteredLyrics;
+  bool _defaultCenteredLyrics = false;
+  set defaultCenteredLyrics(bool value) {
+    if (value == _defaultCenteredLyrics) return;
+    _defaultCenteredLyrics = value;
+    if (_score != null && _doc.centeredLyrics == null) unawaited(_reengrave());
   }
 
   /// This project's choice (Project Settings ▸ Flags), else the app's.
-  bool get centredLyrics => _doc.centredLyrics ?? _defaultCentredLyrics;
+  bool get centeredLyrics => _doc.centeredLyrics ?? _defaultCenteredLyrics;
 
-  /// Sets [centredLyrics] for this project: one Undo step, re-engraving the score.
-  Future<void> setCentredLyrics(bool on) async {
-    if (_score == null || on == _doc.centredLyrics) return;
-    _doc = _doc.copyWith(centredLyrics: on);
+  /// Sets [centeredLyrics] for this project: one Undo step, re-engraving the score.
+  Future<void> setCenteredLyrics(bool on) async {
+    if (_score == null || on == _doc.centeredLyrics) return;
+    _doc = _doc.copyWith(centeredLyrics: on);
     final engraved = _reengrave();
     _edited();
     await engraved;
   }
 
   /// Sets every flag for this project at once (Flags ▸ Reset to Default): one Undo step,
-  /// re-engraving only if [textDynamics] or [centredLyrics] changes.
-  Future<void> setFlags({required bool textDynamics, required bool rehearsalInRow, required bool centredLyrics}) async {
+  /// re-engraving only if [textDynamics] or [centeredLyrics] changes.
+  Future<void> setFlags({required bool textDynamics, required bool rehearsalInRow, required bool centeredLyrics}) async {
     if (_score == null) return;
-    final next = _doc.copyWith(textDynamics: textDynamics, rehearsalInRow: rehearsalInRow, centredLyrics: centredLyrics);
+    final next = _doc.copyWith(textDynamics: textDynamics, rehearsalInRow: rehearsalInRow, centeredLyrics: centeredLyrics);
     if (next == _doc) return;
-    final engrave = textDynamics != _doc.textDynamics || centredLyrics != _doc.centredLyrics;
+    final engrave = textDynamics != _doc.textDynamics || centeredLyrics != _doc.centeredLyrics;
     _doc = next;
     _showSettings();
     final engraved = engrave ? _reengrave() : null;
@@ -933,7 +945,7 @@ class EditorController extends ChangeNotifier {
       options: edits.engraving.over(_engravingOptions),
       textDynamics: edits.textDynamics ?? _defaultTextDynamics,
       typography: edits.typography ?? _defaultTypography,
-      centredLyrics: edits.centredLyrics ?? _defaultCentredLyrics,
+      centeredLyrics: edits.centeredLyrics ?? _defaultCenteredLyrics,
       // Only while Attach Image is on.
       spacers: (edits.extensions[Extensions.attachImage.id] ?? false) ? edits.spacers : const [],
       gaps: (edits.extensions[Extensions.attachImage.id] ?? false) ? edits.gaps : const []);
