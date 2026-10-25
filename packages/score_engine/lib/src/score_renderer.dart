@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'display_list.dart';
 import 'engraving.dart';
 import 'frozen_zone.dart';
+import 'score_typography.dart';
 
 /// Where a staff is drawn in the current frame.
 class StaffPlacement {
@@ -481,6 +482,18 @@ class ScoreRenderer {
 
   final _labelCache = <String, ui.Paragraph>{};
 
+  /// How the names look (Project Settings ▸ Typography ▸ Names).
+  TextLook get names => _names;
+  TextLook _names = const TextLook();
+  set names(TextLook value) {
+    if (value == _names) return;
+    _names = value;
+    for (final label in _labelCache.values) {
+      label.dispose();
+    }
+    _labelCache.clear();
+  }
+
   /// Covers the names' and frozen zone's room left of [left] with [paint] in [color], and the
   /// [_fade] after it with [color] fading out.
   static void _coverHeader(ui.Canvas canvas, ui.Size size, double left, ui.Paint paint, ui.Color color) {
@@ -513,7 +526,7 @@ class ScoreRenderer {
       canvas.saveLayer(
           null,
           ui.Paint()
-            ..color = ui.Color.fromRGBO(0, 0, 0, label.opacity)
+            ..color = ui.Color.fromRGBO(0, 0, 0, label.opacity * _names.opacity)
             ..colorFilter = color == null ? ink : ui.ColorFilter.mode(color, ui.BlendMode.srcIn));
       canvas.drawParagraph(paragraph, ui.Offset(4, label.centerY - paragraph.height / 2));
       canvas.restore();
@@ -523,14 +536,17 @@ class ScoreRenderer {
 
 extension on ScoreRenderer {
   ui.Paragraph _label(String text, double width) => _labelCache.putIfAbsent(text, () {
+        final fontSize = style.labelFontSize * _names.size;
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
           fontFamily: style.textFontFamily,
-          fontSize: style.labelFontSize,
+          fontSize: fontSize,
+          fontStyle: _names.face.fontStyle,
+          fontWeight: _names.face.fontWeight,
           textAlign: ui.TextAlign.right,
           maxLines: 1,
           ellipsis: '…',
         ))
-          ..pushStyle(ui.TextStyle(color: style.ink))
+          ..pushStyle(ui.TextStyle(color: style.ink, letterSpacing: _names.spacingAt(fontSize)))
           ..addText(text);
         return builder.build()..layout(ui.ParagraphConstraints(width: width));
       });

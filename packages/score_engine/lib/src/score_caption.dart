@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 import 'score_motion.dart';
+import 'score_typography.dart';
 import 'scroll_map.dart';
 
 /// A caption (the Captions extension): [text] shown in a bar under the score while the
@@ -130,14 +131,18 @@ class CaptionStyle {
 /// its countdown ([CaptionStyle.countdown]). A caption glides gently into place as it fades
 /// in, and fades out as its time ends.
 class CaptionBar {
-  CaptionBar(this.fontFamily, [this.style = const CaptionStyle()]);
+  CaptionBar(this.fontFamily, [this.style = const CaptionStyle(), this.look = TextKind.captionsHouse]);
 
   /// The family drawn when [style] names none (the score's text font).
   final String fontFamily;
   final CaptionStyle style;
 
+  /// The text's size (a share of [style]'s), face, letter spacing and opacity (Project
+  /// Settings ▸ Typography ▸ Captions).
+  final TextLook look;
+
   String get _family => style.fontFamily ?? fontFamily;
-  double get fontSize => style.size.points;
+  double get fontSize => style.size.points * look.size;
 
   /// Room the staves leave for the bar (on top of the scene's margin), as the text's size.
   double get reserve => 36.0 * fontSize / 14;
@@ -158,12 +163,14 @@ class CaptionBar {
         final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
           fontFamily: _family,
           fontSize: fontSize,
+          fontStyle: look.face.fontStyle,
+          fontWeight: look.face.fontWeight,
           height: 1.3,
           textAlign: ui.TextAlign.center,
           maxLines: 2,
           ellipsis: '…',
         ))
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: 0.15))
+          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
           ..addText(text.trim());
         final p = builder.build()..layout(ui.ParagraphConstraints(width: width));
         return (p: p, firstLine: p.computeLineMetrics().firstOrNull?.height ?? p.height);
@@ -214,7 +221,7 @@ class CaptionBar {
       // frame offscreen each frame is costly at 4K. A little over, for glyphs that overhang.
       canvas.saveLayer((at & ui.Size(p.width, p.height)).inflate(4),
           ui.Paint()
-            ..color = ui.Color.fromRGBO(0, 0, 0, opacity)
+            ..color = ui.Color.fromRGBO(0, 0, 0, opacity * look.opacity)
             ..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn));
       canvas.drawParagraph(p, at);
       canvas.restore();

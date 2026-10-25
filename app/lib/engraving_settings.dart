@@ -363,7 +363,7 @@ class _EngravingPreviewState extends State<EngravingPreview> {
                 child: RepaintBoundary(
                   child: CustomPaint(
                     painter: _PreviewPainter(c.scene!, c.curation!, time, MediaQuery.devicePixelRatioOf(context),
-                        colors.scorePaper, colors.scoreInk, widget.scale),
+                        colors.scorePaper, colors.scoreInk, widget.scale, c.editRevision.value),
                   ),
                 ),
               ),
@@ -393,13 +393,16 @@ class _EngravingPreviewState extends State<EngravingPreview> {
 }
 
 class _PreviewPainter extends CustomPainter {
-  _PreviewPainter(this.scene, this.curation, this.time, this.devicePixelRatio, this.paper, this.ink, this.scale);
+  _PreviewPainter(this.scene, this.curation, this.time, this.devicePixelRatio, this.paper, this.ink, this.scale, this.revision);
   final CuratedScene scene;
   final Curation curation;
   final double time;
   final double devicePixelRatio;
   final Color paper, ink;
   final double scale;
+
+  /// The edit shown: an edit that only redraws (a drawn text's look) keeps the scene.
+  final int revision;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -418,5 +421,6 @@ class _PreviewPainter extends CustomPainter {
       old.devicePixelRatio != devicePixelRatio ||
       old.paper != paper ||
       old.ink != ink ||
-      old.scale != scale;
+      old.scale != scale ||
+      old.revision != revision;
 }

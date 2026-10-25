@@ -411,6 +411,7 @@ class _ItemBuilder {
     final base = index * Cmd.words;
     final builder = ui.ParagraphBuilder(ui.ParagraphStyle(fontFamily: style.textFontFamily));
     var i = index;
+    var spacing = 0.0;
     do {
       final b = i * Cmd.words;
       final flags = ints[b + Cmd.flags];
@@ -424,6 +425,7 @@ class _ItemBuilder {
           fontSize: floats[b + Cmd.size],
           fontStyle: flags & VBFlag.italic != 0 ? ui.FontStyle.italic : ui.FontStyle.normal,
           fontWeight: flags & VBFlag.bold != 0 ? ui.FontWeight.bold : ui.FontWeight.normal,
+          letterSpacing: spacing = floats[b + Cmd.letterSpacing],
         ))
         ..addText(utf8.decode(d.text.sublist(start, start + ints[b + Cmd.count]), allowMalformed: true))
         ..pop();
@@ -433,7 +435,8 @@ class _ItemBuilder {
         ints[i * Cmd.words + Cmd.flags] & VBFlag.newTextBlock == 0);
 
     final paragraph = builder.build()..layout(const ui.ParagraphConstraints(width: double.maxFinite));
-    final width = paragraph.maxIntrinsicWidth;
+    // Flutter spaces the last character too; Verovio only between them.
+    final width = paragraph.maxIntrinsicWidth - spacing;
     var x = floats[base + Cmd.x].toDouble();
     final alignment = ints[base + Cmd.alignment];
     if (alignment == 1) x -= width / 2;

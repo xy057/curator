@@ -45,7 +45,8 @@ VB_WORD(fontIndex, 14);
 VB_WORD(bounds, 15);
 VB_WORD(sourceIndex, 19);
 VB_WORD(rotation, 20);
-static_assert(sizeof(VBCommand) == 21 * 4, "VBCommand is 21 words");
+VB_WORD(letterSpacing, 21);
+static_assert(sizeof(VBCommand) == 22 * 4, "VBCommand is 22 words");
 static_assert(sizeof(VBPathElement) == 7 * 4, "VBPathElement is an op and 6 floats");
 #undef VB_WORD
 
@@ -364,6 +365,7 @@ public:
         cmd.x = m_textX;
         cmd.y = m_textY;
         cmd.size = font->GetPointSize();
+        cmd.letterSpacing = float(font->GetLetterSpacing());
         cmd.alignment = (m_textAlignment == HORIZONTALALIGNMENT_center) ? 1
             : (m_textAlignment == HORIZONTALALIGNMENT_right)             ? 2
                                                                          : 0;

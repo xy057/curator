@@ -37,6 +37,11 @@ void main() {
     c.setGroupSections(true);
     c.setBarNumbers(true);
     c.setColorNames(true);
+    await tester.runAsync(() => c.setTypography(ScoreTypography.standard
+        .withValue('names.face', TextFace.italic)
+        .withValue('barNumbers.size', 1.4)
+        .withValue('captions.tracking', 0.05)
+        .withValue('tempo.size', 1.3)));
     c.setNameGroupColor('strings', const ui.Color(0xFF8A5A2B));
     c.setNameGroup(parts.first, c.addNameGroup('Solo'));
     c.setCondensed(['cond-P2-P3'], on: true);
@@ -49,6 +54,7 @@ void main() {
     c.endEdit();
     expect(c.scene!.captions, isNotEmpty);
     expect(c.scene!.captionStyle.countdown, CaptionCountdown.ring);
+    expect(c.score!.typography[TextKind.tempo].size, 1.3);
 
     final export = VideoExport.of(c);
     addTearDown(export.dispose);
