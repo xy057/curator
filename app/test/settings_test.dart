@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -109,6 +110,24 @@ void main() {
     expect(find.text('Animation'), findsNothing, reason: "the project's, in Project Settings");
 
     expect(find.text('Extensions'), findsNothing, reason: "the project's, in Project Settings");
+  });
+
+  testWidgets('opening Settings again while it is up (⌘, held) shows the one window', (tester) async {
+    final settings = await open(tester);
+    final context = tester.element(find.text('open'));
+    final barriers = tester.widgetList(find.byType(ModalBarrier)).length; // one per route
+    for (var i = 0; i < 3; i++) {
+      unawaited(showSettingsDialog(context, settings));
+      await tester.pump(const Duration(milliseconds: 30));
+    }
+    await tester.pumpAndSettle();
+    expect(tester.widgetList(find.byType(ModalBarrier)).length, barriers);
+    Navigator.of(context).pop();
+    await tester.pumpAndSettle();
+    expect(tester.widgetList(find.byType(ModalBarrier)).length, lessThan(barriers));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(tester.widgetList(find.byType(ModalBarrier)).length, barriers, reason: 'closed, it opens again');
   });
 
   testWidgets('About names the build and links the website', (tester) async {
