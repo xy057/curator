@@ -53,6 +53,7 @@ ICONS = [
     ('select', "A select field's arrow.", 'unfold_more', 'chevron--down'),
     ('dropDown', "A toolbar menu's arrow.", 'arrow_drop_down', 'chevron--down'),
     ('forward', 'From one value to the next.', 'arrow_forward', 'arrow--right'),
+    ('popOut', 'Opens a page in a window of its own.', 'open_in_new', 'launch'),
     # Files
     ('open', 'Opens a file.', 'folder_open', 'folder--open'),
     ('drop', 'A file dragged over a drop area.', 'download', 'download'),

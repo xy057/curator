@@ -1,6 +1,6 @@
-// Project Settings ▸ Advanced Engraving with a score open: every other engraving option by plain
-// name, the score engraved again after each change; and Hide Preview on every engraving page,
-// the rows kept where they were scrolled.
+// Project Settings ▸ Engraving ▸ Advanced with a score open: every other engraving option by
+// plain name, the score engraved again after each change; Hide Preview on every engraving tab,
+// the rows kept where they were scrolled; and a tab in a window of its own.
 // With SCREENSHOT_DIR set, saves PNGs.
 import 'dart:async';
 
@@ -8,6 +8,7 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/engraving_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/motion_settings.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +21,7 @@ import 'test_fonts.dart';
 import 'window.dart';
 
 void main() {
-  testWidgets('Advanced Engraving re-engraves the score; each engraving page hides its preview', (tester) async {
+  testWidgets('Engraving ▸ Advanced re-engraves the score; each tab hides its preview and opens in a window', (tester) async {
     if (screenshotDir != null) await tester.runAsync(loadTestFonts);
     desktopWindow(tester);
     final settings = AppSettings.memory();
@@ -120,12 +121,14 @@ void main() {
     expect(preview, findsNothing);
     expect(settings.engravingPreview, isFalse);
     expect(rows().pixels, 400);
-    for (final page in ['Engraving', 'Typography']) {
-      await tester.tap(find.text(page).first);
+    // The three are tabs of one Engraving page.
+    for (final tab in ['Engraving', 'Typography']) {
+      await tester.tap(find.descendant(of: find.byType(AppSegmented<int>), matching: find.text(tab)));
       await settle();
-      expect(preview, findsNothing, reason: page);
-      expect(find.byTooltip('Show Preview'), findsOneWidget, reason: page);
+      expect(preview, findsNothing, reason: tab);
+      expect(find.byTooltip('Show Preview'), findsOneWidget, reason: tab);
     }
+    expect(find.text('Music font'), findsNothing, reason: 'the Engraving tab left');
     // A percent typed as one.
     await tester.enterText(field.first, '150');
     await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -137,7 +140,23 @@ void main() {
     expect(preview, findsOneWidget);
     expect(settings.engravingPreview, isTrue);
     expect(rows().pixels, 0, reason: 'Typography, at its top');
-    await tester.tap(find.text('Animation').first);
+
+    // Typography in a window of its own, over the editor: the same rows, setting the project.
+    await tester.tap(find.byTooltip('Open in Window'));
+    await settle();
+    expect(find.widgetWithText(TextField, 'Search'), findsNothing, reason: 'Project Settings closed');
+    expect(find.text('Typography'), findsOneWidget);
+    expect(preview, findsOneWidget);
+    await tester.enterText(field.first, '120');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle();
+    expect(find.descendant(of: field.first, matching: find.text('120%')), findsOneWidget);
+    await screenshot(tester, 'typography-window', inside: find.text('Typography'), pixelRatio: 1);
+    await tester.tap(find.byTooltip('Close'));
+    await settle();
+    expect(find.text('Typography'), findsNothing);
+
+    unawaited(showProjectSettingsDialog(tester.element(find.byType(HomePage)), settings, c, page: 'Animation'));
     await settle();
     expect(find.byTooltip('Hide Preview'), findsNothing, reason: 'not an engraving page');
     expect(find.text('Bar numbers'), findsOneWidget, reason: 'the drawn row of bar numbers: Animation, not Engraving');

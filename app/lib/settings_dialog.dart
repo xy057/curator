@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ffi' show Abi;
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -115,10 +116,27 @@ class _Item {
 }
 
 class _Category {
-  const _Category(this.label, this.icon, this.items, {this.empty, this.page, this.preview = false, this.saveDefault});
+  const _Category(this.label, this.icon, this.items,
+      {this.empty, this.page, this.preview = false, this.saveDefault, this.title})
+      : tabs = null;
+
+  /// One sidebar entry for several pages, chosen by a switch under its title; each can open in a
+  /// window of its own ([_EngravingWindow]). Its items, every tab's, answer the search.
+  _Category.tabbed(this.label, this.icon, List<_Category> this.tabs)
+      : items = [for (final t in tabs) ...t.items],
+        empty = null,
+        page = null,
+        preview = false,
+        saveDefault = null,
+        title = null;
+
   final String label;
   final AppIcon icon;
   final List<_Item> items;
+  final List<_Category>? tabs;
+
+  /// Its name in a window of its own (a tab's label may lean on the page's: "Advanced").
+  final String? title;
 
   /// The score as engraved above the page's rows, staying put while they scroll: an engraving
   /// page's, while [AppSettings.engravingPreview] (Hide Preview, by the page's title).
@@ -322,9 +340,7 @@ final _projectCategories = <_Category>[
       ..setTransition(c.settings.transition)
       ..setScrollFollow(c.settings.scrollFollow),
   )),
-  _engravingCategory(),
-  _typographyCategory(),
-  _advancedEngravingCategory(),
+  _Category.tabbed('Engraving', AppIcon.music, [_engravingCategory(), _typographyCategory(), _advancedEngravingCategory()]),
   _Category('Instruments', AppIcon.score, page: (c) => _InstrumentsPage(c), [
     _Item(
       'Color names',
@@ -416,7 +432,7 @@ _Category _advancedCategory() {
   );
 }
 
-/// Project Settings ▸ Typography: how each kind of text in the score looks ([TypographySetting.all]),
+/// Project Settings ▸ Engraving ▸ Typography: how each kind of text in the score looks ([TypographySetting.all]),
 /// over the app's default (Save as default), under the score as it shows them.
 _Category _typographyCategory() {
   TypographyTarget target(_Context c) => TypographyTarget(c.settings, c.controller!);
@@ -448,13 +464,14 @@ _Category _typographyCategory() {
   );
 }
 
-/// Project Settings ▸ Advanced Engraving: every other engraving option ([EngravingSetting.advanced]),
+/// Project Settings ▸ Engraving ▸ Advanced: every other engraving option ([EngravingSetting.advanced]),
 /// by plain name as on Engraving, under the same preview; Save as default is Engraving's too.
 _Category _advancedEngravingCategory() {
   EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller!);
   return _Category(
-    'Advanced Engraving',
+    'Advanced',
     AppIcon.general,
+    title: 'Advanced Engraving',
     preview: true,
     saveDefault: (
       shown: null,
@@ -575,8 +592,8 @@ class _SectionsPage extends StatelessWidget {
   }
 }
 
-/// Project Settings ▸ Engraving: the fonts and the options most scores want changed
-/// ([EngravingSetting.all]) under a preview of the score, every other one on Advanced Engraving,
+/// Project Settings ▸ Engraving ▸ Engraving: the fonts and the options most scores want changed
+/// ([EngravingSetting.all]) under a preview of the score, every other one on the Advanced tab,
 /// and Save as default (the app's, for other projects).
 _Category _engravingCategory() {
   EngravingTarget target(_Context c) => EngravingTarget(c.settings, c.controller!);
@@ -675,11 +692,33 @@ class _SettingsWindow extends StatefulWidget {
 
 class _SettingsWindowState extends State<_SettingsWindow> {
   static final _lastPages = <_Window, int>{}; // each window reopens where it was left
+  static final _lastTabs = <String, int>{}; // a tabbed page's tab, by its label
   late final _categories = widget.kind.categories;
-  late int _page = _lastPage = switch (_categories.indexWhere((c) => c.label == widget.page)) {
-    -1 => _lastPage,
-    final i => i,
-  };
+  late int _page = _lastPage = _open(widget.page) ?? _lastPage;
+
+  /// The page named [name] (a page's label, or a tab's label or title, choosing the tab).
+  int? _open(String? name) {
+    for (final (i, c) in _categories.indexed) {
+      if (c.label == name) return i;
+      final tab = c.tabs?.indexWhere((t) => t.label == name || t.title == name) ?? -1;
+      if (tab >= 0) {
+        _lastTabs[c.label] = tab;
+        return i;
+      }
+    }
+    return null;
+  }
+
+  /// [cat]'s tab shown, or [cat] itself.
+  _Category _tabOf(_Category cat) => cat.tabs?[_lastTabs[cat.label] ?? 0] ?? cat;
+
+  /// [tab] in a window of its own, over the editor, in place of this one.
+  void _popOut(_Category tab) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    Navigator.pop(context);
+    _EngravingWindow.show(
+        overlay, tab, (settings: widget.settings, controller: widget.controller, updater: Updater(), replaceScore: null));
+  }
   final _search = TextEditingController();
 
   int get _lastPage => _lastPages[widget.kind] ?? 0;
@@ -738,17 +777,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     });
   }
 
-  /// [page]'s settings back to the app's defaults: one Undo step however many it changes.
-  Future<void> _resetPage(_SaveDefault page) async {
-    final controller = widget.controller!..beginEdit();
-    try {
-      await page.reset(_ctx);
-    } finally {
-      controller.endEdit();
-    }
-  }
-
-  Iterable<_Item> _shownItems(_Category cat) => cat.items.where((item) => item.shown?.call(_ctx) ?? true);
+  Iterable<_Item> _shownItems(_Category cat) => _shown(cat, _ctx);
 
   @override
   Widget build(BuildContext context) {
@@ -847,29 +876,28 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   Widget _content(BuildContext context) {
     final matches = _matches;
     final cat = _categories[_page];
+    // A tabbed page: its tab's rows, preview and Save as Default under the page's title.
+    final tab = _tabOf(cat);
+    final tabs = cat.tabs;
     Widget page;
     if (matches == null && cat.page != null) {
       page = KeyedSubtree(key: ValueKey(_page), child: cat.page!(_ctx));
     } else if (matches == null) {
-      final groups = <(String?, List<Widget>)>[];
-      for (final item in _shownItems(cat)) {
-        if (groups.isEmpty || groups.last.$1 != item.group) groups.add((item.group, []));
-        groups.last.$2.add(_row(item));
-      }
-      page = _Page(key: ValueKey(_page), empty: cat.empty, groups: groups);
-      // Shown or hidden, the rows stay where they are: the same tree, keeping their scroll.
-      if (cat.preview) {
-        final colors = context.colors;
-        page = Column(key: ValueKey(_page), crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          if (widget.settings.engravingPreview) ...[
-            SizedBox(
-                height: 170,
-                child: EngravingPreviewHost(settings: widget.settings, controller: widget.controller, scale: 0.5)),
-            Divider(height: 1, color: colors.line),
-          ],
-          Expanded(key: const ValueKey('rows'), child: page),
-        ]);
-      }
+      page = _pageBody(context, tab, _ctx,
+          key: ValueKey(_page),
+          rowsKey: ValueKey((_page, tab.label)),
+          above: tabs == null
+              ? null
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
+                  child: Center(
+                    child: AppSegmented<int>(
+                      segments: [for (final (i, t) in tabs.indexed) ButtonSegment(value: i, label: Text(t.label))],
+                      selected: tabs.indexOf(tab),
+                      onChanged: (i) => setState(() => _lastTabs[cat.label] = i),
+                    ),
+                  ),
+                ));
     } else {
       // One group per page, in sidebar order, each under its page's name.
       page = _Page(
@@ -894,47 +922,22 @@ class _SettingsWindowState extends State<_SettingsWindow> {
       Container(
         height: 52,
         padding: const EdgeInsets.only(left: 28, right: 10),
-        child: Row(children: [
-          Expanded(
-            child: Text(
-              matches == null
-                  ? cat.label
-                  : matches.isEmpty
-                      ? 'No matching settings'
-                      : 'Search results',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text),
-            ),
-          ),
-          if (matches == null && cat.preview)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: IconButton(
-                tooltip: widget.settings.engravingPreview ? 'Hide Preview' : 'Show Preview',
-                iconSize: 18,
-                visualDensity: VisualDensity.compact,
-                color: colors.textMuted,
-                onPressed: () => widget.settings.engravingPreview = !widget.settings.engravingPreview,
-                icon: Icon((widget.settings.engravingPreview ? AppIcon.noImage : AppIcon.image).of(context)),
-              ),
-            ),
-          if (matches == null && cat.saveDefault != null && (cat.saveDefault!.shown?.call(_ctx) ?? true))
-            _SaveDefaultButton(
-                isDefault: cat.saveDefault!.isDefault(_ctx),
-                onPressed: () => cat.saveDefault!.save(_ctx),
-                onReset: () => _resetPage(cat.saveDefault!)),
+        child: _TitleBar(
+            title: matches == null
+                ? cat.label
+                : matches.isEmpty
+                    ? 'No matching settings'
+                    : 'Search results',
+            buttons: [
+          if (matches == null && tabs != null)
+            _HeaderIcon(tooltip: 'Open in Window', icon: AppIcon.popOut, onPressed: () => _popOut(tab)),
+          if (matches == null) ..._pageButtons(context, tab, _ctx),
           if (widget.kind == _Window.project && (widget.controller?.isReengraving ?? false))
             const Padding(
               padding: EdgeInsets.only(right: 8),
               child: SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
             ),
-          IconButton(
-            tooltip: 'Close',
-            iconSize: 18,
-            visualDensity: VisualDensity.compact,
-            color: colors.textMuted,
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(AppIcon.close.of(context)),
-          ),
+          _HeaderIcon(tooltip: 'Close', icon: AppIcon.close, onPressed: () => Navigator.pop(context)),
         ]),
       ),
       Divider(height: 1, color: colors.line),
@@ -959,15 +962,236 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     ]);
   }
 
-  // Keyed, so a control keeps its state when a row above it comes or goes (`shown`). Found by a
-  // search, away from its heading, a row whose title its page repeats names its group
-  // ("Size · Lyrics").
-  Widget _row(_Item item, {bool withGroup = false}) => _SettingRow(
-      key: ObjectKey(item),
-      title: withGroup && item.group != null ? '${item.title} · ${item.group}' : item.title,
-      note: item.note,
-      help: item.help?.call(_ctx),
-      control: item.control(_ctx));
+  Widget _row(_Item item, {bool withGroup = false}) => _rowOf(item, _ctx, withGroup: withGroup);
+}
+
+Iterable<_Item> _shown(_Category cat, _Context ctx) => cat.items.where((item) => item.shown?.call(ctx) ?? true);
+
+// Keyed, so a control keeps its state when a row above it comes or goes (`shown`). Found by a
+// search, away from its heading, a row whose title its page repeats names its group
+// ("Size · Lyrics").
+Widget _rowOf(_Item item, _Context ctx, {bool withGroup = false}) => _SettingRow(
+    key: ObjectKey(item),
+    title: withGroup && item.group != null ? '${item.title} · ${item.group}' : item.title,
+    note: item.note,
+    help: item.help?.call(ctx),
+    control: item.control(ctx));
+
+/// [cat]'s rows under their headings, with [above] them a tabbed page's switch and an engraving
+/// page's preview. Shown or hidden, the rows stay where they are: the same tree, keeping their
+/// scroll ([rowsKey] tells one page's rows from another's).
+Widget _pageBody(BuildContext context, _Category cat, _Context ctx,
+    {required Key key, required Key rowsKey, Widget? above}) {
+  final groups = <(String?, List<Widget>)>[];
+  for (final item in _shown(cat, ctx)) {
+    if (groups.isEmpty || groups.last.$1 != item.group) groups.add((item.group, []));
+    groups.last.$2.add(_rowOf(item, ctx));
+  }
+  final rows = _Page(key: rowsKey, empty: cat.empty, groups: groups);
+  if (!cat.preview && above == null) return KeyedSubtree(key: key, child: rows);
+  final colors = context.colors;
+  final preview = cat.preview && ctx.settings.engravingPreview;
+  return Column(key: key, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    ?above,
+    if (preview) ...[
+      if (above != null) Divider(height: 1, color: colors.line),
+      SizedBox(height: 170, child: EngravingPreviewHost(settings: ctx.settings, controller: ctx.controller, scale: 0.5)),
+    ],
+    if (above != null || preview) Divider(height: 1, color: colors.line),
+    Expanded(key: const ValueKey('rows'), child: rows),
+  ]);
+}
+
+/// By a page's title: Hide Preview on an engraving page, and Save as Default.
+List<Widget> _pageButtons(BuildContext context, _Category cat, _Context ctx) {
+  final settings = ctx.settings;
+  final save = cat.saveDefault;
+  return [
+    if (cat.preview)
+      _HeaderIcon(
+        tooltip: settings.engravingPreview ? 'Hide Preview' : 'Show Preview',
+        icon: settings.engravingPreview ? AppIcon.noImage : AppIcon.image,
+        onPressed: () => settings.engravingPreview = !settings.engravingPreview,
+      ),
+    if (save != null && (save.shown?.call(ctx) ?? true))
+      _SaveDefaultButton(
+        isDefault: save.isDefault(ctx),
+        onPressed: () => save.save(ctx),
+        // The page's settings back to the app's defaults: one Undo step however many it changes.
+        onReset: () async {
+          final controller = ctx.controller!..beginEdit();
+          try {
+            await save.reset(ctx);
+          } finally {
+            controller.endEdit();
+          }
+        },
+      ),
+  ];
+}
+
+/// A page's title, and its buttons at the right: made smaller, not overflowing, when the line
+/// can't hold them (a wider font, a longer title).
+class _TitleBar extends StatelessWidget {
+  const _TitleBar({required this.title, required this.buttons});
+  final String title;
+  final List<Widget> buttons;
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Text(title, maxLines: 1, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: context.colors.text)),
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Row(mainAxisSize: MainAxisSize.min, children: buttons),
+          ),
+        ),
+      ]);
+}
+
+/// A page title's icon button: muted, 32 points square.
+class _HeaderIcon extends StatelessWidget {
+  const _HeaderIcon({required this.tooltip, required this.icon, required this.onPressed});
+  final String tooltip;
+  final AppIcon icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        tooltip: tooltip,
+        iconSize: 18,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+        style: IconButton.styleFrom(tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+        color: context.colors.textMuted,
+        onPressed: onPressed,
+        icon: Icon(icon.of(context)),
+      );
+}
+
+/// A tab of Project Settings ▸ Engraving in a window of its own, floating over the editor (which
+/// stays usable: the score re-engraves behind it), moved by its title. One at a time; it closes
+/// with its Close or Escape, or when the project does.
+class _EngravingWindow extends StatefulWidget {
+  const _EngravingWindow({required this.page, required this.ctx, required this.onClose});
+  final _Category page;
+  final _Context ctx;
+  final VoidCallback onClose;
+
+  static OverlayEntry? _shown;
+
+  static void show(OverlayState overlay, _Category page, _Context ctx) {
+    close();
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _EngravingWindow(
+        page: page,
+        ctx: ctx,
+        onClose: () {
+          if (_shown != entry) return;
+          _shown = null;
+          entry.remove();
+        },
+      ),
+    );
+    overlay.insert(_shown = entry);
+  }
+
+  static void close() {
+    _shown?.remove();
+    _shown = null;
+  }
+
+  @override
+  State<_EngravingWindow> createState() => _EngravingWindowState();
+}
+
+class _EngravingWindowState extends State<_EngravingWindow> {
+  static const _width = 560.0;
+
+  /// Its top left, once moved: at first by the editor's right edge, under the toolbar.
+  Offset? _at;
+
+  EditorController get _controller => widget.ctx.controller!;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_controllerChanged);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_controllerChanged);
+    super.dispose();
+  }
+
+  void _controllerChanged() {
+    if (_controller.score == null) WidgetsBinding.instance.addPostFrameCallback((_) => widget.onClose());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final size = MediaQuery.sizeOf(context);
+    final height = math.min(620.0, size.height - 96);
+    Offset clamp(Offset o) =>
+        Offset(o.dx.clamp(0, math.max(0, size.width - _width)), o.dy.clamp(0, math.max(0, size.height - 52)));
+    final at = clamp(_at ?? Offset(size.width - _width - 24, 72));
+    final page = widget.page;
+    final ctx = widget.ctx;
+    final title = _TitleBar(title: page.title ?? page.label, buttons: [
+      ..._pageButtons(context, page, ctx),
+      if (_controller.isReengraving)
+        const Padding(
+          padding: EdgeInsets.only(right: 8),
+          child: SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      _HeaderIcon(tooltip: 'Close', icon: AppIcon.close, onPressed: widget.onClose),
+    ]);
+    return Positioned(
+      left: at.dx,
+      top: at.dy,
+      width: _width,
+      height: height,
+      child: CallbackShortcuts(
+        bindings: {const SingleActivator(LogicalKeyboardKey.escape): widget.onClose},
+        child: FocusScope(
+          // Apart from the editor's frames: playback repaints the score under it every frame.
+          child: RepaintBoundary(
+            child: Material(
+              color: Theme.of(context).dialogTheme.backgroundColor,
+              elevation: 16,
+              shadowColor: Colors.black.withValues(alpha: 0.2),
+              animationDuration: Duration.zero,
+              shape: AppStyle.of(context).isCarbon
+                  ? const RoundedRectangleBorder()
+                  : RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.line)),
+              clipBehavior: Clip.antiAlias,
+              child: ListenableBuilder(
+                listenable: Listenable.merge([ctx.settings, _controller]),
+                builder: (context, _) => _controller.score == null
+                    ? const SizedBox.shrink()
+                    : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        // Moved by its title, as a window is.
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onPanUpdate: (d) => setState(() => _at = clamp(at + d.delta)),
+                          child: Container(height: 52, padding: const EdgeInsets.only(left: 24, right: 10), child: title),
+                        ),
+                        Divider(height: 1, color: colors.line),
+                        Expanded(
+                          child: _pageBody(context, page, ctx, key: const ValueKey('page'), rowsKey: const ValueKey('rows')),
+                        ),
+                      ]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The sidebar's neutral tint: a step off the dialog's surface, without the accent; in the light
