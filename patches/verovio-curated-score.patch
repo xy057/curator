@@ -79,6 +79,20 @@ index 50b0a70..19996c5 100644
  } // namespace vrv
  
  #endif // CUSTOM_VEROVIO_OPTIONS
+diff --git a/include/vrv/view.h b/include/vrv/view.h
+index 52616e0..afa95ef 100644
+--- a/include/vrv/view.h
++++ b/include/vrv/view.h
+@@ -382,7 +382,8 @@ protected:
+     void DrawSvg(DeviceContext *dc, Svg *svg, TextDrawingParams &params, int staffSize, bool dimin);
+     void DrawSymbol(DeviceContext *dc, Symbol *symbol, TextDrawingParams &params);
+     void DrawText(DeviceContext *dc, Text *text, TextDrawingParams &params);
+-    void DrawTextEnclosure(DeviceContext *dc, const TextDrawingParams &params, int staffSize);
++    void DrawTextEnclosure(
++        DeviceContext *dc, const TextDrawingParams &params, int staffSize, bool rehearsal = false); // [curated-score patch]
+ 
+     /**
+      * @name Method for drawing Beam and FTrem.
 diff --git a/include/vrv/vrv.h b/include/vrv/vrv.h
 index d8070ce..a35e805 100644
 --- a/include/vrv/vrv.h
@@ -139,7 +153,7 @@ index 34bdd89..accf3a8 100644
  }
  
 diff --git a/src/doc.cpp b/src/doc.cpp
-index 430072a..db1536c 100644
+index 430072a..09a1620 100644
 --- a/src/doc.cpp
 +++ b/src/doc.cpp
 @@ -1866,6 +1866,7 @@ void Doc::ResetFocus()
@@ -191,6 +205,15 @@ index 430072a..db1536c 100644
      int x, y, w, h;
      const Resources &resources = this->GetResources();
      const Glyph *glyph = resources.GetGlyph(code);
+@@ -2226,6 +2233,8 @@ double Doc::GetBottomMargin(const ClassId classId) const
+     if (classId == ARTIC) return m_options->m_bottomMarginArtic.GetValue();
+     if (classId == HARM) return m_options->m_bottomMarginHarm.GetValue();
+     if (classId == OCTAVE) return m_options->m_bottomMarginOctave.GetValue();
++    // A rehearsal mark stands a space clear of the music [curated-score patch]
++    if (classId == REH) return std::max(m_options->m_defaultBottomMargin.GetValue(), 2.0);
+     return m_options->m_defaultBottomMargin.GetValue();
+ }
+ 
 diff --git a/src/drawinginterface.cpp b/src/drawinginterface.cpp
 index 8a0ed02..131e979 100644
 --- a/src/drawinginterface.cpp
@@ -214,8 +237,22 @@ index 8a0ed02..131e979 100644
      if (keySig) {
          const bool ignoreCancel
              = (m_currentKeySig.HasNonAttribKeyAccidChildren() || keySig->HasNonAttribKeyAccidChildren());
+diff --git a/src/floatingobject.cpp b/src/floatingobject.cpp
+index 5772420..a9ad7d2 100644
+--- a/src/floatingobject.cpp
++++ b/src/floatingobject.cpp
+@@ -451,6 +451,9 @@ int FloatingPositioner::GetAdmissibleHorizOverlapMargin(const BoundingBox *bbox,
+     const LayerElement *element = dynamic_cast<const LayerElement *>(bbox);
+     if (element) {
+         if (this->GetObject()->IsExtenderElement()) return 8 * unit;
++        // A rehearsal mark clears what is near it, not only under it: a note and its ledger
++        // lines beside the box count [curated-score patch]
++        if (this->GetObject()->Is(REH)) return 3 * unit;
+         if ((this->GetObject()->Is(DYNAM)) && element->GetFirstAncestor(BEAM)) {
+             return 2 * unit;
+         }
 diff --git a/src/iomusxml.cpp b/src/iomusxml.cpp
-index f20540d..297169b 100644
+index f20540d..27b543f 100644
 --- a/src/iomusxml.cpp
 +++ b/src/iomusxml.cpp
 @@ -700,6 +700,21 @@ std::string MusicXmlInput::GetWordsOrDynamicsText(const pugi::xml_node node) con
@@ -258,7 +295,82 @@ index f20540d..297169b 100644
              element->AddChild(rend);
              textParent = rend;
          }
-@@ -2105,6 +2122,47 @@ void MusicXmlInput::ReadMusicXmlAttributes(pugi::xml_node node, Section *section
+@@ -783,8 +800,10 @@ void MusicXmlInput::PrintMetronome(pugi::xml_node metronome, Tempo *tempo)
+ {
+     std::string rawText;
+ 
+-    const Text *tempoText = vrv_cast<const Text *>(tempo->FindDescendantByType(TEXT, 1));
+-    if (tempoText) {
++    // The last text at any depth: words come in a rend [curated-score patch]
++    ListOfObjects tempoTexts = tempo->FindAllDescendantsByType(TEXT);
++    const Text *tempoText = tempoTexts.empty() ? NULL : vrv_cast<const Text *>(tempoTexts.back());
++    if (tempoText && !tempoText->GetText().empty()) {
+         // if there is a tempo text, insert a space
+         std::string tempoString = UTF32to8(tempoText->GetText());
+         if (!isspace(tempoString.back())) {
+@@ -794,11 +813,27 @@ void MusicXmlInput::PrintMetronome(pugi::xml_node metronome, Tempo *tempo)
+         }
+     }
+ 
++    // [curated-score patch] The metronome's text takes its own weight and style, not the
++    // tempo's (Verovio's tempo is bold by default, so "Allegro ♩ = 120" set normal came out mixed).
++    const std::string weight = metronome.attribute("font-weight").as_string();
++    const std::string style = metronome.attribute("font-style").as_string();
++    auto addText = [&](const std::u32string &str) {
++        Text *text = new Text();
++        text->SetText(str);
++        if (weight.empty() && style.empty()) {
++            tempo->AddChild(text);
++            return;
++        }
++        Rend *rend = new Rend();
++        if (!weight.empty()) rend->SetFontweight(rend->AttTypography::StrToFontweight(weight));
++        if (!style.empty()) rend->SetFontstyle(rend->AttTypography::StrToFontstyle(style));
++        rend->AddChild(text);
++        tempo->AddChild(rend);
++    };
++
+     bool paren = false;
+     if (metronome.attribute("parentheses").as_bool()) {
+-        Text *text = new Text();
+-        text->SetText(UTF8to32("("));
+-        tempo->AddChild(text);
++        addText(U"(");
+         paren = true;
+     }
+ 
+@@ -865,27 +900,17 @@ void MusicXmlInput::PrintMetronome(pugi::xml_node metronome, Tempo *tempo)
+                     const double mmval = std::stod(iter->second.substr(offset));
+                     tempo->SetMm(mmval);
+                 }
+-                if (!iter->second.empty()) {
+-                    Text *text = new Text();
+-                    text->SetText(UTF8to32(iter->second));
+-                    tempo->AddChild(text);
+-                }
++                if (!iter->second.empty()) addText(UTF8to32(iter->second)); // [curated-score patch]
+                 break;
+             }
+             case MetronomeElements::SEPARATOR: {
+-                Text *text = new Text();
+-                text->SetText(UTF8to32(iter->second));
+-                tempo->AddChild(text);
++                addText(UTF8to32(iter->second)); // [curated-score patch]
+                 break;
+             }
+         }
+     }
+ 
+-    if (paren) {
+-        Text *text = new Text();
+-        text->SetText(UTF8to32(")"));
+-        tempo->AddChild(text);
+-    }
++    if (paren) addText(U")"); // [curated-score patch]
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////////
+@@ -2105,6 +2130,47 @@ void MusicXmlInput::ReadMusicXmlAttributes(pugi::xml_node node, Section *section
          m_meterUnit = time.child("beat-type").text().as_int();
      }
  
@@ -306,7 +418,7 @@ index f20540d..297169b 100644
      pugi::xpath_node measureRepeat = node.select_node("measure-style/measure-repeat");
      pugi::xpath_node measureSlash = node.select_node("measure-style/slash");
      if (measureRepeat) {
-@@ -2384,6 +2442,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2384,6 +2450,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
          }
          else {
              Dir *dir = new Dir();
@@ -315,7 +427,7 @@ index f20540d..297169b 100644
              if (words.size() == 1) {
                  dir->SetLang(words.first().node().attribute("xml:lang").as_string());
              }
-@@ -2726,6 +2786,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2726,6 +2794,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
      pugi::xml_node rehearsal = typeNode.child("rehearsal");
      if (rehearsal) {
          Reh *reh = new Reh();
@@ -323,7 +435,7 @@ index f20540d..297169b 100644
          reh->SetPlace(reh->AttPlacementRelStaff::StrToStaffrel(placeStr.c_str()));
          const std::string halign = rehearsal.attribute("halign").as_string();
          const std::string lang = rehearsal.attribute("xml:lang") ? rehearsal.attribute("xml:lang").as_string() : "it";
-@@ -2737,6 +2798,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2737,6 +2806,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
          reh->SetLang(lang);
          Rend *rend = new Rend();
          rend->SetFontweight(rend->AttTypography::StrToFontweight(rehearsal.attribute("font-weight").as_string()));
@@ -332,7 +444,7 @@ index f20540d..297169b 100644
          rend->SetHalign(rend->AttHorizontalAlign::StrToHorizontalalignment(halign));
          const std::string enclosure = rehearsal.attribute("enclosure").as_string();
          rend->SetRend(enclosure.empty() ? TEXTRENDITION_box : ConvertEnclosure(enclosure));
-@@ -2750,6 +2813,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2750,6 +2821,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
      // Tempo
      if (containsTempo) {
          Tempo *tempo = new Tempo();
@@ -340,7 +452,7 @@ index f20540d..297169b 100644
          if (!words.empty()) {
              const std::string lang = words.first().node().attribute("xml:lang")
                  ? words.first().node().attribute("xml:lang").as_string()
-@@ -3462,6 +3526,7 @@ void MusicXmlInput::ReadMusicXmlNote(
+@@ -3462,6 +3534,7 @@ void MusicXmlInput::ReadMusicXmlNote(
                      if (!textStyle.empty()) syl->SetFontstyle(syl->AttTypography::StrToFontstyle(textStyle.c_str()));
                      if (!textWeight.empty())
                          syl->SetFontweight(syl->AttTypography::StrToFontweight(textWeight.c_str()));
@@ -476,7 +588,7 @@ index 7e3ec3c..aec0a28 100644
      m_font.Init("Leipzig");
      this->Register(&m_font, "font", &m_generalLayout);
 diff --git a/src/view_control.cpp b/src/view_control.cpp
-index 436fca5..8a27c85 100644
+index 436fca5..4d11fcd 100644
 --- a/src/view_control.cpp
 +++ b/src/view_control.cpp
 @@ -863,21 +863,22 @@ void View::DrawOctave(
@@ -758,7 +870,24 @@ index 436fca5..8a27c85 100644
              int x = drawingX;
              int y = pedal->GetDrawingY();
  
-@@ -2715,7 +2759,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
+@@ -2657,6 +2701,7 @@ void View::DrawReh(DeviceContext *dc, Reh *reh, Measure *measure, System *system
+         params.m_y = y;
+         params.m_staffSize = staffSize;
+         params.m_pointSize = m_doc->GetDrawingLyricFont(staffSize)->GetPointSize();
++        params.m_pointSize = params.m_pointSize * 6 / 5; // set larger than other text [curated-score patch]
+ 
+         rehTxt.SetPointSize(params.m_pointSize);
+ 
+@@ -2668,7 +2713,7 @@ void View::DrawReh(DeviceContext *dc, Reh *reh, Measure *measure, System *system
+ 
+         dc->ResetFont();
+ 
+-        this->DrawTextEnclosure(dc, params, staffSize);
++        this->DrawTextEnclosure(dc, params, staffSize, true); // [curated-score patch]
+     }
+ 
+     dc->EndGraphic(reh, this);
+@@ -2715,7 +2760,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), repeatMark, repeatMark->GetStart(), staff)) {
              continue;
          }
@@ -767,7 +896,7 @@ index 436fca5..8a27c85 100644
          int x = drawingX;
          int y = repeatMark->GetDrawingY();
  
-@@ -2845,7 +2889,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
+@@ -2845,7 +2890,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), trill, trill->GetStart(), staff)) {
              continue;
          }
@@ -776,7 +905,7 @@ index 436fca5..8a27c85 100644
          int x = drawingX;
          int y = trill->GetDrawingY();
  
-@@ -2953,7 +2997,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
+@@ -2953,7 +2998,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), turn, turn->GetStart(), staff)) {
              continue;
          }
@@ -784,6 +913,40 @@ index 436fca5..8a27c85 100644
 +        const int staffSize = CuratedSize(staff->m_drawingStaffSize, m_doc->GetOptions()->m_curatedOrnamentScale); // [curated-score patch]
          int x = drawingX;
          int y = turn->GetDrawingY();
+ 
+@@ -3269,10 +3314,11 @@ void View::DrawEnding(DeviceContext *dc, Ending *ending, System *system)
+     }
+ }
+ 
+-void View::DrawTextEnclosure(DeviceContext *dc, const TextDrawingParams &params, int staffSize)
++void View::DrawTextEnclosure(DeviceContext *dc, const TextDrawingParams &params, int staffSize, bool rehearsal)
+ {
+     assert(dc);
+-    const int lineThickness = m_options->m_textEnclosureThickness.GetValue() * staffSize;
++    // In MEI units like every other thickness, not staff size percent (half the font's) [curated-score patch]
++    const int lineThickness = m_options->m_textEnclosureThickness.GetValue() * m_doc->GetDrawingUnit(staffSize);
+     const int margin = m_doc->GetDrawingUnit(staffSize);
+ 
+     dc->SetPushBack();
+@@ -3282,6 +3328,19 @@ void View::DrawTextEnclosure(DeviceContext *dc, const TextDrawingParams &params,
+         int x2 = rend->GetContentRight() + margin;
+         int y1 = rend->GetContentBottom() - margin / 2;
+         int y2 = rend->GetContentTop() + margin;
++        // [curated-score patch] A rehearsal mark's box: as much room at the sides as above and
++        // below, and never narrower than it is tall, so a single letter or number sits in a square.
++        if (rehearsal) {
++            const int side = margin * 6 / 5;
++            y1 = rend->GetContentBottom() - margin * 3 / 4;
++            x1 = rend->GetContentLeft() - side;
++            x2 = rend->GetContentRight() + side;
++            const int shortfall = std::abs(y2 - y1) - std::abs(x2 - x1);
++            if (shortfall > 0) {
++                x1 -= shortfall / 2;
++                x2 += shortfall - shortfall / 2;
++            }
++        }
+         const int width = std::abs(x2 - x1);
+         const int height = std::abs(y2 - y1);
  
 diff --git a/src/view_element.cpp b/src/view_element.cpp
 index 63f87fd..76f2bda 100644

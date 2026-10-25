@@ -469,6 +469,7 @@ class EditorController extends ChangeNotifier {
       sections: _doc.groupSections,
       sectionOverrides: {..._doc.sections, ...?_previewSections},
       barNumbers: _doc.barNumbers,
+      rehearsalInRow: rehearsalInRow,
       nameColors: _nameColors);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
@@ -780,6 +781,42 @@ class EditorController extends ChangeNotifier {
     if (_score == null || on == _doc.textDynamics) return;
     _doc = _doc.copyWith(textDynamics: on);
     final engraved = _reengrave();
+    _edited();
+    await engraved;
+  }
+
+  /// Whether, while bar numbers are shown, rehearsal marks show at their bars in that row
+  /// ([CuratedScene.rehearsalInRow]) in a project that hasn't chosen: the app's, from Project
+  /// Settings ▸ Flags ▸ Save as default. Not an edit.
+  bool get defaultRehearsalInRow => _defaultRehearsalInRow;
+  bool _defaultRehearsalInRow = true;
+  set defaultRehearsalInRow(bool value) {
+    if (value == _defaultRehearsalInRow) return;
+    _defaultRehearsalInRow = value;
+    _showSettings();
+  }
+
+  /// This project's choice (Project Settings ▸ Flags), else the app's.
+  bool get rehearsalInRow => _doc.rehearsalInRow ?? _defaultRehearsalInRow;
+
+  /// Sets [rehearsalInRow] for this project: one Undo step, only redrawing.
+  void setRehearsalInRow(bool on) {
+    if (_score == null || on == _doc.rehearsalInRow) return;
+    _doc = _doc.copyWith(rehearsalInRow: on);
+    _showSettings();
+    _edited();
+  }
+
+  /// Sets every flag for this project at once (Flags ▸ Reset to Default): one Undo step,
+  /// re-engraving only if [textDynamics] changes.
+  Future<void> setFlags({required bool textDynamics, required bool rehearsalInRow}) async {
+    if (_score == null) return;
+    final next = _doc.copyWith(textDynamics: textDynamics, rehearsalInRow: rehearsalInRow);
+    if (next == _doc) return;
+    final engrave = textDynamics != _doc.textDynamics;
+    _doc = next;
+    _showSettings();
+    final engraved = engrave ? _reengrave() : null;
     _edited();
     await engraved;
   }

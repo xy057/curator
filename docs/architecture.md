@@ -168,7 +168,7 @@ an opacity. The fonts themselves stay on the Engraving page. Two sorts of text, 
 - **Drawn** by the scene (names, bar numbers, the tempo at the left, captions): `CuratedScene.typography`,
   in `SceneSettings`; a change only redraws (the renderer's names, the bar numbers' and tempo's
   paragraphs, the caption bar made again; a caption's size changes the room the staves leave).
-- **Engraved** by Verovio (tempo marks, expressions, rehearsal marks, lyrics): `EngraveRequest.typography`,
+- **Engraved** by Verovio (tempo marks, expressions, rehearsal marks (drawn in the bar numbers' row while it is on), lyrics): `EngraveRequest.typography`,
   compared by `engravesLike`, so only these engrave again. `ScoreTypography.applyTo` (in
   `PreparedScore.prepare`, after dynamics typed as text, before condensing copies them) writes a face as
   MusicXML's `font-style` / `font-weight`, and a size and letter spacing as the patched importer's own
@@ -529,6 +529,15 @@ frame asks, so an edit costs the steps up to the playhead, and kept as it was wh
 so each rise starts and ends at rest, is done before the staves get there, and is still a function
 of time. Drawn in the renderer's
 overlay, so the names and frozen zone cover them as they cover the music.
+While it is on, rehearsal marks leave the music too (their ids in `apart` with the tempo marks') and
+stand in the row at their bar's left (`ScoreText.measure`, as edited), boxed, in full ink, bold
+unless Typography ▸ Rehearsal marks gives a face, 1.8 staff spaces at its size; the bar's number
+follows the box. Off, Verovio engraves them over the top staff as before.
+That is a flag (Project Settings ▸ Flags ▸ Rehearsal marks in bar numbers:
+`EditState.rehearsalInRow`, saved under `flags` from format 22, null taking `AppSettings`'s, on
+until Save as default; `CuratedScene.rehearsalInRow`, in `SceneSettings`): off, they stay in the
+music with the row on. Changing it only redraws (the display list made again); Flags ▸ Reset to
+Default sets both flags in one Undo step (`EditorController.setFlags`).
 While it is on, the texts that speak of the speed (`ScoreText.tempoRole`: a tempo mark; a change for a
 while, "rit.", "accel.", "allarg." and the like; or "a tempo"; a pair's copy with them) are set apart from
 the music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and
@@ -591,7 +600,10 @@ every `<words>` that spells one of MusicXML's dynamics (`f`, `mp`, `sfz`…): in
 draw dynamics (Maestro, Opus Text, Bravura Text…; any case, as exporters map glyphs through their
 font's table), or in SMuFL's dynamics characters (U+E520–E53D) in any font. It keeps its place and
 colour, not its font; text beside it in the same direction-type moves into direction-types of its
-own, so Verovio still sets it beside the dynamic. The texts list is read before, so it and saved
+own, so Verovio still sets it beside the dynamic.
+A direction-type that repeats one before it in its direction, but for its offsets, goes (exporters
+write "pizz.pizz.", "mf mf" and two hairpins so), and a rehearsal mark's text is trimmed, as
+spaces after it widen its box on one side; both in `PreparedScore.prepare`, before the texts list. The texts list is read before, so it and saved
 edits' ids don't change. Project Settings ▸ Flags ▸ Dynamics typed as text (`EditState.textDynamics`,
 an Undo step that re-engraves; a project without its own takes `AppSettings.textDynamics`, on
 until Save as default) turns it off.
@@ -602,7 +614,10 @@ while a patch is newer than the tree. Patches: per-part key changes (transposing
 keep their written key), MusicXML direction ids (so texts can be edited), the app's typography
 (`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, a rehearsal
 mark's `font-style`, the `curated…Scale` options sizing music symbols, accidentals clear of
-articulations and caesuras between their neighbours), cancelling naturals
+articulations and caesuras between their neighbours), engraving fixes (a rehearsal mark set a fifth
+larger than other text, in a box as roomy at the sides as above and below and at least square,
+a space clear of the music and of notes beside it; text boxes as thick as the font says, not
+half; a space between a tempo's words and its metronome mark, which keeps its own weight), cancelling naturals
 at a key change to C (a key change was applied twice, the second time cancelling itself), and a
 log per thread (engravings run side by side on isolates, each reading its own). Mark changes in
 Verovio's code with `[curated-score patch]`.
