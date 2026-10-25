@@ -393,11 +393,23 @@ final _projectCategories = <_Category>[
       (c) => AppSwitch(value: c.controller!.textDynamics, onChanged: c.controller!.setTextDynamics),
       keywords: 'flag dynamics text words music font maestro opus sibelius finale import musicxml forte piano',
     ),
+    _Item(
+      'Rehearsal marks in bar numbers',
+      (_) => 'With bar numbers, shows rehearsal marks beside them, out of the music.',
+      (c) => AppSwitch(value: c.controller!.rehearsalInRow, onChanged: c.controller!.setRehearsalInRow),
+      keywords: 'flag rehearsal marks letters box bar numbers row',
+    ),
   ], saveDefault: (
     shown: null,
     isDefault: _flagsAreDefault,
-    save: (c) => c.settings.textDynamics = c.controller!.textDynamics,
-    reset: (c) => c.controller!.setTextDynamics(c.settings.textDynamics),
+    save: (c) {
+      c.settings
+        ..textDynamics = c.controller!.textDynamics
+        ..rehearsalInRow = c.controller!.rehearsalInRow;
+    },
+    reset: (c) => c.controller!.setFlags(
+        textDynamics: c.settings.textDynamics,
+        rehearsalInRow: c.settings.rehearsalInRow),
   )),
   _advancedCategory(),
 ];
@@ -494,7 +506,9 @@ _Category _advancedEngravingCategory() {
 }
 
 /// Whether the project's flags are the app's default (Save as default).
-bool _flagsAreDefault(_Context c) => c.controller!.textDynamics == c.settings.textDynamics;
+bool _flagsAreDefault(_Context c) =>
+    c.controller!.textDynamics == c.settings.textDynamics &&
+    c.controller!.rehearsalInRow == c.settings.rehearsalInRow;
 
 /// Whether the project's animation is the app's default (Save as default).
 bool _animationIsDefault(_Context c) =>

@@ -87,6 +87,7 @@ class PreparedScore {
         for (final direction in measure.findElements('direction')) {
           final id = direction.getAttribute('id') ?? 'cs-dir-${counter++}';
           direction.setAttribute('id', id);
+          _dropRepeats(direction);
           final types = direction.findElements('direction-type');
           final words = [for (final t in types) ...t.findElements('words')];
           final rehearsal = [for (final t in types) ...t.findElements('rehearsal')].firstOrNull;
@@ -115,13 +116,12 @@ class PreparedScore {
               text: rehearsal.innerText.trim(),
               kind: ScoreTextKind.rehearsal,
             ));
-            final edit = edits['$id-reh'];
-            if (edit != null) {
-              if (edit.isEmpty) {
-                rehearsal.parent?.children.remove(rehearsal);
-              } else {
-                rehearsal.innerText = edit;
-              }
+            final edit = edits['$id-reh']?.trim();
+            if (edit != null && edit.isEmpty) {
+              rehearsal.parent?.children.remove(rehearsal);
+            } else {
+              // Spaces after "A " would widen its box on one side.
+              rehearsal.innerText = edit ?? rehearsal.innerText.trim();
             }
           }
         }
@@ -142,6 +142,21 @@ class PreparedScore {
         metadata == null ? const <CondensedGroup>[] : Condenser.condense(doc, metadata, custom: pairs, options: options);
     return PreparedScore._(doc.toXmlString(), texts, condensed, options);
   }
+
+  /// Some exporters write a direction's text twice over ("pizz.pizz.", "mf mf", two hairpins): a
+  /// direction-type the same as one before it in the direction, but for where it is drawn, goes.
+  static void _dropRepeats(XmlElement direction) {
+    final seen = <String>{};
+    for (final type in direction.findElements('direction-type').toList()) {
+      final unplaced = type.copy();
+      for (final e in [unplaced, ...unplaced.descendantElements]) {
+        e.attributes.removeWhere((a) => _placement.contains(a.name.local));
+      }
+      if (!seen.add(unplaced.toXmlString())) direction.children.remove(type);
+    }
+  }
+
+  static const _placement = {'default-x', 'default-y', 'relative-x', 'relative-y'};
 
   /// The first words element takes the new text (keeping its font and position); the rest go.
   static void _replaceWords(List<XmlElement> words, String text) {
