@@ -579,8 +579,8 @@ That is a flag (Project Settings ▸ Flags ▸ Rehearsal marks in bar numbers:
 until Save as default; `CuratedScene.rehearsalInRow`, in `SceneSettings`): off, they stay in the
 music with the row on. Changing it only redraws (the display list made again); Flags ▸ Reset to
 Default sets every flag in one Undo step (`EditorController.setFlags`).
-Flags ▸ Centred lyrics (`EditState.centredLyrics`, under `flags` from format 23, null taking
-`AppSettings`'s, off until Save as default; `EngraveRequest.centredLyrics`, an Undo step that
+Flags ▸ Centred lyrics (`EditState.centeredLyrics`, under `flags` from format 23, null taking
+`AppSettings`'s, off until Save as default; `EngraveRequest.centeredLyrics`, an Undo step that
 re-engraves) centres each syllable, or an elision's syllables together, under its notehead, as
 Verovio otherwise sets them from just left of it; one an extender follows stays there, so a
 melisma's line runs on. The patched `curatedLyricCentre` option moves it in Verovio's syllable
