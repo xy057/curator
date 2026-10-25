@@ -21,12 +21,13 @@ import 'score_renderer.dart';
 import 'score_text.dart';
 import 'score_typography.dart';
 import 'scroll_map.dart';
+import 'spacers.dart';
 import 'spacing_plan.dart';
 import 'staff_stack.dart';
 
 /// What a score is engraved with besides its MusicXML: the text edits, the user's own pairs of
 /// players, the fonts, the engraving options, whether dynamics typed as text are made
-/// dynamics and whether syllables are centred under their notes. Equal requests engrave a score the same, so a change of any is one to engrave.
+/// dynamics, whether syllables are centred under their notes, and the spacers. Equal requests engrave a score the same, so a change of any is one to engrave.
 @immutable
 class EngraveRequest {
   const EngraveRequest({
@@ -37,6 +38,8 @@ class EngraveRequest {
     this.textDynamics = true,
     this.typography = ScoreTypography.standard,
     this.centredLyrics = false,
+    this.spacers = const [],
+    this.gaps = const [],
   });
 
   /// Text id → new text ('' removes it).
@@ -57,9 +60,19 @@ class EngraveRequest {
   /// them at the note's left).
   final bool centredLyrics;
 
+  /// Vertical spacers, each a part of its own; only what they engrave counts
+  /// ([VerticalSpacer.engravesLike]).
+  final List<VerticalSpacer> spacers;
+
+  /// Horizontal spacers: blanks opened between beats.
+  final List<HorizontalSpacer> gaps;
+
   @override
   bool operator ==(Object other) =>
       other is EngraveRequest &&
+      other.spacers.length == spacers.length &&
+      [for (var i = 0; i < spacers.length; i++) other.spacers[i].engravesLike(spacers[i])].every((same) => same) &&
+      listEquals(other.gaps, gaps) &&
       mapEquals(other.textEdits, textEdits) &&
       listEquals(other.pairs, pairs) &&
       other.fonts == fonts &&
@@ -69,7 +82,7 @@ class EngraveRequest {
       other.typography.engravesLike(typography);
 
   @override
-  int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics, centredLyrics);
+  int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics, centredLyrics, spacers.length, gaps.length);
 }
 
 /// A score that is engraved and ready to show.
@@ -86,7 +99,9 @@ class LoadedScore {
       required this.centredLyrics,
       required this.condensed,
       required this.condensing,
-      required this.pairs});
+      required this.pairs,
+      required this.spacers,
+      required this.gaps});
 
   final ScoreMetadata metadata;
   final EngravingData engraving;
@@ -140,6 +155,11 @@ class LoadedScore {
   /// The user's own pairs this was engraved with (see [CondensingOptions.pairs]).
   final List<PlayerPair> pairs;
 
+  /// The vertical spacers engraved as parts (their looks, but for [VerticalSpacer.key], are
+  /// the scene's: [CuratedScene.spacers]) and the horizontal ones opened in the engraving.
+  final List<VerticalSpacer> spacers;
+  final List<HorizontalSpacer> gaps;
+
   double get duration => scrollMap.duration;
 
   /// What the engraving left out or doesn't support (see [EngravingData.warnings]).
@@ -157,7 +177,9 @@ class LoadedScore {
           options: options,
           textDynamics: textDynamics,
           typography: typography,
-          centredLyrics: centredLyrics);
+          centredLyrics: centredLyrics,
+          spacers: spacers,
+          gaps: gaps);
 
   /// Engraves [musicXML] as [request] asks.
   static Future<LoadedScore> engrave(String musicXML, EngraveRequest request, {String? resourceDirectory, double? tempo}) =>
@@ -170,7 +192,9 @@ class LoadedScore {
           options: request.options,
           textDynamics: request.textDynamics,
           typography: request.typography,
-          centredLyrics: request.centredLyrics);
+          centredLyrics: request.centredLyrics,
+          spacers: request.spacers,
+          gaps: request.gaps);
 
   static Future<LoadedScore> load(
     String musicXML, {
@@ -183,8 +207,11 @@ class LoadedScore {
     bool textDynamics = true,
     ScoreTypography typography = ScoreTypography.standard,
     bool centredLyrics = false,
+    List<VerticalSpacer> spacers = const [],
+    List<HorizontalSpacer> gaps = const [],
   }) async {
     final doc = ScoreMetadata.parse(musicXML);
+    Spacers.write(doc, spacers);
     final metadata = ScoreMetadata.fromDocument(doc);
     final prepared = PreparedScore.prepare(doc, textEdits,
         metadata: metadata,
@@ -198,7 +225,11 @@ class LoadedScore {
       resourceDirectory: resources.directory,
       font: fonts.music.isMissing ? MusicFont.bravura : fonts.music,
       options: options,
-      verovioOptions: {...typography.verovioOptions, if (centredLyrics) 'curatedLyricCentre': true},
+      verovioOptions: {
+        ...typography.verovioOptions,
+        if (centredLyrics) 'curatedLyricCentre': true,
+        'curatedSpacers': ?Spacers.verovioOption(gaps),
+      },
     );
     final timeline = ConstantTempoTimeline(engraving.measures,
         quarterNotesPerMinute: tempo ?? metadata.tempo ?? 100);
@@ -215,7 +246,9 @@ class LoadedScore {
         centredLyrics: centredLyrics,
         condensed: prepared.condensed,
         condensing: prepared.condensing!,
-        pairs: List.unmodifiable(pairs));
+        pairs: List.unmodifiable(pairs),
+        spacers: List.unmodifiable(spacers),
+        gaps: List.unmodifiable(gaps));
   }
 
   /// Gets [fonts] ready to engrave with and draw: their Verovio metrics (measured once) and
@@ -243,7 +276,7 @@ class LoadedScore {
   Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo);
 
   /// Re-engraves with different text edits, pairs of players, fonts, engraving options,
-  /// [textDynamics], [typography] or [centredLyrics]; what isn't given stays.
+  /// [textDynamics], [typography], [centredLyrics] or spacers; what isn't given stays.
   Future<LoadedScore> withEdits(
           {Map<String, String>? textEdits,
           List<PlayerPair>? pairs,
@@ -251,7 +284,9 @@ class LoadedScore {
           EngravingOptions? options,
           bool? textDynamics,
           ScoreTypography? typography,
-          bool? centredLyrics}) =>
+          bool? centredLyrics,
+          List<VerticalSpacer>? spacers,
+          List<HorizontalSpacer>? gaps}) =>
       withRequest(EngraveRequest(
           textEdits: textEdits ?? this.textEdits,
           pairs: pairs ?? this.pairs,
@@ -259,7 +294,9 @@ class LoadedScore {
           options: options ?? this.options,
           textDynamics: textDynamics ?? this.textDynamics,
           typography: typography ?? this.typography,
-          centredLyrics: centredLyrics ?? this.centredLyrics));
+          centredLyrics: centredLyrics ?? this.centredLyrics,
+          spacers: spacers ?? this.spacers,
+          gaps: gaps ?? this.gaps));
 }
 
 /// Where Verovio's font metrics live on disk (bundled as package assets).
@@ -297,6 +334,7 @@ class SceneSettings {
     this.nameColors = const {},
     this.motion = ScoreMotion.standard,
     this.typography = ScoreTypography.standard,
+    this.spacers = const [],
   });
 
   /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
@@ -314,6 +352,7 @@ class SceneSettings {
   final Map<String, ui.Color> nameColors;
   final ScoreMotion motion;
   final ScoreTypography typography;
+  final List<VerticalSpacer> spacers;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -389,6 +428,9 @@ class CuratedScene {
         },
         hiddenCommands: _openingCommands,
         apart: barNumbers ? {..._tempoIds, if (rehearsalInRow) ..._rehearsalIds} : const {},
+        spacers: {
+          for (final MapEntry(key: n, value: look) in _spacerStaves.entries) n: (height: look.shownHeight, lines: look.lines),
+        },
       );
   ScoreDisplayList? _display;
   int _displayVersion = 0;
@@ -397,7 +439,7 @@ class CuratedScene {
         final display = this.display;
         final frozen = _frozen ?? FrozenZone(score.engraving, _style, typography: score.typography);
         _frozen = null; // the renderer's now
-        return ScoreRenderer(display, _style, frozen: frozen, barlinesThrough: _barlinesThrough)
+        return ScoreRenderer(display, _style, frozen: frozen, barlinesThrough: _barlinesThrough, bare: _bareStaves)
           ..names = _typography[TextKind.names];
       }();
   ScoreRenderer? _renderer;
@@ -429,7 +471,8 @@ class CuratedScene {
       rehearsalInRow: rehearsalInRow,
       nameColors: nameColors,
       motion: motion,
-      typography: typography);
+      typography: typography,
+      spacers: spacers);
   set settings(SceneSettings value) {
     names = value.names;
     condensed = value.condensed;
@@ -445,7 +488,42 @@ class CuratedScene {
     nameColors = value.nameColors;
     motion = value.motion;
     typography = value.typography;
+    spacers = value.spacers;
   }
+
+  /// How the vertical spacers look (their height, lines and frozen zone; their key is the
+  /// score's, [LoadedScore.spacers]). A change makes the display list again.
+  List<VerticalSpacer> get spacers => _spacers;
+  List<VerticalSpacer> _spacers = const [];
+  set spacers(List<VerticalSpacer> value) {
+    if (listEquals(value, _spacers)) return;
+    final before = _spacerStaves;
+    _spacers = List.unmodifiable(value);
+    _spacerStaves = _spacerStavesOf(value);
+    if (!mapEquals(before, _spacerStaves)) _remakeDisplay();
+  }
+
+  /// Each engraved vertical spacer's staff number → how it looks.
+  late Map<int, VerticalSpacer> _spacerStaves = _spacerStavesOf(_spacers);
+
+  Map<int, VerticalSpacer> _spacerStavesOf(List<VerticalSpacer> looks) {
+    final byId = {for (final s in looks) s.id: s};
+    return {
+      for (final p in score.metadata.parts)
+        if (Spacers.isSpacer(p.id)) p.staffNumbers.first: byId[p.id] ?? VerticalSpacer(id: p.id),
+    };
+  }
+
+  /// Staff indices of the spacers whose clef, key and time the frozen zone doesn't draw: not
+  /// shown there, or without lines.
+  Set<int> get _bareStaves => {
+        for (final MapEntry(key: n, value: look) in _spacerStaves.entries)
+          if ((!look.frozen || !look.lines) && _staffIndex[n] != null) _staffIndex[n]!,
+      };
+
+  /// Whether [partId] is a vertical spacer the frozen zone doesn't name.
+  bool _unnamed(String partId) =>
+      Spacers.isSpacer(partId) && !(_spacers.where((s) => s.id == partId).firstOrNull?.frozen ?? false);
 
   /// How the score moves (Project Settings ▸ Advanced): staves' glides and fades, the scroll's
   /// coming to rest, the ending's fade, captions, the bar numbers' row and the tempo at the left.
@@ -709,13 +787,13 @@ class CuratedScene {
     if (_plan == null || _planKey != key) {
       final pointerX = renderer.pointerX(size.width);
       _plan = _buildPlan(curation, size);
-      final zone = renderer.frozen;
+      final zone = renderer.frozen, bare = renderer.bare;
       _keyPlan = zone == null
           ? null
           : KeyColumnPlan.build(
               zone: zone,
               staves: display.staves,
-              order: _order,
+              order: [for (final s in _order) if (!bare.contains(s.staffIndex)) s],
               scrollMap: scrollMap,
               edges: curation.edgesInSeconds(timeline),
               isShown: (id, seconds) => _isShown(curation, id, seconds),
@@ -1213,6 +1291,64 @@ class CuratedScene {
   double quarterAtFrameX(double x, double time, ui.Size size) =>
       axis.quarterAt(scrollMap.xAt(time) + (x - renderer.pointerX(size.width)) / renderer.scale);
 
+  // MARK: Spacers
+
+  /// Where each vertical spacer shown at [time] is in a frame of [size] (points): its height,
+  /// from where the music starts to the frame's right edge. The editor outlines them.
+  List<({String id, ui.Rect rect, double opacity})> spacerRects(double time, Curation curation, ui.Size size) {
+    final frame = layoutAt(time, curation, size);
+    final ids = {for (final s in _order) s.staffIndex: s.partId};
+    final left = renderer.musicLeftFor(keyColumnAt(time, curation, size)), scale = renderer.scale;
+    return [
+      for (final p in frame.placements)
+        if (ids[p.staffIndex] case final id? when Spacers.isSpacer(id))
+          (
+            id: id,
+            rect: ui.Rect.fromLTRB(left, p.y - display.staves[p.staffIndex].reach * scale, size.width,
+                p.y + (display.staves[p.staffIndex].info.height + display.staves[p.staffIndex].reach) * scale),
+            opacity: p.opacity,
+          ),
+    ];
+  }
+
+  /// The part (or a pair's shared staff, by its id) whose staff is nearest frame y [y] (points)
+  /// at [time]; null with none shown.
+  String? partNearest(double y, double time, Curation curation, ui.Size size) {
+    final ids = {for (final s in _order) s.staffIndex: s.partId};
+    String? nearest;
+    var distance = double.infinity;
+    for (final p in layoutAt(time, curation, size).placements) {
+      if (p.opacity < 0.5) continue;
+      final staff = display.staves[p.staffIndex], reach = staff.reach * renderer.scale;
+      final top = p.y - reach, bottom = p.y + staff.info.height * renderer.scale + reach;
+      final d = y < top ? top - y : (y > bottom ? y - bottom : 0.0);
+      if (d < distance) (distance, nearest) = (d, ids[p.staffIndex]);
+    }
+    return nearest;
+  }
+
+  /// Where each horizontal spacer's blank ([LoadedScore.gaps], by index) is at [time] in a frame
+  /// of [size] (points), between the margins. The editor outlines them.
+  List<({int index, ui.Rect rect})> gapRects(double time, ui.Size size) {
+    final scrollX = scrollMap.xAt(time), pointerX = renderer.pointerX(size.width), scale = renderer.scale;
+    final measures = score.engraving.measures, sp = score.engraving.staffSpace;
+    final out = <({int index, ui.Rect rect})>[];
+    for (final (i, gap) in score.gaps.indexed) {
+      if (gap.bar < 0 || gap.bar >= measures.length) continue;
+      final m = measures[gap.bar];
+      var right = m.right;
+      for (var k = 0; k < m.onsetTimes.length; k++) {
+        if (m.onsetTimes[k] >= gap.offset - 1e-9) {
+          right = m.onsetXs[k];
+          break;
+        }
+      }
+      final x = pointerX + (right - scrollX) * scale;
+      out.add((index: i, rect: ui.Rect.fromLTRB(x - gap.width * sp * scale, verticalMargin, x, size.height - verticalMargin)));
+    }
+    return out;
+  }
+
   /// The frame at [time] as an image of [width] × [height] pixels, laid out at
   /// [devicePixelRatio] pixels per logical pixel (a video frame). It is [paint] drawn
   /// offscreen, so a video looks exactly like the preview.
@@ -1281,7 +1417,7 @@ class CuratedScene {
       }
       final part = parts[partId]!;
       final staves = part.shownStaffNumbers;
-      if (staves.first == display.staves[staffIndex].info.n) {
+      if (staves.first == display.staves[staffIndex].info.n && !_unnamed(part.id)) {
         final last = i + staves.length - 1;
         final bottom = tops[last] + display.staves[_order[last].staffIndex].info.height * renderer.scale;
         final named = names[part.id];

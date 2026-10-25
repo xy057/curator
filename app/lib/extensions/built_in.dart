@@ -17,14 +17,15 @@ class AttachImageExtension extends CuratorExtension {
   @override
   IconData icon(BuildContext context) => AppIcon.image.of(context);
   @override
-  String get version => '1.0';
+  String get version => '1.1';
   @override
-  String get summary => 'Images that scroll with the score.';
+  String get summary => 'Images and spacers that scroll with the score.';
   @override
-  String get keywords => 'image picture photo svg png jpg';
+  String get keywords => 'image picture photo svg png jpg spacer space gap blank placeholder';
 
   @override
-  bool isUsedBy(EditorController controller) => controller.images.patches.isNotEmpty;
+  bool isUsedBy(EditorController controller) =>
+      controller.images.patches.isNotEmpty || controller.spacers.vertical.isNotEmpty || controller.spacers.horizontal.isNotEmpty;
 
   @override
   void apply(EditorController controller, bool on) => controller.images.enabled = on;

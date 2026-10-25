@@ -96,7 +96,7 @@ mixin _AttachImage on State<ScoreView> {
   }
 
   /// An SVG (drawn as vectors) or a PNG / JPEG: the file's type says which.
-  Future<void> _addFromFile(({int? patch, int? caption, double quarter, double top}) at) async {
+  Future<void> _addFromFile(_MenuAt at) async {
     final file = await openFile(acceptedTypeGroups: [ImageKind.types]);
     final kind = file == null ? null : ImageKind.ofPath(file.name);
     if (file == null || kind == null) return;
@@ -107,7 +107,7 @@ mixin _AttachImage on State<ScoreView> {
     }
   }
 
-  Future<void> _paste(({int? patch, int? caption, double quarter, double top}) at) async {
+  Future<void> _paste(_MenuAt at) async {
     try {
       if (!await c.images.paste(quarter: at.quarter, top: at.top)) _say('No image to paste.');
     } catch (e) {

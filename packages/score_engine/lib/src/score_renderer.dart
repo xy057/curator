@@ -76,7 +76,11 @@ class StaffLabel {
 /// so a video looks exactly like the preview.
 class ScoreRenderer {
   ScoreRenderer(this.display, this.style,
-      {this.frozen, this.barlinesThrough = const {}, this.tileWidth = 512, this.maxTileBytes = 256 << 20});
+      {this.frozen,
+      this.barlinesThrough = const {},
+      this.bare = const {},
+      this.tileWidth = 512,
+      this.maxTileBytes = 256 << 20});
 
   final ScoreDisplayList display;
   final RenderStyle style;
@@ -88,6 +92,9 @@ class ScoreRenderer {
   /// barlines run on from one to the other, which an instrument's staves keep a fixed distance
   /// apart for (see SpacingPlan).
   final Map<int, int> barlinesThrough;
+
+  /// Staff indices the frozen zone leaves blank (vertical spacers it doesn't show).
+  final Set<int> bare;
   final double tileWidth;
 
   /// How much the tile images may hold, in bytes (RGBA). The least recently drawn go first,
@@ -271,7 +278,7 @@ class ScoreRenderer {
       // own, and stop there: drawn twice, a line would come out heavier wherever it doesn't
       // fall on whole pixels.
       for (final placement in placements) {
-        if (placement.opacity <= 0.001) continue;
+        if (placement.opacity <= 0.001 || bare.contains(placement.staffIndex)) continue;
         final faded = placement.opacity < 0.999;
         if (faded) canvas.saveLayer(null, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, placement.opacity));
         final staff = display.staves[placement.staffIndex];

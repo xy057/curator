@@ -26,6 +26,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
+| `spacers.dart` | Spacers (Attach Image): `VerticalSpacer`, an empty part of its own (`Spacers.write`), and `HorizontalSpacer`, a blank between beats (`Spacers.verovioOption`) |
 | `score_caption.dart` | Captions (`Caption`), their markup (`captionRuns`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
 | `subtitles.dart` | Captions as subtitles: SRT and WebVTT read (`parseSubtitles`) and written (`writeSubtitles`), placed in the score (`captionsFromCues`) and timed from it (`captionCues`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
@@ -38,10 +39,11 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
-| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/caption_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score (Attach Image); captions (Captions); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
+| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
 | `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
+| `spacer_dialogs.dart` | Attach Image's Vertical Spacer and Horizontal Spacer dialogs |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
 | `caption_settings.dart` | Project Settings ▸ Extensions ▸ Captions' own settings (the app's): font, countdown, size, alignment, backing, with a preview |
 | `extensions/extension.dart` | `CuratorExtension`, what the app knows of an extension (by id), and `Extensions`, every one there is |
@@ -299,6 +301,28 @@ take gigabytes: a file over 64 MB, or a PNG / JPEG over 64 megapixels (one insid
 too, read from its header before anything is decoded), is refused; one longer than 4096
 pixels is kept at 4096. An SVG with no viewBox and no width and height (flutter_svg refuses
 it; a browser draws it) is given the box around what it draws.
+
+**Spacers make room** (Attach Image too), for an image or what isn't written yet. Right-click
+the preview ▸ Add Vertical Spacer puts a staff of nothing below the staff clicked
+(`SpacerEditing.addVertical`; below both players of a condensed pair): an instrument like any
+other, with a lane (shown throughout), a name ("Spacer 1", renamed like any part) and a place in
+the order. It is engraved as a part of its own after the score's, before the metadata is read
+(`Spacers.write`, as condensing adds its parts): the bars of the first part with a key, each an
+unprinted whole-bar rest (so the spacing doesn't change), with their time signatures, barlines
+and keys as heard, written in its `SpacerKey` (Transposition: concert pitch, B♭, A, F, E♭, D, G).
+What else it shows is only drawn (`SceneSettings.spacers`): its height in staff spaces, its five
+staff lines or none (`StaffLayer.reach` makes room for a taller one; without lines it is an empty
+layer of that height), and Name and clef (`frozen`: the frozen zone's name, clef, key and time;
+off, `ScoreRenderer`'s `bare` staves show none and the key column leaves them out). Add
+Horizontal Spacer opens a blank of `HorizontalSpacer.width` staff spaces in every staff before
+what sounds at the beat clicked (a bar's first beat: after its barline), however the bar is
+spaced: the patched `curatedSpacers` option shifts Verovio's alignments from there on, so the
+rest of the engraving is as it was. Double-click (or right-click ▸ Edit Spacer…) edits either;
+the editor outlines both, dashed (`_SpacerOutlines`), a video doesn't. Every change is an Undo
+step (`spacers` and `gaps` in `EditState`, format 24); a vertical one's key and any horizontal
+one re-engrave (`EngraveRequest`), the rest only redraws. While Attach Image is off they stay
+in the project, unengraved; Replace Score keeps vertical ones and the horizontal ones whose bar
+is still there.
 
 **A caption shows under the score** (the Captions extension). A `Caption` is a text and
 the score quarters it runs between, so it stays with its bars when the sync changes and shows
@@ -621,7 +645,7 @@ so any other is verse 1: in a part with such a token, `PreparedScore.prepare` nu
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
 keep their written key), MusicXML direction ids (so texts can be edited), a lyric's `placement="above"` (verses above the staff, verse 1 on top), syllables centred
-under their noteheads (`curatedLyricCentre`), the app's typography
+under their noteheads (`curatedLyricCentre`), blanks between beats (`curatedSpacers`), the app's typography
 (`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, a rehearsal
 mark's `font-style`, the `curated…Scale` options sizing music symbols, accidentals clear of
 articulations and caesuras between their neighbours), engraving fixes (a rehearsal mark set a fifth

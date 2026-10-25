@@ -9,6 +9,7 @@ import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:archive/archive.dart' show ArchiveFile, ZipDecoder, ZipEncoder, getCrc32;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:score_engine/score_engine.dart' show HorizontalSpacer;
 
 import 'demo_project.dart';
 
@@ -96,6 +97,38 @@ void main() {
       }
       o.dispose();
     }
+    c.dispose();
+  });
+
+  testWidgets('spacers: a vertical one is a lane of its own, a horizontal one a blank; saved, undone, off with the extension', (tester) async {
+    await open(tester);
+    final first = c.score!.metadata.parts.first.id;
+    await tester.runAsync(() => c.spacers.addVertical(below: first));
+    expect(c.spacers.vertical, isEmpty, reason: 'Attach Image off');
+    c.setExtension('attachImage', true);
+    await tester.runAsync(() => c.spacers.addVertical(below: first));
+    expect(c.partOrder.indexOf('spacer-1'), c.partOrder.indexOf(first) + 1);
+    expect(c.laneParts.map((p) => p.id), contains('spacer-1'));
+    final beat = c.score!.timeline.measureStarts[4] + 1;
+    await tester.runAsync(() => c.spacers.addHorizontal(beat));
+    expect(c.spacers.horizontal, [const HorizontalSpacer(bar: 4, offset: 1)]);
+    expect(c.scene!.gapRects(c.timeline.secondsAtQuarter(beat), const Size(960, 540)), isNotEmpty);
+
+    final state = ProjectState.fromJson(jsonDecode(jsonEncode(c.projectState.toJson())) as Map<String, Object?>);
+    expect(state.edits.spacers, c.spacers.vertical);
+    expect(state.edits.gaps, c.spacers.horizontal);
+
+    await tester.runAsync(() async => c.undo());
+    expect(c.spacers.horizontal, isEmpty);
+    await tester.runAsync(() async => c.redo());
+    expect(c.spacers.horizontal, hasLength(1));
+
+    c.setExtension('attachImage', false); // kept, not engraved
+    while (c.isReengraving) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+    }
+    expect(c.score!.metadata.parts.map((p) => p.id), isNot(contains('spacer-1')));
+    expect(c.spacers.vertical, hasLength(1));
     c.dispose();
   });
 

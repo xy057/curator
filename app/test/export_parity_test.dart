@@ -27,6 +27,11 @@ void main() {
     c.captions.enabled = true;
     await tester.runAsync(() => c.images.add(ImageKind.raster, png, quarter: starts[2], top: 2));
     c.images.update(0, c.images.patches[0].copyWith(ink: true));
+    await tester.runAsync(() async {
+      await c.spacers.addVertical(below: parts.first.id);
+      await c.spacers.setVertical(c.spacers.vertical.single.copyWith(lines: true, frozen: true, height: 8));
+      await c.spacers.addHorizontal(starts[4] + 1);
+    });
     c.captions.add(Caption(starts[1], starts[6], 'The horns answer'));
     c.captions.configure(
         font: '', countdown: CaptionCountdown.ring, size: CaptionSize.large);
