@@ -53,12 +53,15 @@ class HomeScreen extends StatelessWidget {
               _Entrance(
                 delay: 1,
                 child: Column(children: [
-                  Text('Curator', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
+                  // The page's one heading: large, bold and set tight, the line under it quiet.
+                  Text('Curator',
+                      style: theme.textTheme.headlineSmall
+                          ?.copyWith(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.4, height: 1.15)),
+                  const SizedBox(height: 6),
                   Text(
                     'Scores that follow the music.',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(color: colors.textMuted, height: 1.4),
+                    style: theme.textTheme.bodyLarge?.copyWith(color: colors.textMuted, height: 1.4),
                   ),
                 ]),
               ),
@@ -151,7 +154,11 @@ class _RecentList extends StatelessWidget {
       ]),
       const SizedBox(height: 4),
       DecoratedBox(
-        decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: AppStyle.of(context).radius(10)),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          border: Border.all(color: colors.line),
+          borderRadius: AppStyle.of(context).radius(10),
+        ),
         child: ClipRRect(
           borderRadius: AppStyle.of(context).radius(10),
           child: Column(children: [

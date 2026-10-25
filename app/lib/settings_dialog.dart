@@ -798,13 +798,15 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final size = MediaQuery.sizeOf(context);
+    final refined = AppStyle.of(context).style == UiStyle.refined;
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 760, maxHeight: (size.height - 64).clamp(360, 500)),
         child: Material(
           color: Theme.of(context).dialogTheme.backgroundColor,
-          elevation: 16,
-          shadowColor: Colors.black.withValues(alpha: 0.14),
+          // Refined: a dialog's elevation, the top one.
+          elevation: refined ? 24 : 16,
+          shadowColor: refined ? Theme.of(context).dialogTheme.shadowColor : Colors.black.withValues(alpha: 0.14),
           // Its outline changes with the theme at once, as every other line does, not on a Material's
           // own shape animation, which would trail the window's cross-fade.
           animationDuration: Duration.zero,
@@ -818,7 +820,8 @@ class _SettingsWindowState extends State<_SettingsWindow> {
                 ? const SizedBox.shrink()
                 : Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     _sidebar(context),
-                    VerticalDivider(width: 1, color: colors.line),
+                    // Refined: the sidebar's tone alone parts it from the page, no line as well.
+                    if (AppStyle.of(context).isCarbon) VerticalDivider(width: 1, color: colors.line),
                     Expanded(child: _content(context)),
                   ]),
           ),
@@ -1209,12 +1212,13 @@ class _EngravingWindowState extends State<_EngravingWindow> {
   }
 }
 
-/// The sidebar's neutral tint: a step off the dialog's surface, without the accent; in the light
-/// theme the (nearly white) chrome; in Carbon the modal's own $layer-01.
+/// The sidebar's neutral tint: a step off the dialog's surface, without the accent, strong enough
+/// to stand without a dividing line (light: the well, a step past the nearly white chrome); in
+/// Carbon the modal's own $layer-01.
 Color _sidebarColor(BuildContext context) {
   final colors = context.colors;
   if (CarbonColors.maybeOf(context) case final k?) return k.layer01;
-  return _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.32)!;
+  return _lightChrome(colors) ? colors.well : Color.lerp(colors.surface, colors.line, 0.32)!;
 }
 
 bool _lightChrome(AppColors colors) => colors.chrome != colors.surface && colors.surface.computeLuminance() > 0.5;
@@ -1247,17 +1251,25 @@ class _SidebarTileState extends State<_SidebarTile> {
     final selected = widget.selected;
     final style = AppStyle.of(context);
     final k = CarbonColors.maybeOf(context);
-    // Refined: a solid accent row with white text, as a desktop source list's. Carbon: its side
-    // nav's item, $layer-selected with a 3 px bar of the accent at its left, the text semibold.
-    final solid = k == null && selected;
+    // Refined: the accent's light tint, as a chosen segment's, the label in the accent and
+    // semibold (the solid accent is left for the default button). Carbon: its side nav's item,
+    // $layer-selected with a 3 px bar of the accent at its left, the text semibold.
+    final tinted = k == null && selected;
     final fill = k != null
         ? (selected ? k.layerSelected : _hover ? k.layerHover : k.layerHover.withValues(alpha: 0))
-        : solid
-            ? colors.accentFill
+        : tinted
+            ? colors.accentSoft
             : _hover
                 ? colors.line.withValues(alpha: 0.45)
                 : colors.line.withValues(alpha: 0);
-    final ink = k != null ? (selected || _hover ? k.textPrimary : k.textSecondary) : solid ? Colors.white : colors.text;
+    final ink = k != null
+        ? (selected || _hover ? k.textPrimary : k.textSecondary)
+        : tinted
+            ? colors.accentOn(fill, dark: Theme.of(context).brightness == Brightness.dark)
+            // The rows not chosen a step quieter, so the chosen one stands out without more weight.
+            : _hover
+                ? colors.text
+                : Color.lerp(colors.text, colors.textMuted, 0.4)!;
     return Padding(
       padding: EdgeInsets.only(bottom: k != null ? 0 : 1),
       child: Semantics(
@@ -1284,7 +1296,7 @@ class _SidebarTileState extends State<_SidebarTile> {
                     : Border(left: BorderSide(color: selected ? colors.accent : Colors.transparent, width: 3)),
               ),
               child: Row(children: [
-                Icon(widget.icon, size: 16, color: k != null ? ink : solid ? Colors.white : colors.textMuted),
+                Icon(widget.icon, size: 16, color: k != null || tinted ? ink : colors.textMuted),
                 SizedBox(width: k != null ? 8 : 10),
                 Flexible(
                   child: Text(widget.label,
@@ -1294,7 +1306,7 @@ class _SidebarTileState extends State<_SidebarTile> {
                         fontSize: k != null ? 14 : 13,
                         letterSpacing: k != null ? 0.16 : null,
                         color: ink,
-                        fontWeight: k != null && selected ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                       )),
                 ),
               ]),

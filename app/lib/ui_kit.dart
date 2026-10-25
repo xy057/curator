@@ -170,7 +170,12 @@ class ToolbarButton extends StatelessWidget {
               ? null
               : selected
                   ? (carbon != null ? colors.text : dark ? colors.accent : colors.accentStrong)
-                  : (color ?? colors.text)),
+                  : color ??
+                      // Refined: an icon at rest a little softer than text (a glyph is heavier than
+                      // the words beside it), full strength under the pointer.
+                      (carbon != null || s.contains(WidgetState.hovered) || s.contains(WidgetState.pressed)
+                          ? colors.text
+                          : Color.lerp(colors.text, colors.textMuted, 0.35))),
           backgroundColor: selected ? WidgetStatePropertyAll(fill) : null,
           animationDuration: motion(context, 150),
         ),
@@ -468,7 +473,7 @@ class _AppSwitchState extends State<AppSwitch> {
     final enabled = widget.onChanged != null;
     final accent = colors?.accent ?? theme.colorScheme.primary;
     final on = carbon?.success ?? (dark ? accent : (colors?.accentStrong ?? accent));
-    final off = carbon?.toggleOff ?? (dark ? const Color(0xFF4A4F57) : const Color(0xFFD5DAE0));
+    final off = carbon?.toggleOff ?? (dark ? RefinedGreys.dark600 : RefinedGreys.g300);
     // Carbon's toggle shows no hover; its disabled one is drawn, not faded.
     final hoverShade = (dark ? Colors.white : Colors.black).withValues(alpha: _hovered && enabled && carbon == null ? 0.07 : 0);
     CustomPainter painter(double t) => carbon == null
@@ -724,19 +729,10 @@ class _AppSegmentedState<T> extends State<AppSegmented<T>> with SingleTickerProv
     final n = segments.length;
     final index = _indexOf(widget.selected);
     final shown = index >= 0;
-    double contrast(Color a, Color b) {
-      final (x, y) = (a.computeLuminance(), b.computeLuminance());
-      return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
-    }
-
     // Refined's chosen segment: the accent's light tint, edged with the accent, its label the
-    // accent's strong shade taken toward black (or in the dark, white) until it reads on the
-    // tint (4.5:1). Carbon's: inverse, its label $text-inverse.
+    // accent reading on the tint (AppColors.accentOn). Carbon's: inverse, its label $text-inverse.
     final chosen = carbon?.selectedInverse ?? colors.accentSoft;
-    var onChosen = carbon?.textInverse ?? colors.accentStrong;
-    for (var t = 0.05; carbon == null && contrast(onChosen, chosen) < 4.5 && t <= 1; t += 0.05) {
-      onChosen = Color.lerp(colors.accentStrong, dark ? Colors.white : Colors.black, t)!;
-    }
+    final onChosen = carbon?.textInverse ?? colors.accentOn(chosen, dark: dark);
     final unchosen = carbon?.textSecondary ?? colors.textMuted;
     final inner = carbon == null ? 2.0 : 1.0;
     final control = Container(

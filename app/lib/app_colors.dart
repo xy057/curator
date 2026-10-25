@@ -469,6 +469,50 @@ abstract final class ScorePaper {
       brightness == Brightness.light ? const Color(0xFF14171A) : const Color(0xFFE3E4E0);
 }
 
+/// [UiStyle.refined]'s greys, defined up front so every grey it draws is one of these: a cool
+/// scale (a little blue, more saturated toward its ends so the light and dark shades don't wash
+/// out), 50 the faintest tint off white and 900 the darkest text; and the dark theme's own,
+/// [dark50] its raised surfaces down to [dark900] its text.
+abstract final class RefinedGreys {
+  static const g50 = Color(0xFFF9FAFB);
+  static const g100 = Color(0xFFF3F4F6);
+  static const g200 = Color(0xFFE5E7EB);
+  static const g300 = Color(0xFFD1D5DB);
+  static const g400 = Color(0xFF9CA3AF);
+  static const g500 = Color(0xFF6B7280);
+  static const g600 = Color(0xFF4B5563);
+  static const g700 = Color(0xFF374151);
+  static const g800 = Color(0xFF1F2937);
+  static const g900 = Color(0xFF111827);
+
+  // Dark: the window at the bottom, raised things a step lighter, text near white.
+  static const dark950 = Color(0xFF1B1C20); // the window
+  static const dark900 = Color(0xFF212327); // washes, stripes
+  static const dark850 = Color(0xFF26282D); // toolbars, sidebars
+  static const dark800 = Color(0xFF2C2E33); // dialogs, menus
+  static const dark700 = Color(0xFF373A40); // hairlines
+  static const dark600 = Color(0xFF4A4D55); // outlines
+  static const dark500 = Color(0xFF6C7079);
+  static const dark400 = Color(0xFF9A9EA7); // secondary text
+  static const dark100 = Color(0xFFE7E8EB); // text
+}
+
+/// [UiStyle.refined]'s elevations, 1 (a card, just off the page) to 5 (a modal): each a soft
+/// shadow cast by direct light and a tight, darker one under the edge, the tight one fading as
+/// the thing rises; in the dark, deeper, as a shadow must be to show on a dark window.
+List<BoxShadow> elevation(int level, {bool dark = false}) {
+  final k = dark ? 2.2 : 1.0;
+  BoxShadow s(double y, double blur, double alpha) =>
+      BoxShadow(color: Colors.black.withValues(alpha: math.min(alpha * k, 0.6)), offset: Offset(0, y), blurRadius: blur);
+  return switch (level.clamp(1, 5)) {
+    1 => [s(1, 3, 0.12), s(1, 2, 0.24)],
+    2 => [s(3, 6, 0.15), s(2, 4, 0.12)],
+    3 => [s(10, 20, 0.15), s(3, 6, 0.10)],
+    4 => [s(15, 25, 0.15), s(5, 10, 0.05)],
+    _ => [s(20, 40, 0.2)],
+  };
+}
+
 /// The app's palette: a clean surface with one accent colour, in a light and a dark variant.
 /// Read it with `context.colors`; painters receive it from the widget that builds them.
 @immutable
@@ -534,9 +578,10 @@ class AppColors extends ThemeExtension<AppColors> {
     );
   }
 
-  /// [UiStyle.refined]'s palette: neutral greys (Material's would mix the accent into every
-  /// line and wash), neutral text, and a [chrome] tone for toolbars and sidebars around the
-  /// white (or dark) work area. The accent is left for what is selected or on.
+  /// [UiStyle.refined]'s palette, every grey one of [RefinedGreys] (the accent mixed into none
+  /// of them, as Material's would): text in the darkest, secondary text two steps lighter, a
+  /// [chrome] tone for toolbars and sidebars around the white (or dark) work area. The accent is
+  /// left for what is selected or on.
   factory AppColors._refinedOf(AccentColor accent, Brightness brightness) {
     final a = accent.color;
     Color mix(Color base, double t) => Color.lerp(base, a, t)!;
@@ -546,45 +591,45 @@ class AppColors extends ThemeExtension<AppColors> {
         accent: a,
         accentStrong: accent.strong,
         accentSoft: mix(surface, 0.2),
-        // Nearly all white: the chrome and the lane stripes a whisper off it, hairlines doing the
-        // separating.
-        accentWash: const Color(0xFFFBFBFC),
+        // The faintest tints: the chrome and the lane stripes a step off white, hairlines doing
+        // the separating.
+        accentWash: RefinedGreys.g50,
         surface: surface,
-        chrome: const Color(0xFFFAFAFB),
-        well: const Color(0xFFF2F2F4),
-        line: const Color(0xFFE3E3E7),
-        grid: const Color(0xFFF0F0F3),
-        activity: const Color(0xFFD2D2D7),
-        text: const Color(0xFF1D1D1F),
-        textMuted: const Color(0xFF6E6E73),
+        chrome: RefinedGreys.g50,
+        well: RefinedGreys.g100,
+        line: RefinedGreys.g200,
+        grid: RefinedGreys.g100,
+        activity: RefinedGreys.g300,
+        text: RefinedGreys.g900,
+        textMuted: RefinedGreys.g500,
         erase: const Color(0xFFD9534F),
         recording: const Color(0xFFC62828),
         recordingWash: const Color(0xFFFFF4F3),
         waveform: mix(surface, 0.62),
-        onset: const Color(0xFFA1A1A6),
+        onset: RefinedGreys.g400,
         scorePaper: ScorePaper.paper(brightness),
         scoreInk: ScorePaper.ink(brightness),
       );
     }
-    const surface = Color(0xFF1E1E20);
+    const surface = RefinedGreys.dark950;
     return AppColors(
       accent: a,
       accentStrong: Color.lerp(a, Colors.white, 0.28)!,
       accentSoft: mix(surface, 0.3),
-      accentWash: const Color(0xFF232325),
-      well: const Color(0xFF232325),
+      accentWash: RefinedGreys.dark900,
+      well: RefinedGreys.dark900,
       surface: surface,
-      chrome: const Color(0xFF2A2A2D),
-      line: const Color(0xFF38383C),
-      grid: const Color(0xFF29292C),
-      activity: const Color(0xFF4A4A4F),
-      text: const Color(0xFFE8E8EA),
-      textMuted: const Color(0xFF98989E),
+      chrome: RefinedGreys.dark850,
+      line: RefinedGreys.dark700,
+      grid: RefinedGreys.dark900,
+      activity: RefinedGreys.dark600,
+      text: RefinedGreys.dark100,
+      textMuted: RefinedGreys.dark400,
       erase: const Color(0xFFEF6B66),
       recording: const Color(0xFFFF6B63),
       recordingWash: const Color(0xFF3A2322),
       waveform: mix(surface, 0.7),
-      onset: const Color(0xFF6C6C72),
+      onset: RefinedGreys.dark500,
       scorePaper: ScorePaper.paper(brightness),
       scoreInk: ScorePaper.ink(brightness),
     );
@@ -629,6 +674,21 @@ class AppColors extends ThemeExtension<AppColors> {
   }
 
   final Color? _fill;
+
+  /// The accent's strong shade taken toward black (or in the dark, white) until it reads on
+  /// [tint] at 4.5:1: a chosen thing's label on [accentSoft], as some accents' shades don't.
+  Color accentOn(Color tint, {required bool dark}) {
+    double contrast(Color a, Color b) {
+      final (x, y) = (a.computeLuminance(), b.computeLuminance());
+      return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
+    }
+
+    var on = accentStrong;
+    for (var t = 0.05; contrast(on, tint) < 4.5 && t <= 1; t += 0.05) {
+      on = Color.lerp(accentStrong, dark ? Colors.white : Colors.black, t)!;
+    }
+    return on;
+  }
 
   static ThemeData theme({
     AccentColor accent = AccentColor.sky,
@@ -758,12 +818,19 @@ class AppColors extends ThemeExtension<AppColors> {
           : s.contains(WidgetState.hovered)
               ? Colors.white.withValues(alpha: 0.08)
               : null),
-      elevation: const WidgetStatePropertyAll(0),
+      // Raised a step off the page (its first elevation), a little more while hovered, pressed
+      // flat into it; a disabled one lies flat.
+      elevation: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled) || s.contains(WidgetState.pressed)
+          ? 0
+          : s.contains(WidgetState.hovered)
+              ? 2
+              : 1),
+      shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: dark ? 0.6 : 0.35)),
     );
     final outlined = button.copyWith(
       foregroundColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.disabled) ? c.textMuted.withValues(alpha: 0.5) : c.text),
-      side: WidgetStatePropertyAll(BorderSide(color: dark ? const Color(0xFF4A4A4F) : const Color(0xFFCFCFD4))),
+      side: WidgetStatePropertyAll(BorderSide(color: dark ? RefinedGreys.dark600 : RefinedGreys.g300)),
     );
     // A secondary action (Cancel, an inline action): plain text that a hover puts on a tint.
     final text = button.copyWith(
@@ -773,7 +840,7 @@ class AppColors extends ThemeExtension<AppColors> {
     );
     final strong = dark ? c.accent : c.accentStrong;
     // Dialogs and menus: in the dark, a step lighter than the window, as raised things are.
-    final raised = dark ? const Color(0xFF2C2C2F) : c.surface;
+    final raised = dark ? RefinedGreys.dark800 : c.surface;
     const fields = InputDecorationThemeData(
       isDense: true,
       contentPadding: EdgeInsets.symmetric(horizontal: 9, vertical: 8),
@@ -787,7 +854,7 @@ class AppColors extends ThemeExtension<AppColors> {
       padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
       shape: WidgetStatePropertyAll(_SteadyBorder(borderRadius: BorderRadius.circular(6), side: BorderSide(color: c.line))),
     );
-    final outline = dark ? const Color(0xFF5C5C62) : const Color(0xFFB8B8BE);
+    final outline = dark ? RefinedGreys.dark500 : RefinedGreys.g400;
     // A desktop's type scale: 13 px body text, titles a little larger and semibold.
     TextStyle? sized(TextStyle? style, double size, [FontWeight? weight]) =>
         style?.copyWith(fontSize: size, fontWeight: weight, letterSpacing: 0, height: style.height == null ? null : 1.3);
@@ -796,15 +863,15 @@ class AppColors extends ThemeExtension<AppColors> {
     return theme.copyWith(
       colorScheme: theme.colorScheme.copyWith(
         surfaceContainerHigh: raised,
-        surfaceContainerHighest: dark ? const Color(0xFF323236) : c.accentWash,
-        outline: dark ? const Color(0xFF4A4A4F) : const Color(0xFFC4C4CA),
+        surfaceContainerHighest: dark ? RefinedGreys.dark700 : c.accentWash,
+        outline: dark ? RefinedGreys.dark600 : RefinedGreys.g300,
       ),
       tooltipTheme: theme.tooltipTheme.copyWith(
         // Inherited, as Material's is: the two lerp into each other.
         textStyle: TextStyle(fontSize: 11.5, color: dark ? c.surface : Colors.white),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: dark ? const Color(0xFFE8E8EA) : const Color(0xE81D1D1F),
+          color: dark ? RefinedGreys.dark100 : RefinedGreys.g900.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(5),
         ),
       ),
@@ -892,6 +959,9 @@ class AppColors extends ThemeExtension<AppColors> {
       textButtonTheme: TextButtonThemeData(style: text),
       dialogTheme: theme.dialogTheme.copyWith(
         backgroundColor: raised,
+        // The top elevation: a modal is the nearest thing in the window.
+        elevation: 24,
+        shadowColor: Colors.black.withValues(alpha: dark ? 0.7 : 0.4),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: dark ? c.line : Colors.transparent)),
         titleTextStyle: type.titleLarge!.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: c.text, letterSpacing: 0),
         contentTextStyle: type.bodyMedium!.copyWith(fontSize: 14, height: 1.45, color: c.text, letterSpacing: 0),
