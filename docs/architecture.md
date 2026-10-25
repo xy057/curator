@@ -702,7 +702,7 @@ Refined's palette (`AppColors._refinedOf`) takes every grey from a scale defined
 never a literal), with no accent mixed in, and a
 `chrome` tone behind toolbars, the lane-name column and the ruler. Depth comes from
 `elevation(1–5)`, two-part shadows (a broad soft one and a tight dark one): the default button at
-1 (2 on hover, flat when pressed), Home's Recent card at 1, dialogs and the Settings window at the
+1 (2 on hover, flat when pressed), dialogs and the Settings window at the
 top. A region is set apart by a tone or a line, not both: Settings' and Export's sidebars are the
 `well` grey with no dividing line (hairlines stay only where content scrolls under a header or
 over a footer). Resting icons and unchosen sidebar rows are a step softer than text, full
