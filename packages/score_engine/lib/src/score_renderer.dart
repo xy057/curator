@@ -148,6 +148,7 @@ class ScoreRenderer {
     double? keyColumn,
     ui.Color? paper,
     ui.Color? ink,
+    ui.Color? pointer,
     void Function(ui.Canvas canvas, double musicLeft)? overlay,
   }) {
     _frame++;
@@ -327,7 +328,7 @@ class ScoreRenderer {
     }
     canvas.drawRect(
       ui.Rect.fromLTWH(pointerX - style.pointerWidth / 2, 0, style.pointerWidth, size.height),
-      ui.Paint()..color = style.pointer,
+      ui.Paint()..color = pointer ?? style.pointer,
     );
   }
 

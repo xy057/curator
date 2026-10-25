@@ -480,6 +480,7 @@ class EditorController extends ChangeNotifier {
       barNumbers: _doc.barNumbers,
       rehearsalInRow: rehearsalInRow,
       nameColors: _nameColors,
+      pointerColor: _doc.playheadColor,
       spacers: images.enabled ? _doc.spacers : const []);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
@@ -559,10 +560,10 @@ class EditorController extends ChangeNotifier {
     _edited();
   }
 
-  /// The playback line's colour (Project Settings ▸ Instruments); null: the accent's.
+  /// The playback line's colour (Project Settings ▸ Instruments); null: the score's own blue ([RenderStyle.pointer]).
   Color? get playheadColor => _doc.playheadColor;
 
-  /// Colours the playback line, or gives it back the accent's (null): one Undo step.
+  /// Colours the playback line, or gives it back its own blue (null): one Undo step.
   void setPlayheadColor(Color? color) {
     if (color == _doc.playheadColor) return;
     _doc = _doc.copyWith(playheadColor: color);

@@ -332,6 +332,7 @@ class SceneSettings {
     this.barNumbers = false,
     this.rehearsalInRow = true,
     this.nameColors = const {},
+    this.pointerColor,
     this.motion = ScoreMotion.standard,
     this.typography = ScoreTypography.standard,
     this.spacers = const [],
@@ -350,6 +351,7 @@ class SceneSettings {
   final bool barNumbers;
   final bool rehearsalInRow;
   final Map<String, ui.Color> nameColors;
+  final ui.Color? pointerColor;
   final ScoreMotion motion;
   final ScoreTypography typography;
   final List<VerticalSpacer> spacers;
@@ -455,7 +457,7 @@ class CuratedScene {
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
   /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [barNumbers],
-  /// [rehearsalInRow], [nameColors], [motion]);
+  /// [rehearsalInRow], [nameColors], [pointerColor], [motion]);
   /// setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
@@ -470,6 +472,7 @@ class CuratedScene {
       barNumbers: barNumbers,
       rehearsalInRow: rehearsalInRow,
       nameColors: nameColors,
+      pointerColor: pointerColor,
       motion: motion,
       typography: typography,
       spacers: spacers);
@@ -486,6 +489,7 @@ class CuratedScene {
     barNumbers = value.barNumbers;
     rehearsalInRow = value.rehearsalInRow;
     nameColors = value.nameColors;
+    pointerColor = value.pointerColor;
     motion = value.motion;
     typography = value.typography;
     spacers = value.spacers;
@@ -562,6 +566,9 @@ class CuratedScene {
   /// The colour some instruments are named in, by part id (a pair in its first player's); one
   /// left out is named in the ink.
   Map<String, ui.Color> nameColors = const {};
+
+  /// The playback line's colour; null: [RenderStyle.pointer].
+  ui.Color? pointerColor;
 
   /// Whether the instruments are grouped in sections as a printed score groups them: each
   /// section ([sectionOf]: the woodwinds, the brass… or a group of the user's) bracketed, its
@@ -857,6 +864,7 @@ class CuratedScene {
         keyColumn: keyColumnAt(time, curation, size),
         paper: paper,
         ink: ink,
+        pointer: pointerColor,
         overlay: patches.isEmpty && !barNumbers
             ? null
             : (canvas, musicLeft) {
