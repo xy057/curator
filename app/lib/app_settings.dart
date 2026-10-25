@@ -46,7 +46,8 @@ class AppSettings extends ChangeNotifier {
         _captionCountdown =
             CaptionCountdown.values.asNameMap()[_prefs?.getString(_captionCountdownKey)] ?? CaptionCountdown.line,
         _captionSize = CaptionSize.values.asNameMap()[_prefs?.getString(_captionSizeKey)] ?? CaptionSize.medium,
-        _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false {
+        _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false,
+        _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
     final custom = _customAccent;
@@ -77,7 +78,7 @@ class AppSettings extends ChangeNotifier {
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
-  static const _textDynamicsKey = 'textDynamics';
+  static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
 
   static Color? _readColor(SharedPreferences? prefs, String key) {
     try {
@@ -467,6 +468,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _engraving) return;
     _engraving = value;
     _prefs?.setString(_engravingKey, jsonEncode(value.toJson()));
+    notifyListeners();
+  }
+
+  /// Whether the engraving pages (Project Settings ▸ Engraving, Typography, Advanced Engraving)
+  /// show the score above their rows. On by default.
+  bool get engravingPreview => _engravingPreview;
+  bool _engravingPreview;
+  set engravingPreview(bool value) {
+    if (value == _engravingPreview) return;
+    _engravingPreview = value;
+    _prefs?.setBool(_engravingPreviewKey, value);
     notifyListeners();
   }
 

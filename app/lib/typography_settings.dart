@@ -108,6 +108,7 @@ class TypographyControl extends StatelessWidget {
           max: s.property == 'size' ? s.kind.maxSize : range.max,
           step: s.step,
           format: s.format,
+          scale: s.property == 'tracking' ? 1 : 100,
           onChanged: (v) => target.set(s.key, v));
     }
     return Row(mainAxisSize: MainAxisSize.min, children: [

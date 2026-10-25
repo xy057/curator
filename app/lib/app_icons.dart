@@ -45,185 +45,188 @@ enum AppIcon {
   /// From one value to the next. Refined: arrow_forward; Carbon: arrow--right.
   forward(IconData(0xE00C, fontFamily: _refined), IconData(0xE00C, fontFamily: _carbon)),
 
+  /// Opens a page in a window of its own. Refined: open_in_new; Carbon: launch.
+  popOut(IconData(0xE00D, fontFamily: _refined), IconData(0xE00D, fontFamily: _carbon)),
+
   /// Opens a file. Refined: folder_open; Carbon: folder--open.
-  open(IconData(0xE00D, fontFamily: _refined), IconData(0xE00D, fontFamily: _carbon)),
+  open(IconData(0xE00E, fontFamily: _refined), IconData(0xE00E, fontFamily: _carbon)),
 
   /// A file dragged over a drop area. Refined: download; Carbon: download.
-  drop(IconData(0xE00E, fontFamily: _refined), IconData(0xE00E, fontFamily: _carbon)),
+  drop(IconData(0xE00F, fontFamily: _refined), IconData(0xE00F, fontFamily: _carbon)),
 
   /// Back to the home screen. Refined: home; Carbon: home.
-  home(IconData(0xE00F, fontFamily: _refined), IconData(0xE00F, fontFamily: _carbon)),
+  home(IconData(0xE010, fontFamily: _refined), IconData(0xE010, fontFamily: _carbon)),
 
   /// A project. Refined: movie_filter; Carbon: document--video.
-  project(IconData(0xE010, fontFamily: _refined), IconData(0xE010, fontFamily: _carbon)),
+  project(IconData(0xE011, fontFamily: _refined), IconData(0xE011, fontFamily: _carbon)),
 
   /// A MusicXML score. Refined: queue_music; Carbon: music.
-  score(IconData(0xE011, fontFamily: _refined), IconData(0xE011, fontFamily: _carbon)),
+  score(IconData(0xE012, fontFamily: _refined), IconData(0xE012, fontFamily: _carbon)),
 
   /// Opens the demo. Refined: play_circle; Carbon: play--outline.
-  demo(IconData(0xE012, fontFamily: _refined), IconData(0xE012, fontFamily: _carbon)),
+  demo(IconData(0xE013, fontFamily: _refined), IconData(0xE013, fontFamily: _carbon)),
 
   /// Exports the video. Refined: movie; Carbon: video.
-  export(IconData(0xE013, fontFamily: _refined), IconData(0xE013, fontFamily: _carbon)),
+  export(IconData(0xE014, fontFamily: _refined), IconData(0xE014, fontFamily: _carbon)),
 
   /// The project's assets. Refined: photo_library; Carbon: image--copy.
-  assets(IconData(0xE014, fontFamily: _refined), IconData(0xE014, fontFamily: _carbon)),
+  assets(IconData(0xE015, fontFamily: _refined), IconData(0xE015, fontFamily: _carbon)),
 
   /// Plays. Refined: play_arrow (filled); Carbon: play--filled--alt.
-  play(IconData(0xE015, fontFamily: _refined), IconData(0xE015, fontFamily: _carbon)),
+  play(IconData(0xE016, fontFamily: _refined), IconData(0xE016, fontFamily: _carbon)),
 
   /// Pauses. Refined: pause (filled); Carbon: pause--filled.
-  pause(IconData(0xE016, fontFamily: _refined), IconData(0xE016, fontFamily: _carbon)),
+  pause(IconData(0xE017, fontFamily: _refined), IconData(0xE017, fontFamily: _carbon)),
 
   /// Goes to the start. Refined: skip_previous (filled); Carbon: skip--back--filled.
-  toStart(IconData(0xE017, fontFamily: _refined), IconData(0xE017, fontFamily: _carbon)),
+  toStart(IconData(0xE018, fontFamily: _refined), IconData(0xE018, fontFamily: _carbon)),
 
   /// The playback speed. Refined: speed; Carbon: meter.
-  speed(IconData(0xE018, fontFamily: _refined), IconData(0xE018, fontFamily: _carbon)),
+  speed(IconData(0xE019, fontFamily: _refined), IconData(0xE019, fontFamily: _carbon)),
 
   /// No sound. Refined: volume_off; Carbon: volume--mute.
-  mute(IconData(0xE019, fontFamily: _refined), IconData(0xE019, fontFamily: _carbon)),
+  mute(IconData(0xE01A, fontFamily: _refined), IconData(0xE01A, fontFamily: _carbon)),
 
   /// Music: a sound, the engraving. Refined: music_note; Carbon: music.
-  music(IconData(0xE01A, fontFamily: _refined), IconData(0xE01A, fontFamily: _carbon)),
+  music(IconData(0xE01B, fontFamily: _refined), IconData(0xE01B, fontFamily: _carbon)),
 
   /// The select tool. Refined: arrow_selector_tool; Carbon: cursor--1.
-  pointer(IconData(0xE01B, fontFamily: _refined), IconData(0xE01B, fontFamily: _carbon)),
+  pointer(IconData(0xE01C, fontFamily: _refined), IconData(0xE01C, fontFamily: _carbon)),
 
   /// The draw tool. Refined: edit; Carbon: edit.
-  draw(IconData(0xE01C, fontFamily: _refined), IconData(0xE01C, fontFamily: _carbon)),
+  draw(IconData(0xE01D, fontFamily: _refined), IconData(0xE01D, fontFamily: _carbon)),
 
   /// The erase tool. Refined: ink_eraser; Carbon: erase.
-  erase(IconData(0xE01D, fontFamily: _refined), IconData(0xE01D, fontFamily: _carbon)),
+  erase(IconData(0xE01E, fontFamily: _refined), IconData(0xE01E, fontFamily: _carbon)),
 
   /// Starts the selection at the playhead. Refined: first_page; Carbon: page--first.
-  trimStart(IconData(0xE01E, fontFamily: _refined), IconData(0xE01E, fontFamily: _carbon)),
+  trimStart(IconData(0xE01F, fontFamily: _refined), IconData(0xE01F, fontFamily: _carbon)),
 
   /// Ends the selection at the playhead. Refined: last_page; Carbon: page--last.
-  trimEnd(IconData(0xE01F, fontFamily: _refined), IconData(0xE01F, fontFamily: _carbon)),
+  trimEnd(IconData(0xE020, fontFamily: _refined), IconData(0xE020, fontFamily: _carbon)),
 
   /// Condensing. Refined: merge_type; Carbon: direction--merge.
-  condense(IconData(0xE020, fontFamily: _refined), IconData(0xE020, fontFamily: _carbon)),
+  condense(IconData(0xE021, fontFamily: _refined), IconData(0xE021, fontFamily: _carbon)),
 
   /// Tidies the lanes. Refined: cleaning_services; Carbon: clean.
-  tidy(IconData(0xE021, fontFamily: _refined), IconData(0xE021, fontFamily: _carbon)),
+  tidy(IconData(0xE022, fontFamily: _refined), IconData(0xE022, fontFamily: _carbon)),
 
   /// Curates the lanes. Refined: auto_awesome; Carbon: magic-wand.
-  autoCurate(IconData(0xE022, fontFamily: _refined), IconData(0xE022, fontFamily: _carbon)),
+  autoCurate(IconData(0xE023, fontFamily: _refined), IconData(0xE023, fontFamily: _carbon)),
 
   /// Clears every lane. Refined: layers_clear; Carbon: row--delete.
-  clearLanes(IconData(0xE023, fontFamily: _refined), IconData(0xE023, fontFamily: _carbon)),
+  clearLanes(IconData(0xE024, fontFamily: _refined), IconData(0xE024, fontFamily: _carbon)),
 
   /// Animation: how long a lane takes to come and go. Refined: animation; Carbon: fade.
-  transition(IconData(0xE024, fontFamily: _refined), IconData(0xE024, fontFamily: _carbon)),
+  transition(IconData(0xE025, fontFamily: _refined), IconData(0xE025, fontFamily: _carbon)),
 
   /// Audio: a recording, its panel. Refined: graphic_eq; Carbon: waveform.
-  audio(IconData(0xE025, fontFamily: _refined), IconData(0xE025, fontFamily: _carbon)),
+  audio(IconData(0xE026, fontFamily: _refined), IconData(0xE026, fontFamily: _carbon)),
 
   /// Adds a recording. Refined: audio_file; Carbon: document--audio.
-  addAudio(IconData(0xE026, fontFamily: _refined), IconData(0xE026, fontFamily: _carbon)),
+  addAudio(IconData(0xE027, fontFamily: _refined), IconData(0xE027, fontFamily: _carbon)),
 
   /// Replaces the recording. Refined: change_circle; Carbon: renew.
-  replaceAudio(IconData(0xE027, fontFamily: _refined), IconData(0xE027, fontFamily: _carbon)),
+  replaceAudio(IconData(0xE028, fontFamily: _refined), IconData(0xE028, fontFamily: _carbon)),
 
   /// A MIDI tempo map. Refined: piano; Carbon: chart--line-smooth.
-  tempoMap(IconData(0xE028, fontFamily: _refined), IconData(0xE028, fontFamily: _carbon)),
+  tempoMap(IconData(0xE029, fontFamily: _refined), IconData(0xE029, fontFamily: _carbon)),
 
   /// Taps anchors in time. Refined: touch_app; Carbon: touch--1.
-  tap(IconData(0xE029, fontFamily: _refined), IconData(0xE029, fontFamily: _carbon)),
+  tap(IconData(0xE02A, fontFamily: _refined), IconData(0xE02A, fontFamily: _carbon)),
 
   /// A jump to another bar. Refined: u_turn_left; Carbon: direction--u-turn.
-  warp(IconData(0xE02A, fontFamily: _refined), IconData(0xE02A, fontFamily: _carbon)),
+  warp(IconData(0xE02B, fontFamily: _refined), IconData(0xE02B, fontFamily: _carbon)),
 
   /// Warps that come from the score. Refined: repeat; Carbon: repeat.
-  repeat(IconData(0xE02B, fontFamily: _refined), IconData(0xE02B, fontFamily: _carbon)),
+  repeat(IconData(0xE02C, fontFamily: _refined), IconData(0xE02C, fontFamily: _carbon)),
 
   /// Snaps anchors to onsets. Refined: align_horizontal_center; Carbon: align--horizontal-center.
-  snap(IconData(0xE02C, fontFamily: _refined), IconData(0xE02C, fontFamily: _carbon)),
+  snap(IconData(0xE02D, fontFamily: _refined), IconData(0xE02D, fontFamily: _carbon)),
 
   /// Removes every anchor. Refined: clear_all; Carbon: close--outline.
-  clearAnchors(IconData(0xE02D, fontFamily: _refined), IconData(0xE02D, fontFamily: _carbon)),
+  clearAnchors(IconData(0xE02E, fontFamily: _refined), IconData(0xE02E, fontFamily: _carbon)),
 
   /// The silence before bar 1. Refined: start; Carbon: time.
-  leadIn(IconData(0xE02E, fontFamily: _refined), IconData(0xE02E, fontFamily: _carbon)),
+  leadIn(IconData(0xE02F, fontFamily: _refined), IconData(0xE02F, fontFamily: _carbon)),
 
   /// Zooms in. Refined: zoom_in; Carbon: zoom--in.
-  zoomIn(IconData(0xE02F, fontFamily: _refined), IconData(0xE02F, fontFamily: _carbon)),
+  zoomIn(IconData(0xE030, fontFamily: _refined), IconData(0xE030, fontFamily: _carbon)),
 
   /// Zooms out. Refined: zoom_out; Carbon: zoom--out.
-  zoomOut(IconData(0xE030, fontFamily: _refined), IconData(0xE030, fontFamily: _carbon)),
+  zoomOut(IconData(0xE031, fontFamily: _refined), IconData(0xE031, fontFamily: _carbon)),
 
   /// Fits the view. Refined: fit_screen; Carbon: fit-to-screen.
-  fit(IconData(0xE031, fontFamily: _refined), IconData(0xE031, fontFamily: _carbon)),
+  fit(IconData(0xE032, fontFamily: _refined), IconData(0xE032, fontFamily: _carbon)),
 
   /// The video's frame. Refined: crop_16_9; Carbon: crop.
-  frame(IconData(0xE032, fontFamily: _refined), IconData(0xE032, fontFamily: _carbon)),
+  frame(IconData(0xE033, fontFamily: _refined), IconData(0xE033, fontFamily: _carbon)),
 
   /// The instrument lanes. Refined: view_list; Carbon: list--boxes.
-  lanes(IconData(0xE033, fontFamily: _refined), IconData(0xE033, fontFamily: _carbon)),
+  lanes(IconData(0xE034, fontFamily: _refined), IconData(0xE034, fontFamily: _carbon)),
 
   /// The size of the score. Refined: format_size; Carbon: text--scale.
-  scoreSize(IconData(0xE034, fontFamily: _refined), IconData(0xE034, fontFamily: _carbon)),
+  scoreSize(IconData(0xE035, fontFamily: _refined), IconData(0xE035, fontFamily: _carbon)),
 
   /// An image. Refined: image; Carbon: image.
-  image(IconData(0xE035, fontFamily: _refined), IconData(0xE035, fontFamily: _carbon)),
+  image(IconData(0xE036, fontFamily: _refined), IconData(0xE036, fontFamily: _carbon)),
 
   /// No image. Refined: hide_image; Carbon: no-image.
-  noImage(IconData(0xE036, fontFamily: _refined), IconData(0xE036, fontFamily: _carbon)),
+  noImage(IconData(0xE037, fontFamily: _refined), IconData(0xE037, fontFamily: _carbon)),
 
   /// Pinned in place. Refined: push_pin (filled); Carbon: pin--filled.
-  pin(IconData(0xE037, fontFamily: _refined), IconData(0xE037, fontFamily: _carbon)),
+  pin(IconData(0xE038, fontFamily: _refined), IconData(0xE038, fontFamily: _carbon)),
 
   /// Linked, not copied in. Refined: link; Carbon: link.
-  link(IconData(0xE038, fontFamily: _refined), IconData(0xE038, fontFamily: _carbon)),
+  link(IconData(0xE039, fontFamily: _refined), IconData(0xE039, fontFamily: _carbon)),
 
   /// Copied into the project. Refined: inventory_2; Carbon: box.
-  embed(IconData(0xE039, fontFamily: _refined), IconData(0xE039, fontFamily: _carbon)),
+  embed(IconData(0xE03A, fontFamily: _refined), IconData(0xE03A, fontFamily: _carbon)),
 
   /// Captions. Refined: subtitles; Carbon: closed-caption.
-  captions(IconData(0xE03A, fontFamily: _refined), IconData(0xE03A, fontFamily: _carbon)),
+  captions(IconData(0xE03B, fontFamily: _refined), IconData(0xE03B, fontFamily: _carbon)),
 
   /// Settings. Refined: settings; Carbon: settings.
-  settings(IconData(0xE03B, fontFamily: _refined), IconData(0xE03B, fontFamily: _carbon)),
+  settings(IconData(0xE03C, fontFamily: _refined), IconData(0xE03C, fontFamily: _carbon)),
 
   /// General settings. Refined: tune; Carbon: settings--adjust.
-  general(IconData(0xE03C, fontFamily: _refined), IconData(0xE03C, fontFamily: _carbon)),
+  general(IconData(0xE03D, fontFamily: _refined), IconData(0xE03D, fontFamily: _carbon)),
 
   /// Appearance. Refined: palette; Carbon: color-palette.
-  appearance(IconData(0xE03D, fontFamily: _refined), IconData(0xE03D, fontFamily: _carbon)),
+  appearance(IconData(0xE03E, fontFamily: _refined), IconData(0xE03E, fontFamily: _carbon)),
 
   /// Fonts. Refined: text_fields; Carbon: text--font.
-  fonts(IconData(0xE03E, fontFamily: _refined), IconData(0xE03E, fontFamily: _carbon)),
+  fonts(IconData(0xE03F, fontFamily: _refined), IconData(0xE03F, fontFamily: _carbon)),
 
   /// Extensions. Refined: extension; Carbon: extensions.
-  extensions(IconData(0xE03F, fontFamily: _refined), IconData(0xE03F, fontFamily: _carbon)),
+  extensions(IconData(0xE040, fontFamily: _refined), IconData(0xE040, fontFamily: _carbon)),
 
   /// Feature flags. Refined: flag; Carbon: flag.
-  flags(IconData(0xE040, fontFamily: _refined), IconData(0xE040, fontFamily: _carbon)),
+  flags(IconData(0xE041, fontFamily: _refined), IconData(0xE041, fontFamily: _carbon)),
 
   /// About. Refined: info; Carbon: information.
-  about(IconData(0xE041, fontFamily: _refined), IconData(0xE041, fontFamily: _carbon)),
+  about(IconData(0xE042, fontFamily: _refined), IconData(0xE042, fontFamily: _carbon)),
 
   /// The system's appearance. Refined: brightness_auto; Carbon: contrast.
-  auto(IconData(0xE042, fontFamily: _refined), IconData(0xE042, fontFamily: _carbon)),
+  auto(IconData(0xE043, fontFamily: _refined), IconData(0xE043, fontFamily: _carbon)),
 
   /// Light. Refined: light_mode; Carbon: light.
-  light(IconData(0xE043, fontFamily: _refined), IconData(0xE043, fontFamily: _carbon)),
+  light(IconData(0xE044, fontFamily: _refined), IconData(0xE044, fontFamily: _carbon)),
 
   /// Dark. Refined: dark_mode; Carbon: asleep.
-  dark(IconData(0xE044, fontFamily: _refined), IconData(0xE044, fontFamily: _carbon)),
+  dark(IconData(0xE045, fontFamily: _refined), IconData(0xE045, fontFamily: _carbon)),
 
   /// Finished. Refined: check_circle (filled); Carbon: checkmark--filled.
-  done(IconData(0xE045, fontFamily: _refined), IconData(0xE045, fontFamily: _carbon)),
+  done(IconData(0xE046, fontFamily: _refined), IconData(0xE046, fontFamily: _carbon)),
 
   /// Failed. Refined: error (filled); Carbon: error--filled.
-  failed(IconData(0xE046, fontFamily: _refined), IconData(0xE046, fontFamily: _carbon)),
+  failed(IconData(0xE047, fontFamily: _refined), IconData(0xE047, fontFamily: _carbon)),
 
   /// A value that is not allowed. Refined: error (filled); Carbon: warning--filled.
-  invalid(IconData(0xE047, fontFamily: _refined), IconData(0xE047, fontFamily: _carbon)),
+  invalid(IconData(0xE048, fontFamily: _refined), IconData(0xE048, fontFamily: _carbon)),
 
   /// Something to look at. Refined: warning (filled); Carbon: warning--filled.
-  warning(IconData(0xE048, fontFamily: _refined), IconData(0xE048, fontFamily: _carbon));
+  warning(IconData(0xE049, fontFamily: _refined), IconData(0xE049, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;
