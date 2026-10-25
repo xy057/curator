@@ -137,6 +137,7 @@ class PreparedScore {
     // After the edits (an edited "F" is read as edited) and before condensing (which copies it).
     if (textDynamics) TextDynamics.apply(doc);
     typography.applyTo(doc, textSize: textSize);
+    _numberVerses(doc);
     final options = metadata == null ? null : Condenser.options(doc, metadata);
     final condensed =
         metadata == null ? const <CondensedGroup>[] : Condenser.condense(doc, metadata, custom: pairs, options: options);
@@ -157,6 +158,27 @@ class PreparedScore {
   }
 
   static const _placement = {'default-x', 'default-y', 'relative-x', 'relative-y'};
+
+  /// A lyric's number may be any token ("part1verse2", "chorus"), but Verovio reads it as a
+  /// whole number, so every other token would be verse 1. In a part with one, the verses are
+  /// numbered 1, 2, … in the order of the last number in each token, then as they first come.
+  static void _numberVerses(XmlDocument doc) {
+    for (final part in doc.rootElement.findElements('part')) {
+      final lyrics = [for (final note in part.findAllElements('note')) ...note.findElements('lyric')];
+      String token(XmlElement lyric) => lyric.getAttribute('number')?.trim() ?? '1';
+      if (lyrics.every((l) => (int.tryParse(token(l)) ?? 0) > 0)) continue;
+      final tokens = {for (final l in lyrics) token(l)}.toList();
+      int? lastNumber(String t) => int.tryParse(RegExp(r'\d+').allMatches(t).lastOrNull?.group(0) ?? '');
+      final ordered = [...tokens]..sort((a, b) {
+          final na = lastNumber(a), nb = lastNumber(b);
+          if (na != nb) return na == null ? 1 : (nb == null ? -1 : na.compareTo(nb));
+          return tokens.indexOf(a).compareTo(tokens.indexOf(b));
+        });
+      for (final l in lyrics) {
+        l.setAttribute('number', '${ordered.indexOf(token(l)) + 1}');
+      }
+    }
+  }
 
   /// The first words element takes the new text (keeping its font and position); the rest go.
   static void _replaceWords(List<XmlElement> words, String text) {

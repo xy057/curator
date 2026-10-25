@@ -99,6 +99,32 @@ double dotWidth(LoadedScore s) {
   throw StateError('No dot.');
 }
 
+/// A lyric on a note: [number] is its verse, as MusicXML writes it.
+String lyric(String text, {String number = '1', String placement = 'below', String syllabic = 'single', bool extend = false}) =>
+    '<lyric number="$number" placement="$placement"><syllabic>$syllabic</syllabic><text>$text</text>'
+    '${extend ? '<extend type="start"/>' : ''}</lyric>';
+
+/// One voice's quarter notes on G, each with its [lyrics].
+String lyricScore(List<List<String>> lyrics) => '<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0">'
+    '<part-list><score-part id="P1"><part-name>Choir</part-name></score-part></part-list><part id="P1">'
+    '<measure number="1"><attributes><divisions>1</divisions><time><beats>${lyrics.length}</beats><beat-type>4</beat-type></time>'
+    '<clef><sign>G</sign><line>2</line></clef></attributes>'
+    '${[for (final l in lyrics) '<note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>${l.join()}</note>'].join()}'
+    '</measure></part></score-partwise>';
+
+/// Where the first run of engraved text that says [words] is drawn, and how wide its box is.
+({double x, double y, double width}) textAt(LoadedScore s, String words) {
+  final d = s.engraving;
+  for (var i = 0; i < d.commandCount; i++) {
+    final b = i * Cmd.words, start = d.commandInts[b + Cmd.start];
+    if (d.commandInts[b + Cmd.kind] == VBKind.text &&
+        utf8.decode(d.text.sublist(start, start + d.commandInts[b + Cmd.count])) == words) {
+      return (x: d.commandFloats[b + Cmd.x], y: d.commandFloats[b + Cmd.y], width: d.commandFloats[b + Cmd.bounds + 2]);
+    }
+  }
+  throw StateError('No “$words”.');
+}
+
 void main() {
   late LoadedScore score;
 
@@ -221,29 +247,20 @@ void main() {
   });
 
   test('lyrics placed above the staff are engraved above it, verse 1 on top as read', () async {
-    String lyric(int n, String placement, String text) =>
-        '<lyric number="$n" placement="$placement"><syllabic>single</syllabic><text>$text</text></lyric>';
-    final s = await LoadedScore.load('<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0">'
-        '<part-list><score-part id="P1"><part-name>Choir</part-name></score-part></part-list><part id="P1">'
-        '<measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time>'
-        '<clef><sign>G</sign><line>2</line></clef></attributes>'
-        '<note><pitch><step>G</step><octave>4</octave></pitch><duration>4</duration><type>whole</type>'
-        '${lyric(1, 'above', 'one')}${lyric(2, 'above', 'two')}${lyric(1, 'below', 'low')}</note></measure>'
-        '</part></score-partwise>');
-    final d = s.engraving, staff = d.staves.first;
-    double yOf(String words) {
-      for (var i = 0; i < d.commandCount; i++) {
-        final b = i * Cmd.words, start = d.commandInts[b + Cmd.start];
-        if (d.commandInts[b + Cmd.kind] == VBKind.text &&
-            utf8.decode(d.text.sublist(start, start + d.commandInts[b + Cmd.count])) == words) {
-          return d.commandFloats[b + Cmd.y];
-        }
-      }
-      throw StateError('No “$words”.');
-    }
+    final s = await LoadedScore.load(lyricScore([
+      [lyric('one', placement: 'above'), lyric('two', number: '2', placement: 'above'), lyric('low')],
+    ]));
+    final staff = s.engraving.staves.first;
+    expect(textAt(s, 'one').y, lessThan(textAt(s, 'two').y)); // read top down, verse 2 nearer the staff
+    expect(textAt(s, 'two').y, lessThan(staff.top));
+    expect(textAt(s, 'low').y, greaterThan(staff.top + staff.height));
+  });
 
-    expect(yOf('one'), lessThan(yOf('two'))); // read top down, verse 2 nearer the staff
-    expect(yOf('two'), lessThan(staff.top));
-    expect(yOf('low'), greaterThan(staff.top + staff.height));
+  test('verse numbers that are not whole numbers are numbered in order, each its own line', () async {
+    final s = await LoadedScore.load(lyricScore([
+      [lyric('first', number: 'part1verse1'), lyric('second', number: 'part1verse2'), lyric('refrain', number: 'chorus')],
+    ]));
+    expect(textAt(s, 'first').y, lessThan(textAt(s, 'second').y));
+    expect(textAt(s, 'second').y, lessThan(textAt(s, 'refrain').y));
   });
 }

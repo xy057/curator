@@ -607,6 +607,9 @@ spaces after it widen its box on one side; both in `PreparedScore.prepare`, befo
 edits' ids don't change. Project Settings ▸ Flags ▸ Dynamics typed as text (`EditState.textDynamics`,
 an Undo step that re-engraves; a project without its own takes `AppSettings.textDynamics`, on
 until Save as default) turns it off.
+A lyric's `number` may be any token ("part1verse2", "chorus"), but Verovio reads a whole number,
+so any other is verse 1: in a part with such a token, `PreparedScore.prepare` numbers the verses
+1, 2, … by the last number in each token, then as they first come (after typography).
 
 **Verovio is pinned and patched.** `make setup` clones the tagged release and applies
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
