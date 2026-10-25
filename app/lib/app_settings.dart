@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart'
-    show CaptionCountdown, CaptionSize, EngravingOptions, MusicFont, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
+    show CaptionAlign, CaptionCountdown, CaptionSize, EngravingOptions, MusicFont, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
@@ -46,6 +46,9 @@ class AppSettings extends ChangeNotifier {
         _captionCountdown =
             CaptionCountdown.values.asNameMap()[_prefs?.getString(_captionCountdownKey)] ?? CaptionCountdown.line,
         _captionSize = CaptionSize.values.asNameMap()[_prefs?.getString(_captionSizeKey)] ?? CaptionSize.medium,
+        _captionAlign = CaptionAlign.values.asNameMap()[_prefs?.getString(_captionAlignKey)] ?? CaptionAlign.center,
+        _captionPlate = _prefs?.getBool(_captionPlateKey) ?? false,
+        _videoSubtitles = _prefs?.getBool(_videoSubtitlesKey) ?? false,
         _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false,
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
@@ -98,6 +101,8 @@ class AppSettings extends ChangeNotifier {
   static const _extensionDefaultsKey = 'extensionDefaults'; // deprecated: read, never written
   static const _captionFontKey = 'captionFont';
   static const _captionCountdownKey = 'captionCountdown', _captionSizeKey = 'captionSize';
+  static const _captionAlignKey = 'captionAlign', _captionPlateKey = 'captionPlate';
+  static const _videoSubtitlesKey = 'videoSubtitles';
   static const defaultAutosave = Duration(minutes: 2);
 
   /// Choices offered for autosave; [Duration.zero] turns it off.
@@ -456,6 +461,35 @@ class AppSettings extends ChangeNotifier {
     if (value == _captionSize) return;
     _captionSize = value;
     _prefs?.setString(_captionSizeKey, value.name);
+    notifyListeners();
+  }
+
+  CaptionAlign get captionAlign => _captionAlign;
+  CaptionAlign _captionAlign;
+  set captionAlign(CaptionAlign value) {
+    if (value == _captionAlign) return;
+    _captionAlign = value;
+    _prefs?.setString(_captionAlignKey, value.name);
+    notifyListeners();
+  }
+
+  /// A soft backing behind each caption.
+  bool get captionPlate => _captionPlate;
+  bool _captionPlate;
+  set captionPlate(bool value) {
+    if (value == _captionPlate) return;
+    _captionPlate = value;
+    _prefs?.setBool(_captionPlateKey, value);
+    notifyListeners();
+  }
+
+  /// Whether Export writes the captions as an .srt beside a movie (Captions on, with captions).
+  bool get videoSubtitles => _videoSubtitles;
+  bool _videoSubtitles;
+  set videoSubtitles(bool value) {
+    if (value == _videoSubtitles) return;
+    _videoSubtitles = value;
+    _prefs?.setBool(_videoSubtitlesKey, value);
     notifyListeners();
   }
 

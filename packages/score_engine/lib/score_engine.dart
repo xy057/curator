@@ -16,7 +16,8 @@ export 'src/frozen_zone.dart';
 export 'src/midi_tempo.dart';
 export 'src/score_metadata.dart';
 export 'src/score_motion.dart';
-export 'src/score_caption.dart' show Caption, CaptionBar, CaptionCountdown, CaptionSize, CaptionSpan, CaptionStyle, captionOverlapping, captionRoom, captionSpans, separateCaptions;
+export 'src/score_caption.dart'
+    show Caption, CaptionAlign, CaptionBar, CaptionCountdown, CaptionRun, CaptionSize, CaptionSpan, CaptionStyle, captionOverlapping, captionPlain, captionRoom, captionRuns, captionSpans, separateCaptions;
 export 'src/score_fonts.dart';
 export 'src/score_form.dart';
 export 'src/score_patch.dart';
@@ -25,6 +26,7 @@ export 'src/score_typography.dart';
 export 'src/scroll_map.dart';
 export 'src/spacing_plan.dart';
 export 'src/staff_stack.dart';
+export 'src/subtitles.dart';
 export 'src/sync_map.dart';
 export 'src/text_dynamics.dart';
 export 'src/zip_entries.dart';

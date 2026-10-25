@@ -772,7 +772,9 @@ class CuratedScene {
                 canvas.restore();
               });
     if (barNumbers) _paintTempo(canvas, size, scrollX, ink ?? style.ink, rowShift);
-    if (captions.isNotEmpty) _captionBar.paint(canvas, size, time, _captionSpans, captions, ink ?? style.ink, motion: _motion);
+    if (captions.isNotEmpty) {
+      _captionBar.paint(canvas, size, time, _captionSpans, captions, ink ?? style.ink, motion: _motion, paper: paperColor);
+    }
     if (fadeLayer) {
       canvas.restore();
     } else if (fade > 0) {

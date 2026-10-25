@@ -90,6 +90,48 @@ void main() {
       expect(fadingIn.strongest, allOf(greaterThan(0), lessThan(shown.strongest)));
       expect(fadingOut.strongest, allOf(greaterThan(0), lessThan(shown.strongest)));
     });
+
+    test('set left or right, its line drawing in to that side; a plate backs it in paper', () async {
+      final left = (await frame(5, style: const CaptionStyle(align: CaptionAlign.left))).ink!;
+      final right = (await frame(5, style: const CaptionStyle(align: CaptionAlign.right))).ink!;
+      expect(left.left, closeTo(24, 2));
+      expect(right.right, closeTo(size.width - 24, 2));
+      // Half its time gone: the line's dark half runs from the text's left.
+      final half = await frame(5, style: const CaptionStyle(align: CaptionAlign.left));
+      final line = (size.height - 16).toInt();
+      expect(half.at(left.left.toInt() + 4, line), isNot(half.at(left.right.toInt() - 4, line)));
+      final plated = (await frame(5, style: const CaptionStyle(plate: true))).ink!, bare = (await frame(5)).ink!;
+      expect(plated.width, greaterThan(bare.width + 20), reason: 'a paper tone around the text');
+      expect(plated.width, lessThan(size.width / 2));
+    });
+  });
+
+  test('markup: *italic*, **bold**; a lone or spaced star is a star', () {
+    expect(captionRuns('The *horns* answer, **softly**'), [
+      (text: 'The ', italic: false, bold: false),
+      (text: 'horns', italic: true, bold: false),
+      (text: ' answer, ', italic: false, bold: false),
+      (text: 'softly', italic: false, bold: true),
+    ]);
+    expect(captionPlain(r'5 * 3 = 15, \*not\*, *open'), r'5 * 3 = 15, *not*, *open');
+  });
+
+  test('subtitles: SRT and WebVTT read either way, written back, placed in the score once per repeat', () {
+    final cues = parseSubtitles('\uFEFF1\r\n00:00:01,000 --> 00:00:03,500\r\n<i>Horns </i>enter,\r\n<b>softly</b> &amp; slowly\r\n\r\n'
+        'WEBVTT junk\n\nNOTE skipped\n\n00:05.000 --> 00:07.000 align:start\n<v Guide>Strings</v> {\\an8}<c.x>reply</c>\n');
+    expect(cues, [
+      (start: 1.0, end: 3.5, text: '*Horns* enter, **softly** & slowly'),
+      (start: 5.0, end: 7.0, text: 'Strings reply'),
+    ]);
+    expect(writeSubtitles(cues, SubtitleFormat.srt), startsWith('1\n00:00:01,000 --> 00:00:03,500\n<i>Horns</i> enter, <b>softly</b> & slowly\n'));
+    expect(parseSubtitles(writeSubtitles(cues, SubtitleFormat.vtt)), cues);
+    expect(() => parseSubtitles('hello'), throwsA(isA<SubtitleException>()));
+
+    // ♩ = 120: 2 quarters a second. Bars 1–2 repeated: bar 1 sounds at 0 s and again at 4 s.
+    final repeated = map()..addAnchor(const SyncAnchor(8, 4, jumpTo: 0));
+    final again = captionsFromCues([(start: 0.5, end: 1.5, text: 'A'), (start: 4.5, end: 5.5, text: 'A')], repeated, 64);
+    expect(again, const [Caption(1, 3, 'A')]);
+    expect(captionCues(again, repeated, from: 1), [(start: 0.0, end: 0.5, text: 'A'), (start: 3.5, end: 4.5, text: 'A')]);
   });
 
 }

@@ -503,6 +503,19 @@ class VideoExport {
     return true;
   }
 
+  /// The captions as subtitles of the video showing [span], timed from its start (the
+  /// Captions extension; none while it is off).
+  List<SubtitleCue> get subtitles => captionCues(_scene.captions, _scene.timeline, from: span.start, to: span.end);
+
+  /// Writes [subtitles] as an .srt beside [video] (its name, that extension), replacing one
+  /// there: it belongs to the video. Returns its path.
+  Future<String> writeSubtitlesBeside(String video) async {
+    final dot = video.lastIndexOf('.'), slash = video.lastIndexOf(Platform.pathSeparator);
+    final path = '${dot > slash ? video.substring(0, dot) : video}.${SubtitleFormat.srt.extension}';
+    await File(path).writeAsString(writeSubtitles(subtitles, SubtitleFormat.srt));
+    return path;
+  }
+
   /// The seconds of playback the video shows: all of it unless [showBars] says otherwise.
   late ({double start, double end}) span = (start: 0, end: duration);
   late double _musicEnd = duration;
