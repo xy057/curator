@@ -252,7 +252,7 @@ index 5772420..a9ad7d2 100644
              return 2 * unit;
          }
 diff --git a/src/iomusxml.cpp b/src/iomusxml.cpp
-index f20540d..27b543f 100644
+index f20540d..633b18c 100644
 --- a/src/iomusxml.cpp
 +++ b/src/iomusxml.cpp
 @@ -700,6 +700,21 @@ std::string MusicXmlInput::GetWordsOrDynamicsText(const pugi::xml_node node) con
@@ -452,7 +452,17 @@ index f20540d..27b543f 100644
          if (!words.empty()) {
              const std::string lang = words.first().node().attribute("xml:lang")
                  ? words.first().node().attribute("xml:lang").as_string()
-@@ -3462,6 +3534,7 @@ void MusicXmlInput::ReadMusicXmlNote(
+@@ -3380,7 +3452,8 @@ void MusicXmlInput::ReadMusicXmlNote(
+             lyricNumber = (lyricNumber < 1) ? 1 : lyricNumber;
+             Verse *verse = new Verse();
+             verse->SetColor(lyric.attribute("color").as_string());
+-            // verse->SetPlace(verse->AttPlacementRelStaff::StrToStaffrelBasic(lyric.attribute("placement").as_string()));
++            // [curated-score patch] lyrics above the staff (below is Verovio's default)
++            if (HasAttributeWithValue(lyric, "placement", "above")) verse->SetPlace(STAFFREL_above);
+             verse->SetLabel(lyric.attribute("name").as_string());
+             verse->SetN(lyricNumber);
+             // MusicXML represents melisma endpoints as textless <lyric><extend type="stop"/></lyric>.
+@@ -3462,6 +3535,7 @@ void MusicXmlInput::ReadMusicXmlNote(
                      if (!textStyle.empty()) syl->SetFontstyle(syl->AttTypography::StrToFontstyle(textStyle.c_str()));
                      if (!textWeight.empty())
                          syl->SetFontweight(syl->AttTypography::StrToFontweight(textWeight.c_str()));
