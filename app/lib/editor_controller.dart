@@ -807,13 +807,36 @@ class EditorController extends ChangeNotifier {
     _edited();
   }
 
+  /// Whether syllables are centred under their noteheads ([EngraveRequest.centredLyrics]) in a
+  /// project that hasn't chosen: the app's, from Project Settings ▸ Flags ▸ Save as default.
+  /// Not an edit: changing it re-engraves what is open.
+  bool get defaultCentredLyrics => _defaultCentredLyrics;
+  bool _defaultCentredLyrics = false;
+  set defaultCentredLyrics(bool value) {
+    if (value == _defaultCentredLyrics) return;
+    _defaultCentredLyrics = value;
+    if (_score != null && _doc.centredLyrics == null) unawaited(_reengrave());
+  }
+
+  /// This project's choice (Project Settings ▸ Flags), else the app's.
+  bool get centredLyrics => _doc.centredLyrics ?? _defaultCentredLyrics;
+
+  /// Sets [centredLyrics] for this project: one Undo step, re-engraving the score.
+  Future<void> setCentredLyrics(bool on) async {
+    if (_score == null || on == _doc.centredLyrics) return;
+    _doc = _doc.copyWith(centredLyrics: on);
+    final engraved = _reengrave();
+    _edited();
+    await engraved;
+  }
+
   /// Sets every flag for this project at once (Flags ▸ Reset to Default): one Undo step,
-  /// re-engraving only if [textDynamics] changes.
-  Future<void> setFlags({required bool textDynamics, required bool rehearsalInRow}) async {
+  /// re-engraving only if [textDynamics] or [centredLyrics] changes.
+  Future<void> setFlags({required bool textDynamics, required bool rehearsalInRow, required bool centredLyrics}) async {
     if (_score == null) return;
-    final next = _doc.copyWith(textDynamics: textDynamics, rehearsalInRow: rehearsalInRow);
+    final next = _doc.copyWith(textDynamics: textDynamics, rehearsalInRow: rehearsalInRow, centredLyrics: centredLyrics);
     if (next == _doc) return;
-    final engrave = textDynamics != _doc.textDynamics;
+    final engrave = textDynamics != _doc.textDynamics || centredLyrics != _doc.centredLyrics;
     _doc = next;
     _showSettings();
     final engraved = engrave ? _reengrave() : null;
@@ -897,7 +920,8 @@ class EditorController extends ChangeNotifier {
       fonts: edits.fonts,
       options: edits.engraving.over(_engravingOptions),
       textDynamics: edits.textDynamics ?? _defaultTextDynamics,
-      typography: edits.typography ?? _defaultTypography);
+      typography: edits.typography ?? _defaultTypography,
+      centredLyrics: edits.centredLyrics ?? _defaultCentredLyrics);
 
   /// What the score is to be engraved with now (an engraving may still be catching up).
   EngraveRequest get _wanted =>

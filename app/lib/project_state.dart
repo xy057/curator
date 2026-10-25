@@ -57,6 +57,7 @@ class EditState {
     this.extensions = const {},
     this.textDynamics,
     this.rehearsalInRow,
+    this.centredLyrics,
   });
 
   /// When each instrument is shown, with each region's own properties; null when the project
@@ -163,6 +164,10 @@ class EditState {
   /// out of the music (Project Settings ▸ Flags, [CuratedScene.rehearsalInRow]); null: the app's.
   final bool? rehearsalInRow;
 
+  /// Whether each syllable is centred under its notehead, but one an extender follows (Project
+  /// Settings ▸ Flags, [EngraveRequest.centredLyrics]); null: the app's.
+  final bool? centredLyrics;
+
   @override
   bool operator ==(Object other) =>
       other is EditState &&
@@ -197,14 +202,15 @@ class EditState {
       engraving == other.engraving &&
       mapEquals(extensions, other.extensions) &&
       textDynamics == other.textDynamics &&
-      rehearsalInRow == other.rehearsalInRow;
+      rehearsalInRow == other.rehearsalInRow &&
+      centredLyrics == other.centredLyrics;
 
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
 
   /// This state with the fields given instead of its own. A field that may be null is
   /// cleared by passing null ([lanes], [transition], [scrollFollow], [motion], [typography], [midi], [captionFont],
-  /// [textDynamics], [rehearsalInRow]); left
+  /// [textDynamics], [rehearsalInRow], [centredLyrics]); left
   /// out, it stays.
   EditState copyWith({
     Object? lanes = _kept,
@@ -236,6 +242,7 @@ class EditState {
     Map<String, bool>? extensions,
     Object? textDynamics = _kept,
     Object? rehearsalInRow = _kept,
+    Object? centredLyrics = _kept,
   }) =>
       EditState(
         lanes: identical(lanes, _kept) ? this.lanes : lanes as Map<String, List<Region>>?,
@@ -267,6 +274,7 @@ class EditState {
         extensions: extensions ?? this.extensions,
         textDynamics: identical(textDynamics, _kept) ? this.textDynamics : textDynamics as bool?,
         rehearsalInRow: identical(rehearsalInRow, _kept) ? this.rehearsalInRow : rehearsalInRow as bool?,
+        centredLyrics: identical(centredLyrics, _kept) ? this.centredLyrics : centredLyrics as bool?,
       );
 }
 
@@ -325,7 +333,7 @@ class ProjectState {
 
   /// The version [toJson] writes (the project file's format version): every save is in the
   /// newest format, whatever the project uses.
-  static const version = 22;
+  static const version = 23;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version]. Additive only: a new format adds fields (the
@@ -352,6 +360,7 @@ class ProjectState {
     19: (state) => state, // the score's motion came in 20: none, the app's
     20: (state) => state, // the score's typography came in 21: none, the app's
     21: (state) => state, // the rehearsal marks' flag came in 22: none, the app's
+    22: (state) => state, // the centred lyrics' flag came in 23: none, the app's
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
@@ -483,6 +492,7 @@ class ProjectState {
         }),
         textDynamics: r.child('flags').boolean('textDynamics'),
         rehearsalInRow: r.child('flags').boolean('rehearsalInRow'),
+        centredLyrics: r.child('flags').boolean('centredLyrics'),
       ),
       images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
       view: ViewState(
@@ -632,7 +642,7 @@ class ProjectState {
 
   Map<String, Object?> toJson() {
     final EditState(:lanes, :transition, :scrollFollow, :motion, :typography, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :rehearsalInRow) = edits;
+        :sections, :groupSections, :barNumbers, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :rehearsalInRow, :centredLyrics) = edits;
     // A missing font can't be embedded: it is looked for again next time.
     final embedded = embedFont && !fonts.music.isMissing;
     return {
@@ -645,8 +655,8 @@ class ProjectState {
         },
       if (!engraving.isEmpty) 'engraving': engraving.toJson(),
       if (extensions.isNotEmpty) 'extensions': extensions,
-      if (textDynamics != null || rehearsalInRow != null)
-        'flags': {'textDynamics': ?textDynamics, 'rehearsalInRow': ?rehearsalInRow},
+      if (textDynamics != null || rehearsalInRow != null || centredLyrics != null)
+        'flags': {'textDynamics': ?textDynamics, 'rehearsalInRow': ?rehearsalInRow, 'centredLyrics': ?centredLyrics},
       'motion': ?motion?.toJson(),
       'typography': ?typography?.toJson(),
       'textEdits': textEdits,
