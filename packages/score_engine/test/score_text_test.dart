@@ -219,4 +219,31 @@ void main() {
     expect(ScoreTypography.fromJson(drawn.toJson()), drawn);
     expect(() => ScoreTypography.fromJson({'names': {'size': 9}}), throwsFormatException);
   });
+
+  test('lyrics placed above the staff are engraved above it, verse 1 on top as read', () async {
+    String lyric(int n, String placement, String text) =>
+        '<lyric number="$n" placement="$placement"><syllabic>single</syllabic><text>$text</text></lyric>';
+    final s = await LoadedScore.load('<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0">'
+        '<part-list><score-part id="P1"><part-name>Choir</part-name></score-part></part-list><part id="P1">'
+        '<measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time>'
+        '<clef><sign>G</sign><line>2</line></clef></attributes>'
+        '<note><pitch><step>G</step><octave>4</octave></pitch><duration>4</duration><type>whole</type>'
+        '${lyric(1, 'above', 'one')}${lyric(2, 'above', 'two')}${lyric(1, 'below', 'low')}</note></measure>'
+        '</part></score-partwise>');
+    final d = s.engraving, staff = d.staves.first;
+    double yOf(String words) {
+      for (var i = 0; i < d.commandCount; i++) {
+        final b = i * Cmd.words, start = d.commandInts[b + Cmd.start];
+        if (d.commandInts[b + Cmd.kind] == VBKind.text &&
+            utf8.decode(d.text.sublist(start, start + d.commandInts[b + Cmd.count])) == words) {
+          return d.commandFloats[b + Cmd.y];
+        }
+      }
+      throw StateError('No “$words”.');
+    }
+
+    expect(yOf('one'), lessThan(yOf('two'))); // read top down, verse 2 nearer the staff
+    expect(yOf('two'), lessThan(staff.top));
+    expect(yOf('low'), greaterThan(staff.top + staff.height));
+  });
 }

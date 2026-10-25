@@ -611,7 +611,7 @@ until Save as default) turns it off.
 **Verovio is pinned and patched.** `make setup` clones the tagged release and applies
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
-keep their written key), MusicXML direction ids (so texts can be edited), the app's typography
+keep their written key), MusicXML direction ids (so texts can be edited), a lyric's `placement="above"` (verses above the staff, verse 1 on top), the app's typography
 (`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, a rehearsal
 mark's `font-style`, the `curated…Scale` options sizing music symbols, accidentals clear of
 articulations and caesuras between their neighbours), engraving fixes (a rehearsal mark set a fifth
