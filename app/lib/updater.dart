@@ -11,11 +11,14 @@ import 'file_names.dart';
 const appVersion = '0.6.0';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
-const appBuild = 95;
+const appBuild = 96;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
 const appCommit = String.fromEnvironment('CURATOR_COMMIT');
+
+/// The official website.
+const websiteUrl = 'https://curator.0x57.cc/';
 
 /// Where the source and the releases live.
 const repositoryUrl = 'https://github.com/xy057/curator';

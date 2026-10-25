@@ -273,6 +273,7 @@ final _categories = <_Category>[
       (c) => _launchSwitch(c),
       keywords: 'update automatic startup',
     ),
+    _Item('Website', null, (_) => const _Link(websiteUrl), keywords: 'website home page official site web open'),
     _Item('Changelog', null, (_) => const _Link(changelogUrl), keywords: 'changelog changes release notes what\'s new history website open'),
     _Item('Source code', null, (_) => const _Link(repositoryUrl), keywords: 'github repository repo source code website open'),
     _Item('License', null, (_) => const _Link(licenseUrl, label: 'GPL-3.0'), keywords: 'license gpl copyright about'),
@@ -1781,19 +1782,33 @@ class _ExtensionSettingsButton extends StatelessWidget {
 
 /// An address that opens in the browser, shown without its scheme or `#` part.
 class _Link extends StatelessWidget {
-  const _Link(this.url, {this.label});
+  const _Link(this.url, {this.label, this.accent = false});
   final String url;
   final String? label;
+
+  /// In the accent and a little larger: the website under About's title.
+  final bool accent;
 
   @override
   Widget build(BuildContext context) => Tip(
         message: 'Open in the browser',
         child: TextButton(
           onPressed: () => openInBrowser(url),
-          child: Text(label ?? url.replaceFirst('https://', '').split('#').first, style: const TextStyle(fontSize: 13)),
+          // The website's lines up with the text above it.
+          style: accent
+              ? TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 28), tapTargetSize: MaterialTapTargetSize.shrinkWrap)
+              : null,
+          child: Text(
+            label ?? url.replaceFirst('https://', '').split('#').first.replaceFirst(RegExp(r'/$'), ''),
+            style: TextStyle(fontSize: accent ? 14 : 13, color: accent ? _linkColor(context) : null),
+          ),
         ),
       );
 }
+
+/// The accent as text on the page: its strong shade in the light.
+Color _linkColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark ? context.colors.accent : context.colors.accentStrong;
 
 /// A read-only value, selectable so it can be copied.
 class _Value extends StatelessWidget {
@@ -1848,8 +1863,8 @@ class _AboutIcon extends StatelessWidget {
       );
 }
 
-/// Settings ▸ About: the icon, name and build up top, the updates under them, then the links;
-/// Verovio and the system at the foot.
+/// Settings ▸ About: the icon, and beside it the name, version and website; the updates,
+/// then the other links, each a group; Verovio and the system at the foot.
 class _AboutPage extends StatelessWidget {
   const _AboutPage(this.c);
   final _Context c;
@@ -1858,47 +1873,105 @@ class _AboutPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final muted = TextStyle(fontSize: 12, color: colors.textMuted);
+    Widget group(List<Widget> rows) => DecoratedBox(
+          decoration: BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
+          child: Column(children: [
+            for (final (i, row) in rows.indexed) ...[
+              if (i > 0) Divider(height: 1, indent: 14, endIndent: 14, color: colors.line),
+              row,
+            ],
+          ]),
+        );
     return LayoutBuilder(
       builder: (context, box) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 14),
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 14),
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: box.maxHeight - 34),
+          constraints: BoxConstraints(minHeight: box.maxHeight - 38),
           child: IntrinsicHeight(
             child: Column(children: [
-              _AboutIcon(c.settings),
-              const SizedBox(height: 6),
-              Text('Curator', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: colors.text)),
-              const SizedBox(height: 2),
-              Text('Version $appVersion', style: TextStyle(fontSize: 13, color: colors.textMuted)),
-              const SizedBox(height: 10),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                _Pill('Build $appBuild'),
-                if (appCommit.isNotEmpty) ...[const SizedBox(width: 6), _Pill(appCommit, mono: true)],
-                const SizedBox(width: 2),
-                const _CopyButton(),
+                _AboutIcon(c.settings),
+                const SizedBox(width: 18),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Curator', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: colors.text)),
+                  Row(spacing: 6, children: [
+                    SelectableText('Version $appVersion ($appBuild)', style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                    if (appCommit.isNotEmpty) _Pill(appCommit, mono: true),
+                    const _CopyButton(),
+                  ]),
+                  const _Link(websiteUrl, accent: true),
+                ]),
               ]),
               const SizedBox(height: 18),
-              DecoratedBox(
-                decoration: BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
-                child: Column(children: [
-                  _SettingRow(
-                    title: 'Updates',
-                    help: _updateHelp(c.updater.status),
-                    control: _UpdateControl(updater: c.updater),
-                  ),
-                  Divider(height: 1, indent: 14, endIndent: 14, color: colors.line),
-                  _SettingRow(title: 'Check at launch', help: null, control: _launchSwitch(c)),
-                ]),
-              ),
-              const SizedBox(height: 6),
-              const Wrap(alignment: WrapAlignment.center, spacing: 4, children: [
-                _Link(changelogUrl, label: 'Changelog'),
-                _Link(repositoryUrl, label: 'Source code'),
-                _Link(licenseUrl, label: 'License (GPL-3.0)'),
+              group([
+                _SettingRow(
+                  title: 'Updates',
+                  help: _updateHelp(c.updater.status),
+                  control: _UpdateControl(updater: c.updater),
+                ),
+                _SettingRow(title: 'Check at launch', help: null, control: _launchSwitch(c)),
+              ]),
+              const SizedBox(height: 12),
+              group(const [
+                _LinkRow('Changelog', changelogUrl),
+                _LinkRow('Source code', repositoryUrl, value: 'GitHub'),
+                _LinkRow('License', licenseUrl, value: 'GPL-3.0'),
               ]),
               const Spacer(),
-              const SizedBox(height: 6),
+              const SizedBox(height: 14),
               SelectableText('Verovio $verovioVersion  ·  $_systemText', textAlign: TextAlign.center, style: muted),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A row of an About group that opens [url] in the browser: [title], then [value] (or nothing)
+/// and an arrow out at the right; shaded under the pointer.
+class _LinkRow extends StatefulWidget {
+  const _LinkRow(this.title, this.url, {this.value});
+  final String title, url;
+  final String? value;
+
+  @override
+  State<_LinkRow> createState() => _LinkRowState();
+}
+
+class _LinkRowState extends State<_LinkRow> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final style = AppStyle.of(context);
+    final k = CarbonColors.maybeOf(context);
+    final shade = k?.layerHover ?? colors.line.withValues(alpha: 0.45);
+    return Semantics(
+      link: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => openInBrowser(widget.url),
+          child: AnimatedContainer(
+            duration: stateDuration(motion(context, 120)),
+            curve: style.curve,
+            height: 38,
+            padding: const EdgeInsets.fromLTRB(14, 0, 12, 0),
+            decoration: BoxDecoration(color: _hover ? shade : shade.withValues(alpha: 0), borderRadius: style.radius(10)),
+            child: Row(children: [
+              Expanded(
+                child: Text(widget.title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
+              ),
+              if (widget.value case final value?) ...[
+                Text(value, style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                const SizedBox(width: 8),
+              ],
+              Icon(AppIcon.popOut.of(context), size: 14, color: colors.textMuted),
             ]),
           ),
         ),
