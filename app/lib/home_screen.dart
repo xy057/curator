@@ -154,18 +154,15 @@ class _RecentList extends StatelessWidget {
       ]),
       const SizedBox(height: 4),
       DecoratedBox(
-        // Raised a little in Refined's light theme (a tight shadow under a soft one), as a card
-        // to click is; flat in the dark and in Carbon.
+        // Raised to the first elevation in Refined's light theme, as a card to click is; flat in
+        // the dark and in Carbon.
         decoration: BoxDecoration(
           color: colors.surface,
           border: Border.all(color: colors.line),
           borderRadius: AppStyle.of(context).radius(10),
           boxShadow: CarbonColors.maybeOf(context) != null || Theme.of(context).brightness == Brightness.dark
               ? null
-              : const [
-                  BoxShadow(color: Color(0x0F000000), blurRadius: 2, offset: Offset(0, 1)),
-                  BoxShadow(color: Color(0x0A000000), blurRadius: 12, offset: Offset(0, 4)),
-                ],
+              : elevation(1),
         ),
         child: ClipRRect(
           borderRadius: AppStyle.of(context).radius(10),
