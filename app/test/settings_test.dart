@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:curated_score/app_colors.dart';
+import 'package:curated_score/app_logo.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/ui_kit.dart';
@@ -108,6 +109,21 @@ void main() {
     expect(find.text('Animation'), findsNothing, reason: "the project's, in Project Settings");
 
     expect(find.text('Extensions'), findsNothing, reason: "the project's, in Project Settings");
+  });
+
+  testWidgets('About names the build and links the website', (tester) async {
+    final settings = await open(tester);
+    await tester.runAsync(() => precacheImage(const AssetImage(AppLogo.icon), tester.element(find.byType(Scaffold))));
+    await tester.tap(find.text('About').first);
+    await tester.pumpAndSettle();
+    expect(find.text('curator.0x57.cc'), findsOneWidget);
+    await shot(tester, 'settings-about');
+    settings
+      ..themeMode = ThemeMode.dark
+      ..uiStyle = UiStyle.carbon;
+    await tester.pumpAndSettle();
+    expect(find.text('curator.0x57.cc'), findsOneWidget);
+    await shot(tester, 'settings-about-carbon-dark');
   });
 
   test("the app's old extension switches are still read, for projects saved before they kept their own", () async {
