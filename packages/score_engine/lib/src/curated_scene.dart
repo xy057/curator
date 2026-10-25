@@ -277,6 +277,8 @@ class SceneSettings {
     this.sections = false,
     this.sectionOverrides = const {},
     this.barNumbers = false,
+    this.tempoAtLeft = true,
+    this.rehearsalInRow = true,
     this.nameColors = const {},
     this.motion = ScoreMotion.standard,
     this.typography = ScoreTypography.standard,
@@ -293,6 +295,8 @@ class SceneSettings {
   final bool sections;
   final Map<String, String?> sectionOverrides;
   final bool barNumbers;
+  final bool tempoAtLeft;
+  final bool rehearsalInRow;
   final Map<String, ui.Color> nameColors;
   final ScoreMotion motion;
   final ScoreTypography typography;
@@ -370,7 +374,7 @@ class CuratedScene {
             if (part.isUnpitchedPercussion) ...part.staffNumbers,
         },
         hiddenCommands: _openingCommands,
-        apart: barNumbers ? {..._tempoIds, ..._rehearsalIds} : const {},
+        apart: barNumbers ? {if (tempoAtLeft) ..._tempoIds, if (rehearsalInRow) ..._rehearsalIds} : const {},
       );
   ScoreDisplayList? _display;
   int _displayVersion = 0;
@@ -395,7 +399,7 @@ class CuratedScene {
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
   /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [barNumbers],
-  /// [nameColors], [motion]);
+  /// [tempoAtLeft], [rehearsalInRow], [nameColors], [motion]);
   /// setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
@@ -408,6 +412,8 @@ class CuratedScene {
       sections: sections,
       sectionOverrides: sectionOverrides,
       barNumbers: barNumbers,
+      tempoAtLeft: tempoAtLeft,
+      rehearsalInRow: rehearsalInRow,
       nameColors: nameColors,
       motion: motion,
       typography: typography);
@@ -422,6 +428,8 @@ class CuratedScene {
     sections = value.sections;
     sectionOverrides = value.sectionOverrides;
     barNumbers = value.barNumbers;
+    tempoAtLeft = value.tempoAtLeft;
+    rehearsalInRow = value.rehearsalInRow;
     nameColors = value.nameColors;
     motion = value.motion;
     typography = value.typography;
@@ -773,7 +781,7 @@ class CuratedScene {
                 }
                 canvas.restore();
               });
-    if (barNumbers) _paintTempo(canvas, size, scrollX, ink ?? style.ink, rowShift);
+    if (barNumbers && tempoAtLeft) _paintTempo(canvas, size, scrollX, ink ?? style.ink, rowShift);
     if (captions.isNotEmpty) {
       _captionBar.paint(canvas, size, time, _captionSpans, captions, ink ?? style.ink, motion: _motion, paper: paperColor);
     }
@@ -843,7 +851,32 @@ class CuratedScene {
   set barNumbers(bool value) {
     if (value == _barNumbers) return;
     _barNumbers = value;
-    if ((_tempoIds.isEmpty && _rehearsalIds.isEmpty) || _display == null) return;
+    if ((tempoAtLeft && _tempoIds.isNotEmpty) || (rehearsalInRow && _rehearsalIds.isNotEmpty)) _remakeDisplay();
+  }
+
+  /// Whether, while [barNumbers] shows the row, the tempo marks leave the music for the frame's
+  /// left in it (Project Settings ▸ Flags).
+  bool get tempoAtLeft => _tempoAtLeft;
+  bool _tempoAtLeft = true;
+  set tempoAtLeft(bool value) {
+    if (value == _tempoAtLeft) return;
+    _tempoAtLeft = value;
+    if (barNumbers && _tempoIds.isNotEmpty) _remakeDisplay();
+  }
+
+  /// Whether, while [barNumbers] shows the row, the rehearsal marks leave the music for their
+  /// bars in it (Project Settings ▸ Flags).
+  bool get rehearsalInRow => _rehearsalInRow;
+  bool _rehearsalInRow = true;
+  set rehearsalInRow(bool value) {
+    if (value == _rehearsalInRow) return;
+    _rehearsalInRow = value;
+    if (barNumbers && _rehearsalIds.isNotEmpty) _remakeDisplay();
+  }
+
+  /// The display list made again, lazily, with what is set apart now (and the plan with it).
+  void _remakeDisplay() {
+    if (_display == null) return;
     _renderer?.dispose();
     _renderer = null;
     _display!.dispose();
@@ -1025,7 +1058,7 @@ class CuratedScene {
       final bar = measures[m];
       if (bar.right < left) continue;
       if (bar.left > right) break;
-      if (_rehearsals[m] case final mark?) {
+      if (rehearsalInRow ? _rehearsals[m] : null case final mark?) {
         marks[m] = _rehearsalBox(_rehearsal(mark), originX + bar.left * scale + sp * 0.3, _rowBottom - shift + 1);
       }
     }
