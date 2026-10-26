@@ -17,6 +17,7 @@ import 'latest.dart';
 import 'project_state.dart';
 import 'score_replacement.dart';
 import 'time_viewport.dart';
+import 'l10n/l10n.dart';
 
 part 'editor/caption_editing.dart';
 part 'editor/commands.dart';
@@ -209,7 +210,7 @@ class EditorController extends ChangeNotifier {
       await _loadAudio(mediaPath);
       return null;
     } catch (e) {
-      return 'Couldn’t load the recording.\n${describeError(e)}';
+      return '${'Couldn’t load the recording.'.tr}\n${describeError(e)}';
     } finally {
       _tab = BottomTab.instruments;
       notifyListeners();

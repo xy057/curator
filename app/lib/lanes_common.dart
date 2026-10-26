@@ -10,6 +10,7 @@ import 'app_colors.dart';
 import 'app_icons.dart';
 import 'ui_kit.dart';
 import 'editor_controller.dart';
+import 'l10n/l10n.dart';
 
 /// Width of the name column on the left of every lane (both tabs, so time lines up).
 const kLaneHeaderWidth = 176.0;
@@ -100,7 +101,7 @@ class BarRuler extends StatelessWidget {
             border: Border(bottom: BorderSide(color: colors.line), right: BorderSide(color: colors.line)),
           ),
           child: Row(children: [
-            Text('Bar', style: TextStyle(fontSize: 11, color: colors.textMuted)),
+            Text('Bar'.tr, style: TextStyle(fontSize: 11, color: colors.textMuted)),
             const Spacer(),
             Select(
               listenable: Listenable.merge([c, c.curation]),
@@ -109,7 +110,7 @@ class BarRuler extends StatelessWidget {
               builder: (context, bars) => bars == null
                   ? const SizedBox.shrink()
                   : Tip(
-                      message: 'Notation runs off the video frame: ${bars.join(', ')}',
+                      message: 'Notation runs off the video frame: {bars}'.fill({'bars': bars.join(', ')}),
                       child: Icon(AppIcon.warning.of(context), size: 14, color: warn),
                     ),
             ),

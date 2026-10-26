@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 import 'file_names.dart';
+import 'l10n/l10n.dart';
 
 /// The menu bar: native on macOS, a Material menu bar at the top of the window elsewhere.
 /// Both are built from the same [PlatformMenu] description.
@@ -74,10 +75,10 @@ class AppMenus extends StatelessWidget {
         if (_mac)
           PlatformMenu(label: 'Curator', menus: [
             PlatformMenuItemGroup(members: [
-              PlatformMenuItem(label: 'About Curator', onSelected: onAbout),
+              PlatformMenuItem(label: 'About Curator'.tr, onSelected: onAbout),
             ]),
             PlatformMenuItemGroup(members: [
-              PlatformMenuItem(label: 'Settings…', shortcut: _key(LogicalKeyboardKey.comma), onSelected: onSettings),
+              PlatformMenuItem(label: 'Settings…'.tr, shortcut: _key(LogicalKeyboardKey.comma), onSelected: onSettings),
             ]),
             const PlatformMenuItemGroup(members: [
               PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.servicesSubmenu),
@@ -89,34 +90,34 @@ class AppMenus extends StatelessWidget {
             ]),
             const PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.quit),
           ]),
-        PlatformMenu(label: 'File', menus: [
+        PlatformMenu(label: 'File'.tr, menus: [
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Open…', shortcut: _key(LogicalKeyboardKey.keyO), onSelected: onOpen),
-            PlatformMenu(label: 'Open Recent', menus: [
+            PlatformMenuItem(label: 'Open…'.tr, shortcut: _key(LogicalKeyboardKey.keyO), onSelected: onOpen),
+            PlatformMenu(label: 'Open Recent'.tr, menus: [
               if (recentFiles.isEmpty)
-                const PlatformMenuItem(label: 'No Recent Files') // no handler: greyed out
+                PlatformMenuItem(label: 'No Recent Files'.tr) // no handler: greyed out
               else
                 PlatformMenuItemGroup(members: [
                   for (final path in recentFiles)
                     PlatformMenuItem(label: fileNameOf(path), onSelected: onOpenRecent == null ? null : () => onOpenRecent!(path)),
                 ]),
-              PlatformMenuItem(label: 'Clear Menu', onSelected: recentFiles.isEmpty ? null : onClearRecent),
+              PlatformMenuItem(label: 'Clear Menu'.tr, onSelected: recentFiles.isEmpty ? null : onClearRecent),
             ]),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Close', shortcut: _key(LogicalKeyboardKey.keyW), onSelected: onClose),
-            PlatformMenuItem(label: 'Save', shortcut: _key(LogicalKeyboardKey.keyS), onSelected: onSave),
-            PlatformMenuItem(label: 'Save As…', shortcut: _key(LogicalKeyboardKey.keyS, shift: true), onSelected: onSaveAs),
+            PlatformMenuItem(label: 'Close'.tr, shortcut: _key(LogicalKeyboardKey.keyW), onSelected: onClose),
+            PlatformMenuItem(label: 'Save'.tr, shortcut: _key(LogicalKeyboardKey.keyS), onSelected: onSave),
+            PlatformMenuItem(label: 'Save As…'.tr, shortcut: _key(LogicalKeyboardKey.keyS, shift: true), onSelected: onSaveAs),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Export Video…', shortcut: _key(LogicalKeyboardKey.keyE), onSelected: onExportVideo),
+            PlatformMenuItem(label: 'Export Video…'.tr, shortcut: _key(LogicalKeyboardKey.keyE), onSelected: onExportVideo),
           ]),
         ]),
-        PlatformMenu(label: 'Edit', menus: [
+        PlatformMenu(label: 'Edit'.tr, menus: [
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Undo', shortcut: _key(LogicalKeyboardKey.keyZ), onSelected: onUndo),
+            PlatformMenuItem(label: 'Undo'.tr, shortcut: _key(LogicalKeyboardKey.keyZ), onSelected: onUndo),
             PlatformMenuItem(
-              label: 'Redo',
+              label: 'Redo'.tr,
               shortcut: _mac
                   ? _key(LogicalKeyboardKey.keyZ, shift: true)
                   : const SingleActivator(LogicalKeyboardKey.keyY, control: true),
@@ -124,28 +125,28 @@ class AppMenus extends StatelessWidget {
             ),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Cut', shortcut: _key(LogicalKeyboardKey.keyX), onSelected: onCut),
-            PlatformMenuItem(label: 'Copy', shortcut: _key(LogicalKeyboardKey.keyC), onSelected: onCopy),
-            PlatformMenuItem(label: 'Paste', shortcut: _key(LogicalKeyboardKey.keyV), onSelected: onPaste),
+            PlatformMenuItem(label: 'Cut'.tr, shortcut: _key(LogicalKeyboardKey.keyX), onSelected: onCut),
+            PlatformMenuItem(label: 'Copy'.tr, shortcut: _key(LogicalKeyboardKey.keyC), onSelected: onCopy),
+            PlatformMenuItem(label: 'Paste'.tr, shortcut: _key(LogicalKeyboardKey.keyV), onSelected: onPaste),
             PlatformMenuItem(
-              label: 'Delete',
+              label: 'Delete'.tr,
               shortcut: SingleActivator(_mac ? LogicalKeyboardKey.backspace : LogicalKeyboardKey.delete),
               onSelected: onDelete,
             ),
-            PlatformMenuItem(label: 'Select All', shortcut: _key(LogicalKeyboardKey.keyA), onSelected: onSelectAll),
+            PlatformMenuItem(label: 'Select All'.tr, shortcut: _key(LogicalKeyboardKey.keyA), onSelected: onSelectAll),
           ]),
           // The open project's settings, then the app's; on macOS the Curator menu has the
           // app's too, with the shortcut.
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(
-                label: 'Project Settings…',
+                label: 'Project Settings…'.tr,
                 shortcut: _key(LogicalKeyboardKey.comma, shift: true),
                 onSelected: onProjectSettings),
-            PlatformMenuItem(label: 'Settings…', shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
+            PlatformMenuItem(label: 'Settings…'.tr, shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
           ]),
         ]),
         if (_mac)
-          const PlatformMenu(label: 'Window', menus: [
+          PlatformMenu(label: 'Window'.tr, menus: [
             PlatformMenuItemGroup(members: [
               PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.minimizeWindow),
               PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.zoomWindow),
@@ -154,8 +155,8 @@ class AppMenus extends StatelessWidget {
             PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.arrangeWindowsInFront),
           ]),
         if (!_mac)
-          PlatformMenu(label: 'Help', menus: [
-            PlatformMenuItem(label: 'About Curator', onSelected: onAbout),
+          PlatformMenu(label: 'Help'.tr, menus: [
+            PlatformMenuItem(label: 'About Curator'.tr, onSelected: onAbout),
           ]),
       ];
 

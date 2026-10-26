@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import 'app_colors.dart';
+import 'l10n/l10n.dart';
 
 /// Keys as the platform writes them: [mac] on macOS ("⇧⌘Z", "⌥-drag"), [other] elsewhere, or
 /// else [mac] spelled out the Windows way: "Ctrl+Shift+Z", "Alt+drag". Modifier symbols are
@@ -52,7 +53,7 @@ class Tip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      OverlaySemantics(child: Tooltip(message: message, waitDuration: waitDuration, child: child));
+      OverlaySemantics(child: Tooltip(message: message.tr, waitDuration: waitDuration, child: child));
 }
 
 /// [showDialog] for the app: always use it rather than [showDialog].
@@ -110,7 +111,7 @@ class FieldLabel extends StatelessWidget {
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
         padding: EdgeInsets.only(bottom: carbon ? 8 : 6),
-        child: Text(label,
+        child: Text(label.tr,
             style: carbon
                 ? TextStyle(fontSize: 12, height: 16 / 12, letterSpacing: 0.32, color: context.colors.textMuted)
                 : TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: context.colors.textMuted)),
@@ -155,7 +156,7 @@ class ToolbarButton extends StatelessWidget {
     final fill = carbon?.backgroundSelected ?? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05);
     return OverlaySemantics(
       child: IconButton(
-        tooltip: tooltip,
+        tooltip: tooltip.tr,
         onPressed: onPressed,
         isSelected: selected,
         iconSize: 16,

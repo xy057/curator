@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'file_names.dart';
+import 'l10n/l10n.dart';
 
 /// This build's version: `version` in pubspec.yaml without the build number (`make versions`
 /// checks they agree; `make check` and the Release workflow run it). The Release workflow tags
@@ -11,7 +12,7 @@ import 'file_names.dart';
 const appVersion = '0.6.1';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
-const appBuild = 122;
+const appBuild = 123;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
@@ -203,7 +204,7 @@ class Updater extends ChangeNotifier {
         return null;
       }
       if (response.statusCode != HttpStatus.ok) {
-        throw HttpException('GitHub returned an error (${response.statusCode})');
+        throw HttpException('GitHub returned an error ({code})'.fill({'code': response.statusCode}));
       }
       final release = Release.fromJson(jsonDecode(body), platform: platform, origin: api);
       if (release == null) throw const FormatException('The latest release has no version');
@@ -229,7 +230,7 @@ class Updater extends ChangeNotifier {
     File? part;
     try {
       final response = await (await client.getUrl(url).timeout(_timeout)).close().timeout(_timeout);
-      if (response.statusCode != HttpStatus.ok) throw HttpException('GitHub returned an error (${response.statusCode})');
+      if (response.statusCode != HttpStatus.ok) throw HttpException('GitHub returned an error ({code})'.fill({'code': response.statusCode}));
       final total = response.contentLength > 0 ? response.contentLength : release.downloadSize;
       final target = _freeName(downloadsFolder, release.fileName);
       part = File('$target.part');
@@ -307,11 +308,11 @@ class Updater extends ChangeNotifier {
   }
 
   static String _describe(Object e) => switch (e) {
-        SocketException() || HandshakeException() => 'Can’t connect to GitHub. Check your internet connection.',
-        TimeoutException() => 'GitHub didn’t respond. Try again later.',
-        HttpException(:final message) => '$message.',
-        FileSystemException(:final path) => 'Couldn’t write ${path ?? 'the download'}.',
-        _ => 'Couldn’t read GitHub’s response.',
+        SocketException() || HandshakeException() => 'Can’t connect to GitHub. Check your internet connection.'.tr,
+        TimeoutException() => 'GitHub didn’t respond. Try again later.'.tr,
+        HttpException(:final message) => '$message${'.'.tr}',
+        FileSystemException(:final path) => 'Couldn’t write {name}.'.fill({'name': path ?? 'the download'.tr}),
+        _ => 'Couldn’t read GitHub’s response.'.tr,
       };
 }
 

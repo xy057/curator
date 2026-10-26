@@ -14,6 +14,7 @@ import 'editor_controller.dart';
 import 'error_text.dart';
 import 'file_names.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// The Captions sheet (double-click the Captions lane): every caption as a row of From, Until
 /// and Text cells, in the order they show. Tab goes across, ↑ / ↓ and Enter up and down;
@@ -113,7 +114,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
       ..sort((x, y) => times[x].$1!.compareTo(times[y].$1!));
     for (var k = 0; k + 1 < order.length; k++) {
       final i = order[k], j = order[k + 1];
-      if (times[i].$2! > times[j].$1! + 1e-9) problems[j] = 'Overlaps the caption in row ${i + 1}';
+      if (times[i].$2! > times[j].$1! + 1e-9) problems[j] = 'Overlaps the caption in row {n}'.fill({'n': i + 1});
     }
     return problems;
   }
@@ -168,17 +169,17 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
       return;
     }
     if (!mounted) return;
-    if (read.isEmpty) return setState(() => _notice = 'No subtitles fall within the music.');
+    if (read.isEmpty) return setState(() => _notice = 'No subtitles fall within the music.'.tr);
     var add = false;
     if (_rows.isNotEmpty) {
       final replace = await showAppDialog<bool>(
         context: context,
         builder: (context) => AppDialog(
-          title: const Text('Replace the captions?'),
+          title: Text('Replace the captions?'.tr),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Add')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Replace')),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Add'.tr)),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Replace'.tr)),
           ],
         ),
       );
@@ -198,7 +199,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
         ..addAll([for (final cap in taken) _Row(cap, _beats)])
         ..sort((a, b) => (_start(a) ?? 0).compareTo(_start(b) ?? 0));
       final left = read.length - taken.length;
-      _notice = '${taken.length} imported${left > 0 ? ', $left overlapping left out' : ''}';
+      _notice = (left > 0 ? '{n} imported, {left} overlapping left out' : '{n} imported').fill({'n': taken.length, 'left': left});
     });
   }
 
@@ -206,7 +207,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
   Future<void> _export() async {
     final captions = _valid;
     final title = c.score?.metadata.title.replaceAll(RegExp(r'[/\\:]'), '-').trim() ?? '';
-    final location = await getSaveLocation(acceptedTypeGroups: _types, suggestedName: '${title.isEmpty ? 'Captions' : title}.srt');
+    final location = await getSaveLocation(acceptedTypeGroups: _types, suggestedName: '${title.isEmpty ? 'Captions'.tr : title}.srt');
     if (location == null || !mounted) return;
     final format = SubtitleFormat.ofPath(location.path) ??
         (location.activeFilter?.label == SubtitleFormat.vtt.label ? SubtitleFormat.vtt : SubtitleFormat.srt);
@@ -214,7 +215,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
     if (path == null || !mounted) return;
     try {
       await File(path).writeAsString(writeSubtitles(captionCues(captions, c.timeline), format));
-      if (mounted) setState(() => _notice = 'Exported “${fileNameOf(path)}”');
+      if (mounted) setState(() => _notice = 'Exported “{name}”'.fill({'name': fileNameOf(path)}));
     } catch (e) {
       if (mounted) setState(() => _notice = describeError(e));
     }
@@ -241,7 +242,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
     final status = problem ?? _notice;
     final header = TextStyle(fontSize: AppStyle.of(context).isCarbon ? 12 : 12.5, fontWeight: FontWeight.w600, color: colors.textMuted);
     return AppDialog(
-      title: const Text('Captions'),
+      title: Text('Captions'.tr),
       content: SizedBox(
         width: dialogWidth(context, 640),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -251,9 +252,9 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
               height: 26,
               child: Row(children: [
                 SizedBox(width: 32, child: Text('#', style: header, textAlign: TextAlign.center)),
-                SizedBox(width: 88, child: _pad(Text('From', style: header))),
-                SizedBox(width: 88, child: _pad(Text('Until', style: header))),
-                Expanded(child: _pad(Text('Text', style: header))),
+                SizedBox(width: 88, child: _pad(Text('From'.tr, style: header))),
+                SizedBox(width: 88, child: _pad(Text('Until'.tr, style: header))),
+                Expanded(child: _pad(Text('Text'.tr, style: header))),
                 const SizedBox(width: 32),
               ]),
             ),
@@ -263,7 +264,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
             child: _rows.isEmpty
                 ? SizedBox(
                     height: _rowHeight * 2,
-                    child: Center(child: Text('No captions', style: TextStyle(color: colors.textMuted))),
+                    child: Center(child: Text('No captions'.tr, style: TextStyle(color: colors.textMuted))),
                   )
                 : ListView.builder(
                     controller: _scroll,
@@ -278,16 +279,16 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
       ),
       divided: true,
       leading: [
-        TextButton.icon(onPressed: _add, icon: Icon(AppIcon.add.of(context), size: 18), label: const Text('Add')),
-        TextButton(onPressed: _import, child: const Text('Import…')),
-        TextButton(onPressed: invalid || _rows.isEmpty ? null : _export, child: const Text('Export…')),
+        TextButton.icon(onPressed: _add, icon: Icon(AppIcon.add.of(context), size: 18), label: Text('Add'.tr)),
+        TextButton(onPressed: _import, child: Text('Import…'.tr)),
+        TextButton(onPressed: invalid || _rows.isEmpty ? null : _export, child: Text('Export…'.tr)),
       ],
       status: status == null
           ? null
-          : Text(status, style: TextStyle(color: problem != null ? colors.erase : colors.textMuted), overflow: TextOverflow.ellipsis),
+          : Text(status.tr, style: TextStyle(color: problem != null ? colors.erase : colors.textMuted), overflow: TextOverflow.ellipsis),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: invalid ? null : _done, child: const Text('Done')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+        FilledButton(onPressed: invalid ? null : _done, child: Text('Done'.tr)),
       ],
     );
   }
@@ -351,7 +352,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
         SizedBox(
           width: 32,
           child: Tip(
-            message: 'Remove',
+            message: 'Remove'.tr,
             child: IconButton(
               iconSize: 16,
               padding: EdgeInsets.zero,

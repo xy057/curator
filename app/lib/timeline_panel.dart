@@ -15,6 +15,7 @@ import 'lanes_common.dart';
 import 'menu_kit.dart';
 import 'spacer_dialogs.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 part 'instrument_lanes/lane_header.dart';
 part 'instrument_lanes/lane_moving.dart';

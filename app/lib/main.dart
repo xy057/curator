@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart' show LicenseEntry, LicenseEntryWithLine
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
@@ -29,6 +30,7 @@ import 'extensions/extensions_dialog.dart';
 import 'export_dialog.dart';
 import 'file_names.dart';
 import 'home_screen.dart';
+import 'l10n/l10n.dart';
 import 'media_converter.dart';
 import 'project_document.dart';
 import 'project_file.dart';
@@ -84,9 +86,9 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
     ..addStatusListener((status) {
       if (status == AnimationStatus.completed) _showBefore(null);
     });
-  late (Brightness, AccentColor, UiStyle, TextSize, UiDensity) _appearance;
+  late (Brightness, AccentColor, UiStyle, TextSize, UiDensity, AppLanguage) _appearance;
 
-  (Brightness, AccentColor, UiStyle, TextSize, UiDensity) get _currentAppearance => (
+  (Brightness, AccentColor, UiStyle, TextSize, UiDensity, AppLanguage) get _currentAppearance => (
         switch (settings.themeMode) {
           ThemeMode.light => Brightness.light,
           ThemeMode.dark => Brightness.dark,
@@ -96,11 +98,13 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
         settings.uiStyle,
         settings.textSize,
         settings.density,
+        settings.language.resolved,
       );
 
   @override
   void initState() {
     super.initState();
+    Strings.use(settings.language);
     _appearance = _currentAppearance;
     settings.addListener(_appearanceChanged);
     WidgetsBinding.instance.addObserver(this);
@@ -109,18 +113,35 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
   @override
   void didChangePlatformBrightness() => _appearanceChanged();
 
+  @override
+  void didChangeLocales(List<Locale>? locales) => _appearanceChanged(); // Language: System
+
   /// Before the window rebuilds in the new theme: a still of it as it is, to fade out over it.
   void _appearanceChanged() {
     final appearance = _currentAppearance;
     if (appearance == _appearance) return;
+    final language = appearance.$6 != _appearance.$6;
     _appearance = appearance;
     appearanceChanging(); // before the window rebuilds in it
+    if (language) _translate();
     if (settings.reduceMotion) return; // no cross-fade
     final boundary = _windowKey.currentContext?.findRenderObject() as _RenderStillBoundary?;
     final still = boundary?.still(View.of(context).devicePixelRatio);
     if (still == null) return;
     _showBefore(still);
     _fade.forward(from: 0);
+  }
+
+  /// Every widget built again in the new language: text is translated as it is built ([tr]), and
+  /// most of the window is built once and kept (the page, its panels), so nothing else would ask.
+  void _translate() {
+    Strings.use(settings.language);
+    void rebuild(Element e) {
+      e.markNeedsBuild();
+      e.visitChildren(rebuild);
+    }
+
+    if (mounted) (context as Element).visitChildren(rebuild);
   }
 
   // Not a setState: only the still changes, and the rest of the window must not rebuild for it.
@@ -171,6 +192,9 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
           darkTheme: _dark,
           themeMode: settings.themeMode,
           themeAnimationDuration: Duration.zero,
+          locale: settings.language.locale,
+          supportedLocales: AppLanguage.locales,
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
           // The still fades over everything, open menus and dialogs too, and is part of the next still.
           builder: (context, child) => _StillBoundary(
             key: _windowKey,
@@ -241,12 +265,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   double _timelineHeight = 300;
 
   static const _scoreExtensions = ['musicxml', 'xml', 'mxl'];
-  static const _openableTypes = XTypeGroup(
-    label: 'Projects and scores',
-    extensions: [ProjectFile.extension, ..._scoreExtensions],
-  );
+  static XTypeGroup get _openableTypes => XTypeGroup(
+        label: 'Projects and scores'.tr,
+        extensions: const [ProjectFile.extension, ..._scoreExtensions],
+      );
   static const _scoreTypes = XTypeGroup(label: 'MusicXML', extensions: _scoreExtensions);
-  static const _projectTypes = XTypeGroup(label: 'Curator project', extensions: [ProjectFile.extension]);
+  static XTypeGroup get _projectTypes => XTypeGroup(label: 'Curator project'.tr, extensions: const [ProjectFile.extension]);
 
   /// Whether a score is open: the menus' Score items follow it.
   final _hasScore = ValueNotifier(false);
@@ -307,8 +331,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (status is! UpdateAvailable || status.release.download == null || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       duration: const Duration(seconds: 10),
-      content: Text('Curator ${status.release.version} is available.'),
-      action: SnackBarAction(label: 'Update…', onPressed: () => _settings(page: 'About')),
+      content: Text('Curator {version} is available.'.fill({'version': status.release.version})),
+      action: SnackBarAction(label: 'Update…'.tr, onPressed: () => _settings(page: 'About')),
     ));
   }
 
@@ -331,7 +355,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _engravingFailed() {
     final error = controller.engravingFailure.value;
     if (error == null || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t engrave. ${describeError(error)}')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t engrave. {error}'.fill({'error': describeError(error)}))));
   }
 
   /// The document's name (without extension) and edited state, in the native title bar.
@@ -382,7 +406,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// Open… (⌘O): a Curator project, or a MusicXML score to start a new one.
   Future<void> _open() async {
     if (!await _confirmDiscard()) return;
-    final file = await openFile(acceptedTypeGroups: const [_openableTypes, _projectTypes, _scoreTypes]);
+    final file = await openFile(acceptedTypeGroups: [_openableTypes, _projectTypes, _scoreTypes]);
     if (file != null) await _openPath(file.path, confirmed: true);
   }
 
@@ -390,7 +414,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Future<void> _openPath(String path, {bool confirmed = false}) async {
     if (!File(path).existsSync()) {
       settings.removeRecent(path);
-      _snack('“${fileNameOf(path)}” was moved or deleted.');
+      _snack('“{name}” was moved or deleted.'.fill({'name': fileNameOf(path)}));
       return;
     }
     if (!confirmed && !await _confirmDiscard()) return;
@@ -400,7 +424,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name);
         if (problem != null && mounted) _recordingProblem(problem);
         if (mounted) await promptForExtensions(context, controller);
-      }, title: 'Couldn’t Open Project');
+      }, title: 'Couldn’t Open Project'.tr);
     } else {
       await _guard(() async {
         await document.importScore(path);
@@ -412,15 +436,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   void _snack(String message) {
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.tr)));
   }
 
   /// The project opened, but not its recording: says why, and offers to pick it.
   void _recordingProblem(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       duration: const Duration(seconds: 12),
-      content: Text(message),
-      action: SnackBarAction(label: 'Locate…', onPressed: () => pickAudio(context, controller)),
+      content: Text(message.tr),
+      action: SnackBarAction(label: 'Locate…'.tr, onPressed: () => pickAudio(context, controller)),
     ));
   }
 
@@ -430,7 +454,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       persist: true,
       showCloseIcon: true,
-      content: Text('Font “$name” isn’t installed. Showing Bravura.'),
+      content: Text('Font “{name}” isn’t installed. Showing Bravura.'.fill({'name': name})),
     ));
   }
 
@@ -439,7 +463,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     await _guard(() async {
       final problem = await document.openSample();
       if (problem != null && mounted) _recordingProblem(problem);
-    }, title: 'Couldn’t Open Sample');
+    }, title: 'Couldn’t Open Sample'.tr);
   }
 
   /// Save (⌘S). Returns false when nothing was saved (cancelled or failed). Saves even
@@ -453,7 +477,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Future<bool> _saveAs() async {
     if (!_canSave()) return false;
     final location = await getSaveLocation(
-      acceptedTypeGroups: const [_projectTypes],
+      acceptedTypeGroups: [_projectTypes],
       suggestedName: document.suggestedFileName,
     );
     if (location == null || !mounted) return false;
@@ -465,9 +489,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   bool _canSave() {
     if (controller.score != null && !document.isSample) return true;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(document.isSample
-            ? 'The sample can’t be saved. Open a score to start a project.'
-            : 'Nothing to save. Open a project or score first.')));
+        content: Text((document.isSample
+                ? 'The sample can’t be saved. Open a score to start a project.'
+                : 'Nothing to save. Open a project or score first.')
+            .tr)));
     return false;
   }
 
@@ -476,13 +501,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     await _guard(() async {
       await document.save(path);
       saved = true;
-    }, title: 'Couldn’t Save Project');
+    }, title: 'Couldn’t Save Project'.tr);
     return saved;
   }
 
   void _autosaveFailed(Object error) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t autosave. ${describeError(error)}')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t autosave. {error}'.fill({'error': describeError(error)}))));
   }
 
   /// Before replacing the project: offers to save unsaved changes. False: stay.
@@ -491,12 +516,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final choice = await showAppDialog<String>(
       context: context,
       builder: (context) => AppDialog(
-        title: Text('Do you want to save the changes to “${document.title}”?'),
-        content: const Text('Your changes will be lost if you don’t save them.'),
+        title: Text('Do you want to save the changes to “{name}”?'.fill({'name': document.title})),
+        content: Text('Your changes will be lost if you don’t save them.'.tr),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, 'discard'), child: const Text('Don’t Save')),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, 'save'), child: Text(document.path == null ? 'Save…' : 'Save')),
+          TextButton(onPressed: () => Navigator.pop(context, 'discard'), child: Text('Don’t Save'.tr)),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+          FilledButton(onPressed: () => Navigator.pop(context, 'save'), child: Text((document.path == null ? 'Save…' : 'Save').tr)),
         ],
       ),
     );
@@ -513,7 +538,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _settings({String? page}) =>
       showSettingsDialog(context, settings, controller: controller, updater: updater, page: page);
 
-  Future<void> _guard(Future<void> Function() action, {String title = 'Couldn’t Open Score'}) async {
+  Future<void> _guard(Future<void> Function() action, {String? title}) async {
     try {
       await action();
     } catch (e) {
@@ -521,9 +546,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       unawaited(showAppDialog<void>(
         context: context,
         builder: (context) => AppDialog(
-          title: Text(title),
+          title: Text(title ?? 'Couldn’t Open Score'.tr),
           content: SingleChildScrollView(child: Text(describeError(e))),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
         ),
       ));
     }
@@ -561,9 +586,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (!_commands.pastesImage) return;
     String? problem;
     try {
-      if (!await controller.images.paste()) problem = 'No image to paste.';
+      if (!await controller.images.paste()) problem = 'No image to paste.'.tr;
     } catch (e) {
-      problem = 'Couldn’t paste the image. ${describeError(e)}';
+      problem = 'Couldn’t paste the image. {error}'.fill({'error': describeError(e)});
     }
     if (problem != null && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(problem)));
   }
@@ -631,9 +656,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       unawaited(_guard(() async {
         final taken = await controller.loadMidiTempo(path);
         if (mounted) showMidiWarpsTaken(context, controller, taken);
-      }, title: 'Couldn’t Use MIDI File'));
+      }, title: 'Couldn’t Use MIDI File'.tr));
     } else if (MediaFormats.isRecording(path)) {
-      unawaited(_guard(() => controller.loadAudio(path), title: 'Couldn’t Load Recording'));
+      unawaited(_guard(() => controller.loadAudio(path), title: 'Couldn’t Load Recording'.tr));
     } else {
       return false;
     }
@@ -788,7 +813,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                     : RepaintBoundary(key: _editorKey, child: _editor(context)),
                               ),
                       ),
-                      _Busy(visible: controller.isLoading, message: 'Engraving…'),
+                      _Busy(visible: controller.isLoading, message: 'Engraving…'.tr),
                       _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: controller.images.enabled),
                     ],
                   ),
@@ -1027,9 +1052,9 @@ class _DropHint extends StatelessWidget {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(icon, size: 40, color: colors.accentStrong),
                 const SizedBox(height: 10),
-                Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: colors.text)),
+                Text(title.tr, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: colors.text)),
                 const SizedBox(height: 4),
-                Text(detail, style: TextStyle(fontSize: 12.5, color: colors.textMuted)),
+                Text(detail.tr, style: TextStyle(fontSize: 12.5, color: colors.textMuted)),
               ]),
             ),
           ),

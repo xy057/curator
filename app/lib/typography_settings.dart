@@ -9,6 +9,7 @@ import 'editor_controller.dart';
 import 'engraving_settings.dart' show formatOptionValue;
 import 'menu_kit.dart';
 import 'motion_settings.dart' show ResetSlot, SettingSlider;
+import 'l10n/l10n.dart';
 
 /// One of Project Settings ▸ Typography's rows: a property of one kind of text, by its
 /// [ScoreTypography.valueOf] key, under the kind's name; a music symbol's size, by the symbol's
@@ -96,7 +97,7 @@ class TypographyControl extends StatelessWidget {
         width: 132,
         items: [
           for (final face in TextFace.values)
-            if (s.kind.engraved || face != TextFace.asWritten) DropdownMenuItem(value: face, child: Text(face.label)),
+            if (s.kind.engraved || face != TextFace.asWritten) DropdownMenuItem(value: face, child: Text(face.label.tr)),
         ],
         onChanged: (f) => target.set(s.key, f),
       );

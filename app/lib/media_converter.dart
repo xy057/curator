@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'file_names.dart';
+import 'l10n/l10n.dart';
 
 /// The recordings the app takes, by what it does with them. The one list every part of the
 /// app (the player, the file picker, drag and drop) goes by.
@@ -61,7 +62,7 @@ abstract final class MediaConverter {
       if (r.exitCode == 0) return output;
       problems.add('ffmpeg: ${_lastLines('${r.stderr}')}');
     }
-    throw MediaConversionException('Couldn’t read audio from this file.\n${problems.join('\n')}', input);
+    throw MediaConversionException('${'Couldn’t read audio from this file.'.tr}\n${problems.join('\n')}', input);
   }
 
   /// FFmpeg: the first sound track only (no video), as FLAC, overwriting, never waiting for input.
@@ -107,12 +108,13 @@ abstract final class MediaConverter {
 
   /// What to tell someone who needs FFmpeg, for their platform: [lead], then how to install it.
   static String missingFfmpegHelp({
-    String lead = 'Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:',
+    String? lead,
     bool? windows,
     bool? linux,
   }) {
+    lead ??= 'Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:'.tr;
     if (windows ?? Platform.isWindows) return '$lead\n  winget install Gyan.FFmpeg';
-    if (linux ?? Platform.isLinux) return '$lead\n  sudo apt install ffmpeg   (or your distribution\'s package)';
+    if (linux ?? Platform.isLinux) return '$lead\n  sudo apt install ffmpeg   ${'(or your distribution\'s package)'.tr}';
     return '$lead\n  brew install ffmpeg';
   }
 

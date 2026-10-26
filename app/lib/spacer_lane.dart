@@ -8,6 +8,7 @@ import 'lanes_common.dart';
 import 'spacer_dialogs.dart';
 import 'span_lane.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// The Spacers lane (Attach Image): a [SpanLane] whose stretches are the horizontal spacers,
 /// each engraved again once a drag ends. Its name's buttons add a vertical spacer (below the
@@ -64,16 +65,16 @@ class SpacerLane extends StatelessWidget {
           trailing: Padding(
             padding: const EdgeInsets.only(right: 4),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              _LaneButton(icon: AppIcon.verticalSpacer, tooltip: 'Add Vertical Spacer', onPressed: _addVertical),
-              _LaneButton(icon: AppIcon.horizontalSpacer, tooltip: 'Add Horizontal Spacer', onPressed: _addHorizontal),
+              _LaneButton(icon: AppIcon.verticalSpacer, tooltip: 'Add Vertical Spacer'.tr, onPressed: _addVertical),
+              _LaneButton(icon: AppIcon.horizontalSpacer, tooltip: 'Add Horizontal Spacer'.tr, onPressed: _addHorizontal),
               _LaneButton(
                 icon: AppIcon.delete,
-                tooltip: 'Remove Spacer',
+                tooltip: 'Remove Spacer'.tr,
                 onPressed: c.spacers.hasSelection || _selectedLanes.isNotEmpty ? _remove : null,
               ),
             ]),
           ),
-          child: const Text('Spacers', style: TextStyle(fontWeight: FontWeight.w500)),
+          child: Text('Spacers'.tr, style: TextStyle(fontWeight: FontWeight.w500)),
         ),
       ),
     );
@@ -129,7 +130,7 @@ class _LaneButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => OverlaySemantics(
         child: IconButton(
-          tooltip: tooltip,
+          tooltip: tooltip.tr,
           onPressed: onPressed,
           iconSize: 14,
           padding: EdgeInsets.zero,

@@ -12,6 +12,7 @@ import 'menu_kit.dart';
 import 'project_document.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
+import 'l10n/l10n.dart';
 
 /// The one bar above the score: playback on the left, the score's own controls on the right.
 /// The document's name is in the window's title bar; files are in the File menu.
@@ -72,13 +73,13 @@ class EditorToolbar extends StatelessWidget {
       child: Row(children: [
         ToolbarButton(
           icon: AppIcon.home.of(context),
-          tooltip: 'Close project (${shortcut('⌘W')})',
+          tooltip: 'Close project ({key})'.fill({'key': shortcut('⌘W')}),
           onPressed: onClose,
         ),
         const ToolbarDivider(),
         ToolbarButton(
           icon: AppIcon.toStart.of(context),
-          tooltip: 'Go to start (Home)',
+          tooltip: 'Go to start (Home)'.tr,
           onPressed: () => c.playback.seek(0),
         ),
         const SizedBox(width: 2),
@@ -86,7 +87,7 @@ class EditorToolbar extends StatelessWidget {
         const SizedBox(width: 2),
         ToolbarButton(
           glyph: const _MetronomeGlyph(),
-          tooltip: 'Metronome (C)',
+          tooltip: 'Metronome (C)'.tr,
           selected: c.playback.metronome,
           onPressed: () => c.playback.metronome = !c.playback.metronome,
         ),
@@ -96,24 +97,24 @@ class EditorToolbar extends StatelessWidget {
         _SavingIndicator(document: document),
         ToolbarButton(
           icon: AppIcon.undo.of(context),
-          tooltip: 'Undo (${shortcut('⌘Z')})',
+          tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}),
           onPressed: c.canUndo ? c.undo : null,
         ),
         ToolbarButton(
           icon: AppIcon.redo.of(context),
-          tooltip: 'Redo (${shortcut('⇧⌘Z', 'Ctrl+Y')})',
+          tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}),
           onPressed: c.canRedo ? c.redo : null,
         ),
         const ToolbarDivider(),
         if (c.images.enabled)
           ToolbarButton(
             icon: AppIcon.assets.of(context),
-            tooltip: 'Manage assets…',
+            tooltip: 'Manage assets…'.tr,
             onPressed: () => showAssetsDialog(context, c),
           ),
         ToolbarButton(
           icon: AppIcon.export.of(context),
-          tooltip: 'Export video… (${shortcut('⌘E')})',
+          tooltip: 'Export video… ({key})'.fill({'key': shortcut('⌘E')}),
           onPressed: c.isReengraving ? null : onExportVideo,
         ),
         ToolbarButton(
@@ -125,7 +126,7 @@ class EditorToolbar extends StatelessWidget {
         RatioMenu(ratio: videoRatio, onSelected: onVideoRatio),
         const ToolbarDivider(),
         Tip(
-          message: 'Score size',
+          message: 'Score size'.tr,
           child: Icon(AppIcon.scoreSize.of(context), size: 16, color: colors.textMuted),
         ),
         SizedBox(
@@ -166,7 +167,7 @@ class RatioMenu extends StatelessWidget {
     final custom = !VideoRatio.presets.contains(ratio);
     return OverlaySemantics(
       child: AppPopupMenuButton<VideoRatio>(
-        tooltip: 'Video ratio',
+        tooltip: 'Video ratio'.tr,
         position: PopupMenuPosition.under,
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 32),
@@ -183,7 +184,7 @@ class RatioMenu extends StatelessWidget {
             checkedMenuItem(context, value: r, checked: r == ratio, child: Text(r.label)),
           menuDivider(context),
           checkedMenuItem(context,
-              value: _custom, checked: custom, child: Text(custom ? 'Custom (${ratio.label})…' : 'Custom…')),
+              value: _custom, checked: custom, child: Text(custom ? 'Custom ({ratio})…'.fill({'ratio': ratio.label}) : 'Custom…'.tr)),
         ],
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Text(ratio.label,
@@ -385,7 +386,7 @@ class TimeReadoutState extends State<TimeReadout> {
       valueListenable: playback.time,
       builder: (context, time, _) => Row(mainAxisSize: MainAxisSize.min, children: [
         _Clickable(
-          tip: 'Go to time (${shortcut('⌘G')})',
+          tip: 'Go to time ({key})'.fill({'key': shortcut('⌘G')}),
           onTap: () => edit(time: true),
           child: Text.rich(TextSpan(children: [
             TextSpan(text: _clock(time), style: mono.copyWith(fontWeight: FontWeight.w500)),
@@ -394,7 +395,7 @@ class TimeReadoutState extends State<TimeReadout> {
         ),
         const SizedBox(width: 10),
         _Clickable(
-          tip: 'Go to bar (${shortcut('⌘G')})',
+          tip: 'Go to bar ({key})'.fill({'key': shortcut('⌘G')}),
           onTap: edit,
           child: Container(
             height: 24,
@@ -432,7 +433,7 @@ class TimeReadoutState extends State<TimeReadout> {
           onSubmitted: (_) => _submit(),
           decoration: InputDecoration(
             isDense: true,
-            hintText: 'Bar or m:ss',
+            hintText: 'Bar or m:ss'.tr,
             hintStyle: mono.copyWith(fontSize: 12.5, color: colors.textMuted),
             filled: fill != null,
             fillColor: fill,
@@ -517,7 +518,7 @@ class _SavingIndicatorState extends State<_SavingIndicator> {
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 SizedBox.square(dimension: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: colors.textMuted)),
                 const SizedBox(width: 6),
-                Text('Saving…', style: TextStyle(fontSize: 12, color: colors.textMuted)),
+                Text('Saving…'.tr, style: TextStyle(fontSize: 12, color: colors.textMuted)),
               ]),
             ),
     );

@@ -115,12 +115,12 @@ class _LaneHeaderState extends State<_LaneHeader> {
   @override
   Widget build(BuildContext context) {
     PopupMenuItem<_LaneAction> item(BuildContext context, _LaneAction a) =>
-        menuItem(context, value: a, child: Text(a.label));
+        menuItem(context, value: a, child: Text(a.label.tr));
     final group = controller.condensedGroupOf(part.id);
     final condensed = group != null, spacer = controller.spacers.verticalOf(part.id) != null;
     final menu = OverlaySemantics(
       child: AppPopupMenuButton<_LaneAction>(
-        tooltip: 'Lane options',
+        tooltip: 'Lane options'.tr,
         padding: EdgeInsets.zero,
         iconSize: 16,
         icon: Icon(AppIcon.more.of(context), color: context.colors.textMuted),
@@ -128,8 +128,8 @@ class _LaneHeaderState extends State<_LaneHeader> {
         itemBuilder: (context) => [
           // A pair's lane names both players: each is renamed on its own, as on its own staff.
           if (group case final group?) ...[
-            menuItem(context, value: _LaneAction.renameFirst, child: Text('Rename ${controller.partNameOf(group.first)}…')),
-            menuItem(context, value: _LaneAction.renameSecond, child: Text('Rename ${controller.partNameOf(group.second)}…')),
+            menuItem(context, value: _LaneAction.renameFirst, child: Text('Rename {name}…'.fill({'name': controller.partNameOf(group.first)}))),
+            menuItem(context, value: _LaneAction.renameSecond, child: Text('Rename {name}…'.fill({'name': controller.partNameOf(group.second)}))),
           ] else if (spacer) ...[
             item(context, _LaneAction.spacer),
             item(context, _LaneAction.removeSpacer),
@@ -164,11 +164,11 @@ class _LaneHeaderState extends State<_LaneHeader> {
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         if (condensed)
           Tip(
-            message: '${group.partIds.map(controller.partNameOf).join(' and ')}: one lane',
+            message: '{names}: one lane'.fill({'names': group.partIds.map(controller.partNameOf).join(' and '.tr)}),
             child: Icon(AppIcon.link.of(context), size: 14, color: context.colors.textMuted),
           ),
         if (spacer)
-          Tip(message: 'Spacer', child: Icon(AppIcon.verticalSpacer.of(context), size: 14, color: context.colors.textMuted)),
+          Tip(message: 'Spacer'.tr, child: Icon(AppIcon.verticalSpacer.of(context), size: 14, color: context.colors.textMuted)),
         menu,
       ]),
       child: Listener(

@@ -9,6 +9,7 @@ import 'app_settings.dart';
 import 'file_names.dart';
 import 'project_file.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// What shows before anything is open: one Open for projects and scores alike, the sample,
 /// and the files opened lately. Terse on purpose: a name, a line, what to open.
@@ -58,8 +59,7 @@ class HomeScreen extends StatelessWidget {
                       style: theme.textTheme.headlineSmall
                           ?.copyWith(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.4, height: 1.15)),
                   const SizedBox(height: 6),
-                  Text(
-                    'Scores that follow the music.',
+                  Text('Scores that follow the music.'.tr,
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyLarge?.copyWith(color: colors.textMuted, height: 1.4),
                   ),
@@ -74,17 +74,17 @@ class HomeScreen extends StatelessWidget {
                   alignment: WrapAlignment.center,
                   children: [
                     Tip(
-                      message: 'Project or MusicXML (${shortcut('⌘O')})',
+                      message: 'Project or MusicXML ({key})'.fill({'key': shortcut('⌘O')}),
                       child: FilledButton.icon(
                         onPressed: onOpen,
                         icon: Icon(AppIcon.open.of(context), size: 18),
-                        label: const Text('Open…'),
+                        label: Text('Open…'.tr),
                       ),
                     ),
                     OutlinedButton.icon(
                       onPressed: onOpenSample,
                       icon: Icon(AppIcon.demo.of(context), size: 18),
-                      label: const Text('Open Sample'),
+                      label: Text('Open Sample'.tr),
                     ),
                   ],
                 ),
@@ -142,14 +142,14 @@ class _RecentList extends StatelessWidget {
       Row(children: [
         Padding(
           padding: const EdgeInsets.only(left: 4),
-          child: Text('RECENT',
+          child: Text('RECENT'.tr,
               style: TextStyle(fontSize: 11, letterSpacing: 0.8, fontWeight: FontWeight.w600, color: colors.textMuted)),
         ),
         const Spacer(),
         TextButton(
           onPressed: onClear,
           style: TextButton.styleFrom(foregroundColor: colors.textMuted, textStyle: const TextStyle(fontSize: 12)),
-          child: const Text('Clear'),
+          child: Text('Clear'.tr),
         ),
       ]),
       const SizedBox(height: 4),
@@ -241,7 +241,7 @@ class _RecentRowState extends State<_RecentRow> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: _exists ? colors.text : colors.textMuted)),
                 const SizedBox(height: 1),
-                Text(_exists ? _folder : 'Not found · $_folder',
+                Text(_exists ? _folder : 'Not found · {folder}'.fill({'folder': _folder}),
                     overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: colors.textMuted)),
               ]),
             ),
@@ -252,7 +252,7 @@ class _RecentRowState extends State<_RecentRow> {
               alwaysIncludeSemantics: true,
               child: ToolbarButton(
                 icon: AppIcon.close.of(context),
-                tooltip: 'Remove from Recent',
+                tooltip: 'Remove from Recent'.tr,
                 color: colors.textMuted,
                 onPressed: widget.onRemove,
               ),

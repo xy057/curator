@@ -4,6 +4,7 @@ import 'app_colors.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'menu_kit.dart';
+import 'l10n/l10n.dart';
 
 /// Project Settings ▸ Condensing ▸ Add a pair: two players of the user's own choosing
 /// (Flute 1 + Oboe 1, Horn 1 + 3) made a pair, as in Dorico's Edit Condensing Groups. Says
@@ -55,7 +56,7 @@ class _CondensingAddPairState extends State<CondensingAddPair> {
     AppDropdown<String> choose(String? value, List<String> ids, ValueChanged<String?> onChanged) => AppDropdown<String>(
           isExpanded: true,
           boxed: true,
-          hint: const Text('Player'),
+          hint: Text('Player'.tr),
           value: value,
           items: [for (final id in ids) DropdownMenuItem(value: id, child: Text(c.partNameOf(id)))],
           onChanged: ids.isEmpty ? null : onChanged,
@@ -78,7 +79,7 @@ class _CondensingAddPairState extends State<CondensingAddPair> {
               _second = null;
             })),
           ),
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('with', style: muted)),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('with'.tr, style: muted)),
           Expanded(child: choose(_second, seconds, (id) => setState(() => _second = id))),
           const SizedBox(width: 10),
           OutlinedButton(
@@ -86,12 +87,12 @@ class _CondensingAddPairState extends State<CondensingAddPair> {
             style: dialogButtonStyle(context)
                 .copyWith(minimumSize: WidgetStatePropertyAll(Size(64, AppStyle.of(context).field))),
             onPressed: _first != null && _second != null ? _add : null,
-            child: const Text('Add'),
+            child: Text('Add'.tr),
           ),
         ]),
         if (split.isNotEmpty) ...[
           const SizedBox(height: 6),
-          Text('Splits ${split.map(c.pairName).join(' and ')}.', style: muted),
+          Text('Splits {pairs}.'.fill({'pairs': split.map(c.pairName).join(' and '.tr)}), style: muted),
         ],
       ]),
     );

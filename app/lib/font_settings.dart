@@ -21,6 +21,7 @@ import 'editor_controller.dart';
 import 'error_text.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 const _fieldWidth = 230.0;
 
@@ -129,7 +130,7 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
           final font = choice.font ??
               switch (choice.installed) {
                 final i? => await MusicFont.readFace(i.face, metadataPath: i.metadata),
-                null => await MusicFont.findInstalled(choice.name) ?? (throw FormatException('${choice.name} not found.')),
+                null => await MusicFont.findInstalled(choice.name) ?? (throw FormatException('{name} not found.'.fill({'name': choice.name}))),
               };
           await apply(font);
       }
@@ -139,8 +140,11 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
   }
 
   Future<MusicFont?> _pickFile() async {
-    final file = await openFile(acceptedTypeGroups: const [
-      XTypeGroup(label: 'Fonts', extensions: ['otf', 'ttf'], uniformTypeIdentifiers: ['public.opentype-font', 'public.truetype-ttf-font']),
+    final file = await openFile(acceptedTypeGroups: [
+      XTypeGroup(
+          label: 'Fonts'.tr,
+          extensions: const ['otf', 'ttf'],
+          uniformTypeIdentifiers: const ['public.opentype-font', 'public.truetype-ttf-font']),
     ]);
     return file == null ? null : MusicFont.read(file.path);
   }
@@ -155,7 +159,7 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
       return _pickFile(); // no picker here (Linux, tests)
     }
     if (family == null || family.isEmpty) return null;
-    return await MusicFont.findInstalled(family) ?? (throw FormatException('$family not found.'));
+    return await MusicFont.findInstalled(family) ?? (throw FormatException('{name} not found.'.fill({'name': family})));
   }
 
   /// The system's font picker (the runners: macOS's Fonts panel, Windows' Font dialog): the
@@ -172,8 +176,8 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
           onChanged: _choose,
           items: [
             for (final m in _choices) DropdownMenuItem(value: m.name, child: Text(m.name)),
-            const DropdownMenuItem(value: _installedFont, child: Text('Installed Font…')),
-            const DropdownMenuItem(value: _fontFile, child: Text('Font File…')),
+            DropdownMenuItem(value: _installedFont, child: Text('Installed Font…'.tr)),
+            DropdownMenuItem(value: _fontFile, child: Text('Font File…'.tr)),
           ],
         ),
       );
@@ -242,9 +246,9 @@ class _TextFontPickerState extends State<TextFontPicker> {
               enableFilter: true,
               requestFocusOnTap: true,
               menuHeight: 320,
-              errorText: widget.caption ? missing : _error ?? missing,
+              errorText: (widget.caption ? missing : _error ?? missing)?.tr,
               dropdownMenuEntries: [
-                if (widget.caption) const DropdownMenuEntry(value: '', label: 'Default'),
+                if (widget.caption) DropdownMenuEntry(value: '', label: 'Default'.tr),
                 for (final f in texts) DropdownMenuEntry(value: f, label: f),
               ],
               onSelected: (f) {

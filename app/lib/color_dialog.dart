@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'app_colors.dart';
 import 'dialog_kit.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// Asks for a colour, starting at [initial]: hue, saturation and lightness strips and a hex
 /// field. Null when cancelled.
@@ -65,12 +66,12 @@ class _ColorDialogState extends State<_ColorDialog> {
     Widget strip(String label, double value, List<Color> colors, ValueChanged<double> onChanged) => Padding(
           padding: EdgeInsets.only(top: gap),
           child: Row(children: [
-            SizedBox(width: 84, child: Text(label)),
+            SizedBox(width: 84, child: Text(label.tr)),
             Expanded(child: _Strip(value: value, colors: colors, onChanged: onChanged, label: label)),
           ]),
         );
     return AppDialog(
-      title: Text(widget.title),
+      title: Text(widget.title.tr),
       content: SizedBox(
         width: dialogWidth(context, 300),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -101,8 +102,8 @@ class _ColorDialogState extends State<_ColorDialog> {
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: _bad ? null : () => Navigator.pop(context, color), child: const Text('Done')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+        FilledButton(onPressed: _bad ? null : () => Navigator.pop(context, color), child: Text('Done'.tr)),
       ],
     );
   }

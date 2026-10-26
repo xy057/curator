@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'project_state.dart';
+import 'l10n/l10n.dart';
 
 /// Project Info ▸ Replace Score: how a project made for one score file reads against another, and
 /// what differs between them.
@@ -245,22 +246,22 @@ class ScoreSwap {
     final known = {for (final t in textsBefore) t.id};
     final dropped = edits.keys.where(known.contains).length - textEdits(edits).length;
     final lostItems = [
-      if (lost.regions > 0) _count(lost.regions, 'region'),
-      if (lost.anchors > 0) _count(lost.anchors, 'anchor'),
-      if (lost.warps > 0) _count(lost.warps, 'warp'),
-      if (lost.captions > 0) _count(lost.captions, 'caption'),
-      if (lost.images > 0) _count(lost.images, 'image'),
+      if (lost.regions > 0) _count(lost.regions, '1 region', '{n} regions'),
+      if (lost.anchors > 0) _count(lost.anchors, '1 anchor', '{n} anchors'),
+      if (lost.warps > 0) _count(lost.warps, '1 warp', '{n} warps'),
+      if (lost.captions > 0) _count(lost.captions, '1 caption', '{n} captions'),
+      if (lost.images > 0) _count(lost.images, '1 image', '{n} images'),
     ];
     return [
-      if (added.isNotEmpty) 'Added: ${names(added)}',
-      if (removed.isNotEmpty) 'Removed: ${names(removed)}',
-      for (final (a, b) in renamed) 'Renamed: ${a.name} → ${b.name}',
-      if (barsBefore != barsAfter) 'Bars: $barsBefore → $barsAfter',
-      if (meter != null) 'Time signature differs from bar ${meter + 1}',
-      if (length != null && (meter == null || length < meter)) 'Bar length differs from bar ${length + 1}',
-      if (before.tempo != after.tempo) 'Tempo: ${_tempo(before.tempo)} → ${_tempo(after.tempo)}',
-      if (dropped > 0) 'Text edits lost: $dropped',
-      if (lostItems.isNotEmpty) 'Lost past bar $barsAfter: ${lostItems.join(', ')}',
+      if (added.isNotEmpty) 'Added: {names}'.fill({'names': names(added)}),
+      if (removed.isNotEmpty) 'Removed: {names}'.fill({'names': names(removed)}),
+      for (final (a, b) in renamed) 'Renamed: {from} → {to}'.fill({'from': a.name, 'to': b.name}),
+      if (barsBefore != barsAfter) 'Bars: {from} → {to}'.fill({'from': barsBefore, 'to': barsAfter}),
+      if (meter != null) 'Time signature differs from bar {n}'.fill({'n': meter + 1}),
+      if (length != null && (meter == null || length < meter)) 'Bar length differs from bar {n}'.fill({'n': length + 1}),
+      if (before.tempo != after.tempo) 'Tempo: {from} → {to}'.fill({'from': _tempo(before.tempo), 'to': _tempo(after.tempo)}),
+      if (dropped > 0) 'Text edits lost: {n}'.fill({'n': dropped}),
+      if (lostItems.isNotEmpty) 'Lost past bar {n}: {items}'.fill({'n': barsAfter, 'items': lostItems.join(', '.tr)}),
     ];
   }
 
@@ -273,10 +274,10 @@ class ScoreSwap {
 
   static Meter? _meter(ScoreMetadata score, int m) => m < score.meters.length ? score.meters[m] : null;
 
-  static String _count(int n, String noun) => '$n $noun${n == 1 ? '' : 's'}';
+  static String _count(int n, String one, String many) => (n == 1 ? one : many).fill({'n': n});
 
   static String _tempo(double? qpm) => switch (qpm) {
-    null => 'none',
+    null => 'none'.tr,
     final t when t == t.roundToDouble() => '♩ = ${t.round()}',
     final t => '♩ = ${t.toStringAsFixed(1)}',
   };

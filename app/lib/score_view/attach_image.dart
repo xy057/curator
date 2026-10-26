@@ -105,7 +105,7 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
     try {
       await c.images.add(kind, await file.readAsBytes(), quarter: at.quarter, top: at.top, extension: file.name.split('.').last);
     } catch (e) {
-      _say('Couldn’t add the image. ${describeError(e)}');
+      _say('Couldn’t add the image. {error}'.fill({'error': describeError(e)}));
     }
   }
 
@@ -113,7 +113,7 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
     try {
       if (!await c.images.paste(quarter: at.quarter, top: at.top)) _say('No image to paste.');
     } catch (e) {
-      _say('Couldn’t paste the image. ${describeError(e)}');
+      _say('Couldn’t paste the image. {error}'.fill({'error': describeError(e)}));
     }
   }
 
@@ -136,12 +136,12 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
           top: p.dy / scene.style.staffSpace,
           extension: path.split('.').last);
     } catch (e) {
-      _say('Couldn’t add the image. ${describeError(e)}');
+      _say('Couldn’t add the image. {error}'.fill({'error': describeError(e)}));
     }
   }
 
   void _say(String message) {
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.tr)));
   }
 }
 

@@ -7,6 +7,7 @@ import 'package:score_engine/score_engine.dart'
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
+import 'l10n/l10n.dart';
 import 'video_export.dart';
 
 /// Preferences that apply to every project (Settings…, ⌘,).
@@ -21,6 +22,7 @@ class AppSettings extends ChangeNotifier {
         _textSize = TextSize.values.asNameMap()[_prefs?.getString(_textSizeKey)] ?? TextSize.medium,
         _density = UiDensity.values.asNameMap()[_prefs?.getString(_densityKey)] ?? UiDensity.standard,
         _reduceMotion = _prefs?.getBool(_reduceMotionKey) ?? false,
+        _language = AppLanguage.values.asNameMap()[_prefs?.getString(_languageKey)] ?? AppLanguage.system,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
         _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,
@@ -75,7 +77,7 @@ class AppSettings extends ChangeNotifier {
   static const _autosaveKey = 'autosaveSeconds', _undoKey = 'undoSteps';
   static const _themeKey = 'themeMode', _accentKey = 'accentColor', _transitionKey = 'transition';
   static const _uiStyleKey = 'uiStyle', _customAccentKey = 'customAccent', _textSizeKey = 'textSize';
-  static const _densityKey = 'density', _reduceMotionKey = 'reduceMotion';
+  static const _densityKey = 'density', _reduceMotionKey = 'reduceMotion', _languageKey = 'language';
   static const _scrollFollowKey = 'scrollFollow', _motionKey = 'scoreMotion', _typographyKey = 'scoreTypography';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _mascotIconKey = 'mascotIcon';
@@ -205,6 +207,16 @@ class AppSettings extends ChangeNotifier {
 
   /// The interface without motion: no fades, slides or cross-fades (the score still scrolls and
   /// its staves still come and go as the project says).
+  /// The interface's language; [AppLanguage.system] follows the system's.
+  AppLanguage get language => _language;
+  AppLanguage _language;
+  set language(AppLanguage value) {
+    if (value == _language) return;
+    _language = value;
+    _prefs?.setString(_languageKey, value.name);
+    notifyListeners();
+  }
+
   bool get reduceMotion => _reduceMotion;
   bool _reduceMotion;
   set reduceMotion(bool value) {
