@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// The space between a dialog's groups of fields (a field is [AppStyle.field] tall, its label
 /// over it).
@@ -284,7 +285,7 @@ class AppTextField extends StatelessWidget {
             filled: fill != null,
             fillColor: fill,
             hoverColor: k?.layerHover,
-            hintText: hint,
+            hintText: hint?.tr,
             hintStyle: text.copyWith(color: k?.textPlaceholder ?? colors.textMuted.withValues(alpha: 0.6)),
             counterText: '',
             contentPadding: EdgeInsets.symmetric(horizontal: style.fieldInset, vertical: k == null ? 8 : 11),
@@ -308,7 +309,7 @@ class AppTextField extends StatelessWidget {
               field,
               Padding(
                 padding: EdgeInsets.only(top: k == null ? 5 : 4),
-                child: Text(helper!,
+                child: Text(helper!.tr,
                     style: k == null
                         ? TextStyle(fontSize: 12.5, color: colors.textMuted)
                         : TextStyle(fontSize: 12, height: 16 / 12, letterSpacing: 0.32, color: k.textHelper)),
@@ -396,7 +397,7 @@ class AppCheckRow extends StatelessWidget {
         child: Row(children: [
           SizedBox.square(dimension: 18, child: box),
           SizedBox(width: carbon ? 8 : 10),
-          Expanded(child: Text(label, style: style, overflow: TextOverflow.ellipsis)),
+          Expanded(child: Text(label.tr, style: style, overflow: TextOverflow.ellipsis)),
           ?trailing,
         ]),
       ),

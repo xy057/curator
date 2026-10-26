@@ -10,6 +10,7 @@ import 'spacer_lane.dart';
 import 'instruments_toolbar.dart';
 import 'timeline_panel.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// The DAW-like panel under the preview. The switch at its top-left changes between the
 /// Instruments tab (when each staff is shown) and the Audio tab (syncing to the recording).
@@ -71,13 +72,13 @@ class BottomPanel extends StatelessWidget {
             _ZoomButtons(controller: c),
             ToolbarButton(
               icon: AppIcon.fit.of(context),
-              tooltip: 'Fit',
+              tooltip: 'Fit'.tr,
               onPressed: c.viewport.fit,
             ),
             const ToolbarDivider(),
             ToolbarButton(
               icon: AppIcon.settings.of(context),
-              tooltip: 'Project Settings (${shortcut('⇧⌘,')})',
+              tooltip: 'Project Settings ({key})'.fill({'key': shortcut('⇧⌘,')}),
               onPressed: onProjectSettings,
             ),
           ]),
@@ -131,8 +132,8 @@ class _ZoomButtons extends StatelessWidget {
     if (MediaQuery.sizeOf(context).width < 1100) return const SizedBox.shrink();
     final v = controller.viewport;
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom out (${shortcut('⌘-scroll')} or pinch)', onPressed: () => v.zoom(1 / 1.5)),
-      ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom in (${shortcut('⌘-scroll')} or pinch)', onPressed: () => v.zoom(1.5)),
+      ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom out ({key} or pinch)'.fill({'key': shortcut('⌘-scroll')}), onPressed: () => v.zoom(1 / 1.5)),
+      ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom in ({key} or pinch)'.fill({'key': shortcut('⌘-scroll')}), onPressed: () => v.zoom(1.5)),
     ]);
   }
 }

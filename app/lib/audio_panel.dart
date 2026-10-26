@@ -18,9 +18,10 @@ import 'lanes_common.dart';
 import 'media_converter.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// Recordings: audio, or a video whose sound is taken out of it.
-final audioTypes = XTypeGroup(label: 'Audio or video', extensions: MediaFormats.all.toList());
+XTypeGroup get audioTypes => XTypeGroup(label: 'Audio or video'.tr, extensions: MediaFormats.all.toList());
 
 /// MIDI files, for their tempo map.
 final midiTypes = XTypeGroup(label: 'MIDI', extensions: MediaFormats.midi.toList());
@@ -207,9 +208,10 @@ class _AudioLanesState extends State<AudioLanes> {
               if (track == null)
                 Center(
                   child: Text(
-                    c.isLoadingAudio
-                        ? 'Reading the recording…'
-                        : 'Drop a recording or a MIDI file',
+                    (c.isLoadingAudio
+                            ? 'Reading the recording…'
+                            : 'Drop a recording or a MIDI file')
+                        .tr,
                     style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
                 ),
@@ -227,7 +229,7 @@ class _AudioLanesState extends State<AudioLanes> {
       SizedBox(
         width: kLaneHeaderWidth,
         child: Column(children: [
-          const LaneLabel(height: _anchorLaneHeight, child: Text('Anchors')),
+          LaneLabel(height: _anchorLaneHeight, child: Text('Anchors'.tr)),
           Expanded(
             child: LaneLabel(
               height: double.infinity,
@@ -235,7 +237,7 @@ class _AudioLanesState extends State<AudioLanes> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Recording'),
+                  Text('Recording'.tr),
                   if (track != null)
                     Text(track.name,
                         overflow: TextOverflow.ellipsis,
@@ -244,9 +246,9 @@ class _AudioLanesState extends State<AudioLanes> {
               ),
             ),
           ),
-          const LaneLabel(
+          LaneLabel(
             height: _tempoLaneHeight,
-            child: Tip(message: 'Beats per minute', child: Text('Tempo')),
+            child: Tip(message: 'Beats per minute'.tr, child: Text('Tempo'.tr)),
           ),
         ]),
       ),
@@ -502,7 +504,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Tip(message: 'Beats per minute\n${shortcut('⌥ add, draw · ⌘ no snap')}', child: const Text('MIDI tempo')),
+              Tip(message: '${'Beats per minute'.tr}\n${shortcut('⌥ add, draw · ⌘ no snap'.tr)}', child: Text('MIDI tempo'.tr)),
               Text(widget.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textMuted)),
               if (c.track case final track?)
                 Text('♪ ${track.name}', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textMuted)),
@@ -540,12 +542,12 @@ Future<void> _editAnchor(BuildContext context, EditorController c, int index, {b
   final set = await showAnchorDialog(context, beats: sync.beats, quarter: a.quarter, jumpTo: a.jumpTo, warp: warp);
   if (set == null || !context.mounted || index >= sync.anchors.length) return;
   if (!c.anchors.setAnchor(index, set.quarter, jumpTo: set.jumpTo)) {
-    _refused(context, set.jumpTo == a.jumpTo ? 'Choose a position between the neighboring anchors.' : null);
+    _refused(context, set.jumpTo == a.jumpTo ? 'Choose a position between the neighboring anchors.'.tr : null);
   }
 }
 
 void _refused(BuildContext context, String? why) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text(why ?? 'This jump would put anchors out of order or past the end of the score.')));
+    content: Text(why ?? 'This jump would put anchors out of order or past the end of the score.'.tr)));
 
 /// Warp (W): makes the selected anchor jump (back for a repeat, on to a coda), or adds a
 /// warp at the playhead, on the bar (or beat) sounding there.
@@ -612,13 +614,15 @@ class AudioToolbar extends StatelessWidget {
         ToolbarButton(
           icon: c.track == null ? AppIcon.addAudio.of(context) : AppIcon.replaceAudio.of(context),
           tooltip: c.track == null
-              ? 'Add Recording… (or drop one here)'
-              : 'Replace recording…\n${c.track!.name}',
+              ? 'Add Recording… (or drop one here)'.tr
+              : '${'Replace recording…'.tr}\n${c.track!.name}',
           onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
         ),
         ToolbarButton(
           icon: AppIcon.tempoMap.of(context),
-          tooltip: c.midiTempo == null ? 'Add MIDI Tempo Map… (or drop one here)' : 'Stop following ${c.midiTempo!.name}',
+          tooltip: c.midiTempo == null
+              ? 'Add MIDI Tempo Map… (or drop one here)'.tr
+              : 'Stop following {name}'.fill({'name': c.midiTempo!.name}),
           selected: c.usesMidiTempo,
           onPressed: () => c.usesMidiTempo ? c.useMidiTempo(null) : pickMidi(context, c),
         ),
@@ -626,20 +630,20 @@ class AudioToolbar extends StatelessWidget {
         ToolbarButton(
           icon: AppIcon.warp.of(context),
           tooltip: c.anchors.selected.length == 1 && !c.usesMidiTempo
-              ? 'Warp (W)\nMake this anchor jump to another bar'
-              : 'Warp (W)\nJump to another bar here',
+              ? 'Warp (W)\nMake this anchor jump to another bar'.tr
+              : 'Warp (W)\nJump to another bar here'.tr,
           onPressed: () => editWarp(context, c),
         ),
         if (c.midiTempo case final midi?)
           ToolbarButton(
             icon: AppIcon.repeat.of(context),
-            tooltip: 'Warps from score',
+            tooltip: 'Warps from score'.tr,
             onPressed: c.scoreWarps.isEmpty || listEquals(midi.warps, c.scoreWarps) ? null : c.useScoreWarps,
           ),
         if (!c.usesMidiTempo) ...[
           const ToolbarDivider(),
           Tip(
-            message: 'Step for taps, ${shortcut('Option-click', 'Alt+click')}, and ↑/↓',
+            message: 'Step for taps, {click}, and ↑/↓'.fill({'click': shortcut('Option-click', 'Alt+click').tr}),
             child: ToolGroup(children: [
               for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
                 _TextToggle(label: label, selected: c.anchors.grid == grid, onPressed: () => c.anchors.grid = grid),
@@ -649,8 +653,8 @@ class AudioToolbar extends StatelessWidget {
           ToolbarButton(
             icon: AppIcon.snap.of(context),
             tooltip: c.anchors.snapToOnsets
-                ? 'Snap to notes (on)'
-                : 'Snap to notes (off)',
+                ? 'Snap to notes (on)'.tr
+                : 'Snap to notes (off)'.tr,
             selected: c.anchors.snapToOnsets,
             onPressed: () => c.anchors.snapToOnsets = !c.anchors.snapToOnsets,
           ),
@@ -668,12 +672,12 @@ class AudioToolbar extends StatelessWidget {
                   key: const ValueKey('selection'),
                   padding: const EdgeInsets.only(right: 4),
                   child: Tip(
-                    message: '↑/↓ re-point · ←/→ nudge · ${shortcut('⌫', 'Delete')} remove',
+                    message: '↑/↓ re-point · ←/→ nudge · {key} remove'.fill({'key': shortcut('⌫', 'Delete')}),
                     child: InputChip(
                       visualDensity: VisualDensity.compact,
-                      label: Text('${c.anchors.selected.length} anchors', style: const TextStyle(fontSize: 12)),
+                      label: Text('{n} anchors'.fill({'n': c.anchors.selected.length}), style: const TextStyle(fontSize: 12)),
                       onDeleted: () => c.anchors.select(null),
-                      deleteButtonTooltipMessage: 'Deselect (Esc)',
+                      deleteButtonTooltipMessage: 'Deselect (Esc)'.tr,
                     ),
                   ),
                 ),
@@ -681,7 +685,7 @@ class AudioToolbar extends StatelessWidget {
         if (!c.usesMidiTempo)
           ToolbarButton(
             icon: AppIcon.clearAnchors.of(context),
-            tooltip: 'Remove all anchors',
+            tooltip: 'Remove all anchors'.tr,
             onPressed: sync.anchors.isEmpty ? null : c.anchors.clear,
           ),
       ]),
@@ -702,7 +706,7 @@ class _SpeedMenu extends StatelessWidget {
     final speed = controller.playback.speed;
     return OverlaySemantics(
       child: AppPopupMenuButton<double>(
-        tooltip: 'Playback speed',
+        tooltip: 'Playback speed'.tr,
         position: PopupMenuPosition.under,
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 32),
@@ -757,7 +761,7 @@ class _TapButton extends StatelessWidget {
               if (c.anchors.tapArmed) ...[
                 PulsingDot(color: colors.recording, size: 9),
                 const SizedBox(width: 4),
-                Text('Space', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.recording)),
+                Text('Space'.tr, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.recording)),
               ] else
                 SizedBox.square(dimension: 32, child: Icon(AppIcon.tap.of(context), size: 18, color: colors.text)),
             ]),
@@ -793,7 +797,7 @@ class _TextToggle extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 9),
         alignment: Alignment.center,
         decoration: BoxDecoration(color: selected ? on : Colors.transparent, borderRadius: radius),
-        child: Text(label,
+        child: Text(label.tr,
             style: TextStyle(
               fontSize: 12,
               fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
@@ -811,7 +815,7 @@ Future<void> pickAudio(BuildContext context, EditorController c) async {
     await c.loadAudio(file.path);
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t load the recording. ${describeError(e)}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t load the recording. {error}'.fill({'error': describeError(e)}))));
     }
   }
 }
@@ -824,7 +828,7 @@ Future<void> pickMidi(BuildContext context, EditorController c) async {
     if (context.mounted) showMidiWarpsTaken(context, c, taken);
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t use the MIDI file. ${describeError(e)}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t use the MIDI file. {error}'.fill({'error': describeError(e)}))));
     }
   }
 }
@@ -834,15 +838,15 @@ Future<void> pickMidi(BuildContext context, EditorController c) async {
 void showMidiWarpsTaken(BuildContext context, EditorController c, MidiWarpsTaken? taken) {
   if (taken == null) return;
   final map = c.midiTempo;
-  final warps = taken.count == 1 ? '1 warp' : '${taken.count} warps';
+  final warps = (taken.count == 1 ? '1 warp' : '{n} warps').fill({'n': taken.count});
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
     content: Text(switch (taken.from) {
-      MidiWarpsFrom.file => 'Kept $warps from ${taken.file}',
-      MidiWarpsFrom.anchors => 'Kept $warps from the anchors',
-      MidiWarpsFrom.score => '$warps from the score’s repeats',
+      MidiWarpsFrom.file => 'Kept {warps} from {file}'.fill({'warps': warps, 'file': taken.file}),
+      MidiWarpsFrom.anchors => 'Kept {warps} from the anchors'.fill({'warps': warps}),
+      MidiWarpsFrom.score => '{warps} from the score’s repeats'.fill({'warps': warps}),
     }),
     action: SnackBarAction(
-      label: 'Remove',
+      label: 'Remove'.tr,
       onPressed: () {
         if (c.midiTempo == map) c.setMidiWarps(const []);
       },
@@ -942,7 +946,7 @@ class _StartFieldState extends State<_StartField> {
   @override
   Widget build(BuildContext context) {
     return Tip(
-      message: 'Silence before bar 1 (s)',
+      message: 'Silence before bar 1 (s)'.tr,
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(AppIcon.leadIn.of(context), size: 17, color: context.colors.textMuted),
         const SizedBox(width: 4),

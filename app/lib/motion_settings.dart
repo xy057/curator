@@ -12,6 +12,7 @@ import 'editor_controller.dart';
 import 'engraving_settings.dart' show formatOptionValue;
 import 'menu_kit.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// One of Project Settings ▸ Advanced's motion rows: a [ScoreMotion] setting by its JSON [key],
 /// under [group]. A number has a [unit] and a slider [step]; a curve has neither.
@@ -272,7 +273,7 @@ class ResetSlot extends StatelessWidget {
         child: changed
             ? IconButton(
                 icon: Icon(AppIcon.reset.of(context), size: 15),
-                tooltip: 'Reset',
+                tooltip: 'Reset'.tr,
                 visualDensity: VisualDensity.compact,
                 color: color,
                 onPressed: onReset,
@@ -296,9 +297,9 @@ class CurvePicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final custom = value.presetName == null;
     final items = <DropdownMenuItem<Object>>[
-      for (final (name, e) in MotionCurve.presets) DropdownMenuItem(value: e, child: Text(name)),
-      if (custom) DropdownMenuItem(value: value, child: const Text('Custom')),
-      DropdownMenuItem(value: #edit, child: Text(custom ? 'Edit…' : 'Custom…')),
+      for (final (name, e) in MotionCurve.presets) DropdownMenuItem(value: e, child: Text(name.tr)),
+      if (custom) DropdownMenuItem(value: value, child: Text('Custom'.tr)),
+      DropdownMenuItem(value: #edit, child: Text((custom ? 'Edit…' : 'Custom…').tr)),
     ];
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Tip(
@@ -436,7 +437,7 @@ class _Syntax extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       for (final (expression, typed) in _lines)
         Row(children: [
-          Expanded(child: Text.rich(TextSpan(style: math, children: _spans(expression, math)))),
+          Expanded(child: Text.rich(TextSpan(style: math, children: _spans(expression.tr, math)))),
           if (typed.isNotEmpty) Text(typed, style: note),
         ]),
     ]);
@@ -477,7 +478,7 @@ class _CurveDialogState extends State<_CurveDialog> {
     final curve = _curve;
     final width = dialogWidth(context, 300);
     return AppDialog(
-      title: const Text('Custom Curve'),
+      title: Text('Custom Curve'.tr),
       content: SizedBox(
         width: width,
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -498,8 +499,8 @@ class _CurveDialogState extends State<_CurveDialog> {
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: curve == null ? null : () => Navigator.pop(context, curve), child: const Text('Done')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+        FilledButton(onPressed: curve == null ? null : () => Navigator.pop(context, curve), child: Text('Done'.tr)),
       ],
     );
   }

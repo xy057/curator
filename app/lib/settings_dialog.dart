@@ -32,6 +32,7 @@ import 'settings_file.dart';
 import 'sections_editor.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
+import 'l10n/l10n.dart';
 
 /// Settings… (⌘,): the app's, for every project. Categories on the left, each a page of
 /// items on the right.
@@ -86,7 +87,7 @@ Future<void> _showWindow(BuildContext context, _SettingsWindow window) {
 Future<void> _presentWindow(BuildContext context, _SettingsWindow window) => showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Close settings',
+      barrierLabel: 'Close settings'.tr,
       barrierColor: Colors.black.withValues(alpha: 0.2),
       transitionDuration: motion(context, 160),
       pageBuilder: (context, _, _) => window,
@@ -186,6 +187,17 @@ typedef _Context = ({
 final _categories = <_Category>[
   _Category('General', AppIcon.general, [
     _Item(
+      'Language',
+      null,
+      (c) => _Dropdown<AppLanguage>(
+        value: c.settings.language,
+        values: AppLanguage.values,
+        label: (l) => l == AppLanguage.system ? 'System'.tr : l.label,
+        onChanged: (v) => c.settings.language = v,
+      ),
+      keywords: 'language chinese english locale translation 语言 中文',
+    ),
+    _Item(
       'Autosave',
       (_) => 'Saved projects only.',
       (c) => _Dropdown<Duration>(
@@ -202,7 +214,7 @@ final _categories = <_Category>[
       (c) => _Dropdown<int>(
         value: c.settings.undoSteps,
         values: AppSettings.undoStepChoices,
-        label: (n) => '$n steps',
+        label: (n) => '{n} steps'.fill({'n': n}),
         onChanged: (v) => c.settings.undoSteps = v,
       ),
       keywords: 'undo redo steps',
@@ -214,9 +226,9 @@ final _categories = <_Category>[
       (_) => 'Dark also turns the score dark.',
       (c) => Builder(builder: (context) => AppSegmented<ThemeMode>(
         segments: [
-          ButtonSegment(value: ThemeMode.system, icon: Icon(AppIcon.auto.of(context), size: 16), label: Text('Auto')),
-          ButtonSegment(value: ThemeMode.light, icon: Icon(AppIcon.light.of(context), size: 16), label: Text('Light')),
-          ButtonSegment(value: ThemeMode.dark, icon: Icon(AppIcon.dark.of(context), size: 16), label: Text('Dark')),
+          ButtonSegment(value: ThemeMode.system, icon: Icon(AppIcon.auto.of(context), size: 16), label: Text('Auto'.tr)),
+          ButtonSegment(value: ThemeMode.light, icon: Icon(AppIcon.light.of(context), size: 16), label: Text('Light'.tr)),
+          ButtonSegment(value: ThemeMode.dark, icon: Icon(AppIcon.dark.of(context), size: 16), label: Text('Dark'.tr)),
         ],
         selected: c.settings.themeMode,
         onChanged: (v) => c.settings.themeMode = v,
@@ -233,7 +245,7 @@ final _categories = <_Category>[
       'Style',
       null,
       (c) => AppSegmented<UiStyle>(
-        segments: [for (final s in UiStyle.values) ButtonSegment(value: s, label: Text(s.label))],
+        segments: [for (final s in UiStyle.values) ButtonSegment(value: s, label: Text(s.label.tr))],
         selected: c.settings.uiStyle,
         onChanged: (v) => c.settings.uiStyle = v,
       ),
@@ -243,7 +255,7 @@ final _categories = <_Category>[
       'Text size',
       null,
       (c) => AppSegmented<TextSize>(
-        segments: [for (final s in TextSize.values) ButtonSegment(value: s, label: Text(s.label))],
+        segments: [for (final s in TextSize.values) ButtonSegment(value: s, label: Text(s.label.tr))],
         selected: c.settings.textSize,
         onChanged: (v) => c.settings.textSize = v,
       ),
@@ -253,7 +265,7 @@ final _categories = <_Category>[
       'Density',
       null,
       (c) => AppSegmented<UiDensity>(
-        segments: [for (final d in UiDensity.values) ButtonSegment(value: d, label: Text(d.label))],
+        segments: [for (final d in UiDensity.values) ButtonSegment(value: d, label: Text(d.label.tr))],
         selected: c.settings.density,
         onChanged: (v) => c.settings.density = v,
       ),
@@ -301,20 +313,20 @@ final _projectCategories = <_Category>[
     _Item(
       'Score',
       (c) => c.controller!.fileName ?? '',
-      (c) => OutlinedButton(onPressed: c.replaceScore, child: const Text('Replace…')),
+      (c) => OutlinedButton(onPressed: c.replaceScore, child: Text('Replace…'.tr)),
       keywords: 'replace score file musicxml mei import',
     ),
     _Item(
       'Recording',
-      (c) => c.controller!.track?.name ?? 'None.',
+      (c) => c.controller!.track?.name ?? 'None.'.tr,
       (c) => Builder(builder: (context) {
         final controller = c.controller!, busy = controller.isLoadingAudio;
         return Row(mainAxisSize: MainAxisSize.min, spacing: 8, children: [
           if (controller.track != null)
-            OutlinedButton(onPressed: busy ? null : controller.removeAudio, child: const Text('Remove')),
+            OutlinedButton(onPressed: busy ? null : controller.removeAudio, child: Text('Remove'.tr)),
           OutlinedButton(
             onPressed: busy ? null : () => pickAudio(context, controller),
-            child: Text(controller.track == null ? 'Add…' : 'Replace…'),
+            child: Text((controller.track == null ? 'Add…' : 'Replace…').tr),
           ),
         ]);
       }),
@@ -331,9 +343,10 @@ final _projectCategories = <_Category>[
     _Item(
       'Scrolling',
       (c) => switch (c.controller!.scrollFollow) {
-        0 => 'Glides from beat to beat: the speed changes only with the tempo.',
-        1 => 'Every note is under the playhead exactly as it sounds: slower through long notes, quicker through runs.',
-        final f => 'A blend: the beats land on time, and the speed follows the notes ${(f * 100).round()}% of the way.',
+        0 => 'Glides from beat to beat: the speed changes only with the tempo.'.tr,
+        1 => 'Every note is under the playhead exactly as it sounds: slower through long notes, quicker through runs.'.tr,
+        final f => 'A blend: the beats land on time, and the speed follows the notes {percent}% of the way.'
+            .fill({'percent': (f * 100).round()}),
       },
       (c) => _ScrollFollowSlider(controller: c.controller!),
       keywords: 'scroll speed smooth snap note beat follow onset glide motion pointer',
@@ -545,7 +558,8 @@ bool _animationIsDefault(_Context c) =>
 /// How many of the score's pairs share a staff.
 String _condensedText(_Context c) {
   final pairs = c.controller!.condensable;
-  return '${pairs.where((p) => c.controller!.condensed.contains(p.id)).length} of ${pairs.length} share a staff.';
+  return '{shared} of {all} share a staff.'
+      .fill({'shared': pairs.where((p) => c.controller!.condensed.contains(p.id)).length, 'all': pairs.length});
 }
 
 /// On while every pair shares a staff; turning it on or off turns them all.
@@ -579,12 +593,12 @@ class _CondensingPage extends StatelessWidget {
             for (final pair in pairs)
               _SettingRow(
                 title: controller.pairName(pair),
-                help: controller.pairs.contains(pair) ? 'Yours.' : null,
+                help: controller.pairs.contains(pair) ? 'Yours.'.tr : null,
                 control: Row(mainAxisSize: MainAxisSize.min, children: [
                   if (controller.pairs.contains(pair)) ...[
                     ToolbarButton(
                       icon: AppIcon.close.of(context),
-                      tooltip: 'Remove pair',
+                      tooltip: 'Remove pair'.tr,
                       onPressed: () => controller.removePair(pair),
                     ),
                     const SizedBox(width: 10),
@@ -700,23 +714,23 @@ String get _systemText {
 String get aboutText => 'Curator $_versionText\nVerovio $verovioVersion\n$_systemText';
 
 String _updateHelp(UpdateStatus status) => switch (status) {
-      UpdateIdle() => 'From GitHub.',
-      UpdateChecking() => 'Checking…',
-      UpToDate() => 'Curator is up to date.',
+      UpdateIdle() => 'From GitHub.'.tr,
+      UpdateChecking() => 'Checking…'.tr,
+      UpToDate() => 'Curator is up to date.'.tr,
       UpdateAvailable(:final release) when release.download == null =>
-        'Curator ${release.version} is available, but not yet for this system.',
-      UpdateAvailable(:final release) => 'Curator ${release.version} is available.',
-      UpdateDownloading(:final release) => 'Downloading ${release.version}…',
-      UpdateDownloaded(:final path) => 'Saved “${fileNameOf(path)}”. '
-          '${Platform.isWindows ? 'Close Curator, then replace its folder with the unzipped one.' : 'Unzip it and replace this app with it.'}',
-      UpdateFailed(:final message) => message,
+        'Curator {version} is available, but not yet for this system.'.fill({'version': release.version}),
+      UpdateAvailable(:final release) => 'Curator {version} is available.'.fill({'version': release.version}),
+      UpdateDownloading(:final release) => 'Downloading {version}…'.fill({'version': release.version}),
+      UpdateDownloaded(:final path) => '${'Saved “{name}”.'.fill({'name': fileNameOf(path)})} '
+          '${(Platform.isWindows ? 'Close Curator, then replace its folder with the unzipped one.' : 'Unzip it and replace this app with it.').tr}',
+      UpdateFailed(:final message) => message.tr,
     };
 
 String _autosaveLabel(Duration d) => switch (d) {
-      Duration.zero => 'Off',
-      Duration(inMinutes: 0, :final inSeconds) => 'Every $inSeconds seconds',
-      Duration(inMinutes: 1) => 'Every minute',
-      Duration(:final inMinutes) => 'Every $inMinutes minutes',
+      Duration.zero => 'Off'.tr,
+      Duration(inMinutes: 0, :final inSeconds) => 'Every {n} seconds'.fill({'n': inSeconds}),
+      Duration(inMinutes: 1) => 'Every minute'.tr,
+      Duration(:final inMinutes) => 'Every {n} minutes'.fill({'n': inMinutes}),
     };
 
 class _SettingsWindow extends StatefulWidget {
@@ -789,8 +803,14 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     return [
       for (final cat in _categories)
         for (final item in _shownItems(cat))
-          if ('${cat.label} ${item.title} ${item.keywords} ${item.help?.call(_ctx) ?? ''}'.toLowerCase().contains(q)) (cat, item),
+          if (_searched(cat, item).toLowerCase().contains(q)) (cat, item),
     ];
+  }
+
+  /// What the search looks in: [item]'s words in English and as shown.
+  String _searched(_Category cat, _Item item) {
+    final help = item.help?.call(_ctx) ?? '';
+    return '${cat.label} ${cat.label.trIn('page')} ${item.title} ${item.title.tr} ${item.group?.tr ?? ''} ${item.keywords} $help ${help.tr}';
   }
 
   /// The project closed under it (the menu bar works while it is open): it closes too
@@ -875,7 +895,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
             style: TextStyle(fontSize: carbon == null ? 13 : 14),
             decoration: InputDecoration(
               isDense: true,
-              hintText: 'Search',
+              hintText: 'Search'.tr,
               prefixIcon: Icon(AppIcon.search.of(context), size: 16, color: carbon?.textSecondary ?? colors.textMuted),
               prefixIconConstraints: BoxConstraints(minWidth: carbon == null ? 30 : 40),
               filled: true,
@@ -899,7 +919,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         for (final (i, cat) in _categories.indexed)
           _SidebarTile(
             icon: cat.icon.of(context),
-            label: cat.label,
+            label: cat.label.trIn('page'),
             selected: !searching && i == _page,
             onTap: () {
               _search.clear();
@@ -940,7 +960,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
                   padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
                   child: Center(
                     child: AppSegmented<int>(
-                      segments: [for (final (i, t) in tabs.indexed) ButtonSegment(value: i, label: Text(t.label))],
+                      segments: [for (final (i, t) in tabs.indexed) ButtonSegment(value: i, label: Text(t.label.tr))],
                       selected: tabs.indexOf(tab),
                       onChanged: (i) => setState(() => _lastTabs[cat.label] = i),
                     ),
@@ -952,13 +972,13 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         key: const ValueKey('search'),
         empty: matches.isEmpty
             ? widget.kind == _Window.project
-                ? 'Try another word, such as “font” or “transition”.'
-                : 'Try another word, such as “theme” or “update”.'
+                ? 'Try another word, such as “font” or “transition”.'.tr
+                : 'Try another word, such as “theme” or “update”.'.tr
             : null,
         groups: [
           for (final c in _categories)
             if (matches.where((m) => m.$1 == c).toList() case final inCat when inCat.isNotEmpty)
-              (c.label, [
+              (c.label.trIn('page'), [
                 for (final (_, item) in inCat) _row(item, withGroup: c.items.where((i) => i.title == item.title).length > 1),
               ]),
         ],
@@ -972,20 +992,20 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         padding: const EdgeInsets.only(left: 28, right: 10),
         child: _TitleBar(
             title: matches == null
-                ? cat.label
+                ? cat.label.trIn('page')
                 : matches.isEmpty
-                    ? 'No matching settings'
-                    : 'Search results',
+                    ? 'No matching settings'.tr
+                    : 'Search results'.tr,
             buttons: [
           if (matches == null && tabs != null)
-            _HeaderIcon(tooltip: 'Open in Window', icon: AppIcon.popOut, onPressed: () => _popOut(tab)),
+            _HeaderIcon(tooltip: 'Open in Window'.tr, icon: AppIcon.popOut, onPressed: () => _popOut(tab)),
           if (matches == null) ..._pageButtons(context, tab, _ctx),
           if (widget.kind == _Window.project && (widget.controller?.isReengraving ?? false))
             const Padding(
               padding: EdgeInsets.only(right: 8),
               child: SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
             ),
-          _HeaderIcon(tooltip: 'Close', icon: AppIcon.close, onPressed: () => Navigator.pop(context)),
+          _HeaderIcon(tooltip: 'Close'.tr, icon: AppIcon.close, onPressed: () => Navigator.pop(context)),
         ]),
       ),
       Divider(height: 1, color: colors.line),
@@ -1020,7 +1040,7 @@ Iterable<_Item> _shown(_Category cat, _Context ctx) => cat.items.where((item) =>
 // ("Size · Lyrics").
 Widget _rowOf(_Item item, _Context ctx, {bool withGroup = false}) => _SettingRow(
     key: ObjectKey(item),
-    title: withGroup && item.group != null ? '${item.title} · ${item.group}' : item.title,
+    title: withGroup && item.group != null ? '${item.title.tr} · ${item.group!.tr}' : item.title,
     note: item.note,
     help: item.help?.call(ctx),
     control: item.control(ctx));
@@ -1087,7 +1107,7 @@ class _TitleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(children: [
-        Text(title, maxLines: 1, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: context.colors.text)),
+        Text(title.tr, maxLines: 1, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: context.colors.text)),
         Expanded(
           child: FittedBox(
             fit: BoxFit.scaleDown,
@@ -1104,21 +1124,21 @@ class _SettingsFileButtons extends StatelessWidget {
   const _SettingsFileButtons(this.controller);
   final EditorController controller;
 
-  static const _types = [XTypeGroup(label: 'Curator settings', extensions: [SettingsFile.extension])];
+  static List<XTypeGroup> get _types => [XTypeGroup(label: 'Curator settings'.tr, extensions: const [SettingsFile.extension])];
 
   Future<void> _import(BuildContext context) async {
     final file = await openFile(acceptedTypeGroups: _types);
     if (file == null || !context.mounted) return;
-    await _guard(context, 'Couldn’t Import Settings', () async => controller.importSettings(await SettingsFile.read(file.path)));
+    await _guard(context, 'Couldn’t Import Settings'.tr, () async => controller.importSettings(await SettingsFile.read(file.path)));
   }
 
   Future<void> _export(BuildContext context) async {
     final location = await getSaveLocation(
-        acceptedTypeGroups: _types, suggestedName: '${stemOf(controller.fileName ?? 'Settings')}.${SettingsFile.extension}');
+        acceptedTypeGroups: _types, suggestedName: '${stemOf(controller.fileName ?? 'Settings'.tr)}.${SettingsFile.extension}');
     if (location == null || !context.mounted) return;
     final path = await confirmSavePath(context, location.path, SettingsFile.extension);
     if (path == null || !context.mounted) return;
-    await _guard(context, 'Couldn’t Export Settings', () => SettingsFile.write(path, controller.exportedSettings));
+    await _guard(context, 'Couldn’t Export Settings'.tr, () => SettingsFile.write(path, controller.exportedSettings));
   }
 
   static Future<void> _guard(BuildContext context, String title, Future<void> Function() action) async {
@@ -1131,7 +1151,7 @@ class _SettingsFileButtons extends StatelessWidget {
         builder: (context) => AppDialog(
           title: Text(title),
           content: SingleChildScrollView(child: Text(describeError(e))),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
         ),
       );
     }
@@ -1141,8 +1161,8 @@ class _SettingsFileButtons extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Wrap(spacing: 2, children: [
-          TextButton(onPressed: () => _import(context), child: const Text('Import…')),
-          TextButton(onPressed: () => _export(context), child: const Text('Export…')),
+          TextButton(onPressed: () => _import(context), child: Text('Import…'.tr)),
+          TextButton(onPressed: () => _export(context), child: Text('Export…'.tr)),
         ]),
       );
 }
@@ -1156,7 +1176,7 @@ class _HeaderIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => IconButton(
-        tooltip: tooltip,
+        tooltip: tooltip.tr,
         iconSize: 18,
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints.tightFor(width: 32, height: 32),
@@ -1238,14 +1258,14 @@ class _EngravingWindowState extends State<_EngravingWindow> {
     final at = clamp(_at ?? Offset(size.width - _width - 24, 72));
     final page = widget.page;
     final ctx = widget.ctx;
-    final title = _TitleBar(title: page.title ?? page.label, buttons: [
+    final title = _TitleBar(title: page.title ?? page.label.trIn('page'), buttons: [
       ..._pageButtons(context, page, ctx),
       if (_controller.isReengraving)
         const Padding(
           padding: EdgeInsets.only(right: 8),
           child: SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
         ),
-      _HeaderIcon(tooltip: 'Close', icon: AppIcon.close, onPressed: widget.onClose),
+      _HeaderIcon(tooltip: 'Close'.tr, icon: AppIcon.close, onPressed: widget.onClose),
     ]);
     return Positioned(
       left: at.dx,
@@ -1378,7 +1398,7 @@ class _SidebarTileState extends State<_SidebarTile> {
                 Icon(widget.icon, size: 16, color: k != null || tinted ? ink : colors.textMuted),
                 SizedBox(width: k != null ? 8 : 10),
                 Flexible(
-                  child: Text(widget.label,
+                  child: Text(widget.label.tr,
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                       style: TextStyle(
@@ -1427,8 +1447,8 @@ class _SaveDefaultButton extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (!isDefault) ...[
           Tip(
-            message: 'Use the saved defaults here',
-            child: OutlinedButton(style: style, onPressed: onReset, child: const Text('Reset to Default')),
+            message: 'Use the saved defaults here'.tr,
+            child: OutlinedButton(style: style, onPressed: onReset, child: Text('Reset to Default'.tr)),
           ),
           const SizedBox(width: 6),
         ],
@@ -1439,9 +1459,9 @@ class _SaveDefaultButton extends StatelessWidget {
                   style: style.copyWith(side: const WidgetStatePropertyAll(BorderSide(color: Colors.transparent))),
                   onPressed: null,
                   icon: Icon(AppIcon.check.of(context), size: 13),
-                  label: const Text('Default'),
+                  label: Text('Default'.tr),
                 )
-              : OutlinedButton(style: style, onPressed: onPressed, child: const Text('Save as Default')),
+              : OutlinedButton(style: style, onPressed: onPressed, child: Text('Save as Default'.tr)),
         ),
       ]),
     );
@@ -1465,7 +1485,7 @@ class _Page extends StatelessWidget {
           if (heading != null)
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 6),
-              child: Text(heading,
+              child: Text(heading.tr,
                   style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: colors.textMuted, letterSpacing: 0.2)),
             ),
           DecoratedBox(
@@ -1481,7 +1501,7 @@ class _Page extends StatelessWidget {
         if (groups.isEmpty && empty != null)
           Padding(
             padding: const EdgeInsets.only(top: 48),
-            child: Text(empty!, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: colors.textMuted)),
+            child: Text(empty!.tr, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: colors.textMuted)),
           ),
       ],
     );
@@ -1506,7 +1526,7 @@ class _SettingRow extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text.rich(TextSpan(children: [
-                TextSpan(text: title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
+                TextSpan(text: title.tr, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
                 if (note != null) TextSpan(text: '  $note', style: TextStyle(fontSize: 11.5, color: colors.textMuted)),
               ])),
               if (help != null) ...[
@@ -1514,7 +1534,7 @@ class _SettingRow extends StatelessWidget {
                 AnimatedSwitcher(
                   duration: motion(context, 120),
                   layoutBuilder: (current, previous) => Stack(alignment: Alignment.topLeft, children: [...previous, ?current]),
-                  child: Text(help!, key: ValueKey(help), style: TextStyle(fontSize: 12, height: 1.35, color: colors.textMuted)),
+                  child: Text(help!.tr, key: ValueKey(help), style: TextStyle(fontSize: 12, height: 1.35, color: colors.textMuted)),
                 ),
               ],
             ]),
@@ -1538,7 +1558,7 @@ class _Dropdown<T> extends StatelessWidget {
   Widget build(BuildContext context) => SettingsDropdown<T>(
         value: value,
         onChanged: onChanged,
-        items: [for (final v in values) DropdownMenuItem(value: v, child: Text(label(v)))],
+        items: [for (final v in values) DropdownMenuItem(value: v, child: Text(label(v).tr))],
       );
 }
 
@@ -1646,17 +1666,17 @@ class _InstrumentsPage extends StatelessWidget {
                       final name = await showNameGroupDialog(context, rename: g.name);
                       if (name != null) controller.renameNameGroup(g.id, name);
                     },
-                    child: const Text('Rename…'),
+                    child: Text('Rename…'.tr),
                   ),
                   ToolbarButton(
                     icon: AppIcon.close.of(context),
-                    tooltip: 'Remove group',
+                    tooltip: 'Remove group'.tr,
                     onPressed: () => controller.removeNameGroup(g.id),
                   ),
                 ] else if (controller.ownNameGroupColor(g.id))
                   IconButton(
                     icon: Icon(AppIcon.reset.of(context), size: 15),
-                    tooltip: 'Reset',
+                    tooltip: 'Reset'.tr,
                     visualDensity: VisualDensity.compact,
                     color: context.colors.textMuted,
                     onPressed: () => controller.setNameGroupColor(g.id, null),
@@ -1675,7 +1695,7 @@ class _InstrumentsPage extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 icon: Icon(AppIcon.add.of(context), size: 16),
-                label: const Text('Add Group…'),
+                label: Text('Add Group…'.tr),
                 onPressed: () async {
                   final name = await showNameGroupDialog(context);
                   if (name != null) controller.addNameGroup(name);
@@ -1694,7 +1714,7 @@ class _InstrumentsPage extends StatelessWidget {
                 if (controller.ownNameGroup(part))
                   IconButton(
                     icon: Icon(AppIcon.reset.of(context), size: 15),
-                    tooltip: 'Reset',
+                    tooltip: 'Reset'.tr,
                     visualDensity: VisualDensity.compact,
                     color: context.colors.textMuted,
                     onPressed: () => controller.resetNameGroup(part),
@@ -1706,7 +1726,7 @@ class _InstrumentsPage extends StatelessWidget {
                   items: [
                     for (final g in groups)
                       DropdownMenuItem(value: g.id, child: _GroupLabel(g)),
-                    const DropdownMenuItem(value: '', child: Text('None')),
+                    DropdownMenuItem(value: '', child: Text('None'.tr)),
                   ],
                   onChanged: (id) => controller.setNameGroup(part, id.isEmpty ? null : id),
                 ),
@@ -1729,7 +1749,7 @@ class _PlayheadColor extends StatelessWidget {
         if (controller.playheadColor != null)
           IconButton(
             icon: Icon(AppIcon.reset.of(context), size: 15),
-            tooltip: 'Reset',
+            tooltip: 'Reset'.tr,
             visualDensity: VisualDensity.compact,
             color: context.colors.textMuted,
             onPressed: () => controller.setPlayheadColor(null),
@@ -1757,7 +1777,7 @@ class _GroupLabel extends StatelessWidget {
               color: group.color, shape: AppStyle.of(context).rounded ? BoxShape.circle : BoxShape.rectangle),
         ),
         const SizedBox(width: 8),
-        Flexible(child: Text(group.name, overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text(group.name.tr, overflow: TextOverflow.ellipsis)),
       ]);
 }
 
@@ -1819,7 +1839,7 @@ class _ScrollFollowSlider extends StatelessWidget {
     final colors = context.colors;
     final label = TextStyle(fontSize: 12, color: colors.textMuted);
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      Text('Beats', style: label),
+      Text('Beats'.tr, style: label),
       SizedBox(
         width: 150,
         child: OverlaySemantics(
@@ -1833,7 +1853,7 @@ class _ScrollFollowSlider extends StatelessWidget {
           ),
         ),
       ),
-      Text('Notes', style: label),
+      Text('Notes'.tr, style: label),
       SliderValueField(
           value: controller.scrollFollow,
           min: 0,
@@ -1851,22 +1871,23 @@ class _UpdateControl extends StatelessWidget {
   const _UpdateControl({required this.updater});
   final Updater updater;
 
-  static String get _revealLabel => Platform.isMacOS
-      ? 'Show in Finder'
-      : Platform.isWindows
-          ? 'Show in Explorer'
-          : 'Open Folder';
+  static String get _revealLabel => (Platform.isMacOS
+          ? 'Show in Finder'
+          : Platform.isWindows
+              ? 'Show in Explorer'
+              : 'Open Folder')
+      .tr;
 
   @override
   Widget build(BuildContext context) {
-    final check = OutlinedButton(onPressed: updater.check, child: const Text('Check for Updates'));
+    final check = OutlinedButton(onPressed: updater.check, child: Text('Check for Updates'.tr));
     final Widget control = switch (updater.status) {
       UpdateIdle() || UpToDate() || UpdateFailed(release: null) => check,
       UpdateChecking() => const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)),
       UpdateAvailable(:final release) when release.download == null =>
-        OutlinedButton(onPressed: () => openInBrowser(release.pageUrl), child: const Text('Open Release Page')),
+        OutlinedButton(onPressed: () => openInBrowser(release.pageUrl), child: Text('Open Release Page'.tr)),
       UpdateAvailable(:final release) =>
-        FilledButton(onPressed: () => updater.download(release), child: Text('Download ${release.version}')),
+        FilledButton(onPressed: () => updater.download(release), child: Text('Download {version}'.fill({'version': release.version}))),
       UpdateDownloading(:final progress) => SizedBox(
           width: 140,
           child: LinearProgressIndicator(value: progress, borderRadius: AppStyle.of(context).radius(2)),
@@ -1874,7 +1895,7 @@ class _UpdateControl extends StatelessWidget {
       UpdateDownloaded(:final path) =>
         OutlinedButton(onPressed: () => revealInFileManager(path), child: Text(_revealLabel)),
       UpdateFailed(release: final release?) =>
-        OutlinedButton(onPressed: () => updater.download(release), child: const Text('Try Again')),
+        OutlinedButton(onPressed: () => updater.download(release), child: Text('Try Again'.tr)),
     };
     return AnimatedSwitcher(duration: motion(context, 120), child: control);
   }
@@ -1900,9 +1921,9 @@ class _ExtensionSettingsButton extends StatelessWidget {
             : () => showAppDialog<void>(
                   context: context,
                   builder: (context) => AppDialog(
-                    title: Text(extension.label),
+                    title: Text(extension.label.tr),
                     content: Builder(builder: (context) => page(context, settings)),
-                    actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
+                    actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('Done'.tr))],
                   ),
                 ),
         icon: Icon(AppIcon.settings.of(context)),
@@ -1922,7 +1943,7 @@ class _Link extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Tip(
-        message: 'Open in the browser',
+        message: 'Open in the browser'.tr,
         child: TextButton(
           onPressed: () => openInBrowser(url),
           // The website's lines up with the text above it.
@@ -1964,7 +1985,7 @@ class _CopyButtonState extends State<_CopyButton> {
 
   @override
   Widget build(BuildContext context) => Tip(
-        message: 'Copy',
+        message: 'Copy'.tr,
         child: IconButton(
           iconSize: 16,
           visualDensity: VisualDensity.compact,
@@ -2026,7 +2047,7 @@ class _AboutPage extends StatelessWidget {
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Curator', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: colors.text)),
                   Row(spacing: 6, children: [
-                    SelectableText('Version $appVersion ($appBuild)', style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                    SelectableText('Version {version}'.fill({'version': '$appVersion ($appBuild)'}), style: TextStyle(fontSize: 13, color: colors.textMuted)),
                     if (appCommit.isNotEmpty) _Pill(appCommit, mono: true),
                     const _CopyButton(),
                   ]),
@@ -2096,7 +2117,7 @@ class _LinkRowState extends State<_LinkRow> {
             decoration: BoxDecoration(color: _hover ? shade : shade.withValues(alpha: 0), borderRadius: style.radius(10)),
             child: Row(children: [
               Expanded(
-                child: Text(widget.title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
+                child: Text(widget.title.tr, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
               ),
               if (widget.value case final value?) ...[
                 Text(value, style: TextStyle(fontSize: 13, color: colors.textMuted)),

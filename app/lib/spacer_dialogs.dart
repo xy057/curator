@@ -6,6 +6,7 @@ import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// A vertical spacer's name, transposition, height, staff lines and whether the name and clef
 /// show at the left; Remove takes it out.
@@ -41,7 +42,7 @@ class _VerticalSpacerDialogState extends State<_VerticalSpacerDialog> {
   Widget build(BuildContext context) {
     final height = double.tryParse(_height.text.trim());
     final error = height == null || height < VerticalSpacer.minHeight || height > VerticalSpacer.maxHeight
-        ? 'Enter ${spacerNumber(VerticalSpacer.minHeight)} to ${spacerNumber(VerticalSpacer.maxHeight)} staff spaces'
+        ? 'Enter {min} to {max} staff spaces'.fill({'min': spacerNumber(VerticalSpacer.minHeight), 'max': spacerNumber(VerticalSpacer.maxHeight)})
         : null;
     void save() {
       if (error != null) return;
@@ -54,7 +55,7 @@ class _VerticalSpacerDialogState extends State<_VerticalSpacerDialog> {
     }
 
     return AppDialog(
-      title: const Text('Vertical Spacer'),
+      title: Text('Vertical Spacer'.tr),
       content: SizedBox(
         width: dialogWidth(context, 360),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -68,7 +69,7 @@ class _VerticalSpacerDialogState extends State<_VerticalSpacerDialog> {
                 label: 'Transposition',
                 items: [
                   for (final k in SpacerKey.values)
-                    DropdownMenuItem(value: k, child: Text(k == SpacerKey.c ? 'Concert pitch' : 'In ${k.label}')),
+                    DropdownMenuItem(value: k, child: Text(k == SpacerKey.c ? 'Concert pitch'.tr : 'In {key}'.fill({'key': k.label}))),
                 ],
                 onChanged: (k) => setState(() => _key = k ?? _key),
               ),
@@ -89,19 +90,19 @@ class _VerticalSpacerDialogState extends State<_VerticalSpacerDialog> {
           AppCheckRow(value: _frozen, onChanged: (on) => setState(() => _frozen = on ?? false), label: 'Name and clef'),
         ]),
       ),
-      status: error == null ? null : Text(error, style: TextStyle(color: context.colors.erase)),
+      status: error == null ? null : Text(error.tr, style: TextStyle(color: context.colors.erase)),
       leading: [
         TextButton(
           onPressed: () {
             c.spacers.removeVertical(widget.id);
             Navigator.pop(context);
           },
-          child: const Text('Remove'),
+          child: Text('Remove'.tr),
         ),
       ],
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: error == null ? save : null, child: const Text('Apply')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+        FilledButton(onPressed: error == null ? save : null, child: Text('Apply'.tr)),
       ],
     );
   }
@@ -134,7 +135,7 @@ class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
   Widget build(BuildContext context) {
     final width = double.tryParse(_width.text.trim());
     final error = width == null || width < HorizontalSpacer.minWidth || width > HorizontalSpacer.maxWidth
-        ? 'Enter ${spacerNumber(HorizontalSpacer.minWidth)} to ${spacerNumber(HorizontalSpacer.maxWidth)} staff spaces'
+        ? 'Enter {min} to {max} staff spaces'.fill({'min': spacerNumber(HorizontalSpacer.minWidth), 'max': spacerNumber(HorizontalSpacer.maxWidth)})
         : null;
     void save() {
       if (error != null) return;
@@ -143,7 +144,7 @@ class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
     }
 
     return AppDialog(
-      title: const Text('Horizontal Spacer'),
+      title: Text('Horizontal Spacer'.tr),
       content: SizedBox(
         width: dialogWidth(context, 280),
         child: AppTextField(
@@ -155,19 +156,19 @@ class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
           onSubmitted: (_) => save(),
         ),
       ),
-      status: error == null ? null : Text(error, style: TextStyle(color: context.colors.erase)),
+      status: error == null ? null : Text(error.tr, style: TextStyle(color: context.colors.erase)),
       leading: [
         TextButton(
           onPressed: () {
             c.spacers.removeHorizontal(widget.index);
             Navigator.pop(context);
           },
-          child: const Text('Remove'),
+          child: Text('Remove'.tr),
         ),
       ],
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: error == null ? save : null, child: const Text('Apply')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+        FilledButton(onPressed: error == null ? save : null, child: Text('Apply'.tr)),
       ],
     );
   }

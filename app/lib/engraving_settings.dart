@@ -15,6 +15,7 @@ import 'project_document.dart' show sampleProjectAsset;
 import 'project_file.dart';
 import 'scratch_space.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// An engraving option by plain name, under a heading: the ones most scores want changed on
 /// Project Settings ▸ Engraving ([all]), every other one on Advanced Engraving ([advanced]).
@@ -255,7 +256,7 @@ class EngravingControl extends StatelessWidget {
           value: value as String,
           width: 132,
           items: [
-            for (final c in option.choices) DropdownMenuItem(value: c, child: Text(setting.labels[c] ?? c)),
+            for (final c in option.choices) DropdownMenuItem(value: c, child: Text((setting.labels[c] ?? c).tr)),
           ],
           onChanged: (v) => target.set(option, v),
         ),

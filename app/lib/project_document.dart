@@ -10,6 +10,7 @@ import 'file_names.dart';
 import 'project_file.dart';
 import 'score_replacement.dart';
 import 'scratch_space.dart';
+import 'l10n/l10n.dart';
 
 /// The demo project, bundled with the app.
 const sampleProjectAsset = 'assets/demo/WI275 - 01 Intro.ccs';
@@ -86,7 +87,7 @@ class ProjectDocument extends ChangeNotifier {
         mediaPath: project.media?.path,
       );
       final missing = project.media?.missingPath;
-      recordingProblem = problem ?? (missing == null ? null : 'Can’t find the linked recording:\n$missing');
+      recordingProblem = problem ?? (missing == null ? null : '${'Can’t find the linked recording:'.tr}\n$missing');
     } catch (_) {
       ScratchSpace.release(mediaDirectory);
       rethrow;
@@ -190,7 +191,7 @@ class ProjectDocument extends ChangeNotifier {
   /// A name for Save As…: the project's, or the score's with .ccs.
   String get suggestedFileName {
     if (_path != null) return fileNameOf(_path!);
-    final name = controller.source?.name ?? 'Untitled';
+    final name = controller.source?.name ?? 'Untitled'.tr;
     return '${stemOf(name)}.${ProjectFile.extension}';
   }
 

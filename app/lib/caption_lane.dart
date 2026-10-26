@@ -9,6 +9,7 @@ import 'editor_controller.dart';
 import 'lanes_common.dart';
 import 'span_lane.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// The Captions lane (the Captions extension): a [SpanLane] whose stretches are the captions,
 /// changed as they are dragged. Drawing one asks for its text; double-click one for its text
@@ -45,9 +46,9 @@ class _CaptionLaneState extends State<CaptionLane> {
           color: colors.accentWash,
           trailing: Padding(
             padding: const EdgeInsets.only(right: 10),
-            child: Tip(message: 'Pinned', child: Icon(AppIcon.pin.of(context), size: 13, color: colors.textMuted)),
+            child: Tip(message: 'Pinned'.tr, child: Icon(AppIcon.pin.of(context), size: 13, color: colors.textMuted)),
           ),
-          child: const Text('Captions', style: TextStyle(fontWeight: FontWeight.w500)),
+          child: Text('Captions'.tr, style: TextStyle(fontWeight: FontWeight.w500)),
         ),
       ),
     );

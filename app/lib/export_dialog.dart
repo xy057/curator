@@ -23,6 +23,7 @@ import 'menu_kit.dart';
 import 'motion_settings.dart' show SliderValueField;
 import 'ui_kit.dart';
 import 'video_export.dart';
+import 'l10n/l10n.dart';
 
 /// File ▸ Export Video… (⌘E). A large still of the video on the left, the piece under it as a
 /// trimmer (the bars to export, their handles dragged or typed, and the still's time, dragged to
@@ -155,9 +156,9 @@ class _ExportDialogState extends State<_ExportDialog> {
 
   Future<void> _start() async {
     if (!_writable) return;
-    final codec = _format.codec, name = '${widget.suggestedName}${_whole ? '' : ' (bars $_first–$_last)'}';
+    final codec = _format.codec, name = '${widget.suggestedName}${_whole ? '' : ' ${'(bars {from}–{to})'.fill({'from': _first, 'to': _last})}'}';
     final location = await getSaveLocation(
-      acceptedTypeGroups: [if (!codec.isSequence) XTypeGroup(label: codec.typeLabel, extensions: [codec.extension])],
+      acceptedTypeGroups: [if (!codec.isSequence) XTypeGroup(label: codec.typeLabel.tr, extensions: [codec.extension])],
       suggestedName: codec.isSequence ? name : '$name.${codec.extension}',
     );
     if (location == null || !mounted) return;
@@ -269,13 +270,14 @@ class _ExportDialogState extends State<_ExportDialog> {
               _Stage.writing => 'Exporting Video…',
               _Stage.done => 'Video Exported',
               _Stage.failed => 'Couldn’t Export Video',
-            },
+            }
+                .tr,
             style: Theme.of(context).dialogTheme.titleTextStyle,
           ),
         ),
         ToolbarButton(
           icon: AppIcon.close.of(context),
-          tooltip: 'Close',
+          tooltip: 'Close'.tr,
           onPressed: _stage == _Stage.writing ? null : () => Navigator.pop(context),
         ),
       ]),
@@ -365,7 +367,7 @@ class _ExportDialogState extends State<_ExportDialog> {
           // Back to the whole piece; its room is kept so nothing jumps.
           Visibility.maintain(
             visible: !_whole,
-            child: ToolbarButton(icon: AppIcon.reset.of(context), tooltip: 'Whole piece', onPressed: _whole ? null : _setWhole),
+            child: ToolbarButton(icon: AppIcon.reset.of(context), tooltip: 'Whole piece'.tr, onPressed: _whole ? null : _setWhole),
           ),
         ]),
       ),
@@ -450,7 +452,7 @@ class _ExportDialogState extends State<_ExportDialog> {
         label: 'Paper',
         child: AppSegmented<VideoPaper>(
           expand: true,
-          segments: [for (final p in VideoPaper.values) ButtonSegment(value: p, label: Text(p.label))],
+          segments: [for (final p in VideoPaper.values) ButtonSegment(value: p, label: Text(p.label.tr))],
           selected: _settings.videoPaper,
           onChanged: (p) => setState(() => _settings.videoPaper = p),
         ),
@@ -533,20 +535,20 @@ class _ExportDialogState extends State<_ExportDialog> {
             const SizedBox(width: 16),
             ...switch (_stage) {
               _Stage.setup => [
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                  TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
                   const SizedBox(width: 8),
-                  FilledButton(onPressed: _writable ? _start : null, child: const Text('Export…')),
+                  FilledButton(onPressed: _writable ? _start : null, child: Text('Export…'.tr)),
                 ],
-              _Stage.writing => [TextButton(onPressed: _export.cancel, child: const Text('Cancel'))],
+              _Stage.writing => [TextButton(onPressed: _export.cancel, child: Text('Cancel'.tr))],
               _Stage.done => [
                   TextButton(onPressed: () => revealInFileManager(_output!), child: Text(_revealLabel)),
                   const SizedBox(width: 8),
-                  FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+                  FilledButton(onPressed: () => Navigator.pop(context), child: Text('Done'.tr)),
                 ],
               _Stage.failed => [
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                  TextButton(onPressed: () => Navigator.pop(context), child: Text('Close'.tr)),
                   const SizedBox(width: 8),
-                  FilledButton(onPressed: () => setState(() => _stage = _Stage.setup), child: const Text('Back')),
+                  FilledButton(onPressed: () => setState(() => _stage = _Stage.setup), child: Text('Back'.tr)),
                 ],
             },
           ]),
@@ -573,7 +575,7 @@ class _ExportDialogState extends State<_ExportDialog> {
             _settings.videoRatio.label,
             '${format.width} × ${format.height}',
             '${VideoFormat.rateLabel(format.fps)} fps',
-            if (length != null) '${_count(format.frameCount(length))} frames',
+            if (length != null) '{n} frames'.fill({'n': _count(format.frameCount(length))}),
           ].join(' · '),
           style: muted,
           overflow: TextOverflow.ellipsis,
@@ -582,7 +584,7 @@ class _ExportDialogState extends State<_ExportDialog> {
       const SizedBox(width: 14),
       Icon(sound == null ? AppIcon.mute.of(context) : AppIcon.music.of(context), size: 15, color: colors.textMuted),
       const SizedBox(width: 4),
-      Flexible(child: Text(sound?.name ?? 'Silent', style: muted, overflow: TextOverflow.ellipsis)),
+      Flexible(child: Text(sound?.name ?? 'Silent'.tr, style: muted, overflow: TextOverflow.ellipsis)),
     ]);
   }
 
@@ -598,8 +600,11 @@ class _ExportDialogState extends State<_ExportDialog> {
       Flexible(
         child: Text(
           p == null
-              ? 'Starting…'
-              : 'Frame ${_count(p.frame)} of ${_count(p.frames)}${left == null ? '' : ' · about ${_remaining(left)} left'}',
+              ? 'Starting…'.tr
+              : [
+                  'Frame {n} of {all}'.fill({'n': _count(p.frame), 'all': _count(p.frames)}),
+                  if (left != null) 'about {time} left'.fill({'time': _remaining(left)}),
+                ].join(' · '),
           style: _muted(context),
           overflow: TextOverflow.ellipsis,
         ),
@@ -610,7 +615,7 @@ class _ExportDialogState extends State<_ExportDialog> {
   Widget _done(BuildContext context) => Row(children: [
         Icon(AppIcon.done.of(context), size: 18, color: context.colors.accent),
         const SizedBox(width: 8),
-        Flexible(child: Text('Saved “${fileNameOf(_output!)}”.', overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text('Saved “{name}”.'.fill({'name': fileNameOf(_output!)}), overflow: TextOverflow.ellipsis)),
       ]);
 
   Widget _failed(BuildContext context) => Row(children: [
@@ -625,11 +630,12 @@ class _ExportDialogState extends State<_ExportDialog> {
         ),
       ]);
 
-  static String get _revealLabel => Platform.isMacOS
-      ? 'Show in Finder'
-      : Platform.isWindows
-          ? 'Show in Explorer'
-          : 'Open Folder';
+  static String get _revealLabel => (Platform.isMacOS
+          ? 'Show in Finder'
+          : Platform.isWindows
+              ? 'Show in Explorer'
+              : 'Open Folder')
+      .tr;
 
   static String _clock(double seconds) {
     final s = seconds.round();
@@ -637,7 +643,7 @@ class _ExportDialogState extends State<_ExportDialog> {
   }
 
   static String _remaining(Duration d) =>
-      d.inSeconds < 60 ? '${d.inSeconds} seconds' : '${(d.inSeconds / 60).ceil()} minutes';
+      d.inSeconds < 60 ? '{n} seconds'.fill({'n': d.inSeconds}) : '{n} minutes'.fill({'n': (d.inSeconds / 60).ceil()});
 
   static String _count(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+$)'), (_) => ',');
 }
@@ -774,8 +780,8 @@ class _TrimmerState extends State<_Trimmer> {
                 }
               : null,
           child: Semantics(
-            label: 'Bars and still',
-            value: w.first == null ? null : 'Bars ${w.first} to ${w.last}',
+            label: 'Bars and still'.tr,
+            value: w.first == null ? null : 'Bars {from} to {to}'.fill({'from': w.first, 'to': w.last}),
             child: SizedBox(
               height: _Trimmer.height,
               width: width,
@@ -897,7 +903,7 @@ class _Select<T> extends StatelessWidget {
       onChanged: (v) => v == null ? null : onChanged(v),
       items: [
         for (final (v, name, enabled) in items)
-          DropdownMenuItem<T>(value: v, enabled: enabled, child: Text(name, overflow: TextOverflow.ellipsis)),
+          DropdownMenuItem<T>(value: v, enabled: enabled, child: Text(name.tr, overflow: TextOverflow.ellipsis)),
       ],
     );
   }
@@ -1023,10 +1029,10 @@ class _OverflowNotice extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Notation runs off the frame', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: text)),
+              Text('Notation runs off the frame'.tr, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: text)),
               const SizedBox(height: 2),
               // On Refined's wash, a quieter shade of the wash's own hue, not a grey.
-              Text('Bars ${bars.join(', ')}',
+              Text('Bars {bars}'.fill({'bars': bars.join(', ')}),
                   style: TextStyle(fontSize: 13, color: k?.textSecondary ?? Color.lerp(colors.text, error, 0.4))),
             ]),
           ),
@@ -1052,7 +1058,7 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget row = Row(children: [
-      SizedBox(width: 96, child: Text(label, style: TextStyle(fontSize: 14, color: context.colors.textMuted))),
+      SizedBox(width: 96, child: Text(label.tr, style: TextStyle(fontSize: 14, color: context.colors.textMuted))),
       Expanded(child: Align(alignment: Alignment.centerLeft, child: child)),
     ]);
     // A clear box: the gaps between label and control are hit too.
@@ -1074,7 +1080,7 @@ class _Heading extends StatelessWidget {
           height: 24,
           child: Row(children: [
             Expanded(
-              child: Text(text,
+              child: Text(text.tr,
                   style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: context.colors.textMuted)),
             ),
             // A button keeps its 32 points, overhanging the heading's line rather than pushing the rows down.

@@ -5,6 +5,7 @@ import 'app_colors.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// Project Settings ▸ Extensions ▸ Captions ▸ settings: how captions look in every project: font,
 /// countdown, size, alignment and a backing. A project
@@ -37,12 +38,12 @@ class _CaptionSettingsState extends State<CaptionSettings> {
         Widget row(String label, Widget field) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(children: [
-                SizedBox(width: 88, child: Text(label)),
+                SizedBox(width: 88, child: Text(label.tr)),
                 Expanded(child: Align(alignment: Alignment.centerLeft, child: field)),
               ]),
             );
         Widget segments<T>(T value, List<(T, String)> choices, ValueChanged<T> onChanged) => AppSegmented<T>(
-              segments: [for (final (v, label) in choices) ButtonSegment(value: v, label: Text(label))],
+              segments: [for (final (v, label) in choices) ButtonSegment(value: v, label: Text(label.tr))],
               selected: value,
               onChanged: onChanged,
             );
@@ -66,7 +67,7 @@ class _CaptionSettingsState extends State<CaptionSettings> {
                   requestFocusOnTap: true,
                   menuHeight: 320,
                   dropdownMenuEntries: [
-                    const DropdownMenuEntry(value: '', label: 'Score text'),
+                    DropdownMenuEntry(value: '', label: 'Score text'.tr),
                     for (final f in families) DropdownMenuEntry(value: f, label: f),
                   ],
                   onSelected: (f) {
@@ -145,7 +146,7 @@ class _PreviewPainter extends CustomPainter {
   final CaptionStyle style;
   final Color ink, paper;
 
-  static const _captions = [Caption(0, 1, 'The *horns* answer, softly')];
+  static List<Caption> get _captions => [Caption(0, 1, 'The *horns* answer, softly'.tr)];
 
   @override
   void paint(Canvas canvas, Size size) {

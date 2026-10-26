@@ -17,6 +17,7 @@ import 'lanes_common.dart' show isCommandPressed;
 import 'spacer_dialogs.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
+import 'l10n/l10n.dart';
 
 part 'score_view/attach_image.dart';
 part 'score_view/spacer_handles.dart';
@@ -131,48 +132,48 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage 
       if (patch >= c.images.patches.length) return const []; // removed (the menu is closing)
       final cropping = c.images.cropping && c.images.selected == patch;
       return [
-        MenuItemButton(onPressed: () => c.images.select(patch, crop: !cropping), child: Text(cropping ? 'Done' : 'Crop')),
+        MenuItemButton(onPressed: () => c.images.select(patch, crop: !cropping), child: Text((cropping ? 'Done' : 'Crop').tr)),
         CheckboxMenuButton(
           value: c.images.patches[patch].ink,
           onChanged: (on) => c.images.update(patch, c.images.patches[patch].copyWith(ink: on)),
-          child: const Text('Score Ink'),
+          child: Text('Score Ink'.tr),
         ),
         MenuItemButton(
           onPressed: () => c.images.remove(patch),
           shortcut: const SingleActivator(LogicalKeyboardKey.backspace),
-          child: const Text('Remove'),
+          child: Text('Remove'.tr),
         ),
       ];
     }
     if (at.caption case final i?) {
       if (i >= c.captions.captions.length) return const [];
       return [
-        MenuItemButton(onPressed: () => showCaptionDialog(context, c, index: i), child: const Text('Edit Caption…')),
-        MenuItemButton(onPressed: () => c.captions.remove(i), child: const Text('Remove Caption')),
+        MenuItemButton(onPressed: () => showCaptionDialog(context, c, index: i), child: Text('Edit Caption…'.tr)),
+        MenuItemButton(onPressed: () => c.captions.remove(i), child: Text('Remove Caption'.tr)),
       ];
     }
     if (at.gap case final i?) {
       if (i >= c.spacers.horizontal.length) return const [];
       return [
-        MenuItemButton(onPressed: () => showHorizontalSpacerDialog(context, c, i), child: const Text('Edit Spacer…')),
-        MenuItemButton(onPressed: () => c.spacers.removeHorizontal(i), child: const Text('Remove Spacer')),
+        MenuItemButton(onPressed: () => showHorizontalSpacerDialog(context, c, i), child: Text('Edit Spacer…'.tr)),
+        MenuItemButton(onPressed: () => c.spacers.removeHorizontal(i), child: Text('Remove Spacer'.tr)),
       ];
     }
     if (at.spacer case final id?) {
       if (c.spacers.verticalOf(id) == null) return const [];
       return [
-        MenuItemButton(onPressed: () => showVerticalSpacerDialog(context, c, id), child: const Text('Edit Spacer…')),
-        MenuItemButton(onPressed: () => c.spacers.removeVertical(id), child: const Text('Remove Spacer')),
+        MenuItemButton(onPressed: () => showVerticalSpacerDialog(context, c, id), child: Text('Edit Spacer…'.tr)),
+        MenuItemButton(onPressed: () => c.spacers.removeVertical(id), child: Text('Remove Spacer'.tr)),
       ];
     }
     final mac = defaultTargetPlatform == TargetPlatform.macOS;
     return [
       if (c.images.enabled) ...[
-        MenuItemButton(onPressed: () => _addFromFile(at), child: const Text('Add Image…')),
+        MenuItemButton(onPressed: () => _addFromFile(at), child: Text('Add Image…'.tr)),
         MenuItemButton(
           onPressed: () => _paste(at),
           shortcut: SingleActivator(LogicalKeyboardKey.keyV, meta: mac, control: !mac),
-          child: const Text('Paste'),
+          child: Text('Paste'.tr),
         ),
       ],
       if (c.captions.enabled)
@@ -181,7 +182,7 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage 
               final draft? => () => showCaptionDialog(context, c, draft: draft),
               null => null, // no room: the captions there run on to the end
             },
-            child: const Text('Add Caption…')),
+            child: Text('Add Caption…'.tr)),
     ];
   }
   @override
@@ -289,7 +290,7 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage 
             child: Row(children: [
               const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
               const SizedBox(width: 6),
-              Text('Engraving…', style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
+              Text('Engraving…'.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
             ]),
           ),
       ]);

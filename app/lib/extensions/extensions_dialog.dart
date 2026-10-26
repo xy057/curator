@@ -5,6 +5,7 @@ import '../dialog_kit.dart';
 import '../editor_controller.dart';
 import '../ui_kit.dart';
 import 'extension.dart';
+import '../l10n/l10n.dart';
 
 /// After a project opens: when it uses extensions it never chose to have on or off, lists them
 /// with a switch each (and one for all), so it can show as it was made. The project keeps what
@@ -34,14 +35,14 @@ class ExtensionsDialog extends StatelessWidget {
         void setAll(bool on) => controller.setExtensions({for (final e in extensions) e.id: on});
 
         return AppDialog(
-          title: const Text('Extensions in this project'),
+          title: Text('Extensions in this project'.tr),
           divided: true,
           content: SizedBox(
             width: dialogWidth(context, 360),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (extensions.length > 1) ...[
                 _SwitchRow(
-                  label: const Text('All', style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: Text('All'.tr, style: TextStyle(fontWeight: FontWeight.w600)),
                   value: allOn,
                   onChanged: setAll,
                 ),
@@ -56,7 +57,7 @@ class ExtensionsDialog extends StatelessWidget {
                     final e = extensions[i];
                     return _SwitchRow(
                       icon: e.icon(context),
-                      label: Text(e.label),
+                      label: Text(e.label.tr),
                       value: e.isOn(controller),
                       onChanged: (on) => e.set(controller, on),
                     );
@@ -65,7 +66,7 @@ class ExtensionsDialog extends StatelessWidget {
               ),
             ]),
           ),
-          actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
+          actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('Done'.tr))],
         );
       },
     );

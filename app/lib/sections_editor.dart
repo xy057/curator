@@ -9,6 +9,7 @@ import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
 import 'package:score_engine/score_engine.dart';
+import 'l10n/l10n.dart';
 
 /// Project Settings ▸ Sections: the instruments top to bottom as a score's staves, bracketed as
 /// the score brackets them ([CuratedScene.sections]). A bracket's end is dragged to take in or
@@ -253,9 +254,9 @@ class _SectionsEditorState extends State<SectionsEditor> {
       Padding(
         padding: const EdgeInsets.fromLTRB(14, 10, 12, 4),
         child: Wrap(alignment: WrapAlignment.end, spacing: 8, children: [
-          OutlinedButton(onPressed: _selectedRuns.isEmpty ? null : _bracket, child: const Text('Bracket')),
-          OutlinedButton(onPressed: _canUnbracket ? _unbracket : null, child: const Text('Unbracket')),
-          OutlinedButton(onPressed: controller.hasOwnSections ? controller.resetSections : null, child: const Text('Reset')),
+          OutlinedButton(onPressed: _selectedRuns.isEmpty ? null : _bracket, child: Text('Bracket'.tr)),
+          OutlinedButton(onPressed: _canUnbracket ? _unbracket : null, child: Text('Unbracket'.tr)),
+          OutlinedButton(onPressed: controller.hasOwnSections ? controller.resetSections : null, child: Text('Reset'.tr)),
         ]),
       ),
       Expanded(

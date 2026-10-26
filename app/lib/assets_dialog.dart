@@ -7,6 +7,7 @@ import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'image_patch.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// The images the project keeps (Attach Image), each with where it is used: a use's bar
 /// locates it, Remove takes the image off the score everywhere (one Undo step). Below them
@@ -28,12 +29,12 @@ class AssetsDialog extends StatelessWidget {
         final unused = open ? controller.images.unused : const <PatchImage>[];
         final muted = TextStyle(color: context.colors.textMuted);
         return AppDialog(
-          title: const Text('Assets'),
+          title: Text('Assets'.tr),
           content: SizedBox(
             width: dialogWidth(context, 480),
             height: stored.isEmpty && unused.isEmpty ? 96 : 360,
             child: stored.isEmpty && unused.isEmpty
-                ? Center(child: Text('No images', style: muted))
+                ? Center(child: Text('No images'.tr, style: muted))
                 : ListView(children: [
                     for (final (i, image) in stored.indexed) ...[
                       if (i > 0) const Divider(height: 1),
@@ -42,7 +43,7 @@ class AssetsDialog extends StatelessWidget {
                     if (unused.isNotEmpty)
                       Padding(
                         padding: EdgeInsets.only(top: stored.isEmpty ? 0 : 16, bottom: 4),
-                        child: Text('Unused', style: muted.copyWith(fontSize: 12, fontWeight: FontWeight.w600)),
+                        child: Text('Unused'.tr, style: muted.copyWith(fontSize: 12, fontWeight: FontWeight.w600)),
                       ),
                     for (final (i, image) in unused.indexed) ...[
                       if (i > 0) const Divider(height: 1),
@@ -51,9 +52,9 @@ class AssetsDialog extends StatelessWidget {
                   ]),
           ),
           divided: true,
-          leading: [TextButton(onPressed: unused.isEmpty ? null : controller.images.purgeUnused, child: const Text('Remove Unused'))],
+          leading: [TextButton(onPressed: unused.isEmpty ? null : controller.images.purgeUnused, child: Text('Remove Unused'.tr))],
           actions: [
-            FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+            FilledButton(onPressed: () => Navigator.pop(context), child: Text('Done'.tr)),
           ],
         );
       },
@@ -99,7 +100,7 @@ class _AssetRow extends StatelessWidget {
             Wrap(spacing: 2, children: [
               for (final i in uses)
                 Tip(
-                  message: 'Show in Score',
+                  message: 'Show in Score'.tr,
                   child: TextButton(
                     style: TextButton.styleFrom(
                         minimumSize: const Size(0, 26), padding: const EdgeInsets.symmetric(horizontal: 6), visualDensity: VisualDensity.compact),
@@ -107,7 +108,7 @@ class _AssetRow extends StatelessWidget {
                       Navigator.pop(context);
                       images.locate(i);
                     },
-                    child: Text('Bar ${controller.beats.format(images.patches[i].quarter, compact: true)}',
+                    child: Text('Bar {bar}'.fill({'bar': controller.beats.format(images.patches[i].quarter, compact: true)}),
                         style: const TextStyle(fontSize: 12.5)),
                   ),
                 ),
@@ -115,7 +116,7 @@ class _AssetRow extends StatelessWidget {
           ]),
         ),
         if (uses.isNotEmpty)
-          ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove', onPressed: () => images.removeImage(image.id)),
+          ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove'.tr, onPressed: () => images.removeImage(image.id)),
       ]),
     );
   }

@@ -10,6 +10,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:score_engine/score_engine.dart';
 import 'package:vector_graphics_compiler/vector_graphics_compiler.dart' as vgc;
+import 'l10n/l10n.dart';
 
 /// Vector images are SVG; raster images PNG or JPEG.
 enum ImageKind {
@@ -20,7 +21,7 @@ enum ImageKind {
   final List<String> extensions;
 
   /// What Add Image… offers: either kind.
-  static const types = XTypeGroup(label: 'Image', extensions: ['svg', 'png', 'jpg', 'jpeg']);
+  static XTypeGroup get types => XTypeGroup(label: 'Image'.tr, extensions: const ['svg', 'png', 'jpg', 'jpeg']);
 
   static ImageKind? ofPath(String path) {
     final ext = path.split('.').last.toLowerCase();
@@ -92,7 +93,7 @@ class PatchImage {
     } on _Refused catch (e) {
       throw FormatException(e.message);
     } catch (e) {
-      throw FormatException('Couldn’t read this ${kind == ImageKind.vector ? 'SVG' : 'PNG or JPEG'}.');
+      throw FormatException((kind == ImageKind.vector ? 'Couldn’t read this SVG.' : 'Couldn’t read this PNG or JPEG.').tr);
     }
   }
 

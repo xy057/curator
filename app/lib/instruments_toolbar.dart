@@ -7,6 +7,7 @@ import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// Instruments tab tools (right of the tab switch). Every button explains itself on hover.
 class InstrumentsToolbar extends StatelessWidget {
@@ -15,9 +16,9 @@ class InstrumentsToolbar extends StatelessWidget {
 
   /// Each tool's icon and hover text: its name, then what each key changes.
   static Map<LaneTool, (AppIcon, String)> get _tools => {
-        LaneTool.select: (AppIcon.pointer, 'Select (V)\n${shortcut('⇧ add · ⌘ toggle, no snap · ⌥ draw')}'),
-        LaneTool.draw: (AppIcon.draw, 'Draw (D)\n${shortcut('⌘ no snap · ⌥ erase')}'),
-        LaneTool.erase: (AppIcon.erase, 'Erase (E)\n${shortcut('⌘ no snap · ⌥ draw')}'),
+        LaneTool.select: (AppIcon.pointer, '${'Select (V)'.tr}\n${shortcut('⇧ add · ⌘ toggle, no snap · ⌥ draw'.tr)}'),
+        LaneTool.draw: (AppIcon.draw, '${'Draw (D)'.tr}\n${shortcut('⌘ no snap · ⌥ erase'.tr)}'),
+        LaneTool.erase: (AppIcon.erase, '${'Erase (E)'.tr}\n${shortcut('⌘ no snap · ⌥ draw'.tr)}'),
       };
 
   @override
@@ -46,15 +47,15 @@ class InstrumentsToolbar extends StatelessWidget {
                   : Row(key: const ValueKey('selection'), mainAxisSize: MainAxisSize.min, children: [
                       ToolbarButton(
                         icon: AppIcon.trimStart.of(context),
-                        tooltip: 'Start at the playhead ([)',
+                        tooltip: 'Start at the playhead ([)'.tr,
                         onPressed: () => c.lanes.trimToPlayhead(start: true),
                       ),
                       ToolbarButton(
                         icon: AppIcon.trimEnd.of(context),
-                        tooltip: 'End at the playhead (])',
+                        tooltip: 'End at the playhead (])'.tr,
                         onPressed: () => c.lanes.trimToPlayhead(start: false),
                       ),
-                      ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove (Delete)', onPressed: c.commands.delete),
+                      ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove (Delete)'.tr, onPressed: c.commands.delete),
                       const ToolbarDivider(),
                       _TransitionMenu(controller: c),
                       const ToolbarDivider(),
@@ -63,12 +64,12 @@ class InstrumentsToolbar extends StatelessWidget {
             _TidyMenu(controller: c, lanes: lanes.length),
             ToolbarButton(
               icon: AppIcon.autoCurate.of(context),
-              tooltip: 'Auto-curate',
+              tooltip: 'Auto-curate'.tr,
               onPressed: c.lanes.autoCurate,
             ),
             ToolbarButton(
               icon: AppIcon.clearLanes.of(context),
-              tooltip: 'Clear all lanes',
+              tooltip: 'Clear all lanes'.tr,
               onPressed: c.lanes.clear,
             ),
           ],
@@ -85,17 +86,21 @@ class InstrumentsToolbar extends StatelessWidget {
       final (from, to) = (c.beats.format(ref.region.start), c.beats.format(ref.region.end));
       return '${c.laneName(part)} · ${switch (edges) {
         RegionEdges.both => '$from → $to',
-        RegionEdges.start => 'start ($from)',
-        RegionEdges.end => 'end ($to)',
+        RegionEdges.start => 'start ({at})'.fill({'at': from}),
+        RegionEdges.end => 'end ({at})'.fill({'at': to}),
       }}';
     }
     if (selected.isNotEmpty) {
       final whole = selected.values.where((e) => e == RegionEdges.both).length, edges = selected.length - whole;
-      final what = [if (whole > 0) '$whole ${whole == 1 ? 'region' : 'regions'}', if (edges > 0) '$edges ${edges == 1 ? 'edge' : 'edges'}'];
-      return '${what.join(', ')} in ${lanes.length} ${lanes.length == 1 ? 'lane' : 'lanes'} · ${shortcut('←/→ a bar (⇧ a beat)')}';
+      final what = [
+        if (whole > 0) (whole == 1 ? '1 region' : '{n} regions').fill({'n': whole}),
+        if (edges > 0) (edges == 1 ? '1 edge' : '{n} edges').fill({'n': edges}),
+      ].join(', '.tr);
+      final where = (lanes.length == 1 ? '{what} in 1 lane' : '{what} in {n} lanes').fill({'what': what, 'n': lanes.length});
+      return '$where · ${shortcut('←/→ a bar (⇧ a beat)'.tr)}';
     }
     if (lanes.length == 1) return c.laneName(score.metadata.parts.firstWhere((p) => p.id == lanes.single));
-    if (lanes.isNotEmpty) return '${lanes.length} lanes';
+    if (lanes.isNotEmpty) return '{n} lanes'.fill({'n': lanes.length});
     return null;
   }
 }
@@ -108,12 +113,11 @@ class _TidyMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final where = lanes == 0 ? 'all lanes' : '$lanes selected ${lanes == 1 ? 'lane' : 'lanes'}';
-    String bars(double n) => n == 1 ? '1 Bar' : '${n.toStringAsFixed(0)} Bars';
+    String bars(double n) => (n == 1 ? '1 Bar' : '{n} Bars').fill({'n': n.toStringAsFixed(0)});
     // Its tooltip is an overlay: a semantics node of its own (see OverlaySemantics).
     return OverlaySemantics(
       child: AppPopupMenuButton<void Function()>(
-        tooltip: 'Tidy $where',
+        tooltip: switch (lanes) { 0 => 'Tidy all lanes'.tr, 1 => 'Tidy 1 selected lane'.tr, _ => 'Tidy {n} selected lanes'.fill({'n': lanes}) },
         iconSize: 18,
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 280),
@@ -125,19 +129,19 @@ class _TidyMenu extends StatelessWidget {
         icon: Icon(AppIcon.tidy.of(context)),
         onSelected: (action) => action(),
         itemBuilder: (context) => [
-          menuHeader(context, lanes == 0 ? 'Tidy All Lanes' : 'Tidy $lanes Selected ${lanes == 1 ? 'Lane' : 'Lanes'}'),
+          menuHeader(context, switch (lanes) { 0 => 'Tidy All Lanes'.tr, 1 => 'Tidy 1 Selected Lane'.tr, _ => 'Tidy {n} Selected Lanes'.fill({'n': lanes}) }),
           for (final n in const [1.0, 2.0, 4.0])
             menuItem(
               context,
               value: () => controller.lanes.fillGaps(n),
-              child: Text('Bridge Rests Up to ${bars(n)}'),
+              child: Text('Bridge Rests Up to {bars}'.fill({'bars': bars(n)})),
             ),
           menuDivider(context),
           for (final n in const [1.0, 2.0])
             menuItem(
               context,
               value: () => controller.lanes.removeShort(n),
-              child: Text('Remove Regions Shorter Than ${bars(n)}'),
+              child: Text('Remove Regions Shorter Than {bars}'.fill({'bars': bars(n)})),
             ),
         ],
       ),
@@ -161,13 +165,13 @@ class _TransitionMenu extends StatelessWidget {
     final values = controller.lanes.selectedTransitions;
     final value = values.length == 1 ? values.single : _project;
     final (label, tip) = switch (values.length) {
-      1 when values.single == null => ('$project s', "the project's"),
-      1 => ('${values.single} s', 'their own'),
-      _ => ('Mixed', 'mixed'),
+      1 when values.single == null => ('{n} s'.fill({'n': project}), "Transition (the project's)".tr),
+      1 => ('{n} s'.fill({'n': values.single}), 'Transition (their own)'.tr),
+      _ => ('Mixed'.tr, 'Transition (mixed)'.tr),
     };
     return OverlaySemantics(
       child: AppPopupMenuButton<double>(
-        tooltip: 'Transition ($tip)',
+        tooltip: tip,
         position: PopupMenuPosition.under,
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 32),
@@ -177,10 +181,10 @@ class _TransitionMenu extends StatelessWidget {
         onSelected: (s) => controller.lanes.setTransition(s == _project ? null : s),
         itemBuilder: (context) => [
           checkedMenuItem(context,
-              value: _project, checked: values.length == 1 && value == null, child: Text("Project's ($project s)")),
+              value: _project, checked: values.length == 1 && value == null, child: Text("Project's ({n} s)".fill({'n': project}))),
           menuDivider(context),
           for (final s in {...AppSettings.transitionChoices, for (final v in values) ?v}.toList()..sort())
-            checkedMenuItem(context, value: s, checked: values.length == 1 && value == s, child: Text('$s s')),
+            checkedMenuItem(context, value: s, checked: values.length == 1 && value == s, child: Text('{n} s'.fill({'n': s}))),
         ],
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(AppIcon.transition.of(context), size: 16, color: colors.textMuted),

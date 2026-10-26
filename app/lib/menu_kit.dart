@@ -4,6 +4,7 @@ import 'package:flutter/semantics.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'ui_kit.dart';
+import 'l10n/l10n.dart';
 
 /// A popup menu's row: a desktop menu's ([AppStyle.menuRow]), not Material's 48 px.
 double menuRowHeight(BuildContext context) => AppStyle.of(context).menuRow;
@@ -25,7 +26,7 @@ PopupMenuItem<T> menuHeader<T>(BuildContext context, String text) => PopupMenuIt
       enabled: false,
       height: menuRowHeight(context),
       padding: _itemPadding(context),
-      child: Text(text, style: TextStyle(fontSize: 12, letterSpacing: AppStyle.of(context).isCarbon ? 0.32 : null)),
+      child: Text(text.tr, style: TextStyle(fontSize: 12, letterSpacing: AppStyle.of(context).isCarbon ? 0.32 : null)),
     );
 
 /// A [PopupMenuDivider] with the space of a [menuRowHeight]'s row.
@@ -86,7 +87,7 @@ class AppPopupMenuButton<T> extends StatelessWidget {
     return PopupMenuButton<T>(
       itemBuilder: itemBuilder,
       onSelected: onSelected,
-      tooltip: tooltip,
+      tooltip: tooltip?.tr,
       position: position,
       style: style,
       icon: icon,
@@ -311,7 +312,7 @@ class SettingsDropdown<T> extends StatelessWidget {
       field,
       Padding(
         padding: EdgeInsets.only(left: k != null ? 0 : 10, top: 4),
-        child: Text(error, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.error)),
+        child: Text(error.tr, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.error)),
       ),
     ]);
   }

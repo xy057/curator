@@ -12,6 +12,7 @@ import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'file_names.dart';
 import 'media_converter.dart';
+import 'l10n/l10n.dart';
 
 /// A video's size: its short side in pixels ("1080p" is 1080 pixels high when wide, 1080
 /// wide when tall), the long one following from the [VideoRatio]. Every size is laid out
@@ -613,11 +614,11 @@ class VideoExport {
     final encoder = await VideoEncoder.probe(ffmpeg, codec);
     if (encoder == null) {
       throw VideoExportException(
-          'This FFmpeg can’t write ${codec.label}. Install a full build (with ${codec.encoders.first}).');
+          'This FFmpeg can’t write {format}. Install a full build (with {encoder}).'.fill({'format': codec.label.tr, 'encoder': codec.encoders.first}));
     }
     final name = fileNameOf(output);
     if (codec.isSequence && Directory(output).existsSync() && !VideoEncoder.onlyFrames(Directory(output), name)) {
-      throw VideoExportException('“$name” already holds other files. Choose another name.');
+      throw VideoExportException('“{name}” already holds other files. Choose another name.'.fill({'name': name}));
     }
 
     final start = from ?? span.start, end = to ?? span.end;
@@ -690,7 +691,7 @@ class VideoExport {
     if (_cancelled || code != 0 || failure != null) {
       if (part.existsSync()) part.deleteSync(recursive: true);
       if (_cancelled) throw const VideoExportCancelled();
-      if (code != 0) throw VideoExportException('FFmpeg couldn’t write the video.\n${_lastLines('$errors')}');
+      if (code != 0) throw VideoExportException('${'FFmpeg couldn’t write the video.'.tr}\n${_lastLines('$errors')}');
       Error.throwWithStackTrace(failure!.$1, failure.$2);
     }
     var target = output;
@@ -751,7 +752,7 @@ class VideoExport {
 
   /// What to tell someone who needs FFmpeg to export a video, for their platform.
   static String missingFfmpegForVideo() =>
-      MediaConverter.missingFfmpegHelp(lead: 'To export video, install FFmpeg (free), then export again:');
+      MediaConverter.missingFfmpegHelp(lead: 'To export video, install FFmpeg (free), then export again:'.tr);
 
   static String _lastLines(String text) => text.trim().split('\n').reversed.take(4).toList().reversed.join('\n');
 }
