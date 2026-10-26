@@ -1,18 +1,19 @@
-// The interface in Simplified Chinese: every text the code translates has an entry, with the same
-// placeholders, and choosing the language re-labels the open window at once.
+// The interface in Chinese: every text the code translates has a Simplified and a Traditional
+// entry, with the same placeholders, and choosing a language re-labels the open window at once.
 
 import 'dart:io';
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/l10n/l10n.dart';
 import 'package:curated_score/l10n/zh_hans.dart';
+import 'package:curated_score/l10n/zh_hant.dart';
 import 'package:curated_score/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'window.dart';
 
 void main() {
-  test('every text the code translates has a Simplified Chinese entry', () {
+  test('every text the code translates has a Simplified and a Traditional Chinese entry', () {
     final literal = RegExp(r"""'((?:[^'\\\n]|\\.)*)'\s*\.(?:tr\b|fill\()|"((?:[^"\\\n]|\\.)*)"\s*\.(?:tr\b|fill\()""");
     final placeholder = RegExp(r'\{\w+\}');
     Set<String> placeholders(String text) => {for (final m in placeholder.allMatches(text)) m[0]!};
@@ -21,18 +22,21 @@ void main() {
       if (!file.path.endsWith('.dart') || file.path.contains('l10n')) continue;
       for (final m in literal.allMatches(file.readAsStringSync())) {
         final english = (m[1] ?? m[2])!.replaceAll(r"\'", "'").replaceAll(r'\n', '\n');
-        final chinese = zhHans[english];
-        if (chinese == null) {
-          missing.add('${file.path}: $english');
-        } else {
-          expect(placeholders(chinese), placeholders(english), reason: english);
+        for (final table in [zhHans, zhHant]) {
+          final chinese = table[english];
+          if (chinese == null) {
+            missing.add('${file.path}: $english');
+          } else {
+            expect(placeholders(chinese), placeholders(english), reason: english);
+          }
         }
       }
     }
     expect(missing, isEmpty);
+    expect(zhHant.keys.toSet(), zhHans.keys.toSet());
   });
 
-  testWidgets('choosing Simplified Chinese re-labels the window, and English brings it back', (tester) async {
+  testWidgets('choosing Chinese re-labels the window, and English brings it back', (tester) async {
     desktopWindow(tester);
     addTearDown(() => Strings.use(AppLanguage.english));
     final settings = AppSettings.memory();
@@ -44,6 +48,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400)); // past the cross-fade
     expect(find.text('打开示例'), findsOneWidget);
     expect(find.text('Open Sample'), findsNothing);
+
+    settings.language = AppLanguage.chineseTraditional;
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('打開範例'), findsOneWidget);
 
     settings.language = AppLanguage.english;
     await tester.pump(const Duration(milliseconds: 400));

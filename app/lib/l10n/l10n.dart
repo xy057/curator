@@ -3,6 +3,7 @@ import 'dart:ui' show Locale, PlatformDispatcher;
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
 import 'zh_hans.dart';
+import 'zh_hant.dart';
 
 /// The interface's language (Settings ▸ General ▸ Language).
 ///
@@ -14,7 +15,8 @@ import 'zh_hans.dart';
 enum AppLanguage {
   system('System'),
   english('English'),
-  chineseSimplified('简体中文');
+  chineseSimplified('简体中文'),
+  chineseTraditional('繁體中文');
 
   const AppLanguage(this.label);
 
@@ -23,25 +25,30 @@ enum AppLanguage {
 
   static const englishLocale = Locale('en');
   static const chineseLocale = Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans');
-  static const locales = [englishLocale, chineseLocale];
+  static const traditionalLocale = Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant');
+  static const locales = [englishLocale, chineseLocale, traditionalLocale];
 
   /// The language it means now: [system] is the first of the system's preferred languages
-  /// that the app has (Simplified Chinese for zh-Hans, zh-CN and zh-SG; Traditional isn't
-  /// offered yet, so zh-Hant, zh-TW and zh-HK stay English).
+  /// that the app has (Traditional Chinese for zh-Hant, zh-TW, zh-HK and zh-MO; Simplified for
+  /// the other Chinese).
   AppLanguage get resolved {
     if (this != system) return this;
     for (final l in PlatformDispatcher.instance.locales) {
       if (l.languageCode == 'en') return english;
       if (l.languageCode == 'zh') {
-        final hans = l.scriptCode == 'Hans' ||
-            (l.scriptCode == null && !const {'TW', 'HK', 'MO'}.contains(l.countryCode));
-        if (hans) return chineseSimplified;
+        final hant = l.scriptCode == 'Hant' ||
+            (l.scriptCode == null && const {'TW', 'HK', 'MO'}.contains(l.countryCode));
+        return hant ? chineseTraditional : chineseSimplified;
       }
     }
     return english;
   }
 
-  Locale get locale => resolved == chineseSimplified ? chineseLocale : englishLocale;
+  Locale get locale => switch (resolved) {
+        chineseSimplified => chineseLocale,
+        chineseTraditional => traditionalLocale,
+        _ => englishLocale,
+      };
 }
 
 /// The translations in use: [use] switches them.
@@ -56,6 +63,7 @@ abstract final class Strings {
     _language = language.resolved;
     _table = switch (_language) {
       AppLanguage.chineseSimplified => zhHans,
+      AppLanguage.chineseTraditional => zhHant,
       _ => const {},
     };
   }
