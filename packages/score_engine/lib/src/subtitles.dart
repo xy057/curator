@@ -148,10 +148,13 @@ String _entities(String s) => s.replaceAllMapped(RegExp(r'&(amp|lt|gt|nbsp|quot|
         'nbsp' => ' ',
         'quot' => '"',
         'apos' => "'",
-        _ when name.startsWith('#x') => String.fromCharCode(int.tryParse(name.substring(2), radix: 16) ?? 0xFFFD),
-        _ => String.fromCharCode(int.tryParse(name.substring(1)) ?? 0xFFFD),
+        _ when name.startsWith('#x') => _character(int.tryParse(name.substring(2), radix: 16)),
+        _ => _character(int.tryParse(name.substring(1))),
       };
     });
+
+/// The character [code] names; the replacement character for none (past U+10FFFF, or too long).
+String _character(int? code) => String.fromCharCode(code != null && code <= 0x10FFFF ? code : 0xFFFD);
 
 /// [cues] as a file in [format]: numbered (SRT) or under its header (WebVTT), markup as `<i>`
 /// and `<b>`.

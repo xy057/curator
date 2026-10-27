@@ -141,9 +141,13 @@ class SpacerEditing {
     await engraved;
   }
 
-  /// Moves horizontal spacer [index] to start at score quarter [start], as long as it was.
-  Future<void> moveHorizontal(int index, double start) =>
-      setHorizontalSpan(index, start, start + endOf(index) - startOf(index));
+  /// Moves horizontal spacer [index] to start at score quarter [start], as long as it was (so
+  /// no further on than ends it at the final barline).
+  Future<void> moveHorizontal(int index, double start) {
+    final length = endOf(index) - startOf(index), total = _editor._score!.timeline.measureStarts.last;
+    start = math.min(start, total - length);
+    return setHorizontalSpan(index, start, start + length);
+  }
 
   /// Every horizontal spacer at once, each [pieces] entry over its stretch with the width of
   /// the one it is a piece of (erasing): one Undo step.
@@ -160,8 +164,9 @@ class SpacerEditing {
   /// A horizontal spacer over [start]–[end]; null where it isn't in the score or is too short.
   HorizontalSpacer? _spacer(double start, double end, {double width = HorizontalSpacer.defaultWidth}) {
     final at = _place(start), total = _editor._score?.timeline.measureStarts.last ?? 0;
+    if (at == null) return null; // before the score or past its end (then start > total)
     end = end.clamp(start, total).toDouble();
-    if (at == null || end - start < HorizontalSpacer.minLength - 1e-9) return null;
+    if (end - start < HorizontalSpacer.minLength - 1e-9) return null;
     return HorizontalSpacer(bar: at.bar, offset: at.offset, length: end - start, width: width);
   }
 
