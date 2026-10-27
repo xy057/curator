@@ -240,7 +240,9 @@ class ScoreForm {
         final count = sent[i] ?? 0;
         if (count + 1 < times) {
           sent[i] = count + 1;
-          pass = count + 2;
+          // The next time through the stretch: each ending's repeat counts its own sends, but
+          // the times through are the stretch's (1., 2., 3.: ending 2 sends back to the third).
+          pass++;
           i = sectionStart;
           continue;
         }
