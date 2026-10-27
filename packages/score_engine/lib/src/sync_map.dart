@@ -65,6 +65,7 @@ enum SyncGrid { bar, beat }
 ///    beat), and the segment before it is re-timed to end exactly there. Until two taps have
 ///    measured a tempo, the prediction uses the score's own tempo ([defaultTempo], from the
 ///    MusicXML);
+///  * a tap after the end of the piece has been tapped changes nothing;
 ///  * warps stay: a tap after one goes on from where it jumps to, and a tap on one (within
 ///    0.15 s) re-times it.
 class SyncMap extends ChangeNotifier implements ScoreTimeline {
@@ -280,9 +281,11 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
       final tempo = a != null ? (b.quarter - a.departure) / (b.seconds - a.seconds) : defaultTempo / 60;
       final predicted = b.departure + (seconds - b.seconds) * tempo;
       final snapped = nearestGrid(predicted, grid);
-      quarter = snapped > b.departure + 1e-6 ? snapped : nextGrid(b.departure, grid);
+      quarter = math.min(snapped > b.departure + 1e-6 ? snapped : nextGrid(b.departure, grid), totalQuarters);
+      // Past the final barline there is nothing left to tap: the end stays where it was tapped.
+      if (quarter <= b.departure + 1e-6) return b;
     }
-    final anchor = SyncAnchor(math.min(quarter, totalQuarters), seconds);
+    final anchor = SyncAnchor(quarter, seconds);
     // Later anchors that no longer fit after this one are dropped.
     _anchors = _fitted([...before, anchor, ...anchors.where((a) => a.seconds > seconds)], keep: before.length);
     _changed();
