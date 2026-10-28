@@ -355,7 +355,7 @@ class ProjectState {
 
   /// The version [toJson] writes (the project file's format version): every save is in the
   /// newest format, whatever the project uses.
-  static const version = 25;
+  static const version = 26;
 
   /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
   /// [toJson] changes shape, and bump [version]. Additive only: a new format adds fields (the
@@ -385,6 +385,7 @@ class ProjectState {
     22: (state) => state, // the centred lyrics' flag came in 23: none, the app's
     23: (state) => state, // spacers came in 24: none
     24: (state) => state, // the playback line's colour came in 25: none, its own blue
+    25: (state) => state, // GIF, APNG, WebP, BMP and ICO images came in 26 (an older Curator drops them): none
   };
 
   /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that

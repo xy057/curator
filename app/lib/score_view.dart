@@ -32,8 +32,8 @@ part 'score_view/spacer_handles.dart';
 /// Double-click an instrument name to rename it (a text does nothing: editing the score's
 /// texts is deprecated, see docs/architecture.md).
 ///
-/// With Attach Image on (Project Settings ▸ Extensions), right-click adds an image (an SVG, PNG or
-/// JPEG file, or the clipboard's) where it was clicked; click one to select it, drag it to move it, drag a
+/// With Attach Image on (Project Settings ▸ Extensions), right-click adds an image (an SVG, PNG, GIF,
+/// JPEG… file, or the clipboard's) where it was clicked; click one to select it, drag it to move it, drag a
 /// corner to resize it; double-click it (or right-click ▸ Crop) and the handles crop it.
 /// A file dropped on it is added as an image where it is dropped ([ScoreViewState.dropImage]).
 ///

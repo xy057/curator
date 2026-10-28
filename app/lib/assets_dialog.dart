@@ -82,6 +82,7 @@ class _AssetRow extends StatelessWidget {
     final uses = images.usesOf(image.id);
     final type = image.id.split('.').last.toUpperCase();
     final pixels = art is RasterArt ? '${art.image.width} × ${art.image.height}' : null;
+    final frames = art is RasterArt && art.animated ? '{n} frames'.fill({'n': art.frames.length}) : null;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(children: [
@@ -94,7 +95,7 @@ class _AssetRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text([type, ?pixels, _bytes(image.bytes.length)].join(' · '),
+            Text([type, ?pixels, ?frames, _bytes(image.bytes.length)].join(' · '),
                 style: TextStyle(fontSize: 12, color: colors.textMuted, fontFeatures: const [FontFeature.tabularFigures()])),
             const SizedBox(height: 2),
             Wrap(spacing: 2, children: [

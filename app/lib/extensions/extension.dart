@@ -29,8 +29,9 @@ abstract class CuratorExtension {
   String get label;
   IconData icon(BuildContext context);
 
-  /// Shown after [label]; raised when what the extension does changes.
-  String get version;
+  /// Shown after [label] when there is one; raised when what the extension does changes. A
+  /// built-in one has none: it changes with the app.
+  String? get version => null;
 
   /// One short line under [label].
   String get summary;

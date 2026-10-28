@@ -68,7 +68,7 @@ abstract final class ProjectFile {
       for (final id in {for (final p in c.state.edits.patches) p.image}) {
         final image = c.state.images[id];
         if (image == null || !PatchImage.isId(id)) throw FileSystemException('An image on the score is missing', id);
-        zip.add(ArchiveFile.bytes('images/$id', image.bytes)..compression = image.kind == ImageKind.vector ? CompressionType.deflate : CompressionType.none);
+        zip.add(ArchiveFile.bytes('images/$id', image.bytes)..compression = _packed(image.id) ? CompressionType.none : CompressionType.deflate);
       }
       addFont(zip, c.state.edits);
       if (mediaEntry != null) {
@@ -191,6 +191,10 @@ abstract final class ProjectFile {
       };
 
   /// A file name that is safe as a zip entry and on every file system.
+  /// Whether image [id]'s file is compressed already, so deflating it gains nothing (an
+  /// SVG, BMP or ICO isn't).
+  static bool _packed(String id) => !const ['svg', 'bmp', 'ico'].contains(id.split('.').last.toLowerCase());
+
   static String _safeName(String name) {
     final cleaned = name.replaceAll(RegExp(r'[/\\:*?"<>|\x00-\x1f]'), '_').trim();
     return cleaned.isEmpty ? 'file' : cleaned;

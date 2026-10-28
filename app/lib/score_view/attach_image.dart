@@ -127,7 +127,7 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
     if (scene == null || frame == null || box == null) return;
     if (!c.images.enabled) return _say('Attach Image is off.');
     final kind = ImageKind.ofPath(path);
-    if (kind == null) return _say('Drop an SVG, PNG, or JPEG.');
+    if (kind == null) return _say('Drop an image file.');
     final r = frame.rect, local = box.globalToLocal(global);
     final p = frame.toLayout(Offset(local.dx.clamp(r.left, r.right), local.dy.clamp(r.top, r.bottom)));
     try {
@@ -270,7 +270,7 @@ class _PatchOverlay extends CustomPainter {
     if (images.cropping) {
       final c = patch.crop, w = r.width / c.width, h = r.height / c.height;
       final full = Rect.fromLTWH(r.left - c.left * w, r.top - c.top * h, w, h);
-      art.paint(canvas, Offset.zero & art.size, full, opacity: 0.3);
+      art.paint(canvas, Offset.zero & art.size, full, opacity: 0.3, time: controller.playback.time.value);
       canvas.drawRect(full, Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1

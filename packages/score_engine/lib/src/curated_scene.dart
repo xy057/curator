@@ -875,7 +875,7 @@ class CuratedScene {
                 for (final patch in patches) {
                   final rect = _patchRect(patch, scrollX, size);
                   if (rect.right < musicLeft || rect.left > size.width) continue;
-                  patch.paint(canvas, rect, inkColor: ink ?? style.ink);
+                  patch.paint(canvas, rect, inkColor: ink ?? style.ink, time: time);
                 }
                 canvas.restore();
               });
