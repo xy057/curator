@@ -21,7 +21,7 @@ import 'l10n/l10n.dart';
 Future<void> showImportWarnings(BuildContext context, String fileName, List<String> warnings) => showAppDialog<void>(
       context: context,
       builder: (context) => AppDialog(
-        title: Text('Some of “{name}” isn’t shown'.fill({'name': fileName})),
+        title: Text('Some of “{name}” got left out'.fill({'name': fileName})),
         content: SizedBox(
           width: dialogWidth(context, 460),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -46,11 +46,11 @@ Future<bool> confirmReplaceScore(BuildContext context, String fileName, List<Str
         content: SizedBox(
           width: dialogWidth(context, 460),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('The scores differ:'.tr),
+            Text('Here’s what differs:'.tr),
             const SizedBox(height: 12),
             _Bullets(differences),
             const SizedBox(height: 12),
-            Text('You can’t undo this action.'.tr, style: TextStyle(color: context.colors.textMuted)),
+            Text('This one can’t be undone.'.tr, style: TextStyle(color: context.colors.textMuted)),
           ]),
         ),
         actions: [
@@ -561,7 +561,7 @@ Future<String?> confirmSavePath(BuildContext context, String path, String extens
   final replace = await showAppDialog<bool>(
     context: context,
     builder: (context) => AppDialog(
-      title: Text('“{name}” already exists. Do you want to replace it?'.fill({'name': name})),
+      title: Text('“{name}” already exists. Replace it?'.fill({'name': name})),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancel'.tr)),
         FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Replace'.tr)),

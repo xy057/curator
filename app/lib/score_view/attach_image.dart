@@ -111,7 +111,7 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
 
   Future<void> _paste(_MenuAt at) async {
     try {
-      if (!await c.images.paste(quarter: at.quarter, top: at.top)) _say('No image to paste.');
+      if (!await c.images.paste(quarter: at.quarter, top: at.top)) _say('There’s no image to paste.');
     } catch (e) {
       _say('Couldn’t paste the image. {error}'.fill({'error': describeError(e)}));
     }
@@ -125,9 +125,9 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
   Future<void> dropImage(String path, Offset global) async {
     final scene = c.scene, frame = _frame, box = context.findRenderObject() as RenderBox?;
     if (scene == null || frame == null || box == null) return;
-    if (!c.images.enabled) return _say('Attach Image is off.');
+    if (!c.images.enabled) return _say('Attach Image is off for now.');
     final kind = ImageKind.ofPath(path);
-    if (kind == null) return _say('Drop an image file.');
+    if (kind == null) return _say('That needs to be an image file.');
     final r = frame.rect, local = box.globalToLocal(global);
     final p = frame.toLayout(Offset(local.dx.clamp(r.left, r.right), local.dy.clamp(r.top, r.bottom)));
     try {

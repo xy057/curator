@@ -26,8 +26,8 @@ abstract final class ProjectFile {
   static const extension = 'ccs';
   static const mimeType = 'application/x-curated-score';
 
-  static const _notOurs = 'This isn’t a Curator project.';
-  static const _newer = 'This project needs a newer version of Curator. Update to open it.';
+  static const _notOurs = 'That doesn’t look like a Curator project.';
+  static const _newer = 'This project is from a newer Curator. Update to open it!';
 
   /// Writes a project. The archive is built next to [path] and moved into place at the end,
   /// so a failed save (or a crash during an autosave) never damages the previous file.

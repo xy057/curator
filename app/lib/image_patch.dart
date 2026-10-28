@@ -73,7 +73,7 @@ class PatchImage {
   /// isn't an image Flutter reads here, or is too big.
   static Future<({Uint8List bytes, String extension})> portable(Uint8List bytes, String extension) async {
     if (!ImageKind.converted.contains(extension.toLowerCase())) return (bytes: bytes, extension: extension);
-    if (bytes.length > maxBytes) throw const FormatException('Use an image under 64 MB.');
+    if (bytes.length > maxBytes) throw const FormatException('That image is too big. Use one under 64 MB.');
     ui.Image? image;
     try {
       image = (await _decodeRaster(bytes, still: true)).single.image;
@@ -82,7 +82,7 @@ class PatchImage {
     } on _Refused catch (e) {
       throw FormatException(e.message);
     } catch (_) {
-      throw FormatException('Couldn’t read this image.'.tr);
+      throw FormatException('Couldn’t make sense of this image.'.tr);
     } finally {
       image?.dispose();
     }
@@ -111,7 +111,7 @@ class PatchImage {
   /// Draws the image. Throws a [FormatException] when the bytes are not an image of [kind],
   /// or one too big.
   Future<PatchArt> decode() async {
-    if (bytes.length > maxBytes) throw const FormatException('Use an image under 64 MB.');
+    if (bytes.length > maxBytes) throw const FormatException('That image is too big. Use one under 64 MB.');
     try {
       switch (kind) {
         case ImageKind.vector:
@@ -128,7 +128,7 @@ class PatchImage {
     } on _Refused catch (e) {
       throw FormatException(e.message);
     } catch (e) {
-      throw FormatException((kind == ImageKind.vector ? 'Couldn’t read this SVG.' : 'Couldn’t read this image.').tr);
+      throw FormatException((kind == ImageKind.vector ? 'Couldn’t make sense of this SVG.' : 'Couldn’t make sense of this image.').tr);
     }
   }
 
@@ -158,7 +158,7 @@ class PatchImage {
       final first = await descriptor.instantiateCodec();
       final count = still ? 1 : first.frameCount;
       first.dispose();
-      if (count > maxFrames) throw const _Refused('Use an animation of 2000 frames or fewer.');
+      if (count > maxFrames) throw const _Refused('That’s a lot of frames. Keep it to 2000 or fewer.');
       final w = descriptor.width, h = descriptor.height;
       final scale = math.min(1.0, math.min(maxSide / math.max(w, h), math.sqrt(maxPixels / (w * h * math.max(count, 1)))));
       final tw = math.max(1, (w * scale).round()), th = math.max(1, (h * scale).round());
@@ -262,7 +262,7 @@ class PatchImage {
 
 class _Refused implements Exception {
   const _Refused(this.message);
-  const _Refused.tooBig() : message = 'Use an image under 64 MB.';
+  const _Refused.tooBig() : message = 'That image is too big. Use one under 64 MB.';
   final String message;
 }
 

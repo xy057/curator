@@ -1037,7 +1037,10 @@ on Windows wherever the registry says that folder now is): it never replaces the
   buttons and dialog titles that are fragments ("Copy Lane To…", "Couldn’t Export Video"),
   sentence case for tooltips, labels, help lines and messages; an ellipsis only where more
   input follows. A failure says "Couldn’t …" and, where there is one, the fix ("Use an image
-  under 64 MB"), never blame or "we". Contractions; seconds and minutes spelled out in
+  under 64 MB"), never blame or "we". Warnings, notices and confirmations are friendly but calm:
+  plain words, an exclamation mark or a ☆ now and then ("This project is from a newer Curator.
+  Update to open it!"), no jokes or kaomoji, still short and still with the fix; labels,
+  buttons and titles stay plain. Contractions; seconds and minutes spelled out in
   sentences; no "e.g.". One word per thing: the playhead (never the pointer), the sample,
   open (a score), add (a recording, a MIDI tempo map), transition, Extensions.
 - **Something a project saves**: a field of `EditState` (with its `==` and `copyWith`),

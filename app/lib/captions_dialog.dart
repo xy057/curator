@@ -162,20 +162,20 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
     if (file == null || !mounted) return;
     final List<Caption> read;
     try {
-      if (await file.length() > maxSubtitleBytes) throw const SubtitleException('This subtitle file is too large.');
+      if (await file.length() > maxSubtitleBytes) throw const SubtitleException('This subtitle file is a bit too big.');
       read = captionsFromCues(parseSubtitles(decodeSubtitles(await file.readAsBytes())), c.timeline, _beats.totalQuarters);
     } catch (e) {
       if (mounted) setState(() => _notice = describeError(e));
       return;
     }
     if (!mounted) return;
-    if (read.isEmpty) return setState(() => _notice = 'No subtitles fall within the music.'.tr);
+    if (read.isEmpty) return setState(() => _notice = 'None of these subtitles land inside the music.'.tr);
     var add = false;
     if (_rows.isNotEmpty) {
       final replace = await showAppDialog<bool>(
         context: context,
         builder: (context) => AppDialog(
-          title: Text('Replace the captions?'.tr),
+          title: Text('Replace the old captions?'.tr),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
             TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Add'.tr)),

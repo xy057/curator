@@ -162,7 +162,7 @@ void main() {
         {'sync': {'version': 99}}, // a newer version of one known here
       ]) {
         rewrite(path, {'manifest.json': listing(extra)});
-        await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('newer version'))));
+        await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('newer Curator'))));
       }
     });
 
