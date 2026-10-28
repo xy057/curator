@@ -980,10 +980,11 @@ on Windows wherever the registry says that folder now is): it never replaces the
   else the app's default (`AppSettings`), which that page's Save as default sets.
 - **An extension**: a `CuratorExtension` (`extensions/extension.dart`), listed in
   `Extensions.all`; the built-in ones are in `extensions/built_in.dart`. Each gives a stable
-  `id`, its name, icon, version, one-line summary, search words, its own settings (`settings`,
+  `id`, its name, icon, one-line summary, search words, its own settings (`settings`,
   a dialog's content, or null; the app's), `isUsedBy` (whether an open project uses it) and
   `apply` (turns its part of the editor on or off). Project Settings ▸ Extensions lists each:
-  name and version, the summary under them, a settings button (greyed out without settings)
+  name (and a version, which only an extension from elsewhere would have: a built-in one changes
+  with the app), the summary under it, a settings button (greyed out without settings)
   and the switch. The switch is the project's only (`EditState.extensions` by id, an Undo step,
   `EditorController.extensionOn`); there is no app-wide default, and one the project never chose
   is off. The app's old switches (`AppSettings.legacyExtensions`: a switch each until build 69,

@@ -17,8 +17,6 @@ class AttachImageExtension extends CuratorExtension {
   @override
   IconData icon(BuildContext context) => AppIcon.image.of(context);
   @override
-  String get version => '1.2';
-  @override
   String get summary => 'Images and spacers that scroll with the score.';
   @override
   String get keywords => 'image picture photo svg png jpg gif apng webp bmp ico tiff heic avif animated animation spacer space gap blank placeholder';
@@ -41,8 +39,6 @@ class CaptionsExtension extends CuratorExtension {
   String get label => 'Captions';
   @override
   IconData icon(BuildContext context) => AppIcon.captions.of(context);
-  @override
-  String get version => '1.1';
   @override
   String get summary => 'Timed text under the score.';
   @override
