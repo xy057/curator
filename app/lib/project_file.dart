@@ -6,31 +6,28 @@ import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 import 'package:score_engine/score_engine.dart' show ScoreFile, ZipEntries;
 
-import 'image_patch.dart';
+import 'file_names.dart';
+import 'legacy_project.dart';
 import 'media_converter.dart';
+import 'project_archive.dart';
+import 'project_modules.dart';
 import 'project_state.dart';
 
-/// A Curator project (.ccs): a zip archive holding
+/// A Curator project (.ccs): a zip archive in [ProjectArchive]'s layout, holding besides its
+/// modules (every edit made in the app, [ProjectModules.all])
 ///
-///     mimetype          application/x-curated-score (stored first, uncompressed)
-///     project.json      format version, where things are, and every edit made in the app
 ///     score/<name>      the source score file, byte for byte
 ///     media/<name>      the recording
-///     images/<id>       each image on the score (Attach Image), byte for byte
-///     fonts/<name>.font an added music font the score is engraved in, and its SMuFL
-///     fonts/<name>.json metadata (if it has some); neither when it isn't embedded
 ///
-/// Everything the app changes (curation, sync, texts, names…) lives in project.json, so
-/// the source score is never rewritten.
+/// both named in the manifest (`score`, `media`: the name and the entry). Everything the app
+/// changes lives in the modules, so the source score is never rewritten. One saved before
+/// modules ([LegacyProject]) has its edits in project.json instead.
 abstract final class ProjectFile {
   static const extension = 'ccs';
   static const mimeType = 'application/x-curated-score';
-  static const formatVersion = ProjectState.version;
 
-  /// The most a project's project.json, and an added font (or its metadata), may unpack to.
-  /// What a project unpacks is counted as it comes ([ZipEntries]): a damaged or hostile file
-  /// can't fill the memory or the disk.
-  static const maxManifestBytes = 64 << 20, maxFontBytes = 64 << 20;
+  static const _notOurs = 'This isn’t a Curator project.';
+  static const _newer = 'This project needs a newer version of Curator. Update to open it.';
 
   /// Writes a project. The archive is built next to [path] and moved into place at the end,
   /// so a failed save (or a crash during an autosave) never damages the previous file.
@@ -46,31 +43,22 @@ abstract final class ProjectFile {
 
   static void _write(String path, ProjectContents c) {
     final media = c.media;
-    final mediaEntry = media == null ? null : 'media/${_safeName(media.name)}';
-    final scoreEntry = 'score/${_safeName(c.scoreName)}';
-    final manifest = {
-      'format': mimeType,
-      'version': formatVersion,
-      'score': {'name': c.scoreName, 'entry': scoreEntry},
-      if (media != null) 'media': {'name': media.name, 'entry': mediaEntry},
-      'state': c.state.toJson(),
-    };
+    final mediaEntry = media == null ? null : 'media/${safeFileName(media.name)}';
+    final scoreEntry = 'score/${safeFileName(c.scoreName)}';
 
     final temp = '$path.saving';
     final out = OutputFileStream(temp);
-    final zip = ZipEncoder()..startEncode(out);
+    // zlib's default level: ZipEncoder's own (1) is no faster here and makes a score 60 % bigger;
+    // the best (9) takes twice as long for a few percent.
+    final zip = ZipEncoder()..startEncode(out, level: DeflateLevel.defaultCompression);
     InputFileStream? mediaStream;
     try {
-      zip.add(ArchiveFile.noCompress('mimetype', mimeType.length, ascii.encode(mimeType)));
-      zip.add(ArchiveFile.string('project.json', const JsonEncoder.withIndent(' ').convert(manifest)));
+      ProjectArchive.write(zip, c.state, mimeType: mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
+        'score': {'name': c.scoreName, 'entry': scoreEntry},
+        if (media != null) 'media': {'name': media.name, 'entry': mediaEntry},
+      });
       zip.add(ArchiveFile.bytes(scoreEntry, c.scoreBytes));
-      // Only the images still on the score (Undo keeps the rest while the project is open).
-      for (final id in {for (final p in c.state.edits.patches) p.image}) {
-        final image = c.state.images[id];
-        if (image == null || !PatchImage.isId(id)) throw FileSystemException('An image on the score is missing', id);
-        zip.add(ArchiveFile.bytes('images/$id', image.bytes)..compression = _packed(image.id) ? CompressionType.none : CompressionType.deflate);
-      }
-      addFont(zip, c.state.edits);
+      // Last: everything before it can be read without passing it.
       if (mediaEntry != null) {
         final source = media!.embedFrom;
         if (!File(source).existsSync()) {
@@ -97,13 +85,21 @@ abstract final class ProjectFile {
     final input = InputFileStream(path);
     try {
       final archive = ZipDecoder().decodeStream(input);
-      final manifestFile = archive.findFile('project.json');
-      if (manifestFile == null) throw const FormatException('This isn’t a Curator project.');
-      final manifest = JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: maxManifestBytes))), 'project');
-      if (manifest.string('format') != mimeType) throw const FormatException('This isn’t a Curator project.');
-      final version = manifest.number('version')?.toInt() ?? 0;
-      if (version > formatVersion) {
-        throw const FormatException('This project needs a newer version of Curator. Update to open it.');
+      final JsonReader manifest;
+      final ProjectState state;
+      final legacy = !ProjectArchive.isModular(archive);
+      if (legacy) {
+        final manifestFile = archive.findFile('project.json');
+        if (manifestFile == null) throw const FormatException(_notOurs);
+        manifest = JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: ProjectArchive.maxJsonBytes))), 'project');
+        if (manifest.string('format') != mimeType) throw const FormatException(_notOurs);
+        // A stub with no manifest (one past the last format) is from a newer layout too.
+        final version = manifest.number('version')?.toInt() ?? 0;
+        if (version > LegacyProject.lastVersion) throw const FormatException(_newer);
+        state = ProjectArchive.readLegacy(archive, manifest.map('state'), version, ProjectModules.all);
+      } else {
+        manifest = ProjectArchive.manifestOf(archive, mimeType: mimeType, notOurs: _notOurs, newer: _newer);
+        state = ProjectArchive.read(archive, manifest, ProjectModules.all, newer: _newer);
       }
 
       final score = manifest.child('score');
@@ -114,8 +110,9 @@ abstract final class ProjectFile {
       if (!manifest.isAbsent('media')) {
         final m = manifest.child('media');
         final name = m.string('name', required: true)!;
-        final original = m.string('path');
-        final relative = m.string('relativePath');
+        // Only a project saved before recordings were always embedded links to one.
+        final original = legacy ? m.string('path') : null;
+        final relative = legacy ? m.string('relativePath') : null;
         final entry = m.string('entry');
         final candidates = [
           if (relative != null) _join(File(path).parent.path, relative),
@@ -129,7 +126,7 @@ abstract final class ProjectFile {
           final file = archive.findFile(entry);
           if (file != null) {
             Directory(mediaDirectory).createSync(recursive: true);
-            playable = _join(mediaDirectory, _safeName(name));
+            playable = _join(mediaDirectory, safeFileName(name));
             final out = OutputFileStream(playable);
             try {
               // Stored as it is (see [_write]), so never much more than the project itself.
@@ -146,58 +143,15 @@ abstract final class ProjectFile {
         );
       }
 
-      final stateJson = manifest.map('state');
       return OpenedProject(
         scoreName: score.string('name', required: true)!,
         scoreBytes: ZipEntries.read(scoreFile, limit: ScoreFile.maxBytes),
-        // Only the images on the score are read (and so decoded): any others are left in the zip.
-        state: ProjectState.fromJson(stateJson, savedVersion: version, images: {
-          for (final id in {
-            if (stateJson['patches'] case final List patches)
-              for (final p in patches)
-                if (p case {'image': final String id}) id,
-          })
-            if ((PatchImage.kindOfId(id), archive.findFile('images/$id')) case (final kind?, final file?) when file.isFile)
-              id: PatchImage(id, kind, ZipEntries.read(file, limit: PatchImage.maxBytes)),
-        }, fontFiles: fontFilesIn(archive, stateJson)),
+        state: state,
         media: media,
       );
     } finally {
       input.closeSync();
     }
-  }
-
-  /// Adds the added music font [edits] are engraved in, and its metadata, when it is embedded
-  /// (`fonts/<name>.font`, `.json`); a project and a settings file ([SettingsFile]) alike.
-  static void addFont(ZipEncoder zip, EditState edits) {
-    final music = edits.fonts.music;
-    if (music.file case final file? when edits.embedFont) {
-      zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.font', file));
-      if (music.metadata case final metadata?) zip.add(ArchiveFile.bytes('fonts/${_safeName(music.name)}.json', metadata));
-    }
-  }
-
-  /// The files of the music font [stateJson] names, from [archive] ([addFont]'s): only that one.
-  static Map<String, ({Uint8List file, Uint8List? metadata})> fontFilesIn(Archive archive, Map<String, Object?> stateJson) => {
-        if (stateJson['fonts'] case {'music': final String name})
-          if (archive.findFile('fonts/$name.font') case final file? when file.isFile)
-            name: (
-              file: ZipEntries.read(file, limit: maxFontBytes),
-              metadata: switch (archive.findFile('fonts/$name.json')) {
-                final json? => ZipEntries.read(json, limit: maxFontBytes),
-                null => null,
-              },
-            ),
-      };
-
-  /// A file name that is safe as a zip entry and on every file system.
-  /// Whether image [id]'s file is compressed already, so deflating it gains nothing (an
-  /// SVG, BMP or ICO isn't).
-  static bool _packed(String id) => !const ['svg', 'bmp', 'ico'].contains(id.split('.').last.toLowerCase());
-
-  static String _safeName(String name) {
-    final cleaned = name.replaceAll(RegExp(r'[/\\:*?"<>|\x00-\x1f]'), '_').trim();
-    return cleaned.isEmpty ? 'file' : cleaned;
   }
 
   /// Whether [path] is an absolute path on this computer's own disks: `C:\…`, or `/…` but not

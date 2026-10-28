@@ -10,3 +10,9 @@ String stemOf(String name) {
   final dot = name.lastIndexOf('.');
   return dot > 0 ? name.substring(0, dot) : name;
 }
+
+/// [name] as a file name that is safe as a zip entry and on every file system.
+String safeFileName(String name) {
+  final cleaned = name.replaceAll(RegExp(r'[/\\:*?"<>|\x00-\x1f]'), '_').trim();
+  return cleaned.isEmpty ? 'file' : cleaned;
+}

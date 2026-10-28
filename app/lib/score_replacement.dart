@@ -213,6 +213,7 @@ class ScoreSwap {
           gaps: Spacers.fitted(edits.gaps, measuresAfter),
         ),
         images: {for (final p in patches) p.image: state.images[p.image]!},
+        foreign: state.foreign,
         view: state.view,
       ),
       lost: (

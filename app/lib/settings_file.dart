@@ -5,30 +5,23 @@ import 'dart:isolate';
 import 'package:archive/archive_io.dart';
 import 'package:score_engine/score_engine.dart' show ZipEntries;
 
-import 'project_file.dart';
+import 'legacy_project.dart';
+import 'project_archive.dart';
+import 'project_modules.dart';
 import 'project_state.dart';
 
 /// A project's settings for other projects (.ccf, Project Settings ▸ Export… / Import…): a zip
-/// archive holding
-///
-///     mimetype          application/x-curator-settings (stored first, uncompressed)
-///     settings.json     format version, and the settings as a project's `state` writes them
-///     fonts/<name>.font an added music font, and its SMuFL metadata, as a project keeps them
-///     fonts/<name>.json (only when it is embedded)
-///
-/// Only the score-wide settings ([of]): what a page of Project Settings sets for the whole score,
+/// archive in [ProjectArchive]'s layout, as a project is, holding only the score-wide modules
+/// ([ProjectModules.settings]: fonts, with an added music font's file, engraving, display,
+/// extensions), as [of] leaves them: what a page of Project Settings sets for the whole score,
 /// not for one instrument (brackets, groups' members, pairs), which another score's differ in.
-/// Read through [ProjectState.fromJson], so it is checked, and migrated, as a project is.
+/// One saved before modules ([LegacyProject]) has them in settings.json, as a project's `state`.
 abstract final class SettingsFile {
   static const extension = 'ccf';
   static const mimeType = 'application/x-curator-settings';
 
-  /// The keys of a project's `state` a settings file keeps; of `curation`, only these.
-  static const _keys = {
-    'fonts', 'engraving', 'extensions', 'flags', 'motion', 'typography', //
-    'groupSections', 'barNumbers', 'playheadColor', 'colorNames', 'nameColors',
-  };
-  static const _curationKeys = {'transition', 'scrollFollow'};
+  static const _notOurs = 'This isn’t a Curator settings file.';
+  static const _newer = 'These settings need a newer version of Curator. Update to import them.';
 
   /// [edits]' score-wide settings, nothing else.
   static EditState of(EditState edits) => EditState(
@@ -58,24 +51,11 @@ abstract final class SettingsFile {
   static Future<EditState> read(String path) => Isolate.run(() => _read(path));
 
   static void _write(String path, EditState settings) {
-    final state = ProjectState(edits: settings).toJson();
-    final manifest = {
-      'format': mimeType,
-      'version': ProjectState.version,
-      'state': {
-        for (final key in _keys) key: ?state[key],
-        'curation': {
-          for (final key in _curationKeys) key: ?(state['curation']! as Map)[key],
-        },
-      },
-    };
     final temp = '$path.saving';
     final out = OutputFileStream(temp);
-    final zip = ZipEncoder()..startEncode(out);
+    final zip = ZipEncoder()..startEncode(out, level: DeflateLevel.defaultCompression); // as a project ([ProjectFile])
     try {
-      zip.add(ArchiveFile.noCompress('mimetype', mimeType.length, ascii.encode(mimeType)));
-      zip.add(ArchiveFile.string('settings.json', const JsonEncoder.withIndent(' ').convert(manifest)));
-      ProjectFile.addFont(zip, settings);
+      ProjectArchive.write(zip, ProjectState(edits: settings), mimeType: mimeType, stub: 'settings.json', modules: ProjectModules.settings);
       zip.endEncode();
       out.closeSync();
       File(temp).renameSync(path);
@@ -94,31 +74,23 @@ abstract final class SettingsFile {
       try {
         archive = ZipDecoder().decodeStream(input);
       } on Exception {
-        throw const FormatException('This isn’t a Curator settings file.');
+        throw const FormatException(_notOurs);
       }
-      final manifestFile = archive.findFile('settings.json');
-      if (manifestFile == null) throw const FormatException('This isn’t a Curator settings file.');
-      final manifest =
-          JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: ProjectFile.maxManifestBytes))), 'settings');
-      if (manifest.string('format') != mimeType) throw const FormatException('This isn’t a Curator settings file.');
-      final version = manifest.number('version')?.toInt() ?? 0;
-      if (version > ProjectState.version) {
-        throw const FormatException('These settings need a newer version of Curator. Update to import them.');
-      }
-      final state = manifest.map('state');
-      final ProjectState read;
       try {
-        read = ProjectState.fromJson({
-        for (final key in _keys) key: ?state[key],
-        'curation': {
-          for (final MapEntry(:key, :value) in manifest.child('state').map('curation').entries)
-            if (_curationKeys.contains(key)) key: value,
-        },
-        }, savedVersion: version, fontFiles: ProjectFile.fontFilesIn(archive, state));
+        if (ProjectArchive.isModular(archive)) {
+          final manifest = ProjectArchive.manifestOf(archive, mimeType: mimeType, notOurs: _notOurs, newer: _newer);
+          return of(ProjectArchive.read(archive, manifest, ProjectModules.settings, newer: _newer, keepForeign: false).edits);
+        }
+        final manifestFile = archive.findFile('settings.json');
+        if (manifestFile == null) throw const FormatException(_notOurs);
+        final manifest = JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: ProjectArchive.maxJsonBytes))), 'settings');
+        if (manifest.string('format') != mimeType) throw const FormatException(_notOurs);
+        final version = manifest.number('version')?.toInt() ?? 0;
+        if (version > LegacyProject.lastVersion) throw const FormatException(_newer);
+        return of(ProjectArchive.readLegacy(archive, manifest.map('state'), version, ProjectModules.settings).edits);
       } on FormatException catch (e) {
         throw FormatException(e.message.replaceFirst('The project is damaged', 'The settings are damaged'));
       }
-      return of(read.edits);
     } finally {
       input.closeSync();
     }

@@ -1,4 +1,4 @@
-import 'dart:ui' show Color, Rect;
+import 'dart:ui' show Color;
 
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart';
@@ -335,15 +335,12 @@ class NameGroup {
 /// removed) or the user's ([NameGroup]).
 typedef NameGroupInfo = ({String id, String name, Color color, InstrumentFamily? family});
 
-/// Everything a project stores besides the score and the recording (`project.json` →
-/// `state`): the edits, the image files they show, and the view. Reading it checks every
-/// field, so a damaged file says what is wrong instead of failing somewhere later.
-///
-/// The JSON is written by [toJson] for [ProjectState.version]. Files from older versions
-/// go through [_migrations] first, one version at a time.
+/// Everything a project stores besides the score and the recording: the edits, the image files
+/// they show, and the view. Saved as modules ([ProjectModules]: `modules/<id>.json` in the
+/// project), each checked field by field as it is read.
 @immutable
 class ProjectState {
-  const ProjectState({this.edits = const EditState(), this.images = const {}, this.view = const ViewState()});
+  const ProjectState({this.edits = const EditState(), this.images = const {}, this.view = const ViewState(), this.foreign = const {}});
 
   final EditState edits;
 
@@ -353,457 +350,23 @@ class ProjectState {
 
   final ViewState view;
 
-  /// The version [toJson] writes (the project file's format version): every save is in the
-  /// newest format, whatever the project uses.
-  static const version = 26;
+  /// Modules this build can't read that the project says may go unread (a newer version's),
+  /// by id: kept as they came, so saving here doesn't lose them.
+  final Map<String, ForeignModule> foreign;
 
-  /// Upgrades a state written by version `n` to version `n + 1`. Add one entry whenever
-  /// [toJson] changes shape, and bump [version]. Additive only: a new format adds fields (the
-  /// entry gives an older file their defaults), never renames, removes or redefines one.
-  static final Map<int, Map<String, Object?> Function(Map<String, Object?>)> _migrations = {
-    1: (state) => {...state, 'condensed': const <String>[]}, // condensing came in 2: nothing condensed
-    2: (state) => {...state, 'pairs': const <Object?>[]}, // the user's own pairs came in 3: none
-    3: (state) => state, // warps came in 4 (an anchor's `jumpTo`): none, so nothing to change
-    4: (state) => state, // the instruments' order came in 5: none saved is the score's
-    5: (state) => state, // a region's own transitions came in 6: none, the project's
-    6: (state) => state, // MIDI tempo maps came in 7: none, the anchors
-    7: (state) => state, // images on the score came in 8: none
-    8: (state) => state, // fonts came in 9: none saved is Bravura and Academico
-    9: (state) => state, // an image's ink came in 10: none is its own colours
-    10: (state) => state, // captions came in 11: none
-    11: (state) => state, // a caption font came in 12: none is the app's
-    12: (state) => state, // a project's engraving options came in 13: none, the app's
-    13: (state) => state, // not embedding a font came in 14: every added font embedded
-    14: (state) => state, // a MIDI tempo map's warps came in 15: none
-    15: (state) => state, // instruments' sections came in 16: none, their own
-    16: (state) => state, // grouping sections, and sections of the user's own, came in 17 (16's were families' names): off, none
-    17: (state) => {...state, 'barNumbers': false}, // bar numbers came in 18: off, as made
-    18: (state) => state, // names in their family's colour came in 19: off
-    19: (state) => state, // the score's motion came in 20: none, the app's
-    20: (state) => state, // the score's typography came in 21: none, the app's
-    21: (state) => state, // the rehearsal marks' flag came in 22: none, the app's
-    22: (state) => state, // the centred lyrics' flag came in 23: none, the app's
-    23: (state) => state, // spacers came in 24: none
-    24: (state) => state, // the playback line's colour came in 25: none, its own blue
-    25: (state) => state, // GIF, APNG, WebP, BMP and ICO images came in 26 (an older Curator drops them): none
-  };
+  ProjectState copyWith({EditState? edits, Map<String, PatchImage>? images, ViewState? view, Map<String, ForeignModule>? foreign}) =>
+      ProjectState(edits: edits ?? this.edits, images: images ?? this.images, view: view ?? this.view, foreign: foreign ?? this.foreign);
+}
 
-  /// Reads a saved state written by format [savedVersion]. Throws a [FormatException] that
-  /// names the damaged field.
-  /// [images] are the image files the project holds (see [images]; those not on the score
-  /// are left out); [fontFiles] its music
-  /// fonts' files and metadata, by name (see [fonts]).
-  factory ProjectState.fromJson(Map<String, Object?> json,
-      {int savedVersion = version,
-      Map<String, PatchImage> images = const {},
-      Map<String, ({Uint8List file, Uint8List? metadata})> fontFiles = const {}}) {
-    var state = json;
-    // The first format is 1: a file claiming one before it (-1e9) is read as 1, not stepped
-    // up from there.
-    for (var v = savedVersion.clamp(1, version); v < version; v++) {
-      final migrate = _migrations[v];
-      if (migrate != null) state = migrate(state);
-    }
-    final r = JsonReader(state, 'state');
-    final curation = r.child('curation');
-    final sync = r.child('sync');
-    final view = r.child('view');
-    final patches = [
-      for (final (i, patch) in r.list('patches').indexed) _patch(JsonReader(patch, '${r.where}.patches[$i]'), images),
-    ];
-    return ProjectState(
-      edits: EditState(
-        lanes: curation.isAbsent('lanes')
-            ? null
-            : {
-                for (final MapEntry(key: id, value: lane) in curation.map('lanes').entries)
-                  id: [
-                    for (final (i, region) in JsonReader.listAt(lane, '${curation.where}.lanes.$id').indexed)
-                      _region(JsonReader(region, '${curation.where}.lanes.$id[$i]')),
-                  ],
-              },
-        transition: switch (curation.number('transition')) {
-          final s? when s < 0 || s > maxTransition =>
-            throw FormatException('The project is damaged: ${curation.where}.transition is not a length of time.'),
-          final s => s,
-        },
-        scrollFollow: switch (curation.number('scrollFollow')) {
-          final f? when f < 0 || f > 1 =>
-            throw FormatException('The project is damaged: ${curation.where}.scrollFollow is not between 0 and 1.'),
-          final f => f,
-        },
-        motion: r.isAbsent('motion') ? null : _motion(r),
-        typography: r.isAbsent('typography') ? null : _typography(r),
-        anchors: [
-          for (final (i, anchor) in sync.list('anchors').indexed)
-            () {
-              final a = JsonReader(anchor, '${sync.where}.anchors[$i]');
-              return SyncAnchor(a.number('quarter', required: true)!, a.number('seconds', required: true)!,
-                  jumpTo: a.number('jumpTo'));
-            }(),
-        ]..sort((a, b) => a.seconds.compareTo(b.seconds)),
-        leadIn: sync.number('leadIn') ?? 0,
-        midi: sync.isAbsent('midi') ? null : _midi(sync.child('midi')),
-        partNames: {
-          for (final id in r.map('partNames').keys)
-            id: () {
-              final p = r.child('partNames').child(id);
-              return (name: p.string('name', required: true)!, abbreviation: p.string('abbreviation') ?? '');
-            }(),
-        },
-        textEdits: {
-          for (final id in r.map('textEdits').keys) id: r.child('textEdits').string(id, required: true)!,
-        },
-        condensed: {
-          for (final (i, id) in r.list('condensed').indexed)
-            id is String ? id : throw FormatException('The project is damaged: ${r.where}.condensed[$i] is not text.'),
-        },
-        pairs: [
-          for (final (i, pair) in r.list('pairs').indexed)
-            switch (pair) {
-              [final String a, final String b] when a != b => PlayerPair(a, b),
-              _ => throw FormatException('The project is damaged: ${r.where}.pairs[$i] is not two part ids.'),
-            },
-        ],
-        partOrder: [
-          for (final (i, id) in r.list('partOrder').indexed)
-            id is String ? id : throw FormatException('The project is damaged: ${r.where}.partOrder[$i] is not text.'),
-        ],
-        sections: {
-          for (final MapEntry(key: id, value: name) in r.map('sections').entries)
-            id: switch (name) {
-              'none' => null,
-              final String n when n.trim().isNotEmpty => n,
-              _ => throw FormatException('The project is damaged: ${r.where}.sections.$id is not a section.'),
-            },
-        },
-        groupSections: r.boolean('groupSections') ?? false,
-        barNumbers: r.boolean('barNumbers') ?? true,
-        playheadColor: switch (r.string('playheadColor')) {
-          null => null,
-          final hex => _color(hex) ?? (throw FormatException('The project is damaged: ${r.where}.playheadColor is not a colour.')),
-        },
-        colorNames: r.boolean('colorNames') ?? false,
-        // A family this version doesn't know is left out.
-        nameColors: {
-          for (final MapEntry(key: name, value: hex) in r.map('nameColors').entries)
-            ?InstrumentFamily.values.asNameMap()[name]: _color(hex) ?? (throw FormatException('The project is damaged: ${r.where}.nameColors.$name is not a colour.')),
-        },
-        nameGroups: [
-          for (final (i, g) in r.list('nameGroups').indexed) _nameGroup(JsonReader(g, '${r.where}.nameGroups[$i]')),
-        ],
-        nameGroupOf: {
-          for (final MapEntry(key: id, value: group) in r.map('nameGroupOf').entries)
-            id: switch (group) {
-              'none' => null,
-              final String g when g.trim().isNotEmpty => g,
-              _ => throw FormatException('The project is damaged: ${r.where}.nameGroupOf.$id is not a group.'),
-            },
-        },
-        patches: patches,
-        // Kept apart (those saved before captions couldn't overlap show as they did).
-        captions: separateCaptions([
-          for (final (i, caption) in r.list('captions').indexed) _caption(JsonReader(caption, '${r.where}.captions[$i]')),
-        ]),
-        captionFont: switch (r.child('fonts').string('caption')) {
-          final f? when f.trim().isEmpty => throw FormatException('The project is damaged: ${r.where}.fonts.caption is empty.'),
-          final f => f,
-        },
-        fonts: _fonts(r.child('fonts'), fontFiles),
-        embedFont: r.child('fonts').boolean('embed') ?? true,
-        // An option this version doesn't know (or no longer offers) is left out, as the app's are.
-        engraving: EngravingOptions.fromJson(r.map('engraving'), keepDefault: true),
-        // mediaStorage (to format 20) is left: saves always embed the recording.
-        // One this version doesn't know is kept, so a newer version's choice survives a save here.
-        extensions: Map.unmodifiable({
-          for (final MapEntry(key: name, value: on) in r.map('extensions').entries)
-            name: on is bool ? on : throw FormatException('The project is damaged: ${r.where}.extensions.$name is not on or off.'),
-        }),
-        textDynamics: r.child('flags').boolean('textDynamics'),
-        rehearsalInRow: r.child('flags').boolean('rehearsalInRow'),
-        centeredLyrics: r.child('flags').boolean('centredLyrics'),
-        spacers: [
-          for (final (i, spacer) in r.list('spacers').indexed) _spacer(JsonReader(spacer, '${r.where}.spacers[$i]')),
-        ],
-        gaps: [
-          for (final (i, gap) in r.list('gaps').indexed) _gap(JsonReader(gap, '${r.where}.gaps[$i]')),
-        ]..sort((a, b) => a.bar != b.bar ? a.bar.compareTo(b.bar) : a.offset.compareTo(b.offset)),
-      ),
-      images: {for (final p in patches) p.image: images[p.image]!}, // only those on the score
-      view: ViewState(
-        staffSpace: view.number('staffSpace'),
-        grid: switch (view.string('grid')) {
-          null => null,
-          final name =>
-            SyncGrid.values.asNameMap()[name] ?? (throw FormatException('The project is damaged: ${view.where}.grid "$name" is unknown.')),
-        },
-        snapTapsToOnsets: view.boolean('snapTapsToOnsets'),
-        time: view.number('time'),
-      ),
-    );
-  }
+/// A module a newer version wrote that this one can't read, as it came: its JSON
+/// (`modules/<id>.json`) and its files (under `<id>/`, by entry name).
+@immutable
+class ForeignModule {
+  const ForeignModule({required this.version, required this.json, this.files = const {}});
 
-  static VerticalSpacer _spacer(JsonReader r) {
-    final id = r.string('id', required: true)!;
-    if (!Spacers.isSpacer(id)) throw FormatException('The project is damaged: ${r.where}.id is not a spacer\'s.');
-    final height = r.number('height') ?? VerticalSpacer.defaultHeight;
-    if (height < VerticalSpacer.minHeight || height > VerticalSpacer.maxHeight) {
-      throw FormatException('The project is damaged: ${r.where}.height is out of range.');
-    }
-    return VerticalSpacer(
-        id: id,
-        key: SpacerKey.named(r.string('key')),
-        frozen: r.boolean('frozen') ?? false,
-        lines: r.boolean('lines') ?? false,
-        height: height);
-  }
-
-  static HorizontalSpacer _gap(JsonReader r) {
-    final bar = r.number('bar', required: true)!, offset = r.number('offset', required: true)!;
-    final width = r.number('width') ?? HorizontalSpacer.defaultWidth;
-    final length = r.number('length') ?? HorizontalSpacer.defaultLength;
-    if (bar < 0 || bar != bar.roundToDouble() || offset < 0) throw FormatException('The project is damaged: ${r.where} is not in a bar.');
-    if (length < HorizontalSpacer.minLength - 1e-9) throw FormatException('The project is damaged: ${r.where}.length is too short.');
-    if (width < HorizontalSpacer.minWidth || width > HorizontalSpacer.maxWidth) {
-      throw FormatException('The project is damaged: ${r.where}.width is out of range.');
-    }
-    return HorizontalSpacer(bar: bar.toInt(), offset: offset, length: length, width: width);
-  }
-
-  static ScoreFonts _fonts(JsonReader r, Map<String, ({Uint8List file, Uint8List? metadata})> files) {
-    final music = r.string('music');
-    final text = r.string('text');
-    if (text != null && text.trim().isEmpty) throw FormatException('The project is damaged: ${r.where}.text is empty.');
-    return ScoreFonts(
-      music: switch (music) {
-        null => MusicFont.bravura,
-        final name => MusicFont.bundledNamed(name) ??
-            switch (files[name]) {
-              null when r.boolean('embed') == false => MusicFont.missing(name), // looked for when it opens
-              null => throw FormatException('The project is damaged: the music font $name is missing.'),
-              final f => MusicFont.added(family: name, file: f.file, metadata: f.metadata),
-            },
-      },
-      text: text ?? TextFonts.academico,
-    );
-  }
-
-  static MidiTempoMap _midi(JsonReader r) {
-    final tempos = <MidiTempo>[
-      for (final (i, t) in r.list('tempos').indexed)
-        switch (t) {
-          [final num q, final num qpm] when q >= 0 && qpm > 0 && q.isFinite && qpm.isFinite =>
-            (quarter: q.toDouble(), quartersPerMinute: qpm.toDouble()),
-          _ => throw FormatException('The project is damaged: ${r.where}.tempos[$i] is not a quarter and a tempo.'),
-        },
-    ];
-    for (var i = 0; i < tempos.length; i++) {
-      if (i == 0 ? tempos[i].quarter != 0 : tempos[i].quarter <= tempos[i - 1].quarter) {
-        throw FormatException('The project is damaged: ${r.where}.tempos are out of order.');
-      }
-    }
-    if (tempos.isEmpty) throw FormatException('The project is damaged: ${r.where}.tempos is empty.');
-    final warps = <MidiWarp>[
-      if (!r.isAbsent('warps'))
-        for (final (i, w) in r.list('warps').indexed)
-          switch (w) {
-            [final num at, final num jumpTo] when at > 0 && jumpTo >= 0 && at.isFinite && jumpTo.isFinite =>
-              (at: at.toDouble(), jumpTo: jumpTo.toDouble()),
-            _ => throw FormatException('The project is damaged: ${r.where}.warps[$i] is not a quarter and where it jumps to.'),
-          },
-    ];
-    return MidiTempoMap(r.string('name') ?? '', tempos, warps: warps);
-  }
-
-  static ImagePatch _patch(JsonReader r, Map<String, PatchImage> images) {
-    final image = r.string('image', required: true)!;
-    // Saved as images/<id> as it is: a name that would change there (a/b.png, a:b.png) would
-    // leave the patch without its image when opened again.
-    if (!PatchImage.isId(image)) throw FormatException('The project is damaged: the image of ${r.where} is not a file name.');
-    if (!images.containsKey(image)) throw FormatException('The project is damaged: the image of ${r.where} is missing.');
-    double size(String key) {
-      final v = r.number(key, required: true)!;
-      if (!(v > 0) || !v.isFinite) throw FormatException('The project is damaged: ${r.where}.$key is not a size.');
-      return v;
-    }
-
-    final crop = switch (r.list('crop')) {
-      [] => ImagePatch.full,
-      [final num l, final num t, final num rt, final num b] when 0 <= l && l < rt && rt <= 1 && 0 <= t && t < b && b <= 1 =>
-        Rect.fromLTRB(l.toDouble(), t.toDouble(), rt.toDouble(), b.toDouble()),
-      _ => throw FormatException('The project is damaged: ${r.where}.crop is not a part of the image.'),
-    };
-    final quarter = r.number('quarter', required: true)!, top = r.number('top', required: true)!;
-    if (!quarter.isFinite || !top.isFinite) throw FormatException('The project is damaged: ${r.where} is not placed.');
-    return ImagePatch(
-        image: image, quarter: quarter, top: top, width: size('width'), height: size('height'), crop: crop, ink: r.boolean('ink') ?? false);
-  }
-
-  static String _hex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
-
-  static NameGroup _nameGroup(JsonReader r) {
-    final id = r.string('id', required: true)!;
-    if (!id.startsWith('group-')) throw FormatException('The project is damaged: ${r.where}.id is not a group of the user\'s.');
-    return NameGroup(
-      id,
-      r.string('name', required: true)!,
-      _color(r.string('color', required: true)) ?? (throw FormatException('The project is damaged: ${r.where}.color is not a colour.')),
-    );
-  }
-
-  /// "#A86B3C"; null for anything else.
-  static Color? _color(Object? hex) => switch (hex) {
-        final String s when RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(s) => Color(0xFF000000 | int.parse(s.substring(1), radix: 16)),
-        _ => null,
-      };
-
-  static Caption _caption(JsonReader r) {
-    final start = r.number('start', required: true)!, end = r.number('end', required: true)!;
-    if (start < 0) throw FormatException('The project is damaged: ${r.where} starts before the score.');
-    if (end <= start) throw FormatException('The project is damaged: ${r.where} ends before it starts.');
-    return Caption(start, end, r.string('text', required: true)!);
-  }
-
-  /// The longest a staff may take to glide in or out, seconds (far more than any dialog offers).
-  static const maxTransition = 60.0;
-
-  static Region _region(JsonReader r) {
-    final start = r.number('start', required: true)!, end = r.number('end', required: true)!;
-    if (start < 0) throw FormatException('The project is damaged: ${r.where} starts before the score.');
-    if (end < start) throw FormatException('The project is damaged: ${r.where} ends before it starts.');
-    double? seconds(String key) {
-      final s = r.number(key);
-      if (s != null && (s < 0 || s > maxTransition)) {
-        throw FormatException('The project is damaged: ${r.where}.$key is not a length of time.');
-      }
-      return s;
-    }
-
-    return Region(start, end, transitionIn: seconds('transitionIn'), transitionOut: seconds('transitionOut'));
-  }
-  /// [r]'s `motion`, saying which of its settings is damaged.
-  static ScoreMotion _motion(JsonReader r) {
-    final json = r.map('motion');
-    try {
-      return ScoreMotion.fromJson(json);
-    } on FormatException catch (e) {
-      throw FormatException('The project is damaged: ${r.where}.motion.${e.message}');
-    }
-  }
-
-
-  /// [r]'s `typography`, saying which of its looks is damaged.
-  static ScoreTypography _typography(JsonReader r) {
-    final json = r.map('typography');
-    try {
-      return ScoreTypography.fromJson(json);
-    } on FormatException catch (e) {
-      throw FormatException('The project is damaged: ${r.where}.typography.${e.message}');
-    }
-  }
-
-  Map<String, Object?> toJson() {
-    final EditState(:lanes, :transition, :scrollFollow, :motion, :typography, :anchors, :leadIn, :midi, :partNames, :textEdits, :condensed, :pairs, :partOrder,
-        :sections, :groupSections, :barNumbers, :playheadColor, :colorNames, :nameColors, :nameGroups, :nameGroupOf, :patches, :captions, :captionFont, :fonts, :embedFont, :engraving, :extensions, :textDynamics, :rehearsalInRow, :centeredLyrics, :spacers, :gaps) = edits;
-    // A missing font can't be embedded: it is looked for again next time.
-    final embedded = embedFont && !fonts.music.isMissing;
-    return {
-      if (fonts != ScoreFonts.standard || captionFont != null || !embedded)
-        'fonts': {
-          if (fonts.music != MusicFont.bravura) 'music': fonts.music.name,
-          if (fonts.text != TextFonts.academico) 'text': fonts.text,
-          'caption': ?captionFont,
-          if (!embedded) 'embed': false,
-        },
-      if (!engraving.isEmpty) 'engraving': engraving.toJson(),
-      if (extensions.isNotEmpty) 'extensions': extensions,
-      if (textDynamics != null || rehearsalInRow != null || centeredLyrics != null)
-        // centredLyrics: the flag's first spelling, kept so saved projects read the same.
-        'flags': {'textDynamics': ?textDynamics, 'rehearsalInRow': ?rehearsalInRow, 'centredLyrics': ?centeredLyrics},
-      'motion': ?motion?.toJson(),
-      'typography': ?typography?.toJson(),
-      'textEdits': textEdits,
-      'condensed': [...condensed],
-      'pairs': [for (final p in pairs) p.partIds],
-      'partOrder': partOrder,
-      if (groupSections) 'groupSections': true,
-      if (!barNumbers) 'barNumbers': false,
-      if (playheadColor != null) 'playheadColor': _hex(playheadColor),
-      if (colorNames) 'colorNames': true,
-      if (nameColors.isNotEmpty)
-        'nameColors': {
-          for (final MapEntry(key: family, value: color) in nameColors.entries)
-            family.name: _hex(color),
-        },
-      if (nameGroups.isNotEmpty)
-        'nameGroups': [
-          for (final g in nameGroups) {'id': g.id, 'name': g.name, 'color': _hex(g.color)},
-        ],
-      if (nameGroupOf.isNotEmpty)
-        'nameGroupOf': {for (final MapEntry(key: id, value: g) in nameGroupOf.entries) id: g ?? 'none'},
-      if (sections.isNotEmpty)
-        'sections': {for (final MapEntry(key: id, value: s) in sections.entries) id: s ?? 'none'},
-      'patches': [
-        for (final p in patches)
-          {
-            'image': p.image,
-            'quarter': p.quarter,
-            'top': p.top,
-            'width': p.width,
-            'height': p.height,
-            if (p.crop != ImagePatch.full) 'crop': [p.crop.left, p.crop.top, p.crop.right, p.crop.bottom],
-            if (p.ink) 'ink': true,
-          },
-      ],
-      'captions': [
-        for (final c in captions) {'start': c.start, 'end': c.end, 'text': c.text},
-      ],
-      if (spacers.isNotEmpty)
-        'spacers': [
-          for (final s in spacers)
-            {
-              'id': s.id,
-              if (s.key != SpacerKey.c) 'key': s.key.name,
-              if (s.frozen) 'frozen': true,
-              if (s.lines) 'lines': true,
-              'height': s.height,
-            },
-        ],
-      if (gaps.isNotEmpty)
-        'gaps': [
-          for (final g in gaps) {'bar': g.bar, 'offset': g.offset, 'length': g.length, 'width': g.width},
-        ],
-      'partNames': {
-        for (final MapEntry(key: id, value: p) in partNames.entries) id: {'name': p.name, 'abbreviation': p.abbreviation},
-      },
-      'curation': {
-        'transition': ?transition,
-        'scrollFollow': ?scrollFollow,
-        'lanes': {
-          for (final MapEntry(key: id, value: lane) in (lanes ?? const <String, List<Region>>{}).entries)
-            id: [for (final r in lane) {'start': r.start, 'end': r.end, 'transitionIn': ?r.transitionIn, 'transitionOut': ?r.transitionOut}],
-        },
-      },
-      'sync': {
-        'leadIn': leadIn,
-        if (midi case final midi?)
-          'midi': {
-            'name': midi.name,
-            'tempos': [for (final t in midi.tempos) [t.quarter, t.quartersPerMinute]],
-            if (midi.warps.isNotEmpty) 'warps': [for (final w in midi.warps) [w.at, w.jumpTo]],
-          },
-        'anchors': [
-          for (final a in anchors) {'quarter': a.quarter, 'seconds': a.seconds, 'jumpTo': ?a.jumpTo},
-        ],
-      },
-      'view': {
-        'staffSpace': ?view.staffSpace,
-        'grid': ?view.grid?.name,
-        'snapTapsToOnsets': ?view.snapTapsToOnsets,
-        'time': ?view.time,
-      },
-    };
-  }
+  final int version;
+  final Uint8List json;
+  final Map<String, Uint8List> files;
 }
 
 /// Typed access to one object of a project's JSON, with its path for error messages
@@ -837,6 +400,22 @@ class JsonReader {
   }
 
   static const maxNumber = 1e9;
+
+  /// [value] as numbers: [count] of them, the last [optional] of which may be null or left out
+  /// (`[start, end]`, `[start, end, in, out]`). Each is no bigger than [maxNumber] either way.
+  static List<double?> numbers(Object? value, String where, int count, {int optional = 0}) {
+    if (value is! List || value.length < count - optional || value.length > count) {
+      throw FormatException('The project is damaged: $where is not ${count - optional == count ? count : '${count - optional} to $count'} numbers.');
+    }
+    return [
+      for (var i = 0; i < count; i++)
+        switch (i < value.length ? value[i] : null) {
+          null when i >= count - optional => null,
+          final num n when n.abs() <= maxNumber => n.toDouble(),
+          _ => throw FormatException('The project is damaged: $where[$i] is not a number in range.'),
+        },
+    ];
+  }
   String? string(String key, {bool required = false}) => _typed<String>(key, 'text', required);
   bool? boolean(String key) => _typed<bool>(key, 'true or false', false);
 
