@@ -66,11 +66,12 @@ class ImageEditing {
   /// [maxWidth]), its own shape.
   static const defaultHeight = 12.0, maxWidth = 40.0;
 
-  /// Adds an image of [kind] from [bytes], its top-left corner at score quarter [quarter] and
-  /// [top] staff spaces down, and selects it. One Undo step. Throws a [FormatException]
-  /// when the bytes are not such an image.
+  /// Adds an image of [kind] from [bytes] (a file of type [extension]), its top-left corner
+  /// at score quarter [quarter] and [top] staff spaces down, and selects it. One Undo step.
+  /// Throws a [FormatException] when the bytes are not such an image.
   Future<void> add(ImageKind kind, Uint8List bytes, {required double quarter, required double top, String extension = ''}) async {
     if (!_enabled || _editor._score == null) return;
+    (:bytes, :extension) = await PatchImage.portable(bytes, extension);
     // The same file again is the same image: the project keeps it once.
     final same = _images.values.where((i) => i.kind == kind && _arts.containsKey(i.id) && listEquals(i.bytes, bytes)).firstOrNull;
     final image = same ?? PatchImage.create(kind, bytes, extension: extension), document = _documents.current;

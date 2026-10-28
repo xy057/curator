@@ -12,21 +12,32 @@ import 'package:score_engine/score_engine.dart';
 import 'package:vector_graphics_compiler/vector_graphics_compiler.dart' as vgc;
 import 'l10n/l10n.dart';
 
-/// Vector images are SVG; raster images PNG or JPEG.
+/// Vector images are SVG; raster images PNG (APNG too), JPEG, GIF, WebP, BMP or ICO, which
+/// every system's Flutter reads; GIF, APNG and WebP may be animated.
 enum ImageKind {
   vector(['svg']),
-  raster(['png', 'jpg', 'jpeg']);
+  raster(['png', 'apng', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico']);
 
   const ImageKind(this.extensions);
+
+  /// The file types kept in a project.
   final List<String> extensions;
 
-  /// What Add Image… offers: either kind.
-  static XTypeGroup get types => XTypeGroup(label: 'Image'.tr, extensions: const ['svg', 'png', 'jpg', 'jpeg']);
+  /// Raster files taken but kept as PNG ([PatchImage.portable]): only some systems read
+  /// them (macOS does, Windows doesn't), and a project opens on any. Only the first frame.
+  static const converted = ['tif', 'tiff', 'heic', 'heif', 'avif'];
 
+  /// What Add Image… offers: either kind.
+  static XTypeGroup get types => XTypeGroup(label: 'Image'.tr, extensions: [for (final k in values) ...k.extensions, ...converted]);
+
+  /// The kind of a file taken, by its type.
   static ImageKind? ofPath(String path) {
     final ext = path.split('.').last.toLowerCase();
-    return values.where((k) => k.extensions.contains(ext)).firstOrNull;
+    return converted.contains(ext) ? raster : ofKept(ext);
   }
+
+  /// The kind of a file type kept in a project; null for any other.
+  static ImageKind? ofKept(String extension) => values.where((k) => k.extensions.contains(extension)).firstOrNull;
 }
 
 /// An image file added to a project (Attach Image): its bytes, kept as they came, and
@@ -55,7 +66,27 @@ class PatchImage {
   }
 
   /// The kind of a saved image, from its id's file type; null when it is neither.
-  static ImageKind? kindOfId(String id) => ImageKind.ofPath(id);
+  static ImageKind? kindOfId(String id) => ImageKind.ofKept(id.split('.').last.toLowerCase());
+
+  /// [bytes] of a file of type [extension] as a project keeps them: a [ImageKind.converted]
+  /// one as PNG (its first frame), any other as it came. Throws a [FormatException] when it
+  /// isn't an image Flutter reads here, or is too big.
+  static Future<({Uint8List bytes, String extension})> portable(Uint8List bytes, String extension) async {
+    if (!ImageKind.converted.contains(extension.toLowerCase())) return (bytes: bytes, extension: extension);
+    if (bytes.length > maxBytes) throw const FormatException('Use an image under 64 MB.');
+    ui.Image? image;
+    try {
+      image = (await _decodeRaster(bytes, still: true)).single.image;
+      final png = await image.toByteData(format: ui.ImageByteFormat.png);
+      return (bytes: png!.buffer.asUint8List(), extension: 'png');
+    } on _Refused catch (e) {
+      throw FormatException(e.message);
+    } catch (_) {
+      throw FormatException('Couldn’t read this image.'.tr);
+    } finally {
+      image?.dispose();
+    }
+  }
 
   /// Whether [id] can be one: a plain file name (letters, digits, `-`, `_`, `.`, not
   /// starting with a dot) of a known file type, the same in a zip and on every file system.
@@ -65,13 +96,17 @@ class PatchImage {
   /// The largest image file taken, bytes.
   static const maxBytes = 64 << 20;
 
-  /// The most pixels a PNG or JPEG may have (one in an SVG too): decoding takes 4 bytes a
-  /// pixel, so a small file of a huge plain image could take gigabytes.
+  /// The most pixels a raster image may have (one in an SVG too): decoding takes 4 bytes a
+  /// pixel, so a small file of a huge plain image could take gigabytes. An animated one's
+  /// frames together are scaled down to it.
   static const maxPixels = 64000000;
 
-  /// The longest side a PNG or JPEG is kept at; a bigger one is scaled down to it (sharp
+  /// The longest side a raster image is kept at; a bigger one is scaled down to it (sharp
   /// enough for a 4K video).
   static const maxSide = 4096;
+
+  /// The most frames an animated image may have.
+  static const maxFrames = 2000;
 
   /// Draws the image. Throws a [FormatException] when the bytes are not an image of [kind],
   /// or one too big.
@@ -93,11 +128,11 @@ class PatchImage {
     } on _Refused catch (e) {
       throw FormatException(e.message);
     } catch (e) {
-      throw FormatException((kind == ImageKind.vector ? 'Couldn’t read this SVG.' : 'Couldn’t read this PNG or JPEG.').tr);
+      throw FormatException((kind == ImageKind.vector ? 'Couldn’t read this SVG.' : 'Couldn’t read this image.').tr);
     }
   }
 
-  /// The size of the PNG or JPEG in [bytes], read from its header (nothing is decoded).
+  /// The size of the raster image in [bytes], read from its header (nothing is decoded).
   static Future<ui.ImageDescriptor> _describe(Uint8List bytes) async {
     final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
     try {
@@ -112,17 +147,53 @@ class PatchImage {
     }
   }
 
-  static Future<ui.Image> _decodeRaster(Uint8List bytes) async {
+  /// Every frame of the raster image in [bytes] (with [still], only the first), each shown
+  /// for its duration.
+  static Future<List<({ui.Image image, Duration duration})>> _decodeRaster(Uint8List bytes, {bool still = false}) async {
     final descriptor = await _describe(bytes);
-    final w = descriptor.width, h = descriptor.height, scale = math.min(1.0, maxSide / math.max(w, h));
-    final codec = await descriptor.instantiateCodec(
-        targetWidth: scale < 1 ? math.max(1, (w * scale).round()) : null,
-        targetHeight: scale < 1 ? math.max(1, (h * scale).round()) : null);
+    final decoded = <({ui.Image image, Duration duration})>[];
+    ui.Codec? codec;
     try {
-      return (await codec.getNextFrame()).image;
+      // Opening a codec decodes nothing: the first only counts the frames.
+      final first = await descriptor.instantiateCodec();
+      final count = still ? 1 : first.frameCount;
+      first.dispose();
+      if (count > maxFrames) throw const _Refused('Use an animation of 2000 frames or fewer.');
+      final w = descriptor.width, h = descriptor.height;
+      final scale = math.min(1.0, math.min(maxSide / math.max(w, h), math.sqrt(maxPixels / (w * h * math.max(count, 1)))));
+      final tw = math.max(1, (w * scale).round()), th = math.max(1, (h * scale).round());
+      codec = await descriptor.instantiateCodec(targetWidth: scale < 1 ? tw : null, targetHeight: scale < 1 ? th : null);
+      for (var i = 0; i < math.max(count, 1); i++) {
+        final frame = await codec.getNextFrame();
+        // An animation's codec decodes at full size whatever it was asked.
+        decoded.add((image: frame.image.width > tw ? _scaled(frame.image, tw, th) : frame.image, duration: frame.duration));
+      }
+      return decoded;
+    } catch (_) {
+      for (final f in decoded) {
+        f.image.dispose();
+      }
+      rethrow;
     } finally {
-      codec.dispose();
+      codec?.dispose();
       descriptor.dispose();
+    }
+  }
+
+  /// [image] drawn at [width] × [height]; [image] is let go.
+  static ui.Image _scaled(ui.Image image, int width, int height) {
+    final recorder = ui.PictureRecorder();
+    ui.Canvas(recorder).drawImageRect(
+        image,
+        ui.Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+        ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+        ui.Paint()..filterQuality = ui.FilterQuality.medium);
+    final picture = recorder.endRecording();
+    try {
+      return picture.toImageSync(width, height);
+    } finally {
+      picture.dispose();
+      image.dispose();
     }
   }
 
@@ -195,18 +266,52 @@ class _Refused implements Exception {
   final String message;
 }
 
-/// A PNG or JPEG, drawn smoothly at any size.
+/// A raster image, drawn smoothly at any size. An animated one (more than one frame) plays
+/// with the playback, over and over from its start, whatever loop count the file asks for:
+/// the same frame at the same moment in the preview and in a video.
 class RasterArt implements PatchArt {
-  RasterArt(this.image);
-  final ui.Image image;
+  RasterArt(List<({ui.Image image, Duration duration})> frames)
+      : frames = [for (final f in frames) f.image],
+        _ends = _endsOf(frames);
+
+  final List<ui.Image> frames;
+
+  /// When each frame ends, milliseconds from the start.
+  final List<int> _ends;
+
+  ui.Image get image => frames.first;
+
+  static List<int> _endsOf(List<({ui.Image image, Duration duration})> frames) {
+    var end = 0;
+    // As browsers do, a frame of 10 ms or less shows for 100.
+    return [for (final f in frames) end += f.duration.inMilliseconds <= 10 ? 100 : f.duration.inMilliseconds];
+  }
+
+  bool get animated => frames.length > 1;
+
+  /// The frame shown at [time] (seconds).
+  ui.Image frameAt(double time) {
+    if (!animated || !time.isFinite) return image;
+    final t = (time * 1000).floor() % _ends.last;
+    var lo = 0, hi = _ends.length - 1;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (_ends[mid] <= t) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return frames[lo];
+  }
 
   @override
   ui.Size get size => ui.Size(image.width.toDouble(), image.height.toDouble());
 
   @override
-  void paint(ui.Canvas canvas, ui.Rect source, ui.Rect destination, {double opacity = 1}) {
+  void paint(ui.Canvas canvas, ui.Rect source, ui.Rect destination, {double opacity = 1, double time = 0}) {
     canvas.drawImageRect(
-      image,
+      frameAt(time),
       source,
       destination,
       ui.Paint()
@@ -215,7 +320,11 @@ class RasterArt implements PatchArt {
     );
   }
 
-  void dispose() => image.dispose();
+  void dispose() {
+    for (final f in frames) {
+      f.dispose();
+    }
+  }
 }
 
 /// An SVG, drawn as vectors: sharp at any size, in the preview and in a video.
@@ -227,7 +336,7 @@ class VectorArt implements PatchArt {
   ui.Size get size => ui.Size(math.max(1, info.size.width), math.max(1, info.size.height));
 
   @override
-  void paint(ui.Canvas canvas, ui.Rect source, ui.Rect destination, {double opacity = 1}) {
+  void paint(ui.Canvas canvas, ui.Rect source, ui.Rect destination, {double opacity = 1, double time = 0}) {
     if (source.isEmpty || destination.isEmpty) return;
     canvas.save();
     canvas.clipRect(destination);
@@ -296,8 +405,8 @@ class ImagePatch {
   int get hashCode => Object.hash(image, quarter, top, width, height, crop, ink);
 }
 
-/// What can be pasted: an image on the clipboard (a PNG), SVG text, or a copied file of
-/// either kind (from Finder). Null when there is none.
+/// What can be pasted: an image on the clipboard (a PNG), SVG text, or a copied image file
+/// (from Finder). Null when there is none.
 Future<({ImageKind kind, Uint8List bytes, String extension})?> readClipboardImage() async {
   try {
     for (final path in await Pasteboard.files()) {

@@ -42,7 +42,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
 | `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
-| `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG / PNG / JPEG drawing, the clipboard |
+| `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG and raster drawing (animated too), the clipboard |
 | `span_lane.dart` | `SpanLane`: a lane pinned under the ruler whose stretches (`SpanLaneModel`) are drawn, moved, trimmed and erased the way regions are; the Captions and Spacers lanes are two |
 | `spacer_dialogs.dart`, `spacer_lane.dart`, `score_view/spacer_handles.dart` | Attach Image's spacers: their dialogs; the Spacers lane (a `SpanLane` of the horizontal ones, with add and remove buttons); selecting, moving and resizing them in the score view |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
@@ -273,7 +273,7 @@ asks `MidiInScore` (the engine's) where they are in the score for beats and snap
 warp it follows jumps (`warpSeconds`, by its place among the map's warps).
 
 **An image scrolls with the score** (the Attach Image extension). Right-click the preview ▸
-Add Image… (an SVG, drawn as vectors, or a PNG / JPEG: the file's type says which), or Paste (⌘V: a PNG, SVG text, or a copied
+Add Image… (an SVG, drawn as vectors, or a raster image: PNG, APNG, JPEG, GIF, WebP, BMP or ICO, kept as it came, or a TIFF, HEIC or AVIF, kept as a PNG of its first frame since only some systems read them: `PatchImage.portable`; the file's type says which), or Paste (⌘V: a PNG, SVG text, or a copied
 file), puts one where it was clicked (⌘V: at the pointer); a file dropped on the score, where
 it is dropped (`ScoreViewState.dropImage`). An `ImagePatch` pins its left edge
 to a score quarter (so re-engraving keeps it at its bar) and gives its top below the frame's
@@ -285,6 +285,11 @@ right-click ▸ Crop) and the handles crop it instead, the whole image shown fai
 Right-click ▸ Score Ink (`ImagePatch.ink`, format 10) draws it in the score's ink, its own
 colours dropped, so line art follows the paper (light ink on dark paper in a dark theme or
 video).
+An animated GIF, APNG or WebP (`RasterArt.animated`: every frame decoded) plays with the
+playback, its frame picked by the playback time (`PatchArt.paint`'s `time`), over and over from
+the recording's start whatever loop count the file asks for, so the preview and a video show the
+same frame at the same moment; paused, it holds still. A frame of 10 ms or less shows for 100,
+as browsers do. Images other than SVG and PNG / JPEG came in format 26.
 The toolbar's Manage assets… (shown while the switch is on) lists the image files the project
 keeps (`ImageEditing.stored`: those a patch shows), each with its uses as bars: a bar
 locates it (`ImageEditing.locate`: the playhead goes to where its left edge sounds, first
@@ -299,9 +304,10 @@ Every change is an Undo step (`patches` in `EditState`); a project keeps them in
 reads only the files a patch shows. While the
 switch is off the images stay in the project but are not drawn, exported or editable
 (`ImageEditing.enabled`). Decoding is bounded (`PatchImage.decode`), so a small file can't
-take gigabytes: a file over 64 MB, or a PNG / JPEG over 64 megapixels (one inside an SVG
+take gigabytes: a file over 64 MB, or a raster image over 64 megapixels (one inside an SVG
 too, read from its header before anything is decoded), is refused; one longer than 4096
-pixels is kept at 4096. An SVG with no viewBox and no width and height (flutter_svg refuses
+pixels is kept at 4096. An animation's frames together are scaled down to 64 megapixels, and
+one of more than 2000 frames is refused. An SVG with no viewBox and no width and height (flutter_svg refuses
 it; a browser draws it) is given the box around what it draws.
 
 **Spacers make room** (Attach Image too), for an image or what isn't written yet. The bottom

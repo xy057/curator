@@ -3,10 +3,11 @@ import 'dart:ui' as ui;
 import 'engraving.dart';
 
 /// Something drawable that a [ScenePatch] shows: a picture of [size] (its own units, pixels
-/// for a raster image), of which [paint] draws the part [source] into [destination].
+/// for a raster image), of which [paint] draws the part [source] into [destination]. An
+/// animated one draws its frame at [time] (the playback time, seconds).
 abstract class PatchArt {
   ui.Size get size;
-  void paint(ui.Canvas canvas, ui.Rect source, ui.Rect destination, {double opacity = 1});
+  void paint(ui.Canvas canvas, ui.Rect source, ui.Rect destination, {double opacity = 1, double time = 0});
 }
 
 /// An image placed on the score that scrolls with it: its left edge is pinned to score
@@ -31,14 +32,16 @@ class ScenePatch {
   final bool ink;
   final PatchArt art;
 
-  /// Draws the patch into [destination]; [inkColor] is the score's ink, used with [ink].
-  void paint(ui.Canvas canvas, ui.Rect destination, {double opacity = 1, ui.Color? inkColor}) {
+  /// Draws the patch into [destination] as it is at [time] (the playback time, seconds); [inkColor]
+  /// is the score's ink, used with [ink].
+  void paint(ui.Canvas canvas, ui.Rect destination, {double opacity = 1, ui.Color? inkColor, double time = 0}) {
     final s = art.size;
     final tint = ink && inkColor != null;
     if (tint) canvas.saveLayer(destination, ui.Paint()..colorFilter = ui.ColorFilter.mode(inkColor, ui.BlendMode.srcIn));
     art.paint(canvas, ui.Rect.fromLTRB(crop.left * s.width, crop.top * s.height, crop.right * s.width, crop.bottom * s.height),
         destination,
-        opacity: opacity);
+        opacity: opacity,
+        time: time);
     if (tint) canvas.restore();
   }
 }
