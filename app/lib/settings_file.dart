@@ -47,8 +47,10 @@ abstract final class SettingsFile {
   /// Writes [settings] ([of] them), built beside [path] and moved into place at the end.
   static Future<void> write(String path, EditState settings) => Isolate.run(() => _write(path, of(settings)));
 
-  /// Reads a settings file: its settings ([of]). Throws a [FormatException] saying what is wrong.
-  static Future<EditState> read(String path) => Isolate.run(() => _read(path));
+  /// Reads a settings file: its settings ([of]), and whether it was saved before modules
+  /// ([LegacyProject]: Curator 0.6.1 and before; it is never written so). Throws a
+  /// [FormatException] saying what is wrong.
+  static Future<({EditState settings, bool olderFormat})> read(String path) => Isolate.run(() => _read(path));
 
   static void _write(String path, EditState settings) {
     final temp = '$path.saving';
@@ -67,7 +69,7 @@ abstract final class SettingsFile {
     }
   }
 
-  static EditState _read(String path) {
+  static ({EditState settings, bool olderFormat}) _read(String path) {
     final input = InputFileStream(path);
     try {
       final Archive archive;
@@ -79,7 +81,7 @@ abstract final class SettingsFile {
       try {
         if (ProjectArchive.isModular(archive)) {
           final manifest = ProjectArchive.manifestOf(archive, mimeType: mimeType, notOurs: _notOurs, newer: _newer);
-          return of(ProjectArchive.read(archive, manifest, ProjectModules.settings, newer: _newer, keepForeign: false).edits);
+          return (settings: of(ProjectArchive.read(archive, manifest, ProjectModules.settings, newer: _newer, keepForeign: false).edits), olderFormat: false);
         }
         final manifestFile = archive.findFile('settings.json');
         if (manifestFile == null) throw const FormatException(_notOurs);
@@ -87,7 +89,7 @@ abstract final class SettingsFile {
         if (manifest.string('format') != mimeType) throw const FormatException(_notOurs);
         final version = manifest.number('version')?.toInt() ?? 0;
         if (version > LegacyProject.lastVersion) throw const FormatException(_newer);
-        return of(ProjectArchive.readLegacy(archive, manifest.map('state'), version, ProjectModules.settings).edits);
+        return (settings: of(ProjectArchive.readLegacy(archive, manifest.map('state'), version, ProjectModules.settings).edits), olderFormat: true);
       } on FormatException catch (e) {
         throw FormatException(e.message.replaceFirst('The project is damaged', 'The settings are damaged'));
       }

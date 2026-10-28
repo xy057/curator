@@ -148,6 +148,7 @@ abstract final class ProjectFile {
         scoreBytes: ZipEntries.read(scoreFile, limit: ScoreFile.maxBytes),
         state: state,
         media: media,
+        olderFormat: legacy,
       );
     } finally {
       input.closeSync();
@@ -193,12 +194,16 @@ class ProjectMedia {
 
 /// What [ProjectFile.read] found.
 class OpenedProject {
-  const OpenedProject({required this.scoreName, required this.scoreBytes, required this.state, this.media});
+  const OpenedProject({required this.scoreName, required this.scoreBytes, required this.state, this.media, this.olderFormat = false});
 
   final String scoreName;
   final Uint8List scoreBytes;
   final ProjectState state;
   final ProjectMediaLocation? media;
+
+  /// Whether it was saved before modules ([LegacyProject]: Curator 0.6.1 and before). A save
+  /// writes the new format, which those versions can't open.
+  final bool olderFormat;
 }
 
 class ProjectMediaLocation {

@@ -113,7 +113,9 @@ void main() {
         ..add(ArchiveFile.string('score/Score.musicxml', '<score-partwise/>'));
       File(path).writeAsBytesSync(ZipEncoder().encodeBytes(zip));
 
-      final state = (await open(path)).state;
+      final opened = await open(path);
+      expect(opened.olderFormat, isTrue);
+      final state = opened.state;
       final e = state.edits;
       expect(e.barNumbers, isFalse, reason: 'saved before bar numbers (format 18): off, as it was made');
       expect(e.partNames, {'P1': (name: 'Solo Piccolo', abbreviation: '')});
@@ -125,9 +127,12 @@ void main() {
       expect(e.captions, [const Caption(1, 2, 'Hi')]);
       expect(state.view.time, 3);
 
-      // Saved again, in modules: the same.
+      // Saved again: in modules, the same.
       await ProjectFile.write(path, ProjectContents(scoreName: 'Score.musicxml', scoreBytes: Uint8List(1), state: state));
-      expect(jsonEncode(ProjectModules.toJson((await open(path)).state)), jsonEncode(ProjectModules.toJson(state)));
+      final saved = await open(path);
+      expect(saved.olderFormat, isFalse);
+      expect(json(path, 'project.json')['version'], LegacyProject.lastVersion + 1);
+      expect(jsonEncode(ProjectModules.toJson(saved.state)), jsonEncode(ProjectModules.toJson(state)));
     });
 
     test('a module this version can\'t read is kept when it may go unread, refused when not', () async {
@@ -174,9 +179,38 @@ void main() {
       await SettingsFile.write(path, settings);
       expect(json(path, 'settings.json'), {'format': SettingsFile.mimeType, 'version': LegacyProject.lastVersion + 1});
       expect((json(path, 'manifest.json')['modules']! as Map).keys, [for (final m in ProjectModules.settings) m.id]);
-      final read = await SettingsFile.read(path);
+      final (settings: read, :olderFormat) = await SettingsFile.read(path);
+      expect(olderFormat, isFalse);
       expect((read.barNumbers, read.colorNames, read.transition), (false, true, 0.8));
       expect(read.extensions, {'captions': true});
+    });
+
+    test('a settings file saved before modules still imports, and exports in modules', () async {
+      final path = '${dir.path}/old.ccf';
+      final zip = Archive()
+        ..add(ArchiveFile.string('settings.json', jsonEncode({
+          'format': SettingsFile.mimeType,
+          'version': 25,
+          'state': {
+            'barNumbers': false,
+            'flags': {'centredLyrics': true},
+            'curation': {'transition': 0.8, 'lanes': {'P1': []}},
+            'partNames': {'P1': {'name': 'Not a setting'}},
+          },
+        })));
+      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(zip));
+      final (:settings, :olderFormat) = await SettingsFile.read(path);
+      expect(olderFormat, isTrue);
+      expect((settings.barNumbers, settings.centeredLyrics, settings.transition), (false, true, 0.8));
+      expect(settings.lanes, isNull, reason: 'only the score-wide settings');
+      expect(settings.partNames, isEmpty);
+
+      final again = '${dir.path}/again.ccf';
+      await SettingsFile.write(again, settings);
+      expect(json(again, 'settings.json')['version'], LegacyProject.lastVersion + 1);
+      final reread = await SettingsFile.read(again);
+      expect(reread.olderFormat, isFalse);
+      expect(reread.settings.centeredLyrics, isTrue);
     });
   });
 
@@ -193,6 +227,22 @@ void main() {
     tearDown(() {
       doc.dispose();
       c.dispose();
+    });
+
+    test('a project saved by Curator 0.6.1 or before opens, and saves in the new format', () async {
+      final path = '${dir.path}/older.ccs';
+      demoProject.copySync(path);
+      await doc.open(path);
+      expect(doc.isOlderFormat, isTrue);
+      final before = jsonEncode(ProjectModules.toJson(c.projectState));
+      expect(json(path, 'project.json')['version'], lessThanOrEqualTo(LegacyProject.lastVersion), reason: 'untouched until saved');
+
+      await doc.save();
+      expect(doc.isOlderFormat, isFalse);
+      expect(json(path, 'manifest.json')['format'], ProjectFile.mimeType);
+      await doc.open(path);
+      expect(doc.isOlderFormat, isFalse);
+      expect(jsonEncode(ProjectModules.toJson(c.projectState)), before);
     });
 
     test('every edit survives save and open', () async {

@@ -673,13 +673,19 @@ as `view`): then it opens without it, and keeps it as it came, JSON and files
 back. Projects saved before modules (formats 1–26: one `state` in `project.json`) are read by
 `LegacyProject`: its frozen migrations to 26, then each field dealt out to its module in that
 module's shape, for the module to check. The bundled demo is one, so every test reads it so.
+Such a project opens as any other, and says so (`OpenedProject.olderFormat`,
+`ProjectDocument.isOlderFormat` until it is saved): a snack bar that stays until closed warns
+that saving (an autosave too) updates it, and older versions won't open it then. Nothing is ever
+written in an older format; the sample, never saved, says nothing.
 
 **Project Settings travel as a settings file** (`.ccf`, `SettingsFile`; Import… and Export… at the
 foot of Project Settings' sidebar). It is a project's layout (`ProjectArchive`, `mimetype`
 `application/x-curator-settings`, its stub `settings.json`) with only the score-wide modules
 (`ProjectModules.settings`: fonts with an embedded added font's files, engraving, display,
 extensions), so it is checked and migrated as a project is; a module it can't read is refused,
-optional or not, and one saved before modules (`settings.json`'s `state`) goes through `LegacyProject`.
+optional or not, and one saved before modules (`settings.json`'s `state`) goes through `LegacyProject`:
+it is applied, then a dialog says it is in an older format and to export again to update it
+(`SettingsFile.read`'s `olderFormat`; Export writes only the new one).
 Only what a page sets for the whole score: what it sets per instrument (brackets, groups' members,
 pairs and condensing, names) stays, as another score's instruments differ, and so do the user's own
 name groups. Export writes the settings as the score shows them (`EditorController.exportedSettings`:

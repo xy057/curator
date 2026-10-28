@@ -1129,7 +1129,12 @@ class _SettingsFileButtons extends StatelessWidget {
   Future<void> _import(BuildContext context) async {
     final file = await openFile(acceptedTypeGroups: _types);
     if (file == null || !context.mounted) return;
-    await _guard(context, 'Couldn’t Import Settings'.tr, () async => controller.importSettings(await SettingsFile.read(file.path)));
+    await _guard(context, 'Couldn’t Import Settings'.tr, () async {
+      final (:settings, :olderFormat) = await SettingsFile.read(file.path);
+      await controller.importSettings(settings);
+      // Applied: Export writes them in the new format.
+      if (olderFormat && context.mounted) await _tell(context, 'Settings Imported'.tr, 'This file is in an older format. Export again to update it.'.tr);
+    });
   }
 
   Future<void> _export(BuildContext context) async {
@@ -1145,17 +1150,18 @@ class _SettingsFileButtons extends StatelessWidget {
     try {
       await action();
     } catch (e) {
-      if (!context.mounted) return;
-      await showAppDialog<void>(
+      if (context.mounted) await _tell(context, title, describeError(e));
+    }
+  }
+
+  static Future<void> _tell(BuildContext context, String title, String message) => showAppDialog<void>(
         context: context,
         builder: (context) => AppDialog(
           title: Text(title),
-          content: SingleChildScrollView(child: Text(describeError(e))),
+          content: SingleChildScrollView(child: Text(message)),
           actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
         ),
       );
-    }
-  }
 
   @override
   Widget build(BuildContext context) => Padding(

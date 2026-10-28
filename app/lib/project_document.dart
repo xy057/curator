@@ -45,6 +45,11 @@ class ProjectDocument extends ChangeNotifier {
 
   bool get isSaving => _saving != null;
 
+  /// True while the open project is as Curator 0.6.1 and before saved it ([OpenedProject.olderFormat]),
+  /// not saved since: the next save (an autosave too) writes the new format, which they can't open.
+  bool get isOlderFormat => _olderFormat;
+  bool _olderFormat = false;
+
   /// True while the bundled demo is open: it can't be saved (Save and Save As are off) and
   /// its changes are never unsaved, so closing it asks nothing.
   bool get isSample => _isSample;
@@ -88,6 +93,7 @@ class ProjectDocument extends ChangeNotifier {
       );
       final missing = project.media?.missingPath;
       recordingProblem = problem ?? (missing == null ? null : '${'Can’t find the linked recording:'.tr}\n$missing');
+      _olderFormat = project.olderFormat;
     } catch (_) {
       ScratchSpace.release(mediaDirectory);
       rethrow;
@@ -108,6 +114,7 @@ class ProjectDocument extends ChangeNotifier {
     _mediaDirectory = null;
     _path = null;
     _isSample = false;
+    _olderFormat = false;
     _markSaved(controller.editRevision.value);
     settings.addRecent(path);
   });
@@ -134,6 +141,7 @@ class ProjectDocument extends ChangeNotifier {
       settings.removeRecent(file.path); // a temporary copy: nothing to reopen
       _path = null;
       _isSample = true;
+      _olderFormat = false; // never saved
       _markSaved(controller.editRevision.value);
       return missing;
     } finally {
@@ -148,6 +156,7 @@ class ProjectDocument extends ChangeNotifier {
     _mediaDirectory = null;
     _path = null;
     _isSample = false;
+    _olderFormat = false;
     _markSaved(controller.editRevision.value);
   });
 
@@ -168,6 +177,7 @@ class ProjectDocument extends ChangeNotifier {
       final revision = controller.editRevision.value;
       await ProjectFile.write(target, _contents());
       _path = target;
+      _olderFormat = false;
       _markSaved(revision);
       if (path != null) settings.addRecent(target);
     } finally {
