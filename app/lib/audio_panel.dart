@@ -542,12 +542,12 @@ Future<void> _editAnchor(BuildContext context, EditorController c, int index, {b
   final set = await showAnchorDialog(context, beats: sync.beats, quarter: a.quarter, jumpTo: a.jumpTo, warp: warp);
   if (set == null || !context.mounted || index >= sync.anchors.length) return;
   if (!c.anchors.setAnchor(index, set.quarter, jumpTo: set.jumpTo)) {
-    _refused(context, set.jumpTo == a.jumpTo ? 'Choose a position between the neighboring anchors.'.tr : null);
+    _refused(context, set.jumpTo == a.jumpTo ? 'Pick a spot between the neighboring anchors.'.tr : null);
   }
 }
 
 void _refused(BuildContext context, String? why) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text(why ?? 'This jump would put anchors out of order or past the end of the score.'.tr)));
+    content: Text(why ?? 'That jump would put the anchors out of order or past the end.'.tr)));
 
 /// Warp (W): makes the selected anchor jump (back for a repeat, on to a coda), or adds a
 /// warp at the playhead, on the bar (or beat) sounding there.

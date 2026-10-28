@@ -716,10 +716,10 @@ String get aboutText => 'Curator $_versionText\nVerovio $verovioVersion\n$_syste
 String _updateHelp(UpdateStatus status) => switch (status) {
       UpdateIdle() => 'From GitHub.'.tr,
       UpdateChecking() => 'Checking…'.tr,
-      UpToDate() => 'Curator is up to date.'.tr,
+      UpToDate() => 'Curator is up to date! ☆'.tr,
       UpdateAvailable(:final release) when release.download == null =>
-        'Curator {version} is available, but not yet for this system.'.fill({'version': release.version}),
-      UpdateAvailable(:final release) => 'Curator {version} is available.'.fill({'version': release.version}),
+        'Curator {version} is out, but not for this system yet.'.fill({'version': release.version}),
+      UpdateAvailable(:final release) => 'Curator {version} is available! ☆'.fill({'version': release.version}),
       UpdateDownloading(:final release) => 'Downloading {version}…'.fill({'version': release.version}),
       UpdateDownloaded(:final path) => '${'Saved “{name}”.'.fill({'name': fileNameOf(path)})} '
           '${(Platform.isWindows ? 'Close Curator, then replace its folder with the unzipped one.' : 'Unzip it and replace this app with it.').tr}',
@@ -1133,7 +1133,7 @@ class _SettingsFileButtons extends StatelessWidget {
       final (:settings, :olderFormat) = await SettingsFile.read(file.path);
       await controller.importSettings(settings);
       // Applied: Export writes them in the new format.
-      if (olderFormat && context.mounted) await _tell(context, 'Settings Imported'.tr, 'This file is in an older format. Export again to update it.'.tr);
+      if (olderFormat && context.mounted) await _tell(context, 'Settings Imported'.tr, 'This file is a little old. Export again to update it.'.tr);
     });
   }
 

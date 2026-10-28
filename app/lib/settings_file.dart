@@ -20,8 +20,8 @@ abstract final class SettingsFile {
   static const extension = 'ccf';
   static const mimeType = 'application/x-curator-settings';
 
-  static const _notOurs = 'This isn’t a Curator settings file.';
-  static const _newer = 'These settings need a newer version of Curator. Update to import them.';
+  static const _notOurs = 'That doesn’t look like a Curator settings file.';
+  static const _newer = 'These settings are from a newer Curator. Update to import them!';
 
   /// [edits]' score-wide settings, nothing else.
   static EditState of(EditState edits) => EditState(

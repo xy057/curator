@@ -331,7 +331,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (status is! UpdateAvailable || status.release.download == null || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       duration: const Duration(seconds: 10),
-      content: Text('Curator {version} is available.'.fill({'version': status.release.version})),
+      content: Text('Curator {version} is available! ☆'.fill({'version': status.release.version})),
       action: SnackBarAction(label: 'Update…'.tr, onPressed: () => _settings(page: 'About')),
     ));
   }
@@ -414,7 +414,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Future<void> _openPath(String path, {bool confirmed = false}) async {
     if (!File(path).existsSync()) {
       settings.removeRecent(path);
-      _snack('“{name}” was moved or deleted.'.fill({'name': fileNameOf(path)}));
+      _snack('Can’t find “{name}”. Was it moved or deleted?'.fill({'name': fileNameOf(path)}));
       return;
     }
     if (!confirmed && !await _confirmDiscard()) return;
@@ -455,7 +455,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       persist: true,
       showCloseIcon: true,
-      content: Text('Font “{name}” isn’t installed. Showing Bravura.'.fill({'name': name})),
+      content: Text('Can’t find the font “{name}”, so Bravura is filling in.'.fill({'name': name})),
     ));
   }
 
@@ -465,7 +465,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       persist: true,
       showCloseIcon: true,
-      content: Text('This project is in an older format. Saving updates it; older versions of Curator won’t open it then.'.tr),
+      content: Text('A project from an older Curator! Saving updates it, so older versions won’t open it after.'.tr),
     ));
   }
 
@@ -501,8 +501,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (controller.score != null && !document.isSample) return true;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text((document.isSample
-                ? 'The sample can’t be saved. Open a score to start a project.'
-                : 'Nothing to save. Open a project or score first.')
+                ? 'The sample is just for looking. Open a score to start your own!'
+                : 'Nothing to save yet! Open a project or score first.')
             .tr)));
     return false;
   }
@@ -527,8 +527,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final choice = await showAppDialog<String>(
       context: context,
       builder: (context) => AppDialog(
-        title: Text('Do you want to save the changes to “{name}”?'.fill({'name': document.title})),
-        content: Text('Your changes will be lost if you don’t save them.'.tr),
+        title: Text('Save your changes to “{name}” first?'.fill({'name': document.title})),
+        content: Text('If you don’t, they’ll be lost.'.tr),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, 'discard'), child: Text('Don’t Save'.tr)),
           TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
@@ -597,7 +597,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (!_commands.pastesImage) return;
     String? problem;
     try {
-      if (!await controller.images.paste()) problem = 'No image to paste.'.tr;
+      if (!await controller.images.paste()) problem = 'There’s no image to paste.'.tr;
     } catch (e) {
       problem = 'Couldn’t paste the image. {error}'.fill({'error': describeError(e)});
     }
@@ -643,19 +643,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         _scoreView.currentState?.dropImage(path, global);
       case _DropArea.project:
         if (MediaFormats.isMidi(path) || MediaFormats.isRecording(path)) {
-          _snack('Drop recordings and MIDI files on the Audio tab.');
+          _snack('Recordings and MIDI files go on the Audio tab!');
         } else {
           unawaited(_openPath(path));
         }
       case _DropArea.audio:
-        if (!_addMedia(path)) _snack('Drop a MIDI file or a recording.');
+        if (!_addMedia(path)) _snack('Try a MIDI file or a recording.');
       case _DropArea.home:
         if (controller.score != null || !(MediaFormats.isMidi(path) || MediaFormats.isRecording(path))) {
           if (!_addMedia(path)) unawaited(_openPath(path));
         } else {
           _snack(MediaFormats.isMidi(path)
-              ? 'Open a score first, then add its MIDI tempo map.'
-              : 'Open a score first, then add its recording.');
+              ? 'Open a score first, then its MIDI tempo map.'
+              : 'Open a score first, then its recording.');
         }
     }
   }
