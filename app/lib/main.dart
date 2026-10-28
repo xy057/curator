@@ -423,6 +423,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         final problem = await document.open(path);
         if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name);
         if (problem != null && mounted) _recordingProblem(problem);
+        if (document.isOlderFormat && mounted) _olderFormat();
         if (mounted) await promptForExtensions(context, controller);
       }, title: 'Couldn’t Open Project'.tr);
     } else {
@@ -455,6 +456,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       persist: true,
       showCloseIcon: true,
       content: Text('Font “{name}” isn’t installed. Showing Bravura.'.fill({'name': name})),
+    ));
+  }
+
+  /// The project was saved by Curator 0.6.1 or before: saving it here (an autosave too) updates
+  /// it, and they can't open it then (dismissed by the user).
+  void _olderFormat() {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      persist: true,
+      showCloseIcon: true,
+      content: Text('This project is in an older format. Saving updates it; older versions of Curator won’t open it then.'.tr),
     ));
   }
 

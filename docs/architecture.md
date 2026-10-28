@@ -58,7 +58,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `typography_settings.dart` | Project Settings ▸ Engraving ▸ Typography: a row per property of each kind of text (`TypographySetting.all`), a slider or a style each |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
-| `project_state.dart`, `edit_history.dart` | What a project stores (typed, validated, versioned): its edits (`EditState`, also Undo's snapshots), image files and view; Undo and Redo |
+| `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
+| `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `settings_file.dart` | The `.ccf` format: a project's score-wide settings, for other projects (Project Settings ▸ Export… / Import…) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
@@ -642,22 +643,49 @@ warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;
 MusicXML score lists them in a dialog (`showImportWarnings`). Opening a project, or
 re-engraving after an edit, doesn't show them again.
 
-**The project format changes with a version.** `project.json`'s `state` is written by
-`ProjectState.toJson`, always in the newest format this build has (`ProjectState.version`),
-whatever the project uses. To change it: bump `ProjectState.version`, and add a migration from the
-old version in `ProjectState._migrations`, so older files still open. Migrations are additive: a
-new format adds fields (an older file, lacking them, gets their defaults) and never renames,
-removes or changes the meaning of one an older format wrote. Reading checks every
-field and names the damaged one.
+**A project is saved in modules** (`ProjectArchive`, since build 131). The zip holds `mimetype`
+(stored, first), a stub `project.json` (`{"format": "application/x-curated-score", "version": 27}`:
+Curator 0.1–0.6.1 read only that file and refuse a version past theirs, 26 at most, asking for an
+update, so every release knows the file and none opens it), `manifest.json` (format, `layout` 2,
+`writer` "Curator 0.6.1 (131)", the score's and recording's names and entries, and each module's
+`version` and whether it is `optional`), `modules/<id>.json` (compact JSON), each module's files
+under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` last.
+Everything deflates at zlib's default level, but the recording and packed images, stored.
+
+Each module (`ProjectModule`, all in `ProjectModules.all`) owns a part of `ProjectState`: `fonts`,
+`engraving` (options, typography, the flags), `display` (transitions, scroll, motion, bar numbers,
+sections, the playback line, family colours), `extensions`, `instruments` (order, names, sections,
+name groups, pairs), `texts`, `curation`, `sync`, `images`, `captions`, `spacers`, `view`. It writes
+its JSON and files, and reads them back checking every field, naming the damaged one
+(`sync.anchors[3]`). Long lists are tuples (an anchor `[quarter, seconds, jumpTo?]`, a region
+`[start, end, in?, out?]`, a caption `[start, end, text]`); every value is written, defaults too,
+only "the app's" (null) left out. A module missing from a file reads as empty (its defaults).
+
+**The format changes a module at a time.** Every save writes each module in the newest version
+this build has (`ProjectModule.version`). To change what one saves: bump its version and add a step
+from the old one to its `migrations`; a field an older build would lose or misread needs the bump.
+Something new with no place in a module is a new module (an older project has none: its defaults).
+`ProjectArchive.layout` changes only with the archive's own shape. Opening checks the layout, then
+each module: one this build doesn't know, or of a newer version, refuses the project ("needs a
+newer version") unless the manifest says it is optional (nothing shown or played depends on it,
+as `view`): then it opens without it, and keeps it as it came, JSON and files
+(`ProjectState.foreign`, carried by the controller and Replace Score), for the next save to write
+back. Projects saved before modules (formats 1–26: one `state` in `project.json`) are read by
+`LegacyProject`: its frozen migrations to 26, then each field dealt out to its module in that
+module's shape, for the module to check. The bundled demo is one, so every test reads it so.
+Such a project opens as any other, and says so (`OpenedProject.olderFormat`,
+`ProjectDocument.isOlderFormat` until it is saved): a snack bar that stays until closed warns
+that saving (an autosave too) updates it, and older versions won't open it then. Nothing is ever
+written in an older format; the sample, never saved, says nothing.
 
 **Project Settings travel as a settings file** (`.ccf`, `SettingsFile`; Import… and Export… at the
-foot of Project Settings' sidebar). It is a zip as a project is: `mimetype`
-(`application/x-curator-settings`, first, stored), `settings.json` (format, version, and `state` as a
-project's `toJson` writes it, cut to the score-wide keys: fonts, engraving, extensions, flags, motion,
-typography, groupSections, barNumbers, playheadColor, colorNames, nameColors, and `curation`'s
-transition and scrollFollow) and an embedded added music font's `fonts/<name>.font` / `.json`
-(`ProjectFile.addFont` / `fontFilesIn`, shared). Read through `ProjectState.fromJson`, so it is
-checked and migrated as a project is, with the same version; one from a newer version is refused.
+foot of Project Settings' sidebar). It is a project's layout (`ProjectArchive`, `mimetype`
+`application/x-curator-settings`, its stub `settings.json`) with only the score-wide modules
+(`ProjectModules.settings`: fonts with an embedded added font's files, engraving, display,
+extensions), so it is checked and migrated as a project is; a module it can't read is refused,
+optional or not, and one saved before modules (`settings.json`'s `state`) goes through `LegacyProject`:
+it is applied, then a dialog says it is in an older format and to export again to update it
+(`SettingsFile.read`'s `olderFormat`; Export writes only the new one).
 Only what a page sets for the whole score: what it sets per instrument (brackets, groups' members,
 pairs and condensing, names) stays, as another score's instruments differ, and so do the user's own
 name groups. Export writes the settings as the score shows them (`EditorController.exportedSettings`:
@@ -1013,8 +1041,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
   sentences; no "e.g.". One word per thing: the playhead (never the pointer), the sample,
   open (a score), add (a recording, a MIDI tempo map), transition, Extensions.
 - **Something a project saves**: a field of `EditState` (with its `==` and `copyWith`),
-  written in `ProjectState.toJson` and read in `fromJson`; bump the version with a migration
-  (even one that changes nothing). If the controller keeps it itself it lives in `_doc`, and
+  written and read by the module it belongs to (`project_modules.dart`), bumping that module's
+  version with a migration when an older build would lose it; or a new module. If the controller keeps it itself it lives in `_doc`, and
   opening, Undo and closing take it with no more code; if a model holds it, `_editState` (also
   what a project saves, `EditorController.projectState`) reads it from the model, and `_install`
   and `_restore` load the model. If it changes the engraving it goes in `EngraveRequest` too. Replace Score carries it as it is unless

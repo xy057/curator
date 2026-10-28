@@ -199,7 +199,7 @@ class EditorController extends ChangeNotifier {
     if (edits.fonts.music.isMissing) {
       if (await findInstalledMusicFont(edits.fonts.music.name) case final found?) {
         edits = edits.copyWith(fonts: edits.fonts.copyWith(music: found));
-        state = ProjectState(edits: edits, images: state.images, view: state.view);
+        state = state.copyWith(edits: edits);
       }
     }
     final score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
@@ -286,6 +286,7 @@ class EditorController extends ChangeNotifier {
     _closeDocument();
     if (keepRecording) _tab = tab;
     final edits = state.edits, view = state.view;
+    _foreign = state.foreign;
     _score = score;
     _source = (name: name, bytes: bytes);
     _fileName = name;
@@ -1618,7 +1619,11 @@ class EditorController extends ChangeNotifier {
           snapTapsToOnsets: anchors.snapToOnsets,
           time: playback.time.value,
         ),
+        foreign: _foreign,
       );
+
+  /// What the open project holds that this version can't read but keeps ([ProjectState.foreign]).
+  Map<String, ForeignModule> _foreign = const {};
 
   bool _disposed = false;
 
