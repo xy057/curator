@@ -309,12 +309,16 @@ class EditorController extends ChangeNotifier {
     // A spacer keeps its lane while it isn't engraved (Attach Image off).
     final parts = [for (final p in score.metadata.parts) p.id, for (final s in edits.spacers) s.id];
     _curation = Curation({...parts})
-      ..load(edits.lanes ?? Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
+      ..load(
+          edits.lanes ??
+              (autoCurateImported
+                  ? Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts)
+                  : {for (final id in parts) id: [Region(0, score.timeline.measureStarts.last)]}),
           transition: edits.transition ?? defaultTransition);
     _joinLanes();
     _scene = _makeScene(score);
     // A new score's lanes fit the video's frame (before anyone listens: it's no edit).
-    if (edits.lanes == null) _curation!.setLanes(lanes._curated([for (final p in laneParts) p.id])!);
+    if (edits.lanes == null && autoCurateImported) _curation!.setLanes(lanes._curated([for (final p in laneParts) p.id])!);
     _curation!.addListener(_curationEdited);
     // Last: working out their style can notify at once, and listeners must find all of it open.
     captions._load(edits.captions, edits.captionFont);
@@ -377,6 +381,10 @@ class EditorController extends ChangeNotifier {
     _overflowing = null;
     _tab = BottomTab.instruments;
   }
+
+  /// Whether a newly imported score's lanes are auto-curated; else each is whole (every staff
+  /// shown throughout).
+  bool autoCurateImported = true;
 
   /// The staff transition a newly imported score starts with (the one saved by Project
   /// Settings ▸ Animation ▸ Save as default).

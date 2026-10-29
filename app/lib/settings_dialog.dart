@@ -225,6 +225,12 @@ final _categories = <_Category>[
       (c) => AppSwitch(value: c.settings.alignAddedRecordings, onChanged: (v) => c.settings.alignAddedRecordings = v),
       keywords: 'align sync automatic anchors recording audio import add',
     ),
+    _Item(
+      'Auto-curate imported scores',
+      (_) => 'Off: every staff throughout.',
+      (c) => AppSwitch(value: c.settings.autoCurateImported, onChanged: (v) => c.settings.autoCurateImported = v),
+      keywords: 'auto curate lanes import new score staves automatic',
+    ),
   ]),
   _Category('Appearance', AppIcon.appearance, [
     _Item(

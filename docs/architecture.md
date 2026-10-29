@@ -522,8 +522,8 @@ another size never plans again for it. It plans every segment (about 20 ms for 3
 while a gesture lasts (a region or anchor dragged, the score size slid) the controller keeps the
 answer from before and works it out once as the gesture ends; Export's dialog rebuilds then too.
 
-**Auto-Curate fits the frame.** A new score's lanes, Auto-Curate and a lane's Auto-Curate Lane
-start from where each part plays (`autoCurateMeasures`: rests of one bar bridged), then ask that
+**Auto-Curate fits the frame.** A new score's lanes (unless Settings ▸ General ▸ Auto-curate
+imported scores is off: then each lane is whole), Auto-Curate and a lane's Auto-Curate Lane start from where each part plays (`autoCurateMeasures`: rests of one bar bridged), then ask that
 same check (`CuratedScene.curatedToFit`, on a copy of the curation, for `videoLayout`) and cut
 back until nothing runs off (`fittedCuratedLanes`): in each 4 bars that overflow, the staff that
 matters least there is hidden, and the frame asked again. What matters is `LoadedScore.salience`
