@@ -314,8 +314,10 @@ class EditorController extends ChangeNotifier {
       ..load(edits.lanes ?? Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
           transition: edits.transition ?? defaultTransition);
     _joinLanes();
-    _curation!.addListener(_curationEdited);
     _scene = _makeScene(score);
+    // A new score's lanes fit the video's frame (before anyone listens: it's no edit).
+    if (edits.lanes == null) _curation!.setLanes(lanes._curated([for (final p in laneParts) p.id])!);
+    _curation!.addListener(_curationEdited);
     // Last: working out their style can notify at once, and listeners must find all of it open.
     captions._load(edits.captions, edits.captionFont);
     // Saved before each project kept its own: one it uses that the app had on stays on.

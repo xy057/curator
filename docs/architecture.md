@@ -493,6 +493,21 @@ another size never plans again for it. It plans every segment (about 20 ms for 3
 while a gesture lasts (a region or anchor dragged, the score size slid) the controller keeps the
 answer from before and works it out once as the gesture ends; Export's dialog rebuilds then too.
 
+**Auto-Curate fits the frame.** A new score's lanes, Auto-Curate and a lane's Auto-Curate Lane
+start from where each part plays (`autoCurateMeasures`: rests of one bar bridged), then ask that
+same check (`CuratedScene.curatedToFit`, on a copy of the curation, for `videoLayout`) and cut
+back until nothing runs off (`fittedCuratedLanes`): in each 4 bars that overflow, the staff that
+matters least there is hidden, and the frame asked again. What matters is `LoadedScore.salience`
+(`BarSalience`, per part and bar): half how melodic (the top line's steps and range, how many notes
+start), a quarter how exposed (how few others sound as its notes start), a quarter the dynamic in
+force; unpitched percussion has no line. A part that plays every note of another (the same moments,
+two or more, in its pitch classes: unison or octaves) counts a quarter while that one is shown, and
+the one left counts as much as what it stands for. Only crowded bars lose anyone: with room, every
+part that plays is shown. Once it fits, each cut is tried back (most salient first, its 4 bars then
+bar by bar), since it may have been made while the segment around was fuller; a staff left alone
+for one bar between cuts goes. Each try plans the piece (a millisecond or two for the demo).
+Condensed pairs are their first player's lane, louder of the two. Lanes not asked for stay.
+
 **A region carries its properties.** Besides its bounds a region has properties of its own
 (so far its transitions: how long its staff glides in at its start, `Region.transitionIn`, and
 out at its end, `transitionOut`; null is the project's, `Curation.transition`). Every edit that

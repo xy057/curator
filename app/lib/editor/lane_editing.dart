@@ -374,19 +374,31 @@ class LaneEditing {
 
   // MARK: Whole lanes
 
-  /// Fills [partIds] (every lane when null) from where each part plays; a condensed pair's
+  /// Fills [partIds] (every lane when null) from where each part plays, cut back where the
+  /// staves would run off the video's frame ([CuratedScene.curatedToFit]); a condensed pair's
   /// lane from where either player does.
   void autoCurate([Iterable<String>? partIds]) {
-    final score = _editor._score;
-    if (score == null) return;
+    final lanes = _curated(partIds ?? [for (final p in _editor.laneParts) p.id]);
+    if (lanes == null) return;
+    _curation?.setLanes(lanes);
+    _editor.clearSelection();
+  }
+
+  /// What [autoCurate] fills [partIds] with (null without a score).
+  Map<String, List<Region>>? _curated(Iterable<String> partIds) {
+    final score = _editor._score, curation = _curation, scene = _editor._scene;
+    if (score == null || curation == null) return null;
     final active = {...score.metadata.activeMeasures};
+    final pairs = <List<String>>[];
     for (final g in _editor.condensable) {
       if (!_editor.condensed.contains(g.id)) continue;
       final [a, b] = [for (final id in g.partIds) active[id] ?? const <bool>[]];
       active[g.partIds.first] = [for (var m = 0; m < math.max(a.length, b.length); m++) a.elementAtOrNull(m) == true || b.elementAtOrNull(m) == true];
+      pairs.add(g.partIds);
     }
-    _curation?.autoCurate(active, score.timeline.measureStarts, partIds: partIds ?? [for (final p in _editor.laneParts) p.id]);
-    _editor.clearSelection();
+    if (scene == null) return Curation.autoCuratedLanes(partIds, active, score.timeline.measureStarts);
+    return scene.curatedToFit(curation, _editor._videoLayout,
+        partIds: partIds, activeMeasures: active, salience: score.salience.condensed(pairs));
   }
 
   /// Empties [partIds] (every lane when null).

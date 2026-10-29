@@ -99,6 +99,34 @@ void main() {
     expect(Phrase(notes, clef: PhraseClef.tenor).musicXML(), contains('<clef><sign>C</sign><line>4</line></clef>'));
   });
 
+  test('auto-curate hides the least salient staves where they would run off the frame, only there', () {
+    final scene = CuratedScene(score);
+    final ids = [for (final p in score.metadata.parts) p.id];
+    final starts = score.timeline.measureStarts;
+    final playing = Curation.autoCuratedLanes(ids, score.metadata.activeMeasures, starts);
+    final base = Curation(ids)..setLanes(playing);
+    bool shownIn(List<Region> lane, int m) => lane.any((r) => r.start <= starts[m] && r.end > starts[m]);
+    List<String> shownAt(Map<String, List<Region>> lanes, int m) => [for (final id in ids) if (shownIn(lanes[id]!, m)) id];
+
+    const wide = ui.Size(960, 540), tall = ui.Size(540, 960);
+    expect(scene.overflowing(base, wide), isNotEmpty, reason: '21 staves in the tutti');
+    final fitted = scene.curatedToFit(base, wide,
+        partIds: ids, activeMeasures: score.metadata.activeMeasures, salience: score.salience);
+    expect(scene.overflowing(Curation(ids)..setLanes(fitted), wide), isEmpty);
+    for (var m = 0; m < starts.length - 1; m++) {
+      final now = shownAt(fitted, m), before = shownAt(playing, m);
+      expect(before, containsAll(now), reason: 'only hides (bar ${m + 1})');
+      if (before.isNotEmpty) expect(now, isNotEmpty, reason: 'someone left (bar ${m + 1})');
+    }
+    // Upright there is room for the opening's few: none goes.
+    final upright = scene.curatedToFit(base, tall,
+        partIds: ids, activeMeasures: score.metadata.activeMeasures, salience: score.salience);
+    for (var m = 0; m < 5; m++) {
+      expect(shownAt(upright, m), shownAt(playing, m));
+    }
+    scene.dispose();
+  });
+
   test('a video frame is the preview drawn offscreen, at any pixel size', () async {
     final scene = CuratedScene(score);
     final curation = Curation(score.metadata.parts.map((p) => p.id));
