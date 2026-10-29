@@ -52,6 +52,8 @@ const zhHant = <String, String>{
   'Align\nSet the anchors from the recording': '對齊\n依錄音設定錨點',
   'Align grace notes': '對齊裝飾音',
   'Align added recordings': '自動對齊加入的錄音',
+  'Auto-curate imported scores': '自動編排匯入的樂譜',
+  'Off: every staff throughout.': '關：全程顯示所有譜表。',
   'Aligning…': '正在對齊…',
   'All': '全部',
   'All pairs': '所有聲部對',
