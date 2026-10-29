@@ -6,8 +6,10 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/phrase_search_window.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -69,6 +71,49 @@ void main() {
     controller.setExtension('attachImage', false);
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
     await tester.pump(const Duration(milliseconds: 50));
+
+    // Find Phrase (⌘F): the cellos' running sixteenths typed two octaves up, found in any key.
+    PhraseSearchWindow.show(Overlay.of(tester.element(find.byType(HomePage))), controller);
+    await tester.pump();
+    for (final key in [LogicalKeyboardKey.digit4, LogicalKeyboardKey.keyA, LogicalKeyboardKey.keyE]) {
+      await tester.sendKeyEvent(key);
+    }
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    for (final key in [LogicalKeyboardKey.keyA, LogicalKeyboardKey.keyE, LogicalKeyboardKey.keyA, LogicalKeyboardKey.keyE]) {
+      await tester.sendKeyEvent(key);
+    }
+    for (var i = 0; i < 20 && find.textContaining('matches').evaluate().isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pump();
+    }
+    expect(find.textContaining('matches'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter); // the first, under the playhead
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await tester.pump(const Duration(milliseconds: 400)); // past the tools' colour change
+    await screenshot(tester, 'app-find-phrase', inside: find.text('Find Phrase'));
+    // The phrase in the alto clef, chosen from the clef menu.
+    await tester.tap(find.descendant(of: find.byType(PhraseSearchWindow), matching: find.text('Auto')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await screenshot(tester, 'app-find-phrase-clefs', inside: find.text('Find Phrase'));
+    await tester.tap(find.text('Alto'));
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await screenshot(tester, 'app-find-phrase-alto', inside: find.text('Find Phrase'));
+
+    // A match double-clicked folds the window down to a bar; the toolbar's button is lit.
+    final firstMatch = find.descendant(of: find.byType(PhraseSearchWindow), matching: find.text('Violin II')).first;
+    await tester.tap(firstMatch);
+    await tester.tap(firstMatch);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('1/18'), findsOneWidget);
+    await screenshot(tester, 'app-find-phrase-bar', inside: find.text('1/18'));
+    await screenshot(tester, 'app-find-phrase-toolbar', outermost: true);
+    PhraseSearchWindow.close();
+    await tester.pump();
 
     // Audio tab with the demo recording and its sync through the closing ritardando.
     final recording = await tester.runAsync(demoWaveform);

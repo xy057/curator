@@ -31,6 +31,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `subtitles.dart` | Captions as subtitles: SRT and WebVTT read (`parseSubtitles`) and written (`writeSubtitles`), placed in the score (`captionsFromCues`) and timed from it (`captionCues`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
+| `phrase_search.dart` | Find Phrase: a melody entered (`Phrase`, `PhraseNote`) and its MusicXML for Verovio, drawn as `PhrasePicture`; every voice of the score as it sounds (`ScoreLine`); where a phrase is played (`PhraseSearch`) |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
 | `zip_entries.dart` | `ZipEntries`: an entry of someone else's zip (a project, an .mxl), its bytes counted as they unpack and refused past a limit |
 
@@ -64,6 +65,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `settings_file.dart` | The `.ccf` format: a project's score-wide settings, for other projects (Project Settings ▸ Export… / Import…) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
+| `phrase_search_window.dart` | Edit ▸ Find Phrase… (⌘F): the window that enters a phrase and lists where it is played |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
@@ -409,6 +411,36 @@ area and says what it takes). With no score open, anything opens (as File ▸ Op
 the timeline, it is always an image (Attach Image; while that is off, it says so). On the
 timeline, the Instruments tab opens a project or a score, and the Audio tab takes a MIDI
 tempo map or a recording.
+
+**Find Phrase looks for a melody by ear, not by notation** (Edit ▸ Find Phrase…, ⌘F, or the
+toolbar's button by the time, lit while it is open; `PhraseSearchWindow`, a window over the editor
+like the Engraving pop-out, moved by its title, not modal). A match double-clicked, or its title's
+Collapse, folds it down to a bar at the same top right corner: the match gone to and its place among
+them, the one before and after (← →, Enter, ⇧Enter), Expand (or a double-click on the bar, ⌘F, the
+toolbar's button) and Close; folded down, the phrase's keys do nothing. The phrase is typed (A–G at the octave nearest the note before, as notation programs place
+them; 3–8 the values 32nd to whole, `.` a dot, `-` `=` `0` flat, sharp, natural, R a rest, ↑ ↓ a
+step, ⇧↑ ⇧↓ an octave, ← → the selection, Backspace), clicked on its staff (a pitch where clicked,
+or a note to select it) or played on its three-octave keyboard, in the clef chosen by the tools
+(`PhraseClef`: Auto, treble or bass by where the notes lie, or treble, treble 8vb, alto, tenor,
+bass; only how it is written and where a click lands, as the search goes by sounding pitch; the
+staff moves up or down so the notes fit). The clef is a select (`AppDropdown`), not a popup menu: a
+popup's route goes in under the window's overlay entry, while a `MenuAnchor` draws above it. Verovio engraves it after every
+change (`PhrasePicture.engrave`: one bar, its time signature hidden and as long as the notes, eighths
+and shorter beamed within each quarter, no barline; the latest engraving wins, `Latest`). What was
+entered stays while the app runs. The score is read for it once per score, on an isolate
+(`ScoreLine.read`, from `LoadedScore.musicXML`: the file as opened, so condensed and spacer parts are
+not in it): each voice of each part, a chord its top note, tied notes one, grace and cue notes left
+out, pitches as they sound (`<transpose>`), positions in score quarters; a rest longer than a 4/4 bar
+ends a line. `PhraseSearch.find` compares pitches, or in Any key (on by default) the steps between
+them, and with Rhythm the time from each note to the next (the last note's length is free, and a
+rest counts in the time before the next note). Exact finds only those; Similar is Sellers' edit
+distance (the whole phrase against any stretch of a line): a note a step or two off costs half, a
+time off up to half, a missing or extra note one, and a match is kept down to
+`PhraseSearch.minSimilarity` (65 %); of overlapping ones the best. Matches are listed by place
+(bar as Go to counts them, instrument, the transposition from what was typed, the similarity); a
+click, Enter or ⇧Enter puts the playhead where it first sounds (`Playback.goToQuarter`), so the
+score shows it under the pointer. Nothing is marked on the score, which stays paper; nothing is an
+edit or saved.
 
 **Lanes are painted, not cut.** Drawing adds a region and merges it with what it touches;
 erasing trims. Touching regions are merged on purpose: a seam between two regions would dip

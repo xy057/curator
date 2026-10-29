@@ -156,12 +156,23 @@ class Playback {
     return true;
   }
 
+  /// Moves the playhead to where score quarter [quarter] first sounds (Find Phrase's matches).
+  void goToQuarter(double quarter) {
+    if (_editor.score == null) return;
+    seek(_firstSounds(quarter));
+    _editor.viewport.follow(time.value);
+  }
+
   /// When [goTo]'s [text] sounds; null when it is no bar or time.
   double? secondsOf(String text) {
     if (_editor.score == null) return null;
     if (_clockOf(text) case final seconds?) return seconds;
     final quarter = _editor.beats.parse(text);
     if (quarter == null) return null;
+    return _firstSounds(quarter);
+  }
+
+  double _firstSounds(double quarter) {
     final timeline = _editor.timeline;
     return timeline.timesOf(quarter).firstOrNull?.seconds ?? timeline.secondsAtQuarter(quarter);
   }

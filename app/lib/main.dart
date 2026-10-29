@@ -32,6 +32,7 @@ import 'file_names.dart';
 import 'home_screen.dart';
 import 'l10n/l10n.dart';
 import 'media_converter.dart';
+import 'phrase_search_window.dart';
 import 'project_document.dart';
 import 'project_file.dart';
 import 'score_view.dart';
@@ -590,6 +591,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   void _goTo() => _readout.currentState?.edit();
 
+  /// Find Phrase… (⌘F): its window over the editor.
+  void _findPhrase() {
+    if (controller.score == null) return;
+    PhraseSearchWindow.show(Overlay.of(context), controller);
+  }
+
   /// Paste: regions copied in the Instruments tab, while it shows; else Attach Image's image.
   void _paste() => _commands.pastesRegions ? _commands.pasteRegions() : _pasteImage();
 
@@ -761,6 +768,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onPaste: edit != null && edit.paste ? _paste : null,
           onDelete: edit != null && edit.delete ? _commands.delete : null,
           onSelectAll: edit != null && _commands.canSelectAll ? _commands.selectAll : null,
+          onFindPhrase: _hasScore.value && !_typing && (ModalRoute.of(context)?.isCurrent ?? true) ? _findPhrase : null,
           child: page!,
         );
       },

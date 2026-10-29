@@ -66,6 +66,39 @@ void main() {
     expect(linear.xAt(2), map.xAt(2), reason: 'only the ending moves differently');
   });
 
+  test('finds a phrase exactly, in any key and nearly', () {
+    final lines = ScoreLine.read(score.musicXML, score.timeline.measureStarts);
+    final cello = lines.reduce((a, b) => a.length >= b.length ? a : b); // the cellos' running sixteenths
+    expect(score.metadata.parts.firstWhere((p) => p.id == cello.partId).name, 'Violoncello');
+    final notes = [for (var k = 10; k < 16; k++) PhraseNote.ofMidi(cello.pitches[k], value: NoteValue.sixteenth)];
+    bool foundAt(List<PhraseMatch> matches) => matches.any((m) => identical(m.line, cello) && m.first == 10);
+
+    final exact = PhraseSearch.find(Phrase(notes), lines);
+    expect(foundAt(exact), isTrue);
+    expect(exact.every((m) => m.similarity == 1), isTrue);
+    for (final m in exact) {
+      for (var k = 1; k < notes.length; k++) {
+        expect(m.line.pitches[m.first + k] - m.line.pitches[m.first + k - 1], notes[k].midi! - notes[k - 1].midi!);
+      }
+    }
+    // An octave up: only in any key, which says how far; as eighths, only without the rhythm.
+    final higher = [for (final n in notes) PhraseNote.ofMidi(n.midi! + 12, value: NoteValue.sixteenth)];
+    expect(foundAt(PhraseSearch.find(Phrase(higher), lines, anyKey: false)), isFalse);
+    expect(PhraseSearch.find(Phrase(higher), lines).firstWhere((m) => identical(m.line, cello) && m.first == 10).transposition, -12);
+    final eighths = [for (final n in notes) n.copyWith(value: NoteValue.eighth)];
+    expect(foundAt(PhraseSearch.find(Phrase(eighths), lines)), isFalse);
+    expect(foundAt(PhraseSearch.find(Phrase(eighths), lines, rhythm: false)), isTrue);
+    // A note a semitone off: not exactly, but nearly.
+    final wrong = [...notes]..[3] = PhraseNote.ofMidi(notes[3].midi! + 1, value: NoteValue.sixteenth);
+    expect(foundAt(PhraseSearch.find(Phrase(wrong), lines)), isFalse);
+    final near = PhraseSearch.find(Phrase(wrong), lines, similar: true).firstWhere((m) => identical(m.line, cello) && m.first == 10);
+    expect(near.similarity, inInclusiveRange(PhraseSearch.minSimilarity, 0.99));
+    // Each clef's top line: F5, F5, F4 (8vb), G4 (alto), E4 (tenor), A3 (bass); Auto by the notes.
+    expect([for (final c in PhraseClef.values) c.topLine], [38, 38, 31, 32, 30, 26]);
+    expect(Phrase(notes).shownClef, PhraseClef.bass);
+    expect(Phrase(notes, clef: PhraseClef.tenor).musicXML(), contains('<clef><sign>C</sign><line>4</line></clef>'));
+  });
+
   test('a video frame is the preview drawn offscreen, at any pixel size', () async {
     final scene = CuratedScene(score);
     final curation = Curation(score.metadata.parts.map((p) => p.id));
