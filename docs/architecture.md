@@ -31,6 +31,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `subtitles.dart` | Captions as subtitles: SRT and WebVTT read (`parseSubtitles`) and written (`writeSubtitles`), placed in the score (`captionsFromCues`) and timed from it (`captionCues`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
+| `sounding_notes.dart` | `soundingNotes`: every pitched note of the MusicXML as it sounds (concert pitch, in score quarters), which Find Phrase and Align read |
+| `audio_alignment.dart` | Align: a recording's chroma and onsets (`AudioChroma`, fed a block at a time) matched to the score's by multiscale DTW, the path thinned into anchors (`AudioAlignment.anchors`) |
 | `phrase_search.dart` | Find Phrase: a melody entered (`Phrase`, `PhraseNote`) and its MusicXML for Verovio, drawn as `PhrasePicture`; every voice of the score as it sounds (`ScoreLine`); where a phrase is played (`PhraseSearch`) |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
 | `zip_entries.dart` | `ZipEntries`: an entry of someone else's zip (a project, an .mxl), its bytes counted as they unpack and refused past a limit |
@@ -63,7 +65,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `settings_file.dart` | The `.ccf` format: a project's score-wide settings, for other projects (Project Settings ▸ Export… / Import…) |
-| `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, converting to FLAC; `MediaFormats` lists what is accepted |
+| `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, the recording read whole for Align (`AudioTrack.chroma`), converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
 | `phrase_search_window.dart` | Edit ▸ Find Phrase… (⌘F): the window that enters a phrase and lists where it is played |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
@@ -133,6 +135,27 @@ So does Go to: a click on the toolbar's time or bar.beat (or ⌘G) types where t
 a bar (`12`, `12.2`: where it first sounds) or a time (`1:10.5`, `1:02:03`), read by
 `Playback.goTo`. Closing it hands the keyboard back to what had it, or the window's
 shortcuts would stop (focus falls to the route's scope, above them).
+
+**Align sets the anchors by ear** (the Audio tab's filled Align button, first after Add Recording,
+`SyncEditing.align`, one Undo step replacing the anchors there; at once when a recording is added to
+a score with no anchors yet, unless Settings ▸ General ▸ Align added recordings is off). The recording is read on an isolate half a minute at a time, through
+flutter_soloud's binding into a buffer of our own (its `readSamplesFromFile` never frees the one it
+reads into), and made into frames ~20 a second (`AudioChroma`): the energy of each pitch class over a
+long window (chroma) and a short one (whose rises are onsets). The score is laid out as played, its
+passes the warps set by hand, else the score's form's (`ScoreForm.passes`), and made into the same
+frames: each note its class and a little of its harmonics', fading from its strike (a tie's, from the
+note it carries on) to a third, smoothed as the long window smooths. Silence either side of the
+recording (40 dB under its loud frames) is left out. Dynamic time warping (steps weighted 1.5, 1.5, 2,
+as synctoolbox's) matches them, solved at a quarter, a sixteenth… of the frame rate first and then
+only in a band around the coarser path, so a 40-minute piece takes about as long as reading it (a few
+seconds); onsets count at every rate (the strongest of each class at a coarse one), since chroma alone
+can't tell apart bars of one harmony held, and a bar it misplaces coarse is further off than a band
+reaches. A bar gets an anchor only where a straight line through its neighbours' would put it more than
+30 ms off; a pass's end is a warp to the next; the final barline is where the music stops. With Snap to
+notes each anchor moves onto a note heard within 50 ms. Measured on synthesized renderings of the demo
+and a 36-minute run of it: median 10–20 ms, every bar within 0.5 s; on the demo's recording, median
+36 ms, but its pizzicato chord held over bars 41–43 is placed up to 2 s off (a held harmony whose sound
+has died away, with few notes struck over it, is what Align hears worst: those anchors are fixed by hand).
 
 **The scroll follows the beats, the notes, or a blend.** `ScrollMap.follow` (Project
 Settings ▸ Animation ▸ Scrolling, `EditState.scrollFollow`, an Undo step saved with the project; a project

@@ -219,6 +219,12 @@ final _categories = <_Category>[
       ),
       keywords: 'undo redo steps',
     ),
+    _Item(
+      'Align added recordings',
+      (_) => 'When no anchors are set yet.',
+      (c) => AppSwitch(value: c.settings.alignAddedRecordings, onChanged: (v) => c.settings.alignAddedRecordings = v),
+      keywords: 'align sync automatic anchors recording audio import add',
+    ),
   ]),
   _Category('Appearance', AppIcon.appearance, [
     _Item(

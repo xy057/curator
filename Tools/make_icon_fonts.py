@@ -130,6 +130,7 @@ ICONS = [
     ('expand', 'Opens a window folded down to a bar.', 'open_in_full', 'maximize'),
     ('previous', 'The one before.', 'chevron_left', 'chevron--left'),
     ('next', 'The one after.', 'chevron_right', 'chevron--right'),
+    ('align', 'Lines the anchors up with the recording by ear.', 'auto_fix_high', 'magic-wand'),
 ]
 
 

@@ -22,6 +22,7 @@ class AppSettings extends ChangeNotifier {
         _textSize = TextSize.values.asNameMap()[_prefs?.getString(_textSizeKey)] ?? TextSize.medium,
         _density = UiDensity.values.asNameMap()[_prefs?.getString(_densityKey)] ?? UiDensity.standard,
         _reduceMotion = _prefs?.getBool(_reduceMotionKey) ?? false,
+        _alignAddedRecordings = _prefs?.getBool(_alignAddedKey) ?? true,
         _language = AppLanguage.values.asNameMap()[_prefs?.getString(_languageKey)] ?? AppLanguage.system,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
@@ -80,7 +81,7 @@ class AppSettings extends ChangeNotifier {
   static const _densityKey = 'density', _reduceMotionKey = 'reduceMotion', _languageKey = 'language';
   static const _scrollFollowKey = 'scrollFollow', _motionKey = 'scoreMotion', _typographyKey = 'scoreTypography';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
-  static const _mascotIconKey = 'mascotIcon';
+  static const _mascotIconKey = 'mascotIcon', _alignAddedKey = 'alignAddedRecordings';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
@@ -223,6 +224,16 @@ class AppSettings extends ChangeNotifier {
     if (value == _reduceMotion) return;
     _reduceMotion = value;
     _prefs?.setBool(_reduceMotionKey, value);
+    notifyListeners();
+  }
+
+  /// Whether a recording added to a score with no anchors yet is aligned at once (Align).
+  bool get alignAddedRecordings => _alignAddedRecordings;
+  bool _alignAddedRecordings;
+  set alignAddedRecordings(bool value) {
+    if (value == _alignAddedRecordings) return;
+    _alignAddedRecordings = value;
+    _prefs?.setBool(_alignAddedKey, value);
     notifyListeners();
   }
 
