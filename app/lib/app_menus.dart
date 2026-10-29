@@ -30,6 +30,7 @@ class AppMenus extends StatelessWidget {
     this.onPaste,
     this.onDelete,
     this.onSelectAll,
+    this.onFindPhrase,
   });
 
   /// Open…: a project, or a score to start one from.
@@ -64,6 +65,9 @@ class AppMenus extends StatelessWidget {
   final VoidCallback? onPaste;
   final VoidCallback? onDelete;
   final VoidCallback? onSelectAll;
+
+  /// Edit ▸ Find Phrase… (⌘F); null (greyed out) while nothing is open.
+  final VoidCallback? onFindPhrase;
 
   static bool get _mac => defaultTargetPlatform == TargetPlatform.macOS;
 
@@ -134,6 +138,9 @@ class AppMenus extends StatelessWidget {
               onSelected: onDelete,
             ),
             PlatformMenuItem(label: 'Select All'.tr, shortcut: _key(LogicalKeyboardKey.keyA), onSelected: onSelectAll),
+          ]),
+          PlatformMenuItemGroup(members: [
+            PlatformMenuItem(label: 'Find Phrase…'.tr, shortcut: _key(LogicalKeyboardKey.keyF), onSelected: onFindPhrase),
           ]),
           // The open project's settings, then the app's; on macOS the Curator menu has the
           // app's too, with the shortcut.

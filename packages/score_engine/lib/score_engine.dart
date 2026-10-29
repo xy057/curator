@@ -14,6 +14,7 @@ export 'src/engraving_options.dart';
 export 'src/font_files.dart';
 export 'src/frozen_zone.dart';
 export 'src/midi_tempo.dart';
+export 'src/phrase_search.dart';
 export 'src/score_metadata.dart';
 export 'src/score_motion.dart';
 export 'src/score_caption.dart'
