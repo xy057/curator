@@ -122,6 +122,16 @@ class Playback {
 
   void skip(double seconds) => seek(time.value + seconds);
 
+  /// Another recording is heard ([EditorController.hearTake]): the clock goes on from
+  /// [seconds], the same place in the score in it, its sound already going on from there.
+  void _carriedTo(double seconds) {
+    time.value = seconds.clamp(0, math.max(0, duration));
+    _playAnchor = _now;
+    _timeAnchor = time.value;
+    _ranFrom(time.value);
+    _markDirty();
+  }
+
   bool _scrubbing = false;
 
   /// A drag along the timeline (the ruler, a lane): the playhead follows the pointer and,

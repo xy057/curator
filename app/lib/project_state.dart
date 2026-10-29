@@ -36,6 +36,8 @@ class EditState {
     this.anchors = const [],
     this.leadIn = 0,
     this.midi,
+    this.takes = const [],
+    this.heard,
     this.partNames = const {},
     this.textEdits = const {},
     this.condensed = const {},
@@ -91,6 +93,14 @@ class EditState {
   /// The MIDI tempo map the sync follows instead of [anchors] (which are kept for when it
   /// goes), its start at [leadIn]; null: the anchors.
   final MidiTempoMap? midi;
+
+  /// Every recording of the score, in the order the menu lists them; the sync above is the one
+  /// [heard]'s (its own fields here left blank), each other's is its own. Adding, removing and
+  /// switching recordings are no Undo steps: they change every state Undo keeps alike.
+  final List<Take> takes;
+
+  /// The [Take.id] of the recording heard; null when there is none.
+  final String? heard;
 
   /// Instrument names set by the user, by part id.
   final Map<String, PartName> partNames;
@@ -190,6 +200,8 @@ class EditState {
       typography == other.typography &&
       leadIn == other.leadIn &&
       midi == other.midi &&
+      heard == other.heard &&
+      listEquals(takes, other.takes) &&
       switch ((lanes, other.lanes)) {
         (final a?, final b?) => Curation.sameLanes(a, b),
         (final a, final b) => a == b,
@@ -237,6 +249,8 @@ class EditState {
     List<SyncAnchor>? anchors,
     double? leadIn,
     Object? midi = _kept,
+    List<Take>? takes,
+    Object? heard = _kept,
     Map<String, PartName>? partNames,
     Map<String, String>? textEdits,
     Set<String>? condensed,
@@ -272,6 +286,8 @@ class EditState {
         anchors: anchors ?? this.anchors,
         leadIn: leadIn ?? this.leadIn,
         midi: identical(midi, _kept) ? this.midi : midi as MidiTempoMap?,
+        takes: takes ?? this.takes,
+        heard: identical(heard, _kept) ? this.heard : heard as String?,
         partNames: partNames ?? this.partNames,
         textEdits: textEdits ?? this.textEdits,
         condensed: condensed ?? this.condensed,
@@ -298,6 +314,77 @@ class EditState {
         spacers: spacers ?? this.spacers,
         gaps: gaps ?? this.gaps,
       );
+
+  /// The take [id]; null when there is none.
+  Take? take(String id) => takes.where((t) => t.id == id).firstOrNull;
+
+  /// This state with [id] heard: the sync of the take heard until now goes into its take, and
+  /// [id]'s comes out of its own. As it is when [id] is heard already, or isn't a take.
+  EditState hearing(String id) {
+    final to = take(id);
+    if (to == null || id == heard) return this;
+    return copyWith(
+      takes: [
+        for (final t in takes)
+          if (t.id == heard)
+            t.copyWith(anchors: anchors, leadIn: leadIn, midi: midi)
+          else if (t.id == id)
+            Take(t.id, t.label)
+          else
+            t,
+      ],
+      heard: id,
+      anchors: to.anchors,
+      leadIn: to.leadIn,
+      midi: to.midi,
+    );
+  }
+
+  /// This state with [take] added (not heard, unless it is the first).
+  EditState adding(Take take) =>
+      copyWith(takes: [...takes, take], heard: heard ?? take.id);
+
+  /// This state without the take [id]; one heard leaves its sync to the sync as it is.
+  EditState removing(String id) => copyWith(
+        takes: [for (final t in takes) if (t.id != id) t],
+        heard: heard == id ? null : heard,
+      );
+}
+
+/// One recording of the score ([EditState.takes]): its name in the menu and its sync, how the
+/// score lines up with it (blank while it is the one heard: the state's own sync is its).
+@immutable
+class Take {
+  const Take(this.id, this.label, {this.anchors = const [], this.leadIn = 0, this.midi});
+
+  /// `take-1`, `take-2`…, the same as long as the project keeps it.
+  final String id;
+
+  /// What the menu calls it (the file's name at first: "Karajan 1963").
+  final String label;
+  final List<SyncAnchor> anchors;
+  final double leadIn;
+  final MidiTempoMap? midi;
+
+  Take copyWith({String? label, List<SyncAnchor>? anchors, double? leadIn, Object? midi = _kept}) => Take(
+        id,
+        label ?? this.label,
+        anchors: anchors ?? this.anchors,
+        leadIn: leadIn ?? this.leadIn,
+        midi: identical(midi, _kept) ? this.midi : midi as MidiTempoMap?,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is Take &&
+      other.id == id &&
+      other.label == label &&
+      other.leadIn == leadIn &&
+      other.midi == midi &&
+      listEquals(other.anchors, anchors);
+
+  @override
+  int get hashCode => Object.hash(id, label, leadIn, anchors.length);
 }
 
 /// The colour each family's names take (Project Settings ▸ Instruments) until the user gives it

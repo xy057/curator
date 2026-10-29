@@ -109,7 +109,8 @@ class Waveform {
 
 /// A loaded recording. For a video, it is the soundtrack taken out of it.
 class AudioTrack {
-  AudioTrack._(this.path, this.name, this.source, this.length, this.waveform, this._samples, this._sampleRate);
+  AudioTrack._(this.path, this.name, this.source, this.length, this.waveform, this._samples, this._sampleRate, this._scratch,
+      {required this.decodedBytes});
 
   /// A silent track (no playback) for tests and previews.
   @visibleForTesting
@@ -117,7 +118,21 @@ class AudioTrack {
       : path = name,
         source = null,
         _samples = name,
-        _sampleRate = null;
+        _sampleRate = null,
+        _scratch = null,
+        decodedBytes = 0;
+
+  /// Files converted for it; deleted with it.
+  final Directory? _scratch;
+
+  /// What it holds in memory, decoded (0: read from disk as it plays).
+  final int decodedBytes;
+
+  /// Lets go of its sound and its converted files.
+  Future<void> _dispose() async {
+    if (source case final source?) await SoLoud.instance.disposeSource(source);
+    ScratchSpace.release(_scratch);
+  }
 
   /// The recording's audio file: what a project embeds (a video's extracted soundtrack).
   final String path;
@@ -190,75 +205,124 @@ class AudioTrack {
 
 /// Playback through SoLoud (native, cross-platform). The engine's own position is the master
 /// clock, so the score stays locked to what is heard.
+///
+/// It holds every recording of the score at once (its takes, by id), so another can be
+/// heard at once ([hear]), fading across while playing.
 class AudioEngine {
   static Future<void>? _initializing;
   SoundHandle? _handle;
-  AudioTrack? _track;
+  final _tracks = <String, AudioTrack>{};
+  String? _heard;
+  AudioTrack? _debugTrack;
   double _speed = 1;
 
-  /// Files converted for the current track; deleted with it.
-  Directory? _scratch;
+  /// The recording heard.
+  AudioTrack? get track => _debugTrack ?? _tracks[_heard];
 
-  AudioTrack? get track => _track;
+  /// The recording of take [id]; null when it has none.
+  AudioTrack? trackOf(String id) => _tracks[id];
 
   @visibleForTesting
-  set debugTrack(AudioTrack? track) => _track = track;
+  set debugTrack(AudioTrack? track) => _debugTrack = track;
 
   static Future<void> _ensureInitialized() =>
       _initializing ??= SoLoud.instance.isInitialized ? Future.value() : SoLoud.instance.init();
 
-  /// Loads a recording: audio, or a video whose soundtrack becomes the track. Anything SoLoud
+  /// What the recordings held may take in memory, decoded, together; past it a recording is
+  /// read from disk as it plays (a 70-minute symphony decoded is about 1.5 GB).
+  static const memoryBudget = 2 << 30;
+
+  /// Reads a recording: audio, or a video whose soundtrack becomes the track. Anything SoLoud
   /// can't read is converted to FLAC first, into a scratch folder that goes with the track.
-  ///
-  /// The track it replaces goes only once this one is ready: a recording that can't be read
-  /// leaves the current one loaded.
-  Future<AudioTrack> load(String path) async {
-    stop();
+  /// Nothing changes until it is [put] in.
+  Future<AudioTrack> read(String path) async {
     final scratch = ScratchSpace.folder('recording');
-    final AudioTrack track;
     AudioSource? source;
     try {
       final audio = MediaFormats.isVideo(path) ? await MediaConverter.toFlac(path, scratch.path) : path;
       final playable = MediaFormats.isPlayable(audio) ? audio : await MediaConverter.toFlac(audio, scratch.path);
       await _ensureInitialized();
-      source = await SoLoud.instance.loadFile(playable);
+      source = await SoLoud.instance.loadFile(playable, mode: LoadMode.disk);
       final length = SoLoud.instance.getLength(source).inMicroseconds / 1e6;
       // A whole number of frames between samples, or the waveform drifts from the audio.
       final rate = AudioFormat.sampleRateOf(playable);
+      // Decoded in memory while the others leave room (two channels of floats a frame).
+      final decoded = (length * (rate ?? 48000) * 2 * 4).ceil();
+      final held = _tracks.values.fold(0, (sum, t) => sum + t.decodedBytes);
+      final inMemory = held + decoded <= memoryBudget;
+      if (inMemory) {
+        await SoLoud.instance.disposeSource(source);
+        source = null;
+        source = await SoLoud.instance.loadFile(playable);
+      }
       final plan = AudioFormat.samplingPlan(length, rate);
       final samples = await SoLoud.instance.readSamplesFromFile(playable, plan.count);
       final waveform = await Waveform.analyze(samples, plan.rate);
-      track = AudioTrack._(audio, fileNameOf(audio), source, length, waveform, playable, rate);
+      return AudioTrack._(audio, fileNameOf(audio), source, length, waveform, playable, rate, scratch,
+          decodedBytes: inMemory ? decoded : 0);
     } catch (_) {
       if (source != null) await SoLoud.instance.disposeSource(source);
       ScratchSpace.release(scratch);
       rethrow;
     }
-    await unload();
-    _scratch = scratch;
-    return _track = track;
   }
 
+  /// Makes [track] take [id]'s recording, letting go of the one it had. Heard while [id] is.
+  Future<void> put(String id, AudioTrack track) async {
+    if (id == _heard) stop();
+    final before = _tracks[id];
+    _tracks[id] = track;
+    if (before != null && before != track) await before._dispose();
+  }
+
+  /// Lets go of take [id]'s recording (it is no longer heard).
+  Future<void> remove(String id) async {
+    if (id == _heard) {
+      stop();
+      _heard = null;
+    }
+    await _tracks.remove(id)?._dispose();
+  }
+
+  /// Lets go of every recording.
   Future<void> unload() async {
     stop();
-    final track = _track;
-    _track = null;
-    final source = track?.source;
-    if (source != null) await SoLoud.instance.disposeSource(source);
-    ScratchSpace.release(_scratch);
-    _scratch = null;
+    _heard = null;
+    final all = [..._tracks.values];
+    _tracks.clear();
+    for (final t in all) {
+      await t._dispose();
+    }
+  }
+
+  /// How long a switch fades from one recording to the other while playing.
+  static const crossfade = Duration(milliseconds: 300);
+
+  /// Hears take [id] from now on. Playing, it goes on from [fromSeconds] in its recording, faded
+  /// in over [crossfade] as the one heard before fades out.
+  void hear(String? id, {double? fromSeconds}) {
+    if (id == _heard) return;
+    final before = _valid ? _handle : null;
+    _handle = null;
+    _heard = id;
+    if (before == null) return;
+    if (fromSeconds != null) play(fromSeconds, volume: 0);
+    if (_valid) SoLoud.instance.fadeVolume(_handle!, 1, crossfade);
+    SoLoud.instance
+      ..fadeVolume(before, 0, crossfade)
+      ..scheduleStop(before, crossfade);
   }
 
   bool get _valid => _handle != null && SoLoud.instance.getIsValidVoiceHandle(_handle!);
 
   /// Plays from [fromSeconds]. Past the end of the recording nothing sounds, and whatever
   /// was playing stops (the clock then runs on alone, through the score's last bars).
-  void play(double fromSeconds) {
+  void play(double fromSeconds, {double volume = 1}) {
     stop();
-    final track = _track;
+    final track = this.track;
     final source = track?.source;
     if (track == null || source == null || fromSeconds >= track.length) return;
-    final handle = SoLoud.instance.play(source, paused: true);
+    final handle = SoLoud.instance.play(source, volume: volume, paused: true);
     SoLoud.instance.seek(handle, Duration(microseconds: (math.max(0.0, fromSeconds) * 1e6).round()));
     SoLoud.instance.setRelativePlaySpeed(handle, _speed);
     SoLoud.instance.setPause(handle, false);

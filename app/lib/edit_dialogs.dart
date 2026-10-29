@@ -576,9 +576,17 @@ Future<String?> confirmSavePath(BuildContext context, String path, String extens
 Future<String?> showNameGroupDialog(BuildContext context, {String? rename}) =>
     showAppDialog<String>(context: context, builder: (context) => _NameGroupDialog(rename: rename));
 
+/// Asks for a recording's new name in the menu, [name] now (the Audio tab's recording menu).
+/// Null when cancelled.
+Future<String?> showRenameRecordingDialog(BuildContext context, String name) => showAppDialog<String>(
+    context: context, builder: (context) => _NameGroupDialog(rename: name, title: 'Rename Recording'));
+
 class _NameGroupDialog extends StatefulWidget {
-  const _NameGroupDialog({this.rename});
+  const _NameGroupDialog({this.rename, this.title});
   final String? rename;
+
+  /// Its title, renaming: "Rename Group" when null.
+  final String? title;
 
   @override
   State<_NameGroupDialog> createState() => _NameGroupDialogState();
@@ -602,7 +610,7 @@ class _NameGroupDialogState extends State<_NameGroupDialog> {
   Widget build(BuildContext context) {
     final adding = widget.rename == null;
     return AppDialog(
-      title: Text((adding ? 'Add Group' : 'Rename Group').tr),
+      title: Text((adding ? 'Add Group' : widget.title ?? 'Rename Group').tr),
       content: SizedBox(
         width: dialogWidth(context, 320),
         child: AppTextField(controller: _name, label: 'Name', autofocus: true, onSubmitted: (_) => _done()),

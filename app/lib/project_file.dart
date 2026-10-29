@@ -17,9 +17,10 @@ import 'project_state.dart';
 /// modules (every edit made in the app, [ProjectModules.all])
 ///
 ///     score/<name>      the source score file, byte for byte
-///     media/<name>      the recording
+///     media/<name>      the recording heard
+///     media/takes/<id>/<name>  each other recording ([EditState.takes])
 ///
-/// both named in the manifest (`score`, `media`: the name and the entry). Everything the app
+/// all named in the manifest (`score`, `media`, `takes`: the name and the entry, and a take's id). Everything the app
 /// changes lives in the modules, so the source score is never rewritten. One saved before
 /// modules ([LegacyProject]) has its edits in project.json instead.
 abstract final class ProjectFile {
@@ -44,6 +45,7 @@ abstract final class ProjectFile {
   static void _write(String path, ProjectContents c) {
     final media = c.media;
     final mediaEntry = media == null ? null : 'media/${safeFileName(media.name)}';
+    final takeEntries = {for (final MapEntry(key: id, value: m) in c.takes.entries) id: 'media/takes/$id/${safeFileName(m.name)}'};
     final scoreEntry = 'score/${safeFileName(c.scoreName)}';
 
     final temp = '$path.saving';
@@ -51,30 +53,41 @@ abstract final class ProjectFile {
     // zlib's default level: ZipEncoder's own (1) is no faster here and makes a score 60 % bigger;
     // the best (9) takes twice as long for a few percent.
     final zip = ZipEncoder()..startEncode(out, level: DeflateLevel.defaultCompression);
-    InputFileStream? mediaStream;
+    final streams = <InputFileStream>[];
     try {
       ProjectArchive.write(zip, c.state, mimeType: mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
         'score': {'name': c.scoreName, 'entry': scoreEntry},
         if (media != null) 'media': {'name': media.name, 'entry': mediaEntry},
+        if (c.takes.isNotEmpty)
+          'takes': [
+            for (final MapEntry(key: id, value: m) in c.takes.entries) {'id': id, 'name': m.name, 'entry': takeEntries[id]},
+          ],
       });
       zip.add(ArchiveFile.bytes(scoreEntry, c.scoreBytes));
-      // Last: everything before it can be read without passing it.
-      if (mediaEntry != null) {
-        final source = media!.embedFrom;
-        if (!File(source).existsSync()) {
-          throw FileSystemException('Can’t find the recording to embed', source);
+      // Last: everything before them can be read without passing them.
+      for (final (entry, m) in [
+        if (mediaEntry != null) (mediaEntry, media!),
+        for (final MapEntry(key: id, value: m) in c.takes.entries) (takeEntries[id]!, m),
+      ]) {
+        if (!File(m.embedFrom).existsSync()) {
+          throw FileSystemException('Can’t find the recording to embed', m.embedFrom);
         }
-        mediaStream = InputFileStream(source);
+        final stream = InputFileStream(m.embedFrom);
+        streams.add(stream);
         // Audio and video are compressed already; deflating them again only costs time.
-        zip.add(ArchiveFile.stream(mediaEntry, mediaStream)..compression = CompressionType.none);
+        zip.add(ArchiveFile.stream(entry, stream)..compression = CompressionType.none);
       }
       zip.endEncode();
       out.closeSync();
-      mediaStream?.closeSync();
+      for (final s in streams) {
+        s.closeSync();
+      }
       File(temp).renameSync(path);
     } catch (_) {
       out.closeSync();
-      mediaStream?.closeSync();
+      for (final s in streams) {
+        s.closeSync();
+      }
       final f = File(temp);
       if (f.existsSync()) f.deleteSync();
       rethrow;
@@ -106,6 +119,27 @@ abstract final class ProjectFile {
       final scoreFile = archive.findFile(score.string('entry', required: true)!);
       if (scoreFile == null) throw const FormatException('The project has no score in it.');
 
+      // Stored as it is (see [_write]), so never much more than the project itself.
+      final limit = 4 * File(path).lengthSync() + (64 << 20);
+      var unpacked = 0;
+      // Unpacked only under a recording's name: what it is called decides what reads it.
+      String? unpack(String entry, String name, String folder) {
+        final file = archive.findFile(entry);
+        if (file == null || !MediaFormats.isRecording(name)) return null;
+        Directory(folder).createSync(recursive: true);
+        final playable = _join(folder, safeFileName(name));
+        final out = OutputFileStream(playable);
+        try {
+          ZipEntries.write(file, (bytes) {
+            unpacked += bytes.length;
+            out.writeBytes(bytes);
+          }, limit: limit - unpacked);
+        } finally {
+          out.closeSync();
+        }
+        return playable;
+      }
+
       ProjectMediaLocation? media;
       if (!manifest.isAbsent('media')) {
         final m = manifest.child('media');
@@ -120,22 +154,7 @@ abstract final class ProjectFile {
         ];
         // Only a recording: whatever else a project names is never opened.
         final linked = candidates.where((p) => MediaFormats.isRecording(p) && File(p).existsSync()).firstOrNull;
-        String? playable;
-        // Unpacked only under a recording's name: what it is called decides what reads it.
-        if (entry != null && MediaFormats.isRecording(name)) {
-          final file = archive.findFile(entry);
-          if (file != null) {
-            Directory(mediaDirectory).createSync(recursive: true);
-            playable = _join(mediaDirectory, safeFileName(name));
-            final out = OutputFileStream(playable);
-            try {
-              // Stored as it is (see [_write]), so never much more than the project itself.
-              ZipEntries.write(file, out.writeBytes, limit: 4 * File(path).lengthSync() + (64 << 20));
-            } finally {
-              out.closeSync();
-            }
-          }
-        }
+        final playable = entry == null ? null : unpack(entry, name, mediaDirectory);
         media = ProjectMediaLocation(
           name: name,
           path: playable ?? linked,
@@ -143,7 +162,17 @@ abstract final class ProjectFile {
         );
       }
 
+      // The other recordings: each one the takes module names, in a folder of its own.
+      final takes = <String, String>{};
+      for (final (i, value) in manifest.list('takes').indexed) {
+        final t = JsonReader(value, 'manifest.takes[$i]');
+        final id = t.string('id', required: true)!, entry = t.string('entry', required: true)!;
+        if (!state.edits.takes.any((take) => take.id == id) || id == state.edits.heard || takes.containsKey(id)) continue;
+        if (unpack(entry, t.string('name', required: true)!, _join(mediaDirectory, id)) case final playable?) takes[id] = playable;
+      }
+
       return OpenedProject(
+        takes: takes,
         scoreName: score.string('name', required: true)!,
         scoreBytes: ZipEntries.read(scoreFile, limit: ScoreFile.maxBytes),
         state: state,
@@ -172,7 +201,7 @@ abstract final class ProjectFile {
 
 /// Everything a save writes.
 class ProjectContents {
-  const ProjectContents({required this.scoreName, required this.scoreBytes, required this.state, this.media});
+  const ProjectContents({required this.scoreName, required this.scoreBytes, required this.state, this.media, this.takes = const {}});
 
   final String scoreName;
   final Uint8List scoreBytes;
@@ -180,6 +209,9 @@ class ProjectContents {
   /// The app's edits and view.
   final ProjectState state;
   final ProjectMedia? media;
+
+  /// The recordings besides the one heard ([media]), by [Take.id].
+  final Map<String, ProjectMedia> takes;
 }
 
 /// The recording, as a save should store it.
@@ -194,12 +226,16 @@ class ProjectMedia {
 
 /// What [ProjectFile.read] found.
 class OpenedProject {
-  const OpenedProject({required this.scoreName, required this.scoreBytes, required this.state, this.media, this.olderFormat = false});
+  const OpenedProject(
+      {required this.scoreName, required this.scoreBytes, required this.state, this.media, this.takes = const {}, this.olderFormat = false});
 
   final String scoreName;
   final Uint8List scoreBytes;
   final ProjectState state;
   final ProjectMediaLocation? media;
+
+  /// The recordings besides the one heard, unpacked, by [Take.id]: a take not here has none.
+  final Map<String, String> takes;
 
   /// Whether it was saved before modules ([LegacyProject]: Curator 0.6.1 and before). A save
   /// writes the new format, which those versions can't open.

@@ -194,6 +194,7 @@ class EditorController extends ChangeNotifier {
     required Uint8List scoreBytes,
     required ProjectState state,
     String? mediaPath,
+    Map<String, String> takePaths = const {},
   }) async {
     var edits = state.edits;
     // A font the project only names is looked for here; not found, Bravura stands in.
@@ -206,12 +207,9 @@ class EditorController extends ChangeNotifier {
     final score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
     final arts = await ImageEditing._decodeAll(state.images);
     await _install(name, scoreBytes, score, state, arts: arts);
-    if (mediaPath == null || _disposed) return null; // nothing to play it in: the window closed
+    if (_disposed) return null; // nothing to play it in: the window closed
     try {
-      await _loadAudio(mediaPath);
-      return null;
-    } catch (e) {
-      return '${'Couldn’t load the recording.'.tr}\n${describeError(e)}';
+      return await _loadTakes(mediaPath, takePaths);
     } finally {
       _tab = BottomTab.instruments;
       notifyListeners();
@@ -1438,34 +1436,141 @@ class EditorController extends ChangeNotifier {
   final audio = AudioEngine();
   bool _loadingAudio = false;
   bool get isLoadingAudio => _loadingAudio;
+
+  /// The recording heard.
   AudioTrack? get track => audio.track;
+
+  /// Every recording of the score, in the menu's order ([EditState.takes]).
+  List<Take> get takes => _doc.takes;
+
+  /// The take heard; null when there is no recording.
+  String? get heard => _doc.heard;
 
   /// Runs work that replaces a file the document saves (the recording, converted into scratch
   /// space and deleted with it) when nothing is reading it: [ProjectDocument] makes it its
   /// queue, so a save embedding the recording finishes first. At once without a document.
   Future<void> Function(Future<void> Function() job) inTurn = (job) => job();
 
-  /// Loads the recording from [path] (dropped or picked), in turn ([inTurn]).
+  /// Loads the recording from [path] (dropped or picked) in place of the one heard, keeping its
+  /// sync, in turn ([inTurn]); with none yet, the score's first.
   ///
   /// A video's soundtrack becomes the track (and so what a project embeds).
   Future<void> loadAudio(String path) => inTurn(() => _loadAudio(path));
 
-  /// Takes the recording out of the project (Project Settings ▸ Project Info ▸ Remove), in
-  /// turn ([inTurn]). Not an Undo step, like loading one.
-  Future<void> removeAudio() => inTurn(() async {
-    if (audio.track == null) return;
-    playback.pause();
-    await audio.unload();
-    _edited();
-    notifyListeners();
+  /// Adds the recording at [path] as another take of the score, heard from now on with a sync of
+  /// its own (none yet: Align it), in turn ([inTurn]). Not an Undo step, like loading one.
+  Future<void> addRecording(String path) => inTurn(() async {
+    if (_doc.heard == null) return _loadAudio(path);
+    await _reading(() async => _addTake(await audio.read(path)));
   });
 
-  Future<void> _loadAudio(String path) async {
+  Future<void> _addTake(AudioTrack track) async {
+    final id = _newTakeId();
+    await audio.put(id, track);
+    _everywhere((s) => s.adding(Take(id, stemOf(track.name))));
+    if (id != _doc.heard) hearTake(id);
+    audio.hear(_doc.heard);
+  }
+
+  /// Adds [track] as another take of the score, as [addRecording] does with a file read.
+  @visibleForTesting
+  Future<void> debugAddTake(AudioTrack track) async {
+    await _addTake(track);
+    _edited();
+  }
+
+  /// Takes the recording heard out of the project (Project Settings ▸ Project Info ▸ Remove), in
+  /// turn ([inTurn]); another of its takes is heard instead. Not an Undo step, like loading one.
+  Future<void> removeAudio() => inTurn(() async {
+    if (_doc.heard case final id?) await _removeTake(id);
+  });
+
+  /// Takes the recording of take [id] out of the project, in turn ([inTurn]). See [removeAudio].
+  Future<void> removeTake(String id) => inTurn(() => _removeTake(id));
+
+  Future<void> _removeTake(String id) async {
+    if (_doc.take(id) == null) return;
+    if (id == _doc.heard) {
+      final next = _doc.takes.where((t) => t.id != id && audio.trackOf(t.id) != null).firstOrNull;
+      if (next != null) {
+        hearTake(next.id);
+      } else {
+        playback.pause();
+      }
+    }
+    // The one heard last keeps its sync (the score's own then), as one recording removed did.
+    _everywhere((s) => s.removing(id));
+    await audio.remove(id);
+    _edited();
+    notifyListeners();
+  }
+
+  /// Hears take [id] from now on: the score follows its sync, and playing goes on at the same
+  /// place in the score (the same time over a repeat: [ScoreTimelinePasses.carriedTo]), faded
+  /// across. Not an Undo step: Undo goes on through each take's edits.
+  void hearTake(String id) {
+    final sync = _sync;
+    if (sync == null || _doc.heard == null || id == _doc.heard || _doc.take(id) == null || _gestures > 0) return;
+    final before = playback.time.value;
+    final from = SyncMap(measureStarts: sync.measureStarts, defaultTempo: sync.defaultTempo, beats: sync.beats)
+      ..load(sync.anchors, leadIn: sync.leadIn);
+    _everywhere((s) => s.hearing(id));
+    anchors._reset();
+    _loadSync(_doc);
+    final at = from.carriedTo(sync, before);
+    from.dispose();
+    audio.hear(id, fromSeconds: playback.isPlaying && !playback._scrubbing ? at : null);
+    playback._carriedTo(at);
+    notifyListeners();
+  }
+
+  /// The takes that can be heard (those with their recording), in the menu's order.
+  List<Take> get hearable => [for (final t in _doc.takes) if (audio.trackOf(t.id) != null) t];
+
+  /// Hears the [index]th take that can be heard ([hearable]; keys 1–9).
+  void hearTakeAt(int index) {
+    final all = hearable;
+    if (index >= 0 && index < all.length) hearTake(all[index].id);
+  }
+
+  /// Names take [id] [label] in the menu: one Undo step.
+  void renameTake(String id, String label) {
+    label = label.trim();
+    final take = _doc.take(id);
+    if (take == null || label.isEmpty || label == take.label) return;
+    _doc = _doc.copyWith(takes: [for (final t in _doc.takes) t.id == id ? t.copyWith(label: label) : t]);
+    _edited();
+  }
+
+  /// A take id no take has: `take-1`, `take-2`…
+  String _newTakeId() {
+    var n = 1;
+    while (_doc.take('take-$n') != null) {
+      n++;
+    }
+    return 'take-$n';
+  }
+
+  /// Changes the document and every state Undo keeps alike, so the change is no Undo step and
+  /// Undo after it finds the takes as they are now.
+  void _everywhere(EditState Function(EditState) change) {
+    final now = change(_editState);
+    _history.rewrite(now, change);
+    if (_committed case final committed?) _committed = change(committed);
+    _doc = now;
+  }
+
+  /// The sync follows [state]'s: the anchors set by hand, or its MIDI tempo map.
+  void _loadSync(EditState state) => _sync!.load(
+      state.midi?.anchors(start: state.leadIn, totalQuarters: _sync!.totalQuarters) ?? state.anchors,
+      leadIn: state.leadIn);
+
+  Future<void> _reading(Future<void> Function() job) async {
     playback.pause();
     _loadingAudio = true;
     notifyListeners();
     try {
-      await audio.load(path);
+      await job();
       _edited();
       _tab = BottomTab.audio;
       viewport.requestFit();
@@ -1473,6 +1578,55 @@ class EditorController extends ChangeNotifier {
       _loadingAudio = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _loadAudio(String path) => _reading(() async {
+    final track = await audio.read(path);
+    if (_doc.heard case final id?) {
+      // In place of the one heard: a name still its file's follows the new file.
+      final take = _doc.take(id)!;
+      final before = audio.trackOf(id);
+      await audio.put(id, track);
+      if (before == null || take.label == stemOf(before.name)) {
+        _everywhere((s) => s.copyWith(takes: [for (final t in s.takes) t.id == id ? t.copyWith(label: stemOf(track.name)) : t]));
+      }
+      audio.hear(id);
+    } else {
+      await _addTake(track);
+    }
+  });
+
+  /// Loads the recordings of a project opened: the one heard at [heardPath], the others at
+  /// [paths] (by take id). A take without its recording is left out; one recording that can't
+  /// be read is reported, the others still load.
+  Future<String?> _loadTakes(String? heardPath, Map<String, String> paths) async {
+    String? problem;
+    Future<void> load(String id, String path) async {
+      try {
+        await audio.put(id, await audio.read(path));
+      } catch (e) {
+        problem ??= '${'Couldn’t load the recording.'.tr}\n${describeError(e)}';
+      }
+    }
+
+    // A project saved before takes: its recording is its first.
+    if (_doc.heard == null && heardPath != null) _everywhere((s) => s.adding(Take(_newTakeId(), stemOf(fileNameOf(heardPath)))));
+    if (_doc.heard case final id? when heardPath != null) await load(id, heardPath);
+    for (final t in _doc.takes) {
+      if (t.id != _doc.heard && paths[t.id] != null) await load(t.id, paths[t.id]!);
+    }
+    if (_disposed) return null;
+    final missing = [for (final t in _doc.takes) if (audio.trackOf(t.id) == null) t.id];
+    if (missing.contains(_doc.heard)) {
+      if (_doc.takes.where((t) => !missing.contains(t.id)).firstOrNull case final next?) hearTake(next.id);
+    }
+    // Gone, the one heard last leaves its sync to the score, as a recording removed does.
+    for (final id in missing) {
+      _everywhere((s) => s.removing(id));
+    }
+    audio.hear(_doc.heard);
+    if (heardPath != null || paths.isNotEmpty) viewport.requestFit();
+    return problem;
   }
 
   // MARK: Selection and Undo (both tabs)
@@ -1580,8 +1734,7 @@ class EditorController extends ChangeNotifier {
       if (_wanted != engraved) unawaited(_reengrave());
       _joinLanes(); // before the lanes, which fit it
       _curation!.load(state.lanes!, transition: state.transition!); // Undo's states have both
-      _sync!.load(_doc.midi?.anchors(start: state.leadIn, totalQuarters: _sync!.totalQuarters) ?? state.anchors,
-          leadIn: state.leadIn);
+      _loadSync(state);
       images._restore(state.patches);
       captions._restore(state.captions, state.captionFont);
       _applyExtensions();

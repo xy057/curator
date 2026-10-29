@@ -65,7 +65,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `settings_file.dart` | The `.ccf` format: a project's score-wide settings, for other projects (Project Settings ▸ Export… / Import…) |
-| `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, the recording read whole for Align (`AudioTrack.chroma`), converting to FLAC; `MediaFormats` lists what is accepted |
+| `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud; every take's recording held, crossfaded between), the waveform and onsets, the recording read whole for Align (`AudioTrack.chroma`), converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
 | `phrase_search_window.dart` | Edit ▸ Find Phrase… (⌘F): the window that enters a phrase and lists where it is played |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
@@ -251,6 +251,25 @@ timeline draws bars and regions per pass. Inside, `SyncMap` works on the perform
 which a warp doesn't interrupt, so the tempo runs on through a jump. Changing a jump moves
 the anchors after it (up to the next warp) with it, keeping their times (`SyncMap.setJump`).
 Anchors are kept in time order, each arriving further on than the one before went on from.
+
+**A score can have several recordings** (takes: `EditState.takes`, the Audio tab's recording menu,
+and the editor's toolbar beside Find Phrase once there are two; keys 1–9). Each has its own sync:
+the one heard's is the state's own (`anchors`, `leadIn`, `midi`, so everything that reads the sync,
+tapping, Align and a MIDI tempo map included, works on it unchanged; its `Take` holds blanks), each
+other's is in its `Take`. `EditorController.hearTake` swaps them (`EditState.hearing`) and the score
+goes on at the same place: the time heard is carried through the old sync to a score quarter and the
+pass it is in, then to the same time over in the new one (`ScoreTimelinePasses.carriedTo`: its last
+pass to play it when it plays it fewer times; before bar 1 and after the end, as far from them in
+seconds). Playing, the new recording starts there at no volume and both fade across over 300 ms
+(`AudioEngine.hear`, SoLoud's `fadeVolume`, the old one's `scheduleStop`); the clock follows the new
+one's position. Adding, removing and switching takes are no Undo steps, yet Undo keeps each take's
+edits: they are made to every state Undo keeps alike (`_everywhere`, `EditHistory.rewrite`), so a
+state never holds one take's anchors as another's; renaming one is a step. `AudioEngine` holds every
+take's recording at once, decoded in memory while together they stay within 2 GB
+(`AudioEngine.memoryBudget`), read from disk as they play past it. Add Recording… adds a take (heard
+at once, no anchors: Align it); Replace Recording… and a recording dropped replace the one heard,
+keeping its sync. Saved as the `takes` module (optional: an older Curator keeps the one heard, with
+its sync); a take whose recording is missing when the project opens is left out.
 
 **A MIDI file can stand in for the anchors.** Dropping a `.mid` on the Audio tab (or its MIDI
 button) reads its tempo map (`MidiTempoMap.read`: tempo changes only; the beats still come
@@ -719,8 +738,9 @@ Curator 0.1–0.6.1 read only that file and refuse a version past theirs, 26 at 
 update, so every release knows the file and none opens it), `manifest.json` (format, `layout` 2,
 `writer` "Curator 0.6.1 (131)", the score's and recording's names and entries, and each module's
 `version` and whether it is `optional`), `modules/<id>.json` (compact JSON), each module's files
-under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` last.
-Everything deflates at zlib's default level, but the recording and packed images, stored.
+under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` (the
+recording heard) and `media/takes/<id>/<name>` (each other, listed in the manifest's `takes`) last.
+Everything deflates at zlib's default level, but the recordings and packed images, stored.
 
 Each module (`ProjectModule`, all in `ProjectModules.all`) owns a part of `ProjectState`: `fonts`,
 `engraving` (options, typography, the flags), `display` (transitions, scroll, motion, bar numbers,

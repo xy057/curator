@@ -179,7 +179,7 @@ class _AudioLanesState extends State<AudioLanes> {
   @override
   Widget build(BuildContext context) => Select(
         listenable: c,
-        select: () => (sync: c.sync, midi: c.midiTempo, track: c.track, loading: c.isLoadingAudio),
+        select: () => (sync: c.sync, midi: c.midiTempo, track: c.track, takes: c.takes, loading: c.isLoadingAudio),
         builder: (context, _) => _lanes(context),
       );
 
@@ -239,7 +239,7 @@ class _AudioLanesState extends State<AudioLanes> {
                 children: [
                   Text('Recording'.tr),
                   if (track != null)
-                    Text(track.name,
+                    Text(c.takes.where((t) => t.id == c.heard).firstOrNull?.label ?? track.name,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 11, color: colors.textMuted)),
                 ],
@@ -611,13 +611,14 @@ class AudioToolbar extends StatelessWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([sync, c]),
       builder: (context, _) => Row(children: [
-        ToolbarButton(
-          icon: c.track == null ? AppIcon.addAudio.of(context) : AppIcon.replaceAudio.of(context),
-          tooltip: c.track == null
-              ? 'Add Recording… (or drop one here)'.tr
-              : '${'Replace recording…'.tr}\n${c.track!.name}',
-          onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
-        ),
+        if (c.track == null)
+          ToolbarButton(
+            icon: AppIcon.addAudio.of(context),
+            tooltip: 'Add Recording… (or drop one here)'.tr,
+            onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
+          )
+        else
+          RecordingMenu(controller: c),
         if (!c.usesMidiTempo) ...[
           const SizedBox(width: 4),
           _AlignButton(controller: c),
@@ -694,6 +695,83 @@ class AudioToolbar extends StatelessWidget {
             onPressed: sync.anchors.isEmpty ? null : c.anchors.clear,
           ),
       ]),
+    );
+  }
+}
+
+/// The recording heard: "♪ Karajan 1963 ▾", a menu of every take of the score (each heard at
+/// the same place, keys 1–9) and, unless [switchOnly] (the editor's toolbar), adding, replacing,
+/// renaming and removing them.
+class RecordingMenu extends StatelessWidget {
+  const RecordingMenu({super.key, required this.controller, this.switchOnly = false});
+  final EditorController controller;
+  final bool switchOnly;
+
+  static const _add = '+add', _replace = '+replace', _rename = '+rename', _remove = '+remove';
+
+  Future<void> _chosen(BuildContext context, String value) async {
+    final c = controller, heard = c.heard;
+    switch (value) {
+      case _add:
+        await pickAudio(context, c, add: true);
+      case _replace:
+        await pickAudio(context, c);
+      case _rename when heard != null:
+        final name = await showRenameRecordingDialog(context, c.takes.firstWhere((t) => t.id == heard).label);
+        if (name != null && c.heard == heard) c.renameTake(heard, name);
+      case _remove when heard != null:
+        await c.removeTake(heard);
+      default:
+        c.hearTake(value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller, colors = context.colors;
+    final takes = c.hearable;
+    final heard = takes.where((t) => t.id == c.heard).firstOrNull;
+    return OverlaySemantics(
+      child: AppPopupMenuButton<String>(
+        tooltip: switchOnly ? 'Recording ({keys})'.fill({'keys': '1–${takes.length.clamp(1, 9)}'}) : 'Recording'.tr,
+        position: PopupMenuPosition.under,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.only(left: 6, right: 2),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
+        ),
+        onSelected: (value) => unawaited(_chosen(context, value)),
+        itemBuilder: (context) => [
+          for (final (i, t) in takes.indexed)
+            checkedMenuItem(context,
+                value: t.id,
+                checked: t.id == c.heard,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  ConstrainedBox(constraints: const BoxConstraints(maxWidth: 240), child: Text(t.label, overflow: TextOverflow.ellipsis)),
+                  if (i < 9) ...[
+                    const SizedBox(width: 24),
+                    Text('${i + 1}', style: TextStyle(color: colors.textMuted, fontFeatures: const [FontFeature.tabularFigures()])),
+                  ],
+                ])),
+          if (!switchOnly) ...[
+            menuDivider(context),
+            menuItem(context, value: _add, enabled: !c.isLoadingAudio, child: Text('Add Recording…'.tr)),
+            menuItem(context, value: _replace, enabled: !c.isLoadingAudio, child: Text('Replace Recording…'.tr)),
+            menuItem(context, value: _rename, child: Text('Rename…'.tr)),
+            menuItem(context, value: _remove, enabled: !c.isLoadingAudio, child: Text('Remove'.tr)),
+          ],
+        ],
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(AppIcon.audio.of(context), size: 16, color: colors.textMuted),
+          const SizedBox(width: 5),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 160),
+            child: Text(heard?.label ?? c.track?.name ?? '',
+                overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: colors.text)),
+          ),
+          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
+        ]),
+      ),
     );
   }
 }
@@ -841,11 +919,12 @@ class _TextToggle extends StatelessWidget {
   }
 }
 
-Future<void> pickAudio(BuildContext context, EditorController c) async {
+/// Picks a recording for the one heard, or with [add] another take of the score.
+Future<void> pickAudio(BuildContext context, EditorController c, {bool add = false}) async {
   final file = await openFile(acceptedTypeGroups: [audioTypes]);
   if (file == null) return;
   try {
-    await c.loadAudio(file.path);
+    await (add ? c.addRecording(file.path) : c.loadAudio(file.path));
     if (context.mounted) await alignAdded(context, c);
   } catch (e) {
     if (context.mounted) {

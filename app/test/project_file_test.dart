@@ -50,6 +50,31 @@ void main() {
     expect(File('$path.saving').existsSync(), isFalse);
   });
 
+  test('every recording travels in the project, each in a folder of its own', () async {
+    File('${dir.path}/a.wav').writeAsBytesSync([1, 2, 3]);
+    File('${dir.path}/b.wav').writeAsBytesSync([4, 5]);
+    final path = '${dir.path}/takes.ccs';
+    await ProjectFile.write(
+        path,
+        ProjectContents(
+          scoreName: 'Score.musicxml',
+          scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
+          state: const ProjectState(
+              edits: EditState(heard: 'take-1', takes: [
+            Take('take-1', 'Karajan'),
+            Take('take-2', 'Bernstein', anchors: [SyncAnchor(0, 2)], leadIn: 2),
+          ])),
+          // The same name twice: each take's is its own.
+          media: ProjectMedia(name: 'Take.wav', embedFrom: '${dir.path}/a.wav'),
+          takes: {'take-2': ProjectMedia(name: 'Take.wav', embedFrom: '${dir.path}/b.wav')},
+        ));
+    final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
+    expect(File(opened.media!.path!).readAsBytesSync(), [1, 2, 3]);
+    expect(File(opened.takes['take-2']!).readAsBytesSync(), [4, 5]);
+    expect(opened.state.edits.take('take-2')!.anchors, const [SyncAnchor(0, 2)]);
+    expect(opened.state.edits.heard, 'take-1');
+  });
+
   /// [path]'s zip with [change] made to it: entries by name (null removes one).
   void rewrite(String path, Map<String, List<int>?> change) {
     final before = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
