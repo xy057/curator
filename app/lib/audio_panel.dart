@@ -618,6 +618,11 @@ class AudioToolbar extends StatelessWidget {
               : '${'Replace recording…'.tr}\n${c.track!.name}',
           onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
         ),
+        if (!c.usesMidiTempo) ...[
+          const SizedBox(width: 4),
+          _AlignButton(controller: c),
+          const SizedBox(width: 4),
+        ],
         ToolbarButton(
           icon: AppIcon.tempoMap.of(context),
           tooltip: c.midiTempo == null
@@ -626,21 +631,7 @@ class AudioToolbar extends StatelessWidget {
           selected: c.usesMidiTempo,
           onPressed: () => c.usesMidiTempo ? c.useMidiTempo(null) : pickMidi(context, c),
         ),
-        if (!c.usesMidiTempo) ...[
-          _TapButton(controller: c),
-          if (c.anchors.aligning case final done?)
-            ToolbarButton(
-              glyph: SizedBox.square(dimension: 14, child: CircularProgressIndicator(value: done, strokeWidth: 2)),
-              tooltip: 'Aligning…'.tr,
-              onPressed: null,
-            )
-          else
-            ToolbarButton(
-              icon: AppIcon.align.of(context),
-              tooltip: 'Align with the recording'.tr,
-              onPressed: c.track == null || c.isLoadingAudio ? null : () => align(context, c),
-            ),
-        ],
+        if (!c.usesMidiTempo) _TapButton(controller: c),
         ToolbarButton(
           icon: AppIcon.warp.of(context),
           tooltip: c.anchors.selected.length == 1 && !c.usesMidiTempo
@@ -743,6 +734,34 @@ class _SpeedMenu extends StatelessWidget {
   }
 }
 
+/// Align: the first thing to do with a recording, so a filled button with its name, not an
+/// icon among the tools; while it runs, how far it has got.
+class _AlignButton extends StatelessWidget {
+  const _AlignButton({required this.controller});
+  final EditorController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller, done = c.anchors.aligning;
+    return Tip(
+      message: 'Set the anchors from the recording'.tr,
+      child: FilledButton.icon(
+        onPressed: done != null || c.track == null || c.isLoadingAudio ? null : () => align(context, c),
+        style: FilledButton.styleFrom(
+          minimumSize: Size(0, AppStyle.of(context).control),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          visualDensity: VisualDensity.compact,
+          textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+        ),
+        icon: done == null
+            ? Icon(AppIcon.align.of(context), size: 16)
+            : SizedBox.square(dimension: 14, child: CircularProgressIndicator(value: done, strokeWidth: 2)),
+        label: Text(done == null ? 'Align'.tr : 'Aligning…'.tr),
+      ),
+    );
+  }
+}
+
 /// Tap mode (T): a record-like toggle that breathes while armed.
 class _TapButton extends StatelessWidget {
   const _TapButton({required this.controller});
@@ -827,6 +846,7 @@ Future<void> pickAudio(BuildContext context, EditorController c) async {
   if (file == null) return;
   try {
     await c.loadAudio(file.path);
+    if (context.mounted) await alignAdded(context, c);
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t load the recording. {error}'.fill({'error': describeError(e)}))));
@@ -845,6 +865,12 @@ Future<void> pickMidi(BuildContext context, EditorController c) async {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t use the MIDI file. {error}'.fill({'error': describeError(e)}))));
     }
   }
+}
+
+/// After a recording is added: Align, when Settings say so ([SyncEditing.alignAdded]) and no
+/// anchors are set yet (those tapped are never replaced unasked).
+Future<void> alignAdded(BuildContext context, EditorController c) async {
+  if (c.anchors.alignAdded && !c.usesMidiTempo && (c.sync?.anchors.isEmpty ?? false)) await align(context, c);
 }
 
 /// Align: the anchors set by ear ([SyncEditing.align]), saying how many.

@@ -676,7 +676,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (mounted) showMidiWarpsTaken(context, controller, taken);
       }, title: 'Couldn’t Use MIDI File'.tr));
     } else if (MediaFormats.isRecording(path)) {
-      unawaited(_guard(() => controller.loadAudio(path), title: 'Couldn’t Load Recording'.tr));
+      unawaited(_guard(() async {
+        await controller.loadAudio(path);
+        if (mounted) await alignAdded(context, controller);
+      }, title: 'Couldn’t Load Recording'.tr));
     } else {
       return false;
     }

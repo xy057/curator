@@ -164,6 +164,9 @@ class SyncEditing {
     _editor._changed();
   }
 
+  /// Whether a recording added is aligned at once (Settings ▸ General).
+  bool alignAdded = true;
+
   /// How far Align has got (0–1) while it runs; null otherwise.
   double? get aligning => _aligning;
   double? _aligning;

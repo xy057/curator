@@ -136,8 +136,9 @@ a bar (`12`, `12.2`: where it first sounds) or a time (`1:10.5`, `1:02:03`), rea
 `Playback.goTo`. Closing it hands the keyboard back to what had it, or the window's
 shortcuts would stop (focus falls to the route's scope, above them).
 
-**Align sets the anchors by ear** (the Audio tab's wand, `SyncEditing.align`, one Undo step
-replacing the anchors there). The recording is read on an isolate half a minute at a time, through
+**Align sets the anchors by ear** (the Audio tab's filled Align button, first after Add Recording,
+`SyncEditing.align`, one Undo step replacing the anchors there; at once when a recording is added to
+a score with no anchors yet, unless Settings ▸ General ▸ Align added recordings is off). The recording is read on an isolate half a minute at a time, through
 flutter_soloud's binding into a buffer of our own (its `readSamplesFromFile` never frees the one it
 reads into), and made into frames ~20 a second (`AudioChroma`): the energy of each pitch class over a
 long window (chroma) and a short one (whose rises are onsets). The score is laid out as played, its
