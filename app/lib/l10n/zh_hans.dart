@@ -407,6 +407,7 @@ const zhHans = <String, String>{
   'Open a score first, then its recording.': '请先打开乐谱，再添加它的录音。',
   'Open Folder': '打开文件夹',
   'Open in the browser': '在浏览器中打开',
+  'Created using EmoteLab': '使用 EmoteLab 制作',
   'Open in Window': '在窗口中打开',
   'Open Recent': '打开最近使用',
   'Open Release Page': '打开发布页面',

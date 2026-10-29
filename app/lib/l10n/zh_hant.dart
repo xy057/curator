@@ -407,6 +407,7 @@ const zhHant = <String, String>{
   'Open a score first, then its recording.': '請先打開樂譜，再加入它的錄音。',
   'Open Folder': '打開檔案夾',
   'Open in the browser': '在瀏覽器中打開',
+  'Created using EmoteLab': '使用 EmoteLab 製作',
   'Open in Window': '在視窗中打開',
   'Open Recent': '打開最近使用',
   'Open Release Page': '打開發布頁面',

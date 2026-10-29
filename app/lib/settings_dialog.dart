@@ -2023,12 +2023,13 @@ class _AboutIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: () => settings.mascotIcon = !settings.mascotIcon,
-        child: AppLogo(settings: settings, size: 76),
+        child: AppLogo(settings: settings, size: 84),
       );
 }
 
-/// Settings ▸ About: the icon, and beside it the name, version and website; the updates,
-/// then the other links, each a group; Verovio and the system at the foot.
+/// Settings ▸ About: the icon, and beside it the name, version and website; the updates, then
+/// the other links, each a group; Verovio and the system at the foot (with the mascot's credit
+/// while it shows).
 class _AboutPage extends StatelessWidget {
   const _AboutPage(this.c);
   final _Context c;
@@ -2055,9 +2056,10 @@ class _AboutPage extends StatelessWidget {
             child: Column(children: [
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 _AboutIcon(c.settings),
-                const SizedBox(width: 18),
+                const SizedBox(width: 20),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Curator', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: colors.text)),
+                  Text('Curator', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, height: 1.15, letterSpacing: -0.3, color: colors.text)),
+                  const SizedBox(height: 2),
                   Row(spacing: 6, children: [
                     SelectableText('Version {version}'.fill({'version': '$appVersion ($appBuild)'}), style: TextStyle(fontSize: 13, color: colors.textMuted)),
                     if (appCommit.isNotEmpty) _Pill(appCommit, mono: true),
@@ -2066,7 +2068,7 @@ class _AboutPage extends StatelessWidget {
                   const _Link(websiteUrl, accent: true),
                 ]),
               ]),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               group([
                 _SettingRow(
                   title: 'Updates',
@@ -2083,6 +2085,27 @@ class _AboutPage extends StatelessWidget {
               ]),
               const Spacer(),
               const SizedBox(height: 14),
+              // The mascot's credit, only while it shows.
+              ListenableBuilder(
+                listenable: c.settings,
+                builder: (context, _) => AnimatedSwitcher(
+                  duration: motion(context, 250),
+                  switchInCurve: AppStyle.of(context).enterCurve,
+                  switchOutCurve: AppStyle.of(context).exitCurve,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SizeTransition(sizeFactor: animation, alignment: Alignment.bottomCenter, child: child),
+                  ),
+                  child: c.settings.mascotIcon
+                      ? Container(
+                          key: const ValueKey(true),
+                          width: double.infinity,
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text('Created using EmoteLab'.tr, textAlign: TextAlign.center, style: muted),
+                        )
+                      : const SizedBox(key: ValueKey(false), width: double.infinity),
+                ),
+              ),
               SelectableText('Verovio $verovioVersion  ·  $_systemText', textAlign: TextAlign.center, style: muted),
             ]),
           ),
