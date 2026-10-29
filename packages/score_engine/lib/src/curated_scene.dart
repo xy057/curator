@@ -10,6 +10,7 @@ import 'display_list.dart';
 import 'engraving.dart';
 import 'engraving_options.dart';
 import 'frozen_zone.dart';
+import 'auto_curate.dart';
 import 'beat_grid.dart';
 import 'curation.dart';
 import 'score_fonts.dart';
@@ -116,6 +117,9 @@ class LoadedScore {
 
   /// Every editable text in the score, as written in the file.
   final List<ScoreText> texts;
+
+  /// How much each part's bars ask to be heard ([fittedCuratedLanes] hides the least first).
+  late final BarSalience salience = BarSalience.of(musicXML, metadata, timeline.measureStarts);
 
   /// Text edits in effect: text id → new text ('' removes it).
   final Map<String, String> textEdits;
@@ -786,6 +790,29 @@ class CuratedScene {
       _fitKey = key;
     }
     return _fitPlan!.overflowing;
+  }
+
+  /// [partIds]' lanes as auto-curation fills them, cut back where notation would run off a
+  /// frame of [size] ([fittedCuratedLanes]); the other lanes of [curation] stay as they are.
+  /// [activeMeasures] and [salience] are the lanes' own (a pair's: either player's).
+  Map<String, List<Region>> curatedToFit(Curation curation, ui.Size size,
+      {required Iterable<String> partIds, required Map<String, List<bool>> activeMeasures, required BarSalience salience}) {
+    final ids = partIds.toSet();
+    final trial = Curation(curation.partIds)
+      ..load({for (final id in curation.partIds) id: curation.lane(id)}, transition: curation.transition)
+      ..join(curation.joined);
+    return fittedCuratedLanes(
+      partIds: ids,
+      activeMeasures: activeMeasures,
+      measureStarts: timeline.measureStarts,
+      salience: salience,
+      timeline: timeline,
+      others: {
+        for (final id in curation.partIds)
+          if (!ids.contains(id) && !ids.contains(curation.joined[id])) id: curation.lane(id), // a follower follows
+      },
+      overflowing: (lanes) => overflowing(trial..setLanes(lanes), size),
+    );
   }
 
   /// The layout plan for this curation and frame size, rebuilt only when either changes.
