@@ -49,6 +49,7 @@ const zhHans = <String, String>{
   'Advanced': '高级',
   'Advanced Engraving': '高级刻谱',
   'Align': '对齐',
+  'Align\nSet the anchors from the recording': '对齐\n根据录音设置锚点',
   'Align grace notes': '对齐装饰音',
   'Align added recordings': '自动对齐添加的录音',
   'Aligning…': '正在对齐…',

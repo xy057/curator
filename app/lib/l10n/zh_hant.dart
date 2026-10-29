@@ -49,6 +49,7 @@ const zhHant = <String, String>{
   'Advanced': '進階',
   'Advanced Engraving': '進階刻譜',
   'Align': '對齊',
+  'Align\nSet the anchors from the recording': '對齊\n依錄音設定錨點',
   'Align grace notes': '對齊裝飾音',
   'Align added recordings': '自動對齊加入的錄音',
   'Aligning…': '正在對齊…',

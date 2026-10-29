@@ -44,7 +44,7 @@ const _grab = 7.0;
 /// drag it (the grabbed anchor snaps to note onsets; ⌘ = free) · ←/→ nudge 10 ms (⇧ 1 ms) ·
 /// ↑/↓ re-point every selected anchor a bar or beat · Delete removes them.
 ///
-/// With a MIDI tempo map (dropped on the window, or the toolbar's MIDI button) the sync
+/// With a MIDI tempo map (dropped on the window, or the toolbar's ⋯ menu) the sync
 /// follows the file instead: the anchors, the waveform and tapping give way to the tempo map,
 /// drawn large, and edited there (see [_MidiTempoLane]).
 class AudioLanes extends StatefulWidget {
@@ -614,11 +614,16 @@ Future<void> editMidiWarp(BuildContext context, EditorController c, {int? index}
   }
 }
 
-/// Audio tab tools (right of the tab switch), left to right as the work goes: the recordings
-/// (Add, the lanes' tools, the crossfade), then the sync of the one edited (Align, Tap, Warp,
-/// their step, where bar 1 starts), and at the right end what is selected, the sync's other
-/// settings ([_SyncMenu]) and the playback speed, always there. Every control explains itself
-/// on hover.
+/// Audio tab tools (right of the tab switch), in three parts with a place each, so nothing
+/// moves as the others come and go:
+///
+///     [+]  [V D E] [⤨ 0.3 s ▾]  │  [Align] [Tap] [Warp] [Bar ▾] [↦ 0.00 s] ……  [n anchors ×] [⋯]  │  [⏲ 100% ▾]
+///
+/// the recordings (Add; with two or more, the lanes' tools and the crossfade), the sync of the
+/// one edited (Align, filled while it has no anchors; tapping, warps, their step, where bar 1
+/// starts) with the selection and its less used settings ([_SyncMenu]) at the right, then the
+/// playback speed, always last. Its menus are all one kind ([_ValueMenu]); one box groups the
+/// lanes' tools, as on the Instruments tab. Every control explains itself on hover.
 class AudioToolbar extends StatelessWidget {
   const AudioToolbar({super.key, required this.controller});
   final EditorController controller;
@@ -635,19 +640,20 @@ class AudioToolbar extends StatelessWidget {
           tooltip: c.track == null ? 'Add Recording… (or drop one here)'.tr : 'Add Recording…'.tr,
           onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c, add: true),
         ),
-        if (c.takes.isNotEmpty) ...[
+        if (c.takes.length > 1) ...[
           const SizedBox(width: 4),
           ToolGroup(children: [
             for (final MapEntry(key: tool, value: (icon, tip)) in InstrumentsToolbar.tools.entries)
               ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
           ]),
+          const SizedBox(width: 4),
           _CrossfadeMenu(controller: c),
         ],
         if (c.editsSync) ...[
           const ToolbarDivider(),
           if (!c.usesMidiTempo) ...[
             _AlignButton(controller: c),
-            const SizedBox(width: 4),
+            const SizedBox(width: 2),
             _TapButton(controller: c),
           ],
           ToolbarButton(
@@ -659,15 +665,17 @@ class AudioToolbar extends StatelessWidget {
           ),
           if (!c.usesMidiTempo) ...[
             const SizedBox(width: 4),
-            Tip(
-              message: 'Step for taps, {click}, and ↑/↓'.fill({'click': shortcut('Option-click', 'Alt+click').tr}),
-              child: ToolGroup(children: [
+            _ValueMenu<SyncGrid>(
+              tooltip: 'Step for taps, {click}, and ↑/↓'.fill({'click': shortcut('Option-click', 'Alt+click').tr}),
+              label: (c.anchors.grid == SyncGrid.bar ? 'Bar' : 'Beat').tr,
+              onSelected: (grid) => c.anchors.grid = grid,
+              items: (context) => [
                 for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
-                  _TextToggle(label: label, selected: c.anchors.grid == grid, onPressed: () => c.anchors.grid = grid),
-              ]),
+                  checkedMenuItem(context, value: grid, checked: c.anchors.grid == grid, child: Text(label.tr)),
+              ],
             ),
           ],
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           _StartField(controller: c),
         ],
         const Spacer(),
@@ -699,6 +707,43 @@ class AudioToolbar extends StatelessWidget {
   }
 }
 
+/// A setting shown as its value, chosen from a menu: "⏲ 100% ▾". The Audio tab's menus are all
+/// this one, so they look and line up alike.
+class _ValueMenu<T> extends StatelessWidget {
+  const _ValueMenu({required this.tooltip, this.icon, required this.label, required this.items, required this.onSelected});
+  final String tooltip;
+  final AppIcon? icon;
+  final String label;
+  final List<PopupMenuEntry<T>> Function(BuildContext context) items;
+  final ValueChanged<T> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return OverlaySemantics(
+      child: AppPopupMenuButton<T>(
+        tooltip: tooltip,
+        position: PopupMenuPosition.under,
+        style: TextButton.styleFrom(
+          minimumSize: Size(0, AppStyle.of(context).control),
+          padding: EdgeInsets.only(left: icon == null ? 8 : 6, right: 2),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(5)),
+        ),
+        onSelected: onSelected,
+        itemBuilder: items,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (icon case final icon?) ...[
+            Icon(icon.of(context), size: 16, color: colors.textMuted),
+            const SizedBox(width: 5),
+          ],
+          Text(label, style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
+          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
+        ]),
+      ),
+    );
+  }
+}
+
 /// The sync's less used settings, in a menu at the toolbar's right end: following a MIDI tempo
 /// map (and its warps from the score), snapping anchors to notes, and removing them all.
 class _SyncMenu extends StatelessWidget {
@@ -711,12 +756,12 @@ class _SyncMenu extends StatelessWidget {
     return OverlaySemantics(
       child: AppPopupMenuButton<void Function()>(
         tooltip: 'Sync'.tr,
-        iconSize: 18,
+        iconSize: 16,
         padding: EdgeInsets.zero,
         style: IconButton.styleFrom(
-          fixedSize: const Size(32, 32),
-          minimumSize: const Size(32, 32),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
+          fixedSize: Size.square(AppStyle.of(context).control),
+          minimumSize: Size.square(AppStyle.of(context).control),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(5)),
         ),
         icon: Icon(AppIcon.more.of(context)),
         onSelected: (action) => action(),
@@ -757,46 +802,33 @@ class _CrossfadeMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = controller, colors = context.colors;
+    final c = controller;
     final selected = c.takeSelection;
     final region = selected == null ? null : c.takes.firstWhere((t) => t.id == selected.take).regions[selected.index];
     final own = region == null ? null : (region.transitionIn ?? region.transitionOut);
     final shown = own ?? c.crossfade;
-    return OverlaySemantics(
-      child: AppPopupMenuButton<double>(
-        tooltip: region == null ? 'Crossfade'.tr : (own == null ? 'Crossfade (the project’s)' : 'Crossfade (its own)').tr,
-        position: PopupMenuPosition.under,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(0, 32),
-          padding: const EdgeInsets.only(left: 6, right: 2),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
-        ),
-        onSelected: (s) => region == null
-            ? c.setCrossfade(s == _project ? null : s)
-            : c.setCrossfade(s == _project ? null : s, id: selected!.take, region: selected.index),
-        itemBuilder: (context) => [
-          if (region != null) ...[
-            checkedMenuItem(context,
-                value: _project, checked: own == null, child: Text("Project's ({n} s)".fill({'n': c.crossfade}))),
-            menuDivider(context),
-          ],
-          for (final s in {...AppSettings.transitionChoices, shown}.toList()..sort())
-            checkedMenuItem(context,
-                value: s, checked: region == null ? s == c.crossfade : own == s, child: Text('{n} s'.fill({'n': s}))),
+    return _ValueMenu<double>(
+      tooltip: region == null ? 'Crossfade'.tr : (own == null ? 'Crossfade (the project’s)' : 'Crossfade (its own)').tr,
+      icon: AppIcon.transition,
+      label: '{n} s'.fill({'n': shown}),
+      onSelected: (s) => region == null
+          ? c.setCrossfade(s == _project ? null : s)
+          : c.setCrossfade(s == _project ? null : s, id: selected!.take, region: selected.index),
+      items: (context) => [
+        if (region != null) ...[
+          checkedMenuItem(context,
+              value: _project, checked: own == null, child: Text("Project's ({n} s)".fill({'n': c.crossfade}))),
+          menuDivider(context),
         ],
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(AppIcon.transition.of(context), size: 16, color: colors.textMuted),
-          const SizedBox(width: 5),
-          Text('{n} s'.fill({'n': shown}),
-              style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
-          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
-        ]),
-      ),
+        for (final s in {...AppSettings.transitionChoices, shown}.toList()..sort())
+          checkedMenuItem(context,
+              value: s, checked: region == null ? s == c.crossfade : own == s, child: Text('{n} s'.fill({'n': s}))),
+      ],
     );
   }
 }
 
-/// Playback speed: "100% ▾", a menu as the video ratio and the transition are.
+/// Playback speed: "⏲ 100% ▾".
 class _SpeedMenu extends StatelessWidget {
   const _SpeedMenu({required this.controller});
   final EditorController controller;
@@ -805,35 +837,21 @@ class _SpeedMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final speed = controller.playback.speed;
-    return OverlaySemantics(
-      child: AppPopupMenuButton<double>(
-        tooltip: 'Playback speed'.tr,
-        position: PopupMenuPosition.under,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(0, 32),
-          padding: const EdgeInsets.only(left: 6, right: 2),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
-        ),
-        onSelected: (s) => controller.playback.speed = s,
-        itemBuilder: (context) => [
-          for (final s in const [0.5, 0.75, 1.0]) checkedMenuItem(context, value: s, checked: s == speed, child: Text(_label(s))),
-        ],
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(AppIcon.speed.of(context), size: 16, color: colors.textMuted),
-          const SizedBox(width: 5),
-          Text(_label(speed),
-              style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
-          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
-        ]),
-      ),
+    return _ValueMenu<double>(
+      tooltip: 'Playback speed'.tr,
+      icon: AppIcon.speed,
+      label: _label(speed),
+      onSelected: (s) => controller.playback.speed = s,
+      items: (context) => [
+        for (final s in const [0.5, 0.75, 1.0]) checkedMenuItem(context, value: s, checked: s == speed, child: Text(_label(s))),
+      ],
     );
   }
 }
 
-/// Align: the first thing to do with a recording, so a filled button with its name, not an
-/// icon among the tools; while it runs, how far it has got.
+/// Align: the first thing to do with a recording, so while it has no anchors a filled button
+/// with its name; once it has, one more tool among the others. While it runs, how far it has got.
 class _AlignButton extends StatelessWidget {
   const _AlignButton({required this.controller});
   final EditorController controller;
@@ -841,19 +859,24 @@ class _AlignButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = controller, done = c.anchors.aligning;
+    final onPressed = done != null || c.track == null || c.isLoadingAudio ? null : () => align(context, c);
+    final progress = SizedBox.square(dimension: 14, child: CircularProgressIndicator(value: done, strokeWidth: 2));
+    if (c.sync!.anchors.isNotEmpty) {
+      return done == null
+          ? ToolbarButton(icon: AppIcon.align.of(context), tooltip: 'Align\nSet the anchors from the recording'.tr, onPressed: onPressed)
+          : ToolbarButton(glyph: progress, tooltip: 'Aligning…'.tr, onPressed: null);
+    }
     return Tip(
       message: 'Set the anchors from the recording'.tr,
       child: FilledButton.icon(
-        onPressed: done != null || c.track == null || c.isLoadingAudio ? null : () => align(context, c),
+        onPressed: onPressed,
         style: FilledButton.styleFrom(
           minimumSize: Size(0, AppStyle.of(context).control),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           visualDensity: VisualDensity.compact,
           textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
         ),
-        icon: done == null
-            ? Icon(AppIcon.align.of(context), size: 16)
-            : SizedBox.square(dimension: 14, child: CircularProgressIndicator(value: done, strokeWidth: 2)),
+        icon: done == null ? Icon(AppIcon.align.of(context), size: 16) : progress,
         label: Text(done == null ? 'Align'.tr : 'Aligning…'.tr),
       ),
     );
@@ -869,6 +892,7 @@ class _TapButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final colors = context.colors;
+    final size = AppStyle.of(context).control, radius = AppStyle.of(context).radius(5);
     return Tip(
       message: c.anchors.tapArmed
           ? 'Space marks · T or Esc stops'
@@ -876,64 +900,28 @@ class _TapButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: stateDuration(motion(context, 200)),
         curve: Curves.easeOut,
-        height: 32,
+        height: size,
         padding: EdgeInsets.symmetric(horizontal: c.anchors.tapArmed ? 8 : 0),
         decoration: BoxDecoration(
           // The wash at no opacity, not Colors.transparent (black), which would dim it through grey.
           color: colors.recordingWash.withValues(alpha: c.anchors.tapArmed ? 1 : 0),
-          borderRadius: AppStyle.of(context).radius(8),
+          borderRadius: radius,
         ),
         child: InkWell(
-          borderRadius: AppStyle.of(context).radius(8),
+          borderRadius: radius,
           onTap: () => c.anchors.tapArmed = !c.anchors.tapArmed,
           child: SizedBox(
-            height: 32,
+            height: size,
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               if (c.anchors.tapArmed) ...[
                 PulsingDot(color: colors.recording, size: 9),
                 const SizedBox(width: 4),
                 Text('Space'.tr, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.recording)),
               ] else
-                SizedBox.square(dimension: 32, child: Icon(AppIcon.tap.of(context), size: 18, color: colors.text)),
+                SizedBox.square(dimension: size, child: Icon(AppIcon.tap.of(context), size: 16, color: colors.text)),
             ]),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// A short text choice inside a [ToolGroup].
-class _TextToggle extends StatelessWidget {
-  const _TextToggle({required this.label, required this.selected, required this.onPressed});
-  final String label;
-  final bool selected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    // On: the same neutral fill as a selected toolbar button, the text not tinted.
-    final style = AppStyle.of(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final on = CarbonColors.maybeOf(context)?.backgroundSelected ??
-        (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05);
-    final radius = style.radius(5);
-    return InkWell(
-      borderRadius: radius,
-      onTap: onPressed,
-      child: AnimatedContainer(
-        duration: stateDuration(motion(context, 150)),
-        height: style.control,
-        padding: const EdgeInsets.symmetric(horizontal: 9),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: selected ? on : Colors.transparent, borderRadius: radius),
-        child: Text(label.tr,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              color: selected ? colors.text : colors.textMuted,
-            )),
       ),
     );
   }
