@@ -232,7 +232,22 @@ enum AppIcon {
   invalid(IconData(0xE04A, fontFamily: _refined), IconData(0xE04A, fontFamily: _carbon)),
 
   /// Something to look at. Refined: warning (filled); Carbon: warning--filled.
-  warning(IconData(0xE04B, fontFamily: _refined), IconData(0xE04B, fontFamily: _carbon));
+  warning(IconData(0xE04B, fontFamily: _refined), IconData(0xE04B, fontFamily: _carbon)),
+
+  /// Removes the note selected in a phrase. Refined: backspace; Carbon: music--remove.
+  removeNote(IconData(0xE04C, fontFamily: _refined), IconData(0xE04C, fontFamily: _carbon)),
+
+  /// Folds a window down to a bar. Refined: close_fullscreen; Carbon: minimize.
+  collapse(IconData(0xE04D, fontFamily: _refined), IconData(0xE04D, fontFamily: _carbon)),
+
+  /// Opens a window folded down to a bar. Refined: open_in_full; Carbon: maximize.
+  expand(IconData(0xE04E, fontFamily: _refined), IconData(0xE04E, fontFamily: _carbon)),
+
+  /// The one before. Refined: chevron_left; Carbon: chevron--left.
+  previous(IconData(0xE04F, fontFamily: _refined), IconData(0xE04F, fontFamily: _carbon)),
+
+  /// The one after. Refined: chevron_right; Carbon: chevron--right.
+  next(IconData(0xE050, fontFamily: _refined), IconData(0xE050, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

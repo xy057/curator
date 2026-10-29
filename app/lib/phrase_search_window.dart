@@ -3,6 +3,7 @@ import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
@@ -19,7 +20,9 @@ import 'l10n/l10n.dart';
 /// every place in the score that plays it ([PhraseSearch]), exactly or nearly, in any key or as
 /// written, with or without its rhythm. A window over the editor, not modal, moved by its title:
 /// a match clicked (or Enter, ⇧Enter) puts the playhead there, the score showing it under the
-/// pointer. What was entered stays for the next time it opens, while the app runs.
+/// pointer; double-clicked, it also folds the window down to a bar (the match, the ones before and
+/// after, and the window opened again). What was entered stays for the next time it opens, while the
+/// app runs.
 class PhraseSearchWindow extends StatefulWidget {
   const PhraseSearchWindow({super.key, required this.controller, required this.onClose});
   final EditorController controller;
@@ -28,10 +31,16 @@ class PhraseSearchWindow extends StatefulWidget {
   static OverlayEntry? _shown;
   static final _focus = FocusNode(debugLabel: 'Find Phrase');
 
-  static bool get isShown => _shown != null;
+  /// Whether it is open (folded down or not): the toolbar's button shows it.
+  static final shown = ValueNotifier(false);
 
-  /// Shows it over [overlay], or gives it the keyboard if it is already there.
+  /// Folded down to a bar.
+  static final _collapsed = ValueNotifier(false);
+
+  /// Shows it over [overlay], opened out, or opens it out and gives it the keyboard if it is
+  /// already there.
   static void show(OverlayState overlay, EditorController controller) {
+    _collapsed.value = false;
     if (_shown != null) {
       _focus.requestFocus();
       return;
@@ -42,17 +51,18 @@ class PhraseSearchWindow extends StatefulWidget {
         controller: controller,
         onClose: () {
           if (_shown != entry) return;
-          _shown = null;
-          entry.remove();
+          close();
         },
       ),
     );
     overlay.insert(_shown = entry);
+    shown.value = true;
   }
 
   static void close() {
     _shown?.remove();
     _shown = null;
+    shown.value = false;
   }
 
   @override
@@ -71,13 +81,18 @@ class _Entry {
 }
 
 class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
-  static const _width = 600.0;
+  static const _width = 600.0, _barWidth = 420.0, _barHeight = 44.0;
   static final _entry = _Entry();
 
   /// The lines last read, for the score they were read from (its file and bars).
   static ({String xml, List<double> starts, Future<List<ScoreLine>> lines})? _read;
 
-  Offset? _at;
+  /// Its top right corner, once moved (the bar keeps it there too): at first by the editor's right
+  /// edge, under the toolbar.
+  Offset? _corner;
+
+  /// The match last clicked, and when: a second click soon after on it is a double-click.
+  (int, DateTime)? _lastClick;
   PhrasePicture? _picture;
   final _engraving = Latest();
   List<ScoreLine>? _lines;
@@ -91,6 +106,7 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
   void initState() {
     super.initState();
     _controller.addListener(_controllerChanged);
+    PhraseSearchWindow._collapsed.addListener(_collapsedChanged);
     _readLines();
     _engrave();
     PhraseSearchWindow._focus.requestFocus();
@@ -99,9 +115,19 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
   @override
   void dispose() {
     _controller.removeListener(_controllerChanged);
+    PhraseSearchWindow._collapsed.removeListener(_collapsedChanged);
     _engraving.cancel();
     _picture?.dispose();
     super.dispose();
+  }
+
+  bool get _isCollapsed => PhraseSearchWindow._collapsed.value;
+
+  void _collapsedChanged() => setState(() {});
+
+  void _collapse(bool collapsed) {
+    PhraseSearchWindow._collapsed.value = collapsed;
+    PhraseSearchWindow._focus.requestFocus();
   }
 
   void _controllerChanged() {
@@ -237,6 +263,17 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
     _controller.playback.goToQuarter(_matches[index].start);
   }
 
+  /// A match clicked: the playhead goes there; clicked twice, the window folds down to a bar too.
+  void _clicked(int index) {
+    final now = DateTime.now(), last = _lastClick;
+    _lastClick = (index, now);
+    _goTo(index);
+    if (last != null && last.$1 == index && now.difference(last.$2) < kDoubleTapTimeout) {
+      _lastClick = null;
+      _collapse(true);
+    }
+  }
+
   /// The next match (or previous, [by] -1): after the one shown, else from the playhead.
   void _step(int by) {
     if (_matches.isEmpty || _controller.score == null) return;
@@ -259,6 +296,19 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
     final key = event.logicalKey, shift = keys.isShiftPressed;
     final character = event.character?.toUpperCase() ?? '';
     final letter = character.length == 1 ? PhraseNote.letters.indexOf(character) : -1;
+    // Folded down, the phrase can't be seen, so isn't edited.
+    if (_isCollapsed) {
+      final action = switch (key) {
+        LogicalKeyboardKey.enter || LogicalKeyboardKey.numpadEnter => () => _step(shift ? -1 : 1),
+        LogicalKeyboardKey.arrowLeft => () => _step(-1),
+        LogicalKeyboardKey.arrowRight => () => _step(1),
+        LogicalKeyboardKey.space => _controller.playback.togglePlay,
+        LogicalKeyboardKey.escape => widget.onClose,
+        _ => null,
+      };
+      action?.call();
+      return action == null ? KeyEventResult.ignored : KeyEventResult.handled;
+    }
     void Function()? action = switch (key) {
       _ when letter >= 0 => () => _letter(letter),
       LogicalKeyboardKey.keyR => _rest,
@@ -294,14 +344,17 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final size = MediaQuery.sizeOf(context);
-    final height = math.min(600.0, size.height - 96);
+    final collapsed = _isCollapsed;
+    final width = collapsed ? _barWidth : _width;
+    final height = collapsed ? _barHeight : math.min(600.0, size.height - 96);
     Offset clamp(Offset o) =>
-        Offset(o.dx.clamp(0, math.max(0, size.width - _width)), o.dy.clamp(0, math.max(0, size.height - 52)));
-    final at = clamp(_at ?? Offset(size.width - _width - 24, 72));
+        Offset(o.dx.clamp(math.min(width, size.width), math.max(width, size.width)), o.dy.clamp(0, math.max(0, size.height - 52)));
+    final corner = clamp(_corner ?? Offset(size.width - 24, 72));
+    void drag(DragUpdateDetails d) => setState(() => _corner = clamp(corner + d.delta));
     return Positioned(
-      left: at.dx,
-      top: at.dy,
-      width: _width,
+      left: corner.dx - width,
+      top: corner.dy,
+      width: width,
       height: height,
       child: Focus(
         focusNode: PhraseSearchWindow._focus,
@@ -321,16 +374,17 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
               child: Listener(
                 // A click anywhere in it gives it the keyboard back (from a checkbox, say).
                 onPointerDown: (_) => PhraseSearchWindow._focus.requestFocus(),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                child: collapsed ? _bar(context, drag) : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onPanUpdate: (d) => setState(() => _at = clamp(at + d.delta)),
+                    onPanUpdate: drag,
                     child: Container(
                       height: 52,
                       padding: const EdgeInsets.only(left: 24, right: 10),
                       child: Row(children: [
                         Text('Find Phrase'.tr, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text)),
                         const Spacer(),
+                        ToolbarButton(icon: AppIcon.collapse.of(context), tooltip: 'Collapse'.tr, onPressed: () => _collapse(true)),
                         ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Close'.tr, onPressed: widget.onClose),
                       ]),
                     ),
@@ -370,6 +424,53 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
     );
   }
 
+  /// Folded down: moved by its title as the window is; the match gone to (or how many there are),
+  /// the one before and after, the window opened out again, and Close.
+  Widget _bar(BuildContext context, GestureDragUpdateCallback drag) {
+    final colors = context.colors;
+    final score = _controller.score, current = _current;
+    final match = current != null && current < _matches.length ? _matches[current] : null;
+    final part = match == null ? null : score?.metadata.parts.where((p) => p.id == match.partId).firstOrNull;
+    final where = match == null || part == null
+        ? _count
+        : '${'Bar {bar}'.fill({'bar': _controller.beats.format(match.start, compact: true)})} · ${_controller.partName(part)}';
+    final figures = TextStyle(fontSize: 13, color: colors.textMuted, fontFeatures: const [FontFeature.tabularFigures()]);
+    return Row(children: [
+      Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanUpdate: drag,
+          onDoubleTap: () => _collapse(false),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16, right: 8),
+            child: Row(children: [
+              Icon(AppIcon.search.of(context), size: 16, color: colors.textMuted),
+              const SizedBox(width: 8),
+              Flexible(child: Text(where, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.text))),
+              const SizedBox(width: 8),
+              if (match != null) Text('${current! + 1}/${_matches.length}', style: figures),
+            ]),
+          ),
+        ),
+      ),
+      ToolbarButton(icon: AppIcon.previous.of(context), tooltip: 'Previous ({key})'.fill({'key': shortcut('⇧↩', 'Shift+Enter')}), onPressed: _matches.isEmpty ? null : () => _step(-1)),
+      ToolbarButton(icon: AppIcon.next.of(context), tooltip: 'Next ({key})'.fill({'key': shortcut('↩', 'Enter')}), onPressed: _matches.isEmpty ? null : () => _step(1)),
+      const ToolbarDivider(),
+      ToolbarButton(icon: AppIcon.expand.of(context), tooltip: 'Expand'.tr, onPressed: () => _collapse(false)),
+      ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Close'.tr, onPressed: widget.onClose),
+      const SizedBox(width: 6),
+    ]);
+  }
+
+  /// How many matches there are ('' with nothing to look for, or the score not read yet).
+  String get _count => _phrase.pitched.isEmpty || _lines == null
+      ? ''
+      : switch (_matches.length) {
+          0 => 'No matches'.tr,
+          1 => '1 match'.tr,
+          final n => '{n} matches'.fill({'n': n}),
+        };
+
   Widget _tools(BuildContext context) {
     final selected = switch (_selected) { final i? when i < _phrase.notes.length => _phrase.notes[i], _ => null };
     Widget value(NoteValue v, int glyph, String tip) => ToolbarButton(
@@ -402,7 +503,7 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
       const SizedBox(width: 6),
       ToolbarButton(glyph: const _Glyph(0xE4E5), tooltip: 'Rest (R)'.tr, onPressed: _rest),
       const Spacer(),
-      ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Delete'.tr, onPressed: _phrase.isEmpty ? null : _delete),
+      ToolbarButton(icon: AppIcon.removeNote.of(context), tooltip: 'Delete note ({key})'.fill({'key': shortcut('⌫', 'Backspace')}), onPressed: _phrase.isEmpty ? null : _delete),
       ToolbarButton(icon: AppIcon.reset.of(context), tooltip: 'Clear'.tr, onPressed: _phrase.isEmpty ? null : () => _set(const [], null)),
     ]);
   }
@@ -427,13 +528,7 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
         ),
         const Spacer(),
         Text(
-          _phrase.pitched.isEmpty || _lines == null
-              ? ''
-              : switch (_matches.length) {
-                  0 => 'No matches'.tr,
-                  1 => '1 match'.tr,
-                  final n => '{n} matches'.fill({'n': n}),
-                },
+          _count,
           style: TextStyle(fontSize: 13, color: context.colors.textMuted),
         ),
       ]);
@@ -455,7 +550,7 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
           color: i == _current ? colors.accentSoft : Colors.transparent,
           animationDuration: Duration.zero,
           child: InkWell(
-            onTap: () => _goTo(i),
+            onTap: () => _clicked(i),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(children: [

@@ -9,6 +9,7 @@ import 'assets_dialog.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'menu_kit.dart';
+import 'phrase_search_window.dart';
 import 'project_document.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
@@ -93,6 +94,16 @@ class EditorToolbar extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         TimeReadout(key: readout, controller: c),
+        const SizedBox(width: 4),
+        ValueListenableBuilder(
+          valueListenable: PhraseSearchWindow.shown,
+          builder: (context, shown, _) => ToolbarButton(
+            icon: AppIcon.search.of(context),
+            tooltip: 'Find phrase ({key})'.fill({'key': shortcut('⌘F')}),
+            selected: shown,
+            onPressed: () => PhraseSearchWindow.show(Overlay.of(context), c),
+          ),
+        ),
         const Spacer(),
         _SavingIndicator(document: document),
         ToolbarButton(

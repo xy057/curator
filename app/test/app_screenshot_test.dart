@@ -93,6 +93,14 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
     await tester.pump(const Duration(milliseconds: 400)); // past the tools' colour change
     await screenshot(tester, 'app-find-phrase', inside: find.text('Find Phrase'));
+    // A match double-clicked folds the window down to a bar; the toolbar's button is lit.
+    final firstMatch = find.descendant(of: find.byType(PhraseSearchWindow), matching: find.text('Violin II')).first;
+    await tester.tap(firstMatch);
+    await tester.tap(firstMatch);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('1/18'), findsOneWidget);
+    await screenshot(tester, 'app-find-phrase-bar', inside: find.text('1/18'));
+    await screenshot(tester, 'app-find-phrase-toolbar', outermost: true);
     PhraseSearchWindow.close();
     await tester.pump();
 

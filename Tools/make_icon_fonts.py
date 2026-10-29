@@ -124,6 +124,12 @@ ICONS = [
     ('failed', 'Failed.', 'error:fill', 'error--filled'),
     ('invalid', 'A value that is not allowed.', 'error:fill', 'warning--filled'),
     ('warning', 'Something to look at.', 'warning:fill', 'warning--filled'),
+    # Find Phrase
+    ('removeNote', 'Removes the note selected in a phrase.', 'backspace', 'music--remove'),
+    ('collapse', 'Folds a window down to a bar.', 'close_fullscreen', 'minimize'),
+    ('expand', 'Opens a window folded down to a bar.', 'open_in_full', 'maximize'),
+    ('previous', 'The one before.', 'chevron_left', 'chevron--left'),
+    ('next', 'The one after.', 'chevron_right', 'chevron--right'),
 ]
 
 

@@ -412,9 +412,12 @@ the timeline, it is always an image (Attach Image; while that is off, it says so
 timeline, the Instruments tab opens a project or a score, and the Audio tab takes a MIDI
 tempo map or a recording.
 
-**Find Phrase looks for a melody by ear, not by notation** (Edit ▸ Find Phrase…, ⌘F;
-`PhraseSearchWindow`, a window over the editor like the Engraving pop-out, moved by its title, not
-modal). The phrase is typed (A–G at the octave nearest the note before, as notation programs place
+**Find Phrase looks for a melody by ear, not by notation** (Edit ▸ Find Phrase…, ⌘F, or the
+toolbar's button by the time, lit while it is open; `PhraseSearchWindow`, a window over the editor
+like the Engraving pop-out, moved by its title, not modal). A match double-clicked, or its title's
+Collapse, folds it down to a bar at the same top right corner: the match gone to and its place among
+them, the one before and after (← →, Enter, ⇧Enter), Expand (or a double-click on the bar, ⌘F, the
+toolbar's button) and Close; folded down, the phrase's keys do nothing. The phrase is typed (A–G at the octave nearest the note before, as notation programs place
 them; 3–8 the values 32nd to whole, `.` a dot, `-` `=` `0` flat, sharp, natural, R a rest, ↑ ↓ a
 step, ⇧↑ ⇧↓ an octave, ← → the selection, Backspace), clicked on its staff (a pitch where clicked,
 or a note to select it) or played on its three-octave keyboard, and Verovio engraves it after every
