@@ -69,7 +69,7 @@ void main() {
     expect(c.score, isNull);
   });
 
-  test('recordings in lanes: one heard at a time, a region drawn takes its stretch from the others; Solo edits one sync and keeps the place; Undo keeps the takes', () async {
+  test('recordings in lanes: one heard at a time, a region drawn takes its stretch from the others; picking one edits its sync and keeps the place; Undo keeps the takes', () async {
     final waveform = await Waveform.analyze(Float32List(100), 100);
     AudioTrack take(String name) => AudioTrack.forTesting(name: name, length: 60, waveform: waveform);
     await c.debugAddTake(take('Karajan.flac'));
@@ -79,26 +79,26 @@ void main() {
     c.sync!.addAnchor(const SyncAnchor(8, 5));
     await c.debugAddTake(take('Bernstein.flac'));
     expect([for (final t in c.takes) t.label], ['Karajan', 'Bernstein']);
-    expect((c.focus, c.soloed, c.editsSync), ('take-2', 'take-2', true), reason: 'a new one is soloed');
+    expect((c.focus, c.syncedTake, c.editsSync), ('take-2', 'take-2', true), reason: 'a new one is picked');
     expect(c.takes.last.regions, isEmpty);
     expect(c.sync!.anchors, isEmpty, reason: 'a new recording has a sync of its own');
     c.sync!.addAnchor(const SyncAnchor(0, 2));
     c.sync!.addAnchor(const SyncAnchor(8, 6));
 
     c.playback.seek(3); // quarter 2 in Bernstein’s
-    c.solo('take-1');
+    c.editSyncOf('take-1');
     expect(c.sync!.anchors, const [SyncAnchor(0, 1), SyncAnchor(8, 5)]);
     expect(c.playback.time.value, closeTo(2, 1e-9), reason: 'quarter 2 in Karajan’s');
 
-    // Undo goes back through Bernstein's edits, whichever is soloed, and never switches.
+    // Undo goes back through Bernstein's edits, whichever is picked, and never switches.
     c.undo();
     expect(c.focus, 'take-1');
     expect(c.sync!.anchors, const [SyncAnchor(0, 1), SyncAnchor(8, 5)]);
     expect(c.projectState.edits.take('take-2')!.anchors, const [SyncAnchor(0, 2)]);
     c.redo();
 
-    // No solo: spliced. Bernstein's region in bars 2–3 is cut out of Karajan's lane.
-    c.solo('take-1');
+    // None picked: spliced. Bernstein's region in bars 2–3 is cut out of Karajan's lane.
+    c.editSyncOf('take-1');
     expect(c.editsSync, isFalse);
     c.setTakeRegions('take-2', [Region(4, 8)]);
     expect(c.takes.first.regions, [Region(0, 4), Region(8, total)]);

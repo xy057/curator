@@ -354,7 +354,7 @@ class EditorController extends ChangeNotifier {
     _history.clear();
     _committed = null;
     _gestures = 0;
-    _soloed = null;
+    _syncedTake = null;
     _performance = null;
     _takeSelected = null;
     anchors._reset();
@@ -1449,13 +1449,13 @@ class EditorController extends ChangeNotifier {
   /// The take whose sync is [sync]; null when there is no recording.
   String? get focus => _doc.focus;
 
-  /// The take heard alone, in its own time ([solo]); null: the lanes say what is heard.
-  String? get soloed => _soloed;
-  String? _soloed;
+  /// The take heard alone, in its own time ([editSyncOf]); null: the lanes say what is heard.
+  String? get syncedTake => _syncedTake;
+  String? _syncedTake;
 
   /// Whether the Audio tab edits [sync]: it is the time everything follows (one recording, or
-  /// the focus soloed). With more, the performance is spliced from them ([TakeSplice]).
-  bool get editsSync => _doc.takes.length < 2 || _soloed != null;
+  /// the focus picked). With more, the performance is spliced from them ([TakeSplice]).
+  bool get editsSync => _doc.takes.length < 2 || _syncedTake != null;
 
   /// Seconds one recording fades into the next where a region sets none of its own.
   double get crossfade => _doc.crossfade ?? EditState.defaultCrossfade;
@@ -1481,7 +1481,7 @@ class EditorController extends ChangeNotifier {
     );
   }
 
-  /// What [timeline] and the sound are with the focus's sync [sync]. A recording soloed is heard
+  /// What [timeline] and the sound are with the focus's sync [sync]. A recording picked is heard
   /// whole, in its own time; one alone, in its own time where its lane has regions; several,
   /// spliced by their lanes.
   ({ScoreTimeline timeline, List<PlayChunk> chunks}) _perform(SyncMap? sync) {
@@ -1491,7 +1491,7 @@ class EditorController extends ChangeNotifier {
       return track == null ? null : (take: id, from: 0, at: 0, end: track.length, fadeIn: 0, fadeOut: 0);
     }
 
-    if (_soloed case final id?) return (timeline: sync, chunks: [?whole(id)]);
+    if (_syncedTake case final id?) return (timeline: sync, chunks: [?whole(id)]);
     final takes = _doc.takes;
     if (takes.isEmpty) return (timeline: sync, chunks: const []);
     final splice = TakeSplice(
@@ -1544,7 +1544,7 @@ class EditorController extends ChangeNotifier {
   Future<void> loadAudio(String path) => inTurn(() => _loadAudio(path));
 
   /// Adds the recording at [path] as another take of the score, in a lane of its own (empty:
-  /// draw where it is heard) with a sync of its own (none yet: Align it), soloed. Not an Undo
+  /// draw where it is heard) with a sync of its own (none yet: Align it), picked. Not an Undo
   /// step, like loading one. In turn ([inTurn]).
   Future<void> addRecording(String path) => inTurn(() async {
     if (_doc.focus == null) return _loadAudio(path);
@@ -1556,7 +1556,7 @@ class EditorController extends ChangeNotifier {
     await audio.put(id, track);
     // The first is heard throughout; another, nowhere until its lane says so.
     _everywhere((s) => s.adding(Take(id, stemOf(track.name), regions: first ? [Region(0, _sync!.totalQuarters)] : const [])));
-    if (!first) solo(id);
+    if (!first) editSyncOf(id);
     audio.focus = _doc.focus;
     _performanceChanged();
   }
@@ -1581,14 +1581,14 @@ class EditorController extends ChangeNotifier {
   Future<void> _removeTake(String id) async {
     if (_doc.take(id) == null) return;
     playback.pause();
-    if (_soloed == id) _soloed = null;
+    if (_syncedTake == id) _syncedTake = null;
     if (id == _doc.focus) {
       if (_doc.takes.where((t) => t.id != id).firstOrNull case final next?) _focusOn(next.id);
     }
     // The focus removed last leaves its sync to the score, as one recording removed did.
     _everywhere((s) => s.removing(id));
     await audio.remove(id);
-    if (_doc.takes.length < 2) _soloed = null;
+    if (_doc.takes.length < 2) _syncedTake = null;
     audio.focus = _doc.focus;
     _performanceChanged();
     _edited();
@@ -1604,18 +1604,19 @@ class EditorController extends ChangeNotifier {
     audio.focus = id;
   }
 
-  /// Solo (a lane's S): [id] heard alone and whole, in its own time, its sync edited in the
-  /// Audio tab; again, the lanes once more. The playhead stays at the same place in the score
-  /// ([ScoreTimelinePasses.carriedTo]). Not an Undo step. Only with two recordings or more.
-  void solo(String id) {
+  /// A recording picked (a click on its lane’s name): [id] heard alone and whole, in its own
+  /// time, its sync edited in the Audio tab; again, the lanes once more. The playhead stays at
+  /// the same place in the score ([ScoreTimelinePasses.carriedTo]). Not an Undo step. Only with
+  /// two recordings or more.
+  void editSyncOf(String id) {
     if (_sync == null || _doc.take(id) == null || _doc.takes.length < 2 || _gestures > 0) return;
     // On a copy: switching the focus loads another's anchors into the sync the timeline uses.
     final before = _perform(_syncCopy()).timeline, t = playback.time.value;
-    if (_soloed == id) {
-      _soloed = null;
+    if (_syncedTake == id) {
+      _syncedTake = null;
     } else {
       _focusOn(id);
-      _soloed = id;
+      _syncedTake = id;
     }
     _performanceChanged();
     playback.seek(before.carriedTo(timeline, t));
