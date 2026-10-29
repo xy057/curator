@@ -203,21 +203,29 @@ class AudioTrack {
       });
 }
 
+/// A stretch of a recording as it plays in the performance ([SoundChunk], resolved): take
+/// [take] from [from] seconds into its file at [at] seconds of the performance, until [end],
+/// rising over [fadeIn] and dying away over [fadeOut].
+typedef PlayChunk = ({String take, double from, double at, double end, double fadeIn, double fadeOut});
+
 /// Playback through SoLoud (native, cross-platform). The engine's own position is the master
 /// clock, so the score stays locked to what is heard.
 ///
-/// It holds every recording of the score at once (its takes, by id), so another can be
-/// heard at once ([hear]), fading across while playing.
+/// It holds every recording of the score at once (its takes, by id) and plays the performance
+/// as [PlayChunk]s say: each a voice of its own, started as its time comes ([follow]) and faded
+/// by SoLoud itself, to the sample, so one recording crossfades into the next.
 class AudioEngine {
   static Future<void>? _initializing;
-  SoundHandle? _handle;
   final _tracks = <String, AudioTrack>{};
-  String? _heard;
+  String? _focus;
   AudioTrack? _debugTrack;
   double _speed = 1;
 
-  /// The recording heard.
-  AudioTrack? get track => _debugTrack ?? _tracks[_heard];
+  /// The focus's recording (whose sync the Audio tab edits).
+  AudioTrack? get track => _debugTrack ?? _tracks[_focus];
+
+  /// Which take [track] is.
+  set focus(String? id) => _focus = id;
 
   /// The recording of take [id]; null when it has none.
   AudioTrack? trackOf(String id) => _tracks[id];
@@ -267,27 +275,26 @@ class AudioEngine {
     }
   }
 
-  /// Makes [track] take [id]'s recording, letting go of the one it had. Heard while [id] is.
+  /// Makes [track] take [id]'s recording, letting go of the one it had.
   Future<void> put(String id, AudioTrack track) async {
-    if (id == _heard) stop();
+    stop();
     final before = _tracks[id];
     _tracks[id] = track;
     if (before != null && before != track) await before._dispose();
   }
 
-  /// Lets go of take [id]'s recording (it is no longer heard).
+  /// Lets go of take [id]'s recording.
   Future<void> remove(String id) async {
-    if (id == _heard) {
-      stop();
-      _heard = null;
-    }
+    stop();
+    if (id == _focus) _focus = null;
     await _tracks.remove(id)?._dispose();
   }
 
   /// Lets go of every recording.
   Future<void> unload() async {
     stop();
-    _heard = null;
+    _focus = null;
+    _chunks = const [];
     final all = [..._tracks.values];
     _tracks.clear();
     for (final t in all) {
@@ -295,54 +302,103 @@ class AudioEngine {
     }
   }
 
-  /// How long a switch fades from one recording to the other while playing.
-  static const crossfade = Duration(milliseconds: 300);
+  // MARK: The performance
 
-  /// Hears take [id] from now on. Playing, it goes on from [fromSeconds] in its recording, faded
-  /// in over [crossfade] as the one heard before fades out.
-  void hear(String? id, {double? fromSeconds}) {
-    if (id == _heard) return;
-    final before = _valid ? _handle : null;
-    _handle = null;
-    _heard = id;
-    if (before == null) return;
-    if (fromSeconds != null) play(fromSeconds, volume: 0);
-    if (_valid) SoLoud.instance.fadeVolume(_handle!, 1, crossfade);
-    SoLoud.instance
-      ..fadeVolume(before, 0, crossfade)
-      ..scheduleStop(before, crossfade);
+  List<PlayChunk> _chunks = const [];
+
+  /// The voices sounding, by index into [_chunks]; whether each is fading out already.
+  final _voices = <int, ({SoundHandle handle, bool fading})>{};
+
+  /// The first chunk not yet started.
+  int _next = 0;
+
+  /// What plays from now on. Whether it changed (playing, [play] it again to hear it).
+  bool setChunks(List<PlayChunk> chunks) {
+    if (listEquals(chunks, _chunks)) return false;
+    stop();
+    _chunks = chunks;
+    return true;
   }
 
-  bool get _valid => _handle != null && SoLoud.instance.getIsValidVoiceHandle(_handle!);
-
-  /// Plays from [fromSeconds]. Past the end of the recording nothing sounds, and whatever
-  /// was playing stops (the clock then runs on alone, through the score's last bars).
-  void play(double fromSeconds, {double volume = 1}) {
+  /// Plays the performance from [fromSeconds]: every chunk sounding there, faded as far as it
+  /// has got. Past the last nothing sounds (the clock then runs on alone).
+  void play(double fromSeconds) {
     stop();
-    final track = this.track;
-    final source = track?.source;
-    if (track == null || source == null || fromSeconds >= track.length) return;
-    final handle = SoLoud.instance.play(source, volume: volume, paused: true);
-    SoLoud.instance.seek(handle, Duration(microseconds: (math.max(0.0, fromSeconds) * 1e6).round()));
+    _next = 0;
+    while (_next < _chunks.length && _chunks[_next].at <= fromSeconds) {
+      if (_chunks[_next].end > fromSeconds) _start(_next, fromSeconds);
+      _next++;
+    }
+  }
+
+  /// The performance has got to [seconds] (each frame while playing): chunks whose time has
+  /// come start, those ending fade out.
+  void follow(double seconds) {
+    while (_next < _chunks.length && _chunks[_next].at <= seconds) {
+      if (_chunks[_next].end > seconds) _start(_next, seconds);
+      _next++;
+    }
+    for (final MapEntry(key: i, value: v) in [..._voices.entries]) {
+      final c = _chunks[i];
+      if (!SoLoud.instance.getIsValidVoiceHandle(v.handle)) {
+        _voices.remove(i);
+      } else if (!v.fading && seconds >= c.end - c.fadeOut) {
+        _fadeOut(i, v.handle, c, seconds);
+      }
+    }
+  }
+
+  void _start(int i, double seconds) {
+    final c = _chunks[i];
+    final track = _tracks[c.take], source = track?.source;
+    final offset = c.from + seconds - c.at;
+    if (track == null || source == null || offset >= track.length) return;
+    final gain = gainAt((take: 0, from: c.from, at: c.at, length: c.end - c.at, fadeIn: c.fadeIn, fadeOut: c.fadeOut), seconds);
+    final handle = SoLoud.instance.play(source, volume: gain, paused: true);
+    SoLoud.instance.seek(handle, Duration(microseconds: (math.max(0.0, offset) * 1e6).round()));
     SoLoud.instance.setRelativePlaySpeed(handle, _speed);
     SoLoud.instance.setPause(handle, false);
-    _handle = handle;
+    _voices[i] = (handle: handle, fading: false);
+    if (seconds < c.at + c.fadeIn) SoLoud.instance.fadeVolume(handle, 1, _real(c.at + c.fadeIn - seconds));
+    if (seconds >= c.end - c.fadeOut) _fadeOut(i, handle, c, seconds);
   }
 
+  void _fadeOut(int i, SoundHandle handle, PlayChunk c, double seconds) {
+    final left = _real(math.max(0, c.end - seconds));
+    SoLoud.instance
+      ..fadeVolume(handle, 0, left)
+      ..scheduleStop(handle, left);
+    _voices[i] = (handle: handle, fading: true);
+  }
+
+  /// [seconds] of the performance as heard at the playback speed.
+  Duration _real(double seconds) => Duration(microseconds: (seconds / _speed * 1e6).round());
+
   void stop() {
-    if (_valid) SoLoud.instance.stop(_handle!);
-    _handle = null;
+    for (final v in _voices.values) {
+      if (SoLoud.instance.getIsValidVoiceHandle(v.handle)) SoLoud.instance.stop(v.handle);
+    }
+    _voices.clear();
   }
 
   /// Playback speed (0.5 = half speed, lower pitch): handy for tapping fast passages.
   double get speed => _speed;
   set speed(double value) {
     _speed = value;
-    if (_valid) SoLoud.instance.setRelativePlaySpeed(_handle!, value);
+    for (final v in _voices.values) {
+      if (SoLoud.instance.getIsValidVoiceHandle(v.handle)) SoLoud.instance.setRelativePlaySpeed(v.handle, value);
+    }
   }
 
-  /// Current position in the recording, or null when nothing is playing.
-  double? get position => _valid ? SoLoud.instance.getPosition(_handle!).inMicroseconds / 1e6 : null;
+  /// Where the performance is, as the voice not fading out hears it; null when none sounds.
+  double? get position {
+    for (final MapEntry(key: i, value: v) in _voices.entries) {
+      if (v.fading || !SoLoud.instance.getIsValidVoiceHandle(v.handle)) continue;
+      final c = _chunks[i];
+      return c.at + SoLoud.instance.getPosition(v.handle).inMicroseconds / 1e6 - c.from;
+    }
+    return null;
+  }
 
   // MARK: Metronome
 

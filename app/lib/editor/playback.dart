@@ -30,11 +30,11 @@ class Playback {
 
   AudioEngine get _audio => _editor.audio;
 
-  /// Whole recording, or the whole piece (after any repeats; the score then comes to rest
+  /// The whole of what is heard, or the whole piece (after any repeats; the score then comes to rest
   /// and fades out: [CuratedScene.endOf]), whichever is longer.
   double get duration {
     if (_editor.score == null) return 0;
-    return math.max(CuratedScene.endOf(_editor.timeline, _editor.motion), _editor.track?.length ?? 0);
+    return math.max(CuratedScene.endOf(_editor.timeline, _editor.motion), _editor.soundEnd);
   }
 
   /// Playback speed (0.5 = half speed, lower pitch): handy for tapping fast passages.
@@ -121,16 +121,6 @@ class Playback {
   }
 
   void skip(double seconds) => seek(time.value + seconds);
-
-  /// Another recording is heard ([EditorController.hearTake]): the clock goes on from
-  /// [seconds], the same place in the score in it, its sound already going on from there.
-  void _carriedTo(double seconds) {
-    time.value = seconds.clamp(0, math.max(0, duration));
-    _playAnchor = _now;
-    _timeAnchor = time.value;
-    _ranFrom(time.value);
-    _markDirty();
-  }
 
   bool _scrubbing = false;
 
@@ -232,6 +222,7 @@ class Playback {
         pause();
       } else {
         time.value = t;
+        _audio.follow(t);
       }
       _editor.viewport.follow(time.value);
       if (_metronome && _playing) _clickAt(time.value);

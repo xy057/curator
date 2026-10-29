@@ -37,7 +37,8 @@ class EditState {
     this.leadIn = 0,
     this.midi,
     this.takes = const [],
-    this.heard,
+    this.focus,
+    this.crossfade,
     this.partNames = const {},
     this.textEdits = const {},
     this.condensed = const {},
@@ -94,13 +95,22 @@ class EditState {
   /// goes), its start at [leadIn]; null: the anchors.
   final MidiTempoMap? midi;
 
-  /// Every recording of the score, in the order the menu lists them; the sync above is the one
-  /// [heard]'s (its own fields here left blank), each other's is its own. Adding, removing and
-  /// switching recordings are no Undo steps: they change every state Undo keeps alike.
+  /// Every recording of the score, a lane each in the Audio tab, top to bottom; the sync above
+  /// is the one [focus]'s (its own fields here left blank), each other's is its own. Adding and
+  /// removing recordings, and the focus moving, are no Undo steps: they change every state Undo
+  /// keeps alike. Their lanes are edits.
   final List<Take> takes;
 
-  /// The [Take.id] of the recording heard; null when there is none.
-  final String? heard;
+  /// The [Take.id] whose sync is the state's own (the one soloed, or soloed last); null when
+  /// there is no recording.
+  final String? focus;
+
+  /// Seconds one recording fades into the next where a region doesn't set its own; null: the
+  /// default ([defaultCrossfade]).
+  final double? crossfade;
+
+  /// How long a recording fades into the next, unless the project says otherwise.
+  static const defaultCrossfade = 0.3;
 
   /// Instrument names set by the user, by part id.
   final Map<String, PartName> partNames;
@@ -200,7 +210,8 @@ class EditState {
       typography == other.typography &&
       leadIn == other.leadIn &&
       midi == other.midi &&
-      heard == other.heard &&
+      focus == other.focus &&
+      crossfade == other.crossfade &&
       listEquals(takes, other.takes) &&
       switch ((lanes, other.lanes)) {
         (final a?, final b?) => Curation.sameLanes(a, b),
@@ -250,7 +261,8 @@ class EditState {
     double? leadIn,
     Object? midi = _kept,
     List<Take>? takes,
-    Object? heard = _kept,
+    Object? focus = _kept,
+    Object? crossfade = _kept,
     Map<String, PartName>? partNames,
     Map<String, String>? textEdits,
     Set<String>? condensed,
@@ -287,7 +299,8 @@ class EditState {
         leadIn: leadIn ?? this.leadIn,
         midi: identical(midi, _kept) ? this.midi : midi as MidiTempoMap?,
         takes: takes ?? this.takes,
-        heard: identical(heard, _kept) ? this.heard : heard as String?,
+        focus: identical(focus, _kept) ? this.focus : focus as String?,
+        crossfade: identical(crossfade, _kept) ? this.crossfade : crossfade as double?,
         partNames: partNames ?? this.partNames,
         textEdits: textEdits ?? this.textEdits,
         condensed: condensed ?? this.condensed,
@@ -318,61 +331,90 @@ class EditState {
   /// The take [id]; null when there is none.
   Take? take(String id) => takes.where((t) => t.id == id).firstOrNull;
 
-  /// This state with [id] heard: the sync of the take heard until now goes into its take, and
-  /// [id]'s comes out of its own. As it is when [id] is heard already, or isn't a take.
-  EditState hearing(String id) {
+  /// This state with [id]'s sync its own: the sync until now goes into its take ([focus]'s), and
+  /// [id]'s comes out of its own. As it is when [id] has it already, or isn't a take.
+  EditState focusing(String id) {
     final to = take(id);
-    if (to == null || id == heard) return this;
+    if (to == null || id == focus) return this;
     return copyWith(
       takes: [
         for (final t in takes)
-          if (t.id == heard)
+          if (t.id == focus)
             t.copyWith(anchors: anchors, leadIn: leadIn, midi: midi)
           else if (t.id == id)
-            Take(t.id, t.label)
+            t.copyWith(anchors: const [], leadIn: 0, midi: null)
           else
             t,
       ],
-      heard: id,
+      focus: id,
       anchors: to.anchors,
       leadIn: to.leadIn,
       midi: to.midi,
     );
   }
 
-  /// This state with [take] added (not heard, unless it is the first).
-  EditState adding(Take take) =>
-      copyWith(takes: [...takes, take], heard: heard ?? take.id);
+  /// This state with [take] added below the others (the focus, if it is the first).
+  EditState adding(Take take) => copyWith(takes: [...takes, take], focus: focus ?? take.id);
 
-  /// This state without the take [id]; one heard leaves its sync to the sync as it is.
+  /// This state without the take [id]; the focus leaves its sync to the state as it is.
   EditState removing(String id) => copyWith(
         takes: [for (final t in takes) if (t.id != id) t],
-        heard: heard == id ? null : heard,
+        focus: focus == id ? null : focus,
       );
+
+  /// This state with take [id]'s lane [regions], and the stretches they cover taken out of every
+  /// other take's lane: one recording is heard at a time.
+  EditState withTakeRegions(String id, List<Region> regions) => copyWith(takes: [
+        for (final t in takes)
+          if (t.id == id) t.copyWith(regions: regions) else t.copyWith(regions: Take.without(t.regions, regions)),
+      ]);
 }
 
-/// One recording of the score ([EditState.takes]): its name in the menu and its sync, how the
-/// score lines up with it (blank while it is the one heard: the state's own sync is its).
+/// One recording of the score ([EditState.takes]): its name, the lane of regions where it is
+/// heard, and its sync, how the score lines up with it (blank while it is the focus: the
+/// state's own sync is its).
 @immutable
 class Take {
-  const Take(this.id, this.label, {this.anchors = const [], this.leadIn = 0, this.midi});
+  const Take(this.id, this.label, {this.regions = const [], this.anchors = const [], this.leadIn = 0, this.midi});
 
   /// `take-1`, `take-2`…, the same as long as the project keeps it.
   final String id;
 
-  /// What the menu calls it (the file's name at first: "Karajan 1963").
+  /// What its lane is called (the file's name at first: "Karajan 1963").
   final String label;
+
+  /// Where it is heard (score quarters, in every pass), its edges faded across over their
+  /// transitions ([TakeSplice]). Never overlapping another take's.
+  final List<Region> regions;
   final List<SyncAnchor> anchors;
   final double leadIn;
   final MidiTempoMap? midi;
 
-  Take copyWith({String? label, List<SyncAnchor>? anchors, double? leadIn, Object? midi = _kept}) => Take(
+  Take copyWith({String? label, List<Region>? regions, List<SyncAnchor>? anchors, double? leadIn, Object? midi = _kept}) => Take(
         id,
         label ?? this.label,
+        regions: regions ?? this.regions,
         anchors: anchors ?? this.anchors,
         leadIn: leadIn ?? this.leadIn,
         midi: identical(midi, _kept) ? this.midi : midi as MidiTempoMap?,
       );
+
+  /// [regions] with the stretches [cut] covers taken out (cut back, split).
+  static List<Region> without(List<Region> regions, List<Region> cut) {
+    var left = regions;
+    for (final c in cut) {
+      left = [
+        for (final r in left)
+          if (!(r.start < c.end && c.start < r.end))
+            r
+          else ...[
+            if (r.start < c.start - 1e-9) r.withBounds(r.start, c.start),
+            if (c.end < r.end - 1e-9) r.withBounds(c.end, r.end),
+          ],
+      ];
+    }
+    return left;
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -381,10 +423,11 @@ class Take {
       other.label == label &&
       other.leadIn == leadIn &&
       other.midi == midi &&
+      listEquals(other.regions, regions) &&
       listEquals(other.anchors, anchors);
 
   @override
-  int get hashCode => Object.hash(id, label, leadIn, anchors.length);
+  int get hashCode => Object.hash(id, label, leadIn, regions.length, anchors.length);
 }
 
 /// The colour each family's names take (Project Settings ▸ Instruments) until the user gives it

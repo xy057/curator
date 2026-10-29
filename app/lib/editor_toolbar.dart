@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'assets_dialog.dart';
-import 'audio_panel.dart' show RecordingMenu;
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'menu_kit.dart';
@@ -61,8 +60,6 @@ class EditorToolbar extends StatelessWidget {
           images: controller.images.enabled,
           reengraving: controller.isReengraving,
           staffSpace: controller.staffSpace,
-          takes: controller.takes,
-          heard: controller.heard,
         ),
         builder: (context, _) => _bar(context),
       );
@@ -107,11 +104,6 @@ class EditorToolbar extends StatelessWidget {
             onPressed: () => PhraseSearchWindow.show(Overlay.of(context), c),
           ),
         ),
-        // Two recordings or more: switched between as they play, as the Audio tab does.
-        if (c.hearable.length > 1) ...[
-          const ToolbarDivider(),
-          RecordingMenu(controller: c, switchOnly: true),
-        ],
         const Spacer(),
         _SavingIndicator(document: document),
         ToolbarButton(

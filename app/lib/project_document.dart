@@ -198,7 +198,7 @@ class ProjectDocument extends ChangeNotifier {
       media: track == null ? null : ProjectMedia(name: track.name, embedFrom: track.path),
       takes: {
         for (final t in controller.takes)
-          if (t.id != controller.heard)
+          if (t.id != controller.focus)
             if (controller.audio.trackOf(t.id) case final other?) t.id: ProjectMedia(name: other.name, embedFrom: other.path),
       },
     );

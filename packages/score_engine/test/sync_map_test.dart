@@ -30,4 +30,25 @@ void main() {
     expect(once.carriedTo(twice, 9), closeTo(4, 1e-9));
     expect(twice.carriedTo(once, 41), closeTo(66, 1e-9), reason: 'after the end, as far after');
   });
+
+  test('recordings spliced by their lanes: each heard at its own tempo where its region is, crossfaded at the edges, silent between', () {
+    // Bars 1–16: one recording at 2 s a bar, the other at 4 s a bar, from 1 s in.
+    final quick = map()..load(const [SyncAnchor(0, 0), SyncAnchor(64, 32)]);
+    final slow = map()..load(const [SyncAnchor(0, 1), SyncAnchor(64, 65)]);
+    final splice = TakeSplice(takes: [quick, slow], lanes: [
+      [const Region(0, 16)], // bars 1–4
+      [const Region(16, 32, transitionIn: 0.5)], // bars 5–8, then nothing
+    ]);
+    expect(splice.secondsAtQuarter(16), closeTo(8, 1e-9), reason: 'bar 5 when the first reaches it');
+    expect(splice.secondsAtQuarter(32), closeTo(24, 1e-9), reason: 'then 4 bars at 4 s');
+    expect(splice.secondsAtQuarter(64), closeTo(56, 1e-9), reason: 'silent after, at the last one’s tempo');
+    expect(splice.quarterAtSeconds(16), closeTo(24, 1e-9));
+    final [first, second] = splice.chunks;
+    expect((first.take, first.from, first.at, first.fadeOut), (0, 0.0, 0.0, 0.3), reason: 'from the file’s start, as it leads in');
+    expect(first.at + first.length, closeTo(8.15, 1e-9), reason: 'its fade centred on bar 5');
+    expect((second.take, second.at, second.from), (1, 7.75, 16.75));
+    expect(gainAt(second, 8), closeTo(0.5, 1e-9));
+    expect(gainAt(second, 20), 1);
+    expect(gainAt(second, 30), 0);
+  });
 }

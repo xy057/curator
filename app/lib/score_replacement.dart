@@ -151,7 +151,7 @@ class ScoreSwap {
       lanes.addAll(Curation.autoCuratedLanes([for (final p in added) p.id], after.activeMeasures, measuresAfter));
     }
 
-    // The sync heard, and each other take's.
+    // The focus's sync, and each other take's.
     var lostAnchors = 0, lostWarps = 0;
     List<SyncAnchor> carryAnchors(List<SyncAnchor> before) {
       final anchors = <SyncAnchor>[];
@@ -183,7 +183,15 @@ class ScoreSwap {
 
     final anchors = carryAnchors(edits.anchors), midi = carryMidi(edits.midi);
     final takes = [
-      for (final t in edits.takes) t.copyWith(anchors: carryAnchors(t.anchors), midi: carryMidi(t.midi)),
+      for (final t in edits.takes)
+        t.copyWith(
+          regions: [
+            for (final r in t.regions)
+              if (span(r.start, r.end) case (final s, final e)) r.withBounds(s, e),
+          ],
+          anchors: carryAnchors(t.anchors),
+          midi: carryMidi(t.midi),
+        ),
     ];
 
     final patches = [

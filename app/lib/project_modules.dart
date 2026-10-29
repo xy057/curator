@@ -345,11 +345,14 @@ final class _Curation extends ProjectModule {
           'lanes': {
             for (final MapEntry(key: id, value: lane) in lanes.entries)
               id: [
-                for (final r in lane)
-                  [r.start, r.end, if (r.transitionIn != null || r.transitionOut != null) ...[r.transitionIn, r.transitionOut]],
+                for (final r in lane) regionJson(r),
               ],
           },
       };
+
+  /// A region as saved: `[start, end]`, or `[start, end, in, out]` with transitions of its own.
+  static List<Object?> regionJson(Region r) =>
+      [r.start, r.end, if (r.transitionIn != null || r.transitionOut != null) ...[r.transitionIn, r.transitionOut]];
 
   @override
   ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) => state.copyWith(
@@ -361,13 +364,13 @@ final class _Curation extends ProjectModule {
                   for (final MapEntry(key: id, value: lane) in r.map('lanes').entries)
                     id: [
                       for (final (i, region) in JsonReader.listAt(lane, '${r.where}.lanes.$id').indexed)
-                        _region(region, '${r.where}.lanes.$id[$i]'),
+                        readRegion(region, '${r.where}.lanes.$id[$i]'),
                     ],
                 },
         ),
       );
 
-  static Region _region(Object? json, String where) {
+  static Region readRegion(Object? json, String where) {
     final [start!, end!, transitionIn, transitionOut] = JsonReader.numbers(json, where, 4, optional: 2);
     if (start < 0) throw _damaged('$where starts before the score.');
     if (end < start) throw _damaged('$where ends before it starts.');
@@ -449,20 +452,27 @@ final class _Sync extends ProjectModule {
   }
 }
 
-/// The recordings of the score ([EditState.takes]): which is heard, and each one's id, name and
-/// (but the one heard's, in [_Sync]) sync. The files themselves are the project's (`media/`).
-/// Optional: a Curator from before keeps the one heard, with its sync.
+/// The recordings of the score ([EditState.takes]), top lane first: each one's id, name, lane
+/// (regions, as the curation's), and (but the focus's, in [_Sync]) sync; which is the focus; the
+/// crossfade. The files themselves are the project's (`media/`). Optional: a Curator from before
+/// keeps the focus's recording, with its sync.
 final class _Takes extends ProjectModule {
   const _Takes() : super('takes', optional: true);
 
   @override
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files) {
-    final EditState(:takes, :heard) = state.edits;
+    final EditState(:takes, :focus, :crossfade) = state.edits;
     return {
-      'heard': ?heard,
+      'focus': ?focus,
+      'crossfade': ?crossfade,
       'takes': [
         for (final t in takes)
-          {'id': t.id, 'label': t.label, if (t.id != heard) ..._Sync.toJson(t.leadIn, t.anchors, t.midi)},
+          {
+            'id': t.id,
+            'label': t.label,
+            'regions': [for (final r in t.regions) _Curation.regionJson(r)],
+            if (t.id != focus) ..._Sync.toJson(t.leadIn, t.anchors, t.midi),
+          },
       ],
     };
   }
@@ -475,11 +485,18 @@ final class _Takes extends ProjectModule {
       final id = t.string('id', required: true)!, label = t.string('label') ?? '';
       if (!isTakeId(id) || takes.any((other) => other.id == id)) throw _damaged('${t.where}.id is not a take of its own.');
       final (:leadIn, :anchors, :midi) = _Sync.fromJson(t);
-      takes.add(Take(id, label, anchors: anchors, leadIn: leadIn, midi: midi));
+      final regions = [
+        for (final (j, region) in t.list('regions').indexed) _Curation.readRegion(region, '${t.where}.regions[$j]'),
+      ];
+      takes.add(Take(id, label, regions: regions, anchors: anchors, leadIn: leadIn, midi: midi));
     }
-    final heard = r.string('heard');
-    if (heard != null && !takes.any((t) => t.id == heard)) throw _damaged('${r.where}.heard is not one of its takes.');
-    return state.copyWith(edits: state.edits.copyWith(takes: takes, heard: heard));
+    final focus = r.string('focus');
+    if (focus != null && !takes.any((t) => t.id == focus)) throw _damaged('${r.where}.focus is not one of its takes.');
+    final crossfade = r.number('crossfade');
+    if (crossfade != null && (crossfade < 0 || crossfade > _Display.maxTransition)) {
+      throw _damaged('${r.where}.crossfade is not a length of time.');
+    }
+    return state.copyWith(edits: state.edits.copyWith(takes: takes, focus: focus, crossfade: crossfade));
   }
 
   /// `take-1`, `take-2`…: safe in a file's name.

@@ -60,9 +60,9 @@ void main() {
           scoreName: 'Score.musicxml',
           scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
           state: const ProjectState(
-              edits: EditState(heard: 'take-1', takes: [
-            Take('take-1', 'Karajan'),
-            Take('take-2', 'Bernstein', anchors: [SyncAnchor(0, 2)], leadIn: 2),
+              edits: EditState(focus: 'take-1', crossfade: 0.5, takes: [
+            Take('take-1', 'Karajan', regions: [Region(0, 4)]),
+            Take('take-2', 'Bernstein', regions: [Region(4, 8)], anchors: [SyncAnchor(0, 2)], leadIn: 2),
           ])),
           // The same name twice: each take's is its own.
           media: ProjectMedia(name: 'Take.wav', embedFrom: '${dir.path}/a.wav'),
@@ -72,7 +72,9 @@ void main() {
     expect(File(opened.media!.path!).readAsBytesSync(), [1, 2, 3]);
     expect(File(opened.takes['take-2']!).readAsBytesSync(), [4, 5]);
     expect(opened.state.edits.take('take-2')!.anchors, const [SyncAnchor(0, 2)]);
-    expect(opened.state.edits.heard, 'take-1');
+    expect(opened.state.edits.focus, 'take-1');
+    expect(opened.state.edits.crossfade, 0.5);
+    expect([for (final t in opened.state.edits.takes) t.regions], [[Region(0, 4)], [Region(4, 8)]]);
   });
 
   /// [path]'s zip with [change] made to it: entries by name (null removes one).

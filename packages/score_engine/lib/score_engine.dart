@@ -32,5 +32,6 @@ export 'src/spacing_plan.dart';
 export 'src/staff_stack.dart';
 export 'src/subtitles.dart';
 export 'src/sync_map.dart';
+export 'src/take_splice.dart';
 export 'src/text_dynamics.dart';
 export 'src/zip_entries.dart';

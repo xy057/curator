@@ -856,13 +856,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         const SingleActivator(LogicalKeyboardKey.keyT): _toggleTapMode,
         const SingleActivator(LogicalKeyboardKey.keyW): _warp,
         const SingleActivator(LogicalKeyboardKey.keyC): _toggleMetronome,
-        // The score's recordings: 1 the first in the menu, 2 the second…, heard at the same place.
-        for (final (i, key) in const [
-          LogicalKeyboardKey.digit1, LogicalKeyboardKey.digit2, LogicalKeyboardKey.digit3, //
-          LogicalKeyboardKey.digit4, LogicalKeyboardKey.digit5, LogicalKeyboardKey.digit6,
-          LogicalKeyboardKey.digit7, LogicalKeyboardKey.digit8, LogicalKeyboardKey.digit9,
-        ].indexed)
-          SingleActivator(key): () => controller.hearTakeAt(i),
         const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _commands.arrow(-1, fine: false),
         const SingleActivator(LogicalKeyboardKey.arrowRight): () => _commands.arrow(1, fine: false),
         const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () => _commands.arrow(-1, fine: true),

@@ -15,7 +15,7 @@ class InstrumentsToolbar extends StatelessWidget {
   final EditorController controller;
 
   /// Each tool's icon and hover text: its name, then what each key changes.
-  static Map<LaneTool, (AppIcon, String)> get _tools => {
+  static Map<LaneTool, (AppIcon, String)> get tools => {
         LaneTool.select: (AppIcon.pointer, '${'Select (V)'.tr}\n${shortcut('⇧ add · ⌘ toggle, no snap · ⌥ draw'.tr)}'),
         LaneTool.draw: (AppIcon.draw, '${'Draw (D)'.tr}\n${shortcut('⌘ no snap · ⌥ erase'.tr)}'),
         LaneTool.erase: (AppIcon.erase, '${'Erase (E)'.tr}\n${shortcut('⌘ no snap · ⌥ draw'.tr)}'),
@@ -35,7 +35,7 @@ class InstrumentsToolbar extends StatelessWidget {
         return Row(
           children: [
             ToolGroup(children: [
-              for (final MapEntry(key: tool, value: (icon, tip)) in _tools.entries)
+              for (final MapEntry(key: tool, value: (icon, tip)) in tools.entries)
                 ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
             ]),
             const SizedBox(width: 10),

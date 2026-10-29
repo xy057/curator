@@ -17,7 +17,7 @@ import 'project_state.dart';
 /// modules (every edit made in the app, [ProjectModules.all])
 ///
 ///     score/<name>      the source score file, byte for byte
-///     media/<name>      the recording heard
+///     media/<name>      the focus's recording ([EditState.focus])
 ///     media/takes/<id>/<name>  each other recording ([EditState.takes])
 ///
 /// all named in the manifest (`score`, `media`, `takes`: the name and the entry, and a take's id). Everything the app
@@ -167,7 +167,7 @@ abstract final class ProjectFile {
       for (final (i, value) in manifest.list('takes').indexed) {
         final t = JsonReader(value, 'manifest.takes[$i]');
         final id = t.string('id', required: true)!, entry = t.string('entry', required: true)!;
-        if (!state.edits.takes.any((take) => take.id == id) || id == state.edits.heard || takes.containsKey(id)) continue;
+        if (!state.edits.takes.any((take) => take.id == id) || id == state.edits.focus || takes.containsKey(id)) continue;
         if (unpack(entry, t.string('name', required: true)!, _join(mediaDirectory, id)) case final playable?) takes[id] = playable;
       }
 
@@ -210,7 +210,7 @@ class ProjectContents {
   final ProjectState state;
   final ProjectMedia? media;
 
-  /// The recordings besides the one heard ([media]), by [Take.id].
+  /// The recordings besides the focus's ([media]), by [Take.id].
   final Map<String, ProjectMedia> takes;
 }
 
@@ -234,7 +234,7 @@ class OpenedProject {
   final ProjectState state;
   final ProjectMediaLocation? media;
 
-  /// The recordings besides the one heard, unpacked, by [Take.id]: a take not here has none.
+  /// The recordings besides the focus's, unpacked, by [Take.id]: a take not here has none.
   final Map<String, String> takes;
 
   /// Whether it was saved before modules ([LegacyProject]: Curator 0.6.1 and before). A save
