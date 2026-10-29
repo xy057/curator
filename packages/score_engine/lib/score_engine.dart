@@ -2,6 +2,7 @@
 /// tile-cached renderer for smooth animated staves.
 library;
 
+export 'src/audio_alignment.dart';
 export 'src/auto_curate.dart';
 export 'src/beat_grid.dart';
 export 'src/condensing.dart';
@@ -24,6 +25,7 @@ export 'src/score_form.dart';
 export 'src/score_patch.dart';
 export 'src/score_text.dart';
 export 'src/score_typography.dart';
+export 'src/sounding_notes.dart';
 export 'src/scroll_map.dart';
 export 'src/spacers.dart';
 export 'src/spacing_plan.dart';

@@ -2,11 +2,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:xml/xml.dart';
-
 import 'curated_scene.dart';
 import 'display_list.dart';
 import 'engraving.dart';
+import 'sounding_notes.dart';
 
 /// A written note value, as Find Phrase enters them.
 enum NoteValue {
@@ -266,54 +265,24 @@ class ScoreLine {
   /// Every line of [musicXML]'s notes; [measureStarts] puts its bars in score quarters.
   static List<ScoreLine> read(String musicXML, List<double> measureStarts) {
     final lines = <ScoreLine>[];
-    final root = XmlDocument.parse(musicXML).rootElement;
-    int? number(XmlElement? e) => int.tryParse(e?.innerText.trim() ?? '');
-    for (final part in root.findElements('part')) {
-      final id = part.getAttribute('id') ?? '';
-      final voices = <String, _LineBuilder>{};
-      var divisions = 1, transpose = 0;
-      for (final (m, measure) in part.findElements('measure').indexed) {
-        if (m + 1 >= measureStarts.length) break;
-        var cursor = 0, lastStart = 0;
-        for (final e in measure.childElements) {
-          switch (e.name.local) {
-            case 'attributes':
-              divisions = math.max(1, number(e.getElement('divisions')) ?? divisions);
-              if (e.getElement('transpose') case final t?) {
-                transpose = (number(t.getElement('chromatic')) ?? 0) + 12 * (number(t.getElement('octave-change')) ?? 0);
-              }
-            case 'backup':
-              cursor = math.max(0, cursor - (number(e.getElement('duration')) ?? 0));
-            case 'forward':
-              cursor += number(e.getElement('duration')) ?? 0;
-            case 'note':
-              if (e.getElement('grace') != null || e.getElement('cue') != null) continue;
-              final duration = number(e.getElement('duration')) ?? 0;
-              final chord = e.getElement('chord') != null;
-              final start = chord ? lastStart : cursor;
-              if (!chord) {
-                lastStart = cursor;
-                cursor += duration;
-              }
-              final pitch = e.getElement('pitch');
-              if (pitch == null) continue; // a rest, or unpitched percussion
-              final step = PhraseNote.letters.indexOf(pitch.getElement('step')?.innerText.trim() ?? '');
-              final octave = number(pitch.getElement('octave'));
-              if (step < 0 || octave == null) continue;
-              final alter = (double.tryParse(pitch.getElement('alter')?.innerText.trim() ?? '') ?? 0).round();
-              final midi = PhraseNote(step: step, alter: alter, octave: octave).midi! + transpose;
-              final from = measureStarts[m] + start / divisions;
-              final voice = e.getElement('voice')?.innerText.trim() ?? '1';
-              final tied = e.findElements('tie').any((t) => t.getAttribute('type') == 'stop');
-              final line = voices.putIfAbsent(voice, () => _LineBuilder(id, number(e.getElement('staff')) ?? 1));
-              line.add(from, from + duration / divisions, midi, chord: chord, tied: tied, flush: lines.add);
-          }
-        }
-      }
+    var voices = <String, _LineBuilder>{};
+    String? part;
+    void flush() {
       for (final line in voices.values) {
         line.flush(lines.add);
       }
     }
+
+    for (final n in soundingNotes(musicXML, measureStarts)) {
+      if (n.partId != part) {
+        flush();
+        voices = {};
+        part = n.partId;
+      }
+      final line = voices.putIfAbsent(n.voice, () => _LineBuilder(n.partId, n.staff));
+      line.add(n.start, n.end, n.midi, chord: n.chord, tied: n.tied, flush: lines.add);
+    }
+    flush();
     return lines;
   }
 }

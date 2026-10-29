@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
 import 'midi_tempo.dart';
+import 'scroll_map.dart';
 
 /// What one bar's barlines and directions say about the form.
 @immutable
@@ -284,6 +285,25 @@ class ScoreForm {
       at += measureStarts[b + 1] - measureStarts[b];
       if (k + 1 < order.length && order[k + 1] != b + 1) out.add((at: at, jumpTo: measureStarts[order[k + 1]]));
     }
+    return out;
+  }
+
+  /// The stretches of the score played one after another, for bars starting at [measureStarts]
+  /// (the end of the last bar included): one wherever the bars played run on in the score. The
+  /// whole score once when straight through or the bars don't match [measureStarts].
+  List<ScorePass> passes(List<double> measureStarts) {
+    if (measureStarts.length != bars.length + 1 || !hasJumps) return [ScorePass(0, measureStarts.last)];
+    final out = <ScorePass>[];
+    int? from, to;
+    for (final b in playedOrder()) {
+      if (to != null && b == to + 1) {
+        to = b;
+        continue;
+      }
+      if (from != null) out.add(ScorePass(measureStarts[from], measureStarts[to! + 1]));
+      from = to = b;
+    }
+    if (from != null) out.add(ScorePass(measureStarts[from], measureStarts[to! + 1]));
     return out;
   }
 
