@@ -247,7 +247,10 @@ enum AppIcon {
   previous(IconData(0xE04F, fontFamily: _refined), IconData(0xE04F, fontFamily: _carbon)),
 
   /// The one after. Refined: chevron_right; Carbon: chevron--right.
-  next(IconData(0xE050, fontFamily: _refined), IconData(0xE050, fontFamily: _carbon));
+  next(IconData(0xE050, fontFamily: _refined), IconData(0xE050, fontFamily: _carbon)),
+
+  /// Lines the anchors up with the recording by ear. Refined: auto_fix_high; Carbon: magic-wand.
+  align(IconData(0xE051, fontFamily: _refined), IconData(0xE051, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

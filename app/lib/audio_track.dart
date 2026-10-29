@@ -1,9 +1,17 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+// The binding its readSamplesFromFile wraps: that keeps the buffer it reads into (never freed),
+// fine for a waveform's few samples, not for a recording read whole (Align).
+// ignore: implementation_imports
+import 'package:flutter_soloud/src/bindings/flutter_soloud_ffigen.dart' as soloud;
+import 'package:score_engine/score_engine.dart';
 
 import 'audio_format.dart';
 import 'file_names.dart';
@@ -101,13 +109,15 @@ class Waveform {
 
 /// A loaded recording. For a video, it is the soundtrack taken out of it.
 class AudioTrack {
-  AudioTrack._(this.path, this.name, this.source, this.length, this.waveform);
+  AudioTrack._(this.path, this.name, this.source, this.length, this.waveform, this._samples, this._sampleRate);
 
   /// A silent track (no playback) for tests and previews.
   @visibleForTesting
   AudioTrack.forTesting({required this.name, required this.length, required this.waveform})
       : path = name,
-        source = null;
+        source = null,
+        _samples = name,
+        _sampleRate = null;
 
   /// The recording's audio file: what a project embeds (a video's extracted soundtrack).
   final String path;
@@ -115,6 +125,67 @@ class AudioTrack {
   final AudioSource? source;
   final double length; // seconds
   final Waveform waveform;
+
+  /// The file SoLoud reads (FLAC where [path] is a format it can't), and its sample rate when
+  /// its header says.
+  final String _samples;
+  final int? _sampleRate;
+
+  /// The recording heard as Align hears it ([AudioChroma]'s frames), read on an isolate half a
+  /// minute at a time, so it is never held whole; [progress] hears how far it has got (0–1).
+  /// Null when there is no sound to read, or its sample rate isn't known.
+  Future<({Float32List frames, double frameRate})?> chroma({void Function(double done)? progress}) async {
+    final rate = _sampleRate;
+    if (source == null || rate == null) return null;
+    final port = ReceivePort();
+    final heard = port.listen((done) => progress?.call(done as double));
+    try {
+      return await _readChroma(_samples, rate, length, port.sendPort);
+    } finally {
+      await heard.cancel();
+      port.close();
+    }
+  }
+
+  /// On an isolate, from a static function: a closure made beside one that uses the track
+  /// would take it along.
+  static Future<({Float32List frames, double frameRate})> _readChroma(String path, int rate, double length, SendPort progress) =>
+      Isolate.run(() {
+        const block = 30; // seconds
+        // As miniaudio works out a time's frame: in single precision.
+        int frameAt(double seconds) => (Float32List.fromList([Float32List.fromList([seconds])[0] * rate])[0]).floor();
+        final chroma = AudioChroma(rate.toDouble());
+        final parts = <Float32List>[];
+        final capacity = block * rate + 64;
+        final buffer = malloc<Float>(capacity), name = path.toNativeUtf8();
+        try {
+          for (var start = 0; start < length; start += block) {
+            final last = start + block >= length;
+            final from = frameAt(start.toDouble());
+            final count = math.min(capacity, (last ? (length * rate).round() : frameAt(start + block.toDouble())) - from);
+            if (count <= 0) break;
+            final samples = buffer.asTypedList(count)..fillRange(0, count, 0);
+            final error = soloud.readSamplesFromFile(name.cast(), start.toDouble(), last ? -1 : start + block.toDouble(), count, false, buffer);
+            if (error != soloud.ReadSamplesErrors.readSamplesNoError) {
+              throw SoLoudCppException.fromReadSampleError(ReadSamplesErrors.fromValue(error.value));
+            }
+            parts.add(chroma.add(Float32List.fromList(samples)));
+            progress.send(math.min(1.0, (start + block) / length));
+          }
+          parts.add(chroma.finish());
+        } finally {
+          malloc
+            ..free(buffer)
+            ..free(name);
+        }
+        final frames = Float32List(parts.fold(0, (sum, p) => sum + p.length));
+        var at = 0;
+        for (final p in parts) {
+          frames.setAll(at, p);
+          at += p.length;
+        }
+        return (frames: frames, frameRate: chroma.frameRate);
+      });
 }
 
 /// Playback through SoLoud (native, cross-platform). The engine's own position is the master
@@ -153,10 +224,11 @@ class AudioEngine {
       source = await SoLoud.instance.loadFile(playable);
       final length = SoLoud.instance.getLength(source).inMicroseconds / 1e6;
       // A whole number of frames between samples, or the waveform drifts from the audio.
-      final plan = AudioFormat.samplingPlan(length, AudioFormat.sampleRateOf(playable));
+      final rate = AudioFormat.sampleRateOf(playable);
+      final plan = AudioFormat.samplingPlan(length, rate);
       final samples = await SoLoud.instance.readSamplesFromFile(playable, plan.count);
       final waveform = await Waveform.analyze(samples, plan.rate);
-      track = AudioTrack._(audio, fileNameOf(audio), source, length, waveform);
+      track = AudioTrack._(audio, fileNameOf(audio), source, length, waveform, playable, rate);
     } catch (_) {
       if (source != null) await SoLoud.instance.disposeSource(source);
       ScratchSpace.release(scratch);

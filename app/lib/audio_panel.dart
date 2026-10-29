@@ -626,7 +626,21 @@ class AudioToolbar extends StatelessWidget {
           selected: c.usesMidiTempo,
           onPressed: () => c.usesMidiTempo ? c.useMidiTempo(null) : pickMidi(context, c),
         ),
-        if (!c.usesMidiTempo) _TapButton(controller: c),
+        if (!c.usesMidiTempo) ...[
+          _TapButton(controller: c),
+          if (c.anchors.aligning case final done?)
+            ToolbarButton(
+              glyph: SizedBox.square(dimension: 14, child: CircularProgressIndicator(value: done, strokeWidth: 2)),
+              tooltip: 'Aligning…'.tr,
+              onPressed: null,
+            )
+          else
+            ToolbarButton(
+              icon: AppIcon.align.of(context),
+              tooltip: 'Align with the recording'.tr,
+              onPressed: c.track == null || c.isLoadingAudio ? null : () => align(context, c),
+            ),
+        ],
         ToolbarButton(
           icon: AppIcon.warp.of(context),
           tooltip: c.anchors.selected.length == 1 && !c.usesMidiTempo
@@ -831,6 +845,26 @@ Future<void> pickMidi(BuildContext context, EditorController c) async {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t use the MIDI file. {error}'.fill({'error': describeError(e)}))));
     }
   }
+}
+
+/// Align: the anchors set by ear ([SyncEditing.align]), saying how many.
+Future<void> align(BuildContext context, EditorController c) async {
+  final String? message;
+  try {
+    final count = await c.anchors.align();
+    message = switch (count) {
+      null => null,
+      0 => 'Couldn’t hear the score in this recording.'.tr,
+      1 => '1 anchor from the recording'.tr,
+      _ => '{n} anchors from the recording'.fill({'n': count}),
+    };
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t align. {error}'.fill({'error': describeError(e)}))));
+    }
+    return;
+  }
+  if (message != null && context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
 /// Says where the MIDI tempo map just read took its warps from ([EditorController.loadMidiTempo]),

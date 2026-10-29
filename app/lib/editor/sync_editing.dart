@@ -164,6 +164,58 @@ class SyncEditing {
     _editor._changed();
   }
 
+  /// How far Align has got (0–1) while it runs; null otherwise.
+  double? get aligning => _aligning;
+  double? _aligning;
+
+  /// Align: anchors from the recording heard against the score ([AudioAlignment]) in place of
+  /// those there, one Undo step. The repeats are the warps set by hand, or with none the score's
+  /// own ([ScoreForm.passes]); with [snapToOnsets] each anchor moves onto a note heard within
+  /// 50 ms. Returns how many anchors it set: 0 when it heard no music, null when it couldn't
+  /// run (no recording, a MIDI tempo map followed, already running) or the document changed
+  /// meanwhile. Throws when the recording can't be read.
+  Future<int?> align() async {
+    final sync = _sync, track = _editor.track, score = _editor._score;
+    if (sync == null || track == null || score == null || _aligning != null) return null;
+    final starts = score.timeline.measureStarts;
+    final passes = sync.passes.length > 1 ? sync.passes : score.metadata.form.passes(starts);
+    void report(double done) {
+      _aligning = done;
+      if (!_editor._disposed) _editor._changed();
+    }
+
+    report(0);
+    try {
+      ({Float32List frames, double frameRate})? heard;
+      // In turn: replacing the recording deletes the file read.
+      await _editor.inTurn(() async => heard = await track.chroma(progress: (done) => report(0.9 * done)));
+      if (heard == null) return null;
+      var anchors = await _alignOff(score.musicXML, starts, heard!, passes);
+      if (_editor._disposed || _sync != sync || _editor.track != track) return null;
+      if (snapToOnsets) {
+        anchors = [for (final a in anchors) a.at(track.waveform.nearestOnset(a.seconds, 0.05) ?? a.seconds)];
+      }
+      if (anchors.isNotEmpty) sync.load(anchors, leadIn: sync.leadIn);
+      _deselect();
+      return sync.anchors.length;
+    } finally {
+      _aligning = null;
+      if (!_editor._disposed) _editor._changed();
+    }
+  }
+
+  /// On an isolate, from a static function: a closure made beside one that uses the controller
+  /// would take it along.
+  static Future<List<SyncAnchor>> _alignOff(
+          String xml, List<double> starts, ({Float32List frames, double frameRate}) heard, List<ScorePass> passes) =>
+      Isolate.run(() => AudioAlignment.anchors(
+            audio: heard.frames,
+            frameRate: heard.frameRate,
+            notes: soundingNotes(xml, starts).toList(),
+            measureStarts: starts,
+            passes: passes,
+          ));
+
   /// Space in tap mode: starts playback, then marks the beat that is sounding now.
   void tap() {
     final sync = _sync;
