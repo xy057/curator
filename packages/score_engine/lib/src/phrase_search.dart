@@ -106,20 +106,50 @@ class PhraseNote {
   int get hashCode => Object.hash(step, alter, octave, value, dotted);
 }
 
+/// The clef a [Phrase] is written in: only how it looks, as the search goes by sounding pitch.
+enum PhraseClef {
+  /// Treble, or bass while the notes lie mostly below middle C.
+  auto('G', 2, 0, 0xE050),
+  treble('G', 2, 0, 0xE050),
+  treble8vb('G', 2, -1, 0xE052),
+  alto('C', 3, 0, 0xE05C),
+  tenor('C', 4, 0, 0xE05C),
+  bass('F', 4, 0, 0xE062);
+
+  const PhraseClef(this.sign, this.line, this.octave, this.glyph);
+
+  /// MusicXML's `<sign>` and `<line>` (from the bottom), and `<clef-octave-change>`.
+  final String sign;
+  final int line, octave;
+
+  /// Its SMuFL glyph.
+  final int glyph;
+
+  /// The note on its top line, as [PhraseNote.diatonic] counts.
+  int get topLine {
+    final onLine = switch (sign) { 'G' => 4 * 7 + 4, 'C' => 4 * 7, _ => 3 * 7 + 3 } + 7 * octave; // G4, C4, F3
+    return onLine + 2 * (5 - line);
+  }
+}
+
 /// A melody to look for in the score (Find Phrase).
 class Phrase {
-  const Phrase(this.notes);
+  const Phrase(this.notes, {this.clef = PhraseClef.auto});
   static const empty = Phrase([]);
 
   final List<PhraseNote> notes;
 
+  /// The clef chosen; [shownClef] the one it is written in.
+  final PhraseClef clef;
+
   bool get isEmpty => notes.isEmpty;
   Iterable<PhraseNote> get pitched => notes.where((n) => !n.isRest);
 
-  /// Bass clef while its notes lie mostly below middle C.
-  bool get bassClef {
+  /// [clef], or for [PhraseClef.auto] bass while its notes lie mostly below middle C, else treble.
+  PhraseClef get shownClef {
+    if (clef != PhraseClef.auto) return clef;
     final pitches = [for (final n in pitched) n.midi!];
-    return pitches.isNotEmpty && pitches.reduce((a, b) => a + b) / pitches.length < 57;
+    return pitches.isNotEmpty && pitches.reduce((a, b) => a + b) / pitches.length < 57 ? PhraseClef.bass : PhraseClef.treble;
   }
 
   /// Where each note starts, in quarters.
@@ -137,7 +167,7 @@ class Phrase {
   /// and shorter beamed within each quarter, and no barline at its end.
   String musicXML() {
     const divisions = 8; // 32nds dotted are the shortest: 1.5 of these
-    final bass = bassClef;
+    final clef = shownClef;
     final xml = StringBuffer()
       ..write('<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0">')
       ..write('<part-list><score-part id="P1"><part-name print-object="no">Phrase</part-name></score-part></part-list>')
@@ -147,7 +177,8 @@ class Phrase {
     final sixtyFourths = math.max(16, (total * 16).round());
     xml
       ..write('<time print-object="no"><beats>$sixtyFourths</beats><beat-type>64</beat-type></time>')
-      ..write(bass ? '<clef><sign>F</sign><line>4</line></clef>' : '<clef><sign>G</sign><line>2</line></clef>')
+      ..write('<clef><sign>${clef.sign}</sign><line>${clef.line}</line>'
+          '${clef.octave == 0 ? '' : '<clef-octave-change>${clef.octave}</clef-octave-change>'}</clef>')
       ..write('</attributes>');
     if (notes.isEmpty) {
       xml.write('<note print-object="no"><rest/><duration>${divisions * 2}</duration><type>quarter</type></note>');
@@ -438,6 +469,9 @@ class PhrasePicture {
   /// The top staff line's y.
   double get staffTop => _data.staves.first.top;
 
+  /// Around everything it draws (null for nothing).
+  late final ui.Rect? ink = _list.staves.first.items.fold<ui.Rect?>(null, (r, i) => r?.expandToInclude(i.bounds) ?? i.bounds);
+
   /// Where the music ends.
   double get right => _list.staves.first.items.fold(0.0, (r, i) => math.max(r, i.bounds.right));
 
@@ -458,15 +492,14 @@ class PhrasePicture {
 
   /// The note a staff position [y] (Verovio's units) stands for, in this picture's clef.
   PhraseNote noteAt(double y, {NoteValue value = NoteValue.quarter, bool dotted = false}) {
-    final top = phrase.bassClef ? 3 * 7 + 5 : 5 * 7 + 3; // A3, F5
+    final top = phrase.shownClef.topLine;
     final d = top - ((y - staffTop) / (staffSpace / 2)).round();
     return PhraseNote(step: d % 7, octave: (d ~/ 7).clamp(0, 8), value: value, dotted: dotted);
   }
 
   /// Draws it in [ink], at its own units (scale the canvas first).
   void paint(ui.Canvas canvas, ui.Color ink) {
-    final layer = _list.staves.first;
-    final bounds = layer.items.fold<ui.Rect?>(null, (r, i) => r?.expandToInclude(i.bounds) ?? i.bounds);
+    final layer = _list.staves.first, bounds = this.ink;
     if (bounds == null) return;
     canvas.saveLayer(bounds.inflate(staffSpace), ui.Paint()..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn));
     for (final item in layer.items) {

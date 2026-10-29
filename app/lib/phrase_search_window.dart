@@ -13,6 +13,7 @@ import 'app_icons.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'latest.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
 
@@ -78,6 +79,7 @@ class _Entry {
   bool similar = false;
   bool anyKey = true;
   bool rhythm = true;
+  PhraseClef clef = PhraseClef.auto;
 }
 
 class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
@@ -188,7 +190,7 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
   void _set(List<PhraseNote> notes, int? selected) {
     setState(() {
       _entry
-        ..phrase = Phrase(List.unmodifiable(notes))
+        ..phrase = Phrase(List.unmodifiable(notes), clef: _entry.clef)
         ..selected = notes.isEmpty ? null : selected?.clamp(0, notes.length - 1);
       _search();
     });
@@ -251,6 +253,12 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
     final i = _selected ?? notes.length - 1;
     notes.removeAt(i);
     _set(notes, i - 1 < 0 ? (notes.isEmpty ? null : 0) : i - 1);
+  }
+
+  /// The clef it is written in (and a click on the staff read in).
+  void _clef(PhraseClef clef) {
+    _entry.clef = clef;
+    _set(_phrase.notes, _selected);
   }
 
   void _select(int? i) => setState(() => _entry.selected = i);
@@ -484,6 +492,8 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
         selected: selected != null && !selected.isRest && selected.alter == alter && alter != 0,
         onPressed: selected == null || selected.isRest ? null : () => _alter(alter));
     return Row(children: [
+      _ClefMenu(clef: _entry.clef, shown: _phrase.shownClef, onSelected: _clef),
+      const ToolbarDivider(),
       ToolGroup(children: [
         value(NoteValue.whole, 0xE1D2, 'Whole (8)'.tr),
         value(NoteValue.half, 0xE1D3, 'Half (7)'.tr),
@@ -572,16 +582,69 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
   }
 }
 
+/// The clef the phrase is written in: Auto (treble, or bass for low notes), or one chosen. Shows the
+/// clef it is in, as the staff does.
+class _ClefMenu extends StatelessWidget {
+  const _ClefMenu({required this.clef, required this.shown, required this.onSelected});
+  final PhraseClef clef, shown;
+  final ValueChanged<PhraseClef> onSelected;
+
+  static String _label(PhraseClef c) => switch (c) {
+        PhraseClef.auto => 'Auto'.tr,
+        PhraseClef.treble => 'Treble'.tr,
+        PhraseClef.treble8vb => 'Treble 8vb'.tr,
+        PhraseClef.alto => 'Alto'.tr,
+        PhraseClef.tenor => 'Tenor'.tr,
+        PhraseClef.bass => 'Bass'.tr,
+      };
+
+  /// How far each clef's ink's middle is above its origin, in staff spaces.
+  static double _lift(PhraseClef c) => switch (c.sign) { 'G' => c.octave == 0 ? 1 : 0.5, 'F' => -0.6, _ => 0 };
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    // A select, not a popup menu: its menu (an OverlayPortal's) draws over this window, which a
+    // popup menu's route, put in under the window's overlay entry, would not.
+    return Tip(
+      message: 'Clef'.tr,
+      child: AppDropdown<PhraseClef>(
+        value: clef,
+        dense: true,
+        icon: Icon(AppIcon.dropDown.of(context)),
+        onChanged: (c) {
+          if (c != null) onSelected(c);
+        },
+        items: [
+          for (final c in PhraseClef.values)
+            DropdownMenuItem(
+              value: c,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                // Auto shows the clef it chose.
+                _Glyph((c == PhraseClef.auto ? shown : c).glyph, lift: _lift(c == PhraseClef.auto ? shown : c), size: 12, color: colors.text),
+                const SizedBox(width: 4),
+                Text(_label(c)),
+              ]),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A SMuFL glyph of the bundled Bravura, centred in its box: [lift] staff spaces is how far its
 /// ink's middle is above the glyph's origin (a note's stem rises from its head).
 class _Glyph extends StatelessWidget {
-  const _Glyph(this.code, {this.lift = 0, this.size = 18});
+  const _Glyph(this.code, {this.lift = 0, this.size = 18, this.color});
   final int code;
   final double lift, size;
 
+  /// Its colour (default: the [IconTheme]'s, a toolbar button's).
+  final Color? color;
+
   @override
   Widget build(BuildContext context) =>
-      CustomPaint(size: const Size.square(20), painter: _GlyphPainter(code, lift, size, IconTheme.of(context).color ?? context.colors.text));
+      CustomPaint(size: const Size.square(20), painter: _GlyphPainter(code, lift, size, color ?? IconTheme.of(context).color ?? context.colors.text));
 }
 
 class _GlyphPainter extends CustomPainter {
@@ -697,7 +760,20 @@ class _Geometry {
     if (picture == null) return null;
     const space = _PhraseStaffState._space, margin = _PhraseStaffState._margin;
     final scale = space / picture.staffSpace;
-    final top = (_PhraseStaffState._height - 4 * space) / 2 - picture.staffTop * scale;
+    // The staff in the middle, moved up or down as far as the notes need to fit (centred on them
+    // when they can't).
+    const height = _PhraseStaffState._height, room = 6.0;
+    var top = (height - 4 * space) / 2 - picture.staffTop * scale;
+    if (picture.ink case final ink?) {
+      final above = ink.top * scale + top, below = ink.bottom * scale + top;
+      if (below - above > height - 2 * room) {
+        top += height / 2 - (above + below) / 2;
+      } else if (above < room) {
+        top += room - above;
+      } else if (below > height - room) {
+        top -= below - (height - room);
+      }
+    }
     final xs = picture.noteXs;
     final focus = (selected != null && selected < xs.length ? xs[selected] : picture.right) * scale;
     final shift = math.max(0.0, focus + margin + 6 * space - width);
@@ -738,7 +814,7 @@ class _StaffPainter extends CustomPainter {
     final picture = this.picture, g = geometry;
     final lines = Paint()..color = ink.withValues(alpha: 0.55);
     const space = _PhraseStaffState._space;
-    final top = (size.height - 4 * space) / 2;
+    final top = g == null ? (size.height - 4 * space) / 2 : g.offset.dy + g.picture.staffTop * g.scale;
     for (var l = 0; l < 5; l++) {
       canvas.drawRect(Rect.fromLTWH(0, top + l * space - 0.5, size.width, 1), lines);
     }

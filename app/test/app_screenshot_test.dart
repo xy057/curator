@@ -93,6 +93,17 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
     await tester.pump(const Duration(milliseconds: 400)); // past the tools' colour change
     await screenshot(tester, 'app-find-phrase', inside: find.text('Find Phrase'));
+    // The phrase in the alto clef, chosen from the clef menu.
+    await tester.tap(find.descendant(of: find.byType(PhraseSearchWindow), matching: find.text('Auto')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await screenshot(tester, 'app-find-phrase-clefs', inside: find.text('Find Phrase'));
+    await tester.tap(find.text('Alto'));
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await screenshot(tester, 'app-find-phrase-alto', inside: find.text('Find Phrase'));
+
     // A match double-clicked folds the window down to a bar; the toolbar's button is lit.
     final firstMatch = find.descendant(of: find.byType(PhraseSearchWindow), matching: find.text('Violin II')).first;
     await tester.tap(firstMatch);

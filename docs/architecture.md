@@ -420,7 +420,11 @@ them, the one before and after (← →, Enter, ⇧Enter), Expand (or a double-c
 toolbar's button) and Close; folded down, the phrase's keys do nothing. The phrase is typed (A–G at the octave nearest the note before, as notation programs place
 them; 3–8 the values 32nd to whole, `.` a dot, `-` `=` `0` flat, sharp, natural, R a rest, ↑ ↓ a
 step, ⇧↑ ⇧↓ an octave, ← → the selection, Backspace), clicked on its staff (a pitch where clicked,
-or a note to select it) or played on its three-octave keyboard, and Verovio engraves it after every
+or a note to select it) or played on its three-octave keyboard, in the clef chosen by the tools
+(`PhraseClef`: Auto, treble or bass by where the notes lie, or treble, treble 8vb, alto, tenor,
+bass; only how it is written and where a click lands, as the search goes by sounding pitch; the
+staff moves up or down so the notes fit). The clef is a select (`AppDropdown`), not a popup menu: a
+popup's route goes in under the window's overlay entry, while a `MenuAnchor` draws above it. Verovio engraves it after every
 change (`PhrasePicture.engrave`: one bar, its time signature hidden and as long as the notes, eighths
 and shorter beamed within each quarter, no barline; the latest engraving wins, `Latest`). What was
 entered stays while the app runs. The score is read for it once per score, on an isolate

@@ -93,6 +93,10 @@ void main() {
     expect(foundAt(PhraseSearch.find(Phrase(wrong), lines)), isFalse);
     final near = PhraseSearch.find(Phrase(wrong), lines, similar: true).firstWhere((m) => identical(m.line, cello) && m.first == 10);
     expect(near.similarity, inInclusiveRange(PhraseSearch.minSimilarity, 0.99));
+    // Each clef's top line: F5, F5, F4 (8vb), G4 (alto), E4 (tenor), A3 (bass); Auto by the notes.
+    expect([for (final c in PhraseClef.values) c.topLine], [38, 38, 31, 32, 30, 26]);
+    expect(Phrase(notes).shownClef, PhraseClef.bass);
+    expect(Phrase(notes, clef: PhraseClef.tenor).musicXML(), contains('<clef><sign>C</sign><line>4</line></clef>'));
   });
 
   test('a video frame is the preview drawn offscreen, at any pixel size', () async {
