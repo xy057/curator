@@ -306,10 +306,23 @@ abstract final class VideoEncoder {
     required String output,
     String? audio,
     double audioStart = 0,
+    List<ExportSound> sounds = const [],
     ({double at, double length})? fadeOut,
   }) {
     final fps = format.fps, codec = format.codec, alpha = format.hasAlpha;
-    if (!codec.hasSound) audio = null;
+    // One recording heard throughout is read from where the video starts; several (or one
+    // with silence) are cut, faded, set in place and mixed.
+    if (sounds case [final only] when only.at <= 1e-6 && only.end >= seconds - 1e-6) {
+      audio = only.path;
+      audioStart = only.from - only.at;
+      sounds = const [];
+    }
+    if (!codec.hasSound) {
+      audio = null;
+      sounds = const [];
+    }
+    final files = [for (final path in {for (final s in sounds) s.path}) path];
+    final mix = sounds.isEmpty ? null : _mix(sounds, files, seconds, fadeOut);
     // OpenH264 and the platforms' encoders take a bit rate: 0.12 bits a pixel is ample for ink on paper
     // (HEVC needs about two thirds of H.264's).
     final kbps = (format.width * format.height * fps * (codec == VideoCodec.hevc ? 0.08 : 0.12) / 1000).round();
@@ -323,8 +336,10 @@ abstract final class VideoEncoder {
       '-hide_banner', '-loglevel', 'error', '-y',
       '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', '${format.width}x${format.height}', '-framerate', VideoFormat.rateArgument(fps), '-i', '-',
       if (audio != null) ...[...MediaFormats.ffmpegReaders, if (audioStart > 0) ...['-ss', audioStart.toStringAsFixed(6)], '-i', audio],
+      for (final path in files) ...[...MediaFormats.ffmpegReaders, '-i', path],
       '-map', '0:v:0',
       if (audio != null) ...['-map', '1:a:0'],
+      if (mix != null) ...['-filter_complex', mix, '-map', '[sound]'],
       // RGB to YUV with the HD colour matrix, and tagged so players decode it the same way.
       '-vf', codec.isSequence ? 'format=$pixels' : 'scale=out_color_matrix=bt709:out_range=tv,format=$pixels',
       '-c:v', encoder,
@@ -355,7 +370,7 @@ abstract final class VideoEncoder {
           if (fadeOut != null)
             'afade=t=out:st=${math.max(0, fadeOut.at).toStringAsFixed(6)}:d=${fadeOut.length.toStringAsFixed(6)}',
         ].join(',')],
-      if (audio != null) ...[
+      if (audio != null || mix != null) ...[
         ...switch (codec) {
           VideoCodec.prores => ['-c:a', 'pcm_s24le'],
           VideoCodec.vp9 => ['-c:a', 'libopus', '-b:a', '192k'],
@@ -398,6 +413,37 @@ abstract final class VideoEncoder {
 
   /// Seconds of fade where a sound is cut.
   static const declick = 0.01;
+
+  /// FFmpeg's filter graph mixing [sounds] (their files are inputs 1, 2… in [files]' order) into
+  /// `[sound]`: each cut from its file, faded as playback fades it (straight ramps, `afade`'s
+  /// own), set at its time, then all added together, as they sound, and [fadeOut] after.
+  static String _mix(List<ExportSound> sounds, List<String> files, double seconds, ({double at, double length})? fadeOut) {
+    String n(double v) => v.toStringAsFixed(6);
+    final parts = <String>[];
+    for (final (i, s) in sounds.indexed) {
+      // Begun before the video: from where it has got, faded in no more (but for a click).
+      final cut = math.max(0.0, -s.at), at = s.at + cut, from = s.from + cut;
+      final length = math.min(s.end, seconds) - at;
+      if (length <= 0) continue;
+      final fadeIn = cut > 0 ? declick : s.fadeIn, fadeOutAt = s.end - s.fadeOut - at;
+      parts.add('[${files.indexOf(s.path) + 1}:a:0]atrim=start=${n(from)}:end=${n(from + length)},asetpts=PTS-STARTPTS,'
+          'aresample=48000,aformat=channel_layouts=stereo'
+          '${fadeIn > 0 ? ',afade=t=in:st=0:d=${n(fadeIn)}' : ''}'
+          '${s.fadeOut > 0 && fadeOutAt < length ? ',afade=t=out:st=${n(math.max(0, fadeOutAt))}:d=${n(s.fadeOut)}' : ''}'
+          ',adelay=${(at * 1000).round()}:all=1[s$i]');
+    }
+    final inputs = [for (final p in parts) p.substring(p.lastIndexOf('['))].join();
+    final count = parts.length;
+    final ending = [
+      if (fadeOut != null) 'afade=t=out:st=${n(math.max(0, fadeOut.at))}:d=${n(fadeOut.length)}',
+    ];
+    return [
+      ...parts,
+      count == 0
+          ? 'anullsrc=r=48000:cl=stereo,atrim=duration=${n(seconds)}[sound]'
+          : '${inputs}amix=inputs=$count:normalize=0:dropout_transition=0,apad${ending.isEmpty ? '' : ',${ending.join(',')}'}[sound]',
+    ].join(';');
+  }
 }
 
 /// Where an export has got to.
@@ -427,6 +473,11 @@ class VideoExportCancelled implements Exception {
   const VideoExportCancelled();
 }
 
+/// A recording's sound in a video: its file [path] from [from] seconds in at [at] seconds of the
+/// performance (of the video, in [VideoEncoder.arguments]) until [end], faded in over [fadeIn]
+/// and out over [fadeOut] ([PlayChunk]'s).
+typedef ExportSound = ({String path, double from, double at, double end, double fadeIn, double fadeOut});
+
 /// Makes a video of the open project: the curated score scrolling past the pointer in time
 /// with the recording, exactly as the preview plays it.
 ///
@@ -435,21 +486,22 @@ class VideoExportCancelled implements Exception {
 /// nothing done in the editor meanwhile can change a video half written. Make one per export
 /// dialog; [dispose] it when done.
 class VideoExport {
-  VideoExport._(this._scene, this._curation, this._sync, this._releaseImages, {required this.duration, required this.audio});
+  VideoExport._(this._scene, this._curation, this._sync, this._releaseImages, {required this.duration, required this.sounds});
 
   /// Takes what [editor] has open now. The editor must have a score.
   factory VideoExport.of(EditorController editor) {
-    final score = editor.score!, sync = editor.sync!, curation = editor.curation!;
+    final score = editor.score!, curation = editor.curation!;
     final copy = Curation([for (final p in score.metadata.parts) p.id])
       ..load(curation.lanes, transition: curation.transition);
-    final timeline = SyncMap(
-        measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
-      ..load(sync.anchors, leadIn: sync.leadIn);
+    // The performance as it plays: one recording's sync, or several spliced by their lanes.
+    final (:timeline, :chunks, :files) = editor.performedCopy();
     final scene = CuratedScene(score, style: RenderStyle(staffSpace: editor.staffSpace))
       ..settings = editor.sceneSettings // the preview's: no images or captions while their extension is off
       ..setTimeline(timeline);
-    return VideoExport._(scene, copy, timeline, editor.images.hold(),
-        duration: editor.playback.duration, audio: editor.track?.path);
+    return VideoExport._(scene, copy, timeline, editor.images.hold(), duration: editor.playback.duration, sounds: [
+      for (final c in chunks)
+        if (files[c.take] case final path?) (path: path, from: c.from, at: c.at, end: c.end, fadeIn: c.fadeIn, fadeOut: c.fadeOut),
+    ]);
   }
 
   /// Lets go of the editor's images this export draws (see [ImageEditing.hold]).
@@ -457,7 +509,7 @@ class VideoExport {
 
   final CuratedScene _scene;
   final Curation _curation;
-  final SyncMap _sync;
+  final ScoreTimeline _sync;
 
   /// Seconds of video: the whole recording or the whole piece, as playback runs.
   final double duration;
@@ -542,8 +594,9 @@ class VideoExport {
     return '${measure + 1}.${beat.floor() + 1}';
   }
 
-  /// The recording's audio file; null for a silent video.
-  final String? audio;
+  /// What is heard, in the performance's seconds: each recording's file from a time in it, faded
+  /// in and out as playback fades it ([PlayChunk]); none for a silent video.
+  final List<ExportSound> sounds;
 
   /// The pairs of players sharing a staff, as in the editor when the export was made.
   Set<String> get condensed => _scene.condensed;
@@ -642,8 +695,10 @@ class VideoExport {
           format: format,
           seconds: frames / format.fps,
           output: codec.isSequence ? VideoEncoder.framePattern(partial, name, frames) : partial,
-          audio: audio,
-          audioStart: start,
+          sounds: [
+            for (final c in sounds)
+              if (c.end > start + 1e-6 && c.at < end - 1e-6) (path: c.path, from: c.from, at: c.at - start, end: c.end - start, fadeIn: c.fadeIn, fadeOut: c.fadeOut),
+          ],
           fadeOut: fadeOut),
     );
     final errors = StringBuffer();
@@ -746,7 +801,6 @@ class VideoExport {
     cancel();
     _scene.dispose();
     _curation.dispose();
-    _sync.dispose();
     _releaseImages();
   }
 

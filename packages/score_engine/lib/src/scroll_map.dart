@@ -96,6 +96,21 @@ extension ScoreTimelinePasses on ScoreTimeline {
 
   /// When the performance reaches the end of its last pass.
   double get endSeconds => secondsAtQuarter(passes.last.end, pass: passes.length - 1);
+
+  /// Where [seconds] of this performance is in [other] (another recording's): the same place
+  /// in the score, the same time over (in [other]'s last pass to play it, when it plays it fewer
+  /// times). Before the first bar and after the last, as far from them in seconds.
+  double carriedTo(ScoreTimeline other, double seconds) {
+    final start = secondsAtQuarter(passes.first.start);
+    if (seconds <= start) return other.secondsAtQuarter(other.passes.first.start) - (start - seconds);
+    final end = endSeconds;
+    if (seconds >= end) return other.endSeconds + (seconds - end);
+    final quarter = quarterAtSeconds(seconds), pass = passAt(seconds);
+    final here = timesOf(quarter).toList(), there = other.timesOf(quarter).toList();
+    if (there.isEmpty) return other.secondsAtQuarter(quarter, pass: math.min(pass, other.passes.length - 1));
+    final time = math.max(0, here.indexWhere((t) => t.pass == pass));
+    return other.secondsAtQuarter(quarter, pass: there[math.min(time, there.length - 1)].pass);
+  }
 }
 
 class ConstantTempoTimeline implements ScoreTimeline {

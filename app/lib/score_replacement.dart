@@ -151,17 +151,23 @@ class ScoreSwap {
       lanes.addAll(Curation.autoCuratedLanes([for (final p in added) p.id], after.activeMeasures, measuresAfter));
     }
 
-    final anchors = <SyncAnchor>[];
-    for (final a in edits.anchors) {
-      final q = at(a.quarter), jump = a.jumpTo == null ? null : at(a.jumpTo!);
-      if (q != null && (a.jumpTo == null) == (jump == null)) anchors.add(SyncAnchor(q, a.seconds, jumpTo: jump));
+    // The focus's sync, and each other take's.
+    var lostAnchors = 0, lostWarps = 0;
+    List<SyncAnchor> carryAnchors(List<SyncAnchor> before) {
+      final anchors = <SyncAnchor>[];
+      for (final a in before) {
+        final q = at(a.quarter), jump = a.jumpTo == null ? null : at(a.jumpTo!);
+        if (q != null && (a.jumpTo == null) == (jump == null)) anchors.add(SyncAnchor(q, a.seconds, jumpTo: jump));
+      }
+      lostAnchors += before.length - anchors.length;
+      return anchors;
     }
 
     // A MIDI tempo map's warps happen at a moment of the file, which stays, as an anchor's time
     // does; where each goes on from is a place in the score. Those that no longer fit are left
     // out, from the first that doesn't (only those that fitted before count as lost).
-    var midi = edits.midi, lostWarps = 0;
-    if (midi != null) {
+    MidiTempoMap? carryMidi(MidiTempoMap? midi) {
+      if (midi == null) return null;
       final fitted = midi.arrivals(measuresBefore.last).length;
       final kept = <MidiWarp>[];
       for (final w in midi.warps.take(fitted)) {
@@ -171,8 +177,22 @@ class ScoreSwap {
       }
       final carried = midi.withWarps(kept);
       midi = carried.withWarps(kept.take(carried.arrivals(measuresAfter.last).length).toList());
-      lostWarps = fitted - midi.warps.length;
+      lostWarps += fitted - midi.warps.length;
+      return midi;
     }
+
+    final anchors = carryAnchors(edits.anchors), midi = carryMidi(edits.midi);
+    final takes = [
+      for (final t in edits.takes)
+        t.copyWith(
+          regions: [
+            for (final r in t.regions)
+              if (span(r.start, r.end) case (final s, final e)) r.withBounds(s, e),
+          ],
+          anchors: carryAnchors(t.anchors),
+          midi: carryMidi(t.midi),
+        ),
+    ];
 
     final patches = [
       for (final p in edits.patches)
@@ -201,6 +221,7 @@ class ScoreSwap {
           lanes: lanes,
           anchors: anchors,
           midi: midi,
+          takes: takes,
           partNames: {for (final MapEntry(key: id, value: name) in edits.partNames.entries) ?_to(id): name},
           textEdits: textEdits(edits.textEdits),
           condensed: {for (final id in edits.condensed) ?condensedId(id)},
@@ -218,7 +239,7 @@ class ScoreSwap {
       ),
       lost: (
         regions: lostRegions,
-        anchors: edits.anchors.length - anchors.length,
+        anchors: lostAnchors,
         warps: lostWarps,
         captions: edits.captions.length - captions.length,
         images: edits.patches.length - patches.length,

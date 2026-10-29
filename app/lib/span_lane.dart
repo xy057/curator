@@ -60,10 +60,13 @@ abstract interface class SpanLaneModel {
 /// across stretches to cut them back. ⌥ swaps the tools, as in the lanes; edges snap to beats
 /// (bars zoomed out), ⌘ places freely. [header] is its name.
 class SpanLane extends StatefulWidget {
-  const SpanLane({super.key, required this.controller, required this.model, required this.header});
+  const SpanLane({super.key, required this.controller, required this.model, required this.header, this.tools = false});
   final EditorController controller;
   final SpanLaneModel model;
   final Widget header;
+
+  /// Whether it takes the lanes' tool in the Audio tab too (the recordings' lanes do).
+  final bool tools;
 
   static const height = 26.0;
 
@@ -135,11 +138,11 @@ class _SpanLaneState extends State<SpanLane> {
     _labels.clear();
   }
 
-  /// The tool a drag uses: the Instruments tab's, ⌥ swapping as in the lanes; the Audio tab
-  /// has no tools, so it selects.
+  /// The tool a drag uses: the Instruments tab's, ⌥ swapping as in the lanes; in the Audio tab
+  /// it selects, unless it takes the tools there ([SpanLane.tools]).
   LaneTool get _tool {
     final alt = HardwareKeyboard.instance.isAltPressed;
-    final tool = c.tab == BottomTab.instruments ? c.lanes.tool : LaneTool.select;
+    final tool = c.tab == BottomTab.instruments || widget.tools ? c.lanes.tool : LaneTool.select;
     return switch (tool) {
       LaneTool.select => alt ? LaneTool.draw : LaneTool.select,
       LaneTool.draw => alt ? LaneTool.erase : LaneTool.draw,

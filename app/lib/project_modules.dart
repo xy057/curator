@@ -56,6 +56,7 @@ abstract final class ProjectModules {
   static const texts = _Texts();
   static const curation = _Curation();
   static const sync = _Sync();
+  static const takes = _Takes();
   static const images = _Images();
   static const captions = _Captions();
   static const spacers = _Spacers();
@@ -63,7 +64,7 @@ abstract final class ProjectModules {
 
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
-    fonts, engraving, display, extensions, instruments, texts, curation, sync, images, captions, spacers, view, //
+    fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, spacers, view, //
   ];
 
   /// The score-wide settings, what a page of Project Settings sets for the whole score: a
@@ -344,11 +345,14 @@ final class _Curation extends ProjectModule {
           'lanes': {
             for (final MapEntry(key: id, value: lane) in lanes.entries)
               id: [
-                for (final r in lane)
-                  [r.start, r.end, if (r.transitionIn != null || r.transitionOut != null) ...[r.transitionIn, r.transitionOut]],
+                for (final r in lane) regionJson(r),
               ],
           },
       };
+
+  /// A region as saved: `[start, end]`, or `[start, end, in, out]` with transitions of its own.
+  static List<Object?> regionJson(Region r) =>
+      [r.start, r.end, if (r.transitionIn != null || r.transitionOut != null) ...[r.transitionIn, r.transitionOut]];
 
   @override
   ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) => state.copyWith(
@@ -360,13 +364,13 @@ final class _Curation extends ProjectModule {
                   for (final MapEntry(key: id, value: lane) in r.map('lanes').entries)
                     id: [
                       for (final (i, region) in JsonReader.listAt(lane, '${r.where}.lanes.$id').indexed)
-                        _region(region, '${r.where}.lanes.$id[$i]'),
+                        readRegion(region, '${r.where}.lanes.$id[$i]'),
                     ],
                 },
         ),
       );
 
-  static Region _region(Object? json, String where) {
+  static Region readRegion(Object? json, String where) {
     final [start!, end!, transitionIn, transitionOut] = JsonReader.numbers(json, where, 4, optional: 2);
     if (start < 0) throw _damaged('$where starts before the score.');
     if (end < start) throw _damaged('$where ends before it starts.');
@@ -385,33 +389,40 @@ final class _Sync extends ProjectModule {
   @override
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files) {
     final EditState(:leadIn, :anchors, :midi) = state.edits;
-    return {
-      'leadIn': leadIn,
-      'anchors': [
-        for (final a in anchors) [a.quarter, a.seconds, ?a.jumpTo],
-      ],
-      if (midi != null)
-        'midi': {
-          'name': midi.name,
-          'tempos': [for (final t in midi.tempos) [t.quarter, t.quartersPerMinute]],
-          if (midi.warps.isNotEmpty) 'warps': [for (final w in midi.warps) [w.at, w.jumpTo]],
-        },
-    };
+    return toJson(leadIn, anchors, midi);
   }
 
+  /// A sync as saved (the state's, or a take's, [_Takes]).
+  static Map<String, Object?> toJson(double leadIn, List<SyncAnchor> anchors, MidiTempoMap? midi) => {
+        'leadIn': leadIn,
+        'anchors': [
+          for (final a in anchors) [a.quarter, a.seconds, ?a.jumpTo],
+        ],
+        if (midi != null)
+          'midi': {
+            'name': midi.name,
+            'tempos': [for (final t in midi.tempos) [t.quarter, t.quartersPerMinute]],
+            if (midi.warps.isNotEmpty) 'warps': [for (final w in midi.warps) [w.at, w.jumpTo]],
+          },
+      };
+
   @override
-  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) => state.copyWith(
-        edits: state.edits.copyWith(
-          leadIn: r.number('leadIn') ?? 0,
-          anchors: [
-            for (final (i, anchor) in r.list('anchors').indexed)
-              switch (JsonReader.numbers(anchor, '${r.where}.anchors[$i]', 3, optional: 1)) {
-                [final quarter!, final seconds!, final jumpTo] => SyncAnchor(quarter, seconds, jumpTo: jumpTo),
-                _ => throw StateError('unreachable'),
-              },
-          ]..sort((a, b) => a.seconds.compareTo(b.seconds)),
-          midi: r.isAbsent('midi') ? null : _midi(r.child('midi')),
-        ),
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    final (:leadIn, :anchors, :midi) = fromJson(r);
+    return state.copyWith(edits: state.edits.copyWith(leadIn: leadIn, anchors: anchors, midi: midi));
+  }
+
+  /// A sync saved by [toJson].
+  static ({double leadIn, List<SyncAnchor> anchors, MidiTempoMap? midi}) fromJson(JsonReader r) => (
+        leadIn: r.number('leadIn') ?? 0,
+        anchors: [
+          for (final (i, anchor) in r.list('anchors').indexed)
+            switch (JsonReader.numbers(anchor, '${r.where}.anchors[$i]', 3, optional: 1)) {
+              [final quarter!, final seconds!, final jumpTo] => SyncAnchor(quarter, seconds, jumpTo: jumpTo),
+              _ => throw StateError('unreachable'),
+            },
+        ]..sort((a, b) => a.seconds.compareTo(b.seconds)),
+        midi: r.isAbsent('midi') ? null : _midi(r.child('midi')),
       );
 
   static MidiTempoMap _midi(JsonReader r) {
@@ -439,6 +450,57 @@ final class _Sync extends ProjectModule {
     ];
     return MidiTempoMap(r.string('name') ?? '', tempos, warps: warps);
   }
+}
+
+/// The recordings of the score ([EditState.takes]), top lane first: each one's id, name, lane
+/// (regions, as the curation's), and (but the focus's, in [_Sync]) sync; which is the focus; the
+/// crossfade. The files themselves are the project's (`media/`). Optional: a Curator from before
+/// keeps the focus's recording, with its sync.
+final class _Takes extends ProjectModule {
+  const _Takes() : super('takes', optional: true);
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) {
+    final EditState(:takes, :focus, :crossfade) = state.edits;
+    return {
+      'focus': ?focus,
+      'crossfade': ?crossfade,
+      'takes': [
+        for (final t in takes)
+          {
+            'id': t.id,
+            'label': t.label,
+            'regions': [for (final r in t.regions) _Curation.regionJson(r)],
+            if (t.id != focus) ..._Sync.toJson(t.leadIn, t.anchors, t.midi),
+          },
+      ],
+    };
+  }
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    final takes = <Take>[];
+    for (final (i, value) in r.list('takes').indexed) {
+      final t = JsonReader(value, '${r.where}.takes[$i]');
+      final id = t.string('id', required: true)!, label = t.string('label') ?? '';
+      if (!isTakeId(id) || takes.any((other) => other.id == id)) throw _damaged('${t.where}.id is not a take of its own.');
+      final (:leadIn, :anchors, :midi) = _Sync.fromJson(t);
+      final regions = [
+        for (final (j, region) in t.list('regions').indexed) _Curation.readRegion(region, '${t.where}.regions[$j]'),
+      ];
+      takes.add(Take(id, label, regions: regions, anchors: anchors, leadIn: leadIn, midi: midi));
+    }
+    final focus = r.string('focus');
+    if (focus != null && !takes.any((t) => t.id == focus)) throw _damaged('${r.where}.focus is not one of its takes.');
+    final crossfade = r.number('crossfade');
+    if (crossfade != null && (crossfade < 0 || crossfade > _Display.maxTransition)) {
+      throw _damaged('${r.where}.crossfade is not a length of time.');
+    }
+    return state.copyWith(edits: state.edits.copyWith(takes: takes, focus: focus, crossfade: crossfade));
+  }
+
+  /// `take-1`, `take-2`…: safe in a file's name.
+  static bool isTakeId(String id) => RegExp(r'^take-[1-9][0-9]{0,5}$').hasMatch(id);
 }
 
 /// Images on the score (Attach Image), bottom to top, and each one's file, byte for byte, as

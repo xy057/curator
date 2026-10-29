@@ -109,7 +109,8 @@ class Waveform {
 
 /// A loaded recording. For a video, it is the soundtrack taken out of it.
 class AudioTrack {
-  AudioTrack._(this.path, this.name, this.source, this.length, this.waveform, this._samples, this._sampleRate);
+  AudioTrack._(this.path, this.name, this.source, this.length, this.waveform, this._samples, this._sampleRate, this._scratch,
+      {required this.decodedBytes});
 
   /// A silent track (no playback) for tests and previews.
   @visibleForTesting
@@ -117,7 +118,21 @@ class AudioTrack {
       : path = name,
         source = null,
         _samples = name,
-        _sampleRate = null;
+        _sampleRate = null,
+        _scratch = null,
+        decodedBytes = 0;
+
+  /// Files converted for it; deleted with it.
+  final Directory? _scratch;
+
+  /// What it holds in memory, decoded (0: read from disk as it plays).
+  final int decodedBytes;
+
+  /// Lets go of its sound and its converted files.
+  Future<void> _dispose() async {
+    if (source case final source?) await SoLoud.instance.disposeSource(source);
+    ScratchSpace.release(_scratch);
+  }
 
   /// The recording's audio file: what a project embeds (a video's extracted soundtrack).
   final String path;
@@ -188,97 +203,202 @@ class AudioTrack {
       });
 }
 
+/// A stretch of a recording as it plays in the performance ([SoundChunk], resolved): take
+/// [take] from [from] seconds into its file at [at] seconds of the performance, until [end],
+/// rising over [fadeIn] and dying away over [fadeOut].
+typedef PlayChunk = ({String take, double from, double at, double end, double fadeIn, double fadeOut});
+
 /// Playback through SoLoud (native, cross-platform). The engine's own position is the master
 /// clock, so the score stays locked to what is heard.
+///
+/// It holds every recording of the score at once (its takes, by id) and plays the performance
+/// as [PlayChunk]s say: each a voice of its own, started as its time comes ([follow]) and faded
+/// by SoLoud itself, to the sample, so one recording crossfades into the next.
 class AudioEngine {
   static Future<void>? _initializing;
-  SoundHandle? _handle;
-  AudioTrack? _track;
+  final _tracks = <String, AudioTrack>{};
+  String? _focus;
+  AudioTrack? _debugTrack;
   double _speed = 1;
 
-  /// Files converted for the current track; deleted with it.
-  Directory? _scratch;
+  /// The focus's recording (whose sync the Audio tab edits).
+  AudioTrack? get track => _debugTrack ?? _tracks[_focus];
 
-  AudioTrack? get track => _track;
+  /// Which take [track] is.
+  set focus(String? id) => _focus = id;
+
+  /// The recording of take [id]; null when it has none.
+  AudioTrack? trackOf(String id) => _tracks[id];
 
   @visibleForTesting
-  set debugTrack(AudioTrack? track) => _track = track;
+  set debugTrack(AudioTrack? track) => _debugTrack = track;
 
   static Future<void> _ensureInitialized() =>
       _initializing ??= SoLoud.instance.isInitialized ? Future.value() : SoLoud.instance.init();
 
-  /// Loads a recording: audio, or a video whose soundtrack becomes the track. Anything SoLoud
+  /// What the recordings held may take in memory, decoded, together; past it a recording is
+  /// read from disk as it plays (a 70-minute symphony decoded is about 1.5 GB).
+  static const memoryBudget = 2 << 30;
+
+  /// Reads a recording: audio, or a video whose soundtrack becomes the track. Anything SoLoud
   /// can't read is converted to FLAC first, into a scratch folder that goes with the track.
-  ///
-  /// The track it replaces goes only once this one is ready: a recording that can't be read
-  /// leaves the current one loaded.
-  Future<AudioTrack> load(String path) async {
-    stop();
+  /// Nothing changes until it is [put] in.
+  Future<AudioTrack> read(String path) async {
     final scratch = ScratchSpace.folder('recording');
-    final AudioTrack track;
     AudioSource? source;
     try {
       final audio = MediaFormats.isVideo(path) ? await MediaConverter.toFlac(path, scratch.path) : path;
       final playable = MediaFormats.isPlayable(audio) ? audio : await MediaConverter.toFlac(audio, scratch.path);
       await _ensureInitialized();
-      source = await SoLoud.instance.loadFile(playable);
+      source = await SoLoud.instance.loadFile(playable, mode: LoadMode.disk);
       final length = SoLoud.instance.getLength(source).inMicroseconds / 1e6;
       // A whole number of frames between samples, or the waveform drifts from the audio.
       final rate = AudioFormat.sampleRateOf(playable);
+      // Decoded in memory while the others leave room (two channels of floats a frame).
+      final decoded = (length * (rate ?? 48000) * 2 * 4).ceil();
+      final held = _tracks.values.fold(0, (sum, t) => sum + t.decodedBytes);
+      final inMemory = held + decoded <= memoryBudget;
+      if (inMemory) {
+        await SoLoud.instance.disposeSource(source);
+        source = null;
+        source = await SoLoud.instance.loadFile(playable);
+      }
       final plan = AudioFormat.samplingPlan(length, rate);
       final samples = await SoLoud.instance.readSamplesFromFile(playable, plan.count);
       final waveform = await Waveform.analyze(samples, plan.rate);
-      track = AudioTrack._(audio, fileNameOf(audio), source, length, waveform, playable, rate);
+      return AudioTrack._(audio, fileNameOf(audio), source, length, waveform, playable, rate, scratch,
+          decodedBytes: inMemory ? decoded : 0);
     } catch (_) {
       if (source != null) await SoLoud.instance.disposeSource(source);
       ScratchSpace.release(scratch);
       rethrow;
     }
-    await unload();
-    _scratch = scratch;
-    return _track = track;
   }
 
+  /// Makes [track] take [id]'s recording, letting go of the one it had.
+  Future<void> put(String id, AudioTrack track) async {
+    stop();
+    final before = _tracks[id];
+    _tracks[id] = track;
+    if (before != null && before != track) await before._dispose();
+  }
+
+  /// Lets go of take [id]'s recording.
+  Future<void> remove(String id) async {
+    stop();
+    if (id == _focus) _focus = null;
+    await _tracks.remove(id)?._dispose();
+  }
+
+  /// Lets go of every recording.
   Future<void> unload() async {
     stop();
-    final track = _track;
-    _track = null;
-    final source = track?.source;
-    if (source != null) await SoLoud.instance.disposeSource(source);
-    ScratchSpace.release(_scratch);
-    _scratch = null;
+    _focus = null;
+    _chunks = const [];
+    final all = [..._tracks.values];
+    _tracks.clear();
+    for (final t in all) {
+      await t._dispose();
+    }
   }
 
-  bool get _valid => _handle != null && SoLoud.instance.getIsValidVoiceHandle(_handle!);
+  // MARK: The performance
 
-  /// Plays from [fromSeconds]. Past the end of the recording nothing sounds, and whatever
-  /// was playing stops (the clock then runs on alone, through the score's last bars).
+  List<PlayChunk> _chunks = const [];
+
+  /// The voices sounding, by index into [_chunks]; whether each is fading out already.
+  final _voices = <int, ({SoundHandle handle, bool fading})>{};
+
+  /// The first chunk not yet started.
+  int _next = 0;
+
+  /// What plays from now on. Whether it changed (playing, [play] it again to hear it).
+  bool setChunks(List<PlayChunk> chunks) {
+    if (listEquals(chunks, _chunks)) return false;
+    stop();
+    _chunks = chunks;
+    return true;
+  }
+
+  /// Plays the performance from [fromSeconds]: every chunk sounding there, faded as far as it
+  /// has got. Past the last nothing sounds (the clock then runs on alone).
   void play(double fromSeconds) {
     stop();
-    final track = _track;
-    final source = track?.source;
-    if (track == null || source == null || fromSeconds >= track.length) return;
-    final handle = SoLoud.instance.play(source, paused: true);
-    SoLoud.instance.seek(handle, Duration(microseconds: (math.max(0.0, fromSeconds) * 1e6).round()));
-    SoLoud.instance.setRelativePlaySpeed(handle, _speed);
-    SoLoud.instance.setPause(handle, false);
-    _handle = handle;
+    _next = 0;
+    while (_next < _chunks.length && _chunks[_next].at <= fromSeconds) {
+      if (_chunks[_next].end > fromSeconds) _start(_next, fromSeconds);
+      _next++;
+    }
   }
 
+  /// The performance has got to [seconds] (each frame while playing): chunks whose time has
+  /// come start, those ending fade out.
+  void follow(double seconds) {
+    while (_next < _chunks.length && _chunks[_next].at <= seconds) {
+      if (_chunks[_next].end > seconds) _start(_next, seconds);
+      _next++;
+    }
+    for (final MapEntry(key: i, value: v) in [..._voices.entries]) {
+      final c = _chunks[i];
+      if (!SoLoud.instance.getIsValidVoiceHandle(v.handle)) {
+        _voices.remove(i);
+      } else if (!v.fading && seconds >= c.end - c.fadeOut) {
+        _fadeOut(i, v.handle, c, seconds);
+      }
+    }
+  }
+
+  void _start(int i, double seconds) {
+    final c = _chunks[i];
+    final track = _tracks[c.take], source = track?.source;
+    final offset = c.from + seconds - c.at;
+    if (track == null || source == null || offset >= track.length) return;
+    final gain = gainAt((take: 0, from: c.from, at: c.at, length: c.end - c.at, fadeIn: c.fadeIn, fadeOut: c.fadeOut), seconds);
+    final handle = SoLoud.instance.play(source, volume: gain, paused: true);
+    SoLoud.instance.seek(handle, Duration(microseconds: (math.max(0.0, offset) * 1e6).round()));
+    SoLoud.instance.setRelativePlaySpeed(handle, _speed);
+    SoLoud.instance.setPause(handle, false);
+    _voices[i] = (handle: handle, fading: false);
+    if (seconds < c.at + c.fadeIn) SoLoud.instance.fadeVolume(handle, 1, _real(c.at + c.fadeIn - seconds));
+    if (seconds >= c.end - c.fadeOut) _fadeOut(i, handle, c, seconds);
+  }
+
+  void _fadeOut(int i, SoundHandle handle, PlayChunk c, double seconds) {
+    final left = _real(math.max(0, c.end - seconds));
+    SoLoud.instance
+      ..fadeVolume(handle, 0, left)
+      ..scheduleStop(handle, left);
+    _voices[i] = (handle: handle, fading: true);
+  }
+
+  /// [seconds] of the performance as heard at the playback speed.
+  Duration _real(double seconds) => Duration(microseconds: (seconds / _speed * 1e6).round());
+
   void stop() {
-    if (_valid) SoLoud.instance.stop(_handle!);
-    _handle = null;
+    for (final v in _voices.values) {
+      if (SoLoud.instance.getIsValidVoiceHandle(v.handle)) SoLoud.instance.stop(v.handle);
+    }
+    _voices.clear();
   }
 
   /// Playback speed (0.5 = half speed, lower pitch): handy for tapping fast passages.
   double get speed => _speed;
   set speed(double value) {
     _speed = value;
-    if (_valid) SoLoud.instance.setRelativePlaySpeed(_handle!, value);
+    for (final v in _voices.values) {
+      if (SoLoud.instance.getIsValidVoiceHandle(v.handle)) SoLoud.instance.setRelativePlaySpeed(v.handle, value);
+    }
   }
 
-  /// Current position in the recording, or null when nothing is playing.
-  double? get position => _valid ? SoLoud.instance.getPosition(_handle!).inMicroseconds / 1e6 : null;
+  /// Where the performance is, as the voice not fading out hears it; null when none sounds.
+  double? get position {
+    for (final MapEntry(key: i, value: v) in _voices.entries) {
+      if (v.fading || !SoLoud.instance.getIsValidVoiceHandle(v.handle)) continue;
+      final c = _chunks[i];
+      return c.at + SoLoud.instance.getPosition(v.handle).inMicroseconds / 1e6 - c.from;
+    }
+    return null;
+  }
 
   // MARK: Metronome
 

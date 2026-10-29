@@ -11,12 +11,15 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'app_icons.dart';
+import 'app_settings.dart' show AppSettings;
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
+import 'instruments_toolbar.dart' show InstrumentsToolbar;
 import 'lanes_common.dart';
 import 'media_converter.dart';
 import 'menu_kit.dart';
+import 'take_lanes.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
 
@@ -179,11 +182,23 @@ class _AudioLanesState extends State<AudioLanes> {
   @override
   Widget build(BuildContext context) => Select(
         listenable: c,
-        select: () => (sync: c.sync, midi: c.midiTempo, track: c.track, loading: c.isLoadingAudio),
+        select: () => (sync: c.sync, midi: c.midiTempo, track: c.track, takes: c.takes, soloed: c.soloed, loading: c.isLoadingAudio),
         builder: (context, _) => _lanes(context),
       );
 
-  Widget _lanes(BuildContext context) {
+  Widget _lanes(BuildContext context) => Column(children: [
+        if (c.takes.isNotEmpty) TakeLanes(controller: c),
+        Expanded(
+          child: c.editsSync
+              ? _syncLanes(context)
+              : Center(
+                  child: Text('Solo a recording to edit its sync'.tr,
+                      style: TextStyle(color: context.colors.textMuted, fontSize: 12)),
+                ),
+        ),
+      ]);
+
+  Widget _syncLanes(BuildContext context) {
     if (c.midiTempo case final midi?) return _MidiTempoLane(controller: c, name: midi.name);
     final track = c.track;
     final colors = context.colors;
@@ -239,7 +254,7 @@ class _AudioLanesState extends State<AudioLanes> {
                 children: [
                   Text('Recording'.tr),
                   if (track != null)
-                    Text(track.name,
+                    Text(c.takes.where((t) => t.id == c.focus).firstOrNull?.label ?? track.name,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 11, color: colors.textMuted)),
                 ],
@@ -612,12 +627,23 @@ class AudioToolbar extends StatelessWidget {
       listenable: Listenable.merge([sync, c]),
       builder: (context, _) => Row(children: [
         ToolbarButton(
-          icon: c.track == null ? AppIcon.addAudio.of(context) : AppIcon.replaceAudio.of(context),
-          tooltip: c.track == null
-              ? 'Add Recording… (or drop one here)'.tr
-              : '${'Replace recording…'.tr}\n${c.track!.name}',
-          onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c),
+          icon: AppIcon.addAudio.of(context),
+          tooltip: c.track == null ? 'Add Recording… (or drop one here)'.tr : 'Add Recording…'.tr,
+          onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c, add: true),
         ),
+        if (c.takes.isNotEmpty) ...[
+          const SizedBox(width: 4),
+          ToolGroup(children: [
+            for (final MapEntry(key: tool, value: (icon, tip)) in InstrumentsToolbar.tools.entries)
+              ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
+          ]),
+          _CrossfadeMenu(controller: c),
+          if (c.editsSync) const ToolbarDivider(),
+        ],
+        if (!c.editsSync) ...[
+          const Spacer(),
+          _SpeedMenu(controller: c),
+        ] else ...[
         if (!c.usesMidiTempo) ...[
           const SizedBox(width: 4),
           _AlignButton(controller: c),
@@ -693,7 +719,58 @@ class AudioToolbar extends StatelessWidget {
             tooltip: 'Remove all anchors'.tr,
             onPressed: sync.anchors.isEmpty ? null : c.anchors.clear,
           ),
+        ],
       ]),
+    );
+  }
+}
+
+/// How long one recording fades into the next: the region selected in a recording's lane (at
+/// both its edges), else the project's, as the instruments' Transition menu is.
+class _CrossfadeMenu extends StatelessWidget {
+  const _CrossfadeMenu({required this.controller});
+  final EditorController controller;
+
+  /// The project's in the menu (a menu's null means it was dismissed).
+  static const _project = -1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller, colors = context.colors;
+    final selected = c.takeSelection;
+    final region = selected == null ? null : c.takes.firstWhere((t) => t.id == selected.take).regions[selected.index];
+    final own = region == null ? null : (region.transitionIn ?? region.transitionOut);
+    final shown = own ?? c.crossfade;
+    return OverlaySemantics(
+      child: AppPopupMenuButton<double>(
+        tooltip: region == null ? 'Crossfade'.tr : (own == null ? 'Crossfade (the project’s)' : 'Crossfade (its own)').tr,
+        position: PopupMenuPosition.under,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.only(left: 6, right: 2),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
+        ),
+        onSelected: (s) => region == null
+            ? c.setCrossfade(s == _project ? null : s)
+            : c.setCrossfade(s == _project ? null : s, id: selected!.take, region: selected.index),
+        itemBuilder: (context) => [
+          if (region != null) ...[
+            checkedMenuItem(context,
+                value: _project, checked: own == null, child: Text("Project's ({n} s)".fill({'n': c.crossfade}))),
+            menuDivider(context),
+          ],
+          for (final s in {...AppSettings.transitionChoices, shown}.toList()..sort())
+            checkedMenuItem(context,
+                value: s, checked: region == null ? s == c.crossfade : own == s, child: Text('{n} s'.fill({'n': s}))),
+        ],
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(AppIcon.transition.of(context), size: 16, color: colors.textMuted),
+          const SizedBox(width: 5),
+          Text('{n} s'.fill({'n': shown}),
+              style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
+          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
+        ]),
+      ),
     );
   }
 }
@@ -841,11 +918,12 @@ class _TextToggle extends StatelessWidget {
   }
 }
 
-Future<void> pickAudio(BuildContext context, EditorController c) async {
+/// Picks a recording for the one heard, or with [add] another take of the score.
+Future<void> pickAudio(BuildContext context, EditorController c, {bool add = false}) async {
   final file = await openFile(acceptedTypeGroups: [audioTypes]);
   if (file == null) return;
   try {
-    await c.loadAudio(file.path);
+    await (add ? c.addRecording(file.path) : c.loadAudio(file.path));
     if (context.mounted) await alignAdded(context, c);
   } catch (e) {
     if (context.mounted) {

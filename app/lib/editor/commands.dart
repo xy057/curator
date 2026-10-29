@@ -44,7 +44,7 @@ class EditCommands {
       (_editor.images._selected != null ||
           _editor.captions._selected != null ||
           _editor.spacers.hasSelection ||
-          (_syncing ? !_anchors._isEmpty : _lanes.selected.isNotEmpty));
+          (_syncing ? !_anchors._isEmpty || _editor.takeSelection != null : _lanes.selected.isNotEmpty));
 
   /// Delete: a selected image goes first, then a selected caption, a selected spacer, then what is selected in
   /// the tab showing.
@@ -56,6 +56,7 @@ class EditCommands {
       _editor.spacers.removeSelected();
       return;
     }
+    if (_syncing && _editor.takeSelection != null) return _editor.removeTakeRegion();
     _syncing ? _anchors.delete() : _lanes.delete();
   }
 
@@ -96,16 +97,16 @@ class EditCommands {
     if (_anchors.tapArmed) {
       _anchors.tapArmed = false;
       _editor.playback.pause();
-    } else if (_curating && _lanes.selected.isEmpty && _lanes.tool != LaneTool.select) {
+    } else if (_open && _lanes.selected.isEmpty && _lanes.tool != LaneTool.select) {
       _lanes.tool = LaneTool.select;
     } else {
       _editor.clearSelection();
     }
   }
 
-  /// V, D, E: the Instruments tab's tool.
+  /// V, D, E: the lanes' tool (the instruments', and the recordings' in the Audio tab).
   void tool(LaneTool tool) {
-    if (_curating) _lanes.tool = tool;
+    if (_open) _lanes.tool = tool;
   }
 
   /// [ / ]: the selected regions start (end) at the playhead's beat.

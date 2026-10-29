@@ -21,6 +21,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_form.dart` | The score's form (repeats, endings, D.C., D.S., To Coda, Fine): the order its bars are played in, and the MIDI warps for it |
 | `midi_tempo.dart` | A Standard MIDI File's tempo map (Set Tempo events only), and the anchors that make a `SyncMap` follow it; `MidiInScore`, where its quarters fall in the score |
 | `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend; `ClippedTimeline`, part of a performance as if it were all |
+| `take_splice.dart` | `TakeSplice`: a performance spliced from several recordings' syncs by their lanes, and its sound as crossfaded `SoundChunk`s |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
@@ -46,7 +47,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG and raster drawing (animated too), the clipboard |
-| `span_lane.dart` | `SpanLane`: a lane pinned under the ruler whose stretches (`SpanLaneModel`) are drawn, moved, trimmed and erased the way regions are; the Captions and Spacers lanes are two |
+| `span_lane.dart` | `SpanLane`: a lane pinned under the ruler whose stretches (`SpanLaneModel`) are drawn, moved, trimmed and erased the way regions are; the Captions, Spacers and recordings' lanes (`take_lanes.dart`) are three |
 | `spacer_dialogs.dart`, `spacer_lane.dart`, `score_view/spacer_handles.dart` | Attach Image's spacers: their dialogs; the Spacers lane (a `SpanLane` of the horizontal ones, with add and remove buttons); selecting, moving and resizing them in the score view |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
 | `caption_settings.dart` | Project Settings ▸ Extensions ▸ Captions' own settings (the app's): font, countdown, size, alignment, backing, with a preview |
@@ -65,7 +66,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `settings_file.dart` | The `.ccf` format: a project's score-wide settings, for other projects (Project Settings ▸ Export… / Import…) |
-| `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud), the waveform and onsets, the recording read whole for Align (`AudioTrack.chroma`), converting to FLAC; `MediaFormats` lists what is accepted |
+| `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud; every take's recording held, a voice per `PlayChunk`), the waveform and onsets, the recording read whole for Align (`AudioTrack.chroma`), converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
 | `phrase_search_window.dart` | Edit ▸ Find Phrase… (⌘F): the window that enters a phrase and lists where it is played |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
@@ -251,6 +252,34 @@ timeline draws bars and regions per pass. Inside, `SyncMap` works on the perform
 which a warp doesn't interrupt, so the tempo runs on through a jump. Changing a jump moves
 the anchors after it (up to the next warp) with it, keeping their times (`SyncMap.setJump`).
 Anchors are kept in time order, each arriving further on than the one before went on from.
+
+**A score can have several recordings** (takes: `EditState.takes`), a lane each at the top of the
+Audio tab (`TakeLanes`, `SpanLane`s edited with the lanes' tools, as the instruments' are). A take's
+regions say where it is heard, one at a time: a region drawn or moved in one lane is taken out of the
+others (`EditState.withTakeRegions`); where no lane has one, nothing is heard and the time goes on
+at the tempo of the take heard last. Each take has its own sync: the focus's is the state's own
+(`anchors`, `leadIn`, `midi`, so everything that reads the sync, tapping, Align and a MIDI tempo map
+included, works on it unchanged; its `Take` holds blanks), each other's is in its `Take`. What plays
+is `TakeSplice` (score_engine): the form's passes cut at the regions' edges, each piece timed by
+the take heard in it (the same time over as the performance plays it, or its last pass to play it),
+and the sound as `SoundChunk`s, a run one take plays straight on, ramped in and out over the edge's
+crossfade (its region's transition, else `EditState.crossfade`, 0.3 s) centred on it (`gainAt`).
+`EditorController.timeline` is that splice with two takes or more; the Audio tab edits a sync only
+with one, or with a take soloed (a lane's S, `EditorController.solo`): it becomes the focus
+(`EditState.focusing`) and is heard whole in its own time, the playhead carried to the same place
+in the score (`ScoreTimelinePasses.carriedTo`). `AudioEngine.setChunks` plays a voice per chunk,
+faded with SoLoud's `fadeVolume`/`scheduleStop`, started again only when the chunks changed (so
+tapping along doesn't restart it); the clock follows a voice not fading. Video export mixes the
+same chunks with FFmpeg (`atrim`, `afade`, `adelay`, `amix`), or seeks the one file covering it all.
+Adding, removing, soloing and the focus are no Undo steps, yet Undo keeps each take's edits: they
+are made to every state Undo keeps alike (`_everywhere`, `EditHistory.rewrite`), so a state never
+holds one take's anchors as another's; lane edits, the crossfade and renaming are steps.
+`AudioEngine` holds every take's recording at once, decoded in memory while together they stay
+within 2 GB (`AudioEngine.memoryBudget`), read from disk as they play past it. Add Recording…
+adds a take (the first heard throughout; another with an empty lane, soloed, no anchors: Align
+it); Replace Recording… (a lane's menu) and a recording dropped replace the focus's, keeping its
+sync and lane. Saved as the `takes` module (optional: an older Curator keeps the focus's, with
+its sync); a take whose recording is missing when the project opens is left out.
 
 **A MIDI file can stand in for the anchors.** Dropping a `.mid` on the Audio tab (or its MIDI
 button) reads its tempo map (`MidiTempoMap.read`: tempo changes only; the beats still come
@@ -719,8 +748,9 @@ Curator 0.1–0.6.1 read only that file and refuse a version past theirs, 26 at 
 update, so every release knows the file and none opens it), `manifest.json` (format, `layout` 2,
 `writer` "Curator 0.6.1 (131)", the score's and recording's names and entries, and each module's
 `version` and whether it is `optional`), `modules/<id>.json` (compact JSON), each module's files
-under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` last.
-Everything deflates at zlib's default level, but the recording and packed images, stored.
+under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` (the
+recording heard) and `media/takes/<id>/<name>` (each other, listed in the manifest's `takes`) last.
+Everything deflates at zlib's default level, but the recordings and packed images, stored.
 
 Each module (`ProjectModule`, all in `ProjectModules.all`) owns a part of `ProjectState`: `fonts`,
 `engraving` (options, typography, the flags), `display` (transitions, scroll, motion, bar numbers,

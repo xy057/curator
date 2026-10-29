@@ -90,6 +90,7 @@ class ProjectDocument extends ChangeNotifier {
         scoreBytes: project.scoreBytes,
         state: project.state,
         mediaPath: project.media?.path,
+        takePaths: project.takes,
       );
       final missing = project.media?.missingPath;
       recordingProblem = problem ?? (missing == null ? null : '${'Can’t find the linked recording:'.tr}\n$missing');
@@ -195,6 +196,11 @@ class ProjectDocument extends ChangeNotifier {
       scoreBytes: source.bytes,
       state: controller.projectState,
       media: track == null ? null : ProjectMedia(name: track.name, embedFrom: track.path),
+      takes: {
+        for (final t in controller.takes)
+          if (t.id != controller.focus)
+            if (controller.audio.trackOf(t.id) case final other?) t.id: ProjectMedia(name: other.name, embedFrom: other.path),
+      },
     );
   }
 

@@ -96,7 +96,7 @@ class EditorController extends ChangeNotifier {
   void _applyTimeline() {
     if (!_timelineStale) return;
     _timelineStale = false;
-    if (_sync case final sync?) _scene?.setTimeline(sync);
+    if (_sync != null) _scene?.setTimeline(timeline);
   }
 
   /// When each instrument is shown. Edited in the Instruments tab; read by the preview.
@@ -106,7 +106,7 @@ class EditorController extends ChangeNotifier {
   SyncMap? get sync => _sync;
 
   /// The musical-time ↔ seconds mapping everything uses.
-  ScoreTimeline get timeline => _sync ?? _score!.timeline;
+  ScoreTimeline get timeline => _performed.timeline;
 
   /// Where the beats fall in each bar (from the time signatures): the finer grid.
   BeatGrid get beats => _score!.beats;
@@ -194,6 +194,7 @@ class EditorController extends ChangeNotifier {
     required Uint8List scoreBytes,
     required ProjectState state,
     String? mediaPath,
+    Map<String, String> takePaths = const {},
   }) async {
     var edits = state.edits;
     // A font the project only names is looked for here; not found, Bravura stands in.
@@ -206,12 +207,9 @@ class EditorController extends ChangeNotifier {
     final score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
     final arts = await ImageEditing._decodeAll(state.images);
     await _install(name, scoreBytes, score, state, arts: arts);
-    if (mediaPath == null || _disposed) return null; // nothing to play it in: the window closed
+    if (_disposed) return null; // nothing to play it in: the window closed
     try {
-      await _loadAudio(mediaPath);
-      return null;
-    } catch (e) {
-      return '${'Couldn’t load the recording.'.tr}\n${describeError(e)}';
+      return await _loadTakes(mediaPath, takePaths);
     } finally {
       _tab = BottomTab.instruments;
       notifyListeners();
@@ -356,6 +354,9 @@ class EditorController extends ChangeNotifier {
     _history.clear();
     _committed = null;
     _gestures = 0;
+    _soloed = null;
+    _performance = null;
+    _takeSelected = null;
     anchors._reset();
     lanes._reset();
     images._reset();
@@ -463,7 +464,7 @@ class EditorController extends ChangeNotifier {
     final scene = CuratedScene(score, style: RenderStyle(staffSpace: _staffSpace))
       ..settings = sceneSettings
       ..holdBarRow = _gestures > 0 || _staffSpaceChanged;
-    if (_sync != null) scene.setTimeline(_sync!);
+    if (_sync != null) scene.setTimeline(timeline);
     return scene;
   }
 
@@ -1284,7 +1285,7 @@ class EditorController extends ChangeNotifier {
   void setTransition(double seconds) => _curation?.transition = seconds;
 
   void _syncChanged() {
-    _timelineStale = true;
+    _performanceChanged();
     _edited();
   }
 
@@ -1438,34 +1439,277 @@ class EditorController extends ChangeNotifier {
   final audio = AudioEngine();
   bool _loadingAudio = false;
   bool get isLoadingAudio => _loadingAudio;
+
+  /// The focus's recording: the one whose sync the Audio tab edits.
   AudioTrack? get track => audio.track;
+
+  /// Every recording of the score, a lane each, top to bottom ([EditState.takes]).
+  List<Take> get takes => _doc.takes;
+
+  /// The take whose sync is [sync]; null when there is no recording.
+  String? get focus => _doc.focus;
+
+  /// The take heard alone, in its own time ([solo]); null: the lanes say what is heard.
+  String? get soloed => _soloed;
+  String? _soloed;
+
+  /// Whether the Audio tab edits [sync]: it is the time everything follows (one recording, or
+  /// the focus soloed). With more, the performance is spliced from them ([TakeSplice]).
+  bool get editsSync => _doc.takes.length < 2 || _soloed != null;
+
+  /// Seconds one recording fades into the next where a region sets none of its own.
+  double get crossfade => _doc.crossfade ?? EditState.defaultCrossfade;
 
   /// Runs work that replaces a file the document saves (the recording, converted into scratch
   /// space and deleted with it) when nothing is reading it: [ProjectDocument] makes it its
   /// queue, so a save embedding the recording finishes first. At once without a document.
   Future<void> Function(Future<void> Function() job) inTurn = (job) => job();
 
-  /// Loads the recording from [path] (dropped or picked), in turn ([inTurn]).
+  /// The performance as played: its timeline, and the recordings' sound in it.
+  ({ScoreTimeline timeline, List<PlayChunk> chunks})? _performance;
+
+  ({ScoreTimeline timeline, List<PlayChunk> chunks}) get _performed => _performance ??= _perform(_sync);
+
+  /// The performance as [timeline] and the sound are now, on syncs of its own that nothing
+  /// edited later changes (video export's), with each recording's file by take id.
+  ({ScoreTimeline timeline, List<PlayChunk> chunks, Map<String, String> files}) performedCopy() {
+    final (:timeline, :chunks) = _perform(_syncCopy());
+    return (
+      timeline: timeline,
+      chunks: chunks,
+      files: {for (final t in _doc.takes) if (audio.trackOf(t.id) case final track?) t.id: track.path},
+    );
+  }
+
+  /// What [timeline] and the sound are with the focus's sync [sync]. A recording soloed is heard
+  /// whole, in its own time; one alone, in its own time where its lane has regions; several,
+  /// spliced by their lanes.
+  ({ScoreTimeline timeline, List<PlayChunk> chunks}) _perform(SyncMap? sync) {
+    if (sync == null) return (timeline: _score!.timeline, chunks: const []);
+    PlayChunk? whole(String id) {
+      final track = audio.trackOf(id);
+      return track == null ? null : (take: id, from: 0, at: 0, end: track.length, fadeIn: 0, fadeOut: 0);
+    }
+
+    if (_soloed case final id?) return (timeline: sync, chunks: [?whole(id)]);
+    final takes = _doc.takes;
+    if (takes.isEmpty) return (timeline: sync, chunks: const []);
+    final splice = TakeSplice(
+      takes: [for (final t in takes) t.id == _doc.focus ? sync : _syncOf(t)],
+      lanes: [for (final t in takes) t.regions],
+      crossfade: crossfade,
+    );
+    final chunks = <PlayChunk>[
+      for (final c in splice.chunks)
+        if (audio.trackOf(takes[c.take].id) case final track?)
+          (
+            take: takes[c.take].id,
+            from: c.from,
+            at: c.at,
+            end: math.min(c.at + c.length, c.at + track.length - c.from),
+            fadeIn: c.fadeIn,
+            fadeOut: c.fadeOut,
+          ),
+    ];
+    return (timeline: takes.length == 1 ? sync : splice, chunks: chunks);
+  }
+
+  /// The focus's sync as it is now, on a map of its own.
+  SyncMap? _syncCopy() => _sync == null ? null : _syncOf(Take('', '', anchors: _ownAnchors, leadIn: _sync!.leadIn, midi: _doc.midi));
+
+  /// Take [take]'s sync, as its own.
+  SyncMap _syncOf(Take take) {
+    final sync = _sync!;
+    return SyncMap(measureStarts: sync.measureStarts, defaultTempo: sync.defaultTempo, beats: sync.beats)
+      ..load(take.midi?.anchors(start: take.leadIn, totalQuarters: sync.totalQuarters) ?? take.anchors, leadIn: take.leadIn);
+  }
+
+  /// The takes, their lanes or a sync changed: the performance is made again when next asked,
+  /// and what plays follows it.
+  void _performanceChanged() {
+    _performance = null;
+    _timelineStale = true;
+    if (_score == null) return;
+    // Tapping along changes the sync while it plays: what sounds starts again only if it moved.
+    if (audio.setChunks(_performed.chunks) && playback.isPlaying && !playback._scrubbing) audio.play(playback.time.value);
+  }
+
+  /// When the last sound ends (0 with none).
+  double get soundEnd => _performed.chunks.fold(0.0, (end, c) => math.max(end, c.end));
+
+  /// Loads the recording from [path] (dropped or picked) in place of the focus's, keeping its
+  /// sync and lane, in turn ([inTurn]); with none yet, the score's first.
   ///
   /// A video's soundtrack becomes the track (and so what a project embeds).
   Future<void> loadAudio(String path) => inTurn(() => _loadAudio(path));
 
-  /// Takes the recording out of the project (Project Settings ▸ Project Info ▸ Remove), in
-  /// turn ([inTurn]). Not an Undo step, like loading one.
-  Future<void> removeAudio() => inTurn(() async {
-    if (audio.track == null) return;
-    playback.pause();
-    await audio.unload();
-    _edited();
-    notifyListeners();
+  /// Adds the recording at [path] as another take of the score, in a lane of its own (empty:
+  /// draw where it is heard) with a sync of its own (none yet: Align it), soloed. Not an Undo
+  /// step, like loading one. In turn ([inTurn]).
+  Future<void> addRecording(String path) => inTurn(() async {
+    if (_doc.focus == null) return _loadAudio(path);
+    await _reading(() async => _addTake(await audio.read(path)));
   });
 
-  Future<void> _loadAudio(String path) async {
+  Future<void> _addTake(AudioTrack track) async {
+    final id = _newTakeId(), first = _doc.takes.isEmpty;
+    await audio.put(id, track);
+    // The first is heard throughout; another, nowhere until its lane says so.
+    _everywhere((s) => s.adding(Take(id, stemOf(track.name), regions: first ? [Region(0, _sync!.totalQuarters)] : const [])));
+    if (!first) solo(id);
+    audio.focus = _doc.focus;
+    _performanceChanged();
+  }
+
+  /// Adds [track] as another take of the score, as [addRecording] does with a file read.
+  @visibleForTesting
+  Future<void> debugAddTake(AudioTrack track) async {
+    await _addTake(track);
+    _edited();
+  }
+
+  /// Takes the focus's recording out of the project (Project Settings ▸ Project Info ▸ Remove),
+  /// in turn ([inTurn]). Not an Undo step, like loading one.
+  Future<void> removeAudio() => inTurn(() async {
+    if (_doc.focus case final id?) await _removeTake(id);
+  });
+
+  /// Takes the recording of take [id] out of the project, with its lane, in turn ([inTurn]).
+  /// See [removeAudio].
+  Future<void> removeTake(String id) => inTurn(() => _removeTake(id));
+
+  Future<void> _removeTake(String id) async {
+    if (_doc.take(id) == null) return;
+    playback.pause();
+    if (_soloed == id) _soloed = null;
+    if (id == _doc.focus) {
+      if (_doc.takes.where((t) => t.id != id).firstOrNull case final next?) _focusOn(next.id);
+    }
+    // The focus removed last leaves its sync to the score, as one recording removed did.
+    _everywhere((s) => s.removing(id));
+    await audio.remove(id);
+    if (_doc.takes.length < 2) _soloed = null;
+    audio.focus = _doc.focus;
+    _performanceChanged();
+    _edited();
+    notifyListeners();
+  }
+
+  /// The sync becomes [id]'s (no Undo step).
+  void _focusOn(String id) {
+    if (id == _doc.focus) return;
+    _everywhere((s) => s.focusing(id));
+    anchors._reset();
+    _loadSync(_doc);
+    audio.focus = id;
+  }
+
+  /// Solo (a lane's S): [id] heard alone and whole, in its own time, its sync edited in the
+  /// Audio tab; again, the lanes once more. The playhead stays at the same place in the score
+  /// ([ScoreTimelinePasses.carriedTo]). Not an Undo step. Only with two recordings or more.
+  void solo(String id) {
+    if (_sync == null || _doc.take(id) == null || _doc.takes.length < 2 || _gestures > 0) return;
+    // On a copy: switching the focus loads another's anchors into the sync the timeline uses.
+    final before = _perform(_syncCopy()).timeline, t = playback.time.value;
+    if (_soloed == id) {
+      _soloed = null;
+    } else {
+      _focusOn(id);
+      _soloed = id;
+    }
+    _performanceChanged();
+    playback.seek(before.carriedTo(timeline, t));
+    notifyListeners();
+  }
+
+  /// The region selected in a recording's lane (an index into its take's regions); null: none.
+  ({String take, int index})? get takeSelection {
+    final selected = _takeSelected;
+    if (selected == null || selected.index >= (_doc.take(selected.take)?.regions.length ?? 0)) return null;
+    return selected;
+  }
+
+  ({String take, int index})? _takeSelected;
+
+  void selectTakeRegion(String take, int? index) {
+    _takeSelected = index == null ? null : (take: take, index: index);
+    notifyListeners();
+  }
+
+  /// Delete in a recording's lane: the region selected goes (silence there): one Undo step.
+  void removeTakeRegion() {
+    final selected = takeSelection;
+    if (selected == null) return;
+    final regions = [..._doc.take(selected.take)!.regions]..removeAt(selected.index);
+    _takeSelected = null;
+    setTakeRegions(selected.take, regions);
+  }
+
+  /// Names take [id] [label]: one Undo step.
+  void renameTake(String id, String label) {
+    label = label.trim();
+    final take = _doc.take(id);
+    if (take == null || label.isEmpty || label == take.label) return;
+    _doc = _doc.copyWith(takes: [for (final t in _doc.takes) t.id == id ? t.copyWith(label: label) : t]);
+    _edited();
+  }
+
+  /// Gives take [id]'s lane [regions] (sorted, merged), the stretches they cover taken out of
+  /// the other lanes: one Undo step.
+  void setTakeRegions(String id, List<Region> regions) {
+    if (_doc.take(id) == null) return;
+    final c = Curation(const ['lane'])..setLane('lane', regions);
+    final merged = c.lane('lane');
+    c.dispose();
+    _doc = _doc.withTakeRegions(id, merged);
+    _performanceChanged();
+    _edited();
+  }
+
+  /// The crossfade where a region sets none ([crossfade]), or with [region] (an index into take
+  /// [id]'s lane) that region's at both its edges (null: the project's again): one Undo step.
+  void setCrossfade(double? seconds, {String? id, int? region}) {
+    final take = id == null ? null : _doc.take(id);
+    if (take != null && region != null && region < take.regions.length) {
+      final regions = [...take.regions];
+      regions[region] = regions[region].withTransition(seconds);
+      _doc = _doc.copyWith(takes: [for (final t in _doc.takes) t.id == id ? t.copyWith(regions: regions) : t]);
+    } else {
+      _doc = _doc.copyWith(crossfade: seconds);
+    }
+    _performanceChanged();
+    _edited();
+  }
+
+  /// A take id no take has: `take-1`, `take-2`…
+  String _newTakeId() {
+    var n = 1;
+    while (_doc.take('take-$n') != null) {
+      n++;
+    }
+    return 'take-$n';
+  }
+
+  /// Changes the document and every state Undo keeps alike, so the change is no Undo step and
+  /// Undo after it finds the takes as they are now.
+  void _everywhere(EditState Function(EditState) change) {
+    final now = change(_editState);
+    _history.rewrite(now, change);
+    if (_committed case final committed?) _committed = change(committed);
+    _doc = now;
+  }
+
+  /// The sync follows [state]'s: the anchors set by hand, or its MIDI tempo map.
+  void _loadSync(EditState state) => _sync!.load(
+      state.midi?.anchors(start: state.leadIn, totalQuarters: _sync!.totalQuarters) ?? state.anchors,
+      leadIn: state.leadIn);
+
+  Future<void> _reading(Future<void> Function() job) async {
     playback.pause();
     _loadingAudio = true;
     notifyListeners();
     try {
-      await audio.load(path);
+      await job();
       _edited();
       _tab = BottomTab.audio;
       viewport.requestFit();
@@ -1473,6 +1717,58 @@ class EditorController extends ChangeNotifier {
       _loadingAudio = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _loadAudio(String path) => _reading(() async {
+    final track = await audio.read(path);
+    if (_doc.focus case final id?) {
+      // In place of the focus's: a name still its file's follows the new file.
+      final take = _doc.take(id)!;
+      final before = audio.trackOf(id);
+      await audio.put(id, track);
+      if (before == null || take.label == stemOf(before.name)) {
+        _everywhere((s) => s.copyWith(takes: [for (final t in s.takes) t.id == id ? t.copyWith(label: stemOf(track.name)) : t]));
+      }
+      _performanceChanged();
+    } else {
+      await _addTake(track);
+    }
+  });
+
+  /// Loads the recordings of a project opened: the focus's at [focusPath], the others at
+  /// [paths] (by take id). A take without its recording is left out, with its lane; one
+  /// recording that can't be read is reported, the others still load.
+  Future<String?> _loadTakes(String? focusPath, Map<String, String> paths) async {
+    String? problem;
+    Future<void> load(String id, String path) async {
+      try {
+        await audio.put(id, await audio.read(path));
+      } catch (e) {
+        problem ??= '${'Couldn’t load the recording.'.tr}\n${describeError(e)}';
+      }
+    }
+
+    // A project saved before takes: its recording is its first, heard throughout.
+    if (_doc.focus == null && focusPath != null) {
+      _everywhere((s) => s.adding(Take(_newTakeId(), stemOf(fileNameOf(focusPath)), regions: [Region(0, _sync!.totalQuarters)])));
+    }
+    if (_doc.focus case final id? when focusPath != null) await load(id, focusPath);
+    for (final t in _doc.takes) {
+      if (t.id != _doc.focus && paths[t.id] != null) await load(t.id, paths[t.id]!);
+    }
+    if (_disposed) return null;
+    final missing = [for (final t in _doc.takes) if (audio.trackOf(t.id) == null) t.id];
+    if (missing.contains(_doc.focus)) {
+      if (_doc.takes.where((t) => !missing.contains(t.id)).firstOrNull case final next?) _focusOn(next.id);
+    }
+    // Gone, the focus leaves its sync to the score, as a recording removed does.
+    for (final id in missing) {
+      _everywhere((s) => s.removing(id));
+    }
+    audio.focus = _doc.focus;
+    _performanceChanged();
+    if (focusPath != null || paths.isNotEmpty) viewport.requestFit();
+    return problem;
   }
 
   // MARK: Selection and Undo (both tabs)
@@ -1484,9 +1780,11 @@ class EditorController extends ChangeNotifier {
         anchors._isEmpty &&
         images._selected == null &&
         captions._selected == null &&
-        spacers._selected == null) {
+        spacers._selected == null &&
+        _takeSelected == null) {
       return;
     }
+    _takeSelected = null;
     images._deselect();
     captions._selected = null;
     spacers._selected = null;
@@ -1580,8 +1878,8 @@ class EditorController extends ChangeNotifier {
       if (_wanted != engraved) unawaited(_reengrave());
       _joinLanes(); // before the lanes, which fit it
       _curation!.load(state.lanes!, transition: state.transition!); // Undo's states have both
-      _sync!.load(_doc.midi?.anchors(start: state.leadIn, totalQuarters: _sync!.totalQuarters) ?? state.anchors,
-          leadIn: state.leadIn);
+      _loadSync(state);
+      _performanceChanged(); // the lanes too
       images._restore(state.patches);
       captions._restore(state.captions, state.captionFont);
       _applyExtensions();
