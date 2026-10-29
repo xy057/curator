@@ -182,7 +182,7 @@ class _AudioLanesState extends State<AudioLanes> {
   @override
   Widget build(BuildContext context) => Select(
         listenable: c,
-        select: () => (sync: c.sync, midi: c.midiTempo, track: c.track, takes: c.takes, soloed: c.soloed, loading: c.isLoadingAudio),
+        select: () => (sync: c.sync, midi: c.midiTempo, track: c.track, takes: c.takes, syncedTake: c.syncedTake, loading: c.isLoadingAudio),
         builder: (context, _) => _lanes(context),
       );
 
@@ -192,7 +192,7 @@ class _AudioLanesState extends State<AudioLanes> {
           child: c.editsSync
               ? _syncLanes(context)
               : Center(
-                  child: Text('Solo a recording to edit its sync'.tr,
+                  child: Text('Click a recording to edit its sync'.tr,
                       style: TextStyle(color: context.colors.textMuted, fontSize: 12)),
                 ),
         ),
@@ -614,7 +614,11 @@ Future<void> editMidiWarp(BuildContext context, EditorController c, {int? index}
   }
 }
 
-/// Audio tab tools (right of the tab switch). Every control explains itself on hover.
+/// Audio tab tools (right of the tab switch), left to right as the work goes: the recordings
+/// (Add, the lanes' tools, the crossfade), then the sync of the one edited (Align, Tap, Warp,
+/// their step, where bar 1 starts), and at the right end what is selected, the sync's other
+/// settings ([_SyncMenu]) and the playback speed, always there. Every control explains itself
+/// on hover.
 class AudioToolbar extends StatelessWidget {
   const AudioToolbar({super.key, required this.controller});
   final EditorController controller;
@@ -638,89 +642,106 @@ class AudioToolbar extends StatelessWidget {
               ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
           ]),
           _CrossfadeMenu(controller: c),
-          if (c.editsSync) const ToolbarDivider(),
         ],
-        if (!c.editsSync) ...[
-          const Spacer(),
-          _SpeedMenu(controller: c),
-        ] else ...[
-        if (!c.usesMidiTempo) ...[
-          const SizedBox(width: 4),
-          _AlignButton(controller: c),
-          const SizedBox(width: 4),
-        ],
-        ToolbarButton(
-          icon: AppIcon.tempoMap.of(context),
-          tooltip: c.midiTempo == null
-              ? 'Add MIDI Tempo Map… (or drop one here)'.tr
-              : 'Stop following {name}'.fill({'name': c.midiTempo!.name}),
-          selected: c.usesMidiTempo,
-          onPressed: () => c.usesMidiTempo ? c.useMidiTempo(null) : pickMidi(context, c),
-        ),
-        if (!c.usesMidiTempo) _TapButton(controller: c),
-        ToolbarButton(
-          icon: AppIcon.warp.of(context),
-          tooltip: c.anchors.selected.length == 1 && !c.usesMidiTempo
-              ? 'Warp (W)\nMake this anchor jump to another bar'.tr
-              : 'Warp (W)\nJump to another bar here'.tr,
-          onPressed: () => editWarp(context, c),
-        ),
-        if (c.midiTempo case final midi?)
-          ToolbarButton(
-            icon: AppIcon.repeat.of(context),
-            tooltip: 'Warps from score'.tr,
-            onPressed: c.scoreWarps.isEmpty || listEquals(midi.warps, c.scoreWarps) ? null : c.useScoreWarps,
-          ),
-        if (!c.usesMidiTempo) ...[
+        if (c.editsSync) ...[
           const ToolbarDivider(),
-          Tip(
-            message: 'Step for taps, {click}, and ↑/↓'.fill({'click': shortcut('Option-click', 'Alt+click').tr}),
-            child: ToolGroup(children: [
-              for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
-                _TextToggle(label: label, selected: c.anchors.grid == grid, onPressed: () => c.anchors.grid = grid),
-            ]),
-          ),
-          const SizedBox(width: 2),
+          if (!c.usesMidiTempo) ...[
+            _AlignButton(controller: c),
+            const SizedBox(width: 4),
+            _TapButton(controller: c),
+          ],
           ToolbarButton(
-            icon: AppIcon.snap.of(context),
-            tooltip: c.anchors.snapToOnsets
-                ? 'Snap to notes (on)'.tr
-                : 'Snap to notes (off)'.tr,
-            selected: c.anchors.snapToOnsets,
-            onPressed: () => c.anchors.snapToOnsets = !c.anchors.snapToOnsets,
+            icon: AppIcon.warp.of(context),
+            tooltip: c.anchors.selected.length == 1 && !c.usesMidiTempo
+                ? 'Warp (W)\nMake this anchor jump to another bar'.tr
+                : 'Warp (W)\nJump to another bar here'.tr,
+            onPressed: () => editWarp(context, c),
           ),
+          if (!c.usesMidiTempo) ...[
+            const SizedBox(width: 4),
+            Tip(
+              message: 'Step for taps, {click}, and ↑/↓'.fill({'click': shortcut('Option-click', 'Alt+click').tr}),
+              child: ToolGroup(children: [
+                for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
+                  _TextToggle(label: label, selected: c.anchors.grid == grid, onPressed: () => c.anchors.grid = grid),
+              ]),
+            ),
+          ],
+          const SizedBox(width: 8),
+          _StartField(controller: c),
         ],
-        const ToolbarDivider(),
-        _SpeedMenu(controller: c),
-        const SizedBox(width: 8),
-        _StartField(controller: c),
         const Spacer(),
-        FadeSlideSwitcher(
-          alignment: Alignment.centerRight,
-          child: c.anchors.selected.length < 2
-              ? const SizedBox.shrink()
-              : Padding(
-                  key: const ValueKey('selection'),
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Tip(
-                    message: '↑/↓ re-point · ←/→ nudge · {key} remove'.fill({'key': shortcut('⌫', 'Delete')}),
-                    child: InputChip(
-                      visualDensity: VisualDensity.compact,
-                      label: Text('{n} anchors'.fill({'n': c.anchors.selected.length}), style: const TextStyle(fontSize: 12)),
-                      onDeleted: () => c.anchors.select(null),
-                      deleteButtonTooltipMessage: 'Deselect (Esc)'.tr,
+        if (c.editsSync) ...[
+          FadeSlideSwitcher(
+            alignment: Alignment.centerRight,
+            child: c.anchors.selected.length < 2
+                ? const SizedBox.shrink()
+                : Padding(
+                    key: const ValueKey('selection'),
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Tip(
+                      message: '↑/↓ re-point · ←/→ nudge · {key} remove'.fill({'key': shortcut('⌫', 'Delete')}),
+                      child: InputChip(
+                        visualDensity: VisualDensity.compact,
+                        label: Text('{n} anchors'.fill({'n': c.anchors.selected.length}), style: const TextStyle(fontSize: 12)),
+                        onDeleted: () => c.anchors.select(null),
+                        deleteButtonTooltipMessage: 'Deselect (Esc)'.tr,
+                      ),
                     ),
                   ),
-                ),
-        ),
-        if (!c.usesMidiTempo)
-          ToolbarButton(
-            icon: AppIcon.clearAnchors.of(context),
-            tooltip: 'Remove all anchors'.tr,
-            onPressed: sync.anchors.isEmpty ? null : c.anchors.clear,
           ),
+          _SyncMenu(controller: c),
+          const ToolbarDivider(),
         ],
+        _SpeedMenu(controller: c),
       ]),
+    );
+  }
+}
+
+/// The sync's less used settings, in a menu at the toolbar's right end: following a MIDI tempo
+/// map (and its warps from the score), snapping anchors to notes, and removing them all.
+class _SyncMenu extends StatelessWidget {
+  const _SyncMenu({required this.controller});
+  final EditorController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller, midi = c.midiTempo;
+    return OverlaySemantics(
+      child: AppPopupMenuButton<void Function()>(
+        tooltip: 'Sync'.tr,
+        iconSize: 18,
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          fixedSize: const Size(32, 32),
+          minimumSize: const Size(32, 32),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
+        ),
+        icon: Icon(AppIcon.more.of(context)),
+        onSelected: (action) => action(),
+        itemBuilder: (context) => [
+          checkedMenuItem(context,
+              value: () => c.usesMidiTempo ? c.useMidiTempo(null) : pickMidi(context, c),
+              checked: c.usesMidiTempo,
+              child: Text(midi == null ? 'MIDI Tempo Map…'.tr : 'Follow {name}'.fill({'name': midi.name}))),
+          if (midi != null)
+            checkedMenuItem(context,
+                value: c.useScoreWarps,
+                checked: false,
+                enabled: c.scoreWarps.isNotEmpty && !listEquals(midi.warps, c.scoreWarps),
+                child: Text('Warps from Score'.tr)),
+          if (!c.usesMidiTempo) ...[
+            checkedMenuItem(context,
+                value: () => c.anchors.snapToOnsets = !c.anchors.snapToOnsets,
+                checked: c.anchors.snapToOnsets,
+                child: Text('Snap to Notes'.tr)),
+            menuDivider(context),
+            checkedMenuItem(context,
+                value: c.anchors.clear, checked: false, enabled: c.sync!.anchors.isNotEmpty, child: Text('Remove All Anchors'.tr)),
+          ],
+        ],
+      ),
     );
   }
 }

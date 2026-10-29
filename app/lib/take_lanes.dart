@@ -18,8 +18,9 @@ import 'l10n/l10n.dart';
 /// The recordings' lanes at the top of the Audio tab, one per take: its regions say where it is
 /// heard, one at a time, faded into the next at their edges. Edited as the instruments' are,
 /// with the lanes' tools (a region drawn on one takes that stretch from the others; one erased
-/// leaves silence). Each name has Solo (S: that recording alone, in its own time, its sync
-/// edited below) and a menu (Rename…, Replace Recording…, Remove).
+/// leaves silence). A click on a name picks that recording (heard alone, in its own time, its
+/// sync edited below; again, all of them once more); each has a menu (Rename…, Replace
+/// Recording…, Remove).
 class TakeLanes extends StatelessWidget {
   const TakeLanes({super.key, required this.controller});
   final EditorController controller;
@@ -51,7 +52,7 @@ class _TakeHeader extends StatelessWidget {
         final name = await showRenameRecordingDialog(context, take.label);
         if (name != null) c.renameTake(take.id, name);
       case _replace:
-        if (c.focus != take.id) c.solo(take.id); // the focus's recording is the one replaced
+        if (c.focus != take.id) c.editSyncOf(take.id); // the focus's recording is the one replaced
         if (context.mounted) await pickAudio(context, c);
       case _remove:
         await c.removeTake(take.id);
@@ -61,50 +62,42 @@ class _TakeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = controller, colors = context.colors;
-    final soloed = c.soloed == take.id;
-    return LaneLabel(
+    final picked = c.syncedTake == take.id, many = c.takes.length > 1;
+    final label = LaneLabel(
       height: SpanLane.height,
-      color: colors.accentWash,
+      color: picked ? colors.accentWash : null,
       trailing: Padding(
         padding: const EdgeInsets.only(right: 4),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (c.takes.length > 1)
-            Tip(
-              message: soloed ? 'Solo (on): edit its sync below'.tr : 'Solo'.tr,
-              child: InkWell(
-                borderRadius: AppStyle.of(context).radius(5),
-                onTap: () => c.solo(take.id),
-                child: Container(
-                  width: 22,
-                  height: 20,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: soloed ? colors.accent : Colors.transparent,
-                    borderRadius: AppStyle.of(context).radius(5),
-                  ),
-                  child: Text('S',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: soloed ? colors.surface : colors.textMuted)),
-                ),
-              ),
-            ),
-          OverlaySemantics(
-            child: AppPopupMenuButton<String>(
-              tooltip: 'Recording'.tr,
-              padding: EdgeInsets.zero,
-              iconSize: 14,
-              constraints: const BoxConstraints(),
-              icon: Icon(AppIcon.more.of(context), size: 14, color: colors.textMuted),
-              onSelected: (value) => unawaited(_chosen(context, value)),
-              itemBuilder: (context) => [
-                menuItem(context, value: _rename, child: Text('Rename…'.tr)),
-                menuItem(context, value: _replace, enabled: !c.isLoadingAudio, child: Text('Replace Recording…'.tr)),
-                menuItem(context, value: _remove, enabled: !c.isLoadingAudio, child: Text('Remove'.tr)),
-              ],
-            ),
+        child: OverlaySemantics(
+          child: AppPopupMenuButton<String>(
+            tooltip: 'Recording'.tr,
+            padding: EdgeInsets.zero,
+            iconSize: 14,
+            constraints: const BoxConstraints(),
+            icon: Icon(AppIcon.more.of(context), size: 14, color: colors.textMuted),
+            onSelected: (value) => unawaited(_chosen(context, value)),
+            itemBuilder: (context) => [
+              menuItem(context, value: _rename, child: Text('Rename…'.tr)),
+              menuItem(context, value: _replace, enabled: !c.isLoadingAudio, child: Text('Replace Recording…'.tr)),
+              menuItem(context, value: _remove, enabled: !c.isLoadingAudio, child: Text('Remove'.tr)),
+            ],
           ),
-        ]),
+        ),
       ),
-      child: Text(take.label, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500)),
+      child: Text(take.label,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontWeight: picked ? FontWeight.w600 : FontWeight.w500,
+            color: picked ? colors.accent : null,
+          )),
+    );
+    if (!many) return label;
+    return Tip(
+      message: picked ? 'Back to all recordings'.tr : 'Edit its sync'.tr,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(onTap: () => c.editSyncOf(take.id), child: label),
+      ),
     );
   }
 }

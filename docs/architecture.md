@@ -265,18 +265,18 @@ the take heard in it (the same time over as the performance plays it, or its las
 and the sound as `SoundChunk`s, a run one take plays straight on, ramped in and out over the edge's
 crossfade (its region's transition, else `EditState.crossfade`, 0.3 s) centred on it (`gainAt`).
 `EditorController.timeline` is that splice with two takes or more; the Audio tab edits a sync only
-with one, or with a take soloed (a lane's S, `EditorController.solo`): it becomes the focus
-(`EditState.focusing`) and is heard whole in its own time, the playhead carried to the same place
-in the score (`ScoreTimelinePasses.carriedTo`). `AudioEngine.setChunks` plays a voice per chunk,
-faded with SoLoud's `fadeVolume`/`scheduleStop`, started again only when the chunks changed (so
-tapping along doesn't restart it); the clock follows a voice not fading. Video export mixes the
-same chunks with FFmpeg (`atrim`, `afade`, `adelay`, `amix`), or seeks the one file covering it all.
-Adding, removing, soloing and the focus are no Undo steps, yet Undo keeps each take's edits: they
-are made to every state Undo keeps alike (`_everywhere`, `EditHistory.rewrite`), so a state never
-holds one take's anchors as another's; lane edits, the crossfade and renaming are steps.
-`AudioEngine` holds every take's recording at once, decoded in memory while together they stay
-within 2 GB (`AudioEngine.memoryBudget`), read from disk as they play past it. Add Recording…
-adds a take (the first heard throughout; another with an empty lane, soloed, no anchors: Align
+with one, or with a take picked (a click on its lane’s name, `EditorController.editSyncOf`): it
+becomes the focus (`EditState.focusing`) and is heard whole in its own time, the playhead carried
+to the same place in the score (`ScoreTimelinePasses.carriedTo`). `AudioEngine.setChunks` plays a
+voice per chunk, faded with SoLoud's `fadeVolume`/`scheduleStop`, started again only when the
+chunks changed (so tapping along doesn't restart it); the clock follows a voice not fading. Video
+export mixes the same chunks with FFmpeg (`atrim`, `afade`, `adelay`, `amix`), or seeks the one
+file covering it all. Adding, removing, picking and the focus are no Undo steps, yet Undo keeps
+each take's edits: they are made to every state Undo keeps alike (`_everywhere`,
+`EditHistory.rewrite`), so a state never holds one take's anchors as another's; lane edits, the
+crossfade and renaming are steps. `AudioEngine` holds every take's recording at once, decoded in
+memory while together they stay within 2 GB (`AudioEngine.memoryBudget`), read from disk as they play past it. Add Recording…
+adds a take (the first heard throughout; another with an empty lane, picked, no anchors: Align
 it); Replace Recording… (a lane's menu) and a recording dropped replace the focus's, keeping its
 sync and lane. Saved as the `takes` module (optional: an older Curator keeps the focus's, with
 its sync); a take whose recording is missing when the project opens is left out.

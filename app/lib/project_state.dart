@@ -101,7 +101,7 @@ class EditState {
   /// keeps alike. Their lanes are edits.
   final List<Take> takes;
 
-  /// The [Take.id] whose sync is the state's own (the one soloed, or soloed last); null when
+  /// The [Take.id] whose sync is the state's own (the one picked, or picked last); null when
   /// there is no recording.
   final String? focus;
 
