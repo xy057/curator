@@ -1,3 +1,16 @@
+diff --git a/include/vrv/adjusttupletsyfunctor.h b/include/vrv/adjusttupletsyfunctor.h
+index 277df4e..2aebf36 100644
+--- a/include/vrv/adjusttupletsyfunctor.h
++++ b/include/vrv/adjusttupletsyfunctor.h
+@@ -48,7 +48,7 @@ private:
+      * Adjust tuplet relative positioning based on possible overlaps
+      */
+     ///@{
+-    void AdjustTupletBracketY(Tuplet *tuplet, const Staff *staff) const;
++    void AdjustTupletBracketY(Tuplet *tuplet, const Staff *staff, bool spansStaves) const; // [curated-score patch] spansStaves
+     void AdjustTupletNumY(Tuplet *tuplet, const Staff *staff) const;
+     ///@}
+ 
 diff --git a/include/vrv/calcalignmentxposfunctor.h b/include/vrv/calcalignmentxposfunctor.h
 index 2680dc6..b441d9b 100644
 --- a/include/vrv/calcalignmentxposfunctor.h
@@ -111,6 +124,23 @@ index 50b0a70..f7dc9e4 100644
  } // namespace vrv
  
  #endif // CUSTOM_VEROVIO_OPTIONS
+diff --git a/include/vrv/tuplet.h b/include/vrv/tuplet.h
+index 5790776..1a70c0d 100644
+--- a/include/vrv/tuplet.h
++++ b/include/vrv/tuplet.h
+@@ -120,6 +120,12 @@ public:
+      */
+     bool HasValidTupletNumPosition(const Staff *preferredStaff, const Staff *otherStaff) const;
+ 
++    /**
++     * [curated-score patch] The upper and lower staves of a tuplet whose notes are on more than one (cross-staff),
++     * false when they are all on one
++     */
++    bool GetSpannedStaves(Staff *&top, Staff *&bottom);
++
+     //----------//
+     // Functors //
+     //----------//
 diff --git a/include/vrv/view.h b/include/vrv/view.h
 index 52616e0..afa95ef 100644
 --- a/include/vrv/view.h
@@ -205,6 +235,88 @@ index 9a7db65..fcb9ca7 100644
      // Not much to do when we hit the first syllable of the system
      if (m_previousContainer == NULL) {
          m_previousContainer = container;
+diff --git a/src/adjusttupletsxfunctor.cpp b/src/adjusttupletsxfunctor.cpp
+index 2bb3705..5b28c36 100644
+--- a/src/adjusttupletsxfunctor.cpp
++++ b/src/adjusttupletsxfunctor.cpp
+@@ -61,6 +61,15 @@ FunctorCode AdjustTupletsXFunctor::VisitTuplet(Tuplet *tuplet)
+ 
+     tuplet->SetNumAlignedBeam(tuplet->GetBracketAlignedBeam());
+ 
++    // [curated-score patch] Notes on two staves: the bracket and num go outside both staves, clear of their notes
++    // (AdjustTupletsYFunctor), not along the beam, which may run between them
++    Staff *top = NULL;
++    Staff *bottom = NULL;
++    if (tuplet->GetSpannedStaves(top, bottom)) {
++        tuplet->SetBracketAlignedBeam(NULL);
++        tuplet->SetNumAlignedBeam(NULL);
++    }
++
+     // Cancel alignment of the bracket with the beam if position and stem direction are not concordant
+     if (tuplet->GetBracketAlignedBeam() && (tuplet->GetBracketAlignedBeam()->m_drawingPlace == BEAMPLACE_above)
+         && (tuplet->GetDrawingBracketPos() == STAFFREL_basic_below)) {
+diff --git a/src/adjusttupletsyfunctor.cpp b/src/adjusttupletsyfunctor.cpp
+index d14d6f8..5801557 100644
+--- a/src/adjusttupletsyfunctor.cpp
++++ b/src/adjusttupletsyfunctor.cpp
+@@ -51,14 +51,33 @@ FunctorCode AdjustTupletsYFunctor::VisitTuplet(Tuplet *tuplet)
+ 
+     Staff *relevantStaff = tuplet->m_crossStaff ? tuplet->m_crossStaff : staff;
+ 
+-    this->AdjustTupletBracketY(tuplet, relevantStaff);
++    // [curated-score patch] Notes on two staves: the bracket and num are drawn from the outer staff on their side, so
++    // they keep clear of the notes on both and stay with that staff when the staves are spaced
++    Staff *top = NULL;
++    Staff *bottom = NULL;
++    const bool spansStaves = tuplet->GetSpannedStaves(top, bottom);
++    if (spansStaves) {
++        relevantStaff = (tuplet->GetDrawingBracketPos() == STAFFREL_basic_below) ? bottom : top;
++        TupletBracket *tupletBracket = vrv_cast<TupletBracket *>(tuplet->GetFirst(TUPLET_BRACKET));
++        if (tupletBracket) {
++            tupletBracket->m_crossStaff = relevantStaff;
++            tupletBracket->ResetCachedDrawingY();
++        }
++        TupletNum *tupletNum = vrv_cast<TupletNum *>(tuplet->GetFirst(TUPLET_NUM));
++        if (tupletNum) {
++            tupletNum->m_crossStaff = (tuplet->GetDrawingNumPos() == STAFFREL_basic_below) ? bottom : top;
++            tupletNum->ResetCachedDrawingY();
++        }
++    }
++
++    this->AdjustTupletBracketY(tuplet, relevantStaff, spansStaves);
+ 
+     this->AdjustTupletNumY(tuplet, relevantStaff);
+ 
+     return FUNCTOR_SIBLINGS;
+ }
+ 
+-void AdjustTupletsYFunctor::AdjustTupletBracketY(Tuplet *tuplet, const Staff *staff) const
++void AdjustTupletsYFunctor::AdjustTupletBracketY(Tuplet *tuplet, const Staff *staff, bool spansStaves) const
+ {
+     const bool showHidden = (m_doc->GetOptions()->m_showHidden.GetValue());
+ 
+@@ -85,7 +104,8 @@ void AdjustTupletsYFunctor::AdjustTupletBracketY(Tuplet *tuplet, const Staff *st
+     std::list<Point> obstacles;
+     for (Object *descendant : descendants) {
+         if (!descendant->HasSelfBB()) continue;
+-        if (vrv_cast<LayerElement *>(descendant)->m_crossStaff) continue;
++        // [curated-score patch] Outside two staves, the notes on both are in the way
++        if (vrv_cast<LayerElement *>(descendant)->m_crossStaff && !spansStaves) continue;
+         const int obstacleY
+             = (bracketPos == STAFFREL_basic_above) ? descendant->GetSelfTop() : descendant->GetSelfBottom();
+         obstacles.push_back({ descendant->GetDrawingX(), obstacleY });
+@@ -143,7 +163,10 @@ void AdjustTupletsYFunctor::AdjustTupletNumY(Tuplet *tuplet, const Staff *staff)
+     }
+ 
+     Beam *beam = tuplet->GetNumAlignedBeam();
+-    tuplet->CalculateTupletNumCrossStaff(tupletNum);
++    // [curated-score patch] On two staves the num's staff is already the outer one (VisitTuplet)
++    Staff *top = NULL;
++    Staff *bottom = NULL;
++    if (!tuplet->GetSpannedStaves(top, bottom)) tuplet->CalculateTupletNumCrossStaff(tupletNum);
+     // Additional checks are required if tuplet is fully cross-staff and is part of the cross-staff beam. If beam is not
+     // fully cross-staff and has more elements than tuplet does, we need to adjust tuplet number position accordingly to
+     // make sure that there is no overlap.
 diff --git a/src/calcalignmentxposfunctor.cpp b/src/calcalignmentxposfunctor.cpp
 index 63eac3e..daca0c0 100644
 --- a/src/calcalignmentxposfunctor.cpp
@@ -729,6 +841,50 @@ index 7e3ec3c..131f850 100644
      m_font.SetInfo("Font", "Set the music font");
      m_font.Init("Leipzig");
      this->Register(&m_font, "font", &m_generalLayout);
+diff --git a/src/tuplet.cpp b/src/tuplet.cpp
+index a021640..4ed87b9 100644
+--- a/src/tuplet.cpp
++++ b/src/tuplet.cpp
+@@ -205,6 +205,22 @@ bool Tuplet::HasValidTupletNumPosition(const Staff *preferredStaff, const Staff
+     return true;
+ }
+ 
++bool Tuplet::GetSpannedStaves(Staff *&top, Staff *&bottom)
++{
++    // [curated-score patch]
++    top = NULL;
++    bottom = NULL;
++    ListOfObjects descendants;
++    ClassIdsComparison comparison({ CHORD, NOTE, REST });
++    this->FindAllDescendantsByComparison(&descendants, &comparison);
++    for (Object *object : descendants) {
++        Staff *staff = vrv_cast<LayerElement *>(object)->GetAncestorStaff(RESOLVE_CROSS_STAFF);
++        if (!top || (staff->GetN() < top->GetN())) top = staff;
++        if (!bottom || (staff->GetN() > bottom->GetN())) bottom = staff;
++    }
++    return top && (top != bottom);
++}
++
+ void Tuplet::CalcDrawingBracketAndNumPos(bool tupletNumHead)
+ {
+     m_drawingBracketPos = STAFFREL_basic_NONE;
+@@ -225,6 +241,16 @@ void Tuplet::CalcDrawingBracketAndNumPos(bool tupletNumHead)
+         return;
+     }
+ 
++    // [curated-score patch] Notes on two staves: above the upper one (as Dorico does), not on the side most stems
++    // point to, which for a cross-staff beam is between the staves
++    Staff *top = NULL;
++    Staff *bottom = NULL;
++    if (this->GetSpannedStaves(top, bottom)) {
++        m_drawingBracketPos = STAFFREL_basic_above;
++        if (m_drawingNumPos == STAFFREL_basic_NONE) m_drawingNumPos = m_drawingBracketPos;
++        return;
++    }
++
+     const ListOfObjects &tupletChildren = this->GetList();
+ 
+     // There are unbeamed notes of two different beams
 diff --git a/src/view_control.cpp b/src/view_control.cpp
 index 436fca5..4d11fcd 100644
 --- a/src/view_control.cpp

@@ -865,7 +865,7 @@ mark's `font-style`, the `curated…Scale` options sizing music symbols, acciden
 articulations and caesuras between their neighbours), engraving fixes (a rehearsal mark set a fifth
 larger than other text, in a box as roomy at the sides as above and below and at least square,
 a space clear of the music and of notes beside it; text boxes as thick as the font says, not
-half; a space between a tempo's words and its metronome mark, which keeps its own weight), cancelling naturals
+half; a space between a tempo's words and its metronome mark, which keeps its own weight; a tuplet whose notes are on two staves bracketed above the upper one, clear of the notes on both, not along a beam between them), cancelling naturals
 at a key change to C (a key change was applied twice, the second time cancelling itself), and a
 log per thread (engravings run side by side on isolates, each reading its own). Mark changes in
 Verovio's code with `[curated-score patch]`.

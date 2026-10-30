@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
+import 'package:score_engine/src/engraving.dart' show Cmd;
 
 import 'demo_score.dart';
 
@@ -125,6 +126,23 @@ void main() {
       expect(shownAt(upright, m), shownAt(playing, m));
     }
     scene.dispose();
+  });
+
+  test('triplets on two staves sit above the upper one, clear of its notes', () async {
+    final engraving = (await LoadedScore.load(crossStaffTripletsScore())).engraving;
+    final ints = engraving.commandInts, floats = engraving.commandFloats;
+    List<ui.Rect> boxes(String className) => [
+          for (var b = 0; b < ints.length; b += Cmd.words)
+            if (engraving.classNames[ints[b + Cmd.classIndex]] == className)
+              ui.Rect.fromLTWH(floats[b + Cmd.bounds], floats[b + Cmd.bounds + 1], floats[b + Cmd.bounds + 2], floats[b + Cmd.bounds + 3]),
+        ];
+    final numbers = boxes('tupletNum'), heads = boxes('note');
+    expect(numbers, hasLength(2));
+    for (final number in numbers) {
+      // Not between the staves, where the beams are, nor among the high chord's noteheads.
+      expect(number.bottom, lessThan(engraving.staves.first.top));
+      expect(heads.where((h) => h.overlaps(number)), isEmpty);
+    }
   });
 
   test('a video frame is the preview drawn offscreen, at any pixel size', () async {
