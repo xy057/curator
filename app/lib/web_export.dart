@@ -15,7 +15,7 @@ import 'project_file.dart';
 import 'project_modules.dart';
 import 'project_archive.dart';
 import 'project_state.dart';
-import 'updater.dart' show openInBrowser;
+import 'updater.dart' show appBuild, appCommit, appVersion, openInBrowser, repositoryUrl;
 import 'video_export.dart';
 import 'web_page.dart';
 
@@ -100,11 +100,7 @@ abstract final class WebExport {
 
       // The text fonts the score and the captions are drawn in, when they are installed ones.
       final fonts = <({String family, List<String> files})>[];
-      for (final name in {
-        if (score.textFontFound) score.fonts.text,
-        if (captions && editor.extensionOn(Extensions.captions.id)) editor.captions.font ?? editor.captions.defaultFont,
-      }) {
-        if (name.isEmpty || name == TextFonts.academico) continue;
+      for (final name in _textFonts(editor, captions: captions)) {
         final faces = await TextFonts.faces(name);
         if (faces == null) continue;
         final files = <String>[];
@@ -158,6 +154,7 @@ abstract final class WebExport {
       );
       File('$folder/${WebPage.pageFile}').writeAsStringSync(const JsonEncoder.withIndent(' ').convert(written.toJson()));
       _title(File('${part.path}/index.html'), page.title);
+      File('${part.path}/$sourceFile').writeAsStringSync(source);
 
       if (Directory(output).existsSync()) {
         _moveIn(part, output);
@@ -170,6 +167,41 @@ abstract final class WebExport {
       throw VideoExportException('${'Couldn’t write the page.'.tr}\n$e');
     }
     return '$output/index.html';
+  }
+
+  /// Beside a page: where the player's source is, as the GPL asks of a program passed on (its
+  /// licence, LICENSE.txt, is the player's own file).
+  static const sourceFile = 'SOURCE.txt';
+
+  static String get source {
+    final at = appCommit.isEmpty ? 'v$appVersion' : appCommit;
+    return 'This page plays in the web player of Curator $appVersion ($appBuild${appCommit.isEmpty ? '' : ', $appCommit'}),\n'
+        'free software under the GNU General Public License, version 3 (LICENSE.txt).\n'
+        'Its source code: $repositoryUrl/tree/$at\n'
+        '\n'
+        'What else the player is made of, and its licences: assets/NOTICES.\n'
+        'The fonts it brings, and their licences: assets/packages/score_engine/assets/fonts/ and\n'
+        'assets/assets/fonts/.\n';
+  }
+
+  /// The fonts installed here that a page of [editor]'s project carries (with [captions], the
+  /// captions' too): their licences decide whether it may be published.
+  static List<String> installedFonts(EditorController editor, {required bool captions}) {
+    final music = editor.score?.fonts.music;
+    return [
+      if (music != null && !music.isBundled && !music.isMissing) music.name,
+      ..._textFonts(editor, captions: captions),
+    ];
+  }
+
+  /// The installed text fonts the score and (with [captions]) the captions are drawn in.
+  static Set<String> _textFonts(EditorController editor, {required bool captions}) {
+    final score = editor.score;
+    if (score == null) return const {};
+    return {
+      if (score.textFontFound) score.fonts.text,
+      if (captions && editor.extensionOn(Extensions.captions.id)) editor.captions.font ?? editor.captions.defaultFont,
+    }..removeWhere((name) => name.isEmpty || name == TextFonts.academico);
   }
 
   /// Moves what [part] holds into the folder [output], each in place of what is there by its

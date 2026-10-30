@@ -45,6 +45,8 @@ const zhHant = <String, String>{
   'Hide': '隱藏',
   'How to Publish': '如何發佈',
   'Images': '圖片',
+  'Includes installed fonts ({fonts}): publish only if their licenses allow.': '包含已安裝的字型（{fonts}）：僅在其授權允許時發佈。',
+  'Installed fonts go with the page: publish it only where their licenses allow.': '已安裝的字型會隨網頁一起發佈：僅在其授權允許的地方發佈。',
   'On This Computer': '在這台電腦上',
   'Online': '線上',
   'Open in Browser': '在瀏覽器中打開',

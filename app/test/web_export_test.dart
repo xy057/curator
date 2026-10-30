@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:archive/archive.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/updater.dart' show repositoryUrl;
 import 'package:curated_score/web_export.dart';
 import 'package:curated_score/web_page.dart';
 import 'package:curated_score/web_player/page_loader.dart';
@@ -37,6 +38,7 @@ void main() {
     );
     await WebExport.write(c, out, page: page, player: player);
     expect(File('$out/index.html').readAsStringSync(), contains('<title>Intro &lt;1&gt;</title>'));
+    expect(File('$out/${WebExport.sourceFile}').readAsStringSync(), contains(repositoryUrl), reason: 'where the player’s source is');
 
     final loaded = await LoadedPage.load((path) => File('$out/${WebPage.folder}/$path').readAsBytes());
     expect(loaded.page.recordings.single.audio, isNull, reason: 'no recording: silent');

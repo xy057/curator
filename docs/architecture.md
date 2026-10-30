@@ -157,6 +157,10 @@ only. The page loads its files beside it (no `<base>`), so it plays from any fol
 from a file opened directly. Written as `<name>.part`, then moved in: a folder there already takes
 it only if it holds an earlier page (`score/page.json`), and then only the entries the export writes
 are replaced, so what a user keeps beside them (a GitHub Pages repository's `.git`, a `CNAME`) stays.
+A page is the GPL'd player passed on, so it carries Curator's licence (`LICENSE.txt`, packed into the
+player) and where the source of the build that wrote it is (`SOURCE.txt`, `WebExport.source`: the
+commit, or the version's tag), beside Flutter's `assets/NOTICES` and the fonts' licences; installed
+fonts it carries (`WebExport.installedFonts`) are named in the dialog, theirs to allow publishing.
 
 **Beats come from `BeatGrid`, never "a quarter note".** Compound meters beat in dotted notes
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back

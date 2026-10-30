@@ -45,6 +45,8 @@ const zhHans = <String, String>{
   'Hide': '隐藏',
   'How to Publish': '如何发布',
   'Images': '图片',
+  'Includes installed fonts ({fonts}): publish only if their licenses allow.': '包含已安装的字体（{fonts}）：仅在其许可允许时发布。',
+  'Installed fonts go with the page: publish it only where their licenses allow.': '已安装的字体会随网页一起发布：仅在其许可允许的地方发布。',
   'On This Computer': '在这台电脑上',
   'Online': '在线',
   'Open in Browser': '在浏览器中打开',
