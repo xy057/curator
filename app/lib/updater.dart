@@ -9,7 +9,7 @@ import 'l10n/l10n.dart';
 /// This build's version: `version` in pubspec.yaml without the build number (`make versions`
 /// checks they agree; `make check` and the Release workflow run it). The Release workflow tags
 /// each release `v` + this.
-const appVersion = '0.6.1';
+const appVersion = '0.7.0';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
 const appBuild = 158;
