@@ -62,3 +62,32 @@ const flutePianoScore = '''<?xml version="1.0" encoding="UTF-8"?>
       <note><pitch><step>D</step><octave>3</octave></pitch><duration>8</duration><voice>5</voice><type>whole</type><staff>2</staff></note></measure>
   </part>
 </score-partwise>''';
+
+/// A two-staff piano bar of cross-staff triplets under beams between the staves: top, bottom,
+/// top, then bottom, top, bottom with a high chord on ledger lines in the middle.
+String crossStaffTripletsScore() {
+  String chord(String pitches, int staff, String beam, [String? tuplet]) {
+    final notes = pitches.split(' ');
+    return [
+      for (var i = 0; i < notes.length; i++)
+        '<note>${i > 0 ? '<chord/>' : ''}<pitch><step>${notes[i][0]}</step><octave>${notes[i][1]}</octave></pitch>'
+            '<duration>2</duration><voice>1</voice><type>eighth</type>'
+            '<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>'
+            '<stem>${staff == 1 ? 'down' : 'up'}</stem><staff>$staff</staff>'
+            '${i == 0 ? '<beam number="1">$beam</beam>' : ''}'
+            '${i == 0 && tuplet != null ? '<notations><tuplet type="$tuplet" bracket="yes"/></notations>' : ''}</note>',
+    ].join();
+  }
+
+  String rest(int duration, String type, int staff, int voice) =>
+      '<note><rest/><duration>$duration</duration><voice>$voice</voice><type>$type</type><staff>$staff</staff></note>';
+  return '<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0">'
+      '<part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1">'
+      '<attributes><divisions>6</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time>'
+      '<staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>G</sign><line>2</line></clef></attributes>'
+      '${rest(6, 'quarter', 1, 1)}'
+      '${chord('E5 G5 B5 C6', 1, 'begin', 'start')}${chord('F4 A4 B4', 2, 'continue')}${chord('E5 G5 B5 C6', 1, 'end', 'stop')}'
+      '${chord('D4 F4 A4 C5', 2, 'begin', 'start')}${chord('G5 C6 E6 G6 A6', 1, 'continue')}${chord('D4 F4 A4 C5', 2, 'end', 'stop')}'
+      '${rest(6, 'quarter', 1, 1)}<backup><duration>24</duration></backup>${rest(24, 'whole', 2, 5)}'
+      '</measure></part></score-partwise>';
+}
