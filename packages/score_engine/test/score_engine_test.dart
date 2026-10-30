@@ -143,6 +143,14 @@ void main() {
     final preview = recorder.endRecording().toImageSync(1600, 900);
     expect((await bytes(frame)).buffer.asUint8List(), (await bytes(preview)).buffer.asUint8List());
 
+    // Engraved beforehand and saved (a web page's score), the same frame.
+    final saved = LoadedScore.engraved(score.musicXML, score.request, EngravingFile.read(EngravingFile.write(score.engraving)));
+    final savedScene = CuratedScene(saved);
+    final again = savedScene.renderFrame(1600, 900, time: 30, curation: curation, devicePixelRatio: 2);
+    expect((await bytes(again)).buffer.asUint8List(), (await bytes(frame)).buffer.asUint8List());
+    again.dispose();
+    savedScene.dispose();
+
     // 720p laid out like a 540-point-high preview: a fractional density, whole pixels out.
     final hd = scene.renderFrame(1280, 720, time: 30, curation: curation, devicePixelRatio: 720 / 540);
     expect((hd.width, hd.height), (1280, 720));

@@ -214,15 +214,7 @@ class LoadedScore {
     List<VerticalSpacer> spacers = const [],
     List<HorizontalSpacer> gaps = const [],
   }) async {
-    final doc = ScoreMetadata.parse(musicXML);
-    Spacers.write(doc, spacers);
-    final metadata = ScoreMetadata.fromDocument(doc);
-    final prepared = PreparedScore.prepare(doc, textEdits,
-        metadata: metadata,
-        pairs: pairs,
-        textDynamics: textDynamics,
-        typography: typography,
-        textSize: (options.valueOf(EngraveOption.byKey('lyricSize')!) as num).toDouble());
+    final (:metadata, :prepared, :barLengths) = _prepare(musicXML, textEdits, pairs, textDynamics, typography, options, spacers);
     final resources = await prepareFonts(fonts, resourceDirectory: resourceDirectory);
     final engraving = await Engraver.engrave(
       prepared.musicXML,
@@ -232,9 +224,77 @@ class LoadedScore {
       verovioOptions: {
         ...typography.verovioOptions,
         if (centeredLyrics) 'curatedLyricCentre': true,
-        if (gaps.isNotEmpty) 'curatedSpacers': ?Spacers.verovioOption(gaps, Spacers.barLengths(doc)),
+        if (gaps.isNotEmpty) 'curatedSpacers': ?Spacers.verovioOption(gaps, barLengths),
       },
     );
+    return _of(musicXML, metadata, prepared, engraving,
+        tempo: tempo,
+        textEdits: textEdits,
+        fonts: fonts,
+        textFontFound: resources.textFound,
+        options: options,
+        textDynamics: textDynamics,
+        typography: typography,
+        centeredLyrics: centeredLyrics,
+        pairs: pairs,
+        spacers: spacers,
+        gaps: gaps);
+  }
+
+  /// [musicXML] engraved beforehand with [request] as [engraving] ([EngravingFile]): where there is
+  /// no engraver. Its fonts must be loaded already ([MusicFont.load], [TextFonts]).
+  static LoadedScore engraved(String musicXML, EngraveRequest request, EngravingData engraving,
+      {double? tempo, bool textFontFound = true}) {
+    final r = request;
+    final (:metadata, :prepared, barLengths: _) =
+        _prepare(musicXML, r.textEdits, r.pairs, r.textDynamics, r.typography, r.options, r.spacers);
+    return _of(musicXML, metadata, prepared, engraving,
+        tempo: tempo,
+        textEdits: r.textEdits,
+        fonts: r.fonts,
+        textFontFound: textFontFound,
+        options: r.options,
+        textDynamics: r.textDynamics,
+        typography: r.typography,
+        centeredLyrics: r.centeredLyrics,
+        pairs: r.pairs,
+        spacers: r.spacers,
+        gaps: r.gaps);
+  }
+
+  /// What Verovio is given for [musicXML]: the spacers' parts written in, the edits applied.
+  static ({ScoreMetadata metadata, PreparedScore prepared, List<double> barLengths}) _prepare(
+      String musicXML,
+      Map<String, String> textEdits,
+      List<PlayerPair> pairs,
+      bool textDynamics,
+      ScoreTypography typography,
+      EngravingOptions options,
+      List<VerticalSpacer> spacers) {
+    final doc = ScoreMetadata.parse(musicXML);
+    Spacers.write(doc, spacers);
+    final metadata = ScoreMetadata.fromDocument(doc);
+    final prepared = PreparedScore.prepare(doc, textEdits,
+        metadata: metadata,
+        pairs: pairs,
+        textDynamics: textDynamics,
+        typography: typography,
+        textSize: (options.valueOf(EngraveOption.byKey('lyricSize')!) as num).toDouble());
+    return (metadata: metadata, prepared: prepared, barLengths: Spacers.barLengths(doc));
+  }
+
+  static LoadedScore _of(String musicXML, ScoreMetadata metadata, PreparedScore prepared, EngravingData engraving,
+      {required double? tempo,
+      required Map<String, String> textEdits,
+      required ScoreFonts fonts,
+      required bool textFontFound,
+      required EngravingOptions options,
+      required bool textDynamics,
+      required ScoreTypography typography,
+      required bool centeredLyrics,
+      required List<PlayerPair> pairs,
+      required List<VerticalSpacer> spacers,
+      required List<HorizontalSpacer> gaps}) {
     final timeline = ConstantTempoTimeline(engraving.measures,
         quarterNotesPerMinute: tempo ?? metadata.tempo ?? 100);
     final beats = BeatGrid(timeline.measureStarts, meters: metadata.meters, pickups: metadata.pickups);
@@ -243,7 +303,7 @@ class LoadedScore {
         texts: prepared.texts,
         textEdits: Map.unmodifiable(textEdits),
         fonts: fonts,
-        textFontFound: resources.textFound,
+        textFontFound: textFontFound,
         options: options,
         textDynamics: textDynamics,
         typography: typography,
