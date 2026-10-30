@@ -206,13 +206,16 @@ class EditorController extends ChangeNotifier {
     }
     final score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
     final arts = await ImageEditing._decodeAll(state.images);
-    await _install(name, scoreBytes, score, state, arts: arts);
-    if (_disposed) return null; // nothing to play it in: the window closed
+    // Loading from the moment the score shows until its recordings are read.
+    _loadingAudio = mediaPath != null || takePaths.isNotEmpty;
     try {
+      await _install(name, scoreBytes, score, state, arts: arts);
+      if (_disposed) return null; // nothing to play it in: the window closed
       return await _loadTakes(mediaPath, takePaths);
     } finally {
+      _loadingAudio = false;
       _tab = BottomTab.instruments;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 
