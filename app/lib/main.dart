@@ -50,17 +50,23 @@ Future<void> main() async {
   final keep = ScratchSpace.session.path;
   unawaited(Isolate.run(() => ScratchSpace.sweep(keep: keep)).catchError((_) {}));
   FontResources.workDirectory = ScratchSpace.folder('fonts').path; // metrics of fonts not bundled
-  LicenseRegistry.addLicense(_iconFontLicenses);
+  LicenseRegistry.addLicense(_fontLicenses);
   final settings = await AppSettings.load();
   final updater = Updater();
   if (settings.checkForUpdates) unawaited(updater.check());
   runApp(CuratedScoreApp(settings: settings, updater: updater));
 }
 
-/// The icon fonts' licence, which goes with them (assets/fonts): read only when asked for.
-Stream<LicenseEntry> _iconFontLicenses() async* {
-  for (final (package, file) in [('Carbon Icons', 'CarbonIcons'), ('Material Symbols', 'MaterialSymbols')]) {
-    yield LicenseEntryWithLineBreaks([package], await rootBundle.loadString('assets/fonts/$file-LICENSE.txt'));
+/// The bundled fonts' licences, which go with them: read only when asked for.
+Stream<LicenseEntry> _fontLicenses() async* {
+  for (final (package, file) in [
+    ('Carbon Icons', 'assets/fonts/CarbonIcons-LICENSE.txt'),
+    ('Material Symbols', 'assets/fonts/MaterialSymbols-LICENSE.txt'),
+    ('IBM Plex Sans', 'assets/fonts/IBMPlexSans-OFL.txt'),
+    for (final font in ['Bravura', 'Leland', 'Petaluma', 'Leipzig', 'Gootville', 'Academico'])
+      (font, 'packages/score_engine/assets/fonts/$font-OFL.txt'),
+  ]) {
+    yield LicenseEntryWithLineBreaks([package], await rootBundle.loadString(file));
   }
 }
 

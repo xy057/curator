@@ -25,6 +25,14 @@ flutter:
   assets:
     - assets/verovio/
     - assets/verovio/text/
+    # The fonts' licence: the OFL asks that it go with every copy, and not every font file holds
+    # it whole. Shipped, and in the app's LicenseRegistry (a page's player has them beside it).
+    - assets/fonts/Bravura-OFL.txt
+    - assets/fonts/Leland-OFL.txt
+    - assets/fonts/Petaluma-OFL.txt
+    - assets/fonts/Leipzig-OFL.txt
+    - assets/fonts/Gootville-OFL.txt
+    - assets/fonts/Academico-OFL.txt
   fonts:
     # SMuFL music fonts (SIL OFL 1.1, see assets/fonts/*-OFL.txt); Verovio's metrics for each
     # are assets/verovio/<family>.xml.
