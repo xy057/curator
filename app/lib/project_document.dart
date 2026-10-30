@@ -190,16 +190,20 @@ class ProjectDocument extends ChangeNotifier {
 
   ProjectContents _contents() {
     final source = controller.source!;
-    final track = controller.track;
+    final track = controller.track, focus = controller.focus;
+    // A recording that couldn't be read is saved as it came.
+    ProjectMedia? media(String id) => switch (controller.recordingOf(id)) {
+          final r? => ProjectMedia(name: r.name, embedFrom: r.path),
+          null => null,
+        };
     return ProjectContents(
       scoreName: source.name,
       scoreBytes: source.bytes,
       state: controller.projectState,
-      media: track == null ? null : ProjectMedia(name: track.name, embedFrom: track.path),
+      media: track != null ? ProjectMedia(name: track.name, embedFrom: track.path) : focus == null ? null : media(focus),
       takes: {
         for (final t in controller.takes)
-          if (t.id != controller.focus)
-            if (controller.audio.trackOf(t.id) case final other?) t.id: ProjectMedia(name: other.name, embedFrom: other.path),
+          if (t.id != focus) t.id: ?media(t.id),
       },
     );
   }

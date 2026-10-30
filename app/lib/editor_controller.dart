@@ -1585,6 +1585,14 @@ class EditorController extends ChangeNotifier {
     if (audio.setChunks(_performed.chunks) && playback.isPlaying && !playback._scrubbing) audio.play(playback.time.value);
   }
 
+  /// Take [id]'s recording as the project keeps it: the one heard, or the one that couldn't be
+  /// read ([AudioEngine.unreadOf]); null when it has none.
+  ({String name, String path})? recordingOf(String id) {
+    if (audio.trackOf(id) case final track?) return (name: track.name, path: track.path);
+    if (audio.unreadOf(id) case final path?) return (name: fileNameOf(path), path: path);
+    return null;
+  }
+
   /// When the last sound ends (0 with none).
   double get soundEnd => _performed.chunks.fold(0.0, (end, c) => math.max(end, c.end));
 
@@ -1788,14 +1796,16 @@ class EditorController extends ChangeNotifier {
   });
 
   /// Loads the recordings of a project opened: the focus's at [focusPath], the others at
-  /// [paths] (by take id). A take without its recording is left out, with its lane; one
-  /// recording that can't be read is reported, the others still load.
+  /// [paths] (by take id). One that can't be read is reported and kept as it came, silent
+  /// ([AudioEngine.keepUnread]): its take, its sync and its file stay in the project; the others
+  /// still load.
   Future<String?> _loadTakes(String? focusPath, Map<String, String> paths) async {
     String? problem;
     Future<void> load(String id, String path) async {
       try {
         await audio.put(id, await audio.read(path));
       } catch (e) {
+        audio.keepUnread(id, path);
         problem ??= '${'Couldn’t load the recording.'.tr}\n${describeError(e)}';
       }
     }
@@ -1809,13 +1819,10 @@ class EditorController extends ChangeNotifier {
       if (t.id != _doc.focus && paths[t.id] != null) await load(t.id, paths[t.id]!);
     }
     if (_disposed) return null;
-    final missing = [for (final t in _doc.takes) if (audio.trackOf(t.id) == null) t.id];
-    if (missing.contains(_doc.focus)) {
-      if (_doc.takes.where((t) => !missing.contains(t.id)).firstOrNull case final next?) _focusOn(next.id);
-    }
-    // Gone, the focus leaves its sync to the score, as a recording removed does.
-    for (final id in missing) {
-      _everywhere((s) => s.removing(id));
+    // The Audio tab edits a recording heard, if any is.
+    final silent = [for (final t in _doc.takes) if (audio.trackOf(t.id) == null) t.id];
+    if (silent.contains(_doc.focus)) {
+      if (_doc.takes.where((t) => !silent.contains(t.id)).firstOrNull case final next?) _focusOn(next.id);
     }
     audio.focus = _doc.focus;
     _performanceChanged();

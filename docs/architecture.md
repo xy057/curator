@@ -307,7 +307,9 @@ memory while together they stay within 2 GB (`AudioEngine.memoryBudget`), read f
 adds a take (the first heard throughout; another with an empty lane, picked, no anchors: Align
 it); Replace Recording… (a lane's menu) and a recording dropped replace the focus's, keeping its
 sync and lane. Saved as the `takes` module (optional: an older Curator keeps the focus's, with
-its sync); a take whose recording is missing when the project opens is left out.
+its sync). A recording that can't be read when the project opens (FFmpeg missing, a damaged
+file) is kept as it came (`AudioEngine.keepUnread`), silent: its take, its sync and its file stay,
+and the next save embeds it again (`EditorController.recordingOf`); the focus moves to one heard.
 
 **A MIDI file can stand in for the anchors.** Dropping a `.mid` on the Audio tab (or its MIDI
 button) reads its tempo map (`MidiTempoMap.read`: tempo changes only; the beats still come
