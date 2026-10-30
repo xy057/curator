@@ -38,7 +38,9 @@ abstract final class WebExport {
   /// Writes [editor]'s project to the folder [output] as [page] says (its recordings, fonts and
   /// name colours are filled in here): [takes] heard whole as well as the performance, the
   /// captions and the images only if [captions] and [images]. Written beside it and moved in at
-  /// the end; a folder there already is replaced only if it is an earlier page. Returns the
+  /// the end. A folder there already is written into only if it holds an earlier page, and then
+  /// only what the export writes is replaced: what else it holds (a repository, a host's own
+  /// files) stays. Returns the
   /// path of its `index.html`. Throws a [VideoExportException] saying why it couldn't. A test
   /// gives the [player] (zipped), as it has no build of it.
   static Future<String> write(EditorController editor, String output,
@@ -157,14 +159,37 @@ abstract final class WebExport {
       File('$folder/${WebPage.pageFile}').writeAsStringSync(const JsonEncoder.withIndent(' ').convert(written.toJson()));
       _title(File('${part.path}/index.html'), page.title);
 
-      if (Directory(output).existsSync()) Directory(output).deleteSync(recursive: true);
-      part.renameSync(output);
+      if (Directory(output).existsSync()) {
+        _moveIn(part, output);
+      } else {
+        part.renameSync(output);
+      }
     } catch (e) {
       if (part.existsSync()) part.deleteSync(recursive: true);
       if (e is VideoExportException) rethrow;
       throw VideoExportException('${'Couldn’t write the page.'.tr}\n$e');
     }
     return '$output/index.html';
+  }
+
+  /// Moves what [part] holds into the folder [output], each in place of what is there by its
+  /// name, then lets [part] go.
+  static void _moveIn(Directory part, String output) {
+    for (final entry in part.listSync()) {
+      final there = '$output${Platform.pathSeparator}${entry.uri.pathSegments.lastWhere((s) => s.isNotEmpty)}';
+      switch (FileSystemEntity.typeSync(there, followLinks: false)) {
+        case FileSystemEntityType.notFound:
+          break;
+        case FileSystemEntityType.directory:
+          Directory(there).deleteSync(recursive: true);
+        case FileSystemEntityType.link:
+          Link(there).deleteSync();
+        default:
+          File(there).deleteSync();
+      }
+      entry.renameSync(there);
+    }
+    part.deleteSync(recursive: true);
   }
 
   /// Gives the player's page [title] (what a browser's tab shows).

@@ -78,8 +78,13 @@ void main() {
     expect(outside.statusCode, 404);
     await outside.drain<void>();
 
-    // Again over it: replaced. A folder of anything else: refused, untouched.
+    // Again over it: what the export writes replaced, what else is there (a repository) kept.
+    // A folder of anything else: refused, untouched.
+    File('$out/.git/HEAD').createSync(recursive: true);
+    File('$out/${WebPage.folder}/${WebPage.pageFile}').writeAsStringSync('{}');
     await WebExport.write(c, out, page: page, player: player);
+    expect(File('$out/.git/HEAD').existsSync(), isTrue);
+    expect(File('$out/${WebPage.folder}/${WebPage.pageFile}').readAsStringSync(), isNot('{}'));
     final other = Directory('${folder.path}/Other')..createSync();
     File('${other.path}/notes.txt').writeAsStringSync('mine');
     await expectLater(WebExport.write(c, other.path, page: page, player: player), throwsA(isA<Exception>()));

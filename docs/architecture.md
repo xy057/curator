@@ -154,7 +154,9 @@ can't measure one on an isolate). For each thing a viewer could choose (the reco
 pitch kept, captions, bar numbers, each instrument as curated, always or never), the export sets what
 they see first and whether they may change it (`WebChoice.open`); with none open the page is a player
 only. The page loads its files beside it (no `<base>`), so it plays from any folder of a server, not
-from a file opened directly.
+from a file opened directly. Written as `<name>.part`, then moved in: a folder there already takes
+it only if it holds an earlier page (`score/page.json`), and then only the entries the export writes
+are replaced, so what a user keeps beside them (a GitHub Pages repository's `.git`, a `CNAME`) stays.
 
 **Beats come from `BeatGrid`, never "a quarter note".** Compound meters beat in dotted notes
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back
