@@ -71,6 +71,9 @@ abstract final class ProjectModules {
   /// settings file (.ccf).
   static const List<ProjectModule> settings = [fonts, engraving, display, extensions];
 
+  /// Whether [id] can be a take's ([Take.id]): `take-1`, `take-2`…, safe as a folder's name.
+  static bool isTakeId(String id) => _Takes.isTakeId(id);
+
   /// The most an added music font, or its metadata, may unpack to.
   static const maxFontBytes = 64 << 20;
 

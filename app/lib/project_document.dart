@@ -8,6 +8,7 @@ import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'file_names.dart';
 import 'project_file.dart';
+import 'project_modules.dart';
 import 'score_replacement.dart';
 import 'scratch_space.dart';
 import 'l10n/l10n.dart';
@@ -81,6 +82,7 @@ class ProjectDocument extends ChangeNotifier {
 
   Future<String?> _open(String path) async {
     final String? recordingProblem;
+    final Map<String, String>? unreadTakes;
     final previousMedia = _mediaDirectory;
     final mediaDirectory = ScratchSpace.folder('project');
     try {
@@ -95,11 +97,13 @@ class ProjectDocument extends ChangeNotifier {
       final missing = project.media?.missingPath;
       recordingProblem = problem ?? (missing == null ? null : '${'Can’t find the linked recording:'.tr}\n$missing');
       _olderFormat = project.olderFormat;
+      unreadTakes = project.state.foreign.containsKey(ProjectModules.takes.id) ? project.takes : null;
     } catch (_) {
       ScratchSpace.release(mediaDirectory);
       rethrow;
     }
     _mediaDirectory = mediaDirectory;
+    _unreadTakes = unreadTakes;
     ScratchSpace.release(previousMedia);
     _path = path;
     _isSample = false;
@@ -113,6 +117,7 @@ class ProjectDocument extends ChangeNotifier {
     await controller.openFile(path);
     ScratchSpace.release(_mediaDirectory); // the project before had its recording unpacked there
     _mediaDirectory = null;
+    _unreadTakes = null;
     _path = null;
     _isSample = false;
     _olderFormat = false;
@@ -155,6 +160,7 @@ class ProjectDocument extends ChangeNotifier {
     await controller.close();
     ScratchSpace.release(_mediaDirectory);
     _mediaDirectory = null;
+    _unreadTakes = null;
     _path = null;
     _isSample = false;
     _olderFormat = false;
@@ -201,10 +207,12 @@ class ProjectDocument extends ChangeNotifier {
       scoreBytes: source.bytes,
       state: controller.projectState,
       media: track != null ? ProjectMedia(name: track.name, embedFrom: track.path) : focus == null ? null : media(focus),
-      takes: {
-        for (final t in controller.takes)
-          if (t.id != focus) t.id: ?media(t.id),
-      },
+      takes: _unreadTakes != null
+          ? {for (final MapEntry(key: id, value: path) in _unreadTakes!.entries) id: ProjectMedia(name: fileNameOf(path), embedFrom: path)}
+          : {
+              for (final t in controller.takes)
+                if (t.id != focus) t.id: ?media(t.id),
+            },
     );
   }
 
@@ -260,6 +268,10 @@ class ProjectDocument extends ChangeNotifier {
 
   /// Where the open project's embedded recording is unpacked.
   Directory? _mediaDirectory;
+
+  /// The recordings besides the focus's when the project's takes module is a newer build's,
+  /// kept unread with it ([ProjectState.foreign]) and saved as they came, by take id.
+  Map<String, String>? _unreadTakes;
 
 
   @override

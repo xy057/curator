@@ -309,7 +309,7 @@ memory while together they stay within 2 GB (`AudioEngine.memoryBudget`), read f
 adds a take (the first heard throughout; another with an empty lane, picked, no anchors: Align
 it); Replace Recording… (a lane's menu) and a recording dropped replace the focus's, keeping its
 sync and lane. Saved as the `takes` module (optional: an older Curator keeps the focus's, with
-its sync). A recording that can't be read when the project opens (FFmpeg missing, a damaged
+its sync, and keeps the module unread with every recording it lists, `ProjectDocument._unreadTakes`). A recording that can't be read when the project opens (FFmpeg missing, a damaged
 file) is kept as it came (`AudioEngine.keepUnread`), silent: its take, its sync and its file stay,
 and the next save embeds it again (`EditorController.recordingOf`); the focus moves to one heard.
 
