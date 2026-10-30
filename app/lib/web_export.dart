@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -246,45 +247,63 @@ abstract final class WebPreview {
   }
 
   /// A server of [folder]'s files at a free port, with byte ranges (Safari plays a recording only
-  /// from a server that sends them). Nothing outside the folder.
+  /// from a server that sends them). Nothing outside the folder, and only to this computer's own
+  /// addresses: a request naming any other host (a site rebinding its name to this computer) is
+  /// refused.
   @visibleForTesting
   static Future<HttpServer> serve(String folder) async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       final response = request.response;
-      final segments = [...request.uri.pathSegments];
-      if (segments.isEmpty || segments.last.isEmpty) segments.add('index.html');
-      final file = File([folder, ...segments.where((s) => s.isNotEmpty)].join(Platform.pathSeparator));
-      if (request.method != 'GET' || segments.any((s) => s == '..' || s.contains(RegExp(r'[/\\]'))) || !file.existsSync()) {
-        response.statusCode = HttpStatus.notFound;
-        await response.close();
-        return;
-      }
-      final length = file.lengthSync();
-      var (start, end) = (0, length);
-      final range = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(request.headers.value(HttpHeaders.rangeHeader) ?? '');
-      if (range != null) {
-        final (from, to) = (int.tryParse(range[1]!), int.tryParse(range[2]!));
-        (start, end) = from == null ? (length - (to ?? 0), length) : (from, to == null ? length : to + 1);
-        start = start.clamp(0, length);
-        end = end.clamp(start, length);
-        response
-          ..statusCode = HttpStatus.partialContent
-          ..headers.set(HttpHeaders.contentRangeHeader, 'bytes $start-${end - 1}/$length');
-      }
-      response.headers
-        ..contentType = ContentType.parse(_types[segments.last.split('.').last] ?? 'application/octet-stream')
-        ..contentLength = end - start
-        ..set(HttpHeaders.acceptRangesHeader, 'bytes')
-        ..set(HttpHeaders.cacheControlHeader, 'no-cache'); // an export again shows at once
       try {
-        await response.addStream(file.openRead(start, end));
-      } on FileSystemException {
-        // exported again while it was being read: the browser asks again
+        await _answer(request, folder);
+      } catch (_) {
+        // The browser went away mid-file, or the folder was exported again: it asks again.
+        try {
+          await response.close();
+        } catch (_) {}
       }
-      await response.close();
     });
     return server;
+  }
+
+  static Future<void> _answer(HttpRequest request, String folder) async {
+    final response = request.response;
+    Future<void> refuse(int status) {
+      response.statusCode = status;
+      return response.close();
+    }
+
+    if (!const {'localhost', '127.0.0.1'}.contains(request.headers.host)) return refuse(HttpStatus.forbidden);
+    final segments = [...request.uri.pathSegments];
+    if (segments.isEmpty || segments.last.isEmpty) segments.add('index.html');
+    final file = File([folder, ...segments.where((s) => s.isNotEmpty)].join(Platform.pathSeparator));
+    if (request.method != 'GET' || segments.any((s) => s == '..' || s.contains(RegExp(r'[/\\]'))) || !file.existsSync()) {
+      return refuse(HttpStatus.notFound);
+    }
+    final length = file.lengthSync();
+    var (start, end) = (0, length);
+    final range = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(request.headers.value(HttpHeaders.rangeHeader) ?? '');
+    if (range != null && '${range[1]}${range[2]}'.isNotEmpty) {
+      // A number too big to read is past any file.
+      final from = range[1]!.isEmpty ? null : int.tryParse(range[1]!) ?? length;
+      final to = range[2]!.isEmpty ? null : int.tryParse(range[2]!) ?? length;
+      (start, end) = from == null ? (math.max(0, length - to!), length) : (from, math.min(length, (to ?? length - 1) + 1));
+      if (start >= end) {
+        response.headers.set(HttpHeaders.contentRangeHeader, 'bytes */$length');
+        return refuse(HttpStatus.requestedRangeNotSatisfiable);
+      }
+      response
+        ..statusCode = HttpStatus.partialContent
+        ..headers.set(HttpHeaders.contentRangeHeader, 'bytes $start-${end - 1}/$length');
+    }
+    response.headers
+      ..contentType = ContentType.parse(_types[segments.last.split('.').last] ?? 'application/octet-stream')
+      ..contentLength = end - start
+      ..set(HttpHeaders.acceptRangesHeader, 'bytes')
+      ..set(HttpHeaders.cacheControlHeader, 'no-cache'); // an export again shows at once
+    await response.addStream(file.openRead(start, end));
+    await response.close();
   }
 
   static const _types = {

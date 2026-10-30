@@ -66,9 +66,10 @@ void main() {
     addTearDown(() => server.close(force: true));
     final client = HttpOverrides.runWithHttpOverrides(HttpClient.new, _Network()); // the binding's answers every request 400
     addTearDown(client.close);
-    Future<HttpClientResponse> get(String path, [String? range]) async {
+    Future<HttpClientResponse> get(String path, [String? range, String? host]) async {
       final request = await client.get('localhost', server.port, path);
       if (range != null) request.headers.set(HttpHeaders.rangeHeader, range);
+      if (host != null) request.headers.host = host;
       return request.close();
     }
     final index = await get('/');
@@ -79,6 +80,12 @@ void main() {
     final outside = await get('/../${File(out).uri.pathSegments.last}/index.html');
     expect(outside.statusCode, 404);
     await outside.drain<void>();
+    final past = await get('/${WebPage.folder}/${WebPage.pageFile}', 'bytes=99999999-');
+    expect(past.statusCode, 416);
+    await past.drain<void>();
+    final rebound = await get('/', null, 'example.com'); // a site whose name now points here
+    expect(rebound.statusCode, 403);
+    await rebound.drain<void>();
 
     // Again over it: what the export writes replaced, what else is there (a repository) kept.
     // A folder of anything else: refused, untouched.
