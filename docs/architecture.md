@@ -1036,8 +1036,11 @@ which drops its semantics but not its overlay (a `Slider`'s is always there,
 flutter/flutter#190357). The overlay is then sent with no parent, the desktop engine rejects
 the update ("Failed to update ui::AXTree" in `make run`), and its tree stays broken. So:
 `Tip`, never `Tooltip` (and `ToolbarButton` for icon buttons); a `Slider` inside
-`OverlaySemantics`; `showAppDialog`, never `showDialog`; and a fade over any of them keeps its
-semantics (`alwaysIncludeSemantics: true`).
+`OverlaySemantics`; `showAppDialog`, never `showDialog`; a fade over any of them keeps its
+semantics (`alwaysIncludeSemantics: true`); and a list with a slider in it keeps every row in
+the tree (a settings page: `ScrollCacheExtent.pixels(double.maxFinite)`), as a row scrolled past the cache
+is dropped from it but its slider's overlay is not. `test/accessibility_tree_test.dart`
+replays the updates as the engine takes them (`accessibility_mirror.dart`).
 
 **Fonts: engraving and drawing agree.** Verovio lays out with the metrics of the same fonts
 the renderer draws. A project chooses its fonts (Project Settings ▸ Engraving, `ScoreFonts`: an edit,
