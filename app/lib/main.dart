@@ -908,6 +908,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       controller: controller,
       document: document,
       onExportVideo: _exportVideo,
+      onExportWeb: _exportWeb,
       videoFrame: settings.previewVideoFrame,
       onVideoFrame: (on) => settings.previewVideoFrame = on,
       videoRatio: settings.videoRatio,

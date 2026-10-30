@@ -23,6 +23,7 @@ class EditorToolbar extends StatelessWidget {
     required this.controller,
     required this.document,
     required this.onExportVideo,
+    required this.onExportWeb,
     required this.videoFrame,
     required this.onVideoFrame,
     required this.videoRatio,
@@ -32,7 +33,7 @@ class EditorToolbar extends StatelessWidget {
   });
   final EditorController controller;
   final ProjectDocument document;
-  final VoidCallback onExportVideo;
+  final VoidCallback onExportVideo, onExportWeb;
 
   /// Whether the score shows the video's frame rather than filling the window.
   final bool videoFrame;
@@ -123,11 +124,7 @@ class EditorToolbar extends StatelessWidget {
             tooltip: 'Manage assets…'.tr,
             onPressed: () => showAssetsDialog(context, c),
           ),
-        ToolbarButton(
-          icon: AppIcon.export.of(context),
-          tooltip: 'Export video… ({key})'.fill({'key': shortcut('⌘E')}),
-          onPressed: c.isReengraving ? null : onExportVideo,
-        ),
+        _ExportMenu(enabled: !c.isReengraving, onVideo: onExportVideo, onWeb: onExportWeb),
         ToolbarButton(
           icon: AppIcon.frame.of(context),
           tooltip: videoFrame ? 'Fill the window' : "Show the video's frame",
@@ -202,6 +199,47 @@ class RatioMenu extends StatelessWidget {
               style: TextStyle(
                   fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
           Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Export: a video or a web page, chosen from its menu.
+class _ExportMenu extends StatelessWidget {
+  const _ExportMenu({required this.enabled, required this.onVideo, required this.onWeb});
+  final bool enabled;
+  final VoidCallback onVideo, onWeb;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final ink = enabled ? colors.text : colors.textMuted.withValues(alpha: 0.5);
+    Widget item(String label, [String? key]) => Row(children: [
+          Expanded(child: Text(label.tr)),
+          if (key != null) ...[
+            const SizedBox(width: 24),
+            Text(shortcut(key), style: TextStyle(color: colors.textMuted)),
+          ],
+        ]);
+    return OverlaySemantics(
+      child: AppPopupMenuButton<VoidCallback>(
+        tooltip: 'Export'.tr,
+        enabled: enabled,
+        position: PopupMenuPosition.under,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.only(left: 8, right: 2),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
+        ),
+        onSelected: (export) => export(),
+        itemBuilder: (context) => [
+          menuItem(context, value: onVideo, child: item('Export Video…', '⌘E')),
+          menuItem(context, value: onWeb, child: item('Export to Web…')),
+        ],
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(AppIcon.export.of(context), size: 16, color: ink),
+          Icon(AppIcon.dropDown.of(context), size: 18, color: enabled ? colors.textMuted : ink),
         ]),
       ),
     );
