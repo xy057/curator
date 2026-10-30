@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart' show RenderStyle, TextKind, verovioVersion;
 
@@ -1497,6 +1498,9 @@ class _Page extends StatelessWidget {
     final colors = context.colors;
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+      // Every row laid out and in the accessibility tree, however far down: a row past the
+      // cache would be dropped from it, but not its slider's overlay (see OverlaySemantics).
+      scrollCacheExtent: const ScrollCacheExtent.pixels(double.maxFinite),
       children: [
         for (final (i, (heading, rows)) in groups.indexed) ...[
           if (i > 0) const SizedBox(height: 18),
