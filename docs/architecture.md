@@ -12,6 +12,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `src/verovio_bridge.cpp` | A Verovio device context that records drawing calls (paths, glyphs, text) per staff, plus measures, onsets and clef/key/time signatures, behind a C API |
 | `engraving_options.dart` | The Verovio options the user may change (Project Settings ▸ Engraving: the common ones by plain name on its Engraving tab, the Advanced tab every other; a project's over the app's, `EngravingOptions.over`) and the house style's values for them |
 | `lib/src/native/bindings.dart`, `engraving.dart` | FFI bindings; `Engraver.engrave` runs Verovio on an isolate and copies everything into plain Dart data (`EngravingData`) |
+| `lib/src/native/verovio.dart`, `verovio_web.dart`, `constants.dart` | Every `dart:ffi` call (engraving, font measuring), chosen by conditional import: on the web a stub that can't engrave, so the engine compiles there; the command constants without ffi |
+| `engraving_file.dart` | `EngravingFile`: an engraving saved and read again (a web page's score); `LoadedScore.engraved` makes a score from one with no engraver |
 | `score_metadata.dart`, `score_text.dart` | What the MusicXML says: parts, staves, meters, where each part plays; the editable texts, with text edits applied before engraving |
 | `text_dynamics.dart` | Dynamics another program wrote as text (`TextDynamics`), made dynamics before engraving |
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
@@ -68,6 +70,9 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `settings_file.dart` | The `.ccf` format: a project's score-wide settings, for other projects (Project Settings ▸ Export… / Import…) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud; every take's recording held, a voice per `PlayChunk`), the waveform and onsets, the recording read whole for Align (`AudioTrack.chroma`), converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
+| `video_frame.dart` | `VideoRatio`, and `VideoFrame`: where a video's frame sits in a view (the preview's, the web player's) |
+| `web_page.dart`, `web_export.dart`, `web_export_dialog.dart` | File ▸ Export to Web…: what a page is (`WebPage`, its `page.json`; `WebChoice`, a viewer's choice and whether it is theirs), writing one (`WebExport`), the dialog |
+| `web_player/*.dart`, `web/`, `tool/pack_web_player.dart` | The web player, the app package built for the web from `web_player/main.dart` (`make web-player`): the page read (`LoadedPage`), drawn and played (`PagePlayer`, `PageAudio`: an `<audio>`, `HtmlAudio`, or a clock alone) |
 | `phrase_search_window.dart` | Edit ▸ Find Phrase… (⌘F): the window that enters a phrase and lists where it is played |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
@@ -127,6 +132,29 @@ over it then, so on see-through paper the music goes on a layer of its own and t
 out (`dstOut`); the ending fades the whole frame out on a layer instead of painting paper on it.
 Its frames are read back as `rawStraightRgba` (Flutter's `rawRgba` is premultiplied, FFmpeg's
 `rgba` straight); the dialog's still shows it on a checkerboard toned like the paper.
+
+**A web page is a frame of time too** (File ▸ Export to Web…, `WebExport`). A browser has no
+engraver, so the page shows the score as the app engraved it: a folder, put on any web server as
+it is, holds the web player (`index.html` and its files: the app package built for the web from
+`lib/web_player/main.dart`, which `make web-player` builds and `tool/pack_web_player.dart` zips
+into `assets/web_player/player.zip`, an asset the app bundles; not in git) and `score/`: `page.json`
+(`WebPage`), `engraving.bin` (`EngravingFile`), `project.ccs` (the project's modules, stored, not
+deflated: `ZipEntries` inflates with dart:io, which a page hasn't got) and `audio/<n>.m4a`. The
+project there is `EditorController.pageState`: every setting the app supplies made the project's
+(`exportedSettings`), the syncs as anchors (a MIDI tempo map's made into them, `syncsAsAnchors`), and
+what the score is engraved with exactly as it was (`WebPage.requestOf` must give `score.request`, or
+the export stops), so `LoadedScore.engraved` rebuilds the same score and the player's scene draws the
+editor's frames pixel for pixel. Each way to hear it (`WebRecording`: the performance, and with two
+recordings or more each one whole, `EditorController.performedCopy(take:)`) is a `VideoExport` whose
+sound alone is written (`writeSound`, mixed and faded as a video's), cut to the page's bars as a video
+is (`ClippedTimeline.bars`). The engine compiles for the web because every `dart:ffi` call is in
+`native/verovio.dart`, which the web swaps for a stub by conditional import; `dart:io` compiles there,
+so code reaching it (a file read) must just never run on a page. SVGs are sized before they go (a page
+can't measure one on an isolate). For each thing a viewer could choose (the recording, speed with the
+pitch kept, captions, bar numbers, each instrument as curated, always or never), the export sets what
+they see first and whether they may change it (`WebChoice.open`); with none open the page is a player
+only. The page loads its files beside it (no `<base>`), so it plays from any folder of a server, not
+from a file opened directly.
 
 **Beats come from `BeatGrid`, never "a quarter note".** Compound meters beat in dotted notes
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back
@@ -1076,8 +1104,8 @@ else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app a
 
 `.github/workflows/release.yml` runs only when started by hand (GitHub ▸ Actions ▸ Release ▸
 Run workflow, or `gh workflow run release.yml`). It builds side by side with `make build` on
-macOS and `flutter build windows` on Windows (Verovio fetched and patched by hand there: no
-`make`), zips each as `Curator-<version>-<macos|windows>.zip` (the Windows zip carries the
+macOS and `flutter build windows` on Windows (Verovio fetched and patched by hand there, and the web
+player built as `make web-player` would: no `make`), zips each as `Curator-<version>-<macos|windows>.zip` (the Windows zip carries the
 Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built and run
 the smoke test (`app/integration_test/app_smoke_test.dart`, `make smoke`: the app as built opens
 the sample, engraves, draws and exports; `make check` isn't run there), where the version is

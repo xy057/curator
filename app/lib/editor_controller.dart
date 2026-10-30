@@ -1055,6 +1055,35 @@ class EditorController extends ChangeNotifier {
         centeredLyrics: centeredLyrics,
       );
 
+  /// File ▸ Export to Web…: the project as a page shows it ([WebPage]): [exportedSettings], with
+  /// the lanes, the images and captions, the syncs as anchors ([syncsAsAnchors]), the music font
+  /// kept with it, and what the score is engraved with as it was engraved.
+  EditState get pageState {
+    final score = _score!, synced = syncsAsAnchors, images = extensionOn(Extensions.attachImage.id);
+    return exportedSettings.copyWith(
+      lanes: _curation!.lanes,
+      anchors: synced.anchors,
+      leadIn: _sync!.leadIn,
+      midi: null,
+      takes: synced.takes,
+      crossfade: crossfade,
+      patches: this.images._patches,
+      captions: captions._captions,
+      embedFont: true,
+      textEdits: score.textEdits,
+      pairs: score.pairs,
+      fonts: score.fonts,
+      engraving: score.options,
+      textDynamics: score.textDynamics,
+      centeredLyrics: score.centeredLyrics,
+      spacers: images ? _doc.spacers : const [],
+      gaps: images ? _doc.gaps : const [],
+    );
+  }
+
+  /// Each instrument's name colour, by part id (see [colorNames]).
+  Map<String, Color> get nameColors => _nameColors;
+
   /// Project Settings ▸ Import…: [settings] (a settings file's) in place of the project's
   /// score-wide settings, one Undo step; each instrument's own (brackets, groups, pairs) stay. A
   /// music font only named is looked for here, Bravura standing in; one that can't be read
@@ -1479,9 +1508,11 @@ class EditorController extends ChangeNotifier {
   ({ScoreTimeline timeline, List<PlayChunk> chunks}) get _performed => _performance ??= _perform(_sync);
 
   /// The performance as [timeline] and the sound are now, on syncs of its own that nothing
-  /// edited later changes (video export's), with each recording's file by take id.
-  ({ScoreTimeline timeline, List<PlayChunk> chunks, Map<String, String> files}) performedCopy() {
-    final (:timeline, :chunks) = _perform(_syncCopy());
+  /// edited later changes (video export's), with each recording's file by take id. With [take],
+  /// that recording alone, heard whole in its own time (as when it is picked).
+  ({ScoreTimeline timeline, List<PlayChunk> chunks, Map<String, String> files}) performedCopy({String? take}) {
+    final own = take == null || take == _doc.focus ? null : _doc.takes.firstWhere((t) => t.id == take);
+    final (:timeline, :chunks) = _perform(own == null ? _syncCopy() : _syncOf(own), whole: take);
     return (
       timeline: timeline,
       chunks: chunks,
@@ -1489,17 +1520,29 @@ class EditorController extends ChangeNotifier {
     );
   }
 
-  /// What [timeline] and the sound are with the focus's sync [sync]. A recording picked is heard
-  /// whole, in its own time; one alone, in its own time where its lane has regions; several,
-  /// spliced by their lanes.
-  ({ScoreTimeline timeline, List<PlayChunk> chunks}) _perform(SyncMap? sync) {
+  /// The takes, each with the anchors its sync has (a MIDI tempo map's made into anchors), the
+  /// focus's as the state keeps them ([EditState.anchors]); as a page that can't read tempo maps
+  /// plays them.
+  EditState get syncsAsAnchors {
+    final focus = _syncCopy();
+    return _doc.copyWith(
+      anchors: focus?.anchors ?? _doc.anchors,
+      midi: null,
+      takes: [for (final t in _doc.takes) t.copyWith(anchors: _syncOf(t).anchors, midi: null)],
+    );
+  }
+
+  /// What [timeline] and the sound are with the focus's sync [sync]. A recording picked (or
+  /// [whole]) is heard whole, in its own time; one alone, in its own time where its lane has
+  /// regions; several, spliced by their lanes.
+  ({ScoreTimeline timeline, List<PlayChunk> chunks}) _perform(SyncMap? sync, {String? whole}) {
     if (sync == null) return (timeline: _score!.timeline, chunks: const []);
-    PlayChunk? whole(String id) {
+    PlayChunk? all(String id) {
       final track = audio.trackOf(id);
       return track == null ? null : (take: id, from: 0, at: 0, end: track.length, fadeIn: 0, fadeOut: 0);
     }
 
-    if (_syncedTake case final id?) return (timeline: sync, chunks: [?whole(id)]);
+    if ((whole ?? _syncedTake) case final id?) return (timeline: sync, chunks: [?all(id)]);
     final takes = _doc.takes;
     if (takes.isEmpty) return (timeline: sync, chunks: const []);
     final splice = TakeSplice(

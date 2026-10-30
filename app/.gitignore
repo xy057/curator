@@ -49,3 +49,6 @@ app.*.map.json
 
 # FFmpeg bundled into Windows builds (optional, see windows/CMakeLists.txt)
 /windows/ffmpeg/
+
+# Built by `make web-player` (File ▸ Export to Web…)
+/assets/web_player/player.zip

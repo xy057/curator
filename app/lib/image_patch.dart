@@ -116,7 +116,7 @@ class PatchImage {
       switch (kind) {
         case ImageKind.vector:
           await _checkEmbedded(bytes);
-          final info = await vg.loadPicture(SvgBytesLoader(await _sized(bytes)), null);
+          final info = await vg.loadPicture(SvgBytesLoader(await sized(bytes)), null);
           if (info.size.isEmpty) {
             info.picture.dispose();
             throw const _Refused('This SVG has no width or height.');
@@ -223,7 +223,7 @@ class PatchImage {
   /// [svg] with a size flutter_svg can draw: one without a viewBox and a width and height
   /// (a browser draws it anyway) gets the box around what it draws, or a browser's
   /// 300 × 150 when that is nothing.
-  static Future<Uint8List> _sized(Uint8List svg) async {
+  static Future<Uint8List> sized(Uint8List svg) async {
     final text = utf8.decode(svg, allowMalformed: true);
     final root = RegExp(r'<svg\b[^>]*>', caseSensitive: false).firstMatch(text);
     if (root == null) return svg;

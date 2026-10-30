@@ -388,7 +388,7 @@ class _ExportDialogState extends State<_ExportDialog> {
     final format = _format;
     final ratio = _settings.videoRatio;
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      _Heading(
+      ExportHeading(
         'Video',
         // Back to an MP4, 1080p at 30; its room is kept so the rows don't move.
         trailing: Visibility.maintain(
@@ -400,29 +400,29 @@ class _ExportDialogState extends State<_ExportDialog> {
           ),
         ),
       ),
-      _Row(
+      ExportRow(
         label: 'Format',
-        child: _Select<VideoCodec>(
+        child: ExportSelect<VideoCodec>(
           value: format.codec,
           bad: !_canWrite(format.codec),
           items: [for (final c in VideoCodec.values) (c, c.label, _canWrite(c))],
           onChanged: (c) => setState(() => _settings.videoCodec = c),
         ),
       ),
-      _Row(
+      ExportRow(
         label: 'Size',
-        child: _Select<VideoResolution>(
+        child: ExportSelect<VideoResolution>(
           value: _settings.videoResolution,
           items: [for (final r in VideoResolution.values) (r, r.label, true)],
           onChanged: (r) => setState(() => _settings.videoResolution = r),
         ),
       ),
-      _Row(
+      ExportRow(
         label: 'Frame rate',
         child: _FrameRate(fps: _settings.videoFps, onChanged: (f) => setState(() => _settings.videoFps = f)),
       ),
       if (_hasCaptions)
-        _Row(
+        ExportRow(
           label: 'Subtitles',
           tip: format.codec.isSequence ? 'Not with a PNG sequence' : '.srt beside the video',
           child: AppSwitch(
@@ -430,11 +430,11 @@ class _ExportDialogState extends State<_ExportDialog> {
               onChanged: format.codec.isSequence ? null : (v) => setState(() => _settings.videoSubtitles = v)),
         ),
       SizedBox(height: dialogGap(context) + 8),
-      const _Heading('Picture'),
-      _Row(
+      const ExportHeading('Picture'),
+      ExportRow(
         label: 'Ratio',
         // A typed ratio is listed after the presets, checked, Custom… under it.
-        child: _Select<VideoRatio>(
+        child: ExportSelect<VideoRatio>(
           value: ratio,
           items: [
             for (final r in VideoRatio.presets) (r, r.label, true),
@@ -448,7 +448,7 @@ class _ExportDialogState extends State<_ExportDialog> {
           },
         ),
       ),
-      _Row(
+      ExportRow(
         label: 'Paper',
         child: AppSegmented<VideoPaper>(
           expand: true,
@@ -457,14 +457,14 @@ class _ExportDialogState extends State<_ExportDialog> {
           onChanged: (p) => setState(() => _settings.videoPaper = p),
         ),
       ),
-      _Row(
+      ExportRow(
         label: 'Transparent',
         tip: format.codec.alpha ? null : 'Not supported in MP4',
         child: format.codec.alpha
             ? AppSwitch(value: format.hasAlpha, onChanged: (v) => setState(() => _settings.videoTransparent = v))
             : const AppSwitch(value: false, onChanged: null),
       ),
-      _Row(
+      ExportRow(
         label: 'Score size',
         // The project's score size (the toolbar's slider): the video frames it like the editor.
         child: Row(children: [
@@ -541,7 +541,7 @@ class _ExportDialogState extends State<_ExportDialog> {
                 ],
               _Stage.writing => [TextButton(onPressed: _export.cancel, child: Text('Cancel'.tr))],
               _Stage.done => [
-                  TextButton(onPressed: () => revealInFileManager(_output!), child: Text(_revealLabel)),
+                  TextButton(onPressed: () => revealInFileManager(_output!), child: Text(revealLabel)),
                   const SizedBox(width: 8),
                   FilledButton(onPressed: () => Navigator.pop(context), child: Text('Done'.tr)),
                 ],
@@ -630,13 +630,6 @@ class _ExportDialogState extends State<_ExportDialog> {
         ),
       ]);
 
-  static String get _revealLabel => (Platform.isMacOS
-          ? 'Show in Finder'
-          : Platform.isWindows
-              ? 'Show in Explorer'
-              : 'Open Folder')
-      .tr;
-
   static String _clock(double seconds) {
     final s = seconds.round();
     return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
@@ -647,6 +640,14 @@ class _ExportDialogState extends State<_ExportDialog> {
 
   static String _count(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+$)'), (_) => ',');
 }
+
+/// What the button that shows a file in the platform's file manager says.
+String get revealLabel => (Platform.isMacOS
+        ? 'Show in Finder'
+        : Platform.isWindows
+            ? 'Show in Explorer'
+            : 'Open Folder')
+    .tr;
 
 /// Shows [path] in the platform's file manager (selected where it can be).
 Future<void> revealInFileManager(String path) async {
@@ -884,8 +885,8 @@ class _TrimmerPainter extends CustomPainter {
 
 /// A select in the sidebar, the dialog's 36 px, filling its row: [items] are a value, its name
 /// and whether it can be chosen; red when [bad].
-class _Select<T> extends StatelessWidget {
-  const _Select({required this.value, required this.items, required this.onChanged, this.bad = false});
+class ExportSelect<T> extends StatelessWidget {
+  const ExportSelect({super.key, required this.value, required this.items, required this.onChanged, this.bad = false});
   final T value;
   final List<(T, String, bool)> items;
   final ValueChanged<T> onChanged;
@@ -975,7 +976,7 @@ class _FrameRateState extends State<_FrameRate> {
     }
     final fps = widget.fps;
     // A typed rate is listed after the presets, checked, Custom… under it.
-    return _Select<double>(
+    return ExportSelect<double>(
       value: fps,
       items: [
         for (final f in VideoFormat.frameRates) (f, VideoFormat.rateLabel(f), true),
@@ -1047,8 +1048,8 @@ class _OverflowNotice extends StatelessWidget {
 }
 
 /// A sidebar row: its [label] at the left, [child] filling the rest.
-class _Row extends StatelessWidget {
-  const _Row({required this.label, this.tip, required this.child});
+class ExportRow extends StatelessWidget {
+  const ExportRow({super.key, required this.label, this.tip, required this.child});
   final String label;
 
   /// Why the row can't be used: shown on hovering anywhere along it, label too.
@@ -1068,8 +1069,8 @@ class _Row extends StatelessWidget {
 }
 
 /// A group's name: "Video", "Picture"; [trailing] at its far end.
-class _Heading extends StatelessWidget {
-  const _Heading(this.text, {this.trailing});
+class ExportHeading extends StatelessWidget {
+  const ExportHeading(this.text, {super.key, this.trailing});
   final String text;
   final Widget? trailing;
 

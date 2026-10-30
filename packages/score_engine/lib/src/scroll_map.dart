@@ -163,6 +163,24 @@ class ClippedTimeline implements ScoreTimeline {
     ]);
   }
 
+  /// Bars [first]…[last] of [whole] (numbered from 1) as a performance of their own: from where
+  /// [first] first sounds to where [last] next ends after that (a repeat's first time, if it
+  /// has one); [start] is where it begins (bar 1: at 0) and [musicEnd] where its music ends.
+  /// Null when they aren't bars, or [last] comes before [first].
+  static ({ClippedTimeline timeline, double start, double musicEnd})? bars(ScoreTimeline whole, int first, int last) {
+    final starts = whole.measureStarts;
+    if (first < 1 || last < first || last > starts.length - 1) return null;
+    final from = whole.spans(starts[first - 1], starts[first]).firstOrNull;
+    if (from == null) return null;
+    final to = whole.spans(starts[last - 1], starts[last]).where((s) => s.endSeconds > from.startSeconds + 1e-6).firstOrNull;
+    if (to == null) return null;
+    return (
+      timeline: ClippedTimeline(whole, firstPass: from.pass, start: from.start, lastPass: to.pass, end: to.end),
+      start: first == 1 ? 0.0 : from.startSeconds,
+      musicEnd: to.endSeconds,
+    );
+  }
+
   final ScoreTimeline whole;
   final int firstPass, lastPass;
   final double start, end;
