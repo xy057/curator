@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +14,7 @@ import 'l10n/l10n.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
 import 'web_export.dart';
+import 'web_guide.dart';
 import 'web_page.dart';
 
 /// File ▸ Export to Web…: what the page shows (its title, bars, frame, recordings, captions and
@@ -64,6 +67,9 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   var _stage = _Stage.setup;
   String? _error, _output;
   late final Future<bool> _available = WebExport.available();
+
+  /// The page's folder, once written.
+  String? get _folder => _stage == _Stage.done ? File(_output!).parent.path : null;
 
   int? get _first => int.tryParse(_from.text);
   int? get _last => int.tryParse(_to.text);
@@ -147,9 +153,12 @@ class _WebExportDialogState extends State<_WebExportDialog> {
             const SizedBox(width: 10),
             Text('Writing…'.tr),
           ]),
-        _Stage.done => Text('Upload the folder to a web server.'.tr),
+        _Stage.done => null,
         _Stage.failed => Tip(message: _error ?? '', child: Text(_error ?? '', maxLines: 1, overflow: TextOverflow.ellipsis)),
       },
+      leading: [
+        TextButton(onPressed: busy ? null : () => showWebGuide(context, folder: _folder), child: Text('How to Publish'.tr)),
+      ],
       actions: switch (_stage) {
         _Stage.setup || _Stage.writing => [
             TextButton(onPressed: busy ? null : () => Navigator.pop(context), child: Text('Cancel'.tr)),
@@ -161,6 +170,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           ],
         _Stage.done => [
             TextButton(onPressed: () => revealInFileManager(_output!), child: Text(revealLabel)),
+            TextButton(onPressed: () => WebPreview.open(_folder!), child: Text('Open in Browser'.tr)),
             FilledButton(onPressed: () => Navigator.pop(context), child: Text('Done'.tr)),
           ],
         _Stage.failed => [

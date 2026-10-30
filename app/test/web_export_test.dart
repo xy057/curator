@@ -59,6 +59,25 @@ void main() {
     final hidden = loaded.curation({c.score!.metadata.parts.first.id: PartShown.hidden});
     expect(hidden.lane(c.score!.metadata.parts.first.id), isEmpty, reason: 'the viewer hid it');
 
+    // Served here to try it: the page, a range of a file (Safari's <audio> asks for them), nothing above it.
+    final server = await WebPreview.serve(out);
+    addTearDown(() => server.close(force: true));
+    final client = HttpOverrides.runWithHttpOverrides(HttpClient.new, _Network()); // the binding's answers every request 400
+    addTearDown(client.close);
+    Future<HttpClientResponse> get(String path, [String? range]) async {
+      final request = await client.get('localhost', server.port, path);
+      if (range != null) request.headers.set(HttpHeaders.rangeHeader, range);
+      return request.close();
+    }
+    final index = await get('/');
+    expect((index.statusCode, index.headers.contentType?.mimeType), (200, 'text/html'));
+    await index.drain<void>();
+    final part = await get('/${WebPage.folder}/${WebPage.pageFile}', 'bytes=0-0');
+    expect((part.statusCode, String.fromCharCodes(await part.expand((b) => b).toList())), (206, '{'));
+    final outside = await get('/../${File(out).uri.pathSegments.last}/index.html');
+    expect(outside.statusCode, 404);
+    await outside.drain<void>();
+
     // Again over it: replaced. A folder of anything else: refused, untouched.
     await WebExport.write(c, out, page: page, player: player);
     final other = Directory('${folder.path}/Other')..createSync();
@@ -67,3 +86,6 @@ void main() {
     expect(other.listSync().map((e) => e.path.split('/').last), ['notes.txt']);
   });
 }
+
+/// The network as it is.
+class _Network extends HttpOverrides {}

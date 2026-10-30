@@ -15,6 +15,7 @@ import 'project_file.dart';
 import 'project_modules.dart';
 import 'project_archive.dart';
 import 'project_state.dart';
+import 'updater.dart' show openInBrowser;
 import 'video_export.dart';
 import 'web_page.dart';
 
@@ -172,6 +173,77 @@ abstract final class WebExport {
     const escape = HtmlEscape(HtmlEscapeMode.element);
     index.writeAsStringSync(index.readAsStringSync().replaceFirst(RegExp(r'<title>[^<]*</title>'), '<title>${escape.convert(title)}</title>'));
   }
+}
+
+/// A page tried on this computer: a browser won't let a page opened from disk read its files, so
+/// Curator serves the folder itself, on the loopback address only, while it runs.
+abstract final class WebPreview {
+  static final _servers = <String, Future<HttpServer>>{};
+
+  /// Opens the page in [folder] in the default browser; returns its address.
+  static Future<String> open(String folder) async {
+    final server = await _servers.putIfAbsent(folder, () => serve(folder));
+    final url = 'http://localhost:${server.port}/';
+    await openInBrowser(url);
+    return url;
+  }
+
+  /// A server of [folder]'s files at a free port, with byte ranges (Safari plays a recording only
+  /// from a server that sends them). Nothing outside the folder.
+  @visibleForTesting
+  static Future<HttpServer> serve(String folder) async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      final response = request.response;
+      final segments = [...request.uri.pathSegments];
+      if (segments.isEmpty || segments.last.isEmpty) segments.add('index.html');
+      final file = File([folder, ...segments.where((s) => s.isNotEmpty)].join(Platform.pathSeparator));
+      if (request.method != 'GET' || segments.any((s) => s == '..' || s.contains(RegExp(r'[/\\]'))) || !file.existsSync()) {
+        response.statusCode = HttpStatus.notFound;
+        await response.close();
+        return;
+      }
+      final length = file.lengthSync();
+      var (start, end) = (0, length);
+      final range = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(request.headers.value(HttpHeaders.rangeHeader) ?? '');
+      if (range != null) {
+        final (from, to) = (int.tryParse(range[1]!), int.tryParse(range[2]!));
+        (start, end) = from == null ? (length - (to ?? 0), length) : (from, to == null ? length : to + 1);
+        start = start.clamp(0, length);
+        end = end.clamp(start, length);
+        response
+          ..statusCode = HttpStatus.partialContent
+          ..headers.set(HttpHeaders.contentRangeHeader, 'bytes $start-${end - 1}/$length');
+      }
+      response.headers
+        ..contentType = ContentType.parse(_types[segments.last.split('.').last] ?? 'application/octet-stream')
+        ..contentLength = end - start
+        ..set(HttpHeaders.acceptRangesHeader, 'bytes')
+        ..set(HttpHeaders.cacheControlHeader, 'no-cache'); // an export again shows at once
+      try {
+        await response.addStream(file.openRead(start, end));
+      } on FileSystemException {
+        // exported again while it was being read: the browser asks again
+      }
+      await response.close();
+    });
+    return server;
+  }
+
+  static const _types = {
+    'html': 'text/html; charset=utf-8',
+    'js': 'text/javascript',
+    'mjs': 'text/javascript',
+    'json': 'application/json',
+    'wasm': 'application/wasm',
+    'css': 'text/css',
+    'png': 'image/png',
+    'ico': 'image/x-icon',
+    'svg': 'image/svg+xml',
+    'ttf': 'font/ttf',
+    'otf': 'font/otf',
+    'm4a': 'audio/mp4',
+  };
 }
 
 /// A zip whose entries are all stored: a browser reads them without inflating ([ZipEntries]
