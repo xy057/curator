@@ -230,6 +230,16 @@ class AudioEngine {
   /// The recording of take [id]; null when it has none.
   AudioTrack? trackOf(String id) => _tracks[id];
 
+  /// Recordings that couldn't be read, by take id: their files, kept as they came ([keepUnread]).
+  final _unread = <String, String>{};
+
+  /// The file of take [id]'s recording when it couldn't be read; null otherwise.
+  String? unreadOf(String id) => _unread[id];
+
+  /// Keeps the file at [path] as take [id]'s recording, unread (silent): the project still saves
+  /// it. One [put] in its place lets it go.
+  void keepUnread(String id, String path) => _unread[id] = path;
+
   @visibleForTesting
   set debugTrack(AudioTrack? track) => _debugTrack = track;
 
@@ -278,6 +288,7 @@ class AudioEngine {
   /// Makes [track] take [id]'s recording, letting go of the one it had.
   Future<void> put(String id, AudioTrack track) async {
     stop();
+    _unread.remove(id);
     final before = _tracks[id];
     _tracks[id] = track;
     if (before != null && before != track) await before._dispose();
@@ -287,6 +298,7 @@ class AudioEngine {
   Future<void> remove(String id) async {
     stop();
     if (id == _focus) _focus = null;
+    _unread.remove(id);
     await _tracks.remove(id)?._dispose();
   }
 
@@ -295,6 +307,7 @@ class AudioEngine {
     stop();
     _focus = null;
     _chunks = const [];
+    _unread.clear();
     final all = [..._tracks.values];
     _tracks.clear();
     for (final t in all) {

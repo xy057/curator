@@ -71,7 +71,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud; every take's recording held, a voice per `PlayChunk`), the waveform and onsets, the recording read whole for Align (`AudioTrack.chroma`), converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
 | `video_frame.dart` | `VideoRatio`, and `VideoFrame`: where a video's frame sits in a view (the preview's, the web player's) |
-| `web_page.dart`, `web_export.dart`, `web_export_dialog.dart`, `web_guide.dart` | File ▸ Export to Web…: what a page is (`WebPage`, its `page.json`; `WebChoice`, a viewer's choice and whether it is theirs), writing one (`WebExport`), trying it here (`WebPreview`, the folder served on the loopback address, with byte ranges), the dialog and its guide to publishing |
+| `web_page.dart`, `web_export.dart`, `web_export_dialog.dart`, `web_guide.dart` | File ▸ Export to Web…: what a page is (`WebPage`, its `page.json`; `WebChoice`, a viewer's choice and whether it is theirs), writing one (`WebExport`), trying it here (`WebPreview`, the folder served on the loopback address to requests naming `localhost` only, so a site rebinding its name here gets nothing; byte ranges, 416 past the end), the dialog and its guide to publishing |
 | `web_player/*.dart`, `web/`, `tool/pack_web_player.dart` | The web player, the app package built for the web from `web_player/main.dart` (`make web-player`): the page read (`LoadedPage`), drawn and played (`PagePlayer`, `PageAudio`: an `<audio>`, `HtmlAudio`, or a clock alone) |
 | `phrase_search_window.dart` | Edit ▸ Find Phrase… (⌘F): the window that enters a phrase and lists where it is played |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
@@ -154,7 +154,13 @@ can't measure one on an isolate). For each thing a viewer could choose (the reco
 pitch kept, captions, bar numbers, each instrument as curated, always or never), the export sets what
 they see first and whether they may change it (`WebChoice.open`); with none open the page is a player
 only. The page loads its files beside it (no `<base>`), so it plays from any folder of a server, not
-from a file opened directly.
+from a file opened directly. Written as `<name>.part`, then moved in: a folder there already takes
+it only if it holds an earlier page (`score/page.json`), and then only the entries the export writes
+are replaced, so what a user keeps beside them (a GitHub Pages repository's `.git`, a `CNAME`) stays.
+A page is the GPL'd player passed on, so it carries Curator's licence (`LICENSE.txt`, packed into the
+player) and where the source of the build that wrote it is (`SOURCE.txt`, `WebExport.source`: the
+commit, or the version's tag), beside Flutter's `assets/NOTICES` and the fonts' licences; installed
+fonts it carries (`WebExport.installedFonts`) are named in the dialog, theirs to allow publishing.
 
 **Beats come from `BeatGrid`, never "a quarter note".** Compound meters beat in dotted notes
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back
@@ -307,7 +313,9 @@ memory while together they stay within 2 GB (`AudioEngine.memoryBudget`), read f
 adds a take (the first heard throughout; another with an empty lane, picked, no anchors: Align
 it); Replace Recording… (a lane's menu) and a recording dropped replace the focus's, keeping its
 sync and lane. Saved as the `takes` module (optional: an older Curator keeps the focus's, with
-its sync); a take whose recording is missing when the project opens is left out.
+its sync, and keeps the module unread with every recording it lists, `ProjectDocument._unreadTakes`). A recording that can't be read when the project opens (FFmpeg missing, a damaged
+file) is kept as it came (`AudioEngine.keepUnread`), silent: its take, its sync and its file stay,
+and the next save embeds it again (`EditorController.recordingOf`); the focus moves to one heard.
 
 **A MIDI file can stand in for the anchors.** Dropping a `.mid` on the Audio tab (or its MIDI
 button) reads its tempo map (`MidiTempoMap.read`: tempo changes only; the beats still come

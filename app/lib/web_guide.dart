@@ -58,6 +58,8 @@ class _WebGuide extends StatelessWidget {
           _Host('Netlify', 'Drag the folder onto Netlify Drop.', 'https://app.netlify.com/drop'),
           _Host('Your own server', 'Copy the folder into the site, as you’d copy any file to it.', null),
           const SizedBox(height: 10),
+          _Text('Installed fonts go with the page: publish it only where their licenses allow.'),
+          const SizedBox(height: 10),
           _Text('To change it, export again into the same folder and upload it again.'),
         ]),
       ),

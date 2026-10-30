@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.6.1+152
+version: 0.6.1+158
 
 environment:
   sdk: ^3.13.4
@@ -37,10 +37,12 @@ flutter:
     - assets/demo/ # the sample project behind "Try the sample" (and every test)
     - assets/web_player/ # the web player File ▸ Export to Web… copies (made by `make web-player`, not in git)
     - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one), and the mascot a click on it shows (on the same tile)
-    # The icon fonts' licence (Apache 2.0 asks that a copy go with them; the OFL fonts carry
-    # theirs inside the font file): shipped, and in the app's LicenseRegistry.
+    # The fonts' licences (Apache 2.0 and the OFL ask that a copy go with them; not every font
+    # file holds its whole): shipped, and in the app's LicenseRegistry. The score's are the
+    # engine's (packages/score_engine/assets/fonts).
     - assets/fonts/CarbonIcons-LICENSE.txt
     - assets/fonts/MaterialSymbols-LICENSE.txt
+    - assets/fonts/IBMPlexSans-OFL.txt
   fonts:
     # Carbon's typeface, IBM Plex Sans 1.1.0 (SIL OFL 1.1, see assets/fonts/IBMPlexSans-OFL.txt):
     # the weights the Carbon style sets (Light, Regular, SemiBold).

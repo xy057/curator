@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:archive/archive.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/updater.dart' show repositoryUrl;
 import 'package:curated_score/web_export.dart';
 import 'package:curated_score/web_page.dart';
 import 'package:curated_score/web_player/page_loader.dart';
@@ -37,6 +38,7 @@ void main() {
     );
     await WebExport.write(c, out, page: page, player: player);
     expect(File('$out/index.html').readAsStringSync(), contains('<title>Intro &lt;1&gt;</title>'));
+    expect(File('$out/${WebExport.sourceFile}').readAsStringSync(), contains(repositoryUrl), reason: 'where the player’s source is');
 
     final loaded = await LoadedPage.load((path) => File('$out/${WebPage.folder}/$path').readAsBytes());
     expect(loaded.page.recordings.single.audio, isNull, reason: 'no recording: silent');
@@ -64,9 +66,10 @@ void main() {
     addTearDown(() => server.close(force: true));
     final client = HttpOverrides.runWithHttpOverrides(HttpClient.new, _Network()); // the binding's answers every request 400
     addTearDown(client.close);
-    Future<HttpClientResponse> get(String path, [String? range]) async {
+    Future<HttpClientResponse> get(String path, [String? range, String? host]) async {
       final request = await client.get('localhost', server.port, path);
       if (range != null) request.headers.set(HttpHeaders.rangeHeader, range);
+      if (host != null) request.headers.host = host;
       return request.close();
     }
     final index = await get('/');
@@ -77,9 +80,20 @@ void main() {
     final outside = await get('/../${File(out).uri.pathSegments.last}/index.html');
     expect(outside.statusCode, 404);
     await outside.drain<void>();
+    final past = await get('/${WebPage.folder}/${WebPage.pageFile}', 'bytes=99999999-');
+    expect(past.statusCode, 416);
+    await past.drain<void>();
+    final rebound = await get('/', null, 'example.com'); // a site whose name now points here
+    expect(rebound.statusCode, 403);
+    await rebound.drain<void>();
 
-    // Again over it: replaced. A folder of anything else: refused, untouched.
+    // Again over it: what the export writes replaced, what else is there (a repository) kept.
+    // A folder of anything else: refused, untouched.
+    File('$out/.git/HEAD').createSync(recursive: true);
+    File('$out/${WebPage.folder}/${WebPage.pageFile}').writeAsStringSync('{}');
     await WebExport.write(c, out, page: page, player: player);
+    expect(File('$out/.git/HEAD').existsSync(), isTrue);
+    expect(File('$out/${WebPage.folder}/${WebPage.pageFile}').readAsStringSync(), isNot('{}'));
     final other = Directory('${folder.path}/Other')..createSync();
     File('${other.path}/notes.txt').writeAsStringSync('mine');
     await expectLater(WebExport.write(c, other.path, page: page, player: player), throwsA(isA<Exception>()));

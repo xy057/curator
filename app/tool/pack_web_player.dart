@@ -29,6 +29,9 @@ void main() {
     if (left.any((p) => p.hasMatch(name))) continue;
     archive.add(ArchiveFile.bytes(name, file.readAsBytesSync()));
   }
+  // Curator's licence goes with every page (the GPL asks that it go with the program); the
+  // export writes where its source is (SOURCE.txt) beside it.
+  archive.add(ArchiveFile.bytes('LICENSE.txt', File('../LICENSE').readAsBytesSync()));
   final out = File('assets/web_player/player.zip')..createSync(recursive: true);
   out.writeAsBytesSync(ZipEncoder().encodeBytes(archive));
   stdout.writeln('${out.path}: ${archive.length} files, ${(out.lengthSync() / (1 << 20)).toStringAsFixed(1)} MB');

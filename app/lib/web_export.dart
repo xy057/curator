@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -15,7 +16,7 @@ import 'project_file.dart';
 import 'project_modules.dart';
 import 'project_archive.dart';
 import 'project_state.dart';
-import 'updater.dart' show openInBrowser;
+import 'updater.dart' show appBuild, appCommit, appVersion, openInBrowser, repositoryUrl;
 import 'video_export.dart';
 import 'web_page.dart';
 
@@ -38,7 +39,9 @@ abstract final class WebExport {
   /// Writes [editor]'s project to the folder [output] as [page] says (its recordings, fonts and
   /// name colours are filled in here): [takes] heard whole as well as the performance, the
   /// captions and the images only if [captions] and [images]. Written beside it and moved in at
-  /// the end; a folder there already is replaced only if it is an earlier page. Returns the
+  /// the end. A folder there already is written into only if it holds an earlier page, and then
+  /// only what the export writes is replaced: what else it holds (a repository, a host's own
+  /// files) stays. Returns the
   /// path of its `index.html`. Throws a [VideoExportException] saying why it couldn't. A test
   /// gives the [player] (zipped), as it has no build of it.
   static Future<String> write(EditorController editor, String output,
@@ -98,11 +101,7 @@ abstract final class WebExport {
 
       // The text fonts the score and the captions are drawn in, when they are installed ones.
       final fonts = <({String family, List<String> files})>[];
-      for (final name in {
-        if (score.textFontFound) score.fonts.text,
-        if (captions && editor.extensionOn(Extensions.captions.id)) editor.captions.font ?? editor.captions.defaultFont,
-      }) {
-        if (name.isEmpty || name == TextFonts.academico) continue;
+      for (final name in _textFonts(editor, captions: captions)) {
         final faces = await TextFonts.faces(name);
         if (faces == null) continue;
         final files = <String>[];
@@ -156,15 +155,74 @@ abstract final class WebExport {
       );
       File('$folder/${WebPage.pageFile}').writeAsStringSync(const JsonEncoder.withIndent(' ').convert(written.toJson()));
       _title(File('${part.path}/index.html'), page.title);
+      File('${part.path}/$sourceFile').writeAsStringSync(source);
 
-      if (Directory(output).existsSync()) Directory(output).deleteSync(recursive: true);
-      part.renameSync(output);
+      if (Directory(output).existsSync()) {
+        _moveIn(part, output);
+      } else {
+        part.renameSync(output);
+      }
     } catch (e) {
       if (part.existsSync()) part.deleteSync(recursive: true);
       if (e is VideoExportException) rethrow;
       throw VideoExportException('${'Couldn’t write the page.'.tr}\n$e');
     }
     return '$output/index.html';
+  }
+
+  /// Beside a page: where the player's source is, as the GPL asks of a program passed on (its
+  /// licence, LICENSE.txt, is the player's own file).
+  static const sourceFile = 'SOURCE.txt';
+
+  static String get source {
+    final at = appCommit.isEmpty ? 'v$appVersion' : appCommit;
+    return 'This page plays in the web player of Curator $appVersion ($appBuild${appCommit.isEmpty ? '' : ', $appCommit'}),\n'
+        'free software under the GNU General Public License, version 3 (LICENSE.txt).\n'
+        'Its source code: $repositoryUrl/tree/$at\n'
+        '\n'
+        'What else the player is made of, and its licences: assets/NOTICES.\n'
+        'The fonts it brings, and their licences: assets/packages/score_engine/assets/fonts/ and\n'
+        'assets/assets/fonts/.\n';
+  }
+
+  /// The fonts installed here that a page of [editor]'s project carries (with [captions], the
+  /// captions' too): their licences decide whether it may be published.
+  static List<String> installedFonts(EditorController editor, {required bool captions}) {
+    final music = editor.score?.fonts.music;
+    return [
+      if (music != null && !music.isBundled && !music.isMissing) music.name,
+      ..._textFonts(editor, captions: captions),
+    ];
+  }
+
+  /// The installed text fonts the score and (with [captions]) the captions are drawn in.
+  static Set<String> _textFonts(EditorController editor, {required bool captions}) {
+    final score = editor.score;
+    if (score == null) return const {};
+    return {
+      if (score.textFontFound) score.fonts.text,
+      if (captions && editor.extensionOn(Extensions.captions.id)) editor.captions.font ?? editor.captions.defaultFont,
+    }..removeWhere((name) => name.isEmpty || name == TextFonts.academico);
+  }
+
+  /// Moves what [part] holds into the folder [output], each in place of what is there by its
+  /// name, then lets [part] go.
+  static void _moveIn(Directory part, String output) {
+    for (final entry in part.listSync()) {
+      final there = '$output${Platform.pathSeparator}${entry.uri.pathSegments.lastWhere((s) => s.isNotEmpty)}';
+      switch (FileSystemEntity.typeSync(there, followLinks: false)) {
+        case FileSystemEntityType.notFound:
+          break;
+        case FileSystemEntityType.directory:
+          Directory(there).deleteSync(recursive: true);
+        case FileSystemEntityType.link:
+          Link(there).deleteSync();
+        default:
+          File(there).deleteSync();
+      }
+      entry.renameSync(there);
+    }
+    part.deleteSync(recursive: true);
   }
 
   /// Gives the player's page [title] (what a browser's tab shows).
@@ -189,45 +247,63 @@ abstract final class WebPreview {
   }
 
   /// A server of [folder]'s files at a free port, with byte ranges (Safari plays a recording only
-  /// from a server that sends them). Nothing outside the folder.
+  /// from a server that sends them). Nothing outside the folder, and only to this computer's own
+  /// addresses: a request naming any other host (a site rebinding its name to this computer) is
+  /// refused.
   @visibleForTesting
   static Future<HttpServer> serve(String folder) async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       final response = request.response;
-      final segments = [...request.uri.pathSegments];
-      if (segments.isEmpty || segments.last.isEmpty) segments.add('index.html');
-      final file = File([folder, ...segments.where((s) => s.isNotEmpty)].join(Platform.pathSeparator));
-      if (request.method != 'GET' || segments.any((s) => s == '..' || s.contains(RegExp(r'[/\\]'))) || !file.existsSync()) {
-        response.statusCode = HttpStatus.notFound;
-        await response.close();
-        return;
-      }
-      final length = file.lengthSync();
-      var (start, end) = (0, length);
-      final range = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(request.headers.value(HttpHeaders.rangeHeader) ?? '');
-      if (range != null) {
-        final (from, to) = (int.tryParse(range[1]!), int.tryParse(range[2]!));
-        (start, end) = from == null ? (length - (to ?? 0), length) : (from, to == null ? length : to + 1);
-        start = start.clamp(0, length);
-        end = end.clamp(start, length);
-        response
-          ..statusCode = HttpStatus.partialContent
-          ..headers.set(HttpHeaders.contentRangeHeader, 'bytes $start-${end - 1}/$length');
-      }
-      response.headers
-        ..contentType = ContentType.parse(_types[segments.last.split('.').last] ?? 'application/octet-stream')
-        ..contentLength = end - start
-        ..set(HttpHeaders.acceptRangesHeader, 'bytes')
-        ..set(HttpHeaders.cacheControlHeader, 'no-cache'); // an export again shows at once
       try {
-        await response.addStream(file.openRead(start, end));
-      } on FileSystemException {
-        // exported again while it was being read: the browser asks again
+        await _answer(request, folder);
+      } catch (_) {
+        // The browser went away mid-file, or the folder was exported again: it asks again.
+        try {
+          await response.close();
+        } catch (_) {}
       }
-      await response.close();
     });
     return server;
+  }
+
+  static Future<void> _answer(HttpRequest request, String folder) async {
+    final response = request.response;
+    Future<void> refuse(int status) {
+      response.statusCode = status;
+      return response.close();
+    }
+
+    if (!const {'localhost', '127.0.0.1'}.contains(request.headers.host)) return refuse(HttpStatus.forbidden);
+    final segments = [...request.uri.pathSegments];
+    if (segments.isEmpty || segments.last.isEmpty) segments.add('index.html');
+    final file = File([folder, ...segments.where((s) => s.isNotEmpty)].join(Platform.pathSeparator));
+    if (request.method != 'GET' || segments.any((s) => s == '..' || s.contains(RegExp(r'[/\\]'))) || !file.existsSync()) {
+      return refuse(HttpStatus.notFound);
+    }
+    final length = file.lengthSync();
+    var (start, end) = (0, length);
+    final range = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(request.headers.value(HttpHeaders.rangeHeader) ?? '');
+    if (range != null && '${range[1]}${range[2]}'.isNotEmpty) {
+      // A number too big to read is past any file.
+      final from = range[1]!.isEmpty ? null : int.tryParse(range[1]!) ?? length;
+      final to = range[2]!.isEmpty ? null : int.tryParse(range[2]!) ?? length;
+      (start, end) = from == null ? (math.max(0, length - to!), length) : (from, math.min(length, (to ?? length - 1) + 1));
+      if (start >= end) {
+        response.headers.set(HttpHeaders.contentRangeHeader, 'bytes */$length');
+        return refuse(HttpStatus.requestedRangeNotSatisfiable);
+      }
+      response
+        ..statusCode = HttpStatus.partialContent
+        ..headers.set(HttpHeaders.contentRangeHeader, 'bytes $start-${end - 1}/$length');
+    }
+    response.headers
+      ..contentType = ContentType.parse(_types[segments.last.split('.').last] ?? 'application/octet-stream')
+      ..contentLength = end - start
+      ..set(HttpHeaders.acceptRangesHeader, 'bytes')
+      ..set(HttpHeaders.cacheControlHeader, 'no-cache'); // an export again shows at once
+    await response.addStream(file.openRead(start, end));
+    await response.close();
   }
 
   static const _types = {

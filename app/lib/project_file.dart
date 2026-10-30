@@ -162,12 +162,16 @@ abstract final class ProjectFile {
         );
       }
 
-      // The other recordings: each one the takes module names, in a folder of its own.
+      // The other recordings: each one the takes module names, in a folder of its own. Every one
+      // listed when the module is a newer build's, kept unread ([ProjectState.foreign]): a save
+      // writes them back with it.
       final takes = <String, String>{};
+      final unreadTakes = state.foreign.containsKey(ProjectModules.takes.id);
       for (final (i, value) in manifest.list('takes').indexed) {
         final t = JsonReader(value, 'manifest.takes[$i]');
         final id = t.string('id', required: true)!, entry = t.string('entry', required: true)!;
-        if (!state.edits.takes.any((take) => take.id == id) || id == state.edits.focus || takes.containsKey(id)) continue;
+        if (!ProjectModules.isTakeId(id) || takes.containsKey(id)) continue;
+        if (!unreadTakes && (!state.edits.takes.any((take) => take.id == id) || id == state.edits.focus)) continue;
         if (unpack(entry, t.string('name', required: true)!, _join(mediaDirectory, id)) case final playable?) takes[id] = playable;
       }
 
@@ -235,6 +239,7 @@ class OpenedProject {
   final ProjectMediaLocation? media;
 
   /// The recordings besides the focus's, unpacked, by [Take.id]: a take not here has none.
+  /// With the takes module unread (a newer build's), every one the file lists.
   final Map<String, String> takes;
 
   /// Whether it was saved before modules ([LegacyProject]: Curator 0.6.1 and before). A save

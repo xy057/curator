@@ -146,7 +146,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
       status: switch (_stage) {
         _Stage.setup => FutureBuilder(
             future: _available,
-            builder: (context, ok) => ok.data == false ? Text('This build of Curator has no web player.'.tr) : const SizedBox(),
+            builder: (context, ok) => ok.data == false ? Text('This build of Curator has no web player.'.tr) : _fontsNotice(),
           ),
         _Stage.writing => Row(children: [
             const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2)),
@@ -179,6 +179,14 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           ],
       },
     );
+  }
+
+  /// The fonts installed here that go with the page: their licences decide whether it may be published.
+  Widget _fontsNotice() {
+    final fonts = WebExport.installedFonts(_c, captions: _captions);
+    if (fonts.isEmpty) return const SizedBox();
+    final text = 'Includes installed fonts ({fonts}): publish only if their licenses allow.'.fill({'fonts': fonts.join(', ')});
+    return Tip(message: text, child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis));
   }
 
   List<Widget> _fields(BuildContext context) {
