@@ -1,14 +1,12 @@
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
 import 'font_files.dart';
-import 'native/bindings.dart';
+import 'native/verovio.dart' if (dart.library.js_interop) 'native/verovio_web.dart' as native;
 
 /// What a [MusicFont] is: bundled with the app, added (its file kept with the project), or
 /// missing (a project names it, without its file, and it isn't installed here).
@@ -434,7 +432,7 @@ abstract final class FontResources {
       for (final m in RegExp(r'<g c="([0-9A-Fa-f]+)"').allMatches(reference)) m.group(1)!,
     ];
     final chars = [for (final c in codes) _utf8Char(c)];
-    final measured = _measure(face.path, face.index, codes: [for (final c in chars) c ?? 0]);
+    final measured = native.measureFont(face.path, face.index, codes: [for (final c in chars) c ?? 0]);
     if (measured == null) return null;
     final out = StringBuffer('<?xml version="1.0" encoding="UTF-8"?>\n<bounding-boxes font-family="Times" units-per-em="${measured.upm}">\n');
     for (final (i, c) in codes.indexed) {
@@ -452,7 +450,7 @@ abstract final class FontResources {
   static String? smuflMetrics(MusicFont font, String path, {required String bravura}) {
     final glyphs = XmlDocument.parse(bravura).rootElement.findElements('g').toList();
     final codes = [for (final g in glyphs) int.tryParse(g.getAttribute('c') ?? '', radix: 16) ?? 0];
-    final measured = _measure(path, 0, codes: codes);
+    final measured = native.measureFont(path, 0, codes: codes);
     if (measured == null) return null;
     final anchors = switch (font.metadata) {
       null => const <String, Object?>{},
@@ -503,25 +501,4 @@ abstract final class FontResources {
       return null;
     }
   }
-
-  static ({int upm, List<({double x, double y, double w, double h, double advance})?> glyphs})? _measure(String path, int face,
-          {required List<int> codes}) =>
-      using((arena) {
-        final codePointer = arena<Uint32>(codes.length);
-        for (final (i, c) in codes.indexed) {
-          codePointer[i] = c;
-        }
-        final out = arena<Float>(codes.length * 5);
-        final upm = vb_measure_font(path.toNativeUtf8(allocator: arena), face, codePointer, codes.length, out);
-        if (upm <= 0) return null;
-        return (
-          upm: upm,
-          glyphs: [
-            for (var i = 0; i < codes.length; i++)
-              out[i * 5 + 4] < 0 || codes[i] == 0
-                  ? null
-                  : (x: out[i * 5], y: out[i * 5 + 1], w: out[i * 5 + 2], h: out[i * 5 + 3], advance: out[i * 5 + 4]),
-          ],
-        );
-      });
 }
