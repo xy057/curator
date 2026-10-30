@@ -4,17 +4,20 @@ VEROVIO_DIR := packages/score_engine/third_party/verovio
 # Written after the patches are applied; hook/build.dart refuses to build when a patch is newer.
 VEROVIO_STAMP := $(VEROVIO_DIR)/.curated-score-patched
 PATCHES := $(sort $(wildcard patches/*.patch))
+# The web player, zipped (see web-player).
+WEB_PLAYER := app/assets/web_player/player.zip
 # Shown in Settings ▸ About.
 COMMIT := --dart-define=CURATOR_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null)
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
-.PHONY: help setup run build test check versions smoke doctor clean
+.PHONY: help setup run build web-player test check versions smoke doctor clean
 
 help:
 	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG), get Dart packages"
 	@echo "make run     – launch the app (macOS)"
 	@echo "make build   – build the release app (app/build/macos/Build/Products/Release)"
+	@echo "make web-player – build the web player File ▸ Export to Web… copies (run and build do when it is out of date)"
 	@echo "make test    – run the engine and app tests (builds the native engine on first run)"
 	@echo "make check   – analyze both packages, then run every test"
 	@echo "make versions – check that updater.dart says the version pubspec.yaml does"
@@ -37,12 +40,22 @@ $(VEROVIO_STAMP): $(VEROVIO_DIR)/src/toolkit.cpp $(PATCHES)
 	@set -e; for p in $(PATCHES); do echo "applying $$p"; git -C $(VEROVIO_DIR) apply "$(CURDIR)/$$p"; done
 	touch $@
 
-run: setup
+run: setup $(WEB_PLAYER)
 	cd app && flutter run -d macos $(COMMIT)
 
 # What the Release workflow (.github/workflows/release.yml) builds and zips.
-build: setup
+build: setup $(WEB_PLAYER)
 	cd app && flutter build macos --release $(COMMIT)
+
+# The web player File ▸ Export to Web… copies beside a page: the app package built for the web
+# from lib/web_player/main.dart, zipped without what a page never loads (tool/pack_web_player.dart)
+# into an asset the app bundles (WEB_PLAYER). Not in git; made again when any Dart source changes.
+$(WEB_PLAYER): $(shell find app/lib packages/score_engine/lib -name '*.dart') app/web/index.html app/tool/pack_web_player.dart
+	$(MAKE) web-player
+
+web-player: setup
+	cd app && flutter build web -t lib/web_player/main.dart --release --no-web-resources-cdn --no-wasm-dry-run -o build/web_player $(COMMIT)
+	cd app && dart tool/pack_web_player.dart
 
 # Every test runs on the bundled demo project (app/assets/demo), so a fresh clone can run them all.
 test: setup

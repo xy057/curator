@@ -41,6 +41,7 @@ import 'settings_dialog.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
 import 'video_export.dart';
+import 'web_export_dialog.dart';
 import 'window_chrome.dart';
 
 Future<void> main() async {
@@ -741,6 +742,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     showExportDialog(context, controller, settings, suggestedName: stemOf(document.title ?? 'Curator'));
   }
 
+  /// File ▸ Export to Web…: offers the project's (or the score's) name for the page.
+  void _exportWeb() {
+    if (controller.score == null || controller.isReengraving) return;
+    showWebExportDialog(context, controller, settings, suggestedName: stemOf(document.title ?? 'Curator'));
+  }
+
   @override
   Widget build(BuildContext context) {
     // The menus follow the recent files and whether a score is open; the page below them is
@@ -764,6 +771,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onClose: _hasScore.value ? _close : null,
           onProjectSettings: _hasScore.value ? _projectSettings : null,
           onExportVideo: _canExport.value ? _exportVideo : null,
+          onExportWeb: _canExport.value ? _exportWeb : null,
           onUndo: edit != null && edit.undo ? controller.undo : null,
           onRedo: edit != null && edit.redo ? controller.redo : null,
           onCut: edit != null && edit.copy ? _commands.cut : null,
@@ -900,6 +908,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       controller: controller,
       document: document,
       onExportVideo: _exportVideo,
+      onExportWeb: _exportWeb,
       videoFrame: settings.previewVideoFrame,
       onVideoFrame: (on) => settings.previewVideoFrame = on,
       videoRatio: settings.videoRatio,

@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'display_list.dart';
 import 'engraving.dart';
-import 'native/bindings.dart' show VBKind;
+import 'native/constants.dart' show VBKind;
 import 'score_typography.dart';
 
 /// The frozen zone at the left of every staff, like Dorico's galley view: the clef, key and

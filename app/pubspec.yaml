@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.6.1+146
+version: 0.6.1+151
 
 environment:
   sdk: ^3.13.4
@@ -18,6 +18,7 @@ dependencies:
   file_selector: ^1.1.0 # Open…, Save As…, Add Recording…
   flutter_soloud: ^5.2.1 # playback; its position is the master clock
   ffi: ^2.2.0 # a buffer of our own to read a recording's samples into (Align)
+  web: ^1.1.0 # the web player (lib/web_player/): fetching the page's files, its <audio>
   shared_preferences: ^2.5.6 # Settings and Open Recent
   flutter_svg: ^2.3.0
   vector_graphics_compiler: ^1.1.0 # what an SVG with no size of its own draws (Attach Image)
@@ -34,6 +35,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/demo/ # the sample project behind "Try the sample" (and every test)
+    - assets/web_player/ # the web player File ▸ Export to Web… copies (made by `make web-player`, not in git)
     - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one), and the mascot a click on it shows (on the same tile)
     # The icon fonts' licence (Apache 2.0 asks that a copy go with them; the OFL fonts carry
     # theirs inside the font file): shipped, and in the app's LicenseRegistry.

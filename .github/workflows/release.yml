@@ -138,6 +138,13 @@ jobs:
           for p in patches/*.patch; do echo "applying $p"; git -C "$dir" apply "$PWD/$p"; done
           touch "$dir/.curated-score-patched"
 
+      - name: Web player
+        # What `make web-player` does (no make on Windows): File ▸ Export to Web… copies it.
+        working-directory: app
+        run: |
+          flutter build web -t lib/web_player/main.dart --release --no-web-resources-cdn --no-wasm-dry-run -o build/web_player --dart-define=CURATOR_COMMIT=$(git rev-parse --short HEAD)
+          dart tool/pack_web_player.dart
+
       - name: Build
         # The build hook runs CMake with Visual Studio for the engine (Verovio) as it goes.
         working-directory: app

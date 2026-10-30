@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'engraving.dart';
-import 'native/bindings.dart';
+import 'native/constants.dart';
 
 /// One drawable thing from the engraving, in Verovio device units (y down).
 sealed class DisplayItem {

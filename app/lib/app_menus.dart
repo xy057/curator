@@ -22,6 +22,7 @@ class AppMenus extends StatelessWidget {
     this.onClearRecent,
     this.onProjectSettings,
     this.onExportVideo,
+    this.onExportWeb,
     this.onClose,
     this.onUndo,
     this.onRedo,
@@ -56,6 +57,9 @@ class AppMenus extends StatelessWidget {
 
   /// File ▸ Export Video…; null (greyed out) while nothing is open.
   final VoidCallback? onExportVideo;
+
+  /// File ▸ Export to Web…; null (greyed out) while nothing is open.
+  final VoidCallback? onExportWeb;
 
   /// Edit menu; each null (greyed out) when it has nothing to do.
   final VoidCallback? onUndo;
@@ -115,6 +119,7 @@ class AppMenus extends StatelessWidget {
           ]),
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(label: 'Export Video…'.tr, shortcut: _key(LogicalKeyboardKey.keyE), onSelected: onExportVideo),
+            PlatformMenuItem(label: 'Export to Web…'.tr, onSelected: onExportWeb),
           ]),
         ]),
         PlatformMenu(label: 'Edit'.tr, menus: [

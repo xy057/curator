@@ -1,13 +1,10 @@
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:ffi/ffi.dart';
-
 import 'engraving_options.dart';
-import 'native/bindings.dart';
+import 'native/verovio.dart' if (dart.library.js_interop) 'native/verovio_web.dart' as native;
 import 'score_fonts.dart';
 
 class EngraveException implements Exception {
@@ -143,7 +140,8 @@ typedef GlyphBox = ({double x, double y, double width, double height, double adv
 /// Everything Verovio produced for one score, as plain data that can cross isolates.
 /// All geometry is in Verovio device units with y pointing down.
 class EngravingData {
-  EngravingData._({
+  /// Usually [Engraver.engrave]'s; also built again from a saved copy.
+  EngravingData({
     required this.width,
     required this.staffSpace,
     required this.staves,
@@ -202,7 +200,7 @@ class EngravingData {
   int get commandCount => commandInts.length ~/ Cmd.words;
 
   EngravingData _with({required Map<int, GlyphBox> glyphs, required Map<String, double> engravingDefaults}) =>
-      EngravingData._(
+      EngravingData(
         width: width,
         staffSpace: staffSpace,
         staves: staves,
@@ -221,7 +219,7 @@ class EngravingData {
 }
 
 /// The Verovio this engine was built with, e.g. `6.3.0`.
-String get verovioVersion => vb_version().toDartString();
+String get verovioVersion => native.verovioVersion();
 
 abstract final class Engraver {
   /// Engraves MusicXML into one endless system. Runs on a background isolate.
@@ -237,7 +235,7 @@ abstract final class Engraver {
     final json = options.verovioJson(font, verovioOptions);
     final defaults = options.engravingDefaults(font), name = font.name;
     return Isolate.run(() {
-      final data = _engrave(musicXML, resourceDirectory, json);
+      final data = native.engrave(musicXML, resourceDirectory, json);
       return data._with(glyphs: glyphMetrics(resourceDirectory, name), engravingDefaults: defaults);
     });
   }
@@ -272,60 +270,8 @@ abstract final class Engraver {
 
   /// Every option Verovio knows, with its type, default and range: what [EngraveOption]s are
   /// checked against.
-  static Map<String, Object?> availableOptions({required String resourceDirectory}) => using((arena) {
-        final engraver = vb_engraver_create(resourceDirectory.toNativeUtf8(allocator: arena));
-        if (engraver == nullptr) throw EngraveException('Couldn’t start the engraver.');
-        try {
-          return jsonDecode(vb_engraver_available_options(engraver).toDartString()) as Map<String, Object?>;
-        } finally {
-          vb_engraver_destroy(engraver);
-        }
-      });
-
-  static EngravingData _engrave(String musicXML, String resourceDirectory, String optionsJson) {
-    _checkLayout();
-    if (!File('$resourceDirectory/Bravura.xml').existsSync()) {
-      throw EngraveException('Engraving resources not found in $resourceDirectory');
-    }
-    return using((arena) {
-      final engraver = vb_engraver_create(resourceDirectory.toNativeUtf8(allocator: arena));
-      if (engraver == nullptr) throw EngraveException('Couldn’t start the engraver.');
-      try {
-        if (!vb_engraver_set_options(engraver, optionsJson.toNativeUtf8(allocator: arena))) {
-          throw EngraveException('The engraving options were refused.\n${vb_engraver_log(engraver).toDartString()}');
-        }
-        if (!vb_engraver_load_data(engraver, musicXML.toNativeUtf8(allocator: arena))) {
-          throw EngraveException('Couldn’t read the score.\n${vb_engraver_log(engraver).toDartString()}');
-        }
-        if (!vb_engraver_render(engraver)) {
-          throw EngraveException('Couldn’t engrave the score.\n${vb_engraver_log(engraver).toDartString()}');
-        }
-        return _copy(engraver, warnings: logMessages(vb_engraver_log(engraver).toDartString()));
-      } finally {
-        vb_engraver_destroy(engraver);
-      }
-    });
-  }
-
-  /// Fails loudly when the library was built from a different header than these bindings,
-  /// instead of reading garbage.
-  static void _checkLayout() {
-    final expected = {
-      VBStruct.command: (sizeOf<VBCommand>(), Cmd.words * 4),
-      VBStruct.pathElement: (sizeOf<VBPathElement>(), 7 * 4),
-      VBStruct.staffInfo: (sizeOf<VBStaffInfo>(), null),
-      VBStruct.measureInfo: (sizeOf<VBMeasureInfo>(), null),
-      VBStruct.onset: (sizeOf<VBOnset>(), null),
-      VBStruct.signature: (sizeOf<VBSignature>(), null),
-    };
-    for (final MapEntry(key: which, value: (dart, words)) in expected.entries) {
-      final native = vb_struct_size(which);
-      if (native != dart || (words != null && words != dart)) {
-        throw StateError('The native engine does not match its Dart bindings (struct $which: '
-            'native $native bytes, Dart $dart${words == null ? '' : ', words $words'}). Rebuild it.');
-      }
-    }
-  }
+  static Map<String, Object?> availableOptions({required String resourceDirectory}) =>
+      native.availableOptions(resourceDirectory);
 
   /// Verovio's log as one message a line, without its "[Warning] " and "MusicXML import: "
   /// prefixes.
@@ -335,72 +281,4 @@ abstract final class Engraver {
               case final message when message.isNotEmpty)
             message,
       ];
-
-  static EngravingData _copy(Pointer<VBEngraver> e, {required List<String> warnings}) {
-    Uint8List bytes(Pointer<NativeType> pointer, int count, int size) =>
-        count == 0 ? Uint8List(0) : Uint8List.fromList(pointer.cast<Uint8>().asTypedList(count * size));
-
-    final onsets = vb_onsets(e);
-    final measures = <MeasureLayout>[];
-    final measurePointer = vb_measures(e);
-    for (var i = 0; i < vb_measure_count(e); i++) {
-      final m = measurePointer[i];
-      final times = Float64List(m.onsetCount), xs = Float64List(m.onsetCount);
-      for (var j = 0; j < m.onsetCount; j++) {
-        times[j] = onsets[m.onsetStart + j].time;
-        xs[j] = onsets[m.onsetStart + j].x;
-      }
-      measures.add(MeasureLayout(left: m.left, right: m.right, duration: m.duration, onsetTimes: times, onsetXs: xs));
-    }
-    final stavePointer = vb_staves(e);
-    final staves = [
-      for (var i = 0; i < vb_staff_count(e); i++)
-        StaffInfo(n: stavePointer[i].n, top: stavePointer[i].top, height: stavePointer[i].height, lines: stavePointer[i].lines),
-    ]..sort((a, b) => a.n.compareTo(b.n));
-
-    return EngravingData._(
-      width: vb_page_width(e),
-      staffSpace: vb_staff_space(e),
-      staves: staves,
-      measures: measures,
-      commandBytes: bytes(vb_commands(e), vb_command_count(e), sizeOf<VBCommand>()),
-      pathBytes: bytes(vb_path_elements(e), vb_path_element_count(e), sizeOf<VBPathElement>()),
-      text: bytes(vb_text_bytes(e), vb_text_byte_count(e), 1),
-      classNames: [for (var i = 0; i < vb_class_name_count(e); i++) vb_class_name(e, i).toDartString()],
-      fontNames: [for (var i = 0; i < vb_font_name_count(e); i++) vb_font_name(e, i).toDartString()],
-      sourceIds: [for (var i = 0; i < vb_source_id_count(e); i++) vb_source_id(e, i).toDartString()],
-      warnings: List.unmodifiable(warnings),
-      signatures: [
-        for (var i = 0; i < vb_signature_count(e); i++)
-          switch (vb_signatures(e)[i]) {
-            final s when s.kind == VBSignatureKind.clef => ClefSignature(
-                staff: s.staff,
-                x: s.x,
-                commandStart: s.commandStart,
-                commandCount: s.commandCount,
-                shape: ClefShape.values[s.shape.clamp(0, ClefShape.values.length - 1)],
-                line: s.line,
-                octave: s.octave,
-              ),
-            final s when s.kind == VBSignatureKind.meter => TimeSignature(
-                staff: s.staff,
-                x: s.x,
-                commandStart: s.commandStart,
-                commandCount: s.commandCount,
-                count: s.count,
-                unit: s.unit,
-                symbol: s.symbol == 0 ? null : s.symbol,
-                summands: [for (var j = 0; j < s.summandCount.clamp(0, 4); j++) s.summands[j]],
-              ),
-            final s => KeySignature(
-                staff: s.staff,
-                x: s.x,
-                commandStart: s.commandStart,
-                commandCount: s.commandCount,
-                fifths: s.fifths,
-              ),
-          },
-      ],
-    );
-  }
 }

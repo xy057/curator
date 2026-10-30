@@ -61,6 +61,7 @@ class AppPopupMenuButton<T> extends StatelessWidget {
     super.key,
     required this.itemBuilder,
     this.onSelected,
+    this.enabled = true,
     this.tooltip,
     this.position,
     this.style,
@@ -73,6 +74,7 @@ class AppPopupMenuButton<T> extends StatelessWidget {
 
   final PopupMenuItemBuilder<T> itemBuilder;
   final PopupMenuItemSelected<T>? onSelected;
+  final bool enabled;
   final String? tooltip;
   final PopupMenuPosition? position;
   final ButtonStyle? style;
@@ -87,6 +89,7 @@ class AppPopupMenuButton<T> extends StatelessWidget {
     return PopupMenuButton<T>(
       itemBuilder: itemBuilder,
       onSelected: onSelected,
+      enabled: enabled,
       tooltip: tooltip?.tr,
       position: position,
       style: style,
