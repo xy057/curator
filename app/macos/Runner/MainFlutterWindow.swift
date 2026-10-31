@@ -64,7 +64,7 @@ final class FontPicker: NSObject {
   }
 }
 
-class MainFlutterWindow: NSWindow {
+class MainFlutterWindow: NSWindow, NSWindowDelegate {
   /// Below this the editor's panels would overflow (WindowChrome.minimumSize in Dart).
   static let minimumSize = NSSize(width: 960, height: 620)
 
@@ -93,6 +93,7 @@ class MainFlutterWindow: NSWindow {
     }
     self.setFrameAutosaveName(MainFlutterWindow.frameName)
     self.title = "Curator"
+    self.delegate = self
 
     // The document's name, its edited dot and its proxy icon, set from Dart (window_chrome.dart).
     let channel = FlutterMethodChannel(
@@ -141,5 +142,13 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
 
     super.awakeFromNib()
+  }
+
+  /// The close button quits, as Quit does: Dart offers to save unsaved changes first
+  /// (`_exitRequested` in main.dart) while the window is still there to ask in. Left to close,
+  /// the window would be gone before the quit that follows could ask.
+  func windowShouldClose(_ sender: NSWindow) -> Bool {
+    NSApp.terminate(nil)
+    return false
   }
 }
