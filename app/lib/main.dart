@@ -867,6 +867,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         const SingleActivator(LogicalKeyboardKey.space): _commands.space,
         const SingleActivator(LogicalKeyboardKey.enter): controller.playback.togglePlay,
         const SingleActivator(LogicalKeyboardKey.numpadEnter): controller.playback.togglePlay,
+        // P too: tap mode takes Space.
+        const SingleActivator(LogicalKeyboardKey.keyP): controller.playback.togglePlay,
         const SingleActivator(LogicalKeyboardKey.keyT): _toggleTapMode,
         const SingleActivator(LogicalKeyboardKey.keyW): _warp,
         const SingleActivator(LogicalKeyboardKey.keyC): _toggleMetronome,
