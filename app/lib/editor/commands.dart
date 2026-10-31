@@ -71,9 +71,12 @@ class EditCommands {
   void space() => _syncing && _anchors.tapArmed ? _anchors.tap() : _editor.playback.togglePlay();
 
   /// ←/→ nudge the selected anchors (10 ms, [fine] 1 ms) or regions (a bar, [fine] a beat);
-  /// with nothing selected, skip 5 s ([fine] 1 s).
-  void arrow(int direction, {required bool fine}) {
-    if (_syncing && _anchors.selected.isNotEmpty) {
+  /// with nothing selected, skip 5 s ([fine] 1 s). [nudge] (⌥) always moves the playhead
+  /// [EditorController.fineSeek].
+  void arrow(int direction, {required bool fine, bool nudge = false}) {
+    if (nudge) {
+      _editor.playback.skip(direction * _editor.fineSeek);
+    } else if (_syncing && _anchors.selected.isNotEmpty) {
       _anchors.nudge(direction * (fine ? 0.001 : 0.01));
     } else if (_curating && _lanes.selected.isNotEmpty) {
       _lanes.nudge(direction, beat: fine);

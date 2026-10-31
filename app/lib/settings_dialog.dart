@@ -232,6 +232,17 @@ final _categories = <_Category>[
       (c) => AppSwitch(value: c.settings.autoCurateImported, onChanged: (v) => c.settings.autoCurateImported = v),
       keywords: 'auto curate lanes import new score staves automatic',
     ),
+    _Item(
+      'Fine seek',
+      (_) => '⌥←/→',
+      (c) => _Dropdown<double>(
+        value: c.settings.fineSeek,
+        values: AppSettings.fineSeekChoices,
+        label: (s) => '$s s',
+        onChanged: (v) => c.settings.fineSeek = v,
+      ),
+      keywords: 'seek step nudge playhead arrow alt option keyboard playback position small',
+    ),
   ]),
   _Category('Appearance', AppIcon.appearance, [
     _Item(
