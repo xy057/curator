@@ -389,6 +389,9 @@ class EditorController extends ChangeNotifier {
   /// shown throughout).
   bool autoCurateImported = true;
 
+  /// How far ⌥←/→ move the playhead, seconds (Settings ▸ General ▸ Fine seek).
+  double fineSeek = 0.1;
+
   /// The staff transition a newly imported score starts with (the one saved by Project
   /// Settings ▸ Animation ▸ Save as default).
   double defaultTransition = 0.3;

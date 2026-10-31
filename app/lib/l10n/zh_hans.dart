@@ -724,6 +724,8 @@ const zhHans = <String, String>{
   'Undefined at t = 0 or 1.': '在 t = 0 或 1 处无定义。',
   'Undo': '撤销',
   'Undo ({key})': '撤销（{key}）',
+  'Fine seek': '精细定位',
+  '⌥←/→': '⌥←/→',
   'Undo history': '撤销历史',
   'Until': '结束',
   'Untitled': '未命名',

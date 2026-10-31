@@ -24,6 +24,7 @@ class AppSettings extends ChangeNotifier {
         _reduceMotion = _prefs?.getBool(_reduceMotionKey) ?? false,
         _alignAddedRecordings = _prefs?.getBool(_alignAddedKey) ?? true,
         _autoCurateImported = _prefs?.getBool(_autoCurateKey) ?? true,
+        _fineSeek = _readFineSeek(_prefs),
         _language = AppLanguage.values.asNameMap()[_prefs?.getString(_languageKey)] ?? AppLanguage.system,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
@@ -83,7 +84,7 @@ class AppSettings extends ChangeNotifier {
   static const _scrollFollowKey = 'scrollFollow', _motionKey = 'scoreMotion', _typographyKey = 'scoreTypography';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _mascotIconKey = 'mascotIcon', _alignAddedKey = 'alignAddedRecordings';
-  static const _autoCurateKey = 'autoCurateImported';
+  static const _autoCurateKey = 'autoCurateImported', _fineSeekKey = 'fineSeekSeconds';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
@@ -96,6 +97,15 @@ class AppSettings extends ChangeNotifier {
       return switch (prefs?.getInt(key)) { final argb? => Color(argb), _ => null };
     } catch (_) {
       return null; // not a number
+    }
+  }
+
+  static double _readFineSeek(SharedPreferences? prefs) {
+    try {
+      final seconds = prefs?.getDouble(_fineSeekKey);
+      return fineSeekChoices.contains(seconds) ? seconds! : defaultFineSeek;
+    } catch (_) {
+      return defaultFineSeek; // not a number
     }
   }
 
@@ -247,6 +257,21 @@ class AppSettings extends ChangeNotifier {
     if (value == _autoCurateImported) return;
     _autoCurateImported = value;
     _prefs?.setBool(_autoCurateKey, value);
+    notifyListeners();
+  }
+
+  static const defaultFineSeek = 0.1;
+
+  /// Choices offered for how far ⌥←/→ move the playhead, seconds.
+  static const fineSeekChoices = [0.05, 0.1, 0.2, 0.5, 1.0];
+
+  /// How far ⌥←/→ move the playhead, seconds.
+  double get fineSeek => _fineSeek;
+  double _fineSeek;
+  set fineSeek(double value) {
+    if (value == _fineSeek || !fineSeekChoices.contains(value)) return;
+    _fineSeek = value;
+    _prefs?.setDouble(_fineSeekKey, value);
     notifyListeners();
   }
 

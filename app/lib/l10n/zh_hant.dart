@@ -724,6 +724,8 @@ const zhHant = <String, String>{
   'Undefined at t = 0 or 1.': '在 t = 0 或 1 處無定義。',
   'Undo': '還原',
   'Undo ({key})': '還原（{key}）',
+  'Fine seek': '精細定位',
+  '⌥←/→': '⌥←/→',
   'Undo history': '還原記錄',
   'Until': '結束',
   'Untitled': '未命名',
