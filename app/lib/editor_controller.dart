@@ -392,6 +392,9 @@ class EditorController extends ChangeNotifier {
   /// How far ⌥←/→ move the playhead, seconds (Settings ▸ General ▸ Fine seek).
   double fineSeek = 0.1;
 
+  /// How far ←/→ nudge the selected anchors, seconds (Settings ▸ General ▸ Anchor nudge).
+  double anchorNudge = 0.01;
+
   /// The staff transition a newly imported score starts with (the one saved by Project
   /// Settings ▸ Animation ▸ Save as default).
   double defaultTransition = 0.3;
@@ -1449,6 +1452,27 @@ class EditorController extends ChangeNotifier {
     } else {
       _followMidi(start);
     }
+    notifyListeners();
+  }
+
+  /// Convert to Tempo Map: follows the tempo the anchors set by hand play by
+  /// ([MidiTempoMap.ofSync]), to edit as a tempo map; the anchors stay behind it, as
+  /// behind a file's. One Undo step.
+  void convertToTempoMap() {
+    final sync = _sync;
+    if (sync == null || _doc.midi != null || sync.anchors.length < 2) return;
+    useMidiTempo(MidiTempoMap.ofSync(sync, name: 'Tempo Map'.tr));
+  }
+
+  /// Convert to Anchors: the MIDI tempo map followed becomes anchors set by hand (those
+  /// kept behind it go), to tap over and nudge. One Undo step.
+  void convertToAnchors() {
+    final sync = _sync;
+    if (sync == null || _doc.midi == null) return;
+    final derived = sync.anchors;
+    _doc = _doc.copyWith(midi: null, anchors: derived);
+    anchors._reset();
+    sync.load(derived, leadIn: sync.leadIn);
     notifyListeners();
   }
 

@@ -5,7 +5,7 @@ import 'video_export.dart';
 /// Settings (the app's, the same for every project) as the editor follows them.
 extension ControllerSettings on EditorController {
   /// Takes what [settings] say for every project: how far Undo goes back, whether a recording
-  /// added is aligned, whether a score imported is auto-curated, how far ⌥←/→ seek, what a project
+  /// added is aligned, whether a score imported is auto-curated, how far ⌥←/→ seek and ←/→ nudge anchors, what a project
   /// starts with (its transition, scroll, motion, typography and fonts), the extensions an old project had on,
   /// the captions' look, the video's frame (its ratio), and the engraving options and flags
   /// (re-engraving what is open when they change). Call it again whenever they change: what
@@ -15,6 +15,7 @@ extension ControllerSettings on EditorController {
     anchors.alignAdded = settings.alignAddedRecordings;
     autoCurateImported = settings.autoCurateImported;
     fineSeek = settings.fineSeek;
+    anchorNudge = settings.anchorNudge;
     defaultTransition = settings.transition;
     newProjectFonts = (music: settings.musicFont, text: settings.textFont, embed: settings.embedFont);
     defaultScrollFollow = settings.scrollFollow;

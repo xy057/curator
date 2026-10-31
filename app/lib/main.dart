@@ -910,6 +910,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): () => _commands.arrow(1, fine: true, nudge: true),
         const SingleActivator(LogicalKeyboardKey.arrowUp): () => _commands.vertical(-1),
         const SingleActivator(LogicalKeyboardKey.arrowDown): () => _commands.vertical(1),
+        const SingleActivator(LogicalKeyboardKey.arrowUp, shift: true): () => _commands.vertical(-1, fine: true),
+        const SingleActivator(LogicalKeyboardKey.arrowDown, shift: true): () => _commands.vertical(1, fine: true),
         const SingleActivator(LogicalKeyboardKey.keyA, meta: true): _commands.selectAll,
         const SingleActivator(LogicalKeyboardKey.keyA, control: true): _commands.selectAll,
         const SingleActivator(LogicalKeyboardKey.home): () => controller.playback.seek(0),

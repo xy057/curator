@@ -339,6 +339,14 @@ under the pointer drawing on. The anchors
 set by hand are kept behind it (`EditorController._tapped`, saved as `sync.anchors`) and come
 back when the MIDI goes. Using or dropping one is an edit (`midi` in `EditState`, and
 `sync.midi` in the project from format 7, its tempos as `[quarter, quarters a minute]`).
+The ⋯ Sync menu converts either way, one Undo step each, no format change: Convert to Tempo
+Map follows `MidiTempoMap.ofSync` (named "Tempo Map"), a change at each hand-set anchor where
+the file reaches it (repeats kept, points to drag), its warps from `warpsOf`, so followed from
+Starts at it puts every anchor back; the anchors stay behind it as behind a file. Convert to
+Anchors makes the anchors it follows the hand-set ones (those behind it go). Keys on the
+selected change: ←/→ a beat of the score (⇧ a sixteenth), ↑/↓ a beat a minute (⇧ a tenth),
+onto that step (`SyncEditing.moveTempo` / `retune`). ←/→ on selected anchors nudge by Settings
+▸ General ▸ Anchor nudge (1–50 ms, default 10; ⇧ 1 ms).
 
 A file that plays the repeats out keeps the score's form in its warps (`MidiTempoMap.warps`,
 W or the Warp button, saved as `sync.midi.warps` from format 15). The file counts quarters

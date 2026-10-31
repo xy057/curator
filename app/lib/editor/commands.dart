@@ -70,14 +70,17 @@ class EditCommands {
   /// Space: taps an anchor while tapping is armed (the Audio tab), else plays or pauses.
   void space() => _syncing && _anchors.tapArmed ? _anchors.tap() : _editor.playback.togglePlay();
 
-  /// ←/→ nudge the selected anchors (10 ms, [fine] 1 ms) or regions (a bar, [fine] a beat);
-  /// with nothing selected, skip 5 s ([fine] 1 s). [nudge] (⌥) always moves the playhead
-  /// [EditorController.fineSeek].
+  /// ←/→ nudge the selected anchors ([EditorController.anchorNudge], [fine] 1 ms), the
+  /// selected change of a tempo map (a beat, [fine] a sixteenth) or regions (a bar, [fine] a
+  /// beat); with nothing selected, skip 5 s ([fine] 1 s). [nudge] (⌥) always moves the
+  /// playhead [EditorController.fineSeek].
   void arrow(int direction, {required bool fine, bool nudge = false}) {
     if (nudge) {
       _editor.playback.skip(direction * _editor.fineSeek);
     } else if (_syncing && _anchors.selected.isNotEmpty) {
-      _anchors.nudge(direction * (fine ? 0.001 : 0.01));
+      _anchors.nudge(direction * (fine ? 0.001 : _editor.anchorNudge));
+    } else if (_syncing && _anchors.selectedTempo != null) {
+      _anchors.moveTempo(direction, fine: fine);
     } else if (_curating && _lanes.selected.isNotEmpty) {
       _lanes.nudge(direction, beat: fine);
     } else {
@@ -85,11 +88,14 @@ class EditCommands {
     }
   }
 
-  /// ↑/↓ move the selection to the lane above / below, or re-bar the selected anchors (↑ the
-  /// next bar or beat, ↓ the previous).
-  void vertical(int direction) {
+  /// ↑/↓ move the selection to the lane above / below, re-bar the selected anchors (↑ the
+  /// next bar or beat, ↓ the previous), or change the selected tempo change's tempo (1 BPM,
+  /// [fine] 0.1).
+  void vertical(int direction, {bool fine = false}) {
     if (_curating) {
-      _lanes.selectNextLane(direction);
+      if (!fine) _lanes.selectNextLane(direction);
+    } else if (_syncing && _anchors.selectedTempo != null) {
+      _anchors.retune(-direction, fine: fine);
     } else if (_syncing) {
       _anchors.shift(-direction);
     }
