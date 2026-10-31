@@ -69,6 +69,38 @@ void main() {
     expect(c.score, isNull);
   });
 
+  test('anchors convert to a tempo map and back, one Undo step each; arrows move and retune the change selected', () async {
+    const hand = [SyncAnchor(0, 1), SyncAnchor(12, 6), SyncAnchor(24, 10.5), SyncAnchor(36, 16)];
+    c.sync!.load(hand, leadIn: 1);
+    c.convertToTempoMap();
+    expect(c.usesMidiTempo, isTrue);
+    for (final a in hand) {
+      expect(c.sync!.secondsAtQuarter(a.quarter), closeTo(a.seconds, 1e-9));
+    }
+
+    // 6/8: a beat is a dotted quarter. The change at bar 3 (quarter 12, ♩ = 160) a beat on, then
+    // 106⅔ beats a minute up to 107.
+    c.anchors.selectTempo(1);
+    c.anchors.moveTempo(1);
+    expect(c.midiTempo!.tempos[1].quarter, 13.5);
+    c.anchors.retune(1);
+    expect(c.midiTempo!.tempos[1].quartersPerMinute, closeTo(107 * 1.5, 1e-9));
+    c.undo();
+    c.undo();
+    expect(c.midiTempo!.tempos[1].quarter, 12);
+    expect(c.midiTempo!.tempos[1].quartersPerMinute, closeTo(160, 1e-9));
+
+    final followed = c.sync!.anchors;
+    c.convertToAnchors();
+    expect(c.usesMidiTempo, isFalse);
+    expect(c.sync!.anchors, followed, reason: 'the anchors it followed, now set by hand');
+    c.undo();
+    expect(c.usesMidiTempo, isTrue);
+    c.undo();
+    expect(c.usesMidiTempo, isFalse);
+    expect(c.sync!.anchors, hand);
+  });
+
   test('recordings in lanes: one heard at a time, a region drawn takes its stretch from the others; picking one edits its sync and keeps the place; Undo keeps the takes', () async {
     final waveform = await Waveform.analyze(Float32List(100), 100);
     AudioTrack take(String name) => AudioTrack.forTesting(name: name, length: 60, waveform: waveform);

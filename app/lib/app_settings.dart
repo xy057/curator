@@ -24,7 +24,8 @@ class AppSettings extends ChangeNotifier {
         _reduceMotion = _prefs?.getBool(_reduceMotionKey) ?? false,
         _alignAddedRecordings = _prefs?.getBool(_alignAddedKey) ?? true,
         _autoCurateImported = _prefs?.getBool(_autoCurateKey) ?? true,
-        _fineSeek = _readFineSeek(_prefs),
+        _fineSeek = _readStep(_prefs, _fineSeekKey, fineSeekChoices, defaultFineSeek),
+        _anchorNudge = _readStep(_prefs, _anchorNudgeKey, anchorNudgeChoices, defaultAnchorNudge),
         _language = AppLanguage.values.asNameMap()[_prefs?.getString(_languageKey)] ?? AppLanguage.system,
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
@@ -85,6 +86,7 @@ class AppSettings extends ChangeNotifier {
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
   static const _mascotIconKey = 'mascotIcon', _alignAddedKey = 'alignAddedRecordings';
   static const _autoCurateKey = 'autoCurateImported', _fineSeekKey = 'fineSeekSeconds';
+  static const _anchorNudgeKey = 'anchorNudgeSeconds';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
@@ -100,12 +102,13 @@ class AppSettings extends ChangeNotifier {
     }
   }
 
-  static double _readFineSeek(SharedPreferences? prefs) {
+  /// A step saved under [key] (seconds), if one of [choices].
+  static double _readStep(SharedPreferences? prefs, String key, List<double> choices, double fallback) {
     try {
-      final seconds = prefs?.getDouble(_fineSeekKey);
-      return fineSeekChoices.contains(seconds) ? seconds! : defaultFineSeek;
+      final seconds = prefs?.getDouble(key);
+      return choices.contains(seconds) ? seconds! : fallback;
     } catch (_) {
-      return defaultFineSeek; // not a number
+      return fallback; // not a number
     }
   }
 
@@ -272,6 +275,21 @@ class AppSettings extends ChangeNotifier {
     if (value == _fineSeek || !fineSeekChoices.contains(value)) return;
     _fineSeek = value;
     _prefs?.setDouble(_fineSeekKey, value);
+    notifyListeners();
+  }
+
+  static const defaultAnchorNudge = 0.01;
+
+  /// Choices offered for how far ←/→ nudge the selected anchors, seconds.
+  static const anchorNudgeChoices = [0.001, 0.005, 0.01, 0.02, 0.05];
+
+  /// How far ←/→ nudge the selected anchors, seconds (⇧ always 1 ms).
+  double get anchorNudge => _anchorNudge;
+  double _anchorNudge;
+  set anchorNudge(double value) {
+    if (value == _anchorNudge || !anchorNudgeChoices.contains(value)) return;
+    _anchorNudge = value;
+    _prefs?.setDouble(_anchorNudgeKey, value);
     notifyListeners();
   }
 

@@ -243,6 +243,17 @@ final _categories = <_Category>[
       ),
       keywords: 'seek step nudge playhead arrow alt option keyboard playback position small',
     ),
+    _Item(
+      'Anchor nudge',
+      (_) => '←/→ · ⇧ 1 ms',
+      (c) => _Dropdown<double>(
+        value: c.settings.anchorNudge,
+        values: AppSettings.anchorNudgeChoices,
+        label: (s) => '${(s * 1000).round()} ms',
+        onChanged: (v) => c.settings.anchorNudge = v,
+      ),
+      keywords: 'anchor nudge step arrow keyboard sync time move precise fine milliseconds',
+    ),
   ]),
   _Category('Appearance', AppIcon.appearance, [
     _Item(

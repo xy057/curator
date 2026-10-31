@@ -249,6 +249,32 @@ class SyncEditing {
   /// ←/→: nudge the selected anchors in time, together.
   void nudge(double seconds) => _sync?.moveAnchors(_valid, seconds);
 
+  /// ←/→ with a change of the MIDI tempo map selected: moves it to the next / previous beat
+  /// of the score ([fine]: a sixteenth on), stopping short of its neighbours.
+  void moveTempo(int direction, {bool fine = false}) {
+    final midi = _editor._doc.midi, sync = _editor._sync, i = _selectedTempo;
+    if (midi == null || sync == null || i == null || i == 0 || i >= midi.tempos.length) return;
+    final t = midi.tempos[i], at = MidiInScore(midi, sync);
+    final to = fine
+        ? t.quarter + direction * 0.25
+        : direction > 0
+            ? at.beatAround(t.quarter + 1e-7).end
+            : at.beatAround(t.quarter - 1e-7).start;
+    _editor.editMidiTempo(midi.moved(i, quarter: to, quartersPerMinute: t.quartersPerMinute));
+  }
+
+  /// ↑/↓ with a change of the MIDI tempo map selected: its tempo a beat a minute up / down
+  /// ([fine]: a tenth), as the lane counts beats (see [MidiInScore.beatLength]), onto that step.
+  void retune(int direction, {bool fine = false}) {
+    final midi = _editor._doc.midi, sync = _editor._sync, i = _selectedTempo;
+    if (midi == null || sync == null || i == null || i >= midi.tempos.length) return;
+    final t = midi.tempos[i], beat = MidiInScore(midi, sync).beatLength(t.quarter), step = fine ? 0.1 : 1.0;
+    final steps = t.quartersPerMinute / beat / step;
+    final bpm = (direction > 0 ? (steps + 1e-6).floor() + 1 : (steps - 1e-6).ceil() - 1) * step;
+    if (bpm < step) return;
+    _editor.editMidiTempo(midi.moved(i, quarter: t.quarter, quartersPerMinute: bpm * beat));
+  }
+
   /// Delete: removes the selected anchors, or the selected change of the MIDI tempo map.
   void delete() {
     if (_editor._doc.midi case final midi?) {

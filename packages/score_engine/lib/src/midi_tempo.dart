@@ -64,6 +64,28 @@ class MidiTempoMap {
     return MidiTempoMap(name, tempos);
   }
 
+  /// The tempo map [sync] plays by (Convert to Tempo Map): a change at each anchor, where the
+  /// file reaches it, at the tempo to the next (the last's holding on), and its warps. Followed
+  /// from [SyncMap.startSeconds] ([anchors]) it puts every anchor back where it was. A change
+  /// repeating the tempo before it is kept, a point to drag. Under two anchors: the sync's
+  /// default tempo.
+  factory MidiTempoMap.ofSync(SyncMap sync, {String name = ''}) {
+    final anchors = sync.anchors;
+    if (anchors.length < 2) return MidiTempoMap(name, [(quarter: 0, quartersPerMinute: sync.defaultTempo)]);
+    // The tempo before the first anchor is the first stretch's (as the sync runs it back).
+    final tempos = <MidiTempo>[(quarter: 0, quartersPerMinute: sync.segmentTempo(0))];
+    var start = 0.0, at = 0.0;
+    for (final (i, a) in anchors.indexed) {
+      final p = at + a.quarter - start;
+      final last = i == anchors.length - 1;
+      if (p > tempos.last.quarter && !(last && a.quarter >= sync.totalQuarters)) {
+        tempos.add((quarter: p, quartersPerMinute: sync.segmentTempo(math.min(i, anchors.length - 2))));
+      }
+      if (a.isWarp) (start, at) = (a.jumpTo!, p);
+    }
+    return MidiTempoMap(name, tempos, warps: warpsOf(anchors));
+  }
+
   /// How long the Standard MIDI File [bytes] plays, in quarter notes: to its last track's end.
   /// Throws a [FormatException] as [MidiTempoMap.read] does.
   static double lengthOf(Uint8List bytes) {

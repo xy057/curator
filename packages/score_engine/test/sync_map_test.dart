@@ -51,4 +51,23 @@ void main() {
     expect(gainAt(second, 20), 1);
     expect(gainAt(second, 30), 0);
   });
+
+  test('anchors converted to a tempo map and back are where they were, over a repeat, before the first and after the last', () {
+    // Bars 1–4 twice (a warp back at 9 s), rubato, no anchor at the start or the end.
+    final hand = map()
+      ..load(const [
+        SyncAnchor(4, 2), SyncAnchor(8, 4.5), SyncAnchor(16, 9, jumpTo: 0), SyncAnchor(10, 15), SyncAnchor(40, 31),
+      ]);
+    final tempo = MidiTempoMap.ofSync(hand);
+    expect(tempo.warps, [(at: 16.0, jumpTo: 0.0)]);
+    expect(tempo.tempos.length, 6, reason: 'one change at 0, then one at each anchor');
+    final back = map()..load(tempo.anchors(start: hand.startSeconds, totalQuarters: 64));
+    for (final a in hand.anchors) {
+      expect(back.anchors.where((b) => b.quarter == a.quarter && b.jumpTo == a.jumpTo && (b.seconds - a.seconds).abs() < 1e-9),
+          hasLength(1), reason: '$a');
+    }
+    for (var s = 0.0; s < 50; s += 0.7) {
+      expect(back.quarterAtSeconds(s), closeTo(hand.quarterAtSeconds(s), 1e-9), reason: '$s s');
+    }
+  });
 }

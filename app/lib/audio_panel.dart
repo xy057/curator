@@ -41,7 +41,7 @@ const _grab = 7.0;
 ///
 /// Selection: click an anchor · ⇧-click extends · ⌘-click toggles · drag across the anchor
 /// lane (or ⇧-drag anywhere) box-selects · ⌘A selects all. The selection then moves together:
-/// drag it (the grabbed anchor snaps to note onsets; ⌘ = free) · ←/→ nudge 10 ms (⇧ 1 ms) ·
+/// drag it (the grabbed anchor snaps to note onsets; ⌘ = free) · ←/→ nudge (Settings ▸ General ▸ Anchor nudge; ⇧ 1 ms) ·
 /// ↑/↓ re-point every selected anchor a bar or beat · Delete removes them.
 ///
 /// With a MIDI tempo map (dropped on the window, or the toolbar's ⋯ menu) the sync
@@ -276,7 +276,8 @@ class _AudioLanesState extends State<AudioLanes> {
 /// sequencer's tempo track is: drag a change (up and down its tempo, sideways its place,
 /// snapped to beats; ⌘ = free, to a tenth of a beat a minute), or the step after it for its
 /// tempo only; ⌥-click on the line adds a change at the nearest beat, ⌥-drag draws a step a
-/// beat; Delete removes the selected change. A click elsewhere moves the playhead. Warps (W)
+/// beat; ←/→ move the selected change a beat (⇧ a sixteenth), ↑/↓ its tempo a beat a minute
+/// (⇧ a tenth); Delete removes it. A click elsewhere moves the playhead. Warps (W)
 /// are lines across it; double-click one to change or remove it.
 class _MidiTempoLane extends StatefulWidget {
   const _MidiTempoLane({required this.controller, required this.name});
@@ -776,6 +777,14 @@ class _SyncMenu extends StatelessWidget {
                 checked: false,
                 enabled: c.scoreWarps.isNotEmpty && !listEquals(midi.warps, c.scoreWarps),
                 child: Text('Warps from Score'.tr)),
+          if (midi != null)
+            checkedMenuItem(context, value: c.convertToAnchors, checked: false, child: Text('Convert to Anchors'.tr))
+          else
+            checkedMenuItem(context,
+                value: c.convertToTempoMap,
+                checked: false,
+                enabled: c.sync!.anchors.length > 1,
+                child: Text('Convert to Tempo Map'.tr)),
           if (!c.usesMidiTempo) ...[
             checkedMenuItem(context,
                 value: () => c.anchors.snapToOnsets = !c.anchors.snapToOnsets,
