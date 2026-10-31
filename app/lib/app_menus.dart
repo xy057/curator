@@ -32,6 +32,12 @@ class AppMenus extends StatelessWidget {
     this.onDelete,
     this.onSelectAll,
     this.onFindPhrase,
+    this.previewShown = true,
+    this.timelineShown = true,
+    this.onShowPreview,
+    this.onShowTimeline,
+    this.onMaximizePreview,
+    this.onMaximizeTimeline,
   });
 
   /// Open…: a project, or a score to start one from.
@@ -72,6 +78,14 @@ class AppMenus extends StatelessWidget {
 
   /// Edit ▸ Find Phrase… (⌘F); null (greyed out) while nothing is open.
   final VoidCallback? onFindPhrase;
+
+  /// View ▸ Hide / Show Preview and Timeline: the editor's upper and lower parts, each given
+  /// whether to show it; null (greyed out) while nothing is open.
+  final bool previewShown, timelineShown;
+  final ValueChanged<bool>? onShowPreview, onShowTimeline;
+
+  /// View ▸ Maximize Preview / Timeline: the other at its smallest; null while nothing is open.
+  final VoidCallback? onMaximizePreview, onMaximizeTimeline;
 
   static bool get _mac => defaultTargetPlatform == TargetPlatform.macOS;
 
@@ -155,6 +169,22 @@ class AppMenus extends StatelessWidget {
                 shortcut: _key(LogicalKeyboardKey.comma, shift: true),
                 onSelected: onProjectSettings),
             PlatformMenuItem(label: 'Settings…'.tr, shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
+          ]),
+        ]),
+        PlatformMenu(label: 'View'.tr, menus: [
+          PlatformMenuItemGroup(members: [
+            PlatformMenuItem(
+              label: previewShown ? 'Hide Preview'.tr : 'Show Preview'.tr,
+              onSelected: onShowPreview == null ? null : () => onShowPreview!(!previewShown),
+            ),
+            PlatformMenuItem(
+              label: timelineShown ? 'Hide Timeline'.tr : 'Show Timeline'.tr,
+              onSelected: onShowTimeline == null ? null : () => onShowTimeline!(!timelineShown),
+            ),
+          ]),
+          PlatformMenuItemGroup(members: [
+            PlatformMenuItem(label: 'Maximize Preview'.tr, onSelected: onMaximizePreview),
+            PlatformMenuItem(label: 'Maximize Timeline'.tr, onSelected: onMaximizeTimeline),
           ]),
         ]),
         if (_mac)

@@ -272,6 +272,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   final _scoreView = GlobalKey<ScoreViewState>(), _timeline = GlobalKey(), _dropStack = GlobalKey();
   double _timelineHeight = 300;
 
+  /// View ▸ Hide / Show: the preview and the timeline; one of them always shows.
+  bool _previewShown = true, _timelineShown = true;
+
   static const _scoreExtensions = ['musicxml', 'xml', 'mxl'];
   static XTypeGroup get _openableTypes => XTypeGroup(
         label: 'Projects and scores'.tr,
@@ -624,7 +627,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   _DropArea _areaAt(Offset global) {
     if (controller.score == null) return _DropArea.home;
     final timelineTop = _top(_timeline);
-    if (timelineTop != null && global.dy >= timelineTop) {
+    if (!_previewShown || timelineTop != null && global.dy >= timelineTop) {
       return controller.tab == BottomTab.audio ? _DropArea.audio : _DropArea.project;
     }
     return _DropArea.image;
@@ -754,6 +757,27 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     showWebExportDialog(context, controller, settings, suggestedName: stemOf(document.title ?? 'Curator'));
   }
 
+  // MARK: View
+
+  /// View ▸ Hide / Show Preview: hiding it shows the timeline if that was hidden.
+  void _showPreview(bool on) => setState(() {
+        _previewShown = on;
+        if (!on) _timelineShown = true;
+      });
+
+  /// View ▸ Hide / Show Timeline: hiding it shows the preview if that was hidden.
+  void _showTimeline(bool on) => setState(() {
+        _timelineShown = on;
+        if (!on) _previewShown = true;
+      });
+
+  /// View ▸ Maximize Preview / Timeline: both shown, the other at its smallest (and kept so as
+  /// the window is resized, until the divider is dragged).
+  void _maximize({required bool timeline}) => setState(() {
+        _previewShown = _timelineShown = true;
+        _timelineHeight = timeline ? double.infinity : _minTimeline;
+      });
+
   @override
   Widget build(BuildContext context) {
     // The menus follow the recent files and whether a score is open; the page below them is
@@ -786,6 +810,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           onDelete: edit != null && edit.delete ? _commands.delete : null,
           onSelectAll: edit != null && _commands.canSelectAll ? _commands.selectAll : null,
           onFindPhrase: _hasScore.value && !_typing && (ModalRoute.of(context)?.isCurrent ?? true) ? _findPhrase : null,
+          previewShown: _previewShown,
+          timelineShown: _timelineShown,
+          onShowPreview: _hasScore.value ? _showPreview : null,
+          onShowTimeline: _hasScore.value ? _showTimeline : null,
+          onMaximizePreview: _hasScore.value ? () => _maximize(timeline: false) : null,
+          onMaximizeTimeline: _hasScore.value ? () => _maximize(timeline: true) : null,
           child: page!,
         );
       },
@@ -935,22 +965,29 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       aspectRatio: settings.previewVideoFrame ? settings.videoFormat.aspectRatio : null,
     ));
     // Working in the timeline leaves the image selected in the score.
-    final timeline = Listener(
-      onPointerDown: (_) => controller.images.select(null),
-      child: BottomPanel(controller: controller, onProjectSettings: _projectSettings),
+    // Keyed so it keeps its state when the preview is hidden or shown around it.
+    final timeline = KeyedSubtree(
+      key: _timeline,
+      child: Listener(
+        onPointerDown: (_) => controller.images.select(null),
+        child: BottomPanel(controller: controller, onProjectSettings: _projectSettings),
+      ),
     );
     final toolbarHeight = EditorToolbar.heightOf(context);
     return LayoutBuilder(builder: (context, constraints) {
       final maxTimeline = math.max(_minTimeline, constraints.maxHeight - toolbarHeight - _minScore);
       final timelineHeight = _timelineHeight.clamp(_minTimeline, maxTimeline);
+      // View ▸ Hide: the part left takes the whole height.
       return Column(
         children: [
           toolbar,
-          score,
-          _ResizeHandle(
-            onDrag: (dy) => setState(() => _timelineHeight = (timelineHeight - dy).clamp(_minTimeline, maxTimeline)),
-          ),
-          SizedBox(key: _timeline, height: timelineHeight, child: timeline),
+          if (_previewShown) score,
+          if (_previewShown && _timelineShown)
+            _ResizeHandle(
+              onDrag: (dy) => setState(() => _timelineHeight = (timelineHeight - dy).clamp(_minTimeline, maxTimeline)),
+            ),
+          if (_timelineShown)
+            _previewShown ? SizedBox(height: timelineHeight, child: timeline) : Expanded(child: timeline),
         ],
       );
     });
