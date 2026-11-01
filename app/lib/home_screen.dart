@@ -164,8 +164,10 @@ class _RecentList extends StatelessWidget {
           child: Column(children: [
             for (final (i, path) in files.indexed) ...[
               if (i > 0) Divider(height: 1, color: colors.line),
-              // A hover repaints its own row, not the list.
+              // A hover repaints its own row, not the list. Keyed by path: a row's state (hover, whether
+              // its file exists) belongs to its file, not to its place, so a removal can't pass it on.
               RepaintBoundary(
+                key: ValueKey(path),
                 child: _RecentRow(path: path, onOpen: () => onOpen(path), onRemove: () => onRemove(path)),
               ),
             ],
