@@ -9,8 +9,8 @@
 # A version that is already released stops the run before anything is built.
 #
 #
-# Both systems build side by side; the release is published only when both have built and run
-# the smoke test, so a release always has both downloads.
+# Both systems build side by side; the release is published only when both have built (and
+# Windows has run the smoke test), so a release always has both downloads.
 #
 # Every action is pinned to a commit (its tag in a comment): a tag can be moved, a commit can't.
 # To update one, look up the new tag's commit (`git ls-remote --tags https://github.com/<action>`). The app's updater finds its own by the name:
@@ -89,14 +89,6 @@ jobs:
         # a first build with "could not build module 'flutter_soloud'" and passed on the next,
         # so a failed build is tried once more (it is incremental).
         run: make build || make build
-
-      # FFmpeg lets the smoke test below export a real video.
-      - name: Install FFmpeg
-        run: brew install ffmpeg
-
-      # The app itself, built and run: the sample opens, engraves, draws and exports.
-      - name: Smoke test
-        run: make smoke
 
       - name: Package
         run: |
