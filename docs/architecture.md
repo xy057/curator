@@ -77,7 +77,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
-| `app_menus.dart` | The menu bar (native on macOS): File; Edit (Project Settings… then Settings… at its foot, on macOS too). Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu |
+| `app_menus.dart` | The menu bar (native on macOS): File (Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu |
+| `l10n/l10n.dart`, `l10n/zh_hans.dart`, `l10n/zh_hant.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, keyed by the English (see *Interface text*) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's toolbar |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
@@ -171,8 +172,8 @@ a bar (`12`, `12.2`: where it first sounds) or a time (`1:10.5`, `1:02:03`), rea
 `Playback.goTo`. Closing it hands the keyboard back to what had it, or the window's
 shortcuts would stop (focus falls to the route's scope, above them).
 
-**Align sets the anchors by ear** (the Audio tab's filled Align button, first after Add Recording,
-`SyncEditing.align`, one Undo step replacing the anchors there; at once when a recording is added to
+**Align sets the anchors by ear** (the Audio tab's Align, first of the sync's tools: a filled button
+with its name while the sync has no anchors, then an icon among the others; `SyncEditing.align`, one Undo step replacing the anchors there; at once when a recording is added to
 a score with no anchors yet, unless Settings ▸ General ▸ Align added recordings is off). The recording is read on an isolate half a minute at a time, through
 flutter_soloud's binding into a buffer of our own (its `readSamplesFromFile` never frees the one it
 reads into), and made into frames ~20 a second (`AudioChroma`): the energy of each pitch class over a
@@ -336,7 +337,7 @@ the next change; only the stretch drawn loses repeats), Delete removing the sele
 start; the lane's scale is held while a gesture lasts, so it doesn't re-fit under the pointer, and
 the pointer is read on the map the gesture began from, so a step drawn doesn't move the beats
 under the pointer drawing on. The anchors
-set by hand are kept behind it (`EditorController._tapped`, saved as `sync.anchors`) and come
+set by hand are kept behind it (`EditState.anchors`, `EditorController._ownAnchors`, saved as `sync.anchors`) and come
 back when the MIDI goes. Using or dropping one is an edit (`midi` in `EditState`, and
 `sync.midi` in the project from format 7, its tempos as `[quarter, quarters a minute]`).
 The ⋯ Sync menu converts either way, one Undo step each, no format change: Convert to Tempo
@@ -346,7 +347,9 @@ Starts at it puts every anchor back; the anchors stay behind it as behind a file
 Anchors makes the anchors it follows the hand-set ones (those behind it go). Keys on the
 selected change: ←/→ a beat of the score (⇧ a sixteenth), ↑/↓ a beat a minute (⇧ a tenth),
 onto that step (`SyncEditing.moveTempo` / `retune`). ←/→ on selected anchors nudge by Settings
-▸ General ▸ Anchor nudge (1–50 ms, default 10; ⇧ 1 ms).
+▸ General ▸ Anchor nudge (1–50 ms, default 10; ⇧ 1 ms); with nothing selected they skip 5 s (⇧ 1 s),
+and ⌥←/→ always move the playhead by Settings ▸ General ▸ Fine seek (0.05–1 s, default 0.1;
+`EditCommands.arrow`). Space taps while tapping is armed, else plays or pauses, as P always does.
 
 A file that plays the repeats out keeps the score's form in its warps (`MidiTempoMap.warps`,
 W or the Warp button, saved as `sync.midi.warps` from format 15). The file counts quarters
@@ -505,7 +508,7 @@ switch is off they stay in the project but are not drawn, exported or editable.
 **A drop goes by where it lands** (`_HomePageState._areaAt`; the hint covers only that
 area and says what it takes). With no score open, anything opens (as File ▸ Open). Above
 the timeline, it is always an image (Attach Image; while that is off, it says so). On the
-timeline, the Instruments tab opens a project or a score, and the Audio tab takes a MIDI
+timeline (the whole window while View ▸ Hide Preview has hidden the preview), the Instruments tab opens a project or a score, and the Audio tab takes a MIDI
 tempo map or a recording.
 
 **Find Phrase looks for a melody by ear, not by notation** (Edit ▸ Find Phrase…, ⌘F, or the
@@ -607,8 +610,7 @@ lane selected and the rest as far below it, or with nothing selected each into i
 dialog or double-click changes a text any more; add nothing to it. The engine and the
 controller keep it (`EditorController.editTexts`, `textEdits` in `EditState` and the project),
 so projects with text edits still open and engrave as saved, Undo steps through them, and
-Replace Score carries them over. A double-click on a text does nothing
-(`test/app_screenshot_test.dart` checks it).
+Replace Score carries them over. A double-click on a text does nothing.
 
 **Widgets change the document only through `EditorController`** (and its parts). They may
 read the models (`curation`, `sync`) to draw them. The Edit menu, the keys and the toolbar's Remove
@@ -648,8 +650,8 @@ re-engraves, as a text edit does, while the lanes follow at once (the pairs are 
 without engraving). The scene shows
 a shared staff while both players are shown, and the player's own staff otherwise; a hidden
 one waits on its twin (`SpacingPlan`'s `twins`), so they swap in place. Its texts carry the
-`cond-` prefix, and `Condenser.sourceTextId` leads back to the original, so editing one edits
-the other. A slur or hairpin in a shared part keeps both of its ends or neither. Any two
+`cond-` prefix (`Condenser.idPrefix`) on the original's id, copied after the text edits, so an
+edit of the original is in the copy too. A slur or hairpin in a shared part keeps both of its ends or neither. Any two
 single-staff instruments with the same clefs, transposition and meters throughout can pair
 (`Condenser._writtenAs`: every change of those, where it takes effect, read for what it
 means): the shared part takes the first player's attributes, and where the second is
@@ -739,7 +741,7 @@ That is a flag (Project Settings ▸ Flags ▸ Rehearsal marks in bar numbers:
 until Save as default; `CuratedScene.rehearsalInRow`, in `SceneSettings`): off, they stay in the
 music with the row on. Changing it only redraws (the display list made again); Flags ▸ Reset to
 Default sets every flag in one Undo step (`EditorController.setFlags`).
-Flags ▸ Centred lyrics (`EditState.centeredLyrics`, under `flags` from format 23, null taking
+Flags ▸ Centered lyrics (`EditState.centeredLyrics`, under `flags` from format 23 as `centredLyrics`, the flag's first spelling, null taking
 `AppSettings`'s, off until Save as default; `EngraveRequest.centeredLyrics`, an Undo step that
 re-engraves) centres each syllable, or an elision's syllables together, under its notehead, as
 Verovio otherwise sets them from just left of it; one an extender follows stays there, so a
@@ -763,6 +765,12 @@ over another. A recording that fails to load is reported, not fatal. Listeners n
 half done: `_install` sets every part before anything notifies (captions last, as working out
 their style can notify at once), and a controller disposed while engraving takes nothing on,
 its recording included.
+
+**Closing asks before anything goes.** Open, Close (⌘W), Quit and the window's close button offer
+to save unsaved changes first (`_HomePageState._confirmDiscard`; quitting through
+`AppLifecycleListener`'s `_exitRequested`). On macOS the close button quits as Quit does
+(`MainFlutterWindow.windowShouldClose` → `NSApp.terminate`), so the question is asked while the
+window is still there.
 
 **Replacing the score keeps the project.** Project Settings ▸ Project Info ▸ Score ▸ Replace… engraves another score
 file with the project's edits carried over to it (`EditorController.prepareReplacement`,
@@ -790,7 +798,7 @@ re-engraving after an edit, doesn't show them again.
 (stored, first), a stub `project.json` (`{"format": "application/x-curated-score", "version": 27}`:
 Curator 0.1–0.6.1 read only that file and refuse a version past theirs, 26 at most, asking for an
 update, so every release knows the file and none opens it), `manifest.json` (format, `layout` 2,
-`writer` "Curator 0.6.1 (131)", the score's and recording's names and entries, and each module's
+`writer` (`ProjectArchive.writer`: "Curator <version> (<build>)"), the score's and recording's names and entries, and each module's
 `version` and whether it is `optional`), `modules/<id>.json` (compact JSON), each module's files
 under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` (the
 recording heard) and `media/takes/<id>/<name>` (each other, listed in the manifest's `takes`) last.
@@ -799,7 +807,8 @@ Everything deflates at zlib's default level, but the recordings and packed image
 Each module (`ProjectModule`, all in `ProjectModules.all`) owns a part of `ProjectState`: `fonts`,
 `engraving` (options, typography, the flags), `display` (transitions, scroll, motion, bar numbers,
 sections, the playback line, family colours), `extensions`, `instruments` (order, names, sections,
-name groups, pairs), `texts`, `curation`, `sync`, `images`, `captions`, `spacers`, `view`. It writes
+name groups, pairs), `texts`, `curation`, `sync`, `takes` (optional: every recording's lane, and
+each but the focus's sync), `images`, `captions`, `spacers`, `view`. It writes
 its JSON and files, and reads them back checking every field, naming the damaged one
 (`sync.anchors[3]`). Long lists are tuples (an anchor `[quarter, seconds, jumpTo?]`, a region
 `[start, end, in?, out?]`, a caption `[start, end, text]`); every value is written, defaults too,
@@ -1061,8 +1070,8 @@ replays the updates as the engine takes them (`accessibility_mirror.dart`).
 **Fonts: engraving and drawing agree.** Verovio lays out with the metrics of the same fonts
 the renderer draws. A project chooses its fonts (Project Settings ▸ Engraving, `ScoreFonts`: an edit,
 `fonts` in `EditState`, saved from format 9; changing it re-engraves, as a text edit does).
-Music: a bundled SMuFL font (Bravura, Leland, Petaluma, Leipzig, Gootville: each an OTF in
-pubspec and Verovio's own metrics in `assets/verovio/<Name>.xml`; Leipzig's are there anyway
+Music: a bundled SMuFL font (Bravura, Leland, Petaluma, Leipzig, Gootville: each a font file in
+the engine's pubspec, Leipzig's a TTF, the rest OTFs, and Verovio's own metrics in `assets/verovio/<Name>.xml`; Leipzig's are there anyway
 because Verovio always loads them), one installed with SMuFL metadata
 (in a SMuFL folder, where the specification puts them on each platform: `FontFiles.smuflFolders`), or a file the user picks (`MusicFont.added`:
 travels in the project as `fonts/<name>.font` and `.json`; registered for drawing by `load`).
@@ -1115,7 +1124,10 @@ and at start-up it sweeps folders whose lock is free (their app crashed).
 
 **Tests run on the demo.** Every test uses `app/assets/demo/WI275 - 01 Intro.ccs` (a 44-bar
 6/8 orchestral intro with its recording and curation), so a fresh clone runs them all.
-The suite is ten essential tests; add one only for a core path none of them covers. `Samples/` is for trying things by hand only. A test's tap that something
+The suite is kept small: a test or two per feature, on its main path (engine parts and the
+engraving, scroll map, phrase search, auto-curate, video frame, tapping, takes and tempo maps,
+Align, curation, save and open, safe save, older formats, Undo, the updater's URLs, web export,
+the app's screens, the accessibility tree, the translations); add one only for a core path none of them covers. `Samples/` is for trying things by hand only. A test's tap that something
 else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app as built
 (opening a window): what only a bundle has, its native library and resources, is checked there.
 
@@ -1125,9 +1137,10 @@ else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app a
 Run workflow, or `gh workflow run release.yml`). It builds side by side with `make build` on
 macOS and `flutter build windows` on Windows (Verovio fetched and patched by hand there, and the web
 player built as `make web-player` would: no `make`), zips each as `Curator-<version>-<macos|windows>.zip` (the Windows zip carries the
-Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built and run
-the smoke test (`app/integration_test/app_smoke_test.dart`, `make smoke`: the app as built opens
-the sample, engraves, draws and exports; `make check` isn't run there), where the version is
+Visual C++ runtime DLLs) and publishes release `v<version>` only when both have built and Windows
+has run the smoke test (`app/integration_test/app_smoke_test.dart`, `make smoke` on macOS: the app
+as built opens the sample, engraves, draws, and where FFmpeg is installed exports a second of video,
+which the Windows runner hasn't; macOS runs no test there, nor `make check` either), where the version is
 `app/pubspec.yaml`'s. Its actions are pinned to commits, not tags; only the job that publishes
 may write to the repository. To release again, bump that version and `appVersion` / `appBuild`
 in `updater.dart` together (`make versions` checks they match, from `make check` and as the
@@ -1142,14 +1155,15 @@ on Windows wherever the registry says that folder now is): it never replaces the
 
 ## Adding things
 
-- **A setting**: an `_Item` in `settings_dialog.dart`'s `_categories`, backed by a field in
+- **A setting**: an `_Item` in `settings_dialog.dart`'s `_categories` (its texts in both Chinese
+  tables, see *Interface text*), backed by a field in
   `AppSettings` (the editor takes what concerns it in `takeSettings`, controller_settings.dart); a project's own, in `_projectCategories`, backed by an edit (see *Something a
   project saves*), so Settings holds only what is the same for every project. A project page whose settings
   can become the app's defaults gives its `_Category` a `saveDefault`: a slim Save as Default
   button beside the page's title (a check and "Default" once they match), never a row; while they
   differ, Reset to Default before it puts the app's back on the page (`reset`, one Undo step). Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extensions**.
-- **A flag**: a fix for how other programs write their files, on by default (Centred lyrics, a
+- **A flag**: a fix for how other programs write their files, on by default (Centered lyrics, a
   house style, is off), as an `_Item` on
   Project Settings ▸ Flags with a switch to turn it off: the project's (`EditState`, an edit),
   else the app's default (`AppSettings`), which that page's Save as default sets.
@@ -1190,6 +1204,14 @@ on Windows wherever the registry says that folder now is): it never replaces the
   buttons and titles stay plain. Contractions; seconds and minutes spelled out in
   sentences; no "e.g.". One word per thing: the playhead (never the pointer), the sample,
   open (a score), add (a recording, a MIDI tempo map), transition, Extensions.
+  It is written in English in the code and translated where it is shown (Settings ▸ General ▸
+  Language: System, English, Simplified or Traditional Chinese, switched live; `AppLanguage`):
+  `'Open Sample'.tr`, `'Couldn’t align. {error}'.fill({'error': …})` with values (the translation
+  places them), and
+  `trIn` where one English word means two things. Each table (`zhHans`, `zhHant`) is keyed by the
+  English; one without an entry shows the English (a debug run prints it). Every new `.tr` / `.fill`
+  text needs an entry in both, with the same placeholders (`test/l10n_test.dart` checks); Material's
+  own strings come from `GlobalMaterialLocalizations`.
 - **Something a project saves**: a field of `EditState` (with its `==` and `copyWith`),
   written and read by the module it belongs to (`project_modules.dart`), bumping that module's
   version with a migration when an older build would lose it; or a new module. If the controller keeps it itself it lives in `_doc`, and
