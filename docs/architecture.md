@@ -74,7 +74,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `web_page.dart`, `web_export.dart`, `web_export_dialog.dart`, `web_guide.dart` | File ▸ Export to Web…: what a page is (`WebPage`, its `page.json`; `WebChoice`, a viewer's choice and whether it is theirs), writing one (`WebExport`), trying it here (`WebPreview`, the folder served on the loopback address to requests naming `localhost` only, so a site rebinding its name here gets nothing; byte ranges, 416 past the end), the dialog and its guide to publishing |
 | `web_player/*.dart`, `web/`, `tool/pack_web_player.dart` | The web player, the app package built for the web from `web_player/main.dart` (`make web-player`): the page read (`LoadedPage`), drawn and played (`PagePlayer`, `PageAudio`: an `<audio>`, `HtmlAudio`, or a clock alone) |
 | `phrase_search_window.dart` | Edit ▸ Find Phrase… (⌘F): the window that enters a phrase and lists where it is played |
-| `project_tabs.dart` | The tabs along the window's top while a project is open (`ProjectTabs`): Home, then each project by name, a dot for unsaved changes |
+| `project_tabs.dart` | The tabs along the window's top while a project is open (`ProjectTabs`): Home, then each project by name, a dot for unsaved changes; past the window's width they scroll, a mouse wheel's turn too |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |

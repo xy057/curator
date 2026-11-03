@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart' show ValueListenable;
-import 'package:flutter/gestures.dart' show kMiddleMouseButton;
+import 'package:flutter/gestures.dart' show GestureBinding, PointerScrollEvent, PointerSignalEvent, kMiddleMouseButton;
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
@@ -12,8 +12,9 @@ typedef ProjectTabLabel = ({String name, bool edited, String? path});
 
 /// The tabs along the top of the window while a project is open: Home first (an icon), then each
 /// project open by its name. A click shows one; its ×, or a middle click, closes it. Unsaved
-/// changes are a dot where the × goes, which the × takes over under the pointer.
-class ProjectTabs extends StatelessWidget {
+/// changes are a dot where the × goes, which the × takes over under the pointer. Past the
+/// window's width they scroll, under a mouse wheel too.
+class ProjectTabs extends StatefulWidget {
   const ProjectTabs({
     super.key,
     required this.labels,
@@ -35,9 +36,32 @@ class ProjectTabs extends StatelessWidget {
   static const _minWidth = 110.0, _maxWidth = 220.0;
 
   @override
+  State<ProjectTabs> createState() => _ProjectTabsState();
+}
+
+class _ProjectTabsState extends State<ProjectTabs> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// A wheel turns up and down, and the tabs run across: its turn scrolls them. (A sideways
+  /// scroll, a trackpad's or a tilted wheel's, the scroll view takes itself, first.)
+  void _wheel(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || !_scroll.hasClients) return;
+    final position = _scroll.position, delta = event.scrollDelta.dy;
+    if (delta == 0 || position.maxScrollExtent == 0) return;
+    GestureBinding.instance.pointerSignalResolver.register(event, (_) => position.pointerScroll(delta));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final ProjectTabs(:labels, :shown, :onShow, :onClose) = widget;
     final colors = context.colors;
-    final height = heightOf(context);
+    final height = ProjectTabs.heightOf(context);
     return SizedBox(
       height: height,
       // Above the pages' scaffolds: its own material, for its text and buttons.
@@ -57,28 +81,32 @@ class ProjectTabs extends StatelessWidget {
             ),
             Expanded(
               child: LayoutBuilder(builder: (context, constraints) {
-                final width = (constraints.maxWidth / labels.length).clamp(_minWidth, _maxWidth);
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(children: [
-                    for (final (i, label) in labels.indexed)
-                      ValueListenableBuilder(
-                        key: ObjectKey(label), // a tab closed takes its own hover with it
-                        valueListenable: label,
-                        builder: (context, label, _) => SizedBox(
-                          width: width,
-                          child: _Tab(
-                            selected: shown == i,
-                            fill: colors.chrome,
-                            tip: label.path ?? label.name,
-                            onShow: () => onShow(i),
-                            onClose: () => onClose(i),
-                            edited: label.edited,
-                            child: Text(label.name, maxLines: 1, overflow: TextOverflow.ellipsis, softWrap: false),
+                final width = (constraints.maxWidth / labels.length).clamp(ProjectTabs._minWidth, ProjectTabs._maxWidth);
+                return Listener(
+                  onPointerSignal: _wheel,
+                  child: SingleChildScrollView(
+                    controller: _scroll,
+                    scrollDirection: Axis.horizontal,
+                    child: Row(children: [
+                      for (final (i, label) in labels.indexed)
+                        ValueListenableBuilder(
+                          key: ObjectKey(label), // a tab closed takes its own hover with it
+                          valueListenable: label,
+                          builder: (context, label, _) => SizedBox(
+                            width: width,
+                            child: _Tab(
+                              selected: shown == i,
+                              fill: colors.chrome,
+                              tip: label.path ?? label.name,
+                              onShow: () => onShow(i),
+                              onClose: () => onClose(i),
+                              edited: label.edited,
+                              child: Text(label.name, maxLines: 1, overflow: TextOverflow.ellipsis, softWrap: false),
+                            ),
                           ),
                         ),
-                      ),
-                  ]),
+                    ]),
+                  ),
                 );
               }),
             ),

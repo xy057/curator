@@ -2,11 +2,13 @@
 // project opens beside it; Close takes only the tab it is in, asking first about unsaved changes.
 import 'dart:ui' as ui;
 
+import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/editor_toolbar.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/project_tabs.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -173,5 +175,33 @@ void main() {
       }
     }
     expect(counts.where((c) => !c.endsWith(': 0')), isEmpty, reason: 'unpainted pixels show the window\'s black');
+  });
+
+  testWidgets('a mouse wheel scrolls the tabs past the window\'s width', (tester) async {
+    final labels = [
+      for (var i = 0; i < 12; i++) ValueNotifier<ProjectTabLabel>((name: 'Project $i', edited: false, path: null)),
+    ];
+    await tester.pumpWidget(MaterialApp(
+      theme: AppColors.theme(),
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 600,
+            child: ProjectTabs(labels: labels, shown: 0, onShow: (_) {}, onClose: (_) {}),
+          ),
+        ),
+      ),
+    ));
+    final position = tester.state<ScrollableState>(find.byType(Scrollable)).position;
+    expect(position.maxScrollExtent, greaterThan(0));
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await tester.sendEventToBinding(pointer.hover(tester.getCenter(find.text('Project 1'))));
+    await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120))); // down: on to the right
+    await tester.pump();
+    expect(position.pixels, 120);
+    await tester.sendEventToBinding(pointer.scroll(const Offset(0, -500))); // up, past the start
+    await tester.pump();
+    expect(position.pixels, 0);
   });
 }
