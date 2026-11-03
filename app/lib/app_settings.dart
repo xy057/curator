@@ -58,6 +58,7 @@ class AppSettings extends ChangeNotifier {
         _captionPlate = _prefs?.getBool(_captionPlateKey) ?? false,
         _videoSubtitles = _prefs?.getBool(_videoSubtitlesKey) ?? false,
         _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false,
+        _tabBar = _prefs?.getBool(_tabBarKey) ?? true,
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
@@ -91,6 +92,7 @@ class AppSettings extends ChangeNotifier {
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
+  static const _tabBarKey = 'showTabBar';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
 
@@ -489,6 +491,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _previewVideoFrame) return;
     _previewVideoFrame = value;
     _prefs?.setBool(_previewFrameKey, value);
+    notifyListeners();
+  }
+
+  /// View ▸ Show / Hide Tab Bar: the projects' tabs along the window's top, while one is open.
+  /// On by default; hidden, the editor's toolbar has a Home button instead.
+  bool get tabBar => _tabBar;
+  bool _tabBar;
+  set tabBar(bool value) {
+    if (value == _tabBar) return;
+    _tabBar = value;
+    _prefs?.setBool(_tabBarKey, value);
     notifyListeners();
   }
 

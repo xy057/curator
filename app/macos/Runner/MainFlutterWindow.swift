@@ -80,6 +80,10 @@ class MainFlutterWindow: NSWindow, NSWindowDelegate {
   private let opener = DocumentOpener()
 
   override func awakeFromNib() {
+    // Projects are tabs inside the one window (project_tabs.dart): AppKit's own window tabs are
+    // off, so View has no Show Tab Bar / Show All Tabs of its own beside the app's.
+    NSWindow.allowsAutomaticWindowTabbing = false
+    self.tabbingMode = .disallowed
     let flutterViewController = FlutterViewController()
     self.contentViewController = flutterViewController
     self.contentMinSize = MainFlutterWindow.minimumSize

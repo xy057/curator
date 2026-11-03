@@ -359,7 +359,14 @@ class _AppWindowState extends State<AppWindow> {
   void _settingsChanged() {
     _recent.value = settings.recentFiles;
     WindowChrome.showAppIcon(mascot: settings.mascotIcon);
+    if (settings.tabBar != _tabBar) {
+      setState(() => _tabBar = settings.tabBar);
+      _menus.value++;
+    }
   }
+
+  /// View ▸ Show / Hide Tab Bar ([AppSettings.tabBar]).
+  late bool _tabBar = settings.tabBar;
 
   void _focusChanged() =>
       _typing.value = FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
@@ -525,6 +532,8 @@ class _AppWindowState extends State<AppWindow> {
           onMaximizeTimeline: open ? () => page._maximize(timeline: true) : null,
           onNextTab: tabs.isEmpty ? null : () => _step(1),
           onPreviousTab: tabs.isEmpty ? null : () => _step(-1),
+          tabBarShown: _tabBar,
+          onShowTabBar: (on) => settings.tabBar = on,
           child: window!,
         );
       },
@@ -533,7 +542,7 @@ class _AppWindowState extends State<AppWindow> {
           duration: motion(context, 200),
           curve: Curves.easeOutCubic,
           alignment: Alignment.topCenter,
-          child: tabs.isEmpty
+          child: tabs.isEmpty || !_tabBar
               ? const SizedBox(width: double.infinity)
               : ProjectTabs(
                   labels: [for (final p in tabs) p.label],
@@ -564,6 +573,7 @@ class _AppWindowState extends State<AppWindow> {
                   label: project.label,
                   onMenusChanged: () => _menus.value++,
                   onOpen: _openPath,
+                  onHome: () => _show(null),
                   onFailed: () => _close(project),
                 ),
               ),
@@ -628,6 +638,7 @@ class ProjectPage extends StatefulWidget {
     required this.label,
     required this.onMenusChanged,
     required this.onOpen,
+    required this.onHome,
     required this.onFailed,
   });
 
@@ -650,6 +661,9 @@ class ProjectPage extends StatefulWidget {
 
   /// Another project or score to open (one dropped on the timeline), in a tab of its own.
   final ValueChanged<String> onOpen;
+
+  /// The toolbar's Home, there while the tab bar is hidden.
+  final VoidCallback onHome;
 
   /// It didn't open (said why already): its tab goes.
   final VoidCallback onFailed;
@@ -690,9 +704,10 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// settings (a slider in Settings changes them many times a second).
   late final _shown = ValueNotifier(_shownSettings);
 
-  ({bool videoFrame, VideoRatio videoRatio}) get _shownSettings => (
+  ({bool videoFrame, VideoRatio videoRatio, bool tabBar}) get _shownSettings => (
         videoFrame: settings.previewVideoFrame,
         videoRatio: settings.videoRatio,
+        tabBar: settings.tabBar,
       );
 
   late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit]);
@@ -1259,6 +1274,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       onVideoRatio: (r) => settings
         ..videoRatio = r
         ..previewVideoFrame = true,
+      // Home's tab can't be clicked while the tab bar is hidden: the toolbar has it then.
+      onHome: settings.tabBar ? null : widget.onHome,
       readout: _readout,
     );
     final score = Expanded(child: ScoreView(

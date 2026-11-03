@@ -40,6 +40,8 @@ class AppMenus extends StatelessWidget {
     this.onMaximizeTimeline,
     this.onNextTab,
     this.onPreviousTab,
+    this.tabBarShown = true,
+    this.onShowTabBar,
   });
 
   /// Open…: a project, or a score to start one from.
@@ -92,6 +94,11 @@ class AppMenus extends StatelessWidget {
   /// Show Next / Previous Tab (⌃Tab, ⌃⇧Tab), Home among them: Window on macOS, View elsewhere;
   /// null while no project is open.
   final VoidCallback? onNextTab, onPreviousTab;
+
+  /// View ▸ Show / Hide Tab Bar (⇧⌘T), given whether to show it; Show All Tabs (⇧⌘\) shows it,
+  /// and is greyed out while it shows.
+  final bool tabBarShown;
+  final ValueChanged<bool>? onShowTabBar;
 
   static bool get _mac => defaultTargetPlatform == TargetPlatform.macOS;
 
@@ -204,6 +211,18 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(label: 'Maximize Preview'.tr, onSelected: onMaximizePreview),
             PlatformMenuItem(label: 'Maximize Timeline'.tr, onSelected: onMaximizeTimeline),
+          ]),
+          PlatformMenuItemGroup(members: [
+            PlatformMenuItem(
+              label: tabBarShown ? 'Hide Tab Bar'.tr : 'Show Tab Bar'.tr,
+              shortcut: _key(LogicalKeyboardKey.keyT, shift: true),
+              onSelected: onShowTabBar == null ? null : () => onShowTabBar!(!tabBarShown),
+            ),
+            PlatformMenuItem(
+              label: 'Show All Tabs'.tr,
+              shortcut: _key(LogicalKeyboardKey.backslash, shift: true),
+              onSelected: onShowTabBar == null || tabBarShown ? null : () => onShowTabBar!(true),
+            ),
           ]),
           if (!_mac) _tabs,
         ]),

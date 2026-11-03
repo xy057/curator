@@ -784,7 +784,10 @@ closes Find Phrase and the Engraving window (one at a time, over whichever tab s
 one menu bar (on macOS one `PlatformMenuBar` may be built): the window builds it for the tab
 showing, from that page's state, and a page says when what it offers changes (`onMenusChanged`).
 Show Next / Previous Tab (⌃Tab, ⌃⇧Tab: Window on macOS, View elsewhere) go round the tabs, Home
-among them. Closing takes the tab away at once and the page drops its editor
+among them. View ▸ Show / Hide Tab Bar (⇧⌘T, `AppSettings.tabBar`) hides the strip, the editor's toolbar
+taking a Home button meanwhile; Show All Tabs (⇧⌘\) shows it again. AppKit's own window tabs are off
+(`MainFlutterWindow.awakeFromNib`: `allowsAutomaticWindowTabbing`), or it would add items of those
+names to View for tabs of windows the app doesn't have. Closing takes the tab away at once and the page drops its editor
 (`ProjectPage.closing`); the page itself goes once `ProjectDocument.close` has run (after a save
 under way), the tab after it showing (or before it, or Home). A project that doesn't open says
 why and its tab goes. Two projects open on one recording file (a linked one) share SoLoud's one
