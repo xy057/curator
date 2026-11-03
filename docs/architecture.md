@@ -214,8 +214,9 @@ step saved as `state.motion` from format 20; a project without its own takes `Ap
 the house style until Save as default; `CuratedScene.motion`, in `SceneSettings`). A `ScoreMotion`
 holds every curve and length the scene animates with, and where the staves stand: the paper above the
 first staff and below the last (`margin`, the bar numbers' row inside it) and the least and most between
-staves (`minGap`, `maxGap`: `StaffStack.layout` shares the free height out between them, under the least
-only when the frame is full; a most below the least is the least), points in the frame, as the plan's
+staves (`minGap`, `maxGap`: `StaffStack.layout` shares the free height out between them; the least
+holds even if the staves then run past the frame, and a most below it is the least; the staves are
+centred, so the margin tells only while the share is between the two), points in the frame, as the plan's
 key; the staves' glide (`SpacingPlan` and
 `KeyColumnPlan`'s blend) and fade (`Curation.visibilityAt`'s ramp, then the ink after `inkDelay`,
 `ScoreMotion.inkFor`); the scroll's settle and slowest speed (`ScrollMap.withMotion`: a new slowest

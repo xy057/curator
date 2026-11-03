@@ -115,6 +115,16 @@ void main() {
     expect(gapBetween(), closeTo(wide - 80, 1e-6), reason: 'the most, 140 → 60');
     scene.motion = const ScoreMotion(minGap: 200, maxGap: 60);
     expect(gapBetween(), closeTo(wide + 60, 1e-6), reason: 'never less than the least');
+    // Crowded, the staves squeeze to the least, and no further.
+    final all = Curation(ids)..setLanes({for (final id in ids) id: [const Region(0, 1e6)]});
+    double spanOf(ScoreMotion motion) {
+      scene.motion = motion;
+      final ys = [for (final p in scene.layoutAt(1, all, const ui.Size(960, 540)).placements) if (p.opacity > 0) p.y];
+      return ys.last - ys.first;
+    }
+
+    final squeezed = spanOf(ScoreMotion.standard);
+    expect(spanOf(const ScoreMotion(minGap: 40)), closeTo(squeezed + 36 * (ids.length - 1), 1));
     expect(ScoreMotion.fromJson(const {}), ScoreMotion.standard, reason: 'an older file');
     scene.dispose();
   });

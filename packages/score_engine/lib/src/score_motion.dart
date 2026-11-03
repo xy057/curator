@@ -139,7 +139,7 @@ class MotionCurve {
 class ScoreMotion {
   const ScoreMotion({
     this.margin = 36,
-    this.minGap = 24,
+    this.minGap = 4,
     this.maxGap = 140,
     this.glide = MotionCurve.smooth,
     this.fade = MotionCurve.smooth,
@@ -166,7 +166,7 @@ class ScoreMotion {
   final double margin;
 
   /// Points between staves, shared out from the frame's free height: never less than [minGap]
-  /// unless the frame is full, never more than [maxGap] (at least [minGap]).
+  /// (the staves run past the frame if they must), never more than [maxGap] (at least [minGap]).
   final double minGap, maxGap;
 
   /// How staves move to their new places (and the key column to its new width) over a
