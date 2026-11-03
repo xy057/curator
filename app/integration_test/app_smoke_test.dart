@@ -28,7 +28,6 @@ void main() {
 
     await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
     await tester.pump(const Duration(seconds: 1));
-    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
     Future<void> waitFor(bool Function() done, String what) async {
       for (var i = 0; i < 600 && !done(); i++) {
         await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -38,6 +37,8 @@ void main() {
     }
 
     await tester.tap(find.text('Open Sample'));
+    await tester.pump(); // its tab
+    final c = (tester.state(find.byType(ProjectPage)) as dynamic).controller as EditorController;
     await waitFor(() => c.score != null && !c.isLoadingAudio, 'the sample opens');
     expect(c.score!.engraving.measures, hasLength(44));
     expect(c.score!.warnings, isEmpty);

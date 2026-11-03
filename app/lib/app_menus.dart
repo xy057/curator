@@ -38,6 +38,8 @@ class AppMenus extends StatelessWidget {
     this.onShowTimeline,
     this.onMaximizePreview,
     this.onMaximizeTimeline,
+    this.onNextTab,
+    this.onPreviousTab,
   });
 
   /// Open…: a project, or a score to start one from.
@@ -55,7 +57,7 @@ class AppMenus extends StatelessWidget {
   final ValueChanged<String>? onOpenRecent;
   final VoidCallback? onClearRecent;
 
-  /// File ▸ Close: back to the start screen; null (greyed out) while nothing is open.
+  /// File ▸ Close: closes the project showing, its tab with it; null (greyed out) on Home.
   final VoidCallback? onClose;
 
   /// Edit ▸ Project Settings… (⇧⌘,); null (greyed out) while nothing is open.
@@ -87,11 +89,28 @@ class AppMenus extends StatelessWidget {
   /// View ▸ Maximize Preview / Timeline: the other at its smallest; null while nothing is open.
   final VoidCallback? onMaximizePreview, onMaximizeTimeline;
 
+  /// Show Next / Previous Tab (⌃Tab, ⌃⇧Tab), Home among them: Window on macOS, View elsewhere;
+  /// null while no project is open.
+  final VoidCallback? onNextTab, onPreviousTab;
+
   static bool get _mac => defaultTargetPlatform == TargetPlatform.macOS;
 
   /// ⌘ on macOS, Ctrl elsewhere.
   static SingleActivator _key(LogicalKeyboardKey key, {bool shift = false}) =>
       SingleActivator(key, meta: _mac, control: !_mac, shift: shift);
+
+  PlatformMenuItemGroup get _tabs => PlatformMenuItemGroup(members: [
+        PlatformMenuItem(
+          label: 'Show Previous Tab'.tr,
+          shortcut: const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true),
+          onSelected: onPreviousTab,
+        ),
+        PlatformMenuItem(
+          label: 'Show Next Tab'.tr,
+          shortcut: const SingleActivator(LogicalKeyboardKey.tab, control: true),
+          onSelected: onNextTab,
+        ),
+      ]);
 
   List<PlatformMenuItem> get _menus => [
         if (_mac)
@@ -186,6 +205,7 @@ class AppMenus extends StatelessWidget {
             PlatformMenuItem(label: 'Maximize Preview'.tr, onSelected: onMaximizePreview),
             PlatformMenuItem(label: 'Maximize Timeline'.tr, onSelected: onMaximizeTimeline),
           ]),
+          if (!_mac) _tabs,
         ]),
         if (_mac)
           PlatformMenu(label: 'Window'.tr, menus: [
@@ -194,6 +214,7 @@ class AppMenus extends StatelessWidget {
               PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.zoomWindow),
             ]),
             PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.toggleFullScreen),
+            _tabs,
             PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.arrangeWindowsInFront),
           ]),
         if (!_mac)

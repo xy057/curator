@@ -35,6 +35,7 @@ import 'media_converter.dart';
 import 'phrase_search_window.dart';
 import 'project_document.dart';
 import 'project_file.dart';
+import 'project_tabs.dart';
 import 'score_view.dart';
 import 'scratch_space.dart';
 import 'settings_dialog.dart';
@@ -171,7 +172,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
   }
 
   // The same widget each build: a change of settings rebuilds only what reads them (or the theme).
-  late final _home = HomePage(settings: settings, updater: widget.updater);
+  late final _home = AppWindow(settings: settings, updater: widget.updater);
 
   // Built once per accent, style, density and motion: a new ThemeData never equals the last (its extensions and button
   // styles compare by identity), so one per build would rebuild every widget that reads the
@@ -251,21 +252,416 @@ class _RenderStillBoundary extends RenderRepaintBoundary {
       };
 }
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key, this.settings, this.updater});
+/// The window: Home and the projects open, a tab each ([ProjectTabs], shown once one is open).
+/// The menus act on the tab showing; a project's tab keeps its editor as it was left while
+/// another shows.
+class AppWindow extends StatefulWidget {
+  const AppWindow({super.key, this.settings, this.updater});
   final AppSettings? settings;
   final Updater? updater;
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<AppWindow> createState() => _AppWindowState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
-  late final controller = EditorController(vsync: this);
+/// A project open in a tab.
+class _OpenProject {
+  _OpenProject(this.path)
+      : label = ValueNotifier((name: stemOf(fileNameOf(path ?? sampleProjectAsset)), edited: false, path: path));
+
+  /// The project or score file it opened; null: the sample.
+  final String? path;
+  final key = GlobalKey<_ProjectPageState>();
+  final messenger = GlobalKey<ScaffoldMessengerState>();
+  final ValueNotifier<ProjectTabLabel> label;
+
+  /// Closed: its tab is gone, its page kept (empty, out of sight) until the document has let go.
+  bool closing = false;
+
+  _ProjectPageState? get page => key.currentState;
+
+  /// The file it is open from: its project's, or while it opens the one it opens.
+  String? get file => switch (page) {
+        final page? when page.controller.score != null => page.document.path,
+        _ => path,
+      };
+
+  bool get isSample => path == null;
+}
+
+class _AppWindowState extends State<AppWindow> {
   late final settings = widget.settings ?? AppSettings.memory();
   late final updater = widget.updater ?? Updater();
-  late final document = ProjectDocument(controller, settings)..onAutosaveError = _autosaveFailed;
   late final _lifecycle = AppLifecycleListener(onExitRequested: _exitRequested);
+
+  /// Every project open, those closing too (their pages stay until they have).
+  final _projects = <_OpenProject>[];
+
+  /// The tabs, in order.
+  List<_OpenProject> get _tabs => [for (final p in _projects) if (!p.closing) p];
+
+  /// The tab showing: a project, or null for Home.
+  _OpenProject? _showing;
+
+  final _homeMessenger = GlobalKey<ScaffoldMessengerState>();
+  final _homeKeys = FocusNode(debugLabel: 'Home shortcuts');
+
+  /// The menus are built again when this changes: the project showing's state (see
+  /// [_ProjectPageState._menusChanged]), or the tab showing.
+  final _menus = ValueNotifier(0);
+  late final _recent = ValueNotifier(settings.recentFiles);
+
+  /// While a text field has the keyboard, Edit's items are off (see build).
+  final _typing = ValueNotifier(false);
+
+  /// Whether a file is dragged over Home.
+  bool _dropping = false;
+
+  static const _scoreExtensions = ['musicxml', 'xml', 'mxl'];
+  static XTypeGroup get _openableTypes => XTypeGroup(
+        label: 'Projects and scores'.tr,
+        extensions: const [ProjectFile.extension, ..._scoreExtensions],
+      );
+  static const _scoreTypes = XTypeGroup(label: 'MusicXML', extensions: _scoreExtensions);
+  static XTypeGroup get _projectTypes => XTypeGroup(label: 'Curator project'.tr, extensions: const [ProjectFile.extension]);
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_focusChanged);
+    settings.addListener(_settingsChanged);
+    _lifecycle; // start listening for Quit
+    updater.addListener(_launchCheckAnswered);
+    WindowChrome.listenForOpenedFiles((paths) => paths.forEach(_openPath));
+    WindowChrome.showAppIcon(mascot: settings.mascotIcon);
+    // Once, after the window's first frame, not when a video's background is first made
+    // transparent. (Not an idle task: one waits while anything animates, re-arming a timer on
+    // every turn of the event loop, which spun and, in widget tests, filled memory.)
+    WidgetsBinding.instance.addPostFrameCallback((_) => CuratedScene.warmUp());
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeListener(_focusChanged);
+    settings.removeListener(_settingsChanged);
+    updater.removeListener(_launchCheckAnswered);
+    _lifecycle.dispose();
+    _homeKeys.dispose();
+    _menus.dispose();
+    _recent.dispose();
+    _typing.dispose();
+    for (final p in _projects) {
+      p.label.dispose();
+    }
+    super.dispose();
+  }
+
+  void _settingsChanged() {
+    _recent.value = settings.recentFiles;
+    WindowChrome.showAppIcon(mascot: settings.mascotIcon);
+  }
+
+  void _focusChanged() =>
+      _typing.value = FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+
+  /// The check made at launch (Settings ▸ About ▸ Check at launch) says so when there is a
+  /// newer version for this system, once; failures, and a release without this system's
+  /// download, stay quiet. Later checks are the About page's to show.
+  void _launchCheckAnswered() {
+    final status = updater.status;
+    if (status is UpdateIdle || status is UpdateChecking) return;
+    updater.removeListener(_launchCheckAnswered);
+    if (status is! UpdateAvailable || status.release.download == null || !mounted) return;
+    _messenger?.showSnackBar(SnackBar(
+      duration: const Duration(seconds: 10),
+      content: Text('Curator {version} is available! ☆'.fill({'version': status.release.version})),
+      action: SnackBarAction(label: 'Update…'.tr, onPressed: () => _settings(page: 'About')),
+    ));
+  }
+
+  /// The tab showing's messages.
+  ScaffoldMessengerState? get _messenger => (_showing?.messenger ?? _homeMessenger).currentState;
+
+  void _snack(String message) => _messenger?.showSnackBar(SnackBar(content: Text(message.tr)));
+
+  void _settings({String? page}) =>
+      showSettingsDialog(context, settings, controller: _showing?.page?.controller, updater: updater, page: page);
+
+  // MARK: Tabs
+
+  void _show(_OpenProject? project) {
+    if (project == _showing) return;
+    setState(() => _showing = project);
+    _menus.value++;
+    if (project == null) {
+      WindowChrome.showDocument();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _showing == null) _homeKeys.requestFocus();
+      });
+    }
+  }
+
+  /// Show Next / Previous Tab: [step] tabs on, Home before the first and after the last.
+  void _step(int step) {
+    final tabs = <_OpenProject?>[null, ..._tabs];
+    _show(tabs[(tabs.indexOf(_showing) + step) % tabs.length]);
+  }
+
+  /// Open…, Open Recent, a drop, the Finder: the project or score at [path] in a tab of its own,
+  /// or the tab it is open in already.
+  void _openPath(String path) {
+    if (!File(path).existsSync()) {
+      settings.removeRecent(path);
+      _snack('Can’t find “{name}”. Was it moved or deleted?'.fill({'name': fileNameOf(path)}));
+      return;
+    }
+    final open = _tabs.where((p) => p.file == path).firstOrNull;
+    _show(open ?? _add(_OpenProject(path)));
+  }
+
+  /// Open Sample: the sample in a tab, or its tab if it is open.
+  void _openSample() => _show(_tabs.where((p) => p.isSample).firstOrNull ?? _add(_OpenProject(null)));
+
+  _OpenProject _add(_OpenProject project) {
+    setState(() => _projects.add(project));
+    return project;
+  }
+
+  /// Open… (⌘O): a Curator project, or a MusicXML score to start a new one, in a new tab.
+  Future<void> _open() async {
+    final file = await openFile(acceptedTypeGroups: [_openableTypes, _projectTypes, _scoreTypes]);
+    if (file != null && mounted) _openPath(file.path);
+  }
+
+  /// File ▸ Close (⌘W), a tab's ×: offers to save unsaved changes (showing the project they're
+  /// in), then the tab goes, the one after it showing (or before it, or Home).
+  Future<void> _close(_OpenProject project) async {
+    if (project.closing) return;
+    final page = project.page;
+    if (page != null && page.document.isDirty) {
+      _show(project);
+      if (!await page._confirmDiscard() || !mounted || project.closing) return;
+    }
+    final tabs = _tabs, at = tabs.indexOf(project);
+    tabs.remove(project);
+    setState(() => project.closing = true); // its page drops the editor now
+    if (_showing == project) _show(tabs.isEmpty ? null : tabs[math.min(at, tabs.length - 1)]);
+    // After a save under way, if any; then the page goes, its controller with it.
+    await page?.document.close();
+    if (!mounted) return;
+    setState(() => _projects.remove(project));
+    project.label.dispose();
+  }
+
+  Future<AppExitResponse> _exitRequested() async {
+    for (final project in _tabs) {
+      final page = project.page;
+      if (page == null || !page.document.isDirty) continue;
+      _show(project);
+      if (!await page._confirmDiscard()) return AppExitResponse.cancel;
+    }
+    for (final project in _projects) {
+      await project.page?.controller.audio.unload(); // lets go of its files, so they can be deleted
+    }
+    ScratchSpace.close();
+    return AppExitResponse.exit;
+  }
+
+  /// With no project showing, or the demo, there is nothing to save: says so instead.
+  void _nothingToSave() => _snack('Nothing to save yet! Open a project or score first.');
+
+  // MARK: Home's drops
+
+  void _droppedOnHome(String path) {
+    if (MediaFormats.isMidi(path) || MediaFormats.isRecording(path)) {
+      _snack(MediaFormats.isMidi(path)
+          ? 'Open a score first, then its MIDI tempo map.'
+          : 'Open a score first, then its recording.');
+    } else {
+      _openPath(path);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tabs = _tabs;
+    // The menus follow the tab showing; the window below them is built here and passed through.
+    return ListenableBuilder(
+      listenable: Listenable.merge([_recent, _menus, _typing]),
+      builder: (context, window) {
+        final page = _showing?.page;
+        final open = page != null && page._hasScore.value;
+        // Edit acts on the score, so not while a text field or a dialog has the keyboard:
+        // a key the field leaves unused would otherwise reach the menu.
+        final edit = page != null && !_typing.value && (ModalRoute.of(context)?.isCurrent ?? true) ? page._edit.value : null;
+        final commands = page?._commands;
+        return AppMenus(
+          onOpen: _open,
+          // Enabled but for the demo: Save explains when there is nothing to save.
+          onSave: page == null ? _nothingToSave : page._isSample.value ? null : page._save,
+          onSaveAs: page == null ? _nothingToSave : page._isSample.value ? null : page._saveAs,
+          onSettings: _settings,
+          onAbout: () => _settings(page: 'About'),
+          recentFiles: _recent.value,
+          onOpenRecent: _openPath,
+          onClearRecent: settings.clearRecent,
+          onClose: _showing == null ? null : () => _close(_showing!),
+          onProjectSettings: open ? page._projectSettings : null,
+          onExportVideo: open && page._canExport.value ? page._exportVideo : null,
+          onExportWeb: open && page._canExport.value ? page._exportWeb : null,
+          onUndo: edit != null && edit.undo ? page!.controller.undo : null,
+          onRedo: edit != null && edit.redo ? page!.controller.redo : null,
+          onCut: edit != null && edit.copy ? commands!.cut : null,
+          onCopy: edit != null && edit.copy ? commands!.copy : null,
+          onPaste: edit != null && edit.paste ? page!._paste : null,
+          onDelete: edit != null && edit.delete ? commands!.delete : null,
+          onSelectAll: edit != null && commands!.canSelectAll ? commands.selectAll : null,
+          onFindPhrase: open && !_typing.value && (ModalRoute.of(context)?.isCurrent ?? true) ? page._findPhrase : null,
+          previewShown: page?._previewShown ?? true,
+          timelineShown: page?._timelineShown ?? true,
+          onShowPreview: open ? page._showPreview : null,
+          onShowTimeline: open ? page._showTimeline : null,
+          onMaximizePreview: open ? () => page._maximize(timeline: false) : null,
+          onMaximizeTimeline: open ? () => page._maximize(timeline: true) : null,
+          onNextTab: tabs.isEmpty ? null : () => _step(1),
+          onPreviousTab: tabs.isEmpty ? null : () => _step(-1),
+          child: window!,
+        );
+      },
+      child: Column(children: [
+        AnimatedSize(
+          duration: motion(context, 200),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: tabs.isEmpty
+              ? const SizedBox(width: double.infinity)
+              : ProjectTabs(
+                  labels: [for (final p in tabs) p.label],
+                  shown: _showing == null ? null : tabs.indexOf(_showing!),
+                  onShow: (i) => _show(i == null ? null : tabs[i]),
+                  onClose: (i) => _close(tabs[i]),
+                ),
+        ),
+        Expanded(
+          child: Stack(fit: StackFit.expand, children: [
+            _tab(
+              key: const ValueKey('home'),
+              showing: _showing == null,
+              messenger: _homeMessenger,
+              child: Focus(focusNode: _homeKeys, autofocus: true, child: _home()),
+            ),
+            for (final project in _projects)
+              _tab(
+                key: ObjectKey(project),
+                showing: _showing == project,
+                messenger: project.messenger,
+                child: ProjectPage(
+                  key: project.key,
+                  settings: settings,
+                  path: project.path,
+                  showing: _showing == project,
+                  closing: project.closing,
+                  label: project.label,
+                  onMenusChanged: () => _menus.value++,
+                  onOpen: _openPath,
+                  onFailed: () => _close(project),
+                ),
+              ),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  /// A tab's page: while another shows, kept as it is, out of sight, its animations stopped and
+  /// its keyboard focus let go.
+  static Widget _tab({required Key key, required bool showing, required GlobalKey<ScaffoldMessengerState> messenger, required Widget child}) =>
+      Offstage(
+        key: key,
+        offstage: !showing,
+        child: TickerMode(
+          enabled: showing,
+          child: ExcludeFocus(excluding: !showing, child: ScaffoldMessenger(key: messenger, child: child)),
+        ),
+      );
+
+  Widget _home() => DropTarget(
+        enable: _showing == null,
+        onDragEntered: (_) => setState(() => _dropping = true),
+        onDragExited: (_) => setState(() => _dropping = false),
+        onDragDone: (details) {
+          setState(() => _dropping = false);
+          if (details.files.isNotEmpty) _droppedOnHome(details.files.first.path);
+        },
+        child: Scaffold(
+          body: Stack(children: [
+            Positioned.fill(
+              child: ValueListenableBuilder(
+                valueListenable: _recent,
+                builder: (context, recent, _) => HomeScreen(
+                  settings: settings,
+                  recentFiles: recent,
+                  onOpen: _open,
+                  onOpenRecent: _openPath,
+                  onRemoveRecent: settings.removeRecent,
+                  onClearRecent: settings.clearRecent,
+                  onOpenSample: _openSample,
+                ),
+              ),
+            ),
+            _DropHint(area: _DropArea.home, visible: _dropping, rect: null, attachImage: false),
+          ]),
+        ),
+      );
+}
+
+/// A project's tab: the editor around one document, opened from [path] (or the sample) as it
+/// is first built. Its keys, drops and messages are its own; the menus reach it through
+/// [AppWindow].
+class ProjectPage extends StatefulWidget {
+  const ProjectPage({
+    super.key,
+    required this.settings,
+    required this.path,
+    required this.showing,
+    required this.closing,
+    required this.label,
+    required this.onMenusChanged,
+    required this.onOpen,
+    required this.onFailed,
+  });
+
+  final AppSettings settings;
+
+  /// The project or score it opens; null: the sample.
+  final String? path;
+
+  /// Whether its tab shows: while it doesn't it stops playing, and its floating windows close.
+  final bool showing;
+
+  /// Closed: it builds nothing more while the document lets go.
+  final bool closing;
+
+  /// What its tab says, kept up to date here.
+  final ValueNotifier<ProjectTabLabel> label;
+
+  /// What the menus offer changed, while it shows.
+  final VoidCallback onMenusChanged;
+
+  /// Another project or score to open (one dropped on the timeline), in a tab of its own.
+  final ValueChanged<String> onOpen;
+
+  /// It didn't open (said why already): its tab goes.
+  final VoidCallback onFailed;
+
+  @override
+  State<ProjectPage> createState() => _ProjectPageState();
+}
+
+class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStateMixin {
+  late final controller = EditorController(vsync: this);
+  AppSettings get settings => widget.settings;
+  late final document = ProjectDocument(controller, settings)..onAutosaveError = _autosaveFailed;
   /// Where a file being dragged over the window would go; null: none is.
   _DropArea? _drop;
   _DropArea _lastDrop = _DropArea.home; // the hint's text while it fades out
@@ -275,13 +671,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// View ▸ Hide / Show: the preview and the timeline; one of them always shows.
   bool _previewShown = true, _timelineShown = true;
 
-  static const _scoreExtensions = ['musicxml', 'xml', 'mxl'];
-  static XTypeGroup get _openableTypes => XTypeGroup(
-        label: 'Projects and scores'.tr,
-        extensions: const [ProjectFile.extension, ..._scoreExtensions],
-      );
-  static const _scoreTypes = XTypeGroup(label: 'MusicXML', extensions: _scoreExtensions);
-  static XTypeGroup get _projectTypes => XTypeGroup(label: 'Curator project'.tr, extensions: const [ProjectFile.extension]);
+  static const _scoreTypes = _AppWindowState._scoreTypes;
 
   /// Whether a score is open: the menus' Score items follow it.
   final _hasScore = ValueNotifier(false);
@@ -300,16 +690,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// settings (a slider in Settings changes them many times a second).
   late final _shown = ValueNotifier(_shownSettings);
 
-  ({List<String> recent, bool videoFrame, VideoRatio videoRatio}) get _shownSettings => (
-        recent: settings.recentFiles,
+  ({bool videoFrame, VideoRatio videoRatio}) get _shownSettings => (
         videoFrame: settings.previewVideoFrame,
         videoRatio: settings.videoRatio,
       );
 
+  late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit]);
+
   void _settingsChanged() {
     controller.takeSettings(settings);
     _shown.value = _shownSettings;
-    WindowChrome.showAppIcon(mascot: settings.mascotIcon);
   }
 
   @override
@@ -321,30 +711,34 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     controller.addListener(_scoreChanged);
     controller.engravingFailure.addListener(_engravingFailed);
     settings.addListener(_settingsChanged);
+    _menuState.addListener(_menusChanged);
     controller.takeSettings(settings);
-    _lifecycle; // start listening for Quit
-    updater.addListener(_launchCheckAnswered);
-    WindowChrome.listenForOpenedFiles((paths) => _openPath(paths.first));
-    WindowChrome.showAppIcon(mascot: settings.mascotIcon);
-    // Once, after the window's first frame, not when a video's background is first made
-    // transparent. (Not an idle task: one waits while anything animates, re-arming a timer on
-    // every turn of the event loop, which spun and, in widget tests, filled memory.)
-    WidgetsBinding.instance.addPostFrameCallback((_) => CuratedScene.warmUp());
+    unawaited(_load());
+    // Home had the keyboard: it comes here, as it does when the tab is shown again.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.showing) _keys.requestFocus();
+    });
   }
 
-  /// The check made at launch (Settings ▸ About ▸ Check at launch) says so when there is a
-  /// newer version for this system, once; failures, and a release without this system's
-  /// download, stay quiet. Later checks are the About page's to show.
-  void _launchCheckAnswered() {
-    final status = updater.status;
-    if (status is UpdateIdle || status is UpdateChecking) return;
-    updater.removeListener(_launchCheckAnswered);
-    if (status is! UpdateAvailable || status.release.download == null || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      duration: const Duration(seconds: 10),
-      content: Text('Curator {version} is available! ☆'.fill({'version': status.release.version})),
-      action: SnackBarAction(label: 'Update…'.tr, onPressed: () => _settings(page: 'About')),
-    ));
+  @override
+  void didUpdateWidget(ProjectPage old) {
+    super.didUpdateWidget(old);
+    if (widget.showing == old.showing) return;
+    if (widget.showing) {
+      _updateWindowTitle();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.showing) _keys.requestFocus();
+      });
+    } else {
+      // Heard only while seen; its windows over the editor would float over another's.
+      controller.playback.pause();
+      PhraseSearchWindow.close();
+      closeEngravingWindow();
+    }
+  }
+
+  void _menusChanged() {
+    if (widget.showing) widget.onMenusChanged();
   }
 
   void _scoreChanged() {
@@ -369,9 +763,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t engrave. {error}'.fill({'error': describeError(error)}))));
   }
 
-  /// The document's name (without extension) and edited state, in the native title bar.
+  /// The document's name (without extension) and edited state, in its tab and, while it
+  /// shows, the native title bar.
   void _updateWindowTitle() {
     final title = document.title;
+    if (title != null) widget.label.value = (name: stemOf(title), edited: document.isDirty, path: document.path);
+    if (!widget.showing || widget.closing) return;
     WindowChrome.showDocument(
       name: title == null ? null : stemOf(title),
       edited: document.isDirty,
@@ -387,14 +784,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     controller.removeListener(_scoreChanged);
     controller.engravingFailure.removeListener(_engravingFailed);
     settings.removeListener(_settingsChanged);
-    updater.removeListener(_launchCheckAnswered);
+    _menuState.removeListener(_menusChanged);
     _hasScore.dispose();
     _canExport.dispose();
     _isSample.dispose();
     _edit.dispose();
     _shown.dispose();
     _keys.dispose();
-    _lifecycle.dispose();
     document.dispose();
     controller.dispose();
     super.dispose();
@@ -414,22 +810,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   // MARK: Files
 
-  /// Open… (⌘O): a Curator project, or a MusicXML score to start a new one.
-  Future<void> _open() async {
-    if (!await _confirmDiscard()) return;
-    final file = await openFile(acceptedTypeGroups: [_openableTypes, _projectTypes, _scoreTypes]);
-    if (file != null) await _openPath(file.path, confirmed: true);
-  }
-
-  /// Opens a project or a score (Open…, Open Recent, dropping a file).
-  Future<void> _openPath(String path, {bool confirmed = false}) async {
-    if (!File(path).existsSync()) {
-      settings.removeRecent(path);
-      _snack('Can’t find “{name}”. Was it moved or deleted?'.fill({'name': fileNameOf(path)}));
-      return;
-    }
-    if (!confirmed && !await _confirmDiscard()) return;
-    if (path.toLowerCase().endsWith('.${ProjectFile.extension}')) {
+  /// Opens what the tab is for: a project, a score (a new project), or the sample. When it
+  /// doesn't open, it has said why, and the tab goes.
+  Future<void> _load() async {
+    final path = widget.path;
+    if (path == null) {
+      await _guard(() async {
+        final problem = await document.openSample();
+        if (problem != null && mounted) _recordingProblem(problem);
+      }, title: 'Couldn’t Open Sample'.tr);
+    } else if (path.toLowerCase().endsWith('.${ProjectFile.extension}')) {
       await _guard(() async {
         final problem = await document.open(path);
         if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name);
@@ -445,6 +835,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (warnings.isNotEmpty && mounted) await showImportWarnings(context, controller.fileName ?? path, warnings);
       });
     }
+    if (mounted && controller.score == null) widget.onFailed();
   }
 
   void _snack(String message) {
@@ -480,14 +871,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     ));
   }
 
-  Future<void> _openSample() async {
-    if (!await _confirmDiscard()) return;
-    await _guard(() async {
-      final problem = await document.openSample();
-      if (problem != null && mounted) _recordingProblem(problem);
-    }, title: 'Couldn’t Open Sample'.tr);
-  }
-
   /// Save (⌘S). Returns false when nothing was saved (cancelled or failed). Saves even
   /// without changes.
   Future<bool> _save() async {
@@ -499,7 +882,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Future<bool> _saveAs() async {
     if (!_canSave()) return false;
     final location = await getSaveLocation(
-      acceptedTypeGroups: [_projectTypes],
+      acceptedTypeGroups: [_AppWindowState._projectTypes],
       suggestedName: document.suggestedFileName,
     );
     if (location == null || !mounted) return false;
@@ -507,7 +890,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return path != null && await _write(path);
   }
 
-  /// With no score open, or the demo, there is nothing to save: says so instead of saving.
+  /// With no score open (yet), or the demo, there is nothing to save: says so instead of saving.
   bool _canSave() {
     if (controller.score != null && !document.isSample) return true;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -532,7 +915,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t autosave. {error}'.fill({'error': describeError(error)}))));
   }
 
-  /// Before replacing the project: offers to save unsaved changes. False: stay.
+  /// Before the project goes: offers to save unsaved changes. False: stay.
   Future<bool> _confirmDiscard() async {
     if (!document.isDirty) return true;
     final choice = await showAppDialog<String>(
@@ -549,16 +932,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
     return switch (choice) { 'discard' => true, 'save' => await _save(), _ => false };
   }
-
-  Future<AppExitResponse> _exitRequested() async {
-    if (!await _confirmDiscard()) return AppExitResponse.cancel;
-    await controller.audio.unload(); // lets go of its files, so they can be deleted
-    ScratchSpace.close();
-    return AppExitResponse.exit;
-  }
-
-  void _settings({String? page}) =>
-      showSettingsDialog(context, settings, controller: controller, updater: updater, page: page);
 
   Future<void> _guard(Future<void> Function() action, {String? title}) async {
     try {
@@ -621,9 +994,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (problem != null && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(problem)));
   }
 
-  /// A drop goes by where it lands: with no score open anything opens; over the score it is
-  /// an image; over the timeline, the Instruments tab opens a project or score and the Audio
-  /// tab takes a MIDI tempo map or a recording.
+  /// A drop goes by where it lands: before the score is open anything opens (in a tab of its
+  /// own); over the score it is an image; over the timeline, the Instruments tab opens a
+  /// project or score and the Audio tab takes a MIDI tempo map or a recording.
   _DropArea _areaAt(Offset global) {
     if (controller.score == null) return _DropArea.home;
     final timelineTop = _top(_timeline);
@@ -662,17 +1035,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (MediaFormats.isMidi(path) || MediaFormats.isRecording(path)) {
           _snack('Recordings and MIDI files go on the Audio tab!');
         } else {
-          unawaited(_openPath(path));
+          widget.onOpen(path);
         }
       case _DropArea.audio:
         if (!_addMedia(path)) _snack('Try a MIDI file or a recording.');
       case _DropArea.home:
-        if (controller.score != null || !(MediaFormats.isMidi(path) || MediaFormats.isRecording(path))) {
-          if (!_addMedia(path)) unawaited(_openPath(path));
+        if (MediaFormats.isMidi(path) || MediaFormats.isRecording(path)) {
+          _snack('Recordings and MIDI files go on the Audio tab!');
         } else {
-          _snack(MediaFormats.isMidi(path)
-              ? 'Open a score first, then its MIDI tempo map.'
-              : 'Open a score first, then its recording.');
+          widget.onOpen(path);
         }
     }
   }
@@ -694,35 +1065,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       return false;
     }
     return true;
-  }
-
-  // MARK: Close
-
-  final _editorKey = GlobalKey();
-
-  /// The editor as a still image while it fades out: the live one would rebuild against a
-  /// closed project.
-  ui.Image? _editorSnapshot;
-
-  /// File ▸ Close (⌘W): back to the start screen.
-  Future<void> _close() async {
-    if (controller.score == null || !await _confirmDiscard() || !mounted) return;
-    // Only what is painted can be snapshot, and a click (the toolbar's Close) has just left
-    // the editor to paint again: let that frame happen first.
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) return;
-    final boundary = _editorKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-    if (boundary != null && boundary.hasSize) {
-      setState(() => _editorSnapshot = boundary.toImageSync(pixelRatio: MediaQuery.devicePixelRatioOf(context)));
-      await WidgetsBinding.instance.endOfFrame;
-    }
-    await document.close();
-    // Let go of the snapshot once the cross-fade to the start screen is over.
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    final snapshot = _editorSnapshot;
-    setState(() => _editorSnapshot = null);
-    snapshot?.dispose();
   }
 
   void _projectSettings() => showProjectSettingsDialog(context, settings, controller, replaceScore: _replaceScore);
@@ -760,129 +1102,88 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   // MARK: View
 
   /// View ▸ Hide / Show Preview: hiding it shows the timeline if that was hidden.
-  void _showPreview(bool on) => setState(() {
-        _previewShown = on;
-        if (!on) _timelineShown = true;
-      });
+  void _showPreview(bool on) {
+    setState(() {
+      _previewShown = on;
+      if (!on) _timelineShown = true;
+    });
+    _menusChanged();
+  }
 
   /// View ▸ Hide / Show Timeline: hiding it shows the preview if that was hidden.
-  void _showTimeline(bool on) => setState(() {
-        _timelineShown = on;
-        if (!on) _previewShown = true;
-      });
+  void _showTimeline(bool on) {
+    setState(() {
+      _timelineShown = on;
+      if (!on) _previewShown = true;
+    });
+    _menusChanged();
+  }
 
   /// View ▸ Maximize Preview / Timeline: both shown, the other at its smallest (and kept so as
   /// the window is resized, until the divider is dragged).
-  void _maximize({required bool timeline}) => setState(() {
-        _previewShown = _timelineShown = true;
-        _timelineHeight = timeline ? double.infinity : _minTimeline;
-      });
+  void _maximize({required bool timeline}) {
+    setState(() {
+      _previewShown = _timelineShown = true;
+      _timelineHeight = timeline ? double.infinity : _minTimeline;
+    });
+    _menusChanged();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // The menus follow the recent files and whether a score is open; the page below them is
-    // built once and passed through.
-    return ListenableBuilder(
-      listenable: Listenable.merge([_shown, _hasScore, _canExport, _isSample, _edit]),
-      builder: (context, page) {
-        // Edit acts on the score, so not while a text field or a dialog has the keyboard:
-        // a key the field leaves unused would otherwise reach the menu.
-        final edit = !_typing && (ModalRoute.of(context)?.isCurrent ?? true) ? _edit.value : null;
-        return AppMenus(
-          onOpen: _open,
-          // Enabled but for the demo: Save explains when there is nothing to save.
-          onSave: _isSample.value ? null : _save,
-          onSaveAs: _isSample.value ? null : _saveAs,
-          onSettings: _settings,
-          onAbout: () => _settings(page: 'About'),
-          recentFiles: settings.recentFiles,
-          onOpenRecent: _openPath,
-          onClearRecent: settings.clearRecent,
-          onClose: _hasScore.value ? _close : null,
-          onProjectSettings: _hasScore.value ? _projectSettings : null,
-          onExportVideo: _canExport.value ? _exportVideo : null,
-          onExportWeb: _canExport.value ? _exportWeb : null,
-          onUndo: edit != null && edit.undo ? controller.undo : null,
-          onRedo: edit != null && edit.redo ? controller.redo : null,
-          onCut: edit != null && edit.copy ? _commands.cut : null,
-          onCopy: edit != null && edit.copy ? _commands.copy : null,
-          onPaste: edit != null && edit.paste ? _paste : null,
-          onDelete: edit != null && edit.delete ? _commands.delete : null,
-          onSelectAll: edit != null && _commands.canSelectAll ? _commands.selectAll : null,
-          onFindPhrase: _hasScore.value && !_typing && (ModalRoute.of(context)?.isCurrent ?? true) ? _findPhrase : null,
-          previewShown: _previewShown,
-          timelineShown: _timelineShown,
-          onShowPreview: _hasScore.value ? _showPreview : null,
-          onShowTimeline: _hasScore.value ? _showTimeline : null,
-          onMaximizePreview: _hasScore.value ? () => _maximize(timeline: false) : null,
-          onMaximizeTimeline: _hasScore.value ? () => _maximize(timeline: true) : null,
-          child: page!,
-        );
-      },
-      child: CallbackShortcuts(
-        bindings: _typing ? const {} : _bindings,
-        child: Focus(
-          focusNode: _keys,
-          autofocus: true,
-          // A click outside a field of the window's (the time, Starts at) hands the keyboard
-          // back to its shortcuts, not to the route above them, where Space, T, ⌘Z… would stop.
-          child: Actions(
-            actions: {
-              EditableTextTapOutsideIntent: CallbackAction<EditableTextTapOutsideIntent>(onInvoke: (intent) {
-                if (intent.focusNode.hasFocus) _keys.requestFocus();
-                return null;
-              }),
+    // Closed: the editor goes before the document it shows does.
+    if (widget.closing) return const SizedBox.shrink();
+    return CallbackShortcuts(
+      bindings: _typing ? const {} : _bindings,
+      child: Focus(
+        focusNode: _keys,
+        autofocus: true,
+        // A click outside a field of the window's (the time, Starts at) hands the keyboard
+        // back to its shortcuts, not to the route above them, where Space, T, ⌘Z… would stop.
+        child: Actions(
+          actions: {
+            EditableTextTapOutsideIntent: CallbackAction<EditableTextTapOutsideIntent>(onInvoke: (intent) {
+              if (intent.focusNode.hasFocus) _keys.requestFocus();
+              return null;
+            }),
+          },
+          child: DropTarget(
+            enable: widget.showing,
+            onDragEntered: (d) => _dragAt(d.globalPosition),
+            onDragUpdated: (d) => _dragAt(d.globalPosition),
+            onDragExited: (_) => setState(() => _drop = null),
+            onDragDone: (details) {
+              final area = _areaAt(details.globalPosition);
+              setState(() => _drop = null);
+              if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
             },
-            child: DropTarget(
-              onDragEntered: (d) => _dragAt(d.globalPosition),
-              onDragUpdated: (d) => _dragAt(d.globalPosition),
-              onDragExited: (_) => setState(() => _drop = null),
-              onDragDone: (details) {
-                final area = _areaAt(details.globalPosition);
-                setState(() => _drop = null);
-                if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
-              },
-              // Rebuilt when a score opens or closes, not at every edit: the toolbar, the score and
-              // the timeline each follow what they show.
-              child: Select(
-                listenable: Listenable.merge([controller, _shown]),
-                select: () => (score: controller.score, loading: controller.isLoading, shown: _shown.value),
-                builder: (context, _) => Scaffold(
-                  body: Stack(
-                    key: _dropStack,
-                    children: [
-                      AnimatedSwitcher(
-                        duration: motion(context, 320),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        // Semantics stay through the fade (see showAppDialog: the size slider).
-                        transitionBuilder: (child, animation) => FadeTransition(
-                          opacity: animation,
-                          alwaysIncludeSemantics: true,
-                          child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(animation), child: child),
-                        ),
-                        child: controller.score == null
-                            ? HomeScreen(
-                                key: const ValueKey('home'),
-                                settings: settings,
-                                recentFiles: settings.recentFiles,
-                                onOpen: _open,
-                                onOpenRecent: _openPath,
-                                onRemoveRecent: settings.removeRecent,
-                                onClearRecent: settings.clearRecent,
-                                onOpenSample: _openSample,
-                              )
-                            : KeyedSubtree(
-                                key: const ValueKey('editor'),
-                                child: _editorSnapshot != null
-                                    ? RawImage(image: _editorSnapshot, fit: BoxFit.fill)
-                                    : RepaintBoundary(key: _editorKey, child: _editor(context)),
-                              ),
+            // Rebuilt when a score opens, not at every edit: the toolbar, the score and the
+            // timeline each follow what they show.
+            child: Select(
+              listenable: Listenable.merge([controller, _shown]),
+              select: () => (score: controller.score, loading: controller.isLoading, shown: _shown.value),
+              builder: (context, _) => Scaffold(
+                body: Stack(
+                  key: _dropStack,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: motion(context, 320),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      // Semantics stay through the fade (see showAppDialog: the size slider).
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        alwaysIncludeSemantics: true,
+                        child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(animation), child: child),
                       ),
-                      _Busy(visible: controller.isLoading, message: 'Engraving…'.tr),
-                      _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: controller.images.enabled),
-                    ],
-                  ),
+                      child: controller.score == null
+                          ? const SizedBox.expand(key: ValueKey('opening'))
+                          : KeyedSubtree(key: const ValueKey('editor'), child: _editor(context)),
+                    ),
+                    // Until it has opened, too: the score is read before it is engraved.
+                    _Busy(visible: controller.isLoading || controller.score == null, message: 'Engraving…'.tr),
+                    _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: controller.images.enabled),
+                  ],
                 ),
               ),
             ),
@@ -958,7 +1259,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       onVideoRatio: (r) => settings
         ..videoRatio = r
         ..previewVideoFrame = true,
-      onClose: _close,
       readout: _readout,
     );
     final score = Expanded(child: ScoreView(
@@ -1091,7 +1391,7 @@ class _BusyState extends State<_Busy> {
 }
 
 /// Shown while a file is dragged over the window.
-/// Where a dropped file goes (see [_HomePageState._areaAt]).
+/// Where a dropped file goes (see [_ProjectPageState._areaAt]).
 enum _DropArea { home, image, project, audio }
 
 class _DropHint extends StatelessWidget {
