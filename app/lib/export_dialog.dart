@@ -763,6 +763,7 @@ class _TrimmerState extends State<_Trimmer> {
         onExit: (_) => setState(() => _hover = null),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          supportedDevices: kDragDevices,
           // What is gripped is where the press went down, not where it had moved enough to drag.
           dragStartBehavior: DragStartBehavior.down,
           onHorizontalDragStart: active

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -28,6 +29,17 @@ String windowsKeys(String mac) => mac
       return joined ? '$names+' : names;
     })
     .replaceAll('⌫', 'Backspace');
+
+/// What a drag may come from ([GestureDetector.supportedDevices]): every pointer but a trackpad's
+/// two-finger swipe, which scrolls (the view under it, or the page) and never moves what it
+/// passes over. A trackpad's click and press-and-drag come as a mouse's, so they still drag.
+const kDragDevices = {
+  PointerDeviceKind.mouse,
+  PointerDeviceKind.touch,
+  PointerDeviceKind.stylus,
+  PointerDeviceKind.invertedStylus,
+  PointerDeviceKind.unknown,
+};
 
 /// Gives a widget that shows an overlay (a tooltip, a slider's value) a semantics node of its own.
 ///

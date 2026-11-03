@@ -252,6 +252,7 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage 
                 onPointerDown: (e) => _onPointerDown(e, frame),
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
+                  supportedDevices: kDragDevices, // a swipe over an image or a spacer doesn't move it
                   dragStartBehavior: DragStartBehavior.down, // a drag takes what was pressed, not what the slop reached
                   onDoubleTapDown: (d) => _onDoubleTap(d, frame),
                   onDoubleTap: () {},

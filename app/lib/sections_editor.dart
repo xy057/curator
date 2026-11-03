@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
+import 'ui_kit.dart';
 import 'package:score_engine/score_engine.dart';
 import 'l10n/l10n.dart';
 
@@ -267,6 +268,7 @@ class _SectionsEditorState extends State<SectionsEditor> {
           onHover: _hover,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
+            supportedDevices: kDragDevices, // a swipe scrolls the page past it
             dragStartBehavior: DragStartBehavior.down, // from where it was pressed: a bracket's end
             onTapUp: _tapUp,
             // Up and down only: taking the drag before the page's scrolling would.
