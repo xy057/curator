@@ -107,6 +107,25 @@ class Waveform {
   }
 }
 
+/// How many tracks hold each recording's sound. SoLoud keeps one sound per file, so two projects
+/// open on the same recording (a linked file) share it: the last to let go of it disposes it.
+final _holders = <SoundHash, int>{};
+
+Future<AudioSource> _load(String path, LoadMode mode) async {
+  final source = await SoLoud.instance.loadFile(path, mode: mode);
+  _holders.update(source.soundHash, (n) => n + 1, ifAbsent: () => 1);
+  return source;
+}
+
+Future<void> _letGo(AudioSource source) async {
+  final left = (_holders.remove(source.soundHash) ?? 1) - 1;
+  if (left > 0) {
+    _holders[source.soundHash] = left;
+  } else {
+    await SoLoud.instance.disposeSource(source);
+  }
+}
+
 /// A loaded recording. For a video, it is the soundtrack taken out of it.
 class AudioTrack {
   AudioTrack._(this.path, this.name, this.source, this.length, this.waveform, this._samples, this._sampleRate, this._scratch,
@@ -130,7 +149,7 @@ class AudioTrack {
 
   /// Lets go of its sound and its converted files.
   Future<void> _dispose() async {
-    if (source case final source?) await SoLoud.instance.disposeSource(source);
+    if (source case final source?) await _letGo(source);
     ScratchSpace.release(_scratch);
   }
 
@@ -260,7 +279,7 @@ class AudioEngine {
       final audio = MediaFormats.isVideo(path) ? await MediaConverter.toFlac(path, scratch.path) : path;
       final playable = MediaFormats.isPlayable(audio) ? audio : await MediaConverter.toFlac(audio, scratch.path);
       await _ensureInitialized();
-      source = await SoLoud.instance.loadFile(playable, mode: LoadMode.disk);
+      source = await _load(playable, LoadMode.disk);
       final length = SoLoud.instance.getLength(source).inMicroseconds / 1e6;
       // A whole number of frames between samples, or the waveform drifts from the audio.
       final rate = AudioFormat.sampleRateOf(playable);
@@ -269,9 +288,9 @@ class AudioEngine {
       final held = _tracks.values.fold(0, (sum, t) => sum + t.decodedBytes);
       final inMemory = held + decoded <= memoryBudget;
       if (inMemory) {
-        await SoLoud.instance.disposeSource(source);
+        await _letGo(source);
         source = null;
-        source = await SoLoud.instance.loadFile(playable);
+        source = await _load(playable, LoadMode.memory);
       }
       final plan = AudioFormat.samplingPlan(length, rate);
       final samples = await SoLoud.instance.readSamplesFromFile(playable, plan.count);
@@ -279,7 +298,7 @@ class AudioEngine {
       return AudioTrack._(audio, fileNameOf(audio), source, length, waveform, playable, rate, scratch,
           decodedBytes: inMemory ? decoded : 0);
     } catch (_) {
-      if (source != null) await SoLoud.instance.disposeSource(source);
+      if (source != null) await _letGo(source);
       ScratchSpace.release(scratch);
       rethrow;
     }
