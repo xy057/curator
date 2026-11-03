@@ -145,7 +145,7 @@ typedef enum {
 /// layout (see engraving.dart). -1 for an unknown struct.
 VB_API int32_t vb_struct_size(int32_t which);
 
-/// Verovio's version, e.g. "6.3.0" (shown in Settings ▸ About).
+/// Verovio's version, e.g. "6.4.0" (shown in Settings ▸ About).
 VB_API const char *vb_version(void);
 
 VB_API VBEngraver *vb_engraver_create(const char *resourcePath);

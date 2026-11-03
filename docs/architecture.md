@@ -875,7 +875,7 @@ so any other is verse 1: in a part with such a token, `PreparedScore.prepare` nu
 **Verovio is pinned and patched.** `make setup` clones the tagged release and applies
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
-keep their written key), MusicXML direction ids (so texts can be edited), a lyric's `placement="above"` (verses above the staff, verse 1 on top), syllables centred
+keep their written key), MusicXML direction ids (so texts can be edited), syllables centred
 under their noteheads (`curatedLyricCentre`), stretches made wider (`curatedSpacers`), the app's typography
 (`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, a rehearsal
 mark's `font-style`, the `curated…Scale` options sizing music symbols, accidentals clear of
