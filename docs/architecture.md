@@ -212,7 +212,11 @@ back, so the blend does too. The anchors are read when the map is built; changin
 **How the score moves is the project's** (Project Settings ▸ Advanced, `EditState.motion`, an Undo
 step saved as `state.motion` from format 20; a project without its own takes `AppSettings.motion`,
 the house style until Save as default; `CuratedScene.motion`, in `SceneSettings`). A `ScoreMotion`
-holds every curve and length the scene animates with: the staves' glide (`SpacingPlan` and
+holds every curve and length the scene animates with, and where the staves stand: the paper above the
+first staff and below the last (`margin`, the bar numbers' row inside it) and the least and most between
+staves (`minGap`, `maxGap`: `StaffStack.layout` shares the free height out between them, under the least
+only when the frame is full; a most below the least is the least), points in the frame, as the plan's
+key; the staves' glide (`SpacingPlan` and
 `KeyColumnPlan`'s blend) and fade (`Curation.visibilityAt`'s ramp, then the ink after `inkDelay`,
 `ScoreMotion.inkFor`); the scroll's settle and slowest speed (`ScrollMap.withMotion`: a new slowest
 speed solves the notes' curves again, a new settle only re-ends them); the ending's fade

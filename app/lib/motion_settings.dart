@@ -14,7 +14,7 @@ import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
 
-/// One of Project Settings ▸ Advanced's motion rows: a [ScoreMotion] setting by its JSON [key],
+/// One of Project Settings ▸ Advanced's rows: a [ScoreMotion] setting by its JSON [key],
 /// under [group]. A number has a [unit] and a slider [step]; a curve has neither.
 class MotionSetting {
   const MotionSetting(this.key, this.title, this.group, {this.unit, this.step, this.percent = false, this.keywords = ''});
@@ -28,10 +28,13 @@ class MotionSetting {
 
   bool get isCurve => step == null;
 
-  static const staves = 'Staves', scrolling = 'Scrolling', ending = 'Ending', captions = 'Captions';
+  static const spacing = 'Staff spacing', staves = 'Staves', scrolling = 'Scrolling', ending = 'Ending', captions = 'Captions';
   static const barNumbers = 'Bar numbers';
 
   static const all = [
+    MotionSetting('margin', 'Top and bottom', spacing, unit: 'pt', step: 1, keywords: 'vertical margin edge frame'),
+    MotionSetting('minGap', 'Minimum gap', spacing, unit: 'pt', step: 1, keywords: 'vertical distance between staves'),
+    MotionSetting('maxGap', 'Maximum gap', spacing, unit: 'pt', step: 1, keywords: 'vertical distance between staves'),
     MotionSetting('glide', 'Glide', staves, keywords: 'move position stack space'),
     MotionSetting('fade', 'Fade', staves, keywords: 'visibility appear enter leave'),
     MotionSetting('inkDelay', 'Ink delay', staves, step: 0.05, percent: true, keywords: 'opacity late'),

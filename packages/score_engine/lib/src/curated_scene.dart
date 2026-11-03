@@ -593,7 +593,7 @@ class CuratedScene {
   bool _unnamed(String partId) =>
       Spacers.isSpacer(partId) && !(_spacers.where((s) => s.id == partId).firstOrNull?.frozen ?? false);
 
-  /// How the score moves (Project Settings ▸ Advanced): staves' glides and fades, the scroll's
+  /// How the score moves (Project Settings ▸ Advanced): the staves' spacing, glides and fades, the scroll's
   /// coming to rest, the ending's fade, captions, the bar numbers' row and the tempo at the left.
   ScoreMotion get motion => _motion;
   ScoreMotion _motion = ScoreMotion.standard;
@@ -682,10 +682,8 @@ class CuratedScene {
     return group != null && _condensed.contains(group.id) ? group : null;
   }
 
-  /// Free space above the first and below the last staff.
-  double verticalMargin = 36;
-  double minGap = 24;
-  double maxGap = 140;
+  /// Free space above the first and below the last staff ([ScoreMotion.margin]).
+  double get verticalMargin => _motion.margin;
 
   SpacingPlan? _plan;
   KeyColumnPlan? _keyPlan;
@@ -810,13 +808,13 @@ class CuratedScene {
 
   StackMetrics _metrics(ui.Size size) => StackMetrics(
         availableHeight: (size.height - 2 * verticalMargin - _captionReserve).clamp(0, double.infinity),
-        minGap: minGap,
-        maxGap: maxGap,
+        minGap: _motion.minGap,
+        maxGap: math.max(_motion.minGap, _motion.maxGap),
       );
 
   /// What a plan for this curation and frame size is made from: a new key, a new plan.
   Object _planKeyFor(Curation curation, ui.Size size) =>
-      (curation, curation.revision, curation.transition, size, verticalMargin, minGap, maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _displayVersion, _motion.glide);
+      (curation, curation.revision, curation.transition, size, verticalMargin, _motion.minGap, _motion.maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _displayVersion, _motion.glide);
 
   SpacingPlan _buildPlan(Curation curation, ui.Size size) {
     final pointerX = renderer.pointerX(size.width);

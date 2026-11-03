@@ -132,12 +132,15 @@ class MotionCurve {
 }
 
 /// Everything about how the score moves that isn't a region's own (Project Settings ▸ Advanced):
-/// how staves glide and fade, how the scroll comes to rest, how the frame fades out at the end,
+/// how far apart the staves stand, how they glide and fade, how the scroll comes to rest, how the frame fades out at the end,
 /// how a caption comes in, how the bar numbers' row rises and the tempo at the left gives way.
 /// The default is the house style.
 @immutable
 class ScoreMotion {
   const ScoreMotion({
+    this.margin = 36,
+    this.minGap = 24,
+    this.maxGap = 140,
     this.glide = MotionCurve.smooth,
     this.fade = MotionCurve.smooth,
     this.inkDelay = 0.1,
@@ -157,6 +160,14 @@ class ScoreMotion {
   });
 
   static const standard = ScoreMotion();
+
+  /// Points of paper above the first staff and below the last (the bar numbers' row is in the
+  /// top one).
+  final double margin;
+
+  /// Points between staves, shared out from the frame's free height: never less than [minGap]
+  /// unless the frame is full, never more than [maxGap] (at least [minGap]).
+  final double minGap, maxGap;
 
   /// How staves move to their new places (and the key column to its new width) over a
   /// transition.
@@ -200,6 +211,9 @@ class ScoreMotion {
 
   /// Every setting: its key in the JSON, its range for numbers.
   static const ranges = <String, ({double min, double max})>{
+    'margin': (min: 20, max: 160),
+    'minGap': (min: 4, max: 120),
+    'maxGap': (min: 4, max: 400),
     'inkDelay': (min: 0, max: 0.9),
     'settle': (min: 0, max: 8),
     'slowest': (min: 0.05, max: 1),
@@ -220,6 +234,9 @@ class ScoreMotion {
   /// A value as numbers and curves, for [fromJson]. Each key is written, so a project keeps its
   /// motion even if the house style changes.
   Map<String, Object?> toJson() => {
+        'margin': margin,
+        'minGap': minGap,
+        'maxGap': maxGap,
         'glide': glide.expression,
         'fade': fade.expression,
         'inkDelay': inkDelay,
@@ -265,6 +282,9 @@ class ScoreMotion {
     }
 
     return ScoreMotion(
+      margin: number('margin', d.margin),
+      minGap: number('minGap', d.minGap),
+      maxGap: number('maxGap', d.maxGap),
       glide: curve('glide', d.glide),
       fade: curve('fade', d.fade),
       inkDelay: number('inkDelay', d.inkDelay),
@@ -289,6 +309,9 @@ class ScoreMotion {
 
   /// One setting by its [toJson] key: a double or an [MotionCurve].
   Object valueOf(String key) => switch (key) {
+        'margin' => margin,
+        'minGap' => minGap,
+        'maxGap' => maxGap,
         'glide' => glide,
         'fade' => fade,
         'inkDelay' => inkDelay,
@@ -314,6 +337,9 @@ class ScoreMotion {
   @override
   bool operator ==(Object other) =>
       other is ScoreMotion &&
+      margin == other.margin &&
+      minGap == other.minGap &&
+      maxGap == other.maxGap &&
       glide == other.glide &&
       fade == other.fade &&
       inkDelay == other.inkDelay &&
@@ -330,7 +356,7 @@ class ScoreMotion {
       tempoCurve == other.tempoCurve;
 
   @override
-  int get hashCode => Object.hash(glide, fade, inkDelay, ink, settle, settleCurve, slowest, endFade, endCurve, captionFade,
+  int get hashCode => Object.hash(margin, minGap, maxGap, glide, fade, inkDelay, ink, settle, settleCurve, slowest, endFade, endCurve, captionFade,
       captionRise, captionCurve, rowLead, rowCurve, tempoFade, tempoCurve);
 }
 
