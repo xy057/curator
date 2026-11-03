@@ -157,7 +157,7 @@ class _InstrumentLanesState extends State<InstrumentLanes>
       builder: (context, zooming, lanes) => SingleChildScrollView(
         key: _viewportKey,
         controller: _vScroll,
-        physics: zooming ? const NeverScrollableScrollPhysics() : null,
+        physics: zooming ? const NeverScrollableScrollPhysics() : SwipeAxisPhysics(ViewportGestures.swipeAxisOf(context)),
         child: lanes,
       ),
       child: Row(
