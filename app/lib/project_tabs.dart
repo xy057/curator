@@ -63,6 +63,7 @@ class ProjectTabs extends StatelessWidget {
                   child: Row(children: [
                     for (final (i, label) in labels.indexed)
                       ValueListenableBuilder(
+                        key: ObjectKey(label), // a tab closed takes its own hover with it
                         valueListenable: label,
                         builder: (context, label, _) => SizedBox(
                           width: width,
@@ -132,19 +133,16 @@ class _TabState extends State<_Tab> {
     Widget tip(Widget child) => OverlaySemantics(
           child: Tooltip(message: widget.tip, waitDuration: const Duration(milliseconds: 600), child: child),
         );
+    // Selected or not at once: a tab fading out as the other fades in passed through grey (a fill
+    // lerped to transparent black), a flash at every switch. Only the pointer's wash fades, in
+    // its own colour.
+    final wash = (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.06 : 0.04);
     final tab = AnimatedContainer(
       duration: stateDuration(motion(context, 120)),
       height: height,
       padding: EdgeInsets.only(left: onClose == null ? 0 : 12, right: onClose == null ? 0 : 6),
       constraints: onClose == null ? BoxConstraints.tightFor(width: height + 8) : null,
-      decoration: BoxDecoration(
-        color: selected
-            ? widget.fill
-            : _hover
-                ? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.06 : 0.04)
-                : Colors.transparent,
-        border: Border(left: side, right: side),
-      ),
+      color: _hover && !selected ? wash : wash.withValues(alpha: 0),
       alignment: Alignment.center,
       child: DefaultTextStyle.merge(
         style: TextStyle(fontSize: 12.5, color: selected || _hover ? colors.text : colors.textMuted),
@@ -199,7 +197,13 @@ class _TabState extends State<_Tab> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onShow,
-            child: tab,
+                child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: selected ? widget.fill : null,
+                border: Border(left: side, right: side),
+              ),
+              child: tab,
+            ),
           ),
         ),
       ),
