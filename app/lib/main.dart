@@ -491,7 +491,7 @@ class _AppWindowState extends State<AppWindow> {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = _tabs;
+    final tabs = _tabs, barShown = tabs.isNotEmpty && _tabBar;
     // The menus follow the tab showing; the window below them is built here and passed through.
     return ListenableBuilder(
       listenable: Listenable.merge([_recent, _menus, _typing]),
@@ -537,49 +537,65 @@ class _AppWindowState extends State<AppWindow> {
           child: window!,
         );
       },
-      child: Column(children: [
-        AnimatedSize(
-          duration: motion(context, 200),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: tabs.isEmpty || !_tabBar
-              ? const SizedBox(width: double.infinity)
-              : ProjectTabs(
-                  labels: [for (final p in tabs) p.label],
-                  shown: _showing == null ? null : tabs.indexOf(_showing!),
-                  onShow: (i) => _show(i == null ? null : tabs[i]),
-                  onClose: (i) => _close(tabs[i]),
-                ),
-        ),
-        Expanded(
-          child: Stack(fit: StackFit.expand, children: [
-            _tab(
-              key: const ValueKey('home'),
-              showing: _showing == null,
-              messenger: _homeMessenger,
-              child: Focus(focusNode: _homeKeys, autofocus: true, child: _home()),
-            ),
-            for (final project in _projects)
-              _tab(
-                key: ObjectKey(project),
-                showing: _showing == project,
-                messenger: project.messenger,
-                child: ProjectPage(
-                  key: project.key,
-                  settings: settings,
-                  path: project.path,
-                  showing: _showing == project,
-                  closing: project.closing,
-                  label: project.label,
-                  onMenusChanged: () => _menus.value++,
-                  onOpen: _openPath,
-                  onHome: () => _show(null),
-                  onFailed: () => _close(project),
+      // Under everything: no part of the window ever shows its black backing.
+      child: ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Column(children: [
+          // The strip itself slides up under the menu as it goes (clipped), not a gap: its
+          // place left empty while it shrank showed the window's black backing.
+          ClipRect(
+            child: AnimatedAlign(
+              duration: motion(context, 220),
+              curve: AppStyle.of(context).curve,
+              alignment: Alignment.bottomCenter,
+              heightFactor: barShown ? 1 : 0,
+              child: IgnorePointer(
+                ignoring: !barShown,
+                child: ExcludeSemantics(
+                  excluding: !barShown,
+                  child: ExcludeFocus(
+                    excluding: !barShown,
+                    child: ProjectTabs(
+                      labels: [for (final p in tabs) p.label],
+                      shown: _showing == null ? null : tabs.indexOf(_showing!),
+                      onShow: (i) => _show(i == null ? null : tabs[i]),
+                      onClose: (i) => _close(tabs[i]),
+                    ),
+                  ),
                 ),
               ),
-          ]),
-        ),
-      ]),
+            ),
+          ),
+          Expanded(
+            child: Stack(fit: StackFit.expand, children: [
+              _tab(
+                key: const ValueKey('home'),
+                showing: _showing == null,
+                messenger: _homeMessenger,
+                child: Focus(focusNode: _homeKeys, autofocus: true, child: _home()),
+              ),
+              for (final project in _projects)
+                _tab(
+                  key: ObjectKey(project),
+                  showing: _showing == project,
+                  messenger: project.messenger,
+                  child: ProjectPage(
+                    key: project.key,
+                    settings: settings,
+                    path: project.path,
+                    showing: _showing == project,
+                    closing: project.closing,
+                    label: project.label,
+                    onMenusChanged: () => _menus.value++,
+                    onOpen: _openPath,
+                    onHome: () => _show(null),
+                    onFailed: () => _close(project),
+                  ),
+                ),
+            ]),
+          ),
+        ]),
+      ),
     );
   }
 

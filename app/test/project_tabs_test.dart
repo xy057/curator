@@ -1,11 +1,14 @@
 // Projects in tabs: Home is a tab of its own, so a project stays open while Home shows; another
 // project opens beside it; Close takes only the tab it is in, asking first about unsaved changes.
+import 'dart:ui' as ui;
+
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/editor_toolbar.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/project_tabs.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -20,7 +23,9 @@ void main() {
     final settings = AppSettings.memory()..addRecent(demoProject.absolute.path);
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
-    expect(find.byType(ProjectTabs), findsNothing, reason: 'Home alone has no tabs');
+    // The strip, as tall as it shows (it folds away, kept in the tree).
+    double bar() => tester.getSize(find.ancestor(of: find.byType(ProjectTabs), matching: find.byType(ClipRect)).first).height;
+    expect(bar(), 0, reason: 'Home alone has no tabs');
 
     final pages = find.byType(ProjectPage, skipOffstage: false);
     List<EditorController> controllers() =>
@@ -55,7 +60,7 @@ void main() {
     expect(pages, findsOneWidget);
     final sample = controllers().single;
     expect(sample.score, isNotNull);
-    expect(find.byType(ProjectTabs), findsOneWidget);
+    expect(bar(), greaterThan(0));
     expect(homeShows, findsNothing);
 
     // Home's tab shows Home; the sample stays open behind it, and opening it again shows its
@@ -107,14 +112,14 @@ void main() {
     expect(toolbarHome, findsNothing);
     await keys(LogicalKeyboardKey.keyT, shift: true);
     expect(settings.tabBar, isFalse);
-    expect(find.byType(ProjectTabs), findsNothing);
+    expect(bar(), 0);
     await tester.tap(toolbarHome);
     await settle();
     expect(homeShows, findsOneWidget);
     expect(sample.score, isNotNull);
     await keys(LogicalKeyboardKey.backslash, shift: true);
     expect(settings.tabBar, isTrue);
-    expect(find.byType(ProjectTabs), findsOneWidget);
+    expect(bar(), greaterThan(0));
 
     // The last tab closed by its ×: Home alone again.
     await keys(LogicalKeyboardKey.tab);
@@ -122,7 +127,49 @@ void main() {
     await tester.tap(find.descendant(of: find.byType(ProjectTabs), matching: find.byType(IconButton)));
     await settle();
     expect(pages, findsNothing);
-    expect(find.byType(ProjectTabs), findsNothing);
+    expect(bar(), 0);
     expect(homeShows, findsOneWidget);
+  });
+
+  // Its place once left empty as it shrank: the window's black backing showed through.
+  testWidgets('hiding and showing the tab bar paints every pixel of every frame', (tester) async {
+    await tester.runAsync(loadTestFonts);
+    desktopWindow(tester);
+    final settings = AppSettings.memory();
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Open Sample'));
+    await tester.pump();
+    final c = (tester.state(find.byType(ProjectPage)) as dynamic).controller as EditorController;
+    for (var i = 0; i < 100 && c.score == null; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pump();
+    }
+    await tester.pump(const Duration(seconds: 1));
+    Future<int> unpainted() async {
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.ancestor(of: find.byType(ProjectPage), matching: find.byType(RepaintBoundary)).last);
+      return (await tester.runAsync(() async {
+        final image = await boundary.toImage(pixelRatio: 1);
+        final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+        var n = 0;
+        for (var y = 0; y < 120; y++) {
+          for (var x = 0; x < image.width; x += 4) {
+            if (bytes.getUint8((y * image.width + x) * 4 + 3) < 250) n++;
+          }
+        }
+        return n;
+      }))!;
+    }
+
+    final counts = <String>[];
+    for (final on in [false, true]) {
+      settings.tabBar = on;
+      for (var f = 0; f < 16; f++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        counts.add('${on ? 'show' : 'hide'} $f: ${await unpainted()}');
+      }
+    }
+    expect(counts.where((c) => !c.endsWith(': 0')), isEmpty, reason: 'unpainted pixels show the window\'s black');
   });
 }

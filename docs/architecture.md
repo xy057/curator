@@ -785,7 +785,9 @@ one menu bar (on macOS one `PlatformMenuBar` may be built): the window builds it
 showing, from that page's state, and a page says when what it offers changes (`onMenusChanged`).
 Show Next / Previous Tab (⌃Tab, ⌃⇧Tab: Window on macOS, View elsewhere) go round the tabs, Home
 among them. View ▸ Show / Hide Tab Bar (⇧⌘T, `AppSettings.tabBar`) hides the strip, the editor's toolbar
-taking a Home button meanwhile; Show All Tabs (⇧⌘\) shows it again. AppKit's own window tabs are off
+taking a Home button meanwhile; Show All Tabs (⇧⌘\) shows it again. The strip folds up under the menu as it goes, still painted
+(clipped, kept in the tree), and the window has a background under everything: a place left
+unpainted, even for a frame, shows the window's black backing. AppKit's own window tabs are off
 (`MainFlutterWindow.awakeFromNib`: `allowsAutomaticWindowTabbing`), or it would add items of those
 names to View for tabs of windows the app doesn't have. Closing takes the tab away at once and the page drops its editor
 (`ProjectPage.closing`); the page itself goes once `ProjectDocument.close` has run (after a save
