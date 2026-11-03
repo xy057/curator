@@ -100,6 +100,35 @@ void main() {
     expect(Phrase(notes, clef: PhraseClef.tenor).musicXML(), contains('<clef><sign>C</sign><line>4</line></clef>'));
   });
 
+  test('staff spacing: the gap between staves keeps within its least and most', () {
+    final scene = CuratedScene(score);
+    final ids = [for (final p in score.metadata.parts) p.id];
+    final two = Curation(ids)..setLanes({for (final id in ids) id: id == ids[0] || id == ids[1] ? [const Region(0, 1e6)] : []});
+    const tall = ui.Size(960, 4000);
+    double gapBetween() {
+      final ys = [for (final p in scene.layoutAt(1, two, tall).placements) if (p.opacity > 0) p.y];
+      return ys[1] - ys[0];
+    }
+
+    final wide = gapBetween();
+    scene.motion = const ScoreMotion(maxGap: 60);
+    expect(gapBetween(), closeTo(wide - 80, 1e-6), reason: 'the most, 140 → 60');
+    scene.motion = const ScoreMotion(minGap: 200, maxGap: 60);
+    expect(gapBetween(), closeTo(wide + 60, 1e-6), reason: 'never less than the least');
+    // Crowded, the staves squeeze to the least, and no further.
+    final all = Curation(ids)..setLanes({for (final id in ids) id: [const Region(0, 1e6)]});
+    double spanOf(ScoreMotion motion) {
+      scene.motion = motion;
+      final ys = [for (final p in scene.layoutAt(1, all, const ui.Size(960, 540)).placements) if (p.opacity > 0) p.y];
+      return ys.last - ys.first;
+    }
+
+    final squeezed = spanOf(ScoreMotion.standard);
+    expect(spanOf(const ScoreMotion(minGap: 40)), closeTo(squeezed + 36 * (ids.length - 1), 1));
+    expect(ScoreMotion.fromJson(const {}), ScoreMotion.standard, reason: 'an older file');
+    scene.dispose();
+  });
+
   test('auto-curate hides the least salient staves where they would run off the frame, only there', () {
     final scene = CuratedScene(score);
     final ids = [for (final p in score.metadata.parts) p.id];

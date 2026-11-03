@@ -493,8 +493,8 @@ final _projectCategories = <_Category>[
   _advancedCategory(),
 ];
 
-/// Project Settings ▸ Advanced: how the score moves, every curve and length of time in it
-/// ([MotionSetting.all]), each over the app's default (Save as default).
+/// Project Settings ▸ Advanced: how the staves are spaced and how the score moves, every curve
+/// and length of time in it ([MotionSetting.all]), each over the app's default (Save as default).
 _Category _advancedCategory() {
   MotionTarget target(_Context c) => MotionTarget(c.settings, c.controller!);
   return _Category(

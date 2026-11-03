@@ -26,7 +26,8 @@ class StackMetrics {
   /// Height available for staves (frame margins already removed).
   final double availableHeight;
 
-  /// Clear space between the ink of neighbouring staves never drops below this.
+  /// Clear space between the ink of neighbouring staves never drops below this, even when the
+  /// staves then run past the frame.
   final double minGap;
 
   /// Gaps never grow beyond this, even with only one or two staves on screen.
@@ -49,12 +50,9 @@ abstract final class StaffStack {
 
     // Share the free height equally between the gaps (one more gap than staves, so there is
     // air above the first and below the last). Wide when few staves are shown, never wider
-    // than maxGap; squeezed below minGap only when the frame is genuinely full.
+    // than maxGap; never narrower than minGap, though the staves then run past the frame.
     final free = metrics.availableHeight - ink;
-    var gap = (free / (weight + 1)).clamp(metrics.minGap, metrics.maxGap);
-    if (ink + gap * (weight + 1) > metrics.availableHeight) {
-      gap = (free / (weight + 1)).clamp(4.0, metrics.minGap);
-    }
+    final gap = (free / (weight + 1)).clamp(metrics.minGap, metrics.maxGap);
 
     // Centre the group vertically in whatever room is left over.
     final total = ink + gap * (weight + 1);
