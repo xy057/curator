@@ -590,6 +590,7 @@ const zhHant = <String, String>{
   'Show Preview': '顯示預覽',
   'Show Previous Tab': '顯示上一個分頁',
   'Show Tab Bar': '顯示分頁列',
+  'Show tab bar ({key})': '顯示分頁列（{key}）',
   'Show Timeline': '顯示時間軸',
   'Show the video\'s frame': '顯示影片畫框',
   'Show Throughout': '全程顯示',

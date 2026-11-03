@@ -106,24 +106,26 @@ void main() {
     await keys(LogicalKeyboardKey.tab, shift: true);
     expect(homeShows, findsOneWidget);
 
-    // Hide Tab Bar (⇧⌘T): the toolbar has Home instead; Show All Tabs (⇧⌘\) brings the bar back.
+    // Hide Tab Bar (⇧⌘T): the toolbar has a button that shows it again; so does Show All Tabs (⇧⌘\).
     await keys(LogicalKeyboardKey.tab);
-    final toolbarHome = find.descendant(of: find.byType(EditorToolbar), matching: find.byTooltip('Home'));
-    expect(toolbarHome, findsNothing);
+    final showBar = find.descendant(of: find.byType(EditorToolbar), matching: find.byTooltip('Show tab bar (Ctrl+Shift+T)'));
+    expect(showBar, findsNothing);
     await keys(LogicalKeyboardKey.keyT, shift: true);
     expect(settings.tabBar, isFalse);
     expect(bar(), 0);
-    await tester.tap(toolbarHome);
+    await tester.tap(showBar);
     await settle();
-    expect(homeShows, findsOneWidget);
+    expect(settings.tabBar, isTrue);
+    expect(bar(), greaterThan(0));
+    expect(showBar, findsNothing);
     expect(sample.score, isNotNull);
+    await keys(LogicalKeyboardKey.keyT, shift: true);
+    expect(bar(), 0);
     await keys(LogicalKeyboardKey.backslash, shift: true);
     expect(settings.tabBar, isTrue);
     expect(bar(), greaterThan(0));
 
     // The last tab closed by its ×: Home alone again.
-    await keys(LogicalKeyboardKey.tab);
-    expect(toolbarHome, findsNothing);
     await tester.tap(find.descendant(of: find.byType(ProjectTabs), matching: find.byType(IconButton)));
     await settle();
     expect(pages, findsNothing);

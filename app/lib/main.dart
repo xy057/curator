@@ -588,7 +588,6 @@ class _AppWindowState extends State<AppWindow> {
                     label: project.label,
                     onMenusChanged: () => _menus.value++,
                     onOpen: _openPath,
-                    onHome: () => _show(null),
                     onFailed: () => _close(project),
                   ),
                 ),
@@ -654,7 +653,6 @@ class ProjectPage extends StatefulWidget {
     required this.label,
     required this.onMenusChanged,
     required this.onOpen,
-    required this.onHome,
     required this.onFailed,
   });
 
@@ -677,9 +675,6 @@ class ProjectPage extends StatefulWidget {
 
   /// Another project or score to open (one dropped on the timeline), in a tab of its own.
   final ValueChanged<String> onOpen;
-
-  /// The toolbar's Home, there while the tab bar is hidden.
-  final VoidCallback onHome;
 
   /// It didn't open (said why already): its tab goes.
   final VoidCallback onFailed;
@@ -1290,8 +1285,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       onVideoRatio: (r) => settings
         ..videoRatio = r
         ..previewVideoFrame = true,
-      // Home's tab can't be clicked while the tab bar is hidden: the toolbar has it then.
-      onHome: settings.tabBar ? null : widget.onHome,
+      // While the tab bar is hidden, its tabs (Home among them) are a click away.
+      onShowTabBar: settings.tabBar ? null : () => settings.tabBar = true,
       readout: _readout,
     );
     final score = Expanded(child: ScoreView(

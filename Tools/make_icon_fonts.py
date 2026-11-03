@@ -131,6 +131,7 @@ ICONS = [
     ('previous', 'The one before.', 'chevron_left', 'chevron--left'),
     ('next', 'The one after.', 'chevron_right', 'chevron--right'),
     ('align', 'Lines the anchors up with the recording by ear.', 'auto_fix_high', 'magic-wand'),
+    ('tabBar', 'Shows the tab bar, hidden (View ▸ Show Tab Bar).', 'top_panel_open', 'open-panel--top'),
 ]
 
 

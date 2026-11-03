@@ -590,6 +590,7 @@ const zhHans = <String, String>{
   'Show Preview': '显示预览',
   'Show Previous Tab': '显示上一个标签页',
   'Show Tab Bar': '显示标签页栏',
+  'Show tab bar ({key})': '显示标签页栏（{key}）',
   'Show Timeline': '显示时间线',
   'Show the video\'s frame': '显示视频画框',
   'Show Throughout': '全程显示',

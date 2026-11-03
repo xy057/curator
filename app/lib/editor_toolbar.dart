@@ -28,7 +28,7 @@ class EditorToolbar extends StatelessWidget {
     required this.onVideoFrame,
     required this.videoRatio,
     required this.onVideoRatio,
-    this.onHome,
+    this.onShowTabBar,
     this.readout,
   });
   final EditorController controller;
@@ -43,9 +43,9 @@ class EditorToolbar extends StatelessWidget {
   final VideoRatio videoRatio;
   final ValueChanged<VideoRatio> onVideoRatio;
 
-  /// Shows Home, the project staying open in its tab; null (no button) while the tab bar, Home
-  /// first in it, shows.
-  final VoidCallback? onHome;
+  /// Shows the tab bar (View ▸ Show Tab Bar), Home and the other projects in it; null (no
+  /// button) while it shows.
+  final VoidCallback? onShowTabBar;
 
   /// The time readout, which ⌘G opens to type where to go.
   final GlobalKey<TimeReadoutState>? readout;
@@ -76,8 +76,12 @@ class EditorToolbar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(color: colors.chrome, border: Border(bottom: BorderSide(color: colors.line))),
       child: Row(children: [
-        if (onHome case final onHome?) ...[
-          ToolbarButton(icon: AppIcon.home.of(context), tooltip: 'Home', onPressed: onHome),
+        if (onShowTabBar case final onShowTabBar?) ...[
+          ToolbarButton(
+            icon: AppIcon.tabBar.of(context),
+            tooltip: 'Show tab bar ({key})'.fill({'key': shortcut('⇧⌘T')}),
+            onPressed: onShowTabBar,
+          ),
           const ToolbarDivider(),
         ],
         ToolbarButton(
