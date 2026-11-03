@@ -1346,6 +1346,7 @@ class _ResizeHandleState extends State<_ResizeHandle> {
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
+        supportedDevices: kDragDevices,
         onVerticalDragStart: (_) => setState(() => _dragging = true),
         onVerticalDragEnd: (_) => setState(() => _dragging = false),
         onVerticalDragCancel: () => setState(() => _dragging = false),

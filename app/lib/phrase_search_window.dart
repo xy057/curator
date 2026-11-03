@@ -385,6 +385,7 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
                 child: collapsed ? _bar(context, drag) : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
+                    supportedDevices: kDragDevices,
                     onPanUpdate: drag,
                     child: Container(
                       height: 52,
@@ -447,6 +448,7 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
       Expanded(
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          supportedDevices: kDragDevices,
           onPanUpdate: drag,
           onDoubleTap: () => _collapse(false),
           child: Padding(

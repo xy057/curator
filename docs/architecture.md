@@ -570,6 +570,18 @@ another size never plans again for it. It plans every segment (about 20 ms for 3
 while a gesture lasts (a region or anchor dragged, the score size slid) the controller keeps the
 answer from before and works it out once as the gesture ends; Export's dialog rebuilds then too.
 
+**A trackpad's swipe scrolls; it never drags.** A two-finger swipe comes as pan-zoom events, which
+a drag recognizer takes as a drag unless told not to: every drag in the app is given
+`kDragDevices` (all but the trackpad; a trackpad's click-and-drag comes as a mouse's), so a swipe
+over an image, the Sections editor or a slider scrolls what is under it instead. The time axis and
+the score are moved by hand (`SideSwipe`, lanes_common.dart), as a scroll view would move them: the
+swipe keeps to the axis it starts on (`SwipeAxisPhysics` holds the lanes' vertical scroll still
+while it runs sideways; a Listener sees each event before any recognizer does, so the axis is
+known before the scroll view moves, and it is kept after the swipe for the scroll view's fling),
+and glides on after a flick. In the lanes it pans the time; on the score it scrubs
+(`Playback.scrub`), at the score's own speed there (`ScoreViewState._speedAt`), so the notes stay
+under the fingers.
+
 **Auto-Curate fits the frame.** A new score's lanes (unless Settings ▸ General ▸ Auto-curate
 imported scores is off: then each lane is whole), Auto-Curate and a lane's Auto-Curate Lane start from where each part plays (`autoCurateMeasures`: rests of one bar bridged), then ask that
 same check (`CuratedScene.curatedToFit`, on a copy of the curation, for `videoLayout`) and cut

@@ -129,6 +129,7 @@ class _Strip extends StatelessWidget {
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
+            supportedDevices: kDragDevices,
             onTapDown: (d) => at(d.localPosition),
             onHorizontalDragStart: (d) => at(d.localPosition),
             onHorizontalDragUpdate: (d) => at(d.localPosition),

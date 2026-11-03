@@ -1339,6 +1339,7 @@ class _EngravingWindowState extends State<_EngravingWindow> {
                         // Moved by its title, as a window is.
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
+                          supportedDevices: kDragDevices,
                           onPanUpdate: (d) => setState(() => _at = clamp(at + d.delta)),
                           child: Container(height: 52, padding: const EdgeInsets.only(left: 24, right: 10), child: title),
                         ),

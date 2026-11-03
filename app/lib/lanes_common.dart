@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart' show FrictionSimulation, Tolerance;
+import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -30,27 +32,168 @@ bool get isZoomModifierPressed {
   return keys.isMetaPressed || keys.isControlPressed;
 }
 
-/// Trackpad / wheel navigation for the lanes: two-finger swipe or shift-scroll pans,
-/// pinch or ⌘-scroll (wheel or two-finger swipe) zooms around the pointer. Zooming is
-/// horizontal only: lanes that scroll vertically lock while ⌘ is held.
+/// A trackpad's two-finger swipe moving something sideways by hand (the lanes' time, the
+/// score), as a scroll view would: it keeps to one axis, decided as it starts (a mostly
+/// up-and-down one moves nothing sideways, and a sideways one holds lanes that scroll
+/// vertically still: [SwipeAxisPhysics]), and once the fingers lift after a flick it glides on,
+/// slowing, as Flutter's scroll views do themselves. Touching the trackpad again stops it.
+class SideSwipe {
+  SideSwipe(TickerProvider vsync, {required this.onMove, this.onEnd}) {
+    _ticker = vsync.createTicker(_tick);
+  }
+
+  /// Moves by [dx] points, as the fingers went (left is negative); false when it can go no
+  /// further that way, which ends a glide.
+  final bool Function(double dx) onMove;
+
+  /// The swipe, and its glide, are over.
+  final VoidCallback? onEnd;
+
+  /// The axis of the last swipe, kept after it ends (its scroll view's fling reads it then); null
+  /// while it is too short to tell.
+  final axis = ValueNotifier<Axis?>(null);
+
+  late final Ticker _ticker;
+  VelocityTracker? _velocity;
+  Offset _travel = Offset.zero;
+  FrictionSimulation? _glide;
+  double _glided = 0;
+  bool _active = false;
+
+  /// How far a swipe goes before its axis is decided: less than a scroll view's slop, so the
+  /// axis is known before the scroll view moves.
+  static const _decide = 6.0;
+
+  void start(PointerPanZoomStartEvent e) {
+    stop();
+    _active = true;
+    _travel = Offset.zero;
+    axis.value = null;
+    _velocity = VelocityTracker.withKind(PointerDeviceKind.trackpad)..addPosition(e.timeStamp, Offset.zero);
+  }
+
+  void update(PointerPanZoomUpdateEvent e) {
+    if (!_active) return;
+    _velocity?.addPosition(e.timeStamp, e.localPan);
+    _travel += e.localPanDelta;
+    var dx = e.localPanDelta.dx;
+    if (axis.value == null) {
+      if (_travel.distance < _decide) return;
+      axis.value = _travel.dx.abs() >= _travel.dy.abs() ? Axis.horizontal : Axis.vertical;
+      dx = _travel.dx; // what went by while deciding
+    }
+    if (axis.value == Axis.horizontal && dx != 0) onMove(dx);
+  }
+
+  /// The fingers lift: a sideways flick glides on.
+  void end() {
+    if (!_active) return;
+    final v = axis.value == Axis.horizontal ? _velocity?.getVelocity().pixelsPerSecond.dx ?? 0 : 0.0;
+    _velocity = null;
+    if (v.abs() < kMinFlingVelocity) return stop();
+    // A UIScrollView's normal deceleration (0.998 a millisecond), at rest below 10 points a
+    // second, as a scroll view comes to rest.
+    _glide = FrictionSimulation(0.135, 0, v.clamp(-kMaxFlingVelocity, kMaxFlingVelocity),
+        tolerance: const Tolerance(velocity: 10));
+    _glided = 0;
+    _ticker.start();
+  }
+
+  /// A press (a click, a touch): a glide stops, and the drag that may follow is no swipe.
+  void press() {
+    stop();
+    axis.value = null;
+  }
+
+  /// Ends the swipe or its glide now (another gesture, a turn of the wheel).
+  void stop() {
+    if (_ticker.isActive) _ticker.stop();
+    _glide = null;
+    _velocity = null;
+    if (!_active) return;
+    _active = false;
+    onEnd?.call();
+  }
+
+  void _tick(Duration elapsed) {
+    final glide = _glide;
+    if (glide == null) return;
+    final t = elapsed.inMicroseconds / 1e6, x = glide.x(t), dx = x - _glided;
+    _glided = x;
+    // The first frame (no time gone) moves nothing, and isn't the end of the way.
+    if ((dx != 0 && !onMove(dx)) || glide.isDone(t)) stop();
+  }
+
+  void dispose() {
+    _ticker.dispose();
+    axis.dispose();
+  }
+}
+
+/// Scroll physics for lanes that scroll vertically under [ViewportGestures]: still while its
+/// swipe runs sideways ([SideSwipe.axis]), so a sideways swipe moves only the time.
+class SwipeAxisPhysics extends ScrollPhysics {
+  const SwipeAxisPhysics(this.swipe, {super.parent});
+  final ValueListenable<Axis?> swipe;
+
+  bool get _sideways => swipe.value == Axis.horizontal;
+
+  @override
+  SwipeAxisPhysics applyTo(ScrollPhysics? ancestor) => SwipeAxisPhysics(swipe, parent: buildParent(ancestor));
+
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) =>
+      _sideways ? 0 : super.applyPhysicsToUserOffset(position, offset);
+
+  @override
+  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) =>
+      super.createBallisticSimulation(position, _sideways && !position.outOfRange ? 0 : velocity);
+}
+
+/// Trackpad / wheel navigation for the lanes: two-finger swipe or shift-scroll pans (a
+/// swipe glides on after a flick: [SideSwipe]), pinch or ⌘-scroll (wheel or two-finger
+/// swipe) zooms around the pointer. Zooming is horizontal only: lanes that scroll vertically
+/// lock while ⌘ is held, and while a swipe runs sideways ([ViewportGestures.swipeAxisOf]).
 class ViewportGestures extends StatefulWidget {
   const ViewportGestures({super.key, required this.controller, required this.child});
   final EditorController controller;
   final Widget child;
 
+  /// The axis of the swipe in the lanes, for their vertical scroll's [SwipeAxisPhysics].
+  static ValueListenable<Axis?> swipeAxisOf(BuildContext context) =>
+      context.findAncestorStateOfType<_ViewportGesturesState>()!._swipe.axis;
+
   @override
   State<ViewportGestures> createState() => _ViewportGesturesState();
 }
 
-class _ViewportGesturesState extends State<ViewportGestures> {
+class _ViewportGesturesState extends State<ViewportGestures> with SingleTickerProviderStateMixin {
   double _lastScale = 1;
+
+  /// The swipe has zoomed too (a pinch): it doesn't glide.
+  bool _pinched = false;
+
+  late final _swipe = SideSwipe(this, onMove: (dx) {
+    final v = widget.controller.viewport, from = v.origin;
+    v.pan(-dx);
+    return v.origin != from;
+  });
+
+  @override
+  void dispose() {
+    _swipe.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final v = widget.controller.viewport;
     return Listener(
+      onPointerDown: (_) => _swipe.press(),
       onPointerSignal: (e) {
+        if (e is PointerScrollInertiaCancelEvent) return _swipe.stop();
         if (e is! PointerScrollEvent) return;
+        _swipe.stop();
         final keys = HardwareKeyboard.instance;
         if (isZoomModifierPressed) {
           v.zoom(math.exp(-e.scrollDelta.dy / 300), e.localPosition.dx - kLaneHeaderWidth);
@@ -58,19 +201,25 @@ class _ViewportGesturesState extends State<ViewportGestures> {
           v.pan(keys.isShiftPressed ? e.scrollDelta.dy : e.scrollDelta.dx);
         }
       },
-      onPointerPanZoomStart: (_) => _lastScale = 1,
+      onPointerPanZoomStart: (e) {
+        _lastScale = 1;
+        _pinched = false;
+        _swipe.start(e);
+      },
       onPointerPanZoomUpdate: (e) {
         if (e.scale != _lastScale) {
           v.zoom(e.scale / _lastScale, e.localPosition.dx - kLaneHeaderWidth);
           _lastScale = e.scale;
+          _pinched = true;
         }
         if (isZoomModifierPressed) {
           // ⌘ + two-finger swipe zooms like ⌘-scroll (swiping up = scrolling up = zoom in).
           if (e.localPanDelta.dy != 0) v.zoom(math.exp(e.localPanDelta.dy / 300), e.localPosition.dx - kLaneHeaderWidth);
-        } else if (e.localPanDelta.dx != 0) {
-          v.pan(-e.localPanDelta.dx);
+        } else {
+          _swipe.update(e);
         }
       },
+      onPointerPanZoomEnd: (_) => _pinched || isZoomModifierPressed ? _swipe.stop() : _swipe.end(),
       child: widget.child,
     );
   }

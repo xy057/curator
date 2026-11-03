@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
-import 'package:flutter/gestures.dart' show DragStartBehavior, kPrimaryButton;
+import 'package:flutter/gestures.dart' show DragStartBehavior, PointerScrollEvent, PointerScrollInertiaCancelEvent, kPrimaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart' show HorizontalSpacer, ScenePatch, VerticalSpacer;
@@ -13,7 +13,7 @@ import 'editor_controller.dart';
 import 'edit_dialogs.dart';
 import 'error_text.dart';
 import 'image_patch.dart';
-import 'lanes_common.dart' show isCommandPressed;
+import 'lanes_common.dart' show SideSwipe, isCommandPressed, isZoomModifierPressed;
 import 'spacer_dialogs.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
@@ -41,6 +41,9 @@ part 'score_view/spacer_handles.dart';
 /// to select it, drag it to move it, drag a handle to resize it ([_SpacerHandles]); double-click
 /// one (or right-click it) to change or remove it. A horizontal one is the stretch it widens.
 ///
+/// A sideways two-finger swipe (or shift-scroll) scrubs: the score follows the fingers past the
+/// pointer, and glides on after a flick ([SideSwipe]).
+///
 /// With Captions on, right-click ▸ Add Caption… adds one from where it was clicked;
 /// double-click the caption showing (or right-click it) to change or remove it.
 /// Where the context menu was opened: the patch, caption or spacer there, and the score quarter
@@ -58,7 +61,50 @@ class ScoreView extends StatefulWidget {
   State<ScoreView> createState() => ScoreViewState();
 }
 
-class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage {
+class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage, SingleTickerProviderStateMixin {
+  // MARK: Swiping
+
+  /// Playing, the music waits for the swipe and its glide to be over ([Playback.scrub]).
+  late final _swipe = SideSwipe(this, onMove: _swiped, onEnd: () => c.playback.endScrub());
+
+  @override
+  void dispose() {
+    _swipe.dispose();
+    super.dispose();
+  }
+
+  /// Moves the playhead so the score moves [dx] view points (left: on in time); false at either
+  /// end of the piece.
+  bool _swiped(double dx) {
+    final frame = _frame;
+    if (c.scene == null || frame == null) return false;
+    final playback = c.playback, from = playback.time.value;
+    playback.scrub(from - dx / _speedAt(from, frame));
+    return playback.time.value != from;
+  }
+
+  /// A turn of the wheel sideways (or shift-scrolled) moves the score as far as the lanes'.
+  void _wheel(PointerScrollEvent e) {
+    final frame = _frame, shift = HardwareKeyboard.instance.isShiftPressed;
+    final d = shift ? e.scrollDelta.dy : e.scrollDelta.dx;
+    if (c.scene == null || frame == null || isZoomModifierPressed || d == 0) return;
+    _swipe.stop();
+    final playback = c.playback;
+    playback.seek(playback.time.value + d / _speedAt(playback.time.value, frame));
+  }
+
+  /// How fast the score moves at [time], in view points a second (leftwards). Where it stands
+  /// still (before the music, at rest after it) or jumps (a warp), a quarter of its average
+  /// speed, so that a swipe still gets somewhere.
+  double _speedAt(double time, VideoFrame frame) {
+    final scene = c.scene!, size = frame.layout, end = math.max(1.0, c.playback.duration);
+    double x(double t) => scene.frameXAtQuarter(0, t, size);
+    const dt = 1 / 120;
+    final slowest = math.max(1.0, (x(0) - x(end)) / end / 4);
+    final speeds = [(x(time) - x(time + dt)) / dt, (x(time - dt) - x(time)) / dt].where((s) => s > slowest);
+    return (speeds.isEmpty ? slowest : speeds.reduce(math.min)) * frame.scale;
+  }
+
   void _onDoubleTap(TapDownDetails details, VideoFrame frame) {
     final scene = c.scene, curation = c.curation;
     if (scene == null || curation == null) return;
@@ -249,9 +295,21 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage 
               onHover: (e) => _onHover(e, frame),
               child: Listener(
                 behavior: HitTestBehavior.translucent, // the detector below has no child to hit
-                onPointerDown: (e) => _onPointerDown(e, frame),
+                onPointerDown: (e) {
+                  _swipe.press();
+                  _onPointerDown(e, frame);
+                },
+                onPointerSignal: (e) => switch (e) {
+                  PointerScrollInertiaCancelEvent() => _swipe.stop(),
+                  PointerScrollEvent() => _wheel(e),
+                  _ => null,
+                },
+                onPointerPanZoomStart: _swipe.start,
+                onPointerPanZoomUpdate: _swipe.update,
+                onPointerPanZoomEnd: (_) => _swipe.end(),
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
+                  supportedDevices: kDragDevices, // a swipe over an image or a spacer doesn't move it
                   dragStartBehavior: DragStartBehavior.down, // a drag takes what was pressed, not what the slop reached
                   onDoubleTapDown: (d) => _onDoubleTap(d, frame),
                   onDoubleTap: () {},
