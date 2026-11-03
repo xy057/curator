@@ -250,7 +250,10 @@ enum AppIcon {
   next(IconData(0xE050, fontFamily: _refined), IconData(0xE050, fontFamily: _carbon)),
 
   /// Lines the anchors up with the recording by ear. Refined: auto_fix_high; Carbon: magic-wand.
-  align(IconData(0xE051, fontFamily: _refined), IconData(0xE051, fontFamily: _carbon));
+  align(IconData(0xE051, fontFamily: _refined), IconData(0xE051, fontFamily: _carbon)),
+
+  /// Shows the tab bar, hidden (View ▸ Show Tab Bar). Refined: top_panel_open; Carbon: open-panel--top.
+  tabBar(IconData(0xE052, fontFamily: _refined), IconData(0xE052, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

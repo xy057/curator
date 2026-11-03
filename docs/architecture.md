@@ -74,6 +74,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `web_page.dart`, `web_export.dart`, `web_export_dialog.dart`, `web_guide.dart` | File ▸ Export to Web…: what a page is (`WebPage`, its `page.json`; `WebChoice`, a viewer's choice and whether it is theirs), writing one (`WebExport`), trying it here (`WebPreview`, the folder served on the loopback address to requests naming `localhost` only, so a site rebinding its name here gets nothing; byte ranges, 416 past the end), the dialog and its guide to publishing |
 | `web_player/*.dart`, `web/`, `tool/pack_web_player.dart` | The web player, the app package built for the web from `web_player/main.dart` (`make web-player`): the page read (`LoadedPage`), drawn and played (`PagePlayer`, `PageAudio`: an `<audio>`, `HtmlAudio`, or a clock alone) |
 | `phrase_search_window.dart` | Edit ▸ Find Phrase… (⌘F): the window that enters a phrase and lists where it is played |
+| `project_tabs.dart` | The tabs along the window's top while a project is open (`ProjectTabs`): Home, then each project by name, a dot for unsaved changes; past the window's width they scroll, a mouse wheel's turn too |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
@@ -505,11 +506,11 @@ row's problem shows by the buttons, not around the row), or the cell would lose 
 (`captions` in `EditState`); a project keeps them in `state.captions` (format 11). While the
 switch is off they stay in the project but are not drawn, exported or editable.
 
-**A drop goes by where it lands** (`_HomePageState._areaAt`; the hint covers only that
-area and says what it takes). With no score open, anything opens (as File ▸ Open). Above
+**A drop goes by where it lands** (`_ProjectPageState._areaAt`; the hint covers only that
+area and says what it takes). On Home, or before a project's score has opened, anything opens (as File ▸ Open, in a tab of its own). Above
 the timeline, it is always an image (Attach Image; while that is off, it says so). On the
-timeline (the whole window while View ▸ Hide Preview has hidden the preview), the Instruments tab opens a project or a score, and the Audio tab takes a MIDI
-tempo map or a recording.
+timeline (the whole window while View ▸ Hide Preview has hidden the preview), the Instruments tab opens a project or a score (in a new tab), and the Audio tab takes a MIDI
+tempo map or a recording. Only the tab showing takes drops (`DropTarget.enable`): a page out of sight is still laid out, so it would.
 
 **Find Phrase looks for a melody by ear, not by notation** (Edit ▸ Find Phrase…, ⌘F, or the
 toolbar's button by the time, lit while it is open; `PhraseSearchWindow`, a window over the editor
@@ -766,11 +767,33 @@ half done: `_install` sets every part before anything notifies (captions last, a
 their style can notify at once), and a controller disposed while engraving takes nothing on,
 its recording included.
 
-**Closing asks before anything goes.** Open, Close (⌘W), Quit and the window's close button offer
-to save unsaved changes first (`_HomePageState._confirmDiscard`; quitting through
-`AppLifecycleListener`'s `_exitRequested`). On macOS the close button quits as Quit does
+**Closing asks before anything goes.** Close (⌘W, or a tab's ×), Quit and the window's close button offer
+to save unsaved changes first (`_ProjectPageState._confirmDiscard`), showing the project they are in; quitting
+(`AppLifecycleListener`'s `_AppWindowState._exitRequested`) asks of each project in turn, and Cancel
+keeps them all. On macOS the close button quits as Quit does
 (`MainFlutterWindow.windowShouldClose` → `NSApp.terminate`), so the question is asked while the
 window is still there.
+
+**Each project is a tab, and Home is one too.** `AppWindow` holds Home and every project open
+(`_OpenProject`, a `ProjectPage` each: its own controller, document, keys, drops and messages,
+its own `ScaffoldMessenger`); `ProjectTabs` shows once one is. Open…, Open Recent, Open Sample, a
+drop and the Finder open in a new tab, or show the tab where that file (or the sample) is open
+already. A page whose tab doesn't show is kept as it was left, out of sight (`Offstage`), its
+tickers stopped and its focus let go (`_AppWindowState._tab`); leaving it pauses its playback and
+closes Find Phrase and the Engraving window (one at a time, over whichever tab shows). There is
+one menu bar (on macOS one `PlatformMenuBar` may be built): the window builds it for the tab
+showing, from that page's state, and a page says when what it offers changes (`onMenusChanged`).
+Show Next / Previous Tab (⌃Tab, ⌃⇧Tab: Window on macOS, View elsewhere) go round the tabs, Home
+among them. View ▸ Show / Hide Tab Bar (⇧⌘T, `AppSettings.tabBar`) hides the strip, the editor's toolbar
+taking a button that shows it again meanwhile (`AppIcon.tabBar`); Show All Tabs (⇧⌘\) shows it again. The strip folds up under the menu as it goes, still painted
+(clipped, kept in the tree), and the window has a background under everything: a place left
+unpainted, even for a frame, shows the window's black backing. AppKit's own window tabs are off
+(`MainFlutterWindow.awakeFromNib`: `allowsAutomaticWindowTabbing`), or it would add items of those
+names to View for tabs of windows the app doesn't have. Closing takes the tab away at once and the page drops its editor
+(`ProjectPage.closing`); the page itself goes once `ProjectDocument.close` has run (after a save
+under way), the tab after it showing (or before it, or Home). A project that doesn't open says
+why and its tab goes. Two projects open on one recording file (a linked one) share SoLoud's one
+sound of it, which the last to let go disposes (`audio_track.dart`'s `_holders`).
 
 **Replacing the score keeps the project.** Project Settings ▸ Project Info ▸ Score ▸ Replace… engraves another score
 file with the project's edits carried over to it (`EditorController.prepareReplacement`,
@@ -936,7 +959,7 @@ takes `_SteadyBorder`. A widget's own colour animation (a hover, a selection) ta
 the frame the appearance changes, so it doesn't trail the cross-fade either.
 The two themes are built once per accent, style, density and motion (`_CuratedScoreAppState._buildThemes`): a new
 `ThemeData` never equals the last, so one built per change of settings would rebuild every widget
-that reads it. The page, likewise, rebuilds only for the settings it shows (`_HomePageState._shown`).
+that reads it. A project's page, likewise, rebuilds only for the settings it shows (`_ProjectPageState._shown`).
 
 **Two styles, one look on every platform: a style is a set of tokens and a theme builder.**
 Settings ▸ Appearance ▸ Style (`AppSettings.uiStyle`): Refined, the default, or Carbon (which

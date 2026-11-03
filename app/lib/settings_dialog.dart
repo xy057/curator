@@ -75,6 +75,10 @@ Future<void> showProjectSettingsDialog(BuildContext context, AppSettings setting
       ),
     );
 
+/// Closes an Engraving tab opened in a window of its own (Open in Window), if one is: its
+/// project's tab no longer shows.
+void closeEngravingWindow() => _EngravingWindow.close();
+
 /// Whether a settings window, app's or project's, is up (until it is gone, its fade-out
 /// included): opening another then does nothing, so ⌘, held down doesn't stack them.
 bool _windowShown = false;

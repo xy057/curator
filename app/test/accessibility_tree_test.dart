@@ -36,7 +36,8 @@ void main() {
     await tester.pumpWidget(CuratedScoreApp(settings: settings));
     await tester.pump(const Duration(seconds: 1));
     await tester.tap(find.text('Open Sample'));
-    final c = (tester.state(find.byType(HomePage)) as dynamic).controller as EditorController;
+    await tester.pump(); // its tab
+    final c = (tester.state(find.byType(ProjectPage)) as dynamic).controller as EditorController;
     for (var i = 0; i < 100 && c.score == null; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
       await tester.pump();
@@ -44,7 +45,7 @@ void main() {
     await frames('opening the sample');
     mirror.takeErrors();
 
-    BuildContext context() => tester.element(find.byType(HomePage));
+    BuildContext context() => tester.element(find.byType(ProjectPage));
     Future<void> page(String name, void Function() open, [String? tab]) async {
       open();
       await frames('opening $name');

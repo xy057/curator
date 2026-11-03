@@ -27,13 +27,14 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     await screenshot(tester, 'home');
     await tester.tap(find.text('Open Sample'));
-    final state = tester.state(find.byType(HomePage)) as dynamic;
+    await tester.pump(); // its tab
+    final state = tester.state(find.byType(ProjectPage)) as dynamic;
     for (var i = 0; i < 100 && state.controller.score == null; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
       await tester.pump();
     }
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump(const Duration(milliseconds: 400)); // past the home → editor cross-fade
+    await tester.pump(const Duration(milliseconds: 400)); // past the editor's fade in
 
     // Bar 37: clarinet, horns, snare drum and cellos are shown.
     state.controller.playback.seek(70.0);
@@ -73,7 +74,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     // Find Phrase (⌘F): the cellos' running sixteenths typed two octaves up, found in any key.
-    PhraseSearchWindow.show(Overlay.of(tester.element(find.byType(HomePage))), controller);
+    PhraseSearchWindow.show(Overlay.of(tester.element(find.byType(ProjectPage))), controller);
     await tester.pump();
     for (final key in [LogicalKeyboardKey.digit4, LogicalKeyboardKey.keyA, LogicalKeyboardKey.keyE]) {
       await tester.sendKeyEvent(key);
@@ -147,7 +148,7 @@ void main() {
     controller.tab = BottomTab.audio;
     controller.viewport.requestFit();
     controller.playback.seek(34);
-    ScaffoldMessenger.of(tester.element(find.byType(HomePage))).clearSnackBars();
+    ScaffoldMessenger.of(tester.element(find.byType(ProjectPage))).clearSnackBars();
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
