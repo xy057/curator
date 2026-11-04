@@ -398,6 +398,9 @@ class _AppWindowState extends State<AppWindow> {
 
   void _show(_OpenProject? project) {
     if (project == _showing) return;
+    // Before the rebuild, not in it: pausing tells the controller's listeners, a dialog's or
+    // a floating window's among them, which aren't the page's to rebuild then.
+    _showing?.page?._hide();
     setState(() => _showing = project);
     _menus.value++;
     if (project == null) {
@@ -665,7 +668,8 @@ class ProjectPage extends StatefulWidget {
   /// The project or score it opens; null: the sample.
   final String? path;
 
-  /// Whether its tab shows: while it doesn't it stops playing, and its floating windows close.
+  /// Whether its tab shows (before it stops, [_ProjectPageState._hide] has stopped it playing and
+  /// closed its floating windows).
   final bool showing;
 
   /// Closed: it builds nothing more while the document lets go.
@@ -759,12 +763,15 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && widget.showing) _keys.requestFocus();
       });
-    } else {
-      // Heard only while seen; its windows over the editor would float over another's.
-      controller.playback.pause();
-      PhraseSearchWindow.close();
-      closeEngravingWindow();
     }
+  }
+
+  /// Its tab is about to stop showing ([AppWindow] calls it before its rebuild): heard only
+  /// while seen, and its windows over the editor would float over another's.
+  void _hide() {
+    controller.playback.pause();
+    PhraseSearchWindow.close();
+    closeEngravingWindow();
   }
 
   void _menusChanged() {
