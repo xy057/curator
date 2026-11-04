@@ -124,7 +124,10 @@ class SideSwipe {
     if ((dx != 0 && !onMove(dx)) || glide.isDone(t)) stop();
   }
 
+  /// Ends a swipe or glide under way first ([onEnd]): the score's, left running as the preview
+  /// is hidden, kept the music waiting for its end.
   void dispose() {
+    stop();
     _ticker.dispose();
     axis.dispose();
   }
