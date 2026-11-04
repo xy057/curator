@@ -498,21 +498,25 @@ class _AppWindowState extends State<AppWindow> {
       builder: (context, window) {
         final page = _showing?.page;
         final open = page != null && page._hasScore.value;
+        // A dialog is up: it belongs to the tab showing, so that tab stays showing and open
+        // (on macOS the menus' keys still reach them: ⌘W meant for the dialog would close
+        // the project under it, its controller with it).
+        final free = ModalRoute.of(context)?.isCurrent ?? true;
         // Edit acts on the score, so not while a text field or a dialog has the keyboard:
         // a key the field leaves unused would otherwise reach the menu.
-        final edit = page != null && !_typing.value && (ModalRoute.of(context)?.isCurrent ?? true) ? page._edit.value : null;
+        final edit = page != null && !_typing.value && free ? page._edit.value : null;
         final commands = page?._commands;
         return AppMenus(
-          onOpen: _open,
+          onOpen: free ? _open : null,
           // Enabled but for the demo: Save explains when there is nothing to save.
           onSave: page == null ? _nothingToSave : page._isSample.value ? null : page._save,
           onSaveAs: page == null ? _nothingToSave : page._isSample.value ? null : page._saveAs,
           onSettings: _settings,
           onAbout: () => _settings(page: 'About'),
           recentFiles: _recent.value,
-          onOpenRecent: _openPath,
+          onOpenRecent: free ? _openPath : null,
           onClearRecent: settings.clearRecent,
-          onClose: _showing == null ? null : () => _close(_showing!),
+          onClose: _showing == null || !free ? null : () => _close(_showing!),
           onProjectSettings: open ? page._projectSettings : null,
           onExportVideo: open && page._canExport.value ? page._exportVideo : null,
           onExportWeb: open && page._canExport.value ? page._exportWeb : null,
@@ -523,15 +527,15 @@ class _AppWindowState extends State<AppWindow> {
           onPaste: edit != null && edit.paste ? page!._paste : null,
           onDelete: edit != null && edit.delete ? commands!.delete : null,
           onSelectAll: edit != null && commands!.canSelectAll ? commands.selectAll : null,
-          onFindPhrase: open && !_typing.value && (ModalRoute.of(context)?.isCurrent ?? true) ? page._findPhrase : null,
+          onFindPhrase: open && !_typing.value && free ? page._findPhrase : null,
           previewShown: page?._previewShown ?? true,
           timelineShown: page?._timelineShown ?? true,
           onShowPreview: open ? page._showPreview : null,
           onShowTimeline: open ? page._showTimeline : null,
           onMaximizePreview: open ? () => page._maximize(timeline: false) : null,
           onMaximizeTimeline: open ? () => page._maximize(timeline: true) : null,
-          onNextTab: tabs.isEmpty ? null : () => _step(1),
-          onPreviousTab: tabs.isEmpty ? null : () => _step(-1),
+          onNextTab: tabs.isEmpty || !free ? null : () => _step(1),
+          onPreviousTab: tabs.isEmpty || !free ? null : () => _step(-1),
           tabBarShown: _tabBar,
           onShowTabBar: (on) => settings.tabBar = on,
           child: window!,
