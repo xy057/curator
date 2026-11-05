@@ -76,6 +76,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `phrase_search_window.dart` | Edit ▸ Find Phrase… (⌘F): the window that enters a phrase and lists where it is played |
 | `project_tabs.dart` | The tabs along the window's top while a project is open (`ProjectTabs`): Home, then each project by name, a dot for unsaved changes; past the window's width they scroll, a mouse wheel's turn too |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
+| `app_folders.dart`, `downloader.dart` | Where files the app keeps go (see *Kept files and downloads*); fetching one over https, from an address or a Git Xet repository on Hugging Face (`Downloader`, `XetSource`) |
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
 | `app_menus.dart` | The menu bar (native on macOS): File (Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
@@ -1162,11 +1163,26 @@ app, locked while it runs. Jobs release their folders when done (a replaced reco
 converted audio, a closed project's unpacked media), the app deletes its folder when it quits,
 and at start-up it sweeps folders whose lock is free (their app crashed).
 
+**Kept files and downloads.** What the app keeps between runs that is neither a project nor
+a setting goes under `AppFolders`: `data` (`~/Library/Application Support/Curator`,
+`%LocalAppData%\Curator`, `~/.local/share/curator`) or `cache` (fetched or made again at will:
+`~/Library/Caches/Curator`, `%LocalAppData%\Curator\Cache`, `~/.cache/curator`), one plain-named
+folder per kind (`AppFolders.folder`), made only when asked for. `Downloader.fetch` brings a file
+in: https only, redirects followed by hand (never to plain http; a token goes to the source's own
+host only), written as `<file>.part` under a lock, checked (size, SHA-256) and only then renamed,
+so a file of that name is whole. A stopped download keeps its part and resumes with a byte range
+when the hash is known. A `XetSource` is a file of a Hugging Face repository
+(`/<repo>/resolve/<revision>/<path>`): the Hub redirects to the Xet bridge and names the file's
+SHA-256, size and commit (`X-Linked-Etag`, `X-Linked-Size`, `X-Repo-Commit`), so its downloads
+check and resume themselves; pin a revision by the commit `Downloaded.revision` gives. Nothing
+uses either yet. Settings and Open Recent stay in `SharedPreferences`; the updater keeps its own
+download (GitHub only, into Downloads).
+
 **Tests run on the demo.** Every test uses `app/assets/demo/WI275 - 01 Intro.ccs` (a 44-bar
 6/8 orchestral intro with its recording and curation), so a fresh clone runs them all.
 The suite is kept small: a test or two per feature, on its main path (engine parts and the
 engraving, scroll map, phrase search, auto-curate, video frame, tapping, takes and tempo maps,
-Align, curation, save and open, safe save, older formats, Undo, the updater's URLs, web export,
+Align, curation, save and open, safe save, older formats, Undo, the updater's URLs, the app's folders and downloads, web export,
 the app's screens, the accessibility tree, the translations); add one only for a core path none of them covers. `Samples/` is for trying things by hand only. A test's tap that something
 else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app as built
 (opening a window): what only a bundle has, its native library and resources, is checked there.
