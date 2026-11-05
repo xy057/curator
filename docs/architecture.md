@@ -845,8 +845,9 @@ of each part's bars (`edit` makes one step of whatever it wraps). After every ch
 bars it touched: rests merged and written by the beat, a voice filled or dropped, beams by the
 time signature's groups, tuplet brackets, accidentals spelled for the key and the bar.
 The view is a galley, one endless system: the score is engraved in chunks of `EditChunk.bars`
-bars (each starting with the clefs, key and time carried into it; a time signature shown only
-where it changes), only the chunks an edit touched again, nearest the view first, three at a
+bars (each starting with the clefs, key and time carried into it, then cut off at its first bar
+so a chunk carries on the one before: of Verovio's system start only a clef, key or time
+signature the bar itself changes stays), only the chunks an edit touched again, nearest the view first, three at a
 time, and laid end to end with staves aligned to the widest gap any chunk needs. The keys are
 Dorico's: ⇧N or Enter note input, 1–9 note values (6 a quarter), `.` dot, `-` `=` `0` flat,
 sharp, natural, A–G a note at the nearest octave (⇧⌥ adds to the chord; Q chord mode), `,` rest,

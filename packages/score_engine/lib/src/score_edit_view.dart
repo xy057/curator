@@ -13,13 +13,14 @@ import 'score_editing.dart';
 
 /// Bars [from] to [to] (exclusive) engraved as a score of their own.
 class EditChunk {
-  EditChunk._(this.from, this.to, this.data, this.list, this._hidden);
+  EditChunk._(this.from, this.to, this.data, this.list, this._hidden, this.left);
 
   final int from, to;
   final EngravingData data;
   final ScoreDisplayList list;
 
-  /// Commands left out: the time signature Verovio repeats at a chunk's start.
+  /// Commands left out: the clefs, keys and time signature Verovio draws at a chunk's start
+  /// that the bar only carries in.
   final Set<int> _hidden;
 
   /// How many bars a chunk holds.
@@ -27,14 +28,25 @@ class EditChunk {
 
   /// Engraves bars [from] to [to] of [score] (Verovio runs on an isolate).
   static Future<EditChunk> engrave(EditableScore score, int from, int to, {String? resourceDirectory}) async {
-    final (:xml, :timeShown) = score.chunk(from, to);
+    final (:xml, :timeShown, :clefsShown, :keysShown) = score.chunk(from, to);
     final data = await Engraver.engrave(xml, resourceDirectory: resourceDirectory ?? engineResourceDirectory());
     final hidden = <int>{};
-    if (!timeShown && data.measures.isNotEmpty) {
-      final first = data.measures.first;
-      final before = first.onsetXs.isEmpty ? first.right : first.onsetXs.first;
+    // After the first, a chunk carries on the one before: Verovio's system start (brace,
+    // brackets, clefs, key, time) is cut off at the first bar, but for what the bar changes.
+    var start = double.negativeInfinity;
+    if (from > 0 && data.measures.isNotEmpty) {
+      final barLeft = data.measures.first.left;
+      start = barLeft;
       for (final s in data.signatures) {
-        if (s is TimeSignature && s.x < before) {
+        if (s.x >= barLeft) continue;
+        final shown = switch (s) {
+          ClefSignature() => clefsShown.contains(s.staff),
+          KeySignature() => keysShown.contains(s.staff),
+          TimeSignature() => timeShown,
+        };
+        if (shown) {
+          start = math.min(start, s.x - data.staffSpace * 0.5);
+        } else {
           for (var i = s.commandStart; i < s.commandStart + s.commandCount; i++) {
             hidden.add(i);
           }
@@ -42,14 +54,17 @@ class EditChunk {
       }
     }
     final list = ScoreDisplayList.build(data, const RenderStyle(), hiddenCommands: hidden, indexSources: true);
-    return EditChunk._(from, to, data, list, hidden);
+    double left = start;
+    if (!left.isFinite) {
+      final l = list.staves.fold(double.infinity, (m, s) => math.min(m, s.inkLeft ?? double.infinity));
+      left = l.isFinite ? l : 0.0;
+    }
+    return EditChunk._(from, to, data, list, hidden, left);
   }
 
-  /// Where its ink starts (the staff lines' left) and its last barline.
-  late final double left = () {
-    final l = list.staves.fold(double.infinity, (m, s) => math.min(m, s.inkLeft ?? double.infinity));
-    return l.isFinite ? l : 0.0;
-  }();
+  /// Where it starts: its staff lines' left, or (after the first) where its first bar or the
+  /// first change it shows does; nothing left of it is drawn.
+  final double left;
   late final double right = data.measures.isEmpty ? data.width : data.measures.last.right;
   double get width => right - left;
 
@@ -163,8 +178,9 @@ class EditGalley {
         if (top - staffSpace * 12 > visible.bottom || top + layer.info.height + staffSpace * 12 < visible.top) continue;
         canvas
           ..save()
-          ..translate(shift.dx, shift.dy);
-        final left = visible.left - shift.dx, right = visible.right - shift.dx;
+          ..translate(shift.dx, shift.dy)
+          ..clipRect(ui.Rect.fromLTRB(c.left, -1e9, 1e12, 1e9)); // what the chunk starts with cut off
+        final left = math.max(visible.left - shift.dx, c.left), right = visible.right - shift.dx;
         for (final line in layer.lines) {
           if (line.right < left || line.left > right) continue;
           linePaint.strokeWidth = line.thickness;

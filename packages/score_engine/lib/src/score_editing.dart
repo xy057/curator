@@ -1270,19 +1270,33 @@ class EditableScore {
 
   /// Bars [from] to [to] (exclusive) as a score of their own, ids kept, for the editor's
   /// engraving: the first starts with what is in force there (clefs, key, time, divisions,
-  /// transposition). [timeShown]: whether the first bar has a time signature of its own.
-  ({String xml, bool timeShown}) chunk(int from, int to) {
+  /// transposition). What the first bar changes is said: [timeShown] whether the time signature,
+  /// [clefsShown] and [keysShown] the staves (numbered across the parts) whose clef or key.
+  ({String xml, bool timeShown, Set<int> clefsShown, Set<int> keysShown}) chunk(int from, int to) {
     final version = _document.rootElement.getAttribute('version') ?? '4.0';
     final b = StringBuffer('<?xml version="1.0" encoding="UTF-8"?><score-partwise version="$version">')..write(_header);
     var timeShown = from == 0;
+    final clefsShown = <int>{}, keysShown = <int>{};
+    var staff = 0; // staves of the parts before, as Verovio numbers them
     for (final part in parts) {
       b.write('<part id="${_escape(part.id)}">');
       for (var m = from; m < to && m < part._measures.length; m++) {
         final measure = part._measures[m];
         if (m == from && from > 0) {
+          // What the bar itself changes, against what was in force before it: shown at the
+          // chunk's start; what is only carried in is not.
+          final before = _contextsOf(part)[m];
+          if (_attributesAtStartOrNull(measure) case final own?) {
+            final after = _applyAttributes(before, own);
+            final (t0, t1) = (before.meter, after.meter);
+            if (t1 != null && (t0 == null || t0.beats != t1.beats || t0.beatType != t1.beatType || t0.symbol != t1.symbol)) timeShown = true;
+            final keyChanged = own.getElement('key') != null && (after.key.fifths != before.key.fifths || after.key.minor != before.key.minor);
+            for (var s = 1; s <= part.staves; s++) {
+              if (keyChanged) keysShown.add(staff + s);
+              if (after.clef(s) != before.clef(s)) clefsShown.add(staff + s);
+            }
+          }
           final copy = measure.copy();
-          final own = _attributesAtStartOrNull(copy);
-          if (own?.getElement('time') != null) timeShown = true;
           _carry(copy, _contextsOf(part)[m], part.staves);
           b.write(copy.toXmlString());
         } else {
@@ -1290,9 +1304,10 @@ class EditableScore {
         }
       }
       b.write('</part>');
+      staff += part.staves;
     }
     b.write('</score-partwise>');
-    return (xml: b.toString(), timeShown: timeShown);
+    return (xml: b.toString(), timeShown: timeShown, clefsShown: clefsShown, keysShown: keysShown);
   }
 
   static String _escape(String s) => s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');

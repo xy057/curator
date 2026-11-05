@@ -91,6 +91,26 @@ void main() {
     expect(chunk.data.measures.length, 8);
     expect(chunk.data.staves.length, greaterThanOrEqualTo(score.parts.length));
     chunk.dispose();
+    // A chunk after the first carries on the one before: the clefs and keys Verovio starts
+    // it with are cut off, all but a change the bar makes (bass clef at bar 25, top staff).
+    score.setClef(ScorePosition(0, score.defaultVoice(0, 1, 24), 24, Frac.zero), Clef.named('bass')!);
+    for (final from in [16, 24]) {
+      final c = await EditChunk.engrave(score, from, from + 8);
+      final start = c.data.measures.first.left;
+      final shown = [
+        for (final s in c.data.signatures)
+          if (s.x < start && !c.hides(s.commandStart)) s,
+      ];
+      if (from == 16) {
+        expect(shown, isEmpty);
+        expect(c.left, start);
+      } else {
+        expect([for (final s in shown) (s.runtimeType, s.staff)], [(ClefSignature, 1)]);
+        expect(c.left, lessThan(shown.single.x));
+      }
+      c.dispose();
+    }
+    score.undo();
     // And what was written reads as a score again.
     final again = EditableScore.parse(score.toMusicXML());
     expect(again.measureCount, bars);
