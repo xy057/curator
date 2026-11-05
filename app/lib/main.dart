@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
@@ -36,6 +37,7 @@ import 'phrase_search_window.dart';
 import 'project_document.dart';
 import 'project_file.dart';
 import 'project_tabs.dart';
+import 'score_editor.dart';
 import 'score_view.dart';
 import 'scratch_space.dart';
 import 'settings_dialog.dart';
@@ -1104,7 +1106,38 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     return true;
   }
 
-  void _projectSettings() => showProjectSettingsDialog(context, settings, controller, replaceScore: _replaceScore);
+  void _projectSettings() =>
+      showProjectSettingsDialog(context, settings, controller, replaceScore: _replaceScore, editScore: _editScore);
+
+  /// Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score's MusicXML in the score editor;
+  /// what is edited there replaces the score as Replace… does (this project's edits and
+  /// recording kept; asks first when the two differ).
+  Future<void> _editScore() async {
+    final loaded = controller.score;
+    if (loaded == null) return;
+    final name = '${stemOf(controller.fileName ?? document.title ?? 'Score')}.musicxml';
+    final EditableScore score;
+    try {
+      score = EditableScore.parse(loaded.musicXML);
+    } on Object catch (e) {
+      await _guard(() => Future.error(e), title: 'Couldn’t Edit Score'.tr);
+      return;
+    }
+    if (!mounted) return;
+    final xml = await showScoreEditor(context, score, name: name);
+    if (xml == null || !mounted) return;
+    await _guard(() async {
+      final replacement = await document.prepareReplacementWith(name, utf8.encode(xml));
+      if (!mounted) return;
+      if (replacement.differences.isNotEmpty &&
+          !await confirmReplaceScore(context, replacement.name, replacement.differences)) {
+        return;
+      }
+      await document.replaceScore(replacement);
+      final warnings = replacement.score.warnings;
+      if (warnings.isNotEmpty && mounted) await showImportWarnings(context, replacement.name, warnings);
+    }, title: 'Couldn’t Edit Score'.tr);
+  }
 
   /// Project Settings ▸ Project Info ▸ Score ▸ Replace…: another score file under this
   /// project's edits and recording; asks first when the two differ.

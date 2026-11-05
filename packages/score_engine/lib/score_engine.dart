@@ -19,6 +19,8 @@ export 'src/midi_tempo.dart';
 export 'src/phrase_search.dart';
 export 'src/score_metadata.dart';
 export 'src/score_motion.dart';
+export 'src/score_edit_view.dart';
+export 'src/score_editing.dart';
 export 'src/score_caption.dart'
     show Caption, CaptionAlign, CaptionBar, CaptionCountdown, CaptionRun, CaptionSize, CaptionSpan, CaptionStyle, captionOverlapping, captionPlain, captionRoom, captionRuns, captionSpans, separateCaptions;
 export 'src/score_fonts.dart';

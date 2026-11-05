@@ -26,6 +26,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `take_splice.dart` | `TakeSplice`: a performance spliced from several recordings' syncs by their lanes, and its sound as crossfaded `SoundChunk`s |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
+| `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time (`EditChunk`) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
@@ -64,6 +65,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `typography_settings.dart` | Project Settings ▸ Engraving ▸ Typography: a row per property of each kind of text (`TypographySetting.all`), a slider or a style each |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
+| `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -828,6 +830,32 @@ in document order shift). What has no place (past the new last bar, a removed in
 text) is dropped. When the files differ (instruments, bars, time signatures, bar lengths,
 tempo, edits lost) a dialog lists it before anything changes. Undo starts again from the
 replacement: its steps were of the old file.
+
+**The score is edited as MusicXML, then replaced.** Project Settings ▸ Project Info ▸ Score ▸
+Edit… opens the score's MusicXML (`LoadedScore.musicXML`) in an editor over the window
+(`score_editor.dart`); Done hands back the file as edited, which goes in as Replace… would
+(`ProjectDocument.prepareReplacementWith`, the same carrying over, dialog and fresh Undo); nothing
+edited, or Cancel, changes nothing. `EditableScore` (`score_editing.dart`) keeps the document's
+elements and edits them in place, never a model of its own written back out, so what it doesn't
+know (sounds, layout hints, other notations) is kept as it was. It gives every note, rest, bar,
+direction and slur an id `cxeN` (an id it had is kept aside and restored on export); Verovio
+keeps those ids and the bridge records them (`EditorId`), so a click finds the element drawn
+there (`ScoreDisplayList.sourced`). A bar is never changed in place but copied, so Undo is a list
+of each part's bars (`edit` makes one step of whatever it wraps). After every change it tidies the
+bars it touched: rests merged and written by the beat, a voice filled or dropped, beams by the
+time signature's groups, tuplet brackets, accidentals spelled for the key and the bar.
+The view is a galley, one endless system: the score is engraved in chunks of `EditChunk.bars`
+bars (each starting with the clefs, key and time carried into it, then cut off at its first bar
+so a chunk carries on the one before: of Verovio's system start only a clef, key or time
+signature the bar itself changes stays), only the chunks an edit touched again, nearest the view first, three at a
+time, and laid end to end with staves aligned to the widest gap any chunk needs. The keys are
+Dorico's: ⇧N or Enter note input, 1–9 note values (6 a quarter), `.` dot, `-` `=` `0` flat,
+sharp, natural, A–G a note at the nearest octave (⇧⌥ adds to the chord; Q chord mode), `,` rest,
+Space on, T tie, S slur, V the next voice, R repeat, ⌥↑↓ a step, ⌘⌥↑↓ an octave, `[` `]` `{` `}`
+`'` articulations, and the popovers: ⇧D dynamics and hairpins, ⇧T tempo, ⇧M time, ⇧K key,
+⇧C clef, ⇧X text, ⇧B bars (`+2`, `-1`) and barlines, ⇧H holds, ⇧O ornaments, ⇧L lyrics (Space
+or `-` to the next note), `;` a tuplet (`:` ends it). A time signature change fills or cuts bars
+rather than rebarring the music after it.
 
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;
