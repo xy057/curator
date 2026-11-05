@@ -60,9 +60,10 @@ Future<void> showSettingsDialog(
 
 /// Edit ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
 /// ([_projectCategories]). Each change is an edit: an Undo step, saved with the project.
-/// [replaceScore] is Project Info's Replace… (the app's, which asks first).
+/// [replaceScore] is Project Info's Replace… (the app's, which asks first); [editScore] its
+/// Edit…, called once this window is gone.
 Future<void> showProjectSettingsDialog(BuildContext context, AppSettings settings, EditorController controller,
-        {String? page, Future<void> Function()? replaceScore}) =>
+        {String? page, Future<void> Function()? replaceScore, Future<void> Function()? editScore}) =>
     _showWindow(
       context,
       _SettingsWindow(
@@ -72,6 +73,7 @@ Future<void> showProjectSettingsDialog(BuildContext context, AppSettings setting
         updater: Updater(), // nothing here asks it
         page: page,
         replaceScore: replaceScore,
+        editScore: editScore,
       ),
     );
 
@@ -187,6 +189,7 @@ typedef _Context = ({
   EditorController? controller,
   Updater updater,
   Future<void> Function()? replaceScore,
+  Future<void> Function()? editScore,
 });
 
 final _categories = <_Category>[
@@ -352,8 +355,22 @@ final _projectCategories = <_Category>[
     _Item(
       'Score',
       (c) => c.controller!.fileName ?? '',
-      (c) => OutlinedButton(onPressed: c.replaceScore, child: Text('Replace…'.tr)),
-      keywords: 'replace score file musicxml mei import',
+      (c) => Builder(
+        builder: (context) => Row(mainAxisSize: MainAxisSize.min, children: [
+          OutlinedButton(
+            onPressed: c.editScore == null || c.controller?.score == null
+                ? null
+                : () {
+                    Navigator.pop(context); // the editor takes the window
+                    c.editScore!();
+                  },
+            child: Text('Edit…'.tr),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(onPressed: c.replaceScore, child: Text('Replace…'.tr)),
+        ]),
+      ),
+      keywords: 'edit editor replace score file musicxml mei import notes write',
     ),
     _Item(
       'Recording',
@@ -774,9 +791,15 @@ String _autosaveLabel(Duration d) => switch (d) {
 
 class _SettingsWindow extends StatefulWidget {
   const _SettingsWindow(
-      {required this.kind, required this.settings, this.controller, required this.updater, this.page, this.replaceScore});
+      {required this.kind,
+      required this.settings,
+      this.controller,
+      required this.updater,
+      this.page,
+      this.replaceScore,
+      this.editScore});
   final _Window kind;
-  final Future<void> Function()? replaceScore;
+  final Future<void> Function()? replaceScore, editScore;
   final AppSettings settings;
   final EditorController? controller;
   final Updater updater;
@@ -813,7 +836,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     final overlay = Overlay.of(context, rootOverlay: true);
     Navigator.pop(context);
     _EngravingWindow.show(
-        overlay, tab, (settings: widget.settings, controller: widget.controller, updater: Updater(), replaceScore: null));
+        overlay, tab, (settings: widget.settings, controller: widget.controller, updater: Updater(), replaceScore: null, editScore: null));
   }
   final _search = TextEditingController();
 
@@ -833,6 +856,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         controller: widget.controller,
         updater: widget.updater,
         replaceScore: widget.replaceScore,
+        editScore: widget.editScore,
       );
 
   /// Items matching the search, with their category; null when not searching.

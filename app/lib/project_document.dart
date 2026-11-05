@@ -130,6 +130,10 @@ class ProjectDocument extends ChangeNotifier {
   Future<ScoreReplacement> prepareReplacement(String path) =>
       _oneAtATime(() => controller.prepareReplacement(path));
 
+  /// [prepareReplacement] for a score's [bytes] (the score editor's).
+  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes) =>
+      _oneAtATime(() => controller.prepareReplacementWith(name, bytes));
+
   /// Puts [replacement] in place of the score: the project, its path and recording stay,
   /// with unsaved changes.
   Future<void> replaceScore(ScoreReplacement replacement) =>

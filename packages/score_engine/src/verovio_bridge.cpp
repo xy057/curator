@@ -409,6 +409,10 @@ private:
     data_HORIZONTALALIGNMENT m_textAlignment = HORIZONTALALIGNMENT_left;
     bool m_newTextBlock = true;
 
+    /// The score editor's ids (`cxe1`…, on notes, rests, dynamics, hairpins, slurs): what it draws
+    /// is told apart by them, so a click finds its note. A score never has them otherwise.
+    static bool EditorId(const std::string &id) { return id.size() > 3 && id.compare(0, 3, "cxe") == 0; }
+
     static int StaffNumberFor(Object *object)
     {
         if (object->Is(STAFF)) return vrv_cast<Staff *>(object)->GetN();
@@ -431,7 +435,7 @@ private:
         if (staff < 0) staff = m_owners.empty() ? 0 : m_owners.back().staff;
         const int cls = this->Intern(classNames, m_classIndex, object->GetClassName());
         int source = m_owners.empty() ? -1 : m_owners.back().sourceIndex;
-        if (object->Is(DIR) || object->Is(TEMPO) || object->Is(REH)) {
+        if (object->Is(DIR) || object->Is(TEMPO) || object->Is(REH) || EditorId(object->GetID())) {
             source = this->Intern(sourceIds, m_sourceIndex, object->GetID());
         }
         Owner owner{ staff, cls, int(commands.size()), source };

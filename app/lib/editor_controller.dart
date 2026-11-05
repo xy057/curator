@@ -222,9 +222,12 @@ class EditorController extends ChangeNotifier {
   /// Project Info ▸ Replace Score: engraves the score file at [path] with this project's edits
   /// carried over to it ([ScoreSwap]), and says what differs. Nothing changes until
   /// [replaceScore].
-  Future<ScoreReplacement> prepareReplacement(String path) async {
+  Future<ScoreReplacement> prepareReplacement(String path) async =>
+      prepareReplacementWith(fileNameOf(path), await File(path).readAsBytes());
+
+  /// [prepareReplacement] for a score's [bytes] (the score editor's), named [name].
+  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes) async {
     final before = _score!;
-    final bytes = await File(path).readAsBytes();
     // Read once for what it holds (its texts as written: the edits are carried by them), and
     // once more as engraved.
     final xml = ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
@@ -243,7 +246,7 @@ class EditorController extends ChangeNotifier {
     final (state: carried, :lost) =
         swap.carry(state, condensable: condensable, measuresBefore: measures.before, measuresAfter: measures.after);
     return ScoreReplacement(
-      name: fileNameOf(path),
+      name: name,
       bytes: bytes,
       score: score,
       state: carried,

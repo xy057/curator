@@ -179,7 +179,7 @@ class RenderStyle {
 
 /// The engraving converted to drawable items, one layer per staff.
 class ScoreDisplayList {
-  ScoreDisplayList._(this.data, this.staves, this.barlines, this.apart);
+  ScoreDisplayList._(this.data, this.staves, this.barlines, this.apart, [this.sourced = const {}]);
 
   final EngravingData data;
   final List<StaffLayer> staves;
@@ -191,6 +191,10 @@ class ScoreDisplayList {
   /// left to right: not in any staff's layer. [baseline]: its first text's (a box's height is
   /// the music font's line, far taller than its ink).
   final List<({String id, List<DisplayItem> items, ui.Rect bounds, double baseline})> apart;
+
+  /// With [build]'s `indexSources`: the items drawn for each element the score editor tagged (by
+  /// id, `cxe…`), each with its staff. They are in the staves' layers too.
+  final Map<String, List<({int staff, DisplayItem item})>> sourced;
 
   /// Releases the laid-out text and glyphs (glyphs are shared between items).
   void dispose() {
@@ -216,8 +220,10 @@ class ScoreDisplayList {
       {Set<int> withoutKeySignatures = const {},
       Set<int> hiddenCommands = const {},
       Map<String, String> apart = const {},
-      Map<int, ({double height, bool lines})> spacers = const {}}) {
+      Map<int, ({double height, bool lines})> spacers = const {},
+      bool indexSources = false}) {
     final builder = _ItemBuilder(data, style);
+    final sourced = <String, List<({int staff, DisplayItem item})>>{};
     final byStaff = <int, List<DisplayItem>>{};
     final barlineItems = <DisplayItem>[];
     final lines = <int, List<StaffLine>>{};
@@ -260,6 +266,9 @@ class ScoreDisplayList {
       final item = builder.item(i);
       if (item == null) continue;
       (staff == 0 ? barlineItems : byStaff.putIfAbsent(staff, () => [])).add(item);
+      if (indexSources && source >= 0 && source < data.sourceIds.length && data.sourceIds[source].startsWith('cxe')) {
+        sourced.putIfAbsent(data.sourceIds[source], () => []).add((staff: staff, item: item));
+      }
     }
     final binWidth = data.staffSpace * 16;
     return ScoreDisplayList._(
@@ -296,6 +305,7 @@ class ScoreDisplayList {
               },
             ),
       ]..sort((a, b) => a.bounds.left.compareTo(b.bounds.left)),
+      sourced,
     );
   }
 
