@@ -81,6 +81,7 @@ class LoadedPage {
         captionStyle: page.captionStyle,
         sections: edits.groupSections,
         sectionOverrides: edits.sections,
+        instrumentSpacing: edits.spacing,
         barNumbers: barNumbers && edits.barNumbers,
         rehearsalInRow: edits.rehearsalInRow ?? true,
         nameColors: page.nameColors,

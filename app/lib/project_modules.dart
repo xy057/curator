@@ -259,7 +259,11 @@ final class _Extensions extends ProjectModule {
 
 /// What the user set for each instrument, by part id: order, names, sections, name groups, pairs.
 final class _Instruments extends ProjectModule {
-  const _Instruments() : super('instruments');
+  const _Instruments() : super('instruments', version: 2);
+
+  /// 2 added `spacing`, which an older build would drop.
+  @override
+  Map<int, Map<String, Object?> Function(Map<String, Object?>)> get migrations => {1: (json) => json};
 
   @override
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files) {
@@ -274,6 +278,7 @@ final class _Instruments extends ProjectModule {
       'groupOf': e.nameGroupOf,
       'condensed': [...e.condensed],
       'pairs': [for (final p in e.pairs) p.partIds],
+      'spacing': {for (final MapEntry(key: id, value: r) in e.spacing.entries) id: [r.above, r.below]},
     };
   }
 
@@ -317,6 +322,13 @@ final class _Instruments extends ProjectModule {
               _ => throw _damaged('${r.where}.pairs[$i] is not two part ids.'),
             },
         ],
+        spacing: {
+          for (final MapEntry(key: id, value: room) in r.map('spacing').entries)
+            id: switch (JsonReader.numbers(room, '${r.where}.spacing.$id', 2)) {
+              [final above!, final below!] when above.abs() <= EditState.maxSpacing && below.abs() <= EditState.maxSpacing => (above: above, below: below),
+              _ => throw _damaged('${r.where}.spacing.$id is not room above and below.'),
+            },
+        },
       ),
     );
   }
@@ -338,10 +350,15 @@ final class _Texts extends ProjectModule {
       );
 }
 
-/// When each instrument is shown: its regions, `[start, end]` or `[start, end, in, out]` in
-/// seconds of the score, the last two a transition of its own (null: the project's).
+/// When each instrument is shown: its regions, `[start, end]`, `[start, end, in, out]` or
+/// `[start, end, in, out, [staff…]]` in quarters of the score, the transitions its own (null: the
+/// project's), the staves the staves of the instrument it leaves out.
 final class _Curation extends ProjectModule {
-  const _Curation() : super('curation');
+  const _Curation() : super('curation', version: 2);
+
+  /// 2 added a region's staves left out, which an older build would refuse as damaged.
+  @override
+  Map<int, Map<String, Object?> Function(Map<String, Object?>)> get migrations => {1: (json) => json};
 
   @override
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {
@@ -354,9 +371,14 @@ final class _Curation extends ProjectModule {
           },
       };
 
-  /// A region as saved: `[start, end]`, or `[start, end, in, out]` with transitions of its own.
-  static List<Object?> regionJson(Region r) =>
-      [r.start, r.end, if (r.transitionIn != null || r.transitionOut != null) ...[r.transitionIn, r.transitionOut]];
+  /// A region as saved: `[start, end]`, `[start, end, in, out]` with transitions of its own, and
+  /// the staves it leaves out after them.
+  static List<Object?> regionJson(Region r) => [
+        r.start,
+        r.end,
+        if (r.transitionIn != null || r.transitionOut != null || r.hiddenStaves.isNotEmpty) ...[r.transitionIn, r.transitionOut],
+        if (r.hiddenStaves.isNotEmpty) r.hiddenStaves,
+      ];
 
   @override
   ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) => state.copyWith(
@@ -375,13 +397,21 @@ final class _Curation extends ProjectModule {
       );
 
   static Region readRegion(Object? json, String where) {
+    final hidden = switch (json) {
+      [_, _, _, _, final List<Object?> staves] => [
+          for (final (i, n) in staves.indexed)
+            n is int && n >= 1 && n <= 16 ? n : throw _damaged('$where[4][$i] is not a staff of the instrument.'),
+        ],
+      _ => const <int>[],
+    };
+    if (hidden.isNotEmpty) json = (json as List).sublist(0, 4);
     final [start!, end!, transitionIn, transitionOut] = JsonReader.numbers(json, where, 4, optional: 2);
     if (start < 0) throw _damaged('$where starts before the score.');
     if (end < start) throw _damaged('$where ends before it starts.');
     for (final s in [transitionIn, transitionOut]) {
       if (s != null && (s < 0 || s > _Display.maxTransition)) throw _damaged('$where has a transition that is not a length of time.');
     }
-    return Region(start, end, transitionIn: transitionIn, transitionOut: transitionOut);
+    return Region(start, end, transitionIn: transitionIn, transitionOut: transitionOut).withHiddenStaves(hidden);
   }
 }
 

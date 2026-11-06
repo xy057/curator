@@ -11,18 +11,26 @@ import 'search.dart';
 /// Stored in score quarters (quarter notes from the start of the performance), so regions
 /// stay attached to the music when the audio sync changes.
 ///
-/// A region also has properties of its own (so far its transitions: [transitionIn] at its
-/// start, [transitionOut] at its end); null means the curation's. They go with it wherever it
-/// is moved, trimmed, split or copied, and a merge keeps each one either region set
-/// ([joinedWith]).
+/// A region also has properties of its own: its transitions ([transitionIn] at its start,
+/// [transitionOut] at its end; null means the curation's) and which of the instrument's staves
+/// it leaves out ([hiddenStaves]). They go with it wherever it is moved, trimmed, split or
+/// copied, and a merge keeps each one either region set ([joinedWith]). Regions that hide
+/// different staves are never merged: they meet, and the staves glide there.
 @immutable
 class Region {
-  const Region(this.start, this.end, {this.transitionIn, this.transitionOut})
+  const Region(this.start, this.end, {this.transitionIn, this.transitionOut, this.hiddenStaves = const []})
       : assert(end >= start),
         assert(transitionIn == null || transitionIn >= 0),
         assert(transitionOut == null || transitionOut >= 0);
   final double start;
   final double end;
+
+  /// The instrument's staves it doesn't show, by number in the part (1 its top one), in
+  /// order: a piano's left hand left out where the score leaves it out. Never all of them.
+  final List<int> hiddenStaves;
+
+  /// Whether it shows staff [n] (1 the part's top one).
+  bool showsStaff(int n) => !hiddenStaves.contains(n);
 
   /// Seconds for the staff to enter at [start]; null: the curation's [Curation.transition].
   final double? transitionIn;
@@ -34,22 +42,30 @@ class Region {
   bool overlaps(Region other) => start <= other.end && other.start <= end;
 
   /// Whether every property is the curation's.
-  bool get hasDefaultProperties => transitionIn == null && transitionOut == null;
+  bool get hasDefaultProperties => transitionIn == null && transitionOut == null && hiddenStaves.isEmpty;
 
   /// This region between [start] and [end], with the same properties.
-  Region withBounds(double start, double end) => Region(start, end, transitionIn: transitionIn, transitionOut: transitionOut);
+  Region withBounds(double start, double end) =>
+      Region(start, end, transitionIn: transitionIn, transitionOut: transitionOut, hiddenStaves: hiddenStaves);
 
   /// This region with its own transitions (null: the curation's) at the edges asked for:
   /// [atStart] ([transitionIn]) and [atEnd] ([transitionOut]).
   Region withTransition(double? seconds, {bool atStart = true, bool atEnd = true}) => Region(start, end,
-      transitionIn: atStart ? seconds : transitionIn, transitionOut: atEnd ? seconds : transitionOut);
+      transitionIn: atStart ? seconds : transitionIn, transitionOut: atEnd ? seconds : transitionOut, hiddenStaves: hiddenStaves);
+
+  /// This region leaving out [staves] (numbers in the part; sorted, each once).
+  Region withHiddenStaves(Iterable<int> staves) => Region(start, end,
+      transitionIn: transitionIn, transitionOut: transitionOut, hiddenStaves: List.unmodifiable(({...staves}.toList()..sort())));
 
   /// This region and [later] (which starts no earlier) as one: from this one's start to the
-  /// further end. Each edge keeps the transition of the region it came from, else the other's.
+  /// further end. Each edge keeps the transition of the region it came from, else the other's;
+  /// the staves left out are this one's.
   Region joinedWith(Region later) {
     final (last, other) = later.end > end ? (later, this) : (this, later);
     return Region(start, last.end,
-        transitionIn: transitionIn ?? later.transitionIn, transitionOut: last.transitionOut ?? other.transitionOut);
+        transitionIn: transitionIn ?? later.transitionIn,
+        transitionOut: last.transitionOut ?? other.transitionOut,
+        hiddenStaves: hiddenStaves);
   }
 
   @override
@@ -58,12 +74,14 @@ class Region {
       other.start == start &&
       other.end == end &&
       other.transitionIn == transitionIn &&
-      other.transitionOut == transitionOut;
+      other.transitionOut == transitionOut &&
+      listEquals(other.hiddenStaves, hiddenStaves);
   @override
-  int get hashCode => Object.hash(start, end, transitionIn, transitionOut);
+  int get hashCode => Object.hash(start, end, transitionIn, transitionOut, Object.hashAll(hiddenStaves));
   @override
   String toString() => 'Region($start–$end'
-      '${transitionIn == null ? '' : ', in ${transitionIn}s'}${transitionOut == null ? '' : ', out ${transitionOut}s'})';
+      '${transitionIn == null ? '' : ', in ${transitionIn}s'}${transitionOut == null ? '' : ', out ${transitionOut}s'}'
+      '${hiddenStaves.isEmpty ? '' : ', without $hiddenStaves'})';
 }
 
 /// A stretch of playback time a lane is shown, with the seconds it takes to fade in and out.
@@ -119,6 +137,23 @@ class Curation extends ChangeNotifier {
         if (start.isFinite) yield (seconds: start, transition: fadeIn);
         if (end.isFinite) yield (seconds: end, transition: fadeOut);
       }
+      // Where two regions meet, leaving out different staves.
+      for (final (seconds, transition, _, _) in _meetings(lane, timeline)) {
+        yield (seconds: seconds, transition: transition);
+      }
+    }
+  }
+
+  /// Every time two regions of [lane] meet (they leave out different staves; see
+  /// [_normalize]), once in each pass that plays it: the seconds, the transition (the longer of
+  /// the two edges'), and the regions before and after.
+  Iterable<(double, double, Region, Region)> _meetings(List<Region> lane, ScoreTimeline timeline) sync* {
+    for (var i = 1; i < lane.length; i++) {
+      final (a, b) = (lane[i - 1], lane[i]);
+      if (b.start > a.end + 1e-6) continue;
+      for (final (pass: _, :seconds) in timeline.timesOf(b.start)) {
+        yield (seconds, math.max(transitionOutOf(a), transitionInOf(b)), a, b);
+      }
     }
   }
 
@@ -139,7 +174,7 @@ class Curation extends ChangeNotifier {
             fadeOut: transitionOutOf(r),
           ),
     ];
-    if (passes.length == 1) return spans; // regions never touch (see [_normalize])
+    // Regions meet only where they leave out different staves ([_normalize]): shown on through.
     spans.sort((a, b) => a.start.compareTo(b.start));
     final joined = <_Span>[];
     for (final s in spans) {
@@ -281,14 +316,19 @@ class Curation extends ChangeNotifier {
     return lo + (length > 0 ? (q - starts[lo]) / length : 0);
   }
 
+  /// [regions] sorted, and those that overlap or meet made one; but of two that leave out
+  /// different staves, the later one only goes on past the earlier one's end, meeting it.
   static List<Region> _normalize(List<Region> regions) {
     final sorted = regions.where((r) => r.length > 1e-6).toList()..sort((a, b) => a.start.compareTo(b.start));
     final merged = <Region>[];
     for (final r in sorted) {
-      if (merged.isNotEmpty && r.start <= merged.last.end + 1e-6) {
-        merged.last = merged.last.joinedWith(r);
-      } else {
+      final last = merged.lastOrNull;
+      if (last == null || r.start > last.end + 1e-6) {
         merged.add(r);
+      } else if (listEquals(r.hiddenStaves, last.hiddenStaves)) {
+        merged.last = last.joinedWith(r);
+      } else if (r.end > last.end + 1e-6) {
+        merged.add(r.withBounds(last.end, r.end));
       }
     }
     return List.unmodifiable(merged);
@@ -359,6 +399,54 @@ class Curation extends ChangeNotifier {
             return v;
           }(),
       };
+
+  /// The staves of [partId] the region shown at [seconds] leaves out ([Region.hiddenStaves]):
+  /// the nearest region's between regions, and before or after the performance (where one
+  /// reaching its start or end goes on showing).
+  List<int> hiddenStavesAt(String partId, double seconds, ScoreTimeline timeline) {
+    final lane = this.lane(partId);
+    if (lane.every((r) => r.hiddenStaves.isEmpty)) return const [];
+    return (_regionAt(lane, seconds, timeline) ?? _nearestRegion(lane, seconds, timeline))?.hiddenStaves ?? const [];
+  }
+
+  /// 0…1: how much of staff [n] of [partId] shows at [seconds], as far as its regions say
+  /// ([Region.hiddenStaves]; [visibilityAt] says how much the instrument shows). Where two
+  /// regions meet, a staff one leaves out and the other shows fades over the transition there,
+  /// centred on it; [curve] shapes the fade.
+  double staffVisibilityAt(String partId, int n, double seconds, ScoreTimeline timeline,
+      {MotionCurve curve = MotionCurve.smooth}) {
+    final lane = this.lane(partId);
+    if (lane.every((r) => r.hiddenStaves.isEmpty)) return 1;
+    for (final (at, transition, a, b) in _meetings(lane, timeline)) {
+      if (a.showsStaff(n) == b.showsStaff(n) || (seconds - at).abs() > transition / 2) continue;
+      final p = curve.inside(_ramp(seconds - at, transition));
+      return b.showsStaff(n) ? p : 1 - p;
+    }
+    return (_regionAt(lane, seconds, timeline) ?? _nearestRegion(lane, seconds, timeline))?.showsStaff(n) ?? true ? 1 : 0;
+  }
+
+  /// The region of [lane] playing at [seconds], in whichever pass.
+  Region? _regionAt(List<Region> lane, double seconds, ScoreTimeline timeline) {
+    for (final r in lane) {
+      for (final s in timeline.spans(r.start, r.end)) {
+        if (seconds >= s.startSeconds && seconds < s.endSeconds) return r;
+      }
+    }
+    return null;
+  }
+
+  /// The region of [lane] nearest [seconds], whose staves fade in or out with it.
+  Region? _nearestRegion(List<Region> lane, double seconds, ScoreTimeline timeline) {
+    Region? best;
+    var distance = double.infinity;
+    for (final r in lane) {
+      for (final s in timeline.spans(r.start, r.end)) {
+        final d = seconds < s.startSeconds ? s.startSeconds - seconds : seconds - s.endSeconds;
+        if (d < distance) (best, distance) = (r, d);
+      }
+    }
+    return best;
+  }
 
   /// 0…1 at [past] seconds past an edge whose ramp lasts [length], centred on it.
   static double _ramp(double past, double length) =>

@@ -902,4 +902,8 @@ const zhHans = <String, String>{
   '{bars} bars · {systems} systems': '{bars} 小节 · {systems} 个系统',
   '{n} of {count}': '{n} / {count}',
   '×{n}': '×{n}',
+  'Spacing of {name}': '{name} 的间距',
+  'Spacing…': '间距…',
+  'Above (spaces)': '上方（间）',
+  'Below (spaces)': '下方（间）',
 };

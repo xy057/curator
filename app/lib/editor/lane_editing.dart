@@ -222,7 +222,10 @@ class LaneEditing {
 
   /// Replaces the selected regions with [edit] of each (given its selected edges), as one
   /// undo step, and keeps the results selected at the same edges.
-  void _editSelected(Region? Function(Region r, RegionEdges edges) edit) {
+  void _editSelected(Region? Function(Region r, RegionEdges edges) edit) => _editSelectedIn((_, r, edges) => edit(r, edges));
+
+  /// [_editSelected], told each region's lane too.
+  void _editSelectedIn(Region? Function(String partId, Region r, RegionEdges edges) edit) {
     final curation = _curation;
     final selected = _valid;
     if (curation == null || selected.isEmpty) return;
@@ -232,7 +235,7 @@ class LaneEditing {
       final mine = {for (final MapEntry(key: r, value: edges) in selected.entries) if (r.partId == id) r.region: edges};
       final edited = [
         for (final MapEntry(key: r, value: edges) in mine.entries)
-          if (edit(r, edges) case final e?) (e, edges),
+          if (edit(id, r, edges) case final e?) (e, edges),
       ];
       lanes[id] = [for (final r in curation.lane(id)) if (!mine.containsKey(r)) r, for (final (e, _) in edited) e];
       for (final (e, edges) in edited) {
@@ -283,6 +286,33 @@ class LaneEditing {
   /// project's), as one step.
   void setTransition(double? seconds) =>
       _editSelected((r, edges) => r.withTransition(seconds, atStart: edges.hasStart, atEnd: edges.hasEnd));
+
+  /// How many staves the instrument of [partId] is on: each a region can leave out.
+  int staffCountOf(String partId) =>
+      _editor._score?.metadata.parts.where((p) => p.id == partId).firstOrNull?.staffNumbers.length ?? 1;
+
+  /// The most staves an instrument of the selected regions is on (1: none is on more).
+  int get selectedStaffCount => _valid.keys.map((r) => staffCountOf(r.partId)).fold(1, math.max);
+
+  /// For each staff from 1 to [selectedStaffCount]: whether the selected regions (of instruments
+  /// on that many staves) show it, true all, false none, null some.
+  List<bool?> get selectedStavesShown => [
+        for (var n = 1; n <= selectedStaffCount; n++)
+          {
+            for (final r in _valid.keys)
+              if (staffCountOf(r.partId) >= n) r.region.showsStaff(n),
+          }.singleOrNull,
+      ];
+
+  /// Shows or leaves out staff [n] in the selected regions of instruments on that many staves,
+  /// as one step; a region keeps at least one staff.
+  void setStaffShown(int n, bool shown) => _editSelectedIn((id, r, _) {
+        final count = staffCountOf(id);
+        if (count < n) return r;
+        final hidden = {...r.hiddenStaves};
+        shown ? hidden.remove(n) : hidden.add(n);
+        return hidden.length >= count ? r : r.withHiddenStaves(hidden);
+      });
 
   /// Gives one region new bounds and properties (the region dialog).
   void setRegion(RegionRef ref, Region region) {

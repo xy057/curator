@@ -223,7 +223,9 @@ first staff and below the last (`margin`, the bar numbers' row inside it) and th
 staves (`minGap`, `maxGap`: `StaffStack.layout` shares the free height out between them; the least
 holds even if the staves then run past the frame, and a most below it is the least; the staves are
 centred, so the margin tells only while the share is between the two), points in the frame, as the plan's
-key; the staves' glide (`SpacingPlan` and
+key; an instrument's own room above and below (a lane's ⋯ ▸ Spacing…, `EditState.spacing`, staff
+spaces, negative takes some away, saved in `instruments` from its version 2; `CuratedScene.instrumentSpacing`)
+is added to its ink's reach, so the shared gaps make way for it; the staves' glide (`SpacingPlan` and
 `KeyColumnPlan`'s blend) and fade (`Curation.visibilityAt`'s ramp, then the ink after `inkDelay`,
 `ScoreMotion.inkFor`); the scroll's settle and slowest speed (`ScrollMap.withMotion`: a new slowest
 speed solves the notes' curves again, a new settle only re-ends them); the ending's fade
@@ -608,17 +610,26 @@ bar by bar), since it may have been made while the segment around was fuller; a 
 for one bar between cuts goes. Each try plans the piece (a millisecond or two for the demo).
 Condensed pairs are their first player's lane, louder of the two. Lanes not asked for stay.
 
-**A region carries its properties.** Besides its bounds a region has properties of its own
-(so far its transitions: how long its staff glides in at its start, `Region.transitionIn`, and
-out at its end, `transitionOut`; null is the project's, `Curation.transition`). Every edit that
+**A region carries its properties.** Besides its bounds a region has properties of its own:
+its transitions (how long its staff glides in at its start, `Region.transitionIn`, and out at
+its end, `transitionOut`; null is the project's, `Curation.transition`) and the staves of its
+instrument it leaves out (`Region.hiddenStaves`, numbers in the part, never all of them: a
+piano's left hand where the score leaves it out). Every edit that
 reshapes a region keeps them (`withBounds`: moving, trimming, a split by erasing, copying a
 lane); a merge keeps each edge's from the region it came from, else the other's
-(`joinedWith`). They are part of the region's equality, so Undo, saving (`transitionIn` /
-`transitionOut` on a region in the project, from format 6) and video export follow without
+(`joinedWith`; its staves, the earlier one's). Regions that leave out different staves are
+never merged (`Curation._normalize`): where they overlap the later one gives way, so they meet,
+and the meeting is an edge of its own (`Curation._meetings`, in `edgesInSeconds`) where the staff
+coming or going fades (`staffVisibilityAt`) and the instrument's staves glide together while the
+instrument stays shown (its spans are joined there). They are part of the region's equality, so Undo, saving (`transitionIn` /
+`transitionOut` on a region in the project, from format 6; its staves a fifth item, from
+`curation`'s version 2) and video export follow without
 more code. The layout glides over each edge's own transition (the longest where edges fall
 together; key changes and warps use the project's). A region's properties are set in its
 dialog (double-click it), or at every selected edge at once in the Instruments tab's
-toolbar (`LaneEditing.setTransition`). A selection is of edges: a click in a region's middle
+toolbar (`LaneEditing.setTransition`; the staves by its ≡ menu, `setStaffShown`, shown while
+a selected region's instrument is on more than one staff). A region leaving out staves shows
+its instrument's staves stacked in its middle, those it shows filled. A selection is of edges: a click in a region's middle
 selects the region (`RegionEdges.both`), a click on an edge only that edge
 (`LaneEditing.selection`); moving and deleting take the regions, trimming (a drag, `[`/`]`)
 and transitions only the edges selected. An edge with its own transition shows it beside it.
@@ -687,8 +698,9 @@ shows only the first (`EditorController.laneParts`), named for both.
 **The instruments' order is a layout, not an engraving.** Verovio engraves in score order,
 but every staff is drawn on its own (Verovio's brackets and system labels are left out; the
 frozen zone draws a brace for an instrument on more than one staff, `StaffBrace`; its staves
-move as one, as far apart as Verovio put them, where cross-staff notes were placed, and its
-barlines run on between them, `ScoreRenderer.barlinesThrough`), so the
+move as one, as far apart as Verovio put them, where cross-staff notes were placed, a staff a
+region leaves out taking no room, and its barlines run on between the staves shown, a
+`StaffJoin` without the starting line; `ScoreRenderer.barlinesThrough`), so the
 preview stacks them in `CuratedScene.partOrder`: the user's order (hold a lane's name in the
 Instruments tab and drag it, or its ⋯ menu), then any part it lacks in score order. Changing
 it only re-plans the layout, like condensing. It is an edit (`partOrder` in `EditState`, and
@@ -716,8 +728,8 @@ Reset gives every instrument its own. While a bracket is dragged the score behin
 bracket (`StaffBracket`, the font's hooks at its ends; set out past the braces when one of its
 instruments has them, the names then stopping short of it), its barlines run on between its staves
 (not the voices', which leave room for words), and the starting line runs through every staff
-(`StaffJoin`). The room between staves changes as they come and go, so unlike an instrument's
-barlines (baked into its tiles) these are drawn each frame: each barline's strokes
+(`StaffJoin`). The room between staves changes as they come and go, so these are drawn each
+frame, as an instrument's own are (a tile's barlines cross only its staff's lines): each barline's strokes
 (`ScoreRenderer._barlineStrokes`) from where the staff above's end to where the one below's begin.
 A section stays bracketed while any of its staves shows, one alone too; the bracket's ends follow
 a staff fading in or out at either end, and it fades with the last.

@@ -10,6 +10,7 @@ import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'file_names.dart';
+import 'project_state.dart';
 import 'menu_kit.dart';
 import 'score_replacement.dart' show ScoreSwap;
 import 'ui_kit.dart';
@@ -85,6 +86,78 @@ class _Bullets extends StatelessWidget {
 }
 
 /// Rename an instrument: the full name and the short name used when space is tight.
+/// A lane's ⋯ ▸ Spacing…: room of the instrument's own above and below it, staff spaces;
+/// negative takes some away.
+Future<void> showSpacingDialog(BuildContext context, EditorController c, ScorePart part) =>
+    showAppDialog<void>(context: context, builder: (context) => _SpacingDialog(controller: c, part: part));
+
+class _SpacingDialog extends StatefulWidget {
+  const _SpacingDialog({required this.controller, required this.part});
+  final EditorController controller;
+  final ScorePart part;
+
+  @override
+  State<_SpacingDialog> createState() => _SpacingDialogState();
+}
+
+class _SpacingDialogState extends State<_SpacingDialog> {
+  late final _room = widget.controller.spacingOf(widget.part.id);
+  late final _above = TextEditingController(text: _text(_room.above)), _below = TextEditingController(text: _text(_room.below));
+
+  static String _text(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';
+
+  /// A field's room, null when it isn't a number of staff spaces in range ('' is 0).
+  static double? _parse(String text) {
+    final t = text.trim().replaceAll('−', '-');
+    final v = t.isEmpty ? 0.0 : double.tryParse(t);
+    return v != null && v.abs() <= EditState.maxSpacing ? v : null;
+  }
+
+  @override
+  void dispose() {
+    _above.dispose();
+    _below.dispose();
+    super.dispose();
+  }
+
+  void _apply({bool reset = false}) {
+    final above = reset ? 0.0 : _parse(_above.text), below = reset ? 0.0 : _parse(_below.text);
+    if (above == null || below == null) return;
+    widget.controller.setSpacing(widget.part.id, (above: above, below: below));
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    AppTextField field(TextEditingController controller, String label, {bool autofocus = false}) => AppTextField(
+          controller: controller,
+          label: label,
+          hint: '0',
+          autofocus: autofocus,
+          bad: _parse(controller.text) == null,
+          keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) => _apply(),
+        );
+    return AppDialog(
+      title: Text('Spacing of {name}'.fill({'name': widget.controller.partName(widget.part)})),
+      content: SizedBox(
+        width: dialogWidth(context, 360),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          field(_above, 'Above (spaces)', autofocus: true),
+          SizedBox(height: dialogGap(context)),
+          field(_below, 'Below (spaces)'),
+        ]),
+      ),
+      leading: [TextButton(onPressed: () => _apply(reset: true), child: Text('Reset'.tr))],
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+        FilledButton(onPressed: _parse(_above.text) == null || _parse(_below.text) == null ? null : _apply, child: Text('OK'.tr)),
+      ],
+    );
+  }
+}
+
 Future<void> showRenameDialog(BuildContext context, EditorController c, ScorePart part) =>
     showAppDialog<void>(context: context, builder: (context) => _RenameDialog(controller: c, part: part));
 
@@ -201,7 +274,7 @@ class _RegionDialogState extends State<_RegionDialog> {
             ? 'Set Until after From'
             : null;
     void save() {
-      if (error == null) Navigator.pop(context, Region(a!, b!, transitionIn: _in, transitionOut: _out));
+      if (error == null) Navigator.pop(context, Region(a!, b!, transitionIn: _in, transitionOut: _out, hiddenStaves: widget.ref.region.hiddenStaves));
     }
 
     return AppDialog(

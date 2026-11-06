@@ -131,6 +131,21 @@ class _LanesPainter extends CustomPainter {
         }
         atStart?.dispose();
         atEnd?.dispose();
+        // A region leaving out staves: its instrument's staves stacked in its middle, those it
+        // shows filled.
+        if (r.hiddenStaves.isNotEmpty && x1 - x0 >= 24) {
+          final count = c.lanes.staffCountOf(parts[i].id);
+          final shown = Paint()..color = selected ? colors.surface : colors.accentStrong;
+          final left = Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1
+            ..color = shown.color;
+          final mid = (x0 + x1) / 2, y0 = rect.center.dy - (count * 4 - 2) / 2;
+          for (var n = 1; n <= count; n++) {
+            final bar = Rect.fromLTWH(mid - 6, y0 + (n - 1) * 4, 12, 2);
+            r.showsStaff(n) ? canvas.drawRect(bar, shown) : canvas.drawRect(bar.deflate(0.5), left);
+          }
+        }
       }
     }
   }

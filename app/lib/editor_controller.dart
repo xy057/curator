@@ -361,6 +361,7 @@ class EditorController extends ChangeNotifier {
       pairs: List.unmodifiable({for (final p in edits.pairs) ?score.condensing.pair(p.first, p.second)}),
       partOrder: _orderedPartIds(score, edits.partOrder, edits.spacers),
       sections: Map.unmodifiable(edits.sections),
+      spacing: Map.unmodifiable(edits.spacing),
       gaps: Spacers.fitted(edits.gaps, score.timeline.measureStarts),
     );
     // The pairs that can condense follow the score and the pairs just taken on.
@@ -562,6 +563,7 @@ class EditorController extends ChangeNotifier {
       captionStyle: captions._style,
       sections: _doc.groupSections,
       sectionOverrides: {..._doc.sections, ...?_previewSections},
+      instrumentSpacing: _doc.spacing,
       barNumbers: _doc.barNumbers,
       rehearsalInRow: rehearsalInRow,
       nameColors: _nameColors,
@@ -813,6 +815,24 @@ class EditorController extends ChangeNotifier {
     _previewSections = null;
     if (_doc.sections.isEmpty) return _showSettings();
     _doc = _doc.copyWith(sections: const {});
+    _showSettings();
+    _edited();
+  }
+
+  /// The room the user gave [partId] above and below (staff spaces; see [EditState.spacing]).
+  ({double above, double below}) spacingOf(String partId) => _doc.spacing[partId] ?? (above: 0, below: 0);
+
+  /// Gives [partId] room of its own above and below (staff spaces, negative takes some away):
+  /// one Undo step. Both 0: none of its own.
+  void setSpacing(String partId, ({double above, double below}) room) {
+    final next = {..._doc.spacing};
+    if (room.above == 0 && room.below == 0) {
+      next.remove(partId);
+    } else {
+      next[partId] = room;
+    }
+    if (mapEquals(next, _doc.spacing)) return;
+    _doc = _doc.copyWith(spacing: Map.unmodifiable(next));
     _showSettings();
     _edited();
   }

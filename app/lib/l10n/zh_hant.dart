@@ -902,4 +902,8 @@ const zhHant = <String, String>{
   '{bars} bars · {systems} systems': '{bars} 小節 · {systems} 個系統',
   '{n} of {count}': '{n} / {count}',
   '×{n}': '×{n}',
+  'Spacing of {name}': '{name} 的間距',
+  'Spacing…': '間距…',
+  'Above (spaces)': '上方（間）',
+  'Below (spaces)': '下方（間）',
 };

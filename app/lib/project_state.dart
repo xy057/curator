@@ -45,6 +45,7 @@ class EditState {
     this.pairs = const [],
     this.partOrder = const [],
     this.sections = const {},
+    this.spacing = const {},
     this.groupSections = false,
     this.barNumbers = true,
     this.playheadColor,
@@ -133,6 +134,13 @@ class EditState {
   /// a family's name (with that family) or one of the user's (`bracket-2`); null: none,
   /// standing alone. Others are in their own ([ScorePart.section]).
   final Map<String, String?> sections;
+
+  /// Room the user added above and below some instruments (negative: took away), staff spaces,
+  /// by part id ([CuratedScene.instrumentSpacing]).
+  final Map<String, ({double above, double below})> spacing;
+
+  /// The most room, staff spaces, an instrument may be given or have taken away ([spacing]).
+  static const maxSpacing = 40.0;
 
   /// Whether the score groups its instruments in sections, as printed ([CuratedScene.sections]).
   final bool groupSections;
@@ -224,6 +232,7 @@ class EditState {
       listEquals(pairs, other.pairs) &&
       listEquals(partOrder, other.partOrder) &&
       mapEquals(sections, other.sections) &&
+      mapEquals(spacing, other.spacing) &&
       groupSections == other.groupSections &&
       barNumbers == other.barNumbers &&
       playheadColor == other.playheadColor &&
@@ -269,6 +278,7 @@ class EditState {
     List<PlayerPair>? pairs,
     List<String>? partOrder,
     Map<String, String?>? sections,
+    Map<String, ({double above, double below})>? spacing,
     bool? groupSections,
     bool? barNumbers,
     Object? playheadColor = _kept,
@@ -307,6 +317,7 @@ class EditState {
         pairs: pairs ?? this.pairs,
         partOrder: partOrder ?? this.partOrder,
         sections: sections ?? this.sections,
+        spacing: spacing ?? this.spacing,
         groupSections: groupSections ?? this.groupSections,
         barNumbers: barNumbers ?? this.barNumbers,
         playheadColor: identical(playheadColor, _kept) ? this.playheadColor : playheadColor as Color?,

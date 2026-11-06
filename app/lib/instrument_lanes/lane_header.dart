@@ -3,6 +3,7 @@ part of '../timeline_panel.dart';
 /// What a lane's ⋯ menu offers.
 enum _LaneAction {
   rename('Rename…'),
+  spacing('Spacing…'),
   spacer('Edit Spacer…'), // a vertical spacer's lane: its dialog names it too
   removeSpacer('Remove Spacer'),
   renameFirst('Rename…'), // a condensed pair's lane: one player, or the other (named in the menu)
@@ -87,6 +88,8 @@ class _LaneHeaderState extends State<_LaneHeader> {
         showRenameDialog(context, controller, part);
       case _LaneAction.spacer:
         showVerticalSpacerDialog(context, controller, part.id);
+      case _LaneAction.spacing:
+        showSpacingDialog(context, controller, part);
       case _LaneAction.removeSpacer:
         controller.spacers.removeVertical(part.id);
       case _LaneAction.renameFirst || _LaneAction.renameSecond:
@@ -133,8 +136,10 @@ class _LaneHeaderState extends State<_LaneHeader> {
           ] else if (spacer) ...[
             item(context, _LaneAction.spacer),
             item(context, _LaneAction.removeSpacer),
-          ] else
+          ] else ...[
             item(context, _LaneAction.rename),
+            item(context, _LaneAction.spacing),
+          ],
           menuDivider(context),
           item(context, _LaneAction.select),
           item(context, _LaneAction.copy),

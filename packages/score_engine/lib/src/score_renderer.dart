@@ -33,12 +33,13 @@ class StaffBracket {
   final bool outset;
 }
 
-/// Two staves shown one above the other, of different instruments: the starting line runs on
-/// between them, and with [barlines] (the same section) the barlines too.
+/// Two staves shown one above the other: of different instruments, the starting line runs on
+/// between them ([start]), and with [barlines] (the same section) the barlines too; of one
+/// instrument (a piano's two), its barlines (its brace has the start).
 class StaffJoin {
-  const StaffJoin({required this.above, required this.below, required this.barlines});
+  const StaffJoin({required this.above, required this.below, required this.barlines, this.start = true});
   final StaffPlacement above, below;
-  final bool barlines;
+  final bool barlines, start;
   double get opacity => math.min(above.opacity, below.opacity);
 }
 
@@ -89,8 +90,7 @@ class ScoreRenderer {
   final FrozenZone? frozen;
 
   /// Staff index → the staff index below it in the same instrument (a piano's left hand): the
-  /// barlines run on from one to the other, which an instrument's staves keep a fixed distance
-  /// apart for (see SpacingPlan).
+  /// barlines run on from one to the other ([StaffJoin]), and no section's join comes between.
   final Map<int, int> barlinesThrough;
 
   /// Staff indices the frozen zone leaves blank (vertical spacers it doesn't show).
@@ -305,7 +305,7 @@ class ScoreRenderer {
       }
       for (final join in joins) {
         final opacity = join.opacity;
-        if (opacity <= 0.001) continue;
+        if (!join.start || opacity <= 0.001) continue;
         final faded = opacity < 0.999;
         if (faded) canvas.saveLayer(null, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, opacity));
         zone.paintJoin(canvas,
@@ -462,10 +462,9 @@ class ScoreRenderer {
     // Vertical extent: the staff lines plus whatever ink reaches outside them in this tile.
     // One-line (percussion) staves get barlines a staff space above and below the line.
     final bleed = _bleed(staff.info);
-    // Barlines run on to the next staff of the instrument, to its top line: from there on
-    // that staff draws them.
-    final through = barlinesThrough[staffIndex];
-    final barlinesTo = through == null ? staff.info.top + staff.info.height + bleed : display.staves[through].info.top;
+    // Barlines cross the staff's own lines only: on to the next staff of the instrument they
+    // are drawn each frame ([StaffJoin]), as that staff may be left out.
+    final barlinesTo = staff.info.top + staff.info.height + bleed;
     var top = staff.info.top, bottom = math.max(staff.info.top + staff.info.height, barlinesTo);
     for (final item in items) {
       top = math.min(top, item.bounds.top);
@@ -490,7 +489,7 @@ class ScoreRenderer {
     for (final item in items) {
       item.paint(canvas);
     }
-    // Barlines: only the slice crossing this staff's own lines, and on through its instrument.
+    // Barlines: only the slice crossing this staff's own lines.
     canvas.clipRect(ui.Rect.fromLTRB(left, staff.info.top - bleed, right, barlinesTo));
     for (final item in display.barlines.itemsIn(left, right)) {
       item.paint(canvas);

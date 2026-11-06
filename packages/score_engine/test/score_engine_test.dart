@@ -129,6 +129,38 @@ void main() {
     scene.dispose();
   });
 
+  test('a region leaves out a staff of its instrument; an instrument has room of its own', () async {
+    final piano = await LoadedScore.load(flutePianoScore);
+    final scene = CuratedScene(piano);
+    // The piano's left hand left out in bar 2: a region of its own, meeting bar 1's.
+    final curation = Curation(['P1', 'P2'])
+      ..setLanes({
+        'P1': [const Region(0, 8)],
+        'P2': [const Region(0, 4), const Region(4, 8, hiddenStaves: [2])],
+      });
+    expect(curation.lane('P2'), hasLength(2), reason: 'never merged');
+    const tall = ui.Size(960, 4000);
+    double at(double quarter) => piano.timeline.secondsAtQuarter(quarter);
+    final both = scene.layoutAt(at(1), curation, tall), one = scene.layoutAt(at(7), curation, tall);
+    expect(both.placements, hasLength(3));
+    expect(both.braces, hasLength(1));
+    expect(one.placements, hasLength(2), reason: 'the left hand gone');
+    expect(one.braces, isEmpty);
+    expect(one.labels.last.centerY, lessThan(both.labels.last.centerY - 10), reason: 'named beside the right hand alone');
+    // More room above the piano: the gap to the flute grows by as much (the gaps are at their most).
+    double gap() {
+      final ys = [for (final p in scene.layoutAt(at(1), curation, tall).placements) p.y];
+      return ys[1] - ys[0];
+    }
+
+    final before = gap();
+    scene.instrumentSpacing = {'P2': (above: 3, below: 0)};
+    expect(gap(), closeTo(before + 3 * piano.engraving.staffSpace * scene.renderer.scale, 0.5));
+    scene.instrumentSpacing = {'P2': (above: -1, below: 0)};
+    expect(gap(), closeTo(before - piano.engraving.staffSpace * scene.renderer.scale, 0.5));
+    scene.dispose();
+  });
+
   test('auto-curate hides the least salient staves where they would run off the frame, only there', () {
     final scene = CuratedScene(score);
     final ids = [for (final p in score.metadata.parts) p.id];
