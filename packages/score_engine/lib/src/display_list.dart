@@ -212,9 +212,9 @@ class ScoreDisplayList {
 
   /// Staves drawn from what isn't an engraving (a PDF score's parts): [strokes], the barlines
   /// that run on between the staves of a section, as each barline's centre and width.
-  ScoreDisplayList.of(this.data, this.staves, {List<({double x, double width})> this.strokes = const []})
+  /// [apart]: marks of texts that aren't drawn here, for where they are.
+  ScoreDisplayList.of(this.data, this.staves, {List<({double x, double width})> this.strokes = const [], this.apart = const []})
       : barlines = StaffLayer(const StaffInfo(n: 0, top: 0, height: 0, lines: 0), const [], binWidth: data.staffSpace * 16),
-        apart = const [],
         sourced = const {};
 
   /// The barlines between staves when they aren't [barlines]' (see [ScoreDisplayList.of]).

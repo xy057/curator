@@ -58,7 +58,9 @@ class PdfInstrument {
       this.clef = PdfClef.treble,
       this.staves = 1,
       this.key = SpacerKey.c,
-      this.divisi = 1});
+      this.divisi = 1,
+      this.clefs = const {},
+      this.meters = const {}});
 
   /// Its part's id (`P1`…), kept while it is renamed or moved.
   final String id;
@@ -77,6 +79,46 @@ class PdfInstrument {
   /// where the section plays as one.
   final int divisi;
 
+  /// Where a staff of it changes clef (bar index, which of its staves from 1): the clef from
+  /// there on. Its first staff starts in [clef], a second in the bass clef (unless bar 0 says).
+  final Map<(int, int), PdfClef> clefs;
+
+  /// Where it alone changes meter (bar index): from there until the score's or its own next
+  /// change. Only its time signatures say so; its bars are the score's.
+  final Map<int, PdfMeter> meters;
+
+  /// The clef its staff [staff] (from 1) is in at bar [bar].
+  PdfClef clefAt(int bar, int staff) {
+    var at = -1;
+    PdfClef? found;
+    for (final MapEntry(key: (b, n), :value) in clefs.entries) {
+      if (n == staff && b <= bar && b > at) (at, found) = (b, value);
+    }
+    return found ?? (staff > 1 ? PdfClef.bass : clef);
+  }
+
+  /// The transposition [name] says ("Clarinet in B♭", "Horn in F"); concert pitch when none.
+  static SpacerKey keyForName(String name) {
+    final m = RegExp(r'\b(?:in|en)\s*([A-G])\s*(b|♭|flat|es)?(?![a-z])', caseSensitive: false).firstMatch(name);
+    if (m == null) return SpacerKey.c;
+    return switch ((m[1]!.toUpperCase(), m[2] != null)) {
+      ('B', true) => SpacerKey.bFlat,
+      ('E', true) => SpacerKey.eFlat,
+      ('A', false) => SpacerKey.a,
+      ('F', false) => SpacerKey.f,
+      ('D', false) => SpacerKey.d,
+      ('G', false) => SpacerKey.g,
+      _ => SpacerKey.c,
+    };
+  }
+
+  /// Renamed [name]: its transposition follows the name when the name says one, or when the
+  /// old one came from the old name.
+  PdfInstrument renamed(String name) {
+    final said = keyForName(name);
+    return copyWith(name: name, key: said != SpacerKey.c || keyForName(this.name) == key ? said : key);
+  }
+
   /// Its players, each a part of the score: itself, and its divisi's further staves (`P6d2`…,
   /// "Violin I 2").
   List<({String id, String name, String abbreviation, int division})> get players => [
@@ -86,14 +128,25 @@ class PdfInstrument {
             (id: '${id}d$k', name: '$name $k', abbreviation: abbreviation.isEmpty ? '' : '$abbreviation $k', division: k),
       ];
 
-  PdfInstrument copyWith({String? name, String? abbreviation, PdfClef? clef, int? staves, SpacerKey? key, int? divisi}) => PdfInstrument(
-      id: id,
-      name: name ?? this.name,
-      abbreviation: abbreviation ?? this.abbreviation,
-      clef: clef ?? this.clef,
-      staves: staves ?? this.staves,
-      key: key ?? this.key,
-      divisi: divisi ?? this.divisi);
+  PdfInstrument copyWith(
+          {String? name,
+          String? abbreviation,
+          PdfClef? clef,
+          int? staves,
+          SpacerKey? key,
+          int? divisi,
+          Map<(int, int), PdfClef>? clefs,
+          Map<int, PdfMeter>? meters}) =>
+      PdfInstrument(
+          id: id,
+          name: name ?? this.name,
+          abbreviation: abbreviation ?? this.abbreviation,
+          clef: clef ?? this.clef,
+          staves: staves ?? this.staves,
+          key: key ?? this.key,
+          divisi: divisi ?? this.divisi,
+          clefs: clefs ?? this.clefs,
+          meters: meters ?? this.meters);
 
   Map<String, Object?> toJson() => {
         'id': id,
@@ -103,6 +156,12 @@ class PdfInstrument {
         'staves': staves,
         'key': key.name,
         if (divisi > 1) 'divisi': divisi,
+        if (clefs.isNotEmpty)
+          'clefs': [
+            for (final (bar, staff) in clefs.keys.toList()..sort((a, b) => a.$1 != b.$1 ? a.$1 - b.$1 : a.$2 - b.$2))
+              [bar, staff, clefs[(bar, staff)]!.name],
+          ],
+        if (meters.isNotEmpty) 'meters': {for (final MapEntry(:key, :value) in meters.entries) '$key': '$value'},
       };
 
   static PdfInstrument fromJson(Map<String, Object?> json) => PdfInstrument(
@@ -113,6 +172,14 @@ class PdfInstrument {
         staves: ((json['staves'] as num?)?.toInt() ?? 1).clamp(1, 4),
         key: SpacerKey.named(json['key'] as String?),
         divisi: ((json['divisi'] as num?)?.toInt() ?? 1).clamp(1, 4),
+        clefs: {
+          for (final c in _list(json, 'clefs'))
+            switch (c) {
+              [final int bar, final int staff, final String _] when bar >= 0 && staff >= 1 => (bar, staff),
+              _ => throw _bad('clefs'),
+            }: PdfClef.named((c as List)[2] as String),
+        },
+        meters: _meters(json['meters'], 'meters'),
       );
 
   @override
@@ -124,10 +191,12 @@ class PdfInstrument {
       other.abbreviation == abbreviation &&
       other.clef == clef &&
       other.staves == staves &&
-      other.key == key;
+      other.key == key &&
+      mapEquals(other.clefs, clefs) &&
+      mapEquals(other.meters, meters);
 
   @override
-  int get hashCode => Object.hash(id, name, abbreviation, clef, staves, key, divisi);
+  int get hashCode => Object.hash(id, name, abbreviation, clef, staves, key, divisi, clefs.length, meters.length);
 }
 
 /// A staff as printed in one system: where its lines are (points, from the page's top) and whose
@@ -468,6 +537,30 @@ class PdfMeter {
   int get hashCode => Object.hash(beats, unit);
 }
 
+/// A tempo mark: its words ("Allegro", "rit."), and the speed it sets, if it sets one.
+@immutable
+class PdfTempo {
+  const PdfTempo(this.words, [this.bpm]);
+  final String words;
+
+  /// Quarters a minute.
+  final double? bpm;
+
+  List<Object> toJson() => [words, if (bpm case final bpm?) _round(bpm)];
+
+  static PdfTempo fromJson(Object? json) => switch (json) {
+        [final String words] => PdfTempo(words),
+        [final String words, final num bpm] when bpm >= 10 && bpm <= 1000 => PdfTempo(words, bpm.toDouble()),
+        _ => throw _bad('tempos'),
+      };
+
+  @override
+  bool operator ==(Object other) => other is PdfTempo && other.words == words && other.bpm == bpm;
+
+  @override
+  int get hashCode => Object.hash(words, bpm);
+}
+
 /// How a PDF score is read: its instruments, its systems (staves and barlines, each staff
 /// someone's), what is left out, and the meter and key it is in. Its bars run through the systems
 /// in order; [musicXML] writes the score the rest of Curator reads (bars, beats, parts, where each
@@ -485,6 +578,7 @@ class PdfScoreLayout {
     this.keys = const {},
     this.pickup = 0,
     this.tempo = 100,
+    this.tempos = const {},
   });
 
   final String title;
@@ -509,6 +603,9 @@ class PdfScoreLayout {
   /// Quarters a minute, before a recording sets the tempo.
   final double tempo;
 
+  /// Tempo marks by bar index; bar 0's words go with [tempo] (its own speed is never set).
+  final Map<int, PdfTempo> tempos;
+
   PdfScoreLayout copyWith({
     String? title,
     List<PdfInstrument>? instruments,
@@ -520,6 +617,7 @@ class PdfScoreLayout {
     Map<int, int>? keys,
     double? pickup,
     double? tempo,
+    Map<int, PdfTempo>? tempos,
   }) =>
       PdfScoreLayout(
         title: title ?? this.title,
@@ -533,6 +631,7 @@ class PdfScoreLayout {
         keys: keys ?? this.keys,
         pickup: pickup ?? this.pickup,
         tempo: tempo ?? this.tempo,
+        tempos: tempos ?? this.tempos,
       );
 
   PdfInstrument? instrument(String? id) => instruments.where((i) => i.id == id).firstOrNull;
@@ -598,6 +697,28 @@ class PdfScoreLayout {
     return meters[at] ?? meter;
   }
 
+  /// The concert key in force in bar [bar].
+  int keyAt(int bar) {
+    var at = -1;
+    for (final k in keys.keys) {
+      if (k <= bar && k > at) at = k;
+    }
+    return keys[at] ?? fifths;
+  }
+
+  /// The meter [instrument]'s time signature says in bar [bar]: the score's, or its own where
+  /// it changed later ([PdfInstrument.meters]; at the same bar, its own).
+  PdfMeter meterOf(PdfInstrument instrument, int bar) {
+    var global = -1, local = -1;
+    for (final k in meters.keys) {
+      if (k <= bar && k > global) global = k;
+    }
+    for (final k in instrument.meters.keys) {
+      if (k <= bar && k > local) local = k;
+    }
+    return local >= 0 && local >= global ? instrument.meters[local]! : meterAt(bar);
+  }
+
   /// Bar [bar]'s length in quarters.
   double quartersOf(int bar) => bar == 0 && pickup > 0 ? pickup : meterAt(bar).quarters;
 
@@ -642,7 +763,11 @@ class PdfScoreLayout {
         final implicit = bar == 0 && pickup > 0;
         out.write('    <measure number="${implicit ? 0 : (pickup > 0 ? bar : bar + 1)}"${implicit ? ' implicit="yes"' : ''}>\n');
         final meterChange = bar == 0 || meters.containsKey(bar), keyChange = bar == 0 || keys.containsKey(bar);
-        if (meterChange || keyChange) {
+        final clefChanges = [
+          for (var s = 1; s <= instrument.staves; s++)
+            if (bar == 0 || instrument.clefs.containsKey((bar, s))) s,
+        ];
+        if (meterChange || keyChange || clefChanges.isNotEmpty) {
           out.write('      <attributes>');
           if (bar == 0) out.write('<divisions>$divisions</divisions>');
           if (keyChange) out.write('<key><fifths>${instrument.key.keyOf(keys[bar] ?? fifths)}</fifths></key>');
@@ -650,17 +775,21 @@ class PdfScoreLayout {
             final m = meterAt(bar);
             out.write('<time><beats>${m.beats}</beats><beat-type>${m.unit}</beat-type></time>');
           }
-          if (bar == 0) {
-            if (instrument.staves > 1) out.write('<staves>${instrument.staves}</staves>');
-            for (var s = 1; s <= instrument.staves; s++) {
-              final clef = instrument.staves > 1 && s > 1 ? PdfClef.bass : instrument.clef;
-              out.write('<clef${instrument.staves > 1 ? ' number="$s"' : ''}><sign>${clef.sign}</sign><line>${clef.line}</line>'
-                  '${clef.octave != 0 ? '<clef-octave-change>${clef.octave}</clef-octave-change>' : ''}</clef>');
-            }
+          if (bar == 0 && instrument.staves > 1) out.write('<staves>${instrument.staves}</staves>');
+          for (final s in clefChanges) {
+            final clef = instrument.clefAt(bar, s);
+            out.write('<clef${instrument.staves > 1 ? ' number="$s"' : ''}><sign>${clef.sign}</sign><line>${clef.line}</line>'
+                '${clef.octave != 0 ? '<clef-octave-change>${clef.octave}</clef-octave-change>' : ''}</clef>');
           }
           out.write('</attributes>\n');
         }
-        if (bar == 0) out.write('      <direction placement="above"><direction-type><words/></direction-type><sound tempo="${_round(tempo)}"/></direction>\n');
+        // The tempo marks, in the first part (one is the score's): ids the scene finds them by.
+        if (player.id == instruments.first.id && (bar == 0 || tempos.containsKey(bar))) {
+          final mark = tempos[bar], speed = bar == 0 ? tempo : mark?.bpm;
+          final words = mark == null || mark.words.isEmpty ? '<words/>' : '<words>${_escape(mark.words)}</words>';
+          out.write('      <direction id="${tempoId(bar)}" placement="above"><direction-type>$words</direction-type>'
+              '${speed == null ? '' : '<sound tempo="${_round(speed)}"/>'}</direction>\n');
+        }
         if (_barlineBefore(bar) case final kind?) {
           out.write('      <barline location="left"><bar-style>heavy-light</bar-style>${kind == PdfBarlineKind.repeatStart || kind == PdfBarlineKind.repeatBoth ? '<repeat direction="forward"/>' : ''}</barline>\n');
         }
@@ -670,7 +799,7 @@ class PdfScoreLayout {
           if (s > 1) out.write('      <backup><duration>$length</duration></backup>\n');
           final staff = instrument.staves > 1 ? '<staff>$s</staff>' : '';
           if (plays) {
-            final clef = instrument.staves > 1 && s > 1 ? PdfClef.bass : instrument.clef;
+            final clef = instrument.clefAt(bar, s);
             final (step, octave) = clef.middle;
             final pitch = clef == PdfClef.percussion
                 ? '<unpitched><display-step>$step</display-step><display-octave>$octave</display-octave></unpitched>'
@@ -697,6 +826,9 @@ class PdfScoreLayout {
     out.write('</score-partwise>\n');
     return out.toString();
   }
+
+  /// The id of bar [bar]'s tempo mark in [musicXML].
+  static String tempoId(int bar) => 'pdf-tempo-$bar';
 
   /// The barline that ends bar [bar] when it isn't a plain one.
   PdfBarlineKind? _barlineAfter(int bar) {
@@ -759,6 +891,7 @@ class PdfScoreLayout {
         'keys': {for (final MapEntry(:key, :value) in keys.entries) '$key': value},
         'pickup': pickup,
         'tempo': tempo,
+        if (tempos.isNotEmpty) 'tempos': {for (final MapEntry(:key, :value) in tempos.entries) '$key': value.toJson()},
       };
 
   /// Reads what [toJson] wrote; throws a [FormatException] naming the damaged field.
@@ -780,16 +913,17 @@ class PdfScoreLayout {
       masks: [for (final m in _list(json, 'masks')) PdfMask.fromJson(m)],
       meter: json['meter'] == null ? PdfMeter.common : meter(json['meter']),
       fifths: ((json['fifths'] as num?)?.toInt() ?? 0).clamp(-7, 7),
-      meters: {
-        for (final MapEntry(:key, :value) in _map(json['meters'] ?? const {}, 'meters').entries)
-          int.tryParse(key) ?? (throw _bad('meters')): meter(value),
-      },
+      meters: _meters(json['meters'], 'meters'),
       keys: {
         for (final MapEntry(:key, :value) in _map(json['keys'] ?? const {}, 'keys').entries)
           int.tryParse(key) ?? (throw _bad('keys')): value is num ? value.toInt().clamp(-7, 7) : throw _bad('keys'),
       },
       pickup: ((json['pickup'] as num?)?.toDouble() ?? 0).clamp(0, 64),
       tempo: ((json['tempo'] as num?)?.toDouble() ?? 100).clamp(10, 1000),
+      tempos: {
+        for (final MapEntry(:key, :value) in _map(json['tempos'] ?? const {}, 'tempos').entries)
+          int.tryParse(key) ?? (throw _bad('tempos')): PdfTempo.fromJson(value),
+      },
     );
   }
 
@@ -806,7 +940,8 @@ class PdfScoreLayout {
       mapEquals(other.meters, meters) &&
       mapEquals(other.keys, keys) &&
       other.pickup == pickup &&
-      other.tempo == tempo;
+      other.tempo == tempo &&
+      mapEquals(other.tempos, tempos);
 
   @override
   int get hashCode => Object.hash(title, Object.hashAll(instruments), Object.hashAll(systems), Object.hashAll(masks), meter, fifths, pickup, tempo);
@@ -818,6 +953,12 @@ String _escape(String s) =>
     s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
 FormatException _bad(String what) => FormatException('$what is damaged.');
+
+/// Meters by bar index, as [PdfScoreLayout.toJson] writes them.
+Map<int, PdfMeter> _meters(Object? json, String key) => {
+      for (final MapEntry(key: bar, :value) in _map(json ?? const {}, key).entries)
+        int.tryParse(bar) ?? (throw _bad(key)): value is String ? PdfMeter.parse(value) ?? (throw _bad(key)) : throw _bad(key),
+    };
 
 List<Object?> _list(Map<String, Object?> json, String key) => switch (json[key]) {
       null => const [],

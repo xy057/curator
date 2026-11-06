@@ -35,6 +35,19 @@ enum SpacerKey {
     }
     return key;
   }
+
+  /// The concert key of [written], a key signature written for this key ([keyOf]'s inverse).
+  int concertOf(int written) {
+    if (this == c) return written;
+    var key = written - fifths;
+    while (key > 6) {
+      key -= 12;
+    }
+    while (key < -6) {
+      key += 12;
+    }
+    return key;
+  }
 }
 
 /// A staff of nothing (the Attach Image extension): room in the stack for an image or for

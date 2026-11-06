@@ -11,6 +11,7 @@ import 'app_icons.dart';
 import 'dialog_kit.dart';
 import 'l10n/l10n.dart';
 import 'menu_kit.dart';
+import 'pdf_import_changes.dart';
 import 'ui_kit.dart';
 
 /// Opening a PDF score, or Project Info ▸ Score ▸ Edit… for one: its pages over the window, what
@@ -38,10 +39,12 @@ sealed class _Selection {
   const _Selection();
 }
 
-/// A bar: system [system], its [segment]th bar ([PdfSystem.segments]).
+/// A bar: system [system], its [segment]th bar ([PdfSystem.segments]), on its [staff]th staff
+/// (null: between the system's edges, on none).
 class _BarSelection extends _Selection {
-  const _BarSelection(this.system, this.segment);
+  const _BarSelection(this.system, this.segment, [this.staff]);
   final int system, segment;
+  final int? staff;
 }
 
 class _BarlineSelection extends _Selection {
@@ -111,6 +114,10 @@ class _PdfImportState extends State<PdfImport> {
 
   /// The field being typed in: its edits are one Undo step.
   String? _typing;
+
+  /// Counts edits made other than by typing in the panel's fields (a dialog's, Undo): their
+  /// fields are made again to show them.
+  int _rev = 0;
 
   /// Pages read so far, while reading; then null.
   int? _read;
@@ -202,6 +209,7 @@ class _PdfImportState extends State<PdfImport> {
       _redo.add(layout);
       _layout = _undo.removeLast();
       _selection = null;
+      _rev++;
     });
   }
 
@@ -212,6 +220,7 @@ class _PdfImportState extends State<PdfImport> {
       _undo.add(layout);
       _layout = _redo.removeLast();
       _selection = null;
+      _rev++;
     });
   }
 
@@ -330,10 +339,14 @@ class _PdfImportState extends State<PdfImport> {
       for (final c in s.gaps.keys) {
         if (s.gapAfter(c) case (final top, final bottom) when p.dy >= top && p.dy <= bottom) return _GapSelection(i, c);
       }
+      final staff = [
+        for (var k = 0; k < s.staves.length; k++)
+          if (s.bandOf(k) case (final top, final bottom) when p.dy >= top && p.dy < bottom) k,
+      ].firstOrNull;
       for (final (k, (l, r)) in s.segments.indexed) {
-        if (p.dx >= l && p.dx <= r) return _BarSelection(i, k);
+        if (p.dx >= l && p.dx <= r) return _BarSelection(i, k, staff);
       }
-      return _BarSelection(i, 0);
+      return _BarSelection(i, 0, staff);
     }
     return null;
   }
@@ -448,6 +461,201 @@ class _PdfImportState extends State<PdfImport> {
       setState(() => _selection = _BarlineSelection(i, lines.indexWhere((b) => b.x == p.dx)));
       return;
     }
+  }
+
+  // MARK: Instruments
+
+  /// Instrument [id] renamed from a staff's chip; the panel then shows it.
+  Future<void> _renameInstrument(String? id) async {
+    final index = layout.instruments.indexWhere((i) => i.id == id);
+    if (index < 0) return;
+    final next = await showPdfInstrumentDialog(context, layout.instruments[index]);
+    if (next == null || !mounted) return;
+    _changedInstrument(next);
+    setState(() => _instrument = index);
+  }
+
+  /// A new instrument, named in a dialog, for staff [k] of system [system].
+  Future<void> _newInstrumentFor(int system, int k) async {
+    final ids = {for (final i in layout.instruments) i.id};
+    var n = layout.instruments.length + 1;
+    while (ids.contains('P$n')) {
+      n++;
+    }
+    final made = await showPdfInstrumentDialog(context, PdfInstrument(id: 'P$n', name: ''), isNew: true);
+    if (made == null || !mounted) return;
+    final s = layout.systems[system];
+    final staves = [...s.staves]..[k] = s.staves[k].copyWith(part: () => made.id, staff: 1);
+    _changed(layout.copyWith(
+      instruments: [...layout.instruments, made.copyWith(clef: PdfClef.forName(made.name))],
+      systems: [...layout.systems]..[system] = s.copyWith(staves: staves, ink: () => null),
+    ));
+    setState(() => _instrument = layout.instruments.length - 1);
+  }
+
+  // MARK: Changes
+
+  /// Staff [k] of system [system]: its instrument and which of its staves it is (from 1).
+  (PdfInstrument, int)? _instrumentOf(int system, int? k) {
+    final s = layout.systems[system];
+    if (k == null || k >= s.staves.length) return null;
+    final staff = s.staves[k];
+    return switch (layout.instrument(staff.part)) { final i? => (i, layout.staffInPart(staff)), null => null };
+  }
+
+  static String _staffName(PdfInstrument i, int n) => i.staves > 1 ? '${i.name} $n' : i.name;
+
+  /// [next] after a dialog: one Undo step, the panel's fields showing it.
+  void _changed(PdfScoreLayout next) {
+    _edit(next);
+    setState(() => _rev++);
+  }
+
+  void _changedInstrument(PdfInstrument next) =>
+      _changed(layout.copyWith(instruments: [for (final i in layout.instruments) i.id == next.id ? next : i]));
+
+  /// The tempo mark at bar [bar] added, changed or taken away; the first bar's speed is the score's.
+  Future<void> _editTempo(int bar) async {
+    final change = await showPdfTempoDialog(context, bar: bar, mark: layout.tempos[bar], tempo: layout.tempo);
+    if (change == null || !mounted) return;
+    final tempos = {...layout.tempos}..remove(bar);
+    if (change.value case final mark? when bar > 0 || mark.words.isNotEmpty) tempos[bar] = bar == 0 ? PdfTempo(mark.words) : mark;
+    _changed(layout.copyWith(tempos: tempos, tempo: bar == 0 ? change.value?.bpm : null));
+  }
+
+  /// The key from bar [bar] on, read as the staff clicked ([system]'s [staff]) shows it.
+  Future<void> _editKey(int bar, int system, int? staff) async {
+    final change = await showPdfKeyDialog(context,
+        bar: bar,
+        concert: bar == 0 ? layout.fifths : layout.keys[bar],
+        inForce: layout.keyAt(bar),
+        readAs: _instrumentOf(system, staff)?.$1.key ?? SpacerKey.c,
+        instruments: layout.instruments);
+    if (change == null || !mounted) return;
+    if (bar == 0) {
+      if (change.value case final f?) _changed(layout.copyWith(fifths: f));
+      return;
+    }
+    final keys = {...layout.keys}..remove(bar);
+    if (change.value case final f?) keys[bar] = f;
+    _changed(layout.copyWith(keys: keys));
+  }
+
+  /// The score's meter from bar [bar] on.
+  Future<void> _editTime(int bar) async {
+    final change = await showPdfTimeDialog(context,
+        title: 'Time Signature'.tr,
+        meter: bar == 0 ? layout.meter : layout.meters[bar],
+        inForce: layout.meterAt(bar),
+        removable: bar > 0 && layout.meters.containsKey(bar));
+    if (change == null || !mounted) return;
+    if (bar == 0) {
+      if (change.value case final m?) _changed(layout.copyWith(meter: m));
+      return;
+    }
+    final meters = {...layout.meters}..remove(bar);
+    if (change.value case final m?) meters[bar] = m;
+    _changed(layout.copyWith(meters: meters));
+  }
+
+  /// [i]'s own time signature from bar [bar] on.
+  Future<void> _editLocalTime(int bar, PdfInstrument i) async {
+    final change = await showPdfTimeDialog(context,
+        title: 'Time Signature for {name}'.fill({'name': i.name}),
+        meter: i.meters[bar],
+        inForce: layout.meterOf(i, bar),
+        removable: i.meters.containsKey(bar));
+    if (change == null || !mounted) return;
+    final meters = {...i.meters}..remove(bar);
+    if (change.value case final m?) meters[bar] = m;
+    _changedInstrument(i.copyWith(meters: meters));
+  }
+
+  /// The clef of [i]'s staff [n] from bar [bar] on; its first staff's at the first bar is its clef.
+  Future<void> _editClef(int bar, PdfInstrument i, int n) async {
+    final first = bar == 0 && n == 1;
+    final change = await showPdfClefDialog(context,
+        title: 'Clef for {name}'.fill({'name': _staffName(i, n)}),
+        clef: first ? i.clef : i.clefs[(bar, n)],
+        inForce: i.clefAt(bar, n),
+        removable: !first && i.clefs.containsKey((bar, n)));
+    if (change == null || !mounted) return;
+    if (first) {
+      if (change.value case final c?) _changedInstrument(i.copyWith(clef: c));
+      return;
+    }
+    final clefs = {...i.clefs}..remove((bar, n));
+    if (change.value case final c?) clefs[(bar, n)] = c;
+    _changedInstrument(i.copyWith(clefs: clefs));
+  }
+
+  /// What can be inserted at bar [bar] of system [system], clicked on its staff [staff]: for every
+  /// instrument a tempo, key or time signature, and for the staff's its own time signature or clef.
+  List<PopupMenuEntry<VoidCallback>> _insertItems(BuildContext context, int bar, int system, int? staff) {
+    final at = _instrumentOf(system, staff);
+    return [
+      menuItem(context, value: () => _editTempo(bar), child: Text('Insert Tempo…'.tr)),
+      menuItem(context, value: () => _editKey(bar, system, staff), child: Text('Insert Key Signature…'.tr)),
+      menuItem(context, value: () => _editTime(bar), child: Text('Insert Time Signature…'.tr)),
+      if (at case (final i, final n)) ...[
+        menuDivider(context),
+        menuItem(context,
+            value: () => _editLocalTime(bar, i), child: Text('Insert Time Signature for {name}…'.fill({'name': i.name}))),
+        menuItem(context, value: () => _editClef(bar, i, n), child: Text('Insert Clef for {name}…'.fill({'name': _staffName(i, n)}))),
+      ],
+    ];
+  }
+
+  /// A right click on a bar: it selected, and what can be inserted there.
+  Future<void> _contextMenu(Offset local, Offset global) async {
+    if (_tool != _Tool.select) return;
+    final hit = _selectionAt(_toPage(local));
+    if (hit is! _BarSelection) return;
+    setState(() => _selection = hit);
+    final bars = layout.barOfSegment[hit.system];
+    if (hit.segment >= bars.length) return;
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final action = await showMenu<VoidCallback>(
+      context: context,
+      position: RelativeRect.fromRect(global & const Size(1, 1), Offset.zero & overlay.size),
+      items: _insertItems(context, bars[hit.segment], hit.system, hit.staff),
+    );
+    action?.call();
+  }
+
+  /// Every change inserted at bar [bar], for its tag on the page and its row in the panel: what
+  /// it says, whose it is (null: every instrument's) and the dialog that changes it.
+  List<({String text, PdfInstrument? instrument, int staff, VoidCallback edit})> _changesAt(int bar, int system) {
+    final out = <({String text, PdfInstrument? instrument, int staff, VoidCallback edit})>[];
+    if (layout.tempos[bar] case final mark?) {
+      final speed = bar == 0 ? layout.tempo : mark.bpm;
+      out.add((
+        text: [if (mark.words.isNotEmpty) mark.words, if (speed != null) '♩ = ${_ScoreFieldsState._number(speed)}'].join(' '),
+        instrument: null,
+        staff: 0,
+        edit: () => _editTempo(bar),
+      ));
+    }
+    if (bar > 0 && layout.keys.containsKey(bar)) {
+      out.add((
+        text: 'Key {key}'.fill({'key': pdfKeyName(layout.keys[bar]!)}),
+        instrument: null,
+        staff: 0,
+        edit: () => _editKey(bar, system, null),
+      ));
+    }
+    if (bar > 0 && layout.meters.containsKey(bar)) {
+      out.add((text: '${layout.meters[bar]}', instrument: null, staff: 0, edit: () => _editTime(bar)));
+    }
+    for (final i in layout.instruments) {
+      if (i.meters[bar] case final m?) out.add((text: '$m', instrument: i, staff: 1, edit: () => _editLocalTime(bar, i)));
+      for (var n = 1; n <= i.staves; n++) {
+        if (i.clefs[(bar, n)] case final c?) {
+          out.add((text: pdfClefName(c).tr, instrument: i, staff: n, edit: () => _editClef(bar, i, n)));
+        }
+      }
+    }
+    return out;
   }
 
   MouseCursor _cursorAt(Offset local) {
@@ -678,9 +886,37 @@ class _PdfImportState extends State<PdfImport> {
                 staves[k] = staff.copyWith(part: () => part, staff: number);
                 _setSystem(i, s.copyWith(staves: staves));
               },
+              onRename: () => _renameInstrument(staff.part),
+              onNew: () => _newInstrumentFor(i, k),
             ),
           ),
     ];
+    // The changes inserted, at the start of their bars: every instrument's above the system, a
+    // staff's own above it.
+    final tags = <Widget>[];
+    for (final (bar, pieces) in layout.bars.indexed) {
+      final piece = pieces.first, s = layout.systems[piece.system];
+      if (s.page != _page) continue;
+      final changes = _changesAt(bar, piece.system);
+      if (changes.isEmpty) continue;
+      Widget row(double y, Iterable<Widget> children) =>
+          Positioned(left: _gutter + piece.left * _zoom + 2, top: _margin + y * _zoom - 19, child: Row(mainAxisSize: MainAxisSize.min, children: [...children]));
+      final all = [
+        for (final c in changes)
+          if (c.instrument == null) _ChangeTag(text: c.text, color: const Color(0xFF3E63DD), onTap: c.edit),
+      ];
+      if (all.isNotEmpty) tags.add(row(s.top, all));
+      for (final staff in s.staves) {
+        final i = layout.instrument(staff.part), n = layout.staffInPart(staff);
+        if (i == null || staff.staff > 1 && i.staves == 1) continue; // a division's: the section's
+        final own = [
+          for (final c in changes)
+            if (c.instrument?.id == i.id && c.staff == n)
+              _ChangeTag(text: c.text, color: _colorOf(layout.instruments.indexOf(i)), onTap: c.edit),
+        ];
+        if (own.isNotEmpty) tags.add(row(staff.top - 2, own));
+      }
+    }
     return ColoredBox(
       color: context.colors.surface,
       child: Scrollbar(
@@ -707,6 +943,7 @@ class _PdfImportState extends State<PdfImport> {
                         onPanEnd: (_) => _up(),
                         onPanCancel: _up,
                         onDoubleTapDown: _tool == _Tool.select ? (d) => _doubleClick(d.localPosition) : null,
+                        onSecondaryTapUp: (d) => _contextMenu(d.localPosition, d.globalPosition),
                         onDoubleTap: _tool == _Tool.select ? () {} : null,
                         child: CustomPaint(
                           painter: _PagePainter(
@@ -724,6 +961,7 @@ class _PdfImportState extends State<PdfImport> {
                     ),
                   ),
                   ...chips,
+                  ...tags,
                 ]),
               ),
             ),
@@ -741,14 +979,14 @@ class _PdfImportState extends State<PdfImport> {
       child: ListView(padding: const EdgeInsets.all(16), children: [
         ..._selectionFields(context),
         _heading(context, 'Score'),
-        _ScoreFields(layout: layout, onChanged: (next, field) => _edit(next, typing: field)),
+        _ScoreFields(key: ValueKey(_rev), layout: layout, onChanged: (next, field) => _edit(next, typing: field)),
         const SizedBox(height: 20),
         _heading(context, 'Instruments'),
         _instrumentList(context),
         const SizedBox(height: 12),
         if (_instrument < layout.instruments.length)
           _InstrumentFields(
-            key: ValueKey(layout.instruments[_instrument].id),
+            key: ValueKey((layout.instruments[_instrument].id, _rev)),
             instrument: layout.instruments[_instrument],
             onChanged: (next, field) =>
                 _edit(layout.copyWith(instruments: [...layout.instruments]..[_instrument] = next), typing: '${next.id}.$field'),
@@ -866,12 +1104,20 @@ class _PdfImportState extends State<PdfImport> {
         final bar = segment < bars.length ? bars[segment] : null;
         out.addAll([
           _heading(context, bar == null ? 'System' : 'Bar {n}'.fill({'n': bar + 1 - (layout.pickup > 0 ? 1 : 0)})),
-          if (bar != null && bar > 0) ...[
-            _ChangeFields(
-              key: ValueKey('change $bar'),
-              layout: layout,
-              bar: bar,
-              onChanged: (next, field) => _edit(next, typing: '$bar.$field'),
+          if (bar != null) ...[
+            for (final change in _changesAt(bar, system))
+              _ChangeRow(
+                text: change.text,
+                whose: switch (change.instrument) { final i? => _staffName(i, change.staff), null => null },
+                color: change.instrument == null ? null : _colorOf(layout.instruments.indexOf(change.instrument!)),
+                onTap: change.edit,
+              ),
+            AppPopupMenuButton<VoidCallback>(
+              tooltip: 'Insert',
+              padding: EdgeInsets.zero,
+              itemBuilder: (context) => _insertItems(context, bar, system, selection.staff),
+              onSelected: (action) => action(),
+              child: IgnorePointer(child: OutlinedButton(onPressed: () {}, child: Text('Insert'.tr))),
             ),
             const SizedBox(height: 10),
           ],
@@ -933,10 +1179,14 @@ class _PdfImportState extends State<PdfImport> {
 /// A staff's instrument, at its left: a chip in the instrument's colour that picks another (or
 /// none: left out of the score).
 class _StaffChip extends StatelessWidget {
-  const _StaffChip({required this.layout, required this.staff, required this.onChanged});
+  const _StaffChip(
+      {required this.layout, required this.staff, required this.onChanged, required this.onRename, required this.onNew});
   final PdfScoreLayout layout;
   final PdfStaff staff;
   final void Function(String? part, int staff) onChanged;
+
+  /// Its instrument renamed, or a new one made for it.
+  final VoidCallback onRename, onNew;
 
   @override
   Widget build(BuildContext context) {
@@ -947,20 +1197,28 @@ class _StaffChip extends StatelessWidget {
     final label = instrument == null
         ? 'None'.tr
         : '${instrument.abbreviation.isNotEmpty ? instrument.abbreviation : instrument.name}${instrument.staves > 1 || staff.staff > 1 ? ' ${staff.staff}' : ''}';
-    return AppPopupMenuButton<(String?, int)>(
+    return AppPopupMenuButton<Object>(
       tooltip: 'Instrument',
       padding: EdgeInsets.zero,
-      onSelected: (v) => onChanged(v.$1, v.$2),
+      onSelected: (v) => switch (v) {
+        (final String? part, final int n) => onChanged(part, n),
+        final VoidCallback action => action(),
+        _ => null,
+      },
       itemBuilder: (context) => [
+        if (instrument != null)
+          menuItem<Object>(context, value: onRename, child: Text('Rename {name}…'.fill({'name': instrument.name}))),
+        menuItem<Object>(context, value: onNew, child: Text('New Instrument…'.tr)),
+        menuDivider(context),
         // A piano's staves, or a section's divisi.
         for (final i in layout.instruments)
           for (var n = 1; n <= (i.staves > 1 ? i.staves : i.divisi); n++)
-            checkedMenuItem(context,
+            checkedMenuItem<Object>(context,
                 value: (i.id, n),
                 checked: staff.part == i.id && staff.staff == n,
                 child: Text(i.staves > 1 || i.divisi > 1 ? '${i.name} $n' : i.name)),
         menuDivider(context),
-        checkedMenuItem(context, value: (null, 1), checked: staff.part == null, child: Text('None'.tr)),
+        checkedMenuItem<Object>(context, value: (null, 1), checked: staff.part == null, child: Text('None'.tr)),
       ],
       child: Container(
         alignment: Alignment.centerLeft,
@@ -978,7 +1236,7 @@ class _StaffChip extends StatelessWidget {
 
 /// The score's title, meter, key, upbeat and tempo.
 class _ScoreFields extends StatefulWidget {
-  const _ScoreFields({required this.layout, required this.onChanged});
+  const _ScoreFields({super.key, required this.layout, required this.onChanged});
   final PdfScoreLayout layout;
   final void Function(PdfScoreLayout next, String field) onChanged;
 
@@ -1058,12 +1316,9 @@ class _ScoreFieldsState extends State<_ScoreFields> {
 
 /// A key signature, by its major key (a concert key).
 class _KeyField extends StatelessWidget {
-  const _KeyField({required this.value, required this.onChanged, this.none = false});
+  const _KeyField({required this.value, required this.onChanged});
   final int? value;
   final ValueChanged<int?> onChanged;
-
-  /// Whether "no change" is a choice (null).
-  final bool none;
 
   static const _names = ['C♭', 'G♭', 'D♭', 'A♭', 'E♭', 'B♭', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯'];
 
@@ -1073,66 +1328,70 @@ class _KeyField extends StatelessWidget {
         isExpanded: true,
         label: 'Key',
         items: [
-          if (none) DropdownMenuItem(value: null, child: Text('—')),
           for (var f = -7; f <= 7; f++) DropdownMenuItem(value: f, child: Text(_names[f + 7])),
         ],
         onChanged: (f) => onChanged(f),
       );
 }
 
-/// A bar's meter and key, where they change.
-class _ChangeFields extends StatefulWidget {
-  const _ChangeFields({super.key, required this.layout, required this.bar, required this.onChanged});
-  final PdfScoreLayout layout;
-  final int bar;
-  final void Function(PdfScoreLayout next, String field) onChanged;
-
-  @override
-  State<_ChangeFields> createState() => _ChangeFieldsState();
-}
-
-class _ChangeFieldsState extends State<_ChangeFields> {
-  late final _meter = TextEditingController(text: widget.layout.meters[widget.bar]?.toString() ?? '');
-  bool _bad = false;
-
-  @override
-  void dispose() {
-    _meter.dispose();
-    super.dispose();
-  }
+/// A change inserted at a bar, in the panel: what it says and whose (null: every instrument's),
+/// in its instrument's colour; a click changes it.
+class _ChangeRow extends StatelessWidget {
+  const _ChangeRow({required this.text, required this.whose, required this.color, required this.onTap});
+  final String text;
+  final String? whose;
+  final Color? color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final layout = widget.layout, bar = widget.bar;
-    return Row(children: [
-      Expanded(
-        child: AppTextField(
-          controller: _meter,
-          label: 'Time',
-          hint: layout.meterAt(bar).toString(),
-          bad: _bad,
-          onChanged: (v) {
-            final meter = PdfMeter.parse(v);
-            setState(() => _bad = v.trim().isNotEmpty && meter == null);
-            if (v.trim().isEmpty) {
-              widget.onChanged(layout.copyWith(meters: {...layout.meters}..remove(bar)), 'meter');
-            } else if (meter != null) {
-              widget.onChanged(layout.copyWith(meters: {...layout.meters, bar: meter}), 'meter');
-            }
-          },
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppStyle.of(context).radius(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            border: Border.all(color: (color ?? colors.textMuted).withValues(alpha: 0.6)),
+            borderRadius: AppStyle.of(context).radius(6),
+          ),
+          child: Row(children: [
+            Expanded(child: Text(text, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.text))),
+            const SizedBox(width: 8),
+            Text(whose ?? 'All'.tr, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: colors.textMuted)),
+          ]),
         ),
       ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: _KeyField(
-          value: layout.keys[bar],
-          none: true,
-          onChanged: (f) => widget.onChanged(
-              layout.copyWith(keys: f == null ? ({...layout.keys}..remove(bar)) : {...layout.keys, bar: f}), 'key'),
-        ),
-      ),
-    ]);
+    );
   }
+}
+
+/// A change's tag on the page, at the start of its bar: a click changes it.
+class _ChangeTag extends StatelessWidget {
+  const _ChangeTag({required this.text, required this.color, required this.onTap});
+  final String text;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(right: 3),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              height: 16,
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+              child: Text(text, style: const TextStyle(fontSize: 10.5, height: 1, color: Color(0xFFFFFFFF), fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ),
+      );
 }
 
 /// An instrument's name, abbreviation, clef, staves and transposition.
@@ -1156,15 +1415,6 @@ class _InstrumentFieldsState extends State<_InstrumentFields> {
     super.dispose();
   }
 
-  static String _clefName(PdfClef c) => switch (c) {
-        PdfClef.treble => 'Treble',
-        PdfClef.treble8vb => 'Treble 8vb',
-        PdfClef.alto => 'Alto',
-        PdfClef.tenor => 'Tenor',
-        PdfClef.bass => 'Bass',
-        PdfClef.percussion => 'Percussion',
-      };
-
   @override
   Widget build(BuildContext context) {
     final i = widget.instrument;
@@ -1173,7 +1423,7 @@ class _InstrumentFieldsState extends State<_InstrumentFields> {
           controller: _name,
           label: 'Name',
           onChanged: (v) {
-            if (v.trim().isNotEmpty) widget.onChanged(i.copyWith(name: v), 'name');
+            if (v.trim().isNotEmpty) widget.onChanged(i.renamed(v), 'name');
           }),
       const SizedBox(height: 12),
       AppTextField(
@@ -1185,7 +1435,7 @@ class _InstrumentFieldsState extends State<_InstrumentFields> {
             value: i.clef,
             isExpanded: true,
             label: 'Clef',
-            items: [for (final c in PdfClef.values) DropdownMenuItem(value: c, child: Text(_clefName(c).tr))],
+            items: [for (final c in PdfClef.values) DropdownMenuItem(value: c, child: Text(pdfClefName(c).tr))],
             onChanged: (c) => widget.onChanged(i.copyWith(clef: c), 'clef'),
           ),
         ),

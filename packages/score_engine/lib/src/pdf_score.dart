@@ -200,9 +200,18 @@ abstract final class PdfEngraving {
       for (final (k, n) in part.staffNumbers.indexed) {
         staves.add(StaffInfo(n: n, top: (n - 1) * _staffGap, height: 4 * unit, lines: 5));
         if (instrument == null) continue; // a spacer
-        final clef = k > 0 ? PdfClef.bass : instrument.clef;
-        signatures.add(ClefSignature(
-            staff: n, x: 0, commandStart: 0, commandCount: 0, shape: clef.shape, line: clef.line, octave: clef.octave));
+        final clef = instrument.clefAt(0, k + 1);
+        for (final bar in [0, for (final (b, staff) in instrument.clefs.keys) if (staff == k + 1 && b > 0 && b < measures.length) b]) {
+          final c = instrument.clefAt(bar, k + 1);
+          signatures.add(ClefSignature(
+              staff: n,
+              x: bar == 0 ? 0 : measures[bar].left,
+              commandStart: 0,
+              commandCount: 0,
+              shape: c.shape,
+              line: c.line,
+              octave: c.octave));
+        }
         if (clef != PdfClef.percussion) {
           signatures.add(KeySignature(staff: n, x: 0, commandStart: 0, commandCount: 0, fifths: instrument.key.keyOf(layout.fifths)));
           for (final MapEntry(key: bar, value: fifths) in layout.keys.entries) {
@@ -212,11 +221,9 @@ abstract final class PdfEngraving {
             }
           }
         }
-        for (final (bar, meter) in [
-          (0, layout.meterAt(0)),
-          for (final e in layout.meters.entries)
-            if (e.key > 0 && e.key < measures.length) (e.key, e.value),
-        ]) {
+        // The score's meter, or the instrument's own where it has one.
+        for (final bar in {0, ...layout.meters.keys, ...instrument.meters.keys}.where((b) => b < measures.length)) {
+          final meter = layout.meterOf(instrument, bar);
           final summands = [for (final b in meter.beats.split('+')) int.tryParse(b) ?? 0];
           signatures.add(TimeSignature(
               staff: n,
@@ -296,6 +303,18 @@ abstract final class PdfEngraving {
       strokes.add((x: data.measures[bar].right, width: 0.16 * unit));
     }
     final binWidth = data.staffSpace * 16;
+    // The tempo marks, where their bars start: what the frame's left says of the speed (their
+    // words are the score's texts, [PdfScoreLayout.tempoId]); nothing of them is drawn.
+    final apart = [
+      for (final MapEntry(key: bar, value: mark) in layout.tempos.entries)
+        if (mark.words.trim().isNotEmpty && bar < data.measures.length)
+          (
+            id: PdfScoreLayout.tempoId(bar),
+            items: const <DisplayItem>[],
+            bounds: ui.Rect.fromLTWH(data.measures[bar].left, -2 * unit, unit, unit),
+            baseline: -unit,
+          ),
+    ];
     return ScoreDisplayList.of(
       data,
       [
@@ -314,6 +333,7 @@ abstract final class PdfEngraving {
           },
       ],
       strokes: strokes,
+      apart: apart,
     );
   }
 

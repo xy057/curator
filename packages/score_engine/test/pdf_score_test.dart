@@ -77,5 +77,24 @@ void main() {
     expect([layout.systems[1].bandOf(0), layout.systems[1].bandOf(1)], [(20.0, 40.0), (48.0, 76.0)]);
     expect(PdfScoreLayout.fromJson(layout.toJson()).systems[1].gaps, {0: 48.0});
     expect(PdfScoreLayout.fromJson(layout.toJson()).toJson(), layout.toJson());
+
+    // Changes inserted: a tempo mark, the violin's own clef and time signature from bar 2.
+    final changed = layout.copyWith(
+      instruments: [violin.copyWith(clefs: {(1, 1): PdfClef.alto}, meters: {1: const PdfMeter('6', 8)})],
+      tempos: {0: const PdfTempo('Allegro'), 1: const PdfTempo('rit.')},
+    );
+    final v = changed.instruments.single;
+    expect([v.clefAt(0, 1), v.clefAt(3, 1)], [PdfClef.treble, PdfClef.alto]);
+    expect(['${changed.meterOf(v, 0)}', '${changed.meterOf(v, 2)}', '${changed.meterAt(2)}'], ['4/4', '6/8', '4/4']);
+    final changedXml = changed.musicXML();
+    expect(changedXml, contains('<direction id="${PdfScoreLayout.tempoId(1)}"'));
+    expect(changedXml, contains('<words>Allegro</words>'));
+    expect(changedXml, contains('<sign>C</sign><line>3</line>'));
+    expect(PdfScoreLayout.fromJson(changed.toJson()), changed);
+    // A key read off a transposing staff is kept as the concert key; a name says the transposition.
+    expect(PdfInstrument.keyForName('Clarinet in B♭'), SpacerKey.bFlat);
+    expect(PdfInstrument.keyForName('Bass Clarinet'), SpacerKey.c);
+    expect(SpacerKey.bFlat.concertOf(SpacerKey.bFlat.keyOf(-3)), -3);
+    expect(const PdfInstrument(id: 'P2', name: 'Clarinet in B♭', key: SpacerKey.bFlat).renamed('Flute').key, SpacerKey.c);
   });
 }

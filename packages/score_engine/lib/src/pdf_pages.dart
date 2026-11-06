@@ -295,20 +295,8 @@ class PdfPages {
     return ending(short) == ending(full);
   }
 
-  static SpacerKey _keyOf(String name) {
-    final m = RegExp(r'\b(?:in|en|in\s+)\s*([A-G])\s*(b|♭|flat|es)?\b', caseSensitive: false).firstMatch(name);
-    if (m == null) return SpacerKey.c;
-    final flat = m[2] != null;
-    return switch ((m[1]!.toUpperCase(), flat)) {
-      ('B', true) => SpacerKey.bFlat,
-      ('E', true) => SpacerKey.eFlat,
-      ('A', false) => SpacerKey.a,
-      ('F', false) => SpacerKey.f,
-      ('D', false) => SpacerKey.d,
-      ('G', false) => SpacerKey.g,
-      _ => SpacerKey.c,
-    };
-  }
+  static SpacerKey _keyOf(String name) => PdfInstrument.keyForName(name);
+
 }
 
 /// The isolate every PDF is read on.
