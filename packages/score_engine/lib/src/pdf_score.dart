@@ -248,27 +248,15 @@ abstract final class PdfEngraving {
 
   /// [data] ([of]) as drawable staves: each bar of each staff a piece of its system's picture,
   /// placed so its lines are the staff's; where an instrument has no staff in a system (hidden
-  /// there, as printed) its staff is drawn empty, lines and a bar's rest. [spacers]: staff
+  /// there, as printed) nothing is drawn, no lines or rests the PDF doesn't have. [spacers]: staff
   /// numbers of vertical spacers, as [ScoreDisplayList.build] takes them.
   static ScoreDisplayList displayList(PdfScoreArt art, EngravingData data, ScoreMetadata metadata,
       {Map<int, ({double height, bool lines})> spacers = const {}}) {
     final layout = art.layout;
     final info = {for (final s in data.staves) s.n: s};
     final items = <int, List<DisplayItem>>{};
-    final lines = <int, List<StaffLine>>{};
     final staffOf = <String, List<int>>{for (final p in metadata.parts) p.id: p.staffNumbers};
     const thickness = 0.13 * unit;
-    void emptyBar(int n, double left, double right) {
-      final staff = info[n]!;
-      for (var k = 0; k < 5; k++) {
-        lines.putIfAbsent(n, () => []).add((y: staff.top + k * unit, left: left, right: right, thickness: thickness));
-      }
-      // A bar's rest, hanging from the fourth line in the bar's middle.
-      final middle = (left + right) / 2;
-      final rest = ui.Rect.fromLTWH(middle - 0.6 * unit, staff.top + unit, 1.2 * unit, 0.5 * unit);
-      items.putIfAbsent(n, () => []).add(ShapeItem(ui.Path()..addRect(rest), rest, fill: ui.Paint()..color = const ui.Color(0xFF000000)));
-    }
-
     final masks = <int, List<ui.Rect>>{};
     for (final m in layout.masks) {
       masks.putIfAbsent(m.page, () => []).add(m.rect);
@@ -277,7 +265,6 @@ abstract final class PdfEngraving {
     for (final (bar, pieces) in layout.bars.indexed) {
       if (bar >= data.measures.length) break;
       var x = data.measures[bar].left;
-      final shown = <int>{};
       for (final piece in pieces) {
         final system = layout.systems[piece.system];
         final width = (piece.right - piece.left) / system.space * unit;
@@ -303,15 +290,8 @@ abstract final class PdfEngraving {
                     math.min(yOf(bandBottom), top + 4 * unit + reach.below * unit)),
                 masks[system.page] ?? const [],
               ));
-          shown.add(n);
         }
         x += width;
-      }
-      for (final part in metadata.parts) {
-        if (layout.playerOf(part.id) == null) continue;
-        for (final n in part.staffNumbers) {
-          if (!shown.contains(n)) emptyBar(n, data.measures[bar].left, data.measures[bar].right);
-        }
       }
       strokes.add((x: data.measures[bar].right, width: 0.16 * unit));
     }
@@ -321,7 +301,7 @@ abstract final class PdfEngraving {
       [
         for (final staff in data.staves)
           switch (spacers[staff.n]) {
-            null => StaffLayer(staff, items[staff.n] ?? [], binWidth: binWidth, lines: _joined(lines[staff.n] ?? const [])),
+            null => StaffLayer(staff, items[staff.n] ?? [], binWidth: binWidth),
             (:final height, lines: true) => StaffLayer(staff, const [],
                 binWidth: binWidth,
                 lines: [
@@ -335,21 +315,6 @@ abstract final class PdfEngraving {
       ],
       strokes: strokes,
     );
-  }
-
-  /// Lines of neighbouring empty bars joined into one run.
-  static List<StaffLine> _joined(List<StaffLine> lines) {
-    final sorted = [...lines]..sort((a, b) => a.y != b.y ? a.y.compareTo(b.y) : a.left.compareTo(b.left));
-    final out = <StaffLine>[];
-    for (final line in sorted) {
-      final last = out.lastOrNull;
-      if (last != null && last.y == line.y && line.left <= last.right + 0.5) {
-        out.last = (y: last.y, left: last.left, right: math.max(last.right, line.right), thickness: last.thickness);
-      } else {
-        out.add(line);
-      }
-    }
-    return out;
   }
 
   /// The systems whose music is drawn between [left] and [right] (device units of [of]'s
