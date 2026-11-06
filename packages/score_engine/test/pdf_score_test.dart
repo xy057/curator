@@ -40,6 +40,13 @@ void main() {
     expect([for (final b in system.barlines) b.x], [closeTo(120, 0.8), closeTo(200, 0.8)]);
     // The cut between the staves is where nothing but the barlines cross.
     expect(system.cuts.single, inExclusiveRange(system.staves.first.bottom, system.staves.last.top));
+    // A gap between them is no one's: the barlines crossing it go with neither staff.
+    final page = _page(), cut = system.cuts.single;
+    int owner(PdfSystem s, double y) => PdfDetect.assign(page, s, const [])[page.row(y).round() * page.width + page.col(120).round()];
+    expect(owner(system, cut + 2), 1);
+    final gapped = system.copyWith(gaps: {0: cut + 6});
+    expect(gapped.bandOf(1).$1, cut + 6);
+    expect([owner(gapped, cut + 2), owner(gapped, cut + 8), owner(gapped, cut - 2)], [-1, 1, 0]);
   });
 
   test('a divided instrument is a part a division, and the layout round-trips', () {
@@ -53,7 +60,8 @@ void main() {
       systems: [
         // Together on one staff, then divided onto two: the second one division 2's.
         system(0, const [PdfStaff(top: 20, space: 4, part: 'P1')]),
-        system(1, const [PdfStaff(top: 20, space: 4, part: 'P1'), PdfStaff(top: 60, space: 4, part: 'P1', staff: 2)]),
+        system(1, const [PdfStaff(top: 20, space: 4, part: 'P1'), PdfStaff(top: 60, space: 4, part: 'P1', staff: 2)])
+            .copyWith(cuts: [40], gaps: {0: 48}),
       ],
       masks: const [PdfMask(1, ui.Rect.fromLTRB(50, 30, 60, 40))],
     );
@@ -66,6 +74,8 @@ void main() {
     });
     final xml = layout.musicXML();
     expect(ScoreMetadata.read(xml).parts.map((p) => p.name), ['Violin', 'Violin 2']);
+    expect([layout.systems[1].bandOf(0), layout.systems[1].bandOf(1)], [(20.0, 40.0), (48.0, 76.0)]);
+    expect(PdfScoreLayout.fromJson(layout.toJson()).systems[1].gaps, {0: 48.0});
     expect(PdfScoreLayout.fromJson(layout.toJson()).toJson(), layout.toJson());
   });
 }

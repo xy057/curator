@@ -54,8 +54,20 @@ class _MaskSelection extends _Selection {
   final int mask;
 }
 
-/// What a drag moves: a system's top (-1), bottom (-2) or a cut (0…), its music's start, or a
-/// barline.
+/// The gap below system [system]'s cut [cut] ([PdfSystem.gaps]).
+class _GapSelection extends _Selection {
+  const _GapSelection(this.system, this.cut);
+  final int system, cut;
+
+  @override
+  bool operator ==(Object other) => other is _GapSelection && other.system == system && other.cut == cut;
+
+  @override
+  int get hashCode => Object.hash(system, cut);
+}
+
+/// What a drag moves: a system's top (-1), bottom (-2) or a cut (0…), a gap's bottom, its
+/// music's start, or a barline.
 sealed class _Drag {
   const _Drag(this.system);
   final int system;
@@ -64,6 +76,12 @@ sealed class _Drag {
 class _EdgeDrag extends _Drag {
   const _EdgeDrag(super.system, this.edge);
   final int edge;
+}
+
+/// The bottom of the gap below cut [cut] (its top is the cut).
+class _GapDrag extends _Drag {
+  const _GapDrag(super.system, this.cut);
+  final int cut;
 }
 
 class _StartDrag extends _Drag {
@@ -212,10 +230,19 @@ class _PdfImportState extends State<PdfImport> {
         _edit(layout.copyWith(masks: [...layout.masks]..removeAt(mask)));
       case _BarSelection(:final system):
         _edit(layout.copyWith(systems: [...layout.systems]..removeAt(system)));
+      case _GapSelection(:final system, :final cut):
+        _setSystem(system, _withoutGap(layout.systems[system], cut));
       case null:
         return;
     }
     setState(() => _selection = null);
+  }
+
+  /// [s] with the gap below cut [c] gone, the cut in its middle.
+  static PdfSystem _withoutGap(PdfSystem s, int c) {
+    final cuts = [for (var k = 0; k + 1 < s.staves.length; k++) s.cutAfter(k)];
+    cuts[c] = (s.cutAfter(c) + s.resumeAfter(c)) / 2;
+    return s.copyWith(cuts: cuts, gaps: {...s.gaps}..remove(c));
   }
 
   Future<void> _detectAgain() async {
@@ -278,6 +305,9 @@ class _PdfImportState extends State<PdfImport> {
       for (final (edge, y) in edges) {
         if ((p - Offset(handleX, y)).distance <= grab * 1.4) return _EdgeDrag(i, edge);
       }
+      for (final c in s.gaps.keys) {
+        if ((p - Offset(handleX, s.resumeAfter(c))).distance <= grab * 1.4) return _GapDrag(i, c);
+      }
       if (p.dy < s.top || p.dy > s.bottom) continue;
       if ((p.dx - s.left).abs() <= grab) return _StartDrag(i);
       for (final (b, line) in s.barlines.indexed) {
@@ -296,6 +326,9 @@ class _PdfImportState extends State<PdfImport> {
       final grab = _grab / _zoom;
       for (final (b, line) in s.barlines.indexed) {
         if ((p.dx - line.x).abs() <= grab) return _BarlineSelection(i, b);
+      }
+      for (final c in s.gaps.keys) {
+        if (s.gapAfter(c) case (final top, final bottom) when p.dy >= top && p.dy <= bottom) return _GapSelection(i, c);
       }
       for (final (k, (l, r)) in s.segments.indexed) {
         if (p.dx >= l && p.dx <= r) return _BarSelection(i, k);
@@ -340,9 +373,13 @@ class _PdfImportState extends State<PdfImport> {
       case _EdgeDrag(edge: -2):
         next = s.copyWith(bottom: math.max(p.dy, s.staves.last.bottom));
       case _EdgeDrag(:final edge):
+        // A gap's top: no lower than its bottom.
         final cuts = [for (var c = 0; c + 1 < s.staves.length; c++) s.cutAfter(c)];
-        cuts[edge] = p.dy.clamp(s.staves[edge].bottom, s.staves[edge + 1].top);
+        final below = s.gaps.containsKey(edge) ? s.resumeAfter(edge) : s.staves[edge + 1].top;
+        cuts[edge] = p.dy.clamp(s.staves[edge].bottom, math.max(s.staves[edge].bottom, below));
         next = s.copyWith(cuts: cuts);
+      case _GapDrag(:final cut):
+        next = s.copyWith(gaps: {...s.gaps, cut: p.dy.clamp(s.cutAfter(cut), math.max(s.cutAfter(cut), s.staves[cut + 1].top))});
       case _StartDrag():
         next = s.copyWith(left: p.dx.clamp(0, s.right - s.space));
       case _BarlineDrag(:final barline):
@@ -365,6 +402,14 @@ class _PdfImportState extends State<PdfImport> {
       final hit = _selectionAt(from);
       setState(() => _selection = hit is _MaskSelection ? hit : null);
     }
+    // A gap dragged shut is gone.
+    if (_drag case _EdgeDrag(:final system, :final edge) || _GapDrag(:final system, cut: final edge) when edge >= 0) {
+      final s = layout.systems[system];
+      if (s.gaps.containsKey(edge) && s.resumeAfter(edge) - s.cutAfter(edge) < 0.5) {
+        _layout = layout.copyWith(systems: [...layout.systems]..[system] = s.copyWith(gaps: {...s.gaps}..remove(edge)));
+        if (_selection == _GapSelection(system, edge)) _selection = null;
+      }
+    }
     if (_drag case _BarlineDrag(:final system)) {
       // Kept in order.
       final s = layout.systems[system];
@@ -379,9 +424,23 @@ class _PdfImportState extends State<PdfImport> {
     });
   }
 
-  /// A double click in a system: a barline there.
-  void _addBarline(Offset local) {
-    final p = _toPage(local);
+  /// A double click in a system: on a cut, a gap there, no one's (a third of the room between
+  /// the staves, which its edges then change); in a gap, nothing; elsewhere a barline.
+  void _doubleClick(Offset local) {
+    final p = _toPage(local), grab = _grab / _zoom;
+    for (final (i, s) in _onPage) {
+      if (p.dx < s.left - grab || p.dx > s.right + 14 / _zoom) continue;
+      for (var c = 0; c + 1 < s.staves.length; c++) {
+        if (s.gapAfter(c) case (final top, final bottom) when p.dy >= top - grab && p.dy <= bottom + grab) return;
+        if ((p.dy - s.cutAfter(c)).abs() > grab) continue;
+        final from = s.staves[c].bottom, to = s.staves[c + 1].top, height = (to - from) / 3;
+        final top = (s.cutAfter(c) - height / 2).clamp(from, math.max(from, to - height)).toDouble();
+        final cuts = [for (var k = 0; k + 1 < s.staves.length; k++) s.cutAfter(k)]..[c] = top;
+        _setSystem(i, s.copyWith(cuts: cuts, gaps: {...s.gaps, c: top + height}));
+        setState(() => _selection = _GapSelection(i, c));
+        return;
+      }
+    }
     for (final (i, s) in _onPage) {
       if (p.dy < s.top || p.dy > s.bottom || p.dx <= s.left || p.dx > s.right) continue;
       final lines = [...s.barlines, PdfBarline(p.dx)]..sort((a, b) => a.x.compareTo(b.x));
@@ -395,6 +454,7 @@ class _PdfImportState extends State<PdfImport> {
     if (_tool == _Tool.mask) return SystemMouseCursors.precise;
     return switch (_dragAt(_toPage(local))) {
       _EdgeDrag() => SystemMouseCursors.resizeRow,
+      _GapDrag() => SystemMouseCursors.resizeRow,
       _StartDrag() || _BarlineDrag() => SystemMouseCursors.resizeColumn,
       null => SystemMouseCursors.basic,
     };
@@ -646,7 +706,7 @@ class _PdfImportState extends State<PdfImport> {
                         onPanUpdate: (d) => _move(d.localPosition),
                         onPanEnd: (_) => _up(),
                         onPanCancel: _up,
-                        onDoubleTapDown: _tool == _Tool.select ? (d) => _addBarline(d.localPosition) : null,
+                        onDoubleTapDown: _tool == _Tool.select ? (d) => _doubleClick(d.localPosition) : null,
                         onDoubleTap: _tool == _Tool.select ? () {} : null,
                         child: CustomPaint(
                           painter: _PagePainter(
@@ -821,6 +881,11 @@ class _PdfImportState extends State<PdfImport> {
         out.addAll([
           _heading(context, 'Mask'),
           OutlinedButton(onPressed: _remove, child: Text('Remove Mask'.tr)),
+        ]);
+      case _GapSelection():
+        out.addAll([
+          _heading(context, 'Gap'),
+          OutlinedButton(onPressed: _remove, child: Text('Remove Gap'.tr)),
         ]);
       case null:
         break;
@@ -1164,8 +1229,8 @@ class _InstrumentFieldsState extends State<_InstrumentFields> {
 }
 
 /// A page with what was found on it: the systems (dashed), the cuts between their staves with
-/// handles at the right, each staff's band in its instrument's colour, the barlines, where the
-/// music starts, and the masks.
+/// handles at the right (a gap's two edges, hatched between), each staff's band in its
+/// instrument's colour, the barlines, where the music starts, and the masks.
 class _PagePainter extends CustomPainter {
   _PagePainter({
     required this.layout,
@@ -1233,7 +1298,7 @@ class _PagePainter extends CustomPainter {
 
   void _system(Canvas canvas, int index, PdfSystem s, double px) {
     final selectedSystem = switch (selection) {
-      _BarSelection(:final system) || _BarlineSelection(:final system) => system == index,
+      _BarSelection(:final system) || _BarlineSelection(:final system) || _GapSelection(:final system) => system == index,
       _ => false,
     };
     // Each staff's band, tinted in its instrument's colour (grey: no one's).
@@ -1247,6 +1312,23 @@ class _PagePainter extends CustomPainter {
             ..color = color.withValues(alpha: 0.85)
             ..strokeWidth = 2.5 * px);
     }
+    // The gaps, no one's: hatched.
+    for (final c in s.gaps.keys) {
+      final (top, bottom) = s.gapAfter(c) ?? (0.0, 0.0);
+      if (bottom <= top) continue;
+      final rect = Rect.fromLTRB(s.left, top, s.right, bottom);
+      final selected = selection == _GapSelection(index, c);
+      canvas.drawRect(rect, Paint()..color = (selected ? colors.accent : const Color(0xFF9E9E9E)).withValues(alpha: 0.12));
+      canvas.save();
+      canvas.clipRect(rect);
+      final hatch = Paint()
+        ..color = const Color(0x40000000)
+        ..strokeWidth = px;
+      for (var x = rect.left - rect.height; x < rect.right; x += 8 * px) {
+        canvas.drawLine(Offset(x, rect.bottom), Offset(x + rect.height, rect.top), hatch);
+      }
+      canvas.restore();
+    }
     // The selected bar.
     if (selection case _BarSelection(:final system, :final segment) when system == index) {
       final segments = s.segments;
@@ -1259,7 +1341,11 @@ class _PagePainter extends CustomPainter {
       ..color = (selectedSystem ? colors.accent : const Color(0xFF3E63DD)).withValues(alpha: 0.8)
       ..strokeWidth = px;
     // Its top, the cuts and its bottom, with their handles at the right.
-    final edges = [s.top, for (var c = 0; c + 1 < s.staves.length; c++) s.cutAfter(c), s.bottom];
+    final edges = [
+      s.top,
+      for (var c = 0; c + 1 < s.staves.length; c++) ...[s.cutAfter(c), if (s.gapAfter(c) case (_, final bottom)) bottom],
+      s.bottom,
+    ];
     for (final y in edges) {
       _dash(canvas, Offset(s.left - 6 * px, y), Offset(s.right + 10 * px, y), dashed, px);
       final handle = Offset(s.right + 10 * px, y);

@@ -892,6 +892,8 @@ const zhHant = <String, String>{
   'Remove Barline': '移除小節線',
   'Remove Instrument': '移除樂器',
   'Remove Mask': '移除遮蔽',
+  'Gap': '間隙',
+  'Remove Gap': '移除間隙',
   'Remove System': '移除系統',
   'Single': '單線',
   'Staff {n}': '譜表 {n}',

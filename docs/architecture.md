@@ -28,7 +28,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time (`EditChunk`) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
 | `pdf_detect.dart`, `pdf_pages.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`) |
-| `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, cuts, barlines and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
+| `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, cuts, gaps, barlines and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
@@ -68,7 +68,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
-| `pdf_import.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`), a page at a time with what was found drawn over it, every system's edges, cuts, music start, barlines, masks and staves' instruments dragged, drawn or picked, the instruments listed and edited |
+| `pdf_import.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start, barlines, masks and staves' instruments dragged, drawn or picked, the instruments listed and edited |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -888,7 +888,9 @@ curation, sync, captions, export and the web page work as for any score. The mai
 engraving: each system is drawn by PDFium as printed (RGBA, on nothing; `PdfPagesSource`, a few
 systems ahead of the view, `CuratedScene.ready`, and an LRU of decoded images), and each staff's
 bar is the rectangle of it between that staff's cuts, the masks clipped out; never tinted,
-recoloured or processed. A divided instrument (`PdfInstrument.divisi`) is a part a division
+recoloured or processed. A cut can open into a gap (`PdfSystem.gaps`, its bottom; the cut its
+top): what is printed there (a line of text between two staves) goes with neither, in the
+picture and in the ink measured. A divided instrument (`PdfInstrument.divisi`) is a part a division
 (`P6`, `P6d2`…, `players`): a one-staff instrument's further staves in a system (`PdfStaff.staff`
 2…) are its divisions', so a system printing it on one staff leaves the others silent and
 curation hides them. Export to Web writes each system's picture as `score/pdf/N.png`.

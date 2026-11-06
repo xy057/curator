@@ -618,10 +618,10 @@ abstract final class PdfDetect {
   }
 
   /// Which staff of [system] each pixel of [raster] (a part of its page) belongs to, -1 for none:
-  /// what is under a mask or outside the system is no one's; a staff's lines are its own; every
-  /// other mark goes whole to the staff where most of it is (between the cuts), but one that
-  /// runs through the lines of two staves or more (a barline, a beam across them) is cut at the
-  /// cuts. [masks] in points.
+  /// what is under a mask, in a gap ([PdfSystem.gaps]) or outside the system is no one's; a
+  /// staff's lines are its own; every other mark goes whole to the staff where most of it is
+  /// (between the cuts), but one that runs through the lines of two staves or more (a barline, a
+  /// beam across them) is cut at the cuts. [masks] in points.
   static Int8List assign(PdfRaster raster, PdfSystem system, List<ui.Rect> masks) {
     final w = raster.width, h = raster.height, ink = raster.ink;
     final out = Int8List(w * h)..fillRange(0, w * h, -1);

@@ -222,6 +222,7 @@ class PdfSystem {
     required this.right,
     required this.staves,
     this.cuts = const [],
+    this.gaps = const {},
     this.barlines = const [],
     this.ink,
   });
@@ -243,6 +244,10 @@ class PdfSystem {
   /// from the page's top); [staves] − 1 of them. What crosses a cut goes with the staff where
   /// most of it is.
   final List<double> cuts;
+
+  /// Stretches between two staves no one's, keyed by the cut above each ([cuts]' index): where
+  /// it ends, points from the page's top. What is printed in one goes with neither staff.
+  final Map<int, double> gaps;
 
   /// Left to right, past [left]; the last at [right] unless the bar goes on in the next system.
   final List<PdfBarline> barlines;
@@ -276,8 +281,15 @@ class PdfSystem {
   /// The cut between staff [i] and the one below, or the middle between them when none is set.
   double cutAfter(int i) => i < cuts.length ? cuts[i] : (staves[i].bottom + staves[i + 1].top) / 2;
 
-  /// The band of staff [i]: from the cut above it (or [top]) to the cut below it (or [bottom]).
-  (double, double) bandOf(int i) => (i == 0 ? top : cutAfter(i - 1), i == staves.length - 1 ? bottom : cutAfter(i));
+  /// Where the staff below staff [i] begins: past the gap after [cutAfter] ([gaps]), if any.
+  double resumeAfter(int i) => math.max(cutAfter(i), gaps[i] ?? 0);
+
+  /// The gap between staff [i] and the one below, top and bottom; null when there is none.
+  (double, double)? gapAfter(int i) => resumeAfter(i) > cutAfter(i) ? (cutAfter(i), resumeAfter(i)) : null;
+
+  /// The band of staff [i]: from the cut (or gap) above it, or [top], to the cut below it, or
+  /// [bottom].
+  (double, double) bandOf(int i) => (i == 0 ? top : resumeAfter(i - 1), i == staves.length - 1 ? bottom : cutAfter(i));
 
   PdfSystem copyWith({
     double? top,
@@ -286,6 +298,7 @@ class PdfSystem {
     double? right,
     List<PdfStaff>? staves,
     List<double>? cuts,
+    Map<int, double>? gaps,
     List<PdfBarline>? barlines,
     List<List<PdfInk>>? Function()? ink,
   }) =>
@@ -297,6 +310,7 @@ class PdfSystem {
         right: right ?? this.right,
         staves: staves ?? this.staves,
         cuts: cuts ?? this.cuts,
+        gaps: gaps ?? this.gaps,
         barlines: barlines ?? this.barlines,
         ink: ink == null ? this.ink : ink(),
       );
@@ -309,6 +323,10 @@ class PdfSystem {
         'right': _round(right),
         'staves': [for (final s in staves) s.toJson()],
         'cuts': [for (final c in cuts) _round(c)],
+        if (gaps.isNotEmpty)
+          'gaps': [
+            for (final c in gaps.keys.toList()..sort()) [c, _round(gaps[c]!)],
+          ],
         'barlines': [
           for (final b in barlines) [_round(b.x), b.kind.name],
         ],
@@ -347,9 +365,23 @@ class PdfSystem {
       right: _number(json, 'right'),
       staves: staves,
       cuts: [for (final c in _list(json, 'cuts')) c is num ? c.toDouble() : throw _bad('cuts')],
+      gaps: _gaps(json, staves.length),
       barlines: barlines,
       ink: ink != null && ink.length == staves.length ? ink : null,
     );
+  }
+
+  /// [gaps] as written, those past the staves left out.
+  static Map<int, double> _gaps(Map<String, Object?> json, int staves) {
+    final out = <int, double>{};
+    for (final g in json['gaps'] == null ? const [] : _list(json, 'gaps')) {
+      if (g case [final int c, final num bottom]) {
+        if (c >= 0 && c + 1 < staves) out[c] = bottom.toDouble();
+      } else {
+        throw _bad('gaps');
+      }
+    }
+    return out;
   }
 
   @override
@@ -362,6 +394,7 @@ class PdfSystem {
       other.right == right &&
       listEquals(other.staves, staves) &&
       listEquals(other.cuts, cuts) &&
+      mapEquals(other.gaps, gaps) &&
       listEquals(other.barlines, barlines) &&
       _sameInk(other.ink, ink);
 
