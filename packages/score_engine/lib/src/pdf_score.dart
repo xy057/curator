@@ -199,7 +199,7 @@ abstract final class PdfEngraving {
       final instrument = layout.playerOf(part.id)?.$1;
       for (final (k, n) in part.staffNumbers.indexed) {
         staves.add(StaffInfo(n: n, top: (n - 1) * _staffGap, height: 4 * unit, lines: 5));
-        if (instrument == null) continue; // a spacer
+        if (instrument == null || instrument.blank) continue; // a spacer, a blank lane
         final clef = instrument.clefAt(0, k + 1);
         for (final bar in [0, for (final (b, staff) in instrument.clefs.keys) if (staff == k + 1 && b > 0 && b < measures.length) b]) {
           final c = instrument.clefAt(bar, k + 1);

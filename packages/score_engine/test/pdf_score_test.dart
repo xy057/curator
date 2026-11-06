@@ -96,5 +96,14 @@ void main() {
     expect(PdfInstrument.keyForName('Bass Clarinet'), SpacerKey.c);
     expect(SpacerKey.bFlat.concertOf(SpacerKey.bFlat.keyOf(-3)), -3);
     expect(const PdfInstrument(id: 'P2', name: 'Clarinet in B♭', key: SpacerKey.bFlat).renamed('Flute').key, SpacerKey.c);
+
+    // A blank lane: a part of the score that no staff is, and that shows no signature.
+    final blanked = layout.copyWith(instruments: [const PdfInstrument.blank(id: 'P2'), violin]);
+    expect(PdfScoreLayout.fromJson(blanked.toJson()), blanked);
+    expect(blanked.played['P2'], [false, false, false, false]);
+    final metadata = ScoreMetadata.read(blanked.musicXML());
+    expect(metadata.parts.map((p) => p.id), ['P2', 'P1', 'P1d2']);
+    final staffOfBlank = metadata.parts.first.staffNumbers.single;
+    expect(PdfEngraving.of(blanked, metadata).signatures.where((s) => s.staff == staffOfBlank), isEmpty);
   });
 }

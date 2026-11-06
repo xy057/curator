@@ -166,6 +166,12 @@ class EditorController extends ChangeNotifier {
     await _install(name, bytes, score, ProjectState(edits: edits, pdf: layout), pages: pages);
   }
 
+  /// Whether [partId] is a PDF score's blank lane ([PdfInstrument.blank]): no staff of the PDF
+  /// is its, auto-curation leaves it be.
+  bool isBlankLane(String partId) => _score != null && _isBlank(_score!, partId);
+
+  static bool _isBlank(LoadedScore score, String partId) => score.pdf?.layout.playerOf(partId)?.$1.blank ?? false;
+
   /// The PDF the open score is drawn from, read by PDFium; null for an engraved score.
   PdfPages? get pdfPages => _pdfPages;
   PdfPages? _pdfPages;
@@ -374,17 +380,24 @@ class EditorController extends ChangeNotifier {
       ..addListener(_syncChanged);
     // A spacer keeps its lane while it isn't engraved (Attach Image off).
     final parts = [for (final p in score.metadata.parts) p.id, for (final s in edits.spacers) s.id];
+    final throughout = [Region(0, score.timeline.measureStarts.last)];
     _curation = Curation({...parts})
       ..load(
           edits.lanes ??
               (autoCurateImported
-                  ? Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts)
-                  : {for (final id in parts) id: [Region(0, score.timeline.measureStarts.last)]}),
+                  ? {
+                      ...Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
+                      // A blank lane plays nothing, and is there to be shown.
+                      for (final id in parts) if (_isBlank(score, id)) id: throughout,
+                    }
+                  : {for (final id in parts) id: throughout}),
           transition: edits.transition ?? defaultTransition);
     _joinLanes();
     _scene = _makeScene(score);
     // A new score's lanes fit the video's frame (before anyone listens: it's no edit).
-    if (edits.lanes == null && autoCurateImported) _curation!.setLanes(lanes._curated([for (final p in laneParts) p.id])!);
+    if (edits.lanes == null && autoCurateImported) {
+      _curation!.setLanes(lanes._curated([for (final p in laneParts) if (!isBlankLane(p.id)) p.id])!);
+    }
     _curation!.addListener(_curationEdited);
     // Last: working out their style can notify at once, and listeners must find all of it open.
     captions._load(edits.captions, edits.captionFont);

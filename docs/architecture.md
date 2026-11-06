@@ -68,7 +68,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
-| `pdf_import.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start, barlines, masks and staves' instruments dragged, drawn or picked, the instruments listed and edited (renamed or made from a staff's chip); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
+| `pdf_import.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start, barlines, masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -901,7 +901,10 @@ beats, which the first part's `<time>` sets. An instrument's transposition follo
 (`keyForName`, `renamed`). A divided instrument (`PdfInstrument.divisi`) is a part a division
 (`P6`, `P6d2`…, `players`): a one-staff instrument's further staves in a system (`PdfStaff.staff`
 2…) are its divisions', so a system printing it on one staff leaves the others silent and
-curation hides them. Export to Web writes each system's picture as `score/pdf/N.png`.
+curation hides them. A blank lane (`PdfInstrument.blank`, the import's Add Blank Lane) is a part
+no staff of the PDF is: a staff's room in the main view, drawn empty and unnamed, no signature in
+its frozen zone (`_bareStaves`, `_unnamed`); auto-curation leaves it shown (`isBlankLane`), and its
+lane and Spacing… say when and how much room there is. Export to Web writes each system's picture as `score/pdf/N.png`.
 
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;

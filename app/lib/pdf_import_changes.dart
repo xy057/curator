@@ -362,7 +362,12 @@ class _InstrumentDialogState extends State<_InstrumentDialog> {
   @override
   Widget build(BuildContext context) {
     return AppDialog(
-      title: Text((widget.isNew ? 'New Instrument' : 'Rename Instrument').tr),
+      title: Text((widget.isNew
+              ? 'New Instrument'
+              : widget.instrument.blank
+                  ? 'Rename Lane'
+                  : 'Rename Instrument')
+          .tr),
       content: SizedBox(
         width: dialogWidth(context, 360),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -379,26 +384,29 @@ class _InstrumentDialogState extends State<_InstrumentDialog> {
             for (final symbol in const ['♭', '♯', '♮'])
               AppChip(label: symbol, tooltip: 'Insert {symbol}'.fill({'symbol': symbol}), onPressed: () => _insert(symbol)),
           ]),
-          SizedBox(height: dialogGap(context)),
-          Row(children: [
-            Expanded(child: AppTextField(controller: _short, label: 'Short name', onSubmitted: (_) => _apply())),
-            const SizedBox(width: 12),
-            Expanded(
-              child: AppDropdown<SpacerKey>(
-                value: _key,
-                isExpanded: true,
-                label: 'Transposition',
-                items: [
-                  for (final k in SpacerKey.values)
-                    DropdownMenuItem(value: k, child: Text(k == SpacerKey.c ? 'None'.tr : 'in {key}'.fill({'key': k.label}))),
-                ],
-                onChanged: (k) => setState(() {
-                  _key = k ?? _key;
-                  _keyPicked = true;
-                }),
+          // A blank lane is only named.
+          if (!widget.instrument.blank) ...[
+            SizedBox(height: dialogGap(context)),
+            Row(children: [
+              Expanded(child: AppTextField(controller: _short, label: 'Short name', onSubmitted: (_) => _apply())),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppDropdown<SpacerKey>(
+                  value: _key,
+                  isExpanded: true,
+                  label: 'Transposition',
+                  items: [
+                    for (final k in SpacerKey.values)
+                      DropdownMenuItem(value: k, child: Text(k == SpacerKey.c ? 'None'.tr : 'in {key}'.fill({'key': k.label}))),
+                  ],
+                  onChanged: (k) => setState(() {
+                    _key = k ?? _key;
+                    _keyPicked = true;
+                  }),
+                ),
               ),
-            ),
-          ]),
+            ]),
+          ],
         ]),
       ),
       actions: [

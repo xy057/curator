@@ -922,4 +922,7 @@ const zhHans = <String, String>{
   'Spacing…': '间距…',
   'Above (spaces)': '上方（间）',
   'Below (spaces)': '下方（间）',
+  'Add Blank Lane': '添加空白轨道',
+  'Blank': '空白',
+  'Rename Lane': '重命名轨道',
 };

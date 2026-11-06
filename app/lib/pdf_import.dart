@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart' show kPrimaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
@@ -10,6 +11,7 @@ import 'app_colors.dart';
 import 'app_icons.dart';
 import 'dialog_kit.dart';
 import 'l10n/l10n.dart';
+import 'lanes_common.dart';
 import 'menu_kit.dart';
 import 'pdf_import_changes.dart';
 import 'ui_kit.dart';
@@ -255,7 +257,7 @@ class _PdfImportState extends State<PdfImport> {
   }
 
   Future<void> _detectAgain() async {
-    final found = await pages.detectAgain(_page, layout.instruments);
+    final found = await pages.detectAgain(_page, [for (final i in layout.instruments) if (!i.blank) i]);
     if (!mounted) return;
     final systems = [...layout.systems.where((s) => s.page < _page), ...found, ...layout.systems.where((s) => s.page > _page)];
     _edit(layout.copyWith(systems: systems));
@@ -1003,23 +1005,36 @@ class _PdfImportState extends State<PdfImport> {
   Widget _instrumentList(BuildContext context) {
     final colors = context.colors;
     final instruments = layout.instruments;
-    void move(int by) {
-      final to = _instrument + by;
-      if (to < 0 || to >= instruments.length) return;
+    // Instrument [from] put at [to] (counted with it taken out), the selection going with it.
+    void place(int from, int to) {
+      if (from == to || from < 0 || from >= instruments.length) return;
       final list = [...instruments];
-      list.insert(to, list.removeAt(_instrument));
+      list.insert(to, list.removeAt(from));
+      final picked = _instrument < instruments.length ? instruments[_instrument].id : null;
       _edit(layout.copyWith(instruments: list));
-      setState(() => _instrument = to);
+      setState(() => _instrument = math.max(0, list.indexWhere((i) => i.id == picked)));
     }
 
-    void add() {
+    String nextId() {
       final ids = {for (final i in instruments) i.id};
       var n = instruments.length + 1;
       while (ids.contains('P$n')) {
         n++;
       }
-      _edit(layout.copyWith(instruments: [...instruments, PdfInstrument(id: 'P$n', name: 'Staff {n}'.fill({'n': n}))]));
+      return 'P$n';
+    }
+
+    void add() {
+      final id = nextId();
+      _edit(layout.copyWith(instruments: [...instruments, PdfInstrument(id: id, name: 'Staff {n}'.fill({'n': id.substring(1)}))]));
       setState(() => _instrument = instruments.length);
+    }
+
+    // A blank lane, below the instrument selected.
+    void addBlank() {
+      final at = instruments.isEmpty ? 0 : math.min(_instrument + 1, instruments.length);
+      _edit(layout.copyWith(instruments: [...instruments]..insert(at, PdfInstrument.blank(id: nextId(), name: 'Blank'.tr))));
+      setState(() => _instrument = at);
     }
 
     void remove() {
@@ -1038,36 +1053,42 @@ class _PdfImportState extends State<PdfImport> {
     }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      for (final (i, instrument) in instruments.indexed)
-        InkWell(
-          onTap: () => setState(() => _instrument = i),
-          child: Container(
-            height: 28,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: i == _instrument ? colors.accentWash : null,
-              borderRadius: AppStyle.of(context).radius(5),
-            ),
-            child: Row(children: [
-              Container(width: 8, height: 8, decoration: BoxDecoration(color: _colorOf(i), shape: BoxShape.circle)),
-              const SizedBox(width: 8),
-              Expanded(child: Text(instrument.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.text))),
-              if (instrument.staves > 1 || instrument.divisi > 1)
-                Text('×{n}'.fill({'n': instrument.staves > 1 ? instrument.staves : instrument.divisi}),
-                    style: TextStyle(fontSize: 12, color: colors.textMuted)),
-            ]),
-          ),
+      ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: instruments.length,
+        onReorderItem: place,
+        proxyDecorator: (child, _, _) => Material(
+          color: colors.surface,
+          elevation: 3,
+          borderRadius: AppStyle.of(context).radius(5),
+          child: child,
         ),
+        itemBuilder: (context, i) => _InstrumentRow(
+          key: ValueKey(instruments[i].id),
+          index: i,
+          instrument: instruments[i],
+          color: _colorOf(i),
+          selected: i == _instrument,
+          onSelect: () => setState(() => _instrument = i),
+          onRename: () => _renameInstrument(instruments[i].id),
+        ),
+      ),
       const SizedBox(height: 6),
       Row(children: [
         ToolbarButton(icon: AppIcon.add.of(context), tooltip: 'Add Instrument'.tr, onPressed: add),
+        ToolbarButton(icon: AppIcon.verticalSpacer.of(context), tooltip: 'Add Blank Lane'.tr, onPressed: addBlank),
         ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Remove Instrument'.tr, onPressed: instruments.isEmpty ? null : remove),
         const Spacer(),
-        ToolbarButton(icon: AppIcon.collapse.of(context), tooltip: 'Move Up'.tr, onPressed: _instrument > 0 ? () => move(-1) : null),
         ToolbarButton(
-            icon: AppIcon.expand.of(context),
+            icon: AppIcon.moveUp.of(context),
+            tooltip: 'Move Up'.tr,
+            onPressed: _instrument > 0 ? () => place(_instrument, _instrument - 1) : null),
+        ToolbarButton(
+            icon: AppIcon.moveDown.of(context),
             tooltip: 'Move Down'.tr,
-            onPressed: _instrument < instruments.length - 1 ? () => move(1) : null),
+            onPressed: _instrument < instruments.length - 1 ? () => place(_instrument, _instrument + 1) : null),
       ]),
     ]);
   }
@@ -1176,8 +1197,88 @@ class _PdfImportState extends State<PdfImport> {
   }
 }
 
-/// A staff's instrument, at its left: a chip in the instrument's colour that picks another (or
-/// none: left out of the score).
+/// A row of the panel's instruments: its handle (dragged to move it), its colour, its name. A
+/// click picks it for the fields below, a double click renames it.
+class _InstrumentRow extends StatefulWidget {
+  const _InstrumentRow({
+    super.key,
+    required this.index,
+    required this.instrument,
+    required this.color,
+    required this.selected,
+    required this.onSelect,
+    required this.onRename,
+  });
+  final int index;
+  final PdfInstrument instrument;
+  final Color color;
+  final bool selected;
+  final VoidCallback onSelect, onRename;
+
+  @override
+  State<_InstrumentRow> createState() => _InstrumentRowState();
+}
+
+class _InstrumentRowState extends State<_InstrumentRow> {
+  final _clicks = DoubleClicks();
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors, i = widget.instrument;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Listener(
+        onPointerDown: (e) {
+          if (e.buttons != kPrimaryButton) return;
+          _clicks.press(e.timeStamp, e.position) ? widget.onRename() : widget.onSelect();
+        },
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: widget.selected ? colors.accentWash : (_hovered ? colors.accentWash.withValues(alpha: 0.5) : null),
+            borderRadius: AppStyle.of(context).radius(5),
+          ),
+          child: Row(children: [
+            ReorderableDragStartListener(
+              index: widget.index,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.grab,
+                child: SizedBox(
+                  width: 22,
+                  height: 28,
+                  child: Icon(AppIcon.grab.of(context), size: 14, color: _hovered || widget.selected ? colors.textMuted : colors.line),
+                ),
+              ),
+            ),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: i.blank ? null : widget.color,
+                border: i.blank ? Border.all(color: colors.textMuted) : null,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(i.name,
+                  overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: i.blank ? colors.textMuted : colors.text)),
+            ),
+            if (i.staves > 1 || i.divisi > 1)
+              Text('×{n}'.fill({'n': i.staves > 1 ? i.staves : i.divisi}), style: TextStyle(fontSize: 12, color: colors.textMuted)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// A staff's instrument, at its left: a chip in the instrument's colour. A click opens what it
+/// can be (another instrument, or none: left out of the score), a double click renames its
+/// instrument (no one's: makes it a new one).
 class _StaffChip extends StatelessWidget {
   const _StaffChip(
       {required this.layout, required this.staff, required this.onChanged, required this.onRename, required this.onNew});
@@ -1188,6 +1289,42 @@ class _StaffChip extends StatelessWidget {
   /// Its instrument renamed, or a new one made for it.
   final VoidCallback onRename, onNew;
 
+  Future<void> _open(BuildContext context, PdfInstrument? instrument) async {
+    final box = context.findRenderObject()! as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final at = Rect.fromPoints(box.localToGlobal(box.size.bottomLeft(Offset.zero), ancestor: overlay),
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay));
+    final style = AppStyle.of(context);
+    final picked = await showMenu<Object>(
+      context: context,
+      position: RelativeRect.fromRect(at, Offset.zero & overlay.size),
+      popUpAnimationStyle: AnimationStyle(
+          duration: style.menuOpen, reverseDuration: style.menuClose, curve: style.enterCurve, reverseCurve: style.exitCurve),
+      items: [
+        if (instrument != null)
+          menuItem<Object>(context, value: onRename, child: Text('Rename {name}…'.fill({'name': instrument.name}))),
+        menuItem<Object>(context, value: onNew, child: Text('New Instrument…'.tr)),
+        menuDivider(context),
+        // A piano's staves, or a section's divisi (a blank lane holds none).
+        for (final i in layout.instruments)
+          if (!i.blank)
+            for (var n = 1; n <= (i.staves > 1 ? i.staves : i.divisi); n++)
+              checkedMenuItem<Object>(context,
+                  value: (i.id, n),
+                  checked: staff.part == i.id && staff.staff == n,
+                  child: Text(i.staves > 1 || i.divisi > 1 ? '${i.name} $n' : i.name)),
+        menuDivider(context),
+        checkedMenuItem<Object>(context, value: (null, 1), checked: staff.part == null, child: Text('None'.tr)),
+      ],
+    );
+    switch (picked) {
+      case (final String? part, final int n):
+        onChanged(part, n);
+      case final VoidCallback action:
+        action();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -1197,38 +1334,25 @@ class _StaffChip extends StatelessWidget {
     final label = instrument == null
         ? 'None'.tr
         : '${instrument.abbreviation.isNotEmpty ? instrument.abbreviation : instrument.name}${instrument.staves > 1 || staff.staff > 1 ? ' ${staff.staff}' : ''}';
-    return AppPopupMenuButton<Object>(
-      tooltip: 'Instrument',
-      padding: EdgeInsets.zero,
-      onSelected: (v) => switch (v) {
-        (final String? part, final int n) => onChanged(part, n),
-        final VoidCallback action => action(),
-        _ => null,
-      },
-      itemBuilder: (context) => [
-        if (instrument != null)
-          menuItem<Object>(context, value: onRename, child: Text('Rename {name}…'.fill({'name': instrument.name}))),
-        menuItem<Object>(context, value: onNew, child: Text('New Instrument…'.tr)),
-        menuDivider(context),
-        // A piano's staves, or a section's divisi.
-        for (final i in layout.instruments)
-          for (var n = 1; n <= (i.staves > 1 ? i.staves : i.divisi); n++)
-            checkedMenuItem<Object>(context,
-                value: (i.id, n),
-                checked: staff.part == i.id && staff.staff == n,
-                child: Text(i.staves > 1 || i.divisi > 1 ? '${i.name} $n' : i.name)),
-        menuDivider(context),
-        checkedMenuItem<Object>(context, value: (null, 1), checked: staff.part == null, child: Text('None'.tr)),
-      ],
-      child: Container(
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.14),
-          border: Border.all(color: color.withValues(alpha: 0.7)),
-          borderRadius: AppStyle.of(context).radius(6),
+    // A click waits a moment for a second (a double click renames), then opens the menu.
+    return Tip(
+      message: 'Instrument'.tr,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => _open(context, instrument),
+          onDoubleTap: instrument != null ? onRename : onNew,
+          child: Container(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              border: Border.all(color: color.withValues(alpha: 0.7)),
+              borderRadius: AppStyle.of(context).radius(6),
+            ),
+            child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: colors.text)),
+          ),
         ),
-        child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: colors.text)),
       ),
     );
   }
@@ -1418,13 +1542,15 @@ class _InstrumentFieldsState extends State<_InstrumentFields> {
   @override
   Widget build(BuildContext context) {
     final i = widget.instrument;
+    final name = AppTextField(
+        controller: _name,
+        label: 'Name',
+        onChanged: (v) {
+          if (v.trim().isNotEmpty) widget.onChanged(i.blank ? i.copyWith(name: v) : i.renamed(v), 'name');
+        });
+    if (i.blank) return name; // a blank lane is only named
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      AppTextField(
-          controller: _name,
-          label: 'Name',
-          onChanged: (v) {
-            if (v.trim().isNotEmpty) widget.onChanged(i.renamed(v), 'name');
-          }),
+      name,
       const SizedBox(height: 12),
       AppTextField(
           controller: _abbreviation, label: 'Abbreviation', onChanged: (v) => widget.onChanged(i.copyWith(abbreviation: v), 'abbreviation')),

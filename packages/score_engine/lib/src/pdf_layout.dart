@@ -60,7 +60,23 @@ class PdfInstrument {
       this.key = SpacerKey.c,
       this.divisi = 1,
       this.clefs = const {},
-      this.meters = const {}});
+      this.meters = const {},
+      this.blank = false});
+
+  /// A blank lane ([PdfScoreLayout.blank]): a staff's room in the score, no staff of the PDF its,
+  /// unnamed and drawn empty; its lane decides when the room is there.
+  const PdfInstrument.blank({required this.id, this.name = 'Blank'})
+      : abbreviation = '',
+        clef = PdfClef.treble,
+        staves = 1,
+        key = SpacerKey.c,
+        divisi = 1,
+        clefs = const {},
+        meters = const {},
+        blank = true;
+
+  /// Whether it is a blank lane ([PdfInstrument.blank]).
+  final bool blank;
 
   /// Its part's id (`P1`…), kept while it is renamed or moved.
   final String id;
@@ -137,7 +153,9 @@ class PdfInstrument {
           int? divisi,
           Map<(int, int), PdfClef>? clefs,
           Map<int, PdfMeter>? meters}) =>
-      PdfInstrument(
+      blank
+          ? PdfInstrument.blank(id: id, name: name ?? this.name)
+          : PdfInstrument(
           id: id,
           name: name ?? this.name,
           abbreviation: abbreviation ?? this.abbreviation,
@@ -162,9 +180,12 @@ class PdfInstrument {
               [bar, staff, clefs[(bar, staff)]!.name],
           ],
         if (meters.isNotEmpty) 'meters': {for (final MapEntry(:key, :value) in meters.entries) '$key': '$value'},
+        if (blank) 'blank': true,
       };
 
-  static PdfInstrument fromJson(Map<String, Object?> json) => PdfInstrument(
+  static PdfInstrument fromJson(Map<String, Object?> json) => json['blank'] == true
+      ? PdfInstrument.blank(id: _string(json, 'id'), name: _string(json, 'name'))
+      : PdfInstrument(
         id: _string(json, 'id'),
         name: _string(json, 'name'),
         abbreviation: json['abbreviation'] as String? ?? '',
@@ -185,6 +206,7 @@ class PdfInstrument {
   @override
   bool operator ==(Object other) =>
       other is PdfInstrument &&
+      other.blank == blank &&
       other.divisi == divisi &&
       other.id == id &&
       other.name == name &&
@@ -196,7 +218,7 @@ class PdfInstrument {
       mapEquals(other.meters, meters);
 
   @override
-  int get hashCode => Object.hash(id, name, abbreviation, clef, staves, key, divisi, clefs.length, meters.length);
+  int get hashCode => Object.hash(id, name, abbreviation, clef, staves, key, divisi, clefs.length, meters.length, blank);
 }
 
 /// A staff as printed in one system: where its lines are (points, from the page's top) and whose
@@ -784,7 +806,8 @@ class PdfScoreLayout {
           out.write('</attributes>\n');
         }
         // The tempo marks, in the first part (one is the score's): ids the scene finds them by.
-        if (player.id == instruments.first.id && (bar == 0 || tempos.containsKey(bar))) {
+        if (player.id == (instruments.where((i) => !i.blank).firstOrNull ?? instruments.first).id &&
+            (bar == 0 || tempos.containsKey(bar))) {
           final mark = tempos[bar], speed = bar == 0 ? tempo : mark?.bpm;
           final words = mark == null || mark.words.isEmpty ? '<words/>' : '<words>${_escape(mark.words)}</words>';
           out.write('      <direction id="${tempoId(bar)}" placement="above"><direction-type>$words</direction-type>'

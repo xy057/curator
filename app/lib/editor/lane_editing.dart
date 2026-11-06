@@ -408,7 +408,8 @@ class LaneEditing {
   /// staves would run off the video's frame ([CuratedScene.curatedToFit]); a condensed pair's
   /// lane from where either player does.
   void autoCurate([Iterable<String>? partIds]) {
-    final lanes = _curated(partIds ?? [for (final p in _editor.laneParts) p.id]);
+    // A blank lane (a PDF score's) plays nothing: it stays as it is.
+    final lanes = _curated([for (final id in partIds ?? [for (final p in _editor.laneParts) p.id]) if (!_editor.isBlankLane(id)) id]);
     if (lanes == null) return;
     _curation?.setLanes(lanes);
     _editor.clearSelection();

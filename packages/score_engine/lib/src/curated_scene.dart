@@ -640,11 +640,19 @@ class CuratedScene {
   Set<int> get _bareStaves => {
         for (final MapEntry(key: n, value: look) in _spacerStaves.entries)
           if ((!look.frozen || !look.lines) && _staffIndex[n] != null) _staffIndex[n]!,
+        // A PDF score's blank lanes ([PdfInstrument.blank]).
+        if (score.pdf?.layout case final layout?)
+          for (final p in score.metadata.parts)
+            if (layout.playerOf(p.id)?.$1.blank ?? false)
+              for (final n in p.staffNumbers)
+                if (_staffIndex[n] != null) _staffIndex[n]!,
       };
 
-  /// Whether [partId] is a vertical spacer the frozen zone doesn't name.
+  /// Whether [partId] is a vertical spacer the frozen zone doesn't name, or a PDF score's blank
+  /// lane.
   bool _unnamed(String partId) =>
-      Spacers.isSpacer(partId) && !(_spacers.where((s) => s.id == partId).firstOrNull?.frozen ?? false);
+      (Spacers.isSpacer(partId) && !(_spacers.where((s) => s.id == partId).firstOrNull?.frozen ?? false)) ||
+      (score.pdf?.layout.playerOf(partId)?.$1.blank ?? false);
 
   /// How the score moves (Project Settings ▸ Advanced): the staves' spacing, glides and fades, the scroll's
   /// coming to rest, the ending's fade, captions, the bar numbers' row and the tempo at the left.
