@@ -83,7 +83,7 @@ class InstrumentsToolbar extends StatelessWidget {
   static String? _status(EditorController c, LoadedScore score, Map<RegionRef, RegionEdges> selected, Set<String> lanes) {
     if (selected.length == 1) {
       final MapEntry(key: ref, value: edges) = selected.entries.single;
-      final part = score.metadata.parts.firstWhere((p) => p.id == ref.partId);
+      final part = c.laneRowOf(ref.partId);
       final (from, to) = (c.beats.format(ref.region.start), c.beats.format(ref.region.end));
       return '${c.laneName(part)} · ${switch (edges) {
         RegionEdges.both => '$from → $to',
@@ -100,7 +100,7 @@ class InstrumentsToolbar extends StatelessWidget {
       final where = (lanes.length == 1 ? '{what} in 1 lane' : '{what} in {n} lanes').fill({'what': what, 'n': lanes.length});
       return '$where · ${shortcut('←/→ a bar (⇧ a beat)'.tr)}';
     }
-    if (lanes.length == 1) return c.laneName(score.metadata.parts.firstWhere((p) => p.id == lanes.single));
+    if (lanes.length == 1) return c.laneName(c.laneRowOf(lanes.single));
     if (lanes.isNotEmpty) return '{n} lanes'.fill({'n': lanes.length});
     return null;
   }

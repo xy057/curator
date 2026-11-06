@@ -4,6 +4,8 @@ part of '../timeline_panel.dart';
 enum _LaneAction {
   rename('Rename…'),
   spacing('Spacing…'),
+  split('Split Lane'), // an instrument on several staves: a lane a staff
+  join('Join Lanes'), // a staff's lane: its instrument's one again
   spacer('Edit Spacer…'), // a vertical spacer's lane: its dialog names it too
   removeSpacer('Remove Spacer'),
   renameFirst('Rename…'), // a condensed pair's lane: one player, or the other (named in the menu)
@@ -57,6 +59,11 @@ class _LaneHeader extends StatefulWidget {
 class _LaneHeaderState extends State<_LaneHeader> {
   EditorController get controller => widget.controller;
   ScorePart get part => widget.part;
+
+  /// The instrument the lane is: its own, or (a staff's lane) the one split.
+  ScorePart get instrument =>
+      _staffLane ? controller.score!.metadata.parts.firstWhere((p) => p.id == controller.instrumentOfLane(part.id)) : part;
+  bool get _staffLane => Curation.staffOfLane(part.id) != null;
   Offset? _downAt;
   final _clicks = DoubleClicks();
 
@@ -73,7 +80,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
     if (doubleClick && controller.spacers.verticalOf(part.id) != null) {
       showVerticalSpacerDialog(context, controller, part.id);
     } else if (doubleClick && controller.condensedGroupOf(part.id) == null) {
-      showRenameDialog(context, controller, part);
+      showRenameDialog(context, controller, instrument);
     } else if (isCommandPressed) {
       controller.lanes.selectLaneRange(part.id);
     } else {
@@ -85,7 +92,11 @@ class _LaneHeaderState extends State<_LaneHeader> {
     final lanes = controller.lanes;
     switch (action) {
       case _LaneAction.rename:
-        showRenameDialog(context, controller, part);
+        showRenameDialog(context, controller, instrument);
+      case _LaneAction.split:
+        controller.setSplit(part.id, on: true);
+      case _LaneAction.join:
+        controller.setSplit(controller.instrumentOfLane(part.id), on: false);
       case _LaneAction.spacer:
         showVerticalSpacerDialog(context, controller, part.id);
       case _LaneAction.spacing:
@@ -115,10 +126,57 @@ class _LaneHeaderState extends State<_LaneHeader> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  /// What the lane's ⋯ (or a right click on its name) offers.
+  List<PopupMenuEntry<_LaneAction>> _items(BuildContext context) {
     PopupMenuItem<_LaneAction> item(BuildContext context, _LaneAction a) =>
         menuItem(context, value: a, child: Text(a.label.tr));
+    final group = controller.condensedGroupOf(part.id);
+    final spacer = controller.spacers.verticalOf(part.id) != null;
+    return [
+      // A pair's lane names both players: each is renamed on its own, as on its own staff.
+      if (group case final group?) ...[
+        menuItem(context, value: _LaneAction.renameFirst, child: Text('Rename {name}…'.fill({'name': controller.partNameOf(group.first)}))),
+        menuItem(context, value: _LaneAction.renameSecond, child: Text('Rename {name}…'.fill({'name': controller.partNameOf(group.second)}))),
+      ] else if (spacer) ...[
+        item(context, _LaneAction.spacer),
+        item(context, _LaneAction.removeSpacer),
+      ] else ...[
+        menuItem(context,
+            value: _LaneAction.rename,
+            child: Text(_staffLane ? 'Rename {name}…'.fill({'name': controller.partName(instrument)}) : 'Rename…'.tr)),
+        item(context, _LaneAction.spacing),
+        if (_staffLane) item(context, _LaneAction.join) else if (controller.canSplit(part.id)) item(context, _LaneAction.split),
+      ],
+      menuDivider(context),
+      item(context, _LaneAction.select),
+      item(context, _LaneAction.copy),
+      menuDivider(context),
+      item(context, _LaneAction.showThroughout),
+      if (!spacer) item(context, _LaneAction.autoCurate), // nothing plays in it
+      item(context, _LaneAction.clear),
+      menuDivider(context),
+      item(context, _LaneAction.moveToTop),
+      item(context, _LaneAction.moveToBottom),
+      if (!controller.isScoreOrder) item(context, _LaneAction.scoreOrder),
+    ];
+  }
+
+  /// A right click on the name: the lane's menu, where it was clicked.
+  Future<void> _contextMenu(Offset global) async {
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final style = AppStyle.of(context);
+    final action = await showMenu<_LaneAction>(
+      context: context,
+      position: RelativeRect.fromRect(overlay.globalToLocal(global) & const Size(1, 1), Offset.zero & overlay.size),
+      popUpAnimationStyle: AnimationStyle(
+          duration: style.menuOpen, reverseDuration: style.menuClose, curve: style.enterCurve, reverseCurve: style.exitCurve),
+      items: _items(context),
+    );
+    if (action != null && mounted) _run(context, action);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final group = controller.condensedGroupOf(part.id);
     final condensed = group != null, spacer = controller.spacers.verticalOf(part.id) != null;
     final menu = OverlaySemantics(
@@ -128,30 +186,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
         iconSize: 16,
         icon: Icon(AppIcon.more.of(context), color: context.colors.textMuted),
         onSelected: (action) => _run(context, action),
-        itemBuilder: (context) => [
-          // A pair's lane names both players: each is renamed on its own, as on its own staff.
-          if (group case final group?) ...[
-            menuItem(context, value: _LaneAction.renameFirst, child: Text('Rename {name}…'.fill({'name': controller.partNameOf(group.first)}))),
-            menuItem(context, value: _LaneAction.renameSecond, child: Text('Rename {name}…'.fill({'name': controller.partNameOf(group.second)}))),
-          ] else if (spacer) ...[
-            item(context, _LaneAction.spacer),
-            item(context, _LaneAction.removeSpacer),
-          ] else ...[
-            item(context, _LaneAction.rename),
-            item(context, _LaneAction.spacing),
-          ],
-          menuDivider(context),
-          item(context, _LaneAction.select),
-          item(context, _LaneAction.copy),
-          menuDivider(context),
-          item(context, _LaneAction.showThroughout),
-          if (!spacer) item(context, _LaneAction.autoCurate), // nothing plays in it
-          item(context, _LaneAction.clear),
-          menuDivider(context),
-          item(context, _LaneAction.moveToTop),
-          item(context, _LaneAction.moveToBottom),
-          if (!controller.isScoreOrder) item(context, _LaneAction.scoreOrder),
-        ],
+        itemBuilder: _items,
       ),
     );
     final colors = context.colors;
@@ -181,6 +216,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
         onPointerUp: _up,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          onSecondaryTapUp: (d) => _contextMenu(d.globalPosition),
           onLongPressStart: (d) => widget.onLift(d.globalPosition),
           onLongPressMoveUpdate: (d) => widget.onDrag(d.globalPosition),
           onLongPressEnd: (_) => widget.onDrop(),

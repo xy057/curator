@@ -57,7 +57,7 @@ const _minLength = 0.25; // a sixteenth: regions never collapse to nothing
 class _InstrumentLanesState extends State<InstrumentLanes>
     with SingleTickerProviderStateMixin, _LaneGeometry, _LaneMoving, _RegionDrags {
   @override
-  List<ScorePart> get parts => _reordered ?? c.laneParts;
+  List<ScorePart> get parts => _reordered ?? c.laneRows;
 
   /// ⌘ (Ctrl) held: scrolling zooms the time axis (see [ViewportGestures]), so the lanes
   /// must not scroll vertically at the same time.
@@ -97,7 +97,7 @@ class _InstrumentLanesState extends State<InstrumentLanes>
   }
 
   /// The lanes shown (their ids): the panel is as tall as they are.
-  List<String> get _laneIds => [for (final p in c.laneParts) p.id];
+  List<String> get _laneIds => [for (final p in c.laneRows) p.id];
 
   @override
   Widget build(BuildContext context) => Select(
@@ -260,6 +260,7 @@ mixin _LaneGeometry on State<InstrumentLanes> {
       _activityScore = score;
       _activityRuns.clear();
     }
+    partId = c.instrumentOfLane(partId); // a staff's lane: where its instrument plays
     final ids = c.condensedGroupOf(partId)?.partIds ?? [partId];
     return _activityRuns[ids.join('\u0000')] ??= () {
       final starts = tl.measureStarts;

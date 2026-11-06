@@ -929,4 +929,6 @@ const zhHans = <String, String>{
   'Reading score…': '正在读取乐谱…',
   'Measuring…': '正在测量…',
   'Loading pages…': '正在载入页面…',
+  'Split Lane': '拆分轨道',
+  'Join Lanes': '合并轨道',
 };

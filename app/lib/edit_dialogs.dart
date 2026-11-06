@@ -262,7 +262,7 @@ class _RegionDialogState extends State<_RegionDialog> {
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
-    final part = c.score!.metadata.parts.firstWhere((p) => p.id == widget.ref.partId);
+    final part = c.laneRowOf(widget.ref.partId);
     // A field as it was shown is the region's own edge, not the text's rounding of it (an
     // edge between beats reads "12.1.33"), so changing only a transition moves nothing.
     double? read(TextEditingController field, double edge) =>
@@ -454,7 +454,7 @@ class _TransitionField extends StatelessWidget {
 
 /// Copy one lane's regions to other instruments (e.g. Violin I → the rest of the strings).
 Future<void> showCopyLaneDialog(BuildContext context, EditorController c, ScorePart from) async {
-  final others = c.laneParts.where((p) => p.id != from.id).toList();
+  final others = c.laneRows.where((p) => p.id != from.id).toList();
   final chosen = <String>{};
   final ok = await showAppDialog<bool>(
     context: context,

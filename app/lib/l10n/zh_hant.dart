@@ -929,4 +929,6 @@ const zhHant = <String, String>{
   'Reading score…': '正在讀取樂譜…',
   'Measuring…': '正在測量…',
   'Loading pages…': '正在載入頁面…',
+  'Split Lane': '拆分軌道',
+  'Join Lanes': '合併軌道',
 };

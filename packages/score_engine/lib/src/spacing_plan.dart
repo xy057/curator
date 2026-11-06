@@ -21,7 +21,8 @@ typedef PlannedStaff = ({int staffIndex, String partId});
 /// on several staves moves as one, its staves as far apart as the engraving put them; a staff
 /// of it left out (a region's [Region.hiddenStaves]) takes no room, the staves below it moving
 /// up to the one above. An instrument's [spacing] adds room above and below it (or takes some
-/// away), on top of what its ink needs.
+/// away), on top of what its ink needs; one on several staves can have room around each staff
+/// too (keyed by its split lane's id, [Curation.staffLaneId]), between them or at its outer ones.
 ///
 /// Around each edge every staff glides from its place in one keyframe to its place in the
 /// next over the edge's transition time (its region's; the longest where edges coincide). A
@@ -40,7 +41,7 @@ class SpacingPlan {
     /// Whether staff [k] of [order] is shown at [seconds].
     required bool Function(int k, double seconds) isShown,
     /// Room added above and below an instrument (negative: taken away), by part id, in the
-    /// layout's pixels.
+    /// layout's pixels; above and below a staff of one, by its split lane's id.
     Map<String, ({double above, double below})> spacing = const {},
     required double visibleLeft,
     required double visibleRight,
@@ -74,6 +75,11 @@ class SpacingPlan {
     ];
     double heightOf(int k) => staves[order[k].staffIndex].info.height * scale;
     final unitOf = [for (final (u, unit) in units.indexed) ...List.filled(unit.length, u)];
+    // A staff's own room ([Curation.staffLaneId]), of an instrument on several.
+    final staffRoom = [
+      for (final unit in units)
+        for (final (j, k) in unit.indexed) unit.length < 2 ? null : spacing[Curation.staffLaneId(order[k].partId, j + 1)],
+    ];
     final unitTwins = {for (final MapEntry(:key, :value) in twins.entries) unitOf[key]: [for (final j in value) unitOf[j]]};
 
     final bounds = _Bounds.of(edges, scrollMap.duration, transition, glide);
@@ -95,7 +101,8 @@ class SpacingPlan {
         int? above;
         for (final k in unit) {
           if (!shown[u] || staffShown[k]) {
-            offsets[k] = above == null ? 0 : offsets[above] + steps[k];
+            offsets[k] =
+                above == null ? 0 : offsets[above] + steps[k] + (staffRoom[above]?.below ?? 0) + (staffRoom[k]?.above ?? 0);
             above = k;
           }
         }
@@ -123,6 +130,8 @@ class SpacingPlan {
                 above += extra.above;
                 below += extra.below;
               }
+              above += staffRoom[visible.first]?.above ?? 0;
+              below += staffRoom[visible.last]?.below ?? 0;
             }
             return StaffSlot(height: height, inkAbove: above, inkBelow: below, visibility: shown[u] ? 1 : 0);
           }(),

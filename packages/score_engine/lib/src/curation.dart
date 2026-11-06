@@ -188,24 +188,124 @@ class Curation extends ChangeNotifier {
     return joined;
   }
 
-  List<Region> lane(String partId) => _lanes[partId] ?? const [];
+  /// An instrument's lane, or a staff's of one split ([staffLaneId]).
+  List<Region> lane(String partId) => switch (staffOfLane(partId)) {
+        (final part, final n) => _staffLanes[part]?.elementAtOrNull(n - 1) ?? const [],
+        null => _lanes[partId] ?? const [],
+      };
 
   // MARK: Editing
 
-  /// Replaces a lane. Regions are sorted and overlapping or touching ones merged.
-  void setLane(String partId, List<Region> regions) {
-    _lanes = _joinedLanes(_lanes, {..._lanes, partId: _normalize(regions)});
+  /// Replaces a lane (an instrument's, or a staff's of one split). Regions are sorted and
+  /// overlapping or touching ones merged.
+  void setLane(String partId, List<Region> regions) => _apply({partId: regions}, normalize: true, adding: true);
+
+  /// [lanes] put in (instruments' or split staves' [staffLaneId]): sorted, and with [normalize]
+  /// merged ([_normalize]); [adding] takes on lanes not here yet (a spacer's). A staff's lane
+  /// changes its instrument's (each region leaving out the staves not shown then, [_combined]),
+  /// and an instrument's its staves' ([_projected]).
+  void _apply(Map<String, List<Region>> lanes, {required bool normalize, bool adding = false}) {
+    List<Region> tidy(List<Region> regions) =>
+        normalize ? _normalize(regions) : List.unmodifiable([...regions]..sort((a, b) => a.start.compareTo(b.start)));
+    final next = {..._lanes};
+    final staves = {for (final MapEntry(:key, :value) in _staffLanes.entries) key: [...value]};
+    final combined = <String>{};
+    for (final MapEntry(key: id, value: regions) in lanes.entries) {
+      if (staffOfLane(id) case (final part, final n)) {
+        final lanes = staves[part];
+        if (lanes == null || n < 1 || n > lanes.length) continue;
+        lanes[n - 1] = tidy([for (final r in regions) r.hiddenStaves.isEmpty ? r : r.withHiddenStaves(const [])]);
+        combined.add(part);
+      } else if (adding || _lanes.containsKey(id)) {
+        next[id] = tidy(regions);
+        if (staves[id] case final lanes?) staves[id] = _projected(next[id]!, lanes.length);
+      }
+    }
+    for (final part in combined) {
+      next[part] = _combined(staves[part]!);
+    }
+    _lanes = _joinedLanes(_lanes, next, normalize: normalize);
+    _staffLanes = {for (final MapEntry(:key, :value) in staves.entries) key: List.unmodifiable(value)};
     _changed();
+  }
+
+  // MARK: Split lanes
+
+  /// The lane of staff [n] (from 1) of [partId], once its lane is split ([setSplit]).
+  /// (A part's id is an XML name: it has no `/`.)
+  static String staffLaneId(String partId, int n) => '$partId/$n';
+
+  /// A staff's lane's instrument and staff ([staffLaneId]); null for an instrument's lane.
+  static (String, int)? staffOfLane(String id) {
+    final at = id.lastIndexOf('/');
+    final n = at < 0 ? null : int.tryParse(id.substring(at + 1));
+    return n == null ? null : (id.substring(0, at), n);
+  }
+
+  /// The instruments whose lane is split into one a staff, each with its staves' count. Their
+  /// own lanes stay what is shown (each region leaving out the staves not shown then); the
+  /// staves' are another way of setting them.
+  Map<String, int> get split => {for (final MapEntry(:key, :value) in _staffLanes.entries) key: value.length};
+  Map<String, List<List<Region>>> _staffLanes = const {};
+
+  /// Splits the lanes of [counts] (part id → its staves; fewer than two: joined), joining any
+  /// other split. Each staff's lane shows where its instrument's shows it. Nothing shown changes.
+  void setSplit(Map<String, int> counts) {
+    final next = {
+      for (final MapEntry(key: id, value: count) in counts.entries)
+        if (count > 1 && _lanes.containsKey(id))
+          id: _staffLanes[id]?.length == count ? _staffLanes[id]! : _projected(_lanes[id]!, count),
+    };
+    if (mapEquals(split, {for (final MapEntry(:key, :value) in next.entries) key: value.length})) return;
+    _staffLanes = next;
+    _changed();
+  }
+
+  /// [lane] as each of its [count] staves' lanes: where it is shown (its transitions, where it
+  /// starts and ends).
+  static List<List<Region>> _projected(List<Region> lane, int count) => List.unmodifiable([
+        for (var n = 1; n <= count; n++)
+          _normalize([
+            for (final r in lane)
+              if (r.showsStaff(n)) Region(r.start, r.end, transitionIn: r.transitionIn, transitionOut: r.transitionOut),
+          ]),
+      ]);
+
+  /// An instrument's lane from its staves' [lanes]: a region for each stretch some are shown,
+  /// leaving out the others ([Region.hiddenStaves]); each edge takes the transition of a staff
+  /// starting or ending there.
+  static List<Region> _combined(List<List<Region>> lanes) {
+    final cuts = <double>{
+      for (final lane in lanes)
+        for (final r in lane) ...[r.start, r.end],
+    }.toList()
+      ..sort();
+    final out = <Region>[];
+    for (var i = 0; i + 1 < cuts.length; i++) {
+      final (a, b) = (cuts[i], cuts[i + 1]);
+      if (b - a <= 1e-9) continue;
+      final middle = (a + b) / 2;
+      final hidden = <int>[];
+      double? fadeIn, fadeOut;
+      for (final (k, lane) in lanes.indexed) {
+        final r = lane.where((r) => r.start <= middle && r.end > middle).firstOrNull;
+        if (r == null) {
+          hidden.add(k + 1);
+          continue;
+        }
+        if (r.start == a) fadeIn ??= r.transitionIn;
+        if (r.end == b) fadeOut ??= r.transitionOut;
+      }
+      if (hidden.length == lanes.length) continue;
+      out.add(Region(a, b, transitionIn: fadeIn, transitionOut: fadeOut).withHiddenStaves(hidden));
+    }
+    return _normalize(out);
   }
 
   void addRegion(String partId, Region region) => setLane(partId, [...lane(partId), region]);
 
-  /// Replaces several lanes at once, as one change.
-  void setLanes(Map<String, List<Region>> lanes) {
-    _lanes = _joinedLanes(
-        _lanes, {..._lanes, for (final e in lanes.entries) if (_lanes.containsKey(e.key)) e.key: _normalize(e.value)});
-    _changed();
-  }
+  /// Replaces several lanes at once (instruments' or split staves'), as one change.
+  void setLanes(Map<String, List<Region>> lanes) => _apply(lanes, normalize: true);
 
   /// Shows (or, with [shown] false, hides) every lane in [partIds] over [range]: drawing
   /// joins the regions it touches, erasing trims, splits or removes them.
@@ -260,6 +360,7 @@ class Curation extends ChangeNotifier {
 
   void clearAll() {
     _lanes = {for (final id in _lanes.keys) id: const []};
+    _staffLanes = {for (final MapEntry(:key, :value) in _staffLanes.entries) key: List.unmodifiable([for (final _ in value) const <Region>[]])};
     _changed();
   }
 
@@ -281,22 +382,20 @@ class Curation extends ChangeNotifier {
 
   /// Live update during a drag: overlaps are kept until [normalize], so regions can pass
   /// over each other while dragging.
-  void updateLanes(Map<String, List<Region>> lanes) {
-    _lanes = _joinedLanes(
-        _lanes,
-        {
-          ..._lanes,
-          for (final e in lanes.entries) e.key: [...e.value]..sort((a, b) => a.start.compareTo(b.start)),
-        },
-        normalize: false);
-    _changed();
-  }
+  void updateLanes(Map<String, List<Region>> lanes) => _apply(lanes, normalize: false, adding: true);
 
   /// Merges what a drag left overlapping or touching (see [updateLanes]).
   void normalize() {
     final normalized = {for (final e in _lanes.entries) e.key: _normalize(e.value)};
-    if (sameLanes(normalized, _lanes)) return;
+    final staves = {
+      for (final MapEntry(:key, :value) in _staffLanes.entries) key: List<List<Region>>.unmodifiable(value.map(_normalize)),
+    };
+    if (sameLanes(normalized, _lanes) &&
+        _staffLanes.keys.every((k) => [for (var n = 0; n < staves[k]!.length; n++) listEquals(staves[k]![n], _staffLanes[k]![n])].every((same) => same))) {
+      return;
+    }
     _lanes = normalized;
+    _staffLanes = staves;
     _changed();
   }
 
@@ -353,6 +452,7 @@ class Curation extends ChangeNotifier {
     final lanes = _joinedLanes(_lanes, _lanes);
     if (sameLanes(lanes, _lanes)) return;
     _lanes = lanes;
+    _reproject();
     _changed();
   }
 
@@ -461,7 +561,12 @@ class Curation extends ChangeNotifier {
   /// have are ignored; parts without one get none.
   void load(Map<String, List<Region>> lanes, {double? transition}) {
     _lanes = _joinedLanes(_lanes, {for (final id in _lanes.keys) id: _normalize(lanes[id] ?? const [])});
+    _reproject();
     _transition = transition ?? _transition;
     _changed();
   }
+
+  /// The split staves' lanes made again from their instruments' (which were replaced).
+  void _reproject() =>
+      _staffLanes = {for (final MapEntry(:key, :value) in _staffLanes.entries) key: _projected(_lanes[key] ?? const [], value.length)};
 }

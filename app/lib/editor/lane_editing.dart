@@ -110,7 +110,7 @@ class LaneEditing {
 
   /// Lanes with something selected, or selected by their names.
   Set<String> get selectedPartIds {
-    final shown = {for (final p in _editor.laneParts) p.id};
+    final shown = {for (final p in _editor.laneRows) p.id};
     return {for (final id in _lanes) if (shown.contains(id)) id, for (final r in _valid.keys) r.partId};
   }
 
@@ -172,7 +172,7 @@ class LaneEditing {
   /// name to [partId], top to bottom, and nothing else.
   void selectLaneRange(String partId) {
     final curation = _curation;
-    final ids = [for (final p in _editor.laneParts) p.id];
+    final ids = [for (final p in _editor.laneRows) p.id];
     final to = ids.indexOf(partId);
     if (curation == null || to < 0) return;
     final from = ids.indexOf(_laneAnchor ?? partId);
@@ -185,7 +185,7 @@ class LaneEditing {
   /// lanes with something selected, together, become those next to them (whole lanes). Stops
   /// at the top (bottom) lane. With nothing selected, ↓ selects the top lane and ↑ the bottom.
   void selectNextLane(int direction) {
-    final ids = [for (final p in _editor.laneParts) p.id];
+    final ids = [for (final p in _editor.laneRows) p.id];
     if (ids.isEmpty) return;
     final rows = [for (final id in selectedPartIds) ids.indexOf(id)]..sort();
     if (rows.isEmpty) {
@@ -198,7 +198,7 @@ class LaneEditing {
     _selectLanes([for (final i in rows) ids[i + direction]]);
   }
 
-  void selectAll() => _selectLanes([for (final p in _editor.laneParts) p.id]);
+  void selectAll() => _selectLanes([for (final p in _editor.laneRows) p.id]);
 
   /// After an edit merged or reshaped regions, selects whatever now covers [wanted], at the
   /// same edges (those of every region merged into it).
@@ -344,7 +344,7 @@ class LaneEditing {
   void copy() {
     final selected = _valid.keys;
     if (selected.isEmpty) return;
-    final ids = [for (final p in _editor.laneParts) p.id];
+    final ids = [for (final p in _editor.laneRows) p.id];
     final start = selected.map((r) => r.region.start).reduce(math.min);
     final lanes = {for (final r in selected) r.partId}.toList()..sort((a, b) => ids.indexOf(a).compareTo(ids.indexOf(b)));
     final top = ids.indexOf(lanes.first);
@@ -376,7 +376,7 @@ class LaneEditing {
   void paste() {
     final curation = _curation, sync = _editor._sync;
     if (curation == null || sync == null || _copied.isEmpty) return;
-    final ids = [for (final p in _editor.laneParts) p.id];
+    final ids = [for (final p in _editor.laneRows) p.id];
     final into = [for (final id in selectedPartIds) ids.indexOf(id)];
     final top = into.isNotEmpty ? into.reduce(math.min) : (_copied.any((l) => ids.contains(l.partId)) ? null : 0);
     final at = sync.nearestGrid(_editor.timeline.quarterAtSeconds(_editor.playback.time.value), SyncGrid.beat);
@@ -409,9 +409,11 @@ class LaneEditing {
   /// lane from where either player does.
   void autoCurate([Iterable<String>? partIds]) {
     // A blank lane (a PDF score's) plays nothing: it stays as it is.
-    final lanes = _curated([for (final id in partIds ?? [for (final p in _editor.laneParts) p.id]) if (!_editor.isBlankLane(id)) id]);
-    if (lanes == null) return;
-    _curation?.setLanes(lanes);
+    final ids = [for (final id in partIds ?? [for (final p in _editor.laneRows) p.id]) if (!_editor.isBlankLane(id)) id];
+    // A staff's lane (of an instrument split) is curated as its instrument is.
+    final curated = _curated({for (final id in ids) _editor.instrumentOfLane(id)});
+    if (curated == null) return;
+    _curation?.setLanes({for (final id in ids) id: curated[_editor.instrumentOfLane(id)] ?? const []});
     _editor.clearSelection();
   }
 

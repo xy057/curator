@@ -66,7 +66,7 @@ mixin _LaneMoving on _LaneGeometry, SingleTickerProviderStateMixin<InstrumentLan
 
   /// Lanes moved some other way (the ⋯ menu, Undo, condensing) slide to their new places too.
   void _orderChanged() {
-    final ids = [for (final p in c.laneParts) p.id];
+    final ids = [for (final p in c.laneRows) p.id];
     if (_lifted != null || listEquals(ids, _shownOrder)) return;
     _slideFrom(_shownOrder);
     _shownOrder = ids;
@@ -82,13 +82,15 @@ mixin _LaneMoving on _LaneGeometry, SingleTickerProviderStateMixin<InstrumentLan
   }
 
   void _lift(String partId, Offset global) {
-    final lanes = c.laneParts;
+    final lanes = c.laneRows;
     final i = lanes.indexWhere((p) => p.id == partId);
     final box = _headersKey.currentContext?.findRenderObject() as RenderBox?;
     if (i < 0 || box == null) return;
-    // A selected lane takes the whole selection with it, gathered into one block.
+    // A selected lane takes the whole selection with it, gathered into one block; a staff's lane
+    // its instrument's others.
     final selected = c.lanes.selectedPartIds;
-    final held = selected.contains(partId) ? [for (final p in lanes) if (selected.contains(p.id)) p.id] : [partId];
+    final instruments = {for (final id in selected.contains(partId) ? selected : {partId}) c.instrumentOfLane(id)};
+    final held = [for (final p in lanes) if (instruments.contains(c.instrumentOfLane(p.id))) p.id];
     if (!selected.contains(partId)) c.clearSelection();
     final blockTop = _rowTop(i) - held.indexOf(partId) * _laneHeight;
     _grab = box.globalToLocal(global).dy - blockTop;
@@ -116,7 +118,9 @@ mixin _LaneMoving on _LaneGeometry, SingleTickerProviderStateMixin<InstrumentLan
     });
     if (lanes == null) return;
     _shownOrder = [for (final p in lanes) p.id]; // already there, but for the held ones
-    c.moveLanes(held, lanes.indexWhere((p) => held.contains(p.id)));
+    // Counted in instruments: a split one's lanes are one.
+    final at = lanes.indexWhere((p) => held.contains(p.id));
+    c.moveLanes(held, {for (final p in lanes.take(at)) c.instrumentOfLane(p.id)}.length);
     _animate(); // the held lanes settle into their places
   }
 

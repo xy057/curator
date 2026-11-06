@@ -399,6 +399,10 @@ class EditorController extends ChangeNotifier {
       partOrder: _orderedPartIds(score, edits.partOrder, edits.spacers),
       sections: Map.unmodifiable(edits.sections),
       spacing: Map.unmodifiable(edits.spacing),
+      split: Set.unmodifiable({
+        for (final id in edits.split)
+          if ((score.metadata.parts.where((p) => p.id == id).firstOrNull?.staffNumbers.length ?? 0) > 1) id,
+      }),
       gaps: Spacers.fitted(edits.gaps, score.timeline.measureStarts),
     );
     // The pairs that can condense follow the score and the pairs just taken on.
@@ -424,6 +428,7 @@ class EditorController extends ChangeNotifier {
                   : {for (final id in parts) id: throughout}),
           transition: edits.transition ?? defaultTransition);
     _joinLanes();
+    _curation!.setSplit(_splitCounts);
     _scene = _makeScene(score);
     // A new score's lanes fit the video's frame (before anyone listens: it's no edit).
     if (edits.lanes == null && autoCurateImported) {
@@ -893,7 +898,11 @@ class EditorController extends ChangeNotifier {
 
   // MARK: Editing names and texts
 
-  String partName(ScorePart part) => _doc.partNames[part.id]?.name ?? part.name;
+  String partName(ScorePart part) => switch (Curation.staffOfLane(part.id)) {
+        // A staff's lane of an instrument split ([laneRows]).
+        (final id, final n) => '${partNameOf(id)} · $n',
+        null => _doc.partNames[part.id]?.name ?? part.name,
+      };
   String partAbbreviation(ScorePart part) => _doc.partNames[part.id]?.abbreviation ?? part.abbreviation;
 
   /// Renames an instrument (shown in the name column and the lanes). Empty values fall back
@@ -1373,6 +1382,74 @@ class EditorController extends ChangeNotifier {
 
   ((LoadedScore?, List<String>, Set<String>, List<PlayerPair>), List<ScorePart>)? _laneParts;
 
+  // MARK: Split lanes
+
+  /// The Instruments tab's lanes, top to bottom: [laneParts], but an instrument whose lane is
+  /// split ([isSplit]) has a lane a staff, each its staff's ([Curation.staffLaneId]: "P2/1"),
+  /// named "Piano · 1". Worked out again only when [laneParts] or the split are replaced.
+  List<ScorePart> get laneRows {
+    final parts = laneParts, split = _doc.split;
+    if (_laneRows case (final p, final s, final rows) when identical(p, parts) && identical(s, split)) return rows;
+    final rows = List<ScorePart>.unmodifiable([
+      for (final p in parts)
+        if (split.contains(p.id) && p.staffNumbers.length > 1)
+          for (final (k, n) in p.staffNumbers.indexed)
+            ScorePart(
+                id: Curation.staffLaneId(p.id, k + 1),
+                name: p.name,
+                abbreviation: p.abbreviation,
+                sound: p.sound,
+                staffNumbers: [n],
+                bracketed: p.bracketed)
+        else
+          p,
+    ]);
+    _laneRows = (parts, split, rows);
+    return rows;
+  }
+
+  (List<ScorePart>, Set<String>, List<ScorePart>)? _laneRows;
+
+  /// Lane [id] of [laneRows] (or the score's part of that id).
+  ScorePart laneRowOf(String id) =>
+      laneRows.where((p) => p.id == id).firstOrNull ?? _score!.metadata.parts.firstWhere((p) => p.id == id);
+
+  /// The instrument a lane is: its own, or the one a staff's lane is of.
+  String instrumentOfLane(String laneId) => Curation.staffOfLane(laneId)?.$1 ?? laneId;
+
+  /// Whether [partId]'s lane is split into one a staff.
+  bool isSplit(String partId) => _doc.split.contains(partId);
+
+  /// Whether [partId] is on several staves, so its lane can be split.
+  bool canSplit(String partId) =>
+      (_score?.metadata.parts.where((p) => p.id == partId).firstOrNull?.staffNumbers.length ?? 0) > 1;
+
+  /// Splits [partId]'s lane into a lane a staff, each shown and spaced on its own (or, with
+  /// [on] false, joins them back, their staves' own room gone): one Undo step. Nothing shown
+  /// changes.
+  void setSplit(String partId, {required bool on}) {
+    if (on && !canSplit(partId) || on == isSplit(partId)) return;
+    _doc = _doc.copyWith(
+      split: Set.unmodifiable(on ? {..._doc.split, partId} : ({..._doc.split}..remove(partId))),
+      spacing: on
+          ? null
+          : Map.unmodifiable({
+              for (final MapEntry(:key, :value) in _doc.spacing.entries)
+                if (Curation.staffOfLane(key)?.$1 != partId) key: value,
+            }),
+    );
+    lanes._clear();
+    _curation?.setSplit(_splitCounts);
+    _showSettings(); // the staves' room
+    _edited();
+  }
+
+  /// The split instruments with their staves' count ([Curation.setSplit]).
+  Map<String, int> get _splitCounts => {
+        for (final p in _score?.metadata.parts ?? const <ScorePart>[])
+          if (_doc.split.contains(p.id)) p.id: p.staffNumbers.length,
+      };
+
   // MARK: Instrument order
 
   /// Every instrument (part id), top to bottom: the score's order unless the user moved some.
@@ -1388,6 +1465,7 @@ class EditorController extends ChangeNotifier {
   /// Moves the lanes [partIds] (and their staves), in their order and next to each other, to
   /// just before the [to]th of the other lanes (their count: after the last): one Undo step.
   void moveLanes(Iterable<String> partIds, int to) {
+    partIds = {for (final id in partIds) instrumentOfLane(id)}; // a staff's lane moves with its instrument
     final lanes = [for (final p in laneParts) p.id];
     final block = [for (final id in lanes) if (partIds.contains(id)) id];
     if (block.isEmpty) return;
@@ -2094,6 +2172,7 @@ class EditorController extends ChangeNotifier {
       if (_wanted != engraved) unawaited(_reengrave());
       _joinLanes(); // before the lanes, which fit it
       _curation!.load(state.lanes!, transition: state.transition!); // Undo's states have both
+      _curation!.setSplit(_splitCounts);
       _loadSync(state);
       _performanceChanged(); // the lanes too
       images._restore(state.patches);

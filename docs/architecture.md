@@ -641,6 +641,23 @@ them in from the beat nearest the playhead, merged as drawing merges: the top ro
 lane selected and the rest as far below it, or with nothing selected each into its own lane
 (`LaneEditing.paste`); a row past the bottom lane is left out, and the piece's end cuts them.
 
+**A lane can be split, a lane a staff.** An instrument on several staves can have a lane for
+each (a lane's ⋯ or right-click ▸ Split Lane; Join Lanes on a staff's puts it back): each staff
+then shown, edited and spaced on its own. The instrument's lane stays what is shown and saved,
+each region leaving out the staves not shown then; the staves' lanes are another way of
+setting it (`Curation.setSplit`, the instruments split with their staves' count). A staff's lane
+has the id `partId/n` (`Curation.staffLaneId`, `staffOfLane`; a part id has no `/`), and every
+edit by id takes one (`lane`, `setLane`, `setLanes`, `updateLanes`, so painting, dragging and
+pasting too): an edit of a staff's lane makes the instrument's again from its staves'
+(`Curation._combined`, a region for each stretch some are shown), and one of the instrument's
+(loading, joining, a pair's) makes its staves' from it (`_projected`). The lanes follow
+`EditorController.laneRows` (an instrument's id, or its staves' in its place) where they used
+`laneParts`, which stays the instruments' order: moving a staff's lane moves its instrument
+(`instrumentOfLane`). A staff's room (its Spacing…) is `EditState.spacing` under its lane's id,
+added between it and its neighbours and, at an outer staff shown, to the instrument's
+(`SpacingPlan`'s `staffRoom`); joining drops it. Which instruments are split is
+`EditState.split`, saved in `curation` (`split`, the part ids, from its version 2).
+
 **Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
 dialog or double-click changes a text any more; add nothing to it. The engine and the
 controller keep it (`EditorController.editTexts`, `textEdits` in `EditState` and the project),

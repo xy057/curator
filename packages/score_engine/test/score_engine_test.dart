@@ -147,6 +147,32 @@ void main() {
     expect(one.placements, hasLength(2), reason: 'the left hand gone');
     expect(one.braces, isEmpty);
     expect(one.labels.last.centerY, lessThan(both.labels.last.centerY - 10), reason: 'named beside the right hand alone');
+    // Split, a lane a staff: each shows where its staff is, and setting one sets the piano's.
+    final (rh, lh) = (Curation.staffLaneId('P2', 1), Curation.staffLaneId('P2', 2));
+    expect(Curation.staffOfLane(lh), ('P2', 2));
+    expect(Curation.staffOfLane('P2'), isNull);
+    curation.setSplit({'P2': 2});
+    expect([curation.lane(rh), curation.lane(lh)], [
+      [const Region(0, 8)],
+      [const Region(0, 4)],
+    ]);
+    curation.setLanes({rh: [const Region(0, 2)], lh: [const Region(0, 8)]});
+    expect([for (final r in curation.lane('P2')) '${r.start}–${r.end} ${r.hiddenStaves}'], ['0.0–2.0 []', '2.0–8.0 [1]']);
+    curation.setLane('P2', [const Region(0, 8)]);
+    expect(curation.lane(rh), [const Region(0, 8)], reason: 'the piano’s lane set: its staves’ follow');
+    expect(curation.split, {'P2': 2});
+    // Room of a staff's own: between the hands.
+    double hands() {
+      final ys = [for (final p in scene.layoutAt(at(1), curation, tall).placements) p.y];
+      return ys[2] - ys[1];
+    }
+
+    final apart = hands();
+    scene.instrumentSpacing = {lh: (above: 2, below: 0)};
+    expect(hands(), closeTo(apart + 2 * piano.engraving.staffSpace * scene.renderer.scale, 0.5));
+    scene.instrumentSpacing = const {};
+    curation.setSplit(const {});
+    expect([curation.split, curation.lane(lh)], [isEmpty, isEmpty]);
     // More room above the piano: the gap to the flute grows by as much (the gaps are at their most).
     double gap() {
       final ys = [for (final p in scene.layoutAt(at(1), curation, tall).placements) p.y];

@@ -31,7 +31,7 @@ void main() {
   ProjectContents contents({ProjectMedia? media}) => ProjectContents(
         scoreName: 'Score.musicxml',
         scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
-        state: const ProjectState(edits: EditState(textEdits: {'d1': 'hello'})),
+        state: const ProjectState(edits: EditState(textEdits: {'d1': 'hello'}, split: {'P2'})),
         media: media,
       );
 
@@ -107,7 +107,8 @@ void main() {
       expect(manifest['modules'], {
         for (final m in ProjectModules.all) m.id: {'version': m.version, if (m.optional) 'optional': true},
       });
-      expect((await open(path)).state.edits.textEdits, {'d1': 'hello'});
+      final opened = (await open(path)).state.edits;
+      expect([opened.textEdits, opened.split], [{'d1': 'hello'}, {'P2'}]);
     });
 
     test('a project saved before modules opens with every field in its module', () async {

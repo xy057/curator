@@ -356,7 +356,8 @@ final class _Texts extends ProjectModule {
 final class _Curation extends ProjectModule {
   const _Curation() : super('curation', version: 2);
 
-  /// 2 added a region's staves left out, which an older build would refuse as damaged.
+  /// 2 added a region's staves left out, which an older build would refuse as damaged, and the
+  /// lanes split into one a staff (`split`, part ids).
   @override
   Map<int, Map<String, Object?> Function(Map<String, Object?>)> get migrations => {1: (json) => json};
 
@@ -369,6 +370,7 @@ final class _Curation extends ProjectModule {
                 for (final r in lane) regionJson(r),
               ],
           },
+        if (state.edits.split.isNotEmpty) 'split': [...state.edits.split.toList()..sort()],
       };
 
   /// A region as saved: `[start, end]`, `[start, end, in, out]` with transitions of its own, and
@@ -392,6 +394,12 @@ final class _Curation extends ProjectModule {
                       for (final (i, region) in JsonReader.listAt(lane, '${r.where}.lanes.$id').indexed)
                         readRegion(region, '${r.where}.lanes.$id[$i]'),
                     ],
+                },
+          split: r.isAbsent('split')
+              ? const {}
+              : {
+                  for (final (i, id) in r.list('split').indexed)
+                    id is String ? id : throw _damaged('${r.where}.split[$i] is not an instrument.'),
                 },
         ),
       );

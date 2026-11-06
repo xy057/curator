@@ -46,6 +46,7 @@ class EditState {
     this.partOrder = const [],
     this.sections = const {},
     this.spacing = const {},
+    this.split = const {},
     this.groupSections = false,
     this.barNumbers = true,
     this.playheadColor,
@@ -136,8 +137,13 @@ class EditState {
   final Map<String, String?> sections;
 
   /// Room the user added above and below some instruments (negative: took away), staff spaces,
-  /// by part id ([CuratedScene.instrumentSpacing]).
+  /// by part id ([CuratedScene.instrumentSpacing]); around a staff of one whose lane is split,
+  /// by that staff's lane ([Curation.staffLaneId]).
   final Map<String, ({double above, double below})> spacing;
+
+  /// The instruments on several staves whose lane is split into one a staff ([Curation.split]),
+  /// by part id. What is shown is still [lanes]' (their regions leaving out staves).
+  final Set<String> split;
 
   /// The most room, staff spaces, an instrument may be given or have taken away ([spacing]).
   static const maxSpacing = 40.0;
@@ -233,6 +239,7 @@ class EditState {
       listEquals(partOrder, other.partOrder) &&
       mapEquals(sections, other.sections) &&
       mapEquals(spacing, other.spacing) &&
+      setEquals(split, other.split) &&
       groupSections == other.groupSections &&
       barNumbers == other.barNumbers &&
       playheadColor == other.playheadColor &&
@@ -279,6 +286,7 @@ class EditState {
     List<String>? partOrder,
     Map<String, String?>? sections,
     Map<String, ({double above, double below})>? spacing,
+    Set<String>? split,
     bool? groupSections,
     bool? barNumbers,
     Object? playheadColor = _kept,
@@ -318,6 +326,7 @@ class EditState {
         partOrder: partOrder ?? this.partOrder,
         sections: sections ?? this.sections,
         spacing: spacing ?? this.spacing,
+        split: split ?? this.split,
         groupSections: groupSections ?? this.groupSections,
         barNumbers: barNumbers ?? this.barNumbers,
         playheadColor: identical(playheadColor, _kept) ? this.playheadColor : playheadColor as Color?,
