@@ -470,9 +470,14 @@ typedef NameGroupInfo = ({String id, String name, Color color, InstrumentFamily?
 /// project), each checked field by field as it is read.
 @immutable
 class ProjectState {
-  const ProjectState({this.edits = const EditState(), this.images = const {}, this.view = const ViewState(), this.foreign = const {}});
+  const ProjectState(
+      {this.edits = const EditState(), this.images = const {}, this.view = const ViewState(), this.foreign = const {}, this.pdf});
 
   final EditState edits;
+
+  /// A PDF score's layout: what its pages hold, where ([PdfScoreLayout]). The source score is
+  /// then that PDF; null for MusicXML.
+  final PdfScoreLayout? pdf;
 
   /// The image files [EditState.patches] show, by [PatchImage.id]. Not in the JSON: the
   /// project file keeps each as `images/<id>`.
@@ -484,8 +489,18 @@ class ProjectState {
   /// by id: kept as they came, so saving here doesn't lose them.
   final Map<String, ForeignModule> foreign;
 
-  ProjectState copyWith({EditState? edits, Map<String, PatchImage>? images, ViewState? view, Map<String, ForeignModule>? foreign}) =>
-      ProjectState(edits: edits ?? this.edits, images: images ?? this.images, view: view ?? this.view, foreign: foreign ?? this.foreign);
+  ProjectState copyWith(
+          {EditState? edits,
+          Map<String, PatchImage>? images,
+          ViewState? view,
+          Map<String, ForeignModule>? foreign,
+          PdfScoreLayout? Function()? pdf}) =>
+      ProjectState(
+          edits: edits ?? this.edits,
+          images: images ?? this.images,
+          view: view ?? this.view,
+          foreign: foreign ?? this.foreign,
+          pdf: pdf == null ? this.pdf : pdf());
 }
 
 /// A module a newer version wrote that this one can't read, as it came: its JSON

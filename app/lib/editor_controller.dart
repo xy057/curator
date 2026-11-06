@@ -152,6 +152,27 @@ class EditorController extends ChangeNotifier {
     await _install(fileNameOf(path), bytes, score, ProjectState(edits: edits));
   }
 
+  /// Opens (imports) a PDF score: [bytes], open as [pages], read as [layout] (the PDF import's
+  /// work). Its staves are drawn cropped from its pages. The pages are the controller's now.
+  Future<void> openPdf(String name, Uint8List bytes, PdfPages pages, PdfScoreLayout layout) async {
+    final edits = await _newProjectEdits();
+    final LoadedScore score;
+    try {
+      score = await _engrave(layout.musicXML(), _requestFor(edits), pdf: PdfScoreArt(layout, PdfPagesSource(pages)));
+    } on Object {
+      pages.close();
+      rethrow;
+    }
+    await _install(name, bytes, score, ProjectState(edits: edits, pdf: layout), pages: pages);
+  }
+
+  /// The PDF the open score is drawn from, read by PDFium; null for an engraved score.
+  PdfPages? get pdfPages => _pdfPages;
+  PdfPages? _pdfPages;
+
+  /// Whether the open score is a PDF's ([openPdf]): no notes, nothing engraved.
+  bool get isPdf => _score?.pdf != null;
+
   /// The fonts a newly imported score starts with (Save as default), by name.
   ({String music, String text, bool embed}) newProjectFonts =
       (music: MusicFont.bravura.name, text: TextFonts.academico, embed: true);
@@ -204,12 +225,25 @@ class EditorController extends ChangeNotifier {
         state = state.copyWith(edits: edits);
       }
     }
-    final score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
+    final PdfPages? pages;
+    final LoadedScore score;
+    if (state.pdf case final layout?) {
+      pages = await PdfPages.open(scoreBytes);
+      try {
+        score = await _engrave(layout.musicXML(), _requestFor(edits), pdf: PdfScoreArt(layout, PdfPagesSource(pages)));
+      } on Object {
+        pages.close();
+        rethrow;
+      }
+    } else {
+      pages = null;
+      score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
+    }
     final arts = await ImageEditing._decodeAll(state.images);
     // Loading from the moment the score shows until its recordings are read.
     _loadingAudio = mediaPath != null || takePaths.isNotEmpty;
     try {
-      await _install(name, scoreBytes, score, state, arts: arts);
+      await _install(name, scoreBytes, score, state, arts: arts, pages: pages);
       if (_disposed) return null; // nothing to play it in: the window closed
       return await _loadTakes(mediaPath, takePaths);
     } finally {
@@ -225,12 +259,14 @@ class EditorController extends ChangeNotifier {
   Future<ScoreReplacement> prepareReplacement(String path) async =>
       prepareReplacementWith(fileNameOf(path), await File(path).readAsBytes());
 
-  /// [prepareReplacement] for a score's [bytes] (the score editor's), named [name].
-  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes) async {
+  /// [prepareReplacement] for a score's [bytes] (the score editor's), named [name]; or, with
+  /// [pdf], the open PDF read as that layout (its import edited again).
+  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes, {PdfScoreLayout? pdf}) async {
     final before = _score!;
+    final art = pdf == null ? null : PdfScoreArt(pdf, PdfPagesSource(_pdfPages!));
     // Read once for what it holds (its texts as written: the edits are carried by them), and
     // once more as engraved.
-    final xml = ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
+    final xml = pdf?.musicXML() ?? ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
     final metadata = ScoreMetadata.fromDocument(doc);
     final swap = ScoreSwap(
       before: before.metadata,
@@ -238,10 +274,20 @@ class EditorController extends ChangeNotifier {
       textsBefore: before.texts,
       textsAfter: PreparedScore.prepare(doc, const {}, metadata: metadata).texts,
     );
-    final score =
-        await _engrave(xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_doc.textEdits), pairs: swap.pairs(_doc.pairs))));
-    if (_score != before) throw StateError('Another score was opened meanwhile.');
-    final state = projectState;
+    final LoadedScore score;
+    try {
+      score = await _engrave(
+          xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_doc.textEdits), pairs: swap.pairs(_doc.pairs))),
+          pdf: art);
+    } on Object {
+      art?.dispose();
+      rethrow;
+    }
+    if (_score != before) {
+      art?.dispose();
+      throw StateError('Another score was opened meanwhile.');
+    }
+    final state = pdf == null ? projectState : projectState.copyWith(pdf: () => pdf);
     final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
     final (state: carried, :lost) =
         swap.carry(state, condensable: condensable, measuresBefore: measures.before, measuresAfter: measures.after);
@@ -259,20 +305,24 @@ class EditorController extends ChangeNotifier {
   /// Puts [replacement] in place of the score, keeping the recording; Undo starts again from
   /// here. Does nothing if another score was opened since it was made.
   Future<void> replaceScore(ScoreReplacement replacement) async {
-    if (replacement.replacing != _score) return;
+    if (replacement.replacing != _score) return replacement.score.pdf?.dispose();
     final arts = await ImageEditing._decodeAll(replacement.state.images);
-    if (replacement.replacing != _score) return arts.values.forEach(ImageEditing._dispose);
+    if (replacement.replacing != _score) {
+      replacement.score.pdf?.dispose();
+      return arts.values.forEach(ImageEditing._dispose);
+    }
+    // A PDF read again is the same PDF: its pages stay open.
     await _install(replacement.name, replacement.bytes, replacement.score, replacement.state,
-        arts: arts, keepRecording: true);
+        arts: arts, keepRecording: true, pages: replacement.score.pdf == null ? null : _pdfPages);
     _edited(); // unsaved
   }
 
   /// Engraves a score (the slow part, and the one that can fail) without touching what is open.
-  Future<LoadedScore> _engrave(String musicXML, EngraveRequest request) async {
+  Future<LoadedScore> _engrave(String musicXML, EngraveRequest request, {PdfScoreArt? pdf}) async {
     _loading = true;
     notifyListeners();
     try {
-      return await LoadedScore.engrave(musicXML, request);
+      return await LoadedScore.engrave(musicXML, request, pdf: pdf);
     } finally {
       _loading = false;
       if (!_disposed) notifyListeners();
@@ -283,12 +333,21 @@ class EditorController extends ChangeNotifier {
   /// (the recording too, unless [keepRecording]). Nothing in here fails, so a project is
   /// never left half open.
   Future<void> _install(String name, Uint8List bytes, LoadedScore score, ProjectState state,
-      {Map<String, PatchArt> arts = const {}, bool keepRecording = false}) async {
-    if (_disposed) return arts.values.forEach(ImageEditing._dispose); // the window closed while engraving
+      {Map<String, PatchArt> arts = const {}, bool keepRecording = false, PdfPages? pages}) async {
+    if (_disposed) {
+      // The window closed while engraving.
+      score.pdf?.dispose();
+      if (pages != _pdfPages) pages?.close();
+      return arts.values.forEach(ImageEditing._dispose);
+    }
     playback.pause();
     final tab = _tab;
     if (!keepRecording) await audio.unload();
+    final art = _score?.pdf;
     _closeDocument();
+    if (art != score.pdf) art?.dispose();
+    if (_pdfPages != pages) _pdfPages?.close();
+    _pdfPages = pages;
     if (keepRecording) _tab = tab;
     final edits = state.edits, view = state.view;
     _foreign = state.foreign;
@@ -1162,7 +1221,8 @@ class EditorController extends ChangeNotifier {
   /// ask for every instrument at every paint, through [condensedGroupOf] and [laneParts].
   List<PlayerPair> get condensable {
     final score = _score;
-    if (score == null) return const [];
+    // A PDF's staves are printed ones: none to share.
+    if (score == null || score.pdf != null) return const [];
     if (_condensable case (final s, final p, final pairs) when identical(s, score) && identical(p, _doc.pairs)) return pairs;
     final pairs = List<PlayerPair>.unmodifiable(score.condensing.pairs(_doc.pairs));
     _condensable = (score, _doc.pairs, pairs);
@@ -2013,6 +2073,7 @@ class EditorController extends ChangeNotifier {
           time: playback.time.value,
         ),
         foreign: _foreign,
+        pdf: _score?.pdf?.layout,
       );
 
   /// What the open project holds that this version can't read but keeps ([ProjectState.foreign]).
@@ -2026,6 +2087,8 @@ class EditorController extends ChangeNotifier {
     _engravings.cancel(); // an engraving still running finds nothing to update
     playback._dispose();
     _scene?.dispose();
+    _score?.pdf?.dispose();
+    _pdfPages?.close();
     _curation?.dispose();
     _sync?.dispose();
     unawaited(audio.unload());

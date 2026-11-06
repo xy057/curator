@@ -358,7 +358,8 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
 
 class _ScorePainter extends CustomPainter {
   _ScorePainter(this.controller, this.devicePixelRatio, this.colors, {required this.scale})
-      : super(repaint: controller.playback.repaint);
+      // A PDF score's staves arrive a system at a time: each is drawn as it comes.
+      : super(repaint: Listenable.merge([controller.playback.repaint, ?controller.score?.pdf]));
   final EditorController controller;
   final double devicePixelRatio;
   final AppColors colors;

@@ -538,6 +538,9 @@ class VideoExport {
   /// The instruments top to bottom, as in the editor when the export was made.
   List<String> get partOrder => _scene.partOrder;
 
+  /// A PDF score's pictures ([LoadedScore.pdf]); null for an engraved score.
+  PdfScoreArt? get pdf => _scene.score.pdf;
+
   /// The score size, as in the editor's toolbar.
   double get staffSpace => _scene.style.staffSpace;
   set staffSpace(double value) => _scene.setStaffSpace(value);
@@ -664,7 +667,10 @@ class VideoExport {
     try {
       // A few frames are drawn and read back while FFmpeg encodes the one before them.
       var i = 0;
-      await for (final pixels in inOrder(frames, (i) {
+      final frameSize = ui.Size(format.width / format.devicePixelRatio, format.height / format.devicePixelRatio);
+      await for (final pixels in inOrder(frames, (i) async {
+        // A PDF score's systems are read before they are drawn.
+        await _scene.ready(start + format.timeOf(i), frameSize);
         final image = _scene.renderFrame(format.width, format.height,
             time: start + format.timeOf(i),
             curation: _curation,

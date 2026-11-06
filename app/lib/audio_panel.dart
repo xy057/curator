@@ -653,8 +653,11 @@ class AudioToolbar extends StatelessWidget {
         if (c.editsSync) ...[
           const ToolbarDivider(),
           if (!c.usesMidiTempo) ...[
-            _AlignButton(controller: c),
-            const SizedBox(width: 2),
+            // A PDF score has no notes to align to: its anchors are tapped.
+            if (!c.isPdf) ...[
+              _AlignButton(controller: c),
+              const SizedBox(width: 2),
+            ],
             _TapButton(controller: c),
           ],
           ToolbarButton(

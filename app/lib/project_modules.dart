@@ -61,10 +61,11 @@ abstract final class ProjectModules {
   static const captions = _Captions();
   static const spacers = _Spacers();
   static const view = _View();
+  static const pdf = _Pdf();
 
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
-    fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, spacers, view, //
+    pdf, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, spacers, view, //
   ];
 
   /// The score-wide settings, what a page of Project Settings sets for the whole score: a
@@ -692,4 +693,18 @@ final class _View extends ProjectModule {
           time: r.number('time'),
         ),
       );
+}
+
+/// A PDF score's layout ([ProjectState.pdf]): its pages' systems, staves and barlines, whose
+/// each staff is, the masks, and the instruments, meter and key the score is read as. A
+/// Curator that can't read it can't show the score.
+final class _Pdf extends ProjectModule {
+  const _Pdf() : super('pdf');
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {'layout': ?state.pdf?.toJson()};
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) =>
+      state.copyWith(pdf: () => _nested(r, 'layout', PdfScoreLayout.fromJson));
 }

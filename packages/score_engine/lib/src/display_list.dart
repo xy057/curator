@@ -56,6 +56,35 @@ class RotatedGlyphItem extends DisplayItem {
   }
 }
 
+/// A picture a [PictureItem] draws a piece of (a PDF score's staff in one system), which may not
+/// be ready yet: it is read when first asked for.
+abstract class PictureSource {
+  /// The picture, or null while it is being read (asking starts that).
+  ui.Image? get image;
+}
+
+/// A piece [src] (pixels) of a [PictureSource]'s picture drawn into [dst] (device units), a
+/// PDF score's bar of one staff; [bounds] is where its ink is.
+class PictureItem extends DisplayItem {
+  PictureItem(this.source, this.src, this.dst, super.bounds);
+  final PictureSource source;
+  final ui.Rect src, dst;
+
+  static final _paint = ui.Paint()
+    ..filterQuality = ui.FilterQuality.medium
+    // Neighbouring bars meet on whole pixels: no seam where both would half cover one.
+    ..isAntiAlias = false;
+
+  /// Whether its picture isn't ready yet: drawn, it draws nothing.
+  bool get pending => source.image == null;
+
+  @override
+  void paint(ui.Canvas canvas) {
+    final image = source.image;
+    if (image != null) canvas.drawImageRect(image, src, dst, _paint);
+  }
+}
+
 /// A staff line, run on through every measure it continues into, in device units.
 typedef StaffLine = ({double y, double left, double right, double thickness});
 
@@ -179,7 +208,17 @@ class RenderStyle {
 
 /// The engraving converted to drawable items, one layer per staff.
 class ScoreDisplayList {
-  ScoreDisplayList._(this.data, this.staves, this.barlines, this.apart, [this.sourced = const {}]);
+  ScoreDisplayList._(this.data, this.staves, this.barlines, this.apart, [this.sourced = const {}]) : strokes = null;
+
+  /// Staves drawn from what isn't an engraving (a PDF score's parts): [strokes], the barlines
+  /// that run on between the staves of a section, as each barline's centre and width.
+  ScoreDisplayList.of(this.data, this.staves, {List<({double x, double width})> this.strokes = const []})
+      : barlines = StaffLayer(const StaffInfo(n: 0, top: 0, height: 0, lines: 0), const [], binWidth: data.staffSpace * 16),
+        apart = const [],
+        sourced = const {};
+
+  /// The barlines between staves when they aren't [barlines]' (see [ScoreDisplayList.of]).
+  final List<({double x, double width})>? strokes;
 
   final EngravingData data;
   final List<StaffLayer> staves;

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart';
@@ -44,6 +45,28 @@ abstract final class WebExport {
   /// files) stays. Returns the
   /// path of its `index.html`. Throws a [VideoExportException] saying why it couldn't. A test
   /// gives the [player] (zipped), as it has no build of it.
+  /// A PDF score's systems with bars on the page, each as printed ([WebPage.pdfSystem]).
+  static Future<void> _writePdf(EditorController editor, PdfScoreLayout layout, String folder, WebPage page) async {
+    final pages = editor.pdfPages;
+    if (pages == null) throw const VideoExportException('The PDF isn’t open.');
+    final systems = <int>{
+      for (final (bar, pieces) in layout.bars.indexed)
+        if (bar >= page.firstBar - 1 && bar <= page.lastBar - 1)
+          for (final p in pieces) p.system,
+    };
+    for (final i in systems) {
+      final image = await PdfPagesSource.decodePicture(await pages.picture(layout.systems[i]));
+      try {
+        final png = await image.toByteData(format: ui.ImageByteFormat.png);
+        File('$folder/${WebPage.pdfSystem(i)}')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(png!.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes));
+      } finally {
+        image.dispose();
+      }
+    }
+  }
+
   static Future<String> write(EditorController editor, String output,
       {required WebPage page,
       List<String> takes = const [],
@@ -85,7 +108,7 @@ abstract final class WebExport {
         throw VideoExportException('The score is still being engraved. Try again in a moment.'.tr);
       }
       final kept = {for (final p in edits.patches) p.image};
-      final state = ProjectState(edits: edits, images: {
+      final state = ProjectState(pdf: editor.projectState.pdf, edits: edits, images: {
         for (final MapEntry(key: id, value: image) in editor.projectState.images.entries)
           if (kept.contains(id))
             // Sized here: the page can't measure an SVG with no size of its own.
@@ -98,6 +121,7 @@ abstract final class WebExport {
       zip.add(ArchiveFile.string(WebPage.scoreEntry, score.musicXML));
       zip.endEncode();
       File('$folder/${WebPage.engravingFile}').writeAsBytesSync(EngravingFile.write(score.engraving));
+      if (score.pdf case final art?) await _writePdf(editor, art.layout, folder, page);
 
       // The text fonts the score and the captions are drawn in, when they are installed ones.
       final fonts = <({String family, List<String> files})>[];

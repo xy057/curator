@@ -10,6 +10,7 @@ import 'display_list.dart';
 import 'engraving.dart';
 import 'engraving_options.dart';
 import 'frozen_zone.dart';
+import 'pdf_score.dart';
 import 'auto_curate.dart';
 import 'beat_grid.dart';
 import 'curation.dart';
@@ -102,9 +103,14 @@ class LoadedScore {
       required this.condensing,
       required this.pairs,
       required this.spacers,
-      required this.gaps});
+      required this.gaps,
+      this.pdf});
 
   final ScoreMetadata metadata;
+
+  /// A score read from a PDF: drawn from its pages ([PdfScoreArt]), not engraved. Its
+  /// [musicXML] is the score written for it ([PdfScoreLayout.musicXML]).
+  final PdfScoreArt? pdf;
   final EngravingData engraving;
   final ScoreTimeline timeline;
   final ScrollMap scrollMap;
@@ -185,9 +191,13 @@ class LoadedScore {
           spacers: spacers,
           gaps: gaps);
 
-  /// Engraves [musicXML] as [request] asks.
-  static Future<LoadedScore> engrave(String musicXML, EngraveRequest request, {String? resourceDirectory, double? tempo}) =>
-      load(musicXML,
+  /// Engraves [musicXML] as [request] asks; with [pdf], lays out that PDF score instead
+  /// ([fromPdf]).
+  static Future<LoadedScore> engrave(String musicXML, EngraveRequest request,
+          {String? resourceDirectory, double? tempo, PdfScoreArt? pdf}) async =>
+      pdf != null
+          ? await prepareFonts(request.fonts).then((_) => fromPdf(pdf, request, tempo: tempo))
+          : await load(musicXML,
           resourceDirectory: resourceDirectory,
           tempo: tempo,
           fonts: request.fonts,
@@ -239,6 +249,29 @@ class LoadedScore {
         pairs: pairs,
         spacers: spacers,
         gaps: gaps);
+  }
+
+  /// The score [pdf] is: the score written for it ([PdfScoreLayout.musicXML]), laid out as its
+  /// pages are printed ([PdfEngraving]). Of [request] only what a PDF can show counts: the
+  /// spacers (a vertical one is an empty staff; horizontal ones open nothing).
+  static LoadedScore fromPdf(PdfScoreArt pdf, EngraveRequest request, {double? tempo}) {
+    final musicXML = pdf.layout.musicXML();
+    final r = request;
+    final (:metadata, :prepared, barLengths: _) =
+        _prepare(musicXML, const {}, const [], false, r.typography, r.options, r.spacers);
+    return _of(musicXML, metadata, prepared, PdfEngraving.of(pdf.layout, metadata),
+        tempo: tempo,
+        textEdits: const {},
+        fonts: r.fonts,
+        textFontFound: true,
+        options: r.options,
+        textDynamics: r.textDynamics,
+        typography: r.typography,
+        centeredLyrics: r.centeredLyrics,
+        pairs: const [],
+        spacers: r.spacers,
+        gaps: r.gaps,
+        pdf: pdf);
   }
 
   /// [musicXML] engraved beforehand with [request] as [engraving] ([EngravingFile]): where there is
@@ -294,7 +327,8 @@ class LoadedScore {
       required bool centeredLyrics,
       required List<PlayerPair> pairs,
       required List<VerticalSpacer> spacers,
-      required List<HorizontalSpacer> gaps}) {
+      required List<HorizontalSpacer> gaps,
+      PdfScoreArt? pdf}) {
     final timeline = ConstantTempoTimeline(engraving.measures,
         quarterNotesPerMinute: tempo ?? metadata.tempo ?? 100);
     final beats = BeatGrid(timeline.measureStarts, meters: metadata.meters, pickups: metadata.pickups);
@@ -308,11 +342,13 @@ class LoadedScore {
         textDynamics: textDynamics,
         typography: typography,
         centeredLyrics: centeredLyrics,
-        condensed: prepared.condensed,
+        // A PDF has no staff two players could share.
+        condensed: pdf != null ? const [] : prepared.condensed,
         condensing: prepared.condensing!,
         pairs: List.unmodifiable(pairs),
         spacers: List.unmodifiable(spacers),
-        gaps: List.unmodifiable(gaps));
+        gaps: List.unmodifiable(gaps),
+        pdf: pdf);
   }
 
   /// Gets [fonts] ready to engrave with and draw: their Verovio metrics (measured once) and
@@ -337,7 +373,7 @@ class LoadedScore {
   Future<LoadedScore> withTextEdits(Map<String, String> edits) => withEdits(textEdits: edits);
 
   /// Re-engraves as [request] asks (the structure, and so the curation and sync, stay valid).
-  Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo);
+  Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo, pdf: pdf);
 
   /// Re-engraves with different text edits, pairs of players, fonts, engraving options,
   /// [textDynamics], [typography], [centeredLyrics] or spacers; what isn't given stays.
@@ -485,7 +521,11 @@ class CuratedScene {
   }
   /// The engraving as drawable items: made when first drawn, again when [barNumbers] sets the
   /// tempo marks apart or puts them back.
-  ScoreDisplayList get display => _display ??= ScoreDisplayList.build(
+  ScoreDisplayList get display => _display ??= score.pdf != null
+      ? PdfEngraving.displayList(score.pdf!, score.engraving, score.metadata, spacers: {
+          for (final MapEntry(key: n, value: look) in _spacerStaves.entries) n: (height: look.shownHeight, lines: look.lines),
+        })
+      : ScoreDisplayList.build(
         score.engraving,
         _style,
         withoutKeySignatures: {
@@ -1432,6 +1472,15 @@ class CuratedScene {
   /// The frame at [time] as an image of [width] × [height] pixels, laid out at
   /// [devicePixelRatio] pixels per logical pixel (a video frame). It is [paint] drawn
   /// offscreen, so a video looks exactly like the preview.
+  /// Waits until everything a frame of [size] at [time] draws is ready: a PDF score's systems
+  /// read ([PdfScoreArt.load]), the ones just ahead too. An engraved score's always are.
+  Future<void> ready(double time, ui.Size size) async {
+    final pdf = score.pdf;
+    if (pdf == null) return;
+    final (left, right) = renderer.visibleRange(scrollMap.xAt(time), size.width);
+    await pdf.load(PdfEngraving.systemsIn(pdf.layout, score.engraving, left, right + (right - left) * 0.25));
+  }
+
   ui.Image renderFrame(int width, int height,
       {required double time,
       required Curation curation,

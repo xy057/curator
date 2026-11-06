@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:score_engine/score_engine.dart';
 
 import 'app_settings.dart';
 import 'editor_controller.dart';
@@ -115,6 +116,18 @@ class ProjectDocument extends ChangeNotifier {
   /// Starts a new, unsaved project from a score file (Open… with a MusicXML score).
   Future<void> importScore(String path) => _oneAtATime(() async {
     await controller.openFile(path);
+    _imported(path);
+  });
+
+  /// A PDF score at [path] ([bytes], open as [pages]) as a new project, read as [layout]
+  /// ([EditorController.openPdf]).
+  Future<void> importPdf(String path, Uint8List bytes, PdfPages pages, PdfScoreLayout layout) => _oneAtATime(() async {
+    await controller.openPdf(fileNameOf(path), bytes, pages, layout);
+    _imported(path);
+  });
+
+  /// A score opened as a new project: nothing of the one before kept, nothing saved yet.
+  void _imported(String path) {
     ScratchSpace.release(_mediaDirectory); // the project before had its recording unpacked there
     _mediaDirectory = null;
     _unreadTakes = null;
@@ -123,7 +136,7 @@ class ProjectDocument extends ChangeNotifier {
     _olderFormat = false;
     _markSaved(controller.editRevision.value);
     settings.addRecent(path);
-  });
+  }
 
   /// Project Info ▸ Replace Score: the score file at [path], engraved with this project's edits
   /// carried over (see [EditorController.prepareReplacement]); nothing changes yet.
@@ -131,8 +144,8 @@ class ProjectDocument extends ChangeNotifier {
       _oneAtATime(() => controller.prepareReplacement(path));
 
   /// [prepareReplacement] for a score's [bytes] (the score editor's).
-  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes) =>
-      _oneAtATime(() => controller.prepareReplacementWith(name, bytes));
+  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes, {PdfScoreLayout? pdf}) =>
+      _oneAtATime(() => controller.prepareReplacementWith(name, bytes, pdf: pdf));
 
   /// Puts [replacement] in place of the score: the project, its path and recording stay,
   /// with unsaved changes.

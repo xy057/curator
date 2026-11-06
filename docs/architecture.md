@@ -27,6 +27,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time (`EditChunk`) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
+| `pdf_detect.dart`, `pdf_pages.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`) |
+| `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, cuts, barlines and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
@@ -66,6 +68,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
+| `pdf_import.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`), a page at a time with what was found drawn over it, every system's edges, cuts, music start, barlines, masks and staves' instruments dragged, drawn or picked, the instruments listed and edited |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -856,6 +859,27 @@ Space on, T tie, S slur, V the next voice, R repeat, ⌥↑↓ a step, ⌘⌥↑
 ⇧C clef, ⇧X text, ⇧B bars (`+2`, `-1`) and barlines, ⇧H holds, ⇧O ornaments, ⇧L lyrics (Space
 or `-` to the next note), `;` a tuplet (`:` ends it). A time signature change fills or cuts bars
 rather than rebarring the music after it.
+
+**A PDF score is the PDF, cut by rectangles.** A `.pdf` opened is imported (`pdf_import.dart`):
+`PdfPages.read` finds every page's systems (`PdfDetect`, on PDFium's ink at 2.5 pixels a point:
+staves by row projection, systems by a line joining them, braces, where the music starts past
+the clef, key and time signature, barlines, the row between two staves least ink crosses) and
+the instruments: the system with the most staves names them, and every other system's staves
+are matched to them by the PDF's text (names, abbreviations) or, with none, by how alike their
+ink is (`PdfDetect.match`, a monotone alignment: a staff left out is a hidden instrument, a lone
+staff of a piano one of its two, a staff again a divisi). The user fixes what is wrong; that is the
+only place anything is worked out of the pixels. What it decided is a `PdfScoreLayout`, the
+project's `pdf` module (the PDF itself is the source score file, byte for byte), and a skeleton
+MusicXML written from it (`musicXML`: a part per player, a whole note where a bar is played, the
+meters, keys, upbeat and tempo the user gave) is the score the rest of Curator reads, so
+curation, sync, captions, export and the web page work as for any score. The main view draws no
+engraving: each system is drawn by PDFium as printed (RGBA, on nothing; `PdfPagesSource`, a few
+systems ahead of the view, `CuratedScene.ready`, and an LRU of decoded images), and each staff's
+bar is the rectangle of it between that staff's cuts, the masks clipped out; never tinted,
+recoloured or processed. A divided instrument (`PdfInstrument.divisi`) is a part a division
+(`P6`, `P6d2`…, `players`): a one-staff instrument's further staves in a system (`PdfStaff.staff`
+2…) are its divisions', so a system printing it on one staff leaves the others silent and
+curation hides them. Export to Web writes each system's picture as `score/pdf/N.png`.
 
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;

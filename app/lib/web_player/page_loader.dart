@@ -47,8 +47,13 @@ class LoadedPage {
         await ui.loadFontFromList(await fetch(file), fontFamily: f.family);
       }
     }
-    final score = LoadedScore.engraved(musicXML, WebPage.requestOf(edits), EngravingFile.read(engravingBytes),
-        textFontFound: page.fonts.any((f) => f.family == TextFonts.familyOf(edits.fonts.text)) || edits.fonts.text == TextFonts.academico);
+    final score = switch (state.pdf) {
+      // A PDF score: its systems as printed, cut as in the app.
+      final layout? => LoadedScore.fromPdf(PdfScoreArt(layout, _PageSystems(fetch)), WebPage.requestOf(edits)),
+      null => LoadedScore.engraved(musicXML, WebPage.requestOf(edits), EngravingFile.read(engravingBytes),
+          textFontFound:
+              page.fonts.any((f) => f.family == TextFonts.familyOf(edits.fonts.text)) || edits.fonts.text == TextFonts.academico),
+    };
     final arts = <String, PatchArt>{};
     for (final MapEntry(key: id, value: image) in state.images.entries) {
       try {
@@ -120,4 +125,21 @@ class LoadedPage {
     if (page.firstBar == 1 && page.lastBar == bars) return whole;
     return ClippedTimeline.bars(whole, page.firstBar, page.lastBar)?.timeline ?? whole;
   }
+}
+
+/// A PDF score's systems as the export wrote them ([WebPage.pdfSystem]).
+class _PageSystems implements PdfPartSource {
+  _PageSystems(this.fetch);
+  final Future<Uint8List> Function(String path) fetch;
+
+  @override
+  Future<({ui.Image image, ui.Rect area})> system(PdfScoreLayout layout, int system) async {
+    final codec = await ui.instantiateImageCodec(await fetch(WebPage.pdfSystem(system)));
+    final frame = await codec.getNextFrame();
+    codec.dispose();
+    return (image: frame.image, area: PdfPages.regionOf(layout.systems[system]));
+  }
+
+  @override
+  void close() {}
 }

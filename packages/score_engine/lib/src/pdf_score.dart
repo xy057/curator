@@ -1,0 +1,369 @@
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
+
+import 'display_list.dart';
+import 'engraving.dart';
+import 'pdf_layout.dart';
+import 'pdf_pages.dart';
+import 'score_metadata.dart';
+
+/// Where a PDF score's systems are drawn from: its PDF read here ([PdfPagesSource]), or pictures
+/// of them written beforehand (a web page's).
+abstract class PdfPartSource {
+  /// System [system] of [layout] as printed ([PdfPages.picture]), and the part of its page it
+  /// covers (points).
+  Future<({ui.Image image, ui.Rect area})> system(PdfScoreLayout layout, int system);
+
+  void close();
+}
+
+/// Systems drawn from the PDF itself, by PDFium.
+class PdfPagesSource implements PdfPartSource {
+  PdfPagesSource(this.pages, {this.pixelsPerSpace = 24});
+
+  final PdfPages pages;
+
+  /// How sharp they are: pixels a staff space (a 1440p video draws some 25).
+  final double pixelsPerSpace;
+
+  @override
+  Future<({ui.Image image, ui.Rect area})> system(PdfScoreLayout layout, int system) async {
+    final p = await pages.picture(layout.systems[system], pixelsPerSpace: pixelsPerSpace);
+    return (image: await decodePicture(p), area: p.area);
+  }
+
+  /// [picture] as an image, its pixels as they are.
+  static Future<ui.Image> decodePicture(PdfPicture picture) {
+    final done = Completer<ui.Image>();
+    ui.decodeImageFromPixels(picture.rgba, picture.width, picture.height, ui.PixelFormat.rgba8888, done.complete);
+    return done.future;
+  }
+
+  /// The pages are their owner's to close.
+  @override
+  void close() {}
+}
+
+/// A PDF score as the scene draws it: [layout], and each system as printed, as a picture, read
+/// when a frame first asks for it and kept while they fit in [budget] bytes (the least recently
+/// drawn go first). Nothing in it is changed: each staff's bar is a rectangle of its system's
+/// picture (between its cuts, [PdfSystem.bandOf]), the masks cut out. It notifies when one is
+/// ready, so a view can draw again; a video waits for them ([load]).
+class PdfScoreArt extends ChangeNotifier {
+  PdfScoreArt(this.layout, this._source, {this.budget = 384 << 20});
+
+  final PdfScoreLayout layout;
+  final PdfPartSource _source;
+  final int budget;
+
+  final _systems = <int, ({ui.Image image, ui.Rect area})>{}; // least recently used first
+  final _loading = <int, Future<void>>{};
+  final _failed = <int>{};
+  int _bytes = 0;
+  bool _disposed = false;
+
+  /// System [system] as a picture, with the part of its page it covers (points); null while it
+  /// is read (asking starts that) or when it couldn't be.
+  ({ui.Image image, ui.Rect area})? picture(int system) {
+    final picture = _systems.remove(system);
+    if (picture == null) {
+      _request(system);
+      return null;
+    }
+    _systems[system] = picture;
+    return picture;
+  }
+
+  /// Whether [system] is ready.
+  bool isReady(int system) => _systems.containsKey(system) || _failed.contains(system);
+
+  /// Reads [systems]' pictures, if they aren't ready.
+  Future<void> load(Iterable<int> systems) => Future.wait([for (final s in systems) _request(s)]);
+
+  Future<void> _request(int system) {
+    if (_disposed || _systems.containsKey(system) || _failed.contains(system)) return Future.value();
+    // (A block: the removed future returned from whenComplete's callback would be waited for.)
+    return _loading[system] ??= _read(system).whenComplete(() {
+      _loading.remove(system);
+    });
+  }
+
+  Future<void> _read(int system) async {
+    final ui.Image image;
+    final ui.Rect area;
+    try {
+      (:image, :area) = await _source.system(layout, system);
+    } on Object catch (e) {
+      debugPrint('Couldn’t read system ${system + 1} of the PDF: $e');
+      _failed.add(system);
+      return;
+    }
+    if (_disposed) return image.dispose();
+    _systems[system] = (image: image, area: area);
+    _bytes += image.width * image.height * 4;
+    // The oldest go, but never the one just read.
+    while (_bytes > budget && _systems.length > 1) {
+      final oldest = _systems.remove(_systems.keys.first)!;
+      _bytes -= oldest.image.width * oldest.image.height * 4;
+      oldest.image.dispose();
+    }
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    for (final p in _systems.values) {
+      p.image.dispose();
+    }
+    _systems.clear();
+    _source.close();
+    super.dispose();
+  }
+}
+
+/// A system's picture, as a [PictureItem] draws it.
+class _SystemPicture implements PictureSource {
+  _SystemPicture(this.art, this.system);
+  final PdfScoreArt art;
+  final int system;
+
+  @override
+  ui.Image? get image => art.picture(system)?.image;
+}
+
+/// A rectangle of a system's picture: [from] (points on its page) drawn into [dst] (device
+/// units), [masks] (points) left out.
+class _PdfPiece extends PictureItem {
+  _PdfPiece(_SystemPicture source, this.from, ui.Rect dst, ui.Rect bounds, this.masks) : super(source, ui.Rect.zero, dst, bounds);
+
+  final ui.Rect from;
+  final List<ui.Rect> masks;
+
+  static final _paint = ui.Paint()..filterQuality = ui.FilterQuality.medium;
+
+  @override
+  void paint(ui.Canvas canvas) {
+    final source = this.source as _SystemPicture;
+    final picture = source.art.picture(source.system);
+    if (picture == null) return;
+    final (:image, :area) = picture;
+    final cover = area.intersect(from);
+    if (cover.width <= 0 || cover.height <= 0) return;
+    final sx = dst.width / from.width, sy = dst.height / from.height;
+    ui.Rect onScreen(ui.Rect r) => ui.Rect.fromLTRB(dst.left + (r.left - from.left) * sx, dst.top + (r.top - from.top) * sy,
+        dst.left + (r.right - from.left) * sx, dst.top + (r.bottom - from.top) * sy);
+    final px = image.width / area.width, py = image.height / area.height;
+    canvas.save();
+    canvas.clipRect(onScreen(cover));
+    for (final m in masks) {
+      if (m.overlaps(cover)) canvas.clipRect(onScreen(m), clipOp: ui.ClipOp.difference);
+    }
+    canvas.drawImageRect(
+      image,
+      ui.Rect.fromLTRB(
+          (cover.left - area.left) * px, (cover.top - area.top) * py, (cover.right - area.left) * px, (cover.bottom - area.top) * py),
+      onScreen(cover),
+      _paint,
+    );
+    canvas.restore();
+  }
+}
+
+/// How a PDF score is laid out as an engraving: [unit] device units a staff space, its bars end
+/// to end as wide as printed (each system's staff space made one [unit]), each instrument's
+/// staves stacked in score order.
+abstract final class PdfEngraving {
+  static const unit = 20.0;
+  static const _lead = 2 * unit;
+  static const _staffGap = 24 * unit;
+
+  /// The engraving [layout] is drawn as, its staves [metadata]'s (the score written for it, with
+  /// any spacers' parts after its own): bars, staves, and the clef, key and time signatures the
+  /// frozen zone shows. It records no drawing: [displayList] draws the PDF.
+  static EngravingData of(PdfScoreLayout layout, ScoreMetadata metadata) {
+    final measures = <MeasureLayout>[];
+    var x = _lead;
+    for (final (bar, pieces) in layout.bars.indexed) {
+      final width = pieces.fold(0.0, (w, p) => w + (p.right - p.left) / layout.systems[p.system].space * unit);
+      measures.add(MeasureLayout(
+          left: x, right: x + width, duration: layout.quartersOf(bar), onsetTimes: Float64List(0), onsetXs: Float64List(0)));
+      x += width;
+    }
+    final staves = <StaffInfo>[];
+    final signatures = <Signature>[];
+    for (final part in metadata.parts) {
+      final instrument = layout.playerOf(part.id)?.$1;
+      for (final (k, n) in part.staffNumbers.indexed) {
+        staves.add(StaffInfo(n: n, top: (n - 1) * _staffGap, height: 4 * unit, lines: 5));
+        if (instrument == null) continue; // a spacer
+        final clef = k > 0 ? PdfClef.bass : instrument.clef;
+        signatures.add(ClefSignature(
+            staff: n, x: 0, commandStart: 0, commandCount: 0, shape: clef.shape, line: clef.line, octave: clef.octave));
+        if (clef != PdfClef.percussion) {
+          signatures.add(KeySignature(staff: n, x: 0, commandStart: 0, commandCount: 0, fifths: instrument.key.keyOf(layout.fifths)));
+          for (final MapEntry(key: bar, value: fifths) in layout.keys.entries) {
+            if (bar > 0 && bar < measures.length) {
+              signatures.add(KeySignature(
+                  staff: n, x: measures[bar].left, commandStart: 0, commandCount: 0, fifths: instrument.key.keyOf(fifths)));
+            }
+          }
+        }
+        for (final (bar, meter) in [
+          (0, layout.meterAt(0)),
+          for (final e in layout.meters.entries)
+            if (e.key > 0 && e.key < measures.length) (e.key, e.value),
+        ]) {
+          final summands = [for (final b in meter.beats.split('+')) int.tryParse(b) ?? 0];
+          signatures.add(TimeSignature(
+              staff: n,
+              x: bar == 0 ? 0 : measures[bar].left,
+              commandStart: 0,
+              commandCount: 0,
+              count: summands.fold(0, (a, b) => a + b),
+              unit: meter.unit,
+              summands: summands));
+        }
+      }
+    }
+    signatures.sort((a, b) => a.x.compareTo(b.x));
+    return EngravingData(
+      width: x + _lead,
+      staffSpace: unit,
+      staves: staves,
+      measures: measures,
+      commandBytes: Uint8List(0),
+      pathBytes: Uint8List(0),
+      text: Uint8List(0),
+      classNames: const [],
+      fontNames: const [],
+      signatures: signatures,
+      sourceIds: const [],
+      warnings: const [],
+    );
+  }
+
+  /// [data] ([of]) as drawable staves: each bar of each staff a piece of its system's picture,
+  /// placed so its lines are the staff's; where an instrument has no staff in a system (hidden
+  /// there, as printed) its staff is drawn empty, lines and a bar's rest. [spacers]: staff
+  /// numbers of vertical spacers, as [ScoreDisplayList.build] takes them.
+  static ScoreDisplayList displayList(PdfScoreArt art, EngravingData data, ScoreMetadata metadata,
+      {Map<int, ({double height, bool lines})> spacers = const {}}) {
+    final layout = art.layout;
+    final info = {for (final s in data.staves) s.n: s};
+    final items = <int, List<DisplayItem>>{};
+    final lines = <int, List<StaffLine>>{};
+    final staffOf = <String, List<int>>{for (final p in metadata.parts) p.id: p.staffNumbers};
+    const thickness = 0.13 * unit;
+    void emptyBar(int n, double left, double right) {
+      final staff = info[n]!;
+      for (var k = 0; k < 5; k++) {
+        lines.putIfAbsent(n, () => []).add((y: staff.top + k * unit, left: left, right: right, thickness: thickness));
+      }
+      // A bar's rest, hanging from the fourth line in the bar's middle.
+      final middle = (left + right) / 2;
+      final rest = ui.Rect.fromLTWH(middle - 0.6 * unit, staff.top + unit, 1.2 * unit, 0.5 * unit);
+      items.putIfAbsent(n, () => []).add(ShapeItem(ui.Path()..addRect(rest), rest, fill: ui.Paint()..color = const ui.Color(0xFF000000)));
+    }
+
+    final masks = <int, List<ui.Rect>>{};
+    for (final m in layout.masks) {
+      masks.putIfAbsent(m.page, () => []).add(m.rect);
+    }
+    final strokes = <({double x, double width})>[];
+    for (final (bar, pieces) in layout.bars.indexed) {
+      if (bar >= data.measures.length) break;
+      var x = data.measures[bar].left;
+      final shown = <int>{};
+      for (final piece in pieces) {
+        final system = layout.systems[piece.system];
+        final width = (piece.right - piece.left) / system.space * unit;
+        final segment = layout.barOfSegment[piece.system].indexOf(bar);
+        for (final (s, staff) in system.staves.indexed) {
+          final numbers = staffOf[layout.partOf(staff)], k = layout.staffInPart(staff);
+          if (numbers == null || k > numbers.length) continue;
+          final n = numbers[k - 1];
+          final top = info[n]!.top;
+          final ink = system.ink;
+          final reach = ink == null || segment < 0 || segment >= ink[s].length
+              ? (above: 4.0, below: 4.0, played: true)
+              : ink[s][segment];
+          double yOf(double pageY) => top + (pageY - staff.top) / staff.space * unit;
+          // Its band of the system, cut straight: what the import set, nothing worked out here.
+          final (bandTop, bandBottom) = system.bandOf(s);
+          final from = ui.Rect.fromLTRB(piece.left, bandTop, piece.right, bandBottom);
+          items.putIfAbsent(n, () => []).add(_PdfPiece(
+                _SystemPicture(art, piece.system),
+                from,
+                ui.Rect.fromLTRB(x, yOf(bandTop), x + width, yOf(bandBottom)),
+                ui.Rect.fromLTRB(x, math.max(yOf(bandTop), top - reach.above * unit), x + width,
+                    math.min(yOf(bandBottom), top + 4 * unit + reach.below * unit)),
+                masks[system.page] ?? const [],
+              ));
+          shown.add(n);
+        }
+        x += width;
+      }
+      for (final part in metadata.parts) {
+        if (layout.playerOf(part.id) == null) continue;
+        for (final n in part.staffNumbers) {
+          if (!shown.contains(n)) emptyBar(n, data.measures[bar].left, data.measures[bar].right);
+        }
+      }
+      strokes.add((x: data.measures[bar].right, width: 0.16 * unit));
+    }
+    final binWidth = data.staffSpace * 16;
+    return ScoreDisplayList.of(
+      data,
+      [
+        for (final staff in data.staves)
+          switch (spacers[staff.n]) {
+            null => StaffLayer(staff, items[staff.n] ?? [], binWidth: binWidth, lines: _joined(lines[staff.n] ?? const [])),
+            (:final height, lines: true) => StaffLayer(staff, const [],
+                binWidth: binWidth,
+                lines: [
+                  for (var k = 0; k < 5; k++) (y: staff.top + k * unit, left: _lead, right: data.width - _lead, thickness: thickness),
+                ],
+                reach: math.max(0.0, height * unit - staff.height) / 2),
+            (:final height, lines: false) => StaffLayer(
+                StaffInfo(n: staff.n, top: staff.top + (staff.height - height * unit) / 2, height: height * unit, lines: 0), const [],
+                binWidth: binWidth),
+          },
+      ],
+      strokes: strokes,
+    );
+  }
+
+  /// Lines of neighbouring empty bars joined into one run.
+  static List<StaffLine> _joined(List<StaffLine> lines) {
+    final sorted = [...lines]..sort((a, b) => a.y != b.y ? a.y.compareTo(b.y) : a.left.compareTo(b.left));
+    final out = <StaffLine>[];
+    for (final line in sorted) {
+      final last = out.lastOrNull;
+      if (last != null && last.y == line.y && line.left <= last.right + 0.5) {
+        out.last = (y: last.y, left: last.left, right: math.max(last.right, line.right), thickness: last.thickness);
+      } else {
+        out.add(line);
+      }
+    }
+    return out;
+  }
+
+  /// The systems whose music is drawn between [left] and [right] (device units of [of]'s
+  /// engraving): what a frame showing them needs read ([PdfScoreArt.load]).
+  static Set<int> systemsIn(PdfScoreLayout layout, EngravingData data, double left, double right) {
+    final out = <int>{};
+    for (final (bar, pieces) in layout.bars.indexed) {
+      if (bar >= data.measures.length) break;
+      final m = data.measures[bar];
+      if (m.right < left || m.left > right) continue;
+      for (final p in pieces) {
+        out.add(p.system);
+      }
+    }
+    return out;
+  }
+}

@@ -35,6 +35,10 @@ class WebPage {
   /// Where [projectFile] keeps the MusicXML.
   static const scoreEntry = 'score/score.musicxml';
 
+  /// A PDF score's system [index] as printed ([PdfPages.picture]), its staves cut from it as in
+  /// the app.
+  static String pdfSystem(int index) => 'pdf/$index.png';
+
   final String title;
 
   /// The score size, as in the editor's toolbar.

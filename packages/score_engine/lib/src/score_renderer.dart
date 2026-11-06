@@ -181,9 +181,10 @@ class ScoreRenderer {
     // meet without a seam.
     final linesFrom =
         frozen == null ? -double.infinity : ((musicLeft + _fade) * devicePixelRatio).ceilToDouble() / devicePixelRatio;
+    // A PDF's staves are its own pictures, drawn as printed: not recoloured.
     final paint = ui.Paint()
       ..filterQuality = ui.FilterQuality.low
-      ..colorFilter = inkFilter;
+      ..colorFilter = display.strokes != null ? null : inkFilter;
     // Drawn as the zone draws its own, in the ink on a layer tinted with it: drawn straight on
     // the canvas, Impeller anti-aliases them differently, and the lines changed weight there.
     final linePaint = ui.Paint()..color = style.ink;
@@ -389,7 +390,7 @@ class ScoreRenderer {
 
   /// Every barline's vertical strokes (centre and width, device units) in x order, once each:
   /// what a join between two staves draws of them.
-  late final List<({double x, double width})> _barlineStrokes = () {
+  late final List<({double x, double width})> _barlineStrokes = display.strokes ?? () {
     final strokes = <(double, double)>{};
     for (final item in display.barlines.items) {
       if (item is! ShapeItem) continue;
@@ -421,7 +422,13 @@ class ScoreRenderer {
   _Tile? _tile(int staffIndex, int index) {
     final key = (staffIndex, index);
     final cached = _tiles.remove(key);
-    if (cached != null) return _tiles[key] = cached..frame = _frame; // mark as recently used
+    if (cached != null && !(cached.waiting > 0 && _waiting(staffIndex, index) < cached.waiting)) {
+      return _tiles[key] = cached..frame = _frame; // mark as recently used
+    }
+    if (cached != null) {
+      _tileBytes -= cached.bytes; // drawn while a picture was being read, which is ready now
+      cached.image.dispose();
+    }
     if (_emptyTiles.contains(key)) return null;
     final tile = _render(staffIndex, index);
     if (tile == null) {
@@ -437,6 +444,12 @@ class ScoreRenderer {
       old.image.dispose();
     }
     return tile;
+  }
+
+  /// How many pictures tile [index] of staff [staffIndex] waits for.
+  int _waiting(int staffIndex, int index) {
+    final left = index * _tileUnits;
+    return display.staves[staffIndex].itemsIn(left, left + _tileUnits).where((i) => i is PictureItem && i.pending).length;
   }
 
   _Tile? _render(int staffIndex, int index) {
@@ -485,7 +498,7 @@ class ScoreRenderer {
     final picture = recorder.endRecording();
     final image = picture.toImageSync(width, height);
     picture.dispose();
-    return _Tile(image, offsetPx / dpr);
+    return _Tile(image, offsetPx / dpr)..waiting = items.where((i) => i is PictureItem && i.pending).length;
   }
 
   final _labelCache = <String, ui.Paragraph>{};
@@ -567,6 +580,10 @@ class _Tile {
 
   /// The paint call that last drew it.
   int frame = 0;
+
+  /// How many of its pictures were still being read when it was drawn: drawn again once one is
+  /// ready.
+  int waiting = 0;
 
   /// Offset of the image's top edge from the staff's top line, logical pixels.
   final double top;
