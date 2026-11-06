@@ -87,6 +87,10 @@ class EngraveRequest {
   int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics, centeredLyrics, spacers.length, gaps.length);
 }
 
+/// How far opening a score has got ([LoadedScore.engrave]'s `onStage`): its file read and
+/// prepared, engraved (a PDF's laid out as printed), then what it plays measured.
+enum LoadStage { reading, engraving, measuring }
+
 /// A score that is engraved and ready to show.
 class LoadedScore {
   LoadedScore._(this.metadata, this.engraving, this.timeline, this.beats, this.scrollMap,
@@ -104,7 +108,8 @@ class LoadedScore {
       required this.pairs,
       required this.spacers,
       required this.gaps,
-      this.pdf});
+      this.pdf,
+      this._salience});
 
   final ScoreMetadata metadata;
 
@@ -125,7 +130,10 @@ class LoadedScore {
   final List<ScoreText> texts;
 
   /// How much each part's bars ask to be heard ([fittedCuratedLanes] hides the least first).
-  late final BarSalience salience = BarSalience.of(musicXML, metadata, timeline.measureStarts);
+  late final BarSalience salience = _salience ?? BarSalience.of(musicXML, metadata, timeline.measureStarts);
+
+  /// [salience] worked out while it was engraved (off the main isolate), if it was.
+  final BarSalience? _salience;
 
   /// Text edits in effect: text id → new text ('' removes it).
   final Map<String, String> textEdits;
@@ -193,11 +201,23 @@ class LoadedScore {
 
   /// Engraves [musicXML] as [request] asks; with [pdf], lays out that PDF score instead
   /// ([fromPdf]).
+  ///
+  /// Reading the file is done on other isolates, so a large score keeps the app drawing
+  /// meanwhile; with [measure], what each bar plays ([salience], for auto-curation) is worked
+  /// out there too, after (beside the engraving, its garbage would stop this isolate). [onStage]
+  /// hears each step as it starts.
   static Future<LoadedScore> engrave(String musicXML, EngraveRequest request,
-          {String? resourceDirectory, double? tempo, PdfScoreArt? pdf}) async =>
+          {String? resourceDirectory,
+          double? tempo,
+          PdfScoreArt? pdf,
+          bool measure = false,
+          void Function(LoadStage stage)? onStage}) async =>
       pdf != null
-          ? await prepareFonts(request.fonts).then((_) => fromPdf(pdf, request, tempo: tempo))
+          ? await prepareFonts(request.fonts)
+              .then((_) => _fromPdfApart(pdf, request, tempo: tempo, measure: measure, onStage: onStage))
           : await load(musicXML,
+          measure: measure,
+          onStage: onStage,
           resourceDirectory: resourceDirectory,
           tempo: tempo,
           fonts: request.fonts,
@@ -223,9 +243,23 @@ class LoadedScore {
     bool centeredLyrics = false,
     List<VerticalSpacer> spacers = const [],
     List<HorizontalSpacer> gaps = const [],
+    bool measure = false,
+    void Function(LoadStage stage)? onStage,
   }) async {
-    final (:metadata, :prepared, :barLengths) = _prepare(musicXML, textEdits, pairs, textDynamics, typography, options, spacers);
+    onStage?.call(LoadStage.reading);
+    final (:metadata, :prepared, :barLengths) =
+        await Isolate.run(() => _prepare(musicXML, textEdits, pairs, textDynamics, typography, options, spacers));
+    // What each bar plays, from the file's bar lengths (kept only where they are the
+    // engraving's).
+    Future<({List<double> starts, BarSalience salience})> measured() => Isolate.run(() {
+      final starts = [0.0];
+      for (final length in barLengths) {
+        starts.add(starts.last + length);
+      }
+      return (starts: starts, salience: BarSalience.of(musicXML, metadata, starts));
+    });
     final resources = await prepareFonts(fonts, resourceDirectory: resourceDirectory);
+    onStage?.call(LoadStage.engraving);
     final engraving = await Engraver.engrave(
       prepared.musicXML,
       resourceDirectory: resources.directory,
@@ -237,7 +271,13 @@ class LoadedScore {
         if (gaps.isNotEmpty) 'curatedSpacers': ?Spacers.verovioOption(gaps, barLengths),
       },
     );
+    ({List<double> starts, BarSalience salience})? salience;
+    if (measure) {
+      onStage?.call(LoadStage.measuring);
+      salience = await measured().then<({List<double> starts, BarSalience salience})?>((s) => s, onError: (_) => null);
+    }
     return _of(musicXML, metadata, prepared, engraving,
+        salience: salience,
         tempo: tempo,
         textEdits: textEdits,
         fonts: fonts,
@@ -272,6 +312,40 @@ class LoadedScore {
         spacers: r.spacers,
         gaps: r.gaps,
         pdf: pdf);
+  }
+
+  /// [fromPdf], read and laid out on another isolate (the main one only waits).
+  static Future<LoadedScore> _fromPdfApart(PdfScoreArt pdf, EngraveRequest request,
+      {double? tempo, bool measure = false, void Function(LoadStage stage)? onStage}) async {
+    final layout = pdf.layout, r = request;
+    onStage?.call(LoadStage.reading);
+    final read = await Isolate.run(() {
+      final musicXML = layout.musicXML();
+      final (:metadata, :prepared, barLengths: _) =
+          _prepare(musicXML, const {}, const [], false, r.typography, r.options, r.spacers);
+      return (musicXML: musicXML, metadata: metadata, prepared: prepared, engraving: PdfEngraving.of(layout, metadata));
+    });
+    final starts = ConstantTempoTimeline(read.engraving.measures, quarterNotesPerMinute: 100).measureStarts;
+    BarSalience? salience;
+    if (measure) {
+      onStage?.call(LoadStage.measuring);
+      salience = await Isolate.run(() => BarSalience.of(read.musicXML, read.metadata, starts))
+          .then<BarSalience?>((s) => s, onError: (_) => null);
+    }
+    return _of(read.musicXML, read.metadata, read.prepared, read.engraving,
+        tempo: tempo,
+        textEdits: const {},
+        fonts: r.fonts,
+        textFontFound: true,
+        options: r.options,
+        textDynamics: r.textDynamics,
+        typography: r.typography,
+        centeredLyrics: r.centeredLyrics,
+        pairs: const [],
+        spacers: r.spacers,
+        gaps: r.gaps,
+        pdf: pdf,
+        salience: salience == null ? null : (starts: starts, salience: salience));
   }
 
   /// [musicXML] engraved beforehand with [request] as [engraving] ([EngravingFile]): where there is
@@ -328,9 +402,14 @@ class LoadedScore {
       required List<PlayerPair> pairs,
       required List<VerticalSpacer> spacers,
       required List<HorizontalSpacer> gaps,
-      PdfScoreArt? pdf}) {
+      PdfScoreArt? pdf,
+      ({List<double> starts, BarSalience salience})? salience}) {
     final timeline = ConstantTempoTimeline(engraving.measures,
         quarterNotesPerMinute: tempo ?? metadata.tempo ?? 100);
+    final starts = timeline.measureStarts;
+    final measured = salience != null &&
+        salience.starts.length == starts.length &&
+        [for (var i = 0; i < starts.length; i++) (salience.starts[i] - starts[i]).abs() < 1e-6].every((same) => same);
     final beats = BeatGrid(timeline.measureStarts, meters: metadata.meters, pickups: metadata.pickups);
     return LoadedScore._(metadata, engraving, timeline, beats, ScrollMap(engraving, timeline, beats: beats),
         musicXML: musicXML,
@@ -348,7 +427,8 @@ class LoadedScore {
         pairs: List.unmodifiable(pairs),
         spacers: List.unmodifiable(spacers),
         gaps: List.unmodifiable(gaps),
-        pdf: pdf);
+        pdf: pdf,
+        salience: measured ? salience.salience : null);
   }
 
   /// Gets [fonts] ready to engrave with and draw: their Verovio metrics (measured once) and
@@ -1521,6 +1601,16 @@ class CuratedScene {
                 frameXAtQuarter(starts[gap.bar] + gap.offset + gap.length, time, size), size.height - verticalMargin),
           ),
     ];
+  }
+
+  /// Reads ahead what a frame of [size] at [time] and the next screenful draw (a PDF score's
+  /// systems, [PdfScoreArt]), so playing on finds them ready; asks and doesn't wait. An
+  /// engraved score's always are.
+  void buffer(double time, ui.Size size) {
+    final pdf = score.pdf;
+    if (pdf == null) return;
+    final (left, right) = renderer.visibleRange(scrollMap.xAt(time), size.width);
+    pdf.load(PdfEngraving.systemsIn(pdf.layout, score.engraving, left, right + (right - left))).ignore();
   }
 
   /// The frame at [time] as an image of [width] × [height] pixels, laid out at

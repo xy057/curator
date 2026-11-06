@@ -8,7 +8,7 @@ import 'dart:ui' show AppExitResponse;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter/foundation.dart' show LicenseEntry, LicenseEntryWithLineBreaks, LicenseRegistry;
+import 'package:flutter/foundation.dart' show LicenseEntry, LicenseEntryWithLineBreaks, LicenseRegistry, ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -1292,7 +1292,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                           : KeyedSubtree(key: const ValueKey('editor'), child: _editor(context)),
                     ),
                     // Until it has opened, too: the score is read before it is engraved.
-                    _Busy(visible: controller.isLoading || controller.score == null, message: 'Engraving…'.tr),
+                    _Busy(visible: controller.isLoading || controller.score == null, stage: controller.loadStage),
                     _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: controller.images.enabled),
                   ],
                 ),
@@ -1461,10 +1461,12 @@ class _ResizeHandleState extends State<_ResizeHandle> {
 
 /// A veil with a spinner while a score is engraved; fades in and out (then lets go of the
 /// spinner, which would otherwise turn on unseen).
+/// Over the page while a score opens: how far it has got, a bar creeping on to where its stage
+/// ends ([LoadStage]; before it is read, a bar running to and fro).
 class _Busy extends StatefulWidget {
-  const _Busy({required this.visible, required this.message});
+  const _Busy({required this.visible, required this.stage});
   final bool visible;
-  final String message;
+  final ValueListenable<LoadStage?> stage;
 
   @override
   State<_Busy> createState() => _BusyState();
@@ -1493,11 +1495,42 @@ class _BusyState extends State<_Busy> {
               : ColoredBox(
                   color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.75),
                   child: Center(
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const SizedBox.square(dimension: 28, child: CircularProgressIndicator(strokeWidth: 2.5)),
-                      const SizedBox(height: 14),
-                      Text(widget.message, style: TextStyle(color: context.colors.textMuted)),
-                    ]),
+                    child: ValueListenableBuilder<LoadStage?>(
+                      valueListenable: widget.stage,
+                      builder: (context, stage, _) => Column(mainAxisSize: MainAxisSize.min, children: [
+                        const SizedBox.square(dimension: 28, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                        const SizedBox(height: 14),
+                        Text(
+                            switch (stage) {
+                              null => 'Opening…',
+                              LoadStage.reading => 'Reading score…',
+                              LoadStage.engraving => 'Engraving…',
+                              LoadStage.measuring => 'Measuring…',
+                            }
+                                .tr,
+                            style: TextStyle(color: context.colors.textMuted)),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: 220,
+                          child: stage == null
+                              ? LinearProgressIndicator(minHeight: 4, borderRadius: AppStyle.of(context).radius(2))
+                              // Each stage's share, crept over in about the time it takes.
+                              : TweenAnimationBuilder<double>(
+                                  tween: Tween(
+                                      begin: 0,
+                                      end: switch (stage) {
+                                    LoadStage.reading => 0.35,
+                                    LoadStage.engraving => 0.85,
+                                    LoadStage.measuring => 0.97,
+                                  }),
+                                  duration: Duration(milliseconds: stage == LoadStage.engraving ? 2500 : 900),
+                                  curve: Curves.easeOutCubic,
+                                  builder: (context, value, _) => LinearProgressIndicator(
+                                      value: value, minHeight: 4, borderRadius: AppStyle.of(context).radius(2)),
+                                ),
+                        ),
+                      ]),
+                    ),
                   ),
                 ),
         ),

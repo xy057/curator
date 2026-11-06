@@ -70,6 +70,7 @@ class PdfScoreArt extends ChangeNotifier {
   ({ui.Image image, ui.Rect area})? picture(int system) {
     final picture = _systems.remove(system);
     if (picture == null) {
+      if (!_failed.contains(system)) _wanted(system);
       _request(system);
       return null;
     }
@@ -79,6 +80,19 @@ class PdfScoreArt extends ChangeNotifier {
 
   /// Whether [system] is ready.
   bool isReady(int system) => _systems.containsKey(system) || _failed.contains(system);
+
+  /// Whether a system drawn isn't ready yet: what is drawn has holes until it is (a view says
+  /// so). Notifies as it changes.
+  bool get isWaiting => _waiting.isNotEmpty;
+  final _waiting = <int>{};
+
+  /// [system] was drawn before it was ready. (Said a moment later: it is asked while drawing.)
+  void _wanted(int system) {
+    if (!_waiting.add(system) || _waiting.length > 1) return;
+    scheduleMicrotask(() {
+      if (!_disposed) notifyListeners();
+    });
+  }
 
   /// Reads [systems]' pictures, if they aren't ready.
   Future<void> load(Iterable<int> systems) => Future.wait([for (final s in systems) _request(s)]);
@@ -99,9 +113,11 @@ class PdfScoreArt extends ChangeNotifier {
     } on Object catch (e) {
       debugPrint('Couldn’t read system ${system + 1} of the PDF: $e');
       _failed.add(system);
+      if (_waiting.remove(system) && _waiting.isEmpty && !_disposed) notifyListeners();
       return;
     }
     if (_disposed) return image.dispose();
+    _waiting.remove(system);
     _systems[system] = (image: image, area: area);
     _bytes += image.width * image.height * 4;
     // The oldest go, but never the one just read.

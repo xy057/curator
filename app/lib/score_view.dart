@@ -341,16 +341,27 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
             ),
           ),
         ),
-        if (c.isReengraving)
-          Positioned(
-            right: 12,
-            top: 10,
-            child: Row(children: [
-              const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
-              const SizedBox(width: 6),
-              Text('Engraving…'.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
-            ]),
+        // Engraving again, or a PDF score's pages for what is shown still being read.
+        Positioned(
+          right: 12,
+          top: 10,
+          child: ListenableBuilder(
+            listenable: c.score?.pdf ?? const _Never(),
+            builder: (context, _) {
+              final text = c.isReengraving
+                  ? 'Engraving…'
+                  : (c.score?.pdf?.isWaiting ?? false)
+                      ? 'Loading pages…'
+                      : null;
+              if (text == null) return const SizedBox.shrink();
+              return Row(children: [
+                const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                const SizedBox(width: 6),
+                Text(text.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
+              ]);
+            },
           ),
+        ),
       ]);
     });
   }
@@ -386,6 +397,8 @@ class _ScorePainter extends CustomPainter {
       paper: colors.scorePaper,
       ink: colors.scoreInk,
     );
+    // A PDF score's pages read a screenful ahead (after what is shown), so playing on finds them ready.
+    scene.buffer(controller.playback.time.value, size / scale);
   }
 
   @override
@@ -395,4 +408,15 @@ class _ScorePainter extends CustomPainter {
       old.scale != scale ||
       old.colors.scorePaper != colors.scorePaper ||
       old.colors.scoreInk != colors.scoreInk;
+}
+
+/// A listenable that never says anything (no PDF score to listen to).
+class _Never implements Listenable {
+  const _Never();
+
+  @override
+  void addListener(VoidCallback listener) {}
+
+  @override
+  void removeListener(VoidCallback listener) {}
 }

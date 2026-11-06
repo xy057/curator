@@ -802,6 +802,20 @@ half done: `_install` sets every part before anything notifies (captions last, a
 their style can notify at once), and a controller disposed while engraving takes nothing on,
 its recording included.
 
+**A large score opens without stopping the app.** Everything slow about opening runs on other
+isolates, so the window keeps drawing: reading the MusicXML and preparing it (`_prepare`, some
+half a second for a big orchestral file), Verovio, a PDF score's whole layout (`_fromPdfApart`:
+its skeleton written, read and laid out as printed), the replacement read of Replace… and Edit…
+(`_readApart`), and, for a new score that will be auto-curated (`measure`), what each bar plays
+(`BarSalience`). That last one runs after the engraving, not beside it: isolates from
+`Isolate.run` share one heap, and a second parse alongside Verovio's copying out made
+collections that stopped the main isolate for a quarter of a second. Each step is said as it
+starts (`LoadStage`, `EditorController.loadStage`), and the page's busy overlay shows it as a
+bar creeping on to where that step ends. A PDF score's pages are read a screenful ahead of
+what the preview shows (`CuratedScene.buffer`, each paint), and while a system drawn isn't
+ready (`PdfScoreArt.isWaiting`) the preview says "Loading pages…". Still on the main isolate:
+fitting a new score's lanes to the frame (`curatedToFit`, a few hundred milliseconds).
+
 **Closing asks before anything goes.** Close (⌘W, or a tab's ×), Quit and the window's close button offer
 to save unsaved changes first (`_ProjectPageState._confirmDiscard`), showing the project they are in; quitting
 (`AppLifecycleListener`'s `_AppWindowState._exitRequested`) asks of each project in turn, and Cancel

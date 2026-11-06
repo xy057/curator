@@ -925,4 +925,8 @@ const zhHant = <String, String>{
   'Add Blank Lane': '加入空白軌道',
   'Blank': '空白',
   'Rename Lane': '重新命名軌道',
+  'Opening…': '正在開啟…',
+  'Reading score…': '正在讀取樂譜…',
+  'Measuring…': '正在測量…',
+  'Loading pages…': '正在載入頁面…',
 };

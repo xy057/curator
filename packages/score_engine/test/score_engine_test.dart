@@ -161,7 +161,12 @@ void main() {
     scene.dispose();
   });
 
-  test('auto-curate hides the least salient staves where they would run off the frame, only there', () {
+  test('auto-curate hides the least salient staves where they would run off the frame, only there', () async {
+    // Worked out on another isolate while opening (from the file's bar lengths), as here.
+    final stages = <LoadStage>[];
+    final measured = await LoadedScore.engrave(score.musicXML, score.request, measure: true, onStage: stages.add);
+    expect(stages, [LoadStage.reading, LoadStage.engraving, LoadStage.measuring]);
+    expect(measured.salience.scores, BarSalience.of(score.musicXML, score.metadata, score.timeline.measureStarts).scores);
     final scene = CuratedScene(score);
     final ids = [for (final p in score.metadata.parts) p.id];
     final starts = score.timeline.measureStarts;

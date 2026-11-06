@@ -143,11 +143,11 @@ class EditorController extends ChangeNotifier {
     var edits = await _newProjectEdits();
     LoadedScore score;
     try {
-      score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits));
+      score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits), measure: autoCurateImported);
     } on FormatException {
       if (edits.fonts == ScoreFonts.standard) rethrow;
       edits = edits.copyWith(fonts: ScoreFonts.standard); // a default font that can't be read: the standard ones
-      score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits));
+      score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits), measure: autoCurateImported);
     }
     await _install(fileNameOf(path), bytes, score, ProjectState(edits: edits));
   }
@@ -158,7 +158,8 @@ class EditorController extends ChangeNotifier {
     final edits = await _newProjectEdits();
     final LoadedScore score;
     try {
-      score = await _engrave(layout.musicXML(), _requestFor(edits), pdf: PdfScoreArt(layout, PdfPagesSource(pages)));
+      score = await _engrave('', _requestFor(edits),
+          pdf: PdfScoreArt(layout, PdfPagesSource(pages)), measure: autoCurateImported);
     } on Object {
       pages.close();
       rethrow;
@@ -236,7 +237,7 @@ class EditorController extends ChangeNotifier {
     if (state.pdf case final layout?) {
       pages = await PdfPages.open(scoreBytes);
       try {
-        score = await _engrave(layout.musicXML(), _requestFor(edits), pdf: PdfScoreArt(layout, PdfPagesSource(pages)));
+        score = await _engrave('', _requestFor(edits), pdf: PdfScoreArt(layout, PdfPagesSource(pages)));
       } on Object {
         pages.close();
         rethrow;
@@ -272,14 +273,24 @@ class EditorController extends ChangeNotifier {
     final art = pdf == null ? null : PdfScoreArt(pdf, PdfPagesSource(_pdfPages!));
     // Read once for what it holds (its texts as written: the edits are carried by them), and
     // once more as engraved.
-    final xml = pdf?.musicXML() ?? ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
-    final metadata = ScoreMetadata.fromDocument(doc);
-    final swap = ScoreSwap(
-      before: before.metadata,
-      after: metadata,
-      textsBefore: before.texts,
-      textsAfter: PreparedScore.prepare(doc, const {}, metadata: metadata).texts,
-    );
+    // (On another isolate: a large score takes a while.)
+    _loading = true;
+    _loadStage.value = LoadStage.reading;
+    notifyListeners();
+    final ({String xml, ScoreMetadata metadata, List<ScoreText> texts}) read;
+    try {
+      read = await _readApart(pdf, bytes);
+    } on Object {
+      art?.dispose();
+      _loading = false;
+      if (!_disposed) {
+        _loadStage.value = null;
+        notifyListeners();
+      }
+      rethrow;
+    }
+    final (:xml, :metadata, :texts) = read;
+    final swap = ScoreSwap(before: before.metadata, after: metadata, textsBefore: before.texts, textsAfter: texts);
     final LoadedScore score;
     try {
       score = await _engrave(
@@ -308,6 +319,15 @@ class EditorController extends ChangeNotifier {
     );
   }
 
+  /// A replacement score read on another isolate (a closure of its own, so it takes nothing
+  /// else along): [pdf]'s score, or [bytes]'.
+  static Future<({String xml, ScoreMetadata metadata, List<ScoreText> texts})> _readApart(PdfScoreLayout? pdf, Uint8List bytes) =>
+      Isolate.run(() {
+        final xml = pdf?.musicXML() ?? ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
+        final metadata = ScoreMetadata.fromDocument(doc);
+        return (xml: xml, metadata: metadata, texts: PreparedScore.prepare(doc, const {}, metadata: metadata).texts);
+      });
+
   /// Puts [replacement] in place of the score, keeping the recording; Undo starts again from
   /// here. Does nothing if another score was opened since it was made.
   Future<void> replaceScore(ScoreReplacement replacement) async {
@@ -324,16 +344,27 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Engraves a score (the slow part, and the one that can fail) without touching what is open.
-  Future<LoadedScore> _engrave(String musicXML, EngraveRequest request, {PdfScoreArt? pdf}) async {
+  /// [measure]: what each bar plays worked out too ([LoadedScore.salience]), for a new score's
+  /// auto-curation.
+  Future<LoadedScore> _engrave(String musicXML, EngraveRequest request, {PdfScoreArt? pdf, bool measure = false}) async {
     _loading = true;
     notifyListeners();
     try {
-      return await LoadedScore.engrave(musicXML, request, pdf: pdf);
+      return await LoadedScore.engrave(musicXML, request, pdf: pdf, measure: measure, onStage: (s) {
+        if (!_disposed) _loadStage.value = s;
+      });
     } finally {
       _loading = false;
-      if (!_disposed) notifyListeners();
+      if (!_disposed) {
+        _loadStage.value = null;
+        notifyListeners();
+      }
     }
   }
+
+  /// How far opening (or replacing) a score has got, while [isLoading]; null before it is read.
+  ValueListenable<LoadStage?> get loadStage => _loadStage;
+  final _loadStage = ValueNotifier<LoadStage?>(null);
 
   /// Replaces what is open with [score] and the edits and view in [state], all at once
   /// (the recording too, unless [keepRecording]). Nothing in here fails, so a project is
@@ -2117,6 +2148,7 @@ class EditorController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _loadStage.dispose();
     _engravings.cancel(); // an engraving still running finds nothing to update
     playback._dispose();
     _scene?.dispose();

@@ -925,4 +925,8 @@ const zhHans = <String, String>{
   'Add Blank Lane': '添加空白轨道',
   'Blank': '空白',
   'Rename Lane': '重命名轨道',
+  'Opening…': '正在打开…',
+  'Reading score…': '正在读取乐谱…',
+  'Measuring…': '正在测量…',
+  'Loading pages…': '正在载入页面…',
 };
