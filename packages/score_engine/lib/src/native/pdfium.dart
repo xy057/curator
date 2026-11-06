@@ -60,6 +60,17 @@ external void FPDFText_ClosePage(Pointer<Void> textPage);
 external int FPDFText_GetBoundedText(
     Pointer<Void> textPage, double left, double top, double right, double bottom, Pointer<Uint16> buffer, int length);
 
+@Native<Int Function(Pointer<Void>, Int, Int)>()
+external int FPDFText_CountRects(Pointer<Void> textPage, int start, int count);
+
+@Native<Int Function(Pointer<Void>, Int, Pointer<Double>, Pointer<Double>, Pointer<Double>, Pointer<Double>)>()
+external int FPDFText_GetRect(
+    Pointer<Void> textPage, int index, Pointer<Double> left, Pointer<Double> top, Pointer<Double> right, Pointer<Double> bottom);
+
+@Native<Int Function(Pointer<Void>, Int, Int, Int, Int, Int, Double, Double, Pointer<Int>, Pointer<Int>)>()
+external int FPDF_PageToDevice(Pointer<Void> page, int startX, int startY, int sizeX, int sizeY, int rotate, double pageX,
+    double pageY, Pointer<Int> deviceX, Pointer<Int> deviceY);
+
 @Native<Int Function(Pointer<Void>, Int, Int, Int, Int, Int, Int, Int, Pointer<Double>, Pointer<Double>)>()
 external int FPDF_DeviceToPage(Pointer<Void> page, int startX, int startY, int sizeX, int sizeY, int rotate, int deviceX,
     int deviceY, Pointer<Double> pageX, Pointer<Double> pageY);
@@ -189,6 +200,51 @@ final class PdfiumDocument {
       }
     } finally {
       malloc.free(at);
+      if (textPage != nullptr) FPDFText_ClosePage(textPage);
+      FPDF_ClosePage(page);
+    }
+  }
+
+  /// Page [index]'s text as the PDF lays it out: each run (a stretch of a line, as PDFium groups
+  /// it) with its box (points, from the page's top left). None for a scan.
+  List<(String, double, double, double, double)> runs(int index) {
+    final page = FPDF_LoadPage(_handle, index);
+    if (page == nullptr) return const [];
+    final textPage = FPDFText_LoadPage(page);
+    final box = malloc<Double>(4);
+    final device = malloc<Int>(2);
+    try {
+      if (textPage == nullptr) return const [];
+      final (w, h) = pageSizes[index];
+      final (sw, sh) = ((w * 100).round(), (h * 100).round());
+      (double, double) toTopLeft(double x, double y) {
+        FPDF_PageToDevice(page, 0, 0, sw, sh, 0, x, y, device, device + 1);
+        return (device[0] / 100, device[1] / 100);
+      }
+
+      final out = <(String, double, double, double, double)>[];
+      final count = FPDFText_CountRects(textPage, 0, -1);
+      for (var i = 0; i < count; i++) {
+        if (FPDFText_GetRect(textPage, i, box, box + 1, box + 2, box + 3) == 0) continue;
+        final (l, t, r, b) = (box[0], box[1], box[2], box[3]);
+        final length = FPDFText_GetBoundedText(textPage, l, t, r, b, nullptr, 0);
+        if (length <= 0) continue;
+        final buffer = malloc<Uint16>(length + 1);
+        final String text;
+        try {
+          final n = FPDFText_GetBoundedText(textPage, l, t, r, b, buffer, length + 1);
+          text = String.fromCharCodes(buffer.asTypedList(n.clamp(0, length + 1))).replaceAll('\u0000', '');
+        } finally {
+          malloc.free(buffer);
+        }
+        final (x0, y0) = toTopLeft(l, t);
+        final (x1, y1) = toTopLeft(r, b);
+        out.add((text, x0 < x1 ? x0 : x1, y0 < y1 ? y0 : y1, x0 < x1 ? x1 : x0, y0 < y1 ? y1 : y0));
+      }
+      return out;
+    } finally {
+      malloc.free(box);
+      malloc.free(device);
       if (textPage != nullptr) FPDFText_ClosePage(textPage);
       FPDF_ClosePage(page);
     }

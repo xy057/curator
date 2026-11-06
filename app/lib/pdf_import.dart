@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/gestures.dart' show kPrimaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,7 @@ import 'l10n/l10n.dart';
 import 'lanes_common.dart';
 import 'menu_kit.dart';
 import 'pdf_import_changes.dart';
+import 'pdf_ocr.dart';
 import 'ui_kit.dart';
 
 /// Opening a PDF score, or Project Info ▸ Score ▸ Edit… for one: its pages over the window, what
@@ -35,6 +37,19 @@ Future<PdfScoreLayout?> showPdfImport(BuildContext context, PdfPages pages, {req
 
 /// What the pointer does on a page.
 enum _Tool { select, mask }
+
+/// The import's steps, in order: the systems found on the pages, the instruments, whose each
+/// staff is, what changes where, then the score's own fields.
+enum _Step {
+  pages('Pages'),
+  instruments('Instruments'),
+  staves('Staves'),
+  changes('Changes'),
+  review('Review');
+
+  const _Step(this.label);
+  final String label;
+}
 
 /// What is selected on the page.
 sealed class _Selection {
@@ -134,6 +149,19 @@ class _PdfImportState extends State<PdfImport> {
   _Selection? _selection;
   int _instrument = 0; // the one the panel edits
   bool _edited = false;
+  _Step _step = _Step.pages;
+
+  /// Each page's words, read so far ([PdfOcr]): its own text, or recognised in a scan.
+  final _text = <int, List<PdfTextRun>>{};
+
+  /// The page whose words are being read; null when none is.
+  int? _readingText;
+
+  /// A new import's "Staff 1"… named from the pages once, by themselves.
+  bool _namedByText = false;
+
+  /// Bars whose tempo mark read off the page was dismissed.
+  final _dismissed = <int>{};
 
   _Drag? _drag;
   Rect? _drawing; // a mask being drawn, page points
@@ -151,6 +179,8 @@ class _PdfImportState extends State<PdfImport> {
     super.initState();
     if (widget.layout case final layout?) {
       _layout = layout;
+      _namedByText = true; // named already
+      WidgetsBinding.instance.addPostFrameCallback((_) => _readText());
     } else {
       _readAll();
     }
@@ -181,8 +211,138 @@ class _PdfImportState extends State<PdfImport> {
         _read = null;
         _edited = true;
       });
+      unawaited(_readText());
     } on Object catch (e) {
       if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  // MARK: Text
+
+  /// The page of the system with the most staves: the one the instruments are named from.
+  int get _namesPage =>
+      layout.systems.fold<PdfSystem?>(null, (best, s) => best == null || s.staves.length > best.staves.length ? s : best)?.page ?? 0;
+
+  /// Reads every page's words in turn ([PdfOcr]), the page the instruments are named from and the
+  /// next first (their names and abbreviations), naming a new import's instruments from them.
+  Future<void> _readText() async {
+    if (_readingText != null) return;
+    final first = _namesPage;
+    final order = {first, if (first + 1 < pages.length) first + 1, for (var p = 0; p < pages.length; p++) p};
+    for (final p in order) {
+      if (_text.containsKey(p)) continue;
+      if (!mounted) return;
+      setState(() => _readingText = p);
+      List<PdfTextRun> runs;
+      try {
+        runs = await PdfOcr.runsOf(pages, p);
+      } on Object {
+        runs = const [];
+      }
+      if (!mounted) return;
+      setState(() => _text[p] = runs);
+      if (!_namedByText && _text.containsKey(first) && (first + 1 >= pages.length || _text.containsKey(first + 1))) {
+        _namedByText = true;
+        _nameFromText(onlyUnnamed: true);
+      }
+    }
+    if (mounted) setState(() => _readingText = null);
+  }
+
+  /// "Staff 3": an instrument the PDF didn't name.
+  static final _unnamed = RegExp(r'^Staff \d+$');
+
+  /// The instruments named as the pages read so far name them ([PdfText.names]): with
+  /// [onlyUnnamed], only those still "Staff 1"…. Whether any changed.
+  bool _nameFromText({bool onlyUnnamed = false}) {
+    if (_layout == null) return false;
+    final found = PdfText.names(layout, _text);
+    final next = [
+      for (final i in layout.instruments)
+        switch (found[i.id]) {
+          final f? when !onlyUnnamed || _unnamed.hasMatch(i.name) => () {
+              final named = i.renamed(_titled(f.name)).copyWith(abbreviation: f.abbreviation == null ? null : _titled(f.abbreviation!));
+              return _unnamed.hasMatch(i.name) ? named.copyWith(clef: PdfClef.forName(f.name)) : named;
+            }(),
+          _ => i,
+        },
+    ];
+    if (listEquals(next, layout.instruments)) return false;
+    _changed(layout.copyWith(instruments: next));
+    return true;
+  }
+
+  /// A name printed in capitals ("PETITE FLÛTE") as a name is written; roman numerals kept.
+  static String _titled(String name) {
+    if (!RegExp(r'[A-ZÀ-Þ]{4}').hasMatch(name)) return name;
+    return name.replaceAllMapped(RegExp(r'[A-ZÀ-Þ]{2,}'), (m) {
+      final w = m[0]!;
+      return RegExp(r'^[IVX]+$').hasMatch(w) ? w : w[0] + w.substring(1).toLowerCase();
+    });
+  }
+
+  /// The tempo marks read off the pages ([PdfText.tempos]) the score hasn't, nor dismissed.
+  Map<int, PdfTempo> get _suggested {
+    final key = (layout, _text.length, _dismissed.length);
+    if (_suggestedFor != key) {
+      _suggestedFor = key;
+      _suggestedCache = {
+        for (final MapEntry(:key, :value) in PdfText.tempos(layout, _text).entries)
+          if (!layout.tempos.containsKey(key) && !_dismissed.contains(key)) key: value,
+      };
+    }
+    return _suggestedCache;
+  }
+
+  Object? _suggestedFor;
+  Map<int, PdfTempo> _suggestedCache = const {};
+
+  /// [marks] put in the score, one Undo step: the first bar's speed is the score's.
+  void _accept(Map<int, PdfTempo> marks) {
+    if (marks.isEmpty) return;
+    final tempos = {...layout.tempos};
+    double? first;
+    for (final MapEntry(key: bar, value: mark) in marks.entries) {
+      tempos[bar] = bar == 0 ? PdfTempo(mark.words) : mark;
+      if (bar == 0) first = mark.bpm;
+    }
+    _changed(layout.copyWith(tempos: tempos, tempo: first));
+  }
+
+  /// Bar [bar] shown and selected, on its first system.
+  void _showBar(int bar) {
+    if (bar >= layout.bars.length) return;
+    final system = layout.bars[bar].first.system;
+    _goTo(layout.systems[system].page);
+    setState(() => _selection = _BarSelection(system, layout.barOfSegment[system].indexOf(bar)));
+  }
+
+  /// "Bar 12", counted as printed (an upbeat is bar 0).
+  String _barName(int bar) => 'Bar {n}'.fill({'n': bar + 1 - (layout.pickup > 0 ? 1 : 0)});
+
+  // MARK: Steps
+
+  void _goToStep(_Step step) {
+    if (_layout == null || _measured != null) return;
+    setState(() {
+      _step = step;
+      _selection = null;
+      _tool = _Tool.select;
+      _drag = null;
+      _drawFrom = null;
+      _drawing = null;
+    });
+    _focus.requestFocus();
+  }
+
+  /// Staves no instrument has.
+  int get _unassigned => layout.systems.fold(0, (n, s) => n + s.staves.where((t) => t.part == null).length);
+
+  /// The next page, from the one showing on, with a staff no instrument has.
+  void _showUnassigned() {
+    for (var k = 1; k <= pages.length; k++) {
+      final p = (_page + k) % pages.length;
+      if (layout.systems.any((s) => s.page == p && s.staves.any((t) => t.part == null))) return _goTo(p);
     }
   }
 
@@ -356,6 +516,19 @@ class _PdfImportState extends State<PdfImport> {
   void _down(Offset local) {
     _focus.requestFocus();
     final p = _toPage(local);
+    if (_step != _Step.pages) {
+      // Only the pages' step changes what was found: elsewhere a click picks a bar, or a staff's
+      // instrument.
+      final hit = _selectionAt(p);
+      setState(() {
+        if (_step == _Step.changes) _selection = hit is _BarSelection ? hit : null;
+        if (hit case _BarSelection(:final system, staff: final k?) when _step != _Step.changes) {
+          final at = layout.instruments.indexWhere((i) => i.id == layout.systems[system].staves[k].part);
+          if (at >= 0) _instrument = at;
+        }
+      });
+      return;
+    }
     if (_tool == _Tool.mask) {
       _drawFrom = p;
       return;
@@ -610,7 +783,7 @@ class _PdfImportState extends State<PdfImport> {
 
   /// A right click on a bar: it selected, and what can be inserted there.
   Future<void> _contextMenu(Offset local, Offset global) async {
-    if (_tool != _Tool.select) return;
+    if (_step != _Step.changes) return;
     final hit = _selectionAt(_toPage(local));
     if (hit is! _BarSelection) return;
     setState(() => _selection = hit);
@@ -632,7 +805,7 @@ class _PdfImportState extends State<PdfImport> {
     if (layout.tempos[bar] case final mark?) {
       final speed = bar == 0 ? layout.tempo : mark.bpm;
       out.add((
-        text: [if (mark.words.isNotEmpty) mark.words, if (speed != null) '♩ = ${_ScoreFieldsState._number(speed)}'].join(' '),
+        text: _tempoText(mark, speed),
         instrument: null,
         staff: 0,
         edit: () => _editTempo(bar),
@@ -660,7 +833,12 @@ class _PdfImportState extends State<PdfImport> {
     return out;
   }
 
+  /// A tempo mark as its tag says it: its words and its speed.
+  static String _tempoText(PdfTempo mark, double? speed) =>
+      [if (mark.words.isNotEmpty) mark.words, if (speed != null) '♩ = ${_ScoreFieldsState._number(speed)}'].join(' ');
+
   MouseCursor _cursorAt(Offset local) {
+    if (_step != _Step.pages) return SystemMouseCursors.basic;
     if (_tool == _Tool.mask) return SystemMouseCursors.precise;
     return switch (_dragAt(_toPage(local))) {
       _EdgeDrag() => SystemMouseCursors.resizeRow,
@@ -682,7 +860,7 @@ class _PdfImportState extends State<PdfImport> {
     final key = event.logicalKey;
     if (meta && key == LogicalKeyboardKey.keyZ) {
       shift ? _redoStep() : _undoStep();
-    } else if (key == LogicalKeyboardKey.delete || key == LogicalKeyboardKey.backspace) {
+    } else if ((key == LogicalKeyboardKey.delete || key == LogicalKeyboardKey.backspace) && _step == _Step.pages) {
       _remove();
     } else if (key == LogicalKeyboardKey.pageDown || key == LogicalKeyboardKey.arrowRight) {
       _goTo(_page + 1);
@@ -690,9 +868,9 @@ class _PdfImportState extends State<PdfImport> {
       _goTo(_page - 1);
     } else if (key == LogicalKeyboardKey.escape) {
       setState(() => _selection = null);
-    } else if (key == LogicalKeyboardKey.keyV) {
+    } else if (key == LogicalKeyboardKey.keyV && _step == _Step.pages) {
       setState(() => _tool = _Tool.select);
-    } else if (key == LogicalKeyboardKey.keyM) {
+    } else if (key == LogicalKeyboardKey.keyM && _step == _Step.pages) {
       setState(() => _tool = _Tool.mask);
     } else {
       return KeyEventResult.ignored;
@@ -775,57 +953,81 @@ class _PdfImportState extends State<PdfImport> {
           autofocus: true,
           onKeyEvent: _key,
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            _toolbar(context),
+            _header(context),
             Divider(height: 1, color: colors.line),
             Expanded(
               child: _layout == null
                   ? _reading(context)
                   : Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      Expanded(child: _view(context)),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          _viewBar(context),
+                          Divider(height: 1, color: colors.line),
+                          Expanded(child: _view(context)),
+                        ]),
+                      ),
                       VerticalDivider(width: 1, color: colors.line),
                       _panel(context),
                     ]),
             ),
             Divider(height: 1, color: colors.line),
-            _statusBar(context),
+            _footer(context),
           ]),
         ),
       ),
     );
   }
 
-  Widget _toolbar(BuildContext context) {
+  /// The title, the steps and Cancel.
+  Widget _header(BuildContext context) {
     final colors = context.colors, style = AppStyle.of(context);
-    final ready = _layout != null && _measured == null;
     return Container(
-      height: style.toolbar + 8,
+      height: style.toolbar + 16,
       color: colors.chrome,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(children: [
-        Text('Import PDF'.tr, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text)),
-        const SizedBox(width: 10),
         Expanded(
           child: Row(children: [
+            Text('Import PDF'.tr, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text)),
+            const SizedBox(width: 10),
             Flexible(child: Text(widget.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.textMuted))),
-            const SizedBox(width: 12),
-            if (_read != null || _measured != null || _rendering.isNotEmpty) PulsingDot(color: colors.accent, size: 8),
           ]),
         ),
+        _StepBar(step: _step, enabled: _layout != null && _measured == null, onPick: _goToStep),
+        Expanded(
+          child: Align(alignment: Alignment.centerRight, child: OutlinedButton(onPressed: _cancel, child: Text('Cancel'.tr))),
+        ),
+      ]),
+    );
+  }
+
+  /// Over the page: Undo, the pages' tools (on their step), zoom and the page showing.
+  Widget _viewBar(BuildContext context) {
+    final colors = context.colors, style = AppStyle.of(context);
+    final ready = _measured == null;
+    final busy = _measured != null || _rendering.isNotEmpty || _readingText != null;
+    return Container(
+      height: style.toolbar,
+      color: colors.chrome,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(children: [
         ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo'.tr, onPressed: ready && _undo.isNotEmpty ? _undoStep : null),
         ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo'.tr, onPressed: ready && _redo.isNotEmpty ? _redoStep : null),
-        const ToolbarDivider(),
-        ToolGroup(children: [
-          ToolbarButton(
-              icon: AppIcon.pointer.of(context),
-              tooltip: 'Select (V)'.tr,
-              selected: _tool == _Tool.select,
-              onPressed: ready ? () => setState(() => _tool = _Tool.select) : null),
-          ToolbarButton(
-              icon: AppIcon.erase.of(context),
-              tooltip: 'Mask (M)'.tr,
-              selected: _tool == _Tool.mask,
-              onPressed: ready ? () => setState(() => _tool = _Tool.mask) : null),
-        ]),
+        if (_step == _Step.pages) ...[
+          const ToolbarDivider(),
+          ToolGroup(children: [
+            ToolbarButton(
+                icon: AppIcon.pointer.of(context),
+                tooltip: 'Select (V)'.tr,
+                selected: _tool == _Tool.select,
+                onPressed: ready ? () => setState(() => _tool = _Tool.select) : null),
+            ToolbarButton(
+                icon: AppIcon.erase.of(context),
+                tooltip: 'Mask (M)'.tr,
+                selected: _tool == _Tool.mask,
+                onPressed: ready ? () => setState(() => _tool = _Tool.mask) : null),
+          ]),
+        ],
         const ToolbarDivider(),
         ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom Out'.tr, onPressed: () => _zoomBy(1 / 1.2)),
         ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom In'.tr, onPressed: () => _zoomBy(1.2)),
@@ -841,12 +1043,46 @@ class _PdfImportState extends State<PdfImport> {
             icon: AppIcon.next.of(context),
             tooltip: 'Next Page'.tr,
             onPressed: _page < pages.length - 1 ? () => _goTo(_page + 1) : null),
-        const ToolbarDivider(),
-        OutlinedButton(onPressed: _cancel, child: Text('Cancel'.tr)),
-        const SizedBox(width: 8),
-        FilledButton(onPressed: ready && layout.systems.isNotEmpty ? _done : null, child: Text('Done'.tr)),
+        const Spacer(),
+        if (busy) PulsingDot(color: colors.accent, size: 8),
       ]),
     );
+  }
+
+  /// How far the import is, Back and Next (on the last step, Import).
+  Widget _footer(BuildContext context) {
+    final colors = context.colors, style = AppStyle.of(context);
+    final ready = _layout != null && _measured == null;
+    final last = _step == _Step.review;
+    return Container(
+      height: style.control + 20,
+      color: colors.chrome,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(children: [
+        Expanded(child: Text(_status, style: TextStyle(fontSize: 12, color: colors.textMuted), overflow: TextOverflow.ellipsis)),
+        if (_step.index > 0) ...[
+          OutlinedButton(onPressed: ready ? () => _goToStep(_Step.values[_step.index - 1]) : null, child: Text('Back'.tr)),
+          const SizedBox(width: 8),
+        ],
+        FilledButton(
+          onPressed: !ready
+              ? null
+              : last
+                  ? (layout.systems.isNotEmpty ? _done : null)
+                  : () => _goToStep(_Step.values[_step.index + 1]),
+          child: Text((last ? (widget.layout == null ? 'Import' : 'Done') : 'Next').tr),
+        ),
+      ]),
+    );
+  }
+
+  String get _status {
+    if (_error case final error? when _layout != null) return 'Couldn’t measure the bars. {error}'.fill({'error': error});
+    if (_measured case final n?) {
+      return 'Measuring system {n} of {count}…'.fill({'n': math.min(n + 1, layout.systems.length), 'count': layout.systems.length});
+    }
+    if (_layout == null) return '';
+    return '{bars} bars · {systems} systems'.fill({'bars': layout.bars.length, 'systems': layout.systems.length});
   }
 
   Widget _reading(BuildContext context) {
@@ -873,8 +1109,9 @@ class _PdfImportState extends State<PdfImport> {
     final image = _imageOf(_page, dpr);
     final width = _gutter + size.width * _zoom + _margin * 2 + 24, height = size.height * _zoom + _margin * 2;
     final chips = <Widget>[
-      for (final (i, s) in _onPage)
-        for (final (k, staff) in s.staves.indexed)
+      if (_step != _Step.pages)
+        for (final (i, s) in _onPage)
+          for (final (k, staff) in s.staves.indexed)
           Positioned(
             left: 8,
             width: _gutter - 16,
@@ -896,16 +1133,19 @@ class _PdfImportState extends State<PdfImport> {
     // The changes inserted, at the start of their bars: every instrument's above the system, a
     // staff's own above it.
     final tags = <Widget>[];
+    final suggested = _step == _Step.changes ? _suggested : const <int, PdfTempo>{};
     for (final (bar, pieces) in layout.bars.indexed) {
+      if (_step != _Step.changes && _step != _Step.review) break;
       final piece = pieces.first, s = layout.systems[piece.system];
       if (s.page != _page) continue;
-      final changes = _changesAt(bar, piece.system);
-      if (changes.isEmpty) continue;
+      final changes = _changesAt(bar, piece.system), idea = suggested[bar];
+      if (changes.isEmpty && idea == null) continue;
       Widget row(double y, Iterable<Widget> children) =>
           Positioned(left: _gutter + piece.left * _zoom + 2, top: _margin + y * _zoom - 19, child: Row(mainAxisSize: MainAxisSize.min, children: [...children]));
       final all = [
         for (final c in changes)
           if (c.instrument == null) _ChangeTag(text: c.text, color: const Color(0xFF3E63DD), onTap: c.edit),
+        if (idea != null) _SuggestedTag(text: _tempoText(idea, idea.bpm), onAccept: () => _accept({bar: idea}), onTap: () => _showBar(bar)),
       ];
       if (all.isNotEmpty) tags.add(row(s.top, all));
       for (final staff in s.staves) {
@@ -944,9 +1184,9 @@ class _PdfImportState extends State<PdfImport> {
                         onPanUpdate: (d) => _move(d.localPosition),
                         onPanEnd: (_) => _up(),
                         onPanCancel: _up,
-                        onDoubleTapDown: _tool == _Tool.select ? (d) => _doubleClick(d.localPosition) : null,
+                        onDoubleTapDown: _tool == _Tool.select && _step == _Step.pages ? (d) => _doubleClick(d.localPosition) : null,
                         onSecondaryTapUp: (d) => _contextMenu(d.localPosition, d.globalPosition),
-                        onDoubleTap: _tool == _Tool.select ? () {} : null,
+                        onDoubleTap: _tool == _Tool.select && _step == _Step.pages ? () {} : null,
                         child: CustomPaint(
                           painter: _PagePainter(
                             layout: layout,
@@ -957,6 +1197,10 @@ class _PdfImportState extends State<PdfImport> {
                             drawing: _drawing,
                             colors: context.colors,
                             colorOf: (id) => _colorOf(layout.instruments.indexWhere((i) => i.id == id)),
+                            editing: _step == _Step.pages,
+                            focus: (_step == _Step.instruments || _step == _Step.staves) && _instrument < layout.instruments.length
+                                ? layout.instruments[_instrument].id
+                                : null,
                           ),
                         ),
                       ),
@@ -973,28 +1217,119 @@ class _PdfImportState extends State<PdfImport> {
     );
   }
 
+  /// The step's own fields, at the right.
   Widget _panel(BuildContext context) {
     final colors = context.colors;
+    final picked = _instrument < layout.instruments.length ? layout.instruments[_instrument] : null;
     return Container(
-      width: 280,
+      width: 300,
       color: colors.chrome,
-      child: ListView(padding: const EdgeInsets.all(16), children: [
-        ..._selectionFields(context),
-        _heading(context, 'Score'),
-        _ScoreFields(key: ValueKey(_rev), layout: layout, onChanged: (next, field) => _edit(next, typing: field)),
-        const SizedBox(height: 20),
-        _heading(context, 'Instruments'),
-        _instrumentList(context),
-        const SizedBox(height: 12),
-        if (_instrument < layout.instruments.length)
-          _InstrumentFields(
-            key: ValueKey((layout.instruments[_instrument].id, _rev)),
-            instrument: layout.instruments[_instrument],
-            onChanged: (next, field) =>
-                _edit(layout.copyWith(instruments: [...layout.instruments]..[_instrument] = next), typing: '${next.id}.$field'),
-          ),
+      child: ListView(padding: const EdgeInsets.all(16), children: switch (_step) {
+        _Step.pages => _selectionFields(context),
+        _Step.instruments => [
+            _heading(context, 'Instruments'),
+            _instrumentList(context, adding: true),
+            const SizedBox(height: 14),
+            OutlinedButton(onPressed: _text.isEmpty ? null : () => _nameFromText(), child: Text('Read Names from Score'.tr)),
+            ?_textStatus(context, found: _text.values.any((r) => r.isNotEmpty)),
+            if (picked != null) ...[
+              const SizedBox(height: 20),
+              _InstrumentFields(
+                key: ValueKey((picked.id, _rev)),
+                instrument: picked,
+                onChanged: (next, field) =>
+                    _edit(layout.copyWith(instruments: [...layout.instruments]..[_instrument] = next), typing: '${next.id}.$field'),
+              ),
+            ],
+          ],
+        _Step.staves => [
+            _heading(context, 'Staves'),
+            Text(
+                _unassigned == 0
+                    ? 'Every staff has an instrument'.tr
+                    : '{n} staves without an instrument'.fill({'n': _unassigned}),
+                style: TextStyle(fontSize: 13, color: _unassigned == 0 ? colors.textMuted : colors.text)),
+            if (_unassigned > 0) ...[
+              const SizedBox(height: 10),
+              OutlinedButton(onPressed: _showUnassigned, child: Text('Show Next'.tr)),
+            ],
+            const SizedBox(height: 20),
+            _heading(context, 'Instruments'),
+            _instrumentList(context, adding: false),
+          ],
+        _Step.changes => [..._selectionFields(context), ..._suggestionFields(context)],
+        _Step.review => [
+            _heading(context, 'Score'),
+            _ScoreFields(key: ValueKey(_rev), layout: layout, onChanged: (next, field) => _edit(next, typing: field)),
+            const SizedBox(height: 24),
+            _heading(context, 'Summary'),
+            ..._summary(context),
+          ],
+      }),
+    );
+  }
+
+  /// Whether the pages' words are still being read, or none were found ([found] false); null
+  /// once they are read and some were.
+  Widget? _textStatus(BuildContext context, {required bool found}) {
+    final colors = context.colors;
+    if (_readingText == null && found) return null;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(children: [
+        if (_readingText != null) ...[PulsingDot(color: colors.accent, size: 7), const SizedBox(width: 8)],
+        Expanded(
+          child: Text(
+              _readingText != null
+                  ? 'Reading text… {n} of {count}'.fill({'n': math.min(_text.length + 1, pages.length), 'count': pages.length})
+                  : 'No text found'.tr,
+              style: TextStyle(fontSize: 12, color: colors.textMuted)),
+        ),
       ]),
     );
+  }
+
+  /// The tempo marks read off the pages, each added or dismissed; all added at once.
+  List<Widget> _suggestionFields(BuildContext context) {
+    final ideas = _suggested.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    return [
+      const SizedBox(height: 10),
+      _heading(context, 'Read from Score'),
+      ?_textStatus(context, found: ideas.isNotEmpty),
+      if (ideas.isNotEmpty) const SizedBox(height: 4),
+      for (final MapEntry(key: bar, value: mark) in ideas)
+        _SuggestionRow(
+          text: _tempoText(mark, mark.bpm),
+          where: _barName(bar),
+          onTap: () => _showBar(bar),
+          onAccept: () => _accept({bar: mark}),
+          onDismiss: () => setState(() => _dismissed.add(bar)),
+        ),
+      if (ideas.length > 1) ...[
+        const SizedBox(height: 4),
+        FilledButton(onPressed: () => _accept(Map.fromEntries(ideas)), child: Text('Add All'.tr)),
+      ],
+    ];
+  }
+
+  /// What will be imported.
+  List<Widget> _summary(BuildContext context) {
+    final colors = context.colors;
+    Widget row(String label, int value, {bool warn = false}) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(children: [
+            Expanded(child: Text(label.tr, style: TextStyle(fontSize: 13, color: colors.textMuted))),
+            Text('$value', style: TextStyle(fontSize: 13, color: warn && value > 0 ? colors.erase : colors.text)),
+          ]),
+        );
+    return [
+      row('Bars', layout.bars.length),
+      row('Systems', layout.systems.length),
+      row('Instruments', layout.instruments.where((i) => !i.blank).length),
+      row('Blank Lanes', layout.instruments.where((i) => i.blank).length),
+      row('Tempo Marks', layout.tempos.length),
+      row('Staves without an instrument', _unassigned, warn: true),
+    ];
   }
 
   Widget _heading(BuildContext context, String text) => Padding(
@@ -1002,7 +1337,9 @@ class _PdfImportState extends State<PdfImport> {
         child: Text(text.tr, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.colors.text)),
       );
 
-  Widget _instrumentList(BuildContext context) {
+  /// The instruments, in the score's order: each dragged by its handle to its place, renamed with
+  /// a double click; with [adding], tiles that add an instrument or a blank lane.
+  Widget _instrumentList(BuildContext context, {required bool adding}) {
     final colors = context.colors;
     final instruments = layout.instruments;
     // Instrument [from] put at [to] (counted with it taken out), the selection going with it.
@@ -1037,11 +1374,11 @@ class _PdfImportState extends State<PdfImport> {
       setState(() => _instrument = at);
     }
 
-    void remove() {
-      if (_instrument >= instruments.length) return;
-      final id = instruments[_instrument].id;
+    void remove(int index) {
+      if (index >= instruments.length) return;
+      final id = instruments[index].id;
       _edit(layout.copyWith(
-        instruments: [...instruments]..removeAt(_instrument),
+        instruments: [...instruments]..removeAt(index),
         systems: [
           for (final s in layout.systems)
             s.staves.any((t) => t.part == id)
@@ -1049,7 +1386,7 @@ class _PdfImportState extends State<PdfImport> {
                 : s,
         ],
       ));
-      setState(() => _instrument = math.max(0, _instrument - 1));
+      setState(() => _instrument = math.max(0, math.min(_instrument, instruments.length - 2)));
     }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -1073,32 +1410,36 @@ class _PdfImportState extends State<PdfImport> {
           selected: i == _instrument,
           onSelect: () => setState(() => _instrument = i),
           onRename: () => _renameInstrument(instruments[i].id),
+          menu: (context) => [
+            menuItem<VoidCallback>(context, value: () => _renameInstrument(instruments[i].id), child: Text('Rename…'.tr)),
+            menuDivider(context),
+            menuItem<VoidCallback>(context, value: () => place(i, i - 1), enabled: i > 0, child: Text('Move Up'.tr)),
+            menuItem<VoidCallback>(context,
+                value: () => place(i, i + 1), enabled: i < instruments.length - 1, child: Text('Move Down'.tr)),
+            menuDivider(context),
+            menuItem<VoidCallback>(context, value: () => remove(i), child: Text('Remove'.tr)),
+          ],
         ),
       ),
-      const SizedBox(height: 6),
-      Row(children: [
-        ToolbarButton(icon: AppIcon.add.of(context), tooltip: 'Add Instrument'.tr, onPressed: add),
-        ToolbarButton(icon: AppIcon.verticalSpacer.of(context), tooltip: 'Add Blank Lane'.tr, onPressed: addBlank),
-        ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Remove Instrument'.tr, onPressed: instruments.isEmpty ? null : remove),
-        const Spacer(),
-        ToolbarButton(
-            icon: AppIcon.moveUp.of(context),
-            tooltip: 'Move Up'.tr,
-            onPressed: _instrument > 0 ? () => place(_instrument, _instrument - 1) : null),
-        ToolbarButton(
-            icon: AppIcon.moveDown.of(context),
-            tooltip: 'Move Down'.tr,
-            onPressed: _instrument < instruments.length - 1 ? () => place(_instrument, _instrument + 1) : null),
-      ]),
+      if (adding) ...[
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: _AddTile(icon: AppIcon.add, label: 'Instrument', onTap: add)),
+          const SizedBox(width: 8),
+          Expanded(child: _AddTile(icon: AppIcon.verticalSpacer, label: 'Blank Lane', onTap: addBlank)),
+        ]),
+      ],
     ]);
   }
 
   /// What the selection is, and what can be done to it.
   List<Widget> _selectionFields(BuildContext context) {
     final selection = _selection;
-    final pageButtons = Row(children: [
-      Expanded(child: OutlinedButton(onPressed: _detectAgain, child: Text('Detect Page Again'.tr))),
-    ]);
+    final pageButtons = _step != _Step.pages
+        ? const SizedBox.shrink()
+        : Row(children: [
+            Expanded(child: OutlinedButton(onPressed: _detectAgain, child: Text('Detect Page Again'.tr))),
+          ]);
     final out = <Widget>[];
     switch (selection) {
       case _BarlineSelection(:final system, :final barline):
@@ -1124,8 +1465,8 @@ class _PdfImportState extends State<PdfImport> {
         final bars = layout.barOfSegment[system];
         final bar = segment < bars.length ? bars[segment] : null;
         out.addAll([
-          _heading(context, bar == null ? 'System' : 'Bar {n}'.fill({'n': bar + 1 - (layout.pickup > 0 ? 1 : 0)})),
-          if (bar != null) ...[
+          _heading(context, bar == null ? 'System' : _barName(bar)),
+          if (bar != null && _step == _Step.changes) ...[
             for (final change in _changesAt(bar, system))
               _ChangeRow(
                 text: change.text,
@@ -1142,7 +1483,7 @@ class _PdfImportState extends State<PdfImport> {
             ),
             const SizedBox(height: 10),
           ],
-          OutlinedButton(onPressed: _remove, child: Text('Remove System'.tr)),
+          if (_step == _Step.pages) OutlinedButton(onPressed: _remove, child: Text('Remove System'.tr)),
         ]);
       case _MaskSelection():
         out.addAll([
@@ -1153,6 +1494,11 @@ class _PdfImportState extends State<PdfImport> {
         out.addAll([
           _heading(context, 'Gap'),
           OutlinedButton(onPressed: _remove, child: Text('Remove Gap'.tr)),
+        ]);
+      case null when _step == _Step.changes:
+        out.addAll([
+          _heading(context, 'Bar'),
+          Text('Select a bar'.tr, style: TextStyle(fontSize: 13, color: context.colors.textMuted)),
         ]);
       case null:
         break;
@@ -1173,28 +1519,6 @@ class _PdfImportState extends State<PdfImport> {
         PdfBarlineKind.repeatEnd => 'End Repeat',
         PdfBarlineKind.repeatBoth => 'End and Start Repeat',
       };
-
-  Widget _statusBar(BuildContext context) {
-    final colors = context.colors, style = AppStyle.of(context);
-    final muted = TextStyle(fontSize: 12, color: colors.textMuted);
-    final String text;
-    if (_error case final error? when _layout != null) {
-      text = 'Couldn’t measure the bars. {error}'.fill({'error': error});
-    } else if (_measured case final n?) {
-      text = 'Measuring system {n} of {count}…'.fill({'n': math.min(n + 1, layout.systems.length), 'count': layout.systems.length});
-    } else if (_layout != null) {
-      text = '{bars} bars · {systems} systems'.fill({'bars': layout.bars.length, 'systems': layout.systems.length});
-    } else {
-      text = '';
-    }
-    return Container(
-      height: style.control + 4,
-      color: colors.chrome,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: Alignment.centerLeft,
-      child: Text(text, style: muted, overflow: TextOverflow.ellipsis),
-    );
-  }
 }
 
 /// A row of the panel's instruments: its handle (dragged to move it), its colour, its name. A
@@ -1208,12 +1532,16 @@ class _InstrumentRow extends StatefulWidget {
     required this.selected,
     required this.onSelect,
     required this.onRename,
+    required this.menu,
   });
   final int index;
   final PdfInstrument instrument;
   final Color color;
   final bool selected;
   final VoidCallback onSelect, onRename;
+
+  /// Its ⋯ menu: rename, move, remove.
+  final PopupMenuItemBuilder<VoidCallback> menu;
 
   @override
   State<_InstrumentRow> createState() => _InstrumentRowState();
@@ -1235,8 +1563,8 @@ class _InstrumentRowState extends State<_InstrumentRow> {
           _clicks.press(e.timeStamp, e.position) ? widget.onRename() : widget.onSelect();
         },
         child: Container(
-          height: 28,
-          padding: const EdgeInsets.only(right: 8),
+          height: 32,
+          padding: const EdgeInsets.only(right: 2),
           decoration: BoxDecoration(
             color: widget.selected ? colors.accentWash : (_hovered ? colors.accentWash.withValues(alpha: 0.5) : null),
             borderRadius: AppStyle.of(context).radius(5),
@@ -1247,8 +1575,8 @@ class _InstrumentRowState extends State<_InstrumentRow> {
               child: MouseRegion(
                 cursor: SystemMouseCursors.grab,
                 child: SizedBox(
-                  width: 22,
-                  height: 28,
+                  width: 24,
+                  height: 32,
                   child: Icon(AppIcon.grab.of(context), size: 14, color: _hovered || widget.selected ? colors.textMuted : colors.line),
                 ),
               ),
@@ -1269,6 +1597,17 @@ class _InstrumentRowState extends State<_InstrumentRow> {
             ),
             if (i.staves > 1 || i.divisi > 1)
               Text('×{n}'.fill({'n': i.staves > 1 ? i.staves : i.divisi}), style: TextStyle(fontSize: 12, color: colors.textMuted)),
+            Opacity(
+              opacity: _hovered || widget.selected ? 1 : 0,
+              child: AppPopupMenuButton<VoidCallback>(
+                tooltip: 'More'.tr,
+                padding: EdgeInsets.zero,
+                iconSize: 16,
+                icon: Icon(AppIcon.more.of(context), color: colors.textMuted),
+                itemBuilder: widget.menu,
+                onSelected: (action) => action(),
+              ),
+            ),
           ]),
         ),
       ),
@@ -1353,6 +1692,215 @@ class _StaffChip extends StatelessWidget {
             child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: colors.text)),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The import's steps across the top: each numbered (a tick once passed), the one showing
+/// filled; a click goes to any.
+class _StepBar extends StatelessWidget {
+  const _StepBar({required this.step, required this.enabled, required this.onPick});
+  final _Step step;
+  final bool enabled;
+  final ValueChanged<_Step> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors, style = AppStyle.of(context);
+    final children = <Widget>[];
+    for (final s in _Step.values) {
+      if (s.index > 0) {
+        children.add(Container(width: 18, height: 1, margin: const EdgeInsets.symmetric(horizontal: 4), color: colors.line));
+      }
+      final current = s == step, passed = s.index < step.index;
+      final tone = current ? colors.accent : (passed ? colors.text : colors.textMuted);
+      children.add(MouseRegion(
+        cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+        child: GestureDetector(
+          onTap: enabled ? () => onPick(s) : null,
+          child: Container(
+            height: 28,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(color: current ? colors.accentWash : null, borderRadius: style.radius(14)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 18,
+                height: 18,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: current ? colors.accent : null,
+                  border: current ? null : Border.all(color: tone),
+                  shape: BoxShape.circle,
+                ),
+                child: passed
+                    ? Icon(AppIcon.check.of(context), size: 12, color: tone)
+                    : Text('${s.index + 1}',
+                        style: TextStyle(
+                            fontSize: 11, height: 1, fontWeight: FontWeight.w600, color: current ? const Color(0xFFFFFFFF) : tone)),
+              ),
+              const SizedBox(width: 6),
+              Text(s.label.tr,
+                  style: TextStyle(fontSize: 13, fontWeight: current ? FontWeight.w600 : FontWeight.w400, color: tone)),
+            ]),
+          ),
+        ),
+      ));
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: children);
+  }
+}
+
+/// A tile that adds to the instruments: dashed, in the accent, under the list.
+class _AddTile extends StatefulWidget {
+  const _AddTile({required this.icon, required this.label, required this.onTap});
+  final AppIcon icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  State<_AddTile> createState() => _AddTileState();
+}
+
+class _AddTileState extends State<_AddTile> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors, style = AppStyle.of(context);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: CustomPaint(
+          painter: _DashedBorder(color: colors.accent.withValues(alpha: _hovered ? 0.9 : 0.55), radius: 7),
+          child: AnimatedContainer(
+            duration: motion(context, 120),
+            height: 40,
+            decoration: BoxDecoration(color: _hovered ? colors.accentWash : colors.accentWash.withValues(alpha: 0.4), borderRadius: style.radius(7)),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(widget.icon.of(context), size: 16, color: colors.accent),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(widget.label.tr,
+                    overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.accent)),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedBorder extends CustomPainter {
+  const _DashedBorder({required this.color, required this.radius});
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    final path = Path()..addRRect(RRect.fromRectAndRadius((Offset.zero & size).deflate(0.6), Radius.circular(radius)));
+    for (final metric in path.computeMetrics()) {
+      for (var d = 0.0; d < metric.length; d += 8) {
+        canvas.drawPath(metric.extractPath(d, math.min(d + 4, metric.length)), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorder old) => old.color != color || old.radius != radius;
+}
+
+/// A tempo mark read off the page, on it at its bar: outlined, not yet the score's; a click
+/// on its tick adds it.
+class _SuggestedTag extends StatelessWidget {
+  const _SuggestedTag({required this.text, required this.onAccept, required this.onTap});
+  final String text;
+  final VoidCallback onAccept, onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const blue = Color(0xFF3E63DD);
+    return Padding(
+      padding: const EdgeInsets.only(right: 3),
+      child: Container(
+        height: 16,
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFFFF),
+          border: Border.all(color: blue.withValues(alpha: 0.8)),
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: Text(text, style: const TextStyle(fontSize: 10.5, height: 1, color: blue, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ),
+          Tip(
+            message: 'Add'.tr,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: onAccept,
+                child: Container(
+                  width: 16,
+                  alignment: Alignment.center,
+                  color: blue,
+                  child: Icon(AppIcon.check.of(context), size: 11, color: const Color(0xFFFFFFFF)),
+                ),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// A tempo mark read off the page, in the panel: where it is (a click shows it), added or
+/// dismissed.
+class _SuggestionRow extends StatelessWidget {
+  const _SuggestionRow(
+      {required this.text, required this.where, required this.onTap, required this.onAccept, required this.onDismiss});
+  final String text, where;
+  final VoidCallback onTap, onAccept, onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors, style = AppStyle.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Container(
+        padding: const EdgeInsets.only(left: 10),
+        decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: style.radius(6)),
+        child: Row(children: [
+          Expanded(
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(text, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.text)),
+                  Text(where, style: TextStyle(fontSize: 11.5, color: colors.textMuted)),
+                ]),
+              ),
+            ),
+          ),
+          ToolbarButton(icon: AppIcon.check.of(context), tooltip: 'Add'.tr, onPressed: onAccept),
+          ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Dismiss'.tr, onPressed: onDismiss),
+        ]),
       ),
     );
   }
@@ -1617,7 +2165,16 @@ class _PagePainter extends CustomPainter {
     required this.drawing,
     required this.colors,
     required this.colorOf,
+    required this.editing,
+    required this.focus,
   });
+
+  /// Whether what was found can be moved here (the pages' step): its edges' handles, where the
+  /// music starts and the barlines drawn to be grabbed.
+  final bool editing;
+
+  /// The instrument picked, its staves tinted the more.
+  final String? focus;
 
   final PdfScoreLayout layout;
   final int page;
@@ -1682,7 +2239,8 @@ class _PagePainter extends CustomPainter {
       final (top, bottom) = s.bandOf(k);
       final staff = s.staves[k];
       final color = staff.part == null ? const Color(0xFF9E9E9E) : colorOf(staff.part);
-      canvas.drawRect(Rect.fromLTRB(s.left, top, s.right, bottom), Paint()..color = color.withValues(alpha: 0.06));
+      final tint = focus == null ? 0.06 : (staff.part == focus ? 0.2 : 0.03);
+      canvas.drawRect(Rect.fromLTRB(s.left, top, s.right, bottom), Paint()..color = color.withValues(alpha: tint));
       canvas.drawLine(Offset(s.left, staff.bottom + 1.5 * px), Offset(s.right, staff.bottom + 1.5 * px),
           Paint()
             ..color = color.withValues(alpha: 0.85)
@@ -1712,6 +2270,16 @@ class _PagePainter extends CustomPainter {
         final (l, r) = segments[segment];
         canvas.drawRect(Rect.fromLTRB(l, s.top, r, s.bottom), Paint()..color = colors.accent.withValues(alpha: 0.1));
       }
+    }
+    if (!editing) {
+      // The bars, to see where the changes go.
+      final faint = Paint()
+        ..color = const Color(0x55E5484D)
+        ..strokeWidth = px;
+      for (final line in s.barlines) {
+        canvas.drawLine(Offset(line.x, s.top), Offset(line.x, s.bottom), faint);
+      }
+      return;
     }
     final dashed = Paint()
       ..color = (selectedSystem ? colors.accent : const Color(0xFF3E63DD)).withValues(alpha: 0.8)
@@ -1771,5 +2339,7 @@ class _PagePainter extends CustomPainter {
       old.zoom != zoom ||
       old.selection != selection ||
       old.drawing != drawing ||
-      old.colors != colors;
+      old.colors != colors ||
+      old.editing != editing ||
+      old.focus != focus;
 }

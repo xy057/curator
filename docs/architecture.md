@@ -27,7 +27,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time (`EditChunk`) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
-| `pdf_detect.dart`, `pdf_pages.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`) |
+| `pdf_detect.dart`, `pdf_pages.dart`, `pdf_text.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`); names and tempo marks read from the pages' words (`PdfText`) |
 | `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, cuts, gaps, barlines and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
@@ -68,7 +68,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
-| `pdf_import.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start, barlines, masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
+| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start, barlines, masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -936,6 +936,24 @@ curation hides them. A blank lane (`PdfInstrument.blank`, the import's Add Blank
 no staff of the PDF is: a staff's room in the main view, drawn empty and unnamed, no signature in
 its frozen zone (`_bareStaves`, `_unnamed`); auto-curation leaves it shown (`isBlankLane`), and its
 lane and Spacing… say when and how much room there is. Export to Web writes each system's picture as `score/pdf/N.png`.
+
+**The import goes in steps, and reads the words on the pages.** `PdfImport` is five steps
+(`_Step`, a bar across the top, Back and Next below): Pages (only here can what was found be
+dragged, drawn or removed; elsewhere the page shows it, not its handles: `_PagePainter.editing`),
+Instruments (the list, dragged by its handles, a ⋯ menu each; Add Instrument and Add Blank Lane
+are tiles in the accent under it), Staves (each staff's chip, and the staves no one's), Changes
+(a bar's, inserted; the tempo marks read off the pages, each added or dismissed, or all) and
+Review (the score's fields and what will be imported, then Import). Each page's words are read
+once the layout is there, in the background (`_readText`, the page with the most staves and the
+next first): the PDF's own text where it has some (`PdfPages.textRuns`, PDFium's text runs and
+their boxes), else, on a Mac, read off a picture of the page at 3 pixels a point by Vision on the
+device (`PdfOcr`, the `curated_score/ocr` channel, `PageText` in `MainFlutterWindow.swift`, drawn
+on white). What they say is geometry only (`PdfText`, so the PDF's text and a scan's read alike):
+an instrument's name is the words left of its staves in the first system naming it, a later
+different one its abbreviation (`names`; a new import's "Staff 1"… are named so by themselves,
+names in capitals written as names); a tempo mark is the words above a system's first staff that
+name a tempo or a change (`isTempo`) or stand before a metronome mark on its line, at the bar they
+start over (`tempos`, `tempoOf`; the speed is taken as quarters).
 
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;

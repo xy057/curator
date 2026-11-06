@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import 'native/pdfium.dart' if (dart.library.js_interop) 'native/pdfium_web.dart';
 import 'pdf_detect.dart';
 import 'pdf_layout.dart';
+import 'pdf_text.dart';
 import 'spacers.dart' show SpacerKey;
 
 /// A staff of a system found on a page, alone or the first of two a brace joins ([count]), with
@@ -146,6 +147,16 @@ class PdfPages {
       final p = doc.picture(page, 0, 0, w, h, scale);
       return (rgba: p.rgba, width: p.width, height: p.height, area: ui.Rect.fromLTWH(0, 0, w, h));
     });
+  }
+
+  /// Page [page]'s own text, each run with its box ([PdfTextRun]): none for a scan, whose words
+  /// only a picture of it shows.
+  Future<List<PdfTextRun>> textRuns(int page) {
+    final id = _id;
+    return _Worker.run((docs) => [
+          for (final (text, l, t, r, b) in docs[id]!.runs(page))
+            if (PdfText.clean(text).isNotEmpty || text.contains('=')) (text: text, rect: ui.Rect.fromLTRB(l, t, r, b)),
+        ]).then((runs) => [for (final r in runs) PdfTextRun(r.text, r.rect)]);
   }
 
   /// Page [page] found again ([detect]), its staves given to [instruments] by the names beside

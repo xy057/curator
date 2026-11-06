@@ -17,5 +17,7 @@ final class PdfiumDocument {
 
   String text(int index, double left, double top, double right, double bottom) => '';
 
+  List<(String, double, double, double, double)> runs(int index) => const [];
+
   void close() {}
 }

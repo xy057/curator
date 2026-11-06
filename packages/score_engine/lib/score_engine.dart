@@ -20,6 +20,7 @@ export 'src/pdf_detect.dart';
 export 'src/pdf_layout.dart';
 export 'src/pdf_pages.dart';
 export 'src/pdf_score.dart';
+export 'src/pdf_text.dart';
 export 'src/phrase_search.dart';
 export 'src/score_metadata.dart';
 export 'src/score_motion.dart';

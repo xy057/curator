@@ -105,5 +105,24 @@ void main() {
     expect(metadata.parts.map((p) => p.id), ['P2', 'P1', 'P1d2']);
     final staffOfBlank = metadata.parts.first.staffNumbers.single;
     expect(PdfEngraving.of(blanked, metadata).signatures.where((s) => s.staff == staffOfBlank), isEmpty);
+
+    // Words on the pages (the PDF's own, or read off a scan): a name left of the staves, a
+    // shorter one later; tempo marks above a system's first staff, at the bar they start over.
+    final runs = {
+      0: const [
+        PdfTextRun('Divisi Suite', ui.Rect.fromLTRB(80, 2, 160, 10)), // the title: no tempo
+        PdfTextRun('Violin', ui.Rect.fromLTRB(5, 24, 30, 30)),
+        PdfTextRun('Allegro (q', ui.Rect.fromLTRB(45, 10, 80, 16)),
+        PdfTextRun('= 120)', ui.Rect.fromLTRB(82, 10, 100, 16)),
+        PdfTextRun('dolce', ui.Rect.fromLTRB(50, 38, 70, 44)), // below the first staff's top
+      ],
+      1: const [
+        PdfTextRun('2 Vl.', ui.Rect.fromLTRB(10, 44, 30, 50)), // a bar's number read with it
+        PdfTextRun('rit.', ui.Rect.fromLTRB(125, 12, 140, 18)),
+      ],
+    };
+    expect(PdfText.names(layout, runs), {'P1': (name: 'Violin', abbreviation: 'Vl.')});
+    expect(PdfText.tempos(layout, runs), {0: const PdfTempo('Allegro', 120), 3: const PdfTempo('rit.')});
+    expect([PdfText.tempoOf('Promenade'), PdfText.tempoOf('Più mosso')?.words], [null, 'Più mosso']);
   });
 }

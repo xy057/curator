@@ -1,5 +1,6 @@
 import Cocoa
 import FlutterMacOS
+import Vision
 
 /// Files opened from the Finder (double-click, Open With, dropped on the Dock icon), handed to
 /// Dart over the window channel. A file that launches the app arrives before Dart runs, so
@@ -76,6 +77,7 @@ class MainFlutterWindow: NSWindow, NSWindowDelegate {
 
   private var windowChannel: FlutterMethodChannel?
   private var fontChannel: FlutterMethodChannel?
+  private var textChannel: FlutterMethodChannel?
   private let fontPicker = FontPicker()
   private let opener = DocumentOpener()
 
@@ -140,6 +142,19 @@ class MainFlutterWindow: NSWindow, NSWindowDelegate {
       self.fontPicker.pick(family: (call.arguments as? [String: Any])?["family"] as? String, result: result)
     }
     fontChannel = fonts
+    let text = FlutterMethodChannel(
+      name: "curated_score/ocr", binaryMessenger: flutterViewController.engine.binaryMessenger)
+    text.setMethodCallHandler { call, result in
+      guard call.method == "read", let args = call.arguments as? [String: Any],
+        let rgba = args["rgba"] as? FlutterStandardTypedData, let width = args["width"] as? Int,
+        let height = args["height"] as? Int
+      else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      PageText.read(rgba: rgba.data, width: width, height: height, result: result)
+    }
+    textChannel = text
     opener.channel = channel
     (NSApp.delegate as? FlutterAppDelegate)?.addApplicationLifecycleDelegate(opener)
 
@@ -154,5 +169,64 @@ class MainFlutterWindow: NSWindow, NSWindowDelegate {
   func windowShouldClose(_ sender: NSWindow) -> Bool {
     NSApp.terminate(nil)
     return false
+  }
+}
+
+/// The words on a picture of a page (a scanned PDF score's, which has no text of its own), read
+/// by Vision on the Mac itself: each line's text and box, as fractions of the picture from its
+/// top left, `[text, x, y, width, height]`.
+enum PageText {
+  static func read(rgba: Data, width: Int, height: Int, result: @escaping FlutterResult) {
+    DispatchQueue.global(qos: .userInitiated).async {
+      let lines = recognise(rgba: rgba, width: width, height: height)
+      DispatchQueue.main.async {
+        if let lines = lines {
+          result(lines)
+        } else {
+          result(FlutterError(code: "unreadable", message: "Couldn’t read the page’s text", details: nil))
+        }
+      }
+    }
+  }
+
+  private static func recognise(rgba: Data, width: Int, height: Int) -> [[Any]]? {
+    guard width > 0, height > 0, rgba.count >= width * height * 4,
+      let provider = CGDataProvider(data: rgba as CFData),
+      let page = CGImage(
+        width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+        provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent),
+      // On white: the page is drawn on nothing, and Vision would read its ink on black.
+      let context = CGContext(
+        data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)
+    else { return nil }
+    context.setFillColor(CGColor(gray: 1, alpha: 1))
+    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    context.draw(page, in: CGRect(x: 0, y: 0, width: width, height: height))
+    guard let image = context.makeImage() else { return nil }
+
+    let request = VNRecognizeTextRequest()
+    request.recognitionLevel = .accurate
+    request.usesLanguageCorrection = true
+    // A staff's name is small beside a whole page: Vision's default leaves out text under a
+    // 32nd of its height.
+    request.minimumTextHeight = 0.004
+    let wanted = ["en-US", "it-IT", "de-DE", "fr-FR", "es-ES", "pt-BR"]
+    if let supported = try? request.supportedRecognitionLanguages() {
+      let languages = wanted.filter { supported.contains($0) }
+      if !languages.isEmpty { request.recognitionLanguages = languages }
+    }
+    do {
+      try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
+    } catch {
+      return nil
+    }
+    return (request.results ?? []).compactMap { line in
+      guard let text = line.topCandidates(1).first?.string else { return nil }
+      let box = line.boundingBox  // from the bottom left
+      return [text, Double(box.minX), Double(1 - box.maxY), Double(box.width), Double(box.height)]
+    }
   }
 }
