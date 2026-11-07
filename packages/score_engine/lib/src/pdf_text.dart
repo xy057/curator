@@ -35,7 +35,10 @@ abstract final class PdfText {
         }
         final instrument = layout.instrument(part);
         if (instrument != null && !instrument.blank) {
-          final top = s.bandOf(k).$1, bottom = s.bandOf(end - 1).$2;
+          // Level with its staves, give or take a space and a half: not a line of text above the
+          // system (an epigraph) that its band reaches up to.
+          final top = math.max(s.bandOf(k).$1, s.staves[k].top - s.space * 1.5);
+          final bottom = math.min(s.bandOf(end - 1).$2, s.staves[end - 1].bottom + s.space * 1.5);
           var name = _beside(onPage, top, bottom, s.left - s.space * 0.3);
           // A system's first bar number may stand above its first staff, read with the name.
           if (k == 0) name = name.replaceFirst(RegExp(r'^(?:\d+\s+)+(?=\D)'), '');

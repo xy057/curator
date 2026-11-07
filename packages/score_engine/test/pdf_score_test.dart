@@ -123,6 +123,7 @@ void main() {
       0: const [
         PdfTextRun('Divisi Suite', ui.Rect.fromLTRB(80, 2, 160, 10)), // the title: no tempo
         PdfTextRun('Violin', ui.Rect.fromLTRB(5, 24, 30, 30)),
+        PdfTextRun('a dedication', ui.Rect.fromLTRB(5, 50, 30, 56)), // in its band, well below it
         PdfTextRun('Allegro (q', ui.Rect.fromLTRB(45, 10, 80, 16)),
         PdfTextRun('= 120)', ui.Rect.fromLTRB(82, 10, 100, 16)),
         PdfTextRun('dolce', ui.Rect.fromLTRB(50, 38, 70, 44)), // below the first staff's top
