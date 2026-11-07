@@ -12,6 +12,7 @@ import 'export_dialog.dart';
 import 'extensions/extension.dart';
 import 'l10n/l10n.dart';
 import 'ui_kit.dart';
+import 'updater.dart' show appBuild, appVersion;
 import 'video_export.dart';
 import 'web_export.dart';
 import 'web_guide.dart';
@@ -135,7 +136,11 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   Widget build(BuildContext context) {
     final busy = _stage == _Stage.writing;
     return AppDialog(
-      title: Text('Export to Web'.tr),
+      title: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+        Expanded(child: Text('Export to Web'.tr)),
+        // The Curator that writes the page, and so its player.
+        Text('Curator $appVersion ($appBuild)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.normal, color: context.colors.textMuted)),
+      ]),
       content: SizedBox(
         width: dialogWidth(context, 440),
         child: IgnorePointer(
