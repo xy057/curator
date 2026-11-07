@@ -228,6 +228,7 @@ class ScoreSwap {
           pairs: pairs(edits.pairs),
           partOrder: [for (final id in edits.partOrder) ?_to(id)],
           sections: {for (final MapEntry(key: id, value: s) in edits.sections.entries) ?_to(id): s},
+          spacing: {for (final MapEntry(key: id, value: room) in edits.spacing.entries) ?_to(id): room},
           patches: patches,
           captions: separateCaptions(captions),
           // A blank keeps its bar and beat while they are there, and never runs into the next.

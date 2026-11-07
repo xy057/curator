@@ -1126,7 +1126,9 @@ class _BarField extends StatelessWidget {
 
 class _StillPainter extends CustomPainter {
   _StillPainter(this.export,
-      {this.frame, required this.time, required this.paper, required this.transparent, required this.devicePixelRatio});
+      {this.frame, required this.time, required this.paper, required this.transparent, required this.devicePixelRatio})
+      // A PDF score's systems arrive as they are read: drawn again then.
+      : super(repaint: export.pdf);
   final VideoExport export;
   final ui.Image? frame;
   final double time;

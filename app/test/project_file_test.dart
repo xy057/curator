@@ -31,7 +31,7 @@ void main() {
   ProjectContents contents({ProjectMedia? media}) => ProjectContents(
         scoreName: 'Score.musicxml',
         scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
-        state: const ProjectState(edits: EditState(textEdits: {'d1': 'hello'})),
+        state: const ProjectState(edits: EditState(textEdits: {'d1': 'hello'}, split: {'P2'})),
         media: media,
       );
 
@@ -107,7 +107,8 @@ void main() {
       expect(manifest['modules'], {
         for (final m in ProjectModules.all) m.id: {'version': m.version, if (m.optional) 'optional': true},
       });
-      expect((await open(path)).state.edits.textEdits, {'d1': 'hello'});
+      final opened = (await open(path)).state.edits;
+      expect([opened.textEdits, opened.split], [{'d1': 'hello'}, {'P2'}]);
     });
 
     test('a project saved before modules opens with every field in its module', () async {
@@ -297,6 +298,8 @@ void main() {
       c.setNameGroup(parts[0], solo); // the piccolo in a group of its own
       c.setNameGroup(parts[15], null); // the snare drum in the ink
       c.setSections({parts[15].id: 'percussion', parts[0].id: null, 'P10': 'bracket-1', 'P11': 'bracket-1'});
+      c.curation!.setLane(parts[1].id, [const Region(0, 6, hiddenStaves: [2]), const Region(6, 9)]); // meeting, not merged
+      c.setSpacing(parts[2].id, (above: 2.5, below: -1));
       final starts = c.score!.timeline.measureStarts;
       c.sync!.addAnchor(SyncAnchor(starts[8], 20, jumpTo: starts[4])); // a warp: back to bar 5
       c.useMidiTempo(MidiTempoMap('tempo.mid', const [(quarter: 0, quartersPerMinute: 96), (quarter: 24, quartersPerMinute: 80)]));
@@ -323,6 +326,8 @@ void main() {
       await doc2.open(path);
       expect(jsonEncode(ProjectModules.toJson(c2.projectState)), jsonEncode(ProjectModules.toJson(saved)));
       expect(c2.partName(part), 'Solo Piccolo');
+      expect(c2.curation!.lane(parts[1].id), const [Region(0, 6, hiddenStaves: [2]), Region(6, 9)]);
+      expect(c2.spacingOf(parts[2].id), (above: 2.5, below: -1.0));
       expect(c2.condensed, {'cond-P2-P3', 'cond-P6-P12'});
       expect(c2.pairs, const [PlayerPair('P6', 'P12')]);
       expect(c2.score!.condensed.map((g) => g.id), contains('cond-P6-P12'));

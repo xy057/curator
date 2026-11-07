@@ -1,11 +1,14 @@
 // Builds the native engine (Verovio + recording bridge) with CMake and bundles it
-// with the app. Runs automatically during `flutter run`, `flutter build` and `flutter test`.
+// with the app, beside PDFium (fetched once, a release of bblanchon/pdfium-binaries, checked
+// by its SHA-256), which opens PDF scores. Runs automatically during `flutter run`, `flutter build` and `flutter test`.
 // CMake builds in parallel and incrementally: the first build takes a few minutes,
 // later ones only recompile what changed.
 
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:code_assets/code_assets.dart';
+import 'package:crypto/crypto.dart';
 import 'package:hooks/hooks.dart';
 
 void main(List<String> args) async {
@@ -48,6 +51,13 @@ void main(List<String> args) async {
       file: library,
     ));
 
+    output.assets.code.add(CodeAsset(
+      package: input.packageName,
+      name: 'src/native/pdfium.dart',
+      linkMode: DynamicLoadingBundled(),
+      file: await _pdfium(input.outputDirectoryShared, os, arch),
+    ));
+
     // Re-run the hook when the bridge, the font measuring, the build script or our Verovio
     // patches change.
     // Verovio itself is pinned.
@@ -58,6 +68,56 @@ void main(List<String> args) async {
       output.dependencies.add(patch.uri);
     }
   });
+}
+
+/// PDFium's release, and each build's SHA-256 (its .tgz as published).
+const _pdfiumRelease = 'chromium/8100';
+const _pdfiumBuilds = {
+  'mac-arm64': '7ea647c7a7a9c1169be3f947000bc071ece2fade2cd6bd7e401e3675c6560cce',
+  'mac-x64': 'd513a0530a0f0c1ca9929ded06660e27edb9a108a7d18d9df55a5fb060b091c8',
+  'win-x64': '51621bcc1d9be9ea448f4b84b0516862b928e3968d3fca899af1a6d6e2848d6d',
+  'win-arm64': 'cca9b28d406ae2a902b0b710a92ab699c4c2931564ab6efe44630014d492a9ca',
+  'linux-x64': '1c1894a12d4d96ee01400c3874444126254180c5c7d2ab628576b67f8120320a',
+  'linux-arm64': '58c87a95a40a24c914a9c755fae798843f46f06adf9e5e9f2c893302d4bdb040',
+};
+
+/// PDFium's library for [os] on [arch], fetched into [shared] the first time (and kept there,
+/// as the CMake build is), refused unless its archive is the one published.
+Future<Uri> _pdfium(Uri shared, OS os, Architecture arch) async {
+  final platform = switch (os) {
+    OS.macOS => 'mac',
+    OS.windows => 'win',
+    OS.linux => 'linux',
+    _ => throw UnsupportedError('No PDFium for $os'),
+  };
+  final build = '$platform-${arch == Architecture.arm64 ? 'arm64' : 'x64'}';
+  final hash = _pdfiumBuilds[build] ?? (throw UnsupportedError('No PDFium for $build'));
+  final (member, name) = switch (os) {
+    OS.windows => ('bin/pdfium.dll', 'pdfium.dll'),
+    OS.macOS => ('lib/libpdfium.dylib', 'libpdfium.dylib'),
+    _ => ('lib/libpdfium.so', 'libpdfium.so'),
+  };
+  final library = shared.resolve('pdfium-${_pdfiumRelease.replaceAll('/', '-')}/$build/$name');
+  final file = File.fromUri(library);
+  if (file.existsSync()) return library;
+  final url = Uri.parse('https://github.com/bblanchon/pdfium-binaries/releases/download/'
+      '${Uri.encodeComponent(_pdfiumRelease)}/pdfium-$build.tgz');
+  final client = HttpClient();
+  final List<int> bytes;
+  try {
+    final response = await (await client.getUrl(url)).close();
+    if (response.statusCode != 200) throw Exception('Couldn’t fetch PDFium ($url): HTTP ${response.statusCode}');
+    bytes = [for (final chunk in await response.toList()) ...chunk];
+  } finally {
+    client.close();
+  }
+  if (sha256.convert(bytes).toString() != hash) throw Exception('PDFium from $url isn’t the build expected (SHA-256)');
+  final entry = TarDecoder().decodeBytes(GZipDecoder().decodeBytes(bytes)).findFile(member) ??
+      (throw Exception('$url has no $member'));
+  file.parent.createSync(recursive: true);
+  final part = File('${file.path}.part')..writeAsBytesSync(entry.content);
+  part.renameSync(file.path);
+  return library;
 }
 
 List<File> _patches(Uri packageRoot) {

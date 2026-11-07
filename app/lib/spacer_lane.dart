@@ -28,7 +28,8 @@ class SpacerLane extends StatelessWidget {
   /// A vertical spacer below the lowest lane selected, else at the bottom.
   void _addVertical() {
     final selected = c.lanes.selectedPartIds;
-    final below = c.laneParts.where((p) => selected.contains(p.id)).lastOrNull;
+    final instruments = {for (final id in selected) c.instrumentOfLane(id)}; // a staff's lane: its instrument
+    final below = c.laneParts.where((p) => instruments.contains(p.id)).lastOrNull;
     c.spacers.addVertical(below: below?.id);
   }
 

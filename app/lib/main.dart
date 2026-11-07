@@ -8,7 +8,7 @@ import 'dart:ui' show AppExitResponse;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter/foundation.dart' show LicenseEntry, LicenseEntryWithLineBreaks, LicenseRegistry;
+import 'package:flutter/foundation.dart' show LicenseEntry, LicenseEntryWithLineBreaks, LicenseRegistry, ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -34,6 +34,7 @@ import 'home_screen.dart';
 import 'l10n/l10n.dart';
 import 'media_converter.dart';
 import 'phrase_search_window.dart';
+import 'pdf_import.dart';
 import 'project_document.dart';
 import 'project_file.dart';
 import 'project_tabs.dart';
@@ -322,9 +323,10 @@ class _AppWindowState extends State<AppWindow> {
   static const _scoreExtensions = ['musicxml', 'xml', 'mxl'];
   static XTypeGroup get _openableTypes => XTypeGroup(
         label: 'Projects and scores'.tr,
-        extensions: const [ProjectFile.extension, ..._scoreExtensions],
+        extensions: const [ProjectFile.extension, ..._scoreExtensions, 'pdf'],
       );
   static const _scoreTypes = XTypeGroup(label: 'MusicXML', extensions: _scoreExtensions);
+  static const _pdfTypes = XTypeGroup(label: 'PDF', extensions: ['pdf']);
   static XTypeGroup get _projectTypes => XTypeGroup(label: 'Curator project'.tr, extensions: const [ProjectFile.extension]);
 
   @override
@@ -441,7 +443,7 @@ class _AppWindowState extends State<AppWindow> {
 
   /// Open… (⌘O): a Curator project, or a MusicXML score to start a new one, in a new tab.
   Future<void> _open() async {
-    final file = await openFile(acceptedTypeGroups: [_openableTypes, _projectTypes, _scoreTypes]);
+    final file = await openFile(acceptedTypeGroups: [_openableTypes, _projectTypes, _scoreTypes, _pdfTypes]);
     if (file != null && mounted) _openPath(file.path);
   }
 
@@ -532,7 +534,7 @@ class _AppWindowState extends State<AppWindow> {
           onPaste: edit != null && edit.paste ? page!._paste : null,
           onDelete: edit != null && edit.delete ? commands!.delete : null,
           onSelectAll: edit != null && commands!.canSelectAll ? commands.selectAll : null,
-          onFindPhrase: open && !_typing.value && free ? page._findPhrase : null,
+          onFindPhrase: open && !_typing.value && free && !page.controller.isPdf ? page._findPhrase : null,
           previewShown: page?._previewShown ?? true,
           timelineShown: page?._timelineShown ?? true,
           onShowPreview: open ? page._showPreview : null,
@@ -866,6 +868,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         if (document.isOlderFormat && mounted) _olderFormat();
         if (mounted) await promptForExtensions(context, controller);
       }, title: 'Couldn’t Open Project'.tr);
+    } else if (path.toLowerCase().endsWith('.pdf')) {
+      await _guard(() => _importPdf(path), title: 'Couldn’t Import PDF'.tr);
     } else {
       await _guard(() async {
         await document.importScore(path);
@@ -879,6 +883,22 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
 
   void _snack(String message) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.tr)));
+  }
+
+  /// A PDF score: read and set out in the PDF import ([showPdfImport]), then a new project of
+  /// it. Cancelled, nothing opens.
+  Future<void> _importPdf(String path) async {
+    final bytes = await File(path).readAsBytes();
+    final pages = await PdfPages.open(bytes);
+    PdfScoreLayout? layout;
+    try {
+      if (mounted) layout = await showPdfImport(context, pages, name: fileNameOf(path));
+    } finally {
+      if (layout == null || !mounted) pages.close();
+    }
+    if (layout == null || !mounted) return;
+    await document.importPdf(path, bytes, pages, layout);
+    if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
   }
 
   /// The project opened, but not its recording: says why, and offers to pick it.
@@ -1115,6 +1135,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   Future<void> _editScore() async {
     final loaded = controller.score;
     if (loaded == null) return;
+    if (loaded.pdf case final pdf?) return _editPdf(pdf.layout);
     final name = '${stemOf(controller.fileName ?? document.title ?? 'Score')}.musicxml';
     final EditableScore score;
     try {
@@ -1136,6 +1157,26 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       await document.replaceScore(replacement);
       final warnings = replacement.score.warnings;
       if (warnings.isNotEmpty && mounted) await showImportWarnings(context, replacement.name, warnings);
+    }, title: 'Couldn’t Edit Score'.tr);
+  }
+
+  /// Project Info ▸ Score ▸ Edit… for a PDF score: its import again; what is set there replaces
+  /// the score as Replace… does.
+  Future<void> _editPdf(PdfScoreLayout layout) async {
+    final pages = controller.pdfPages;
+    final name = controller.fileName ?? 'Score.pdf';
+    if (pages == null) return;
+    final next = await showPdfImport(context, pages, name: name, layout: layout);
+    if (next == null || !mounted) return;
+    await _guard(() async {
+      final replacement = await document.prepareReplacementWith(name, controller.source!.bytes, pdf: next);
+      if (!mounted) return;
+      if (replacement.differences.isNotEmpty &&
+          !await confirmReplaceScore(context, replacement.name, replacement.differences)) {
+        replacement.score.pdf?.dispose();
+        return;
+      }
+      await document.replaceScore(replacement);
     }, title: 'Couldn’t Edit Score'.tr);
   }
 
@@ -1251,7 +1292,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                           : KeyedSubtree(key: const ValueKey('editor'), child: _editor(context)),
                     ),
                     // Until it has opened, too: the score is read before it is engraved.
-                    _Busy(visible: controller.isLoading || controller.score == null, message: 'Engraving…'.tr),
+                    _Busy(visible: controller.isLoading || controller.score == null, stage: controller.loadStage),
                     _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: controller.images.enabled),
                   ],
                 ),
@@ -1420,10 +1461,12 @@ class _ResizeHandleState extends State<_ResizeHandle> {
 
 /// A veil with a spinner while a score is engraved; fades in and out (then lets go of the
 /// spinner, which would otherwise turn on unseen).
+/// Over the page while a score opens: how far it has got, a bar creeping on to where its stage
+/// ends ([LoadStage]; before it is read, a bar running to and fro).
 class _Busy extends StatefulWidget {
-  const _Busy({required this.visible, required this.message});
+  const _Busy({required this.visible, required this.stage});
   final bool visible;
-  final String message;
+  final ValueListenable<LoadStage?> stage;
 
   @override
   State<_Busy> createState() => _BusyState();
@@ -1452,11 +1495,42 @@ class _BusyState extends State<_Busy> {
               : ColoredBox(
                   color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.75),
                   child: Center(
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const SizedBox.square(dimension: 28, child: CircularProgressIndicator(strokeWidth: 2.5)),
-                      const SizedBox(height: 14),
-                      Text(widget.message, style: TextStyle(color: context.colors.textMuted)),
-                    ]),
+                    child: ValueListenableBuilder<LoadStage?>(
+                      valueListenable: widget.stage,
+                      builder: (context, stage, _) => Column(mainAxisSize: MainAxisSize.min, children: [
+                        const SizedBox.square(dimension: 28, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                        const SizedBox(height: 14),
+                        Text(
+                            switch (stage) {
+                              null => 'Opening…',
+                              LoadStage.reading => 'Reading score…',
+                              LoadStage.engraving => 'Engraving…',
+                              LoadStage.measuring => 'Measuring…',
+                            }
+                                .tr,
+                            style: TextStyle(color: context.colors.textMuted)),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: 220,
+                          child: stage == null
+                              ? LinearProgressIndicator(minHeight: 4, borderRadius: AppStyle.of(context).radius(2))
+                              // Each stage's share, crept over in about the time it takes.
+                              : TweenAnimationBuilder<double>(
+                                  tween: Tween(
+                                      begin: 0,
+                                      end: switch (stage) {
+                                    LoadStage.reading => 0.35,
+                                    LoadStage.engraving => 0.85,
+                                    LoadStage.measuring => 0.97,
+                                  }),
+                                  duration: Duration(milliseconds: stage == LoadStage.engraving ? 2500 : 900),
+                                  curve: Curves.easeOutCubic,
+                                  builder: (context, value, _) => LinearProgressIndicator(
+                                      value: value, minHeight: 4, borderRadius: AppStyle.of(context).radius(2)),
+                                ),
+                        ),
+                      ]),
+                    ),
                   ),
                 ),
         ),

@@ -58,6 +58,7 @@ class InstrumentsToolbar extends StatelessWidget {
                       ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove (Delete)'.tr, onPressed: c.commands.delete),
                       const ToolbarDivider(),
                       _TransitionMenu(controller: c),
+                      if (c.lanes.selectedStaffCount > 1) _StavesMenu(controller: c),
                       const ToolbarDivider(),
                     ]),
             ),
@@ -82,7 +83,7 @@ class InstrumentsToolbar extends StatelessWidget {
   static String? _status(EditorController c, LoadedScore score, Map<RegionRef, RegionEdges> selected, Set<String> lanes) {
     if (selected.length == 1) {
       final MapEntry(key: ref, value: edges) = selected.entries.single;
-      final part = score.metadata.parts.firstWhere((p) => p.id == ref.partId);
+      final part = c.laneRowOf(ref.partId);
       final (from, to) = (c.beats.format(ref.region.start), c.beats.format(ref.region.end));
       return '${c.laneName(part)} · ${switch (edges) {
         RegionEdges.both => '$from → $to',
@@ -99,7 +100,7 @@ class InstrumentsToolbar extends StatelessWidget {
       final where = (lanes.length == 1 ? '{what} in 1 lane' : '{what} in {n} lanes').fill({'what': what, 'n': lanes.length});
       return '$where · ${shortcut('←/→ a bar (⇧ a beat)'.tr)}';
     }
-    if (lanes.length == 1) return c.laneName(score.metadata.parts.firstWhere((p) => p.id == lanes.single));
+    if (lanes.length == 1) return c.laneName(c.laneRowOf(lanes.single));
     if (lanes.isNotEmpty) return '{n} lanes'.fill({'n': lanes.length});
     return null;
   }
@@ -144,6 +145,52 @@ class _TidyMenu extends StatelessWidget {
               child: Text('Remove Regions Shorter Than {bars}'.fill({'bars': bars(n)})),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Which staves of their instruments the selected regions show: "≡ Staff 1 ▾", each staff
+/// checked or not (a region keeps one at least).
+class _StavesMenu extends StatelessWidget {
+  const _StavesMenu({required this.controller});
+  final EditorController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final shown = controller.lanes.selectedStavesShown;
+    final only = [for (final (i, s) in shown.indexed) if (s == true) i + 1];
+    final label = switch (shown) {
+      _ when shown.every((s) => s == true) => 'All'.tr,
+      _ when shown.contains(null) => 'Mixed'.tr,
+      _ => only.length == 1 ? 'Staff {n}'.fill({'n': only.single}) : only.join(', '),
+    };
+    return OverlaySemantics(
+      child: AppPopupMenuButton<int>(
+        tooltip: 'Staves'.tr,
+        position: PopupMenuPosition.under,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.only(left: 6, right: 2),
+          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
+        ),
+        onSelected: (n) => controller.lanes.setStaffShown(n, shown[n - 1] != true),
+        itemBuilder: (context) => [
+          for (final (i, s) in shown.indexed)
+            checkedMenuItem(context,
+                value: i + 1,
+                checked: s == true,
+                // The last one shown stays.
+                enabled: s != true || only.length > 1 || shown.contains(null),
+                child: Text('Staff {n}'.fill({'n': i + 1}))),
+        ],
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(AppIcon.lanes.of(context), size: 16, color: colors.textMuted),
+          const SizedBox(width: 5),
+          Text(label, style: TextStyle(fontSize: 12.5, color: only.length < shown.length ? colors.text : colors.textMuted)),
+          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
+        ]),
       ),
     );
   }

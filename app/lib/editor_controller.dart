@@ -143,14 +143,42 @@ class EditorController extends ChangeNotifier {
     var edits = await _newProjectEdits();
     LoadedScore score;
     try {
-      score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits));
+      score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits), measure: autoCurateImported);
     } on FormatException {
       if (edits.fonts == ScoreFonts.standard) rethrow;
       edits = edits.copyWith(fonts: ScoreFonts.standard); // a default font that can't be read: the standard ones
-      score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits));
+      score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits), measure: autoCurateImported);
     }
     await _install(fileNameOf(path), bytes, score, ProjectState(edits: edits));
   }
+
+  /// Opens (imports) a PDF score: [bytes], open as [pages], read as [layout] (the PDF import's
+  /// work). Its staves are drawn cropped from its pages. The pages are the controller's now.
+  Future<void> openPdf(String name, Uint8List bytes, PdfPages pages, PdfScoreLayout layout) async {
+    final edits = await _newProjectEdits();
+    final LoadedScore score;
+    try {
+      score = await _engrave('', _requestFor(edits),
+          pdf: PdfScoreArt(layout, PdfPagesSource(pages)), measure: autoCurateImported);
+    } on Object {
+      pages.close();
+      rethrow;
+    }
+    await _install(name, bytes, score, ProjectState(edits: edits, pdf: layout), pages: pages);
+  }
+
+  /// Whether [partId] is a PDF score's blank lane ([PdfInstrument.blank]): no staff of the PDF
+  /// is its, auto-curation leaves it be.
+  bool isBlankLane(String partId) => _score != null && _isBlank(_score!, partId);
+
+  static bool _isBlank(LoadedScore score, String partId) => score.pdf?.layout.playerOf(partId)?.$1.blank ?? false;
+
+  /// The PDF the open score is drawn from, read by PDFium; null for an engraved score.
+  PdfPages? get pdfPages => _pdfPages;
+  PdfPages? _pdfPages;
+
+  /// Whether the open score is a PDF's ([openPdf]): no notes, nothing engraved.
+  bool get isPdf => _score?.pdf != null;
 
   /// The fonts a newly imported score starts with (Save as default), by name.
   ({String music, String text, bool embed}) newProjectFonts =
@@ -204,12 +232,25 @@ class EditorController extends ChangeNotifier {
         state = state.copyWith(edits: edits);
       }
     }
-    final score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
+    final PdfPages? pages;
+    final LoadedScore score;
+    if (state.pdf case final layout?) {
+      pages = await PdfPages.open(scoreBytes);
+      try {
+        score = await _engrave('', _requestFor(edits), pdf: PdfScoreArt(layout, PdfPagesSource(pages)));
+      } on Object {
+        pages.close();
+        rethrow;
+      }
+    } else {
+      pages = null;
+      score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
+    }
     final arts = await ImageEditing._decodeAll(state.images);
     // Loading from the moment the score shows until its recordings are read.
     _loadingAudio = mediaPath != null || takePaths.isNotEmpty;
     try {
-      await _install(name, scoreBytes, score, state, arts: arts);
+      await _install(name, scoreBytes, score, state, arts: arts, pages: pages);
       if (_disposed) return null; // nothing to play it in: the window closed
       return await _loadTakes(mediaPath, takePaths);
     } finally {
@@ -225,23 +266,45 @@ class EditorController extends ChangeNotifier {
   Future<ScoreReplacement> prepareReplacement(String path) async =>
       prepareReplacementWith(fileNameOf(path), await File(path).readAsBytes());
 
-  /// [prepareReplacement] for a score's [bytes] (the score editor's), named [name].
-  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes) async {
+  /// [prepareReplacement] for a score's [bytes] (the score editor's), named [name]; or, with
+  /// [pdf], the open PDF read as that layout (its import edited again).
+  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes, {PdfScoreLayout? pdf}) async {
     final before = _score!;
+    final art = pdf == null ? null : PdfScoreArt(pdf, PdfPagesSource(_pdfPages!));
     // Read once for what it holds (its texts as written: the edits are carried by them), and
     // once more as engraved.
-    final xml = ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
-    final metadata = ScoreMetadata.fromDocument(doc);
-    final swap = ScoreSwap(
-      before: before.metadata,
-      after: metadata,
-      textsBefore: before.texts,
-      textsAfter: PreparedScore.prepare(doc, const {}, metadata: metadata).texts,
-    );
-    final score =
-        await _engrave(xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_doc.textEdits), pairs: swap.pairs(_doc.pairs))));
-    if (_score != before) throw StateError('Another score was opened meanwhile.');
-    final state = projectState;
+    // (On another isolate: a large score takes a while.)
+    _loading = true;
+    _loadStage.value = LoadStage.reading;
+    notifyListeners();
+    final ({String xml, ScoreMetadata metadata, List<ScoreText> texts}) read;
+    try {
+      read = await _readApart(pdf, bytes);
+    } on Object {
+      art?.dispose();
+      _loading = false;
+      if (!_disposed) {
+        _loadStage.value = null;
+        notifyListeners();
+      }
+      rethrow;
+    }
+    final (:xml, :metadata, :texts) = read;
+    final swap = ScoreSwap(before: before.metadata, after: metadata, textsBefore: before.texts, textsAfter: texts);
+    final LoadedScore score;
+    try {
+      score = await _engrave(
+          xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_doc.textEdits), pairs: swap.pairs(_doc.pairs))),
+          pdf: art);
+    } on Object {
+      art?.dispose();
+      rethrow;
+    }
+    if (_score != before) {
+      art?.dispose();
+      throw StateError('Another score was opened meanwhile.');
+    }
+    final state = pdf == null ? projectState : projectState.copyWith(pdf: () => pdf);
     final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
     final (state: carried, :lost) =
         swap.carry(state, condensable: condensable, measuresBefore: measures.before, measuresAfter: measures.after);
@@ -256,39 +319,72 @@ class EditorController extends ChangeNotifier {
     );
   }
 
+  /// A replacement score read on another isolate (a closure of its own, so it takes nothing
+  /// else along): [pdf]'s score, or [bytes]'.
+  static Future<({String xml, ScoreMetadata metadata, List<ScoreText> texts})> _readApart(PdfScoreLayout? pdf, Uint8List bytes) =>
+      Isolate.run(() {
+        final xml = pdf?.musicXML() ?? ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
+        final metadata = ScoreMetadata.fromDocument(doc);
+        return (xml: xml, metadata: metadata, texts: PreparedScore.prepare(doc, const {}, metadata: metadata).texts);
+      });
+
   /// Puts [replacement] in place of the score, keeping the recording; Undo starts again from
   /// here. Does nothing if another score was opened since it was made.
   Future<void> replaceScore(ScoreReplacement replacement) async {
-    if (replacement.replacing != _score) return;
+    if (replacement.replacing != _score) return replacement.score.pdf?.dispose();
     final arts = await ImageEditing._decodeAll(replacement.state.images);
-    if (replacement.replacing != _score) return arts.values.forEach(ImageEditing._dispose);
+    if (replacement.replacing != _score) {
+      replacement.score.pdf?.dispose();
+      return arts.values.forEach(ImageEditing._dispose);
+    }
+    // A PDF read again is the same PDF: its pages stay open.
     await _install(replacement.name, replacement.bytes, replacement.score, replacement.state,
-        arts: arts, keepRecording: true);
+        arts: arts, keepRecording: true, pages: replacement.score.pdf == null ? null : _pdfPages);
     _edited(); // unsaved
   }
 
   /// Engraves a score (the slow part, and the one that can fail) without touching what is open.
-  Future<LoadedScore> _engrave(String musicXML, EngraveRequest request) async {
+  /// [measure]: what each bar plays worked out too ([LoadedScore.salience]), for a new score's
+  /// auto-curation.
+  Future<LoadedScore> _engrave(String musicXML, EngraveRequest request, {PdfScoreArt? pdf, bool measure = false}) async {
     _loading = true;
     notifyListeners();
     try {
-      return await LoadedScore.engrave(musicXML, request);
+      return await LoadedScore.engrave(musicXML, request, pdf: pdf, measure: measure, onStage: (s) {
+        if (!_disposed) _loadStage.value = s;
+      });
     } finally {
       _loading = false;
-      if (!_disposed) notifyListeners();
+      if (!_disposed) {
+        _loadStage.value = null;
+        notifyListeners();
+      }
     }
   }
+
+  /// How far opening (or replacing) a score has got, while [isLoading]; null before it is read.
+  ValueListenable<LoadStage?> get loadStage => _loadStage;
+  final _loadStage = ValueNotifier<LoadStage?>(null);
 
   /// Replaces what is open with [score] and the edits and view in [state], all at once
   /// (the recording too, unless [keepRecording]). Nothing in here fails, so a project is
   /// never left half open.
   Future<void> _install(String name, Uint8List bytes, LoadedScore score, ProjectState state,
-      {Map<String, PatchArt> arts = const {}, bool keepRecording = false}) async {
-    if (_disposed) return arts.values.forEach(ImageEditing._dispose); // the window closed while engraving
+      {Map<String, PatchArt> arts = const {}, bool keepRecording = false, PdfPages? pages}) async {
+    if (_disposed) {
+      // The window closed while engraving.
+      score.pdf?.dispose();
+      if (pages != _pdfPages) pages?.close();
+      return arts.values.forEach(ImageEditing._dispose);
+    }
     playback.pause();
     final tab = _tab;
     if (!keepRecording) await audio.unload();
+    final art = _score?.pdf;
     _closeDocument();
+    if (art != score.pdf) art?.dispose();
+    if (_pdfPages != pages) _pdfPages?.close();
+    _pdfPages = pages;
     if (keepRecording) _tab = tab;
     final edits = state.edits, view = state.view;
     _foreign = state.foreign;
@@ -302,6 +398,11 @@ class EditorController extends ChangeNotifier {
       pairs: List.unmodifiable({for (final p in edits.pairs) ?score.condensing.pair(p.first, p.second)}),
       partOrder: _orderedPartIds(score, edits.partOrder, edits.spacers),
       sections: Map.unmodifiable(edits.sections),
+      spacing: Map.unmodifiable(edits.spacing),
+      split: Set.unmodifiable({
+        for (final id in edits.split)
+          if ((score.metadata.parts.where((p) => p.id == id).firstOrNull?.staffNumbers.length ?? 0) > 1) id,
+      }),
       gaps: Spacers.fitted(edits.gaps, score.timeline.measureStarts),
     );
     // The pairs that can condense follow the score and the pairs just taken on.
@@ -314,17 +415,25 @@ class EditorController extends ChangeNotifier {
       ..addListener(_syncChanged);
     // A spacer keeps its lane while it isn't engraved (Attach Image off).
     final parts = [for (final p in score.metadata.parts) p.id, for (final s in edits.spacers) s.id];
+    final throughout = [Region(0, score.timeline.measureStarts.last)];
     _curation = Curation({...parts})
       ..load(
           edits.lanes ??
               (autoCurateImported
-                  ? Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts)
-                  : {for (final id in parts) id: [Region(0, score.timeline.measureStarts.last)]}),
+                  ? {
+                      ...Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
+                      // A blank lane plays nothing, and is there to be shown.
+                      for (final id in parts) if (_isBlank(score, id)) id: throughout,
+                    }
+                  : {for (final id in parts) id: throughout}),
           transition: edits.transition ?? defaultTransition);
     _joinLanes();
+    _curation!.setSplit(_splitCounts);
     _scene = _makeScene(score);
     // A new score's lanes fit the video's frame (before anyone listens: it's no edit).
-    if (edits.lanes == null && autoCurateImported) _curation!.setLanes(lanes._curated([for (final p in laneParts) p.id])!);
+    if (edits.lanes == null && autoCurateImported) {
+      _curation!.setLanes(lanes._curated([for (final p in laneParts) if (!isBlankLane(p.id)) p.id])!);
+    }
     _curation!.addListener(_curationEdited);
     // Last: working out their style can notify at once, and listeners must find all of it open.
     captions._load(edits.captions, edits.captionFont);
@@ -503,6 +612,7 @@ class EditorController extends ChangeNotifier {
       captionStyle: captions._style,
       sections: _doc.groupSections,
       sectionOverrides: {..._doc.sections, ...?_previewSections},
+      instrumentSpacing: _doc.spacing,
       barNumbers: _doc.barNumbers,
       rehearsalInRow: rehearsalInRow,
       nameColors: _nameColors,
@@ -758,6 +868,24 @@ class EditorController extends ChangeNotifier {
     _edited();
   }
 
+  /// The room the user gave [partId] above and below (staff spaces; see [EditState.spacing]).
+  ({double above, double below}) spacingOf(String partId) => _doc.spacing[partId] ?? (above: 0, below: 0);
+
+  /// Gives [partId] room of its own above and below (staff spaces, negative takes some away):
+  /// one Undo step. Both 0: none of its own.
+  void setSpacing(String partId, ({double above, double below}) room) {
+    final next = {..._doc.spacing};
+    if (room.above == 0 && room.below == 0) {
+      next.remove(partId);
+    } else {
+      next[partId] = room;
+    }
+    if (mapEquals(next, _doc.spacing)) return;
+    _doc = _doc.copyWith(spacing: Map.unmodifiable(next));
+    _showSettings();
+    _edited();
+  }
+
   /// Shows instruments in other sections (as [setSections] takes them) without an edit, while
   /// a bracket is dragged; null: as they are.
   void previewSections(Map<String, String?>? sections) {
@@ -770,7 +898,11 @@ class EditorController extends ChangeNotifier {
 
   // MARK: Editing names and texts
 
-  String partName(ScorePart part) => _doc.partNames[part.id]?.name ?? part.name;
+  String partName(ScorePart part) => switch (Curation.staffOfLane(part.id)) {
+        // A staff's lane of an instrument split ([laneRows]).
+        (final id, final n) => '${partNameOf(id)} · $n',
+        null => _doc.partNames[part.id]?.name ?? part.name,
+      };
   String partAbbreviation(ScorePart part) => _doc.partNames[part.id]?.abbreviation ?? part.abbreviation;
 
   /// Renames an instrument (shown in the name column and the lanes). Empty values fall back
@@ -1162,7 +1294,8 @@ class EditorController extends ChangeNotifier {
   /// ask for every instrument at every paint, through [condensedGroupOf] and [laneParts].
   List<PlayerPair> get condensable {
     final score = _score;
-    if (score == null) return const [];
+    // A PDF's staves are printed ones: none to share.
+    if (score == null || score.pdf != null) return const [];
     if (_condensable case (final s, final p, final pairs) when identical(s, score) && identical(p, _doc.pairs)) return pairs;
     final pairs = List<PlayerPair>.unmodifiable(score.condensing.pairs(_doc.pairs));
     _condensable = (score, _doc.pairs, pairs);
@@ -1249,6 +1382,74 @@ class EditorController extends ChangeNotifier {
 
   ((LoadedScore?, List<String>, Set<String>, List<PlayerPair>), List<ScorePart>)? _laneParts;
 
+  // MARK: Split lanes
+
+  /// The Instruments tab's lanes, top to bottom: [laneParts], but an instrument whose lane is
+  /// split ([isSplit]) has a lane a staff, each its staff's ([Curation.staffLaneId]: "P2/1"),
+  /// named "Piano · 1". Worked out again only when [laneParts] or the split are replaced.
+  List<ScorePart> get laneRows {
+    final parts = laneParts, split = _doc.split;
+    if (_laneRows case (final p, final s, final rows) when identical(p, parts) && identical(s, split)) return rows;
+    final rows = List<ScorePart>.unmodifiable([
+      for (final p in parts)
+        if (split.contains(p.id) && p.staffNumbers.length > 1)
+          for (final (k, n) in p.staffNumbers.indexed)
+            ScorePart(
+                id: Curation.staffLaneId(p.id, k + 1),
+                name: p.name,
+                abbreviation: p.abbreviation,
+                sound: p.sound,
+                staffNumbers: [n],
+                bracketed: p.bracketed)
+        else
+          p,
+    ]);
+    _laneRows = (parts, split, rows);
+    return rows;
+  }
+
+  (List<ScorePart>, Set<String>, List<ScorePart>)? _laneRows;
+
+  /// Lane [id] of [laneRows] (or the score's part of that id).
+  ScorePart laneRowOf(String id) =>
+      laneRows.where((p) => p.id == id).firstOrNull ?? _score!.metadata.parts.firstWhere((p) => p.id == id);
+
+  /// The instrument a lane is: its own, or the one a staff's lane is of.
+  String instrumentOfLane(String laneId) => Curation.staffOfLane(laneId)?.$1 ?? laneId;
+
+  /// Whether [partId]'s lane is split into one a staff.
+  bool isSplit(String partId) => _doc.split.contains(partId);
+
+  /// Whether [partId] is on several staves, so its lane can be split.
+  bool canSplit(String partId) =>
+      (_score?.metadata.parts.where((p) => p.id == partId).firstOrNull?.staffNumbers.length ?? 0) > 1;
+
+  /// Splits [partId]'s lane into a lane a staff, each shown and spaced on its own (or, with
+  /// [on] false, joins them back, their staves' own room gone): one Undo step. Nothing shown
+  /// changes.
+  void setSplit(String partId, {required bool on}) {
+    if (on && !canSplit(partId) || on == isSplit(partId)) return;
+    _doc = _doc.copyWith(
+      split: Set.unmodifiable(on ? {..._doc.split, partId} : ({..._doc.split}..remove(partId))),
+      spacing: on
+          ? null
+          : Map.unmodifiable({
+              for (final MapEntry(:key, :value) in _doc.spacing.entries)
+                if (Curation.staffOfLane(key)?.$1 != partId) key: value,
+            }),
+    );
+    lanes._clear();
+    _curation?.setSplit(_splitCounts);
+    _showSettings(); // the staves' room
+    _edited();
+  }
+
+  /// The split instruments with their staves' count ([Curation.setSplit]).
+  Map<String, int> get _splitCounts => {
+        for (final p in _score?.metadata.parts ?? const <ScorePart>[])
+          if (_doc.split.contains(p.id)) p.id: p.staffNumbers.length,
+      };
+
   // MARK: Instrument order
 
   /// Every instrument (part id), top to bottom: the score's order unless the user moved some.
@@ -1264,6 +1465,7 @@ class EditorController extends ChangeNotifier {
   /// Moves the lanes [partIds] (and their staves), in their order and next to each other, to
   /// just before the [to]th of the other lanes (their count: after the last): one Undo step.
   void moveLanes(Iterable<String> partIds, int to) {
+    partIds = {for (final id in partIds) instrumentOfLane(id)}; // a staff's lane moves with its instrument
     final lanes = [for (final p in laneParts) p.id];
     final block = [for (final id in lanes) if (partIds.contains(id)) id];
     if (block.isEmpty) return;
@@ -1970,6 +2172,7 @@ class EditorController extends ChangeNotifier {
       if (_wanted != engraved) unawaited(_reengrave());
       _joinLanes(); // before the lanes, which fit it
       _curation!.load(state.lanes!, transition: state.transition!); // Undo's states have both
+      _curation!.setSplit(_splitCounts);
       _loadSync(state);
       _performanceChanged(); // the lanes too
       images._restore(state.patches);
@@ -2013,6 +2216,7 @@ class EditorController extends ChangeNotifier {
           time: playback.time.value,
         ),
         foreign: _foreign,
+        pdf: _score?.pdf?.layout,
       );
 
   /// What the open project holds that this version can't read but keeps ([ProjectState.foreign]).
@@ -2023,9 +2227,12 @@ class EditorController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _loadStage.dispose();
     _engravings.cancel(); // an engraving still running finds nothing to update
     playback._dispose();
     _scene?.dispose();
+    _score?.pdf?.dispose();
+    _pdfPages?.close();
     _curation?.dispose();
     _sync?.dispose();
     unawaited(audio.unload());

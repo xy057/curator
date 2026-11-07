@@ -253,7 +253,28 @@ enum AppIcon {
   align(IconData(0xE051, fontFamily: _refined), IconData(0xE051, fontFamily: _carbon)),
 
   /// Shows the tab bar, hidden (View ▸ Show Tab Bar). Refined: top_panel_open; Carbon: open-panel--top.
-  tabBar(IconData(0xE052, fontFamily: _refined), IconData(0xE052, fontFamily: _carbon));
+  tabBar(IconData(0xE052, fontFamily: _refined), IconData(0xE052, fontFamily: _carbon)),
+
+  /// Moves an item up a place. Refined: arrow_upward; Carbon: arrow--up.
+  moveUp(IconData(0xE053, fontFamily: _refined), IconData(0xE053, fontFamily: _carbon)),
+
+  /// Moves an item down a place. Refined: arrow_downward; Carbon: arrow--down.
+  moveDown(IconData(0xE054, fontFamily: _refined), IconData(0xE054, fontFamily: _carbon)),
+
+  /// An item's handle, dragged to move it. Refined: drag_indicator; Carbon: draggable.
+  grab(IconData(0xE055, fontFamily: _refined), IconData(0xE055, fontFamily: _carbon)),
+
+  /// Leaves part of a page out of one lane's staves. Refined: visibility_off; Carbon: view--off.
+  maskLane(IconData(0xE056, fontFamily: _refined), IconData(0xE056, fontFamily: _carbon)),
+
+  /// Leaves part of a page out of every lane's staves. Refined: visibility_off (filled); Carbon: view--off--filled.
+  maskAll(IconData(0xE057, fontFamily: _refined), IconData(0xE057, fontFamily: _carbon)),
+
+  /// Adds a barline. Refined: splitscreen_vertical_add; Carbon: column--insert.
+  addBarline(IconData(0xE058, fontFamily: _refined), IconData(0xE058, fontFamily: _carbon)),
+
+  /// Adds a staff. Refined: add_row_below; Carbon: row--insert.
+  addStaff(IconData(0xE059, fontFamily: _refined), IconData(0xE059, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

@@ -329,7 +329,9 @@ class _Skip extends Intent {
 }
 
 class _ScorePainter extends CustomPainter {
-  _ScorePainter(this.state, this.scale, this.devicePixelRatio, this.paper, this.ink) : super(repaint: state._time);
+  _ScorePainter(this.state, this.scale, this.devicePixelRatio, this.paper, this.ink)
+      // A PDF score's systems arrive as they are fetched: drawn again then.
+      : super(repaint: Listenable.merge([state._time, ?state._loaded.score.pdf]));
   final _PagePlayerState state;
 
   /// View points a layout point ([VideoFrame.scale]): 1 when filling the window.

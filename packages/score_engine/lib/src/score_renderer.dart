@@ -33,12 +33,13 @@ class StaffBracket {
   final bool outset;
 }
 
-/// Two staves shown one above the other, of different instruments: the starting line runs on
-/// between them, and with [barlines] (the same section) the barlines too.
+/// Two staves shown one above the other: of different instruments, the starting line runs on
+/// between them ([start]), and with [barlines] (the same section) the barlines too; of one
+/// instrument (a piano's two), its barlines (its brace has the start).
 class StaffJoin {
-  const StaffJoin({required this.above, required this.below, required this.barlines});
+  const StaffJoin({required this.above, required this.below, required this.barlines, this.start = true});
   final StaffPlacement above, below;
-  final bool barlines;
+  final bool barlines, start;
   double get opacity => math.min(above.opacity, below.opacity);
 }
 
@@ -89,8 +90,7 @@ class ScoreRenderer {
   final FrozenZone? frozen;
 
   /// Staff index → the staff index below it in the same instrument (a piano's left hand): the
-  /// barlines run on from one to the other, which an instrument's staves keep a fixed distance
-  /// apart for (see SpacingPlan).
+  /// barlines run on from one to the other ([StaffJoin]), and no section's join comes between.
   final Map<int, int> barlinesThrough;
 
   /// Staff indices the frozen zone leaves blank (vertical spacers it doesn't show).
@@ -181,9 +181,10 @@ class ScoreRenderer {
     // meet without a seam.
     final linesFrom =
         frozen == null ? -double.infinity : ((musicLeft + _fade) * devicePixelRatio).ceilToDouble() / devicePixelRatio;
+    // A PDF's staves are its own pictures, drawn as printed: not recoloured.
     final paint = ui.Paint()
       ..filterQuality = ui.FilterQuality.low
-      ..colorFilter = inkFilter;
+      ..colorFilter = display.strokes != null ? null : inkFilter;
     // Drawn as the zone draws its own, in the ink on a layer tinted with it: drawn straight on
     // the canvas, Impeller anti-aliases them differently, and the lines changed weight there.
     final linePaint = ui.Paint()..color = style.ink;
@@ -304,7 +305,7 @@ class ScoreRenderer {
       }
       for (final join in joins) {
         final opacity = join.opacity;
-        if (opacity <= 0.001) continue;
+        if (!join.start || opacity <= 0.001) continue;
         final faded = opacity < 0.999;
         if (faded) canvas.saveLayer(null, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, opacity));
         zone.paintJoin(canvas,
@@ -389,7 +390,7 @@ class ScoreRenderer {
 
   /// Every barline's vertical strokes (centre and width, device units) in x order, once each:
   /// what a join between two staves draws of them.
-  late final List<({double x, double width})> _barlineStrokes = () {
+  late final List<({double x, double width})> _barlineStrokes = display.strokes ?? () {
     final strokes = <(double, double)>{};
     for (final item in display.barlines.items) {
       if (item is! ShapeItem) continue;
@@ -421,7 +422,13 @@ class ScoreRenderer {
   _Tile? _tile(int staffIndex, int index) {
     final key = (staffIndex, index);
     final cached = _tiles.remove(key);
-    if (cached != null) return _tiles[key] = cached..frame = _frame; // mark as recently used
+    if (cached != null && !(cached.waiting > 0 && _waiting(staffIndex, index) < cached.waiting)) {
+      return _tiles[key] = cached..frame = _frame; // mark as recently used
+    }
+    if (cached != null) {
+      _tileBytes -= cached.bytes; // drawn while a picture was being read, which is ready now
+      cached.image.dispose();
+    }
     if (_emptyTiles.contains(key)) return null;
     final tile = _render(staffIndex, index);
     if (tile == null) {
@@ -439,6 +446,12 @@ class ScoreRenderer {
     return tile;
   }
 
+  /// How many pictures tile [index] of staff [staffIndex] waits for.
+  int _waiting(int staffIndex, int index) {
+    final left = index * _tileUnits;
+    return display.staves[staffIndex].itemsIn(left, left + _tileUnits).where((i) => i is PictureItem && i.pending).length;
+  }
+
   _Tile? _render(int staffIndex, int index) {
     final staff = display.staves[staffIndex];
     final s = scale, dpr = _tileDpr;
@@ -449,10 +462,9 @@ class ScoreRenderer {
     // Vertical extent: the staff lines plus whatever ink reaches outside them in this tile.
     // One-line (percussion) staves get barlines a staff space above and below the line.
     final bleed = _bleed(staff.info);
-    // Barlines run on to the next staff of the instrument, to its top line: from there on
-    // that staff draws them.
-    final through = barlinesThrough[staffIndex];
-    final barlinesTo = through == null ? staff.info.top + staff.info.height + bleed : display.staves[through].info.top;
+    // Barlines cross the staff's own lines only: on to the next staff of the instrument they
+    // are drawn each frame ([StaffJoin]), as that staff may be left out.
+    final barlinesTo = staff.info.top + staff.info.height + bleed;
     var top = staff.info.top, bottom = math.max(staff.info.top + staff.info.height, barlinesTo);
     for (final item in items) {
       top = math.min(top, item.bounds.top);
@@ -477,7 +489,7 @@ class ScoreRenderer {
     for (final item in items) {
       item.paint(canvas);
     }
-    // Barlines: only the slice crossing this staff's own lines, and on through its instrument.
+    // Barlines: only the slice crossing this staff's own lines.
     canvas.clipRect(ui.Rect.fromLTRB(left, staff.info.top - bleed, right, barlinesTo));
     for (final item in display.barlines.itemsIn(left, right)) {
       item.paint(canvas);
@@ -485,7 +497,7 @@ class ScoreRenderer {
     final picture = recorder.endRecording();
     final image = picture.toImageSync(width, height);
     picture.dispose();
-    return _Tile(image, offsetPx / dpr);
+    return _Tile(image, offsetPx / dpr)..waiting = items.where((i) => i is PictureItem && i.pending).length;
   }
 
   final _labelCache = <String, ui.Paragraph>{};
@@ -567,6 +579,10 @@ class _Tile {
 
   /// The paint call that last drew it.
   int frame = 0;
+
+  /// How many of its pictures were still being read when it was drawn: drawn again once one is
+  /// ready.
+  int waiting = 0;
 
   /// Offset of the image's top edge from the staff's top line, logical pixels.
   final double top;

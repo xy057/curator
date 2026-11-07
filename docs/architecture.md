@@ -27,6 +27,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time (`EditChunk`) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
+| `pdf_detect.dart`, `pdf_pages.dart`, `pdf_text.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`); names and tempo marks read from the pages' words (`PdfText`) |
+| `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, cuts, gaps, barlines and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
@@ -66,6 +68,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
+| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start, barlines (the last two by handles above the system, as the edges' at its right), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -220,7 +223,9 @@ first staff and below the last (`margin`, the bar numbers' row inside it) and th
 staves (`minGap`, `maxGap`: `StaffStack.layout` shares the free height out between them; the least
 holds even if the staves then run past the frame, and a most below it is the least; the staves are
 centred, so the margin tells only while the share is between the two), points in the frame, as the plan's
-key; the staves' glide (`SpacingPlan` and
+key; an instrument's own room above and below (a lane's ⋯ ▸ Spacing…, `EditState.spacing`, staff
+spaces, negative takes some away, saved in `instruments` from its version 2; `CuratedScene.instrumentSpacing`)
+is added to its ink's reach, so the shared gaps make way for it; the staves' glide (`SpacingPlan` and
 `KeyColumnPlan`'s blend) and fade (`Curation.visibilityAt`'s ramp, then the ink after `inkDelay`,
 `ScoreMotion.inkFor`); the scroll's settle and slowest speed (`ScrollMap.withMotion`: a new slowest
 speed solves the notes' curves again, a new settle only re-ends them); the ending's fade
@@ -605,17 +610,26 @@ bar by bar), since it may have been made while the segment around was fuller; a 
 for one bar between cuts goes. Each try plans the piece (a millisecond or two for the demo).
 Condensed pairs are their first player's lane, louder of the two. Lanes not asked for stay.
 
-**A region carries its properties.** Besides its bounds a region has properties of its own
-(so far its transitions: how long its staff glides in at its start, `Region.transitionIn`, and
-out at its end, `transitionOut`; null is the project's, `Curation.transition`). Every edit that
+**A region carries its properties.** Besides its bounds a region has properties of its own:
+its transitions (how long its staff glides in at its start, `Region.transitionIn`, and out at
+its end, `transitionOut`; null is the project's, `Curation.transition`) and the staves of its
+instrument it leaves out (`Region.hiddenStaves`, numbers in the part, never all of them: a
+piano's left hand where the score leaves it out). Every edit that
 reshapes a region keeps them (`withBounds`: moving, trimming, a split by erasing, copying a
 lane); a merge keeps each edge's from the region it came from, else the other's
-(`joinedWith`). They are part of the region's equality, so Undo, saving (`transitionIn` /
-`transitionOut` on a region in the project, from format 6) and video export follow without
+(`joinedWith`; its staves, the earlier one's). Regions that leave out different staves are
+never merged (`Curation._normalize`): where they overlap the later one gives way, so they meet,
+and the meeting is an edge of its own (`Curation._meetings`, in `edgesInSeconds`) where the staff
+coming or going fades (`staffVisibilityAt`) and the instrument's staves glide together while the
+instrument stays shown (its spans are joined there). They are part of the region's equality, so Undo, saving (`transitionIn` /
+`transitionOut` on a region in the project, from format 6; its staves a fifth item, from
+`curation`'s version 2) and video export follow without
 more code. The layout glides over each edge's own transition (the longest where edges fall
 together; key changes and warps use the project's). A region's properties are set in its
 dialog (double-click it), or at every selected edge at once in the Instruments tab's
-toolbar (`LaneEditing.setTransition`). A selection is of edges: a click in a region's middle
+toolbar (`LaneEditing.setTransition`; the staves by its ≡ menu, `setStaffShown`, shown while
+a selected region's instrument is on more than one staff). A region leaving out staves shows
+its instrument's staves stacked in its middle, those it shows filled. A selection is of edges: a click in a region's middle
 selects the region (`RegionEdges.both`), a click on an edge only that edge
 (`LaneEditing.selection`); moving and deleting take the regions, trimming (a drag, `[`/`]`)
 and transitions only the edges selected. An edge with its own transition shows it beside it.
@@ -626,6 +640,23 @@ copied. Paste (⌘V, in the Instruments tab while regions are copied; elsewhere 
 them in from the beat nearest the playhead, merged as drawing merges: the top row into the top
 lane selected and the rest as far below it, or with nothing selected each into its own lane
 (`LaneEditing.paste`); a row past the bottom lane is left out, and the piece's end cuts them.
+
+**A lane can be split, a lane a staff.** An instrument on several staves can have a lane for
+each (a lane's ⋯ or right-click ▸ Split Lane; Join Lanes on a staff's puts it back): each staff
+then shown, edited and spaced on its own. The instrument's lane stays what is shown and saved,
+each region leaving out the staves not shown then; the staves' lanes are another way of
+setting it (`Curation.setSplit`, the instruments split with their staves' count). A staff's lane
+has the id `partId/n` (`Curation.staffLaneId`, `staffOfLane`; a part id has no `/`), and every
+edit by id takes one (`lane`, `setLane`, `setLanes`, `updateLanes`, so painting, dragging and
+pasting too): an edit of a staff's lane makes the instrument's again from its staves'
+(`Curation._combined`, a region for each stretch some are shown), and one of the instrument's
+(loading, joining, a pair's) makes its staves' from it (`_projected`). The lanes follow
+`EditorController.laneRows` (an instrument's id, or its staves' in its place) where they used
+`laneParts`, which stays the instruments' order: moving a staff's lane moves its instrument
+(`instrumentOfLane`). A staff's room (its Spacing…) is `EditState.spacing` under its lane's id,
+added between it and its neighbours and, at an outer staff shown, to the instrument's
+(`SpacingPlan`'s `staffRoom`); joining drops it. Which instruments are split is
+`EditState.split`, saved in `curation` (`split`, the part ids, from its version 2).
 
 **Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
 dialog or double-click changes a text any more; add nothing to it. The engine and the
@@ -684,8 +715,9 @@ shows only the first (`EditorController.laneParts`), named for both.
 **The instruments' order is a layout, not an engraving.** Verovio engraves in score order,
 but every staff is drawn on its own (Verovio's brackets and system labels are left out; the
 frozen zone draws a brace for an instrument on more than one staff, `StaffBrace`; its staves
-move as one, as far apart as Verovio put them, where cross-staff notes were placed, and its
-barlines run on between them, `ScoreRenderer.barlinesThrough`), so the
+move as one, as far apart as Verovio put them, where cross-staff notes were placed, a staff a
+region leaves out taking no room, and its barlines run on between the staves shown, a
+`StaffJoin` without the starting line; `ScoreRenderer.barlinesThrough`), so the
 preview stacks them in `CuratedScene.partOrder`: the user's order (hold a lane's name in the
 Instruments tab and drag it, or its ⋯ menu), then any part it lacks in score order. Changing
 it only re-plans the layout, like condensing. It is an edit (`partOrder` in `EditState`, and
@@ -713,8 +745,8 @@ Reset gives every instrument its own. While a bracket is dragged the score behin
 bracket (`StaffBracket`, the font's hooks at its ends; set out past the braces when one of its
 instruments has them, the names then stopping short of it), its barlines run on between its staves
 (not the voices', which leave room for words), and the starting line runs through every staff
-(`StaffJoin`). The room between staves changes as they come and go, so unlike an instrument's
-barlines (baked into its tiles) these are drawn each frame: each barline's strokes
+(`StaffJoin`). The room between staves changes as they come and go, so these are drawn each
+frame, as an instrument's own are (a tile's barlines cross only its staff's lines): each barline's strokes
 (`ScoreRenderer._barlineStrokes`) from where the staff above's end to where the one below's begin.
 A section stays bracketed while any of its staves shows, one alone too; the bracket's ends follow
 a staff fading in or out at either end, and it fades with the last.
@@ -787,6 +819,20 @@ half done: `_install` sets every part before anything notifies (captions last, a
 their style can notify at once), and a controller disposed while engraving takes nothing on,
 its recording included.
 
+**A large score opens without stopping the app.** Everything slow about opening runs on other
+isolates, so the window keeps drawing: reading the MusicXML and preparing it (`_prepare`, some
+half a second for a big orchestral file), Verovio, a PDF score's whole layout (`_fromPdfApart`:
+its skeleton written, read and laid out as printed), the replacement read of Replace… and Edit…
+(`_readApart`), and, for a new score that will be auto-curated (`measure`), what each bar plays
+(`BarSalience`). That last one runs after the engraving, not beside it: isolates from
+`Isolate.run` share one heap, and a second parse alongside Verovio's copying out made
+collections that stopped the main isolate for a quarter of a second. Each step is said as it
+starts (`LoadStage`, `EditorController.loadStage`), and the page's busy overlay shows it as a
+bar creeping on to where that step ends. A PDF score's pages are read a screenful ahead of
+what the preview shows (`CuratedScene.buffer`, each paint), and while a system drawn isn't
+ready (`PdfScoreArt.isWaiting`) the preview says "Loading pages…". Still on the main isolate:
+fitting a new score's lanes to the frame (`curatedToFit`, a few hundred milliseconds).
+
 **Closing asks before anything goes.** Close (⌘W, or a tab's ×), Quit and the window's close button offer
 to save unsaved changes first (`_ProjectPageState._confirmDiscard`), showing the project they are in; quitting
 (`AppLifecycleListener`'s `_AppWindowState._exitRequested`) asks of each project in turn, and Cancel
@@ -856,6 +902,68 @@ Space on, T tie, S slur, V the next voice, R repeat, ⌥↑↓ a step, ⌘⌥↑
 ⇧C clef, ⇧X text, ⇧B bars (`+2`, `-1`) and barlines, ⇧H holds, ⇧O ornaments, ⇧L lyrics (Space
 or `-` to the next note), `;` a tuplet (`:` ends it). A time signature change fills or cuts bars
 rather than rebarring the music after it.
+
+**A PDF score is the PDF, cut by rectangles.** A `.pdf` opened is imported (`pdf_import.dart`):
+`PdfPages.read` finds every page's systems (`PdfDetect`, on PDFium's ink at 2.5 pixels a point:
+staves by row projection, systems by a line joining them, braces, where the music starts past
+the clef, key and time signature, barlines, the row between two staves least ink crosses) and
+the instruments: the system with the most staves names them, and every other system's staves
+are matched to them by the PDF's text (names, abbreviations) or, with none, by how alike their
+ink is (`PdfDetect.match`, a monotone alignment: a staff left out is a hidden instrument, a lone
+staff of a piano one of its two, a staff again a divisi). The user fixes what is wrong; that is the
+only place anything is worked out of the pixels. What it decided is a `PdfScoreLayout`, the
+project's `pdf` module (the PDF itself is the source score file, byte for byte), and a skeleton
+MusicXML written from it (`musicXML`: a part per player, a whole note where a bar is played, the
+meters, keys, upbeat and tempo the user gave) is the score the rest of Curator reads, so
+curation, sync, captions, export and the web page work as for any score. The main view draws no
+engraving: each system is drawn by PDFium as printed (RGBA, on nothing; `PdfPagesSource`, a few
+systems ahead of the view, `CuratedScene.ready`, and an LRU of decoded images), and each staff's
+bar is the rectangle of it between that staff's cuts, the masks clipped out (a mask is every
+lane's, or one lane's, `PdfMask.part`: Mask Lane (M) gives it the selected staff's, or the one drawn from; Mask All
+Lanes (⇧M) none;
+`masksOf` gives a system's, and the ink measured leaves a lane's out of its staves only); never tinted,
+recoloured or processed. A cut can open into a gap (`PdfSystem.gaps`, its bottom; the cut its
+top): what is printed there (a line of text between two staves) goes with neither, in the
+picture and in the ink measured. What the import inserts at a bar is the score's: tempo marks
+(`PdfScoreLayout.tempos`, words and a speed; the first part writes them, `tempoId`, and the
+display list sets each apart where its bar starts, so the frame's left names the speed as for
+any score; a speed past the first bar is written, not played), keys (concert; read off a
+transposing staff in the dialog, `SpacerKey.concertOf`, each instrument showing its own,
+`keyOf`) and meters; or one instrument's (`PdfInstrument.clefs` per staff, `meters`): its own
+time signatures change only what its staves' frozen zone shows (`meterOf`), never the bars or
+beats, which the first part's `<time>` sets. An instrument's transposition follows its name
+(`keyForName`, `renamed`). A divided instrument (`PdfInstrument.divisi`) is a part a division
+(`P6`, `P6d2`…, `players`): a one-staff instrument's further staves in a system (`PdfStaff.staff`
+2…) are its divisions', so a system printing it on one staff leaves the others silent and
+curation hides them. A blank lane (`PdfInstrument.blank`, the import's Add Blank Lane) is a part
+no staff of the PDF is: a staff's room in the main view, drawn empty and unnamed, no signature in
+its frozen zone (`_bareStaves`, `_unnamed`); auto-curation leaves it shown (`isBlankLane`), and its
+lane and Spacing… say when and how much room there is. Export to Web writes each system's picture as `score/pdf/N.png`.
+
+**The import goes in steps, and reads the words on the pages.** `PdfImport` is five steps
+(`_Step`, a bar across the top, Back and Next below): Pages (only here can the systems found be
+dragged, drawn or removed, and staves and barlines added, by Add Staff and Add Barline, or
+removed: `PdfSystem.withStaff` and `withoutStaff` keep the cuts and gaps around one, a staff
+removed leaving its band no one's; elsewhere the page shows them, not their handles:
+`_PagePainter.editing`), Instruments (the list, dragged by its handles, a ⋯ menu each; Add
+Instrument and Add Blank Lane are tiles in the accent under it; each staff's chip, and the staves
+no one's), Edit (the masks: Mask Lane leaves what it draws out of the lane picked, `_maskLane`,
+a staff's click or the toolbar's picker; Mask All Lanes out of every one), Changes (a bar's,
+inserted; the tempo marks read off the pages, each added or dismissed, or all) and Review (the
+score's fields and what will be imported, then Import). No step's action is only in a menu: the
+toolbar holds each step's own (`_stepTools`: Pages' tools, Remove, Remove Staff and Detect Page Again; the instrument's
+Rename, Move Up and Down, Remove, Add, Read Names, the next staff no one's; Edit's tools; a change
+inserted at the bar selected). Each page's words are read
+once the layout is there, in the background (`_readText`, the page with the most staves and the
+next first): the PDF's own text where it has some (`PdfPages.textRuns`, PDFium's text runs and
+their boxes), else, on a Mac, read off a picture of the page at 3 pixels a point by Vision on the
+device (`PdfOcr`, the `curated_score/ocr` channel, `PageText` in `MainFlutterWindow.swift`, drawn
+on white). What they say is geometry only (`PdfText`, so the PDF's text and a scan's read alike):
+an instrument's name is the words left of its staves in the first system naming it, a later
+different one its abbreviation (`names`; a new import's "Staff 1"… are named so by themselves,
+names in capitals written as names); a tempo mark is the words above a system's first staff that
+name a tempo or a change (`isTempo`) or stand before a metronome mark on its line, at the bar they
+start over (`tempos`, `tempoOf`; the speed is taken as quarters).
 
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;

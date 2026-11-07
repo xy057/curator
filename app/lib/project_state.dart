@@ -45,6 +45,8 @@ class EditState {
     this.pairs = const [],
     this.partOrder = const [],
     this.sections = const {},
+    this.spacing = const {},
+    this.split = const {},
     this.groupSections = false,
     this.barNumbers = true,
     this.playheadColor,
@@ -133,6 +135,18 @@ class EditState {
   /// a family's name (with that family) or one of the user's (`bracket-2`); null: none,
   /// standing alone. Others are in their own ([ScorePart.section]).
   final Map<String, String?> sections;
+
+  /// Room the user added above and below some instruments (negative: took away), staff spaces,
+  /// by part id ([CuratedScene.instrumentSpacing]); around a staff of one whose lane is split,
+  /// by that staff's lane ([Curation.staffLaneId]).
+  final Map<String, ({double above, double below})> spacing;
+
+  /// The instruments on several staves whose lane is split into one a staff ([Curation.split]),
+  /// by part id. What is shown is still [lanes]' (their regions leaving out staves).
+  final Set<String> split;
+
+  /// The most room, staff spaces, an instrument may be given or have taken away ([spacing]).
+  static const maxSpacing = 40.0;
 
   /// Whether the score groups its instruments in sections, as printed ([CuratedScene.sections]).
   final bool groupSections;
@@ -224,6 +238,8 @@ class EditState {
       listEquals(pairs, other.pairs) &&
       listEquals(partOrder, other.partOrder) &&
       mapEquals(sections, other.sections) &&
+      mapEquals(spacing, other.spacing) &&
+      setEquals(split, other.split) &&
       groupSections == other.groupSections &&
       barNumbers == other.barNumbers &&
       playheadColor == other.playheadColor &&
@@ -269,6 +285,8 @@ class EditState {
     List<PlayerPair>? pairs,
     List<String>? partOrder,
     Map<String, String?>? sections,
+    Map<String, ({double above, double below})>? spacing,
+    Set<String>? split,
     bool? groupSections,
     bool? barNumbers,
     Object? playheadColor = _kept,
@@ -307,6 +325,8 @@ class EditState {
         pairs: pairs ?? this.pairs,
         partOrder: partOrder ?? this.partOrder,
         sections: sections ?? this.sections,
+        spacing: spacing ?? this.spacing,
+        split: split ?? this.split,
         groupSections: groupSections ?? this.groupSections,
         barNumbers: barNumbers ?? this.barNumbers,
         playheadColor: identical(playheadColor, _kept) ? this.playheadColor : playheadColor as Color?,
@@ -470,9 +490,14 @@ typedef NameGroupInfo = ({String id, String name, Color color, InstrumentFamily?
 /// project), each checked field by field as it is read.
 @immutable
 class ProjectState {
-  const ProjectState({this.edits = const EditState(), this.images = const {}, this.view = const ViewState(), this.foreign = const {}});
+  const ProjectState(
+      {this.edits = const EditState(), this.images = const {}, this.view = const ViewState(), this.foreign = const {}, this.pdf});
 
   final EditState edits;
+
+  /// A PDF score's layout: what its pages hold, where ([PdfScoreLayout]). The source score is
+  /// then that PDF; null for MusicXML.
+  final PdfScoreLayout? pdf;
 
   /// The image files [EditState.patches] show, by [PatchImage.id]. Not in the JSON: the
   /// project file keeps each as `images/<id>`.
@@ -484,8 +509,18 @@ class ProjectState {
   /// by id: kept as they came, so saving here doesn't lose them.
   final Map<String, ForeignModule> foreign;
 
-  ProjectState copyWith({EditState? edits, Map<String, PatchImage>? images, ViewState? view, Map<String, ForeignModule>? foreign}) =>
-      ProjectState(edits: edits ?? this.edits, images: images ?? this.images, view: view ?? this.view, foreign: foreign ?? this.foreign);
+  ProjectState copyWith(
+          {EditState? edits,
+          Map<String, PatchImage>? images,
+          ViewState? view,
+          Map<String, ForeignModule>? foreign,
+          PdfScoreLayout? Function()? pdf}) =>
+      ProjectState(
+          edits: edits ?? this.edits,
+          images: images ?? this.images,
+          view: view ?? this.view,
+          foreign: foreign ?? this.foreign,
+          pdf: pdf == null ? this.pdf : pdf());
 }
 
 /// A module a newer version wrote that this one can't read, as it came: its JSON

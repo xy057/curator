@@ -110,7 +110,7 @@ class LaneEditing {
 
   /// Lanes with something selected, or selected by their names.
   Set<String> get selectedPartIds {
-    final shown = {for (final p in _editor.laneParts) p.id};
+    final shown = {for (final p in _editor.laneRows) p.id};
     return {for (final id in _lanes) if (shown.contains(id)) id, for (final r in _valid.keys) r.partId};
   }
 
@@ -172,7 +172,7 @@ class LaneEditing {
   /// name to [partId], top to bottom, and nothing else.
   void selectLaneRange(String partId) {
     final curation = _curation;
-    final ids = [for (final p in _editor.laneParts) p.id];
+    final ids = [for (final p in _editor.laneRows) p.id];
     final to = ids.indexOf(partId);
     if (curation == null || to < 0) return;
     final from = ids.indexOf(_laneAnchor ?? partId);
@@ -185,7 +185,7 @@ class LaneEditing {
   /// lanes with something selected, together, become those next to them (whole lanes). Stops
   /// at the top (bottom) lane. With nothing selected, ↓ selects the top lane and ↑ the bottom.
   void selectNextLane(int direction) {
-    final ids = [for (final p in _editor.laneParts) p.id];
+    final ids = [for (final p in _editor.laneRows) p.id];
     if (ids.isEmpty) return;
     final rows = [for (final id in selectedPartIds) ids.indexOf(id)]..sort();
     if (rows.isEmpty) {
@@ -198,7 +198,7 @@ class LaneEditing {
     _selectLanes([for (final i in rows) ids[i + direction]]);
   }
 
-  void selectAll() => _selectLanes([for (final p in _editor.laneParts) p.id]);
+  void selectAll() => _selectLanes([for (final p in _editor.laneRows) p.id]);
 
   /// After an edit merged or reshaped regions, selects whatever now covers [wanted], at the
   /// same edges (those of every region merged into it).
@@ -222,7 +222,10 @@ class LaneEditing {
 
   /// Replaces the selected regions with [edit] of each (given its selected edges), as one
   /// undo step, and keeps the results selected at the same edges.
-  void _editSelected(Region? Function(Region r, RegionEdges edges) edit) {
+  void _editSelected(Region? Function(Region r, RegionEdges edges) edit) => _editSelectedIn((_, r, edges) => edit(r, edges));
+
+  /// [_editSelected], told each region's lane too.
+  void _editSelectedIn(Region? Function(String partId, Region r, RegionEdges edges) edit) {
     final curation = _curation;
     final selected = _valid;
     if (curation == null || selected.isEmpty) return;
@@ -232,7 +235,7 @@ class LaneEditing {
       final mine = {for (final MapEntry(key: r, value: edges) in selected.entries) if (r.partId == id) r.region: edges};
       final edited = [
         for (final MapEntry(key: r, value: edges) in mine.entries)
-          if (edit(r, edges) case final e?) (e, edges),
+          if (edit(id, r, edges) case final e?) (e, edges),
       ];
       lanes[id] = [for (final r in curation.lane(id)) if (!mine.containsKey(r)) r, for (final (e, _) in edited) e];
       for (final (e, edges) in edited) {
@@ -284,6 +287,33 @@ class LaneEditing {
   void setTransition(double? seconds) =>
       _editSelected((r, edges) => r.withTransition(seconds, atStart: edges.hasStart, atEnd: edges.hasEnd));
 
+  /// How many staves the instrument of [partId] is on: each a region can leave out.
+  int staffCountOf(String partId) =>
+      _editor._score?.metadata.parts.where((p) => p.id == partId).firstOrNull?.staffNumbers.length ?? 1;
+
+  /// The most staves an instrument of the selected regions is on (1: none is on more).
+  int get selectedStaffCount => _valid.keys.map((r) => staffCountOf(r.partId)).fold(1, math.max);
+
+  /// For each staff from 1 to [selectedStaffCount]: whether the selected regions (of instruments
+  /// on that many staves) show it, true all, false none, null some.
+  List<bool?> get selectedStavesShown => [
+        for (var n = 1; n <= selectedStaffCount; n++)
+          {
+            for (final r in _valid.keys)
+              if (staffCountOf(r.partId) >= n) r.region.showsStaff(n),
+          }.singleOrNull,
+      ];
+
+  /// Shows or leaves out staff [n] in the selected regions of instruments on that many staves,
+  /// as one step; a region keeps at least one staff.
+  void setStaffShown(int n, bool shown) => _editSelectedIn((id, r, _) {
+        final count = staffCountOf(id);
+        if (count < n) return r;
+        final hidden = {...r.hiddenStaves};
+        shown ? hidden.remove(n) : hidden.add(n);
+        return hidden.length >= count ? r : r.withHiddenStaves(hidden);
+      });
+
   /// Gives one region new bounds and properties (the region dialog).
   void setRegion(RegionRef ref, Region region) {
     final curation = _curation;
@@ -314,7 +344,7 @@ class LaneEditing {
   void copy() {
     final selected = _valid.keys;
     if (selected.isEmpty) return;
-    final ids = [for (final p in _editor.laneParts) p.id];
+    final ids = [for (final p in _editor.laneRows) p.id];
     final start = selected.map((r) => r.region.start).reduce(math.min);
     final lanes = {for (final r in selected) r.partId}.toList()..sort((a, b) => ids.indexOf(a).compareTo(ids.indexOf(b)));
     final top = ids.indexOf(lanes.first);
@@ -346,7 +376,7 @@ class LaneEditing {
   void paste() {
     final curation = _curation, sync = _editor._sync;
     if (curation == null || sync == null || _copied.isEmpty) return;
-    final ids = [for (final p in _editor.laneParts) p.id];
+    final ids = [for (final p in _editor.laneRows) p.id];
     final into = [for (final id in selectedPartIds) ids.indexOf(id)];
     final top = into.isNotEmpty ? into.reduce(math.min) : (_copied.any((l) => ids.contains(l.partId)) ? null : 0);
     final at = sync.nearestGrid(_editor.timeline.quarterAtSeconds(_editor.playback.time.value), SyncGrid.beat);
@@ -378,9 +408,12 @@ class LaneEditing {
   /// staves would run off the video's frame ([CuratedScene.curatedToFit]); a condensed pair's
   /// lane from where either player does.
   void autoCurate([Iterable<String>? partIds]) {
-    final lanes = _curated(partIds ?? [for (final p in _editor.laneParts) p.id]);
-    if (lanes == null) return;
-    _curation?.setLanes(lanes);
+    // A blank lane (a PDF score's) plays nothing: it stays as it is.
+    final ids = [for (final id in partIds ?? [for (final p in _editor.laneRows) p.id]) if (!_editor.isBlankLane(id)) id];
+    // A staff's lane (of an instrument split) is curated as its instrument is.
+    final curated = _curated({for (final id in ids) _editor.instrumentOfLane(id)});
+    if (curated == null) return;
+    _curation?.setLanes({for (final id in ids) id: curated[_editor.instrumentOfLane(id)] ?? const []});
     _editor.clearSelection();
   }
 

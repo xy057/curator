@@ -10,6 +10,7 @@ import 'display_list.dart';
 import 'engraving.dart';
 import 'engraving_options.dart';
 import 'frozen_zone.dart';
+import 'pdf_score.dart';
 import 'auto_curate.dart';
 import 'beat_grid.dart';
 import 'curation.dart';
@@ -86,6 +87,10 @@ class EngraveRequest {
   int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics, centeredLyrics, spacers.length, gaps.length);
 }
 
+/// How far opening a score has got ([LoadedScore.engrave]'s `onStage`): its file read and
+/// prepared, engraved (a PDF's laid out as printed), then what it plays measured.
+enum LoadStage { reading, engraving, measuring }
+
 /// A score that is engraved and ready to show.
 class LoadedScore {
   LoadedScore._(this.metadata, this.engraving, this.timeline, this.beats, this.scrollMap,
@@ -102,9 +107,15 @@ class LoadedScore {
       required this.condensing,
       required this.pairs,
       required this.spacers,
-      required this.gaps});
+      required this.gaps,
+      this.pdf,
+      this._salience});
 
   final ScoreMetadata metadata;
+
+  /// A score read from a PDF: drawn from its pages ([PdfScoreArt]), not engraved. Its
+  /// [musicXML] is the score written for it ([PdfScoreLayout.musicXML]).
+  final PdfScoreArt? pdf;
   final EngravingData engraving;
   final ScoreTimeline timeline;
   final ScrollMap scrollMap;
@@ -119,7 +130,10 @@ class LoadedScore {
   final List<ScoreText> texts;
 
   /// How much each part's bars ask to be heard ([fittedCuratedLanes] hides the least first).
-  late final BarSalience salience = BarSalience.of(musicXML, metadata, timeline.measureStarts);
+  late final BarSalience salience = _salience ?? BarSalience.of(musicXML, metadata, timeline.measureStarts);
+
+  /// [salience] worked out while it was engraved (off the main isolate), if it was.
+  final BarSalience? _salience;
 
   /// Text edits in effect: text id → new text ('' removes it).
   final Map<String, String> textEdits;
@@ -185,9 +199,25 @@ class LoadedScore {
           spacers: spacers,
           gaps: gaps);
 
-  /// Engraves [musicXML] as [request] asks.
-  static Future<LoadedScore> engrave(String musicXML, EngraveRequest request, {String? resourceDirectory, double? tempo}) =>
-      load(musicXML,
+  /// Engraves [musicXML] as [request] asks; with [pdf], lays out that PDF score instead
+  /// ([fromPdf]).
+  ///
+  /// Reading the file is done on other isolates, so a large score keeps the app drawing
+  /// meanwhile; with [measure], what each bar plays ([salience], for auto-curation) is worked
+  /// out there too, after (beside the engraving, its garbage would stop this isolate). [onStage]
+  /// hears each step as it starts.
+  static Future<LoadedScore> engrave(String musicXML, EngraveRequest request,
+          {String? resourceDirectory,
+          double? tempo,
+          PdfScoreArt? pdf,
+          bool measure = false,
+          void Function(LoadStage stage)? onStage}) async =>
+      pdf != null
+          ? await prepareFonts(request.fonts)
+              .then((_) => _fromPdfApart(pdf, request, tempo: tempo, measure: measure, onStage: onStage))
+          : await load(musicXML,
+          measure: measure,
+          onStage: onStage,
           resourceDirectory: resourceDirectory,
           tempo: tempo,
           fonts: request.fonts,
@@ -213,9 +243,23 @@ class LoadedScore {
     bool centeredLyrics = false,
     List<VerticalSpacer> spacers = const [],
     List<HorizontalSpacer> gaps = const [],
+    bool measure = false,
+    void Function(LoadStage stage)? onStage,
   }) async {
-    final (:metadata, :prepared, :barLengths) = _prepare(musicXML, textEdits, pairs, textDynamics, typography, options, spacers);
+    onStage?.call(LoadStage.reading);
+    final (:metadata, :prepared, :barLengths) =
+        await Isolate.run(() => _prepare(musicXML, textEdits, pairs, textDynamics, typography, options, spacers));
+    // What each bar plays, from the file's bar lengths (kept only where they are the
+    // engraving's).
+    Future<({List<double> starts, BarSalience salience})> measured() => Isolate.run(() {
+      final starts = [0.0];
+      for (final length in barLengths) {
+        starts.add(starts.last + length);
+      }
+      return (starts: starts, salience: BarSalience.of(musicXML, metadata, starts));
+    });
     final resources = await prepareFonts(fonts, resourceDirectory: resourceDirectory);
+    onStage?.call(LoadStage.engraving);
     final engraving = await Engraver.engrave(
       prepared.musicXML,
       resourceDirectory: resources.directory,
@@ -227,7 +271,13 @@ class LoadedScore {
         if (gaps.isNotEmpty) 'curatedSpacers': ?Spacers.verovioOption(gaps, barLengths),
       },
     );
+    ({List<double> starts, BarSalience salience})? salience;
+    if (measure) {
+      onStage?.call(LoadStage.measuring);
+      salience = await measured().then<({List<double> starts, BarSalience salience})?>((s) => s, onError: (_) => null);
+    }
     return _of(musicXML, metadata, prepared, engraving,
+        salience: salience,
         tempo: tempo,
         textEdits: textEdits,
         fonts: fonts,
@@ -239,6 +289,63 @@ class LoadedScore {
         pairs: pairs,
         spacers: spacers,
         gaps: gaps);
+  }
+
+  /// The score [pdf] is: the score written for it ([PdfScoreLayout.musicXML]), laid out as its
+  /// pages are printed ([PdfEngraving]). Of [request] only what a PDF can show counts: the
+  /// spacers (a vertical one is an empty staff; horizontal ones open nothing).
+  static LoadedScore fromPdf(PdfScoreArt pdf, EngraveRequest request, {double? tempo}) {
+    final musicXML = pdf.layout.musicXML();
+    final r = request;
+    final (:metadata, :prepared, barLengths: _) =
+        _prepare(musicXML, const {}, const [], false, r.typography, r.options, r.spacers);
+    return _of(musicXML, metadata, prepared, PdfEngraving.of(pdf.layout, metadata),
+        tempo: tempo,
+        textEdits: const {},
+        fonts: r.fonts,
+        textFontFound: true,
+        options: r.options,
+        textDynamics: r.textDynamics,
+        typography: r.typography,
+        centeredLyrics: r.centeredLyrics,
+        pairs: const [],
+        spacers: r.spacers,
+        gaps: r.gaps,
+        pdf: pdf);
+  }
+
+  /// [fromPdf], read and laid out on another isolate (the main one only waits).
+  static Future<LoadedScore> _fromPdfApart(PdfScoreArt pdf, EngraveRequest request,
+      {double? tempo, bool measure = false, void Function(LoadStage stage)? onStage}) async {
+    final layout = pdf.layout, r = request;
+    onStage?.call(LoadStage.reading);
+    final read = await Isolate.run(() {
+      final musicXML = layout.musicXML();
+      final (:metadata, :prepared, barLengths: _) =
+          _prepare(musicXML, const {}, const [], false, r.typography, r.options, r.spacers);
+      return (musicXML: musicXML, metadata: metadata, prepared: prepared, engraving: PdfEngraving.of(layout, metadata));
+    });
+    final starts = ConstantTempoTimeline(read.engraving.measures, quarterNotesPerMinute: 100).measureStarts;
+    BarSalience? salience;
+    if (measure) {
+      onStage?.call(LoadStage.measuring);
+      salience = await Isolate.run(() => BarSalience.of(read.musicXML, read.metadata, starts))
+          .then<BarSalience?>((s) => s, onError: (_) => null);
+    }
+    return _of(read.musicXML, read.metadata, read.prepared, read.engraving,
+        tempo: tempo,
+        textEdits: const {},
+        fonts: r.fonts,
+        textFontFound: true,
+        options: r.options,
+        textDynamics: r.textDynamics,
+        typography: r.typography,
+        centeredLyrics: r.centeredLyrics,
+        pairs: const [],
+        spacers: r.spacers,
+        gaps: r.gaps,
+        pdf: pdf,
+        salience: salience == null ? null : (starts: starts, salience: salience));
   }
 
   /// [musicXML] engraved beforehand with [request] as [engraving] ([EngravingFile]): where there is
@@ -294,9 +401,15 @@ class LoadedScore {
       required bool centeredLyrics,
       required List<PlayerPair> pairs,
       required List<VerticalSpacer> spacers,
-      required List<HorizontalSpacer> gaps}) {
+      required List<HorizontalSpacer> gaps,
+      PdfScoreArt? pdf,
+      ({List<double> starts, BarSalience salience})? salience}) {
     final timeline = ConstantTempoTimeline(engraving.measures,
         quarterNotesPerMinute: tempo ?? metadata.tempo ?? 100);
+    final starts = timeline.measureStarts;
+    final measured = salience != null &&
+        salience.starts.length == starts.length &&
+        [for (var i = 0; i < starts.length; i++) (salience.starts[i] - starts[i]).abs() < 1e-6].every((same) => same);
     final beats = BeatGrid(timeline.measureStarts, meters: metadata.meters, pickups: metadata.pickups);
     return LoadedScore._(metadata, engraving, timeline, beats, ScrollMap(engraving, timeline, beats: beats),
         musicXML: musicXML,
@@ -308,11 +421,14 @@ class LoadedScore {
         textDynamics: textDynamics,
         typography: typography,
         centeredLyrics: centeredLyrics,
-        condensed: prepared.condensed,
+        // A PDF has no staff two players could share.
+        condensed: pdf != null ? const [] : prepared.condensed,
         condensing: prepared.condensing!,
         pairs: List.unmodifiable(pairs),
         spacers: List.unmodifiable(spacers),
-        gaps: List.unmodifiable(gaps));
+        gaps: List.unmodifiable(gaps),
+        pdf: pdf,
+        salience: measured ? salience.salience : null);
   }
 
   /// Gets [fonts] ready to engrave with and draw: their Verovio metrics (measured once) and
@@ -337,7 +453,7 @@ class LoadedScore {
   Future<LoadedScore> withTextEdits(Map<String, String> edits) => withEdits(textEdits: edits);
 
   /// Re-engraves as [request] asks (the structure, and so the curation and sync, stay valid).
-  Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo);
+  Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo, pdf: pdf);
 
   /// Re-engraves with different text edits, pairs of players, fonts, engraving options,
   /// [textDynamics], [typography], [centeredLyrics] or spacers; what isn't given stays.
@@ -393,6 +509,7 @@ class SceneSettings {
     this.captionStyle = const CaptionStyle(),
     this.sections = false,
     this.sectionOverrides = const {},
+    this.instrumentSpacing = const {},
     this.barNumbers = false,
     this.rehearsalInRow = true,
     this.nameColors = const {},
@@ -412,6 +529,7 @@ class SceneSettings {
   final CaptionStyle captionStyle;
   final bool sections;
   final Map<String, String?> sectionOverrides;
+  final Map<String, ({double above, double below})> instrumentSpacing;
   final bool barNumbers;
   final bool rehearsalInRow;
   final Map<String, ui.Color> nameColors;
@@ -433,8 +551,17 @@ class CuratedScene {
       for (var k = 1; k < staves.length; k++) {
         _barlinesThrough[staves[k - 1]] = staves[k];
       }
+      if (part.staffNumbers.length > 1) {
+        for (final (j, n) in part.staffNumbers.indexed) {
+          if (_staffIndex[n] case final i?) _staffOfPart[i] = j + 1;
+        }
+      }
     }
   }
+
+  /// Staff index → which staff of its instrument it is (1 the top one), for instruments on
+  /// more than one staff: what a region's [Region.hiddenStaves] name.
+  final _staffOfPart = <int, int>{};
 
   /// Staff index → the next staff of the same instrument: a piano's barlines run on between them.
   final _barlinesThrough = <int, int>{};
@@ -485,7 +612,11 @@ class CuratedScene {
   }
   /// The engraving as drawable items: made when first drawn, again when [barNumbers] sets the
   /// tempo marks apart or puts them back.
-  ScoreDisplayList get display => _display ??= ScoreDisplayList.build(
+  ScoreDisplayList get display => _display ??= score.pdf != null
+      ? PdfEngraving.displayList(score.pdf!, score.engraving, score.metadata, spacers: {
+          for (final MapEntry(key: n, value: look) in _spacerStaves.entries) n: (height: look.shownHeight, lines: look.lines),
+        })
+      : ScoreDisplayList.build(
         score.engraving,
         _style,
         withoutKeySignatures: {
@@ -520,7 +651,7 @@ class CuratedScene {
   Map<String, ({String name, String abbreviation})> names = const {};
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
-  /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [barNumbers],
+  /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [instrumentSpacing], [barNumbers],
   /// [rehearsalInRow], [nameColors], [pointerColor], [motion]);
   /// setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
@@ -533,6 +664,7 @@ class CuratedScene {
       captionStyle: captionStyle,
       sections: sections,
       sectionOverrides: sectionOverrides,
+      instrumentSpacing: instrumentSpacing,
       barNumbers: barNumbers,
       rehearsalInRow: rehearsalInRow,
       nameColors: nameColors,
@@ -550,6 +682,7 @@ class CuratedScene {
     captionStyle = value.captionStyle;
     sections = value.sections;
     sectionOverrides = value.sectionOverrides;
+    instrumentSpacing = value.instrumentSpacing;
     barNumbers = value.barNumbers;
     rehearsalInRow = value.rehearsalInRow;
     nameColors = value.nameColors;
@@ -587,11 +720,19 @@ class CuratedScene {
   Set<int> get _bareStaves => {
         for (final MapEntry(key: n, value: look) in _spacerStaves.entries)
           if ((!look.frozen || !look.lines) && _staffIndex[n] != null) _staffIndex[n]!,
+        // A PDF score's blank lanes ([PdfInstrument.blank]).
+        if (score.pdf?.layout case final layout?)
+          for (final p in score.metadata.parts)
+            if (layout.playerOf(p.id)?.$1.blank ?? false)
+              for (final n in p.staffNumbers)
+                if (_staffIndex[n] != null) _staffIndex[n]!,
       };
 
-  /// Whether [partId] is a vertical spacer the frozen zone doesn't name.
+  /// Whether [partId] is a vertical spacer the frozen zone doesn't name, or a PDF score's blank
+  /// lane.
   bool _unnamed(String partId) =>
-      Spacers.isSpacer(partId) && !(_spacers.where((s) => s.id == partId).firstOrNull?.frozen ?? false);
+      (Spacers.isSpacer(partId) && !(_spacers.where((s) => s.id == partId).firstOrNull?.frozen ?? false)) ||
+      (score.pdf?.layout.playerOf(partId)?.$1.blank ?? false);
 
   /// How the score moves (Project Settings ▸ Advanced): the staves' spacing, glides and fades, the scroll's
   /// coming to rest, the ending's fade, captions, the bar numbers' row and the tempo at the left.
@@ -681,6 +822,18 @@ class CuratedScene {
     final group = _groupOf[partId];
     return group != null && _condensed.contains(group.id) ? group : null;
   }
+
+  /// Room added above and below an instrument (negative: taken away), staff spaces, by part
+  /// id: the user's, over what its ink needs. Changing it re-plans the layout.
+  Map<String, ({double above, double below})> get instrumentSpacing => _instrumentSpacing;
+  Map<String, ({double above, double below})> _instrumentSpacing = const {};
+  set instrumentSpacing(Map<String, ({double above, double below})> value) {
+    if (mapEquals(value, _instrumentSpacing)) return;
+    _instrumentSpacing = Map.unmodifiable(value);
+    _spacingVersion++;
+  }
+
+  int _spacingVersion = 0;
 
   /// Free space above the first and below the last staff ([ScoreMotion.margin]).
   double get verticalMargin => _motion.margin;
@@ -792,6 +945,22 @@ class CuratedScene {
     return shown(id) && !active.partIds.every(shown);
   }
 
+  /// Whether staff [k] of [_order] is shown at [seconds]: its instrument ([_isShown]), and not
+  /// left out by the region showing it ([Region.hiddenStaves]).
+  bool _isStaffShown(Curation curation, int k, double seconds) {
+    final (:staffIndex, :partId) = _order[k];
+    if (!_isShown(curation, partId, seconds)) return false;
+    final n = _staffOfPart[staffIndex];
+    return n == null || !curation.hiddenStavesAt(partId, seconds, timeline).contains(n);
+  }
+
+  /// 0…1: how much of staff [k] of [_order] its instrument's regions show ([Curation.staffVisibilityAt]).
+  double _staffVisibility(Curation curation, int k, double time) {
+    final (:staffIndex, :partId) = _order[k];
+    final n = _staffOfPart[staffIndex];
+    return n == null ? 1 : curation.staffVisibilityAt(partId, n, time, timeline, curve: _motion.fade);
+  }
+
   /// 0…1 for every planned staff: a pair's shared staff is as visible as its less visible
   /// player, and each player's own staff has what is left, so one fades as the other comes.
   Map<String, double> _visibilityAt(double time, Curation curation) {
@@ -814,7 +983,7 @@ class CuratedScene {
 
   /// What a plan for this curation and frame size is made from: a new key, a new plan.
   Object _planKeyFor(Curation curation, ui.Size size) =>
-      (curation, curation.revision, curation.transition, size, verticalMargin, _motion.minGap, _motion.maxGap, _timelineVersion, _condensedVersion, _orderVersion, _captionReserve, _displayVersion, _motion.glide);
+      (curation, curation.revision, curation.transition, size, verticalMargin, _motion.minGap, _motion.maxGap, _timelineVersion, _condensedVersion, _orderVersion, _spacingVersion, _captionReserve, _displayVersion, _motion.glide);
 
   SpacingPlan _buildPlan(Curation curation, ui.Size size) {
     final pointerX = renderer.pointerX(size.width);
@@ -824,7 +993,11 @@ class CuratedScene {
       order: _order,
       scrollMap: scrollMap,
       edges: curation.edgesInSeconds(timeline),
-      isShown: (id, seconds) => _isShown(curation, id, seconds),
+      isShown: (k, seconds) => _isStaffShown(curation, k, seconds),
+      spacing: {
+        for (final MapEntry(key: id, value: (:above, :below)) in _instrumentSpacing.entries)
+          id: (above: above * display.data.staffSpace * renderer.scale, below: below * display.data.staffSpace * renderer.scale),
+      },
       twins: _twins,
       visibleLeft: pointerX / renderer.scale,
       visibleRight: (size.width - pointerX) / renderer.scale,
@@ -880,6 +1053,7 @@ class CuratedScene {
       final pointerX = renderer.pointerX(size.width);
       _plan = _buildPlan(curation, size);
       final zone = renderer.frozen, bare = renderer.bare;
+      final kept = [for (final (k, s) in _order.indexed) if (!bare.contains(s.staffIndex)) k];
       _keyPlan = zone == null
           ? null
           : KeyColumnPlan.build(
@@ -888,7 +1062,7 @@ class CuratedScene {
               order: [for (final s in _order) if (!bare.contains(s.staffIndex)) s],
               scrollMap: scrollMap,
               edges: curation.edgesInSeconds(timeline),
-              isShown: (id, seconds) => _isShown(curation, id, seconds),
+              isShown: (k, seconds) => _isStaffShown(curation, kept[k], seconds),
               minReach: (pointerX - renderer.musicLeftFor(0)) / renderer.scale,
               maxReach: (pointerX - renderer.musicLeft) / renderer.scale,
               transition: curation.transition,
@@ -1205,7 +1379,7 @@ class CuratedScene {
     var need = 0.0, checked = 0;
     for (var i = 0; i < _order.length && checked < 2; i++) {
       // Shown or not, no fade: cheaper, and a staff only fading in counts a little early.
-      if (!_isShown(curation, _order[i].partId, time)) continue;
+      if (!_isStaffShown(curation, i, time)) continue;
       checked++;
       final staff = display.staves[_order[i].staffIndex];
       if (tops[i] - _inkAbove(_order[i].staffIndex) * scale >= clear) continue; // clear wherever it is
@@ -1429,9 +1603,28 @@ class CuratedScene {
     ];
   }
 
+  /// Reads ahead what a frame of [size] at [time] and the next screenful draw (a PDF score's
+  /// systems, [PdfScoreArt]), so playing on finds them ready; asks and doesn't wait. An
+  /// engraved score's always are.
+  void buffer(double time, ui.Size size) {
+    final pdf = score.pdf;
+    if (pdf == null) return;
+    final (left, right) = renderer.visibleRange(scrollMap.xAt(time), size.width);
+    pdf.load(PdfEngraving.systemsIn(pdf.layout, score.engraving, left, right + (right - left))).ignore();
+  }
+
   /// The frame at [time] as an image of [width] × [height] pixels, laid out at
   /// [devicePixelRatio] pixels per logical pixel (a video frame). It is [paint] drawn
   /// offscreen, so a video looks exactly like the preview.
+  /// Waits until everything a frame of [size] at [time] draws is ready: a PDF score's systems
+  /// read ([PdfScoreArt.load]), the ones just ahead too. An engraved score's always are.
+  Future<void> ready(double time, ui.Size size) async {
+    final pdf = score.pdf;
+    if (pdf == null) return;
+    final (left, right) = renderer.visibleRange(scrollMap.xAt(time), size.width);
+    await pdf.load(PdfEngraving.systemsIn(pdf.layout, score.engraving, left, right + (right - left) * 0.25));
+  }
+
   ui.Image renderFrame(int width, int height,
       {required double time,
       required Curation curation,
@@ -1471,12 +1664,16 @@ class CuratedScene {
     final labels = <StaffLabel>[];
     final braces = <StaffBrace>[];
     final placed = <int, StaffPlacement>{}; // order index → its placement
+    // How much of each staff its regions show: a staff left out fades within its instrument.
+    final staffShown = [for (var i = 0; i < _order.length; i++) _staffVisibility(curation, i, time)];
     for (var i = 0; i < _order.length; i++) {
       final (:staffIndex, :partId) = _order[i];
       final v = (visibility[partId] ?? 0).clamp(0.0, 1.0);
       if (v <= 0) continue;
       final opacity = _motion.inkFor(v);
-      placements.add(placed[i] = StaffPlacement(staffIndex: staffIndex, y: tops[i], opacity: opacity));
+      if (staffShown[i] > 0) {
+        placements.add(placed[i] = StaffPlacement(staffIndex: staffIndex, y: tops[i], opacity: _motion.inkFor(v * staffShown[i])));
+      }
 
       final group = _groups[partId];
       if (group != null) {
@@ -1499,27 +1696,46 @@ class CuratedScene {
       final staves = part.shownStaffNumbers;
       if (staves.first == display.staves[staffIndex].info.n && !_unnamed(part.id)) {
         final last = i + staves.length - 1;
-        final bottom = tops[last] + display.staves[_order[last].staffIndex].info.height * renderer.scale;
+        double heightOf(int j) => display.staves[_order[j].staffIndex].info.height * renderer.scale;
+        // Named and braced over the staves its regions show, a staff fading in or out counting
+        // as much as it shows (the brace closing onto the rest as it goes).
+        var weight = 0.0, centre = 0.0, most = 0.0;
+        for (var j = i; j <= last; j++) {
+          weight += staffShown[j];
+          centre += (tops[j] + heightOf(j) / 2) * staffShown[j];
+          most = math.max(most, staffShown[j]);
+        }
+        if (weight <= 0) continue;
         final named = names[part.id];
         labels.add(StaffLabel(
             text: named?.name ?? part.name,
             shortText: named?.abbreviation ?? part.abbreviation,
-            centerY: (tops[i] + bottom) / 2,
+            centerY: centre / weight,
             opacity: opacity,
             partId: part.id,
             color: nameColors[part.id]));
-        if (staves.length > 1) {
+        final braced = (weight - most).clamp(0.0, 1.0);
+        if (staves.length > 1 && braced > 0) {
           braces.add(StaffBrace(staves: [
             for (var j = i; j <= last; j++)
-              (top: tops[j], height: display.staves[_order[j].staffIndex].info.height * renderer.scale),
-          ], opacity: opacity));
+              if (staffShown[j] > 0) (top: tops[j], height: heightOf(j) * staffShown[j]),
+          ], opacity: opacity * braced));
         }
       }
     }
-    if (!sections) return (placements: placements, labels: labels, braces: braces, brackets: const [], joins: const []);
+    // An instrument's barlines run on between its staves shown (a PDF's are in its pictures).
+    final joins = <StaffJoin>[];
+    if (display.strokes == null) {
+      final shownStaves = placed.keys.toList();
+      for (var k = 1; k < shownStaves.length; k++) {
+        final (a, b) = (shownStaves[k - 1], shownStaves[k]);
+        if (_order[a].partId != _order[b].partId || _staffOfPart[_order[a].staffIndex] == null) continue;
+        joins.add(StaffJoin(above: placed[a]!, below: placed[b]!, barlines: true, start: false));
+      }
+    }
+    if (!sections) return (placements: placements, labels: labels, braces: braces, brackets: const [], joins: joins);
 
     final brackets = <StaffBracket>[];
-    final joins = <StaffJoin>[];
     double heightOf(StaffPlacement p) => display.staves[p.staffIndex].info.height * renderer.scale;
     // A staff of fewer lines (a snare drum's one) is bracketed as a five-line staff about its middle.
     ({double top, double bottom}) extentOf(StaffPlacement p) {
@@ -1534,7 +1750,7 @@ class CuratedScene {
     final shown = placed.keys.toList();
     for (var k = 1; k < shown.length; k++) {
       final above = placed[shown[k - 1]]!, below = placed[shown[k]]!;
-      if (renderer.barlinesThrough[above.staffIndex] == below.staffIndex) continue; // one instrument's: its brace has it
+      if (_order[shown[k - 1]].partId == _order[shown[k]].partId) continue; // one instrument's: joined above
       final run = runOf[shown[k - 1]];
       joins.add(StaffJoin(above: above, below: below, barlines: run != null && run == runOf[shown[k]] && run.barlines));
     }

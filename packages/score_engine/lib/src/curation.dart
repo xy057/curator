@@ -11,18 +11,26 @@ import 'search.dart';
 /// Stored in score quarters (quarter notes from the start of the performance), so regions
 /// stay attached to the music when the audio sync changes.
 ///
-/// A region also has properties of its own (so far its transitions: [transitionIn] at its
-/// start, [transitionOut] at its end); null means the curation's. They go with it wherever it
-/// is moved, trimmed, split or copied, and a merge keeps each one either region set
-/// ([joinedWith]).
+/// A region also has properties of its own: its transitions ([transitionIn] at its start,
+/// [transitionOut] at its end; null means the curation's) and which of the instrument's staves
+/// it leaves out ([hiddenStaves]). They go with it wherever it is moved, trimmed, split or
+/// copied, and a merge keeps each one either region set ([joinedWith]). Regions that hide
+/// different staves are never merged: they meet, and the staves glide there.
 @immutable
 class Region {
-  const Region(this.start, this.end, {this.transitionIn, this.transitionOut})
+  const Region(this.start, this.end, {this.transitionIn, this.transitionOut, this.hiddenStaves = const []})
       : assert(end >= start),
         assert(transitionIn == null || transitionIn >= 0),
         assert(transitionOut == null || transitionOut >= 0);
   final double start;
   final double end;
+
+  /// The instrument's staves it doesn't show, by number in the part (1 its top one), in
+  /// order: a piano's left hand left out where the score leaves it out. Never all of them.
+  final List<int> hiddenStaves;
+
+  /// Whether it shows staff [n] (1 the part's top one).
+  bool showsStaff(int n) => !hiddenStaves.contains(n);
 
   /// Seconds for the staff to enter at [start]; null: the curation's [Curation.transition].
   final double? transitionIn;
@@ -34,22 +42,30 @@ class Region {
   bool overlaps(Region other) => start <= other.end && other.start <= end;
 
   /// Whether every property is the curation's.
-  bool get hasDefaultProperties => transitionIn == null && transitionOut == null;
+  bool get hasDefaultProperties => transitionIn == null && transitionOut == null && hiddenStaves.isEmpty;
 
   /// This region between [start] and [end], with the same properties.
-  Region withBounds(double start, double end) => Region(start, end, transitionIn: transitionIn, transitionOut: transitionOut);
+  Region withBounds(double start, double end) =>
+      Region(start, end, transitionIn: transitionIn, transitionOut: transitionOut, hiddenStaves: hiddenStaves);
 
   /// This region with its own transitions (null: the curation's) at the edges asked for:
   /// [atStart] ([transitionIn]) and [atEnd] ([transitionOut]).
   Region withTransition(double? seconds, {bool atStart = true, bool atEnd = true}) => Region(start, end,
-      transitionIn: atStart ? seconds : transitionIn, transitionOut: atEnd ? seconds : transitionOut);
+      transitionIn: atStart ? seconds : transitionIn, transitionOut: atEnd ? seconds : transitionOut, hiddenStaves: hiddenStaves);
+
+  /// This region leaving out [staves] (numbers in the part; sorted, each once).
+  Region withHiddenStaves(Iterable<int> staves) => Region(start, end,
+      transitionIn: transitionIn, transitionOut: transitionOut, hiddenStaves: List.unmodifiable(({...staves}.toList()..sort())));
 
   /// This region and [later] (which starts no earlier) as one: from this one's start to the
-  /// further end. Each edge keeps the transition of the region it came from, else the other's.
+  /// further end. Each edge keeps the transition of the region it came from, else the other's;
+  /// the staves left out are this one's.
   Region joinedWith(Region later) {
     final (last, other) = later.end > end ? (later, this) : (this, later);
     return Region(start, last.end,
-        transitionIn: transitionIn ?? later.transitionIn, transitionOut: last.transitionOut ?? other.transitionOut);
+        transitionIn: transitionIn ?? later.transitionIn,
+        transitionOut: last.transitionOut ?? other.transitionOut,
+        hiddenStaves: hiddenStaves);
   }
 
   @override
@@ -58,12 +74,14 @@ class Region {
       other.start == start &&
       other.end == end &&
       other.transitionIn == transitionIn &&
-      other.transitionOut == transitionOut;
+      other.transitionOut == transitionOut &&
+      listEquals(other.hiddenStaves, hiddenStaves);
   @override
-  int get hashCode => Object.hash(start, end, transitionIn, transitionOut);
+  int get hashCode => Object.hash(start, end, transitionIn, transitionOut, Object.hashAll(hiddenStaves));
   @override
   String toString() => 'Region($start–$end'
-      '${transitionIn == null ? '' : ', in ${transitionIn}s'}${transitionOut == null ? '' : ', out ${transitionOut}s'})';
+      '${transitionIn == null ? '' : ', in ${transitionIn}s'}${transitionOut == null ? '' : ', out ${transitionOut}s'}'
+      '${hiddenStaves.isEmpty ? '' : ', without $hiddenStaves'})';
 }
 
 /// A stretch of playback time a lane is shown, with the seconds it takes to fade in and out.
@@ -119,6 +137,23 @@ class Curation extends ChangeNotifier {
         if (start.isFinite) yield (seconds: start, transition: fadeIn);
         if (end.isFinite) yield (seconds: end, transition: fadeOut);
       }
+      // Where two regions meet, leaving out different staves.
+      for (final (seconds, transition, _, _) in _meetings(lane, timeline)) {
+        yield (seconds: seconds, transition: transition);
+      }
+    }
+  }
+
+  /// Every time two regions of [lane] meet (they leave out different staves; see
+  /// [_normalize]), once in each pass that plays it: the seconds, the transition (the longer of
+  /// the two edges'), and the regions before and after.
+  Iterable<(double, double, Region, Region)> _meetings(List<Region> lane, ScoreTimeline timeline) sync* {
+    for (var i = 1; i < lane.length; i++) {
+      final (a, b) = (lane[i - 1], lane[i]);
+      if (b.start > a.end + 1e-6) continue;
+      for (final (pass: _, :seconds) in timeline.timesOf(b.start)) {
+        yield (seconds, math.max(transitionOutOf(a), transitionInOf(b)), a, b);
+      }
     }
   }
 
@@ -139,7 +174,7 @@ class Curation extends ChangeNotifier {
             fadeOut: transitionOutOf(r),
           ),
     ];
-    if (passes.length == 1) return spans; // regions never touch (see [_normalize])
+    // Regions meet only where they leave out different staves ([_normalize]): shown on through.
     spans.sort((a, b) => a.start.compareTo(b.start));
     final joined = <_Span>[];
     for (final s in spans) {
@@ -153,24 +188,124 @@ class Curation extends ChangeNotifier {
     return joined;
   }
 
-  List<Region> lane(String partId) => _lanes[partId] ?? const [];
+  /// An instrument's lane, or a staff's of one split ([staffLaneId]).
+  List<Region> lane(String partId) => switch (staffOfLane(partId)) {
+        (final part, final n) => _staffLanes[part]?.elementAtOrNull(n - 1) ?? const [],
+        null => _lanes[partId] ?? const [],
+      };
 
   // MARK: Editing
 
-  /// Replaces a lane. Regions are sorted and overlapping or touching ones merged.
-  void setLane(String partId, List<Region> regions) {
-    _lanes = _joinedLanes(_lanes, {..._lanes, partId: _normalize(regions)});
+  /// Replaces a lane (an instrument's, or a staff's of one split). Regions are sorted and
+  /// overlapping or touching ones merged.
+  void setLane(String partId, List<Region> regions) => _apply({partId: regions}, normalize: true, adding: true);
+
+  /// [lanes] put in (instruments' or split staves' [staffLaneId]): sorted, and with [normalize]
+  /// merged ([_normalize]); [adding] takes on lanes not here yet (a spacer's). A staff's lane
+  /// changes its instrument's (each region leaving out the staves not shown then, [_combined]),
+  /// and an instrument's its staves' ([_projected]).
+  void _apply(Map<String, List<Region>> lanes, {required bool normalize, bool adding = false}) {
+    List<Region> tidy(List<Region> regions) =>
+        normalize ? _normalize(regions) : List.unmodifiable([...regions]..sort((a, b) => a.start.compareTo(b.start)));
+    final next = {..._lanes};
+    final staves = {for (final MapEntry(:key, :value) in _staffLanes.entries) key: [...value]};
+    final combined = <String>{};
+    for (final MapEntry(key: id, value: regions) in lanes.entries) {
+      if (staffOfLane(id) case (final part, final n)) {
+        final lanes = staves[part];
+        if (lanes == null || n < 1 || n > lanes.length) continue;
+        lanes[n - 1] = tidy([for (final r in regions) r.hiddenStaves.isEmpty ? r : r.withHiddenStaves(const [])]);
+        combined.add(part);
+      } else if (adding || _lanes.containsKey(id)) {
+        next[id] = tidy(regions);
+        if (staves[id] case final lanes?) staves[id] = _projected(next[id]!, lanes.length);
+      }
+    }
+    for (final part in combined) {
+      next[part] = _combined(staves[part]!);
+    }
+    _lanes = _joinedLanes(_lanes, next, normalize: normalize);
+    _staffLanes = {for (final MapEntry(:key, :value) in staves.entries) key: List.unmodifiable(value)};
     _changed();
+  }
+
+  // MARK: Split lanes
+
+  /// The lane of staff [n] (from 1) of [partId], once its lane is split ([setSplit]).
+  /// (A part's id is an XML name: it has no `/`.)
+  static String staffLaneId(String partId, int n) => '$partId/$n';
+
+  /// A staff's lane's instrument and staff ([staffLaneId]); null for an instrument's lane.
+  static (String, int)? staffOfLane(String id) {
+    final at = id.lastIndexOf('/');
+    final n = at < 0 ? null : int.tryParse(id.substring(at + 1));
+    return n == null ? null : (id.substring(0, at), n);
+  }
+
+  /// The instruments whose lane is split into one a staff, each with its staves' count. Their
+  /// own lanes stay what is shown (each region leaving out the staves not shown then); the
+  /// staves' are another way of setting them.
+  Map<String, int> get split => {for (final MapEntry(:key, :value) in _staffLanes.entries) key: value.length};
+  Map<String, List<List<Region>>> _staffLanes = const {};
+
+  /// Splits the lanes of [counts] (part id → its staves; fewer than two: joined), joining any
+  /// other split. Each staff's lane shows where its instrument's shows it. Nothing shown changes.
+  void setSplit(Map<String, int> counts) {
+    final next = {
+      for (final MapEntry(key: id, value: count) in counts.entries)
+        if (count > 1 && _lanes.containsKey(id))
+          id: _staffLanes[id]?.length == count ? _staffLanes[id]! : _projected(_lanes[id]!, count),
+    };
+    if (mapEquals(split, {for (final MapEntry(:key, :value) in next.entries) key: value.length})) return;
+    _staffLanes = next;
+    _changed();
+  }
+
+  /// [lane] as each of its [count] staves' lanes: where it is shown (its transitions, where it
+  /// starts and ends).
+  static List<List<Region>> _projected(List<Region> lane, int count) => List.unmodifiable([
+        for (var n = 1; n <= count; n++)
+          _normalize([
+            for (final r in lane)
+              if (r.showsStaff(n)) Region(r.start, r.end, transitionIn: r.transitionIn, transitionOut: r.transitionOut),
+          ]),
+      ]);
+
+  /// An instrument's lane from its staves' [lanes]: a region for each stretch some are shown,
+  /// leaving out the others ([Region.hiddenStaves]); each edge takes the transition of a staff
+  /// starting or ending there.
+  static List<Region> _combined(List<List<Region>> lanes) {
+    final cuts = <double>{
+      for (final lane in lanes)
+        for (final r in lane) ...[r.start, r.end],
+    }.toList()
+      ..sort();
+    final out = <Region>[];
+    for (var i = 0; i + 1 < cuts.length; i++) {
+      final (a, b) = (cuts[i], cuts[i + 1]);
+      if (b - a <= 1e-9) continue;
+      final middle = (a + b) / 2;
+      final hidden = <int>[];
+      double? fadeIn, fadeOut;
+      for (final (k, lane) in lanes.indexed) {
+        final r = lane.where((r) => r.start <= middle && r.end > middle).firstOrNull;
+        if (r == null) {
+          hidden.add(k + 1);
+          continue;
+        }
+        if (r.start == a) fadeIn ??= r.transitionIn;
+        if (r.end == b) fadeOut ??= r.transitionOut;
+      }
+      if (hidden.length == lanes.length) continue;
+      out.add(Region(a, b, transitionIn: fadeIn, transitionOut: fadeOut).withHiddenStaves(hidden));
+    }
+    return _normalize(out);
   }
 
   void addRegion(String partId, Region region) => setLane(partId, [...lane(partId), region]);
 
-  /// Replaces several lanes at once, as one change.
-  void setLanes(Map<String, List<Region>> lanes) {
-    _lanes = _joinedLanes(
-        _lanes, {..._lanes, for (final e in lanes.entries) if (_lanes.containsKey(e.key)) e.key: _normalize(e.value)});
-    _changed();
-  }
+  /// Replaces several lanes at once (instruments' or split staves'), as one change.
+  void setLanes(Map<String, List<Region>> lanes) => _apply(lanes, normalize: true);
 
   /// Shows (or, with [shown] false, hides) every lane in [partIds] over [range]: drawing
   /// joins the regions it touches, erasing trims, splits or removes them.
@@ -225,6 +360,7 @@ class Curation extends ChangeNotifier {
 
   void clearAll() {
     _lanes = {for (final id in _lanes.keys) id: const []};
+    _staffLanes = {for (final MapEntry(:key, :value) in _staffLanes.entries) key: List.unmodifiable([for (final _ in value) const <Region>[]])};
     _changed();
   }
 
@@ -246,22 +382,20 @@ class Curation extends ChangeNotifier {
 
   /// Live update during a drag: overlaps are kept until [normalize], so regions can pass
   /// over each other while dragging.
-  void updateLanes(Map<String, List<Region>> lanes) {
-    _lanes = _joinedLanes(
-        _lanes,
-        {
-          ..._lanes,
-          for (final e in lanes.entries) e.key: [...e.value]..sort((a, b) => a.start.compareTo(b.start)),
-        },
-        normalize: false);
-    _changed();
-  }
+  void updateLanes(Map<String, List<Region>> lanes) => _apply(lanes, normalize: false, adding: true);
 
   /// Merges what a drag left overlapping or touching (see [updateLanes]).
   void normalize() {
     final normalized = {for (final e in _lanes.entries) e.key: _normalize(e.value)};
-    if (sameLanes(normalized, _lanes)) return;
+    final staves = {
+      for (final MapEntry(:key, :value) in _staffLanes.entries) key: List<List<Region>>.unmodifiable(value.map(_normalize)),
+    };
+    if (sameLanes(normalized, _lanes) &&
+        _staffLanes.keys.every((k) => [for (var n = 0; n < staves[k]!.length; n++) listEquals(staves[k]![n], _staffLanes[k]![n])].every((same) => same))) {
+      return;
+    }
     _lanes = normalized;
+    _staffLanes = staves;
     _changed();
   }
 
@@ -281,14 +415,19 @@ class Curation extends ChangeNotifier {
     return lo + (length > 0 ? (q - starts[lo]) / length : 0);
   }
 
+  /// [regions] sorted, and those that overlap or meet made one; but of two that leave out
+  /// different staves, the later one only goes on past the earlier one's end, meeting it.
   static List<Region> _normalize(List<Region> regions) {
     final sorted = regions.where((r) => r.length > 1e-6).toList()..sort((a, b) => a.start.compareTo(b.start));
     final merged = <Region>[];
     for (final r in sorted) {
-      if (merged.isNotEmpty && r.start <= merged.last.end + 1e-6) {
-        merged.last = merged.last.joinedWith(r);
-      } else {
+      final last = merged.lastOrNull;
+      if (last == null || r.start > last.end + 1e-6) {
         merged.add(r);
+      } else if (listEquals(r.hiddenStaves, last.hiddenStaves)) {
+        merged.last = last.joinedWith(r);
+      } else if (r.end > last.end + 1e-6) {
+        merged.add(r.withBounds(last.end, r.end));
       }
     }
     return List.unmodifiable(merged);
@@ -313,6 +452,7 @@ class Curation extends ChangeNotifier {
     final lanes = _joinedLanes(_lanes, _lanes);
     if (sameLanes(lanes, _lanes)) return;
     _lanes = lanes;
+    _reproject();
     _changed();
   }
 
@@ -360,6 +500,54 @@ class Curation extends ChangeNotifier {
           }(),
       };
 
+  /// The staves of [partId] the region shown at [seconds] leaves out ([Region.hiddenStaves]):
+  /// the nearest region's between regions, and before or after the performance (where one
+  /// reaching its start or end goes on showing).
+  List<int> hiddenStavesAt(String partId, double seconds, ScoreTimeline timeline) {
+    final lane = this.lane(partId);
+    if (lane.every((r) => r.hiddenStaves.isEmpty)) return const [];
+    return (_regionAt(lane, seconds, timeline) ?? _nearestRegion(lane, seconds, timeline))?.hiddenStaves ?? const [];
+  }
+
+  /// 0…1: how much of staff [n] of [partId] shows at [seconds], as far as its regions say
+  /// ([Region.hiddenStaves]; [visibilityAt] says how much the instrument shows). Where two
+  /// regions meet, a staff one leaves out and the other shows fades over the transition there,
+  /// centred on it; [curve] shapes the fade.
+  double staffVisibilityAt(String partId, int n, double seconds, ScoreTimeline timeline,
+      {MotionCurve curve = MotionCurve.smooth}) {
+    final lane = this.lane(partId);
+    if (lane.every((r) => r.hiddenStaves.isEmpty)) return 1;
+    for (final (at, transition, a, b) in _meetings(lane, timeline)) {
+      if (a.showsStaff(n) == b.showsStaff(n) || (seconds - at).abs() > transition / 2) continue;
+      final p = curve.inside(_ramp(seconds - at, transition));
+      return b.showsStaff(n) ? p : 1 - p;
+    }
+    return (_regionAt(lane, seconds, timeline) ?? _nearestRegion(lane, seconds, timeline))?.showsStaff(n) ?? true ? 1 : 0;
+  }
+
+  /// The region of [lane] playing at [seconds], in whichever pass.
+  Region? _regionAt(List<Region> lane, double seconds, ScoreTimeline timeline) {
+    for (final r in lane) {
+      for (final s in timeline.spans(r.start, r.end)) {
+        if (seconds >= s.startSeconds && seconds < s.endSeconds) return r;
+      }
+    }
+    return null;
+  }
+
+  /// The region of [lane] nearest [seconds], whose staves fade in or out with it.
+  Region? _nearestRegion(List<Region> lane, double seconds, ScoreTimeline timeline) {
+    Region? best;
+    var distance = double.infinity;
+    for (final r in lane) {
+      for (final s in timeline.spans(r.start, r.end)) {
+        final d = seconds < s.startSeconds ? s.startSeconds - seconds : seconds - s.endSeconds;
+        if (d < distance) (best, distance) = (r, d);
+      }
+    }
+    return best;
+  }
+
   /// 0…1 at [past] seconds past an edge whose ramp lasts [length], centred on it.
   static double _ramp(double past, double length) =>
       length > 0 ? ((past + length / 2) / length).clamp(0.0, 1.0) : (past >= 0 ? 1.0 : 0.0);
@@ -373,7 +561,12 @@ class Curation extends ChangeNotifier {
   /// have are ignored; parts without one get none.
   void load(Map<String, List<Region>> lanes, {double? transition}) {
     _lanes = _joinedLanes(_lanes, {for (final id in _lanes.keys) id: _normalize(lanes[id] ?? const [])});
+    _reproject();
     _transition = transition ?? _transition;
     _changed();
   }
+
+  /// The split staves' lanes made again from their instruments' (which were replaced).
+  void _reproject() =>
+      _staffLanes = {for (final MapEntry(:key, :value) in _staffLanes.entries) key: _projected(_lanes[key] ?? const [], value.length)};
 }
