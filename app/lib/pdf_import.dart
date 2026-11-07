@@ -1197,12 +1197,12 @@ class _PdfImportState extends State<PdfImport> {
                 selected: _tool == _Tool.select,
                 onPressed: ready ? () => setState(() => _tool = _Tool.select) : null),
             ToolbarButton(
-                icon: AppIcon.erase.of(context),
+                icon: AppIcon.maskLane.of(context),
                 tooltip: 'Mask Lane (M)'.tr,
                 selected: _tool == _Tool.mask,
                 onPressed: ready ? () => setState(() => _tool = _Tool.mask) : null),
             ToolbarButton(
-                icon: AppIcon.clearLanes.of(context),
+                icon: AppIcon.maskAll.of(context),
                 tooltip: 'Mask All Lanes (⇧M)'.tr,
                 selected: _tool == _Tool.maskAll,
                 onPressed: ready ? () => setState(() => _tool = _Tool.maskAll) : null),

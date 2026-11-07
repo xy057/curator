@@ -136,6 +136,11 @@ ICONS = [
     ('moveUp', 'Moves an item up a place.', 'arrow_upward', 'arrow--up'),
     ('moveDown', 'Moves an item down a place.', 'arrow_downward', 'arrow--down'),
     ('grab', "An item's handle, dragged to move it.", 'drag_indicator', 'draggable'),
+    # PDF import
+    ('maskLane', "Leaves part of a page out of one lane's staves.", 'visibility_off', 'view--off'),
+    ('maskAll', "Leaves part of a page out of every lane's staves.", 'visibility_off:fill', 'view--off--filled'),
+    ('addBarline', 'Adds a barline.', 'splitscreen_vertical_add', 'column--insert'),
+    ('addStaff', 'Adds a staff.', 'add_row_below', 'row--insert'),
 ]
 
 
