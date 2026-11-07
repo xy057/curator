@@ -37,7 +37,7 @@ Future<PdfScoreLayout?> showPdfImport(BuildContext context, PdfPages pages, {req
 
 /// What the pointer does on a page.
 /// (A mask is one lane's; [maskAll]'s every lane's.)
-enum _Tool { select, mask, maskAll }
+enum _Tool { select, mask, maskAll, addBarline, addStaff }
 
 /// The import's steps, in order: the systems found on the pages, the instruments and whose each
 /// staff is, what is left out (masks, each a lane's or every one's), what changes where, then
@@ -580,6 +580,8 @@ class _PdfImportState extends State<PdfImport> {
       });
       return;
     }
+    if (_tool == _Tool.addBarline) return _addBarlineAt(p);
+    if (_tool == _Tool.addStaff) return _addStaffAt(p);
     final drag = _dragAt(p);
     setState(() {
       _drag = drag;
@@ -679,12 +681,66 @@ class _PdfImportState extends State<PdfImport> {
         return;
       }
     }
+    _addBarlineAt(p);
+  }
+
+  /// A barline added at [p], in the system it is in (none: nothing), selected.
+  void _addBarlineAt(Offset p) {
     for (final (i, s) in _onPage) {
       if (p.dy < s.top || p.dy > s.bottom || p.dx <= s.left || p.dx > s.right) continue;
       final lines = [...s.barlines, PdfBarline(p.dx)]..sort((a, b) => a.x.compareTo(b.x));
       _setSystem(i, s.copyWith(barlines: lines));
       setState(() => _selection = _BarlineSelection(i, lines.indexWhere((b) => b.x == p.dx)));
       return;
+    }
+  }
+
+  /// A staff added with its middle at [p], no one's, selected: among the staves of the system it
+  /// is in, else a system of its own as wide as the nearest (between its neighbours, a single
+  /// barline at its end).
+  void _addStaffAt(Offset p) {
+    final here = _onPage.toList();
+    final inside = here.where((e) => p.dy >= e.$2.top && p.dy <= e.$2.bottom).firstOrNull;
+    double off((int, PdfSystem) e) => math.max(0, math.max(e.$2.top - p.dy, p.dy - e.$2.bottom));
+    final nearest = inside ?? (here..sort((a, b) => off(a).compareTo(off(b)))).firstOrNull;
+    final space = nearest?.$2.space ?? layout.systems.firstOrNull?.space ?? 6;
+    final staff = PdfStaff(top: p.dy - 2 * space, space: space);
+    int segmentOf(PdfSystem s) => math.max(0, s.segments.indexWhere((g) => p.dx >= g.$1 && p.dx <= g.$2));
+    if (inside case (final i, final s)) {
+      final next = s.withStaff(staff);
+      _edit(layout.copyWith(systems: [...layout.systems]..[i] = next));
+      setState(() => _selection = _BarSelection(i, segmentOf(next), next.staves.indexOf(staff)));
+      return;
+    }
+    final width = layout.pages[_page].width;
+    final left = nearest?.$2.left ?? width * 0.1, right = nearest?.$2.right ?? width * 0.9;
+    final above = here.where((e) => e.$2.bottom < p.dy).map((e) => e.$2.bottom).fold<double>(0, math.max);
+    final below = here.where((e) => e.$2.top > p.dy).map((e) => e.$2.top).fold<double>(layout.pages[_page].height, math.min);
+    final system = PdfSystem(
+      page: _page,
+      top: math.max(above, staff.top - 2 * space),
+      bottom: math.min(below, staff.bottom + 2 * space),
+      left: left,
+      right: right,
+      staves: [staff],
+      barlines: [PdfBarline(right)],
+    );
+    final found = layout.systems.indexWhere((s) => s.page > _page || (s.page == _page && s.top > system.top));
+    final at = found < 0 ? layout.systems.length : found;
+    _edit(layout.copyWith(systems: [...layout.systems]..insert(at, system)));
+    setState(() => _selection = _BarSelection(at, segmentOf(system), 0));
+  }
+
+  /// The staff selected gone, its band no one's; a system's only staff, the system.
+  void _removeStaff() {
+    if (_selection case _BarSelection(:final system, staff: final k?)) {
+      final s = layout.systems[system];
+      if (s.staves.length == 1) {
+        _edit(layout.copyWith(systems: [...layout.systems]..removeAt(system)));
+      } else {
+        _setSystem(system, s.withoutStaff(k));
+      }
+      setState(() => _selection = null);
     }
   }
 
@@ -970,7 +1026,7 @@ class _PdfImportState extends State<PdfImport> {
       [if (mark.words.isNotEmpty) mark.words, if (speed != null) '♩ = ${_ScoreFieldsState._number(speed)}'].join(' ');
 
   MouseCursor _cursorAt(Offset local) {
-    if (_step == _Step.edit && _tool != _Tool.select) return SystemMouseCursors.precise;
+    if (_tool != _Tool.select) return SystemMouseCursors.precise;
     if (_step != _Step.pages) return SystemMouseCursors.basic;
     return switch (_dragAt(_toPage(local))) {
       _EdgeDrag() => SystemMouseCursors.resizeRow,
@@ -1000,8 +1056,12 @@ class _PdfImportState extends State<PdfImport> {
       _goTo(_page - 1);
     } else if (key == LogicalKeyboardKey.escape) {
       setState(() => _selection = null);
-    } else if (key == LogicalKeyboardKey.keyV && _step == _Step.edit) {
+    } else if (key == LogicalKeyboardKey.keyV && (_step == _Step.pages || _step == _Step.edit)) {
       setState(() => _tool = _Tool.select);
+    } else if (key == LogicalKeyboardKey.keyB && _step == _Step.pages) {
+      setState(() => _tool = _Tool.addBarline);
+    } else if (key == LogicalKeyboardKey.keyS && _step == _Step.pages && !meta) {
+      setState(() => _tool = _Tool.addStaff);
     } else if (key == LogicalKeyboardKey.keyM && _step == _Step.edit) {
       setState(() => _tool = shift ? _Tool.maskAll : _Tool.mask);
     } else {
@@ -1183,8 +1243,17 @@ class _PdfImportState extends State<PdfImport> {
           _GapSelection() => 'Remove Gap',
           _ => 'Remove',
         };
+        Widget tool(AppIcon icon, String tip, _Tool value) => ToolbarButton(
+            icon: icon.of(context), tooltip: tip.tr, selected: _tool == value, onPressed: ready ? () => setState(() => _tool = value) : null);
         return [
+          ToolGroup(children: [
+            tool(AppIcon.pointer, 'Select (V)', _Tool.select),
+            tool(AppIcon.addBarline, 'Add Barline (B)', _Tool.addBarline),
+            tool(AppIcon.addStaff, 'Add Staff (S)', _Tool.addStaff),
+          ]),
+          const SizedBox(width: 6),
           button(AppIcon.delete, '$removable (⌫)', _selection == null ? null : _remove),
+          button(AppIcon.close, 'Remove Staff', _selection is _BarSelection && (_selection as _BarSelection).staff != null ? _removeStaff : null),
           button(AppIcon.reset, 'Detect Page Again', _detectAgain),
         ];
       case _Step.instruments:
@@ -1658,6 +1727,10 @@ class _PdfImportState extends State<PdfImport> {
               onSelected: (action) => action(),
               child: IgnorePointer(child: OutlinedButton(onPressed: () {}, child: Text('Insert'.tr))),
             ),
+            const SizedBox(height: 10),
+          ],
+          if (_step == _Step.pages && selection.staff != null) ...[
+            OutlinedButton(onPressed: _removeStaff, child: Text('Remove Staff'.tr)),
             const SizedBox(height: 10),
           ],
           if (_step == _Step.pages) OutlinedButton(onPressed: _remove, child: Text('Remove System'.tr)),

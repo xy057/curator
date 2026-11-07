@@ -942,14 +942,16 @@ lane and Spacing… say when and how much room there is. Export to Web writes ea
 
 **The import goes in steps, and reads the words on the pages.** `PdfImport` is five steps
 (`_Step`, a bar across the top, Back and Next below): Pages (only here can the systems found be
-dragged, drawn or removed; elsewhere the page shows them, not their handles:
+dragged, drawn or removed, and staves and barlines added, by Add Staff and Add Barline, or
+removed: `PdfSystem.withStaff` and `withoutStaff` keep the cuts and gaps around one, a staff
+removed leaving its band no one's; elsewhere the page shows them, not their handles:
 `_PagePainter.editing`), Instruments (the list, dragged by its handles, a ⋯ menu each; Add
 Instrument and Add Blank Lane are tiles in the accent under it; each staff's chip, and the staves
 no one's), Edit (the masks: Mask Lane leaves what it draws out of the lane picked, `_maskLane`,
 a staff's click or the toolbar's picker; Mask All Lanes out of every one), Changes (a bar's,
 inserted; the tempo marks read off the pages, each added or dismissed, or all) and Review (the
 score's fields and what will be imported, then Import). No step's action is only in a menu: the
-toolbar holds each step's own (`_stepTools`: Remove and Detect Page Again; the instrument's
+toolbar holds each step's own (`_stepTools`: Pages' tools, Remove, Remove Staff and Detect Page Again; the instrument's
 Rename, Move Up and Down, Remove, Add, Read Names, the next staff no one's; Edit's tools; a change
 inserted at the bar selected). Each page's words are read
 once the layout is there, in the background (`_readText`, the page with the most staves and the

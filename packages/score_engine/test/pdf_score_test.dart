@@ -87,6 +87,16 @@ void main() {
     expect(ScoreMetadata.read(xml).parts.map((p) => p.name), ['Violin', 'Violin 2']);
     expect([layout.systems[1].bandOf(0), layout.systems[1].bandOf(1)], [(20.0, 40.0), (48.0, 76.0)]);
     expect(PdfScoreLayout.fromJson(layout.toJson()).systems[1].gaps, {0: 48.0});
+    // A staff added or removed: its band made or left no one's, the others' kept.
+    final two = layout.systems[1];
+    final three = two.withStaff(const PdfStaff(top: 42, space: 1));
+    expect([three.cuts, three.gaps, three.ink], [[39.0, 53.0], <int, double>{}, null]);
+    expect([for (var k = 0; k < 3; k++) three.bandOf(k)], [(20.0, 39.0), (39.0, 53.0), (53.0, 76.0)]);
+    final middleGone = three.withoutStaff(1);
+    expect([middleGone.bandOf(0), middleGone.gapAfter(0), middleGone.bandOf(1)], [(20.0, 39.0), (39.0, 53.0), (53.0, 76.0)]);
+    expect([two.withoutStaff(0).bandOf(0), two.withoutStaff(1).bandOf(0)], [(48.0, 76.0), (20.0, 40.0)]);
+    final below = two.withStaff(const PdfStaff(top: 90, space: 4));
+    expect([below.cuts, below.gaps, below.bottom], [[40.0, 83.0], {0: 48.0}, 114.0]);
     expect(PdfScoreLayout.fromJson(layout.toJson()).toJson(), layout.toJson());
 
     // Changes inserted: a tempo mark, the violin's own clef and time signature from bar 2.

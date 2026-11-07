@@ -969,4 +969,7 @@ const zhHans = <String, String>{
   'Add All Tempo Marks': '添加所有速度标记',
   'Masks': '遮蔽',
   'None on this page': '本页没有',
+  'Add Barline (B)': '添加小节线（B）',
+  'Add Staff (S)': '添加谱表（S）',
+  'Remove Staff': '移除谱表',
 };

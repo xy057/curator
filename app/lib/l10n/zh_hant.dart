@@ -969,4 +969,7 @@ const zhHant = <String, String>{
   'Add All Tempo Marks': '新增所有速度標記',
   'Masks': '遮蔽',
   'None on this page': '本頁沒有',
+  'Add Barline (B)': '新增小節線（B）',
+  'Add Staff (S)': '新增譜表（S）',
+  'Remove Staff': '移除譜表',
 };

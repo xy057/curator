@@ -382,6 +382,78 @@ class PdfSystem {
   /// [bottom].
   (double, double) bandOf(int i) => (i == 0 ? top : resumeAfter(i - 1), i == staves.length - 1 ? bottom : cutAfter(i));
 
+  /// It with [staff] added among its staves, where its middle falls: the cut (and any gap) it
+  /// lands in made two cuts, its edges moved out to take it in. Measured again.
+  PdfSystem withStaff(PdfStaff staff) {
+    final n = staves.length;
+    final at = staves.where((s) => s.middle < staff.middle).length;
+    final cs = [for (var c = 0; c + 1 < n; c++) cutAfter(c)];
+    final room = staff.space * 2;
+    if (n == 0) {
+      return copyWith(top: math.min(top, staff.top - room), bottom: math.max(bottom, staff.bottom + room), staves: [staff], cuts: [], gaps: {}, ink: () => null);
+    }
+    final List<double> cuts;
+    final Map<int, double> moved;
+    if (at == 0) {
+      cuts = [(staff.bottom + staves.first.top) / 2, ...cs];
+      moved = {for (final e in gaps.entries) e.key + 1: e.value};
+    } else if (at == n) {
+      cuts = [...cs, (staves.last.bottom + staff.top) / 2];
+      moved = {...gaps};
+    } else {
+      final above = (staves[at - 1].bottom + staff.top) / 2;
+      final lowest = at >= 2 ? resumeAfter(at - 2) : top;
+      final first = math.max(above, lowest);
+      cuts = [...cs.take(at - 1), first, math.max(first, (staff.bottom + staves[at].top) / 2), ...cs.skip(at)];
+      moved = {
+        for (final e in gaps.entries)
+          if (e.key < at - 1) e.key: e.value else if (e.key >= at) e.key + 1: e.value,
+      };
+    }
+    return copyWith(
+      top: at == 0 ? math.min(top, staff.top - room) : top,
+      bottom: at == n ? math.max(bottom, staff.bottom + room) : bottom,
+      staves: [...staves]..insert(at, staff),
+      cuts: cuts,
+      gaps: moved,
+      ink: () => null,
+    );
+  }
+
+  /// It without staff [k], its band no one's: at either end the system's edge moved in past it,
+  /// between two a gap. Measured again. Of a system of one staff, call it no system instead.
+  PdfSystem withoutStaff(int k) {
+    final n = staves.length;
+    final cs = [for (var c = 0; c + 1 < n; c++) cutAfter(c)];
+    final rest = [...staves]..removeAt(k);
+    if (k == 0) {
+      return copyWith(
+          top: resumeAfter(0),
+          staves: rest,
+          cuts: cs.sublist(1),
+          gaps: {for (final e in gaps.entries) if (e.key > 0) e.key - 1: e.value},
+          ink: () => null);
+    }
+    if (k == n - 1) {
+      return copyWith(
+          bottom: cutAfter(n - 2),
+          staves: rest,
+          cuts: cs.sublist(0, n - 2),
+          gaps: {for (final e in gaps.entries) if (e.key < n - 2) e.key: e.value},
+          ink: () => null);
+    }
+    return copyWith(
+      staves: rest,
+      cuts: [...cs]..removeAt(k),
+      gaps: {
+        for (final e in gaps.entries)
+          if (e.key < k - 1) e.key: e.value else if (e.key > k) e.key - 1: e.value,
+        k - 1: resumeAfter(k),
+      },
+      ink: () => null,
+    );
+  }
+
   PdfSystem copyWith({
     double? top,
     double? bottom,
