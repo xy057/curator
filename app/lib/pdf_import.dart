@@ -179,6 +179,9 @@ class _PdfImportState extends State<PdfImport> {
 
   static const _gutter = 132.0, _margin = 24.0, _grab = 6.0;
 
+  /// How far above a system its barlines' handles are, logical pixels.
+  static const _handleRise = 12.0;
+
   @override
   void initState() {
     super.initState();
@@ -509,6 +512,15 @@ class _PdfImportState extends State<PdfImport> {
       for (final c in s.gaps.keys) {
         if ((p - Offset(handleX, s.resumeAfter(c))).distance <= grab * 1.4) return _GapDrag(i, c);
       }
+      // The barlines' handles above the top, and where the music starts.
+      final handleY = s.top - _handleRise / _zoom;
+      for (final (b, line) in s.barlines.indexed) {
+        if ((p - Offset(line.x, handleY)).distance <= grab * 1.4) return _BarlineDrag(i, b);
+      }
+      if ((p - Offset(s.left, handleY)).distance <= grab * 1.4) return _StartDrag(i);
+    }
+    // Then the lines themselves: the handles first, as one may lie over the system above.
+    for (final (i, s) in _onPage) {
       if (p.dy < s.top || p.dy > s.bottom) continue;
       if ((p.dx - s.left).abs() <= grab) return _StartDrag(i);
       for (final (b, line) in s.barlines.indexed) {
@@ -2472,21 +2484,16 @@ class _PagePainter extends CustomPainter {
     ];
     for (final y in edges) {
       _dash(canvas, Offset(s.left - 6 * px, y), Offset(s.right + 10 * px, y), dashed, px);
-      final handle = Offset(s.right + 10 * px, y);
-      canvas.drawCircle(handle, 4 * px, Paint()..color = const Color(0xFFFFFFFF));
-      canvas.drawCircle(
-          handle,
-          4 * px,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.2 * px
-            ..color = dashed.color);
+      _handle(canvas, Offset(s.right + 10 * px, y), dashed.color, px);
     }
-    // Where the music starts.
-    canvas.drawLine(Offset(s.left, s.top), Offset(s.left, s.bottom),
+    // Where the music starts, its handle above the top as the barlines'.
+    final handleY = s.top - _PdfImportState._handleRise * px;
+    const start = Color(0xFF0090FF);
+    canvas.drawLine(Offset(s.left, handleY), Offset(s.left, s.bottom),
         Paint()
-          ..color = const Color(0xFF0090FF)
+          ..color = start
           ..strokeWidth = 1.5 * px);
+    _handle(canvas, Offset(s.left, handleY), start, px);
     // The barlines.
     for (final (b, line) in s.barlines.indexed) {
       final selected = selection is _BarlineSelection &&
@@ -2497,10 +2504,24 @@ class _PagePainter extends CustomPainter {
           Paint()
             ..color = color.withValues(alpha: selected ? 1 : 0.75)
             ..strokeWidth = (selected ? 2.5 : 1.5) * px);
-      if (line.kind != PdfBarlineKind.normal) {
-        canvas.drawCircle(Offset(line.x, s.top), 2.5 * px, Paint()..color = color);
-      }
+      canvas.drawLine(Offset(line.x, handleY), Offset(line.x, s.top),
+          Paint()
+            ..color = color.withValues(alpha: 0.5)
+            ..strokeWidth = px);
+      _handle(canvas, Offset(line.x, handleY), color, px, filled: line.kind != PdfBarlineKind.normal || selected);
     }
+  }
+
+  /// A grabbed point: a ring (filled: a barline not single, or the one selected).
+  static void _handle(Canvas canvas, Offset at, Color color, double px, {bool filled = false}) {
+    canvas.drawCircle(at, 4 * px, Paint()..color = filled ? color : const Color(0xFFFFFFFF));
+    canvas.drawCircle(
+        at,
+        4 * px,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2 * px
+          ..color = color);
   }
 
   static void _dash(Canvas canvas, Offset a, Offset b, Paint paint, double px) {
