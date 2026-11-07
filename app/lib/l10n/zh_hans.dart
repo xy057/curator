@@ -956,4 +956,6 @@ const zhHans = <String, String>{
   'Select a bar': '选择一个小节',
   'Lane': '轨道',
   'All Lanes': '所有轨道',
+  'Mask Lane (M)': '遮蔽轨道 (M)',
+  'Mask All Lanes (⇧M)': '遮蔽所有轨道 (⇧M)',
 };

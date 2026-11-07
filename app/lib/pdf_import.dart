@@ -36,7 +36,8 @@ Future<PdfScoreLayout?> showPdfImport(BuildContext context, PdfPages pages, {req
     ));
 
 /// What the pointer does on a page.
-enum _Tool { select, mask }
+/// (A mask is one lane's; [maskAll]'s every lane's.)
+enum _Tool { select, mask, maskAll }
 
 /// The import's steps, in order: the systems found on the pages, the instruments, whose each
 /// staff is, what changes where, then the score's own fields.
@@ -551,7 +552,7 @@ class _PdfImportState extends State<PdfImport> {
       });
       return;
     }
-    if (_tool == _Tool.mask) {
+    if (_tool == _Tool.mask || _tool == _Tool.maskAll) {
       _drawFrom = p;
       return;
     }
@@ -607,6 +608,7 @@ class _PdfImportState extends State<PdfImport> {
     if (_drawing case final rect? when rect.width > 2 && rect.height > 2) {
       // The selected staff's lane's, else the lane it was drawn from; off the staves, every one's.
       final lane = switch (_selection) {
+        _ when _tool == _Tool.maskAll => null,
         _BarSelection(:final system, staff: final k?) when layout.systems[system].page == _page =>
           layout.partOf(layout.systems[system].staves[k]),
         _ => _laneAt(_drawFrom!),
@@ -867,7 +869,7 @@ class _PdfImportState extends State<PdfImport> {
 
   MouseCursor _cursorAt(Offset local) {
     if (_step != _Step.pages) return SystemMouseCursors.basic;
-    if (_tool == _Tool.mask) return SystemMouseCursors.precise;
+    if (_tool != _Tool.select) return SystemMouseCursors.precise;
     return switch (_dragAt(_toPage(local))) {
       _EdgeDrag() => SystemMouseCursors.resizeRow,
       _GapDrag() => SystemMouseCursors.resizeRow,
@@ -899,7 +901,7 @@ class _PdfImportState extends State<PdfImport> {
     } else if (key == LogicalKeyboardKey.keyV && _step == _Step.pages) {
       setState(() => _tool = _Tool.select);
     } else if (key == LogicalKeyboardKey.keyM && _step == _Step.pages) {
-      setState(() => _tool = _Tool.mask);
+      setState(() => _tool = shift ? _Tool.maskAll : _Tool.mask);
     } else {
       return KeyEventResult.ignored;
     }
@@ -1051,9 +1053,14 @@ class _PdfImportState extends State<PdfImport> {
                 onPressed: ready ? () => setState(() => _tool = _Tool.select) : null),
             ToolbarButton(
                 icon: AppIcon.erase.of(context),
-                tooltip: 'Mask (M)'.tr,
+                tooltip: 'Mask Lane (M)'.tr,
                 selected: _tool == _Tool.mask,
                 onPressed: ready ? () => setState(() => _tool = _Tool.mask) : null),
+            ToolbarButton(
+                icon: AppIcon.clearLanes.of(context),
+                tooltip: 'Mask All Lanes (⇧M)'.tr,
+                selected: _tool == _Tool.maskAll,
+                onPressed: ready ? () => setState(() => _tool = _Tool.maskAll) : null),
           ]),
         ],
         const ToolbarDivider(),
