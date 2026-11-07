@@ -918,7 +918,9 @@ meters, keys, upbeat and tempo the user gave) is the score the rest of Curator r
 curation, sync, captions, export and the web page work as for any score. The main view draws no
 engraving: each system is drawn by PDFium as printed (RGBA, on nothing; `PdfPagesSource`, a few
 systems ahead of the view, `CuratedScene.ready`, and an LRU of decoded images), and each staff's
-bar is the rectangle of it between that staff's cuts, the masks clipped out; never tinted,
+bar is the rectangle of it between that staff's cuts, the masks clipped out (a mask is every
+lane's, or one lane's, `PdfMask.part`: the selected staff's, or the one drawn from, when drawn;
+`masksOf` gives a system's, and the ink measured leaves a lane's out of its staves only); never tinted,
 recoloured or processed. A cut can open into a gap (`PdfSystem.gaps`, its bottom; the cut its
 top): what is printed there (a line of text between two staves) goes with neither, in the
 picture and in the ink measured. What the import inserts at a bar is the score's: tempo marks

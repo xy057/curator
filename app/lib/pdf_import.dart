@@ -389,6 +389,28 @@ class _PdfImportState extends State<PdfImport> {
   void _setSystem(int index, PdfSystem system, {String? typing}) =>
       _edit(layout.copyWith(systems: [...layout.systems]..[index] = system.copyWith(ink: () => null)), typing: typing);
 
+  /// [masks] in place of the layout's, one Undo step: the bars on the pages one changed on
+  /// measured again.
+  void _setMasks(List<PdfMask> masks) {
+    final changed = {...layout.masks, ...masks}.difference(layout.masks.toSet().intersection(masks.toSet()));
+    final pages = {for (final m in changed) m.page};
+    _edit(layout.copyWith(masks: masks, systems: [
+      for (final s in layout.systems) pages.contains(s.page) && s.ink != null ? s.copyWith(ink: () => null) : s,
+    ]));
+  }
+
+  /// The lane whose staff [p] is on, on the page showing; null: none's.
+  String? _laneAt(Offset p) {
+    for (final (_, s) in _onPage) {
+      for (var k = 0; k < s.staves.length; k++) {
+        if (s.bandOf(k) case (final top, final bottom) when p.dy >= top && p.dy < bottom && p.dx >= s.left - 4 && p.dx <= s.right + 4) {
+          return layout.partOf(s.staves[k]);
+        }
+      }
+    }
+    return null;
+  }
+
   /// The systems on the page showing, with their indices.
   Iterable<(int, PdfSystem)> get _onPage => layout.systems.indexed.where((e) => e.$2.page == _page);
 
@@ -398,7 +420,7 @@ class _PdfImportState extends State<PdfImport> {
         final s = layout.systems[system];
         _setSystem(system, s.copyWith(barlines: [...s.barlines]..removeAt(barline)));
       case _MaskSelection(:final mask):
-        _edit(layout.copyWith(masks: [...layout.masks]..removeAt(mask)));
+        _setMasks([...layout.masks]..removeAt(mask));
       case _BarSelection(:final system):
         _edit(layout.copyWith(systems: [...layout.systems]..removeAt(system)));
       case _GapSelection(:final system, :final cut):
@@ -583,7 +605,13 @@ class _PdfImportState extends State<PdfImport> {
 
   void _up() {
     if (_drawing case final rect? when rect.width > 2 && rect.height > 2) {
-      _edit(layout.copyWith(masks: [...layout.masks, PdfMask(_page, rect)]));
+      // The selected staff's lane's, else the lane it was drawn from; off the staves, every one's.
+      final lane = switch (_selection) {
+        _BarSelection(:final system, staff: final k?) when layout.systems[system].page == _page =>
+          layout.partOf(layout.systems[system].staves[k]),
+        _ => _laneAt(_drawFrom!),
+      };
+      _setMasks([...layout.masks, PdfMask(_page, rect, lane)]);
       _selection = _MaskSelection(layout.masks.length - 1);
     } else if (_drawFrom case final from?) {
       // A click with the mask tool: selects a mask.
@@ -889,9 +917,9 @@ class _PdfImportState extends State<PdfImport> {
       for (var i = 0; i < systems.length; i++) {
         final s = systems[i];
         if (s.ink == null) {
-          final masks = [for (final m in layout.masks) if (m.page == s.page) m.rect];
+          final masks = layout.masksOf(s);
           systems[i] = s.copyWith(ink: () => null);
-          final ink = await pages.measure(s, masks);
+          final ink = await pages.measure(s, masks.all, staffMasks: masks.staves);
           systems[i] = s.copyWith(ink: () => ink);
         }
         if (!mounted) return;
@@ -1377,8 +1405,10 @@ class _PdfImportState extends State<PdfImport> {
     void remove(int index) {
       if (index >= instruments.length) return;
       final id = instruments[index].id;
+      final lanes = {for (final p in instruments[index].players) p.id};
       _edit(layout.copyWith(
         instruments: [...instruments]..removeAt(index),
+        masks: [for (final m in layout.masks) if (m.part == null || !lanes.contains(m.part)) m],
         systems: [
           for (final s in layout.systems)
             s.staves.any((t) => t.part == id)
@@ -1485,9 +1515,26 @@ class _PdfImportState extends State<PdfImport> {
           ],
           if (_step == _Step.pages) OutlinedButton(onPressed: _remove, child: Text('Remove System'.tr)),
         ]);
-      case _MaskSelection():
+      case _MaskSelection(:final mask):
+        final m = layout.masks[mask];
+        final lanes = [
+          for (final i in layout.instruments)
+            if (!i.blank)
+              for (final p in i.players) (id: p.id, name: p.name),
+        ];
         out.addAll([
           _heading(context, 'Mask'),
+          AppDropdown<String?>(
+            value: lanes.any((l) => l.id == m.part) ? m.part : null,
+            isExpanded: true,
+            label: 'Lane',
+            items: [
+              DropdownMenuItem(value: null, child: Text('All Lanes'.tr)),
+              for (final l in lanes) DropdownMenuItem(value: l.id, child: Text(l.name)),
+            ],
+            onChanged: (part) => _setMasks([...layout.masks]..[mask] = m.withPart(part)),
+          ),
+          const SizedBox(height: 10),
           OutlinedButton(onPressed: _remove, child: Text('Remove Mask'.tr)),
         ]);
       case _GapSelection():
@@ -2205,13 +2252,15 @@ class _PagePainter extends CustomPainter {
     for (final (i, m) in layout.masks.indexed) {
       if (m.page != page) continue;
       final selected = selection is _MaskSelection && (selection as _MaskSelection).mask == i;
-      _mask(canvas, m.rect, px, selected: selected);
+      final lane = switch (m.part) { final p? => layout.playerOf(p)?.$1.id, null => null };
+      _mask(canvas, m.rect, px, selected: selected, lane: lane == null ? null : colorOf(lane));
     }
     if (drawing case final rect?) _mask(canvas, rect, px, selected: true);
   }
 
-  void _mask(Canvas canvas, Rect rect, double px, {required bool selected}) {
-    canvas.drawRect(rect, Paint()..color = const Color(0xCCB0B0B0));
+  /// A mask: grey, or one lane's tinted in its instrument's colour.
+  void _mask(Canvas canvas, Rect rect, double px, {required bool selected, Color? lane}) {
+    canvas.drawRect(rect, Paint()..color = lane == null ? const Color(0xCCB0B0B0) : Color.alphaBlend(lane.withValues(alpha: 0.35), const Color(0xCCB0B0B0)));
     canvas.save();
     canvas.clipRect(rect);
     final hatch = Paint()
@@ -2226,7 +2275,7 @@ class _PagePainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = (selected ? 2 : 1) * px
-          ..color = selected ? colors.accent : const Color(0xFF707070));
+          ..color = selected ? colors.accent : lane ?? const Color(0xFF707070));
   }
 
   void _system(Canvas canvas, int index, PdfSystem s, double px) {

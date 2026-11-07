@@ -47,6 +47,11 @@ void main() {
     final gapped = system.copyWith(gaps: {0: cut + 6});
     expect(gapped.bandOf(1).$1, cut + 6);
     expect([owner(gapped, cut + 2), owner(gapped, cut + 8), owner(gapped, cut - 2)], [-1, 1, 0]);
+    // A mask of one staff's leaves the others' ink as it was.
+    int masked(int staff) => PdfDetect.assign(page, system, const [], staffMasks: {
+          staff: [ui.Rect.fromCenter(center: ui.Offset(120, cut + 2), width: 4, height: 4)],
+        })[page.row(cut + 2).round() * page.width + page.col(120).round()];
+    expect([masked(0), masked(1)], [1, -1]);
   });
 
   test('a divided instrument is a part a division, and the layout round-trips', () {
@@ -63,8 +68,14 @@ void main() {
         system(1, const [PdfStaff(top: 20, space: 4, part: 'P1'), PdfStaff(top: 60, space: 4, part: 'P1', staff: 2)])
             .copyWith(cuts: [40], gaps: {0: 48}),
       ],
-      masks: const [PdfMask(1, ui.Rect.fromLTRB(50, 30, 60, 40))],
+      masks: const [PdfMask(1, ui.Rect.fromLTRB(50, 30, 60, 40)), PdfMask(1, ui.Rect.fromLTRB(50, 60, 60, 70), 'P1d2')],
     );
+    // A mask of one lane's is left out of its staves only.
+    expect(layout.masksOf(layout.systems[1]).all, [const ui.Rect.fromLTRB(50, 30, 60, 40)]);
+    expect(layout.masksOf(layout.systems[1]).staves, {
+      1: [const ui.Rect.fromLTRB(50, 60, 60, 70)],
+    });
+    expect(PdfScoreLayout.fromJson(layout.toJson()).masks, layout.masks);
     expect([for (final p in violin.players) (p.id, p.name)], [('P1', 'Violin'), ('P1d2', 'Violin 2')]);
     expect(layout.playerOf('P1d2'), (violin, 2));
     expect(layout.bars, hasLength(4));

@@ -117,12 +117,12 @@ class PdfPages {
       text.replaceAll(RegExp(r'[\s\u0000-\u001f\u00a0\u00ad\ue000-\uf8ff\ufffd-\uffff]+'), ' ').trim();
 
   /// How far each staff's ink reaches in each bar of [system], and whether it plays there
-  /// ([PdfDetect.ink]), [masks] left out.
-  Future<List<List<PdfInk>>> measure(PdfSystem system, List<ui.Rect> masks) {
+  /// ([PdfDetect.ink]), [masks] left out, and each staff's [staffMasks] (by index) out of it.
+  Future<List<List<PdfInk>>> measure(PdfSystem system, List<ui.Rect> masks, {Map<int, List<ui.Rect>> staffMasks = const {}}) {
     final id = _id;
     return _Worker.run((docs) {
       final raster = _render(docs[id]!, system.page, regionOf(system), PdfDetect.scale);
-      return PdfDetect.ink(raster, system, masks);
+      return PdfDetect.ink(raster, system, masks, staffMasks: staffMasks);
     });
   }
 

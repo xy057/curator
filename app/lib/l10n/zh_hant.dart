@@ -954,4 +954,6 @@ const zhHant = <String, String>{
   'Blank Lane': '空白軌道',
   'Dismiss': '忽略',
   'Select a bar': '選擇一個小節',
+  'Lane': '軌道',
+  'All Lanes': '所有軌道',
 };

@@ -522,8 +522,9 @@ abstract final class PdfDetect {
 
   /// [system]'s staves' ink, per staff and bar: how far it reaches past the lines and whether
   /// anything is played (a notehead, filled or open, or a stem), from its parts ([assign]).
-  static List<List<PdfInk>> ink(PdfRaster raster, PdfSystem system, List<ui.Rect> masks) {
-    final parts = assign(raster, system, masks);
+  static List<List<PdfInk>> ink(PdfRaster raster, PdfSystem system, List<ui.Rect> masks,
+      {Map<int, List<ui.Rect>> staffMasks = const {}}) {
+    final parts = assign(raster, system, masks, staffMasks: staffMasks);
     final segments = system.segments;
     // Ink anyone owns, summed over every rectangle from the top left: a block's ink in four reads.
     final w = raster.width, h = raster.height;
@@ -621,8 +622,10 @@ abstract final class PdfDetect {
   /// what is under a mask, in a gap ([PdfSystem.gaps]) or outside the system is no one's; a
   /// staff's lines are its own; every other mark goes whole to the staff where most of it is
   /// (between the cuts), but one that runs through the lines of two staves or more (a barline, a
-  /// beam across them) is cut at the cuts. [masks] in points.
-  static Int8List assign(PdfRaster raster, PdfSystem system, List<ui.Rect> masks) {
+  /// beam across them) is cut at the cuts. [masks] in points; [staffMasks] (by staff index) are
+  /// one staff's: what is under them is no one's where it would have been that staff's.
+  static Int8List assign(PdfRaster raster, PdfSystem system, List<ui.Rect> masks,
+      {Map<int, List<ui.Rect>> staffMasks = const {}}) {
     final w = raster.width, h = raster.height, ink = raster.ink;
     final out = Int8List(w * h)..fillRange(0, w * h, -1);
     if (system.staves.isEmpty) return out;
@@ -777,6 +780,17 @@ abstract final class PdfDetect {
             }
           }
           out[i] = o >= 0 ? o : band[y];
+        }
+      }
+    }
+    for (final MapEntry(key: staff, value: rects) in staffMasks.entries) {
+      for (final m in rects) {
+        final x0 = math.max(0, raster.col(m.left).floor()), x1 = math.min(w, raster.col(m.right).ceil());
+        final y0 = math.max(0, raster.row(m.top).floor()), y1 = math.min(h, raster.row(m.bottom).ceil());
+        for (var y = y0; y < y1; y++) {
+          for (var x = x0; x < x1; x++) {
+            if (out[y * w + x] == staff) out[y * w + x] = -1;
+          }
         }
       }
     }

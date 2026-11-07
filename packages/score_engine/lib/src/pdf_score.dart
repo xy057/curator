@@ -280,9 +280,9 @@ abstract final class PdfEngraving {
     final items = <int, List<DisplayItem>>{};
     final staffOf = <String, List<int>>{for (final p in metadata.parts) p.id: p.staffNumbers};
     const thickness = 0.13 * unit;
-    final masks = <int, List<ui.Rect>>{};
+    final masks = <int, List<PdfMask>>{};
     for (final m in layout.masks) {
-      masks.putIfAbsent(m.page, () => []).add(m.rect);
+      masks.putIfAbsent(m.page, () => []).add(m);
     }
     final strokes = <({double x, double width})>[];
     for (final (bar, pieces) in layout.bars.indexed) {
@@ -293,7 +293,8 @@ abstract final class PdfEngraving {
         final width = (piece.right - piece.left) / system.space * unit;
         final segment = layout.barOfSegment[piece.system].indexOf(bar);
         for (final (s, staff) in system.staves.indexed) {
-          final numbers = staffOf[layout.partOf(staff)], k = layout.staffInPart(staff);
+          final part = layout.partOf(staff);
+          final numbers = staffOf[part], k = layout.staffInPart(staff);
           if (numbers == null || k > numbers.length) continue;
           final n = numbers[k - 1];
           final top = info[n]!.top;
@@ -311,7 +312,7 @@ abstract final class PdfEngraving {
                 ui.Rect.fromLTRB(x, yOf(bandTop), x + width, yOf(bandBottom)),
                 ui.Rect.fromLTRB(x, math.max(yOf(bandTop), top - reach.above * unit), x + width,
                     math.min(yOf(bandBottom), top + 4 * unit + reach.below * unit)),
-                masks[system.page] ?? const [],
+                [for (final m in masks[system.page] ?? const <PdfMask>[]) if (m.covers(part)) m.rect],
               ));
         }
         x += width;

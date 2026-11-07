@@ -502,26 +502,38 @@ class PdfSystem {
   }
 }
 
-/// A part of a page left out of every staff (a page number, a stray mark), points.
+/// A part of a page left out (a page number, a stray mark, a cue): of every staff, or with
+/// [part] only of that lane's ([PdfScoreLayout.partOf]: an instrument's, or a divisi's), points.
 @immutable
 class PdfMask {
-  const PdfMask(this.page, this.rect);
+  const PdfMask(this.page, this.rect, [this.part]);
   final int page;
   final ui.Rect rect;
 
-  List<Object> toJson() => [page, _round(rect.left), _round(rect.top), _round(rect.right), _round(rect.bottom)];
+  /// The lane it is left out of; null: every one.
+  final String? part;
+
+  /// Whether it is left out of lane [partId].
+  bool covers(String? partId) => part == null || part == partId;
+
+  PdfMask withPart(String? part) => PdfMask(page, rect, part);
+
+  List<Object> toJson() =>
+      [page, _round(rect.left), _round(rect.top), _round(rect.right), _round(rect.bottom), ?part];
 
   static PdfMask fromJson(Object? json) => switch (json) {
-        [final num page, final num l, final num t, final num r, final num b] =>
-          PdfMask(page.toInt(), ui.Rect.fromLTRB(l.toDouble(), t.toDouble(), r.toDouble(), b.toDouble())),
+        [final num page, final num l, final num t, final num r, final num b, ...final rest]
+            when rest.isEmpty || (rest.length == 1 && rest.first is String) =>
+          PdfMask(page.toInt(), ui.Rect.fromLTRB(l.toDouble(), t.toDouble(), r.toDouble(), b.toDouble()),
+              rest.firstOrNull as String?),
         _ => throw _bad('masks'),
       };
 
   @override
-  bool operator ==(Object other) => other is PdfMask && other.page == page && other.rect == rect;
+  bool operator ==(Object other) => other is PdfMask && other.page == page && other.rect == rect && other.part == part;
 
   @override
-  int get hashCode => Object.hash(page, rect);
+  int get hashCode => Object.hash(page, rect, part);
 }
 
 /// A piece of one bar: a stretch of one system (a bar may run on from one system into the next).
@@ -665,6 +677,23 @@ class PdfScoreLayout {
     if (i == null) return null;
     if (i.staves > 1 || staff.staff <= 1) return i.id;
     return staff.staff <= i.divisi ? '${i.id}d${staff.staff}' : null;
+  }
+
+  /// What [system]'s staves leave out: [all] of them, and each staff's own (by index), from the
+  /// masks on its page that are one lane's.
+  ({List<ui.Rect> all, Map<int, List<ui.Rect>> staves}) masksOf(PdfSystem system) {
+    final all = <ui.Rect>[], staves = <int, List<ui.Rect>>{};
+    for (final m in masks) {
+      if (m.page != system.page) continue;
+      if (m.part == null) {
+        all.add(m.rect);
+        continue;
+      }
+      for (final (k, staff) in system.staves.indexed) {
+        if (partOf(staff) == m.part) staves.putIfAbsent(k, () => []).add(m.rect);
+      }
+    }
+    return (all: all, staves: staves);
   }
 
   /// Which of its part's staves [staff] is, from 1.

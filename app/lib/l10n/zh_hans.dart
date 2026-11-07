@@ -954,4 +954,6 @@ const zhHans = <String, String>{
   'Blank Lane': '空白轨道',
   'Dismiss': '忽略',
   'Select a bar': '选择一个小节',
+  'Lane': '轨道',
+  'All Lanes': '所有轨道',
 };
