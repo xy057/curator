@@ -68,7 +68,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
-| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start, barlines, masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
+| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start, barlines, masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -941,12 +941,17 @@ its frozen zone (`_bareStaves`, `_unnamed`); auto-curation leaves it shown (`isB
 lane and Spacing… say when and how much room there is. Export to Web writes each system's picture as `score/pdf/N.png`.
 
 **The import goes in steps, and reads the words on the pages.** `PdfImport` is five steps
-(`_Step`, a bar across the top, Back and Next below): Pages (only here can what was found be
-dragged, drawn or removed; elsewhere the page shows it, not its handles: `_PagePainter.editing`),
-Instruments (the list, dragged by its handles, a ⋯ menu each; Add Instrument and Add Blank Lane
-are tiles in the accent under it), Staves (each staff's chip, and the staves no one's), Changes
-(a bar's, inserted; the tempo marks read off the pages, each added or dismissed, or all) and
-Review (the score's fields and what will be imported, then Import). Each page's words are read
+(`_Step`, a bar across the top, Back and Next below): Pages (only here can the systems found be
+dragged, drawn or removed; elsewhere the page shows them, not their handles:
+`_PagePainter.editing`), Instruments (the list, dragged by its handles, a ⋯ menu each; Add
+Instrument and Add Blank Lane are tiles in the accent under it; each staff's chip, and the staves
+no one's), Edit (the masks: Mask Lane leaves what it draws out of the lane picked, `_maskLane`,
+a staff's click or the toolbar's picker; Mask All Lanes out of every one), Changes (a bar's,
+inserted; the tempo marks read off the pages, each added or dismissed, or all) and Review (the
+score's fields and what will be imported, then Import). No step's action is only in a menu: the
+toolbar holds each step's own (`_stepTools`: Remove and Detect Page Again; the instrument's
+Rename, Move Up and Down, Remove, Add, Read Names, the next staff no one's; Edit's tools; a change
+inserted at the bar selected). Each page's words are read
 once the layout is there, in the background (`_readText`, the page with the most staves and the
 next first): the PDF's own text where it has some (`PdfPages.textRuns`, PDFium's text runs and
 their boxes), else, on a Mac, read off a picture of the page at 3 pixels a point by Vision on the

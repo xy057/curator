@@ -39,12 +39,13 @@ Future<PdfScoreLayout?> showPdfImport(BuildContext context, PdfPages pages, {req
 /// (A mask is one lane's; [maskAll]'s every lane's.)
 enum _Tool { select, mask, maskAll }
 
-/// The import's steps, in order: the systems found on the pages, the instruments, whose each
-/// staff is, what changes where, then the score's own fields.
+/// The import's steps, in order: the systems found on the pages, the instruments and whose each
+/// staff is, what is left out (masks, each a lane's or every one's), what changes where, then
+/// the score's own fields.
 enum _Step {
   pages('Pages'),
   instruments('Instruments'),
-  staves('Staves'),
+  edit('Edit'),
   changes('Changes'),
   review('Review');
 
@@ -149,6 +150,9 @@ class _PdfImportState extends State<PdfImport> {
   _Tool _tool = _Tool.select;
   _Selection? _selection;
   int _instrument = 0; // the one the panel edits
+
+  /// The lane Mask Lane leaves what it draws out of (Edit); null: the one it is drawn on.
+  String? _maskLane;
   bool _edited = false;
   _Step _step = _Step.pages;
 
@@ -329,6 +333,9 @@ class _PdfImportState extends State<PdfImport> {
       _step = step;
       _selection = null;
       _tool = _Tool.select;
+      if (step == _Step.edit && _maskLane == null && _instrument < layout.instruments.length && !layout.instruments[_instrument].blank) {
+        _maskLane = layout.instruments[_instrument].id;
+      }
       _drag = null;
       _drawFrom = null;
       _drawing = null;
@@ -513,7 +520,7 @@ class _PdfImportState extends State<PdfImport> {
 
   _Selection? _selectionAt(Offset p) {
     for (final (i, m) in layout.masks.indexed) {
-      if (m.page == _page && m.rect.contains(p)) return _MaskSelection(i);
+      if (_step == _Step.edit && m.page == _page && m.rect.contains(p)) return _MaskSelection(i);
     }
     for (final (i, s) in _onPage) {
       if (p.dy < s.top || p.dy > s.bottom || p.dx < s.left - 4 || p.dx > s.right + 4) continue;
@@ -539,21 +546,26 @@ class _PdfImportState extends State<PdfImport> {
   void _down(Offset local) {
     _focus.requestFocus();
     final p = _toPage(local);
+    if (_step == _Step.edit && _tool != _Tool.select) {
+      _drawFrom = p;
+      return;
+    }
     if (_step != _Step.pages) {
-      // Only the pages' step changes what was found: elsewhere a click picks a bar, or a staff's
-      // instrument.
+      // Only the pages' step changes what was found: elsewhere a click picks a bar, a mask, or a
+      // staff's instrument (in Edit, its lane the one masked).
       final hit = _selectionAt(p);
       setState(() {
         if (_step == _Step.changes) _selection = hit is _BarSelection ? hit : null;
+        if (_step == _Step.edit) _selection = hit is _MaskSelection ? hit : null;
         if (hit case _BarSelection(:final system, staff: final k?) when _step != _Step.changes) {
-          final at = layout.instruments.indexWhere((i) => i.id == layout.systems[system].staves[k].part);
+          final staff = layout.systems[system].staves[k];
+          final at = layout.instruments.indexWhere((i) => i.id == staff.part);
           if (at >= 0) _instrument = at;
+          if (_step == _Step.edit) {
+            if (layout.partOf(staff) case final lane?) _maskLane = lane;
+          }
         }
       });
-      return;
-    }
-    if (_tool == _Tool.mask || _tool == _Tool.maskAll) {
-      _drawFrom = p;
       return;
     }
     final drag = _dragAt(p);
@@ -607,12 +619,8 @@ class _PdfImportState extends State<PdfImport> {
   void _up() {
     if (_drawing case final rect? when rect.width > 2 && rect.height > 2) {
       // The selected staff's lane's, else the lane it was drawn from; off the staves, every one's.
-      final lane = switch (_selection) {
-        _ when _tool == _Tool.maskAll => null,
-        _BarSelection(:final system, staff: final k?) when layout.systems[system].page == _page =>
-          layout.partOf(layout.systems[system].staves[k]),
-        _ => _laneAt(_drawFrom!),
-      };
+      // Mask Lane: the lane picked, else the one it was drawn from; off the staves every one's.
+      final lane = _tool == _Tool.maskAll ? null : _lanes.any((l) => l.id == _maskLane) ? _maskLane : _laneAt(_drawFrom!);
       _setMasks([...layout.masks, PdfMask(_page, rect, lane)]);
       _selection = _MaskSelection(layout.masks.length - 1);
     } else if (_drawFrom case final from?) {
@@ -666,6 +674,88 @@ class _PdfImportState extends State<PdfImport> {
       setState(() => _selection = _BarlineSelection(i, lines.indexWhere((b) => b.x == p.dx)));
       return;
     }
+  }
+
+  // MARK: Instrument list
+
+  /// Instrument [from] put at [to] (counted with it taken out), the selection going with it.
+  void _place(int from, int to) {
+    final instruments = layout.instruments;
+    if (from == to || from < 0 || from >= instruments.length || to < 0 || to >= instruments.length) return;
+    final list = [...instruments];
+    list.insert(to, list.removeAt(from));
+    final picked = _instrument < instruments.length ? instruments[_instrument].id : null;
+    _edit(layout.copyWith(instruments: list));
+    setState(() => _instrument = math.max(0, list.indexWhere((i) => i.id == picked)));
+  }
+
+  String _nextId() {
+    final ids = {for (final i in layout.instruments) i.id};
+    var n = layout.instruments.length + 1;
+    while (ids.contains('P$n')) {
+      n++;
+    }
+    return 'P$n';
+  }
+
+  void _addInstrument() {
+    final id = _nextId(), instruments = layout.instruments;
+    _edit(layout.copyWith(instruments: [...instruments, PdfInstrument(id: id, name: 'Staff {n}'.fill({'n': id.substring(1)}))]));
+    setState(() => _instrument = instruments.length);
+  }
+
+  /// A blank lane, below the instrument selected.
+  void _addBlank() {
+    final instruments = layout.instruments;
+    final at = instruments.isEmpty ? 0 : math.min(_instrument + 1, instruments.length);
+    _edit(layout.copyWith(instruments: [...instruments]..insert(at, PdfInstrument.blank(id: _nextId(), name: 'Blank'.tr))));
+    setState(() => _instrument = at);
+  }
+
+  /// Instrument [index] gone: its staves no one's, its lanes' masks with it.
+  void _removeInstrument(int index) {
+    final instruments = layout.instruments;
+    if (index < 0 || index >= instruments.length) return;
+    final id = instruments[index].id;
+    final lanes = {for (final p in instruments[index].players) p.id};
+    _edit(layout.copyWith(
+      instruments: [...instruments]..removeAt(index),
+      masks: [for (final m in layout.masks) if (m.part == null || !lanes.contains(m.part)) m],
+      systems: [
+        for (final s in layout.systems)
+          s.staves.any((t) => t.part == id)
+              ? s.copyWith(staves: [for (final t in s.staves) t.part == id ? t.copyWith(part: () => null) : t])
+              : s,
+      ],
+    ));
+    setState(() => _instrument = math.max(0, math.min(_instrument, instruments.length - 2)));
+    if (lanes.contains(_maskLane)) _maskLane = null;
+  }
+
+  /// Every lane a staff can be (blank lanes hold none): each instrument's, each divisi's.
+  List<({String id, String name})> get _lanes => [
+        for (final i in layout.instruments)
+          if (!i.blank)
+            for (final p in i.players) (id: p.id, name: p.name),
+      ];
+
+  String _laneName(String? part) => part == null ? 'All Lanes'.tr : _lanes.where((l) => l.id == part).firstOrNull?.name ?? '—';
+
+  /// Edit's panel with no mask selected: the page's masks, each picked with a click.
+  List<Widget> _maskList(BuildContext context) {
+    final colors = context.colors;
+    final onPage = [for (final (i, m) in layout.masks.indexed) if (m.page == _page) (i, m)];
+    return [
+      _heading(context, 'Masks'),
+      if (onPage.isEmpty) Text('None on this page'.tr, style: TextStyle(fontSize: 13, color: colors.textMuted)),
+      for (final (i, m) in onPage)
+        _ChangeRow(
+          text: _laneName(m.part),
+          whose: null,
+          color: switch (m.part) { final p? => _colorOf(layout.instruments.indexWhere((x) => x.id == layout.playerOf(p)?.$1.id)), null => null },
+          onTap: () => setState(() => _selection = _MaskSelection(i)),
+        ),
+    ];
   }
 
   // MARK: Instruments
@@ -868,8 +958,8 @@ class _PdfImportState extends State<PdfImport> {
       [if (mark.words.isNotEmpty) mark.words, if (speed != null) '♩ = ${_ScoreFieldsState._number(speed)}'].join(' ');
 
   MouseCursor _cursorAt(Offset local) {
+    if (_step == _Step.edit && _tool != _Tool.select) return SystemMouseCursors.precise;
     if (_step != _Step.pages) return SystemMouseCursors.basic;
-    if (_tool != _Tool.select) return SystemMouseCursors.precise;
     return switch (_dragAt(_toPage(local))) {
       _EdgeDrag() => SystemMouseCursors.resizeRow,
       _GapDrag() => SystemMouseCursors.resizeRow,
@@ -890,7 +980,7 @@ class _PdfImportState extends State<PdfImport> {
     final key = event.logicalKey;
     if (meta && key == LogicalKeyboardKey.keyZ) {
       shift ? _redoStep() : _undoStep();
-    } else if ((key == LogicalKeyboardKey.delete || key == LogicalKeyboardKey.backspace) && _step == _Step.pages) {
+    } else if ((key == LogicalKeyboardKey.delete || key == LogicalKeyboardKey.backspace) && (_step == _Step.pages || _step == _Step.edit)) {
       _remove();
     } else if (key == LogicalKeyboardKey.pageDown || key == LogicalKeyboardKey.arrowRight) {
       _goTo(_page + 1);
@@ -898,9 +988,9 @@ class _PdfImportState extends State<PdfImport> {
       _goTo(_page - 1);
     } else if (key == LogicalKeyboardKey.escape) {
       setState(() => _selection = null);
-    } else if (key == LogicalKeyboardKey.keyV && _step == _Step.pages) {
+    } else if (key == LogicalKeyboardKey.keyV && _step == _Step.edit) {
       setState(() => _tool = _Tool.select);
-    } else if (key == LogicalKeyboardKey.keyM && _step == _Step.pages) {
+    } else if (key == LogicalKeyboardKey.keyM && _step == _Step.edit) {
       setState(() => _tool = shift ? _Tool.maskAll : _Tool.mask);
     } else {
       return KeyEventResult.ignored;
@@ -1043,26 +1133,7 @@ class _PdfImportState extends State<PdfImport> {
       child: Row(children: [
         ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo'.tr, onPressed: ready && _undo.isNotEmpty ? _undoStep : null),
         ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo'.tr, onPressed: ready && _redo.isNotEmpty ? _redoStep : null),
-        if (_step == _Step.pages) ...[
-          const ToolbarDivider(),
-          ToolGroup(children: [
-            ToolbarButton(
-                icon: AppIcon.pointer.of(context),
-                tooltip: 'Select (V)'.tr,
-                selected: _tool == _Tool.select,
-                onPressed: ready ? () => setState(() => _tool = _Tool.select) : null),
-            ToolbarButton(
-                icon: AppIcon.erase.of(context),
-                tooltip: 'Mask Lane (M)'.tr,
-                selected: _tool == _Tool.mask,
-                onPressed: ready ? () => setState(() => _tool = _Tool.mask) : null),
-            ToolbarButton(
-                icon: AppIcon.clearLanes.of(context),
-                tooltip: 'Mask All Lanes (⇧M)'.tr,
-                selected: _tool == _Tool.maskAll,
-                onPressed: ready ? () => setState(() => _tool = _Tool.maskAll) : null),
-          ]),
-        ],
+        if (_layout != null) ...[const ToolbarDivider(), ..._stepTools(context, ready)],
         const ToolbarDivider(),
         ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom Out'.tr, onPressed: () => _zoomBy(1 / 1.2)),
         ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom In'.tr, onPressed: () => _zoomBy(1.2)),
@@ -1082,6 +1153,112 @@ class _PdfImportState extends State<PdfImport> {
         if (busy) PulsingDot(color: colors.accent, size: 8),
       ]),
     );
+  }
+
+  /// The step's own actions, each a button (none only in a menu): Pages' Remove and Detect;
+  /// the instrument selected renamed, moved or removed, one added, a staff no one's found;
+  /// Edit's tools and the lane masked; a change inserted at the bar selected.
+  List<Widget> _stepTools(BuildContext context, bool ready) {
+    Widget button(AppIcon icon, String tip, VoidCallback? onPressed) =>
+        ToolbarButton(icon: icon.of(context), tooltip: tip.tr, onPressed: ready ? onPressed : null);
+    final instruments = layout.instruments, i = _instrument;
+    final picked = i < instruments.length ? instruments[i] : null;
+    switch (_step) {
+      case _Step.pages:
+        final removable = switch (_selection) {
+          _BarSelection() => 'Remove System',
+          _BarlineSelection() => 'Remove Barline',
+          _GapSelection() => 'Remove Gap',
+          _ => 'Remove',
+        };
+        return [
+          button(AppIcon.delete, '$removable (⌫)', _selection == null ? null : _remove),
+          button(AppIcon.reset, 'Detect Page Again', _detectAgain),
+        ];
+      case _Step.instruments:
+        return [
+          button(AppIcon.draw, 'Rename…', picked == null ? null : () => _renameInstrument(picked.id)),
+          button(AppIcon.moveUp, 'Move Up', picked != null && i > 0 ? () => _place(i, i - 1) : null),
+          button(AppIcon.moveDown, 'Move Down', picked != null && i < instruments.length - 1 ? () => _place(i, i + 1) : null),
+          button(AppIcon.delete, 'Remove', picked == null ? null : () => _removeInstrument(i)),
+          const ToolbarDivider(),
+          button(AppIcon.add, 'Add Instrument', _addInstrument),
+          button(AppIcon.verticalSpacer, 'Add Blank Lane', _addBlank),
+          button(AppIcon.captions, 'Read Names from Score', _text.isEmpty ? null : () => _nameFromText()),
+          button(AppIcon.warning, 'Show Next Staff without an Instrument', _unassigned == 0 ? null : _showUnassigned),
+        ];
+      case _Step.edit:
+        final lanes = _lanes;
+        return [
+          ToolGroup(children: [
+            ToolbarButton(
+                icon: AppIcon.pointer.of(context),
+                tooltip: 'Select (V)'.tr,
+                selected: _tool == _Tool.select,
+                onPressed: ready ? () => setState(() => _tool = _Tool.select) : null),
+            ToolbarButton(
+                icon: AppIcon.erase.of(context),
+                tooltip: 'Mask Lane (M)'.tr,
+                selected: _tool == _Tool.mask,
+                onPressed: ready ? () => setState(() => _tool = _Tool.mask) : null),
+            ToolbarButton(
+                icon: AppIcon.clearLanes.of(context),
+                tooltip: 'Mask All Lanes (⇧M)'.tr,
+                selected: _tool == _Tool.maskAll,
+                onPressed: ready ? () => setState(() => _tool = _Tool.maskAll) : null),
+          ]),
+          const SizedBox(width: 6),
+          // The lane Mask Lane leaves out of.
+          AppPopupMenuButton<String>(
+            tooltip: 'Lane'.tr,
+            enabled: ready && lanes.isNotEmpty && _tool != _Tool.maskAll,
+            padding: EdgeInsets.zero,
+            itemBuilder: (context) => [
+              for (final l in lanes) checkedMenuItem<String>(context, value: l.id, checked: l.id == _maskLane, child: Text(l.name)),
+            ],
+            onSelected: (lane) => setState(() {
+              _maskLane = lane;
+              if (_tool == _Tool.select) _tool = _Tool.mask;
+            }),
+            child: _ToolbarField(
+              text: _tool == _Tool.maskAll ? 'All Lanes'.tr : (lanes.any((l) => l.id == _maskLane) ? _laneName(_maskLane) : 'Lane'.tr),
+              color: switch (_maskLane) {
+                final l? when _tool != _Tool.maskAll && lanes.any((x) => x.id == l) =>
+                  _colorOf(instruments.indexWhere((x) => x.id == layout.playerOf(l)?.$1.id)),
+                _ => null,
+              },
+            ),
+          ),
+          const SizedBox(width: 6),
+          button(AppIcon.delete, 'Remove Mask (⌫)', _selection is _MaskSelection ? _remove : null),
+        ];
+      case _Step.changes:
+        final at = switch (_selection) {
+          _BarSelection(:final system, :final segment, :final staff) when segment < layout.barOfSegment[system].length =>
+            (bar: layout.barOfSegment[system][segment], system: system, staff: staff),
+          _ => null,
+        };
+        final staffOf = at == null ? null : _instrumentOf(at.system, at.staff);
+        Widget insert(String label, String tip, VoidCallback? onPressed) =>
+            _ToolbarText(label: label.tr, tooltip: tip.tr, onPressed: ready ? onPressed : null);
+        return [
+          insert('Tempo', 'Insert Tempo…', at == null ? null : () => _editTempo(at.bar)),
+          insert('Key', 'Insert Key Signature…', at == null ? null : () => _editKey(at.bar, at.system, at.staff)),
+          insert('Time', 'Insert Time Signature…', at == null ? null : () => _editTime(at.bar)),
+          if (staffOf case (final i, final n)) ...[
+            insert('Time for {name}'.fill({'name': i.abbreviation.isNotEmpty ? i.abbreviation : i.name}),
+                'Insert Time Signature for {name}…'.fill({'name': i.name}), () => _editLocalTime(at!.bar, i)),
+            insert('Clef', 'Insert Clef for {name}…'.fill({'name': _staffName(i, n)}), () => _editClef(at!.bar, i, n)),
+          ] else
+            insert('Clef', 'Select a staff', null),
+          if (_suggested.length > 1) ...[
+            const ToolbarDivider(),
+            insert('Add All', 'Add All Tempo Marks', () => _accept(Map.fromEntries(_suggested.entries))),
+          ],
+        ];
+      case _Step.review:
+        return const [];
+    }
   }
 
   /// How far the import is, Back and Next (on the last step, Import).
@@ -1233,9 +1410,11 @@ class _PdfImportState extends State<PdfImport> {
                             colors: context.colors,
                             colorOf: (id) => _colorOf(layout.instruments.indexWhere((i) => i.id == id)),
                             editing: _step == _Step.pages,
-                            focus: (_step == _Step.instruments || _step == _Step.staves) && _instrument < layout.instruments.length
-                                ? layout.instruments[_instrument].id
-                                : null,
+                            focus: switch (_step) {
+                              _Step.instruments when _instrument < layout.instruments.length => layout.instruments[_instrument].id,
+                              _Step.edit => switch (_maskLane) { final l? => layout.playerOf(l)?.$1.id, null => null },
+                              _ => null,
+                            },
                           ),
                         ),
                       ),
@@ -1267,17 +1446,7 @@ class _PdfImportState extends State<PdfImport> {
             const SizedBox(height: 14),
             OutlinedButton(onPressed: _text.isEmpty ? null : () => _nameFromText(), child: Text('Read Names from Score'.tr)),
             ?_textStatus(context, found: _text.values.any((r) => r.isNotEmpty)),
-            if (picked != null) ...[
-              const SizedBox(height: 20),
-              _InstrumentFields(
-                key: ValueKey((picked.id, _rev)),
-                instrument: picked,
-                onChanged: (next, field) =>
-                    _edit(layout.copyWith(instruments: [...layout.instruments]..[_instrument] = next), typing: '${next.id}.$field'),
-              ),
-            ],
-          ],
-        _Step.staves => [
+            const SizedBox(height: 20),
             _heading(context, 'Staves'),
             Text(
                 _unassigned == 0
@@ -1288,10 +1457,17 @@ class _PdfImportState extends State<PdfImport> {
               const SizedBox(height: 10),
               OutlinedButton(onPressed: _showUnassigned, child: Text('Show Next'.tr)),
             ],
-            const SizedBox(height: 20),
-            _heading(context, 'Instruments'),
-            _instrumentList(context, adding: false),
+            if (picked != null) ...[
+              const SizedBox(height: 20),
+              _InstrumentFields(
+                key: ValueKey((picked.id, _rev)),
+                instrument: picked,
+                onChanged: (next, field) =>
+                    _edit(layout.copyWith(instruments: [...layout.instruments]..[_instrument] = next), typing: '${next.id}.$field'),
+              ),
+            ],
           ],
+        _Step.edit => _selection is _MaskSelection ? _selectionFields(context) : _maskList(context),
         _Step.changes => [..._selectionFields(context), ..._suggestionFields(context)],
         _Step.review => [
             _heading(context, 'Score'),
@@ -1377,55 +1553,7 @@ class _PdfImportState extends State<PdfImport> {
   Widget _instrumentList(BuildContext context, {required bool adding}) {
     final colors = context.colors;
     final instruments = layout.instruments;
-    // Instrument [from] put at [to] (counted with it taken out), the selection going with it.
-    void place(int from, int to) {
-      if (from == to || from < 0 || from >= instruments.length) return;
-      final list = [...instruments];
-      list.insert(to, list.removeAt(from));
-      final picked = _instrument < instruments.length ? instruments[_instrument].id : null;
-      _edit(layout.copyWith(instruments: list));
-      setState(() => _instrument = math.max(0, list.indexWhere((i) => i.id == picked)));
-    }
-
-    String nextId() {
-      final ids = {for (final i in instruments) i.id};
-      var n = instruments.length + 1;
-      while (ids.contains('P$n')) {
-        n++;
-      }
-      return 'P$n';
-    }
-
-    void add() {
-      final id = nextId();
-      _edit(layout.copyWith(instruments: [...instruments, PdfInstrument(id: id, name: 'Staff {n}'.fill({'n': id.substring(1)}))]));
-      setState(() => _instrument = instruments.length);
-    }
-
-    // A blank lane, below the instrument selected.
-    void addBlank() {
-      final at = instruments.isEmpty ? 0 : math.min(_instrument + 1, instruments.length);
-      _edit(layout.copyWith(instruments: [...instruments]..insert(at, PdfInstrument.blank(id: nextId(), name: 'Blank'.tr))));
-      setState(() => _instrument = at);
-    }
-
-    void remove(int index) {
-      if (index >= instruments.length) return;
-      final id = instruments[index].id;
-      final lanes = {for (final p in instruments[index].players) p.id};
-      _edit(layout.copyWith(
-        instruments: [...instruments]..removeAt(index),
-        masks: [for (final m in layout.masks) if (m.part == null || !lanes.contains(m.part)) m],
-        systems: [
-          for (final s in layout.systems)
-            s.staves.any((t) => t.part == id)
-                ? s.copyWith(staves: [for (final t in s.staves) t.part == id ? t.copyWith(part: () => null) : t])
-                : s,
-        ],
-      ));
-      setState(() => _instrument = math.max(0, math.min(_instrument, instruments.length - 2)));
-    }
-
+    final place = _place, add = _addInstrument, addBlank = _addBlank, remove = _removeInstrument;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       ReorderableListView.builder(
         shrinkWrap: true,
@@ -1524,11 +1652,7 @@ class _PdfImportState extends State<PdfImport> {
         ]);
       case _MaskSelection(:final mask):
         final m = layout.masks[mask];
-        final lanes = [
-          for (final i in layout.instruments)
-            if (!i.blank)
-              for (final p in i.players) (id: p.id, name: p.name),
-        ];
+        final lanes = _lanes;
         out.addAll([
           _heading(context, 'Mask'),
           AppDropdown<String?>(
@@ -2398,4 +2522,56 @@ class _PagePainter extends CustomPainter {
       old.colors != colors ||
       old.editing != editing ||
       old.focus != focus;
+}
+
+/// A toolbar's short text button (a change inserted), sized as its icons.
+class _ToolbarText extends StatelessWidget {
+  const _ToolbarText({required this.label, required this.tooltip, required this.onPressed});
+  final String label, tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AppStyle.of(context), colors = context.colors;
+    return Tip(
+      message: tooltip,
+      child: TextButton(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          minimumSize: Size(0, style.control),
+          fixedSize: Size.fromHeight(style.control),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          foregroundColor: colors.text,
+          shape: RoundedRectangleBorder(borderRadius: style.radius(5)),
+        ),
+        child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400)),
+      ),
+    );
+  }
+}
+
+/// A toolbar's dropdown face: [text] (a dot of [color] before it) and an arrow.
+class _ToolbarField extends StatelessWidget {
+  const _ToolbarField({required this.text, this.color});
+  final String text;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AppStyle.of(context), colors = context.colors;
+    return Container(
+      height: style.control,
+      constraints: const BoxConstraints(maxWidth: 180),
+      padding: const EdgeInsets.only(left: 10, right: 4),
+      decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: style.radius(6)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (color case final c?) ...[
+          Container(width: 8, height: 8, decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
+          const SizedBox(width: 6),
+        ],
+        Flexible(child: Text(text, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.text))),
+        Icon(AppIcon.dropDown.of(context), size: 16, color: colors.textMuted),
+      ]),
+    );
+  }
 }
