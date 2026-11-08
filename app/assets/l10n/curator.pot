@@ -3420,3 +3420,7 @@ msgstr ""
 #: lib/error_text.dart
 msgid "{error}: “{file}”."
 msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Help translate Curator"
+msgstr ""
