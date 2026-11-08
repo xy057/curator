@@ -2,8 +2,7 @@ import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
-import 'zh_hans.dart';
-import 'zh_hant.dart';
+import 'po.dart';
 
 /// The interface's language (Settings ▸ General ▸ Language).
 ///
@@ -13,59 +12,77 @@ import 'zh_hant.dart';
 /// English where they are kept and are translated where they are drawn, so a string can go through
 /// [tr] twice; one a language has no entry for stays English.
 enum AppLanguage {
-  system('System'),
-  english('English'),
-  chineseSimplified('简体中文'),
-  chineseTraditional('繁體中文');
+  system('System', Locale('en')),
+  english('English', Locale('en')),
+  chineseSimplified('简体中文', Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans')),
+  chineseTraditional('繁體中文', Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'));
 
-  const AppLanguage(this.label);
+  const AppLanguage(this.label, this._locale);
 
   /// Its name in its own language (the menu shows each so); [system]'s is translated.
   final String label;
+  final Locale _locale;
 
-  static const englishLocale = Locale('en');
-  static const chineseLocale = Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans');
-  static const traditionalLocale = Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant');
-  static const locales = [englishLocale, chineseLocale, traditionalLocale];
+  /// The languages the interface has, by their locales.
+  static final locales = [for (final l in values) if (l != system) l._locale];
+
+  /// Its translations' file, `assets/l10n/<tag>.po` (Crowdin writes them; English is the
+  /// template, curator.pot), or null for English.
+  String? get file => this == system || this == english ? null : 'assets/l10n/${_locale.toLanguageTag()}.po';
 
   /// The language it means now: [system] is the first of the system's preferred languages
   /// that the app has (Traditional Chinese for zh-Hant, zh-TW, zh-HK and zh-MO; Simplified for
-  /// the other Chinese).
+  /// the other Chinese; otherwise by language, then by script or country where it has both).
   AppLanguage get resolved {
     if (this != system) return this;
     for (final l in PlatformDispatcher.instance.locales) {
-      if (l.languageCode == 'en') return english;
       if (l.languageCode == 'zh') {
         final hant = l.scriptCode == 'Hant' ||
             (l.scriptCode == null && const {'TW', 'HK', 'MO'}.contains(l.countryCode));
         return hant ? chineseTraditional : chineseSimplified;
       }
+      final same = [for (final a in values) if (a != system && a._locale.languageCode == l.languageCode) a];
+      if (same.isEmpty) continue;
+      return same.firstWhere(
+        (a) => (a._locale.scriptCode ?? a._locale.countryCode) == (l.scriptCode ?? l.countryCode),
+        orElse: () => same.first,
+      );
     }
     return english;
   }
 
-  Locale get locale => switch (resolved) {
-        chineseSimplified => chineseLocale,
-        chineseTraditional => traditionalLocale,
-        _ => englishLocale,
-      };
+  Locale get locale => resolved._locale;
 }
 
-/// The translations in use: [use] switches them.
+/// The translations in use: [load] reads them all as the app starts, [use] switches them.
 abstract final class Strings {
   static AppLanguage _language = AppLanguage.english;
   static Map<String, String> _table = const {};
+  static final _tables = <AppLanguage, Map<String, String>>{};
+
+  /// Reads every language's file with [read] (`rootBundle.loadString` in the app; a file in a
+  /// test). One that can't be read or parsed leaves its language English, and says so.
+  static Future<void> load(Future<String> Function(String path) read) async {
+    await Future.wait([
+      for (final l in AppLanguage.values)
+        if (l.file case final file?)
+          read(file).then((s) => _tables[l] = PoFile.parse(s).table).catchError((Object e) {
+            debugPrint('Couldn’t read $file: $e');
+            return const <String, String>{};
+          }),
+    ]);
+    use(_language);
+  }
+
+  /// The translations [language] has: its key ([Translated.tr]'s English) to its text.
+  static Map<String, String> tableOf(AppLanguage language) => _tables[language.resolved] ?? const {};
 
   /// The language shown now ([AppLanguage.system] already resolved).
   static AppLanguage get language => _language;
 
   static void use(AppLanguage language) {
     _language = language.resolved;
-    _table = switch (_language) {
-      AppLanguage.chineseSimplified => zhHans,
-      AppLanguage.chineseTraditional => zhHant,
-      _ => const {},
-    };
+    _table = tableOf(_language);
   }
 
   /// What debug runs have shown untranslated, each once.

@@ -85,7 +85,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
 | `app_menus.dart` | The menu bar (native on macOS): File (Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
-| `l10n/l10n.dart`, `l10n/zh_hans.dart`, `l10n/zh_hant.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, keyed by the English (see *Interface text*) |
+| `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's toolbar |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
@@ -1400,10 +1400,16 @@ on Windows wherever the registry says that folder now is): it never replaces the
   Language: System, English, Simplified or Traditional Chinese, switched live; `AppLanguage`):
   `'Open Sample'.tr`, `'Couldn’t align. {error}'.fill({'error': …})` with values (the translation
   places them), and
-  `trIn` where one English word means two things. Each table (`zhHans`, `zhHant`) is keyed by the
-  English; one without an entry shows the English (a debug run prints it). Every new `.tr` / `.fill`
-  text needs an entry in both, with the same placeholders (`test/l10n_test.dart` checks); Material's
-  own strings come from `GlobalMaterialLocalizations`.
+  `trIn` where one English word means two things (a `msgctxt`). The English is the template,
+  `assets/l10n/curator.pot`, and each language a gettext file beside it named by its locale
+  (`zh-Hans.po`, `AppLanguage.file`), which Crowdin keeps (`crowdin.yml`, docs/translating.md);
+  `Strings.load` reads them all before the first frame (a test's `flutter_test_config.dart` too),
+  so switching stays instant. One without an entry shows the English (a debug run prints it).
+  A new `.tr` / `.fill` text goes into every file with `make l10n` (`tool/l10n.dart`; text
+  translated other than as a literal, an enum's label, is added to curator.pot by hand), and needs
+  its Simplified and Traditional Chinese, with the same placeholders (`test/l10n_test.dart`
+  checks); a language Crowdin adds may be partly translated. A new language is an `AppLanguage`
+  with its locale, and its file. Material's own strings come from `GlobalMaterialLocalizations`.
 - **Something a project saves**: a field of `EditState` (with its `==` and `copyWith`),
   written and read by the module it belongs to (`project_modules.dart`), bumping that module's
   version with a migration when an older build would lose it; or a new module. If the controller keeps it itself it lives in `_doc`, and

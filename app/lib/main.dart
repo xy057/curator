@@ -55,7 +55,7 @@ Future<void> main() async {
   unawaited(Isolate.run(() => ScratchSpace.sweep(keep: keep)).catchError((_) {}));
   FontResources.workDirectory = ScratchSpace.folder('fonts').path; // metrics of fonts not bundled
   LicenseRegistry.addLicense(_fontLicenses);
-  final settings = await AppSettings.load();
+  final (settings, _) = await (AppSettings.load(), Strings.load(rootBundle.loadString)).wait;
   if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
   final updater = Updater();
   if (settings.checkForUpdates) unawaited(updater.check());
