@@ -25,10 +25,6 @@ msgstr "（或使用你的發行版的套件）"
 msgid ", "
 msgstr "、"
 
-#: lib/updater.dart
-msgid "."
-msgstr "。"
-
 msgid ".srt beside the video"
 msgstr "在影片旁生成 .srt"
 
@@ -112,10 +108,6 @@ msgstr "像複製其他檔案一樣，把資料夾複製到網站中。"
 msgid "Couldn’t load {file} ({status})."
 msgstr "無法載入 {file}（{status}）。"
 
-#: lib/web_export.dart
-msgid "Couldn’t write the page."
-msgstr "無法寫入網頁。"
-
 msgid "Curator serves it while it’s open. Or, in a terminal:"
 msgstr "Curator 開啟時會提供它。或者在終端機中："
 
@@ -129,10 +121,6 @@ msgstr "匯出為網頁"
 #: lib/app_menus.dart
 msgid "Export to Web…"
 msgstr "匯出為網頁…"
-
-#: lib/video_export.dart
-msgid "FFmpeg couldn’t write the sound."
-msgstr "FFmpeg 無法寫入聲音。"
 
 msgid "Frame"
 msgstr "畫面"
@@ -540,10 +528,6 @@ msgstr "取消"
 msgid "Can’t reach GitHub. Is the internet connected?"
 msgstr "連不上 GitHub。網路連線了嗎？"
 
-#: lib/project_document.dart
-msgid "Can’t find the linked recording:"
-msgstr "找不到連結的錄音："
-
 msgid "Can’t find the recording to embed"
 msgstr "找不到要嵌入的錄音"
 
@@ -708,10 +692,6 @@ msgstr "無法匯入設定"
 msgid "Couldn’t Load Recording"
 msgstr "無法載入錄音"
 
-#: lib/editor_controller.dart
-msgid "Couldn’t load the recording."
-msgstr "無法載入錄音。"
-
 #: lib/audio_panel.dart
 msgid "Couldn’t load the recording. {error}"
 msgstr "無法載入錄音。{error}"
@@ -734,10 +714,6 @@ msgstr "無法貼上影像。{error}"
 
 msgid "Couldn’t read an image in the project."
 msgstr "無法讀取專案中的影像。"
-
-#: lib/media_converter.dart
-msgid "Couldn’t read audio from this file."
-msgstr "無法從這個檔案讀取音訊。"
 
 #: lib/updater.dart
 msgid "Couldn’t read GitHub’s response."
@@ -771,10 +747,6 @@ msgstr "無法使用該檔案"
 #: lib/audio_panel.dart
 msgid "Couldn’t use the MIDI file. {error}"
 msgstr "無法使用該 MIDI 檔案。{error}"
-
-#: lib/updater.dart
-msgid "Couldn’t write {name}."
-msgstr "無法寫入 {name}。"
 
 msgid "Countdown"
 msgstr "倒數計時"
@@ -1085,10 +1057,6 @@ msgstr "淡出曲線"
 
 msgid "Fermatas"
 msgstr "延長記號"
-
-#: lib/video_export.dart
-msgid "FFmpeg couldn’t write the video."
-msgstr "FFmpeg 無法寫入影片。"
 
 #: lib/app_menus.dart
 msgid "File"
@@ -2315,10 +2283,6 @@ msgstr "文字大小"
 msgid "The *horns* answer, softly"
 msgstr "*法國號*輕聲應答"
 
-#: lib/updater.dart
-msgid "the download"
-msgstr "下載檔案"
-
 msgid "The equation ends too soon."
 msgstr "式子過早結束。"
 
@@ -2334,9 +2298,6 @@ msgstr "這個專案中沒有樂譜。"
 msgid "The project has not been saved yet: choose where to save it."
 msgstr "專案尚未儲存：請選擇儲存位置。"
 
-msgid "The project is damaged: "
-msgstr "專案已損壞："
-
 msgid "The sample can’t be saved."
 msgstr "範例無法儲存。"
 
@@ -2346,9 +2307,6 @@ msgstr "範例僅供檢視喔。打開一份樂譜來開始你自己的專案吧
 #: lib/edit_dialogs.dart
 msgid "Here’s what differs:"
 msgstr "不同之處："
-
-msgid "The settings are damaged: "
-msgstr "設定檔案已損壞："
 
 msgid "The SMuFL metadata is not JSON."
 msgstr "SMuFL 中繼資料不是 JSON 格式。"
@@ -2720,10 +2678,6 @@ msgstr "寬 : 高"
 msgid "Window"
 msgstr "視窗"
 
-#: lib/condensing_editor.dart
-msgid "with"
-msgstr "與"
-
 msgid "With bar numbers, shows rehearsal marks beside them, out of the music."
 msgstr "顯示小節號時，將排練記號顯示在小節號旁，而非樂譜中。"
 
@@ -3007,10 +2961,6 @@ msgstr "連音"
 #: lib/score_editor.dart
 msgid "Tuplet (;)"
 msgstr "連音（;）"
-
-#: lib/score_editor.dart
-msgid "Voice"
-msgstr "聲部"
 
 #: lib/score_editor.dart
 msgid "Whole"
@@ -3408,3 +3358,84 @@ msgstr "新增譜表（S）"
 #: lib/pdf_import.dart
 msgid "Remove Staff"
 msgstr "移除譜表"
+
+#: lib/condensing_editor.dart
+msgctxt "condensing"
+msgid "with"
+msgstr "與"
+
+#: lib/editor_controller.dart
+msgid ""
+"Couldn’t load the recording.\n"
+"{error}"
+msgstr ""
+"無法載入錄音。\n"
+"{error}"
+
+#: lib/error_text.dart
+msgid "The project is damaged: {detail}"
+msgstr "專案已損壞：{detail}"
+
+#: lib/error_text.dart
+msgid "The settings are damaged: {detail}"
+msgstr "設定檔案已損壞：{detail}"
+
+#: lib/media_converter.dart
+msgid ""
+"Couldn’t read audio from this file.\n"
+"{error}"
+msgstr ""
+"無法從這個檔案讀取音訊。\n"
+"{error}"
+
+#: lib/project_document.dart
+msgid ""
+"Can’t find the linked recording:\n"
+"{file}"
+msgstr ""
+"找不到連結的錄音：\n"
+"{file}"
+
+#: lib/score_editor.dart
+msgid "Voice {n}"
+msgstr "聲部 {n}"
+
+#: lib/error_text.dart lib/updater.dart
+msgid "{error}."
+msgstr "{error}。"
+
+#: lib/updater.dart
+msgid "Couldn’t write the download."
+msgstr "無法寫入下載檔案。"
+
+#: lib/updater.dart
+msgid "Couldn’t write {file}."
+msgstr "無法寫入 {file}。"
+
+#: lib/video_export.dart
+msgid ""
+"FFmpeg couldn’t write the sound.\n"
+"{error}"
+msgstr ""
+"FFmpeg 無法寫入聲音。\n"
+"{error}"
+
+#: lib/video_export.dart
+msgid ""
+"FFmpeg couldn’t write the video.\n"
+"{error}"
+msgstr ""
+"FFmpeg 無法寫入影片。\n"
+"{error}"
+
+#: lib/web_export.dart
+msgid ""
+"Couldn’t write the page.\n"
+"{error}"
+msgstr ""
+"無法寫入網頁。\n"
+"{error}"
+
+#: lib/error_text.dart
+msgid "{error}: “{file}”."
+msgstr "{error}：「{file}」。"

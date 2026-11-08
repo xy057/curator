@@ -12,7 +12,7 @@ import 'l10n/l10n.dart';
 const appVersion = '0.7.1';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
-const appBuild = 207;
+const appBuild = 208;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
@@ -310,8 +310,9 @@ class Updater extends ChangeNotifier {
   static String _describe(Object e) => switch (e) {
         SocketException() || HandshakeException() => 'Can’t reach GitHub. Is the internet connected?'.tr,
         TimeoutException() => 'GitHub isn’t answering. Try again in a bit.'.tr,
-        HttpException(:final message) => '$message${'.'.tr}',
-        FileSystemException(:final path) => 'Couldn’t write {name}.'.fill({'name': path ?? 'the download'.tr}),
+        HttpException(:final message) => '{error}.'.fill({'error': message}),
+        FileSystemException(:final path) =>
+          path == null ? 'Couldn’t write the download.'.tr : 'Couldn’t write {file}.'.fill({'file': path}),
         _ => 'Couldn’t read GitHub’s response.'.tr,
       };
 }

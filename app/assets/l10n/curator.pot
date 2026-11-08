@@ -24,10 +24,6 @@ msgstr ""
 msgid ", "
 msgstr ""
 
-#: lib/updater.dart
-msgid "."
-msgstr ""
-
 msgid ".srt beside the video"
 msgstr ""
 
@@ -111,10 +107,6 @@ msgstr ""
 msgid "Couldn’t load {file} ({status})."
 msgstr ""
 
-#: lib/web_export.dart
-msgid "Couldn’t write the page."
-msgstr ""
-
 msgid "Curator serves it while it’s open. Or, in a terminal:"
 msgstr ""
 
@@ -127,10 +119,6 @@ msgstr ""
 
 #: lib/app_menus.dart
 msgid "Export to Web…"
-msgstr ""
-
-#: lib/video_export.dart
-msgid "FFmpeg couldn’t write the sound."
 msgstr ""
 
 msgid "Frame"
@@ -537,10 +525,6 @@ msgstr ""
 msgid "Can’t reach GitHub. Is the internet connected?"
 msgstr ""
 
-#: lib/project_document.dart
-msgid "Can’t find the linked recording:"
-msgstr ""
-
 msgid "Can’t find the recording to embed"
 msgstr ""
 
@@ -705,10 +689,6 @@ msgstr ""
 msgid "Couldn’t Load Recording"
 msgstr ""
 
-#: lib/editor_controller.dart
-msgid "Couldn’t load the recording."
-msgstr ""
-
 #: lib/audio_panel.dart
 msgid "Couldn’t load the recording. {error}"
 msgstr ""
@@ -730,10 +710,6 @@ msgid "Couldn’t paste the image. {error}"
 msgstr ""
 
 msgid "Couldn’t read an image in the project."
-msgstr ""
-
-#: lib/media_converter.dart
-msgid "Couldn’t read audio from this file."
 msgstr ""
 
 #: lib/updater.dart
@@ -767,10 +743,6 @@ msgstr ""
 
 #: lib/audio_panel.dart
 msgid "Couldn’t use the MIDI file. {error}"
-msgstr ""
-
-#: lib/updater.dart
-msgid "Couldn’t write {name}."
 msgstr ""
 
 msgid "Countdown"
@@ -1081,10 +1053,6 @@ msgid "Fade-out curve"
 msgstr ""
 
 msgid "Fermatas"
-msgstr ""
-
-#: lib/video_export.dart
-msgid "FFmpeg couldn’t write the video."
 msgstr ""
 
 #: lib/app_menus.dart
@@ -2312,10 +2280,6 @@ msgstr ""
 msgid "The *horns* answer, softly"
 msgstr ""
 
-#: lib/updater.dart
-msgid "the download"
-msgstr ""
-
 msgid "The equation ends too soon."
 msgstr ""
 
@@ -2331,9 +2295,6 @@ msgstr ""
 msgid "The project has not been saved yet: choose where to save it."
 msgstr ""
 
-msgid "The project is damaged: "
-msgstr ""
-
 msgid "The sample can’t be saved."
 msgstr ""
 
@@ -2342,9 +2303,6 @@ msgstr ""
 
 #: lib/edit_dialogs.dart
 msgid "Here’s what differs:"
-msgstr ""
-
-msgid "The settings are damaged: "
 msgstr ""
 
 msgid "The SMuFL metadata is not JSON."
@@ -2713,10 +2671,6 @@ msgstr ""
 msgid "Window"
 msgstr ""
 
-#: lib/condensing_editor.dart
-msgid "with"
-msgstr ""
-
 msgid "With bar numbers, shows rehearsal marks beside them, out of the music."
 msgstr ""
 
@@ -2999,10 +2953,6 @@ msgstr ""
 
 #: lib/score_editor.dart
 msgid "Tuplet (;)"
-msgstr ""
-
-#: lib/score_editor.dart
-msgid "Voice"
 msgstr ""
 
 #: lib/score_editor.dart
@@ -3400,4 +3350,73 @@ msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Remove Staff"
+msgstr ""
+
+#: lib/condensing_editor.dart
+msgctxt "condensing"
+msgid "with"
+msgstr ""
+
+#: lib/editor_controller.dart
+msgid ""
+"Couldn’t load the recording.\n"
+"{error}"
+msgstr ""
+
+#: lib/error_text.dart
+msgid "The project is damaged: {detail}"
+msgstr ""
+
+#: lib/error_text.dart
+msgid "The settings are damaged: {detail}"
+msgstr ""
+
+#: lib/media_converter.dart
+msgid ""
+"Couldn’t read audio from this file.\n"
+"{error}"
+msgstr ""
+
+#: lib/project_document.dart
+msgid ""
+"Can’t find the linked recording:\n"
+"{file}"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Voice {n}"
+msgstr ""
+
+#: lib/error_text.dart lib/updater.dart
+msgid "{error}."
+msgstr ""
+
+#: lib/updater.dart
+msgid "Couldn’t write the download."
+msgstr ""
+
+#: lib/updater.dart
+msgid "Couldn’t write {file}."
+msgstr ""
+
+#: lib/video_export.dart
+msgid ""
+"FFmpeg couldn’t write the sound.\n"
+"{error}"
+msgstr ""
+
+#: lib/video_export.dart
+msgid ""
+"FFmpeg couldn’t write the video.\n"
+"{error}"
+msgstr ""
+
+#: lib/web_export.dart
+msgid ""
+"Couldn’t write the page.\n"
+"{error}"
+msgstr ""
+
+#: lib/error_text.dart
+msgid "{error}: “{file}”."
 msgstr ""

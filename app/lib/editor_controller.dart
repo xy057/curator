@@ -2041,7 +2041,7 @@ class EditorController extends ChangeNotifier {
         await audio.put(id, await audio.read(path));
       } catch (e) {
         audio.keepUnread(id, path);
-        problem ??= '${'Couldn’t load the recording.'.tr}\n${describeError(e)}';
+        problem ??= 'Couldn’t load the recording.\n{error}'.fill({'error': describeError(e)});
       }
     }
 

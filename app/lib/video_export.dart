@@ -600,7 +600,7 @@ class VideoExport {
     final (:start, :end) = span;
     final r = await Process.run(ffmpeg,
         VideoEncoder.soundArguments(seconds: end - start, output: output, sounds: _soundsIn(start, end), fadeOut: _fadeOut(start, end)));
-    if (r.exitCode != 0) throw VideoExportException('${'FFmpeg couldn’t write the sound.'.tr}\n${_lastLines('${r.stderr}')}');
+    if (r.exitCode != 0) throw VideoExportException('FFmpeg couldn’t write the sound.\n{error}'.fill({'error': _lastLines('${r.stderr}')}));
   }
 
   /// Writes the video to [output] (a file with the [VideoFormat.codec]'s extension; for a
@@ -705,7 +705,7 @@ class VideoExport {
     if (_cancelled || code != 0 || failure != null) {
       if (part.existsSync()) part.deleteSync(recursive: true);
       if (_cancelled) throw const VideoExportCancelled();
-      if (code != 0) throw VideoExportException('${'FFmpeg couldn’t write the video.'.tr}\n${_lastLines('$errors')}');
+      if (code != 0) throw VideoExportException('FFmpeg couldn’t write the video.\n{error}'.fill({'error': _lastLines('$errors')}));
       Error.throwWithStackTrace(failure!.$1, failure.$2);
     }
     var target = output;

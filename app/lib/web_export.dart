@@ -189,7 +189,7 @@ abstract final class WebExport {
     } catch (e) {
       if (part.existsSync()) part.deleteSync(recursive: true);
       if (e is VideoExportException) rethrow;
-      throw VideoExportException('${'Couldn’t write the page.'.tr}\n$e');
+      throw VideoExportException('Couldn’t write the page.\n{error}'.fill({'error': e}));
     }
     return '$output/index.html';
   }

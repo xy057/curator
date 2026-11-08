@@ -96,7 +96,7 @@ class ProjectDocument extends ChangeNotifier {
         takePaths: project.takes,
       );
       final missing = project.media?.missingPath;
-      recordingProblem = problem ?? (missing == null ? null : '${'Can’t find the linked recording:'.tr}\n$missing');
+      recordingProblem = problem ?? (missing == null ? null : 'Can’t find the linked recording:\n{file}'.fill({'file': missing}));
       _olderFormat = project.olderFormat;
       unreadTakes = project.state.foreign.containsKey(ProjectModules.takes.id) ? project.takes : null;
     } catch (_) {
