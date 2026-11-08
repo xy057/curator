@@ -1,13 +1,21 @@
-# Curator’s interface in Simplified Chinese.
-#
-# Terms: score 乐谱, project 项目, lane 轨道, region 区域, playhead 播放头, bar 小节, staff 谱表, staff space 谱间距, engraving 刻谱, anchor 锚点, warp 跳转, tempo map 速度图, caption 字幕, spacer 间隔, transition 过渡, condensing 声部合并, recording 录音.
+# Curator’s interface, in US English: the template every language is translated from.
+# Each text is its own key; a msgctxt tells apart one English word that means two things.
+# Keep every {placeholder} in the translation (its place is yours).
 msgid ""
 msgstr ""
-"Project-Id-Version: Curator\n"
+"Project-Id-Version: curator-by-xy057\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: zh-Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Crowdin-Project: curator-by-xy057\n"
+"X-Crowdin-Project-ID: 945415\n"
+"X-Crowdin-Language: zh-CN\n"
+"X-Crowdin-File: /main/app/assets/l10n/curator.pot\n"
+"X-Crowdin-File-ID: 21\n"
+"Language-Team: Chinese Simplified\n"
+"Language: zh_CN\n"
+"PO-Revision-Date: 2026-11-08 20:28\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -305,11 +313,9 @@ msgid "Align"
 msgstr "对齐"
 
 #: lib/audio_panel.dart
-msgid ""
-"Align\n"
+msgid "Align\n"
 "Set the anchors from the recording"
-msgstr ""
-"对齐\n"
+msgstr "对齐\n"
 "根据录音设置锚点"
 
 msgid "Align grace notes"
@@ -567,7 +573,7 @@ msgid "Captions"
 msgstr "字幕"
 
 msgid "Carbon"
-msgstr "Carbon"
+msgstr ""
 
 msgid "Center"
 msgstr "居中"
@@ -2584,7 +2590,7 @@ msgid "Fine seek"
 msgstr "精细定位"
 
 msgid "⌥←/→"
-msgstr "⌥←/→"
+msgstr ""
 
 msgid "Undo history"
 msgstr "撤销历史"
@@ -2674,19 +2680,15 @@ msgid "Warp"
 msgstr "跳转"
 
 #: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
+msgid "Warp (W)\n"
 "Jump to another bar here"
-msgstr ""
-"跳转（W）\n"
+msgstr "跳转（W）\n"
 "在此跳到另一小节"
 
 #: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
+msgid "Warp (W)\n"
 "Make this anchor jump to another bar"
-msgstr ""
-"跳转（W）\n"
+msgstr "跳转（W）\n"
 "让此锚点跳到另一小节"
 
 #: lib/audio_panel.dart
@@ -3226,7 +3228,7 @@ msgstr "{n} / {count}"
 
 #: lib/pdf_import.dart
 msgid "×{n}"
-msgstr "×{n}"
+msgstr ""
 
 #: lib/edit_dialogs.dart
 msgid "Spacing of {name}"
@@ -3408,3 +3410,4 @@ msgstr "添加谱表（S）"
 #: lib/pdf_import.dart
 msgid "Remove Staff"
 msgstr "移除谱表"
+
