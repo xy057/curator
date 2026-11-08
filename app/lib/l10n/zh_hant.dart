@@ -508,6 +508,7 @@ const zhHant = <String, String>{
   'Redo': '重做',
   'Redo ({key})': '重做（{key}）',
   'Reduce motion': '減弱動態效果',
+  'Remember window': '記住視窗',
   'Refined': '精緻',
   'Regions can have their own.': '各區域可單獨設定。',
   'Regular': '一般',

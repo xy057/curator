@@ -70,8 +70,8 @@ class MainFlutterWindow: NSWindow, NSWindowDelegate {
   static let minimumSize = NSSize(width: 960, height: 620)
 
   /// The first window's size, when nothing is remembered: at most 90% of the screen's usable
-  /// area (a 13-inch laptop), never below [minimumSize]. After that the window reopens where
-  /// and as big as it was left.
+  /// area (a 13-inch laptop), never below [minimumSize]. After that, with Remember window on,
+  /// the window reopens where and as big as it was left.
   static let initialSize = NSSize(width: 1440, height: 900)
   private static let frameName = "Curator"
 
@@ -89,7 +89,12 @@ class MainFlutterWindow: NSWindow, NSWindowDelegate {
     let flutterViewController = FlutterViewController()
     self.contentViewController = flutterViewController
     self.contentMinSize = MainFlutterWindow.minimumSize
-    if !self.setFrameUsingName(MainFlutterWindow.frameName) {
+    // The frame is autosaved either way; it is restored only with Settings ▸ General ▸ Remember
+    // window on (AppSettings.rememberWindow, which shared_preferences keeps in the standard
+    // defaults as "flutter.rememberWindow": read here, before Dart runs).
+    self.setFrameAutosaveName(MainFlutterWindow.frameName)
+    let remember = UserDefaults.standard.object(forKey: "flutter.rememberWindow") as? Bool ?? true
+    if !remember || !self.setFrameUsingName(MainFlutterWindow.frameName) {
       let visible = (self.screen ?? NSScreen.main)?.visibleFrame.size ?? MainFlutterWindow.initialSize
       let size = NSSize(
         width: max(MainFlutterWindow.minimumSize.width, min(MainFlutterWindow.initialSize.width, visible.width * 0.9)),
@@ -97,7 +102,6 @@ class MainFlutterWindow: NSWindow, NSWindowDelegate {
       self.setFrame(self.frameRect(forContentRect: NSRect(origin: .zero, size: size)), display: true)
       self.center()
     }
-    self.setFrameAutosaveName(MainFlutterWindow.frameName)
     self.title = "Curator"
     self.delegate = self
 

@@ -52,6 +52,56 @@ static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
       gtk_window_set_icon(window, nullptr);
     }
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (strcmp(fl_method_call_get_name(call), "getFrame") == 0) {
+    // Kept by Dart as the app quits (AppSettings.windowFrame). While maximised GTK's size is
+    // the screen's: only that it is, the size from before is kept.
+    g_autoptr(FlValue) frame = fl_value_new_map();
+    gboolean maximized = gtk_window_is_maximized(window);
+    if (!maximized) {
+      gint x = 0, y = 0, width = 0, height = 0;
+      gtk_window_get_position(window, &x, &y);
+      gtk_window_get_size(window, &width, &height);
+      fl_value_set_string_take(frame, "x", fl_value_new_int(x));
+      fl_value_set_string_take(frame, "y", fl_value_new_int(y));
+      fl_value_set_string_take(frame, "width", fl_value_new_int(width));
+      fl_value_set_string_take(frame, "height", fl_value_new_int(height));
+    }
+    fl_value_set_string_take(frame, "maximized", fl_value_new_bool(maximized));
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(frame));
+  } else if (strcmp(fl_method_call_get_name(call), "setFrame") == 0 &&
+             fl_value_get_type(args) == FL_VALUE_TYPE_MAP &&
+             !gtk_widget_get_visible(GTK_WIDGET(window))) {
+    // Before the first frame shows the window. Wayland leaves the position to the compositor.
+    auto number = [&](const char* key, gint64* out) {
+      FlValue* v = fl_value_lookup_string(args, key);
+      if (v == nullptr || fl_value_get_type(v) != FL_VALUE_TYPE_INT) return false;
+      *out = fl_value_get_int(v);
+      return true;
+    };
+    gint64 x, y, width, height;
+    if (number("x", &x) && number("y", &y) && number("width", &width) &&
+        number("height", &height) && width > 0 && height > 0) {
+      // Only onto a monitor that is there.
+      GdkRectangle wanted = {static_cast<int>(x), static_cast<int>(y),
+                             static_cast<int>(width), static_cast<int>(height)};
+      GdkDisplay* display = gtk_widget_get_display(GTK_WIDGET(window));
+      gboolean on_screen = FALSE;
+      for (int i = 0; i < gdk_display_get_n_monitors(display) && !on_screen; i++) {
+        GdkRectangle area;
+        gdk_monitor_get_geometry(gdk_display_get_monitor(display, i), &area);
+        on_screen = gdk_rectangle_intersect(&wanted, &area, nullptr);
+      }
+      if (on_screen) {
+        gtk_window_resize(window, wanted.width, wanted.height);
+        gtk_window_move(window, wanted.x, wanted.y);
+        FlValue* maximized = fl_value_lookup_string(args, "maximized");
+        if (maximized != nullptr && fl_value_get_type(maximized) == FL_VALUE_TYPE_BOOL &&
+            fl_value_get_bool(maximized)) {
+          gtk_window_maximize(window);
+        }
+      }
+    }
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }

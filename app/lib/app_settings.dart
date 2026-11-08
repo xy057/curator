@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app_colors.dart';
 import 'l10n/l10n.dart';
 import 'video_export.dart';
+import 'window_chrome.dart' show WindowFrame;
 
 /// Preferences that apply to every project (Settings…, ⌘,).
 class AppSettings extends ChangeNotifier {
@@ -59,6 +60,8 @@ class AppSettings extends ChangeNotifier {
         _videoSubtitles = _prefs?.getBool(_videoSubtitlesKey) ?? false,
         _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false,
         _tabBar = _prefs?.getBool(_tabBarKey) ?? true,
+        _rememberWindow = _prefs?.getBool(_rememberWindowKey) ?? true,
+        _windowFrame = WindowFrame.parse(_prefs?.getString(_windowFrameKey)),
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
@@ -93,6 +96,8 @@ class AppSettings extends ChangeNotifier {
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
   static const _tabBarKey = 'showTabBar';
+  // macOS reads the flag itself, before Dart runs (MainFlutterWindow.swift: "flutter." + this).
+  static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
 
@@ -503,6 +508,27 @@ class AppSettings extends ChangeNotifier {
     _tabBar = value;
     _prefs?.setBool(_tabBarKey, value);
     notifyListeners();
+  }
+
+  /// Whether the window opens where and as big as it was left. The frame is kept either way.
+  bool get rememberWindow => _rememberWindow;
+  bool _rememberWindow;
+  set rememberWindow(bool value) {
+    if (value == _rememberWindow) return;
+    _rememberWindow = value;
+    _prefs?.setBool(_rememberWindowKey, value);
+    notifyListeners();
+  }
+
+  /// The window as it was left (Windows and Linux; macOS keeps its own, NSWindow's autosave).
+  WindowFrame? get windowFrame => _windowFrame;
+  WindowFrame? _windowFrame;
+
+  /// Waits for the write: this happens as the app quits.
+  Future<void> saveWindowFrame(WindowFrame frame) async {
+    if (frame == _windowFrame) return;
+    _windowFrame = frame;
+    await _prefs?.setString(_windowFrameKey, frame.encode());
   }
 
   // MARK: Extension

@@ -56,6 +56,7 @@ Future<void> main() async {
   FontResources.workDirectory = ScratchSpace.folder('fonts').path; // metrics of fonts not bundled
   LicenseRegistry.addLicense(_fontLicenses);
   final settings = await AppSettings.load();
+  if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
   final updater = Updater();
   if (settings.checkForUpdates) unawaited(updater.check());
   runApp(CuratedScoreApp(settings: settings, updater: updater));
@@ -478,6 +479,8 @@ class _AppWindowState extends State<AppWindow> {
       await project.page?.controller.audio.unload(); // lets go of its files, so they can be deleted
     }
     ScratchSpace.close();
+    final frame = await WindowChrome.currentFrame(previous: settings.windowFrame);
+    if (frame != null) await settings.saveWindowFrame(frame);
     return AppExitResponse.exit;
   }
 

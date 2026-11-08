@@ -508,6 +508,7 @@ const zhHans = <String, String>{
   'Redo': '重做',
   'Redo ({key})': '重做（{key}）',
   'Reduce motion': '减弱动态效果',
+  'Remember window': '记住窗口',
   'Refined': '精致',
   'Regions can have their own.': '各区域可单独设定。',
   'Regular': '常规',

@@ -28,6 +28,15 @@ std::wstring Utf16FromUtf8(const std::string& text) {
   return result;
 }
 
+// An int in a channel map: Dart's ints arrive as 32 or 64 bits.
+std::optional<int> IntIn(const flutter::EncodableMap& map, const char* key) {
+  auto found = map.find(flutter::EncodableValue(key));
+  if (found == map.end()) return std::nullopt;
+  if (const auto* v = std::get_if<int32_t>(&found->second)) return *v;
+  if (const auto* v = std::get_if<int64_t>(&found->second)) return static_cast<int>(*v);
+  return std::nullopt;
+}
+
 }  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
@@ -98,6 +107,50 @@ bool FlutterWindow::OnCreate() {
           SetAppIcon(png == args->end()
                          ? nullptr
                          : std::get_if<std::vector<uint8_t>>(&png->second));
+          result->Success();
+          return;
+        }
+        // The window's normal (unmaximised) placement, in physical pixels: kept by Dart as the
+        // app quits (AppSettings.windowFrame), given back before the first frame shows it.
+        if (call.method_name() == "getFrame") {
+          WINDOWPLACEMENT placement = {sizeof(placement)};
+          if (!::GetWindowPlacement(GetHandle(), &placement)) {
+            result->Success();
+            return;
+          }
+          const RECT& r = placement.rcNormalPosition;
+          bool maximized = placement.showCmd == SW_SHOWMAXIMIZED ||
+                           (placement.showCmd == SW_SHOWMINIMIZED &&
+                            (placement.flags & WPF_RESTORETOMAXIMIZED) != 0);
+          result->Success(flutter::EncodableValue(flutter::EncodableMap{
+              {flutter::EncodableValue("x"), flutter::EncodableValue(static_cast<int32_t>(r.left))},
+              {flutter::EncodableValue("y"), flutter::EncodableValue(static_cast<int32_t>(r.top))},
+              {flutter::EncodableValue("width"), flutter::EncodableValue(static_cast<int32_t>(r.right - r.left))},
+              {flutter::EncodableValue("height"), flutter::EncodableValue(static_cast<int32_t>(r.bottom - r.top))},
+              {flutter::EncodableValue("maximized"), flutter::EncodableValue(maximized)},
+          }));
+          return;
+        }
+        if (call.method_name() == "setFrame" && args != nullptr) {
+          auto x = IntIn(*args, "x"), y = IntIn(*args, "y");
+          auto width = IntIn(*args, "width"), height = IntIn(*args, "height");
+          auto maximized = args->find(flutter::EncodableValue("maximized"));
+          const bool* max = maximized == args->end() ? nullptr : std::get_if<bool>(&maximized->second);
+          // Only while still hidden, and only onto a screen that is there (a monitor unplugged
+          // since leaves the default placement).
+          if (x && y && width && height && *width > 0 && *height > 0 &&
+              !::IsWindowVisible(GetHandle())) {
+            RECT r = {*x, *y, *x + *width, *y + *height};
+            if (::MonitorFromRect(&r, MONITOR_DEFAULTTONULL) != nullptr) {
+              WINDOWPLACEMENT placement = {sizeof(placement)};
+              if (::GetWindowPlacement(GetHandle(), &placement)) {
+                placement.rcNormalPosition = r;
+                placement.showCmd = SW_HIDE;
+                ::SetWindowPlacement(GetHandle(), &placement);
+                SetShowMaximized(max != nullptr && *max);
+              }
+            }
+          }
           result->Success();
           return;
         }

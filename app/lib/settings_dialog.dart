@@ -228,6 +228,12 @@ final _categories = <_Category>[
       keywords: 'undo redo steps',
     ),
     _Item(
+      'Remember window',
+      null,
+      (c) => AppSwitch(value: c.settings.rememberWindow, onChanged: (v) => c.settings.rememberWindow = v),
+      keywords: 'window size position screen monitor display restore reopen launch frame',
+    ),
+    _Item(
       'Align added recordings',
       (_) => 'When no anchors are set yet.',
       (c) => AppSwitch(value: c.settings.alignAddedRecordings, onChanged: (v) => c.settings.alignAddedRecordings = v),
