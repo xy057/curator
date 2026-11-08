@@ -8,7 +8,7 @@ preserve_hierarchy: true
 files:
   - source: /app/assets/l10n/curator.pot
     # One file a language, named by its BCP 47 tag (the locale AppLanguage gives it).
-    translation: /app/assets/l10n/%two_letters_code%.po
+    translation: /app/assets/l10n/%locale_with_underscore%.po
     languages_mapping:
       two_letters_code:
         # Chinese is told apart by script, as the app's locales are. A language that comes in
