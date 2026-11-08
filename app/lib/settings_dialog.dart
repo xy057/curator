@@ -118,8 +118,11 @@ enum _Window {
 
 /// One setting: a title and help on the left, its control on the right.
 class _Item {
-  const _Item(this.title, this.help, this.control, {this.note, this.keywords = '', this.shown, this.group});
+  const _Item(this.title, this.help, this.control, {this.note, this.keywords = '', this.shown, this.group, this.below});
   final String title;
+
+  /// A strip under the row, across it (Language's invitation to translate).
+  final Widget Function(_Context)? below;
 
   /// The heading it is under on its page; items in a row with the same one share a group.
   final String? group;
@@ -203,7 +206,8 @@ final _categories = <_Category>[
         label: (l) => l == AppLanguage.system ? 'System'.tr : l.label,
         onChanged: (v) => c.settings.language = v,
       ),
-      keywords: 'language chinese english locale translation 语言 中文',
+      below: (_) => const _TranslateBar(),
+      keywords: 'language chinese english locale translation translate crowdin contribute 语言 中文 翻译',
     ),
     _Item(
       'Autosave',
@@ -1112,6 +1116,7 @@ Widget _rowOf(_Item item, _Context ctx, {bool withGroup = false}) => _SettingRow
     title: withGroup && item.group != null ? '${item.title.tr} · ${item.group!.tr}' : item.title,
     note: item.note,
     help: item.help?.call(ctx),
+    below: item.below?.call(ctx),
     control: item.control(ctx));
 
 /// [cat]'s rows under their headings, with [above] them a tabbed page's switch and an engraving
@@ -1588,16 +1593,17 @@ class _Page extends StatelessWidget {
 }
 
 class _SettingRow extends StatelessWidget {
-  const _SettingRow({super.key, required this.title, this.note, required this.help, required this.control});
+  const _SettingRow({super.key, required this.title, this.note, required this.help, required this.control, this.below});
   final String title;
   final String? note;
   final String? help;
   final Widget control;
+  final Widget? below;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return ConstrainedBox(
+    final row = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 52),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
@@ -1621,6 +1627,61 @@ class _SettingRow extends StatelessWidget {
           const SizedBox(width: 20),
           control,
         ]),
+      ),
+    );
+    if (below == null) return row;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+      row,
+      Padding(padding: const EdgeInsets.fromLTRB(14, 0, 12, 10), child: below),
+    ]);
+  }
+}
+
+/// Under Language: a slim strip asking for help translating, opening the Crowdin project.
+class _TranslateBar extends StatefulWidget {
+  const _TranslateBar();
+
+  static const url = 'https://crowdin.com/project/curator-by-xy057/';
+
+  @override
+  State<_TranslateBar> createState() => _TranslateBarState();
+}
+
+class _TranslateBarState extends State<_TranslateBar> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final style = AppStyle.of(context);
+    final link = _linkColor(context);
+    return Semantics(
+      link: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => openInBrowser(_TranslateBar.url),
+          child: AnimatedContainer(
+            duration: stateDuration(motion(context, 120)),
+            curve: style.curve,
+            constraints: const BoxConstraints(minHeight: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: colors.accent.withValues(alpha: _hover ? 0.16 : 0.09),
+              borderRadius: style.radius(8),
+            ),
+            child: Row(children: [
+              Expanded(child: Text('Help translate Curator'.tr, style: TextStyle(fontSize: 12.5, color: colors.text))),
+              const SizedBox(width: 12),
+              Text('Crowdin', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: link)),
+              const SizedBox(width: 6),
+              Icon(AppIcon.popOut.of(context), size: 13, color: link),
+            ]),
+          ),
+        ),
       ),
     );
   }
