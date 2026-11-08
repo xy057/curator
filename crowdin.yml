@@ -1,0 +1,20 @@
+# Crowdin: the interface's English template, and where each language's translations go.
+# See docs/translating.md. The project's id and an API token come from the environment (the CLI)
+# or from the GitHub integration's settings, never from this file.
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+preserve_hierarchy: true
+
+files:
+  - source: /app/assets/l10n/curator.pot
+    # One file a language, named by its BCP 47 tag (the locale AppLanguage gives it).
+    translation: /app/assets/l10n/%two_letters_code%.po
+    languages_mapping:
+      two_letters_code:
+        # Chinese is told apart by script, as the app's locales are. A language that comes in
+        # more than one variant (Portuguese: pt-BR, pt-PT) needs a mapping like these.
+        zh-CN: zh-Hans
+        zh-TW: zh-Hant
+    # Untranslated texts are kept, empty, so the app shows them in English.
+    skip_untranslated_strings: false
+    export_only_approved: false

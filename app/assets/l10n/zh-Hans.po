@@ -1,0 +1,3410 @@
+# Curator’s interface in Simplified Chinese.
+#
+# Terms: score 乐谱, project 项目, lane 轨道, region 区域, playhead 播放头, bar 小节, staff 谱表, staff space 谱间距, engraving 刻谱, anchor 锚点, warp 跳转, tempo map 速度图, caption 字幕, spacer 间隔, transition 过渡, condensing 声部合并, recording 录音.
+msgid ""
+msgstr ""
+"Project-Id-Version: Curator\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh-Hans\n"
+
+#: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
+msgid " and "
+msgstr "和"
+
+#: lib/export_dialog.dart
+msgid "(bars {from}–{to})"
+msgstr "（第 {from}–{to} 小节）"
+
+#: lib/media_converter.dart
+msgid "(or your distribution's package)"
+msgstr "（或使用你的发行版的软件包）"
+
+#: lib/instruments_toolbar.dart lib/score_replacement.dart
+msgid ", "
+msgstr "、"
+
+#: lib/updater.dart
+msgid "."
+msgstr "。"
+
+msgid ".srt beside the video"
+msgstr "在视频旁生成 .srt"
+
+msgid "1 anchor"
+msgstr "1 个锚点"
+
+#: lib/audio_panel.dart
+msgid "1 anchor from the recording"
+msgstr "从录音得到 1 个锚点"
+
+msgid "1 Bar"
+msgstr "1 小节"
+
+msgid "1 caption"
+msgstr "1 条字幕"
+
+msgid "1 edge"
+msgstr "1 个边缘"
+
+msgid "1 image"
+msgstr "1 张图像"
+
+#: lib/phrase_search_window.dart
+msgid "1 match"
+msgstr "1 处"
+
+msgid "1 region"
+msgstr "1 个区域"
+
+msgid "1 warp"
+msgstr "1 个跳转"
+
+#: lib/phrase_search_window.dart
+msgid "16th (4)"
+msgstr "十六分音符（4）"
+
+#: lib/phrase_search_window.dart
+msgid "32nd (3)"
+msgstr "三十二分音符（3）"
+
+#: lib/settings_dialog.dart
+msgid "A blend: the beats land on time, and the speed follows the notes {percent}% of the way."
+msgstr "折中：拍点准时到达，速度按 {percent}% 的程度跟随音符。"
+
+msgid "A browser won’t open a page from disk: double-clicking index.html shows nothing. Serve the folder instead."
+msgstr "浏览器无法直接从磁盘打开网页：双击 index.html 什么也不会显示。请改用服务器提供该文件夹。"
+
+msgid "A comparison needs “? … : …”."
+msgstr "比较需要写成“? … : …”。"
+
+msgid "A MIDI tempo map or a recording"
+msgstr "MIDI 速度图或录音"
+
+msgid "A project or a MusicXML score"
+msgstr "项目或 MusicXML 乐谱"
+
+msgid "A tempo map starts at quarter 0."
+msgstr "速度图须从第 0 个四分音符开始。"
+
+msgid "About"
+msgstr "关于"
+
+#: lib/app_menus.dart
+msgid "About Curator"
+msgstr "关于 Curator"
+
+msgid "Add the files to a repository, then Settings ▸ Pages ▸ Deploy from a branch."
+msgstr "将文件添加到仓库，然后选择 Settings ▸ Pages ▸ Deploy from a branch。"
+
+msgid "After exporting, Open in Browser does it for you. Or, in a terminal:"
+msgstr "导出后，“在浏览器中打开”会替你完成。或者在终端中："
+
+#: lib/web_export_dialog.dart
+msgid "As curated"
+msgstr "按策划"
+
+msgid "Copy the folder into the site, as you’d copy any file to it."
+msgstr "像复制其他文件一样，把文件夹复制到网站中。"
+
+#: lib/web_player/main.dart
+msgid "Couldn’t load {file} ({status})."
+msgstr "无法载入 {file}（{status}）。"
+
+#: lib/web_export.dart
+msgid "Couldn’t write the page."
+msgstr "无法写入网页。"
+
+msgid "Curator serves it while it’s open. Or, in a terminal:"
+msgstr "Curator 打开时会提供它。或者在终端中："
+
+msgid "Drag the folder onto Netlify Drop."
+msgstr "将文件夹拖到 Netlify Drop 上。"
+
+#: lib/web_export_dialog.dart
+msgid "Export to Web"
+msgstr "导出为网页"
+
+#: lib/app_menus.dart
+msgid "Export to Web…"
+msgstr "导出为网页…"
+
+#: lib/video_export.dart
+msgid "FFmpeg couldn’t write the sound."
+msgstr "FFmpeg 无法写入声音。"
+
+msgid "Frame"
+msgstr "画面"
+
+#: lib/web_player/player.dart
+msgid "Hide"
+msgstr "隐藏"
+
+#: lib/web_export_dialog.dart
+msgid "How to Publish"
+msgstr "如何发布"
+
+msgid "Images"
+msgstr "图片"
+
+#: lib/web_export_dialog.dart
+msgid "Includes installed fonts ({fonts}): publish only if their licenses allow."
+msgstr "包含已安装的字体（{fonts}）：仅在其许可允许时发布。"
+
+msgid "Installed fonts go with the page: publish it only where their licenses allow."
+msgstr "已安装的字体会随网页一起发布：仅在其许可允许的地方发布。"
+
+msgid "On This Computer"
+msgstr "在这台电脑上"
+
+msgid "Online"
+msgstr "在线"
+
+#: lib/web_export_dialog.dart lib/web_guide.dart
+msgid "Open in Browser"
+msgstr "在浏览器中打开"
+
+#: lib/web_player/player.dart
+msgid "Options"
+msgstr "选项"
+
+msgid "Page"
+msgstr "网页"
+
+msgid "Pause"
+msgstr "暂停"
+
+#: lib/web_export.dart lib/web_export_dialog.dart
+msgid "Performance"
+msgstr "演奏"
+
+msgid "Play"
+msgstr "播放"
+
+#: lib/web_guide.dart
+msgid "Publishing a Page"
+msgstr "发布网页"
+
+msgid "Recordings"
+msgstr "录音"
+
+#: lib/web_player/player.dart
+msgid "Show"
+msgstr "显示"
+
+#: lib/web_player/player.dart
+msgid "Speed"
+msgstr "速度"
+
+#: lib/web_export.dart
+msgid "The score is still being engraved. Try again in a moment."
+msgstr "乐谱仍在排版中，请稍后再试。"
+
+msgid "Then open localhost:8000. Safari may not play the recording from this server; Chrome and Firefox will."
+msgstr "然后打开 localhost:8000。Safari 可能无法从这个服务器播放录音；Chrome 和 Firefox 可以。"
+
+#: lib/web_export.dart lib/web_export_dialog.dart
+msgid "This build of Curator has no web player."
+msgstr "此版本的 Curator 没有网页播放器。"
+
+#: lib/web_export.dart
+msgid "Those aren’t bars of the score."
+msgstr "这些不是乐谱中的小节。"
+
+msgid "Title"
+msgstr "标题"
+
+msgid "To change it, export again into the same folder and upload it again."
+msgstr "要修改它，请再次导出到同一文件夹并重新上传。"
+
+msgid "Upload the whole folder, index.html with score beside it, to any web host. It works at a site’s top or in a folder of it."
+msgstr "将整个文件夹（index.html 及旁边的 score）上传到任意网站主机。放在网站根目录或其中的文件夹里都可以。"
+
+msgid "Viewer"
+msgstr "观看者"
+
+#: lib/web_export_dialog.dart
+msgid "Viewer can change"
+msgstr "观看者可更改"
+
+#: lib/web_export_dialog.dart
+msgid "Writing…"
+msgstr "正在写入…"
+
+#: lib/export_dialog.dart
+msgid "about {time} left"
+msgstr "约剩 {time}"
+
+msgid "Accent color"
+msgstr "强调色"
+
+msgid "Accidentals"
+msgstr "变音记号"
+
+#: lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
+msgid "Add"
+msgstr "添加"
+
+msgid "Add a pair"
+msgstr "添加声部对"
+
+msgid "Add Caption"
+msgstr "添加字幕"
+
+#: lib/score_view.dart
+msgid "Add Caption…"
+msgstr "添加字幕…"
+
+msgid "Add Group"
+msgstr "添加分组"
+
+#: lib/settings_dialog.dart
+msgid "Add Group…"
+msgstr "添加分组…"
+
+#: lib/spacer_lane.dart
+msgid "Add Horizontal Spacer"
+msgstr "添加横向间隔"
+
+#: lib/score_view.dart
+msgid "Add Image…"
+msgstr "添加图像…"
+
+#: lib/audio_panel.dart
+msgid "MIDI Tempo Map…"
+msgstr "MIDI 速度图…"
+
+#: lib/audio_panel.dart
+msgid "Add Recording…"
+msgstr "添加录音…"
+
+#: lib/audio_panel.dart
+msgid "Add Recording… (or drop one here)"
+msgstr "添加录音…（或拖放到这里）"
+
+#: lib/spacer_lane.dart
+msgid "Add Vertical Spacer"
+msgstr "添加纵向间隔"
+
+#: lib/score_replacement.dart
+msgid "Added: {names}"
+msgstr "新增：{names}"
+
+msgid "Add…"
+msgstr "添加…"
+
+msgid "Advanced"
+msgstr "高级"
+
+msgid "Advanced Engraving"
+msgstr "高级刻谱"
+
+#: lib/audio_panel.dart
+msgid "Align"
+msgstr "对齐"
+
+#: lib/audio_panel.dart
+msgid ""
+"Align\n"
+"Set the anchors from the recording"
+msgstr ""
+"对齐\n"
+"根据录音设置锚点"
+
+msgid "Align grace notes"
+msgstr "对齐装饰音"
+
+msgid "Align added recordings"
+msgstr "自动对齐添加的录音"
+
+msgid "Auto-curate imported scores"
+msgstr "自动编排导入的乐谱"
+
+msgid "Off: every staff throughout."
+msgstr "关：全程显示所有谱表。"
+
+#: lib/audio_panel.dart
+msgid "Aligning…"
+msgstr "正在对齐…"
+
+#: lib/extensions/extensions_dialog.dart lib/instruments_toolbar.dart lib/pdf_import.dart
+msgid "All"
+msgstr "全部"
+
+msgid "All pairs"
+msgstr "所有声部对"
+
+msgid "Alt+click"
+msgstr "Alt+单击"
+
+msgid "Alternative octave marks"
+msgstr "另一种八度记号"
+
+#: lib/phrase_search_window.dart
+msgid "Alto"
+msgstr "中音谱号"
+
+msgid "Amber"
+msgstr "琥珀"
+
+msgid "An image on the score is missing"
+msgstr "乐谱上的一张图像缺失"
+
+msgid "Anchor"
+msgstr "锚点"
+
+#: lib/audio_panel.dart
+msgid "Anchors"
+msgstr "锚点"
+
+msgid "Angled brackets on beams"
+msgstr "符杠上的倾斜括号"
+
+msgid "Animation"
+msgstr "动画"
+
+msgid "Another score was opened meanwhile."
+msgstr "期间已打开了另一份乐谱。"
+
+#: lib/phrase_search_window.dart
+msgid "Any key"
+msgstr "任意调"
+
+msgid "Anything"
+msgstr "任意元素"
+
+msgid "Appearance"
+msgstr "外观"
+
+#: lib/edit_dialogs.dart lib/spacer_dialogs.dart
+msgid "Apply"
+msgstr "应用"
+
+msgid "Arpeggios"
+msgstr "琶音"
+
+msgid "Articulations"
+msgstr "演奏法记号"
+
+msgid "As written"
+msgstr "保持原样"
+
+msgid "Asks GitHub for a newer version each time the app starts."
+msgstr "每次启动时向 GitHub 查询新版本。"
+
+#: lib/assets_dialog.dart
+msgid "Assets"
+msgstr "素材"
+
+msgid "At"
+msgstr "位置"
+
+msgid "Attach Image"
+msgstr "附加图像"
+
+msgid "Attach Image is off"
+msgstr "“附加图像”已关闭"
+
+msgid "Attach Image is off for now."
+msgstr "“附加图像”目前已关闭。"
+
+msgid "Audio"
+msgstr "音频"
+
+#: lib/audio_panel.dart
+msgid "Audio or video"
+msgstr "音频或视频"
+
+#: lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_player/player.dart
+msgid "Auto"
+msgstr "自动"
+
+#: lib/instruments_toolbar.dart
+msgid "Auto-curate"
+msgstr "自动编排"
+
+msgid "Auto-Curate Lane"
+msgstr "自动编排此轨道"
+
+msgid "Automatic"
+msgstr "自动"
+
+msgid "Autosave"
+msgstr "自动保存"
+
+#: lib/export_dialog.dart lib/pdf_import.dart lib/web_export_dialog.dart
+msgid "Back"
+msgstr "返回"
+
+msgid "Backing"
+msgstr "衬底"
+
+#: lib/lanes_common.dart
+msgid "Bar"
+msgstr "小节"
+
+#: lib/score_replacement.dart
+msgid "Bar length differs from bar {n}"
+msgstr "从第 {n} 小节起小节长度不同"
+
+msgid "Bar number interval"
+msgstr "小节号间隔"
+
+#: lib/web_player/player.dart
+msgid "Bar numbers"
+msgstr "小节号"
+
+#: lib/editor_toolbar.dart
+msgid "Bar or m:ss"
+msgstr "小节或 m:ss"
+
+msgid "Bar repeats"
+msgstr "小节反复记号"
+
+#: lib/assets_dialog.dart lib/phrase_search_window.dart
+msgid "Bar {bar}"
+msgstr "第 {bar} 小节"
+
+msgid "Barlines"
+msgstr "小节线"
+
+#: lib/export_dialog.dart
+msgid "Bars and still"
+msgstr "小节与预览画面"
+
+#: lib/export_dialog.dart
+msgid "Bars {bars}"
+msgstr "小节 {bars}"
+
+#: lib/export_dialog.dart
+msgid "Bars {from} to {to}"
+msgstr "第 {from} 至 {to} 小节"
+
+#: lib/score_replacement.dart
+msgid "Bars: {from} → {to}"
+msgstr "小节数：{from} → {to}"
+
+#: lib/phrase_search_window.dart
+msgid "Bass"
+msgstr "低音谱号"
+
+msgid "Beat"
+msgstr "拍"
+
+msgid "Beat repeats"
+msgstr "拍反复记号"
+
+#: lib/settings_dialog.dart
+msgid "Beats"
+msgstr "拍点"
+
+#: lib/audio_panel.dart
+msgid "Beats per minute"
+msgstr "每分钟拍数"
+
+msgid "Block"
+msgstr "方块"
+
+msgid "Bold"
+msgstr "粗体"
+
+msgid "Bold Italic"
+msgstr "粗斜体"
+
+#: lib/sections_editor.dart
+msgid "Bracket"
+msgstr "加括号"
+
+msgid "Brackets"
+msgstr "括号"
+
+msgid "Brass"
+msgstr "铜管"
+
+msgid "Breath marks"
+msgstr "换气记号"
+
+#: lib/instruments_toolbar.dart
+msgid "Bridge Rests Up to {bars}"
+msgstr "填补不超过 {bars}的休止"
+
+msgid "c if a < b, else d"
+msgstr "若 a < b 则为 c，否则为 d"
+
+#: lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+msgid "Cancel"
+msgstr "取消"
+
+#: lib/updater.dart
+msgid "Can’t reach GitHub. Is the internet connected?"
+msgstr "连不上 GitHub。网络连接了吗？"
+
+#: lib/project_document.dart
+msgid "Can’t find the linked recording:"
+msgstr "找不到链接的录音："
+
+msgid "Can’t find the recording to embed"
+msgstr "找不到要嵌入的录音"
+
+msgid "Caption"
+msgstr "字幕"
+
+msgid "Caption curve"
+msgstr "字幕曲线"
+
+msgid "Caption fade"
+msgstr "字幕淡入淡出"
+
+msgid "Caption font"
+msgstr "字幕字体"
+
+msgid "Caption rise"
+msgstr "字幕上升"
+
+#: lib/caption_lane.dart lib/captions_dialog.dart lib/web_player/player.dart
+msgid "Captions"
+msgstr "字幕"
+
+msgid "Carbon"
+msgstr "Carbon"
+
+msgid "Center"
+msgstr "居中"
+
+msgid "Centered lyrics"
+msgstr "歌词居中"
+
+msgid "Centers syllables under their notes."
+msgstr "将音节居中对齐到音符下方。"
+
+msgid "Changelog"
+msgstr "更新日志"
+
+msgid "Check at launch"
+msgstr "启动时检查"
+
+#: lib/settings_dialog.dart
+msgid "Check for Updates"
+msgstr "检查更新"
+
+#: lib/settings_dialog.dart
+msgid "Checking…"
+msgstr "正在检查…"
+
+#: lib/audio_panel.dart
+msgid "Pick a spot between the neighboring anchors."
+msgstr "请在相邻锚点之间选个位置。"
+
+msgid "Chord symbols"
+msgstr "和弦记号"
+
+msgid "Chords"
+msgstr "和弦"
+
+#: lib/home_screen.dart lib/phrase_search_window.dart
+msgid "Clear"
+msgstr "清除"
+
+#: lib/instruments_toolbar.dart
+msgid "Clear all lanes"
+msgstr "清空所有轨道"
+
+msgid "Clear Lane"
+msgstr "清空轨道"
+
+#: lib/app_menus.dart
+msgid "Clear Menu"
+msgstr "清除菜单"
+
+#: lib/phrase_search_window.dart
+msgid "Clef"
+msgstr "谱号"
+
+msgid "Clefs"
+msgstr "谱号"
+
+#: lib/app_menus.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+msgid "Close"
+msgstr "关闭"
+
+msgid "Close Curator, then replace its folder with the unzipped one."
+msgstr "请退出 Curator，然后用解压后的文件夹替换原文件夹。"
+
+#: lib/settings_dialog.dart
+msgid "Close settings"
+msgstr "关闭设置"
+
+#: lib/project_tabs.dart
+msgid "Close tab ({key})"
+msgstr "关闭标签页（{key}）"
+
+msgid "Close up verses"
+msgstr "收拢歌词段落"
+
+msgid "Closing barlines"
+msgstr "结束小节线"
+
+#: lib/phrase_search_window.dart
+msgid "Collapse"
+msgstr "折叠"
+
+msgid "Color names"
+msgstr "乐器名着色"
+
+msgid "Compact"
+msgstr "紧凑"
+
+#: lib/spacer_dialogs.dart
+msgid "Concert pitch"
+msgstr "音乐会音高"
+
+msgid "Condensing"
+msgstr "声部合并"
+
+#: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart
+msgid "Copy"
+msgstr "复制"
+
+msgid "Copy Lane To…"
+msgstr "复制轨道到…"
+
+#: lib/edit_dialogs.dart
+msgid "Copy {name} to…"
+msgstr "将 {name} 复制到…"
+
+#: lib/score_view/attach_image.dart
+msgid "Couldn’t add the image. {error}"
+msgstr "无法添加图像。{error}"
+
+#: lib/audio_panel.dart
+msgid "Couldn’t align. {error}"
+msgstr "无法对齐。{error}"
+
+#: lib/main.dart
+msgid "Couldn’t autosave. {error}"
+msgstr "无法自动保存。{error}"
+
+#: lib/audio_panel.dart
+msgid "Couldn’t hear the score in this recording."
+msgstr "在这段录音里没有听出这份乐谱。"
+
+#: lib/main.dart lib/score_editor.dart
+msgid "Couldn’t engrave. {error}"
+msgstr "无法刻谱。{error}"
+
+#: lib/settings_dialog.dart
+msgid "Couldn’t Export Settings"
+msgstr "无法导出设置"
+
+msgid "Couldn’t Export Video"
+msgstr "无法导出视频"
+
+#: lib/settings_dialog.dart
+msgid "Couldn’t Import Settings"
+msgstr "无法导入设置"
+
+#: lib/main.dart
+msgid "Couldn’t Load Recording"
+msgstr "无法载入录音"
+
+#: lib/editor_controller.dart
+msgid "Couldn’t load the recording."
+msgstr "无法载入录音。"
+
+#: lib/audio_panel.dart
+msgid "Couldn’t load the recording. {error}"
+msgstr "无法载入录音。{error}"
+
+#: lib/main.dart
+msgid "Couldn’t Open Project"
+msgstr "无法打开项目"
+
+#: lib/main.dart
+msgid "Couldn’t Open Sample"
+msgstr "无法打开示例"
+
+#: lib/main.dart
+msgid "Couldn’t Open Score"
+msgstr "无法打开乐谱"
+
+#: lib/main.dart lib/score_view/attach_image.dart
+msgid "Couldn’t paste the image. {error}"
+msgstr "无法粘贴图像。{error}"
+
+msgid "Couldn’t read an image in the project."
+msgstr "无法读取项目中的图像。"
+
+#: lib/media_converter.dart
+msgid "Couldn’t read audio from this file."
+msgstr "无法从这个文件读取音频。"
+
+#: lib/updater.dart
+msgid "Couldn’t read GitHub’s response."
+msgstr "无法读取 GitHub 的响应。"
+
+msgid "Couldn’t read the music font."
+msgstr "无法读取音乐字体。"
+
+#: lib/image_patch.dart
+msgid "Couldn’t make sense of this image."
+msgstr "读不懂这个图像。"
+
+msgid "Couldn’t make sense of this SVG."
+msgstr "读不懂这个 SVG。"
+
+#: lib/main.dart
+msgid "Couldn’t Save Project"
+msgstr "无法保存项目"
+
+msgid "Couldn’t start the engraver."
+msgstr "无法启动刻谱引擎。"
+
+#: lib/main.dart
+msgid "Couldn’t Use MIDI File"
+msgstr "无法使用 MIDI 文件"
+
+#: lib/error_text.dart
+msgid "Couldn’t use the file"
+msgstr "无法使用该文件"
+
+#: lib/audio_panel.dart
+msgid "Couldn’t use the MIDI file. {error}"
+msgstr "无法使用该 MIDI 文件。{error}"
+
+#: lib/updater.dart
+msgid "Couldn’t write {name}."
+msgstr "无法写入 {name}。"
+
+msgid "Countdown"
+msgstr "倒计时"
+
+msgid "Crop"
+msgstr "裁剪"
+
+#: lib/audio_panel.dart
+msgid "Crossfade"
+msgstr "交叉淡化"
+
+msgid "Crossfade (its own)"
+msgstr "交叉淡化（自己的）"
+
+msgid "Crossfade (the project’s)"
+msgstr "交叉淡化（项目的）"
+
+#: lib/settings_dialog.dart
+msgid "Curator is up to date! ☆"
+msgstr "Curator 已是最新版本！☆"
+
+#: lib/main.dart
+msgid "Curator project"
+msgstr "Curator 项目"
+
+#: lib/settings_dialog.dart
+msgid "Curator settings"
+msgstr "Curator 设置"
+
+#: lib/settings_dialog.dart
+msgid "Curator {version} is out, but not for this system yet."
+msgstr "Curator {version} 已推出，但这个系统还要再等等。"
+
+#: lib/main.dart lib/settings_dialog.dart
+msgid "Curator {version} is available! ☆"
+msgstr "Curator {version} 已推出！☆"
+
+#: lib/motion_settings.dart
+msgid "Custom"
+msgstr "自定"
+
+#: lib/editor_toolbar.dart
+msgid "Custom ({ratio})…"
+msgstr "自定（{ratio}）…"
+
+msgid "Custom Color"
+msgstr "自定颜色"
+
+#: lib/motion_settings.dart
+msgid "Custom Curve"
+msgstr "自定曲线"
+
+#: lib/editor_toolbar.dart
+msgid "Custom…"
+msgstr "自定…"
+
+#: lib/app_menus.dart
+msgid "Cut"
+msgstr "剪切"
+
+msgid "Cyan"
+msgstr "青色"
+
+#: lib/settings_dialog.dart
+msgid "Dark"
+msgstr "深色"
+
+msgid "Dark also turns the score dark."
+msgstr "深色也会让乐谱变暗。"
+
+msgid "Dash gap"
+msgstr "虚线间隙"
+
+msgid "Dash length"
+msgstr "虚线长度"
+
+#: lib/font_settings.dart lib/settings_dialog.dart
+msgid "Default"
+msgstr "默认"
+
+#: lib/app_menus.dart
+msgid "Delete"
+msgstr "删除"
+
+#: lib/phrase_search_window.dart
+msgid "Delete note ({key})"
+msgstr "删除音符（{key}）"
+
+msgid "Density"
+msgstr "密度"
+
+#: lib/audio_panel.dart
+msgid "Deselect (Esc)"
+msgstr "取消选择（Esc）"
+
+#: lib/main.dart
+msgid "Save your changes to “{name}” first?"
+msgstr "先保存对“{name}”的更改吗？"
+
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+msgid "Done"
+msgstr "完成"
+
+#: lib/main.dart
+msgid "Don’t Save"
+msgstr "不保存"
+
+#: lib/phrase_search_window.dart lib/score_editor.dart
+msgid "Dot (.)"
+msgstr "附点（.）"
+
+msgid "Dots"
+msgstr "附点"
+
+msgid "Double barline gap"
+msgstr "双小节线间隙"
+
+#: lib/settings_dialog.dart
+msgid "Download {version}"
+msgstr "下载 {version}"
+
+#: lib/settings_dialog.dart
+msgid "Downloading {version}…"
+msgstr "正在下载 {version}…"
+
+#: lib/instruments_toolbar.dart
+msgid "Draw (D)"
+msgstr "绘制（D）"
+
+msgid "Try a MIDI file or a recording."
+msgstr "试试 MIDI 文件或录音吧。"
+
+msgid "Drop a recording or a MIDI file"
+msgstr "拖放录音或 MIDI 文件"
+
+msgid "That needs to be an image file."
+msgstr "这里需要图像文件哦。"
+
+msgid "Recordings and MIDI files go on the Audio tab!"
+msgstr "录音和 MIDI 文件要放到“音频”标签页哦！"
+
+msgid "Drop to add"
+msgstr "拖放以添加"
+
+msgid "Drop to add an image"
+msgstr "拖放以添加图像"
+
+msgid "Drop to open"
+msgstr "拖放以打开"
+
+msgid "Dynamics"
+msgstr "力度记号"
+
+msgid "Dynamics and lines"
+msgstr "力度与线条"
+
+msgid "Dynamics as one glyph"
+msgstr "力度记号用单一字形"
+
+msgid "Dynamics distance"
+msgstr "力度记号距离"
+
+msgid "Dynamics typed as text"
+msgstr "以文字输入的力度记号"
+
+msgid "Ease In"
+msgstr "缓入"
+
+msgid "Ease In-Out"
+msgstr "缓入缓出"
+
+msgid "Ease Out"
+msgstr "缓出"
+
+#: lib/app_menus.dart
+msgid "Edit"
+msgstr "编辑"
+
+#: lib/score_view.dart
+msgid "Edit Caption…"
+msgstr "编辑字幕…"
+
+#: lib/score_view.dart
+msgid "Edit Spacer…"
+msgstr "编辑间隔…"
+
+#: lib/settings_dialog.dart
+msgid "Edit…"
+msgstr "编辑…"
+
+#: lib/phrase_search_window.dart
+msgid "Eighth (5)"
+msgstr "八分音符（5）"
+
+msgid "Embed font"
+msgstr "嵌入字体"
+
+#: lib/instruments_toolbar.dart
+msgid "end ({at})"
+msgstr "终点（{at}）"
+
+#: lib/instruments_toolbar.dart
+msgid "End at the playhead (])"
+msgstr "在播放头处结束（]）"
+
+msgid "Ending"
+msgstr "结尾"
+
+msgid "Ending brackets"
+msgstr "反复房子"
+
+msgid "Engraves “f” set in a music font as a dynamic."
+msgstr "将以音乐字体排出的“f”刻为力度记号。"
+
+msgid "Engraving"
+msgstr "刻谱"
+
+msgid "Engraving…"
+msgstr "正在刻谱…"
+
+msgid "Enter a bar or bar.beat, like 12 or 12.3"
+msgstr "请输入小节或“小节.拍”，如 12 或 12.3"
+
+#: lib/spacer_dialogs.dart
+msgid "Enter {min} to {max} staff spaces"
+msgstr "请输入 {min} 到 {max} 个谱间距"
+
+#: lib/instruments_toolbar.dart
+msgid "Erase (E)"
+msgstr "擦除（E）"
+
+msgid "Even spacing"
+msgstr "等距排列"
+
+#: lib/settings_dialog.dart
+msgid "Every minute"
+msgstr "每分钟"
+
+#: lib/settings_dialog.dart
+msgid "Every note is under the playhead exactly as it sounds: slower through long notes, quicker through runs."
+msgstr "每个音符都在发声时正好经过播放头：长音处较慢，快速经过句处较快。"
+
+#: lib/settings_dialog.dart
+msgid "Every {n} minutes"
+msgstr "每 {n} 分钟"
+
+#: lib/settings_dialog.dart
+msgid "Every {n} seconds"
+msgstr "每 {n} 秒"
+
+#: lib/phrase_search_window.dart
+msgid "Exact"
+msgstr "精确"
+
+#: lib/phrase_search_window.dart
+msgid "Expand"
+msgstr "展开"
+
+#: lib/editor_toolbar.dart
+msgid "Export"
+msgstr "导出"
+
+msgid "Export anyway"
+msgstr "仍然导出"
+
+msgid "Export Video"
+msgstr "导出视频"
+
+#: lib/app_menus.dart
+msgid "Export Video…"
+msgstr "导出视频…"
+
+#: lib/captions_dialog.dart
+msgid "Exported “{name}”"
+msgstr "已导出“{name}”"
+
+msgid "Exporting Video…"
+msgstr "正在导出视频…"
+
+#: lib/captions_dialog.dart lib/export_dialog.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+msgid "Export…"
+msgstr "导出…"
+
+msgid "Expressions"
+msgstr "表情记号"
+
+msgid "Extensions"
+msgstr "扩展"
+
+#: lib/extensions/extensions_dialog.dart
+msgid "Extensions in this project"
+msgstr "此项目中的扩展"
+
+msgid "Extra width (staff spaces)"
+msgstr "额外宽度（谱间距）"
+
+msgid "f(1) must differ from f(0)."
+msgstr "f(1) 必须不同于 f(0)。"
+
+msgid "Fade"
+msgstr "淡入淡出"
+
+msgid "Fade out"
+msgstr "淡出"
+
+msgid "Fade-out curve"
+msgstr "淡出曲线"
+
+msgid "Fermatas"
+msgstr "延长记号"
+
+#: lib/video_export.dart
+msgid "FFmpeg couldn’t write the video."
+msgstr "FFmpeg 无法写入视频。"
+
+#: lib/app_menus.dart
+msgid "File"
+msgstr "文件"
+
+msgid "Fill the window"
+msgstr "填满窗口"
+
+#: lib/phrase_search_window.dart
+msgid "Find Phrase"
+msgstr "查找乐句"
+
+#: lib/editor_toolbar.dart
+msgid "Find phrase ({key})"
+msgstr "查找乐句（{key}）"
+
+#: lib/app_menus.dart
+msgid "Find Phrase…"
+msgstr "查找乐句…"
+
+msgid "Fingering"
+msgstr "指法"
+
+#: lib/bottom_panel.dart
+msgid "Fit"
+msgstr "适合窗口"
+
+msgid "Flags"
+msgstr "符尾"
+
+#: lib/phrase_search_window.dart lib/score_editor.dart
+msgid "Flat (-)"
+msgstr "降号（-）"
+
+msgid "Folder"
+msgstr "文件夹"
+
+msgid "Font"
+msgstr "字体"
+
+#: lib/font_settings.dart
+msgid "Font File…"
+msgstr "字体文件…"
+
+#: lib/main.dart
+msgid "Can’t find the font “{name}”, so Bravura is filling in."
+msgstr "找不到字体“{name}”，暂由 Bravura 代替。"
+
+#: lib/font_settings.dart
+msgid "Fonts"
+msgstr "字体"
+
+msgid "Format"
+msgstr "格式"
+
+msgid "Frame rate"
+msgstr "帧率"
+
+#: lib/export_dialog.dart
+msgid "Frame {n} of {all}"
+msgstr "第 {n} 帧，共 {all} 帧"
+
+#: lib/captions_dialog.dart
+msgid "From"
+msgstr "起始"
+
+msgid "From bar"
+msgstr "起始小节"
+
+#: lib/settings_dialog.dart
+msgid "From GitHub."
+msgstr "来自 GitHub。"
+
+msgid "General"
+msgstr "通用"
+
+#: lib/updater.dart
+msgid "GitHub isn’t answering. Try again in a bit."
+msgstr "GitHub 没有回应，过一会儿再试吧。"
+
+#: lib/updater.dart
+msgid "GitHub returned an error ({code})"
+msgstr "GitHub 返回了错误（{code}）"
+
+msgid "Glide"
+msgstr "滑动"
+
+#: lib/settings_dialog.dart
+msgid "Glides from beat to beat: the speed changes only with the tempo."
+msgstr "逐拍平滑滑动：速度只随速度标记变化。"
+
+msgid "Glissandos"
+msgstr "滑音"
+
+#: lib/editor_toolbar.dart
+msgid "Go to bar ({key})"
+msgstr "跳到小节（{key}）"
+
+#: lib/editor_toolbar.dart
+msgid "Go to start (Home)"
+msgstr "回到开头（Home）"
+
+#: lib/editor_toolbar.dart
+msgid "Go to time ({key})"
+msgstr "跳到时间（{key}）"
+
+msgid "Grace note size"
+msgstr "装饰音大小"
+
+msgid "Graphite"
+msgstr "石墨"
+
+msgid "Green"
+msgstr "绿色"
+
+msgid "Group sections"
+msgstr "按声部组排列"
+
+msgid "Groups"
+msgstr "分组"
+
+msgid "H-bar"
+msgstr "H 形横杠"
+
+msgid "Hairpin opening"
+msgstr "渐强渐弱开口"
+
+msgid "Hairpins"
+msgstr "渐强渐弱记号"
+
+#: lib/phrase_search_window.dart
+msgid "Half (7)"
+msgstr "二分音符（7）"
+
+msgid "Height (staff spaces)"
+msgstr "高度（谱间距）"
+
+#: lib/app_menus.dart
+msgid "Help"
+msgstr "帮助"
+
+msgid "Hex"
+msgstr "十六进制"
+
+#: lib/app_menus.dart
+msgid "Hide Preview"
+msgstr "隐藏预览"
+
+#: lib/app_menus.dart
+msgid "Hide Tab Bar"
+msgstr "隐藏标签页栏"
+
+#: lib/app_menus.dart
+msgid "Hide Timeline"
+msgstr "隐藏时间线"
+
+#: lib/project_tabs.dart
+msgid "Home"
+msgstr "主页"
+
+#: lib/spacer_dialogs.dart
+msgid "Horizontal Spacer"
+msgstr "横向间隔"
+
+msgid "Hue"
+msgstr "色相"
+
+#: lib/image_patch.dart
+msgid "Image"
+msgstr "图像"
+
+msgid "Images and spacers that scroll with the score."
+msgstr "随乐谱滚动的图像和间隔。"
+
+#: lib/captions_dialog.dart lib/settings_dialog.dart
+msgid "Import…"
+msgstr "导入…"
+
+#: lib/spacer_dialogs.dart
+msgid "In {key}"
+msgstr "{key} 调"
+
+msgid "Indigo"
+msgstr "靛蓝"
+
+msgid "Ink delay"
+msgstr "墨色延迟"
+
+msgid "Ink fade"
+msgstr "墨色渐变"
+
+#: lib/edit_dialogs.dart lib/pdf_import_changes.dart
+msgid "Insert {symbol}"
+msgstr "插入 {symbol}"
+
+#: lib/font_settings.dart
+msgid "Installed Font…"
+msgstr "已安装的字体…"
+
+#: lib/web_player/player.dart
+msgid "Instruments"
+msgstr "乐器"
+
+msgid "Italic"
+msgstr "斜体"
+
+msgid "Jump to"
+msgstr "跳到"
+
+#: lib/audio_panel.dart
+msgid "Kept {warps} from the anchors"
+msgstr "保留了锚点中的 {warps}"
+
+#: lib/audio_panel.dart
+msgid "Kept {warps} from {file}"
+msgstr "保留了 {file} 中的 {warps}"
+
+msgid "Key signatures"
+msgstr "调号"
+
+msgid "Keyboards"
+msgstr "键盘"
+
+#: lib/instrument_lanes/lane_header.dart
+msgid "Lane options"
+msgstr "轨道选项"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Large"
+msgstr "大"
+
+msgid "Leave empty to remove"
+msgstr "留空即可移除"
+
+msgid "Ledger line length"
+msgstr "加线长度"
+
+msgid "Ledger lines"
+msgstr "加线"
+
+msgid "Left"
+msgstr "左"
+
+msgid "Letter spacing"
+msgstr "字距"
+
+msgid "License"
+msgstr "许可证"
+
+#: lib/settings_dialog.dart
+msgid "Light"
+msgstr "浅色"
+
+msgid "Lightness"
+msgstr "亮度"
+
+msgid "Line"
+msgstr "线条"
+
+msgid "Line thickness"
+msgstr "线条粗细"
+
+msgid "Linear"
+msgstr "线性"
+
+#: lib/main.dart
+msgid "Locate…"
+msgstr "查找…"
+
+#: lib/score_replacement.dart
+msgid "Lost past bar {n}: {items}"
+msgstr "第 {n} 小节之后丢失：{items}"
+
+msgid "Lyric lines"
+msgstr "歌词延长线"
+
+msgid "Lyric size"
+msgstr "歌词大小"
+
+msgid "Lyrics"
+msgstr "歌词"
+
+#: lib/editor_toolbar.dart
+msgid "Manage assets…"
+msgstr "管理素材…"
+
+msgid "Maximum beam slope"
+msgstr "符杠最大斜率"
+
+msgid "Maximum gap"
+msgstr "最大距离"
+
+msgid "Maximum slur slope"
+msgstr "圆滑线最大斜率"
+
+#: lib/app_menus.dart
+msgid "Maximize Preview"
+msgstr "最大化预览"
+
+#: lib/app_menus.dart
+msgid "Maximize Timeline"
+msgstr "最大化时间线"
+
+msgid "Medium"
+msgstr "中"
+
+msgid "Mensuration signs"
+msgstr "定量记号"
+
+#: lib/editor_toolbar.dart
+msgid "Metronome (C)"
+msgstr "节拍器（C）"
+
+#: lib/audio_panel.dart
+msgid "MIDI tempo"
+msgstr "MIDI 速度"
+
+msgid "Minimum bar width"
+msgstr "最小小节宽度"
+
+msgid "Minimum gap"
+msgstr "最小距离"
+
+msgid "Minimum tie length"
+msgstr "延音线最小长度"
+
+msgid "Missing “)”."
+msgstr "缺少“)”。"
+
+msgid "Missing “:”."
+msgstr "缺少“:”。"
+
+#: lib/instruments_toolbar.dart
+msgid "Mixed"
+msgstr "混合"
+
+msgid "Move to Bottom"
+msgstr "移到底部"
+
+msgid "Move to Top"
+msgstr "移到顶部"
+
+msgid "MP4 video"
+msgstr "MP4 视频"
+
+msgid "Multi-bar repeats"
+msgstr "多小节反复记号"
+
+msgid "Multi-bar rests"
+msgstr "多小节休止"
+
+msgid "Music font"
+msgstr "音乐字体"
+
+msgid "Music symbols"
+msgstr "音乐符号"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Name and clef"
+msgstr "名称和谱号"
+
+msgid "Names"
+msgstr "乐器名"
+
+#: lib/phrase_search_window.dart lib/score_editor.dart
+msgid "Natural (0)"
+msgstr "还原号（0）"
+
+#: lib/phrase_search_window.dart
+msgid "Next ({key})"
+msgstr "下一个（{key}）"
+
+#: lib/captions_dialog.dart
+msgid "No captions"
+msgstr "没有字幕"
+
+msgid "No extensions yet."
+msgstr "暂无扩展。"
+
+#: lib/main.dart
+msgid "There’s no image to paste."
+msgstr "没有可粘贴的图像哦。"
+
+#: lib/assets_dialog.dart
+msgid "No images"
+msgstr "没有图像"
+
+#: lib/phrase_search_window.dart
+msgid "No matches"
+msgstr "没有找到"
+
+#: lib/settings_dialog.dart
+msgid "No matching settings"
+msgstr "没有匹配的设置"
+
+msgid "No players in this score can share a staff."
+msgstr "这份乐谱中没有可以共用谱表的演奏者。"
+
+#: lib/app_menus.dart
+msgid "No Recent Files"
+msgstr "没有最近使用的文件"
+
+msgid "No score was found inside the .mxl archive."
+msgstr ".mxl 压缩包中没有找到乐谱。"
+
+msgid "No settings"
+msgstr "没有设置项"
+
+#: lib/captions_dialog.dart
+msgid "None of these subtitles land inside the music."
+msgstr "这些字幕都不在音乐范围内。"
+
+msgid "No subtitles found in this file."
+msgstr "这个文件中没有字幕。"
+
+#: lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+msgid "None"
+msgstr "无"
+
+#: lib/score_replacement.dart
+msgid "none"
+msgstr "无"
+
+#: lib/settings_dialog.dart
+msgid "None."
+msgstr "无。"
+
+#: lib/home_screen.dart
+msgid "Not found · {folder}"
+msgstr "找不到 · {folder}"
+
+msgid "Not installed"
+msgstr "未安装"
+
+msgid "Not supported in MP4"
+msgstr "MP4 不支持"
+
+#: lib/edit_dialogs.dart
+msgid "Not supported:"
+msgstr "不支持："
+
+msgid "Not with a PNG sequence"
+msgstr "PNG 序列不可用"
+
+msgid "Notation"
+msgstr "记谱"
+
+#: lib/export_dialog.dart
+msgid "Notation runs off the frame"
+msgstr "记谱超出画框"
+
+#: lib/lanes_common.dart
+msgid "Notation runs off the video frame: {bars}"
+msgstr "记谱超出视频画框：{bars}"
+
+msgid "Note spacing"
+msgstr "音符间距"
+
+msgid "Noteheads"
+msgstr "符头"
+
+#: lib/settings_dialog.dart
+msgid "Notes"
+msgstr "音符"
+
+msgid "Notes and rests"
+msgstr "音符与休止符"
+
+msgid "Nothing to save yet! Open a project or score first."
+msgstr "还没有可保存的东西！先打开项目或乐谱吧。"
+
+msgid "Number by the noteheads"
+msgstr "数字靠近符头"
+
+msgid "Octave lines"
+msgstr "八度线"
+
+msgid "Octave marks"
+msgstr "八度记号"
+
+#: lib/settings_dialog.dart
+msgid "Off"
+msgstr "关闭"
+
+#: lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+msgid "OK"
+msgstr "好"
+
+msgid "Opacity"
+msgstr "不透明度"
+
+msgid "Open a score first, then its MIDI tempo map."
+msgstr "请先打开乐谱，再添加它的 MIDI 速度图。"
+
+msgid "Open a score first, then its recording."
+msgstr "请先打开乐谱，再添加它的录音。"
+
+msgid "Open Folder"
+msgstr "打开文件夹"
+
+#: lib/settings_dialog.dart
+msgid "Open in the browser"
+msgstr "在浏览器中打开"
+
+#: lib/settings_dialog.dart
+msgid "Created using EmoteLab"
+msgstr "使用 EmoteLab 制作"
+
+#: lib/settings_dialog.dart
+msgid "Open in Window"
+msgstr "在窗口中打开"
+
+#: lib/app_menus.dart
+msgid "Open Recent"
+msgstr "打开最近使用"
+
+#: lib/settings_dialog.dart
+msgid "Open Release Page"
+msgstr "打开发布页面"
+
+#: lib/home_screen.dart
+msgid "Open Sample"
+msgstr "打开示例"
+
+msgid "Opening barlines"
+msgstr "起始小节线"
+
+#: lib/app_menus.dart lib/home_screen.dart
+msgid "Open…"
+msgstr "打开…"
+
+msgid "Option-click"
+msgstr "Option-点按"
+
+msgid "Ornaments"
+msgstr "装饰记号"
+
+msgid "Other"
+msgstr "其他"
+
+msgid "Other projects start with these"
+msgstr "其他项目以此为起点"
+
+msgid "Overlaps another caption"
+msgstr "与另一条字幕重叠"
+
+#: lib/captions_dialog.dart
+msgid "Overlaps the caption in row {n}"
+msgstr "与第 {n} 行的字幕重叠"
+
+msgid "Overshoot"
+msgstr "回弹"
+
+msgctxt "page"
+msgid "Flags"
+msgstr "兼容选项"
+
+msgid "Pairs"
+msgstr "声部对"
+
+msgid "Paper"
+msgstr "纸张"
+
+#: lib/app_menus.dart lib/score_view.dart
+msgid "Paste"
+msgstr "粘贴"
+
+msgid "Pause (Space)"
+msgstr "暂停（空格）"
+
+msgid "Pedal lines"
+msgstr "踏板线"
+
+msgid "Pedal marks"
+msgstr "踏板记号"
+
+msgid "Per project."
+msgstr "每个项目各自记录。"
+
+msgid "Percussion"
+msgstr "打击乐"
+
+msgid "Picture"
+msgstr "画面"
+
+#: lib/caption_lane.dart
+msgid "Pinned"
+msgstr "已固定"
+
+msgid "Play (Space)"
+msgstr "播放（空格）"
+
+msgid "Playback line"
+msgstr "播放线"
+
+msgid "Playback line color"
+msgstr "播放线颜色"
+
+#: lib/audio_panel.dart
+msgid "Playback speed"
+msgstr "播放速度"
+
+#: lib/condensing_editor.dart
+msgid "Player"
+msgstr "演奏者"
+
+msgid "PNG Sequence"
+msgstr "PNG 序列"
+
+#: lib/phrase_search_window.dart
+msgid "Previous ({key})"
+msgstr "上一个（{key}）"
+
+msgid "Project Info"
+msgstr "项目信息"
+
+#: lib/home_screen.dart
+msgid "Project or MusicXML ({key})"
+msgstr "项目或 MusicXML（{key}）"
+
+#: lib/bottom_panel.dart
+msgid "Project Settings ({key})"
+msgstr "项目设置（{key}）"
+
+#: lib/app_menus.dart
+msgid "Project Settings…"
+msgstr "项目设置…"
+
+#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
+msgid "Project's ({n} s)"
+msgstr "项目的（{n} 秒）"
+
+#: lib/main.dart
+msgid "Projects and scores"
+msgstr "项目和乐谱"
+
+#: lib/phrase_search_window.dart
+msgid "Quarter (6)"
+msgstr "四分音符（6）"
+
+msgid "QuickTime movie"
+msgstr "QuickTime 影片"
+
+msgid "Ratio"
+msgstr "比例"
+
+msgid "Reading the recording…"
+msgstr "正在读取录音…"
+
+#: lib/home_screen.dart
+msgid "RECENT"
+msgstr "最近使用"
+
+#: lib/audio_panel.dart lib/take_lanes.dart lib/web_player/player.dart
+msgid "Recording"
+msgstr "录音"
+
+#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+msgid "Redo"
+msgstr "重做"
+
+#: lib/editor_toolbar.dart
+msgid "Redo ({key})"
+msgstr "重做（{key}）"
+
+msgid "Reduce motion"
+msgstr "减弱动态效果"
+
+msgid "Remember window"
+msgstr "记住窗口"
+
+msgid "Refined"
+msgstr "精致"
+
+msgid "Regions can have their own."
+msgstr "各区域可单独设定。"
+
+msgid "Regular"
+msgstr "常规"
+
+msgid "Rehearsal marks"
+msgstr "排练记号"
+
+msgid "Rehearsal marks in bar numbers"
+msgstr "小节号行中的排练记号"
+
+#: lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
+msgid "Remove"
+msgstr "移除"
+
+#: lib/instruments_toolbar.dart
+msgid "Remove (Delete)"
+msgstr "移除（Delete）"
+
+#: lib/audio_panel.dart
+msgid "Remove All Anchors"
+msgstr "移除所有锚点"
+
+#: lib/score_view.dart
+msgid "Remove Caption"
+msgstr "移除字幕"
+
+#: lib/home_screen.dart
+msgid "Remove from Recent"
+msgstr "从最近使用中移除"
+
+#: lib/settings_dialog.dart
+msgid "Remove group"
+msgstr "移除分组"
+
+#: lib/settings_dialog.dart
+msgid "Remove pair"
+msgstr "移除声部对"
+
+#: lib/instruments_toolbar.dart
+msgid "Remove Regions Shorter Than {bars}"
+msgstr "移除短于 {bars}的区域"
+
+#: lib/score_view.dart lib/spacer_lane.dart
+msgid "Remove Spacer"
+msgstr "移除间隔"
+
+#: lib/assets_dialog.dart
+msgid "Remove Unused"
+msgstr "移除未使用的"
+
+#: lib/score_replacement.dart
+msgid "Removed: {names}"
+msgstr "移除：{names}"
+
+#: lib/edit_dialogs.dart
+msgid "Rename"
+msgstr "重命名"
+
+msgid "Rename Group"
+msgstr "重命名分组"
+
+#: lib/edit_dialogs.dart
+msgid "Rename Instrument"
+msgstr "重命名乐器"
+
+msgid "Rename Recording"
+msgstr "重命名录音"
+
+#: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart
+msgid "Rename {name}…"
+msgstr "重命名 {name}…"
+
+#: lib/score_replacement.dart
+msgid "Renamed: {from} → {to}"
+msgstr "重命名：{from} → {to}"
+
+#: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/settings_dialog.dart lib/take_lanes.dart
+msgid "Rename…"
+msgstr "重命名…"
+
+msgid "Repeat dot gap"
+msgstr "反复点间隙"
+
+msgid "Repeat dots"
+msgstr "反复点"
+
+#: lib/captions_dialog.dart lib/edit_dialogs.dart
+msgid "Replace"
+msgstr "替换"
+
+#: lib/take_lanes.dart
+msgid "Replace Recording…"
+msgstr "替换录音…"
+
+#: lib/captions_dialog.dart
+msgid "Replace the old captions?"
+msgstr "替换旧字幕吗？"
+
+#: lib/edit_dialogs.dart
+msgid "Replace with “{name}”?"
+msgstr "替换为“{name}”？"
+
+#: lib/edit_dialogs.dart
+msgid "Replaces the chosen lanes’ regions"
+msgstr "替换所选轨道中的区域"
+
+#: lib/settings_dialog.dart
+msgid "Replace…"
+msgstr "替换…"
+
+#: lib/edit_dialogs.dart lib/motion_settings.dart lib/sections_editor.dart lib/settings_dialog.dart
+msgid "Reset"
+msgstr "还原"
+
+#: lib/settings_dialog.dart
+msgid "Reset to Default"
+msgstr "恢复默认"
+
+#: lib/phrase_search_window.dart
+msgid "Rest (R)"
+msgstr "休止符（R）"
+
+msgid "Rest symbols"
+msgstr "休止符号"
+
+msgid "Restore Score Order"
+msgstr "恢复乐谱顺序"
+
+msgid "Rests"
+msgstr "休止符"
+
+#: lib/phrase_search_window.dart
+msgid "Rhythm"
+msgstr "节奏"
+
+msgid "Right"
+msgstr "右"
+
+msgid "Ring"
+msgstr "圆环"
+
+msgid "Roomy"
+msgstr "宽松"
+
+msgid "Rose"
+msgstr "玫红"
+
+msgid "Row curve"
+msgstr "行曲线"
+
+msgid "Row rise"
+msgstr "行上升"
+
+msgid "Sand"
+msgstr "沙色"
+
+msgid "Saturation"
+msgstr "饱和度"
+
+#: lib/app_menus.dart
+msgid "Save"
+msgstr "保存"
+
+#: lib/settings_dialog.dart
+msgid "Save as Default"
+msgstr "存为默认"
+
+#: lib/app_menus.dart
+msgid "Save As…"
+msgstr "另存为…"
+
+msgid "Saved projects only."
+msgstr "仅限已保存的项目。"
+
+#: lib/audio_panel.dart
+msgid "Set the anchors from the recording"
+msgstr "根据录音设置锚点"
+
+#: lib/export_dialog.dart lib/settings_dialog.dart
+msgid "Saved “{name}”."
+msgstr "已保存“{name}”。"
+
+msgid "Save…"
+msgstr "保存…"
+
+#: lib/editor_toolbar.dart
+msgid "Saving…"
+msgstr "正在保存…"
+
+msgid "Score"
+msgstr "乐谱"
+
+#: lib/score_view.dart
+msgid "Score Ink"
+msgstr "乐谱墨色"
+
+#: lib/editor_toolbar.dart
+msgid "Score size"
+msgstr "乐谱大小"
+
+#: lib/caption_settings.dart
+msgid "Score text"
+msgstr "乐谱文字"
+
+#: lib/home_screen.dart
+msgid "Scores that follow the music."
+msgstr "随音乐流动的乐谱。"
+
+msgid "Scrolling"
+msgstr "滚动"
+
+#: lib/settings_dialog.dart
+msgid "Search"
+msgstr "搜索"
+
+#: lib/settings_dialog.dart
+msgid "Search results"
+msgstr "搜索结果"
+
+msgid "Sections"
+msgstr "声部组"
+
+msgid "Segno and coda"
+msgstr "记号与尾声"
+
+#: lib/instruments_toolbar.dart lib/pdf_import.dart
+msgid "Select (V)"
+msgstr "选择（V）"
+
+#: lib/app_menus.dart
+msgid "Select All"
+msgstr "全选"
+
+msgid "Select All in Lane"
+msgstr "全选此轨道"
+
+#: lib/edit_dialogs.dart
+msgid "Set"
+msgstr "设定"
+
+msgid "Set Until after From"
+msgstr "“结束”须在“起始”之后"
+
+#: lib/settings_dialog.dart
+msgid "Settings"
+msgstr "设置"
+
+#: lib/settings_dialog.dart
+msgid "Settings Imported"
+msgstr "已导入设置"
+
+#: lib/app_menus.dart
+msgid "Settings…"
+msgstr "设置…"
+
+msgid "Settle"
+msgstr "停稳"
+
+msgid "Settle curve"
+msgstr "停稳曲线"
+
+#: lib/phrase_search_window.dart lib/score_editor.dart
+msgid "Sharp (=)"
+msgstr "升号（=）"
+
+msgid "Short name"
+msgstr "简称"
+
+#: lib/app_menus.dart
+msgid "Show All Tabs"
+msgstr "显示所有标签页"
+
+msgid "Show in Explorer"
+msgstr "在资源管理器中显示"
+
+msgid "Show in Finder"
+msgstr "在访达中显示"
+
+#: lib/assets_dialog.dart
+msgid "Show in Score"
+msgstr "在乐谱中显示"
+
+#: lib/app_menus.dart
+msgid "Show Next Tab"
+msgstr "显示下一个标签页"
+
+#: lib/app_menus.dart
+msgid "Show Preview"
+msgstr "显示预览"
+
+#: lib/app_menus.dart
+msgid "Show Previous Tab"
+msgstr "显示上一个标签页"
+
+#: lib/app_menus.dart
+msgid "Show Tab Bar"
+msgstr "显示标签页栏"
+
+#: lib/editor_toolbar.dart
+msgid "Show tab bar ({key})"
+msgstr "显示标签页栏（{key}）"
+
+#: lib/app_menus.dart
+msgid "Show Timeline"
+msgstr "显示时间线"
+
+msgid "Show the video's frame"
+msgstr "显示视频画框"
+
+msgid "Show Throughout"
+msgstr "全程显示"
+
+#: lib/edit_dialogs.dart
+msgid "Show {name}"
+msgstr "显示 {name}"
+
+#: lib/audio_panel.dart
+msgid "Silence before bar 1 (s)"
+msgstr "第 1 小节前的静音（秒）"
+
+#: lib/export_dialog.dart
+msgid "Silent"
+msgstr "无声"
+
+#: lib/phrase_search_window.dart
+msgid "Similar"
+msgstr "相似"
+
+msgid "Sine"
+msgstr "正弦"
+
+msgid "Size"
+msgstr "大小"
+
+msgid "Sky"
+msgstr "天蓝"
+
+msgid "Slowest speed"
+msgstr "最慢速度"
+
+msgid "Slur clearance"
+msgstr "圆滑线间隙"
+
+msgid "Slur curvature"
+msgstr "圆滑线弧度"
+
+msgid "Slur ends"
+msgstr "圆滑线两端"
+
+msgid "Slur middles"
+msgstr "圆滑线中部"
+
+msgid "Slur symmetry"
+msgstr "圆滑线对称度"
+
+msgid "Slurs and ties"
+msgstr "圆滑线与延音线"
+
+msgid "Small"
+msgstr "小"
+
+msgid "Smooth"
+msgstr "平滑"
+
+msgid "Smoother"
+msgstr "更平滑"
+
+#: lib/audio_panel.dart
+msgid "Snap to Notes"
+msgstr "吸附到音符"
+
+#: lib/take_lanes.dart
+msgid "Back to all recordings"
+msgstr "返回全部录音"
+
+#: lib/take_lanes.dart
+msgid "Edit its sync"
+msgstr "编辑它的同步"
+
+#: lib/audio_panel.dart
+msgid "Click a recording to edit its sync"
+msgstr "点按一条录音以编辑它的同步"
+
+#: lib/edit_dialogs.dart
+msgid "Some of “{name}” got left out"
+msgstr "“{name}”有些内容没能显示"
+
+msgid "Source code"
+msgstr "源代码"
+
+#: lib/audio_panel.dart
+msgid "Space"
+msgstr "空格"
+
+msgid "Space above"
+msgstr "上方间距"
+
+msgid "Space after"
+msgstr "后方间距"
+
+msgid "Space before"
+msgstr "前方间距"
+
+msgid "Space below"
+msgstr "下方间距"
+
+msgid "Space marks · T or Esc stops"
+msgstr "空格键标记 · T 或 Esc 停止"
+
+#: lib/instrument_lanes/lane_header.dart
+msgid "Spacer"
+msgstr "间隔"
+
+#: lib/spacer_lane.dart
+msgid "Spacers"
+msgstr "间隔"
+
+msgid "Spacing"
+msgstr "间距"
+
+msgid "Spacing ratio"
+msgstr "间距比例"
+
+#: lib/condensing_editor.dart
+msgid "Splits {pairs}."
+msgstr "将拆分 {pairs}。"
+
+msgid "Staff lines"
+msgstr "谱线"
+
+msgid "Staff spacing"
+msgstr "谱表间距"
+
+msgid "Staff transition"
+msgstr "谱表过渡"
+
+msgid "Standard"
+msgstr "标准"
+
+#: lib/instruments_toolbar.dart
+msgid "start ({at})"
+msgstr "起点（{at}）"
+
+#: lib/instruments_toolbar.dart
+msgid "Start at the playhead ([)"
+msgstr "从播放头处开始（[）"
+
+#: lib/export_dialog.dart
+msgid "Starting…"
+msgstr "正在开始…"
+
+#: lib/instruments_toolbar.dart
+msgid "Staves"
+msgstr "谱表"
+
+msgid "Stems"
+msgstr "符干"
+
+#: lib/audio_panel.dart
+msgid "Step for taps, {click}, and ↑/↓"
+msgstr "敲击、{click}和 ↑/↓ 的步长"
+
+#: lib/audio_panel.dart
+msgid "Follow {name}"
+msgstr "跟随 {name}"
+
+#: lib/audio_panel.dart
+msgid "Sync"
+msgstr "同步"
+
+msgid "Strings"
+msgstr "弦乐"
+
+msgid "Style"
+msgstr "样式"
+
+msgid "Sub-brackets"
+msgstr "子括号"
+
+msgid "Subtitles"
+msgstr "字幕文件"
+
+msgid "SVG, PNG, GIF, JPEG…"
+msgstr "SVG、PNG、GIF、JPEG…"
+
+#: lib/settings_dialog.dart
+msgid "System"
+msgstr "跟随系统"
+
+msgid "Tablature"
+msgstr "六线谱"
+
+msgid "Tablature rhythms"
+msgstr "六线谱节奏"
+
+msgid "Tap anchors (T)"
+msgstr "敲击锚点（T）"
+
+msgid "Teal"
+msgstr "蓝绿"
+
+#: lib/audio_panel.dart lib/pdf_import_changes.dart
+msgid "Tempo"
+msgstr "速度"
+
+msgid "Tempo at left"
+msgstr "左侧速度"
+
+msgid "Tempo curve"
+msgstr "速度曲线"
+
+msgid "Tempo fade"
+msgstr "速度淡入淡出"
+
+msgid "Tempo marks"
+msgstr "速度记号"
+
+#: lib/score_replacement.dart
+msgid "Tempo: {from} → {to}"
+msgstr "速度：{from} → {to}"
+
+#: lib/phrase_search_window.dart
+msgid "Tenor"
+msgstr "次中音谱号"
+
+#: lib/captions_dialog.dart
+msgid "Text"
+msgstr "文本"
+
+msgid "Text boxes"
+msgstr "文字框"
+
+#: lib/score_replacement.dart
+msgid "Text edits lost: {n}"
+msgstr "丢失的文字编辑：{n}"
+
+msgid "Text font"
+msgstr "文字字体"
+
+msgid "Text size"
+msgstr "文字大小"
+
+#: lib/caption_settings.dart
+msgid "The *horns* answer, softly"
+msgstr "*圆号*轻声应答"
+
+#: lib/updater.dart
+msgid "the download"
+msgstr "下载文件"
+
+msgid "The equation ends too soon."
+msgstr "式子过早结束。"
+
+msgid "The font has no name."
+msgstr "该字体没有名称。"
+
+msgid "The latest release has no version"
+msgstr "最新发布没有版本号"
+
+msgid "The project has no score in it."
+msgstr "这个项目中没有乐谱。"
+
+msgid "The project has not been saved yet: choose where to save it."
+msgstr "项目尚未保存：请选择保存位置。"
+
+msgid "The project is damaged: "
+msgstr "项目已损坏："
+
+msgid "The sample can’t be saved."
+msgstr "示例无法保存。"
+
+msgid "The sample is just for looking. Open a score to start your own!"
+msgstr "示例仅供查看哦。打开一份乐谱来开始你自己的项目吧！"
+
+#: lib/edit_dialogs.dart
+msgid "Here’s what differs:"
+msgstr "不同之处："
+
+msgid "The settings are damaged: "
+msgstr "设置文件已损坏："
+
+msgid "The SMuFL metadata is not JSON."
+msgstr "SMuFL 元数据不是 JSON 格式。"
+
+msgid "Theme"
+msgstr "主题"
+
+msgid "These settings are from a newer Curator. Update to import them!"
+msgstr "这些设置来自较新的 Curator，更新后就能导入！"
+
+msgid "Thick barlines"
+msgstr "粗小节线"
+
+#: lib/video_export.dart
+msgid "This FFmpeg can’t write {format}. Install a full build (with {encoder})."
+msgstr "这个 FFmpeg 无法写入 {format}。请安装完整版本（含 {encoder}）。"
+
+#: lib/settings_dialog.dart
+msgid "This file is a little old. Export again to update it."
+msgstr "这个文件有点旧了，再导出一次即可更新。"
+
+msgid "This font file is incomplete."
+msgstr "这个字体文件不完整。"
+
+msgid "That doesn’t look like a Curator project."
+msgstr "这看起来不像 Curator 项目。"
+
+msgid "That doesn’t look like a Curator settings file."
+msgstr "这看起来不像 Curator 设置文件。"
+
+msgid "This isn’t a font file."
+msgstr "这不是字体文件。"
+
+msgid "This isn’t a MIDI file."
+msgstr "这不是 MIDI 文件。"
+
+#: lib/audio_panel.dart
+msgid "That jump would put the anchors out of order or past the end."
+msgstr "这个跳转会让锚点顺序错乱，或超出结尾。"
+
+msgid "This MIDI file counts time in SMPTE frames, so it has no tempo map."
+msgstr "这个 MIDI 文件以 SMPTE 帧计时，因此没有速度图。"
+
+msgid "This MIDI file has no tracks."
+msgstr "这个 MIDI 文件没有音轨。"
+
+msgid "This MIDI file is cut short."
+msgstr "这个 MIDI 文件不完整。"
+
+msgid "This MIDI file is damaged: a length runs over four bytes."
+msgstr "这个 MIDI 文件已损坏：某个长度超过四个字节。"
+
+msgid "This MIDI file is damaged: a track ends in the middle of an event."
+msgstr "这个 MIDI 文件已损坏：某条音轨在事件中途结束。"
+
+msgid "This MIDI file is damaged: an event has no status."
+msgstr "这个 MIDI 文件已损坏：某个事件没有状态字节。"
+
+msgid "This MIDI file is damaged: an event runs past its track."
+msgstr "这个 MIDI 文件已损坏：某个事件超出了它的音轨。"
+
+msgid "This MIDI file is damaged: its header gives no ticks per quarter note."
+msgstr "这个 MIDI 文件已损坏：文件头没有给出每四分音符的 tick 数。"
+
+#: lib/main.dart
+msgid "A project from an older Curator! Saving updates it, so older versions won’t open it after."
+msgstr "这是旧版 Curator 的项目！保存会更新它，之后旧版本就打不开了。"
+
+msgid "This project is from a newer Curator. Update to open it!"
+msgstr "这个项目来自较新的 Curator，更新后就能打开！"
+
+msgid "This RIFF file has no MIDI data."
+msgstr "这个 RIFF 文件中没有 MIDI 数据。"
+
+msgid "This subtitle file is a bit too big."
+msgstr "这个字幕文件有点太大了。"
+
+msgid "This SVG has no width or height."
+msgstr "这个 SVG 没有宽度或高度。"
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy 1 selected lane"
+msgstr "整理 1 条所选轨道"
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy 1 Selected Lane"
+msgstr "整理 1 条所选轨道"
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy all lanes"
+msgstr "整理所有轨道"
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy All Lanes"
+msgstr "整理所有轨道"
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy {n} selected lanes"
+msgstr "整理 {n} 条所选轨道"
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy {n} Selected Lanes"
+msgstr "整理 {n} 条所选轨道"
+
+msgid "Tie ends"
+msgstr "延音线两端"
+
+msgid "Tie middles"
+msgstr "延音线中部"
+
+#: lib/score_replacement.dart
+msgid "Time signature differs from bar {n}"
+msgstr "从第 {n} 小节起拍号不同"
+
+msgid "Time signatures"
+msgstr "拍号"
+
+msgid "Timed text under the score."
+msgstr "乐谱下方的定时文字。"
+
+msgid "Timewise MusicXML is not supported yet; export as partwise."
+msgstr "暂不支持 timewise 格式的 MusicXML；请以 partwise 格式导出。"
+
+msgid "To bar"
+msgstr "结束小节"
+
+#: lib/video_export.dart
+msgid "To export video, install FFmpeg (free), then export again:"
+msgstr "要导出视频，请安装 FFmpeg（免费），然后重新导出："
+
+msgid "Top and bottom"
+msgstr "上下边距"
+
+#: lib/instruments_toolbar.dart
+msgid "Transition (mixed)"
+msgstr "过渡（混合）"
+
+#: lib/instruments_toolbar.dart
+msgid "Transition (the project's)"
+msgstr "过渡（项目的）"
+
+#: lib/instruments_toolbar.dart
+msgid "Transition (their own)"
+msgstr "过渡（各自的）"
+
+msgid "Transition in"
+msgstr "进入过渡"
+
+msgid "Transition out"
+msgstr "退出过渡"
+
+msgid "Transparent"
+msgstr "透明背景"
+
+msgid "Transposition"
+msgstr "移调"
+
+#: lib/phrase_search_window.dart
+msgid "Treble"
+msgstr "高音谱号"
+
+#: lib/phrase_search_window.dart
+msgid "Treble 8vb"
+msgstr "低八度高音谱号"
+
+msgid "Tremolos"
+msgstr "震音"
+
+#: lib/settings_dialog.dart
+msgid "Try Again"
+msgstr "重试"
+
+#: lib/settings_dialog.dart
+msgid "Try another word, such as “font” or “transition”."
+msgstr "换个词试试，比如“字体”或“过渡”。"
+
+#: lib/settings_dialog.dart
+msgid "Try another word, such as “theme” or “update”."
+msgstr "换个词试试，比如“主题”或“更新”。"
+
+msgid "Tuplet brackets"
+msgstr "连音括号"
+
+msgid "Tuplet numbers"
+msgstr "连音数字"
+
+msgid "Tuplets"
+msgstr "连音"
+
+msgid "Turn on in Project Settings ▸ Extensions"
+msgstr "可在“项目设置 ▸ 扩展”中开启"
+
+msgid "Type an equation in t."
+msgstr "请输入关于 t 的式子。"
+
+msgid "Typography"
+msgstr "字体排印"
+
+#: lib/sections_editor.dart
+msgid "Unbracket"
+msgstr "去除括号"
+
+msgid "Undefined at t = 0 or 1."
+msgstr "在 t = 0 或 1 处无定义。"
+
+#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+msgid "Undo"
+msgstr "撤销"
+
+#: lib/editor_toolbar.dart
+msgid "Undo ({key})"
+msgstr "撤销（{key}）"
+
+#: lib/audio_panel.dart
+msgid "Convert to Anchors"
+msgstr "转换为锚点"
+
+#: lib/audio_panel.dart
+msgid "Convert to Tempo Map"
+msgstr "转换为速度图"
+
+#: lib/editor_controller.dart
+msgid "Tempo Map"
+msgstr "速度图"
+
+msgid "Anchor nudge"
+msgstr "锚点微移"
+
+msgid "←/→ · ⇧ 1 ms"
+msgstr "←/→ · ⇧ 1 毫秒"
+
+msgid "Fine seek"
+msgstr "精细定位"
+
+msgid "⌥←/→"
+msgstr "⌥←/→"
+
+msgid "Undo history"
+msgstr "撤销历史"
+
+#: lib/captions_dialog.dart
+msgid "Until"
+msgstr "结束"
+
+#: lib/project_document.dart
+msgid "Untitled"
+msgstr "未命名"
+
+#: lib/assets_dialog.dart
+msgid "Unused"
+msgstr "未使用"
+
+msgid "Unzip it and replace this app with it."
+msgstr "请解压，并用它替换此应用。"
+
+msgid "Updates"
+msgstr "更新"
+
+#: lib/main.dart
+msgid "Update…"
+msgstr "更新…"
+
+msgid "That’s a lot of frames. Keep it to 2000 or fewer."
+msgstr "帧数太多了，请控制在 2000 帧以内。"
+
+msgid "That image is too big. Use one under 64 MB."
+msgstr "图像太大了，请用小于 64 MB 的。"
+
+#: lib/edit_dialogs.dart
+msgid "Use Name from File"
+msgstr "使用文件中的名称"
+
+#: lib/settings_dialog.dart
+msgid "Use the saved defaults here"
+msgstr "在此使用已存的默认值"
+
+msgid "Use these for other projects"
+msgstr "用于其他项目"
+
+msgid "UTF-16 MusicXML is not supported yet; save the file as UTF-8."
+msgstr "暂不支持 UTF-16 编码的 MusicXML；请将文件存为 UTF-8。"
+
+msgid "Version"
+msgstr "版本"
+
+#: lib/settings_dialog.dart
+msgid "Version {version}"
+msgstr "版本 {version}"
+
+#: lib/spacer_dialogs.dart
+msgid "Vertical Spacer"
+msgstr "纵向间隔"
+
+msgid "Video"
+msgstr "视频"
+
+msgid "Video Exported"
+msgstr "视频已导出"
+
+#: lib/edit_dialogs.dart
+msgid "Video Ratio"
+msgstr "视频比例"
+
+#: lib/editor_toolbar.dart
+msgid "Video ratio"
+msgstr "视频比例"
+
+#: lib/media_converter.dart
+msgid "Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:"
+msgstr "视频和 AAC/M4A 音频需要 FFmpeg（免费）。安装后请重新添加录音："
+
+#: lib/app_menus.dart
+msgid "View"
+msgstr "显示"
+
+msgid "Violet"
+msgstr "紫罗兰"
+
+msgid "Voices"
+msgstr "人声"
+
+msgid "Warp"
+msgstr "跳转"
+
+#: lib/audio_panel.dart
+msgid ""
+"Warp (W)\n"
+"Jump to another bar here"
+msgstr ""
+"跳转（W）\n"
+"在此跳到另一小节"
+
+#: lib/audio_panel.dart
+msgid ""
+"Warp (W)\n"
+"Make this anchor jump to another bar"
+msgstr ""
+"跳转（W）\n"
+"让此锚点跳到另一小节"
+
+#: lib/audio_panel.dart
+msgid "Warps from Score"
+msgstr "按乐谱生成跳转"
+
+msgid "When no anchors are set yet."
+msgstr "仅在还没有锚点时。"
+
+msgid "WebM video"
+msgstr "WebM 视频"
+
+msgid "Website"
+msgstr "网站"
+
+#: lib/phrase_search_window.dart
+msgid "Whole (8)"
+msgstr "全音符（8）"
+
+#: lib/export_dialog.dart
+msgid "Whole piece"
+msgstr "整首乐曲"
+
+msgid "Whole-bar rests"
+msgstr "全小节休止"
+
+msgid "Width : height"
+msgstr "宽 : 高"
+
+#: lib/app_menus.dart
+msgid "Window"
+msgstr "窗口"
+
+#: lib/condensing_editor.dart
+msgid "with"
+msgstr "与"
+
+msgid "With bar numbers, shows rehearsal marks beside them, out of the music."
+msgstr "显示小节号时，将排练记号显示在小节号旁，而非乐谱中。"
+
+msgid "Woodwinds"
+msgstr "木管"
+
+#: lib/edit_dialogs.dart
+msgid "This one can’t be undone."
+msgstr "这一步无法撤销哦。"
+
+#: lib/main.dart
+msgid "If you don’t, they’ll be lost."
+msgstr "不保存的话，更改会丢失哦。"
+
+msgid "Your own server"
+msgstr "自己的服务器"
+
+#: lib/settings_dialog.dart
+msgid "Yours."
+msgstr "自定的。"
+
+#: lib/bottom_panel.dart
+msgid "Zoom in ({key} or pinch)"
+msgstr "放大（{key}或捏合）"
+
+#: lib/bottom_panel.dart
+msgid "Zoom out ({key} or pinch)"
+msgstr "缩小（{key}或捏合）"
+
+#: lib/instrument_lanes/lane_header.dart
+msgid "{names}: one lane"
+msgstr "{names}：同一轨道"
+
+#: lib/font_settings.dart
+msgid "{name} not found."
+msgstr "找不到 {name}。"
+
+#: lib/audio_panel.dart
+msgid "{n} anchors"
+msgstr "{n} 个锚点"
+
+#: lib/audio_panel.dart
+msgid "{n} anchors from the recording"
+msgstr "从录音得到 {n} 个锚点"
+
+msgid "{n} Bars"
+msgstr "{n} 小节"
+
+msgid "{n} captions"
+msgstr "{n} 条字幕"
+
+msgid "{n} edges"
+msgstr "{n} 个边缘"
+
+#: lib/assets_dialog.dart lib/export_dialog.dart
+msgid "{n} frames"
+msgstr "{n} 帧"
+
+msgid "{n} images"
+msgstr "{n} 张图像"
+
+msgid "{n} imported"
+msgstr "已导入 {n} 条"
+
+msgid "{n} imported, {left} overlapping left out"
+msgstr "已导入 {n} 条，{left} 条重叠的未导入"
+
+#: lib/edit_dialogs.dart
+msgid "{n} items not supported:"
+msgstr "有 {n} 项不支持："
+
+#: lib/instruments_toolbar.dart
+msgid "{n} lanes"
+msgstr "{n} 条轨道"
+
+#: lib/phrase_search_window.dart
+msgid "{n} matches"
+msgstr "{n} 处"
+
+#: lib/export_dialog.dart
+msgid "{n} minutes"
+msgstr "{n} 分钟"
+
+msgid "{n} regions"
+msgstr "{n} 个区域"
+
+#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
+msgid "{n} s"
+msgstr "{n} 秒"
+
+#: lib/export_dialog.dart
+msgid "{n} seconds"
+msgstr "{n} 秒"
+
+#: lib/settings_dialog.dart
+msgid "{n} steps"
+msgstr "{n} 步"
+
+msgid "{n} warps"
+msgstr "{n} 个跳转"
+
+#: lib/settings_dialog.dart
+msgid "{shared} of {all} share a staff."
+msgstr "{all} 对中有 {shared} 对共用谱表。"
+
+#: lib/audio_panel.dart
+msgid "{warps} from the score’s repeats"
+msgstr "按乐谱反复生成 {warps}"
+
+msgid "{what} in 1 lane"
+msgstr "1 条轨道中的 {what}"
+
+msgid "{what} in {n} lanes"
+msgstr "{n} 条轨道中的 {what}"
+
+#: lib/edit_dialogs.dart
+msgid "“{name}” already exists. Replace it?"
+msgstr "“{name}”已存在，要替换吗？"
+
+#: lib/video_export.dart lib/web_export.dart
+msgid "“{name}” already holds other files. Choose another name."
+msgstr "“{name}”中已有其他文件。请换一个名称。"
+
+#: lib/main.dart
+msgid "Can’t find “{name}”. Was it moved or deleted?"
+msgstr "找不到“{name}”。是被移动或删除了吗？"
+
+#: lib/instruments_toolbar.dart
+msgid "←/→ a bar (⇧ a beat)"
+msgstr "←/→ 一小节（⇧ 一拍）"
+
+#: lib/audio_panel.dart
+msgid "↑/↓ re-point · ←/→ nudge · {key} remove"
+msgstr "↑/↓ 重新对位 · ←/→ 微移 · {key} 移除"
+
+#: lib/instruments_toolbar.dart
+msgid "⇧ add · ⌘ toggle, no snap · ⌥ draw"
+msgstr "⇧ 添加 · ⌘ 切换、不吸附 · ⌥ 绘制"
+
+#: lib/instruments_toolbar.dart
+msgid "⌘ no snap · ⌥ draw"
+msgstr "⌘ 不吸附 · ⌥ 绘制"
+
+#: lib/instruments_toolbar.dart
+msgid "⌘ no snap · ⌥ erase"
+msgstr "⌘ 不吸附 · ⌥ 擦除"
+
+#: lib/audio_panel.dart
+msgid "⌥ add, draw · ⌘ no snap"
+msgstr "⌥ 添加、绘制 · ⌘ 不吸附"
+
+#: lib/score_editor.dart
+msgid "128th"
+msgstr "128 分音符"
+
+#: lib/score_editor.dart
+msgid "16th"
+msgstr "16 分音符"
+
+#: lib/score_editor.dart
+msgid "32nd"
+msgstr "32 分音符"
+
+#: lib/score_editor.dart
+msgid "64th"
+msgstr "64 分音符"
+
+#: lib/score_editor.dart
+msgid "Accent ([)"
+msgstr "重音（[）"
+
+msgid "Bars and Barlines"
+msgstr "小节与小节线"
+
+#: lib/score_editor.dart
+msgid "Breve"
+msgstr "二全音符"
+
+#: lib/score_editor.dart
+msgid "Chord"
+msgstr "和弦"
+
+#: lib/score_editor.dart
+msgid "Chord (Q)"
+msgstr "和弦（Q）"
+
+#: lib/main.dart
+msgid "Couldn’t Edit Score"
+msgstr "无法编辑乐谱"
+
+#: lib/pdf_import.dart lib/score_editor.dart
+msgid "Discard"
+msgstr "放弃"
+
+#: lib/pdf_import.dart lib/score_editor.dart
+msgid "Discard Your Changes?"
+msgstr "放弃更改？"
+
+#: lib/score_editor.dart
+msgid "Dotted {value}"
+msgstr "附点{value}"
+
+#: lib/score_editor.dart
+msgid "Edit Score"
+msgstr "编辑乐谱"
+
+#: lib/score_editor.dart
+msgid "Eighth"
+msgstr "八分音符"
+
+#: lib/score_editor.dart
+msgid "Half"
+msgstr "二分音符"
+
+msgid "Holds"
+msgstr "延长与停顿"
+
+#: lib/pdf_import.dart lib/score_editor.dart
+msgid "Keep Editing"
+msgstr "继续编辑"
+
+#: lib/pdf_import_changes.dart
+msgid "Key Signature"
+msgstr "调号"
+
+#: lib/score_editor.dart
+msgid "Marcato (⇧[)"
+msgstr "强音（⇧[）"
+
+#: lib/score_editor.dart
+msgid "Note Input (⇧N)"
+msgstr "音符输入（⇧N）"
+
+#: lib/score_editor.dart
+msgid "Note input"
+msgstr "音符输入"
+
+#: lib/score_editor.dart
+msgid "Quarter"
+msgstr "四分音符"
+
+#: lib/score_editor.dart
+msgid "Rest"
+msgstr "休止符"
+
+#: lib/score_editor.dart
+msgid "Rest (,)"
+msgstr "休止符（,）"
+
+#: lib/score_editor.dart
+msgid "Slur (S)"
+msgstr "圆滑线（S）"
+
+#: lib/score_editor.dart
+msgid "Staccatissimo (')"
+msgstr "短促断奏（'）"
+
+#: lib/score_editor.dart
+msgid "Staccato (])"
+msgstr "断奏（]）"
+
+#: lib/score_editor.dart
+msgid "Tenuto (⇧])"
+msgstr "保持音（⇧]）"
+
+#: lib/score_editor.dart
+msgid "The score stays as it was."
+msgstr "乐谱保持原样。"
+
+#: lib/score_editor.dart
+msgid "Tie (T)"
+msgstr "延音线（T）"
+
+#: lib/pdf_import.dart
+msgid "Time Signature"
+msgstr "拍号"
+
+msgid "Tuplet"
+msgstr "连音"
+
+#: lib/score_editor.dart
+msgid "Tuplet (;)"
+msgstr "连音（;）"
+
+#: lib/score_editor.dart
+msgid "Voice"
+msgstr "声部"
+
+#: lib/score_editor.dart
+msgid "Whole"
+msgstr "全音符"
+
+#: lib/pdf_import.dart lib/score_editor.dart
+msgid "Zoom In"
+msgstr "放大"
+
+#: lib/pdf_import.dart lib/score_editor.dart
+msgid "Zoom Out"
+msgstr "缩小"
+
+#: lib/score_editor.dart
+msgid "{count} selected"
+msgstr "已选择 {count} 个"
+
+#: lib/score_editor.dart
+msgid "{value} ({key})"
+msgstr "{value}（{key}）"
+
+msgid "Abbreviation"
+msgstr "缩写"
+
+msgid "Add Instrument"
+msgstr "添加乐器"
+
+#: lib/pdf_import.dart
+msgid "Bar {n}"
+msgstr "第 {n} 小节"
+
+msgid "Barline"
+msgstr "小节线"
+
+#: lib/main.dart
+msgid "Couldn’t Import PDF"
+msgstr "无法导入 PDF"
+
+#: lib/pdf_import.dart
+msgid "Couldn’t measure the bars. {error}"
+msgstr "无法测量小节。{error}"
+
+#: lib/pdf_import.dart
+msgid "Couldn’t read the PDF. {error}"
+msgstr "无法读取 PDF。{error}"
+
+#: lib/pdf_import.dart
+msgid "Detect Page Again"
+msgstr "重新识别本页"
+
+msgid "Divisi"
+msgstr "分奏"
+
+msgid "Double"
+msgstr "双线"
+
+msgid "End Repeat"
+msgstr "反复结束"
+
+msgid "End and Start Repeat"
+msgstr "反复结束并开始"
+
+msgid "Final"
+msgstr "终止线"
+
+#: lib/pdf_import.dart
+msgid "Import PDF"
+msgstr "导入 PDF"
+
+#: lib/pdf_import.dart
+msgid "Instrument"
+msgstr "乐器"
+
+msgid "Key"
+msgstr "调号"
+
+msgid "Kind"
+msgstr "类型"
+
+msgid "Mask"
+msgstr "遮蔽"
+
+msgid "Mask (M)"
+msgstr "遮蔽（M）"
+
+#: lib/pdf_import.dart
+msgid "Measuring system {n} of {count}…"
+msgstr "正在测量第 {n} 个系统（共 {count} 个）…"
+
+#: lib/pdf_import.dart
+msgid "Move Down"
+msgstr "下移"
+
+#: lib/pdf_import.dart
+msgid "Move Up"
+msgstr "上移"
+
+#: lib/pdf_import.dart
+msgid "Next Page"
+msgstr "下一页"
+
+#: lib/pdf_import.dart
+msgid "Previous Page"
+msgstr "上一页"
+
+#: lib/pdf_import.dart
+msgid "Reading page {n} of {count}…"
+msgstr "正在读取第 {n} 页（共 {count} 页）…"
+
+#: lib/pdf_import.dart
+msgid "Remove Barline"
+msgstr "移除小节线"
+
+msgid "Remove Instrument"
+msgstr "移除乐器"
+
+#: lib/pdf_import.dart
+msgid "Remove Mask"
+msgstr "移除遮蔽"
+
+msgid "Gap"
+msgstr "间隙"
+
+#: lib/pdf_import.dart
+msgid "Remove Gap"
+msgstr "移除间隙"
+
+#: lib/pdf_import_changes.dart
+msgid "Concert"
+msgstr "音乐会调"
+
+msgid "Read as"
+msgstr "读作"
+
+#: lib/pdf_import_changes.dart
+msgid "Concert: {key}"
+msgstr "音乐会调：{key}"
+
+msgid "New Instrument"
+msgstr "新乐器"
+
+#: lib/pdf_import.dart
+msgid "Time Signature for {name}"
+msgstr "{name} 的拍号"
+
+#: lib/pdf_import.dart
+msgid "Clef for {name}"
+msgstr "{name} 的谱号"
+
+#: lib/pdf_import.dart
+msgid "Insert Tempo…"
+msgstr "插入速度…"
+
+#: lib/pdf_import.dart
+msgid "Insert Key Signature…"
+msgstr "插入调号…"
+
+#: lib/pdf_import.dart
+msgid "Insert Time Signature…"
+msgstr "插入拍号…"
+
+#: lib/pdf_import.dart
+msgid "Insert Time Signature for {name}…"
+msgstr "插入 {name} 的拍号…"
+
+#: lib/pdf_import.dart
+msgid "Insert Clef for {name}…"
+msgstr "插入 {name} 的谱号…"
+
+#: lib/pdf_import.dart
+msgid "Key {key}"
+msgstr "{key} 调"
+
+#: lib/pdf_import.dart
+msgid "Insert"
+msgstr "插入"
+
+#: lib/pdf_import.dart
+msgid "New Instrument…"
+msgstr "新乐器…"
+
+#: lib/pdf_import.dart
+msgid "Remove System"
+msgstr "移除系统"
+
+msgid "Single"
+msgstr "单线"
+
+#: lib/instruments_toolbar.dart lib/pdf_import.dart
+msgid "Staff {n}"
+msgstr "谱表 {n}"
+
+msgid "Start Repeat"
+msgstr "反复开始"
+
+msgid "Time"
+msgstr "拍号"
+
+msgid "Upbeat (beats)"
+msgstr "弱起（拍）"
+
+#: lib/pdf_import.dart lib/pdf_import_changes.dart
+msgid "in {key}"
+msgstr "{key} 调"
+
+#: lib/pdf_import.dart
+msgid "{bars} bars · {systems} systems"
+msgstr "{bars} 小节 · {systems} 个系统"
+
+#: lib/pdf_import.dart
+msgid "{n} of {count}"
+msgstr "{n} / {count}"
+
+#: lib/pdf_import.dart
+msgid "×{n}"
+msgstr "×{n}"
+
+#: lib/edit_dialogs.dart
+msgid "Spacing of {name}"
+msgstr "{name} 的间距"
+
+msgid "Spacing…"
+msgstr "间距…"
+
+msgid "Above (spaces)"
+msgstr "上方（间）"
+
+msgid "Below (spaces)"
+msgstr "下方（间）"
+
+msgid "Add Blank Lane"
+msgstr "添加空白轨道"
+
+#: lib/pdf_import.dart
+msgid "Blank"
+msgstr "空白"
+
+msgid "Rename Lane"
+msgstr "重命名轨道"
+
+msgid "Opening…"
+msgstr "正在打开…"
+
+msgid "Reading score…"
+msgstr "正在读取乐谱…"
+
+msgid "Measuring…"
+msgstr "正在测量…"
+
+msgid "Loading pages…"
+msgstr "正在载入页面…"
+
+msgid "Split Lane"
+msgstr "拆分轨道"
+
+msgid "Join Lanes"
+msgstr "合并轨道"
+
+msgid "Pages"
+msgstr "页面"
+
+msgid "Changes"
+msgstr "变化"
+
+msgid "Review"
+msgstr "检查"
+
+msgid "Next"
+msgstr "下一步"
+
+msgid "Import"
+msgstr "导入"
+
+#: lib/pdf_import.dart
+msgid "Read Names from Score"
+msgstr "从乐谱读取名称"
+
+#: lib/pdf_import.dart
+msgid "Every staff has an instrument"
+msgstr "每个谱表都有乐器"
+
+#: lib/pdf_import.dart
+msgid "{n} staves without an instrument"
+msgstr "{n} 个谱表没有乐器"
+
+#: lib/pdf_import.dart
+msgid "Show Next"
+msgstr "显示下一个"
+
+msgid "Summary"
+msgstr "概要"
+
+#: lib/pdf_import.dart
+msgid "Reading text… {n} of {count}"
+msgstr "正在读取文字… 第 {n} 页，共 {count} 页"
+
+#: lib/pdf_import.dart
+msgid "No text found"
+msgstr "未找到文字"
+
+msgid "Read from Score"
+msgstr "从乐谱读取"
+
+#: lib/pdf_import.dart
+msgid "Add All"
+msgstr "全部添加"
+
+msgid "Bars"
+msgstr "小节"
+
+msgid "Systems"
+msgstr "谱行"
+
+msgid "Blank Lanes"
+msgstr "空白轨道"
+
+msgid "Tempo Marks"
+msgstr "速度标记"
+
+msgid "Staves without an instrument"
+msgstr "没有乐器的谱表"
+
+#: lib/pdf_import.dart
+msgid "More"
+msgstr "更多"
+
+msgid "Blank Lane"
+msgstr "空白轨道"
+
+#: lib/pdf_import.dart
+msgid "Dismiss"
+msgstr "忽略"
+
+#: lib/pdf_import.dart
+msgid "Select a bar"
+msgstr "选择一个小节"
+
+#: lib/pdf_import.dart
+msgid "Lane"
+msgstr "轨道"
+
+#: lib/pdf_import.dart
+msgid "All Lanes"
+msgstr "所有轨道"
+
+#: lib/pdf_import.dart
+msgid "Mask Lane (M)"
+msgstr "遮蔽轨道 (M)"
+
+#: lib/pdf_import.dart
+msgid "Mask All Lanes (⇧M)"
+msgstr "遮蔽所有轨道 (⇧M)"
+
+msgid "Remove (⌫)"
+msgstr "移除 (⌫)"
+
+msgid "Remove System (⌫)"
+msgstr "移除谱行 (⌫)"
+
+msgid "Remove Barline (⌫)"
+msgstr "移除小节线 (⌫)"
+
+msgid "Remove Gap (⌫)"
+msgstr "移除间隙 (⌫)"
+
+msgid "Remove Mask (⌫)"
+msgstr "移除遮蔽 (⌫)"
+
+msgid "Show Next Staff without an Instrument"
+msgstr "显示下一个无乐器的谱表"
+
+#: lib/pdf_import.dart
+msgid "Time for {name}"
+msgstr "{name} 拍号"
+
+msgid "Select a staff"
+msgstr "选择一个谱表"
+
+msgid "Add All Tempo Marks"
+msgstr "添加所有速度标记"
+
+msgid "Masks"
+msgstr "遮蔽"
+
+#: lib/pdf_import.dart
+msgid "None on this page"
+msgstr "本页没有"
+
+msgid "Add Barline (B)"
+msgstr "添加小节线（B）"
+
+msgid "Add Staff (S)"
+msgstr "添加谱表（S）"
+
+#: lib/pdf_import.dart
+msgid "Remove Staff"
+msgstr "移除谱表"
