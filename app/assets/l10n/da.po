@@ -1,0 +1,3410 @@
+# Curator’s interface, in US English: the template every language is translated from.
+# Each text is its own key; a msgctxt tells apart one English word that means two things.
+# Keep every {placeholder} in the translation (its place is yours).
+msgid ""
+msgstr ""
+"Project-Id-Version: curator-by-xy057\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Crowdin-Project: curator-by-xy057\n"
+"X-Crowdin-Project-ID: 945411\n"
+"X-Crowdin-Language: da\n"
+"X-Crowdin-File: /main/app/assets/l10n/curator.pot\n"
+"X-Crowdin-File-ID: 11\n"
+"Language-Team: Danish\n"
+"Language: da_DK\n"
+"PO-Revision-Date: 2026-11-08 18:38\n"
+
+#: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
+msgid " and "
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "(bars {from}–{to})"
+msgstr ""
+
+#: lib/media_converter.dart
+msgid "(or your distribution's package)"
+msgstr ""
+
+#: lib/instruments_toolbar.dart lib/score_replacement.dart
+msgid ", "
+msgstr ""
+
+#: lib/updater.dart
+msgid "."
+msgstr ""
+
+msgid ".srt beside the video"
+msgstr ""
+
+msgid "1 anchor"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "1 anchor from the recording"
+msgstr ""
+
+msgid "1 Bar"
+msgstr ""
+
+msgid "1 caption"
+msgstr ""
+
+msgid "1 edge"
+msgstr ""
+
+msgid "1 image"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "1 match"
+msgstr ""
+
+msgid "1 region"
+msgstr ""
+
+msgid "1 warp"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "16th (4)"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "32nd (3)"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "A blend: the beats land on time, and the speed follows the notes {percent}% of the way."
+msgstr ""
+
+msgid "A browser won’t open a page from disk: double-clicking index.html shows nothing. Serve the folder instead."
+msgstr ""
+
+msgid "A comparison needs “? … : …”."
+msgstr ""
+
+msgid "A MIDI tempo map or a recording"
+msgstr ""
+
+msgid "A project or a MusicXML score"
+msgstr ""
+
+msgid "A tempo map starts at quarter 0."
+msgstr ""
+
+msgid "About"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "About Curator"
+msgstr ""
+
+msgid "Add the files to a repository, then Settings ▸ Pages ▸ Deploy from a branch."
+msgstr ""
+
+msgid "After exporting, Open in Browser does it for you. Or, in a terminal:"
+msgstr ""
+
+#: lib/web_export_dialog.dart
+msgid "As curated"
+msgstr ""
+
+msgid "Copy the folder into the site, as you’d copy any file to it."
+msgstr ""
+
+#: lib/web_player/main.dart
+msgid "Couldn’t load {file} ({status})."
+msgstr ""
+
+#: lib/web_export.dart
+msgid "Couldn’t write the page."
+msgstr ""
+
+msgid "Curator serves it while it’s open. Or, in a terminal:"
+msgstr ""
+
+msgid "Drag the folder onto Netlify Drop."
+msgstr ""
+
+#: lib/web_export_dialog.dart
+msgid "Export to Web"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Export to Web…"
+msgstr ""
+
+#: lib/video_export.dart
+msgid "FFmpeg couldn’t write the sound."
+msgstr ""
+
+msgid "Frame"
+msgstr ""
+
+#: lib/web_player/player.dart
+msgid "Hide"
+msgstr ""
+
+#: lib/web_export_dialog.dart
+msgid "How to Publish"
+msgstr ""
+
+msgid "Images"
+msgstr ""
+
+#: lib/web_export_dialog.dart
+msgid "Includes installed fonts ({fonts}): publish only if their licenses allow."
+msgstr ""
+
+msgid "Installed fonts go with the page: publish it only where their licenses allow."
+msgstr ""
+
+msgid "On This Computer"
+msgstr ""
+
+msgid "Online"
+msgstr ""
+
+#: lib/web_export_dialog.dart lib/web_guide.dart
+msgid "Open in Browser"
+msgstr ""
+
+#: lib/web_player/player.dart
+msgid "Options"
+msgstr ""
+
+msgid "Page"
+msgstr ""
+
+msgid "Pause"
+msgstr ""
+
+#: lib/web_export.dart lib/web_export_dialog.dart
+msgid "Performance"
+msgstr ""
+
+msgid "Play"
+msgstr ""
+
+#: lib/web_guide.dart
+msgid "Publishing a Page"
+msgstr ""
+
+msgid "Recordings"
+msgstr ""
+
+#: lib/web_player/player.dart
+msgid "Show"
+msgstr ""
+
+#: lib/web_player/player.dart
+msgid "Speed"
+msgstr ""
+
+#: lib/web_export.dart
+msgid "The score is still being engraved. Try again in a moment."
+msgstr ""
+
+msgid "Then open localhost:8000. Safari may not play the recording from this server; Chrome and Firefox will."
+msgstr ""
+
+#: lib/web_export.dart lib/web_export_dialog.dart
+msgid "This build of Curator has no web player."
+msgstr ""
+
+#: lib/web_export.dart
+msgid "Those aren’t bars of the score."
+msgstr ""
+
+msgid "Title"
+msgstr ""
+
+msgid "To change it, export again into the same folder and upload it again."
+msgstr ""
+
+msgid "Upload the whole folder, index.html with score beside it, to any web host. It works at a site’s top or in a folder of it."
+msgstr ""
+
+msgid "Viewer"
+msgstr ""
+
+#: lib/web_export_dialog.dart
+msgid "Viewer can change"
+msgstr ""
+
+#: lib/web_export_dialog.dart
+msgid "Writing…"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "about {time} left"
+msgstr ""
+
+msgid "Accent color"
+msgstr ""
+
+msgid "Accidentals"
+msgstr ""
+
+#: lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
+msgid "Add"
+msgstr ""
+
+msgid "Add a pair"
+msgstr ""
+
+msgid "Add Caption"
+msgstr ""
+
+#: lib/score_view.dart
+msgid "Add Caption…"
+msgstr ""
+
+msgid "Add Group"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Add Group…"
+msgstr ""
+
+#: lib/spacer_lane.dart
+msgid "Add Horizontal Spacer"
+msgstr ""
+
+#: lib/score_view.dart
+msgid "Add Image…"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "MIDI Tempo Map…"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Add Recording…"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Add Recording… (or drop one here)"
+msgstr ""
+
+#: lib/spacer_lane.dart
+msgid "Add Vertical Spacer"
+msgstr ""
+
+#: lib/score_replacement.dart
+msgid "Added: {names}"
+msgstr ""
+
+msgid "Add…"
+msgstr ""
+
+msgid "Advanced"
+msgstr ""
+
+msgid "Advanced Engraving"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Align"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Align\n"
+"Set the anchors from the recording"
+msgstr ""
+
+msgid "Align grace notes"
+msgstr ""
+
+msgid "Align added recordings"
+msgstr ""
+
+msgid "Auto-curate imported scores"
+msgstr ""
+
+msgid "Off: every staff throughout."
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Aligning…"
+msgstr ""
+
+#: lib/extensions/extensions_dialog.dart lib/instruments_toolbar.dart lib/pdf_import.dart
+msgid "All"
+msgstr ""
+
+msgid "All pairs"
+msgstr ""
+
+msgid "Alt+click"
+msgstr ""
+
+msgid "Alternative octave marks"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Alto"
+msgstr ""
+
+msgid "Amber"
+msgstr ""
+
+msgid "An image on the score is missing"
+msgstr ""
+
+msgid "Anchor"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Anchors"
+msgstr ""
+
+msgid "Angled brackets on beams"
+msgstr ""
+
+msgid "Animation"
+msgstr ""
+
+msgid "Another score was opened meanwhile."
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Any key"
+msgstr ""
+
+msgid "Anything"
+msgstr ""
+
+msgid "Appearance"
+msgstr ""
+
+#: lib/edit_dialogs.dart lib/spacer_dialogs.dart
+msgid "Apply"
+msgstr ""
+
+msgid "Arpeggios"
+msgstr ""
+
+msgid "Articulations"
+msgstr ""
+
+msgid "As written"
+msgstr ""
+
+msgid "Asks GitHub for a newer version each time the app starts."
+msgstr ""
+
+#: lib/assets_dialog.dart
+msgid "Assets"
+msgstr ""
+
+msgid "At"
+msgstr ""
+
+msgid "Attach Image"
+msgstr ""
+
+msgid "Attach Image is off"
+msgstr ""
+
+msgid "Attach Image is off for now."
+msgstr ""
+
+msgid "Audio"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Audio or video"
+msgstr ""
+
+#: lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_player/player.dart
+msgid "Auto"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Auto-curate"
+msgstr ""
+
+msgid "Auto-Curate Lane"
+msgstr ""
+
+msgid "Automatic"
+msgstr ""
+
+msgid "Autosave"
+msgstr ""
+
+#: lib/export_dialog.dart lib/pdf_import.dart lib/web_export_dialog.dart
+msgid "Back"
+msgstr ""
+
+msgid "Backing"
+msgstr ""
+
+#: lib/lanes_common.dart
+msgid "Bar"
+msgstr ""
+
+#: lib/score_replacement.dart
+msgid "Bar length differs from bar {n}"
+msgstr ""
+
+msgid "Bar number interval"
+msgstr ""
+
+#: lib/web_player/player.dart
+msgid "Bar numbers"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Bar or m:ss"
+msgstr ""
+
+msgid "Bar repeats"
+msgstr ""
+
+#: lib/assets_dialog.dart lib/phrase_search_window.dart
+msgid "Bar {bar}"
+msgstr ""
+
+msgid "Barlines"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "Bars and still"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "Bars {bars}"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "Bars {from} to {to}"
+msgstr ""
+
+#: lib/score_replacement.dart
+msgid "Bars: {from} → {to}"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Bass"
+msgstr ""
+
+msgid "Beat"
+msgstr ""
+
+msgid "Beat repeats"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Beats"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Beats per minute"
+msgstr ""
+
+msgid "Block"
+msgstr ""
+
+msgid "Bold"
+msgstr ""
+
+msgid "Bold Italic"
+msgstr ""
+
+#: lib/sections_editor.dart
+msgid "Bracket"
+msgstr ""
+
+msgid "Brackets"
+msgstr ""
+
+msgid "Brass"
+msgstr ""
+
+msgid "Breath marks"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Bridge Rests Up to {bars}"
+msgstr ""
+
+msgid "c if a < b, else d"
+msgstr ""
+
+#: lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+msgid "Cancel"
+msgstr ""
+
+#: lib/updater.dart
+msgid "Can’t reach GitHub. Is the internet connected?"
+msgstr ""
+
+#: lib/project_document.dart
+msgid "Can’t find the linked recording:"
+msgstr ""
+
+msgid "Can’t find the recording to embed"
+msgstr ""
+
+msgid "Caption"
+msgstr ""
+
+msgid "Caption curve"
+msgstr ""
+
+msgid "Caption fade"
+msgstr ""
+
+msgid "Caption font"
+msgstr ""
+
+msgid "Caption rise"
+msgstr ""
+
+#: lib/caption_lane.dart lib/captions_dialog.dart lib/web_player/player.dart
+msgid "Captions"
+msgstr ""
+
+msgid "Carbon"
+msgstr ""
+
+msgid "Center"
+msgstr ""
+
+msgid "Centered lyrics"
+msgstr ""
+
+msgid "Centers syllables under their notes."
+msgstr ""
+
+msgid "Changelog"
+msgstr ""
+
+msgid "Check at launch"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Check for Updates"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Checking…"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Pick a spot between the neighboring anchors."
+msgstr ""
+
+msgid "Chord symbols"
+msgstr ""
+
+msgid "Chords"
+msgstr ""
+
+#: lib/home_screen.dart lib/phrase_search_window.dart
+msgid "Clear"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Clear all lanes"
+msgstr ""
+
+msgid "Clear Lane"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Clear Menu"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Clef"
+msgstr ""
+
+msgid "Clefs"
+msgstr ""
+
+#: lib/app_menus.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+msgid "Close"
+msgstr ""
+
+msgid "Close Curator, then replace its folder with the unzipped one."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Close settings"
+msgstr ""
+
+#: lib/project_tabs.dart
+msgid "Close tab ({key})"
+msgstr ""
+
+msgid "Close up verses"
+msgstr ""
+
+msgid "Closing barlines"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Collapse"
+msgstr ""
+
+msgid "Color names"
+msgstr ""
+
+msgid "Compact"
+msgstr ""
+
+#: lib/spacer_dialogs.dart
+msgid "Concert pitch"
+msgstr ""
+
+msgid "Condensing"
+msgstr ""
+
+#: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart
+msgid "Copy"
+msgstr ""
+
+msgid "Copy Lane To…"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Copy {name} to…"
+msgstr ""
+
+#: lib/score_view/attach_image.dart
+msgid "Couldn’t add the image. {error}"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Couldn’t align. {error}"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t autosave. {error}"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Couldn’t hear the score in this recording."
+msgstr ""
+
+#: lib/main.dart lib/score_editor.dart
+msgid "Couldn’t engrave. {error}"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Couldn’t Export Settings"
+msgstr ""
+
+msgid "Couldn’t Export Video"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Couldn’t Import Settings"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Load Recording"
+msgstr ""
+
+#: lib/editor_controller.dart
+msgid "Couldn’t load the recording."
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Couldn’t load the recording. {error}"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Open Project"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Open Sample"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Open Score"
+msgstr ""
+
+#: lib/main.dart lib/score_view/attach_image.dart
+msgid "Couldn’t paste the image. {error}"
+msgstr ""
+
+msgid "Couldn’t read an image in the project."
+msgstr ""
+
+#: lib/media_converter.dart
+msgid "Couldn’t read audio from this file."
+msgstr ""
+
+#: lib/updater.dart
+msgid "Couldn’t read GitHub’s response."
+msgstr ""
+
+msgid "Couldn’t read the music font."
+msgstr ""
+
+#: lib/image_patch.dart
+msgid "Couldn’t make sense of this image."
+msgstr ""
+
+msgid "Couldn’t make sense of this SVG."
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Save Project"
+msgstr ""
+
+msgid "Couldn’t start the engraver."
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Use MIDI File"
+msgstr ""
+
+#: lib/error_text.dart
+msgid "Couldn’t use the file"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Couldn’t use the MIDI file. {error}"
+msgstr ""
+
+#: lib/updater.dart
+msgid "Couldn’t write {name}."
+msgstr ""
+
+msgid "Countdown"
+msgstr ""
+
+msgid "Crop"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Crossfade"
+msgstr ""
+
+msgid "Crossfade (its own)"
+msgstr ""
+
+msgid "Crossfade (the project’s)"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Curator is up to date! ☆"
+msgstr ""
+
+#: lib/main.dart
+msgid "Curator project"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Curator settings"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Curator {version} is out, but not for this system yet."
+msgstr ""
+
+#: lib/main.dart lib/settings_dialog.dart
+msgid "Curator {version} is available! ☆"
+msgstr ""
+
+#: lib/motion_settings.dart
+msgid "Custom"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Custom ({ratio})…"
+msgstr ""
+
+msgid "Custom Color"
+msgstr ""
+
+#: lib/motion_settings.dart
+msgid "Custom Curve"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Custom…"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Cut"
+msgstr ""
+
+msgid "Cyan"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Dark"
+msgstr ""
+
+msgid "Dark also turns the score dark."
+msgstr ""
+
+msgid "Dash gap"
+msgstr ""
+
+msgid "Dash length"
+msgstr ""
+
+#: lib/font_settings.dart lib/settings_dialog.dart
+msgid "Default"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Delete"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Delete note ({key})"
+msgstr ""
+
+msgid "Density"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Deselect (Esc)"
+msgstr ""
+
+#: lib/main.dart
+msgid "Save your changes to “{name}” first?"
+msgstr ""
+
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+msgid "Done"
+msgstr ""
+
+#: lib/main.dart
+msgid "Don’t Save"
+msgstr ""
+
+#: lib/phrase_search_window.dart lib/score_editor.dart
+msgid "Dot (.)"
+msgstr ""
+
+msgid "Dots"
+msgstr ""
+
+msgid "Double barline gap"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Download {version}"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Downloading {version}…"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Draw (D)"
+msgstr ""
+
+msgid "Try a MIDI file or a recording."
+msgstr ""
+
+msgid "Drop a recording or a MIDI file"
+msgstr ""
+
+msgid "That needs to be an image file."
+msgstr ""
+
+msgid "Recordings and MIDI files go on the Audio tab!"
+msgstr ""
+
+msgid "Drop to add"
+msgstr ""
+
+msgid "Drop to add an image"
+msgstr ""
+
+msgid "Drop to open"
+msgstr ""
+
+msgid "Dynamics"
+msgstr ""
+
+msgid "Dynamics and lines"
+msgstr ""
+
+msgid "Dynamics as one glyph"
+msgstr ""
+
+msgid "Dynamics distance"
+msgstr ""
+
+msgid "Dynamics typed as text"
+msgstr ""
+
+msgid "Ease In"
+msgstr ""
+
+msgid "Ease In-Out"
+msgstr ""
+
+msgid "Ease Out"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Edit"
+msgstr ""
+
+#: lib/score_view.dart
+msgid "Edit Caption…"
+msgstr ""
+
+#: lib/score_view.dart
+msgid "Edit Spacer…"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Edit…"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Eighth (5)"
+msgstr ""
+
+msgid "Embed font"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "end ({at})"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "End at the playhead (])"
+msgstr ""
+
+msgid "Ending"
+msgstr ""
+
+msgid "Ending brackets"
+msgstr ""
+
+msgid "Engraves “f” set in a music font as a dynamic."
+msgstr ""
+
+msgid "Engraving"
+msgstr ""
+
+msgid "Engraving…"
+msgstr ""
+
+msgid "Enter a bar or bar.beat, like 12 or 12.3"
+msgstr ""
+
+#: lib/spacer_dialogs.dart
+msgid "Enter {min} to {max} staff spaces"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Erase (E)"
+msgstr ""
+
+msgid "Even spacing"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Every minute"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Every note is under the playhead exactly as it sounds: slower through long notes, quicker through runs."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Every {n} minutes"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Every {n} seconds"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Exact"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Expand"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Export"
+msgstr ""
+
+msgid "Export anyway"
+msgstr ""
+
+msgid "Export Video"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Export Video…"
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "Exported “{name}”"
+msgstr ""
+
+msgid "Exporting Video…"
+msgstr ""
+
+#: lib/captions_dialog.dart lib/export_dialog.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+msgid "Export…"
+msgstr ""
+
+msgid "Expressions"
+msgstr ""
+
+msgid "Extensions"
+msgstr ""
+
+#: lib/extensions/extensions_dialog.dart
+msgid "Extensions in this project"
+msgstr ""
+
+msgid "Extra width (staff spaces)"
+msgstr ""
+
+msgid "f(1) must differ from f(0)."
+msgstr ""
+
+msgid "Fade"
+msgstr ""
+
+msgid "Fade out"
+msgstr ""
+
+msgid "Fade-out curve"
+msgstr ""
+
+msgid "Fermatas"
+msgstr ""
+
+#: lib/video_export.dart
+msgid "FFmpeg couldn’t write the video."
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "File"
+msgstr ""
+
+msgid "Fill the window"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Find Phrase"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Find phrase ({key})"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Find Phrase…"
+msgstr ""
+
+msgid "Fingering"
+msgstr ""
+
+#: lib/bottom_panel.dart
+msgid "Fit"
+msgstr ""
+
+msgid "Flags"
+msgstr ""
+
+#: lib/phrase_search_window.dart lib/score_editor.dart
+msgid "Flat (-)"
+msgstr ""
+
+msgid "Folder"
+msgstr ""
+
+msgid "Font"
+msgstr ""
+
+#: lib/font_settings.dart
+msgid "Font File…"
+msgstr ""
+
+#: lib/main.dart
+msgid "Can’t find the font “{name}”, so Bravura is filling in."
+msgstr ""
+
+#: lib/font_settings.dart
+msgid "Fonts"
+msgstr ""
+
+msgid "Format"
+msgstr ""
+
+msgid "Frame rate"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "Frame {n} of {all}"
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "From"
+msgstr ""
+
+msgid "From bar"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "From GitHub."
+msgstr ""
+
+msgid "General"
+msgstr ""
+
+#: lib/updater.dart
+msgid "GitHub isn’t answering. Try again in a bit."
+msgstr ""
+
+#: lib/updater.dart
+msgid "GitHub returned an error ({code})"
+msgstr ""
+
+msgid "Glide"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Glides from beat to beat: the speed changes only with the tempo."
+msgstr ""
+
+msgid "Glissandos"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Go to bar ({key})"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Go to start (Home)"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Go to time ({key})"
+msgstr ""
+
+msgid "Grace note size"
+msgstr ""
+
+msgid "Graphite"
+msgstr ""
+
+msgid "Green"
+msgstr ""
+
+msgid "Group sections"
+msgstr ""
+
+msgid "Groups"
+msgstr ""
+
+msgid "H-bar"
+msgstr ""
+
+msgid "Hairpin opening"
+msgstr ""
+
+msgid "Hairpins"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Half (7)"
+msgstr ""
+
+msgid "Height (staff spaces)"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Help"
+msgstr ""
+
+msgid "Hex"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Hide Preview"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Hide Tab Bar"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Hide Timeline"
+msgstr ""
+
+#: lib/project_tabs.dart
+msgid "Home"
+msgstr ""
+
+#: lib/spacer_dialogs.dart
+msgid "Horizontal Spacer"
+msgstr ""
+
+msgid "Hue"
+msgstr ""
+
+#: lib/image_patch.dart
+msgid "Image"
+msgstr ""
+
+msgid "Images and spacers that scroll with the score."
+msgstr ""
+
+#: lib/captions_dialog.dart lib/settings_dialog.dart
+msgid "Import…"
+msgstr ""
+
+#: lib/spacer_dialogs.dart
+msgid "In {key}"
+msgstr ""
+
+msgid "Indigo"
+msgstr ""
+
+msgid "Ink delay"
+msgstr ""
+
+msgid "Ink fade"
+msgstr ""
+
+#: lib/edit_dialogs.dart lib/pdf_import_changes.dart
+msgid "Insert {symbol}"
+msgstr ""
+
+#: lib/font_settings.dart
+msgid "Installed Font…"
+msgstr ""
+
+#: lib/web_player/player.dart
+msgid "Instruments"
+msgstr ""
+
+msgid "Italic"
+msgstr ""
+
+msgid "Jump to"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Kept {warps} from the anchors"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Kept {warps} from {file}"
+msgstr ""
+
+msgid "Key signatures"
+msgstr ""
+
+msgid "Keyboards"
+msgstr ""
+
+#: lib/instrument_lanes/lane_header.dart
+msgid "Lane options"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Large"
+msgstr ""
+
+msgid "Leave empty to remove"
+msgstr ""
+
+msgid "Ledger line length"
+msgstr ""
+
+msgid "Ledger lines"
+msgstr ""
+
+msgid "Left"
+msgstr ""
+
+msgid "Letter spacing"
+msgstr ""
+
+msgid "License"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Light"
+msgstr ""
+
+msgid "Lightness"
+msgstr ""
+
+msgid "Line"
+msgstr ""
+
+msgid "Line thickness"
+msgstr ""
+
+msgid "Linear"
+msgstr ""
+
+#: lib/main.dart
+msgid "Locate…"
+msgstr ""
+
+#: lib/score_replacement.dart
+msgid "Lost past bar {n}: {items}"
+msgstr ""
+
+msgid "Lyric lines"
+msgstr ""
+
+msgid "Lyric size"
+msgstr ""
+
+msgid "Lyrics"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Manage assets…"
+msgstr ""
+
+msgid "Maximum beam slope"
+msgstr ""
+
+msgid "Maximum gap"
+msgstr ""
+
+msgid "Maximum slur slope"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Maximize Preview"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Maximize Timeline"
+msgstr ""
+
+msgid "Medium"
+msgstr ""
+
+msgid "Mensuration signs"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Metronome (C)"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "MIDI tempo"
+msgstr ""
+
+msgid "Minimum bar width"
+msgstr ""
+
+msgid "Minimum gap"
+msgstr ""
+
+msgid "Minimum tie length"
+msgstr ""
+
+msgid "Missing “)”."
+msgstr ""
+
+msgid "Missing “:”."
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Mixed"
+msgstr ""
+
+msgid "Move to Bottom"
+msgstr ""
+
+msgid "Move to Top"
+msgstr ""
+
+msgid "MP4 video"
+msgstr ""
+
+msgid "Multi-bar repeats"
+msgstr ""
+
+msgid "Multi-bar rests"
+msgstr ""
+
+msgid "Music font"
+msgstr ""
+
+msgid "Music symbols"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Name and clef"
+msgstr ""
+
+msgid "Names"
+msgstr ""
+
+#: lib/phrase_search_window.dart lib/score_editor.dart
+msgid "Natural (0)"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Next ({key})"
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "No captions"
+msgstr ""
+
+msgid "No extensions yet."
+msgstr ""
+
+#: lib/main.dart
+msgid "There’s no image to paste."
+msgstr ""
+
+#: lib/assets_dialog.dart
+msgid "No images"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "No matches"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "No matching settings"
+msgstr ""
+
+msgid "No players in this score can share a staff."
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "No Recent Files"
+msgstr ""
+
+msgid "No score was found inside the .mxl archive."
+msgstr ""
+
+msgid "No settings"
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "None of these subtitles land inside the music."
+msgstr ""
+
+msgid "No subtitles found in this file."
+msgstr ""
+
+#: lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+msgid "None"
+msgstr ""
+
+#: lib/score_replacement.dart
+msgid "none"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "None."
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "Not found · {folder}"
+msgstr ""
+
+msgid "Not installed"
+msgstr ""
+
+msgid "Not supported in MP4"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Not supported:"
+msgstr ""
+
+msgid "Not with a PNG sequence"
+msgstr ""
+
+msgid "Notation"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "Notation runs off the frame"
+msgstr ""
+
+#: lib/lanes_common.dart
+msgid "Notation runs off the video frame: {bars}"
+msgstr ""
+
+msgid "Note spacing"
+msgstr ""
+
+msgid "Noteheads"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Notes"
+msgstr ""
+
+msgid "Notes and rests"
+msgstr ""
+
+msgid "Nothing to save yet! Open a project or score first."
+msgstr ""
+
+msgid "Number by the noteheads"
+msgstr ""
+
+msgid "Octave lines"
+msgstr ""
+
+msgid "Octave marks"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Off"
+msgstr ""
+
+#: lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+msgid "OK"
+msgstr ""
+
+msgid "Opacity"
+msgstr ""
+
+msgid "Open a score first, then its MIDI tempo map."
+msgstr ""
+
+msgid "Open a score first, then its recording."
+msgstr ""
+
+msgid "Open Folder"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Open in the browser"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Created using EmoteLab"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Open in Window"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Open Recent"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Open Release Page"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "Open Sample"
+msgstr ""
+
+msgid "Opening barlines"
+msgstr ""
+
+#: lib/app_menus.dart lib/home_screen.dart
+msgid "Open…"
+msgstr ""
+
+msgid "Option-click"
+msgstr ""
+
+msgid "Ornaments"
+msgstr ""
+
+msgid "Other"
+msgstr ""
+
+msgid "Other projects start with these"
+msgstr ""
+
+msgid "Overlaps another caption"
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "Overlaps the caption in row {n}"
+msgstr ""
+
+msgid "Overshoot"
+msgstr ""
+
+msgctxt "page"
+msgid "Flags"
+msgstr ""
+
+msgid "Pairs"
+msgstr ""
+
+msgid "Paper"
+msgstr ""
+
+#: lib/app_menus.dart lib/score_view.dart
+msgid "Paste"
+msgstr ""
+
+msgid "Pause (Space)"
+msgstr ""
+
+msgid "Pedal lines"
+msgstr ""
+
+msgid "Pedal marks"
+msgstr ""
+
+msgid "Per project."
+msgstr ""
+
+msgid "Percussion"
+msgstr ""
+
+msgid "Picture"
+msgstr ""
+
+#: lib/caption_lane.dart
+msgid "Pinned"
+msgstr ""
+
+msgid "Play (Space)"
+msgstr ""
+
+msgid "Playback line"
+msgstr ""
+
+msgid "Playback line color"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Playback speed"
+msgstr ""
+
+#: lib/condensing_editor.dart
+msgid "Player"
+msgstr ""
+
+msgid "PNG Sequence"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Previous ({key})"
+msgstr ""
+
+msgid "Project Info"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "Project or MusicXML ({key})"
+msgstr ""
+
+#: lib/bottom_panel.dart
+msgid "Project Settings ({key})"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Project Settings…"
+msgstr ""
+
+#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
+msgid "Project's ({n} s)"
+msgstr ""
+
+#: lib/main.dart
+msgid "Projects and scores"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Quarter (6)"
+msgstr ""
+
+msgid "QuickTime movie"
+msgstr ""
+
+msgid "Ratio"
+msgstr ""
+
+msgid "Reading the recording…"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "RECENT"
+msgstr ""
+
+#: lib/audio_panel.dart lib/take_lanes.dart lib/web_player/player.dart
+msgid "Recording"
+msgstr ""
+
+#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+msgid "Redo"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Redo ({key})"
+msgstr ""
+
+msgid "Reduce motion"
+msgstr ""
+
+msgid "Remember window"
+msgstr ""
+
+msgid "Refined"
+msgstr ""
+
+msgid "Regions can have their own."
+msgstr ""
+
+msgid "Regular"
+msgstr ""
+
+msgid "Rehearsal marks"
+msgstr ""
+
+msgid "Rehearsal marks in bar numbers"
+msgstr ""
+
+#: lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
+msgid "Remove"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Remove (Delete)"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Remove All Anchors"
+msgstr ""
+
+#: lib/score_view.dart
+msgid "Remove Caption"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "Remove from Recent"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Remove group"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Remove pair"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Remove Regions Shorter Than {bars}"
+msgstr ""
+
+#: lib/score_view.dart lib/spacer_lane.dart
+msgid "Remove Spacer"
+msgstr ""
+
+#: lib/assets_dialog.dart
+msgid "Remove Unused"
+msgstr ""
+
+#: lib/score_replacement.dart
+msgid "Removed: {names}"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Rename"
+msgstr ""
+
+msgid "Rename Group"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Rename Instrument"
+msgstr ""
+
+msgid "Rename Recording"
+msgstr ""
+
+#: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart
+msgid "Rename {name}…"
+msgstr ""
+
+#: lib/score_replacement.dart
+msgid "Renamed: {from} → {to}"
+msgstr ""
+
+#: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/settings_dialog.dart lib/take_lanes.dart
+msgid "Rename…"
+msgstr ""
+
+msgid "Repeat dot gap"
+msgstr ""
+
+msgid "Repeat dots"
+msgstr ""
+
+#: lib/captions_dialog.dart lib/edit_dialogs.dart
+msgid "Replace"
+msgstr ""
+
+#: lib/take_lanes.dart
+msgid "Replace Recording…"
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "Replace the old captions?"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Replace with “{name}”?"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Replaces the chosen lanes’ regions"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Replace…"
+msgstr ""
+
+#: lib/edit_dialogs.dart lib/motion_settings.dart lib/sections_editor.dart lib/settings_dialog.dart
+msgid "Reset"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Reset to Default"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Rest (R)"
+msgstr ""
+
+msgid "Rest symbols"
+msgstr ""
+
+msgid "Restore Score Order"
+msgstr ""
+
+msgid "Rests"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Rhythm"
+msgstr ""
+
+msgid "Right"
+msgstr ""
+
+msgid "Ring"
+msgstr ""
+
+msgid "Roomy"
+msgstr ""
+
+msgid "Rose"
+msgstr ""
+
+msgid "Row curve"
+msgstr ""
+
+msgid "Row rise"
+msgstr ""
+
+msgid "Sand"
+msgstr ""
+
+msgid "Saturation"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Save"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Save as Default"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Save As…"
+msgstr ""
+
+msgid "Saved projects only."
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Set the anchors from the recording"
+msgstr ""
+
+#: lib/export_dialog.dart lib/settings_dialog.dart
+msgid "Saved “{name}”."
+msgstr ""
+
+msgid "Save…"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Saving…"
+msgstr ""
+
+msgid "Score"
+msgstr ""
+
+#: lib/score_view.dart
+msgid "Score Ink"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Score size"
+msgstr ""
+
+#: lib/caption_settings.dart
+msgid "Score text"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "Scores that follow the music."
+msgstr ""
+
+msgid "Scrolling"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Search"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Search results"
+msgstr ""
+
+msgid "Sections"
+msgstr ""
+
+msgid "Segno and coda"
+msgstr ""
+
+#: lib/instruments_toolbar.dart lib/pdf_import.dart
+msgid "Select (V)"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Select All"
+msgstr ""
+
+msgid "Select All in Lane"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Set"
+msgstr ""
+
+msgid "Set Until after From"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Settings"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Settings Imported"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Settings…"
+msgstr ""
+
+msgid "Settle"
+msgstr ""
+
+msgid "Settle curve"
+msgstr ""
+
+#: lib/phrase_search_window.dart lib/score_editor.dart
+msgid "Sharp (=)"
+msgstr ""
+
+msgid "Short name"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Show All Tabs"
+msgstr ""
+
+msgid "Show in Explorer"
+msgstr ""
+
+msgid "Show in Finder"
+msgstr ""
+
+#: lib/assets_dialog.dart
+msgid "Show in Score"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Show Next Tab"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Show Preview"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Show Previous Tab"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Show Tab Bar"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Show tab bar ({key})"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Show Timeline"
+msgstr ""
+
+msgid "Show the video's frame"
+msgstr ""
+
+msgid "Show Throughout"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Show {name}"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Silence before bar 1 (s)"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "Silent"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Similar"
+msgstr ""
+
+msgid "Sine"
+msgstr ""
+
+msgid "Size"
+msgstr ""
+
+msgid "Sky"
+msgstr ""
+
+msgid "Slowest speed"
+msgstr ""
+
+msgid "Slur clearance"
+msgstr ""
+
+msgid "Slur curvature"
+msgstr ""
+
+msgid "Slur ends"
+msgstr ""
+
+msgid "Slur middles"
+msgstr ""
+
+msgid "Slur symmetry"
+msgstr ""
+
+msgid "Slurs and ties"
+msgstr ""
+
+msgid "Small"
+msgstr ""
+
+msgid "Smooth"
+msgstr ""
+
+msgid "Smoother"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Snap to Notes"
+msgstr ""
+
+#: lib/take_lanes.dart
+msgid "Back to all recordings"
+msgstr ""
+
+#: lib/take_lanes.dart
+msgid "Edit its sync"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Click a recording to edit its sync"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Some of “{name}” got left out"
+msgstr ""
+
+msgid "Source code"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Space"
+msgstr ""
+
+msgid "Space above"
+msgstr ""
+
+msgid "Space after"
+msgstr ""
+
+msgid "Space before"
+msgstr ""
+
+msgid "Space below"
+msgstr ""
+
+msgid "Space marks · T or Esc stops"
+msgstr ""
+
+#: lib/instrument_lanes/lane_header.dart
+msgid "Spacer"
+msgstr ""
+
+#: lib/spacer_lane.dart
+msgid "Spacers"
+msgstr ""
+
+msgid "Spacing"
+msgstr ""
+
+msgid "Spacing ratio"
+msgstr ""
+
+#: lib/condensing_editor.dart
+msgid "Splits {pairs}."
+msgstr ""
+
+msgid "Staff lines"
+msgstr ""
+
+msgid "Staff spacing"
+msgstr ""
+
+msgid "Staff transition"
+msgstr ""
+
+msgid "Standard"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "start ({at})"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Start at the playhead ([)"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "Starting…"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Staves"
+msgstr ""
+
+msgid "Stems"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Step for taps, {click}, and ↑/↓"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Follow {name}"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Sync"
+msgstr ""
+
+msgid "Strings"
+msgstr ""
+
+msgid "Style"
+msgstr ""
+
+msgid "Sub-brackets"
+msgstr ""
+
+msgid "Subtitles"
+msgstr ""
+
+msgid "SVG, PNG, GIF, JPEG…"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "System"
+msgstr ""
+
+msgid "Tablature"
+msgstr ""
+
+msgid "Tablature rhythms"
+msgstr ""
+
+msgid "Tap anchors (T)"
+msgstr ""
+
+msgid "Teal"
+msgstr ""
+
+#: lib/audio_panel.dart lib/pdf_import_changes.dart
+msgid "Tempo"
+msgstr ""
+
+msgid "Tempo at left"
+msgstr ""
+
+msgid "Tempo curve"
+msgstr ""
+
+msgid "Tempo fade"
+msgstr ""
+
+msgid "Tempo marks"
+msgstr ""
+
+#: lib/score_replacement.dart
+msgid "Tempo: {from} → {to}"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Tenor"
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "Text"
+msgstr ""
+
+msgid "Text boxes"
+msgstr ""
+
+#: lib/score_replacement.dart
+msgid "Text edits lost: {n}"
+msgstr ""
+
+msgid "Text font"
+msgstr ""
+
+msgid "Text size"
+msgstr ""
+
+#: lib/caption_settings.dart
+msgid "The *horns* answer, softly"
+msgstr ""
+
+#: lib/updater.dart
+msgid "the download"
+msgstr ""
+
+msgid "The equation ends too soon."
+msgstr ""
+
+msgid "The font has no name."
+msgstr ""
+
+msgid "The latest release has no version"
+msgstr ""
+
+msgid "The project has no score in it."
+msgstr ""
+
+msgid "The project has not been saved yet: choose where to save it."
+msgstr ""
+
+msgid "The project is damaged: "
+msgstr ""
+
+msgid "The sample can’t be saved."
+msgstr ""
+
+msgid "The sample is just for looking. Open a score to start your own!"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Here’s what differs:"
+msgstr ""
+
+msgid "The settings are damaged: "
+msgstr ""
+
+msgid "The SMuFL metadata is not JSON."
+msgstr ""
+
+msgid "Theme"
+msgstr ""
+
+msgid "These settings are from a newer Curator. Update to import them!"
+msgstr ""
+
+msgid "Thick barlines"
+msgstr ""
+
+#: lib/video_export.dart
+msgid "This FFmpeg can’t write {format}. Install a full build (with {encoder})."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "This file is a little old. Export again to update it."
+msgstr ""
+
+msgid "This font file is incomplete."
+msgstr ""
+
+msgid "That doesn’t look like a Curator project."
+msgstr ""
+
+msgid "That doesn’t look like a Curator settings file."
+msgstr ""
+
+msgid "This isn’t a font file."
+msgstr ""
+
+msgid "This isn’t a MIDI file."
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "That jump would put the anchors out of order or past the end."
+msgstr ""
+
+msgid "This MIDI file counts time in SMPTE frames, so it has no tempo map."
+msgstr ""
+
+msgid "This MIDI file has no tracks."
+msgstr ""
+
+msgid "This MIDI file is cut short."
+msgstr ""
+
+msgid "This MIDI file is damaged: a length runs over four bytes."
+msgstr ""
+
+msgid "This MIDI file is damaged: a track ends in the middle of an event."
+msgstr ""
+
+msgid "This MIDI file is damaged: an event has no status."
+msgstr ""
+
+msgid "This MIDI file is damaged: an event runs past its track."
+msgstr ""
+
+msgid "This MIDI file is damaged: its header gives no ticks per quarter note."
+msgstr ""
+
+#: lib/main.dart
+msgid "A project from an older Curator! Saving updates it, so older versions won’t open it after."
+msgstr ""
+
+msgid "This project is from a newer Curator. Update to open it!"
+msgstr ""
+
+msgid "This RIFF file has no MIDI data."
+msgstr ""
+
+msgid "This subtitle file is a bit too big."
+msgstr ""
+
+msgid "This SVG has no width or height."
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy 1 selected lane"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy 1 Selected Lane"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy all lanes"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy All Lanes"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy {n} selected lanes"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Tidy {n} Selected Lanes"
+msgstr ""
+
+msgid "Tie ends"
+msgstr ""
+
+msgid "Tie middles"
+msgstr ""
+
+#: lib/score_replacement.dart
+msgid "Time signature differs from bar {n}"
+msgstr ""
+
+msgid "Time signatures"
+msgstr ""
+
+msgid "Timed text under the score."
+msgstr ""
+
+msgid "Timewise MusicXML is not supported yet; export as partwise."
+msgstr ""
+
+msgid "To bar"
+msgstr ""
+
+#: lib/video_export.dart
+msgid "To export video, install FFmpeg (free), then export again:"
+msgstr ""
+
+msgid "Top and bottom"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Transition (mixed)"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Transition (the project's)"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Transition (their own)"
+msgstr ""
+
+msgid "Transition in"
+msgstr ""
+
+msgid "Transition out"
+msgstr ""
+
+msgid "Transparent"
+msgstr ""
+
+msgid "Transposition"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Treble"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Treble 8vb"
+msgstr ""
+
+msgid "Tremolos"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Try Again"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Try another word, such as “font” or “transition”."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Try another word, such as “theme” or “update”."
+msgstr ""
+
+msgid "Tuplet brackets"
+msgstr ""
+
+msgid "Tuplet numbers"
+msgstr ""
+
+msgid "Tuplets"
+msgstr ""
+
+msgid "Turn on in Project Settings ▸ Extensions"
+msgstr ""
+
+msgid "Type an equation in t."
+msgstr ""
+
+msgid "Typography"
+msgstr ""
+
+#: lib/sections_editor.dart
+msgid "Unbracket"
+msgstr ""
+
+msgid "Undefined at t = 0 or 1."
+msgstr ""
+
+#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+msgid "Undo"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Undo ({key})"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Convert to Anchors"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Convert to Tempo Map"
+msgstr ""
+
+#: lib/editor_controller.dart
+msgid "Tempo Map"
+msgstr ""
+
+msgid "Anchor nudge"
+msgstr ""
+
+msgid "←/→ · ⇧ 1 ms"
+msgstr ""
+
+msgid "Fine seek"
+msgstr ""
+
+msgid "⌥←/→"
+msgstr ""
+
+msgid "Undo history"
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "Until"
+msgstr ""
+
+#: lib/project_document.dart
+msgid "Untitled"
+msgstr ""
+
+#: lib/assets_dialog.dart
+msgid "Unused"
+msgstr ""
+
+msgid "Unzip it and replace this app with it."
+msgstr ""
+
+msgid "Updates"
+msgstr ""
+
+#: lib/main.dart
+msgid "Update…"
+msgstr ""
+
+msgid "That’s a lot of frames. Keep it to 2000 or fewer."
+msgstr ""
+
+msgid "That image is too big. Use one under 64 MB."
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Use Name from File"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Use the saved defaults here"
+msgstr ""
+
+msgid "Use these for other projects"
+msgstr ""
+
+msgid "UTF-16 MusicXML is not supported yet; save the file as UTF-8."
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Version {version}"
+msgstr ""
+
+#: lib/spacer_dialogs.dart
+msgid "Vertical Spacer"
+msgstr ""
+
+msgid "Video"
+msgstr ""
+
+msgid "Video Exported"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Video Ratio"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Video ratio"
+msgstr ""
+
+#: lib/media_converter.dart
+msgid "Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "View"
+msgstr ""
+
+msgid "Violet"
+msgstr ""
+
+msgid "Voices"
+msgstr ""
+
+msgid "Warp"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Warp (W)\n"
+"Jump to another bar here"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Warp (W)\n"
+"Make this anchor jump to another bar"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Warps from Score"
+msgstr ""
+
+msgid "When no anchors are set yet."
+msgstr ""
+
+msgid "WebM video"
+msgstr ""
+
+msgid "Website"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "Whole (8)"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "Whole piece"
+msgstr ""
+
+msgid "Whole-bar rests"
+msgstr ""
+
+msgid "Width : height"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Window"
+msgstr ""
+
+#: lib/condensing_editor.dart
+msgid "with"
+msgstr ""
+
+msgid "With bar numbers, shows rehearsal marks beside them, out of the music."
+msgstr ""
+
+msgid "Woodwinds"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "This one can’t be undone."
+msgstr ""
+
+#: lib/main.dart
+msgid "If you don’t, they’ll be lost."
+msgstr ""
+
+msgid "Your own server"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Yours."
+msgstr ""
+
+#: lib/bottom_panel.dart
+msgid "Zoom in ({key} or pinch)"
+msgstr ""
+
+#: lib/bottom_panel.dart
+msgid "Zoom out ({key} or pinch)"
+msgstr ""
+
+#: lib/instrument_lanes/lane_header.dart
+msgid "{names}: one lane"
+msgstr ""
+
+#: lib/font_settings.dart
+msgid "{name} not found."
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "{n} anchors"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "{n} anchors from the recording"
+msgstr ""
+
+msgid "{n} Bars"
+msgstr ""
+
+msgid "{n} captions"
+msgstr ""
+
+msgid "{n} edges"
+msgstr ""
+
+#: lib/assets_dialog.dart lib/export_dialog.dart
+msgid "{n} frames"
+msgstr ""
+
+msgid "{n} images"
+msgstr ""
+
+msgid "{n} imported"
+msgstr ""
+
+msgid "{n} imported, {left} overlapping left out"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "{n} items not supported:"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "{n} lanes"
+msgstr ""
+
+#: lib/phrase_search_window.dart
+msgid "{n} matches"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "{n} minutes"
+msgstr ""
+
+msgid "{n} regions"
+msgstr ""
+
+#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
+msgid "{n} s"
+msgstr ""
+
+#: lib/export_dialog.dart
+msgid "{n} seconds"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "{n} steps"
+msgstr ""
+
+msgid "{n} warps"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "{shared} of {all} share a staff."
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "{warps} from the score’s repeats"
+msgstr ""
+
+msgid "{what} in 1 lane"
+msgstr ""
+
+msgid "{what} in {n} lanes"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "“{name}” already exists. Replace it?"
+msgstr ""
+
+#: lib/video_export.dart lib/web_export.dart
+msgid "“{name}” already holds other files. Choose another name."
+msgstr ""
+
+#: lib/main.dart
+msgid "Can’t find “{name}”. Was it moved or deleted?"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "←/→ a bar (⇧ a beat)"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "↑/↓ re-point · ←/→ nudge · {key} remove"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "⇧ add · ⌘ toggle, no snap · ⌥ draw"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "⌘ no snap · ⌥ draw"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "⌘ no snap · ⌥ erase"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "⌥ add, draw · ⌘ no snap"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "128th"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "16th"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "32nd"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "64th"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Accent ([)"
+msgstr ""
+
+msgid "Bars and Barlines"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Breve"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Chord"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Chord (Q)"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Edit Score"
+msgstr ""
+
+#: lib/pdf_import.dart lib/score_editor.dart
+msgid "Discard"
+msgstr ""
+
+#: lib/pdf_import.dart lib/score_editor.dart
+msgid "Discard Your Changes?"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Dotted {value}"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Edit Score"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Eighth"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Half"
+msgstr ""
+
+msgid "Holds"
+msgstr ""
+
+#: lib/pdf_import.dart lib/score_editor.dart
+msgid "Keep Editing"
+msgstr ""
+
+#: lib/pdf_import_changes.dart
+msgid "Key Signature"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Marcato (⇧[)"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Note Input (⇧N)"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Note input"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Quarter"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Rest"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Rest (,)"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Slur (S)"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Staccatissimo (')"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Staccato (])"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Tenuto (⇧])"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "The score stays as it was."
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Tie (T)"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Time Signature"
+msgstr ""
+
+msgid "Tuplet"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Tuplet (;)"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Voice"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Whole"
+msgstr ""
+
+#: lib/pdf_import.dart lib/score_editor.dart
+msgid "Zoom In"
+msgstr ""
+
+#: lib/pdf_import.dart lib/score_editor.dart
+msgid "Zoom Out"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "{count} selected"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "{value} ({key})"
+msgstr ""
+
+msgid "Abbreviation"
+msgstr ""
+
+msgid "Add Instrument"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Bar {n}"
+msgstr ""
+
+msgid "Barline"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Import PDF"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Couldn’t measure the bars. {error}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Couldn’t read the PDF. {error}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Detect Page Again"
+msgstr ""
+
+msgid "Divisi"
+msgstr ""
+
+msgid "Double"
+msgstr ""
+
+msgid "End Repeat"
+msgstr ""
+
+msgid "End and Start Repeat"
+msgstr ""
+
+msgid "Final"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Import PDF"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Instrument"
+msgstr ""
+
+msgid "Key"
+msgstr ""
+
+msgid "Kind"
+msgstr ""
+
+msgid "Mask"
+msgstr ""
+
+msgid "Mask (M)"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Measuring system {n} of {count}…"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Move Down"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Move Up"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Next Page"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Previous Page"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Reading page {n} of {count}…"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Remove Barline"
+msgstr ""
+
+msgid "Remove Instrument"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Remove Mask"
+msgstr ""
+
+msgid "Gap"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Remove Gap"
+msgstr ""
+
+#: lib/pdf_import_changes.dart
+msgid "Concert"
+msgstr ""
+
+msgid "Read as"
+msgstr ""
+
+#: lib/pdf_import_changes.dart
+msgid "Concert: {key}"
+msgstr ""
+
+msgid "New Instrument"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Time Signature for {name}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Clef for {name}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Insert Tempo…"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Insert Key Signature…"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Insert Time Signature…"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Insert Time Signature for {name}…"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Insert Clef for {name}…"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Key {key}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Insert"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "New Instrument…"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Remove System"
+msgstr ""
+
+msgid "Single"
+msgstr ""
+
+#: lib/instruments_toolbar.dart lib/pdf_import.dart
+msgid "Staff {n}"
+msgstr ""
+
+msgid "Start Repeat"
+msgstr ""
+
+msgid "Time"
+msgstr ""
+
+msgid "Upbeat (beats)"
+msgstr ""
+
+#: lib/pdf_import.dart lib/pdf_import_changes.dart
+msgid "in {key}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "{bars} bars · {systems} systems"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "{n} of {count}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "×{n}"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgid "Spacing of {name}"
+msgstr ""
+
+msgid "Spacing…"
+msgstr ""
+
+msgid "Above (spaces)"
+msgstr ""
+
+msgid "Below (spaces)"
+msgstr ""
+
+msgid "Add Blank Lane"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Blank"
+msgstr ""
+
+msgid "Rename Lane"
+msgstr ""
+
+msgid "Opening…"
+msgstr ""
+
+msgid "Reading score…"
+msgstr ""
+
+msgid "Measuring…"
+msgstr ""
+
+msgid "Loading pages…"
+msgstr ""
+
+msgid "Split Lane"
+msgstr ""
+
+msgid "Join Lanes"
+msgstr ""
+
+msgid "Pages"
+msgstr ""
+
+msgid "Changes"
+msgstr ""
+
+msgid "Review"
+msgstr ""
+
+msgid "Next"
+msgstr ""
+
+msgid "Import"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Read Names from Score"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Every staff has an instrument"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "{n} staves without an instrument"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Show Next"
+msgstr ""
+
+msgid "Summary"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Reading text… {n} of {count}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "No text found"
+msgstr ""
+
+msgid "Read from Score"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Add All"
+msgstr ""
+
+msgid "Bars"
+msgstr ""
+
+msgid "Systems"
+msgstr ""
+
+msgid "Blank Lanes"
+msgstr ""
+
+msgid "Tempo Marks"
+msgstr ""
+
+msgid "Staves without an instrument"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "More"
+msgstr ""
+
+msgid "Blank Lane"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Dismiss"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Select a bar"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Lane"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "All Lanes"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Mask Lane (M)"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Mask All Lanes (⇧M)"
+msgstr ""
+
+msgid "Remove (⌫)"
+msgstr ""
+
+msgid "Remove System (⌫)"
+msgstr ""
+
+msgid "Remove Barline (⌫)"
+msgstr ""
+
+msgid "Remove Gap (⌫)"
+msgstr ""
+
+msgid "Remove Mask (⌫)"
+msgstr ""
+
+msgid "Show Next Staff without an Instrument"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Time for {name}"
+msgstr ""
+
+msgid "Select a staff"
+msgstr ""
+
+msgid "Add All Tempo Marks"
+msgstr ""
+
+msgid "Masks"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "None on this page"
+msgstr ""
+
+msgid "Add Barline (B)"
+msgstr ""
+
+msgid "Add Staff (S)"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Remove Staff"
+msgstr ""
+
