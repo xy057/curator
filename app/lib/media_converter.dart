@@ -62,7 +62,7 @@ abstract final class MediaConverter {
       if (r.exitCode == 0) return output;
       problems.add('ffmpeg: ${_lastLines('${r.stderr}')}');
     }
-    throw MediaConversionException('${'Couldn’t read audio from this file.'.tr}\n${problems.join('\n')}', input);
+    throw MediaConversionException('Couldn’t read audio from this file.\n{error}'.fill({'error': problems.join('\n')}), input);
   }
 
   /// FFmpeg: the first sound track only (no video), as FLAC, overwriting, never waiting for input.

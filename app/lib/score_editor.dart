@@ -1062,7 +1062,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
       text = [
         'Note input'.tr,
         where(caret),
-        '${'Voice'.tr} ${caret.voice.voice}',
+        'Voice {n}'.fill({'n': caret.voice.voice}),
         value,
         if (_alter != null) switch (_alter) { -1 => '♭', 1 => '♯', _ => '♮' },
         if (_chordMode) 'Chord'.tr,

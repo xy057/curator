@@ -79,7 +79,7 @@ class _CondensingAddPairState extends State<CondensingAddPair> {
               _second = null;
             })),
           ),
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('with'.tr, style: muted)),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('with'.trIn('condensing'), style: muted)),
           Expanded(child: choose(_second, seconds, (id) => setState(() => _second = id))),
           const SizedBox(width: 10),
           OutlinedButton(
