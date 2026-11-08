@@ -279,7 +279,8 @@ class CarbonHue {
 }
 
 /// [UiStyle.carbon]'s tokens beyond the shared [AppColors], named as Carbon names them: the
-/// White theme's, or in the dark Gray 100's. Read it with [CarbonColors.of] in a Carbon theme.
+/// White theme's, or in the dark Gray 100's taken a step darker (a black background). Read it
+/// with [CarbonColors.of] in a Carbon theme.
 @immutable
 class CarbonColors extends ThemeExtension<CarbonColors> {
   const CarbonColors._({
@@ -372,13 +373,13 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
       );
     }
     return CarbonColors._(
-      layer01: const Color(0xFF262626),
-      layer02: const Color(0xFF393939),
-      layerHover: const Color(0xFF333333),
-      layerSelected: const Color(0xFF393939),
-      layerAccent: const Color(0xFF393939),
-      field: const Color(0xFF393939),
-      borderSubtle: const Color(0xFF525252),
+      layer01: const Color(0xFF161616),
+      layer02: const Color(0xFF262626),
+      layerHover: const Color(0xFF212121),
+      layerSelected: const Color(0xFF262626),
+      layerAccent: const Color(0xFF262626),
+      field: const Color(0xFF262626),
+      borderSubtle: const Color(0xFF393939),
       borderStrong: const Color(0xFF6F6F6F),
       borderInverse: const Color(0xFFF4F4F4),
       textPrimary: const Color(0xFFF4F4F4),
@@ -393,7 +394,7 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
       backgroundActive: const Color(0x668D8D8D),
       backgroundSelected: const Color(0x3D8D8D8D),
       focus: const Color(0xFFFFFFFF),
-      focusInset: const Color(0xFF161616),
+      focusInset: const Color(0xFF000000),
       primary: h.fill,
       primaryHover: h.hover,
       primaryActive: h.active,
@@ -464,7 +465,7 @@ class CarbonFocusBorder extends RoundedRectangleBorder {
 /// Video export draws on these.
 abstract final class ScorePaper {
   static Color paper(Brightness brightness) =>
-      brightness == Brightness.light ? const Color(0xFFFFFFFF) : const Color(0xFF17191C);
+      brightness == Brightness.light ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
   static Color ink(Brightness brightness) =>
       brightness == Brightness.light ? const Color(0xFF14171A) : const Color(0xFFE3E4E0);
 }
@@ -485,14 +486,15 @@ abstract final class RefinedGreys {
   static const g800 = Color(0xFF1F2937);
   static const g900 = Color(0xFF111827);
 
-  // Dark: the window at the bottom, raised things a step lighter, text near white.
-  static const dark950 = Color(0xFF1B1C20); // the window
-  static const dark900 = Color(0xFF212327); // washes, stripes
-  static const dark850 = Color(0xFF26282D); // toolbars, sidebars
-  static const dark800 = Color(0xFF2C2E33); // dialogs, menus
-  static const dark700 = Color(0xFF373A40); // hairlines
-  static const dark600 = Color(0xFF4A4D55); // outlines
-  static const dark500 = Color(0xFF6C7079);
+  // Dark, OLED-dark: the window black, raised things a step lighter, hairlines doing the
+  // separating, text near white.
+  static const dark950 = Color(0xFF000000); // the window
+  static const dark900 = Color(0xFF0B0B0D); // washes, stripes
+  static const dark850 = Color(0xFF0E0F11); // toolbars, sidebars
+  static const dark800 = Color(0xFF16171A); // dialogs, menus
+  static const dark700 = Color(0xFF24262A); // hairlines
+  static const dark600 = Color(0xFF3B3E44); // outlines
+  static const dark500 = Color(0xFF63666E);
   static const dark400 = Color(0xFF9A9EA7); // secondary text
   static const dark100 = Color(0xFFE7E8EB); // text
 }
@@ -548,29 +550,29 @@ class AppColors extends ThemeExtension<AppColors> {
       };
 
   /// [UiStyle.carbon]'s palette: the White theme ($background white, $layer-01 #f4f4f4 for the
-  /// chrome) or Gray 100, the accent an IBM hue ([CarbonHue]).
+  /// chrome) or Gray 100 a step darker (black, $layer-01 #161616), the accent an IBM hue ([CarbonHue]).
   factory AppColors._carbonOf(AccentColor accent, Brightness brightness) {
     final h = accent.carbon;
     final light = brightness == Brightness.light;
-    final surface = light ? const Color(0xFFFFFFFF) : const Color(0xFF161616);
+    final surface = light ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
     final a = light ? h.fill : h.dark;
     return AppColors(
       accent: a,
       accentStrong: light ? h.fill : h.darkStrong,
       accentSoft: light ? h.soft : h.darkSoft,
-      accentWash: light ? const Color(0xFFF4F4F4) : const Color(0xFF262626),
+      accentWash: light ? const Color(0xFFF4F4F4) : const Color(0xFF161616),
       fill: h.fill,
       surface: surface,
-      chrome: light ? const Color(0xFFF4F4F4) : const Color(0xFF262626),
-      well: light ? const Color(0xFFE0E0E0) : const Color(0xFF393939),
-      line: light ? const Color(0xFFE0E0E0) : const Color(0xFF393939),
-      grid: light ? const Color(0xFFE0E0E0) : const Color(0xFF393939),
-      activity: light ? const Color(0xFFC6C6C6) : const Color(0xFF525252),
+      chrome: light ? const Color(0xFFF4F4F4) : const Color(0xFF161616),
+      well: light ? const Color(0xFFE0E0E0) : const Color(0xFF262626),
+      line: light ? const Color(0xFFE0E0E0) : const Color(0xFF262626),
+      grid: light ? const Color(0xFFE0E0E0) : const Color(0xFF262626),
+      activity: light ? const Color(0xFFC6C6C6) : const Color(0xFF393939),
       text: light ? const Color(0xFF161616) : const Color(0xFFF4F4F4),
       textMuted: light ? const Color(0xFF525252) : const Color(0xFFC6C6C6),
       erase: light ? const Color(0xFFDA1E28) : const Color(0xFFFA4D56),
       recording: light ? const Color(0xFFDA1E28) : const Color(0xFFFA4D56),
-      recordingWash: light ? const Color(0xFFFFF1F1) : const Color(0xFF2D0709),
+      recordingWash: light ? const Color(0xFFFFF1F1) : const Color(0xFF1C0405),
       waveform: Color.lerp(surface, a, light ? 0.62 : 0.7)!,
       onset: light ? const Color(0xFF8D8D8D) : const Color(0xFF6F6F6F),
       scorePaper: ScorePaper.paper(brightness),
@@ -627,7 +629,7 @@ class AppColors extends ThemeExtension<AppColors> {
       textMuted: RefinedGreys.dark400,
       erase: const Color(0xFFEF6B66),
       recording: const Color(0xFFFF6B63),
-      recordingWash: const Color(0xFF3A2322),
+      recordingWash: const Color(0xFF241414),
       waveform: mix(surface, 0.7),
       onset: RefinedGreys.dark500,
       scorePaper: ScorePaper.paper(brightness),
@@ -710,11 +712,11 @@ class AppColors extends ThemeExtension<AppColors> {
       surfaceContainerLowest: c.surface,
       surfaceContainerLow: c.surface,
       surfaceContainer: c.accentWash,
-      surfaceContainerHigh: dark ? const Color(0xFF26292E) : c.surface,
-      surfaceContainerHighest: dark ? const Color(0xFF2E3137) : c.accentWash,
+      surfaceContainerHigh: dark ? RefinedGreys.dark800 : c.surface,
+      surfaceContainerHighest: dark ? RefinedGreys.dark700 : c.accentWash,
       secondaryContainer: c.accentSoft,
       onSecondaryContainer: c.text,
-      outline: dark ? const Color(0xFF4A4F57) : const Color(0xFFBFC8D2),
+      outline: dark ? RefinedGreys.dark600 : const Color(0xFFBFC8D2),
       outlineVariant: c.line,
     );
     final theme = ThemeData(
@@ -763,12 +765,12 @@ class AppColors extends ThemeExtension<AppColors> {
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: dark ? const Color(0xFF24272B) : c.surface,
+        backgroundColor: dark ? RefinedGreys.dark800 : c.surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: dark ? const Color(0xFF26292E) : c.surface,
+        color: dark ? RefinedGreys.dark800 : c.surface,
         surfaceTintColor: Colors.transparent,
         shape: _SteadyBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: c.line)),
       ),

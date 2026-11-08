@@ -1140,7 +1140,7 @@ once, a fixed duration goes through `AppStyle.moving`, the appearance cross-fade
 `MediaQuery.disableAnimations` is set; what the score does (scrolling, staff transitions) is the
 project's and unchanged. A change of text size or density cross-fades as a change of theme does.
 Refined's palette (`AppColors._refinedOf`) takes every grey from a scale defined up front
-(`RefinedGreys`: a cool 50–900 and the dark theme's own steps; a new grey is a shade of it,
+(`RefinedGreys`: a cool 50–900 and the dark theme's own steps, OLED-dark from a black window; a new grey is a shade of it,
 never a literal), with no accent mixed in, and a
 `chrome` tone behind toolbars, the lane-name column and the ruler. Depth comes from
 `elevation(1–5)`, two-part shadows (a broad soft one and a tight dark one): the default button at
@@ -1153,7 +1153,7 @@ corners on a 13 px type scale. Segmented controls are a clear track whose chosen
 tint of the accent, slides to the one clicked, each label taking the accent as the tint passes
 under it, and the hover and press shades (drawn by the segment, so they fade rather than switch)
 gone while it slides.
-Carbon follows IBM's Carbon Design System (v11) as specified: the White theme or Gray 100, its
+Carbon follows IBM's Carbon Design System (v11) as specified: the White theme or Gray 100 a step darker (a black background, every layer one Gray grade down: OLED-dark), its
 named tokens in a `CarbonColors` extension (only in a Carbon theme: `CarbonColors.maybeOf`), IBM
 Plex Sans on the productive type set (12 / 14 / 16 / 20 px, Carbon's tracking), square corners,
 sm (32 px) buttons at the condensed density (label at the left, 7 / 39 px), primary / tertiary
