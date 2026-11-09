@@ -6,7 +6,7 @@ import 'package:score_engine/score_engine.dart';
 import 'project_state.dart';
 import 'l10n/l10n.dart';
 
-/// Project Info ▸ Replace Score: how a project made for one score file reads against another, and
+/// Project Info ▸ Score ▸ Edit… done: how a project made for one score file reads against another, and
 /// what differs between them.
 ///
 /// Instruments are matched by name and id ([parts]), so a part that moved (an instrument
@@ -115,13 +115,14 @@ class ScoreSwap {
 
   /// [state] carried to the new file: everything kept by the new part ids and positions,
   /// [condensable] (the old file's pairs, which [ProjectState.condensed] names) included.
-  /// An instrument only in the new file is curated as an imported score is. Also returns what
-  /// was lost past the new file's end.
+  /// An instrument only in the new file is curated as an imported score is, or with [curate]
+  /// off left empty (drawn by hand). Also returns what was lost past the new file's end.
   ({ProjectState state, Lost lost}) carry(
     ProjectState state, {
     required List<PlayerPair> condensable,
     required List<double> measuresBefore,
     required List<double> measuresAfter,
+    bool curate = true,
   }) {
     final edits = state.edits;
     double? at(double q) => quarterAt(q, measuresBefore, measuresAfter);
@@ -148,7 +149,9 @@ class ScoreSwap {
           }
         }
       }
-      lanes.addAll(Curation.autoCuratedLanes([for (final p in added) p.id], after.activeMeasures, measuresAfter));
+      lanes.addAll(curate
+          ? Curation.autoCuratedLanes([for (final p in added) p.id], after.activeMeasures, measuresAfter)
+          : {for (final p in added) p.id: const <Region>[]});
     }
 
     // The focus's sync, and each other take's.
@@ -309,7 +312,7 @@ class ScoreSwap {
 /// What [ScoreSwap.carry] left out: past the new file's end.
 typedef Lost = ({int regions, int anchors, int warps, int captions, int images});
 
-/// A score engraved to stand in for the open one ([EditorController.prepareReplacement]):
+/// A score engraved to stand in for the open one ([EditorController.prepareReplacementWith]):
 /// nothing has changed yet.
 @immutable
 class ScoreReplacement {

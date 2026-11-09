@@ -37,7 +37,7 @@ Future<void> showImportWarnings(BuildContext context, String fileName, List<Stri
       ),
     );
 
-/// Project Info ▸ Replace Score, when the new file differs from the open one ([differences], as
+/// Project Info ▸ Score ▸ Edit… done, when the new file differs from the open one ([differences], as
 /// [ScoreSwap.differences] gives them): true to replace anyway.
 Future<bool> confirmReplaceScore(BuildContext context, String fileName, List<String> differences) async =>
     await showAppDialog<bool>(

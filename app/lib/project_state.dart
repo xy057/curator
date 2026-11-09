@@ -485,15 +485,28 @@ class NameGroup {
 /// removed) or the user's ([NameGroup]).
 typedef NameGroupInfo = ({String id, String name, Color color, InstrumentFamily? family});
 
+/// What a project was made from, kept in its manifest (`kind`): a MusicXML score's, or a PDF's
+/// ([ProjectState.pdf]: no notes, so Find Phrase and auto-curation are off for it).
+enum ProjectKind { score, pdf }
+
 /// Everything a project stores besides the score and the recording: the edits, the image files
 /// they show, and the view. Saved as modules ([ProjectModules]: `modules/<id>.json` in the
 /// project), each checked field by field as it is read.
 @immutable
 class ProjectState {
   const ProjectState(
-      {this.edits = const EditState(), this.images = const {}, this.view = const ViewState(), this.foreign = const {}, this.pdf});
+      {this.edits = const EditState(),
+      this.images = const {},
+      this.view = const ViewState(),
+      this.foreign = const {},
+      this.pdf,
+      ProjectKind? kind})
+      : kind = kind ?? (pdf == null ? ProjectKind.score : ProjectKind.pdf);
 
   final EditState edits;
+
+  /// What the project was made from; unsaid (a project older than it), what its score is.
+  final ProjectKind kind;
 
   /// A PDF score's layout: what its pages hold, where ([PdfScoreLayout]). The source score is
   /// then that PDF; null for MusicXML.
@@ -514,13 +527,15 @@ class ProjectState {
           Map<String, PatchImage>? images,
           ViewState? view,
           Map<String, ForeignModule>? foreign,
-          PdfScoreLayout? Function()? pdf}) =>
+          PdfScoreLayout? Function()? pdf,
+          ProjectKind? kind}) =>
       ProjectState(
           edits: edits ?? this.edits,
           images: images ?? this.images,
           view: view ?? this.view,
           foreign: foreign ?? this.foreign,
-          pdf: pdf == null ? this.pdf : pdf());
+          pdf: pdf == null ? this.pdf : pdf(),
+          kind: kind ?? this.kind);
 }
 
 /// A module a newer version wrote that this one can't read, as it came: its JSON

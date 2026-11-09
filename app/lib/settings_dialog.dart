@@ -60,10 +60,9 @@ Future<void> showSettingsDialog(
 
 /// Edit ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
 /// ([_projectCategories]). Each change is an edit: an Undo step, saved with the project.
-/// [replaceScore] is Project Info's Replace… (the app's, which asks first); [editScore] its
-/// Edit…, called once this window is gone.
+/// [editScore] is Project Info's Edit…, called once this window is gone.
 Future<void> showProjectSettingsDialog(BuildContext context, AppSettings settings, EditorController controller,
-        {String? page, Future<void> Function()? replaceScore, Future<void> Function()? editScore}) =>
+        {String? page, Future<void> Function()? editScore}) =>
     _showWindow(
       context,
       _SettingsWindow(
@@ -72,7 +71,6 @@ Future<void> showProjectSettingsDialog(BuildContext context, AppSettings setting
         controller: controller,
         updater: Updater(), // nothing here asks it
         page: page,
-        replaceScore: replaceScore,
         editScore: editScore,
       ),
     );
@@ -191,7 +189,6 @@ typedef _Context = ({
   AppSettings settings,
   EditorController? controller,
   Updater updater,
-  Future<void> Function()? replaceScore,
   Future<void> Function()? editScore,
 });
 
@@ -248,6 +245,12 @@ final _categories = <_Category>[
       (_) => 'Off: every staff throughout.',
       (c) => AppSwitch(value: c.settings.autoCurateImported, onChanged: (v) => c.settings.autoCurateImported = v),
       keywords: 'auto curate lanes import new score staves automatic',
+    ),
+    _Item(
+      'Auto-curate PDF scores',
+      null,
+      (c) => AppSwitch(value: c.settings.autoCuratePdf, onChanged: (v) => c.settings.autoCuratePdf = v),
+      keywords: 'auto curate lanes pdf import scan staves automatic',
     ),
     _Item(
       'Fine seek',
@@ -366,21 +369,17 @@ final _projectCategories = <_Category>[
       'Score',
       (c) => c.controller!.fileName ?? '',
       (c) => Builder(
-        builder: (context) => Row(mainAxisSize: MainAxisSize.min, children: [
-          OutlinedButton(
-            onPressed: c.editScore == null || c.controller?.score == null
-                ? null
-                : () {
-                    Navigator.pop(context); // the editor takes the window
-                    c.editScore!();
-                  },
-            child: Text('Edit…'.tr),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(onPressed: c.replaceScore, child: Text('Replace…'.tr)),
-        ]),
+        builder: (context) => OutlinedButton(
+          onPressed: c.editScore == null || c.controller?.score == null
+              ? null
+              : () {
+                  Navigator.pop(context); // the editor takes the window
+                  c.editScore!();
+                },
+          child: Text('Edit…'.tr),
+        ),
       ),
-      keywords: 'edit editor replace score file musicxml mei import notes write',
+      keywords: 'edit editor score file musicxml mei pdf import notes write',
     ),
     _Item(
       'Recording',
@@ -806,10 +805,9 @@ class _SettingsWindow extends StatefulWidget {
       this.controller,
       required this.updater,
       this.page,
-      this.replaceScore,
       this.editScore});
   final _Window kind;
-  final Future<void> Function()? replaceScore, editScore;
+  final Future<void> Function()? editScore;
   final AppSettings settings;
   final EditorController? controller;
   final Updater updater;
@@ -846,7 +844,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     final overlay = Overlay.of(context, rootOverlay: true);
     Navigator.pop(context);
     _EngravingWindow.show(
-        overlay, tab, (settings: widget.settings, controller: widget.controller, updater: Updater(), replaceScore: null, editScore: null));
+        overlay, tab, (settings: widget.settings, controller: widget.controller, updater: Updater(), editScore: null));
   }
   final _search = TextEditingController();
 
@@ -865,7 +863,6 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         settings: widget.settings,
         controller: widget.controller,
         updater: widget.updater,
-        replaceScore: widget.replaceScore,
         editScore: widget.editScore,
       );
 

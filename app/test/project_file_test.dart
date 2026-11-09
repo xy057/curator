@@ -194,6 +194,22 @@ void main() {
       }
     });
 
+    test('a project keeps its kind in the manifest; one without a kind is its score\'s', () async {
+      final path = '${dir.path}/kind.ccs';
+      await ProjectFile.write(path, ProjectContents(
+          scoreName: 'Score.pdf', scoreBytes: Uint8List(1), state: const ProjectState(kind: ProjectKind.pdf)));
+      final manifest = json(path, 'manifest.json');
+      expect(manifest['kind'], 'pdf');
+      expect((await open(path)).state.kind, ProjectKind.pdf);
+
+      for (final kind in [null, 'tablature']) { // older than kinds; a newer Curator's kind
+        rewrite(path, {'manifest.json': utf8.encode(jsonEncode({...manifest..remove('kind'), 'kind': ?kind}))});
+        expect((await open(path)).state.kind, ProjectKind.score);
+      }
+      await ProjectFile.write(path, contents());
+      expect(json(path, 'manifest.json')['kind'], 'score');
+    });
+
     test('a damaged module says where', () async {
       final path = '${dir.path}/damaged.ccs';
       await ProjectFile.write(path, contents());

@@ -306,6 +306,9 @@ msgstr ""
 msgid "Auto-curate imported scores"
 msgstr ""
 
+msgid "Auto-curate PDF scores"
+msgstr ""
+
 msgid "Off: every staff throughout."
 msgstr ""
 
@@ -1840,7 +1843,6 @@ msgstr ""
 msgid "Replaces the chosen lanes’ regions"
 msgstr ""
 
-#: lib/settings_dialog.dart
 msgid "Replace…"
 msgstr ""
 

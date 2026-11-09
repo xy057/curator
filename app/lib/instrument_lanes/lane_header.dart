@@ -152,7 +152,7 @@ class _LaneHeaderState extends State<_LaneHeader> {
       item(context, _LaneAction.copy),
       menuDivider(context),
       item(context, _LaneAction.showThroughout),
-      if (!spacer) item(context, _LaneAction.autoCurate), // nothing plays in it
+      if (!spacer && controller.canAutoCurate) item(context, _LaneAction.autoCurate), // a spacer: nothing plays in it
       item(context, _LaneAction.clear),
       menuDivider(context),
       item(context, _LaneAction.moveToTop),
