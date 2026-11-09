@@ -37,23 +37,19 @@ abstract final class WebExport {
     }
   }
 
-  /// Writes [editor]'s project to the folder [output] as [page] says (its recordings, fonts and
-  /// name colours are filled in here): [takes] heard whole as well as the performance, the
-  /// captions and the images only if [captions] and [images]. Written beside it and moved in at
-  /// the end. A folder there already is written into only if it holds an earlier page, and then
-  /// only what the export writes is replaced: what else it holds (a repository, a host's own
-  /// files) stays. Returns the
-  /// path of its `index.html`. Throws a [VideoExportException] saying why it couldn't. A test
-  /// gives the [player] (zipped), as it has no build of it.
-  /// A PDF score's systems with bars on the page, each as printed ([WebPage.pdfSystem]).
+  /// A PDF score's systems a page draws, each as printed ([WebPage.pdfSystem]): those its bars
+  /// are in, and those of the music a frame shows either side of them (before its first bar and
+  /// after its last the score is drawn on, as in the app), a frame's width each way.
   static Future<void> _writePdf(EditorController editor, PdfScoreLayout layout, String folder, WebPage page) async {
-    final pages = editor.pdfPages;
+    final pages = editor.pdfPages, engraving = editor.score!.engraving;
     if (pages == null) throw const VideoExportException('The PDF isn’t open.');
-    final systems = <int>{
-      for (final (bar, pieces) in layout.bars.indexed)
-        if (bar >= page.firstBar - 1 && bar <= page.lastBar - 1)
-          for (final p in pieces) p.system,
-    };
+    final measures = engraving.measures;
+    if (measures.isEmpty) return;
+    final first = (page.firstBar - 1).clamp(0, measures.length - 1), last = (page.lastBar - 1).clamp(first, measures.length - 1);
+    // A frame's width in the engraving's units; a page that fills its window, a wide window's.
+    final points = page.ratio == null ? _widestWindow : VideoFormat.layoutOf(page.ratio!).width;
+    final width = points / page.staffSpace * engraving.staffSpace;
+    final systems = PdfEngraving.systemsIn(layout, engraving, measures[first].left - width, measures[last].right + width);
     for (final i in systems) {
       final image = await PdfPagesSource.decodePicture(await pages.picture(layout.systems[i]));
       try {
@@ -67,6 +63,17 @@ abstract final class WebExport {
     }
   }
 
+  /// The widest window a page that fills it is taken to have, points.
+  static const _widestWindow = 2560.0;
+
+  /// Writes [editor]'s project to the folder [output] as [page] says (its recordings, fonts and
+  /// name colours are filled in here): [takes] heard whole as well as the performance, the
+  /// captions and the images only if [captions] and [images]. Written beside it and moved in at
+  /// the end. A folder there already is written into only if it holds an earlier page, and then
+  /// only what the export writes is replaced: what else it holds (a repository, a host's own
+  /// files) stays. Returns the
+  /// path of its `index.html`. Throws a [VideoExportException] saying why it couldn't. A test
+  /// gives the [player] (zipped), as it has no build of it.
   static Future<String> write(EditorController editor, String output,
       {required WebPage page,
       List<String> takes = const [],
