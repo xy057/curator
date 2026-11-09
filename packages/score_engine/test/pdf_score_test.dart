@@ -117,6 +117,7 @@ void main() {
     expect(PdfScoreLayout.fromJson(changed.toJson()), changed);
     // A key read off a transposing staff is kept as the concert key; a name says the transposition.
     expect(PdfInstrument.keyForName('Clarinet in B♭'), SpacerKey.bFlat);
+    expect(PdfInstrument.keyForName('Klarinette in B'), SpacerKey.bFlat, reason: 'German for B♭');
     expect(PdfInstrument.keyForName('Bass Clarinet'), SpacerKey.c);
     expect(SpacerKey.bFlat.concertOf(SpacerKey.bFlat.keyOf(-3)), -3);
     expect(const PdfInstrument(id: 'P2', name: 'Clarinet in B♭', key: SpacerKey.bFlat).renamed('Flute').key, SpacerKey.c);

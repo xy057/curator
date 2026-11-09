@@ -114,11 +114,13 @@ class PdfInstrument {
   }
 
   /// The transposition [name] says ("Clarinet in B♭", "Horn in F"); concert pitch when none.
+  /// A bare "in B" is B♭ too: German scores write it so ("Klarinette in B"; their B natural is
+  /// "in H"), and no instrument a score names is pitched in B natural.
   static SpacerKey keyForName(String name) {
     final m = RegExp(r'\b(?:in|en)\s*([A-G])\s*(b|♭|flat|es)?(?![a-z])', caseSensitive: false).firstMatch(name);
     if (m == null) return SpacerKey.c;
     return switch ((m[1]!.toUpperCase(), m[2] != null)) {
-      ('B', true) => SpacerKey.bFlat,
+      ('B', _) => SpacerKey.bFlat,
       ('E', true) => SpacerKey.eFlat,
       ('A', false) => SpacerKey.a,
       ('F', false) => SpacerKey.f,
