@@ -150,8 +150,10 @@ class _PreviewPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Laid out for this paint alone, and let go after it: a bar keeps its texts until disposed.
     CaptionBar(TextFonts.familyOf(TextFonts.academico), style)
-        .paint(canvas, size, 6, const [(caption: 0, start: 0.0, end: 10.0)], _captions, ink, paper: paper);
+      ..paint(canvas, size, 6, const [(caption: 0, start: 0.0, end: 10.0)], _captions, ink, paper: paper)
+      ..dispose();
   }
 
   @override
