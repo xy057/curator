@@ -711,8 +711,6 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// View ▸ Hide / Show: the preview and the timeline; one of them always shows.
   bool _previewShown = true, _timelineShown = true;
 
-  static const _scoreTypes = _AppWindowState._scoreTypes;
-
   /// Whether a score is open: the menus' Score items follow it.
   final _hasScore = ValueNotifier(false);
 
@@ -1130,11 +1128,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   }
 
   void _projectSettings() =>
-      showProjectSettingsDialog(context, settings, controller, replaceScore: _replaceScore, editScore: _editScore);
+      showProjectSettingsDialog(context, settings, controller, editScore: _editScore);
 
   /// Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score's MusicXML in the score editor;
-  /// what is edited there replaces the score as Replace… does (this project's edits and
-  /// recording kept; asks first when the two differ).
+  /// what is edited there replaces the score (this project's edits and recording kept; asks
+  /// first when the two differ).
   Future<void> _editScore() async {
     final loaded = controller.score;
     if (loaded == null) return;
@@ -1164,7 +1162,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   }
 
   /// Project Info ▸ Score ▸ Edit… for a PDF score: its import again; what is set there replaces
-  /// the score as Replace… does.
+  /// the score, as the score editor's does.
   Future<void> _editPdf(PdfScoreLayout layout) async {
     final pages = controller.pdfPages;
     final name = controller.fileName ?? 'Score.pdf';
@@ -1181,24 +1179,6 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       }
       await document.replaceScore(replacement);
     }, title: 'Couldn’t Edit Score'.tr);
-  }
-
-  /// Project Settings ▸ Project Info ▸ Score ▸ Replace…: another score file under this
-  /// project's edits and recording; asks first when the two differ.
-  Future<void> _replaceScore() async {
-    final file = await openFile(acceptedTypeGroups: const [_scoreTypes]);
-    if (file == null || !mounted) return;
-    await _guard(() async {
-      final replacement = await document.prepareReplacement(file.path);
-      if (!mounted) return;
-      if (replacement.differences.isNotEmpty &&
-          !await confirmReplaceScore(context, replacement.name, replacement.differences)) {
-        return;
-      }
-      await document.replaceScore(replacement);
-      final warnings = replacement.score.warnings;
-      if (warnings.isNotEmpty && mounted) await showImportWarnings(context, replacement.name, warnings);
-    });
   }
 
   /// File ▸ Export Video… (⌘E): offers the project's (or the score's) name for the video.

@@ -66,7 +66,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `motion_settings.dart` | Project Settings ▸ Advanced: the motion's rows (`MotionSetting.all`), a slider or a curve each, and the Custom Curve dialog; `SettingSlider`, a setting's slider set when let go, its number typed over in a `SliderValueField` (also Scroll follow's and Export's Score size) |
 | `typography_settings.dart` | Project Settings ▸ Engraving ▸ Typography: a row per property of each kind of text (`TypographySetting.all`), a slider or a style each |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
-| `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace…: a project carried over to another score file (`ScoreSwap`), and what differs between them |
+| `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit… done (the score editor's, a PDF's import again): a project carried over to the new score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
 | `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start, barlines (the last two by handles above the system, as the edges' at its right), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
@@ -822,7 +822,7 @@ its recording included.
 **A large score opens without stopping the app.** Everything slow about opening runs on other
 isolates, so the window keeps drawing: reading the MusicXML and preparing it (`_prepare`, some
 half a second for a big orchestral file), Verovio, a PDF score's whole layout (`_fromPdfApart`:
-its skeleton written, read and laid out as printed), the replacement read of Replace… and Edit…
+its skeleton written, read and laid out as printed), the replacement read of Edit…
 (`_readApart`), and, for a new score that will be auto-curated (`measure`), what each bar plays
 (`BarSalience`). That last one runs after the engraving, not beside it: isolates from
 `Isolate.run` share one heap, and a second parse alongside Verovio's copying out made
@@ -861,8 +861,9 @@ under way), the tab after it showing (or before it, or Home). A project that doe
 why and its tab goes. Two projects open on one recording file (a linked one) share SoLoud's one
 sound of it, which the last to let go disposes (`audio_track.dart`'s `_holders`).
 
-**Replacing the score keeps the project.** Project Settings ▸ Project Info ▸ Score ▸ Replace… engraves another score
-file with the project's edits carried over to it (`EditorController.prepareReplacement`,
+**Replacing the score keeps the project.** What Project Settings ▸ Project Info ▸ Score ▸ Edit… hands
+back (the score editor's MusicXML, or a PDF's import set again) is engraved with the project's
+edits carried over to it (`EditorController.prepareReplacementWith`,
 `ScoreSwap`), and only then swaps it in, like opening, keeping the recording, the path and
 the view (`replaceScore`). Instruments are matched by id and name, then by name (an
 instrument added above renumbers the rest), then by id (renamed); lanes, names, pairs,
@@ -879,7 +880,7 @@ replacement: its steps were of the old file.
 
 **The score is edited as MusicXML, then replaced.** Project Settings ▸ Project Info ▸ Score ▸
 Edit… opens the score's MusicXML (`LoadedScore.musicXML`) in an editor over the window
-(`score_editor.dart`); Done hands back the file as edited, which goes in as Replace… would
+(`score_editor.dart`); Done hands back the file as edited, which replaces the score (above)
 (`ProjectDocument.prepareReplacementWith`, the same carrying over, dialog and fresh Undo); nothing
 edited, or Cancel, changes nothing. `EditableScore` (`score_editing.dart`) keeps the document's
 elements and edits them in place, never a model of its own written back out, so what it doesn't
@@ -917,9 +918,9 @@ MusicXML written from it (`musicXML`: a part per player, a whole note where a ba
 meters, keys, upbeat and tempo the user gave) is the score the rest of Curator reads, so
 curation, sync, captions, export and the web page work as for any score. The project is a PDF's
 (`ProjectKind.pdf`, `EditorController.isPdf`): no Find Phrase, Align or condensing, and no
-auto-curation (on import, Auto-curate, Auto-Curate Lane, a re-import's new instruments shown
-throughout) unless Settings ▸ General ▸ Auto-curate PDF scores (`autoCuratePdf`, off) is on
-(`canAutoCurate`). Replace… with a score file makes it a score's project. The main view draws no
+auto-curation (Auto-curate and Auto-Curate Lane gone, lanes on import and a re-import's new
+instruments empty, drawn by hand) unless Settings ▸ General ▸ Auto-curate PDF scores
+(`autoCuratePdf`, off) is on (`canAutoCurate`); turned on or off, the open project follows at once. The main view draws no
 engraving: each system is drawn by PDFium as printed (RGBA, on nothing; `PdfPagesSource`, a few
 systems ahead of the view, `CuratedScene.ready`, and an LRU of decoded images), and each staff's
 bar is the rectangle of it between that staff's cuts, the masks clipped out (a mask is every

@@ -1843,7 +1843,6 @@ msgstr ""
 msgid "Replaces the chosen lanes’ regions"
 msgstr ""
 
-#: lib/settings_dialog.dart
 msgid "Replace…"
 msgstr ""
 

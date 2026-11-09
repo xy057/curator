@@ -266,14 +266,9 @@ class EditorController extends ChangeNotifier {
     }
   }
 
-  /// Project Info ▸ Replace Score: engraves the score file at [path] with this project's edits
-  /// carried over to it ([ScoreSwap]), and says what differs. Nothing changes until
-  /// [replaceScore].
-  Future<ScoreReplacement> prepareReplacement(String path) async =>
-      prepareReplacementWith(fileNameOf(path), await File(path).readAsBytes());
-
-  /// [prepareReplacement] for a score's [bytes] (the score editor's), named [name]; or, with
-  /// [pdf], the open PDF read as that layout (its import edited again).
+  /// Engraves a score's [bytes] (the score editor's), named [name], with this project's edits
+  /// carried over to it ([ScoreSwap]), and says what differs; or, with [pdf], the open PDF read
+  /// as that layout (its import edited again). Nothing changes until [replaceScore].
   Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes, {PdfScoreLayout? pdf}) async {
     final before = _score!;
     final art = pdf == null ? null : PdfScoreArt(pdf, PdfPagesSource(_pdfPages!));
@@ -310,7 +305,6 @@ class EditorController extends ChangeNotifier {
       art?.dispose();
       throw StateError('Another score was opened meanwhile.');
     }
-    // A score file in place of a PDF makes it a score's project.
     final state = projectState.copyWith(pdf: () => pdf, kind: pdf == null ? ProjectKind.score : ProjectKind.pdf);
     final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
     final (state: carried, :lost) =
@@ -431,13 +425,15 @@ class EditorController extends ChangeNotifier {
     _curation = Curation({...parts})
       ..load(
           edits.lanes ??
-              (autoCurateImported && canAutoCurate
-                  ? {
-                      ...Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
-                      // A blank lane plays nothing, and is there to be shown.
-                      for (final id in parts) if (_isBlank(score, id)) id: throughout,
-                    }
-                  : {for (final id in parts) id: throughout}),
+              (!canAutoCurate
+                  ? {for (final id in parts) id: const <Region>[]} // a PDF's, drawn by hand
+                  : autoCurateImported
+                      ? {
+                          ...Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
+                          // A blank lane plays nothing, and is there to be shown.
+                          for (final id in parts) if (_isBlank(score, id)) id: throughout,
+                        }
+                      : {for (final id in parts) id: throughout}),
           transition: edits.transition ?? defaultTransition);
     _joinLanes();
     _curation!.setSplit(_splitCounts);
@@ -515,8 +511,14 @@ class EditorController extends ChangeNotifier {
   bool autoCurateImported = true;
 
   /// Whether a PDF's project is auto-curated too (Settings ▸ General): off, its lanes are
-  /// only drawn by hand, every staff shown throughout to begin with.
-  bool autoCuratePdf = false;
+  /// only drawn by hand, empty to begin with. Changed, Auto-curate comes or goes at once.
+  bool get autoCuratePdf => _autoCuratePdf;
+  bool _autoCuratePdf = false;
+  set autoCuratePdf(bool value) {
+    if (value == _autoCuratePdf) return;
+    _autoCuratePdf = value;
+    if (isPdf) notifyListeners();
+  }
 
   /// How far ⌥←/→ move the playhead, seconds (Settings ▸ General ▸ Fine seek).
   double fineSeek = 0.1;

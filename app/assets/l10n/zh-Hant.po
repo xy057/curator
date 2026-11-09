@@ -1846,7 +1846,6 @@ msgstr "替換為「{name}」？"
 msgid "Replaces the chosen lanes’ regions"
 msgstr "替換所選軌道中的區域"
 
-#: lib/settings_dialog.dart
 msgid "Replace…"
 msgstr "替換…"
 
