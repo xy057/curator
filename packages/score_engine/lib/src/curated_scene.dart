@@ -447,29 +447,6 @@ class LoadedScore {
 
   /// Re-engraves as [request] asks (the structure, and so the curation and sync, stay valid).
   Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo, pdf: pdf);
-
-  /// Re-engraves with different text edits, pairs of players, fonts, engraving options,
-  /// [textDynamics], [typography], [centeredLyrics] or spacers; what isn't given stays.
-  Future<LoadedScore> withEdits(
-          {Map<String, String>? textEdits,
-          List<PlayerPair>? pairs,
-          ScoreFonts? fonts,
-          EngravingOptions? options,
-          bool? textDynamics,
-          ScoreTypography? typography,
-          bool? centeredLyrics,
-          List<VerticalSpacer>? spacers,
-          List<HorizontalSpacer>? gaps}) =>
-      withRequest(EngraveRequest(
-          textEdits: textEdits ?? this.textEdits,
-          pairs: pairs ?? this.pairs,
-          fonts: fonts ?? this.fonts,
-          options: options ?? this.options,
-          textDynamics: textDynamics ?? this.textDynamics,
-          typography: typography ?? this.typography,
-          centeredLyrics: centeredLyrics ?? this.centeredLyrics,
-          spacers: spacers ?? this.spacers,
-          gaps: gaps ?? this.gaps));
 }
 
 /// Where Verovio's font metrics live on disk (bundled as package assets).
