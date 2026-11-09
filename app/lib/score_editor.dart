@@ -786,6 +786,11 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   KeyEventResult _key(FocusNode _, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+    // A popover's field keeps what is typed in it: this is asked before the field is, and a key
+    // taken here never reaches it (an F typed for forte would be the note's new pitch).
+    if (FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null) {
+      return KeyEventResult.ignored;
+    }
     final keys = HardwareKeyboard.instance;
     final shift = keys.isShiftPressed, alt = keys.isAltPressed, command = keys.isMetaPressed || keys.isControlPressed;
     final key = event.logicalKey;
