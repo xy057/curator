@@ -1046,6 +1046,13 @@ class _PdfImportState extends State<PdfImport> {
     final meta = HardwareKeyboard.instance.isMetaPressed || HardwareKeyboard.instance.isControlPressed;
     final shift = HardwareKeyboard.instance.isShiftPressed;
     final key = event.logicalKey;
+    // A field being typed in keeps its keys (its arrows move the caret, not the page): this is
+    // asked before the field is, and a key taken here never reaches it. Undo stays the import's,
+    // its steps the fields' edits.
+    final typing = FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+    if (typing && !(meta && key == LogicalKeyboardKey.keyZ) && key != LogicalKeyboardKey.pageDown && key != LogicalKeyboardKey.pageUp) {
+      return KeyEventResult.ignored;
+    }
     if (meta && key == LogicalKeyboardKey.keyZ) {
       shift ? _redoStep() : _undoStep();
     } else if ((key == LogicalKeyboardKey.delete || key == LogicalKeyboardKey.backspace) && (_step == _Step.pages || _step == _Step.edit)) {
