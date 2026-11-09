@@ -262,8 +262,16 @@ class AudioEngine {
   @visibleForTesting
   set debugTrack(AudioTrack? track) => _debugTrack = track;
 
-  static Future<void> _ensureInitialized() =>
-      _initializing ??= SoLoud.instance.isInitialized ? Future.value() : SoLoud.instance.init();
+  static Future<void> _ensureInitialized() => _initializing ??= () async {
+        if (SoLoud.instance.isInitialized) return;
+        try {
+          await SoLoud.instance.init();
+        } catch (_) {
+          // Not kept: the next recording tries again (a sound device may be there by then).
+          _initializing = null;
+          rethrow;
+        }
+      }();
 
   /// What the recordings held may take in memory, decoded, together; past it a recording is
   /// read from disk as it plays (a 70-minute symphony decoded is about 1.5 GB).
