@@ -1442,6 +1442,19 @@ class EditableScore {
     return null;
   }
 
+  /// [time] of bar [m] as the start of the note or rest (of any part) that is there, when one
+  /// is: a place read off the engraving ([EditGalley.timeAtX]) is only near it where the time
+  /// is a seventh or a ninth (a septuplet's second note), and a note put in a hair before
+  /// another would cut it short.
+  Frac onsetAt(int m, Frac time) {
+    for (var p = 0; p < parts.length; p++) {
+      for (final e in _view(p, m).events) {
+        if ((e.start - time).toDouble().abs() < 1e-3) return e.start;
+      }
+    }
+    return time;
+  }
+
   /// The note, chord or rest of [at]'s voice that ends where [at] is (the one just put in).
   EventInfo? eventBefore(ScorePosition at) {
     final m = at.time.isZero ? at.measure - 1 : at.measure;

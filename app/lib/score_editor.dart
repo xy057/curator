@@ -586,7 +586,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
     final at = _galley.timeAtX(p.dx);
     if (at == null) return;
     final (:part, :staff) = _partStaffOf(_galley.staffAtY(p.dy));
-    final position = ScorePosition(part, score.defaultVoice(part, staff, at.measure), at.measure, at.time);
+    final position = ScorePosition(part, score.defaultVoice(part, staff, at.measure), at.measure, score.onsetAt(at.measure, at.time));
     setState(() {
       _anchor = position;
       if (!toggle && !shift) _selected = {};
