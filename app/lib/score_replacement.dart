@@ -143,6 +143,18 @@ class ScoreSwap {
       return s == null || e <= s ? null : (s, e);
     }
 
+    // A region leaves out staves of its instrument by their place in it: one the instrument no
+    // longer has is no longer left out, and a region left hiding every staff shows them all (it
+    // would show nothing where its lane says the instrument is seen).
+    final stavesOf = {for (final p in after.parts) p.id: p.staffNumbers.length};
+    Region fitted(Region r, String lane) {
+      if (r.hiddenStaves.isEmpty) return r;
+      final count = stavesOf[lane] ?? 1;
+      final hidden = [for (final n in r.hiddenStaves) if (n <= count) n];
+      if (hidden.length == r.hiddenStaves.length && hidden.length < count) return r;
+      return r.withHiddenStaves(hidden.length >= count ? const [] : hidden);
+    }
+
     var lostRegions = 0;
     Map<String, List<Region>>? lanes;
     if (edits.lanes case final old?) {
@@ -153,7 +165,7 @@ class ScoreSwap {
         lanes[to] = [];
         for (final r in lane) {
           if (span(r.start, r.end) case (final s, final e)) {
-            lanes[to]!.add(r.withBounds(s, e));
+            lanes[to]!.add(fitted(r, to).withBounds(s, e));
           } else {
             lostRegions++;
           }
