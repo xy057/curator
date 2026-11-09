@@ -430,6 +430,8 @@ switch is off the images stay in the project but are not drawn, exported or edit
 (`ImageEditing.enabled`). A file is read through `PatchImage.readFile` (Add Image…, a drop, a copied file pasted), which
 refuses one over 64 MB before reading any of it; a score file over 256 MB (`ScoreFile.maxBytes`)
 and a MIDI file over 64 MB are refused the same way (`EditorController.openFile`, `loadMidiTempo`).
+One render of a PDF makes 64 megapixels at most (`PdfPages.fittedScale`: a poster-size page is
+drawn whole at a coarser grain, the raster saying its scale).
 Decoding is bounded (`PatchImage.decode`), so a small file can't
 take gigabytes: a file over 64 MB, or a raster image over 64 megapixels (one inside an SVG
 too, read from its header before anything is decoded), is refused; one longer than 4096
@@ -871,7 +873,9 @@ unpainted, even for a frame, shows the window's black backing. AppKit's own wind
 names to View for tabs of windows the app doesn't have. Closing takes the tab away at once and the page drops its editor
 (`ProjectPage.closing`); the page itself goes once `ProjectDocument.close` has run (after a save
 under way), the tab after it showing (or before it, or Home). A project that doesn't open says
-why and its tab goes. Two projects open on one recording file (a linked one) share SoLoud's one
+why and its tab goes. A score opened again while its project isn't saved yet shows that project's
+tab (`_OpenProject.file`); a file the system asks to open while a dialog is up waits until it has
+gone (`_openFromSystem`); Save As onto a project open in another tab is refused. Two projects open on one recording file (a linked one) share SoLoud's one
 sound of it, which the last to let go disposes (`audio_track.dart`'s `_holders`).
 
 **Replacing the score keeps the project.** What Project Settings ▸ Project Info ▸ Score ▸ Edit… hands
