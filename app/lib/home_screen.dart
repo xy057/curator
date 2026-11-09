@@ -190,7 +190,21 @@ class _RecentRow extends StatefulWidget {
 
 class _RecentRowState extends State<_RecentRow> {
   bool _hover = false;
-  late final bool _exists = File(widget.path).existsSync();
+
+  /// Whether its file is there. Looked at again when Home shows again and when the pointer
+  /// comes over the row: a file on a drive connected since, or put back, opens after all.
+  late bool _exists = File(widget.path).existsSync();
+
+  void _look() {
+    final exists = File(widget.path).existsSync();
+    if (exists != _exists) setState(() => _exists = exists);
+  }
+
+  @override
+  void didUpdateWidget(_RecentRow old) {
+    super.didUpdateWidget(old);
+    _exists = File(widget.path).existsSync();
+  }
 
   static final _home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
 
@@ -210,7 +224,10 @@ class _RecentRowState extends State<_RecentRow> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
+      onEnter: (_) {
+        setState(() => _hover = true);
+        _look();
+      },
       onExit: (_) => setState(() => _hover = false),
       cursor: _exists ? SystemMouseCursors.click : SystemMouseCursors.basic,
       child: GestureDetector(
