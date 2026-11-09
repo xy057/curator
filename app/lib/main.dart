@@ -1356,6 +1356,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true): controller.redo,
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): controller.undo,
         const SingleActivator(LogicalKeyboardKey.keyY, control: true): controller.redo,
+        // Windows' and Linux's other Redo, as the score editor takes it.
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): controller.redo,
         const SingleActivator(LogicalKeyboardKey.escape): _commands.escape,
         // Instruments tab: the selected regions. Paste: those, or Attach Image's image at the pointer.
         const SingleActivator(LogicalKeyboardKey.keyC, meta: true): _commands.copy,

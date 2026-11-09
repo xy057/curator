@@ -1063,6 +1063,8 @@ class _PdfImportState extends State<PdfImport> {
     }
     if (meta && key == LogicalKeyboardKey.keyZ) {
       shift ? _redoStep() : _undoStep();
+    } else if (!typing && HardwareKeyboard.instance.isControlPressed && key == LogicalKeyboardKey.keyY) {
+      _redoStep(); // Windows' and Linux's Redo
     } else if ((key == LogicalKeyboardKey.delete || key == LogicalKeyboardKey.backspace) && (_step == _Step.pages || _step == _Step.edit)) {
       _remove();
     } else if (key == LogicalKeyboardKey.pageDown || key == LogicalKeyboardKey.arrowRight) {
