@@ -655,7 +655,10 @@ class _AppWindowState extends State<AppWindow> {
         onDragExited: (_) => setState(() => _dropping = false),
         onDragDone: (details) {
           setState(() => _dropping = false);
-          if (details.files.isNotEmpty) _droppedOnHome(details.files.first.path);
+          // Several dropped together: a tab each.
+          for (final file in details.files) {
+            _droppedOnHome(file.path);
+          }
         },
         child: Scaffold(
           body: Stack(children: [
@@ -1285,7 +1288,12 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
             onDragDone: (details) {
               final area = _areaAt(details.globalPosition);
               setState(() => _drop = null);
-              if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
+              // Projects and scores dropped together open in a tab each; an image, a recording
+              // or a MIDI tempo map is one, the first.
+              final opens = area == _DropArea.project || area == _DropArea.home;
+              for (final file in opens ? details.files : details.files.take(1)) {
+                _dropped(file.path, area, details.globalPosition);
+              }
             },
             // Rebuilt when a score opens, not at every edit: the toolbar, the score and the
             // timeline each follow what they show.
