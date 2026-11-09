@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Chinese Traditional\n"
 "Language: zh_TW\n"
-"PO-Revision-Date: 2026-11-09 03:28\n"
+"PO-Revision-Date: 2026-11-09 09:24\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -100,7 +100,7 @@ msgid "About Curator"
 msgstr "關於 Curator"
 
 msgid "Add the files to a repository, then Settings ▸ Pages ▸ Deploy from a branch."
-msgstr "將檔案加入儲存庫，然後選擇 Settings ▸ Pages ▸ Deploy from a branch。"
+msgstr ""
 
 msgid "After exporting, Open in Browser does it for you. Or, in a terminal:"
 msgstr "匯出後，「在瀏覽器中打開」會替你完成。或者在終端機中："
@@ -314,6 +314,9 @@ msgstr "自動對齊加入的錄音"
 
 msgid "Auto-curate imported scores"
 msgstr "自動編排匯入的樂譜"
+
+msgid "Auto-curate PDF scores"
+msgstr ""
 
 msgid "Off: every staff throughout."
 msgstr "關：全程顯示所有譜表。"
@@ -1849,7 +1852,6 @@ msgstr "替換為「{name}」？"
 msgid "Replaces the chosen lanes’ regions"
 msgstr "替換所選軌道中的區域"
 
-#: lib/settings_dialog.dart
 msgid "Replace…"
 msgstr "替換…"
 
