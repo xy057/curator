@@ -103,7 +103,7 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
     final kind = file == null ? null : ImageKind.ofPath(file.name);
     if (file == null || kind == null) return;
     try {
-      await c.images.add(kind, await file.readAsBytes(), quarter: at.quarter, top: at.top, extension: file.name.split('.').last);
+      await c.images.add(kind, await PatchImage.readFile(file.path), quarter: at.quarter, top: at.top, extension: file.name.split('.').last);
     } catch (e) {
       _say('Couldn’t add the image. {error}'.fill({'error': describeError(e)}));
     }
@@ -131,7 +131,7 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
     final r = frame.rect, local = box.globalToLocal(global);
     final p = frame.toLayout(Offset(local.dx.clamp(r.left, r.right), local.dy.clamp(r.top, r.bottom)));
     try {
-      await c.images.add(kind, await File(path).readAsBytes(),
+      await c.images.add(kind, await PatchImage.readFile(path),
           quarter: scene.quarterAtFrameX(p.dx, c.playback.time.value, frame.layout),
           top: p.dy / scene.style.staffSpace,
           extension: path.split('.').last);

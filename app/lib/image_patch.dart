@@ -96,6 +96,14 @@ class PatchImage {
   /// The largest image file taken, bytes.
   static const maxBytes = 64 << 20;
 
+  /// The image file at [path]'s bytes. One over [maxBytes] is refused (a [FormatException])
+  /// before any of it is read: a file of gigabytes dropped or pasted is never held in memory.
+  static Future<Uint8List> readFile(String path) async {
+    final file = File(path);
+    if (await file.length() > maxBytes) throw const FormatException('That image is too big. Use one under 64 MB.');
+    return file.readAsBytes();
+  }
+
   /// The most pixels a raster image may have (one in an SVG too): decoding takes 4 bytes a
   /// pixel, so a small file of a huge plain image could take gigabytes. An animated one's
   /// frames together are scaled down to it.
@@ -406,13 +414,13 @@ class ImagePatch {
 }
 
 /// What can be pasted: an image on the clipboard (a PNG), SVG text, or a copied image file
-/// (from Finder). Null when there is none.
+/// (from Finder). Null when there is none; a [FormatException] for a copied file too big to take.
 Future<({ImageKind kind, Uint8List bytes, String extension})?> readClipboardImage() async {
   try {
     for (final path in await Pasteboard.files()) {
       final kind = ImageKind.ofPath(path);
       if (kind != null && File(path).existsSync()) {
-        return (kind: kind, bytes: await File(path).readAsBytes(), extension: path.split('.').last);
+        return (kind: kind, bytes: await PatchImage.readFile(path), extension: path.split('.').last);
       }
     }
     final text = (await Pasteboard.text)?.trim();
@@ -421,6 +429,8 @@ Future<({ImageKind kind, Uint8List bytes, String extension})?> readClipboardImag
     }
     final png = await Pasteboard.image;
     if (png != null && png.isNotEmpty) return (kind: ImageKind.raster, bytes: png, extension: 'png');
+  } on FormatException {
+    rethrow; // an image, but one too big: said, not passed over as no image
   } catch (_) {
     // No clipboard here (tests), or nothing readable on it.
   }
