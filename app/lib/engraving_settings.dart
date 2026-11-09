@@ -408,7 +408,7 @@ class _EngravingPreviewState extends State<EngravingPreview> {
                 child: RepaintBoundary(
                   child: CustomPaint(
                     painter: _PreviewPainter(c.scene!, c.curation!, time, MediaQuery.devicePixelRatioOf(context),
-                        colors.scorePaper, colors.scoreInk, widget.scale, c.editRevision.value),
+                        colors.scorePaper, colors.scoreInk, widget.scale, c.editRevision.value, c.score?.pdf),
                   ),
                 ),
               ),
@@ -438,7 +438,10 @@ class _EngravingPreviewState extends State<EngravingPreview> {
 }
 
 class _PreviewPainter extends CustomPainter {
-  _PreviewPainter(this.scene, this.curation, this.time, this.devicePixelRatio, this.paper, this.ink, this.scale, this.revision);
+  _PreviewPainter(this.scene, this.curation, this.time, this.devicePixelRatio, this.paper, this.ink, this.scale, this.revision,
+      Listenable? pdf)
+      // A PDF score's systems arrive as they are read: drawn again then, as in the score view.
+      : super(repaint: pdf);
   final CuratedScene scene;
   final Curation curation;
   final double time;
