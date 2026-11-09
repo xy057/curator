@@ -60,18 +60,32 @@ abstract final class FontFiles {
   /// aren't fonts, or can't be read, are passed over.
   static Map<String, List<FontFace>> scan(List<String> folders) {
     final families = <String, List<FontFace>>{};
-    for (final folder in folders) {
-      final dir = Directory(folder);
-      if (!dir.existsSync()) continue;
-      final files = dir.listSync(recursive: true, followLinks: false).whereType<File>();
-      for (final file in files) {
-        final lower = file.path.toLowerCase();
-        if (!extensions.any(lower.endsWith)) continue;
-        for (final face in faces(file.path)) {
-          if (face.family.isEmpty || face.family.startsWith('.')) continue; // the system's hidden UI fonts
-          families.putIfAbsent(face.family, () => []).add(face);
+    // Folder by folder, not one recursive listing: that stops at the first folder it can't
+    // read (a private one among the user's fonts), and every font would be lost with it.
+    void scanFolder(Directory dir) {
+      final List<FileSystemEntity> entries;
+      try {
+        entries = dir.listSync(followLinks: false);
+      } on FileSystemException {
+        return;
+      }
+      for (final entry in entries) {
+        if (entry is Directory) {
+          scanFolder(entry);
+        } else if (entry is File) {
+          final lower = entry.path.toLowerCase();
+          if (!extensions.any(lower.endsWith)) continue;
+          for (final face in faces(entry.path)) {
+            if (face.family.isEmpty || face.family.startsWith('.')) continue; // the system's hidden UI fonts
+            families.putIfAbsent(face.family, () => []).add(face);
+          }
         }
       }
+    }
+
+    for (final folder in folders) {
+      final dir = Directory(folder);
+      if (dir.existsSync()) scanFolder(dir);
     }
     return families;
   }

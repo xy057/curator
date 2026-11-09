@@ -136,8 +136,13 @@ class MusicFont {
   static String? _metadataIn(String folder) {
     final dir = Directory(folder);
     if (!dir.existsSync()) return null;
-    return dir
-        .listSync()
+    final List<FileSystemEntity> entries;
+    try {
+      entries = dir.listSync();
+    } on FileSystemException {
+      return null; // one that can't be read holds none we can use
+    }
+    return entries
         .whereType<File>()
         .map((f) => f.path)
         .where((p) => p.toLowerCase().endsWith('.json') && p.split(Platform.pathSeparator).last.toLowerCase().contains('metadata'))
