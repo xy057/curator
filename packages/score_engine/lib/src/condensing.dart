@@ -156,7 +156,11 @@ abstract final class Condenser {
       for (final p in metadata.parts)
         if (p.staffNumbers.length == 1 && elements[p.id] != null && !Spacers.isSpacer(p.id)) p,
     ];
-    final written = {for (final p in single) p.id: '${p.isUnpitchedPercussion}\n${_writtenAs(elements[p.id]!)}'};
+    // (And as many bars: a shared staff is written bar by bar from both.)
+    final written = {
+      for (final p in single)
+        p.id: '${p.isUnpitchedPercussion}\n${elements[p.id]!.findElements('measure').length}\n${_writtenAs(elements[p.id]!)}',
+    };
     final partners = {
       for (final MapEntry(key: id, value: w) in written.entries)
         id: {for (final e in written.entries) if (e.key != id && e.value == w) e.key},
