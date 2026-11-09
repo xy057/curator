@@ -311,6 +311,7 @@ at the tempo of the take heard last. Each take has its own sync: the focus's is 
 included, works on it unchanged; its `Take` holds blanks), each other's is in its `Take`. What plays
 is `TakeSplice` (score_engine): the form's passes cut at the regions' edges, each piece timed by
 the take heard in it (the same time over as the performance plays it, or its last pass to play it),
+(a pass of no length, a warp at the very start, has no piece: it is over as the next begins),
 and the sound as `SoundChunk`s, a run one take plays straight on, ramped in and out over the edge's
 crossfade (its region's transition, else `EditState.crossfade`, 0.3 s) centred on it (`gainAt`).
 `EditorController.timeline` is that splice with two takes or more; the Audio tab edits a sync only
@@ -867,8 +868,10 @@ edits carried over to it (`EditorController.prepareReplacementWith`,
 `ScoreSwap`), and only then swaps it in, like opening, keeping the recording, the path and
 the view (`replaceScore`). Instruments are matched by id and name, then by name (an
 instrument added above renumbers the rest), then by id (renamed); lanes, names, pairs,
-condensing and order follow them, and an instrument only in the new file is curated as on
-import. Positions (regions, anchors and warps, images, captions) keep their bar and their
+condensing, order, sections, name groups, a lane's split and each one's room (a staff's too,
+by its lane's id) follow them, and an instrument only in the new file is curated as on
+import. `ScoreSwap.carry` copies the state it is given, so what has no part id or position (the
+project's kind, a PDF's layout, the view, modules kept unread) stays as it is. Positions (regions, anchors and warps, images, captions) keep their bar and their
 distance into it, no further than its end; a barline stays that barline. A MIDI tempo map's warp
 jumps at the same moment of the file (as an anchor keeps its time) and goes on from the same bar;
 one with nowhere to go, and those after it, are left out and counted. A text edit follows
@@ -895,7 +898,12 @@ The view is a galley, one endless system: the score is engraved in chunks of `Ed
 bars (each starting with the clefs, key and time carried into it, then cut off at its first bar
 so a chunk carries on the one before: of Verovio's system start only a clef, key or time
 signature the bar itself changes stays), only the chunks an edit touched again, nearest the view first, three at a
-time, and laid end to end with staves aligned to the widest gap any chunk needs. The keys are
+time, and laid end to end with staves aligned to the widest gap any chunk needs. A caret placed
+by a click is at the note there exactly (`EditableScore.onsetAt`: the engraving's place is in
+3840ths of a quarter, which a septuplet's notes are not). While a popover's field has the
+keyboard the editor takes no key (it is asked before the field, and a key it took would never
+reach it). A time signature that says no length is read as none, and a score whose instruments
+have different numbers of bars is refused, saying so. The keys are
 Dorico's: ⇧N or Enter note input, 1–9 note values (6 a quarter), `.` dot, `-` `=` `0` flat,
 sharp, natural, A–G a note at the nearest octave (⇧⌥ adds to the chord; Q chord mode), `,` rest,
 Space on, T tie, S slur, V the next voice, R repeat, ⌥↑↓ a step, ⌘⌥↑↓ an octave, `[` `]` `{` `}`
@@ -922,7 +930,9 @@ auto-curation (Auto-curate and Auto-Curate Lane gone, lanes on import and a re-i
 instruments empty, drawn by hand) unless Settings ▸ General ▸ Auto-curate PDF scores
 (`autoCuratePdf`, off) is on (`canAutoCurate`); turned on or off, the open project follows at once. The main view draws no
 engraving: each system is drawn by PDFium as printed (RGBA, on nothing; `PdfPagesSource`, a few
-systems ahead of the view, `CuratedScene.ready`, and an LRU of decoded images), and each staff's
+systems ahead of the view, `CuratedScene.ready`, and an LRU of decoded images: the systems a
+scene asks for together, `PdfScoreArt.load`'s holder, are never let go for one another, and each
+video frame got ready holds its own until it is drawn), and each staff's
 bar is the rectangle of it between that staff's cuts, the masks clipped out (a mask is every
 lane's, or one lane's, `PdfMask.part`: Mask Lane (M) gives it the selected staff's, or the one drawn from; Mask All
 Lanes (⇧M) none;
@@ -943,7 +953,7 @@ beats, which the first part's `<time>` sets. An instrument's transposition follo
 curation hides them. A blank lane (`PdfInstrument.blank`, the import's Add Blank Lane) is a part
 no staff of the PDF is: a staff's room in the main view, drawn empty and unnamed, no signature in
 its frozen zone (`_bareStaves`, `_unnamed`); auto-curation leaves it shown (`isBlankLane`), and its
-lane and Spacing… say when and how much room there is. Export to Web writes each system's picture as `score/pdf/N.png`.
+lane and Spacing… say when and how much room there is. Export to Web writes each system's picture as `score/pdf/N.png`: those the page's bars are in, and a frame's width of the music either side of them, which a page of some bars shows too.
 
 **The import goes in steps, and reads the words on the pages.** `PdfImport` is five steps
 (`_Step`, a bar across the top, Back and Next below): Pages (only here can the systems found be
@@ -968,7 +978,10 @@ an instrument's name is the words left of its staves in the first system naming 
 different one its abbreviation (`names`; a new import's "Staff 1"… are named so by themselves,
 names in capitals written as names); a tempo mark is the words above a system's first staff that
 name a tempo or a change (`isTempo`) or stand before a metronome mark on its line, at the bar they
-start over (`tempos`, `tempoOf`; the speed is taken as quarters).
+start over (`tempos`, `tempoOf`; the speed is taken as quarters). A field being typed in keeps
+its keys (the import's are asked first: only ⌘Z and Page Up / Down stay its own); a drag's Undo
+step is made at its first move, so a click on a barline only selects it; opened again
+(Edit…) and left as it came, Done hands nothing back, and nothing is replaced.
 
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;
