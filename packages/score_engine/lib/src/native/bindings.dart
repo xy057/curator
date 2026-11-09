@@ -11,7 +11,7 @@ export 'constants.dart';
 
 final class VBEngraver extends Opaque {}
 
-/// 21 × 4-byte fields; see Cmd in engraving.dart for field access by word index. The header's
+/// 22 × 4-byte fields; see Cmd in engraving.dart for field access by word index. The header's
 /// static_asserts pin each field to its word.
 final class VBCommand extends Struct {
   @Int32() external int kind;
@@ -130,8 +130,6 @@ external Pointer<VBStaffInfo> vb_staves(Pointer<VBEngraver> engraver);
 external int vb_measure_count(Pointer<VBEngraver> engraver);
 @Native<Pointer<VBMeasureInfo> Function(Pointer<VBEngraver>)>()
 external Pointer<VBMeasureInfo> vb_measures(Pointer<VBEngraver> engraver);
-@Native<Int32 Function(Pointer<VBEngraver>)>()
-external int vb_onset_count(Pointer<VBEngraver> engraver);
 @Native<Pointer<VBOnset> Function(Pointer<VBEngraver>)>()
 external Pointer<VBOnset> vb_onsets(Pointer<VBEngraver> engraver);
 @Native<Int32 Function(Pointer<VBEngraver>)>()

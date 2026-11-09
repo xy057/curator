@@ -21,6 +21,10 @@ import 'l10n/l10n.dart';
 part 'score_view/attach_image.dart';
 part 'score_view/spacer_handles.dart';
 
+/// Where the context menu was opened: the patch, caption or spacer there, and the score quarter
+/// and staff spaces down.
+typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double quarter, double top});
+
 /// The curated score preview, drawn by CuratedScene.paint: a frame is a function of the
 /// time alone, which video export reuses (CuratedScene.renderFrame, VideoExport).
 ///
@@ -45,10 +49,6 @@ part 'score_view/spacer_handles.dart';
 ///
 /// With Captions on, right-click ▸ Add Caption… adds one from where it was clicked;
 /// double-click the caption showing (or right-click it) to change or remove it.
-/// Where the context menu was opened: the patch, caption or spacer there, and the score quarter
-/// and staff spaces down.
-typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double quarter, double top});
-
 class ScoreView extends StatefulWidget {
   const ScoreView({super.key, required this.controller, this.aspectRatio});
   final EditorController controller;

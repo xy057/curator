@@ -85,7 +85,6 @@ class _Bullets extends StatelessWidget {
       );
 }
 
-/// Rename an instrument: the full name and the short name used when space is tight.
 /// A lane's ⋯ ▸ Spacing…: room of the instrument's own above and below it, staff spaces;
 /// negative takes some away.
 Future<void> showSpacingDialog(BuildContext context, EditorController c, ScorePart part) =>
@@ -158,6 +157,7 @@ class _SpacingDialogState extends State<_SpacingDialog> {
   }
 }
 
+/// Rename an instrument: the full name and the short name used when space is tight.
 Future<void> showRenameDialog(BuildContext context, EditorController c, ScorePart part) =>
     showAppDialog<void>(context: context, builder: (context) => _RenameDialog(controller: c, part: part));
 

@@ -91,7 +91,10 @@ class _SwitchRow extends StatelessWidget {
       onTap: () => onChanged(!value),
       child: SizedBox(
         height: 40,
-        child: Row(children: [ ...[Icon(icon, size: 18, color: context.colors.textMuted), const SizedBox(width: 12)],
+        child: Row(children: [
+          // (No icon: its room all the same, so every label starts at one place.)
+          Icon(icon, size: 18, color: context.colors.textMuted),
+          const SizedBox(width: 12),
           Expanded(child: DefaultTextStyle.merge(style: const TextStyle(fontSize: 14), child: label)),
           control,
         ]),

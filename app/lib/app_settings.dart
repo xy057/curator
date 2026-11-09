@@ -229,8 +229,6 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The interface without motion: no fades, slides or cross-fades (the score still scrolls and
-  /// its staves still come and go as the project says).
   /// The interface's language; [AppLanguage.system] follows the system's.
   AppLanguage get language => _language;
   AppLanguage _language;
@@ -241,6 +239,8 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The interface without motion: no fades, slides or cross-fades (the score still scrolls and
+  /// its staves still come and go as the project says).
   bool get reduceMotion => _reduceMotion;
   bool _reduceMotion;
   set reduceMotion(bool value) {

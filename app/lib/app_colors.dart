@@ -499,22 +499,6 @@ abstract final class RefinedGreys {
   static const dark100 = Color(0xFFE7E8EB); // text
 }
 
-/// [UiStyle.refined]'s elevations, 1 (a card, just off the page) to 5 (a modal): each a soft
-/// shadow cast by direct light and a tight, darker one under the edge, the tight one fading as
-/// the thing rises; in the dark, deeper, as a shadow must be to show on a dark window.
-List<BoxShadow> elevation(int level, {bool dark = false}) {
-  final k = dark ? 2.2 : 1.0;
-  BoxShadow s(double y, double blur, double alpha) =>
-      BoxShadow(color: Colors.black.withValues(alpha: math.min(alpha * k, 0.6)), offset: Offset(0, y), blurRadius: blur);
-  return switch (level.clamp(1, 5)) {
-    1 => [s(1, 3, 0.12), s(1, 2, 0.24)],
-    2 => [s(3, 6, 0.15), s(2, 4, 0.12)],
-    3 => [s(10, 20, 0.15), s(3, 6, 0.10)],
-    4 => [s(15, 25, 0.15), s(5, 10, 0.05)],
-    _ => [s(20, 40, 0.2)],
-  };
-}
-
 /// The app's palette: a clean surface with one accent colour, in a light and a dark variant.
 /// Read it with `context.colors`; painters receive it from the widget that builds them.
 @immutable
