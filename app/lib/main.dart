@@ -339,7 +339,7 @@ class _AppWindowState extends State<AppWindow> {
     settings.addListener(_settingsChanged);
     _lifecycle; // start listening for Quit
     updater.addListener(_launchCheckAnswered);
-    WindowChrome.listenForOpenedFiles((paths) => paths.forEach(_openPath));
+    WindowChrome.listenForOpenedFiles((paths) => paths.forEach(_openFromSystem));
     WindowChrome.showAppIcon(mascot: settings.mascotIcon);
     // Once, after the window's first frame, not when a video's background is first made
     // transparent. (Not an idle task: one waits while anything animates, re-arming a timer on
@@ -361,6 +361,28 @@ class _AppWindowState extends State<AppWindow> {
       p.label.dispose();
     }
     super.dispose();
+  }
+
+  /// Whether no dialog is over the window (its route is the one showing).
+  bool _free = true;
+
+  /// Files the system asked to open (the Finder, the Dock) while a dialog was up: opened once
+  /// it has gone. A tab shown under a dialog would leave the dialog, which belongs to the tab it
+  /// was opened in, over another project.
+  final _waiting = <String>[];
+
+  void _openFromSystem(String path) => _free ? _openPath(path) : _waiting.add(path);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _free = ModalRoute.of(context)?.isCurrent ?? true;
+    if (!_free || _waiting.isEmpty) return;
+    final paths = [..._waiting];
+    _waiting.clear();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) paths.forEach(_openPath);
+    });
   }
 
   void _settingsChanged() {
