@@ -284,9 +284,11 @@ class _OpenProject {
 
   _ProjectPageState? get page => key.currentState;
 
-  /// The file it is open from: its project's, or while it opens the one it opens.
+  /// The file it is open from: its project's; a score's, opened as a project not saved yet (the
+  /// score opened again shows that project, not a second one of it); or while it opens, the one
+  /// it opens.
   String? get file => switch (page) {
-        final page? when page.controller.score != null => page.document.path,
+        final page? when page.controller.score != null => page.document.path ?? path,
         _ => path,
       };
 
