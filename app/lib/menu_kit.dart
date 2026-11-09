@@ -151,8 +151,19 @@ class AppDropdown<T> extends StatefulWidget {
 class _AppDropdownState<T> extends State<AppDropdown<T>> {
   final _menu = MenuController();
   final _focus = FocusNode();
+  final _chosen = GlobalKey(); // the chosen item's row, while the menu is open
   double _width = 0;
   bool _open = false;
+
+  /// The menu has opened: a long one (it scrolls past 320 px) shows its chosen item, mid-way
+  /// where it can, not its top with the choice out of sight below.
+  void _opened() {
+    setState(() => _open = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final row = _chosen.currentContext;
+      if (row != null) Scrollable.ensureVisible(row, alignment: 0.5);
+    });
+  }
 
   @override
   void dispose() {
@@ -224,7 +235,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
     final menu = MenuAnchor(
       controller: _menu,
       childFocusNode: _focus,
-      onOpen: () => setState(() => _open = true),
+      onOpen: _opened,
       onClose: () => setState(() => _open = false),
       alignmentOffset: const Offset(0, 2),
       // The anchor's own panel is bare: [_MenuCard] draws the theme's, so it can fade in whole.
@@ -243,6 +254,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
           children: [
             for (final item in w.items)
               MenuItemButton(
+                key: item.value == w.value ? _chosen : null,
                 style: switch ((inDialog ? dialogRow : null, item.value == w.value ? chosenRow : null)) {
                   (final row?, final chosen?) => chosen.merge(row),
                   (final row, final chosen) => row ?? chosen,
