@@ -20,7 +20,8 @@ import 'project_state.dart';
 ///     media/<name>      the focus's recording ([EditState.focus])
 ///     media/takes/<id>/<name>  each other recording ([EditState.takes])
 ///
-/// all named in the manifest (`score`, `media`, `takes`: the name and the entry, and a take's id). Everything the app
+/// all named in the manifest (`score`, `media`, `takes`: the name and the entry, and a take's id), with
+/// the project's `kind` ([ProjectKind]). Everything the app
 /// changes lives in the modules, so the source score is never rewritten. One saved before
 /// modules ([LegacyProject]) has its edits in project.json instead.
 abstract final class ProjectFile {
@@ -56,6 +57,7 @@ abstract final class ProjectFile {
     final streams = <InputFileStream>[];
     try {
       ProjectArchive.write(zip, c.state, mimeType: mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
+        'kind': c.state.kind.name,
         'score': {'name': c.scoreName, 'entry': scoreEntry},
         if (media != null) 'media': {'name': media.name, 'entry': mediaEntry},
         if (c.takes.isNotEmpty)
@@ -99,7 +101,7 @@ abstract final class ProjectFile {
     try {
       final archive = ZipDecoder().decodeStream(input);
       final JsonReader manifest;
-      final ProjectState state;
+      ProjectState state;
       final legacy = !ProjectArchive.isModular(archive);
       if (legacy) {
         final manifestFile = archive.findFile('project.json');
@@ -114,6 +116,8 @@ abstract final class ProjectFile {
         manifest = ProjectArchive.manifestOf(archive, mimeType: mimeType, notOurs: _notOurs, newer: _newer);
         state = ProjectArchive.read(archive, manifest, ProjectModules.all, newer: _newer);
       }
+      // A kind this build doesn't know (a newer one's): what its score is.
+      if (ProjectKind.values.asNameMap()[manifest.string('kind')] case final kind?) state = state.copyWith(kind: kind);
 
       final score = manifest.child('score');
       final scoreFile = archive.findFile(score.string('entry', required: true)!);

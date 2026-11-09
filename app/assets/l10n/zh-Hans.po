@@ -309,6 +309,9 @@ msgstr "自动对齐添加的录音"
 msgid "Auto-curate imported scores"
 msgstr "自动编排导入的乐谱"
 
+msgid "Auto-curate PDF scores"
+msgstr "自动编排 PDF 乐谱"
+
 msgid "Off: every staff throughout."
 msgstr "关：全程显示所有谱表。"
 

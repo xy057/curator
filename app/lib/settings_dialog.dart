@@ -250,6 +250,12 @@ final _categories = <_Category>[
       keywords: 'auto curate lanes import new score staves automatic',
     ),
     _Item(
+      'Auto-curate PDF scores',
+      null,
+      (c) => AppSwitch(value: c.settings.autoCuratePdf, onChanged: (v) => c.settings.autoCuratePdf = v),
+      keywords: 'auto curate lanes pdf import scan staves automatic',
+    ),
+    _Item(
       'Fine seek',
       (_) => '⌥←/→',
       (c) => _Dropdown<double>(

@@ -407,7 +407,9 @@ class LaneEditing {
   /// Fills [partIds] (every lane when null) from where each part plays, cut back where the
   /// staves would run off the video's frame ([CuratedScene.curatedToFit]); a condensed pair's
   /// lane from where either player does.
+  /// Nothing for a PDF's project unless [EditorController.autoCuratePdf].
   void autoCurate([Iterable<String>? partIds]) {
+    if (!_editor.canAutoCurate) return;
     // A blank lane (a PDF score's) plays nothing: it stays as it is.
     final ids = [for (final id in partIds ?? [for (final p in _editor.laneRows) p.id]) if (!_editor.isBlankLane(id)) id];
     // A staff's lane (of an instrument split) is curated as its instrument is.

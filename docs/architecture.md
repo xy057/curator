@@ -915,7 +915,11 @@ only place anything is worked out of the pixels. What it decided is a `PdfScoreL
 project's `pdf` module (the PDF itself is the source score file, byte for byte), and a skeleton
 MusicXML written from it (`musicXML`: a part per player, a whole note where a bar is played, the
 meters, keys, upbeat and tempo the user gave) is the score the rest of Curator reads, so
-curation, sync, captions, export and the web page work as for any score. The main view draws no
+curation, sync, captions, export and the web page work as for any score. The project is a PDF's
+(`ProjectKind.pdf`, `EditorController.isPdf`): no Find Phrase, Align or condensing, and no
+auto-curation (on import, Auto-curate, Auto-Curate Lane, a re-import's new instruments shown
+throughout) unless Settings ▸ General ▸ Auto-curate PDF scores (`autoCuratePdf`, off) is on
+(`canAutoCurate`). Replace… with a score file makes it a score's project. The main view draws no
 engraving: each system is drawn by PDFium as printed (RGBA, on nothing; `PdfPagesSource`, a few
 systems ahead of the view, `CuratedScene.ready`, and an LRU of decoded images), and each staff's
 bar is the rectangle of it between that staff's cuts, the masks clipped out (a mask is every
@@ -975,7 +979,8 @@ re-engraving after an edit, doesn't show them again.
 (stored, first), a stub `project.json` (`{"format": "application/x-curated-score", "version": 27}`:
 Curator 0.1–0.6.1 read only that file and refuse a version past theirs, 26 at most, asking for an
 update, so every release knows the file and none opens it), `manifest.json` (format, `layout` 2,
-`writer` (`ProjectArchive.writer`: "Curator <version> (<build>)"), the score's and recording's names and entries, and each module's
+`writer` (`ProjectArchive.writer`: "Curator <version> (<build>)"), the project's `kind` (`ProjectKind`: `score` or `pdf`;
+absent or unknown, what its score is), the score's and recording's names and entries, and each module's
 `version` and whether it is `optional`), `modules/<id>.json` (compact JSON), each module's files
 under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` (the
 recording heard) and `media/takes/<id>/<name>` (each other, listed in the manifest's `takes`) last.

@@ -306,6 +306,9 @@ msgstr ""
 msgid "Auto-curate imported scores"
 msgstr ""
 
+msgid "Auto-curate PDF scores"
+msgstr ""
+
 msgid "Off: every staff throughout."
 msgstr ""
 

@@ -115,13 +115,14 @@ class ScoreSwap {
 
   /// [state] carried to the new file: everything kept by the new part ids and positions,
   /// [condensable] (the old file's pairs, which [ProjectState.condensed] names) included.
-  /// An instrument only in the new file is curated as an imported score is. Also returns what
-  /// was lost past the new file's end.
+  /// An instrument only in the new file is curated as an imported score is, or with [curate]
+  /// off shown throughout. Also returns what was lost past the new file's end.
   ({ProjectState state, Lost lost}) carry(
     ProjectState state, {
     required List<PlayerPair> condensable,
     required List<double> measuresBefore,
     required List<double> measuresAfter,
+    bool curate = true,
   }) {
     final edits = state.edits;
     double? at(double q) => quarterAt(q, measuresBefore, measuresAfter);
@@ -148,7 +149,9 @@ class ScoreSwap {
           }
         }
       }
-      lanes.addAll(Curation.autoCuratedLanes([for (final p in added) p.id], after.activeMeasures, measuresAfter));
+      lanes.addAll(curate
+          ? Curation.autoCuratedLanes([for (final p in added) p.id], after.activeMeasures, measuresAfter)
+          : {for (final p in added) p.id: [Region(0, measuresAfter.last)]});
     }
 
     // The focus's sync, and each other take's.

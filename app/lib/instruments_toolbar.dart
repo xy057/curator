@@ -66,7 +66,7 @@ class InstrumentsToolbar extends StatelessWidget {
             ToolbarButton(
               icon: AppIcon.autoCurate.of(context),
               tooltip: 'Auto-curate'.tr,
-              onPressed: c.lanes.autoCurate,
+              onPressed: c.canAutoCurate ? c.lanes.autoCurate : null,
             ),
             ToolbarButton(
               icon: AppIcon.clearLanes.of(context),

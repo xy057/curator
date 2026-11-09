@@ -159,12 +159,12 @@ class EditorController extends ChangeNotifier {
     final LoadedScore score;
     try {
       score = await _engrave('', _requestFor(edits),
-          pdf: PdfScoreArt(layout, PdfPagesSource(pages)), measure: autoCurateImported);
+          pdf: PdfScoreArt(layout, PdfPagesSource(pages)), measure: autoCurateImported && autoCuratePdf);
     } on Object {
       pages.close();
       rethrow;
     }
-    await _install(name, bytes, score, ProjectState(edits: edits, pdf: layout), pages: pages);
+    await _install(name, bytes, score, ProjectState(edits: edits, pdf: layout, kind: ProjectKind.pdf), pages: pages);
   }
 
   /// Whether [partId] is a PDF score's blank lane ([PdfInstrument.blank]): no staff of the PDF
@@ -177,8 +177,14 @@ class EditorController extends ChangeNotifier {
   PdfPages? get pdfPages => _pdfPages;
   PdfPages? _pdfPages;
 
-  /// Whether the open score is a PDF's ([openPdf]): no notes, nothing engraved.
-  bool get isPdf => _score?.pdf != null;
+  /// Whether the open project is a PDF's ([openPdf], [ProjectKind.pdf]): no notes, nothing
+  /// engraved; no Find Phrase, and no auto-curation unless [autoCuratePdf].
+  bool get isPdf => _score != null && _kind == ProjectKind.pdf;
+  ProjectKind _kind = ProjectKind.score;
+
+  /// Whether the open project's lanes can be auto-curated: a score's, or a PDF's while
+  /// [autoCuratePdf] is on.
+  bool get canAutoCurate => !isPdf || autoCuratePdf;
 
   /// The fonts a newly imported score starts with (Save as default), by name.
   ({String music, String text, bool embed}) newProjectFonts =
@@ -304,10 +310,15 @@ class EditorController extends ChangeNotifier {
       art?.dispose();
       throw StateError('Another score was opened meanwhile.');
     }
-    final state = pdf == null ? projectState : projectState.copyWith(pdf: () => pdf);
+    // A score file in place of a PDF makes it a score's project.
+    final state = projectState.copyWith(pdf: () => pdf, kind: pdf == null ? ProjectKind.score : ProjectKind.pdf);
     final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
     final (state: carried, :lost) =
-        swap.carry(state, condensable: condensable, measuresBefore: measures.before, measuresAfter: measures.after);
+        swap.carry(state,
+            condensable: condensable,
+            measuresBefore: measures.before,
+            measuresAfter: measures.after,
+            curate: pdf == null || autoCuratePdf);
     return ScoreReplacement(
       name: name,
       bytes: bytes,
@@ -389,6 +400,7 @@ class EditorController extends ChangeNotifier {
     final edits = state.edits, view = state.view;
     _foreign = state.foreign;
     _score = score;
+    _kind = state.kind;
     _source = (name: name, bytes: bytes);
     _fileName = name;
     _staffSpace = (view.staffSpace ?? _staffSpace).clamp(minStaffSpace, maxStaffSpace);
@@ -419,7 +431,7 @@ class EditorController extends ChangeNotifier {
     _curation = Curation({...parts})
       ..load(
           edits.lanes ??
-              (autoCurateImported
+              (autoCurateImported && canAutoCurate
                   ? {
                       ...Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
                       // A blank lane plays nothing, and is there to be shown.
@@ -431,7 +443,7 @@ class EditorController extends ChangeNotifier {
     _curation!.setSplit(_splitCounts);
     _scene = _makeScene(score);
     // A new score's lanes fit the video's frame (before anyone listens: it's no edit).
-    if (edits.lanes == null && autoCurateImported) {
+    if (edits.lanes == null && autoCurateImported && canAutoCurate) {
       _curation!.setLanes(lanes._curated([for (final p in laneParts) if (!isBlankLane(p.id)) p.id])!);
     }
     _curation!.addListener(_curationEdited);
@@ -489,6 +501,7 @@ class EditorController extends ChangeNotifier {
     _sync?.dispose();
     _sync = null;
     _score = null;
+    _kind = ProjectKind.score;
     _source = null;
     _fileName = null;
     _doc = const EditState();
@@ -500,6 +513,10 @@ class EditorController extends ChangeNotifier {
   /// Whether a newly imported score's lanes are auto-curated; else each is whole (every staff
   /// shown throughout).
   bool autoCurateImported = true;
+
+  /// Whether a PDF's project is auto-curated too (Settings ▸ General): off, its lanes are
+  /// only drawn by hand, every staff shown throughout to begin with.
+  bool autoCuratePdf = false;
 
   /// How far ⌥←/→ move the playhead, seconds (Settings ▸ General ▸ Fine seek).
   double fineSeek = 0.1;
@@ -2217,6 +2234,7 @@ class EditorController extends ChangeNotifier {
         ),
         foreign: _foreign,
         pdf: _score?.pdf?.layout,
+        kind: _kind,
       );
 
   /// What the open project holds that this version can't read but keeps ([ProjectState.foreign]).
