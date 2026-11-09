@@ -3448,3 +3448,7 @@ msgstr ""
 #: lib/pdf_import.dart
 msgid "No staff has an instrument yet."
 msgstr ""
+
+#: lib/main.dart
+msgid "“{name}” is open in another tab. Close it there first."
+msgstr ""

@@ -626,6 +626,7 @@ class _AppWindowState extends State<AppWindow> {
                     label: project.label,
                     onMenusChanged: () => _menus.value++,
                     onOpen: _openPath,
+                    openElsewhere: (path) => _tabs.any((p) => p != project && p.file == path),
                     onFailed: () => _close(project),
                   ),
                 ),
@@ -691,6 +692,7 @@ class ProjectPage extends StatefulWidget {
     required this.label,
     required this.onMenusChanged,
     required this.onOpen,
+    required this.openElsewhere,
     required this.onFailed,
   });
 
@@ -714,6 +716,9 @@ class ProjectPage extends StatefulWidget {
 
   /// Another project or score to open (one dropped on the timeline), in a tab of its own.
   final ValueChanged<String> onOpen;
+
+  /// Whether the file at a path is open in another tab.
+  final bool Function(String path) openElsewhere;
 
   /// It didn't open (said why already): its tab goes.
   final VoidCallback onFailed;
@@ -971,7 +976,14 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     );
     if (location == null || !mounted) return false;
     final path = await confirmSavePath(context, location.path, ProjectFile.extension);
-    return path != null && await _write(path);
+    if (path == null || !mounted) return false;
+    // Two tabs on one file would each save over the other (an autosave too).
+    if (widget.openElsewhere(path)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('“{name}” is open in another tab. Close it there first.'.fill({'name': fileNameOf(path)}))));
+      return false;
+    }
+    return _write(path);
   }
 
   /// With no score open (yet), or the demo, there is nothing to save: says so instead of saving.

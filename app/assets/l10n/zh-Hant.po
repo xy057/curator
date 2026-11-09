@@ -3467,3 +3467,7 @@ msgstr "各樂器的小節數不同。"
 #: lib/pdf_import.dart
 msgid "No staff has an instrument yet."
 msgstr "還沒有譜表指定樂器。"
+
+#: lib/main.dart
+msgid "“{name}” is open in another tab. Close it there first."
+msgstr "「{name}」已在另一個分頁中開啟，請先在那裡關閉它。"
