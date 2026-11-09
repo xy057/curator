@@ -268,7 +268,7 @@ class _PlayButton extends StatelessWidget {
     if (CarbonColors.maybeOf(context) case final k?) {
       return OverlaySemantics(
         child: IconButton(
-          tooltip: tip,
+          tooltip: tip.tr,
           onPressed: controller.playback.togglePlay,
           iconSize: 16,
           constraints: BoxConstraints.tightFor(width: AppStyle.of(context).control, height: AppStyle.of(context).control),
