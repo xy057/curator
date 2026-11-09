@@ -1,8 +1,9 @@
 /// Names in paths, read the same on every platform (a Windows path has backslashes).
 library;
 
-/// The last part of [path]: the name of its file or folder.
-String fileNameOf(String path) => path.split(RegExp(r'[/\\]')).last;
+/// The last part of [path]: the name of its file or folder (a folder's path may end in a
+/// separator, as a failed listing's does).
+String fileNameOf(String path) => path.split(RegExp(r'[/\\]')).lastWhere((part) => part.isNotEmpty, orElse: () => path);
 
 /// [name] without its extension ("Op. 9.mxl" → "Op. 9"); a name whose only dot leads it
 /// (".hidden") has none.

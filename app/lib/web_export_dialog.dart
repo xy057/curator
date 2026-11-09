@@ -8,6 +8,7 @@ import 'app_colors.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
+import 'error_text.dart';
 import 'export_dialog.dart';
 import 'extensions/extension.dart';
 import 'l10n/l10n.dart';
@@ -122,11 +123,12 @@ class _WebExportDialogState extends State<_WebExportDialog> {
         images: _images,
       );
       if (mounted) setState(() => _stage = _Stage.done);
-    } on VideoExportException catch (e) {
+    } catch (e) {
+      // Whatever went wrong: left writing, the dialog could never be closed.
       if (mounted) {
         setState(() {
           _stage = _Stage.failed;
-          _error = e.message;
+          _error = e is VideoExportException ? e.message : describeError(e);
         });
       }
     }

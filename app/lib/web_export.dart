@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'editor_controller.dart';
+import 'error_text.dart';
 import 'extensions/extension.dart';
 import 'file_names.dart';
 import 'image_patch.dart';
@@ -82,22 +83,23 @@ abstract final class WebExport {
       @visibleForTesting Uint8List? player}) async {
     final score = editor.score;
     if (score == null) throw const VideoExportException('Nothing is open.');
-    if (Directory(output).existsSync() && Directory(output).listSync().isNotEmpty &&
-        !File('$output/${WebPage.folder}/${WebPage.pageFile}').existsSync()) {
-      throw VideoExportException('“{name}” already holds other files. Choose another name.'.fill({'name': fileNameOf(output)}));
-    }
-    if (player == null) {
-      try {
-        final asset = await rootBundle.load(playerAsset);
-        player = asset.buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes);
-      } catch (_) {
-        throw VideoExportException('This build of Curator has no web player.'.tr);
-      }
-    }
-
     final part = Directory('$output.part');
-    if (part.existsSync()) part.deleteSync(recursive: true); // an export that never finished
+    // Everything that touches the disk is in here: a folder that can't be read, or what an
+    // earlier export left that can't be cleared, is said as any other failure is.
     try {
+      if (Directory(output).existsSync() && Directory(output).listSync().isNotEmpty &&
+          !File('$output/${WebPage.folder}/${WebPage.pageFile}').existsSync()) {
+        throw VideoExportException('“{name}” already holds other files. Choose another name.'.fill({'name': fileNameOf(output)}));
+      }
+      if (player == null) {
+        try {
+          final asset = await rootBundle.load(playerAsset);
+          player = asset.buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes);
+        } catch (_) {
+          throw VideoExportException('This build of Curator has no web player.'.tr);
+        }
+      }
+      if (part.existsSync()) part.deleteSync(recursive: true); // an export that never finished
       for (final f in ZipDecoder().decodeBytes(player).files) {
         if (!f.isFile) continue;
         File('${part.path}/${f.name}')
@@ -194,9 +196,13 @@ abstract final class WebExport {
         part.renameSync(output);
       }
     } catch (e) {
-      if (part.existsSync()) part.deleteSync(recursive: true);
+      try {
+        if (part.existsSync()) part.deleteSync(recursive: true);
+      } on FileSystemException {
+        // left there: the next export clears it, or says it can't
+      }
       if (e is VideoExportException) rethrow;
-      throw VideoExportException('Couldn’t write the page.\n{error}'.fill({'error': e}));
+      throw VideoExportException('Couldn’t write the page.\n{error}'.fill({'error': describeError(e)}));
     }
     return '$output/index.html';
   }
