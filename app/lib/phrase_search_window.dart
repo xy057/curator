@@ -60,6 +60,11 @@ class PhraseSearchWindow extends StatefulWidget {
     shown.value = true;
   }
 
+  /// The toolbar's button, lit while it is open: closes it, or shows it (opened out, if it was
+  /// folded down).
+  static void toggle(OverlayState overlay, EditorController controller) =>
+      _shown != null && !_collapsed.value ? close() : show(overlay, controller);
+
   static void close() {
     _shown?.remove();
     _shown = null;

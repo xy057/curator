@@ -107,7 +107,7 @@ class EditorToolbar extends StatelessWidget {
             icon: AppIcon.search.of(context),
             tooltip: 'Find phrase ({key})'.fill({'key': shortcut('⌘F')}),
             selected: shown,
-            onPressed: c.isPdf ? null : () => PhraseSearchWindow.show(Overlay.of(context), c),
+            onPressed: c.isPdf ? null : () => PhraseSearchWindow.toggle(Overlay.of(context), c),
           ),
         ),
         const Spacer(),
