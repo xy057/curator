@@ -13,7 +13,7 @@ typedef ProjectTabLabel = ({String name, bool edited, String? path});
 /// The tabs along the top of the window while a project is open: Home first (an icon), then each
 /// project open by its name. A click shows one; its ×, or a middle click, closes it. Unsaved
 /// changes are a dot where the × goes, which the × takes over under the pointer. Past the
-/// window's width they scroll, under a mouse wheel too.
+/// window's width they scroll, under a mouse wheel too, and to the tab showing when another does.
 class ProjectTabs extends StatefulWidget {
   const ProjectTabs({
     super.key,
@@ -42,10 +42,43 @@ class ProjectTabs extends StatefulWidget {
 class _ProjectTabsState extends State<ProjectTabs> {
   final _scroll = ScrollController();
 
+  /// How wide each project's tab is laid out.
+  double _tabWidth = ProjectTabs._minWidth;
+
   @override
   void dispose() {
     _scroll.dispose();
     super.dispose();
+  }
+
+  // Another tab shows (one just opened is the last, Show Next Tab goes round): past the
+  // window's width, the strip scrolls to it.
+  @override
+  void didUpdateWidget(ProjectTabs old) {
+    super.didUpdateWidget(old);
+    if (widget.shown == old.shown && widget.labels.length == old.labels.length) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reveal());
+  }
+
+  /// Scrolls just far enough that the tab showing is all in view.
+  void _reveal() {
+    final shown = widget.shown;
+    if (!mounted || shown == null || !_scroll.hasClients) return;
+    final position = _scroll.position;
+    final left = shown * _tabWidth, right = left + _tabWidth;
+    final to = left < position.pixels
+        ? left
+        : right > position.pixels + position.viewportDimension
+            ? right - position.viewportDimension
+            : null;
+    if (to == null) return;
+    final target = to.clamp(position.minScrollExtent, position.maxScrollExtent);
+    final duration = motion(context, 220);
+    if (duration == Duration.zero) {
+      position.jumpTo(target);
+    } else {
+      position.animateTo(target, duration: duration, curve: AppStyle.of(context).curve);
+    }
   }
 
   /// A wheel turns up and down, and the tabs run across: its turn scrolls them. (A sideways
@@ -82,6 +115,7 @@ class _ProjectTabsState extends State<ProjectTabs> {
             Expanded(
               child: LayoutBuilder(builder: (context, constraints) {
                 final width = (constraints.maxWidth / labels.length).clamp(ProjectTabs._minWidth, ProjectTabs._maxWidth);
+                _tabWidth = width;
                 return Listener(
                   onPointerSignal: _wheel,
                   child: SingleChildScrollView(
