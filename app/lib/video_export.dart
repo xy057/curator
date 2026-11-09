@@ -669,15 +669,22 @@ class VideoExport {
       var i = 0;
       final frameSize = ui.Size(format.width / format.devicePixelRatio, format.height / format.devicePixelRatio);
       await for (final pixels in inOrder(frames, (i) async {
-        // A PDF score's systems are read before they are drawn.
-        await _scene.ready(start + format.timeOf(i), frameSize);
-        final image = _scene.renderFrame(format.width, format.height,
-            time: start + format.timeOf(i),
-            curation: _curation,
-            devicePixelRatio: format.devicePixelRatio,
-            end: span.end,
-            paper: format.paperColor,
-            ink: format.paper.ink);
+        // A PDF score's systems are read before they are drawn, and kept until they are: the
+        // frames got ready ahead of this one ask for theirs meanwhile.
+        final hold = Object();
+        final ui.Image image;
+        try {
+          await _scene.ready(start + format.timeOf(i), frameSize, holder: hold);
+          image = _scene.renderFrame(format.width, format.height,
+              time: start + format.timeOf(i),
+              curation: _curation,
+              devicePixelRatio: format.devicePixelRatio,
+              end: span.end,
+              paper: format.paperColor,
+              ink: format.paper.ink);
+        } finally {
+          pdf?.release(hold);
+        }
         onFrame?.call(image.clone());
         // FFmpeg's RGBA is straight; Flutter's is premultiplied, the same only where it is opaque.
         return image

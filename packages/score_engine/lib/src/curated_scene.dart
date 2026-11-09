@@ -1618,11 +1618,13 @@ class CuratedScene {
   /// offscreen, so a video looks exactly like the preview.
   /// Waits until everything a frame of [size] at [time] draws is ready: a PDF score's systems
   /// read ([PdfScoreArt.load]), the ones just ahead too. An engraved score's always are.
-  Future<void> ready(double time, ui.Size size) async {
+  /// They are kept for [holder] (this scene, when none is given) until it asks again or lets
+  /// go ([PdfScoreArt.release]): frames got ready side by side each hold their own.
+  Future<void> ready(double time, ui.Size size, {Object? holder}) async {
     final pdf = score.pdf;
     if (pdf == null) return;
     final (left, right) = renderer.visibleRange(scrollMap.xAt(time), size.width);
-    await pdf.load(PdfEngraving.systemsIn(pdf.layout, score.engraving, left, right + (right - left) * 0.25), holder: this);
+    await pdf.load(PdfEngraving.systemsIn(pdf.layout, score.engraving, left, right + (right - left) * 0.25), holder: holder ?? this);
   }
 
   ui.Image renderFrame(int width, int height,
