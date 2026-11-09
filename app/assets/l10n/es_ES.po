@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2026-11-09 03:28\n"
+"PO-Revision-Date: 2026-11-09 09:24\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -312,6 +312,9 @@ msgid "Align added recordings"
 msgstr ""
 
 msgid "Auto-curate imported scores"
+msgstr ""
+
+msgid "Auto-curate PDF scores"
 msgstr ""
 
 msgid "Off: every staff throughout."
@@ -1848,7 +1851,6 @@ msgstr ""
 msgid "Replaces the chosen lanes’ regions"
 msgstr ""
 
-#: lib/settings_dialog.dart
 msgid "Replace…"
 msgstr ""
 
