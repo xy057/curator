@@ -1109,7 +1109,10 @@ class _PdfImportState extends State<PdfImport> {
     } finally {
       if (mounted) setState(() => _measured = null);
     }
-    if (mounted) Navigator.of(context).pop(layout.copyWith(systems: systems));
+    if (!mounted) return;
+    // Edit… left as it came: nothing to put in its place (the project's Undo stays as it is).
+    final done = layout.copyWith(systems: systems);
+    Navigator.of(context).pop(done == widget.layout ? null : done);
   }
 
   Future<void> _cancel() async {
