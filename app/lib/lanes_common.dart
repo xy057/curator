@@ -229,7 +229,7 @@ class _ViewportGesturesState extends State<ViewportGestures> with SingleTickerPr
 }
 
 /// Bar numbers at the times they sound (so a tempo change is visible as uneven bars), time
-/// ticks, and the playhead. Click or drag to move the playhead. While notation runs off the
+/// ticks, and the playhead. Click or drag to move the playhead (the selection stays). While notation runs off the
 /// video's frame it is red, and a warning by its name says at which bars.
 class BarRuler extends StatelessWidget {
   const BarRuler({super.key, required this.controller});
@@ -271,9 +271,10 @@ class BarRuler extends StatelessWidget {
         Expanded(
           child: Listener(
             // The primary button only, as in the lanes: a right-click leaves the playhead be.
+            // What is selected stays so: the playhead is put where the selection is then
+            // trimmed to ([ and ]), or where what was copied is pasted into the lane selected.
             onPointerDown: (e) {
               if (e.buttons != kPrimaryButton) return;
-              c.clearSelection();
               c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
             },
             onPointerMove: (e) {
