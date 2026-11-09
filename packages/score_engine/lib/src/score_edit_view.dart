@@ -139,8 +139,6 @@ class EditGalley {
   late final double width;
   late final double height;
 
-  int get staffCount => _staffCount;
-
   /// Device units a staff space: the engraving's.
   double get staffSpace => chunks.firstWhere((c) => c != null, orElse: () => null)?.data.staffSpace ?? 90;
 

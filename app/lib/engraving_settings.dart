@@ -169,22 +169,10 @@ class EngravingTarget {
   /// Whether [option] is engraved other than the house style.
   bool isChanged(EngraveOption option) => valueOf(option) != baseOf(option);
 
-  /// Whether any option is.
-  bool get anyChanged => EngraveOption.all.any(isChanged);
-
   /// Sets [option] here; null resets it to the house style (kept here over a default).
   void set(EngraveOption option, Object? value) {
     if (value == null && settings.engravingOptions.isChanged(option)) value = baseOf(option);
     own = own.withValue(option, value, keepDefault: true);
-  }
-
-  /// Every option back to the house style.
-  void resetAll() {
-    var options = const EngravingOptions();
-    for (final option in EngraveOption.all) {
-      if (settings.engravingOptions.isChanged(option)) options = options.withValue(option, baseOf(option), keepDefault: true);
-    }
-    own = options;
   }
 
   /// [option]'s value as engraved: set, or the house style's, or for a line the open score's

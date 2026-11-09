@@ -41,9 +41,6 @@ class Region {
   double get length => end - start;
   bool overlaps(Region other) => start <= other.end && other.start <= end;
 
-  /// Whether every property is the curation's.
-  bool get hasDefaultProperties => transitionIn == null && transitionOut == null && hiddenStaves.isEmpty;
-
   /// This region between [start] and [end], with the same properties.
   Region withBounds(double start, double end) =>
       Region(start, end, transitionIn: transitionIn, transitionOut: transitionOut, hiddenStaves: hiddenStaves);
@@ -301,8 +298,6 @@ class Curation extends ChangeNotifier {
     }
     return _normalize(out);
   }
-
-  void addRegion(String partId, Region region) => setLane(partId, [...lane(partId), region]);
 
   /// Replaces several lanes at once (instruments' or split staves'), as one change.
   void setLanes(Map<String, List<Region>> lanes) => _apply(lanes, normalize: true);

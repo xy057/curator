@@ -213,9 +213,6 @@ class MidiTempoMap {
   /// The same tempos with [warps] instead.
   MidiTempoMap withWarps(List<MidiWarp> warps) => MidiTempoMap(name, tempos, warps: warps);
 
-  /// The same warps under another tempo map (another file read in place of this one).
-  MidiTempoMap withWarpsOf(MidiTempoMap? other) => other == null ? this : withWarps(other.warps);
-
   /// Each warp's arrival in the score (where it jumps from), up to the first that doesn't fit
   /// a score of [totalQuarters]: each must arrive further on than the one before went on
   /// from, inside the score, and go on from inside it, somewhere else (as [SyncMap] keeps

@@ -106,14 +106,6 @@ class SpacerEditing {
     await _engrave();
   }
 
-  /// The horizontal spacer over score quarter [quarter], if any (an index into [horizontal]).
-  int? horizontalAt(double quarter) {
-    for (final (i, _) in horizontal.indexed) {
-      if (quarter >= startOf(i) - 1e-9 && quarter < endOf(i) - 1e-9) return i;
-    }
-    return null;
-  }
-
   /// Widens [start]–[end] (score quarters) and selects it: one Undo step. Nothing where it
   /// would overlap one already there.
   Future<void> addHorizontal(double start, double end) async {

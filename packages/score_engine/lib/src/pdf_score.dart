@@ -78,9 +78,6 @@ class PdfScoreArt extends ChangeNotifier {
     return picture;
   }
 
-  /// Whether [system] is ready.
-  bool isReady(int system) => _systems.containsKey(system) || _failed.contains(system);
-
   /// Whether a system drawn isn't ready yet: what is drawn has holes until it is (a view says
   /// so). Notifies as it changes.
   bool get isWaiting => _waiting.isNotEmpty;

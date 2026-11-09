@@ -26,8 +26,6 @@ class MotionSetting {
   final bool percent;
   final String keywords;
 
-  bool get isCurve => step == null;
-
   static const spacing = 'Staff spacing', staves = 'Staves', scrolling = 'Scrolling', ending = 'Ending', captions = 'Captions';
   static const barNumbers = 'Bar numbers';
 

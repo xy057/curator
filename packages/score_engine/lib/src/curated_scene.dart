@@ -144,9 +144,6 @@ class LoadedScore {
   /// False when [fonts]' text font isn't installed here: Academico stands in for it.
   final bool textFontFound;
 
-  /// False when [fonts]' music font isn't here ([MusicFont.missing]): Bravura stands in for it.
-  bool get musicFontFound => !fonts.music.isMissing;
-
   /// The families the renderer draws it with.
   String get musicFontFamily => fonts.music.family;
   String get textFontFamily => TextFonts.familyOf(textFontFound ? fonts.text : TextFonts.academico);
@@ -447,10 +444,6 @@ class LoadedScore {
 
   static Future<LoadedScore> open(String path, {ScoreFonts fonts = ScoreFonts.standard}) async =>
       load(await ScoreFile.readMusicXML(path), fonts: fonts);
-
-  /// Re-engraves with different text edits (the structure, and so the curation and sync, stay
-  /// valid).
-  Future<LoadedScore> withTextEdits(Map<String, String> edits) => withEdits(textEdits: edits);
 
   /// Re-engraves as [request] asks (the structure, and so the curation and sync, stay valid).
   Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo, pdf: pdf);

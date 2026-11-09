@@ -43,8 +43,6 @@ class TypographySetting {
         _ => 'grey gray transparent fade light',
       };
 
-  bool get isFace => property == 'face';
-
   /// A slider's step.
   double get step => property == 'tracking' ? 0.01 : 0.05;
 

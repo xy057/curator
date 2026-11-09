@@ -108,9 +108,6 @@ class ScoreRenderer {
   int _tileBytes = 0;
   int _frame = 0; // counts paint calls: a tile drawn in this one stays
 
-  /// What the tile images hold now, in bytes.
-  int get tileBytes => _tileBytes;
-
   /// Logical pixels per device unit.
   double get scale => style.staffSpace / display.data.staffSpace;
   double get _tileUnits => tileWidth / scale;
