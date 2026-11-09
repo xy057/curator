@@ -375,6 +375,7 @@ class _PdfImportState extends State<PdfImport> {
     setState(() {
       _layout = next;
       _edited = true;
+      _error = null; // what couldn't be measured may have changed
     });
   }
 
@@ -848,12 +849,7 @@ class _PdfImportState extends State<PdfImport> {
 
   /// A new instrument, named in a dialog, for staff [k] of system [system].
   Future<void> _newInstrumentFor(int system, int k) async {
-    final ids = {for (final i in layout.instruments) i.id};
-    var n = layout.instruments.length + 1;
-    while (ids.contains('P$n')) {
-      n++;
-    }
-    final made = await showPdfInstrumentDialog(context, PdfInstrument(id: 'P$n', name: ''), isNew: true);
+    final made = await showPdfInstrumentDialog(context, PdfInstrument(id: _nextId(), name: ''), isNew: true);
     if (made == null || !mounted) return;
     final s = layout.systems[system];
     final staves = [...s.staves]..[k] = s.staves[k].copyWith(part: () => made.id, staff: 1);
@@ -1091,7 +1087,10 @@ class _PdfImportState extends State<PdfImport> {
   Future<void> _done() async {
     if (_layout == null || _measured != null) return;
     final systems = [...layout.systems];
-    setState(() => _measured = 0);
+    setState(() {
+      _measured = 0;
+      _error = null; // an earlier try's
+    });
     try {
       for (var i = 0; i < systems.length; i++) {
         final s = systems[i];
@@ -1485,7 +1484,12 @@ class _PdfImportState extends State<PdfImport> {
                   Positioned.fill(
                     child: MouseRegion(
                       cursor: _drag != null ? MouseCursor.defer : _cursorAt(_hover),
-                      onHover: (e) => setState(() => _hover = e.localPosition),
+                      // Only a new cursor draws again: the pointer's every move would build it all.
+                      onHover: (e) {
+                        final before = _cursorAt(_hover);
+                        _hover = e.localPosition;
+                        if (_cursorAt(_hover) != before) setState(() {});
+                      },
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onPanDown: (d) => _down(d.localPosition),
