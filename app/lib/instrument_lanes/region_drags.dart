@@ -66,8 +66,21 @@ mixin _RegionDrags on _LaneGeometry {
 
   // MARK: Pointer handling
 
+  /// Where the mouse is over the lanes; null: not over them.
+  Offset? _pointer;
+
   void _onHover(PointerHoverEvent e) {
+    _pointer = e.localPosition;
     final cursor = _cursorAt(e.localPosition);
+    if (cursor != _cursor) setState(() => _cursor = cursor);
+  }
+
+  /// A key went down or up: ⌥ swaps the tool and V, D or E chooses one, and so the cursor, with
+  /// the mouse where it is.
+  void _keysChanged() {
+    final at = _pointer;
+    if (at == null || _drag != null) return;
+    final cursor = _cursorAt(at);
     if (cursor != _cursor) setState(() => _cursor = cursor);
   }
 

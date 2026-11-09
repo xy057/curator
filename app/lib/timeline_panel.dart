@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -70,7 +71,13 @@ class _InstrumentLanesState extends State<InstrumentLanes>
   }
 
   bool _onKey(KeyEvent _) {
-    if (mounted) _zooming.value = isZoomModifierPressed;
+    if (mounted) {
+      _zooming.value = isZoomModifierPressed;
+      // Once the shortcuts have had the key: V, D and E change the tool too.
+      scheduleMicrotask(() {
+        if (mounted) _keysChanged();
+      });
+    }
     return false; // only watching: the key still goes to the shortcuts
   }
 
@@ -201,6 +208,7 @@ class _InstrumentLanesState extends State<InstrumentLanes>
             child: MouseRegion(
               cursor: _cursor,
               onHover: _onHover,
+              onExit: (_) => _pointer = null,
               child: Listener(
                 onPointerDown: _onDown,
                 onPointerMove: _onMove,
