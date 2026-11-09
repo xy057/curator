@@ -19,6 +19,11 @@ Future<void> showWebGuide(BuildContext context, {String? folder}) => showAppDial
       builder: (context) => _WebGuide(folder: folder),
     );
 
+/// [path] as one word of a POSIX shell command, whatever is in it: in single quotes, where
+/// nothing is special (a folder named "My $5 Scores" in double quotes would lose its $5), a
+/// single quote of its own closed, escaped and opened again.
+String shellQuoted(String path) => "'${path.replaceAll("'", r"'\''")}'";
+
 class _WebGuide extends StatelessWidget {
   const _WebGuide({this.folder});
   final String? folder;
@@ -26,7 +31,7 @@ class _WebGuide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final path = folder ?? (Platform.isWindows ? r'C:\path\to\page' : 'path/to/page');
-    final serve = Platform.isWindows ? 'cd /d "$path" && py -m http.server 8000' : 'cd "$path" && python3 -m http.server 8000';
+    final serve = Platform.isWindows ? 'cd /d "$path" && py -m http.server 8000' : 'cd ${shellQuoted(path)} && python3 -m http.server 8000';
     const gap = SizedBox(height: 20);
     return AppDialog(
       title: Text('Publishing a Page'.tr),
