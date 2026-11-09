@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2026-11-08 21:03\n"
+"PO-Revision-Date: 2026-11-09 03:28\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -3419,5 +3419,9 @@ msgstr ""
 
 #: lib/error_text.dart
 msgid "{error}: “{file}”."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Help translate Curator"
 msgstr ""
 
