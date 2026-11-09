@@ -24,10 +24,9 @@ typedef _Band = ({int lane0, int lane1, double q0, double q1, _DragKind kind, bo
 
 /// The pointer in the lanes: selecting, moving and trimming regions, drawing and erasing,
 /// box-selecting, and moving the playhead.
-mixin _RegionDrags on _LaneGeometry {
+mixin _RegionDrags on _LaneGeometry, LaneCursor<InstrumentLanes> {
   _Drag? _drag;
   final _band = ValueNotifier<_Band?>(null);
-  MouseCursor _cursor = SystemMouseCursors.basic;
   final _clicks = DoubleClicks();
 
   @override
@@ -66,26 +65,12 @@ mixin _RegionDrags on _LaneGeometry {
 
   // MARK: Pointer handling
 
-  /// Where the mouse is over the lanes; null: not over them.
-  Offset? _pointer;
-
-  void _onHover(PointerHoverEvent e) {
-    _pointer = e.localPosition;
-    final cursor = _cursorAt(e.localPosition);
-    if (cursor != _cursor) setState(() => _cursor = cursor);
-  }
-
-  /// A key went down or up: ⌥ swaps the tool and V, D or E chooses one, and so the cursor, with
-  /// the mouse where it is.
-  void _keysChanged() {
-    final at = _pointer;
-    if (at == null || _drag != null) return;
-    final cursor = _cursorAt(at);
-    if (cursor != _cursor) setState(() => _cursor = cursor);
-  }
+  @override
+  bool get cursorHeld => _drag != null;
 
   /// The cursor over [p]: what a drag from there would do.
-  MouseCursor _cursorAt(Offset p) {
+  @override
+  MouseCursor cursorAt(Offset p) {
     final tool = _tool;
     final hit = tool == LaneTool.select ? _hit(p) : null;
     return switch (hit?.kind) {
@@ -145,7 +130,7 @@ mixin _RegionDrags on _LaneGeometry {
         ..from = {for (final part in parts) part.id: curation.lane(part.id)}
         ..moving = {for (final MapEntry(key: r, value: e) in selection.entries) if (dragged(e)) r: e}
         ..still = {for (final MapEntry(key: r, value: e) in selection.entries) if (!dragged(e)) r: e};
-      if (hit.kind == _DragKind.move) setState(() => _cursor = SystemMouseCursors.grabbing);
+      if (hit.kind == _DragKind.move) showCursor(SystemMouseCursors.grabbing);
     } else if (keys.isShiftPressed || isCommandPressed) {
       _drag = _Drag(_DragKind.marquee, downAt: p, downQ: q, pass: pass, lane: _laneIndex(p))..keep = c.lanes.selection;
     } else {
@@ -260,6 +245,6 @@ mixin _RegionDrags on _LaneGeometry {
       c.lanes.reselect(selected);
     }
     // What is under the pointer now (a region let go of: the open hand), as the Captions lane does.
-    setState(() => _cursor = _cursorAt(e.localPosition));
+    showCursor(cursorAt(e.localPosition));
   }
 }

@@ -90,7 +90,7 @@ class _Drag {
 const _edgeGrab = 6.0;
 const _minLength = 0.25;
 
-class _SpanLaneState extends State<SpanLane> {
+class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
   EditorController get c => widget.controller;
   SpanLaneModel get model => widget.model;
   ScoreTimeline get tl => c.timeline;
@@ -106,7 +106,6 @@ class _SpanLaneState extends State<SpanLane> {
 
   /// The stretch being drawn or erased (score quarters), drawn as a band.
   final _band = ValueNotifier<({double q0, double q1, bool draw})?>(null);
-  MouseCursor _cursor = SystemMouseCursors.basic;
   final _clicks = DoubleClicks();
 
   @override
@@ -189,15 +188,18 @@ class _SpanLaneState extends State<SpanLane> {
     return null;
   }
 
-  void _onHover(PointerHoverEvent e) {
+  @override
+  bool get cursorHeld => _drag != null;
+
+  @override
+  MouseCursor cursorAt(Offset local) {
     final tool = _tool;
-    final hit = tool == LaneTool.select ? _hit(e.localPosition.dx) : null;
-    final cursor = switch (hit?.kind) {
+    final hit = tool == LaneTool.select ? _hit(local.dx) : null;
+    return switch (hit?.kind) {
       _Kind.start || _Kind.end => SystemMouseCursors.resizeLeftRight,
       _Kind.move => SystemMouseCursors.grab,
       _ => tool == LaneTool.select ? SystemMouseCursors.basic : SystemMouseCursors.precise,
     };
-    if (cursor != _cursor) setState(() => _cursor = cursor);
   }
 
   void _onDown(PointerDownEvent e) {
@@ -231,7 +233,7 @@ class _SpanLaneState extends State<SpanLane> {
     if (model.live) c.beginEdit();
     model.begin();
     _drag = _Drag(hit.kind, downAt: p, downQ: q, pass: pass, index: hit.index, from: model.spans);
-    if (hit.kind == _Kind.move) setState(() => _cursor = SystemMouseCursors.grabbing);
+    if (hit.kind == _Kind.move) showCursor(SystemMouseCursors.grabbing);
   }
 
   void _onMove(PointerMoveEvent e) {
@@ -307,7 +309,7 @@ class _SpanLaneState extends State<SpanLane> {
       case _Kind.move || _Kind.start || _Kind.end:
         final i = drag.index!;
         _end(moved: working == null ? null : (i, working[i]));
-        setState(() => _cursor = SystemMouseCursors.grab);
+        showCursor(cursorAt(e.localPosition)); // what is under the pointer now: an edge trimmed, its arrows
       case _Kind.scrub:
         c.playback.endScrub();
     }
@@ -370,7 +372,7 @@ class _SpanLaneState extends State<SpanLane> {
       case _Kind.move || _Kind.start || _Kind.end:
         final working = _working;
         _end(moved: working == null ? null : (drag!.index!, working[drag.index!]));
-        if (_cursor == SystemMouseCursors.grabbing) setState(() => _cursor = SystemMouseCursors.grab);
+        if (laneCursor == SystemMouseCursors.grabbing) showCursor(SystemMouseCursors.grab);
       case _Kind.scrub:
         c.playback.endScrub();
       case _Kind.draw || null:
@@ -392,8 +394,9 @@ class _SpanLaneState extends State<SpanLane> {
         SizedBox(width: kLaneHeaderWidth, child: widget.header),
         Expanded(
           child: MouseRegion(
-            cursor: _cursor,
-            onHover: _onHover,
+            cursor: laneCursor,
+            onHover: cursorHover,
+            onExit: cursorExit,
             child: Listener(
               behavior: HitTestBehavior.opaque,
               onPointerDown: _onDown,

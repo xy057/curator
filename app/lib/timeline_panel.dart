@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -56,7 +55,7 @@ const _minLength = 0.25; // a sixteenth: regions never collapse to nothing
 /// The lanes' state, in parts: where things are ([_LaneGeometry]), lanes moved by their
 /// names ([_LaneMoving]), and the pointer in the lanes ([_RegionDrags]).
 class _InstrumentLanesState extends State<InstrumentLanes>
-    with SingleTickerProviderStateMixin, _LaneGeometry, _LaneMoving, _RegionDrags {
+    with SingleTickerProviderStateMixin, LaneCursor<InstrumentLanes>, _LaneGeometry, _LaneMoving, _RegionDrags {
   @override
   List<ScorePart> get parts => _reordered ?? c.laneRows;
 
@@ -71,13 +70,7 @@ class _InstrumentLanesState extends State<InstrumentLanes>
   }
 
   bool _onKey(KeyEvent _) {
-    if (mounted) {
-      _zooming.value = isZoomModifierPressed;
-      // Once the shortcuts have had the key: V, D and E change the tool too.
-      scheduleMicrotask(() {
-        if (mounted) _keysChanged();
-      });
-    }
+    if (mounted) _zooming.value = isZoomModifierPressed;
     return false; // only watching: the key still goes to the shortcuts
   }
 
@@ -206,9 +199,9 @@ class _InstrumentLanesState extends State<InstrumentLanes>
           ),
           Expanded(
             child: MouseRegion(
-              cursor: _cursor,
-              onHover: _onHover,
-              onExit: (_) => _pointer = null,
+              cursor: laneCursor,
+              onHover: cursorHover,
+              onExit: cursorExit,
               child: Listener(
                 onPointerDown: _onDown,
                 onPointerMove: _onMove,

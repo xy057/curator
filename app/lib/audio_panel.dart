@@ -55,7 +55,7 @@ class AudioLanes extends StatefulWidget {
   State<AudioLanes> createState() => _AudioLanesState();
 }
 
-class _AudioLanesState extends State<AudioLanes> {
+class _AudioLanesState extends State<AudioLanes> with LaneCursor<AudioLanes> {
   EditorController get c => widget.controller;
   SyncMap get sync => c.sync!;
 
@@ -73,7 +73,6 @@ class _AudioLanesState extends State<AudioLanes> {
   /// Where the pointer was (in seconds) when the current drag began: kept, as the view may
   /// scroll under the drag (it follows the playhead).
   double _downSeconds = 0;
-  MouseCursor _cursor = SystemMouseCursors.basic;
 
   @override
   void dispose() {
@@ -126,7 +125,7 @@ class _AudioLanesState extends State<AudioLanes> {
       c.beginEdit();
       _dragFrom = sync.anchors;
       _grabbed = hit;
-      setState(() => _cursor = SystemMouseCursors.grabbing);
+      showCursor(SystemMouseCursors.grabbing);
     } else if (keys.isAltPressed) {
       final at = _snapToOnset(seconds);
       c.anchors.add(SyncAnchor(sync.nearestGrid(sync.quarterAtSeconds(at), c.anchors.grid), at));
@@ -163,21 +162,22 @@ class _AudioLanesState extends State<AudioLanes> {
       c.endEdit();
       _dragFrom = null;
       _grabbed = null;
-      if (mounted) setState(() => _cursor = SystemMouseCursors.basic);
+      if (mounted) showCursor(SystemMouseCursors.basic);
     }
     if (mounted) _marquee.value = null;
     if (_scrubbing) c.playback.endScrub();
     _scrubbing = false;
   }
 
-  void _onHover(PointerHoverEvent e) {
-    final cursor = _anchorAt(e.localPosition.dx) != null
-        ? SystemMouseCursors.grab
-        : HardwareKeyboard.instance.isAltPressed
-            ? SystemMouseCursors.precise
-            : SystemMouseCursors.basic;
-    if (cursor != _cursor) setState(() => _cursor = cursor);
-  }
+  @override
+  bool get cursorHeld => _dragFrom != null;
+
+  @override
+  MouseCursor cursorAt(Offset local) => _anchorAt(local.dx) != null
+      ? SystemMouseCursors.grab
+      : HardwareKeyboard.instance.isAltPressed
+          ? SystemMouseCursors.precise
+          : SystemMouseCursors.basic;
 
   Future<void> _editPosition(int index) => _editAnchor(context, c, index);
 
@@ -206,8 +206,9 @@ class _AudioLanesState extends State<AudioLanes> {
     final colors = context.colors;
     final repaint = Listenable.merge([c.viewport, sync, c, _marquee]);
     final lanes = MouseRegion(
-      cursor: _cursor,
-      onHover: _onHover,
+      cursor: laneCursor,
+      onHover: cursorHover,
+      onExit: cursorExit,
       child: Listener(
         onPointerDown: _onDown,
         onPointerMove: _onMove,
@@ -290,13 +291,12 @@ class _MidiTempoLane extends StatefulWidget {
   State<_MidiTempoLane> createState() => _MidiTempoLaneState();
 }
 
-class _MidiTempoLaneState extends State<_MidiTempoLane> {
+class _MidiTempoLaneState extends State<_MidiTempoLane> with LaneCursor<_MidiTempoLane> {
   EditorController get c => widget.controller;
 
   /// The scale held while a gesture lasts, so the lane doesn't re-fit under the pointer.
   final _scale = ValueNotifier<_TempoScale?>(null);
   Size _size = Size.zero;
-  MouseCursor _cursor = SystemMouseCursors.basic;
   bool _scrubbing = false;
 
   // Dragging change [_index] of [_from]: taken by its dot ([_byDot]), also sideways
@@ -497,16 +497,19 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
     _scrubbing = false;
   }
 
-  void _onHover(PointerHoverEvent e) {
-    final hit = HardwareKeyboard.instance.isAltPressed ? null : _hit(e.localPosition);
-    final cursor = HardwareKeyboard.instance.isAltPressed
+  @override
+  bool get cursorHeld => _editing;
+
+  @override
+  MouseCursor cursorAt(Offset local) {
+    final hit = HardwareKeyboard.instance.isAltPressed ? null : _hit(local);
+    return HardwareKeyboard.instance.isAltPressed
         ? SystemMouseCursors.precise
         : hit == null
-            ? (_warpAt(e.localPosition) != null ? SystemMouseCursors.click : SystemMouseCursors.basic)
+            ? (_warpAt(local) != null ? SystemMouseCursors.click : SystemMouseCursors.basic)
             : hit.dot && hit.index > 0
                 ? SystemMouseCursors.move
                 : SystemMouseCursors.resizeUpDown;
-    if (cursor != _cursor) setState(() => _cursor = cursor);
   }
 
   @override
@@ -534,8 +537,9 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> {
         child: LayoutBuilder(builder: (context, constraints) {
           _size = constraints.biggest;
           return MouseRegion(
-            cursor: _cursor,
-            onHover: _onHover,
+            cursor: laneCursor,
+            onHover: cursorHover,
+            onExit: cursorExit,
             child: Listener(
               onPointerDown: _onDown,
               onPointerMove: _onMove,
