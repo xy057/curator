@@ -78,8 +78,8 @@ msgstr "比较需要写成“? … : …”。"
 msgid "A MIDI tempo map or a recording"
 msgstr "MIDI 速度图或录音"
 
-msgid "A project or a MusicXML score"
-msgstr "项目或 MusicXML 乐谱"
+msgid "A project, or a MusicXML or PDF score"
+msgstr "项目，或 MusicXML、PDF 乐谱"
 
 msgid "A tempo map starts at quarter 0."
 msgstr "速度图须从第 0 个四分音符开始。"
@@ -1684,8 +1684,8 @@ msgid "Project Info"
 msgstr "项目信息"
 
 #: lib/home_screen.dart
-msgid "Project or MusicXML ({key})"
-msgstr "项目或 MusicXML（{key}）"
+msgid "Project, MusicXML or PDF ({key})"
+msgstr "项目、MusicXML 或 PDF（{key}）"
 
 #: lib/bottom_panel.dart
 msgid "Project Settings ({key})"

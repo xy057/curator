@@ -77,7 +77,7 @@ msgstr ""
 msgid "A MIDI tempo map or a recording"
 msgstr ""
 
-msgid "A project or a MusicXML score"
+msgid "A project, or a MusicXML or PDF score"
 msgstr ""
 
 msgid "A tempo map starts at quarter 0."
@@ -1681,7 +1681,7 @@ msgid "Project Info"
 msgstr ""
 
 #: lib/home_screen.dart
-msgid "Project or MusicXML ({key})"
+msgid "Project, MusicXML or PDF ({key})"
 msgstr ""
 
 #: lib/bottom_panel.dart
