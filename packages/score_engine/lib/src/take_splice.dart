@@ -152,9 +152,9 @@ class TakeSplice implements ScoreTimeline {
   @override
   int passAt(double seconds) => _pieces[_pieceAt(seconds)].pass;
 
-  /// The piece of [pass] that plays [quarter]; outside it, its first or last.
-  int _pieceOf(double quarter, int pass) {
-    pass = pass.clamp(0, passes.length - 1);
+  /// The piece of [pass] that plays [quarter]; outside it, its first or last. Null for a pass
+  /// of no length (a warp at its very start), which has none.
+  int? _pieceOf(double quarter, int pass) {
     int? first, last;
     for (final (i, p) in _pieces.indexed) {
       if (p.pass != pass) continue;
@@ -162,7 +162,7 @@ class TakeSplice implements ScoreTimeline {
       last = i;
       if (quarter >= p.start - 1e-9 && quarter < p.end - 1e-9) return i;
     }
-    return quarter < _pieces[first!].start ? first : last!;
+    return first == null ? null : (quarter < _pieces[first].start ? first : last);
   }
 
   double _secondsIn(int i, double quarter) {
@@ -171,7 +171,13 @@ class TakeSplice implements ScoreTimeline {
   }
 
   @override
-  double secondsAtQuarter(double quarter, {int pass = 0}) => _secondsIn(_pieceOf(quarter, pass), quarter);
+  double secondsAtQuarter(double quarter, {int pass = 0}) {
+    pass = pass.clamp(0, passes.length - 1);
+    if (_pieceOf(quarter, pass) case final i?) return _secondsIn(i, quarter);
+    // A pass that plays nothing is over as the next begins.
+    final next = _pieces.indexWhere((p) => p.pass > pass);
+    return next < 0 ? _starts.last : _starts[next];
+  }
 
   @override
   double quarterAtSeconds(double seconds) {
