@@ -206,6 +206,22 @@ class _ExportDialogState extends State<_ExportDialog> {
     final setup = _stage == _Stage.setup;
     final carbon = AppStyle.of(context).isCarbon;
     final screen = MediaQuery.sizeOf(context);
+    // A click outside doesn't close it (see showExportDialog), but Esc does, as Cancel would;
+    // Return presses the footer's default button, as in an AppDialog.
+    return DialogKeys(
+      onEscape: _stage == _Stage.writing ? null : () => Navigator.pop(context),
+      onReturn: switch (_stage) {
+        _Stage.setup => _writable ? _start : null,
+        _Stage.writing => null,
+        _Stage.done => () => Navigator.pop(context),
+        _Stage.failed => () => setState(() => _stage = _Stage.setup),
+      },
+      child: _dialog(context, colors: colors, setup: setup, carbon: carbon, screen: screen),
+    );
+  }
+
+  Widget _dialog(BuildContext context,
+      {required AppColors colors, required bool setup, required bool carbon, required Size screen}) {
     return Dialog(
       insetPadding: const EdgeInsets.all(32),
       clipBehavior: Clip.antiAlias,

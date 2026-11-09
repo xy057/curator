@@ -36,6 +36,7 @@ class AppDialog extends StatelessWidget {
     required this.actions,
     this.divided = false,
     this.confirmsOnReturn = true,
+    this.onEscape,
   });
 
   final Widget title;
@@ -48,6 +49,9 @@ class AppDialog extends StatelessWidget {
   /// Whether Return presses the default button. Not where that throws work away (Discard): a
   /// key pressed once too often must not.
   final bool confirmsOnReturn;
+
+  /// Esc, in a dialog a click outside doesn't close (so Esc doesn't either); null: nothing more.
+  final VoidCallback? onEscape;
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +95,7 @@ class AppDialog extends StatelessWidget {
     ];
     return DialogKeys(
       onReturn: confirmsOnReturn ? _defaultAction : null,
+      onEscape: onEscape,
       child: Dialog(
         insetPadding: const EdgeInsets.all(32),
         clipBehavior: Clip.antiAlias,

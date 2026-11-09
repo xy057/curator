@@ -138,6 +138,8 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   Widget build(BuildContext context) {
     final busy = _stage == _Stage.writing;
     return AppDialog(
+      // A click outside doesn't close it (see showWebExportDialog), but Esc does, as Cancel would.
+      onEscape: busy ? null : () => Navigator.pop(context),
       title: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
         Expanded(child: Text('Export to Web'.tr)),
         // The Curator that writes the page, and so its player.
