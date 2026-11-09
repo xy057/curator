@@ -349,6 +349,10 @@ class _PdfImportState extends State<PdfImport> {
     _focus.requestFocus();
   }
 
+  /// Whether any staff is an instrument's: with none the score would have no instrument, and
+  /// nothing to show, so it isn't imported.
+  bool get _anyAssigned => layout.systems.any((s) => s.staves.any((t) => t.part != null));
+
   /// Staves no instrument has.
   int get _unassigned => layout.systems.fold(0, (n, s) => n + s.staves.where((t) => t.part == null).length);
 
@@ -1378,7 +1382,7 @@ class _PdfImportState extends State<PdfImport> {
           onPressed: !ready
               ? null
               : last
-                  ? (layout.systems.isNotEmpty ? _done : null)
+                  ? (layout.systems.isNotEmpty && _anyAssigned ? _done : null)
                   : () => _goToStep(_Step.values[_step.index + 1]),
           child: Text((last ? (widget.layout == null ? 'Import' : 'Done') : 'Next').tr),
         ),
@@ -1392,6 +1396,7 @@ class _PdfImportState extends State<PdfImport> {
       return 'Measuring system {n} of {count}…'.fill({'n': math.min(n + 1, layout.systems.length), 'count': layout.systems.length});
     }
     if (_layout == null) return '';
+    if (layout.systems.isNotEmpty && !_anyAssigned) return 'No staff has an instrument yet.'.tr;
     return '{bars} bars · {systems} systems'.fill({'bars': layout.bars.length, 'systems': layout.systems.length});
   }
 

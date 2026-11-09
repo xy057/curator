@@ -3444,3 +3444,7 @@ msgstr ""
 
 msgid "The instruments have different numbers of bars."
 msgstr ""
+
+#: lib/pdf_import.dart
+msgid "No staff has an instrument yet."
+msgstr ""

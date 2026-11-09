@@ -3463,3 +3463,7 @@ msgstr "乐谱没有小节。"
 
 msgid "The instruments have different numbers of bars."
 msgstr "各乐器的小节数不同。"
+
+#: lib/pdf_import.dart
+msgid "No staff has an instrument yet."
+msgstr "还没有谱表指定乐器。"
