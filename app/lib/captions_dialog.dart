@@ -327,7 +327,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
               counterText: '',
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-              hintText: column == 2 ? 'Leave empty to remove' : null,
+              hintText: column == 2 ? 'Leave empty to remove'.tr : null,
               hintStyle: TextStyle(fontSize: size, color: colors.textMuted.withValues(alpha: 0.6)),
             ),
             onChanged: (_) => setState(() {}),
