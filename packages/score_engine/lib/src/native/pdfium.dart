@@ -129,7 +129,7 @@ final class PdfiumDocument {
     final page = FPDF_LoadPage(_handle, index);
     if (page == nullptr) return (ink: Uint8List(w * h), width: w, height: h);
     final stride = w * 4;
-    final pixels = malloc<Uint8>(stride * h);
+    final pixels = _pixels(stride * h, page);
     final bitmap = FPDFBitmap_CreateEx(w, h, _bgrx, pixels.cast(), stride);
     try {
       FPDFBitmap_FillRect(bitmap, 0, 0, w, h, 0xFFFFFFFF);
@@ -149,6 +149,16 @@ final class PdfiumDocument {
     }
   }
 
+  /// Room for a bitmap's [bytes]; where there is none, [page] is closed before saying so.
+  static Pointer<Uint8> _pixels(int bytes, Pointer<Void> page) {
+    try {
+      return malloc<Uint8>(bytes);
+    } catch (_) {
+      FPDF_ClosePage(page);
+      rethrow;
+    }
+  }
+
   /// The part [left], [top], [width] × [height] (points) of page [index] at [scale] pixels a
   /// point as PDFium draws it, colours and all, on nothing (transparent where the page draws
   /// nothing): RGBA bytes, straight alpha.
@@ -157,7 +167,7 @@ final class PdfiumDocument {
     final page = FPDF_LoadPage(_handle, index);
     if (page == nullptr) return (rgba: Uint8List(w * h * 4), width: w, height: h);
     final stride = w * 4;
-    final pixels = malloc<Uint8>(stride * h);
+    final pixels = _pixels(stride * h, page);
     final bitmap = FPDFBitmap_CreateEx(w, h, _bgra, pixels.cast(), stride);
     try {
       FPDFBitmap_FillRect(bitmap, 0, 0, w, h, 0x00000000);

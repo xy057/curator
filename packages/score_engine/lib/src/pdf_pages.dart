@@ -45,13 +45,27 @@ class PdfPages {
 
   int get length => sizes.length;
 
-  /// [region] (points) of page [page] as ink at [scale] pixels a point.
+  /// The most pixels one render makes: several times a system at a 4K frame's size, or a page
+  /// zoomed in as far as the import goes. Past it the scale is lowered ([fittedScale]).
+  static const maxPixels = 64000000;
+
+  /// [scale], or the largest at which [width] × [height] points make no more than [maxPixels]
+  /// (and 32767 a side, PDFium's most): a page of poster size, or one that says it is, is read
+  /// whole at a coarser grain, never cut off at the side's limit nor gigabytes of pixels.
+  static double fittedScale(double width, double height, double scale) {
+    if (!(width > 0 && height > 0)) return scale;
+    return math.min(scale, math.min(math.sqrt(maxPixels / (width * height)), 32767 / math.max(width, height)));
+  }
+
+  /// [region] (points) of page [page] as ink at [scale] pixels a point ([fittedScale]: the
+  /// raster says the scale it is at).
   Future<PdfRaster> render(int page, ui.Rect region, double scale) {
     final id = _id;
     return _Worker.run((docs) => _render(docs[id]!, page, region, scale));
   }
 
   static PdfRaster _render(PdfiumDocument doc, int page, ui.Rect region, double scale) {
+    scale = fittedScale(region.width, region.height, scale);
     final r = doc.render(page, region.left, region.top, region.width, region.height, scale);
     return PdfRaster(r.ink, r.width, r.height, scale: scale, left: region.left, top: region.top);
   }
@@ -131,8 +145,8 @@ class PdfPages {
   Future<PdfPicture> picture(PdfSystem system, {double pixelsPerSpace = 24}) {
     final id = _id;
     return _Worker.run((docs) {
-      final scale = (pixelsPerSpace / system.space).clamp(0.5, 12.0);
       final area = regionOf(system);
+      final scale = fittedScale(area.width, area.height, (pixelsPerSpace / system.space).clamp(0.5, 12.0));
       final p = docs[id]!.picture(system.page, area.left, area.top, area.width, area.height, scale);
       return (rgba: p.rgba, width: p.width, height: p.height, area: area);
     });
@@ -144,7 +158,7 @@ class PdfPages {
     return _Worker.run((docs) {
       final doc = docs[id]!;
       final (w, h) = doc.pageSizes[page];
-      final p = doc.picture(page, 0, 0, w, h, scale);
+      final p = doc.picture(page, 0, 0, w, h, fittedScale(w, h, scale));
       return (rgba: p.rgba, width: p.width, height: p.height, area: ui.Rect.fromLTWH(0, 0, w, h));
     });
   }
