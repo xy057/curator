@@ -150,7 +150,9 @@ class ScoreForm {
   static Set<int> _endingNumbers(String text) {
     final out = <int>{};
     for (final m in RegExp(r'(\d+)(?:\s*[-–]\s*(\d+))?').allMatches(text)) {
-      final from = int.parse(m.group(1)!), to = int.tryParse(m.group(2) ?? '') ?? from;
+      final from = int.tryParse(m.group(1)!);
+      if (from == null) continue; // digits too many for a number
+      final to = int.tryParse(m.group(2) ?? '') ?? from;
       for (var n = from; n <= math.min(to, from + 32); n++) {
         out.add(n);
       }

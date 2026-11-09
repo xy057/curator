@@ -720,8 +720,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
       case _Popover.bars:
         final count = RegExp(r'^([+-])\s*(\d+)$').firstMatch(t);
         if (count != null) {
-          final n = int.parse(count.group(2)!);
-          if (n < 1 || n > 999) return false;
+          final n = int.tryParse(count.group(2)!);
+          if (n == null || n < 1 || n > 999) return false;
           if (count.group(1) == '+') {
             _edit(() => score.addBars(_target == null ? score.measureCount : at.measure + 1, n));
           } else {

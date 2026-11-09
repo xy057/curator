@@ -113,9 +113,11 @@ class Tuplet {
   static Tuplet? parse(String text, NoteType unit) {
     final m = RegExp(r'^\s*(\d+)\s*(?::\s*(\d+))?\s*$').firstMatch(text);
     if (m == null) return null;
-    final actual = int.parse(m.group(1)!);
-    final normal = m.group(2) != null ? int.parse(m.group(2)!) : _normalFor(actual);
-    if (actual < 2 || actual > 32 || normal < 1 || normal > 32 || actual == normal) return null;
+    // (Digits too many for an int are no number.)
+    final actual = int.tryParse(m.group(1)!);
+    if (actual == null || actual < 2 || actual > 32) return null;
+    final normal = m.group(2) != null ? int.tryParse(m.group(2)!) : _normalFor(actual);
+    if (normal == null || normal < 1 || normal > 32 || actual == normal) return null;
     return Tuplet(actual, normal, unit);
   }
 
@@ -347,9 +349,9 @@ class TimeSig {
     if (t == '¢' || t == 'cut' || t == 'c|') return const TimeSig('2', 2, symbol: 'cut');
     final m = RegExp(r'^(\d+(?:\s*\+\s*\d+)*)\s*/\s*(\d+)$').firstMatch(t);
     if (m == null) return null;
-    final beatType = int.parse(m.group(2)!);
+    final beatType = int.tryParse(m.group(2)!);
     final beats = m.group(1)!.replaceAll(' ', '');
-    if (![1, 2, 4, 8, 16, 32].contains(beatType)) return null;
+    if (beatType == null || ![1, 2, 4, 8, 16, 32].contains(beatType)) return null;
     final meter = TimeSig(beats, beatType);
     if (meter.count < 1 || meter.count > 64) return null;
     return meter;

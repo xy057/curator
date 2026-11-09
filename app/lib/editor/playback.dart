@@ -181,8 +181,10 @@ class Playback {
   static double? _clockOf(String text) {
     final match = RegExp(r'^\s*(?:(\d+):)?(\d+):(\d+(?:\.\d*)?)\s*$').firstMatch(text);
     if (match == null) return null;
-    final hours = match[1] == null ? 0 : int.parse(match[1]!);
-    final minutes = int.parse(match[2]!), seconds = double.parse(match[3]!);
+    // (Digits too many for an int are no time.)
+    final hours = match[1] == null ? 0 : int.tryParse(match[1]!);
+    final minutes = int.tryParse(match[2]!), seconds = double.parse(match[3]!);
+    if (hours == null || minutes == null) return null;
     if (seconds >= 60 || (match[1] != null && minutes >= 60)) return null;
     return hours * 3600.0 + minutes * 60 + seconds;
   }
