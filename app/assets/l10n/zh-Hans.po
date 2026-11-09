@@ -795,6 +795,7 @@ msgstr "自定"
 msgid "Custom ({ratio})…"
 msgstr "自定（{ratio}）…"
 
+#: lib/color_dialog.dart
 msgid "Custom Color"
 msgstr "自定颜色"
 
@@ -1293,6 +1294,7 @@ msgstr "语言"
 msgid "Large"
 msgstr "大"
 
+#: lib/captions_dialog.dart
 msgid "Leave empty to remove"
 msgstr "留空即可移除"
 
@@ -1656,6 +1658,7 @@ msgstr "已固定"
 msgid "Play (Space)"
 msgstr "播放（空格）"
 
+#: lib/settings_dialog.dart
 msgid "Playback line"
 msgstr "播放线"
 

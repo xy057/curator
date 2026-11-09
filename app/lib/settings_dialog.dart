@@ -658,6 +658,7 @@ class _CondensingPage extends StatelessWidget {
             for (final pair in pairs)
               _SettingRow(
                 title: controller.pairName(pair),
+                named: true,
                 help: controller.pairs.contains(pair) ? 'Yours.'.tr : null,
                 control: Row(mainAxisSize: MainAxisSize.min, children: [
                   if (controller.pairs.contains(pair)) ...[
@@ -1590,8 +1591,13 @@ class _Page extends StatelessWidget {
 }
 
 class _SettingRow extends StatelessWidget {
-  const _SettingRow({super.key, required this.title, this.note, required this.help, required this.control, this.below});
+  const _SettingRow(
+      {super.key, required this.title, this.named = false, this.note, required this.help, required this.control, this.below});
   final String title;
+
+  /// The title is a name the score or the user gave (an instrument's, a group's): shown as it
+  /// is. One that reads as a word of the interface ("Alto", "Bass": clefs) is not that word.
+  final bool named;
   final String? note;
   final String? help;
   final Widget control;
@@ -1608,7 +1614,7 @@ class _SettingRow extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text.rich(TextSpan(children: [
-                TextSpan(text: title.tr, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
+                TextSpan(text: named ? title : title.tr, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
                 if (note != null) TextSpan(text: '  $note', style: TextStyle(fontSize: 11.5, color: colors.textMuted)),
               ])),
               if (help != null) ...[
@@ -1794,6 +1800,7 @@ class _InstrumentsPage extends StatelessWidget {
             _SettingRow(
               key: ValueKey(g.id),
               title: g.name,
+              named: g.family == null, // a family's name is the interface's, the user's group's their own
               note: switch (members(g.id)) { 0 => null, final n => '$n' },
               help: null,
               control: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1821,7 +1828,7 @@ class _InstrumentsPage extends StatelessWidget {
                 const SizedBox(width: 8),
                 _ColorSwatch(
                   color: g.color,
-                  title: g.name,
+                  title: g.family == null ? g.name : g.name.tr,
                   onChanged: (color) => controller.setNameGroupColor(g.id, color),
                 ),
               ]),
@@ -1846,6 +1853,7 @@ class _InstrumentsPage extends StatelessWidget {
             _SettingRow(
               key: ValueKey(part.id),
               title: controller.laneName(part),
+              named: true,
               help: null,
               control: Row(mainAxisSize: MainAxisSize.min, children: [
                 if (controller.ownNameGroup(part))
@@ -1894,7 +1902,7 @@ class _PlayheadColor extends StatelessWidget {
         const SizedBox(width: 8),
         _ColorSwatch(
           color: controller.playheadColor ?? const RenderStyle().pointer,
-          title: 'Playback line',
+          title: 'Playback line'.tr,
           onChanged: controller.setPlayheadColor,
         ),
       ]);
@@ -1914,11 +1922,12 @@ class _GroupLabel extends StatelessWidget {
               color: group.color, shape: AppStyle.of(context).rounded ? BoxShape.circle : BoxShape.rectangle),
         ),
         const SizedBox(width: 8),
-        Flexible(child: Text(group.name.tr, overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text(group.family == null ? group.name : group.name.tr, overflow: TextOverflow.ellipsis)),
       ]);
 }
 
-/// A colour that asks for another when clicked.
+/// A colour that asks for another when clicked, in a dialog titled [title] (as shown: a group's
+/// name may be the user's own).
 class _ColorSwatch extends StatelessWidget {
   const _ColorSwatch({required this.color, required this.title, required this.onChanged});
   final Color color;

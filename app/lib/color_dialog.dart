@@ -7,14 +7,15 @@ import 'ui_kit.dart';
 import 'l10n/l10n.dart';
 
 /// Asks for a colour, starting at [initial]: hue, saturation and lightness strips and a hex
-/// field. Null when cancelled.
-Future<Color?> showColorDialog(BuildContext context, {required Color initial, String title = 'Custom Color'}) =>
+/// field. [title] is shown as given (it may be a name of the user's); null: Custom Color. Null
+/// when cancelled.
+Future<Color?> showColorDialog(BuildContext context, {required Color initial, String? title}) =>
     showAppDialog<Color>(context: context, builder: (context) => _ColorDialog(initial: initial, title: title));
 
 class _ColorDialog extends StatefulWidget {
   const _ColorDialog({required this.initial, required this.title});
   final Color initial;
-  final String title;
+  final String? title;
 
   @override
   State<_ColorDialog> createState() => _ColorDialogState();
@@ -71,7 +72,7 @@ class _ColorDialogState extends State<_ColorDialog> {
           ]),
         );
     return AppDialog(
-      title: Text(widget.title.tr),
+      title: Text(widget.title ?? 'Custom Color'.tr),
       content: SizedBox(
         width: dialogWidth(context, 300),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [

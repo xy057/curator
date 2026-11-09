@@ -885,13 +885,16 @@ class _TrimmerPainter extends CustomPainter {
 }
 
 /// A select in the sidebar, the dialog's 36 px, filling its row: [items] are a value, its name
-/// and whether it can be chosen; red when [bad].
+/// and whether it can be chosen; red when [bad]. With [named] the names are the user's own
+/// (recordings'), shown as they are.
 class ExportSelect<T> extends StatelessWidget {
-  const ExportSelect({super.key, required this.value, required this.items, required this.onChanged, this.bad = false});
+  const ExportSelect(
+      {super.key, required this.value, required this.items, required this.onChanged, this.bad = false, this.named = false});
   final T value;
   final List<(T, String, bool)> items;
   final ValueChanged<T> onChanged;
   final bool bad;
+  final bool named;
 
   @override
   Widget build(BuildContext context) {
@@ -905,7 +908,7 @@ class ExportSelect<T> extends StatelessWidget {
       onChanged: (v) => v == null ? null : onChanged(v),
       items: [
         for (final (v, name, enabled) in items)
-          DropdownMenuItem<T>(value: v, enabled: enabled, child: Text(name.tr, overflow: TextOverflow.ellipsis)),
+          DropdownMenuItem<T>(value: v, enabled: enabled, child: Text(named ? name : name.tr, overflow: TextOverflow.ellipsis)),
       ],
     );
   }

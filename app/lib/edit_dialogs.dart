@@ -468,6 +468,7 @@ Future<void> showCopyLaneDialog(BuildContext context, EditorController c, ScoreP
             for (final part in others)
               AppCheckRow(
                 label: c.laneName(part),
+                named: true,
                 value: chosen.contains(part.id),
                 onChanged: (on) => setState(() => on! ? chosen.add(part.id) : chosen.remove(part.id)),
               ),

@@ -366,6 +366,7 @@ class AppCheckRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     required this.label,
+    this.named = false,
     this.tristate = false,
     this.bold = false,
     this.trailing,
@@ -375,6 +376,10 @@ class AppCheckRow extends StatelessWidget {
   final bool? value;
   final ValueChanged<bool?> onChanged;
   final String label;
+
+  /// The label is a name the score or the user gave (an instrument's, a recording's): shown as
+  /// it is, not as a word of the interface it may happen to read as.
+  final bool named;
   final bool tristate;
   final bool bold;
   final Widget? trailing;
@@ -397,7 +402,7 @@ class AppCheckRow extends StatelessWidget {
         child: Row(children: [
           SizedBox.square(dimension: 18, child: box),
           SizedBox(width: carbon ? 8 : 10),
-          Expanded(child: Text(label.tr, style: style, overflow: TextOverflow.ellipsis)),
+          Expanded(child: Text(named ? label : label.tr, style: style, overflow: TextOverflow.ellipsis)),
           ?trailing,
         ]),
       ),

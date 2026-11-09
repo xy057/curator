@@ -792,6 +792,7 @@ msgstr ""
 msgid "Custom ({ratio})…"
 msgstr ""
 
+#: lib/color_dialog.dart
 msgid "Custom Color"
 msgstr ""
 
@@ -1290,6 +1291,7 @@ msgstr ""
 msgid "Large"
 msgstr ""
 
+#: lib/captions_dialog.dart
 msgid "Leave empty to remove"
 msgstr ""
 
@@ -1653,6 +1655,7 @@ msgstr ""
 msgid "Play (Space)"
 msgstr ""
 
+#: lib/settings_dialog.dart
 msgid "Playback line"
 msgstr ""
 

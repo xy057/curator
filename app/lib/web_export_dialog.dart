@@ -235,6 +235,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           AppCheckRow(
             value: _whole.contains(t.id),
             label: t.label,
+            named: true,
             onChanged: (on) => setState(() => _whole = on == true ? {..._whole, t.id} : {..._whole}..remove(t.id)),
           ),
       ],
@@ -247,6 +248,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           open: _recording.open,
           onOpen: (v) => setState(() => _recording = _recording.copyWith(open: v)),
           child: ExportSelect<int>(
+            named: true, // recordings' names, the performance's translated already
             value: _recording.value.clamp(0, choices.length - 1),
             items: [for (final (i, name) in choices.indexed) (i, name, true)],
             onChanged: (i) => setState(() => _recording = _recording.copyWith(value: i)),
