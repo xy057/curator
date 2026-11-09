@@ -156,14 +156,16 @@ class _AudioLanesState extends State<AudioLanes> {
     }
   }
 
+  /// (The release still comes here when the lanes went mid-drag, the tab closed under it: the
+  /// edit and the scrub end all the same, and nothing of this state is touched.)
   void _onUp(PointerEvent e) {
     if (_dragFrom != null) {
       c.endEdit();
       _dragFrom = null;
       _grabbed = null;
-      setState(() => _cursor = SystemMouseCursors.basic);
+      if (mounted) setState(() => _cursor = SystemMouseCursors.basic);
     }
-    _marquee.value = null;
+    if (mounted) _marquee.value = null;
     if (_scrubbing) c.playback.endScrub();
     _scrubbing = false;
   }
