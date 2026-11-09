@@ -30,6 +30,16 @@ class ScoreSwap {
   /// either file).
   String? _to(String id) => parts[id] ?? (Spacers.isSpacer(id) ? id : null);
 
+  /// [id]'s lane in the new file: an instrument's ([_to]), or a staff's of one whose lane is
+  /// split ([Curation.staffLaneId]), its instrument's there.
+  String? _laneTo(String id) => switch (Curation.staffOfLane(id)) {
+    (final part, final n) when !parts.containsKey(id) => switch (_to(part)) {
+      final to? => Curation.staffLaneId(to, n),
+      null => null,
+    },
+    _ => _to(id),
+  };
+
   /// Matched by id and name, then by name (in score order), then by id alone (renamed).
   static Map<String, String> _matchParts(List<ScorePart> before, List<ScorePart> after) {
     final out = <String, String>{};
@@ -233,7 +243,9 @@ class ScoreSwap {
           pairs: pairs(edits.pairs),
           partOrder: [for (final id in edits.partOrder) ?_to(id)],
           sections: {for (final MapEntry(key: id, value: s) in edits.sections.entries) ?_to(id): s},
-          spacing: {for (final MapEntry(key: id, value: room) in edits.spacing.entries) ?_to(id): room},
+          spacing: {for (final MapEntry(key: id, value: room) in edits.spacing.entries) ?_laneTo(id): room},
+          split: {for (final id in edits.split) ?_to(id)},
+          nameGroupOf: {for (final MapEntry(key: id, value: group) in edits.nameGroupOf.entries) ?_to(id): group},
           patches: patches,
           captions: separateCaptions(captions),
           // A blank keeps its bar and beat while they are there, and never runs into the next.
