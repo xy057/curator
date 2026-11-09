@@ -166,7 +166,8 @@ class ScoreMetadata {
     for (final part in root.findElements('part')) {
       final id = part.getAttribute('id') ?? '';
       final staves = part.findAllElements('staves').firstOrNull;
-      staffCounts[id] = int.tryParse(staves?.innerText.trim() ?? '') ?? 1;
+      // (At least one: a part said to have none, or fewer, would take the staves after it out of step.)
+      staffCounts[id] = math.max(1, int.tryParse(staves?.innerText.trim() ?? '') ?? 1);
       if (part.findAllElements('clef').firstOrNull?.getElement('sign')?.innerText.trim() == 'percussion') {
         percussion.add(id);
       }

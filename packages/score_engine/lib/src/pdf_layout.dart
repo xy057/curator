@@ -188,11 +188,11 @@ class PdfInstrument {
       : PdfInstrument(
         id: _string(json, 'id'),
         name: _string(json, 'name'),
-        abbreviation: json['abbreviation'] as String? ?? '',
-        clef: PdfClef.named(json['clef'] as String?),
-        staves: ((json['staves'] as num?)?.toInt() ?? 1).clamp(1, 4),
-        key: SpacerKey.named(json['key'] as String?),
-        divisi: ((json['divisi'] as num?)?.toInt() ?? 1).clamp(1, 4),
+        abbreviation: _textOrNull(json, 'abbreviation') ?? '',
+        clef: PdfClef.named(_textOrNull(json, 'clef')),
+        staves: (_numberOrNull(json, 'staves')?.toInt() ?? 1).clamp(1, 4),
+        key: SpacerKey.named(_textOrNull(json, 'key')),
+        divisi: (_numberOrNull(json, 'divisi')?.toInt() ?? 1).clamp(1, 4),
         clefs: {
           for (final c in _list(json, 'clefs'))
             switch (c) {
@@ -256,9 +256,9 @@ class PdfStaff {
   static PdfStaff fromJson(Map<String, Object?> json) => PdfStaff(
         top: _number(json, 'top'),
         space: _positive(json, 'space'),
-        lines: ((json['lines'] as num?)?.toInt() ?? 5).clamp(1, 6),
-        part: json['part'] as String?,
-        staff: ((json['staff'] as num?)?.toInt() ?? 1).clamp(1, 4),
+        lines: (_numberOrNull(json, 'lines')?.toInt() ?? 5).clamp(1, 6),
+        part: _textOrNull(json, 'part'),
+        staff: (_numberOrNull(json, 'staff')?.toInt() ?? 1).clamp(1, 4),
       );
 
   @override
@@ -521,7 +521,7 @@ class PdfSystem {
               ],
           ];
     return PdfSystem(
-      page: (json['page'] as num?)?.toInt() ?? (throw _bad('page')),
+      page: _numberOrNull(json, 'page')?.toInt() ?? (throw _bad('page')),
       top: _number(json, 'top'),
       bottom: _number(json, 'bottom'),
       left: _number(json, 'left'),
@@ -1030,20 +1030,20 @@ class PdfScoreLayout {
     if (instruments.map((i) => i.id).toSet().length != instruments.length) throw _bad('instruments');
     PdfMeter meter(Object? text) => text is String ? PdfMeter.parse(text) ?? (throw _bad('meter')) : throw _bad('meter');
     return PdfScoreLayout(
-      title: json['title'] as String? ?? '',
+      title: _textOrNull(json, 'title') ?? '',
       pages: pages,
       instruments: instruments,
       systems: systems,
       masks: [for (final m in _list(json, 'masks')) PdfMask.fromJson(m)],
       meter: json['meter'] == null ? PdfMeter.common : meter(json['meter']),
-      fifths: ((json['fifths'] as num?)?.toInt() ?? 0).clamp(-7, 7),
+      fifths: (_numberOrNull(json, 'fifths')?.toInt() ?? 0).clamp(-7, 7),
       meters: _meters(json['meters'], 'meters'),
       keys: {
         for (final MapEntry(:key, :value) in _map(json['keys'] ?? const {}, 'keys').entries)
           int.tryParse(key) ?? (throw _bad('keys')): value is num ? value.toInt().clamp(-7, 7) : throw _bad('keys'),
       },
-      pickup: ((json['pickup'] as num?)?.toDouble() ?? 0).clamp(0, 64),
-      tempo: ((json['tempo'] as num?)?.toDouble() ?? 100).clamp(10, 1000),
+      pickup: (_numberOrNull(json, 'pickup')?.toDouble() ?? 0).clamp(0, 64),
+      tempo: (_numberOrNull(json, 'tempo')?.toDouble() ?? 100).clamp(10, 1000),
       tempos: {
         for (final MapEntry(:key, :value) in _map(json['tempos'] ?? const {}, 'tempos').entries)
           int.tryParse(key) ?? (throw _bad('tempos')): PdfTempo.fromJson(value),
@@ -1091,6 +1091,20 @@ List<Object?> _list(Map<String, Object?> json, String key) => switch (json[key])
     };
 
 Map<String, Object?> _map(Object? value, String key) => value is Map ? value.cast<String, Object?>() : throw _bad(key);
+
+/// A text or number that may be left out: one of another kind is damage, said as such (a cast
+/// would throw an error that names no field).
+String? _textOrNull(Map<String, Object?> json, String key) => switch (json[key]) {
+      null => null,
+      final String s => s,
+      _ => throw _bad(key),
+    };
+
+num? _numberOrNull(Map<String, Object?> json, String key) => switch (json[key]) {
+      null => null,
+      final num n when n.isFinite => n,
+      _ => throw _bad(key),
+    };
 
 String _string(Map<String, Object?> json, String key) => switch (json[key]) {
       final String s when s.isNotEmpty => s,
