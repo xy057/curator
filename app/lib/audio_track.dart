@@ -444,6 +444,7 @@ class AudioEngine {
 
   /// The metronome's two clicks (a bar's first beat, the others), made once, on first use.
   Future<({AudioSource accent, AudioSource beat})>? _clicks;
+  bool _clicksFailed = false;
 
   /// Stands in for the sound in tests: called with each click instead.
   @visibleForTesting
@@ -452,12 +453,23 @@ class AudioEngine {
   /// Loads the clicks ahead of the first beat, so it isn't late.
   void prepareClicks() {
     if (debugClick != null) return;
+    // Failed with the engine (no output device then): made again once it has started (with a
+    // recording added), not tried at every beat meanwhile.
+    if (_clicksFailed && SoLoud.instance.isInitialized) {
+      _clicks = null;
+      _clicksFailed = false;
+    }
     _clicks ??= () async {
-      await _ensureInitialized();
-      return (
-        accent: await SoLoud.instance.loadMem('click-accent.wav', clickWav(1760)),
-        beat: await SoLoud.instance.loadMem('click-beat.wav', clickWav(1320)),
-      );
+      try {
+        await _ensureInitialized();
+        return (
+          accent: await SoLoud.instance.loadMem('click-accent.wav', clickWav(1760)),
+          beat: await SoLoud.instance.loadMem('click-beat.wav', clickWav(1320)),
+        );
+      } catch (_) {
+        _clicksFailed = true;
+        rethrow;
+      }
     }();
     _clicks!.ignore();
   }
