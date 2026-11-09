@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Chinese Traditional\n"
 "Language: zh_TW\n"
-"PO-Revision-Date: 2026-11-09 09:24\n"
+"PO-Revision-Date: 2026-11-09 23:11\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -801,6 +801,7 @@ msgstr "自訂"
 msgid "Custom ({ratio})…"
 msgstr "自訂（{ratio}）…"
 
+#: lib/color_dialog.dart
 msgid "Custom Color"
 msgstr "自訂顏色"
 
@@ -1299,6 +1300,7 @@ msgstr "語言"
 msgid "Large"
 msgstr "大"
 
+#: lib/captions_dialog.dart
 msgid "Leave empty to remove"
 msgstr "留空即可移除"
 
@@ -1662,6 +1664,7 @@ msgstr "已固定"
 msgid "Play (Space)"
 msgstr "播放（空白鍵）"
 
+#: lib/settings_dialog.dart
 msgid "Playback line"
 msgstr "播放線"
 
@@ -2583,6 +2586,12 @@ msgstr "影格太多了，請控制在 2000 格以內。"
 msgid "That image is too big. Use one under 64 MB."
 msgstr "影像太大了，請用小於 64 MB 的。"
 
+msgid "That score is too big. Use one under 256 MB."
+msgstr ""
+
+msgid "That MIDI file is too big."
+msgstr ""
+
 #: lib/edit_dialogs.dart
 msgid "Use Name from File"
 msgstr "使用檔案中的名稱"
@@ -3428,5 +3437,22 @@ msgstr ""
 
 #: lib/settings_dialog.dart
 msgid "Help translate Curator"
+msgstr ""
+
+msgid "Only partwise MusicXML can be edited."
+msgstr ""
+
+msgid "The score has no bars."
+msgstr ""
+
+msgid "The instruments have different numbers of bars."
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "No staff has an instrument yet."
+msgstr ""
+
+#: lib/main.dart
+msgid "“{name}” is open in another tab. Close it there first."
 msgstr ""
 
