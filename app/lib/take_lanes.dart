@@ -111,9 +111,6 @@ class _TakeRegions implements SpanLaneModel {
 
   List<Region> get _regions => c.takes.where((t) => t.id == id).firstOrNull?.regions ?? const [];
 
-  /// The regions as they were when a drag began.
-  List<Region> _before = const [];
-
   @override
   List<Span> get spans => [for (final r in _regions) (start: r.start, end: r.end)];
 
@@ -135,11 +132,18 @@ class _TakeRegions implements SpanLaneModel {
   }
 
   @override
-  void begin() => _before = _regions;
+  void begin() {} // nothing changes until a drag ends
 
+  /// The pieces are of the regions as they are: none changed while the drag lasted. (Not kept
+  /// from [begin]: the lanes built again meanwhile, a change of theme, make this anew.)
   @override
-  void replaceAll(List<({int from, double start, double end})> pieces) =>
-      c.setTakeRegions(id, [for (final p in pieces) _before[p.from].withBounds(p.start, p.end)]);
+  void replaceAll(List<({int from, double start, double end})> pieces) {
+    final regions = _regions;
+    c.setTakeRegions(id, [
+      for (final p in pieces)
+        if (p.from >= 0 && p.from < regions.length) regions[p.from].withBounds(p.start, p.end),
+    ]);
+  }
 
   @override
   void drawn(double start, double end) => c.setTakeRegions(id, [..._regions, Region(start, end)]);
