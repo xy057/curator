@@ -52,6 +52,9 @@ void main() {
           staff: [ui.Rect.fromCenter(center: ui.Offset(120, cut + 2), width: 4, height: 4)],
         })[page.row(cut + 2).round() * page.width + page.col(120).round()];
     expect([masked(0), masked(1)], [1, -1]);
+    // A mask in the margin right of what was read, across its last row, leaves out nothing.
+    final margin = ui.Rect.fromLTRB(page.xOf(page.width) + 20, 100, page.xOf(page.width) + 40, 140);
+    expect(PdfDetect.assign(page, system, [margin]), PdfDetect.assign(page, system, const []));
   });
 
   test('a divided instrument is a part a division, and the layout round-trips', () {

@@ -642,7 +642,9 @@ abstract final class PdfDetect {
     }
     final blocked = Uint8List(w * h);
     for (final m in masks) {
-      final x0 = math.max(0, raster.col(m.left).floor()), x1 = math.min(w, raster.col(m.right).ceil());
+      // (A mask right of what was read starts at its edge: past it, the last row's would start
+      // past the end.)
+      final x0 = raster.col(m.left).floor().clamp(0, w), x1 = math.min(w, raster.col(m.right).ceil());
       final y0 = math.max(0, raster.row(m.top).floor()), y1 = math.min(h, raster.row(m.bottom).ceil());
       for (var y = y0; y < y1; y++) {
         blocked.fillRange(y * w + x0, y * w + math.max(x0, x1), 1);
