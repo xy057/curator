@@ -165,6 +165,11 @@ only. The page loads its files beside it (no `<base>`), so it plays from any fol
 from a file opened directly. Written as `<name>.part`, then moved in: a folder there already takes
 it only if it holds an earlier page (`score/page.json`), and then only the entries the export writes
 are replaced, so what a user keeps beside them (a GitHub Pages repository's `.git`, a `CNAME`) stays.
+Whatever goes wrong is a `VideoExportException` saying why (`WebExport.write` does all its work on
+the disk inside one `try`: a folder that can't be read, leftovers that can't be cleared), and the
+dialog shows any failure, so it is never left on Writing…, which can't be closed. The guide's
+terminal command names the folder in single quotes (`shellQuoted`): a `$` or a quote in its name is
+the shell's in double ones.
 A page is the GPL'd player passed on, so it carries Curator's licence (`LICENSE.txt`, packed into the
 player) and where the source of the build that wrote it is (`SOURCE.txt`, `WebExport.source`: the
 commit, or the version's tag), beside Flutter's `assets/NOTICES` and the fonts' licences; installed
@@ -288,7 +293,9 @@ while playing, the beat sounding (`BeatGrid.beatAt`, per pass, so a repeat click
 once if it began since the last frame's time: a late frame still clicks, a seek into a beat
 doesn't. The bar's first beat is higher. The clicks are WAVs made in memory
 (`AudioEngine.clickWav`) and play through SoLoud beside the recording, at full speed whatever
-the playback's.
+the playback's. An engine that couldn't start (no output device) is not kept as failed: the next
+recording starts it again (`AudioEngine._ensureInitialized`), and the clicks are made again once
+it has.
 
 **A place in the score can sound more than once.** A warp is an anchor that jumps: the
 score arrives at `quarter` and, at that same moment, goes on from `jumpTo` (back for a
@@ -420,7 +427,10 @@ Every change is an Undo step (`patches` in `EditState`); a project keeps them in
 `state.patches` and each image file, byte for byte, as `images/<id>` (format 8); opening
 reads only the files a patch shows. While the
 switch is off the images stay in the project but are not drawn, exported or editable
-(`ImageEditing.enabled`). Decoding is bounded (`PatchImage.decode`), so a small file can't
+(`ImageEditing.enabled`). A file is read through `PatchImage.readFile` (Add Image…, a drop, a copied file pasted), which
+refuses one over 64 MB before reading any of it; a score file over 256 MB (`ScoreFile.maxBytes`)
+and a MIDI file over 64 MB are refused the same way (`EditorController.openFile`, `loadMidiTempo`).
+Decoding is bounded (`PatchImage.decode`), so a small file can't
 take gigabytes: a file over 64 MB, or a raster image over 64 megapixels (one inside an SVG
 too, read from its header before anything is decoded), is refused; one longer than 4096
 pixels is kept at 4096. An animation's frames together are scaled down to 64 megapixels, and
@@ -450,7 +460,8 @@ edited as the Captions lane's are (one `SpanLane`, the Instruments tab's tools):
 out (a click: one beat), Select moves one by its middle or trims an edge, Erase cuts them back;
 unlike captions they change once a drag ends (`SpanLaneModel.live` off), each change engraving
 again. A gesture's erased pieces name the stretches as `SpanLaneModel.begin` found them (a live
-model's change as it goes). They are fitted to the score's bars where a project opens and after
+model's change as it goes; one that isn't live reads them as they are when the drag ends, so a
+model made anew by a rebuild meanwhile, as the recordings' is, loses nothing). They are fitted to the score's bars where a project opens and after
 Replace Score (`Spacers.fitted`: in a bar it has, at a beat there, none past the end or into
 the next), engraving again if that changed them; `Spacers.barLengths` takes each bar's longest
 part, as Verovio engraves it. Its name's buttons add a vertical spacer, add a horizontal one over the beat the playhead
@@ -705,7 +716,8 @@ a shared staff while both players are shown, and the player's own staff otherwis
 one waits on its twin (`SpacingPlan`'s `twins`), so they swap in place. Its texts carry the
 `cond-` prefix (`Condenser.idPrefix`) on the original's id, copied after the text edits, so an
 edit of the original is in the copy too. A slur or hairpin in a shared part keeps both of its ends or neither. Any two
-single-staff instruments with the same clefs, transposition and meters throughout can pair
+single-staff instruments with the same clefs, transposition and meters throughout, and as many
+bars (the shared part is written bar by bar from both), can pair
 (`Condenser._writtenAs`: every change of those, where it takes effect, read for what it
 means): the shared part takes the first player's attributes, and where the second is
 written in another key its bars are spelled again against the first's (`Condenser._respell`). A
@@ -1109,7 +1121,8 @@ once), all as `EngravingControl`s: sliders, switches and a menu
 with the other pages' `SettingSlider` and `ResetSlot`, found by plain or code name in the search.
 All three are `_Category(preview: true)`: a half-size preview of the open score above the rows
 (with none, `EngravingPreviewHost` engraves the bundled demo in a controller of its own, with the
-app's options, for as long as the preview is shown), hidden on all three at once by the button by
+app's options, for as long as the preview is shown; a PDF score's systems are drawn as they are
+read, its painter listening to `score.pdf` as the score view's does), hidden on all three at once by the button by
 the page's title (`AppSettings.engravingPreview`, app-wide, not an edit). Open in Window, also by
 the title, closes Project Settings and shows the tab as `_EngravingWindow`: an `OverlayEntry`
 over the editor, not modal (the score re-engraves behind it, playback goes on), moved by its
@@ -1161,8 +1174,8 @@ project's and unchanged. A change of text size or density cross-fades as a chang
 Refined's palette (`AppColors._refinedOf`) takes every grey from a scale defined up front
 (`RefinedGreys`: a cool 50–900 and the dark theme's own steps, OLED-dark from a black window; a new grey is a shade of it,
 never a literal), with no accent mixed in, and a
-`chrome` tone behind toolbars, the lane-name column and the ruler. Depth comes from
-`elevation(1–5)`, two-part shadows (a broad soft one and a tight dark one): the default button at
+`chrome` tone behind toolbars, the lane-name column and the ruler. Depth comes from Material's
+elevations, set in the theme: the default button at
 1 (2 on hover, flat when pressed), dialogs and the Settings window at the
 top. A region is set apart by a tone or a line, not both: Settings' and Export's sidebars are the
 `well` grey with no dividing line (hairlines stay only where content scrolls under a header or
@@ -1419,7 +1432,11 @@ on Windows wherever the registry says that folder now is): it never replaces the
   Language: System, English, Simplified or Traditional Chinese, switched live; `AppLanguage`):
   `'Open Sample'.tr`, `'Couldn’t align. {error}'.fill({'error': …})` with values (the translation
   places them), and
-  `trIn` where one English word means two things (a `msgctxt`). The English is the template,
+  `trIn` where one English word means two things (a `msgctxt`). A name the score or the user gave
+  (an instrument, a recording, a group of the user's) is shown as written, never translated: one
+  that reads as a word of the interface ("Alto", "Bass": clefs; "Score") is not that word. A widget
+  that translates its label takes `named: true` for one (`AppCheckRow`, `ExportSelect`, Settings'
+  rows), and `showColorDialog`'s title is shown as given. The English is the template,
   `assets/l10n/curator.pot`, and each language a gettext file beside it named by its locale
   (`zh-Hans.po`, `AppLanguage.file`), which Crowdin keeps (`crowdin.yml`, docs/translating.md);
   `Strings.load` reads them all before the first frame (a test's `flutter_test_config.dart` too),
