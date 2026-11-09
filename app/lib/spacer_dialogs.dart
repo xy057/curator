@@ -40,8 +40,9 @@ class _VerticalSpacerDialogState extends State<_VerticalSpacerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // (In range, said so that "NaN", which reads as a number, isn't one here.)
     final height = double.tryParse(_height.text.trim());
-    final error = height == null || height < VerticalSpacer.minHeight || height > VerticalSpacer.maxHeight
+    final error = height == null || !(height >= VerticalSpacer.minHeight && height <= VerticalSpacer.maxHeight)
         ? 'Enter {min} to {max} staff spaces'.fill({'min': spacerNumber(VerticalSpacer.minHeight), 'max': spacerNumber(VerticalSpacer.maxHeight)})
         : null;
     void save() {
@@ -134,7 +135,7 @@ class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
   @override
   Widget build(BuildContext context) {
     final width = double.tryParse(_width.text.trim());
-    final error = width == null || width < HorizontalSpacer.minWidth || width > HorizontalSpacer.maxWidth
+    final error = width == null || !(width >= HorizontalSpacer.minWidth && width <= HorizontalSpacer.maxWidth)
         ? 'Enter {min} to {max} staff spaces'.fill({'min': spacerNumber(HorizontalSpacer.minWidth), 'max': spacerNumber(HorizontalSpacer.maxWidth)})
         : null;
     void save() {

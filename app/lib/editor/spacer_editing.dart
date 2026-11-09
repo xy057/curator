@@ -82,7 +82,7 @@ class SpacerEditing {
   /// engraves again; the rest is drawn.
   Future<void> setVertical(VerticalSpacer spacer) async {
     final e = _editor, old = verticalOf(spacer.id);
-    if (!enabled || old == null || old == spacer) return;
+    if (!enabled || old == null || old == spacer || !spacer.height.isFinite) return;
     e._doc = e._doc.copyWith(spacers: List.unmodifiable([for (final s in vertical) s.id == spacer.id ? spacer : s]));
     if (old.engravesLike(spacer)) {
       e._showSettings();
@@ -186,7 +186,7 @@ class SpacerEditing {
 
   /// Makes horizontal spacer [index] widen its stretch by [width] staff spaces: one Undo step.
   Future<void> setHorizontalWidth(int index, double width) async {
-    if (!enabled || index < 0 || index >= horizontal.length) return;
+    if (!enabled || index < 0 || index >= horizontal.length || !width.isFinite) return;
     width = width.clamp(HorizontalSpacer.minWidth, HorizontalSpacer.maxWidth);
     if (width == horizontal[index].width) return;
     final e = _editor;
