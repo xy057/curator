@@ -2580,6 +2580,12 @@ msgstr "影格太多了，請控制在 2000 格以內。"
 msgid "That image is too big. Use one under 64 MB."
 msgstr "影像太大了，請用小於 64 MB 的。"
 
+msgid "That score is too big. Use one under 256 MB."
+msgstr "樂譜太大了，請用小於 256 MB 的。"
+
+msgid "That MIDI file is too big."
+msgstr "這個 MIDI 檔案太大了。"
+
 #: lib/edit_dialogs.dart
 msgid "Use Name from File"
 msgstr "使用檔案中的名稱"

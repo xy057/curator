@@ -2577,6 +2577,12 @@ msgstr ""
 msgid "That image is too big. Use one under 64 MB."
 msgstr ""
 
+msgid "That score is too big. Use one under 256 MB."
+msgstr ""
+
+msgid "That MIDI file is too big."
+msgstr ""
+
 #: lib/edit_dialogs.dart
 msgid "Use Name from File"
 msgstr ""

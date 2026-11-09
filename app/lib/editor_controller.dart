@@ -139,6 +139,10 @@ class EditorController extends ChangeNotifier {
   /// Opens (imports) a score file: MusicXML, or compressed .mxl. If it can't be read, what
   /// was open stays open.
   Future<void> openFile(String path) async {
+    // Refused before it is read: a file of gigabytes that isn't a score would be held whole.
+    if (await File(path).length() > ScoreFile.maxBytes) {
+      throw const FormatException('That score is too big. Use one under 256 MB.');
+    }
     final bytes = await File(path).readAsBytes();
     var edits = await _newProjectEdits();
     LoadedScore score;
@@ -1616,12 +1620,16 @@ class EditorController extends ChangeNotifier {
   /// The anchors set by hand, whether in use or kept behind a MIDI tempo map.
   List<SyncAnchor> get _ownAnchors => _doc.midi == null ? _sync!.anchors : _doc.anchors;
 
+  /// The largest MIDI file read: a long piece's, every instrument in it, is a few megabytes.
+  static const maxMidiBytes = 64 << 20;
+
   /// Reads the tempo map of the MIDI file at [path] and follows it ([useMidiTempo]). Throws
   /// a [FormatException] (changing nothing) when it isn't a MIDI file with a tempo map. It
   /// keeps the warps the sync has (see [MidiTempoMap.warps]); with none, a file as long as the
   /// score played with its repeats gets the score's ([scoreWarps]). Returns where the warps
   /// came from, so the window can say so: null when it has none.
   Future<MidiWarpsTaken?> loadMidiTempo(String path) async {
+    if (await File(path).length() > maxMidiBytes) throw const FormatException('That MIDI file is too big.');
     final bytes = await File(path).readAsBytes();
     final read = MidiTempoMap.read(bytes, name: fileNameOf(path));
     final sync = _sync;

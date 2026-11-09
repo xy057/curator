@@ -2580,6 +2580,12 @@ msgstr "帧数太多了，请控制在 2000 帧以内。"
 msgid "That image is too big. Use one under 64 MB."
 msgstr "图像太大了，请用小于 64 MB 的。"
 
+msgid "That score is too big. Use one under 256 MB."
+msgstr "乐谱太大了，请用小于 256 MB 的。"
+
+msgid "That MIDI file is too big."
+msgstr "这个 MIDI 文件太大了。"
+
 #: lib/edit_dialogs.dart
 msgid "Use Name from File"
 msgstr "使用文件中的名称"
