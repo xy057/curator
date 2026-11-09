@@ -217,7 +217,9 @@ class ScoreSwap {
     }
 
     return (
-      state: ProjectState(
+      // (A copy: what isn't carried, its kind, a PDF's layout, the view and the modules kept
+      // unread, stays the state's.)
+      state: state.copyWith(
         // What has no part id or position (the transition, the tempo track's start, fonts…)
         // stays as it is.
         edits: edits.copyWith(
@@ -238,8 +240,6 @@ class ScoreSwap {
           gaps: Spacers.fitted(edits.gaps, measuresAfter),
         ),
         images: {for (final p in patches) p.image: state.images[p.image]!},
-        foreign: state.foreign,
-        view: state.view,
       ),
       lost: (
         regions: lostRegions,

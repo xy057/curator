@@ -13,6 +13,7 @@ import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/settings_file.dart';
 import 'package:curated_score/project_state.dart';
+import 'package:curated_score/score_replacement.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -201,6 +202,11 @@ void main() {
       final manifest = json(path, 'manifest.json');
       expect(manifest['kind'], 'pdf');
       expect((await open(path)).state.kind, ProjectKind.pdf);
+      // Carried to its score read again (Edit… done), it is still a PDF's.
+      const none = ScoreMetadata(title: '', parts: [], tempo: null, activeMeasures: {});
+      final carried = ScoreSwap(before: none, after: none, textsBefore: const [], textsAfter: const [])
+          .carry(const ProjectState(kind: ProjectKind.pdf), condensable: const [], measuresBefore: const [0, 4], measuresAfter: const [0, 4]);
+      expect(carried.state.kind, ProjectKind.pdf);
 
       for (final kind in [null, 'tablature']) { // older than kinds; a newer Curator's kind
         rewrite(path, {'manifest.json': utf8.encode(jsonEncode({...manifest..remove('kind'), 'kind': ?kind}))});
