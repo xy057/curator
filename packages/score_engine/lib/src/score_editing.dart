@@ -885,6 +885,10 @@ class EditableScore {
       parts.add(part);
     }
     if (parts.isEmpty || parts.first._measures.isEmpty) throw const FormatException('The score has no bars.');
+    // Every edit takes a bar of each part: one with fewer has none there.
+    if (parts.any((p) => p._measures.length != parts.first._measures.length)) {
+      throw const FormatException('The instruments have different numbers of bars.');
+    }
     final score = EditableScore._(document, parts);
     for (final part in parts) {
       score._normalizeDivisions(part);
@@ -1092,7 +1096,10 @@ class EditableScore {
     }
     if (a.getElement('time') case final time?) {
       final beats = _childText(time, 'beats')?.trim(), type = int.tryParse(_childText(time, 'beat-type')?.trim() ?? '');
-      if (beats != null && type != null) c = c.copyWith(meter: TimeSig(beats, type, symbol: time.getAttribute('symbol')));
+      // (One that says no length, a beat type of 0 or beats that are no numbers, is none: a bar
+      // of no length could never be filled.)
+      final meter = beats == null || type == null || type < 1 ? null : TimeSig(beats, type, symbol: time.getAttribute('symbol'));
+      if (meter != null && meter.count >= 1) c = c.copyWith(meter: meter);
     }
     if (a.getElement('staves') case final s?) c = c.copyWith(staves: int.tryParse(s.innerText.trim()) ?? c.staves);
     final clefs = a.findElements('clef').toList();

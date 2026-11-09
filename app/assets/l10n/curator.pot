@@ -3426,3 +3426,12 @@ msgstr ""
 #: lib/settings_dialog.dart
 msgid "Help translate Curator"
 msgstr ""
+
+msgid "Only partwise MusicXML can be edited."
+msgstr ""
+
+msgid "The score has no bars."
+msgstr ""
+
+msgid "The instruments have different numbers of bars."
+msgstr ""

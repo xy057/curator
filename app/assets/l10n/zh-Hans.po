@@ -3445,3 +3445,12 @@ msgstr "{error}：“{file}”。"
 #: lib/settings_dialog.dart
 msgid "Help translate Curator"
 msgstr "帮助翻译 Curator"
+
+msgid "Only partwise MusicXML can be edited."
+msgstr "只能编辑 partwise 格式的 MusicXML。"
+
+msgid "The score has no bars."
+msgstr "乐谱没有小节。"
+
+msgid "The instruments have different numbers of bars."
+msgstr "各乐器的小节数不同。"
