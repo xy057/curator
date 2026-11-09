@@ -169,6 +169,9 @@ class _PdfImportState extends State<PdfImport> {
   final _dismissed = <int>{};
 
   _Drag? _drag;
+
+  /// Whether the drag has moved what it holds (its Undo step is made then).
+  bool _dragged = false;
   Rect? _drawing; // a mask being drawn, page points
   Offset? _drawFrom;
 
@@ -585,13 +588,9 @@ class _PdfImportState extends State<PdfImport> {
     final drag = _dragAt(p);
     setState(() {
       _drag = drag;
+      _dragged = false;
       _selection = drag is _BarlineDrag ? _BarlineSelection(drag.system, drag.barline) : _selectionAt(p);
     });
-    if (drag != null) {
-      _undo.add(layout);
-      _redo.clear();
-      _typing = null;
-    }
   }
 
   void _move(Offset local) {
@@ -624,6 +623,14 @@ class _PdfImportState extends State<PdfImport> {
         lines[barline] = PdfBarline(p.dx.clamp(s.left, s.right), lines[barline].kind);
         next = s.copyWith(barlines: lines);
     }
+    if (next.copyWith(ink: () => s.ink) == s) return; // held where it was
+    // The drag's first move is its Undo step: a click on a handle alone changes nothing.
+    if (!_dragged) {
+      _undo.add(layout);
+      _redo.clear();
+      _typing = null;
+      _dragged = true;
+    }
     setState(() {
       _layout = layout.copyWith(systems: [...layout.systems]..[drag.system] = next.copyWith(ink: () => null));
       _edited = true;
@@ -643,19 +650,20 @@ class _PdfImportState extends State<PdfImport> {
       setState(() => _selection = hit is _MaskSelection ? hit : null);
     }
     // A gap dragged shut is gone.
-    if (_drag case _EdgeDrag(:final system, :final edge) || _GapDrag(:final system, cut: final edge) when edge >= 0) {
+    if (_drag case _EdgeDrag(:final system, :final edge) || _GapDrag(:final system, cut: final edge) when edge >= 0 && _dragged) {
       final s = layout.systems[system];
       if (s.gaps.containsKey(edge) && s.resumeAfter(edge) - s.cutAfter(edge) < 0.5) {
         _layout = layout.copyWith(systems: [...layout.systems]..[system] = s.copyWith(gaps: {...s.gaps}..remove(edge)));
         if (_selection == _GapSelection(system, edge)) _selection = null;
       }
     }
-    if (_drag case _BarlineDrag(:final system)) {
-      // Kept in order.
+    if (_drag case _BarlineDrag(:final system, :final barline) when _dragged) {
+      // Kept in order, the one moved still selected.
       final s = layout.systems[system];
+      final moved = s.barlines[barline];
       final lines = [...s.barlines]..sort((a, b) => a.x.compareTo(b.x));
       _layout = layout.copyWith(systems: [...layout.systems]..[system] = s.copyWith(barlines: lines));
-      _selection = null;
+      _selection = _BarlineSelection(system, lines.indexWhere((b) => identical(b, moved)));
     }
     setState(() {
       _drag = null;
