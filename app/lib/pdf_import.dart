@@ -1129,6 +1129,7 @@ class _PdfImportState extends State<PdfImport> {
           TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
           FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
         ],
+        confirmsOnReturn: false,
       ),
     );
     if (discard == true && mounted) Navigator.of(context).pop();

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 
 import 'app_colors.dart';
 import 'l10n/l10n.dart';
@@ -106,6 +107,73 @@ class _DialogRoute<T> extends DialogRoute<T> {
         ? FadeTransition(opacity: fade.opacity, alwaysIncludeSemantics: true, child: fade.child)
         : fade;
   }
+}
+
+/// A dialog's keys while nothing in it has taken them: Return presses its default button, and Esc
+/// closes one whose route doesn't close on it (not dismissed by a click outside).
+///
+/// A dialog that opens with no field has the keyboard in its route's focus scope, above
+/// everything it shows, so a handler among its widgets never hears a key. This one is the
+/// scope's own. A field with the keyboard keeps Return (it submits), and so does a button
+/// reached with Tab (it is pressed).
+class DialogKeys extends StatefulWidget {
+  const DialogKeys({super.key, this.onReturn, this.onEscape, required this.child});
+
+  /// Return (Enter), with nothing in the dialog holding the keyboard; null: nothing.
+  final VoidCallback? onReturn;
+
+  /// Esc, which nothing in the dialog took; null: the route's own (it closes, if it can).
+  final VoidCallback? onEscape;
+  final Widget child;
+
+  @override
+  State<DialogKeys> createState() => _DialogKeysState();
+}
+
+class _DialogKeysState extends State<DialogKeys> {
+  FocusScopeNode? _scope;
+  FocusOnKeyEventCallback? _before; // the scope's own, if it had one: asked after this
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final scope = FocusScope.of(context);
+    if (scope == _scope) return;
+    _release();
+    _scope = scope;
+    _before = scope.onKeyEvent;
+    scope.onKeyEvent = _onKey;
+  }
+
+  void _release() {
+    if (_scope?.onKeyEvent == _onKey) _scope!.onKeyEvent = _before;
+    _scope = null;
+  }
+
+  @override
+  void dispose() {
+    _release();
+    super.dispose();
+  }
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent) {
+      final key = event.logicalKey;
+      final action = key == LogicalKeyboardKey.escape
+          ? widget.onEscape
+          : (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) && node.hasPrimaryFocus
+              ? widget.onReturn
+              : null;
+      if (action != null) {
+        action();
+        return KeyEventResult.handled;
+      }
+    }
+    return _before?.call(node, event) ?? KeyEventResult.ignored;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// [ms] milliseconds of Material's motion, as the style has it ([AppStyle.duration]).
