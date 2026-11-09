@@ -1610,7 +1610,7 @@ class CuratedScene {
     final pdf = score.pdf;
     if (pdf == null) return;
     final (left, right) = renderer.visibleRange(scrollMap.xAt(time), size.width);
-    pdf.load(PdfEngraving.systemsIn(pdf.layout, score.engraving, left, right + (right - left))).ignore();
+    pdf.load(PdfEngraving.systemsIn(pdf.layout, score.engraving, left, right + (right - left)), holder: this).ignore();
   }
 
   /// The frame at [time] as an image of [width] × [height] pixels, laid out at
@@ -1622,7 +1622,7 @@ class CuratedScene {
     final pdf = score.pdf;
     if (pdf == null) return;
     final (left, right) = renderer.visibleRange(scrollMap.xAt(time), size.width);
-    await pdf.load(PdfEngraving.systemsIn(pdf.layout, score.engraving, left, right + (right - left) * 0.25));
+    await pdf.load(PdfEngraving.systemsIn(pdf.layout, score.engraving, left, right + (right - left) * 0.25), holder: this);
   }
 
   ui.Image renderFrame(int width, int height,
@@ -1786,6 +1786,7 @@ class CuratedScene {
   }
 
   void dispose() {
+    score.pdf?.release(this); // the systems it drew may go
     _renderer?.dispose();
     _display?.dispose();
     _frozen?.dispose();

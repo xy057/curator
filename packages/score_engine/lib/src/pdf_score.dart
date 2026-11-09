@@ -49,7 +49,7 @@ class PdfPagesSource implements PdfPartSource {
 
 /// A PDF score as the scene draws it: [layout], and each system as printed, as a picture, read
 /// when a frame first asks for it and kept while they fit in [budget] bytes (the least recently
-/// drawn go first). Nothing in it is changed: each staff's bar is a rectangle of its system's
+/// drawn go first, never those a frame is drawn with: [load]). Nothing in it is changed: each staff's bar is a rectangle of its system's
 /// picture (between its cuts, [PdfSystem.bandOf]), the masks cut out. It notifies when one is
 /// ready, so a view can draw again; a video waits for them ([load]).
 class PdfScoreArt extends ChangeNotifier {
@@ -94,8 +94,21 @@ class PdfScoreArt extends ChangeNotifier {
     });
   }
 
-  /// Reads [systems]' pictures, if they aren't ready.
-  Future<void> load(Iterable<int> systems) => Future.wait([for (final s in systems) _request(s)]);
+  /// Reads [systems]' pictures, if they aren't ready. They are what [holder] (a scene; this,
+  /// when none says) draws together, so none of them goes to make room until it asks for others
+  /// or lets go ([release]), whatever the [budget]: a frame never waits for one only to find
+  /// another gone.
+  Future<void> load(Iterable<int> systems, {Object? holder}) {
+    final wanted = systems.toSet();
+    _held[holder ?? this] = wanted;
+    return Future.wait([for (final s in wanted) _request(s)]);
+  }
+
+  /// [holder]'s systems ([load]) may go again.
+  void release(Object holder) => _held.remove(holder);
+
+  /// What each holder last asked for together.
+  final _held = <Object, Set<int>>{};
 
   Future<void> _request(int system) {
     if (_disposed || _systems.containsKey(system) || _failed.contains(system)) return Future.value();
@@ -120,11 +133,13 @@ class PdfScoreArt extends ChangeNotifier {
     _waiting.remove(system);
     _systems[system] = (image: image, area: area);
     _bytes += image.width * image.height * 4;
-    // The oldest go, but never the one just read.
-    while (_bytes > budget && _systems.length > 1) {
-      final oldest = _systems.remove(_systems.keys.first)!;
-      _bytes -= oldest.image.width * oldest.image.height * 4;
-      oldest.image.dispose();
+    // The oldest go, but never the one just read, nor one a frame is drawn with ([load]).
+    while (_bytes > budget) {
+      final oldest = _systems.keys.where((k) => k != system && !_held.values.any((held) => held.contains(k))).firstOrNull;
+      if (oldest == null) break;
+      final gone = _systems.remove(oldest)!;
+      _bytes -= gone.image.width * gone.image.height * 4;
+      gone.image.dispose();
     }
     notifyListeners();
   }
@@ -136,6 +151,7 @@ class PdfScoreArt extends ChangeNotifier {
       p.image.dispose();
     }
     _systems.clear();
+    _held.clear();
     _source.close();
     super.dispose();
   }
