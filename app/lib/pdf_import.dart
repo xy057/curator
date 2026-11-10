@@ -89,7 +89,7 @@ class _GapSelection extends _Selection {
 }
 
 /// What a drag moves: a system's top (-1), bottom (-2) or a cut (0…), a gap's bottom, its
-/// music's start, or a barline.
+/// music's start or end, or a barline.
 sealed class _Drag {
   const _Drag(this.system);
   final int system;
@@ -108,6 +108,11 @@ class _GapDrag extends _Drag {
 
 class _StartDrag extends _Drag {
   const _StartDrag(super.system);
+}
+
+/// Where the system's music ends ([PdfSystem.right]).
+class _EndDrag extends _Drag {
+  const _EndDrag(super.system);
 }
 
 class _BarlineDrag extends _Drag {
@@ -526,6 +531,8 @@ class _PdfImportState extends State<PdfImport> {
         if ((p - Offset(line.x, handleY)).distance <= grab * 1.4) return _BarlineDrag(i, b);
       }
       if ((p - Offset(s.left, handleY)).distance <= grab * 1.4) return _StartDrag(i);
+      // Where it ends, below the bottom: a barline's handle is above that very place.
+      if ((p - Offset(s.right, s.bottom + _handleRise / _zoom)).distance <= grab * 1.4) return _EndDrag(i);
     }
     // Then the lines themselves: the handles first, as one may lie over the system above.
     for (final (i, s) in _onPage) {
@@ -534,6 +541,7 @@ class _PdfImportState extends State<PdfImport> {
       for (final (b, line) in s.barlines.indexed) {
         if ((p.dx - line.x).abs() <= grab) return _BarlineDrag(i, b);
       }
+      if ((p.dx - s.right).abs() <= grab) return _EndDrag(i);
     }
     return null;
   }
@@ -623,6 +631,17 @@ class _PdfImportState extends State<PdfImport> {
         next = s.copyWith(gaps: {...s.gaps, cut: p.dy.clamp(s.cutAfter(cut), math.max(s.cutAfter(cut), s.staves[cut + 1].top))});
       case _StartDrag():
         next = s.copyWith(left: p.dx.clamp(0, s.right - s.space));
+      case _EndDrag():
+        // The barline at its end goes with it; it stops at the one before (a bar's room past
+        // it, or on it: the bar that went on to the next system then ends here).
+        final closed = s.barlines.isNotEmpty && (s.barlines.last.x - s.right).abs() < 0.5;
+        final before = (closed ? s.barlines.take(s.barlines.length - 1) : s.barlines).map((b) => b.x).fold(s.left + s.space, math.max);
+        final least = closed ? before + s.space : before;
+        final right = p.dx.clamp(least, math.max(least, layout.pages[s.page].width)).toDouble();
+        next = s.copyWith(
+          right: right,
+          barlines: closed ? ([...s.barlines]..last = s.barlines.last.copyWith(x: right)) : null,
+        );
       case _BarlineDrag(:final barline):
         final lines = [...s.barlines];
         lines[barline] = PdfBarline(p.dx.clamp(s.left, s.right), lines[barline].kind);
@@ -1039,7 +1058,7 @@ class _PdfImportState extends State<PdfImport> {
     return switch (_dragAt(_toPage(local))) {
       _EdgeDrag() => SystemMouseCursors.resizeRow,
       _GapDrag() => SystemMouseCursors.resizeRow,
-      _StartDrag() || _BarlineDrag() => SystemMouseCursors.resizeColumn,
+      _StartDrag() || _EndDrag() || _BarlineDrag() => SystemMouseCursors.resizeColumn,
       null => SystemMouseCursors.basic,
     };
   }
@@ -2597,6 +2616,13 @@ class _PagePainter extends CustomPainter {
           ..color = start
           ..strokeWidth = 1.5 * px);
     _handle(canvas, Offset(s.left, handleY), start, px);
+    // Where it ends, its handle below the bottom (a barline there has its own above).
+    final endY = s.bottom + _PdfImportState._handleRise * px;
+    canvas.drawLine(Offset(s.right, s.top), Offset(s.right, endY),
+        Paint()
+          ..color = start
+          ..strokeWidth = 1.5 * px);
+    _handle(canvas, Offset(s.right, endY), start, px);
     // The barlines.
     for (final (b, line) in s.barlines.indexed) {
       final selected = selection is _BarlineSelection &&
