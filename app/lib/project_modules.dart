@@ -59,13 +59,14 @@ abstract final class ProjectModules {
   static const takes = _Takes();
   static const images = _Images();
   static const captions = _Captions();
+  static const chapters = _Chapters();
   static const spacers = _Spacers();
   static const view = _View();
   static const pdf = _Pdf();
 
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
-    pdf, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, spacers, view, //
+    pdf, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, chapters, spacers, view, //
   ];
 
   /// The score-wide settings, what a page of Project Settings sets for the whole score: a
@@ -646,6 +647,33 @@ final class _Captions extends ProjectModule {
                           ? throw _damaged('${r.where}.captions[$i] ends before it starts.')
                           : Caption(start.toDouble(), end.toDouble(), text),
                 _ => throw _damaged('${r.where}.captions[$i] is not a start, an end and a text.'),
+              },
+          ]),
+        ),
+      );
+}
+
+/// Chapters (Chapters), `[at, name]`, in the score's order. Optional: an older build, which
+/// shows nothing of them, opens the project and keeps them.
+final class _Chapters extends ProjectModule {
+  const _Chapters() : super('chapters', optional: true);
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {
+        'chapters': [
+          for (final c in state.edits.chapters) [c.at, c.name],
+        ],
+      };
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) => state.copyWith(
+        edits: state.edits.copyWith(
+          chapters: tidyChapters([
+            for (final (i, chapter) in r.list('chapters').indexed)
+              switch (chapter) {
+                [final num at, final String name] when at.abs() <= JsonReader.maxNumber =>
+                  at < 0 ? throw _damaged('${r.where}.chapters[$i] starts before the score.') : Chapter(at.toDouble(), name),
+                _ => throw _damaged('${r.where}.chapters[$i] is not a place and a name.'),
               },
           ]),
         ),

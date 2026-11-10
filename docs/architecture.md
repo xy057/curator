@@ -34,6 +34,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
 | `spacers.dart` | Spacers (Attach Image): `VerticalSpacer`, an empty part of its own (`Spacers.write`), and `HorizontalSpacer`, a stretch of the score made wider (`Spacers.verovioOption`) |
 | `score_caption.dart` | Captions (`Caption`), their markup (`captionRuns`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
+| `score_chapter.dart` | Chapters (`Chapter`), when each sounds (`chapterSpans`), a video's (`chapterCues`) as the times its description takes (`chapterTimestamps`) and as FFmpeg reads them (`chapterMetadata`) |
 | `subtitles.dart` | Captions as subtitles: SRT and WebVTT read (`parseSubtitles`) and written (`writeSubtitles`), placed in the score (`captionsFromCues`) and timed from it (`captionCues`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
@@ -48,7 +49,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
-| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
+| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_editing.dart`, `editor/chapter_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); chapters (Chapters); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
 | `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG and raster drawing (animated too), the clipboard |
@@ -60,6 +61,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `extensions/built_in.dart` | Attach Image and Captions as `CuratorExtension`s |
 | `extensions/extensions_dialog.dart` | On opening a project that uses extensions that are off: a switch for each |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
+| `chapter_lane.dart` | Chapters: the lane pinned under the bar ruler, a chapter drawn wherever its music sounds |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Edit ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
@@ -532,6 +534,32 @@ name, timed from the video's start and cut to its bars (`VideoExport.subtitles`,
 row's problem shows by the buttons, not around the row), or the cell would lose the keyboard. Every change is an Undo step
 (`captions` in `EditState`); a project keeps them in `state.captions` (format 11). While the
 switch is off they stay in the project but are not drawn, exported or editable.
+
+**A chapter names a stretch of the piece** (the Chapters extension). A `Chapter` is a place in
+the score (quarters) and a name; it runs to the next one. Nothing of it is drawn on the score.
+At any moment the chapter is the last one starting at or before the place that sounds
+(`chapterSpans`), so a repeat back into an earlier chapter is that chapter again and a repeat
+inside one doesn't split it; music before the first is no chapter's. They are kept in the
+score's order, one to a place (`tidyChapters`), as `chapters` in `EditState` (the controller's
+own `_doc`, so opening, Undo and closing take them) and saved in the `chapters` module, which is
+optional: an older build opens the project and keeps them. While the switch is on, the Chapters
+lane (`ChapterLane`) is pinned under the Captions lane in both tabs, each chapter drawn where it
+sounds, with the Instruments tab's tool (the Audio tab selects): Select clicks one (Delete
+removes it), drags where it starts (never past its neighbours, one Undo step) and double-clicks
+it for its dialog (name and From, `showChapterDialog`; an empty name removes it); Draw clicks
+for a new one from the beat there; Erase clicks one away. The lane's name has three buttons: a
+chapter at the playhead's beat, one at every rehearsal mark where none starts
+(`ChapterEditing.addMarks`, the marks as the bar numbers' row shows them), and remove. Export
+Video's Chapters switch (shown while there are any; not for a PNG sequence;
+`AppSettings.videoChapters`, on by default) puts them in the movie (`VideoExport.write`'s
+`chapters`: an FFmpeg metadata file read as the last input, `-map_chapters`; MP4, MOV and WebM
+all carry them) and writes their times beside it as `<name> chapters.txt`
+(`writeChaptersBeside`: "0:00 Opening" a line, what a video's description takes). A video's
+chapters cover it whole (`chapterCues`): the one under way at its first bar starts with it, and
+music before the first chapter is one named Start. A page carries them in its project
+(Export to Web's Chapters switch leaves them out): the player lists them at the top of its side
+panel, in the times of the recording heard, the one sounding marked, a tap jumping there.
+Replace Score carries each to its place (`ScoreSwap.carry`), counting those past the end as lost.
 
 **A drop goes by where it lands** (`_ProjectPageState._areaAt`; the hint covers only that
 area and says what it takes). On Home, or before a project's score has opened, anything opens (as File ▸ Open, in a tab of its own). Above
@@ -1429,14 +1457,14 @@ on Windows wherever the registry says that folder now is): it never replaces the
   it asks once. Everything the extension adds (menu
   items, toolbar buttons, drop targets, shortcuts, what it draws or exports) works only while
   its switch is on, and is hidden or inert otherwise. **Attach Image** is the first one,
-  **Captions** the second.
+  **Captions** the second, **Chapters** the third.
 
   Nothing in the app names an extension but its own code: the switches, the project
   file and dialogs go by id, so one more needs only its class and a place in `Extensions.all`.
   This is ready for extensions from elsewhere (`ExtensionOrigin.thirdParty`, reverse-domain
   ids), but none can be added yet: there is no loading, no sandbox and no API for adding to
   the editor's menus, toolbars or drawing. A built-in extension still adds those by hand,
-  behind `images.enabled` / `captions.enabled`. Project files keep switches for ids this
+  behind `images.enabled` / `captions.enabled` / `chapters.enabled`. Project files keep switches for ids this
   version doesn't know, so a newer version's choices survive.
 - **Interface text** follows Apple's HIG *Writing*, in US English: Title Case for menu items,
   buttons and dialog titles that are fragments ("Copy Lane To…", "Couldn’t Export Video"),

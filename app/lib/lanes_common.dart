@@ -613,3 +613,26 @@ class LaneLabel extends StatelessWidget {
       );
   }
 }
+
+/// A small button in a lane's name.
+class LaneButton extends StatelessWidget {
+  const LaneButton({super.key, required this.icon, required this.tooltip, required this.onPressed});
+  final AppIcon icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => OverlaySemantics(
+        child: IconButton(
+          tooltip: tooltip.tr,
+          onPressed: onPressed,
+          iconSize: 14,
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 22, height: 22),
+          color: context.colors.textMuted,
+          style: IconButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(5))),
+          icon: Icon(icon.of(context)),
+        ),
+      );
+}

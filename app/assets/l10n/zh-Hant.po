@@ -3492,3 +3492,44 @@ msgstr "匯入"
 
 msgid "Keyboard"
 msgstr "鍵盤"
+
+msgid "Chapter"
+msgstr "章節"
+
+msgid "Set From before the end"
+msgstr "「起始」須在結尾之前"
+
+msgid "Another chapter starts here"
+msgstr "此處已有章節"
+
+msgid "In the video, and as times beside it"
+msgstr "寫入影片，並在旁生成時間列表"
+
+msgid "Named places to jump to in a video or web page."
+msgstr "影片或網頁中可跳轉的命名位置。"
+
+msgid "1 chapter"
+msgstr "1 個章節"
+
+msgid "{n} chapters"
+msgstr "{n} 個章節"
+
+#: lib/chapter_lane.dart
+msgid "Add Chapter"
+msgstr "加入章節"
+
+#: lib/chapter_lane.dart
+msgid "Add from Rehearsal Marks"
+msgstr "從排練記號加入"
+
+#: lib/chapter_lane.dart
+msgid "Remove Chapter"
+msgstr "移除章節"
+
+#: lib/chapter_lane.dart lib/web_player/player.dart
+msgid "Chapters"
+msgstr "章節"
+
+#: lib/video_export.dart lib/web_player/player.dart
+msgid "Start"
+msgstr "開頭"

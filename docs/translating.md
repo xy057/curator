@@ -35,6 +35,7 @@ Use the same word for the same thing throughout.
 | warp | 跳转 | 跳轉 | ワープ |
 | tempo map | 速度图 | 速度圖 | テンポマップ |
 | caption | 字幕 | 字幕 | 字幕 |
+| chapter | 章节 | 章節 | チャプター |
 | spacer | 间隔 | 間隔 | スペーサー |
 | transition | 过渡 | 轉場 | トランジション |
 | condensing | 声部合并 | 聲部合併 | コンデンス |

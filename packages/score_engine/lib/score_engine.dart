@@ -28,6 +28,7 @@ export 'src/score_edit_view.dart';
 export 'src/score_editing.dart';
 export 'src/score_caption.dart'
     show Caption, CaptionAlign, CaptionBar, CaptionCountdown, CaptionRun, CaptionSize, CaptionSpan, CaptionStyle, captionOverlapping, captionPlain, captionRoom, captionRuns, captionSpans, separateCaptions;
+export 'src/score_chapter.dart';
 export 'src/score_fonts.dart';
 export 'src/score_form.dart';
 export 'src/score_patch.dart';

@@ -274,7 +274,10 @@ enum AppIcon {
   addBarline(IconData(0xE058, fontFamily: _refined), IconData(0xE058, fontFamily: _carbon)),
 
   /// Adds a staff. Refined: add_row_below; Carbon: row--insert.
-  addStaff(IconData(0xE059, fontFamily: _refined), IconData(0xE059, fontFamily: _carbon));
+  addStaff(IconData(0xE059, fontFamily: _refined), IconData(0xE059, fontFamily: _carbon)),
+
+  /// Chapters. Refined: bookmark; Carbon: bookmark.
+  chapters(IconData(0xE05A, fontFamily: _refined), IconData(0xE05A, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

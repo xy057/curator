@@ -21,6 +21,7 @@ import 'time_viewport.dart';
 import 'l10n/l10n.dart';
 
 part 'editor/caption_editing.dart';
+part 'editor/chapter_editing.dart';
 part 'editor/commands.dart';
 part 'editor/image_editing.dart';
 part 'editor/lane_editing.dart';
@@ -62,6 +63,7 @@ class EditorController extends ChangeNotifier {
   late final anchors = SyncEditing._(this);
   late final images = ImageEditing._(this);
   late final captions = CaptionEditing._(this);
+  late final chapters = ChapterEditing._(this);
   late final spacers = SpacerEditing._(this);
   late final commands = EditCommands._(this);
 
@@ -492,6 +494,7 @@ class EditorController extends ChangeNotifier {
     lanes._reset();
     images._reset();
     captions._reset();
+    chapters._selected = null;
     _scene?.dispose();
     _scene = null;
     _curation?.removeListener(_curationEdited);
@@ -2101,6 +2104,7 @@ class EditorController extends ChangeNotifier {
         anchors._isEmpty &&
         images._selected == null &&
         captions._selected == null &&
+        chapters._selected == null &&
         spacers._selected == null &&
         _takeSelected == null) {
       return;
@@ -2108,6 +2112,7 @@ class EditorController extends ChangeNotifier {
     _takeSelected = null;
     images._deselect();
     captions._selected = null;
+    chapters._selected = null;
     spacers._selected = null;
     lanes._clear();
     anchors._deselect();
@@ -2204,6 +2209,7 @@ class EditorController extends ChangeNotifier {
       _performanceChanged(); // the lanes too
       images._restore(state.patches);
       captions._restore(state.captions, state.captionFont);
+      chapters._selected = null;
       _applyExtensions();
       _previewSections = null; // a bracket's drag ends with an edit or none: not under Undo
       _showSettings();

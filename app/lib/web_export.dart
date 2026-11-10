@@ -69,7 +69,7 @@ abstract final class WebExport {
 
   /// Writes [editor]'s project to the folder [output] as [page] says (its recordings, fonts and
   /// name colours are filled in here): [takes] heard whole as well as the performance, the
-  /// captions and the images only if [captions] and [images]. Written beside it and moved in at
+  /// captions, the chapters and the images only if [captions], [chapters] and [images]. Written beside it and moved in at
   /// the end. A folder there already is written into only if it holds an earlier page, and then
   /// only what the export writes is replaced: what else it holds (a repository, a host's own
   /// files) stays. Returns the
@@ -79,6 +79,7 @@ abstract final class WebExport {
       {required WebPage page,
       List<String> takes = const [],
       bool captions = true,
+      bool chapters = true,
       bool images = true,
       @visibleForTesting Uint8List? player}) async {
     final score = editor.score;
@@ -112,6 +113,7 @@ abstract final class WebExport {
       // What the page shows: the project with every setting its own, and the score engraved.
       var edits = editor.pageState;
       if (!captions) edits = edits.copyWith(captions: const [], extensions: {...edits.extensions, Extensions.captions.id: false});
+      if (!chapters) edits = edits.copyWith(chapters: const [], extensions: {...edits.extensions, Extensions.chapters.id: false});
       if (!images) edits = edits.copyWith(patches: const []);
       if (WebPage.requestOf(edits) != score.request) {
         throw VideoExportException('The score is still being engraved. Try again in a moment.'.tr);

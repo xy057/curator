@@ -242,13 +242,37 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     return '${s ~/ 60}:${'${s % 60}'.padLeft(2, '0')}';
   }
 
-  /// What the export left the viewer to choose.
+  /// The page's chapters as the recording heard has them, timed from its start: none while
+  /// the project's Chapters extension is off.
+  List<ChapterCue> get _chapters => (_loaded.edits.extensions['chapters'] ?? false)
+      ? chapterCues(_loaded.edits.chapters, _scene.timeline, from: _heard.start, to: _heard.end, opening: 'Start'.tr)
+      : const [];
+
+  /// What the export left the viewer to choose, under the chapters to jump to.
   List<Widget> _choices(BuildContext context) {
     final theme = Theme.of(context), edits = _loaded.edits;
     Widget heading(String text) =>
         Padding(padding: const EdgeInsets.only(top: 16, bottom: 6), child: Text(text, style: theme.textTheme.titleSmall));
     final hasCaptions = (edits.extensions['captions'] ?? false) && edits.captions.isNotEmpty;
+    final chapters = _chapters;
     return [
+      if (chapters.isNotEmpty) ...[
+        heading('Chapters'.tr),
+        ValueListenableBuilder(
+          valueListenable: _time,
+          builder: (context, t, _) => Column(children: [
+            for (final cue in chapters)
+              ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                selected: t - _heard.start >= cue.start - 1e-3 && t - _heard.start < cue.end - 1e-3,
+                title: Text(cue.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: Text(_clock(cue.start), style: theme.textTheme.bodySmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+                onTap: () => _seek(_heard.start + cue.start),
+              ),
+          ]),
+        ),
+      ],
       if (_page.recording.open && _page.recordings.length > 1) ...[
         heading('Recording'.tr),
         RadioGroup<int>(

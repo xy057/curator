@@ -57,6 +57,7 @@ class EditState {
     this.patches = const [],
     this.captions = const [],
     this.captionFont,
+    this.chapters = const [],
     this.fonts = ScoreFonts.standard,
     this.embedFont = true,
     this.engraving = const EngravingOptions(),
@@ -178,6 +179,9 @@ class EditState {
   /// Captions under the score (Captions), in the order they were added.
   final List<Caption> captions;
 
+  /// Chapters (Chapters), in the score's order, one to a place ([tidyChapters]).
+  final List<Chapter> chapters;
+
   /// Vertical spacers (Attach Image): staves of nothing, each an instrument of its own, in the
   /// order they were added.
   final List<VerticalSpacer> spacers;
@@ -250,6 +254,7 @@ class EditState {
       listEquals(patches, other.patches) &&
       listEquals(captions, other.captions) &&
       captionFont == other.captionFont &&
+      listEquals(chapters, other.chapters) &&
       fonts == other.fonts &&
       embedFont == other.embedFont &&
       engraving == other.engraving &&
@@ -297,6 +302,7 @@ class EditState {
     List<ImagePatch>? patches,
     List<Caption>? captions,
     Object? captionFont = _kept,
+    List<Chapter>? chapters,
     ScoreFonts? fonts,
     bool? embedFont,
     EngravingOptions? engraving,
@@ -337,6 +343,7 @@ class EditState {
         patches: patches ?? this.patches,
         captions: captions ?? this.captions,
         captionFont: identical(captionFont, _kept) ? this.captionFont : captionFont as String?,
+        chapters: chapters ?? this.chapters,
         fonts: fonts ?? this.fonts,
         embedFont: embedFont ?? this.embedFont,
         engraving: engraving ?? this.engraving,

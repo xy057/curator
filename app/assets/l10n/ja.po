@@ -3492,3 +3492,44 @@ msgstr "読み込み"
 
 msgid "Keyboard"
 msgstr "キーボード"
+
+msgid "Chapter"
+msgstr "チャプター"
+
+msgid "Set From before the end"
+msgstr "「開始」を終わりより前にしてください"
+
+msgid "Another chapter starts here"
+msgstr "ここから始まるチャプターがあります"
+
+msgid "In the video, and as times beside it"
+msgstr "ビデオに入れ、横に時刻のリストも"
+
+msgid "Named places to jump to in a video or web page."
+msgstr "ビデオや Web ページで移動できる、名前付きの位置。"
+
+msgid "1 chapter"
+msgstr "チャプター 1 件"
+
+msgid "{n} chapters"
+msgstr "チャプター {n} 件"
+
+#: lib/chapter_lane.dart
+msgid "Add Chapter"
+msgstr "チャプターを追加"
+
+#: lib/chapter_lane.dart
+msgid "Add from Rehearsal Marks"
+msgstr "リハーサルマークから追加"
+
+#: lib/chapter_lane.dart
+msgid "Remove Chapter"
+msgstr "チャプターを削除"
+
+#: lib/chapter_lane.dart lib/web_player/player.dart
+msgid "Chapters"
+msgstr "チャプター"
+
+#: lib/video_export.dart lib/web_player/player.dart
+msgid "Start"
+msgstr "冒頭"
