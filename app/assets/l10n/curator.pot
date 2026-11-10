@@ -1721,11 +1721,11 @@ msgstr ""
 msgid "Recording"
 msgstr ""
 
-#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/app_menus.dart
 msgid "Redo"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr ""
 
@@ -2514,11 +2514,11 @@ msgstr ""
 msgid "Undefined at t = 0 or 1."
 msgstr ""
 
-#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/app_menus.dart
 msgid "Undo"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr ""
 

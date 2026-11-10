@@ -1724,11 +1724,11 @@ msgstr "最近使用"
 msgid "Recording"
 msgstr "錄音"
 
-#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/app_menus.dart
 msgid "Redo"
 msgstr "重做"
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr "重做（{key}）"
 
@@ -2517,11 +2517,11 @@ msgstr "去除括號"
 msgid "Undefined at t = 0 or 1."
 msgstr "在 t = 0 或 1 處無定義。"
 
-#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/app_menus.dart
 msgid "Undo"
 msgstr "還原"
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr "還原（{key}）"
 
