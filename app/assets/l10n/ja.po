@@ -15,3173 +15,3176 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Japanese\n"
 "Language: ja_JP\n"
-"PO-Revision-Date: 2026-11-10 14:47\n"
+"PO-Revision-Date: 2026-11-10 16:06\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
-msgstr ""
+msgstr "と"
 
 #: lib/export_dialog.dart
 msgid "(bars {from}–{to})"
-msgstr ""
+msgstr "（{from}–{to} 小節）"
 
 #: lib/media_converter.dart
 msgid "(or your distribution's package)"
-msgstr ""
+msgstr "（またはディストリビューションのパッケージ）"
 
 #: lib/instruments_toolbar.dart lib/score_replacement.dart
 msgid ", "
-msgstr ""
+msgstr "、"
 
 msgid ".srt beside the video"
-msgstr ""
+msgstr "ビデオの横に .srt"
 
 msgid "1 anchor"
-msgstr ""
+msgstr "アンカー 1 個"
 
 #: lib/audio_panel.dart
 msgid "1 anchor from the recording"
-msgstr ""
+msgstr "録音からアンカー 1 個"
 
 msgid "1 Bar"
-msgstr ""
+msgstr "1 小節"
 
 msgid "1 caption"
-msgstr ""
+msgstr "字幕 1 件"
 
 msgid "1 edge"
-msgstr ""
+msgstr "エッジ 1 本"
 
 msgid "1 image"
-msgstr ""
+msgstr "画像 1 枚"
 
 #: lib/phrase_search_window.dart
 msgid "1 match"
-msgstr ""
+msgstr "1 件"
 
 msgid "1 region"
-msgstr ""
+msgstr "リージョン 1 個"
 
 msgid "1 warp"
-msgstr ""
+msgstr "ワープ 1 個"
 
 #: lib/phrase_search_window.dart
 msgid "16th (4)"
-msgstr ""
+msgstr "16 分音符（4）"
 
 #: lib/phrase_search_window.dart
 msgid "32nd (3)"
-msgstr ""
+msgstr "32 分音符（3）"
 
 #: lib/settings_dialog.dart
 msgid "A blend: the beats land on time, and the speed follows the notes {percent}% of the way."
-msgstr ""
+msgstr "中間：拍は時間どおりに着き、速さは {percent}% だけ音符に沿います。"
 
 msgid "A browser won’t open a page from disk: double-clicking index.html shows nothing. Serve the folder instead."
-msgstr ""
+msgstr "ブラウザはディスク上のページを開けません：index.html をダブルクリックしても何も表示されません。代わりにフォルダをサーバーで配信してください。"
 
 msgid "A comparison needs “? … : …”."
-msgstr ""
+msgstr "比較には「? … : …」が必要です。"
 
 msgid "A MIDI tempo map or a recording"
-msgstr ""
+msgstr "MIDI テンポマップまたは録音"
 
 msgid "A project, or a MusicXML or PDF score"
-msgstr ""
+msgstr "プロジェクト、または MusicXML か PDF の楽譜"
 
 msgid "A tempo map starts at quarter 0."
-msgstr ""
+msgstr "テンポマップは 4 分音符 0 から始まります。"
 
 msgid "About"
-msgstr ""
+msgstr "情報"
 
 #: lib/app_menus.dart
 msgid "About Curator"
-msgstr ""
+msgstr "Curator について"
 
 msgid "Add the files to a repository, then Settings ▸ Pages ▸ Deploy from a branch."
-msgstr ""
+msgstr "ファイルをリポジトリに追加し、Settings ▸ Pages ▸ Deploy from a branch を選びます。"
 
 msgid "After exporting, Open in Browser does it for you. Or, in a terminal:"
-msgstr ""
+msgstr "書き出し後は「ブラウザで開く」が代わりに行います。またはターミナルで："
 
 #: lib/web_export_dialog.dart
 msgid "As curated"
-msgstr ""
+msgstr "キュレートどおり"
 
 msgid "Copy the folder into the site, as you’d copy any file to it."
-msgstr ""
+msgstr "ほかのファイルと同じように、フォルダをサイトにコピーします。"
 
 #: lib/web_player/main.dart
 msgid "Couldn’t load {file} ({status})."
-msgstr ""
+msgstr "{file} を読み込めませんでした（{status}）。"
 
 msgid "Curator serves it while it’s open. Or, in a terminal:"
-msgstr ""
+msgstr "Curator が開いている間は Curator が配信します。またはターミナルで："
 
 msgid "Drag the folder onto Netlify Drop."
-msgstr ""
+msgstr "フォルダを Netlify Drop にドラッグします。"
 
 #: lib/web_export_dialog.dart
 msgid "Export to Web"
-msgstr ""
+msgstr "Web に書き出す"
 
 #: lib/app_menus.dart
 msgid "Export to Web…"
-msgstr ""
+msgstr "Web に書き出す…"
 
 msgid "Frame"
-msgstr ""
+msgstr "フレーム"
 
 #: lib/web_player/player.dart
 msgid "Hide"
-msgstr ""
+msgstr "隠す"
 
 #: lib/web_export_dialog.dart
 msgid "How to Publish"
-msgstr ""
+msgstr "公開の方法"
 
 msgid "Images"
-msgstr ""
+msgstr "画像"
 
 #: lib/web_export_dialog.dart
 msgid "Includes installed fonts ({fonts}): publish only if their licenses allow."
-msgstr ""
+msgstr "インストール済みのフォントを含みます（{fonts}）：ライセンスが許す場合のみ公開してください。"
 
 msgid "Installed fonts go with the page: publish it only where their licenses allow."
-msgstr ""
+msgstr "インストール済みのフォントはページと一緒に公開されます：ライセンスが許す場所でのみ公開してください。"
 
 msgid "On This Computer"
-msgstr ""
+msgstr "このコンピュータで"
 
 msgid "Online"
-msgstr ""
+msgstr "オンライン"
 
 #: lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Open in Browser"
-msgstr ""
+msgstr "ブラウザで開く"
 
 #: lib/web_player/player.dart
 msgid "Options"
-msgstr ""
+msgstr "オプション"
 
 msgid "Page"
-msgstr ""
+msgstr "ページ"
 
 msgid "Pause"
-msgstr ""
+msgstr "一時停止"
 
 #: lib/web_export.dart lib/web_export_dialog.dart
 msgid "Performance"
-msgstr ""
+msgstr "演奏"
 
 msgid "Play"
-msgstr ""
+msgstr "再生"
 
 #: lib/web_guide.dart
 msgid "Publishing a Page"
-msgstr ""
+msgstr "ページの公開"
 
 msgid "Recordings"
-msgstr ""
+msgstr "録音"
 
 #: lib/web_player/player.dart
 msgid "Show"
-msgstr ""
+msgstr "表示"
 
 #: lib/web_player/player.dart
 msgid "Speed"
-msgstr ""
+msgstr "速さ"
 
 #: lib/web_export.dart
 msgid "The score is still being engraved. Try again in a moment."
-msgstr ""
+msgstr "楽譜はまだ浄書中です。少し待ってからもう一度お試しください。"
 
 msgid "Then open localhost:8000. Safari may not play the recording from this server; Chrome and Firefox will."
-msgstr ""
+msgstr "次に localhost:8000 を開きます。Safari ではこのサーバーから録音を再生できないことがあります。Chrome と Firefox では再生できます。"
 
 #: lib/web_export.dart lib/web_export_dialog.dart
 msgid "This build of Curator has no web player."
-msgstr ""
+msgstr "この Curator のビルドには Web プレーヤーがありません。"
 
 #: lib/web_export.dart
 msgid "Those aren’t bars of the score."
-msgstr ""
+msgstr "それらは楽譜の小節ではありません。"
 
 msgid "Title"
-msgstr ""
+msgstr "タイトル"
 
 msgid "To change it, export again into the same folder and upload it again."
-msgstr ""
+msgstr "変更するには、同じフォルダにもう一度書き出して、再度アップロードしてください。"
 
 msgid "Upload the whole folder, index.html with score beside it, to any web host. It works at a site’s top or in a folder of it."
-msgstr ""
+msgstr "フォルダ全体（index.html とその横の score）を任意の Web ホストにアップロードします。サイトの最上位でも、その中のフォルダでも動作します。"
 
 msgid "Viewer"
-msgstr ""
+msgstr "閲覧者"
 
 #: lib/web_export_dialog.dart
 msgid "Viewer can change"
-msgstr ""
+msgstr "閲覧者が変更可"
 
 #: lib/web_export_dialog.dart
 msgid "Writing…"
-msgstr ""
+msgstr "書き込み中…"
 
 #: lib/export_dialog.dart
 msgid "about {time} left"
-msgstr ""
+msgstr "残り約 {time}"
 
 msgid "Accent color"
-msgstr ""
+msgstr "アクセントカラー"
 
 msgid "Accidentals"
-msgstr ""
+msgstr "臨時記号"
 
 #: lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
 msgid "Add"
-msgstr ""
+msgstr "追加"
 
 msgid "Add a pair"
-msgstr ""
+msgstr "ペアを追加"
 
 msgid "Add Caption"
-msgstr ""
+msgstr "字幕を追加"
 
 #: lib/score_view.dart
 msgid "Add Caption…"
-msgstr ""
+msgstr "字幕を追加…"
 
 msgid "Add Group"
-msgstr ""
+msgstr "グループを追加"
 
 #: lib/settings_dialog.dart
 msgid "Add Group…"
-msgstr ""
+msgstr "グループを追加…"
 
 #: lib/spacer_lane.dart
 msgid "Add Horizontal Spacer"
-msgstr ""
+msgstr "水平スペーサーを追加"
 
 #: lib/score_view.dart
 msgid "Add Image…"
-msgstr ""
+msgstr "画像を追加…"
 
 #: lib/audio_panel.dart
 msgid "MIDI Tempo Map…"
-msgstr ""
+msgstr "MIDI テンポマップ…"
 
 #: lib/audio_panel.dart
 msgid "Add Recording…"
-msgstr ""
+msgstr "録音を追加…"
 
 #: lib/audio_panel.dart
 msgid "Add Recording… (or drop one here)"
-msgstr ""
+msgstr "録音を追加…（またはここにドロップ）"
 
 #: lib/spacer_lane.dart
 msgid "Add Vertical Spacer"
-msgstr ""
+msgstr "垂直スペーサーを追加"
 
 #: lib/score_replacement.dart
 msgid "Added: {names}"
-msgstr ""
+msgstr "追加：{names}"
 
 msgid "Add…"
-msgstr ""
+msgstr "追加…"
 
 msgid "Advanced"
-msgstr ""
+msgstr "詳細"
 
 msgid "Advanced Engraving"
-msgstr ""
+msgstr "詳細な浄書"
 
 #: lib/audio_panel.dart
 msgid "Align"
-msgstr ""
+msgstr "揃える"
 
 #: lib/audio_panel.dart
 msgid "Align\n"
 "Set the anchors from the recording"
-msgstr ""
+msgstr "揃える\n"
+"録音からアンカーを設定"
 
 msgid "Align grace notes"
-msgstr ""
+msgstr "装飾音を揃える"
 
 msgid "Align added recordings"
-msgstr ""
+msgstr "追加した録音を揃える"
 
 msgid "Auto-curate imported scores"
-msgstr ""
+msgstr "読み込んだ楽譜を自動キュレート"
 
 msgid "Auto-curate PDF scores"
-msgstr ""
+msgstr "PDF 楽譜を自動キュレート"
 
 msgid "Off: every staff throughout."
-msgstr ""
+msgstr "オフ：全体を通してすべての譜表。"
 
 #: lib/audio_panel.dart
 msgid "Aligning…"
-msgstr ""
+msgstr "揃えています…"
 
 #: lib/extensions/extensions_dialog.dart lib/instruments_toolbar.dart lib/pdf_import.dart
 msgid "All"
-msgstr ""
+msgstr "すべて"
 
 msgid "All pairs"
-msgstr ""
+msgstr "すべてのペア"
 
 msgid "Alt+click"
-msgstr ""
+msgstr "Alt+クリック"
 
 msgid "Alternative octave marks"
-msgstr ""
+msgstr "別の形のオクターブ記号"
 
 #: lib/phrase_search_window.dart
 msgid "Alto"
-msgstr ""
+msgstr "アルト記号"
 
 msgid "Amber"
-msgstr ""
+msgstr "アンバー"
 
 msgid "An image on the score is missing"
-msgstr ""
+msgstr "楽譜上の画像が見つかりません"
 
 msgid "Anchor"
-msgstr ""
+msgstr "アンカー"
 
 #: lib/audio_panel.dart
 msgid "Anchors"
-msgstr ""
+msgstr "アンカー"
 
 msgid "Angled brackets on beams"
-msgstr ""
+msgstr "連桁の連符括弧を傾ける"
 
 msgid "Animation"
-msgstr ""
+msgstr "アニメーション"
 
 msgid "Another score was opened meanwhile."
-msgstr ""
+msgstr "その間に別の楽譜が開かれました。"
 
 #: lib/phrase_search_window.dart
 msgid "Any key"
-msgstr ""
+msgstr "すべての調"
 
 msgid "Anything"
-msgstr ""
+msgstr "すべての要素"
 
 msgid "Appearance"
-msgstr ""
+msgstr "外観"
 
 #: lib/edit_dialogs.dart lib/spacer_dialogs.dart
 msgid "Apply"
-msgstr ""
+msgstr "適用"
 
 msgid "Arpeggios"
-msgstr ""
+msgstr "アルペジオ"
 
 msgid "Articulations"
-msgstr ""
+msgstr "アーティキュレーション"
 
 msgid "As written"
-msgstr ""
+msgstr "記譜どおり"
 
 msgid "Asks GitHub for a newer version each time the app starts."
-msgstr ""
+msgstr "アプリの起動ごとに GitHub で新しいバージョンを確認します。"
 
 #: lib/assets_dialog.dart
 msgid "Assets"
-msgstr ""
+msgstr "アセット"
 
 msgid "At"
-msgstr ""
+msgstr "位置"
 
 msgid "Attach Image"
-msgstr ""
+msgstr "画像を添付"
 
 msgid "Attach Image is off"
-msgstr ""
+msgstr "「画像を添付」はオフです"
 
 msgid "Attach Image is off for now."
-msgstr ""
+msgstr "「画像を添付」は今はオフです。"
 
 msgid "Audio"
-msgstr ""
+msgstr "オーディオ"
 
 #: lib/audio_panel.dart
 msgid "Audio or video"
-msgstr ""
+msgstr "オーディオまたはビデオ"
 
 #: lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_player/player.dart
 msgid "Auto"
-msgstr ""
+msgstr "自動"
 
 #: lib/instruments_toolbar.dart
 msgid "Auto-curate"
-msgstr ""
+msgstr "自動キュレート"
 
 msgid "Auto-Curate Lane"
-msgstr ""
+msgstr "レーンを自動キュレート"
 
 msgid "Automatic"
-msgstr ""
+msgstr "自動"
 
 msgid "Autosave"
-msgstr ""
+msgstr "自動保存"
 
 #: lib/export_dialog.dart lib/pdf_import.dart lib/web_export_dialog.dart
 msgid "Back"
-msgstr ""
+msgstr "戻る"
 
 msgid "Backing"
-msgstr ""
+msgstr "背景"
 
 #: lib/lanes_common.dart
 msgid "Bar"
-msgstr ""
+msgstr "小節"
 
 #: lib/score_replacement.dart
 msgid "Bar length differs from bar {n}"
-msgstr ""
+msgstr "{n} 小節目から小節の長さが異なります"
 
 msgid "Bar number interval"
-msgstr ""
+msgstr "小節番号の間隔"
 
 #: lib/web_player/player.dart
 msgid "Bar numbers"
-msgstr ""
+msgstr "小節番号"
 
 #: lib/editor_toolbar.dart
 msgid "Bar or m:ss"
-msgstr ""
+msgstr "小節または m:ss"
 
 msgid "Bar repeats"
-msgstr ""
+msgstr "小節の反復記号"
 
 #: lib/assets_dialog.dart lib/phrase_search_window.dart
 msgid "Bar {bar}"
-msgstr ""
+msgstr "{bar} 小節目"
 
 msgid "Barlines"
-msgstr ""
+msgstr "小節線"
 
 #: lib/export_dialog.dart
 msgid "Bars and still"
-msgstr ""
+msgstr "小節と静止画"
 
 #: lib/export_dialog.dart
 msgid "Bars {bars}"
-msgstr ""
+msgstr "小節 {bars}"
 
 #: lib/export_dialog.dart
 msgid "Bars {from} to {to}"
-msgstr ""
+msgstr "{from} 〜 {to} 小節"
 
 #: lib/score_replacement.dart
 msgid "Bars: {from} → {to}"
-msgstr ""
+msgstr "小節：{from} → {to}"
 
 #: lib/phrase_search_window.dart
 msgid "Bass"
-msgstr ""
+msgstr "ヘ音記号"
 
 msgid "Beat"
-msgstr ""
+msgstr "拍"
 
 msgid "Beat repeats"
-msgstr ""
+msgstr "拍の反復記号"
 
 #: lib/settings_dialog.dart
 msgid "Beats"
-msgstr ""
+msgstr "拍"
 
 #: lib/audio_panel.dart
 msgid "Beats per minute"
-msgstr ""
+msgstr "1 分あたりの拍数"
 
 msgid "Block"
-msgstr ""
+msgstr "ブロック"
 
 msgid "Bold"
-msgstr ""
+msgstr "太字"
 
 msgid "Bold Italic"
-msgstr ""
+msgstr "太字斜体"
 
 #: lib/sections_editor.dart
 msgid "Bracket"
-msgstr ""
+msgstr "括弧"
 
 msgid "Brackets"
-msgstr ""
+msgstr "括弧"
 
 msgid "Brass"
-msgstr ""
+msgstr "金管"
 
 msgid "Breath marks"
-msgstr ""
+msgstr "ブレス記号"
 
 #: lib/instruments_toolbar.dart
 msgid "Bridge Rests Up to {bars}"
-msgstr ""
+msgstr "{bars}までの休符をつなぐ"
 
 msgid "c if a < b, else d"
-msgstr ""
+msgstr "a < b なら c、そうでなければ d"
 
 #: lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
-msgstr ""
+msgstr "キャンセル"
 
 #: lib/updater.dart
 msgid "Can’t reach GitHub. Is the internet connected?"
-msgstr ""
+msgstr "GitHub に接続できません。インターネットにつながっていますか？"
 
 msgid "Can’t find the recording to embed"
-msgstr ""
+msgstr "埋め込む録音が見つかりません"
 
 msgid "Caption"
-msgstr ""
+msgstr "字幕"
 
 msgid "Caption curve"
-msgstr ""
+msgstr "字幕のカーブ"
 
 msgid "Caption fade"
-msgstr ""
+msgstr "字幕のフェード"
 
 msgid "Caption font"
-msgstr ""
+msgstr "字幕のフォント"
 
 msgid "Caption rise"
-msgstr ""
+msgstr "字幕の上昇"
 
 #: lib/caption_lane.dart lib/captions_dialog.dart lib/web_player/player.dart
 msgid "Captions"
-msgstr ""
+msgstr "字幕"
 
 msgid "Carbon"
 msgstr ""
 
 msgid "Center"
-msgstr ""
+msgstr "中央"
 
 msgid "Centered lyrics"
-msgstr ""
+msgstr "歌詞を中央揃え"
 
 msgid "Centers syllables under their notes."
-msgstr ""
+msgstr "音節を音符の下の中央に揃えます。"
 
 msgid "Changelog"
-msgstr ""
+msgstr "変更履歴"
 
 msgid "Check at launch"
-msgstr ""
+msgstr "起動時に確認"
 
 #: lib/settings_dialog.dart
 msgid "Check for Updates"
-msgstr ""
+msgstr "アップデートを確認"
 
 #: lib/settings_dialog.dart
 msgid "Checking…"
-msgstr ""
+msgstr "確認中…"
 
 #: lib/audio_panel.dart
 msgid "Pick a spot between the neighboring anchors."
-msgstr ""
+msgstr "隣り合うアンカーの間の位置を選んでください。"
 
 msgid "Chord symbols"
-msgstr ""
+msgstr "コードシンボル"
 
 msgid "Chords"
-msgstr ""
+msgstr "コード"
 
 #: lib/home_screen.dart lib/phrase_search_window.dart
 msgid "Clear"
-msgstr ""
+msgstr "消去"
 
 #: lib/instruments_toolbar.dart
 msgid "Clear all lanes"
-msgstr ""
+msgstr "すべてのレーンを空にする"
 
 msgid "Clear Lane"
-msgstr ""
+msgstr "レーンを空にする"
 
 #: lib/app_menus.dart
 msgid "Clear Menu"
-msgstr ""
+msgstr "メニューを消去"
 
 #: lib/phrase_search_window.dart
 msgid "Clef"
-msgstr ""
+msgstr "音部記号"
 
 msgid "Clefs"
-msgstr ""
+msgstr "音部記号"
 
 #: lib/app_menus.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
-msgstr ""
+msgstr "閉じる"
 
 msgid "Close Curator, then replace its folder with the unzipped one."
-msgstr ""
+msgstr "Curator を終了し、そのフォルダを解凍したフォルダで置き換えてください。"
 
 #: lib/settings_dialog.dart
 msgid "Close settings"
-msgstr ""
+msgstr "設定を閉じる"
 
 #: lib/project_tabs.dart
 msgid "Close tab ({key})"
-msgstr ""
+msgstr "タブを閉じる（{key}）"
 
 msgid "Close up verses"
-msgstr ""
+msgstr "歌詞の番の間隔を詰める"
 
 msgid "Closing barlines"
-msgstr ""
+msgstr "終止線"
 
 #: lib/phrase_search_window.dart
 msgid "Collapse"
-msgstr ""
+msgstr "折りたたむ"
 
 msgid "Color names"
-msgstr ""
+msgstr "名前を色分け"
 
 msgid "Compact"
-msgstr ""
+msgstr "コンパクト"
 
 #: lib/spacer_dialogs.dart
 msgid "Concert pitch"
-msgstr ""
+msgstr "実音"
 
 msgid "Condensing"
-msgstr ""
+msgstr "コンデンス"
 
 #: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart
 msgid "Copy"
-msgstr ""
+msgstr "コピー"
 
 msgid "Copy Lane To…"
-msgstr ""
+msgstr "レーンをコピー…"
 
 #: lib/edit_dialogs.dart
 msgid "Copy {name} to…"
-msgstr ""
+msgstr "{name} をコピー…"
 
 #: lib/score_view/attach_image.dart
 msgid "Couldn’t add the image. {error}"
-msgstr ""
+msgstr "画像を追加できませんでした。{error}"
 
 #: lib/audio_panel.dart
 msgid "Couldn’t align. {error}"
-msgstr ""
+msgstr "揃えられませんでした。{error}"
 
 #: lib/main.dart
 msgid "Couldn’t autosave. {error}"
-msgstr ""
+msgstr "自動保存できませんでした。{error}"
 
 #: lib/audio_panel.dart
 msgid "Couldn’t hear the score in this recording."
-msgstr ""
+msgstr "この録音からは楽譜を聞き取れませんでした。"
 
 #: lib/main.dart lib/score_editor.dart
 msgid "Couldn’t engrave. {error}"
-msgstr ""
+msgstr "浄書できませんでした。{error}"
 
 #: lib/settings_dialog.dart
 msgid "Couldn’t Export Settings"
-msgstr ""
+msgstr "設定を書き出せませんでした"
 
 msgid "Couldn’t Export Video"
-msgstr ""
+msgstr "ビデオを書き出せませんでした"
 
 #: lib/settings_dialog.dart
 msgid "Couldn’t Import Settings"
-msgstr ""
+msgstr "設定を読み込めませんでした"
 
 #: lib/main.dart
 msgid "Couldn’t Load Recording"
-msgstr ""
+msgstr "録音を読み込めませんでした"
 
 #: lib/audio_panel.dart
 msgid "Couldn’t load the recording. {error}"
-msgstr ""
+msgstr "録音を読み込めませんでした。{error}"
 
 #: lib/main.dart
 msgid "Couldn’t Open Project"
-msgstr ""
+msgstr "プロジェクトを開けませんでした"
 
 #: lib/main.dart
 msgid "Couldn’t Open Sample"
-msgstr ""
+msgstr "サンプルを開けませんでした"
 
 #: lib/main.dart
 msgid "Couldn’t Open Score"
-msgstr ""
+msgstr "楽譜を開けませんでした"
 
 #: lib/main.dart lib/score_view/attach_image.dart
 msgid "Couldn’t paste the image. {error}"
-msgstr ""
+msgstr "画像をペーストできませんでした。{error}"
 
 msgid "Couldn’t read an image in the project."
-msgstr ""
+msgstr "プロジェクト内の画像を読み込めませんでした。"
 
 #: lib/updater.dart
 msgid "Couldn’t read GitHub’s response."
-msgstr ""
+msgstr "GitHub の応答を読み取れませんでした。"
 
 msgid "Couldn’t read the music font."
-msgstr ""
+msgstr "音楽フォントを読み込めませんでした。"
 
 #: lib/image_patch.dart
 msgid "Couldn’t make sense of this image."
-msgstr ""
+msgstr "この画像を解釈できませんでした。"
 
 msgid "Couldn’t make sense of this SVG."
-msgstr ""
+msgstr "この SVG を解釈できませんでした。"
 
 #: lib/main.dart
 msgid "Couldn’t Save Project"
-msgstr ""
+msgstr "プロジェクトを保存できませんでした"
 
 msgid "Couldn’t start the engraver."
-msgstr ""
+msgstr "浄書エンジンを起動できませんでした。"
 
 #: lib/main.dart
 msgid "Couldn’t Use MIDI File"
-msgstr ""
+msgstr "MIDI ファイルを使えませんでした"
 
 #: lib/error_text.dart
 msgid "Couldn’t use the file"
-msgstr ""
+msgstr "ファイルを使えませんでした"
 
 #: lib/audio_panel.dart
 msgid "Couldn’t use the MIDI file. {error}"
-msgstr ""
+msgstr "MIDI ファイルを使えませんでした。{error}"
 
 msgid "Countdown"
-msgstr ""
+msgstr "カウントダウン"
 
 msgid "Crop"
-msgstr ""
+msgstr "切り抜き"
 
 #: lib/audio_panel.dart
 msgid "Crossfade"
-msgstr ""
+msgstr "クロスフェード"
 
 msgid "Crossfade (its own)"
-msgstr ""
+msgstr "クロスフェード（独自）"
 
 msgid "Crossfade (the project’s)"
-msgstr ""
+msgstr "クロスフェード（プロジェクトの）"
 
 #: lib/settings_dialog.dart
 msgid "Curator is up to date! ☆"
-msgstr ""
+msgstr "Curator は最新です！☆"
 
 #: lib/main.dart
 msgid "Curator project"
-msgstr ""
+msgstr "Curator プロジェクト"
 
 #: lib/settings_dialog.dart
 msgid "Curator settings"
-msgstr ""
+msgstr "Curator の設定"
 
 #: lib/settings_dialog.dart
 msgid "Curator {version} is out, but not for this system yet."
-msgstr ""
+msgstr "Curator {version} が出ましたが、このシステム向けはまだです。"
 
 #: lib/main.dart lib/settings_dialog.dart
 msgid "Curator {version} is available! ☆"
-msgstr ""
+msgstr "Curator {version} が利用可能です！☆"
 
 #: lib/motion_settings.dart
 msgid "Custom"
-msgstr ""
+msgstr "カスタム"
 
 #: lib/editor_toolbar.dart
 msgid "Custom ({ratio})…"
-msgstr ""
+msgstr "カスタム（{ratio}）…"
 
 #: lib/color_dialog.dart
 msgid "Custom Color"
-msgstr ""
+msgstr "カスタムカラー"
 
 #: lib/motion_settings.dart
 msgid "Custom Curve"
-msgstr ""
+msgstr "カスタムカーブ"
 
 #: lib/editor_toolbar.dart
 msgid "Custom…"
-msgstr ""
+msgstr "カスタム…"
 
 #: lib/app_menus.dart
 msgid "Cut"
-msgstr ""
+msgstr "カット"
 
 msgid "Cyan"
-msgstr ""
+msgstr "シアン"
 
 #: lib/settings_dialog.dart
 msgid "Dark"
-msgstr ""
+msgstr "ダーク"
 
 msgid "Dark also turns the score dark."
-msgstr ""
+msgstr "ダークでは楽譜も暗くなります。"
 
 msgid "Dash gap"
-msgstr ""
+msgstr "破線の間隔"
 
 msgid "Dash length"
-msgstr ""
+msgstr "破線の長さ"
 
 #: lib/font_settings.dart lib/settings_dialog.dart
 msgid "Default"
-msgstr ""
+msgstr "デフォルト"
 
 #: lib/app_menus.dart
 msgid "Delete"
-msgstr ""
+msgstr "削除"
 
 #: lib/phrase_search_window.dart
 msgid "Delete note ({key})"
-msgstr ""
+msgstr "音符を削除（{key}）"
 
 msgid "Density"
-msgstr ""
+msgstr "密度"
 
 #: lib/audio_panel.dart
 msgid "Deselect (Esc)"
-msgstr ""
+msgstr "選択解除（Esc）"
 
 #: lib/main.dart
 msgid "Save your changes to “{name}” first?"
-msgstr ""
+msgstr "先に「{name}」への変更を保存しますか？"
 
 #: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
-msgstr ""
+msgstr "完了"
 
 #: lib/main.dart
 msgid "Don’t Save"
-msgstr ""
+msgstr "保存しない"
 
 #: lib/phrase_search_window.dart lib/score_editor.dart
 msgid "Dot (.)"
-msgstr ""
+msgstr "付点（.）"
 
 msgid "Dots"
-msgstr ""
+msgstr "付点"
 
 msgid "Double barline gap"
-msgstr ""
+msgstr "複縦線の間隔"
 
 #: lib/settings_dialog.dart
 msgid "Download {version}"
-msgstr ""
+msgstr "{version} をダウンロード"
 
 #: lib/settings_dialog.dart
 msgid "Downloading {version}…"
-msgstr ""
+msgstr "{version} をダウンロード中…"
 
 #: lib/instruments_toolbar.dart
 msgid "Draw (D)"
-msgstr ""
+msgstr "描画（D）"
 
 msgid "Try a MIDI file or a recording."
-msgstr ""
+msgstr "MIDI ファイルか録音をお試しください。"
 
 msgid "Drop a recording or a MIDI file"
-msgstr ""
+msgstr "録音か MIDI ファイルをドロップ"
 
 msgid "That needs to be an image file."
-msgstr ""
+msgstr "ここには画像ファイルが必要です。"
 
 msgid "Recordings and MIDI files go on the Audio tab!"
-msgstr ""
+msgstr "録音と MIDI ファイルは「オーディオ」タブへどうぞ！"
 
 msgid "Drop to add"
-msgstr ""
+msgstr "ドロップして追加"
 
 msgid "Drop to add an image"
-msgstr ""
+msgstr "ドロップして画像を追加"
 
 msgid "Drop to open"
-msgstr ""
+msgstr "ドロップして開く"
 
 msgid "Dynamics"
-msgstr ""
+msgstr "強弱記号"
 
 msgid "Dynamics and lines"
-msgstr ""
+msgstr "強弱記号と線"
 
 msgid "Dynamics as one glyph"
-msgstr ""
+msgstr "強弱記号を 1 つのグリフで"
 
 msgid "Dynamics distance"
-msgstr ""
+msgstr "強弱記号の距離"
 
 msgid "Dynamics typed as text"
-msgstr ""
+msgstr "テキストで入力された強弱記号"
 
 msgid "Ease In"
-msgstr ""
+msgstr "イーズイン"
 
 msgid "Ease In-Out"
-msgstr ""
+msgstr "イーズインアウト"
 
 msgid "Ease Out"
-msgstr ""
+msgstr "イーズアウト"
 
 #: lib/app_menus.dart
 msgid "Edit"
-msgstr ""
+msgstr "編集"
 
 #: lib/score_view.dart
 msgid "Edit Caption…"
-msgstr ""
+msgstr "字幕を編集…"
 
 #: lib/score_view.dart
 msgid "Edit Spacer…"
-msgstr ""
+msgstr "スペーサーを編集…"
 
 #: lib/settings_dialog.dart
 msgid "Edit…"
-msgstr ""
+msgstr "編集…"
 
 #: lib/phrase_search_window.dart
 msgid "Eighth (5)"
-msgstr ""
+msgstr "8 分音符（5）"
 
 msgid "Embed font"
-msgstr ""
+msgstr "フォントを埋め込む"
 
 #: lib/instruments_toolbar.dart
 msgid "end ({at})"
-msgstr ""
+msgstr "終点（{at}）"
 
 #: lib/instruments_toolbar.dart
 msgid "End at the playhead (])"
-msgstr ""
+msgstr "再生ヘッドで終える（]）"
 
 msgid "Ending"
-msgstr ""
+msgstr "終わり"
 
 msgid "Ending brackets"
-msgstr ""
+msgstr "反復括弧"
 
 msgid "Engraves “f” set in a music font as a dynamic."
-msgstr ""
+msgstr "音楽フォントで書かれた「f」を強弱記号として浄書します。"
 
 msgid "Engraving"
-msgstr ""
+msgstr "浄書"
 
 msgid "Engraving…"
-msgstr ""
+msgstr "浄書中…"
 
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
-msgstr ""
+msgstr "小節または 小節.拍 を入力（例：12 や 12.3）"
 
 #: lib/spacer_dialogs.dart
 msgid "Enter {min} to {max} staff spaces"
-msgstr ""
+msgstr "{min}〜{max} 譜線間隔を入力してください"
 
 #: lib/instruments_toolbar.dart
 msgid "Erase (E)"
-msgstr ""
+msgstr "消去（E）"
 
 msgid "Even spacing"
-msgstr ""
+msgstr "均等な間隔"
 
 #: lib/settings_dialog.dart
 msgid "Every minute"
-msgstr ""
+msgstr "1 分ごと"
 
 #: lib/settings_dialog.dart
 msgid "Every note is under the playhead exactly as it sounds: slower through long notes, quicker through runs."
-msgstr ""
+msgstr "すべての音符が鳴るとおりに再生ヘッドの下を通ります：長い音ではゆっくり、速いパッセージでは速く。"
 
 #: lib/settings_dialog.dart
 msgid "Every {n} minutes"
-msgstr ""
+msgstr "{n} 分ごと"
 
 #: lib/settings_dialog.dart
 msgid "Every {n} seconds"
-msgstr ""
+msgstr "{n} 秒ごと"
 
 #: lib/phrase_search_window.dart
 msgid "Exact"
-msgstr ""
+msgstr "正確"
 
 #: lib/phrase_search_window.dart
 msgid "Expand"
-msgstr ""
+msgstr "展開"
 
 #: lib/editor_toolbar.dart
 msgid "Export"
-msgstr ""
+msgstr "書き出す"
 
 msgid "Export anyway"
-msgstr ""
+msgstr "それでも書き出す"
 
 msgid "Export Video"
-msgstr ""
+msgstr "ビデオを書き出す"
 
 #: lib/app_menus.dart
 msgid "Export Video…"
-msgstr ""
+msgstr "ビデオを書き出す…"
 
 #: lib/captions_dialog.dart
 msgid "Exported “{name}”"
-msgstr ""
+msgstr "「{name}」を書き出しました"
 
 msgid "Exporting Video…"
-msgstr ""
+msgstr "ビデオを書き出し中…"
 
 #: lib/captions_dialog.dart lib/export_dialog.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Export…"
-msgstr ""
+msgstr "書き出す…"
 
 msgid "Expressions"
-msgstr ""
+msgstr "発想記号"
 
 msgid "Extensions"
-msgstr ""
+msgstr "拡張機能"
 
 #: lib/extensions/extensions_dialog.dart
 msgid "Extensions in this project"
-msgstr ""
+msgstr "このプロジェクトの拡張機能"
 
 msgid "Extra width (staff spaces)"
-msgstr ""
+msgstr "追加の幅（譜線間隔）"
 
 msgid "f(1) must differ from f(0)."
-msgstr ""
+msgstr "f(1) は f(0) と異なる必要があります。"
 
 msgid "Fade"
-msgstr ""
+msgstr "フェード"
 
 msgid "Fade out"
-msgstr ""
+msgstr "フェードアウト"
 
 msgid "Fade-out curve"
-msgstr ""
+msgstr "フェードアウトのカーブ"
 
 msgid "Fermatas"
-msgstr ""
+msgstr "フェルマータ"
 
 #: lib/app_menus.dart
 msgid "File"
-msgstr ""
+msgstr "ファイル"
 
 msgid "Fill the window"
-msgstr ""
+msgstr "ウインドウいっぱいに"
 
 #: lib/phrase_search_window.dart
 msgid "Find Phrase"
-msgstr ""
+msgstr "フレーズを検索"
 
 #: lib/editor_toolbar.dart
 msgid "Find phrase ({key})"
-msgstr ""
+msgstr "フレーズを検索（{key}）"
 
 #: lib/app_menus.dart
 msgid "Find Phrase…"
-msgstr ""
+msgstr "フレーズを検索…"
 
 msgid "Fingering"
-msgstr ""
+msgstr "運指"
 
 #: lib/bottom_panel.dart
 msgid "Fit"
-msgstr ""
+msgstr "フィット"
 
 msgid "Flags"
-msgstr ""
+msgstr "符尾"
 
 #: lib/phrase_search_window.dart lib/score_editor.dart
 msgid "Flat (-)"
-msgstr ""
+msgstr "フラット（-）"
 
 msgid "Folder"
-msgstr ""
+msgstr "フォルダ"
 
 msgid "Font"
-msgstr ""
+msgstr "フォント"
 
 #: lib/font_settings.dart
 msgid "Font File…"
-msgstr ""
+msgstr "フォントファイル…"
 
 #: lib/main.dart
 msgid "Can’t find the font “{name}”, so Bravura is filling in."
-msgstr ""
+msgstr "フォント「{name}」が見つからないため、Bravura で代用しています。"
 
 #: lib/font_settings.dart
 msgid "Fonts"
-msgstr ""
+msgstr "フォント"
 
 msgid "Format"
-msgstr ""
+msgstr "フォーマット"
 
 msgid "Frame rate"
-msgstr ""
+msgstr "フレームレート"
 
 #: lib/export_dialog.dart
 msgid "Frame {n} of {all}"
-msgstr ""
+msgstr "フレーム {n} / {all}"
 
 #: lib/captions_dialog.dart
 msgid "From"
-msgstr ""
+msgstr "開始"
 
 msgid "From bar"
-msgstr ""
+msgstr "開始小節"
 
 #: lib/settings_dialog.dart
 msgid "From GitHub."
-msgstr ""
+msgstr "GitHub から。"
 
 msgid "General"
-msgstr ""
+msgstr "一般"
 
 #: lib/updater.dart
 msgid "GitHub isn’t answering. Try again in a bit."
-msgstr ""
+msgstr "GitHub が応答しません。少ししてからもう一度お試しください。"
 
 #: lib/updater.dart
 msgid "GitHub returned an error ({code})"
-msgstr ""
+msgstr "GitHub がエラーを返しました（{code}）"
 
 msgid "Glide"
-msgstr ""
+msgstr "グライド"
 
 #: lib/settings_dialog.dart
 msgid "Glides from beat to beat: the speed changes only with the tempo."
-msgstr ""
+msgstr "拍から拍へなめらかに進みます：速さはテンポとともにだけ変わります。"
 
 msgid "Glissandos"
-msgstr ""
+msgstr "グリッサンド"
 
 #: lib/editor_toolbar.dart
 msgid "Go to bar ({key})"
-msgstr ""
+msgstr "小節へ移動（{key}）"
 
 #: lib/editor_toolbar.dart
 msgid "Go to start (Home)"
-msgstr ""
+msgstr "先頭へ（Home）"
 
 #: lib/editor_toolbar.dart
 msgid "Go to time ({key})"
-msgstr ""
+msgstr "時間へ移動（{key}）"
 
 msgid "Grace note size"
-msgstr ""
+msgstr "装飾音のサイズ"
 
 msgid "Graphite"
-msgstr ""
+msgstr "グラファイト"
 
 msgid "Green"
-msgstr ""
+msgstr "グリーン"
 
 msgid "Group sections"
-msgstr ""
+msgstr "セクションでまとめる"
 
 msgid "Groups"
-msgstr ""
+msgstr "グループ"
 
 msgid "H-bar"
-msgstr ""
+msgstr "H バー"
 
 msgid "Hairpin opening"
-msgstr ""
+msgstr "ヘアピンの開き"
 
 msgid "Hairpins"
-msgstr ""
+msgstr "ヘアピン"
 
 #: lib/phrase_search_window.dart
 msgid "Half (7)"
-msgstr ""
+msgstr "2 分音符（7）"
 
 msgid "Height (staff spaces)"
-msgstr ""
+msgstr "高さ（譜線間隔）"
 
 #: lib/app_menus.dart
 msgid "Help"
-msgstr ""
+msgstr "ヘルプ"
 
 msgid "Hex"
-msgstr ""
+msgstr "16 進"
 
 #: lib/app_menus.dart
 msgid "Hide Preview"
-msgstr ""
+msgstr "プレビューを隠す"
 
 #: lib/app_menus.dart
 msgid "Hide Tab Bar"
-msgstr ""
+msgstr "タブバーを隠す"
 
 #: lib/app_menus.dart
 msgid "Hide Timeline"
-msgstr ""
+msgstr "タイムラインを隠す"
 
 #: lib/project_tabs.dart
 msgid "Home"
-msgstr ""
+msgstr "ホーム"
 
 #: lib/spacer_dialogs.dart
 msgid "Horizontal Spacer"
-msgstr ""
+msgstr "水平スペーサー"
 
 msgid "Hue"
-msgstr ""
+msgstr "色相"
 
 #: lib/image_patch.dart
 msgid "Image"
-msgstr ""
+msgstr "画像"
 
 msgid "Images and spacers that scroll with the score."
-msgstr ""
+msgstr "楽譜と一緒にスクロールする画像とスペーサー。"
 
 #: lib/app_menus.dart lib/captions_dialog.dart lib/home_screen.dart lib/settings_dialog.dart
 msgid "Import…"
-msgstr ""
+msgstr "読み込む…"
 
 #: lib/spacer_dialogs.dart
 msgid "In {key}"
-msgstr ""
+msgstr "{key} 管"
 
 msgid "Indigo"
-msgstr ""
+msgstr "インディゴ"
 
 msgid "Ink delay"
-msgstr ""
+msgstr "インクの遅延"
 
 msgid "Ink fade"
-msgstr ""
+msgstr "インクのフェード"
 
 #: lib/edit_dialogs.dart lib/pdf_import_changes.dart
 msgid "Insert {symbol}"
-msgstr ""
+msgstr "{symbol} を挿入"
 
 #: lib/font_settings.dart
 msgid "Installed Font…"
-msgstr ""
+msgstr "インストール済みのフォント…"
 
 #: lib/web_player/player.dart
 msgid "Instruments"
-msgstr ""
+msgstr "楽器"
 
 msgid "Italic"
-msgstr ""
+msgstr "斜体"
 
 msgid "Jump to"
-msgstr ""
+msgstr "移動先"
 
 #: lib/audio_panel.dart
 msgid "Kept {warps} from the anchors"
-msgstr ""
+msgstr "アンカーから {warps} を保持しました"
 
 #: lib/audio_panel.dart
 msgid "Kept {warps} from {file}"
-msgstr ""
+msgstr "{file} から {warps} を保持しました"
 
 msgid "Key signatures"
-msgstr ""
+msgstr "調号"
 
 msgid "Keyboards"
-msgstr ""
+msgstr "鍵盤楽器"
 
 #: lib/instrument_lanes/lane_header.dart
 msgid "Lane options"
-msgstr ""
+msgstr "レーンのオプション"
 
 msgid "Language"
-msgstr ""
+msgstr "言語"
 
 msgid "Large"
-msgstr ""
+msgstr "大"
 
 #: lib/captions_dialog.dart
 msgid "Leave empty to remove"
-msgstr ""
+msgstr "空にすると削除"
 
 msgid "Ledger line length"
-msgstr ""
+msgstr "加線の長さ"
 
 msgid "Ledger lines"
-msgstr ""
+msgstr "加線"
 
 msgid "Left"
-msgstr ""
+msgstr "左"
 
 msgid "Letter spacing"
-msgstr ""
+msgstr "字間"
 
 msgid "License"
-msgstr ""
+msgstr "ライセンス"
 
 #: lib/settings_dialog.dart
 msgid "Light"
-msgstr ""
+msgstr "ライト"
 
 msgid "Lightness"
-msgstr ""
+msgstr "明度"
 
 msgid "Line"
-msgstr ""
+msgstr "線"
 
 msgid "Line thickness"
-msgstr ""
+msgstr "線の太さ"
 
 msgid "Linear"
-msgstr ""
+msgstr "リニア"
 
 #: lib/main.dart
 msgid "Locate…"
-msgstr ""
+msgstr "場所を指定…"
 
 #: lib/score_replacement.dart
 msgid "Lost past bar {n}: {items}"
-msgstr ""
+msgstr "{n} 小節目以降で失われたもの：{items}"
 
 msgid "Lyric lines"
-msgstr ""
+msgstr "歌詞の延長線"
 
 msgid "Lyric size"
-msgstr ""
+msgstr "歌詞のサイズ"
 
 msgid "Lyrics"
-msgstr ""
+msgstr "歌詞"
 
 #: lib/editor_toolbar.dart
 msgid "Manage assets…"
-msgstr ""
+msgstr "アセットを管理…"
 
 msgid "Maximum beam slope"
-msgstr ""
+msgstr "連桁の最大の傾き"
 
 msgid "Maximum gap"
-msgstr ""
+msgstr "最大の間隔"
 
 msgid "Maximum slur slope"
-msgstr ""
+msgstr "スラーの最大の傾き"
 
 #: lib/app_menus.dart
 msgid "Maximize Preview"
-msgstr ""
+msgstr "プレビューを最大化"
 
 #: lib/app_menus.dart
 msgid "Maximize Timeline"
-msgstr ""
+msgstr "タイムラインを最大化"
 
 msgid "Medium"
-msgstr ""
+msgstr "中"
 
 msgid "Mensuration signs"
-msgstr ""
+msgstr "メンスーラ記号"
 
 #: lib/editor_toolbar.dart
 msgid "Metronome (C)"
-msgstr ""
+msgstr "メトロノーム（C）"
 
 #: lib/audio_panel.dart
 msgid "MIDI tempo"
-msgstr ""
+msgstr "MIDI テンポ"
 
 msgid "Minimum bar width"
-msgstr ""
+msgstr "小節の最小幅"
 
 msgid "Minimum gap"
-msgstr ""
+msgstr "最小の間隔"
 
 msgid "Minimum tie length"
-msgstr ""
+msgstr "タイの最小の長さ"
 
 msgid "Missing “)”."
-msgstr ""
+msgstr "「)」がありません。"
 
 msgid "Missing “:”."
-msgstr ""
+msgstr "「:」がありません。"
 
 #: lib/instruments_toolbar.dart
 msgid "Mixed"
-msgstr ""
+msgstr "混在"
 
 msgid "Move to Bottom"
-msgstr ""
+msgstr "一番下へ移動"
 
 msgid "Move to Top"
-msgstr ""
+msgstr "一番上へ移動"
 
 msgid "MP4 video"
-msgstr ""
+msgstr "MP4 ビデオ"
 
 msgid "Multi-bar repeats"
-msgstr ""
+msgstr "複数小節の反復記号"
 
 msgid "Multi-bar rests"
-msgstr ""
+msgstr "複数小節休符"
 
 msgid "Music font"
-msgstr ""
+msgstr "音楽フォント"
 
 msgid "Music symbols"
-msgstr ""
+msgstr "音楽記号"
 
 msgid "Name"
-msgstr ""
+msgstr "名前"
 
 msgid "Name and clef"
-msgstr ""
+msgstr "名前と音部記号"
 
 msgid "Names"
-msgstr ""
+msgstr "名前"
 
 #: lib/phrase_search_window.dart lib/score_editor.dart
 msgid "Natural (0)"
-msgstr ""
+msgstr "ナチュラル（0）"
 
 #: lib/phrase_search_window.dart
 msgid "Next ({key})"
-msgstr ""
+msgstr "次へ（{key}）"
 
 #: lib/captions_dialog.dart
 msgid "No captions"
-msgstr ""
+msgstr "字幕なし"
 
 msgid "No extensions yet."
-msgstr ""
+msgstr "拡張機能はまだありません。"
 
 #: lib/main.dart
 msgid "There’s no image to paste."
-msgstr ""
+msgstr "ペーストする画像がありません。"
 
 #: lib/assets_dialog.dart
 msgid "No images"
-msgstr ""
+msgstr "画像なし"
 
 #: lib/phrase_search_window.dart
 msgid "No matches"
-msgstr ""
+msgstr "一致なし"
 
 #: lib/settings_dialog.dart
 msgid "No matching settings"
-msgstr ""
+msgstr "一致する設定がありません"
 
 msgid "No players in this score can share a staff."
-msgstr ""
+msgstr "この楽譜には譜表を共有できる奏者がいません。"
 
 #: lib/app_menus.dart
 msgid "No Recent Files"
-msgstr ""
+msgstr "最近使ったファイルはありません"
 
 msgid "No score was found inside the .mxl archive."
-msgstr ""
+msgstr ".mxl アーカイブ内に楽譜が見つかりませんでした。"
 
 msgid "No settings"
-msgstr ""
+msgstr "設定なし"
 
 #: lib/captions_dialog.dart
 msgid "None of these subtitles land inside the music."
-msgstr ""
+msgstr "これらの字幕はどれも音楽の範囲内にありません。"
 
 msgid "No subtitles found in this file."
-msgstr ""
+msgstr "このファイルに字幕が見つかりませんでした。"
 
 #: lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "None"
-msgstr ""
+msgstr "なし"
 
 #: lib/score_replacement.dart
 msgid "none"
-msgstr ""
+msgstr "なし"
 
 #: lib/settings_dialog.dart
 msgid "None."
-msgstr ""
+msgstr "なし。"
 
 #: lib/home_screen.dart
 msgid "Not found · {folder}"
-msgstr ""
+msgstr "見つかりません · {folder}"
 
 msgid "Not installed"
-msgstr ""
+msgstr "未インストール"
 
 msgid "Not supported in MP4"
-msgstr ""
+msgstr "MP4 では非対応"
 
 #: lib/edit_dialogs.dart
 msgid "Not supported:"
-msgstr ""
+msgstr "非対応："
 
 msgid "Not with a PNG sequence"
-msgstr ""
+msgstr "PNG シーケンスでは不可"
 
 msgid "Notation"
-msgstr ""
+msgstr "記譜"
 
 #: lib/export_dialog.dart
 msgid "Notation runs off the frame"
-msgstr ""
+msgstr "記譜がフレームからはみ出しています"
 
 #: lib/lanes_common.dart
 msgid "Notation runs off the video frame: {bars}"
-msgstr ""
+msgstr "記譜がビデオのフレームからはみ出しています：{bars}"
 
 msgid "Note spacing"
-msgstr ""
+msgstr "音符の間隔"
 
 msgid "Noteheads"
-msgstr ""
+msgstr "符頭"
 
 #: lib/settings_dialog.dart
 msgid "Notes"
-msgstr ""
+msgstr "音符"
 
 msgid "Notes and rests"
-msgstr ""
+msgstr "音符と休符"
 
 msgid "Nothing to save yet! Open a project or score first."
-msgstr ""
+msgstr "まだ保存するものがありません！先にプロジェクトか楽譜を開いてください。"
 
 msgid "Number by the noteheads"
-msgstr ""
+msgstr "符頭の側に数字"
 
 msgid "Octave lines"
-msgstr ""
+msgstr "オクターブ線"
 
 msgid "Octave marks"
-msgstr ""
+msgstr "オクターブ記号"
 
 #: lib/settings_dialog.dart
 msgid "Off"
-msgstr ""
+msgstr "オフ"
 
 #: lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr ""
 
 msgid "Opacity"
-msgstr ""
+msgstr "不透明度"
 
 msgid "Open a score first, then its MIDI tempo map."
-msgstr ""
+msgstr "先に楽譜を開いてから、その MIDI テンポマップを追加してください。"
 
 msgid "Open a score first, then its recording."
-msgstr ""
+msgstr "先に楽譜を開いてから、その録音を追加してください。"
 
 msgid "Open Folder"
-msgstr ""
+msgstr "フォルダを開く"
 
 #: lib/settings_dialog.dart
 msgid "Open in the browser"
-msgstr ""
+msgstr "ブラウザで開く"
 
 #: lib/settings_dialog.dart
 msgid "Created using EmoteLab"
-msgstr ""
+msgstr "EmoteLab で作成"
 
 #: lib/settings_dialog.dart
 msgid "Open in Window"
-msgstr ""
+msgstr "ウインドウで開く"
 
 #: lib/app_menus.dart
 msgid "Open Recent"
-msgstr ""
+msgstr "最近使った項目を開く"
 
 #: lib/settings_dialog.dart
 msgid "Open Release Page"
-msgstr ""
+msgstr "リリースページを開く"
 
 #: lib/home_screen.dart
 msgid "Open Sample"
-msgstr ""
+msgstr "サンプルを開く"
 
 msgid "Opening barlines"
-msgstr ""
+msgstr "開始小節線"
 
 #: lib/app_menus.dart lib/home_screen.dart
 msgid "Open…"
-msgstr ""
+msgstr "開く…"
 
 msgid "Option-click"
-msgstr ""
+msgstr "Option-クリック"
 
 msgid "Ornaments"
-msgstr ""
+msgstr "装飾記号"
 
 msgid "Other"
-msgstr ""
+msgstr "その他"
 
 msgid "Other projects start with these"
-msgstr ""
+msgstr "ほかのプロジェクトはこれで始まります"
 
 msgid "Overlaps another caption"
-msgstr ""
+msgstr "ほかの字幕と重なっています"
 
 #: lib/captions_dialog.dart
 msgid "Overlaps the caption in row {n}"
-msgstr ""
+msgstr "{n} 行目の字幕と重なっています"
 
 msgid "Overshoot"
-msgstr ""
+msgstr "オーバーシュート"
 
 msgctxt "page"
 msgid "Flags"
-msgstr ""
+msgstr "互換性"
 
 msgid "Pairs"
-msgstr ""
+msgstr "ペア"
 
 msgid "Paper"
-msgstr ""
+msgstr "紙"
 
 #: lib/app_menus.dart lib/score_view.dart
 msgid "Paste"
-msgstr ""
+msgstr "ペースト"
 
 msgid "Pause (Space)"
-msgstr ""
+msgstr "一時停止（スペース）"
 
 msgid "Pedal lines"
-msgstr ""
+msgstr "ペダル線"
 
 msgid "Pedal marks"
-msgstr ""
+msgstr "ペダル記号"
 
 msgid "Per project."
-msgstr ""
+msgstr "プロジェクトごと。"
 
 msgid "Percussion"
-msgstr ""
+msgstr "打楽器"
 
 msgid "Picture"
-msgstr ""
+msgstr "映像"
 
 #: lib/caption_lane.dart
 msgid "Pinned"
-msgstr ""
+msgstr "固定済み"
 
 msgid "Play (Space)"
-msgstr ""
+msgstr "再生（スペース）"
 
 #: lib/settings_dialog.dart
 msgid "Playback line"
-msgstr ""
+msgstr "再生ライン"
 
 msgid "Playback line color"
-msgstr ""
+msgstr "再生ラインの色"
 
 #: lib/audio_panel.dart
 msgid "Playback speed"
-msgstr ""
+msgstr "再生速度"
 
 #: lib/condensing_editor.dart
 msgid "Player"
-msgstr ""
+msgstr "奏者"
 
 msgid "PNG Sequence"
-msgstr ""
+msgstr "PNG シーケンス"
 
 #: lib/phrase_search_window.dart
 msgid "Previous ({key})"
-msgstr ""
+msgstr "前へ（{key}）"
 
 msgid "Project Info"
-msgstr ""
+msgstr "プロジェクト情報"
 
 msgid "Project, MusicXML or PDF ({key})"
-msgstr ""
+msgstr "プロジェクト、MusicXML または PDF（{key}）"
 
 #: lib/bottom_panel.dart
 msgid "Project Settings ({key})"
-msgstr ""
+msgstr "プロジェクト設定（{key}）"
 
 #: lib/app_menus.dart
 msgid "Project Settings…"
-msgstr ""
+msgstr "プロジェクト設定…"
 
 #: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
 msgid "Project's ({n} s)"
-msgstr ""
+msgstr "プロジェクトの（{n} 秒）"
 
 #: lib/main.dart
 msgid "Projects and scores"
-msgstr ""
+msgstr "プロジェクトと楽譜"
 
 #: lib/phrase_search_window.dart
 msgid "Quarter (6)"
-msgstr ""
+msgstr "4 分音符（6）"
 
 msgid "QuickTime movie"
-msgstr ""
+msgstr "QuickTime ムービー"
 
 msgid "Ratio"
-msgstr ""
+msgstr "比率"
 
 msgid "Reading the recording…"
-msgstr ""
+msgstr "録音を読み込み中…"
 
 #: lib/home_screen.dart
 msgid "RECENT"
-msgstr ""
+msgstr "最近使った項目"
 
 #: lib/audio_panel.dart lib/take_lanes.dart lib/web_player/player.dart
 msgid "Recording"
-msgstr ""
+msgstr "録音"
 
 #: lib/app_menus.dart
 msgid "Redo"
-msgstr ""
+msgstr "やり直す"
 
 #: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
-msgstr ""
+msgstr "やり直す（{key}）"
 
 msgid "Reduce motion"
-msgstr ""
+msgstr "視差効果を減らす"
 
 msgid "Remember window"
-msgstr ""
+msgstr "ウインドウを記憶"
 
 msgid "Refined"
-msgstr ""
+msgstr "洗練"
 
 msgid "Regions can have their own."
-msgstr ""
+msgstr "リージョンごとに設定できます。"
 
 msgid "Regular"
-msgstr ""
+msgstr "標準"
 
 msgid "Rehearsal marks"
-msgstr ""
+msgstr "リハーサルマーク"
 
 msgid "Rehearsal marks in bar numbers"
-msgstr ""
+msgstr "小節番号の行にリハーサルマーク"
 
 #: lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
 msgid "Remove"
-msgstr ""
+msgstr "削除"
 
 #: lib/instruments_toolbar.dart
 msgid "Remove (Delete)"
-msgstr ""
+msgstr "削除（Delete）"
 
 #: lib/audio_panel.dart
 msgid "Remove All Anchors"
-msgstr ""
+msgstr "すべてのアンカーを削除"
 
 #: lib/score_view.dart
 msgid "Remove Caption"
-msgstr ""
+msgstr "字幕を削除"
 
 #: lib/home_screen.dart
 msgid "Remove from Recent"
-msgstr ""
+msgstr "最近使った項目から削除"
 
 #: lib/settings_dialog.dart
 msgid "Remove group"
-msgstr ""
+msgstr "グループを削除"
 
 #: lib/settings_dialog.dart
 msgid "Remove pair"
-msgstr ""
+msgstr "ペアを削除"
 
 #: lib/instruments_toolbar.dart
 msgid "Remove Regions Shorter Than {bars}"
-msgstr ""
+msgstr "{bars}より短いリージョンを削除"
 
 #: lib/score_view.dart lib/spacer_lane.dart
 msgid "Remove Spacer"
-msgstr ""
+msgstr "スペーサーを削除"
 
 #: lib/assets_dialog.dart
 msgid "Remove Unused"
-msgstr ""
+msgstr "未使用を削除"
 
 #: lib/score_replacement.dart
 msgid "Removed: {names}"
-msgstr ""
+msgstr "削除：{names}"
 
 #: lib/edit_dialogs.dart
 msgid "Rename"
-msgstr ""
+msgstr "名前を変更"
 
 msgid "Rename Group"
-msgstr ""
+msgstr "グループ名を変更"
 
 #: lib/edit_dialogs.dart
 msgid "Rename Instrument"
-msgstr ""
+msgstr "楽器名を変更"
 
 msgid "Rename Recording"
-msgstr ""
+msgstr "録音名を変更"
 
 #: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart
 msgid "Rename {name}…"
-msgstr ""
+msgstr "{name} の名前を変更…"
 
 #: lib/score_replacement.dart
 msgid "Renamed: {from} → {to}"
-msgstr ""
+msgstr "名前を変更：{from} → {to}"
 
 #: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/settings_dialog.dart lib/take_lanes.dart
 msgid "Rename…"
-msgstr ""
+msgstr "名前を変更…"
 
 msgid "Repeat dot gap"
-msgstr ""
+msgstr "反復記号の点の間隔"
 
 msgid "Repeat dots"
-msgstr ""
+msgstr "反復記号の点"
 
 #: lib/captions_dialog.dart lib/edit_dialogs.dart
 msgid "Replace"
-msgstr ""
+msgstr "置き換える"
 
 #: lib/take_lanes.dart
 msgid "Replace Recording…"
-msgstr ""
+msgstr "録音を置き換える…"
 
 #: lib/captions_dialog.dart
 msgid "Replace the old captions?"
-msgstr ""
+msgstr "古い字幕を置き換えますか？"
 
 #: lib/edit_dialogs.dart
 msgid "Replace with “{name}”?"
-msgstr ""
+msgstr "「{name}」で置き換えますか？"
 
 #: lib/edit_dialogs.dart
 msgid "Replaces the chosen lanes’ regions"
-msgstr ""
+msgstr "選んだレーンのリージョンを置き換えます"
 
 msgid "Replace…"
-msgstr ""
+msgstr "置き換える…"
 
 #: lib/edit_dialogs.dart lib/motion_settings.dart lib/sections_editor.dart lib/settings_dialog.dart
 msgid "Reset"
-msgstr ""
+msgstr "リセット"
 
 #: lib/settings_dialog.dart
 msgid "Reset to Default"
-msgstr ""
+msgstr "デフォルトに戻す"
 
 #: lib/phrase_search_window.dart
 msgid "Rest (R)"
-msgstr ""
+msgstr "休符（R）"
 
 msgid "Rest symbols"
-msgstr ""
+msgstr "休符記号"
 
 msgid "Restore Score Order"
-msgstr ""
+msgstr "楽譜の順序に戻す"
 
 msgid "Rests"
-msgstr ""
+msgstr "休符"
 
 #: lib/phrase_search_window.dart
 msgid "Rhythm"
-msgstr ""
+msgstr "リズム"
 
 msgid "Right"
-msgstr ""
+msgstr "右"
 
 msgid "Ring"
-msgstr ""
+msgstr "リング"
 
 msgid "Roomy"
-msgstr ""
+msgstr "ゆったり"
 
 msgid "Rose"
-msgstr ""
+msgstr "ローズ"
 
 msgid "Row curve"
-msgstr ""
+msgstr "行のカーブ"
 
 msgid "Row rise"
-msgstr ""
+msgstr "行の上昇"
 
 msgid "Sand"
-msgstr ""
+msgstr "サンド"
 
 msgid "Saturation"
-msgstr ""
+msgstr "彩度"
 
 #: lib/app_menus.dart
 msgid "Save"
-msgstr ""
+msgstr "保存"
 
 #: lib/settings_dialog.dart
 msgid "Save as Default"
-msgstr ""
+msgstr "デフォルトとして保存"
 
 #: lib/app_menus.dart
 msgid "Save As…"
-msgstr ""
+msgstr "別名で保存…"
 
 msgid "Saved projects only."
-msgstr ""
+msgstr "保存済みのプロジェクトのみ。"
 
 #: lib/audio_panel.dart
 msgid "Set the anchors from the recording"
-msgstr ""
+msgstr "録音からアンカーを設定"
 
 #: lib/export_dialog.dart lib/settings_dialog.dart
 msgid "Saved “{name}”."
-msgstr ""
+msgstr "「{name}」を保存しました。"
 
 msgid "Save…"
-msgstr ""
+msgstr "保存…"
 
 #: lib/editor_toolbar.dart
 msgid "Saving…"
-msgstr ""
+msgstr "保存中…"
 
 msgid "Score"
-msgstr ""
+msgstr "楽譜"
 
 #: lib/score_view.dart
 msgid "Score Ink"
-msgstr ""
+msgstr "楽譜のインク色"
 
 #: lib/editor_toolbar.dart
 msgid "Score size"
-msgstr ""
+msgstr "楽譜のサイズ"
 
 #: lib/caption_settings.dart
 msgid "Score text"
-msgstr ""
+msgstr "楽譜のテキスト"
 
 #: lib/home_screen.dart
 msgid "Scores that follow the music."
-msgstr ""
+msgstr "音楽についてくる楽譜。"
 
 msgid "Scrolling"
-msgstr ""
+msgstr "スクロール"
 
 #: lib/settings_dialog.dart
 msgid "Search"
-msgstr ""
+msgstr "検索"
 
 #: lib/settings_dialog.dart
 msgid "Search results"
-msgstr ""
+msgstr "検索結果"
 
 msgid "Sections"
-msgstr ""
+msgstr "セクション"
 
 msgid "Segno and coda"
-msgstr ""
+msgstr "セーニョとコーダ"
 
 #: lib/instruments_toolbar.dart lib/pdf_import.dart
 msgid "Select (V)"
-msgstr ""
+msgstr "選択（V）"
 
 #: lib/app_menus.dart
 msgid "Select All"
-msgstr ""
+msgstr "すべて選択"
 
 msgid "Select All in Lane"
-msgstr ""
+msgstr "レーン内をすべて選択"
 
 #: lib/edit_dialogs.dart
 msgid "Set"
-msgstr ""
+msgstr "設定"
 
 msgid "Set Until after From"
-msgstr ""
+msgstr "「終了」を「開始」より後にしてください"
 
 #: lib/settings_dialog.dart
 msgid "Settings"
-msgstr ""
+msgstr "設定"
 
 #: lib/settings_dialog.dart
 msgid "Settings Imported"
-msgstr ""
+msgstr "設定を読み込みました"
 
 #: lib/app_menus.dart
 msgid "Settings…"
-msgstr ""
+msgstr "設定…"
 
 msgid "Settle"
-msgstr ""
+msgstr "落ち着き"
 
 msgid "Settle curve"
-msgstr ""
+msgstr "落ち着きのカーブ"
 
 #: lib/phrase_search_window.dart lib/score_editor.dart
 msgid "Sharp (=)"
-msgstr ""
+msgstr "シャープ（=）"
 
 msgid "Short name"
-msgstr ""
+msgstr "略称"
 
 #: lib/app_menus.dart
 msgid "Show All Tabs"
-msgstr ""
+msgstr "すべてのタブを表示"
 
 msgid "Show in Explorer"
-msgstr ""
+msgstr "エクスプローラーで表示"
 
 msgid "Show in Finder"
-msgstr ""
+msgstr "Finder に表示"
 
 #: lib/assets_dialog.dart
 msgid "Show in Score"
-msgstr ""
+msgstr "楽譜で表示"
 
 #: lib/app_menus.dart
 msgid "Show Next Tab"
-msgstr ""
+msgstr "次のタブを表示"
 
 #: lib/app_menus.dart
 msgid "Show Preview"
-msgstr ""
+msgstr "プレビューを表示"
 
 #: lib/app_menus.dart
 msgid "Show Previous Tab"
-msgstr ""
+msgstr "前のタブを表示"
 
 #: lib/app_menus.dart
 msgid "Show Tab Bar"
-msgstr ""
+msgstr "タブバーを表示"
 
 #: lib/editor_toolbar.dart
 msgid "Show tab bar ({key})"
-msgstr ""
+msgstr "タブバーを表示（{key}）"
 
 #: lib/app_menus.dart
 msgid "Show Timeline"
-msgstr ""
+msgstr "タイムラインを表示"
 
 msgid "Show the video's frame"
-msgstr ""
+msgstr "ビデオのフレームを表示"
 
 msgid "Show Throughout"
-msgstr ""
+msgstr "全体を通して表示"
 
 #: lib/edit_dialogs.dart
 msgid "Show {name}"
-msgstr ""
+msgstr "{name} を表示"
 
 #: lib/audio_panel.dart
 msgid "Silence before bar 1 (s)"
-msgstr ""
+msgstr "1 小節目の前の無音（秒）"
 
 #: lib/export_dialog.dart
 msgid "Silent"
-msgstr ""
+msgstr "無音"
 
 #: lib/phrase_search_window.dart
 msgid "Similar"
-msgstr ""
+msgstr "類似"
 
 msgid "Sine"
-msgstr ""
+msgstr "サイン"
 
 msgid "Size"
-msgstr ""
+msgstr "サイズ"
 
 msgid "Sky"
-msgstr ""
+msgstr "スカイ"
 
 msgid "Slowest speed"
-msgstr ""
+msgstr "最も遅い速さ"
 
 msgid "Slur clearance"
-msgstr ""
+msgstr "スラーのクリアランス"
 
 msgid "Slur curvature"
-msgstr ""
+msgstr "スラーの曲率"
 
 msgid "Slur ends"
-msgstr ""
+msgstr "スラーの両端"
 
 msgid "Slur middles"
-msgstr ""
+msgstr "スラーの中央"
 
 msgid "Slur symmetry"
-msgstr ""
+msgstr "スラーの対称性"
 
 msgid "Slurs and ties"
-msgstr ""
+msgstr "スラーとタイ"
 
 msgid "Small"
-msgstr ""
+msgstr "小"
 
 msgid "Smooth"
-msgstr ""
+msgstr "なめらか"
 
 msgid "Smoother"
-msgstr ""
+msgstr "よりなめらか"
 
 #: lib/audio_panel.dart
 msgid "Snap to Notes"
-msgstr ""
+msgstr "音符にスナップ"
 
 #: lib/take_lanes.dart
 msgid "Back to all recordings"
-msgstr ""
+msgstr "すべての録音に戻る"
 
 #: lib/take_lanes.dart
 msgid "Edit its sync"
-msgstr ""
+msgstr "同期を編集"
 
 #: lib/audio_panel.dart
 msgid "Click a recording to edit its sync"
-msgstr ""
+msgstr "録音をクリックして同期を編集"
 
 #: lib/edit_dialogs.dart
 msgid "Some of “{name}” got left out"
-msgstr ""
+msgstr "「{name}」の一部が省かれました"
 
 msgid "Source code"
-msgstr ""
+msgstr "ソースコード"
 
 #: lib/audio_panel.dart
 msgid "Space"
-msgstr ""
+msgstr "スペース"
 
 msgid "Space above"
-msgstr ""
+msgstr "上の間隔"
 
 msgid "Space after"
-msgstr ""
+msgstr "後の間隔"
 
 msgid "Space before"
-msgstr ""
+msgstr "前の間隔"
 
 msgid "Space below"
-msgstr ""
+msgstr "下の間隔"
 
 msgid "Space marks · T or Esc stops"
-msgstr ""
+msgstr "スペースで記録 · T か Esc で停止"
 
 #: lib/instrument_lanes/lane_header.dart
 msgid "Spacer"
-msgstr ""
+msgstr "スペーサー"
 
 #: lib/spacer_lane.dart
 msgid "Spacers"
-msgstr ""
+msgstr "スペーサー"
 
 msgid "Spacing"
-msgstr ""
+msgstr "間隔"
 
 msgid "Spacing ratio"
-msgstr ""
+msgstr "間隔の比率"
 
 #: lib/condensing_editor.dart
 msgid "Splits {pairs}."
-msgstr ""
+msgstr "{pairs} を分けます。"
 
 msgid "Staff lines"
-msgstr ""
+msgstr "譜線"
 
 msgid "Staff spacing"
-msgstr ""
+msgstr "譜表の間隔"
 
 msgid "Staff transition"
-msgstr ""
+msgstr "譜表のトランジション"
 
 msgid "Standard"
-msgstr ""
+msgstr "標準"
 
 #: lib/instruments_toolbar.dart
 msgid "start ({at})"
-msgstr ""
+msgstr "始点（{at}）"
 
 #: lib/instruments_toolbar.dart
 msgid "Start at the playhead ([)"
-msgstr ""
+msgstr "再生ヘッドから始める（[）"
 
 #: lib/export_dialog.dart
 msgid "Starting…"
-msgstr ""
+msgstr "開始中…"
 
 #: lib/instruments_toolbar.dart
 msgid "Staves"
-msgstr ""
+msgstr "譜表"
 
 msgid "Stems"
-msgstr ""
+msgstr "符幹"
 
 #: lib/audio_panel.dart
 msgid "Step for taps, {click}, and ↑/↓"
-msgstr ""
+msgstr "タップ、{click}、↑/↓ のステップ"
 
 #: lib/audio_panel.dart
 msgid "Follow {name}"
-msgstr ""
+msgstr "{name} に追従"
 
 #: lib/audio_panel.dart
 msgid "Sync"
-msgstr ""
+msgstr "同期"
 
 msgid "Strings"
-msgstr ""
+msgstr "弦楽器"
 
 msgid "Style"
-msgstr ""
+msgstr "スタイル"
 
 msgid "Sub-brackets"
-msgstr ""
+msgstr "サブブラケット"
 
 msgid "Subtitles"
-msgstr ""
+msgstr "字幕ファイル"
 
 msgid "SVG, PNG, GIF, JPEG…"
-msgstr ""
+msgstr "SVG、PNG、GIF、JPEG…"
 
 #: lib/settings_dialog.dart
 msgid "System"
-msgstr ""
+msgstr "システム"
 
 msgid "Tablature"
-msgstr ""
+msgstr "タブ譜"
 
 msgid "Tablature rhythms"
-msgstr ""
+msgstr "タブ譜のリズム"
 
 msgid "Tap anchors (T)"
-msgstr ""
+msgstr "アンカーをタップ（T）"
 
 msgid "Teal"
-msgstr ""
+msgstr "ティール"
 
 #: lib/audio_panel.dart lib/pdf_import_changes.dart
 msgid "Tempo"
-msgstr ""
+msgstr "テンポ"
 
 msgid "Tempo at left"
-msgstr ""
+msgstr "左端のテンポ"
 
 msgid "Tempo curve"
-msgstr ""
+msgstr "テンポのカーブ"
 
 msgid "Tempo fade"
-msgstr ""
+msgstr "テンポのフェード"
 
 msgid "Tempo marks"
-msgstr ""
+msgstr "テンポ記号"
 
 #: lib/score_replacement.dart
 msgid "Tempo: {from} → {to}"
-msgstr ""
+msgstr "テンポ：{from} → {to}"
 
 #: lib/phrase_search_window.dart
 msgid "Tenor"
-msgstr ""
+msgstr "テナー記号"
 
 #: lib/captions_dialog.dart
 msgid "Text"
-msgstr ""
+msgstr "テキスト"
 
 msgid "Text boxes"
-msgstr ""
+msgstr "テキストボックス"
 
 #: lib/score_replacement.dart
 msgid "Text edits lost: {n}"
-msgstr ""
+msgstr "失われたテキスト編集：{n}"
 
 msgid "Text font"
-msgstr ""
+msgstr "テキストのフォント"
 
 msgid "Text size"
-msgstr ""
+msgstr "テキストのサイズ"
 
 #: lib/caption_settings.dart
 msgid "The *horns* answer, softly"
-msgstr ""
+msgstr "*ホルン*が静かに応える"
 
 msgid "The equation ends too soon."
-msgstr ""
+msgstr "式が途中で終わっています。"
 
 msgid "The font has no name."
-msgstr ""
+msgstr "フォントに名前がありません。"
 
 msgid "The latest release has no version"
-msgstr ""
+msgstr "最新リリースにバージョンがありません"
 
 msgid "The project has no score in it."
-msgstr ""
+msgstr "このプロジェクトには楽譜がありません。"
 
 msgid "The project has not been saved yet: choose where to save it."
-msgstr ""
+msgstr "プロジェクトはまだ保存されていません：保存先を選んでください。"
 
 msgid "The sample can’t be saved."
-msgstr ""
+msgstr "サンプルは保存できません。"
 
 msgid "The sample is just for looking. Open a score to start your own!"
-msgstr ""
+msgstr "サンプルは見るためのものです。楽譜を開いて、自分のプロジェクトを始めましょう！"
 
 #: lib/edit_dialogs.dart
 msgid "Here’s what differs:"
-msgstr ""
+msgstr "違いは次のとおりです："
 
 msgid "The SMuFL metadata is not JSON."
-msgstr ""
+msgstr "SMuFL メタデータが JSON ではありません。"
 
 msgid "Theme"
-msgstr ""
+msgstr "テーマ"
 
 msgid "These settings are from a newer Curator. Update to import them!"
-msgstr ""
+msgstr "これらの設定は新しい Curator のものです。アップデートすると読み込めます！"
 
 msgid "Thick barlines"
-msgstr ""
+msgstr "太い小節線"
 
 #: lib/video_export.dart
 msgid "This FFmpeg can’t write {format}. Install a full build (with {encoder})."
-msgstr ""
+msgstr "この FFmpeg は {format} を書き出せません。完全版（{encoder} 入り）をインストールしてください。"
 
 #: lib/settings_dialog.dart
 msgid "This file is a little old. Export again to update it."
-msgstr ""
+msgstr "このファイルは少し古くなっています。もう一度書き出すと更新されます。"
 
 msgid "This font file is incomplete."
-msgstr ""
+msgstr "このフォントファイルは不完全です。"
 
 msgid "That doesn’t look like a Curator project."
-msgstr ""
+msgstr "Curator のプロジェクトではないようです。"
 
 msgid "That doesn’t look like a Curator settings file."
-msgstr ""
+msgstr "Curator の設定ファイルではないようです。"
 
 msgid "This isn’t a font file."
-msgstr ""
+msgstr "これはフォントファイルではありません。"
 
 msgid "This isn’t a MIDI file."
-msgstr ""
+msgstr "これは MIDI ファイルではありません。"
 
 #: lib/audio_panel.dart
 msgid "That jump would put the anchors out of order or past the end."
-msgstr ""
+msgstr "そのワープでは、アンカーの順序が崩れるか、終わりを越えてしまいます。"
 
 msgid "This MIDI file counts time in SMPTE frames, so it has no tempo map."
-msgstr ""
+msgstr "この MIDI ファイルは SMPTE フレームで時間を数えるため、テンポマップがありません。"
 
 msgid "This MIDI file has no tracks."
-msgstr ""
+msgstr "この MIDI ファイルにはトラックがありません。"
 
 msgid "This MIDI file is cut short."
-msgstr ""
+msgstr "この MIDI ファイルは途中で切れています。"
 
 msgid "This MIDI file is damaged: a length runs over four bytes."
-msgstr ""
+msgstr "この MIDI ファイルは壊れています：長さが 4 バイトを超えています。"
 
 msgid "This MIDI file is damaged: a track ends in the middle of an event."
-msgstr ""
+msgstr "この MIDI ファイルは壊れています：トラックがイベントの途中で終わっています。"
 
 msgid "This MIDI file is damaged: an event has no status."
-msgstr ""
+msgstr "この MIDI ファイルは壊れています：ステータスのないイベントがあります。"
 
 msgid "This MIDI file is damaged: an event runs past its track."
-msgstr ""
+msgstr "この MIDI ファイルは壊れています：トラックの外まで続くイベントがあります。"
 
 msgid "This MIDI file is damaged: its header gives no ticks per quarter note."
-msgstr ""
+msgstr "この MIDI ファイルは壊れています：ヘッダーに 4 分音符あたりのティック数がありません。"
 
 #: lib/main.dart
 msgid "A project from an older Curator! Saving updates it, so older versions won’t open it after."
-msgstr ""
+msgstr "古い Curator のプロジェクトです！保存すると更新され、以後は古いバージョンで開けなくなります。"
 
 msgid "This project is from a newer Curator. Update to open it!"
-msgstr ""
+msgstr "このプロジェクトは新しい Curator のものです。アップデートすると開けます！"
 
 msgid "This RIFF file has no MIDI data."
-msgstr ""
+msgstr "この RIFF ファイルには MIDI データがありません。"
 
 msgid "This subtitle file is a bit too big."
-msgstr ""
+msgstr "この字幕ファイルは少し大きすぎます。"
 
 msgid "This SVG has no width or height."
-msgstr ""
+msgstr "この SVG には幅または高さがありません。"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy 1 selected lane"
-msgstr ""
+msgstr "選択したレーン 1 本を整理"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy 1 Selected Lane"
-msgstr ""
+msgstr "選択したレーン 1 本を整理"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy all lanes"
-msgstr ""
+msgstr "すべてのレーンを整理"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy All Lanes"
-msgstr ""
+msgstr "すべてのレーンを整理"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy {n} selected lanes"
-msgstr ""
+msgstr "選択したレーン {n} 本を整理"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy {n} Selected Lanes"
-msgstr ""
+msgstr "選択したレーン {n} 本を整理"
 
 msgid "Tie ends"
-msgstr ""
+msgstr "タイの両端"
 
 msgid "Tie middles"
-msgstr ""
+msgstr "タイの中央"
 
 #: lib/score_replacement.dart
 msgid "Time signature differs from bar {n}"
-msgstr ""
+msgstr "{n} 小節目から拍子が異なります"
 
 msgid "Time signatures"
-msgstr ""
+msgstr "拍子記号"
 
 msgid "Timed text under the score."
-msgstr ""
+msgstr "楽譜の下に出る、時間に合わせたテキスト。"
 
 msgid "Timewise MusicXML is not supported yet; export as partwise."
-msgstr ""
+msgstr "timewise の MusicXML にはまだ対応していません。partwise で書き出してください。"
 
 msgid "To bar"
-msgstr ""
+msgstr "終了小節"
 
 #: lib/video_export.dart
 msgid "To export video, install FFmpeg (free), then export again:"
-msgstr ""
+msgstr "ビデオを書き出すには FFmpeg（無料）をインストールしてから、もう一度書き出してください："
 
 msgid "Top and bottom"
-msgstr ""
+msgstr "上下"
 
 #: lib/instruments_toolbar.dart
 msgid "Transition (mixed)"
-msgstr ""
+msgstr "トランジション（混在）"
 
 #: lib/instruments_toolbar.dart
 msgid "Transition (the project's)"
-msgstr ""
+msgstr "トランジション（プロジェクトの）"
 
 #: lib/instruments_toolbar.dart
 msgid "Transition (their own)"
-msgstr ""
+msgstr "トランジション（それぞれの）"
 
 msgid "Transition in"
-msgstr ""
+msgstr "イン・トランジション"
 
 msgid "Transition out"
-msgstr ""
+msgstr "アウト・トランジション"
 
 msgid "Transparent"
-msgstr ""
+msgstr "透明"
 
 msgid "Transposition"
-msgstr ""
+msgstr "移調"
 
 #: lib/phrase_search_window.dart
 msgid "Treble"
-msgstr ""
+msgstr "ト音記号"
 
 #: lib/phrase_search_window.dart
 msgid "Treble 8vb"
-msgstr ""
+msgstr "ト音記号 8vb"
 
 msgid "Tremolos"
-msgstr ""
+msgstr "トレモロ"
 
 #: lib/settings_dialog.dart
 msgid "Try Again"
-msgstr ""
+msgstr "もう一度試す"
 
 #: lib/settings_dialog.dart
 msgid "Try another word, such as “font” or “transition”."
-msgstr ""
+msgstr "「フォント」や「トランジション」など、別の言葉で試してください。"
 
 #: lib/settings_dialog.dart
 msgid "Try another word, such as “theme” or “update”."
-msgstr ""
+msgstr "「テーマ」や「アップデート」など、別の言葉で試してください。"
 
 msgid "Tuplet brackets"
-msgstr ""
+msgstr "連符の括弧"
 
 msgid "Tuplet numbers"
-msgstr ""
+msgstr "連符の数字"
 
 msgid "Tuplets"
-msgstr ""
+msgstr "連符"
 
 msgid "Turn on in Project Settings ▸ Extensions"
-msgstr ""
+msgstr "プロジェクト設定 ▸ 拡張機能 でオンにします"
 
 msgid "Type an equation in t."
-msgstr ""
+msgstr "t の式を入力してください。"
 
 msgid "Typography"
-msgstr ""
+msgstr "タイポグラフィ"
 
 #: lib/sections_editor.dart
 msgid "Unbracket"
-msgstr ""
+msgstr "括弧を外す"
 
 msgid "Undefined at t = 0 or 1."
-msgstr ""
+msgstr "t = 0 または 1 で定義されていません。"
 
 #: lib/app_menus.dart
 msgid "Undo"
-msgstr ""
+msgstr "取り消す"
 
 #: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
-msgstr ""
+msgstr "取り消す（{key}）"
 
 #: lib/audio_panel.dart
 msgid "Convert to Anchors"
-msgstr ""
+msgstr "アンカーに変換"
 
 #: lib/audio_panel.dart
 msgid "Convert to Tempo Map"
-msgstr ""
+msgstr "テンポマップに変換"
 
 #: lib/editor_controller.dart
 msgid "Tempo Map"
-msgstr ""
+msgstr "テンポマップ"
 
 msgid "Anchor nudge"
-msgstr ""
+msgstr "アンカーの微調整"
 
 msgid "←/→ · ⇧ 1 ms"
 msgstr ""
 
 msgid "Fine seek"
-msgstr ""
+msgstr "細かいシーク"
 
 msgid "⌥←/→"
 msgstr ""
 
 msgid "Undo history"
-msgstr ""
+msgstr "取り消しの履歴"
 
 #: lib/captions_dialog.dart
 msgid "Until"
-msgstr ""
+msgstr "終了"
 
 #: lib/project_document.dart
 msgid "Untitled"
-msgstr ""
+msgstr "名称未設定"
 
 #: lib/assets_dialog.dart
 msgid "Unused"
-msgstr ""
+msgstr "未使用"
 
 msgid "Unzip it and replace this app with it."
-msgstr ""
+msgstr "解凍して、このアプリと置き換えてください。"
 
 msgid "Updates"
-msgstr ""
+msgstr "アップデート"
 
 #: lib/main.dart
 msgid "Update…"
-msgstr ""
+msgstr "アップデート…"
 
 msgid "That’s a lot of frames. Keep it to 2000 or fewer."
-msgstr ""
+msgstr "フレームが多すぎます。2000 以下にしてください。"
 
 msgid "That image is too big. Use one under 64 MB."
-msgstr ""
+msgstr "画像が大きすぎます。64 MB 未満のものを使ってください。"
 
 msgid "That score is too big. Use one under 256 MB."
-msgstr ""
+msgstr "楽譜が大きすぎます。256 MB 未満のものを使ってください。"
 
 msgid "That MIDI file is too big."
-msgstr ""
+msgstr "その MIDI ファイルは大きすぎます。"
 
 #: lib/edit_dialogs.dart
 msgid "Use Name from File"
-msgstr ""
+msgstr "ファイルの名前を使う"
 
 #: lib/settings_dialog.dart
 msgid "Use the saved defaults here"
-msgstr ""
+msgstr "保存したデフォルトをここで使う"
 
 msgid "Use these for other projects"
-msgstr ""
+msgstr "ほかのプロジェクトにも使う"
 
 msgid "UTF-16 MusicXML is not supported yet; save the file as UTF-8."
-msgstr ""
+msgstr "UTF-16 の MusicXML にはまだ対応していません。ファイルを UTF-8 で保存してください。"
 
 msgid "Version"
-msgstr ""
+msgstr "バージョン"
 
 #: lib/settings_dialog.dart
 msgid "Version {version}"
-msgstr ""
+msgstr "バージョン {version}"
 
 #: lib/spacer_dialogs.dart
 msgid "Vertical Spacer"
-msgstr ""
+msgstr "垂直スペーサー"
 
 msgid "Video"
-msgstr ""
+msgstr "ビデオ"
 
 msgid "Video Exported"
-msgstr ""
+msgstr "ビデオを書き出しました"
 
 #: lib/edit_dialogs.dart
 msgid "Video Ratio"
-msgstr ""
+msgstr "ビデオの比率"
 
 #: lib/editor_toolbar.dart
 msgid "Video ratio"
-msgstr ""
+msgstr "ビデオの比率"
 
 #: lib/media_converter.dart
 msgid "Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:"
-msgstr ""
+msgstr "ビデオと AAC/M4A オーディオには FFmpeg（無料）が必要です。インストールしてから、もう一度録音を追加してください："
 
 #: lib/app_menus.dart
 msgid "View"
-msgstr ""
+msgstr "表示"
 
 msgid "Violet"
-msgstr ""
+msgstr "バイオレット"
 
 msgid "Voices"
-msgstr ""
+msgstr "声楽"
 
 msgid "Warp"
-msgstr ""
+msgstr "ワープ"
 
 #: lib/audio_panel.dart
 msgid "Warp (W)\n"
 "Jump to another bar here"
-msgstr ""
+msgstr "ワープ（W）\n"
+"ここから別の小節へジャンプ"
 
 #: lib/audio_panel.dart
 msgid "Warp (W)\n"
 "Make this anchor jump to another bar"
-msgstr ""
+msgstr "ワープ（W）\n"
+"このアンカーを別の小節へジャンプさせる"
 
 #: lib/audio_panel.dart
 msgid "Warps from Score"
-msgstr ""
+msgstr "楽譜からワープ"
 
 msgid "When no anchors are set yet."
-msgstr ""
+msgstr "アンカーがまだないときのみ。"
 
 msgid "WebM video"
-msgstr ""
+msgstr "WebM ビデオ"
 
 msgid "Website"
-msgstr ""
+msgstr "Web サイト"
 
 #: lib/phrase_search_window.dart
 msgid "Whole (8)"
-msgstr ""
+msgstr "全音符（8）"
 
 #: lib/export_dialog.dart
 msgid "Whole piece"
-msgstr ""
+msgstr "曲全体"
 
 msgid "Whole-bar rests"
-msgstr ""
+msgstr "全小節休符"
 
 msgid "Width : height"
-msgstr ""
+msgstr "幅 : 高さ"
 
 #: lib/app_menus.dart
 msgid "Window"
-msgstr ""
+msgstr "ウインドウ"
 
 msgid "With bar numbers, shows rehearsal marks beside them, out of the music."
-msgstr ""
+msgstr "小節番号があるとき、リハーサルマークを音楽の外、小節番号の横に表示します。"
 
 msgid "Woodwinds"
-msgstr ""
+msgstr "木管"
 
 #: lib/edit_dialogs.dart
 msgid "This one can’t be undone."
-msgstr ""
+msgstr "これは取り消せません。"
 
 #: lib/main.dart
 msgid "If you don’t, they’ll be lost."
-msgstr ""
+msgstr "保存しないと、変更は失われます。"
 
 msgid "Your own server"
-msgstr ""
+msgstr "自分のサーバー"
 
 #: lib/settings_dialog.dart
 msgid "Yours."
-msgstr ""
+msgstr "自分で追加。"
 
 #: lib/bottom_panel.dart
 msgid "Zoom in ({key} or pinch)"
-msgstr ""
+msgstr "拡大（{key} またはピンチ）"
 
 #: lib/bottom_panel.dart
 msgid "Zoom out ({key} or pinch)"
-msgstr ""
+msgstr "縮小（{key} またはピンチ）"
 
 #: lib/instrument_lanes/lane_header.dart
 msgid "{names}: one lane"
-msgstr ""
+msgstr "{names}：1 つのレーン"
 
 #: lib/font_settings.dart
 msgid "{name} not found."
-msgstr ""
+msgstr "{name} が見つかりません。"
 
 #: lib/audio_panel.dart
 msgid "{n} anchors"
-msgstr ""
+msgstr "アンカー {n} 個"
 
 #: lib/audio_panel.dart
 msgid "{n} anchors from the recording"
-msgstr ""
+msgstr "録音からアンカー {n} 個"
 
 msgid "{n} Bars"
-msgstr ""
+msgstr "{n} 小節"
 
 msgid "{n} captions"
-msgstr ""
+msgstr "字幕 {n} 件"
 
 msgid "{n} edges"
-msgstr ""
+msgstr "エッジ {n} 本"
 
 #: lib/assets_dialog.dart lib/export_dialog.dart
 msgid "{n} frames"
-msgstr ""
+msgstr "{n} フレーム"
 
 msgid "{n} images"
-msgstr ""
+msgstr "画像 {n} 枚"
 
 msgid "{n} imported"
-msgstr ""
+msgstr "{n} 件読み込みました"
 
 msgid "{n} imported, {left} overlapping left out"
-msgstr ""
+msgstr "{n} 件読み込みました。重なる {left} 件は除外しました"
 
 #: lib/edit_dialogs.dart
 msgid "{n} items not supported:"
-msgstr ""
+msgstr "対応していない項目が {n} 件："
 
 #: lib/instruments_toolbar.dart
 msgid "{n} lanes"
-msgstr ""
+msgstr "レーン {n} 本"
 
 #: lib/phrase_search_window.dart
 msgid "{n} matches"
-msgstr ""
+msgstr "{n} 件"
 
 #: lib/export_dialog.dart
 msgid "{n} minutes"
-msgstr ""
+msgstr "{n} 分"
 
 msgid "{n} regions"
-msgstr ""
+msgstr "リージョン {n} 個"
 
 #: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
 msgid "{n} s"
-msgstr ""
+msgstr "{n} 秒"
 
 #: lib/export_dialog.dart
 msgid "{n} seconds"
-msgstr ""
+msgstr "{n} 秒"
 
 #: lib/settings_dialog.dart
 msgid "{n} steps"
-msgstr ""
+msgstr "{n} ステップ"
 
 msgid "{n} warps"
-msgstr ""
+msgstr "ワープ {n} 個"
 
 #: lib/settings_dialog.dart
 msgid "{shared} of {all} share a staff."
-msgstr ""
+msgstr "{all} 組のうち {shared} 組が譜表を共有します。"
 
 #: lib/audio_panel.dart
 msgid "{warps} from the score’s repeats"
-msgstr ""
+msgstr "楽譜の反復から {warps}"
 
 msgid "{what} in 1 lane"
-msgstr ""
+msgstr "1 本のレーンの {what}"
 
 msgid "{what} in {n} lanes"
-msgstr ""
+msgstr "{n} 本のレーンの {what}"
 
 #: lib/edit_dialogs.dart
 msgid "“{name}” already exists. Replace it?"
-msgstr ""
+msgstr "「{name}」はすでにあります。置き換えますか？"
 
 #: lib/video_export.dart lib/web_export.dart
 msgid "“{name}” already holds other files. Choose another name."
-msgstr ""
+msgstr "「{name}」にはほかのファイルがあります。別の名前を選んでください。"
 
 #: lib/main.dart
 msgid "Can’t find “{name}”. Was it moved or deleted?"
-msgstr ""
+msgstr "「{name}」が見つかりません。移動または削除されましたか？"
 
 #: lib/instruments_toolbar.dart
 msgid "←/→ a bar (⇧ a beat)"
-msgstr ""
+msgstr "←/→ 1 小節（⇧ 1 拍）"
 
 #: lib/audio_panel.dart
 msgid "↑/↓ re-point · ←/→ nudge · {key} remove"
-msgstr ""
+msgstr "↑/↓ 指す位置を変更 · ←/→ 微調整 · {key} 削除"
 
 #: lib/instruments_toolbar.dart
 msgid "⇧ add · ⌘ toggle, no snap · ⌥ draw"
-msgstr ""
+msgstr "⇧ 追加 · ⌘ 切り替え、スナップなし · ⌥ 描画"
 
 #: lib/instruments_toolbar.dart
 msgid "⌘ no snap · ⌥ draw"
-msgstr ""
+msgstr "⌘ スナップなし · ⌥ 描画"
 
 #: lib/instruments_toolbar.dart
 msgid "⌘ no snap · ⌥ erase"
-msgstr ""
+msgstr "⌘ スナップなし · ⌥ 消去"
 
 #: lib/audio_panel.dart
 msgid "⌥ add, draw · ⌘ no snap"
-msgstr ""
+msgstr "⌥ 追加、描画 · ⌘ スナップなし"
 
 #: lib/score_editor.dart
 msgid "128th"
-msgstr ""
+msgstr "128 分音符"
 
 #: lib/score_editor.dart
 msgid "16th"
-msgstr ""
+msgstr "16 分音符"
 
 #: lib/score_editor.dart
 msgid "32nd"
-msgstr ""
+msgstr "32 分音符"
 
 #: lib/score_editor.dart
 msgid "64th"
-msgstr ""
+msgstr "64 分音符"
 
 #: lib/score_editor.dart
 msgid "Accent ([)"
-msgstr ""
+msgstr "アクセント（[）"
 
 msgid "Bars and Barlines"
-msgstr ""
+msgstr "小節と小節線"
 
 #: lib/score_editor.dart
 msgid "Breve"
-msgstr ""
+msgstr "倍全音符"
 
 #: lib/score_editor.dart
 msgid "Chord"
-msgstr ""
+msgstr "和音"
 
 #: lib/score_editor.dart
 msgid "Chord (Q)"
-msgstr ""
+msgstr "和音（Q）"
 
 #: lib/main.dart
 msgid "Couldn’t Edit Score"
-msgstr ""
+msgstr "楽譜を編集できませんでした"
 
 #: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
-msgstr ""
+msgstr "破棄"
 
 #: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
-msgstr ""
+msgstr "変更を破棄しますか？"
 
 #: lib/score_editor.dart
 msgid "Dotted {value}"
-msgstr ""
+msgstr "付点 {value}"
 
 #: lib/score_editor.dart
 msgid "Edit Score"
-msgstr ""
+msgstr "楽譜を編集"
 
 #: lib/score_editor.dart
 msgid "Eighth"
-msgstr ""
+msgstr "8 分音符"
 
 #: lib/score_editor.dart
 msgid "Half"
-msgstr ""
+msgstr "2 分音符"
 
 msgid "Holds"
-msgstr ""
+msgstr "延長と停止"
 
 #: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
-msgstr ""
+msgstr "編集を続ける"
 
 #: lib/pdf_import_changes.dart
 msgid "Key Signature"
-msgstr ""
+msgstr "調号"
 
 #: lib/score_editor.dart
 msgid "Marcato (⇧[)"
-msgstr ""
+msgstr "マルカート（⇧[）"
 
 #: lib/score_editor.dart
 msgid "Note Input (⇧N)"
-msgstr ""
+msgstr "音符入力（⇧N）"
 
 #: lib/score_editor.dart
 msgid "Note input"
-msgstr ""
+msgstr "音符入力"
 
 #: lib/score_editor.dart
 msgid "Quarter"
-msgstr ""
+msgstr "4 分音符"
 
 #: lib/score_editor.dart
 msgid "Rest"
-msgstr ""
+msgstr "休符"
 
 #: lib/score_editor.dart
 msgid "Rest (,)"
-msgstr ""
+msgstr "休符（,）"
 
 #: lib/score_editor.dart
 msgid "Slur (S)"
-msgstr ""
+msgstr "スラー（S）"
 
 #: lib/score_editor.dart
 msgid "Staccatissimo (')"
-msgstr ""
+msgstr "スタッカティッシモ（'）"
 
 #: lib/score_editor.dart
 msgid "Staccato (])"
-msgstr ""
+msgstr "スタッカート（]）"
 
 #: lib/score_editor.dart
 msgid "Tenuto (⇧])"
-msgstr ""
+msgstr "テヌート（⇧]）"
 
 #: lib/score_editor.dart
 msgid "The score stays as it was."
-msgstr ""
+msgstr "楽譜はそのままです。"
 
 #: lib/score_editor.dart
 msgid "Tie (T)"
-msgstr ""
+msgstr "タイ（T）"
 
 #: lib/pdf_import.dart
 msgid "Time Signature"
-msgstr ""
+msgstr "拍子記号"
 
 msgid "Tuplet"
-msgstr ""
+msgstr "連符"
 
 #: lib/score_editor.dart
 msgid "Tuplet (;)"
-msgstr ""
+msgstr "連符（;）"
 
 #: lib/score_editor.dart
 msgid "Whole"
-msgstr ""
+msgstr "全音符"
 
 #: lib/pdf_import.dart lib/score_editor.dart
 msgid "Zoom In"
-msgstr ""
+msgstr "拡大"
 
 #: lib/pdf_import.dart lib/score_editor.dart
 msgid "Zoom Out"
-msgstr ""
+msgstr "縮小"
 
 #: lib/score_editor.dart
 msgid "{count} selected"
-msgstr ""
+msgstr "{count} 個を選択"
 
 #: lib/score_editor.dart
 msgid "{value} ({key})"
-msgstr ""
+msgstr "{value}（{key}）"
 
 msgid "Abbreviation"
-msgstr ""
+msgstr "略称"
 
 msgid "Add Instrument"
-msgstr ""
+msgstr "楽器を追加"
 
 #: lib/pdf_import.dart
 msgid "Bar {n}"
-msgstr ""
+msgstr "{n} 小節目"
 
 msgid "Barline"
-msgstr ""
+msgstr "小節線"
 
 #: lib/main.dart
 msgid "Couldn’t Import PDF"
-msgstr ""
+msgstr "PDF を読み込めませんでした"
 
 #: lib/pdf_import.dart
 msgid "Couldn’t measure the bars. {error}"
-msgstr ""
+msgstr "小節を測定できませんでした。{error}"
 
 #: lib/pdf_import.dart
 msgid "Couldn’t read the PDF. {error}"
-msgstr ""
+msgstr "PDF を読み取れませんでした。{error}"
 
 #: lib/pdf_import.dart
 msgid "Detect Page Again"
-msgstr ""
+msgstr "ページを再検出"
 
 msgid "Divisi"
-msgstr ""
+msgstr "ディヴィジ"
 
 msgid "Double"
-msgstr ""
+msgstr "複縦線"
 
 msgid "End Repeat"
-msgstr ""
+msgstr "反復の終わり"
 
 msgid "End and Start Repeat"
-msgstr ""
+msgstr "反復の終わりと始まり"
 
 msgid "Final"
-msgstr ""
+msgstr "終止線"
 
 #: lib/pdf_import.dart
 msgid "Import PDF"
-msgstr ""
+msgstr "PDF を読み込む"
 
 #: lib/pdf_import.dart
 msgid "Instrument"
-msgstr ""
+msgstr "楽器"
 
 msgid "Key"
-msgstr ""
+msgstr "調号"
 
 msgid "Kind"
-msgstr ""
+msgstr "種類"
 
 msgid "Mask"
-msgstr ""
+msgstr "マスク"
 
 msgid "Mask (M)"
-msgstr ""
+msgstr "マスク（M）"
 
 #: lib/pdf_import.dart
 msgid "Measuring system {n} of {count}…"
-msgstr ""
+msgstr "段 {n} / {count} を測定中…"
 
 #: lib/pdf_import.dart
 msgid "Move Down"
-msgstr ""
+msgstr "下へ移動"
 
 #: lib/pdf_import.dart
 msgid "Move Up"
-msgstr ""
+msgstr "上へ移動"
 
 #: lib/pdf_import.dart
 msgid "Next Page"
-msgstr ""
+msgstr "次のページ"
 
 #: lib/pdf_import.dart
 msgid "Previous Page"
-msgstr ""
+msgstr "前のページ"
 
 #: lib/pdf_import.dart
 msgid "Reading page {n} of {count}…"
-msgstr ""
+msgstr "ページ {n} / {count} を読み取り中…"
 
 #: lib/pdf_import.dart
 msgid "Remove Barline"
-msgstr ""
+msgstr "小節線を削除"
 
 msgid "Remove Instrument"
-msgstr ""
+msgstr "楽器を削除"
 
 #: lib/pdf_import.dart
 msgid "Remove Mask"
-msgstr ""
+msgstr "マスクを削除"
 
 msgid "Gap"
-msgstr ""
+msgstr "ギャップ"
 
 #: lib/pdf_import.dart
 msgid "Remove Gap"
-msgstr ""
+msgstr "ギャップを削除"
 
 #: lib/pdf_import_changes.dart
 msgid "Concert"
-msgstr ""
+msgstr "実音"
 
 msgid "Read as"
-msgstr ""
+msgstr "読み方"
 
 #: lib/pdf_import_changes.dart
 msgid "Concert: {key}"
-msgstr ""
+msgstr "実音：{key}"
 
 msgid "New Instrument"
-msgstr ""
+msgstr "新しい楽器"
 
 #: lib/pdf_import.dart
 msgid "Time Signature for {name}"
-msgstr ""
+msgstr "{name} の拍子記号"
 
 #: lib/pdf_import.dart
 msgid "Clef for {name}"
-msgstr ""
+msgstr "{name} の音部記号"
 
 #: lib/pdf_import.dart
 msgid "Insert Tempo…"
-msgstr ""
+msgstr "テンポを挿入…"
 
 #: lib/pdf_import.dart
 msgid "Insert Key Signature…"
-msgstr ""
+msgstr "調号を挿入…"
 
 #: lib/pdf_import.dart
 msgid "Insert Time Signature…"
-msgstr ""
+msgstr "拍子記号を挿入…"
 
 #: lib/pdf_import.dart
 msgid "Insert Time Signature for {name}…"
-msgstr ""
+msgstr "{name} の拍子記号を挿入…"
 
 #: lib/pdf_import.dart
 msgid "Insert Clef for {name}…"
-msgstr ""
+msgstr "{name} の音部記号を挿入…"
 
 #: lib/pdf_import.dart
 msgid "Key {key}"
-msgstr ""
+msgstr "調号 {key}"
 
 #: lib/pdf_import.dart
 msgid "Insert"
-msgstr ""
+msgstr "挿入"
 
 #: lib/pdf_import.dart
 msgid "New Instrument…"
-msgstr ""
+msgstr "新しい楽器…"
 
 #: lib/pdf_import.dart
 msgid "Remove System"
-msgstr ""
+msgstr "段を削除"
 
 msgid "Single"
-msgstr ""
+msgstr "単縦線"
 
 #: lib/instruments_toolbar.dart lib/pdf_import.dart
 msgid "Staff {n}"
-msgstr ""
+msgstr "譜表 {n}"
 
 msgid "Start Repeat"
-msgstr ""
+msgstr "反復の始まり"
 
 msgid "Time"
-msgstr ""
+msgstr "拍子"
 
 msgid "Upbeat (beats)"
-msgstr ""
+msgstr "アウフタクト（拍）"
 
 #: lib/pdf_import.dart lib/pdf_import_changes.dart
 msgid "in {key}"
-msgstr ""
+msgstr "{key} 管"
 
 #: lib/pdf_import.dart
 msgid "{bars} bars · {systems} systems"
-msgstr ""
+msgstr "{bars} 小節 · {systems} 段"
 
 #: lib/pdf_import.dart
 msgid "{n} of {count}"
-msgstr ""
+msgstr "{n} / {count}"
 
 #: lib/pdf_import.dart
 msgid "×{n}"
@@ -3189,272 +3192,278 @@ msgstr ""
 
 #: lib/edit_dialogs.dart
 msgid "Spacing of {name}"
-msgstr ""
+msgstr "{name} の間隔"
 
 msgid "Spacing…"
-msgstr ""
+msgstr "間隔…"
 
 msgid "Above (spaces)"
-msgstr ""
+msgstr "上（スペース）"
 
 msgid "Below (spaces)"
-msgstr ""
+msgstr "下（スペース）"
 
 msgid "Add Blank Lane"
-msgstr ""
+msgstr "空白のレーンを追加"
 
 #: lib/pdf_import.dart
 msgid "Blank"
-msgstr ""
+msgstr "空白"
 
 msgid "Rename Lane"
-msgstr ""
+msgstr "レーン名を変更"
 
 msgid "Opening…"
-msgstr ""
+msgstr "開いています…"
 
 msgid "Reading score…"
-msgstr ""
+msgstr "楽譜を読み取り中…"
 
 msgid "Measuring…"
-msgstr ""
+msgstr "測定中…"
 
 msgid "Loading pages…"
-msgstr ""
+msgstr "ページを読み込み中…"
 
 msgid "Split Lane"
-msgstr ""
+msgstr "レーンを分割"
 
 msgid "Join Lanes"
-msgstr ""
+msgstr "レーンを結合"
 
 msgid "Pages"
-msgstr ""
+msgstr "ページ"
 
 msgid "Changes"
-msgstr ""
+msgstr "変化"
 
 msgid "Review"
-msgstr ""
+msgstr "確認"
 
 msgid "Next"
-msgstr ""
+msgstr "次へ"
 
 msgid "Import"
-msgstr ""
+msgstr "読み込む"
 
 #: lib/pdf_import.dart
 msgid "Read Names from Score"
-msgstr ""
+msgstr "楽譜から名前を読み取る"
 
 #: lib/pdf_import.dart
 msgid "Every staff has an instrument"
-msgstr ""
+msgstr "すべての譜表に楽器があります"
 
 #: lib/pdf_import.dart
 msgid "{n} staves without an instrument"
-msgstr ""
+msgstr "楽器のない譜表が {n} 個"
 
 #: lib/pdf_import.dart
 msgid "Show Next"
-msgstr ""
+msgstr "次を表示"
 
 msgid "Summary"
-msgstr ""
+msgstr "概要"
 
 #: lib/pdf_import.dart
 msgid "Reading text… {n} of {count}"
-msgstr ""
+msgstr "テキストを読み取り中… {n} / {count}"
 
 #: lib/pdf_import.dart
 msgid "No text found"
-msgstr ""
+msgstr "テキストが見つかりません"
 
 msgid "Read from Score"
-msgstr ""
+msgstr "楽譜から読み取る"
 
 #: lib/pdf_import.dart
 msgid "Add All"
-msgstr ""
+msgstr "すべて追加"
 
 msgid "Bars"
-msgstr ""
+msgstr "小節"
 
 msgid "Systems"
-msgstr ""
+msgstr "段"
 
 msgid "Blank Lanes"
-msgstr ""
+msgstr "空白のレーン"
 
 msgid "Tempo Marks"
-msgstr ""
+msgstr "テンポ記号"
 
 msgid "Staves without an instrument"
-msgstr ""
+msgstr "楽器のない譜表"
 
 #: lib/pdf_import.dart
 msgid "More"
-msgstr ""
+msgstr "その他"
 
 msgid "Blank Lane"
-msgstr ""
+msgstr "空白のレーン"
 
 #: lib/pdf_import.dart
 msgid "Dismiss"
-msgstr ""
+msgstr "閉じる"
 
 #: lib/pdf_import.dart
 msgid "Select a bar"
-msgstr ""
+msgstr "小節を選んでください"
 
 #: lib/pdf_import.dart
 msgid "Lane"
-msgstr ""
+msgstr "レーン"
 
 #: lib/pdf_import.dart
 msgid "All Lanes"
-msgstr ""
+msgstr "すべてのレーン"
 
 #: lib/pdf_import.dart
 msgid "Mask Lane (M)"
-msgstr ""
+msgstr "レーンをマスク（M）"
 
 #: lib/pdf_import.dart
 msgid "Mask All Lanes (⇧M)"
-msgstr ""
+msgstr "すべてのレーンをマスク（⇧M）"
 
 msgid "Remove (⌫)"
-msgstr ""
+msgstr "削除（⌫）"
 
 msgid "Remove System (⌫)"
-msgstr ""
+msgstr "段を削除（⌫）"
 
 msgid "Remove Barline (⌫)"
-msgstr ""
+msgstr "小節線を削除（⌫）"
 
 msgid "Remove Gap (⌫)"
-msgstr ""
+msgstr "ギャップを削除（⌫）"
 
 msgid "Remove Mask (⌫)"
-msgstr ""
+msgstr "マスクを削除（⌫）"
 
 msgid "Show Next Staff without an Instrument"
-msgstr ""
+msgstr "楽器のない次の譜表を表示"
 
 #: lib/pdf_import.dart
 msgid "Time for {name}"
-msgstr ""
+msgstr "{name} の拍子"
 
 msgid "Select a staff"
-msgstr ""
+msgstr "譜表を選んでください"
 
 msgid "Add All Tempo Marks"
-msgstr ""
+msgstr "すべてのテンポ記号を追加"
 
 msgid "Masks"
-msgstr ""
+msgstr "マスク"
 
 #: lib/pdf_import.dart
 msgid "None on this page"
-msgstr ""
+msgstr "このページにはありません"
 
 msgid "Add Barline (B)"
-msgstr ""
+msgstr "小節線を追加（B）"
 
 msgid "Add Staff (S)"
-msgstr ""
+msgstr "譜表を追加（S）"
 
 #: lib/pdf_import.dart
 msgid "Remove Staff"
-msgstr ""
+msgstr "譜表を削除"
 
 #: lib/condensing_editor.dart
 msgctxt "condensing"
 msgid "with"
-msgstr ""
+msgstr "と"
 
 #: lib/editor_controller.dart
 msgid "Couldn’t load the recording.\n"
 "{error}"
-msgstr ""
+msgstr "録音を読み込めませんでした。\n"
+"{error}"
 
 #: lib/error_text.dart
 msgid "The project is damaged: {detail}"
-msgstr ""
+msgstr "プロジェクトが壊れています：{detail}"
 
 #: lib/error_text.dart
 msgid "The settings are damaged: {detail}"
-msgstr ""
+msgstr "設定が壊れています：{detail}"
 
 #: lib/media_converter.dart
 msgid "Couldn’t read audio from this file.\n"
 "{error}"
-msgstr ""
+msgstr "このファイルからオーディオを読み取れませんでした。\n"
+"{error}"
 
 #: lib/project_document.dart
 msgid "Can’t find the linked recording:\n"
 "{file}"
-msgstr ""
+msgstr "リンクされた録音が見つかりません：\n"
+"{file}"
 
 #: lib/score_editor.dart
 msgid "Voice {n}"
-msgstr ""
+msgstr "声部 {n}"
 
 #: lib/error_text.dart lib/updater.dart
 msgid "{error}."
-msgstr ""
+msgstr "{error}。"
 
 #: lib/updater.dart
 msgid "Couldn’t write the download."
-msgstr ""
+msgstr "ダウンロードを書き込めませんでした。"
 
 #: lib/updater.dart
 msgid "Couldn’t write {file}."
-msgstr ""
+msgstr "{file} を書き込めませんでした。"
 
 #: lib/video_export.dart
 msgid "FFmpeg couldn’t write the sound.\n"
 "{error}"
-msgstr ""
+msgstr "FFmpeg が音声を書き出せませんでした。\n"
+"{error}"
 
 #: lib/video_export.dart
 msgid "FFmpeg couldn’t write the video.\n"
 "{error}"
-msgstr ""
+msgstr "FFmpeg がビデオを書き出せませんでした。\n"
+"{error}"
 
 #: lib/web_export.dart
 msgid "Couldn’t write the page.\n"
 "{error}"
-msgstr ""
+msgstr "ページを書き込めませんでした。\n"
+"{error}"
 
 #: lib/error_text.dart
 msgid "{error}: “{file}”."
-msgstr ""
+msgstr "{error}：「{file}」。"
 
 #: lib/settings_dialog.dart
 msgid "Help translate Curator"
-msgstr ""
+msgstr "Curator の翻訳に協力する"
 
 msgid "Only partwise MusicXML can be edited."
-msgstr ""
+msgstr "編集できるのは partwise の MusicXML だけです。"
 
 msgid "The score has no bars."
-msgstr ""
+msgstr "楽譜に小節がありません。"
 
 msgid "The instruments have different numbers of bars."
-msgstr ""
+msgstr "楽器ごとに小節の数が異なります。"
 
 #: lib/pdf_import.dart
 msgid "No staff has an instrument yet."
-msgstr ""
+msgstr "楽器のある譜表がまだありません。"
 
 #: lib/main.dart
 msgid "“{name}” is open in another tab. Close it there first."
-msgstr ""
+msgstr "「{name}」は別のタブで開いています。先にそちらで閉じてください。"
 
 #: lib/captions_dialog.dart
 msgid "No room for another caption"
-msgstr ""
+msgstr "字幕を追加する余地がありません"
 
 #: lib/home_screen.dart
 msgid "Project or MusicXML ({key})"
