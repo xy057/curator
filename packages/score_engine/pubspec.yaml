@@ -34,6 +34,11 @@ flutter:
     - assets/fonts/Leipzig-OFL.txt
     - assets/fonts/Gootville-OFL.txt
     - assets/fonts/Academico-OFL.txt
+    # The licences of what is shipped compiled, which pub knows nothing of: Verovio and PDFium,
+    # each with the libraries built into it (Tools/make_licenses.py writes them). In the app's
+    # LicenseRegistry too.
+    - assets/licenses/Verovio.txt
+    - assets/licenses/PDFium.txt
   fonts:
     # SMuFL music fonts (SIL OFL 1.1, see assets/fonts/*-OFL.txt); Verovio's metrics for each
     # are assets/verovio/<family>.xml.
