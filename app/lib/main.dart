@@ -446,6 +446,19 @@ class _AppWindowState extends State<AppWindow> {
     _show(tabs[(tabs.indexOf(_showing) + step) % tabs.length]);
   }
 
+  /// A tab dragged along the strip: tab [from] takes tab [to]'s place (Show Next Tab follows
+  /// the new order).
+  void _moveTab(int from, int to) {
+    final tabs = _tabs;
+    if (from == to || from < 0 || to < 0 || from >= tabs.length || to >= tabs.length) return;
+    final moved = tabs[from], target = tabs[to];
+    setState(() {
+      _projects.remove(moved);
+      _projects.insert(_projects.indexOf(target) + (to > from ? 1 : 0), moved);
+    });
+    _menus.value++;
+  }
+
   /// Open…, Open Recent, a drop, the Finder: the project or score at [path] in a tab of its own,
   /// or the tab it is open in already.
   void _openPath(String path) {
@@ -598,6 +611,7 @@ class _AppWindowState extends State<AppWindow> {
                       shown: _showing == null ? null : tabs.indexOf(_showing!),
                       onShow: (i) => _show(i == null ? null : tabs[i]),
                       onClose: (i) => _close(tabs[i]),
+                      onMove: _moveTab,
                     ),
                   ),
                 ),
