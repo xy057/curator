@@ -4,6 +4,7 @@ import 'app_colors.dart';
 import 'app_icons.dart';
 import 'audio_panel.dart';
 import 'caption_lane.dart';
+import 'chapter_lane.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
 import 'spacer_lane.dart';
@@ -15,7 +16,7 @@ import 'l10n/l10n.dart';
 /// The DAW-like panel under the preview. The switch at its top-left changes between the
 /// Instruments tab (when each staff is shown) and the Audio tab (syncing to the recording).
 /// Both share one time axis, so zoom and scroll carry over. With Captions on, its lane is
-/// pinned under the ruler in both; with Attach Image on, the Spacers lane too. Project Settings… sits at its right end.
+/// pinned under the ruler in both; with Chapters on, its lane; with Attach Image on, the Spacers lane too. Project Settings… sits at its right end.
 class BottomPanel extends StatelessWidget {
   const BottomPanel({super.key, required this.controller, this.onProjectSettings});
   final EditorController controller;
@@ -34,6 +35,7 @@ class BottomPanel extends StatelessWidget {
           sync: controller.sync,
           tab: controller.tab,
           captions: controller.captions.enabled,
+          chapters: controller.chapters.enabled,
           spacers: controller.spacers.enabled,
           duration: controller.playback.duration,
         ),
@@ -94,6 +96,7 @@ class BottomPanel extends StatelessWidget {
                 BarRuler(controller: c),
                 // Pinned: under the ruler in both tabs, never scrolled away.
                 if (c.captions.enabled) CaptionLane(controller: c),
+                if (c.chapters.enabled) ChapterLane(controller: c),
                 if (c.spacers.enabled) SpacerLane(controller: c),
                 Expanded(
                   child: AnimatedSwitcher(

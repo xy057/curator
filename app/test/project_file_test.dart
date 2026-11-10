@@ -332,6 +332,9 @@ void main() {
       c.images.update(0, c.images.patches[0].copyWith(ink: true));
       c.captions.add(Caption(starts[1], starts[5], 'The horns answer'));
       c.captions.setFont(TextFonts.academico);
+      c.chapters.enabled = true;
+      c.chapters.add(Chapter(starts[4], 'Second theme'));
+      c.chapters.add(Chapter(starts[0], 'Opening'));
       final typography = ScoreTypography.standard.withValue('names.size', 1.2).withValue('lyrics.face', TextFace.bold);
       await c.setTypography(typography);
       final saved = c.projectState;
@@ -371,6 +374,7 @@ void main() {
       expect(c2.images.stored, hasLength(1), reason: 'the image file travels in the project');
       expect(c2.captions.captions, [Caption(starts[1], starts[5], 'The horns answer')]);
       expect(c2.captions.font, TextFonts.academico);
+      expect(c2.chapters.chapters, [Chapter(starts[0], 'Opening'), Chapter(starts[4], 'Second theme')]);
       expect((c2.typography, c2.scene!.typography, c2.score!.typography), (typography, typography, typography));
       expect(c2.source!.bytes, demoScore.readAsBytesSync());
       expect(doc2.isDirty, isFalse);

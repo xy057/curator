@@ -59,6 +59,7 @@ class AppSettings extends ChangeNotifier {
         _captionAlign = CaptionAlign.values.asNameMap()[_prefs?.getString(_captionAlignKey)] ?? CaptionAlign.center,
         _captionPlate = _prefs?.getBool(_captionPlateKey) ?? false,
         _videoSubtitles = _prefs?.getBool(_videoSubtitlesKey) ?? false,
+        _videoChapters = _prefs?.getBool(_videoChaptersKey) ?? true,
         _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false,
         _tabBar = _prefs?.getBool(_tabBarKey) ?? true,
         _rememberWindow = _prefs?.getBool(_rememberWindowKey) ?? true,
@@ -131,7 +132,7 @@ class AppSettings extends ChangeNotifier {
   static const _captionFontKey = 'captionFont';
   static const _captionCountdownKey = 'captionCountdown', _captionSizeKey = 'captionSize';
   static const _captionAlignKey = 'captionAlign', _captionPlateKey = 'captionPlate';
-  static const _videoSubtitlesKey = 'videoSubtitles';
+  static const _videoSubtitlesKey = 'videoSubtitles', _videoChaptersKey = 'videoChapters';
   static const defaultAutosave = Duration(minutes: 2);
 
   /// Choices offered for autosave; [Duration.zero] turns it off.
@@ -624,6 +625,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _videoSubtitles) return;
     _videoSubtitles = value;
     _prefs?.setBool(_videoSubtitlesKey, value);
+    notifyListeners();
+  }
+
+  /// Whether Export puts the chapters in a movie, and their times beside it (Chapters on, with
+  /// chapters). On by default.
+  bool get videoChapters => _videoChapters;
+  bool _videoChapters;
+  set videoChapters(bool value) {
+    if (value == _videoChapters) return;
+    _videoChapters = value;
+    _prefs?.setBool(_videoChaptersKey, value);
     notifyListeners();
   }
 

@@ -216,7 +216,8 @@ abstract final class VideoEncoder {
   /// [output] (for a [VideoCodec.isSequence], a file name pattern such as `take %05d.png`;
   /// its frames have no sound). A sound cut into at the start fades in over a few
   /// milliseconds, so it doesn't click; [fadeOut] fades it out (seconds into the video, and
-  /// how long).
+  /// how long). [chapters]: an FFmpeg metadata file ([chapterMetadata]) whose chapters the
+  /// movie carries (never a sequence).
   static List<String> arguments({
     required String encoder,
     required VideoFormat format,
@@ -226,8 +227,10 @@ abstract final class VideoEncoder {
     double audioStart = 0,
     List<ExportSound> sounds = const [],
     ({double at, double length})? fadeOut,
+    String? chapters,
   }) {
     final fps = format.fps, codec = format.codec, alpha = format.hasAlpha;
+    if (codec.isSequence) chapters = null;
     // One recording heard throughout is read from where the video starts; several (or one
     // with silence) are cut, faded, set in place and mixed.
     if (sounds case [final only] when only.at <= 1e-6 && only.end >= seconds - 1e-6) {
@@ -255,6 +258,8 @@ abstract final class VideoEncoder {
       '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', '${format.width}x${format.height}', '-framerate', VideoFormat.rateArgument(fps), '-i', '-',
       if (audio != null) ...[...MediaFormats.ffmpegReaders, if (audioStart > 0) ...['-ss', audioStart.toStringAsFixed(6)], '-i', audio],
       for (final path in files) ...[...MediaFormats.ffmpegReaders, '-i', path],
+      // The last input: only its chapters are taken.
+      if (chapters != null) ...['-f', 'ffmetadata', '-i', chapters, '-map_chapters', '${1 + (audio != null ? 1 : 0) + files.length}'],
       '-map', '0:v:0',
       if (audio != null) ...['-map', '1:a:0'],
       if (mix != null) ...['-filter_complex', mix, '-map', '[sound]'],
@@ -422,7 +427,7 @@ typedef ExportSound = ({String path, double from, double at, double end, double 
 /// nothing done in the editor meanwhile can change a video half written. Make one per export
 /// dialog; [dispose] it when done.
 class VideoExport {
-  VideoExport._(this._scene, this._curation, this._sync, this._releaseImages, {required this.duration, required this.sounds});
+  VideoExport._(this._scene, this._curation, this._sync, this._releaseImages, this._chapters, {required this.duration, required this.sounds});
 
   /// Takes what [editor] has open now; with [take], that recording heard whole in its own time
   /// ([EditorController.performedCopy]). The editor must have a score.
@@ -437,7 +442,7 @@ class VideoExport {
       ..setTimeline(timeline);
     // As playback's: the whole of what is heard, or the whole piece, whichever is longer.
     final duration = math.max(CuratedScene.endOf(timeline, editor.motion), chunks.fold(0.0, (end, c) => math.max(end, c.end)));
-    return VideoExport._(scene, copy, timeline, editor.images.hold(), duration: duration, sounds: [
+    return VideoExport._(scene, copy, timeline, editor.images.hold(), editor.chapters.exported, duration: duration, sounds: [
       for (final c in chunks)
         if (files[c.take] case final path?) (path: path, from: c.from, at: c.at, end: c.end, fadeIn: c.fadeIn, fadeOut: c.fadeOut),
     ]);
@@ -500,6 +505,25 @@ class VideoExport {
     final dot = video.lastIndexOf('.'), slash = video.lastIndexOf(Platform.pathSeparator);
     final path = '${dot > slash ? video.substring(0, dot) : video}.${SubtitleFormat.srt.extension}';
     await File(path).writeAsString(writeSubtitles(subtitles, SubtitleFormat.srt));
+    return path;
+  }
+
+  /// The project's chapters (the Chapters extension; none while it is off).
+  final List<Chapter> _chapters;
+
+  /// The chapters of the video showing [span], timed from its start ([chapterCues]): what
+  /// comes before the first is one named Start. Empty when none sounds in it.
+  List<ChapterCue> get chapters => _chaptersIn(span.start, span.end);
+
+  List<ChapterCue> _chaptersIn(double start, double end) =>
+      chapterCues(_chapters, _scene.timeline, from: start, to: end, opening: 'Start'.tr);
+
+  /// Writes [chapters] as a list of times beside [video] (its name, ending " chapters.txt"),
+  /// replacing one there: what a video's description takes. Returns its path.
+  Future<String> writeChaptersBeside(String video) async {
+    final dot = video.lastIndexOf('.'), slash = video.lastIndexOf(Platform.pathSeparator);
+    final path = '${dot > slash ? video.substring(0, dot) : video} chapters.txt';
+    await File(path).writeAsString(chapterTimestamps(chapters));
     return path;
   }
 
@@ -613,7 +637,8 @@ class VideoExport {
   /// them, and the video goes beside it instead ("Take 2"). Returns where the video went.
   /// [onFrame] gets each frame as drawn, to show (its own handle:
   /// it disposes it), so nothing need draw the scene again at another size meanwhile, which
-  /// would make the renderer draw its tiles again for every frame.
+  /// would make the renderer draw its tiles again for every frame. With [chapters], a movie
+  /// carries the project's ([VideoExport.chapters]) for its player.
   Future<String> write(
     String output, {
     required VideoFormat format,
@@ -622,6 +647,7 @@ class VideoExport {
     double? from,
     double? to,
     String? ffmpeg,
+    bool chapters = false,
   }) async {
     if (_disposed) throw const VideoExportCancelled();
     _cancelled = false; // a cancelled export before this one doesn't stop it
@@ -647,6 +673,10 @@ class VideoExport {
       if (folder.existsSync()) folder.deleteSync(recursive: true); // an export that never finished
       folder.createSync(recursive: true);
     }
+    // FFmpeg reads the chapters from a file: beside the video until it is written.
+    final cues = chapters && !codec.isSequence ? _chaptersIn(start, end) : const <ChapterCue>[];
+    final chapterFile = cues.isEmpty ? null : File('$partial.chapters');
+    await chapterFile?.writeAsString(chapterMetadata(cues));
     final process = _process = await Process.start(
       ffmpeg,
       VideoEncoder.arguments(
@@ -655,7 +685,8 @@ class VideoExport {
           seconds: frames / format.fps,
           output: codec.isSequence ? VideoEncoder.framePattern(partial, name, frames) : partial,
           sounds: _soundsIn(start, end),
-          fadeOut: fadeOut),
+          fadeOut: fadeOut,
+          chapters: chapterFile?.path),
     );
     final errors = StringBuffer();
     final stderr = process.stderr.transform(const Utf8Decoder(allowMalformed: true)).forEach(errors.write);
@@ -707,6 +738,7 @@ class VideoExport {
     final code = await process.exitCode;
     await stderr;
     _process = null;
+    if (chapterFile != null && chapterFile.existsSync()) chapterFile.deleteSync();
 
     final FileSystemEntity part = codec.isSequence ? Directory(partial) : File(partial);
     if (_cancelled || code != 0 || failure != null) {

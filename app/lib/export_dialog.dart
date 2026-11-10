@@ -126,6 +126,11 @@ class _ExportDialogState extends State<_ExportDialog> {
   /// Whether an .srt is written beside the video.
   bool get _subtitles => _hasCaptions && _settings.videoSubtitles && !_format.codec.isSequence;
 
+  /// Whether the video carries the project's chapters, and their times go beside it: the
+  /// extension on, with some sounding in the bars chosen.
+  bool get _hasChapters => widget.controller.chapters.exported.isNotEmpty;
+  bool get _chapters => _hasChapters && _settings.videoChapters && !_format.codec.isSequence;
+
   /// Whether the video as chosen can be written.
   bool get _writable => _ffmpeg != null && _range != null && _canWrite(_format.codec) && _overflowCleared;
 
@@ -173,16 +178,18 @@ class _ExportDialogState extends State<_ExportDialog> {
       _progress = null;
     });
     try {
-      final subtitles = _subtitles;
+      final subtitles = _subtitles, chapters = _chapters && _export.chapters.isNotEmpty;
       final written = await _export.write(path,
           format: format,
           ffmpeg: _ffmpeg,
+          chapters: chapters,
           // The still follows the frames written.
           onFrame: (frame) => mounted ? _showWritten(frame) : frame.dispose(),
           onProgress: (p) {
             if (mounted) setState(() => (_progress = p, _still = start + format.timeOf(p.frame - 1)));
           });
       if (subtitles) await _export.writeSubtitlesBeside(written);
+      if (chapters) await _export.writeChaptersBeside(written);
       if (mounted) setState(() => (_stage = _Stage.done, _output = written));
     } on VideoExportCancelled {
       if (mounted) setState(() => _stage = _Stage.setup);
@@ -444,6 +451,14 @@ class _ExportDialogState extends State<_ExportDialog> {
           child: AppSwitch(
               value: _subtitles,
               onChanged: format.codec.isSequence ? null : (v) => setState(() => _settings.videoSubtitles = v)),
+        ),
+      if (_hasChapters)
+        ExportRow(
+          label: 'Chapters',
+          tip: format.codec.isSequence ? 'Not with a PNG sequence' : 'In the video, and as times beside it',
+          child: AppSwitch(
+              value: _chapters,
+              onChanged: format.codec.isSequence ? null : (v) => setState(() => _settings.videoChapters = v)),
         ),
       SizedBox(height: dialogGap(context) + 8),
       const ExportHeading('Picture'),

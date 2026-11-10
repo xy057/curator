@@ -53,12 +53,13 @@ class _WebExportDialogState extends State<_WebExportDialog> {
 
   late final _takes = _c.pageState.takes;
   late final _hasCaptions = _c.extensionOn(Extensions.captions.id) && _c.captions.captions.isNotEmpty;
+  late final _hasChapters = _c.chapters.exported.isNotEmpty;
   late final _hasImages = _c.extensionOn(Extensions.attachImage.id) && _c.images.patches.isNotEmpty;
   late final _hasBarNumbers = _c.pageState.barNumbers;
 
   /// Recordings heard whole as well as the performance (with two or more).
   late Set<String> _whole = {if (_takes.length > 1) for (final t in _takes) t.id};
-  bool _captions = true, _images = true;
+  bool _captions = true, _chapters = true, _images = true;
 
   var _recording = const WebChoice(0, open: true);
   var _speed = const WebChoice(1.0, open: true);
@@ -120,6 +121,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
         ),
         takes: [for (final t in _takes) if (_whole.contains(t.id)) t.id],
         captions: _captions,
+        chapters: _chapters,
         images: _images,
       );
       if (mounted) setState(() => _stage = _Stage.done);
@@ -228,6 +230,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
         child: ExportSelect<double?>(value: _ratio, items: [for (final (v, name) in ratios) (v, name, true)], onChanged: (r) => setState(() => _ratio = r)),
       ),
       if (_hasCaptions) ExportRow(label: 'Captions', child: AppSwitch(value: _captions, onChanged: (v) => setState(() => _captions = v))),
+      if (_hasChapters) ExportRow(label: 'Chapters', child: AppSwitch(value: _chapters, onChanged: (v) => setState(() => _chapters = v))),
       if (_hasImages) ExportRow(label: 'Images', child: AppSwitch(value: _images, onChanged: (v) => setState(() => _images = v))),
       if (_takes.length > 1) ...[
         gap,

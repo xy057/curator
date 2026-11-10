@@ -141,6 +141,7 @@ ICONS = [
     ('maskAll', "Leaves part of a page out of every lane's staves.", 'visibility_off:fill', 'view--off--filled'),
     ('addBarline', 'Adds a barline.', 'splitscreen_vertical_add', 'column--insert'),
     ('addStaff', 'Adds a staff.', 'add_row_below', 'row--insert'),
+    ('chapters', 'Chapters.', 'bookmark', 'bookmark'),
 ]
 
 

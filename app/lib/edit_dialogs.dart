@@ -700,3 +700,101 @@ class _NameGroupDialogState extends State<_NameGroupDialog> {
     );
   }
 }
+
+/// A chapter's name and where it starts, as bar or bar.beat ("12" or "12.3"): a new one
+/// ([draft]) or chapter [index]. An empty name removes it.
+Future<void> showChapterDialog(BuildContext context, EditorController c, {int? index, Chapter? draft}) async {
+  final chapter = index != null ? c.chapters.chapters[index] : draft!;
+  final result = await showAppDialog<Chapter>(context: context, builder: (context) => _ChapterDialog(controller: c, chapter: chapter, index: index));
+  if (result == null) return;
+  if (index == null) {
+    c.chapters.add(result);
+  } else {
+    c.chapters.update(index, result);
+  }
+}
+
+class _ChapterDialog extends StatefulWidget {
+  const _ChapterDialog({required this.controller, required this.chapter, this.index});
+  final EditorController controller;
+  final Chapter chapter;
+
+  /// The chapter changed; null: a new one.
+  final int? index;
+  bool get isNew => index == null;
+
+  @override
+  State<_ChapterDialog> createState() => _ChapterDialogState();
+}
+
+class _ChapterDialogState extends State<_ChapterDialog> {
+  BeatGrid get _beats => widget.controller.beats;
+  late final _name = TextEditingController(text: widget.chapter.name);
+  late final _from = TextEditingController(text: _beats.format(widget.chapter.at, compact: true));
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _from.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // As in the region dialog: the field as shown is the chapter's own start, not its rounding.
+    final at = _from.text == _beats.format(widget.chapter.at, compact: true) ? widget.chapter.at : _beats.parse(_from.text);
+    final error = at == null
+        ? 'Enter a bar or bar.beat, like 12 or 12.3'
+        : at >= _beats.totalQuarters
+            ? 'Set From before the end'
+            : widget.controller.chapters.startingAt(at, except: widget.index) != null
+                ? 'Another chapter starts here'
+                : _name.text.trim().isEmpty
+                    ? ''
+                    : null;
+    void save() {
+      if (error == null) Navigator.pop(context, Chapter(at!, _name.text));
+    }
+
+    return AppDialog(
+      title: Text((widget.isNew ? 'Add Chapter' : 'Chapter').tr),
+      content: SizedBox(
+        width: dialogWidth(context, 400),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            flex: 3,
+            child: AppTextField(
+              controller: _name,
+              label: 'Name',
+              autofocus: true,
+              maxLength: maxChapterName,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => save(),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: AppTextField(
+              controller: _from,
+              label: 'From',
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => save(),
+            ),
+          ),
+        ]),
+      ),
+      status: error == null || error.isEmpty ? null : Text(error.tr, style: TextStyle(color: context.colors.erase)),
+      leading: [
+        if (!widget.isNew)
+          TextButton(
+            onPressed: () => Navigator.pop(context, widget.chapter.copyWith(name: '')),
+            child: Text('Remove'.tr),
+          ),
+      ],
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+        FilledButton(onPressed: error == null ? save : null, child: Text((widget.isNew ? 'Add' : 'Apply').tr)),
+      ],
+    );
+  }
+}

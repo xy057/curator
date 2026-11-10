@@ -31,6 +31,25 @@ void main() {
     expect(twice.carriedTo(once, 41), closeTo(66, 1e-9), reason: 'after the end, as far after');
   });
 
+  test('chapters in time: a repeat back into one is that chapter again; a video has them from its start, as times and as FFmpeg reads them', () {
+    // Bars 1–4 twice (a warp back at 8 s), then on to 40 s.
+    final twice = map()..load(const [SyncAnchor(0, 0), SyncAnchor(16, 8, jumpTo: 0), SyncAnchor(64, 40)]);
+    const chapters = [Chapter(0, 'A'), Chapter(8, 'B = 2'), Chapter(32, 'C')];
+    expect(chapterSpans(chapters, twice).map((s) => (s.chapter, s.start, s.end)), [(0, 0, 4), (1, 4, 8), (0, 8, 12), (1, 12, 24), (2, 24, 40)]);
+    // None at bar 1: the music before the first is no chapter's, the second time too.
+    expect(chapterSpans(chapters.sublist(1), twice).map((s) => s.chapter), [-1, 0, -1, 0, 1]);
+    expect(chapterSpans(const [Chapter(0, 'All')], twice, end: 43), [(chapter: 0, start: 0.0, end: 43.0)], reason: 'a repeat inside one');
+
+    final cues = chapterCues(chapters, twice, from: 2, to: 30, opening: 'Start');
+    expect(cues.map((c) => (c.start, c.end, c.name)), [(0, 2, 'A'), (2, 6, 'B = 2'), (6, 10, 'A'), (10, 22, 'B = 2'), (22, 28, 'C')]);
+    expect(chapterCues(chapters.sublist(2), twice, to: 40, opening: 'Start').map((c) => (c.start, c.name)), [(0, 'Start'), (24, 'C')]);
+    expect(chapterCues(chapters.sublist(2), twice, to: 20, opening: 'Start'), isEmpty, reason: 'no chapter sounds in it');
+    expect(chapterTimestamps(cues), '0:00 A\n0:02 B = 2\n0:06 A\n0:10 B = 2\n0:22 C\n');
+    expect(chapterTimestamps(const [(start: 0, end: 3700, name: 'A'), (start: 3700, end: 3800, name: 'B')]), '0:00:00 A\n1:01:40 B\n');
+    expect(chapterMetadata(cues), contains('[CHAPTER]\nTIMEBASE=1/1000\nSTART=2000\nEND=6000\ntitle=B \\= 2\n'));
+    expect(tidyChapters(const [Chapter(8, ' B '), Chapter(0, 'A'), Chapter(8, 'B2'), Chapter(4, '  ')]), const [Chapter(0, 'A'), Chapter(8, 'B2')]);
+  });
+
   test('recordings spliced by their lanes: each heard at its own tempo where its region is, crossfaded at the edges, silent between', () {
     // Bars 1–16: one recording at 2 s a bar, the other at 4 s a bar, from 1 s in.
     final quick = map()..load(const [SyncAnchor(0, 0), SyncAnchor(64, 32)]);

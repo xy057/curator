@@ -64,9 +64,10 @@ abstract class CuratorExtension {
 abstract final class Extensions {
   static const attachImage = AttachImageExtension();
   static const captions = CaptionsExtension();
+  static const chapters = ChaptersExtension();
 
   /// Built in, shipped with the app.
-  static const builtIn = <CuratorExtension>[attachImage, captions];
+  static const builtIn = <CuratorExtension>[attachImage, captions, chapters];
 
   /// All of them: the built-in ones, the only ones there are for now.
   static List<CuratorExtension> get all => builtIn;

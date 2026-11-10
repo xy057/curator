@@ -7,7 +7,6 @@ import 'editor_controller.dart';
 import 'lanes_common.dart';
 import 'spacer_dialogs.dart';
 import 'span_lane.dart';
-import 'ui_kit.dart';
 import 'l10n/l10n.dart';
 
 /// The Spacers lane (Attach Image): a [SpanLane] whose stretches are the horizontal spacers,
@@ -66,9 +65,9 @@ class SpacerLane extends StatelessWidget {
           trailing: Padding(
             padding: const EdgeInsets.only(right: 4),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              _LaneButton(icon: AppIcon.verticalSpacer, tooltip: 'Add Vertical Spacer'.tr, onPressed: _addVertical),
-              _LaneButton(icon: AppIcon.horizontalSpacer, tooltip: 'Add Horizontal Spacer'.tr, onPressed: _addHorizontal),
-              _LaneButton(
+              LaneButton(icon: AppIcon.verticalSpacer, tooltip: 'Add Vertical Spacer'.tr, onPressed: _addVertical),
+              LaneButton(icon: AppIcon.horizontalSpacer, tooltip: 'Add Horizontal Spacer'.tr, onPressed: _addHorizontal),
+              LaneButton(
                 icon: AppIcon.delete,
                 tooltip: 'Remove Spacer'.tr,
                 onPressed: c.spacers.hasSelection || _selectedLanes.isNotEmpty ? _remove : null,
@@ -119,27 +118,4 @@ class _HorizontalSpacers implements SpanLaneModel {
 
   @override
   InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);
-}
-
-/// A small button in a lane's name.
-class _LaneButton extends StatelessWidget {
-  const _LaneButton({required this.icon, required this.tooltip, required this.onPressed});
-  final AppIcon icon;
-  final String tooltip;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) => OverlaySemantics(
-        child: IconButton(
-          tooltip: tooltip.tr,
-          onPressed: onPressed,
-          iconSize: 14,
-          padding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
-          constraints: const BoxConstraints.tightFor(width: 22, height: 22),
-          color: context.colors.textMuted,
-          style: IconButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(5))),
-          icon: Icon(icon.of(context)),
-        ),
-      );
 }
