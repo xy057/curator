@@ -15,402 +15,403 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2026-11-10 14:47\n"
+"PO-Revision-Date: 2026-11-10 16:06\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
-msgstr ""
+msgstr " y "
 
 #: lib/export_dialog.dart
 msgid "(bars {from}–{to})"
-msgstr ""
+msgstr "(compases {from}–{to})"
 
 #: lib/media_converter.dart
 msgid "(or your distribution's package)"
-msgstr ""
+msgstr "(o el paquete de tu distribución)"
 
 #: lib/instruments_toolbar.dart lib/score_replacement.dart
 msgid ", "
 msgstr ""
 
 msgid ".srt beside the video"
-msgstr ""
+msgstr "Archivo .srt junto al vídeo"
 
 msgid "1 anchor"
-msgstr ""
+msgstr "1 punto de sincronización"
 
 #: lib/audio_panel.dart
 msgid "1 anchor from the recording"
-msgstr ""
+msgstr "1 punto de sincronización de la grabación"
 
 msgid "1 Bar"
-msgstr ""
+msgstr "1 compás"
 
 msgid "1 caption"
-msgstr ""
+msgstr "1 subtítulo"
 
 msgid "1 edge"
-msgstr ""
+msgstr "1 borde"
 
 msgid "1 image"
-msgstr ""
+msgstr "1 imagen"
 
 #: lib/phrase_search_window.dart
 msgid "1 match"
-msgstr ""
+msgstr "1 coincidencia"
 
 msgid "1 region"
-msgstr ""
+msgstr "1 región"
 
 msgid "1 warp"
-msgstr ""
+msgstr "1 salto"
 
 #: lib/phrase_search_window.dart
 msgid "16th (4)"
-msgstr ""
+msgstr "Semicorchea (4)"
 
 #: lib/phrase_search_window.dart
 msgid "32nd (3)"
-msgstr ""
+msgstr "Fusa (3)"
 
 #: lib/settings_dialog.dart
 msgid "A blend: the beats land on time, and the speed follows the notes {percent}% of the way."
-msgstr ""
+msgstr "Modo mixto: los pulsos se mantienen a tiempo y la velocidad sigue las notas en un {percent} %."
 
 msgid "A browser won’t open a page from disk: double-clicking index.html shows nothing. Serve the folder instead."
-msgstr ""
+msgstr "El navegador no puede abrir la página directamente desde el disco. Al hacer doble clic en index.html no se muestra nada. Sirve la carpeta desde un servidor web."
 
 msgid "A comparison needs “? … : …”."
-msgstr ""
+msgstr "La comparación requiere «? … : …»."
 
 msgid "A MIDI tempo map or a recording"
-msgstr ""
+msgstr "Un mapa de tempo MIDI o una grabación"
 
 msgid "A project, or a MusicXML or PDF score"
-msgstr ""
+msgstr "Un proyecto o una partitura en MusicXML o PDF"
 
 msgid "A tempo map starts at quarter 0."
-msgstr ""
+msgstr "El mapa de tempo comienza en la posición 0, medida en negras."
 
 msgid "About"
-msgstr ""
+msgstr "Acerca de"
 
 #: lib/app_menus.dart
 msgid "About Curator"
-msgstr ""
+msgstr "Acerca de Curator"
 
 msgid "Add the files to a repository, then Settings ▸ Pages ▸ Deploy from a branch."
-msgstr ""
+msgstr "Añade los archivos a un repositorio y selecciona Settings ▸ Pages ▸ Deploy from a branch."
 
 msgid "After exporting, Open in Browser does it for you. Or, in a terminal:"
-msgstr ""
+msgstr "Tras la exportación, «Abrir en el navegador» lo hace por ti. También puedes usar un terminal:"
 
 #: lib/web_export_dialog.dart
 msgid "As curated"
-msgstr ""
+msgstr "Según el montaje"
 
 msgid "Copy the folder into the site, as you’d copy any file to it."
-msgstr ""
+msgstr "Copia la carpeta en el sitio web como harías con cualquier otro archivo."
 
 #: lib/web_player/main.dart
 msgid "Couldn’t load {file} ({status})."
-msgstr ""
+msgstr "No se ha podido cargar {file} ({status})."
 
 msgid "Curator serves it while it’s open. Or, in a terminal:"
-msgstr ""
+msgstr "Curator sirve la página mientras está abierto. También puedes usar un terminal:"
 
 msgid "Drag the folder onto Netlify Drop."
-msgstr ""
+msgstr "Arrastra la carpeta a Netlify Drop."
 
 #: lib/web_export_dialog.dart
 msgid "Export to Web"
-msgstr ""
+msgstr "Exportar para la web"
 
 #: lib/app_menus.dart
 msgid "Export to Web…"
-msgstr ""
+msgstr "Exportar para la web…"
 
 msgid "Frame"
-msgstr ""
+msgstr "Encuadre"
 
 #: lib/web_player/player.dart
 msgid "Hide"
-msgstr ""
+msgstr "Ocultar"
 
 #: lib/web_export_dialog.dart
 msgid "How to Publish"
-msgstr ""
+msgstr "Cómo publicar"
 
 msgid "Images"
-msgstr ""
+msgstr "Imágenes"
 
 #: lib/web_export_dialog.dart
 msgid "Includes installed fonts ({fonts}): publish only if their licenses allow."
-msgstr ""
+msgstr "Incluye fuentes instaladas ({fonts}). Publícalas solo si sus licencias lo permiten."
 
 msgid "Installed fonts go with the page: publish it only where their licenses allow."
-msgstr ""
+msgstr "Las fuentes instaladas van con la página: publicarlas solo cuando sus licencias lo permitan."
 
 msgid "On This Computer"
-msgstr ""
+msgstr "En este equipo"
 
 msgid "Online"
-msgstr ""
+msgstr "En línea"
 
 #: lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Open in Browser"
-msgstr ""
+msgstr "Abrir en el navegador"
 
 #: lib/web_player/player.dart
 msgid "Options"
-msgstr ""
+msgstr "Opciones"
 
 msgid "Page"
-msgstr ""
+msgstr "Página"
 
 msgid "Pause"
-msgstr ""
+msgstr "Pausar"
 
 #: lib/web_export.dart lib/web_export_dialog.dart
 msgid "Performance"
-msgstr ""
+msgstr "Interpretación"
 
 msgid "Play"
-msgstr ""
+msgstr "Reproducir"
 
 #: lib/web_guide.dart
 msgid "Publishing a Page"
-msgstr ""
+msgstr "Publicar una página"
 
 msgid "Recordings"
-msgstr ""
+msgstr "Grabaciones"
 
 #: lib/web_player/player.dart
 msgid "Show"
-msgstr ""
+msgstr "Mostrar"
 
 #: lib/web_player/player.dart
 msgid "Speed"
-msgstr ""
+msgstr "Velocidad"
 
 #: lib/web_export.dart
 msgid "The score is still being engraved. Try again in a moment."
-msgstr ""
+msgstr "Todavía se está maquetando la partitura. Inténtalo de nuevo en unos instantes."
 
 msgid "Then open localhost:8000. Safari may not play the recording from this server; Chrome and Firefox will."
-msgstr ""
+msgstr "Después, abre localhost:8000. Es posible que Safari no reproduzca la grabación desde este servidor. Chrome y Firefox sí lo hacen."
 
 #: lib/web_export.dart lib/web_export_dialog.dart
 msgid "This build of Curator has no web player."
-msgstr ""
+msgstr "Esta versión de Curator no incluye reproductor web."
 
 #: lib/web_export.dart
 msgid "Those aren’t bars of the score."
-msgstr ""
+msgstr "Esos compases no existen en la partitura."
 
 msgid "Title"
-msgstr ""
+msgstr "subtítulo"
 
 msgid "To change it, export again into the same folder and upload it again."
-msgstr ""
+msgstr "Para modificarla, vuelve a exportarla a la misma carpeta y súbela de nuevo."
 
 msgid "Upload the whole folder, index.html with score beside it, to any web host. It works at a site’s top or in a folder of it."
-msgstr ""
+msgstr "Sube la carpeta completa a un servidor web y mantén index.html y la carpeta score en el mismo directorio. Funciona tanto en la raíz del sitio como en una subcarpeta."
 
 msgid "Viewer"
-msgstr ""
+msgstr "Espectador"
 
 #: lib/web_export_dialog.dart
 msgid "Viewer can change"
-msgstr ""
+msgstr "El espectador puede cambiar"
 
 #: lib/web_export_dialog.dart
 msgid "Writing…"
-msgstr ""
+msgstr "Escribiendo…"
 
 #: lib/export_dialog.dart
 msgid "about {time} left"
-msgstr ""
+msgstr "Quedan aproximadamente {time}"
 
 msgid "Accent color"
-msgstr ""
+msgstr "Color de énfasis"
 
 msgid "Accidentals"
-msgstr ""
+msgstr "Alteraciones"
 
 #: lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
 msgid "Add"
-msgstr ""
+msgstr "Añadir"
 
 msgid "Add a pair"
-msgstr ""
+msgstr "Añadir un par"
 
 msgid "Add Caption"
-msgstr ""
+msgstr "Añadir subtítulo"
 
 #: lib/score_view.dart
 msgid "Add Caption…"
-msgstr ""
+msgstr "Añadir subtítulo…"
 
 msgid "Add Group"
-msgstr ""
+msgstr "Añadir grupo"
 
 #: lib/settings_dialog.dart
 msgid "Add Group…"
-msgstr ""
+msgstr "Añadir grupo…"
 
 #: lib/spacer_lane.dart
 msgid "Add Horizontal Spacer"
-msgstr ""
+msgstr "Añadir espaciador horizontal"
 
 #: lib/score_view.dart
 msgid "Add Image…"
-msgstr ""
+msgstr "Añadir imagen…"
 
 #: lib/audio_panel.dart
 msgid "MIDI Tempo Map…"
-msgstr ""
+msgstr "Mapa de tempo MIDI…"
 
 #: lib/audio_panel.dart
 msgid "Add Recording…"
-msgstr ""
+msgstr "Añadir grabación…"
 
 #: lib/audio_panel.dart
 msgid "Add Recording… (or drop one here)"
-msgstr ""
+msgstr "Añadir grabación… (o arrástrala aquí)"
 
 #: lib/spacer_lane.dart
 msgid "Add Vertical Spacer"
-msgstr ""
+msgstr "Añadir espaciador vertical"
 
 #: lib/score_replacement.dart
 msgid "Added: {names}"
-msgstr ""
+msgstr "Se ha añadido: {names}"
 
 msgid "Add…"
-msgstr ""
+msgstr "Añadir…"
 
 msgid "Advanced"
-msgstr ""
+msgstr "Avanzado"
 
 msgid "Advanced Engraving"
-msgstr ""
+msgstr "Edición avanzada de la notación"
 
 #: lib/audio_panel.dart
 msgid "Align"
-msgstr ""
+msgstr "Sincronizar"
 
 #: lib/audio_panel.dart
 msgid "Align\n"
 "Set the anchors from the recording"
-msgstr ""
+msgstr "Sincronizar\n"
+"Establecer los puntos de sincronización a partir de la grabación"
 
 msgid "Align grace notes"
-msgstr ""
+msgstr "Sincronizar las notas de adorno"
 
 msgid "Align added recordings"
-msgstr ""
+msgstr "Sincronizar las grabaciones añadidas"
 
 msgid "Auto-curate imported scores"
-msgstr ""
+msgstr "Crear automáticamente el montaje de las partituras importadas"
 
 msgid "Auto-curate PDF scores"
-msgstr ""
+msgstr "Crear automáticamente el montaje de las partituras en PDF"
 
 msgid "Off: every staff throughout."
-msgstr ""
+msgstr "Desactivado: se muestran todos los pentagramas en todo momento."
 
 #: lib/audio_panel.dart
 msgid "Aligning…"
-msgstr ""
+msgstr "Sincronizando…"
 
 #: lib/extensions/extensions_dialog.dart lib/instruments_toolbar.dart lib/pdf_import.dart
 msgid "All"
-msgstr ""
+msgstr "Todo"
 
 msgid "All pairs"
-msgstr ""
+msgstr "Todos los pares"
 
 msgid "Alt+click"
-msgstr ""
+msgstr "Alt+clic"
 
 msgid "Alternative octave marks"
-msgstr ""
+msgstr "Indicaciones de octava alternativas"
 
 #: lib/phrase_search_window.dart
 msgid "Alto"
-msgstr ""
+msgstr "Clave de do en tercera"
 
 msgid "Amber"
-msgstr ""
+msgstr "Ámbar"
 
 msgid "An image on the score is missing"
-msgstr ""
+msgstr "Falta una imagen de la partitura"
 
 msgid "Anchor"
-msgstr ""
+msgstr "Punto de sincronización"
 
 #: lib/audio_panel.dart
 msgid "Anchors"
-msgstr ""
+msgstr "Puntos de sincronización"
 
 msgid "Angled brackets on beams"
-msgstr ""
+msgstr "Corchetes angulares en las barras de unión"
 
 msgid "Animation"
-msgstr ""
+msgstr "Animación"
 
 msgid "Another score was opened meanwhile."
-msgstr ""
+msgstr "Mientras tanto se ha abierto otra partitura."
 
 #: lib/phrase_search_window.dart
 msgid "Any key"
-msgstr ""
+msgstr "Cualquier tonalidad"
 
 msgid "Anything"
-msgstr ""
+msgstr "Cualquier cosa"
 
 msgid "Appearance"
-msgstr ""
+msgstr "Aspecto"
 
 #: lib/edit_dialogs.dart lib/spacer_dialogs.dart
 msgid "Apply"
-msgstr ""
+msgstr "Aplicar"
 
 msgid "Arpeggios"
-msgstr ""
+msgstr "Arpegios"
 
 msgid "Articulations"
-msgstr ""
+msgstr "Articulaciones"
 
 msgid "As written"
-msgstr ""
+msgstr "Tal como está escrito"
 
 msgid "Asks GitHub for a newer version each time the app starts."
-msgstr ""
+msgstr "Busca una versión más reciente en GitHub cada vez que se inicia la aplicación."
 
 #: lib/assets_dialog.dart
 msgid "Assets"
-msgstr ""
+msgstr "Recursos"
 
 msgid "At"
-msgstr ""
+msgstr "En"
 
 msgid "Attach Image"
-msgstr ""
+msgstr "Adjuntar imagen"
 
 msgid "Attach Image is off"
-msgstr ""
+msgstr "La opción «Adjuntar imagen» está desactivada"
 
 msgid "Attach Image is off for now."
-msgstr ""
+msgstr "Por ahora, la opción «Adjuntar imagen» está desactivada."
 
 msgid "Audio"
 msgstr ""
 
 #: lib/audio_panel.dart
 msgid "Audio or video"
-msgstr ""
+msgstr "Audio o vídeo"
 
 #: lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_player/player.dart
 msgid "Auto"
@@ -418,1850 +419,1850 @@ msgstr ""
 
 #: lib/instruments_toolbar.dart
 msgid "Auto-curate"
-msgstr ""
+msgstr "Crear montaje automático"
 
 msgid "Auto-Curate Lane"
-msgstr ""
+msgstr "Crear montaje automático de la pista"
 
 msgid "Automatic"
-msgstr ""
+msgstr "Automático"
 
 msgid "Autosave"
-msgstr ""
+msgstr "Guardado automático"
 
 #: lib/export_dialog.dart lib/pdf_import.dart lib/web_export_dialog.dart
 msgid "Back"
-msgstr ""
+msgstr "Atrás"
 
 msgid "Backing"
-msgstr ""
+msgstr "Fondo"
 
 #: lib/lanes_common.dart
 msgid "Bar"
-msgstr ""
+msgstr "Compás"
 
 #: lib/score_replacement.dart
 msgid "Bar length differs from bar {n}"
-msgstr ""
+msgstr "La duración del compás difiere de la del compás {n}"
 
 msgid "Bar number interval"
-msgstr ""
+msgstr "Intervalo de numeración de compases"
 
 #: lib/web_player/player.dart
 msgid "Bar numbers"
-msgstr ""
+msgstr "Números de compás"
 
 #: lib/editor_toolbar.dart
 msgid "Bar or m:ss"
-msgstr ""
+msgstr "Compás o m:ss"
 
 msgid "Bar repeats"
-msgstr ""
+msgstr "Repeticiones de compás"
 
 #: lib/assets_dialog.dart lib/phrase_search_window.dart
 msgid "Bar {bar}"
-msgstr ""
+msgstr "Compás {bar}"
 
 msgid "Barlines"
-msgstr ""
+msgstr "Barras de compás"
 
 #: lib/export_dialog.dart
 msgid "Bars and still"
-msgstr ""
+msgstr "Compases e imagen fija"
 
 #: lib/export_dialog.dart
 msgid "Bars {bars}"
-msgstr ""
+msgstr "Compases {bars}"
 
 #: lib/export_dialog.dart
 msgid "Bars {from} to {to}"
-msgstr ""
+msgstr "Compases del {from} al {to}"
 
 #: lib/score_replacement.dart
 msgid "Bars: {from} → {to}"
-msgstr ""
+msgstr "Compases: {from} → {to}"
 
 #: lib/phrase_search_window.dart
 msgid "Bass"
-msgstr ""
+msgstr "Clave de fa"
 
 msgid "Beat"
-msgstr ""
+msgstr "Pulso"
 
 msgid "Beat repeats"
-msgstr ""
+msgstr "Repeticiones de pulso"
 
 #: lib/settings_dialog.dart
 msgid "Beats"
-msgstr ""
+msgstr "Pulsos"
 
 #: lib/audio_panel.dart
 msgid "Beats per minute"
-msgstr ""
+msgstr "Pulsos por minuto"
 
 msgid "Block"
-msgstr ""
+msgstr "Bloque"
 
 msgid "Bold"
-msgstr ""
+msgstr "Negrita"
 
 msgid "Bold Italic"
-msgstr ""
+msgstr "Negrita cursiva"
 
 #: lib/sections_editor.dart
 msgid "Bracket"
-msgstr ""
+msgstr "Corchete"
 
 msgid "Brackets"
-msgstr ""
+msgstr "Corchetes"
 
 msgid "Brass"
-msgstr ""
+msgstr "Viento metal"
 
 msgid "Breath marks"
-msgstr ""
+msgstr "Signos de respiración"
 
 #: lib/instruments_toolbar.dart
 msgid "Bridge Rests Up to {bars}"
-msgstr ""
+msgstr "Unir tramos separados por silencios de hasta {bars} compases"
 
 msgid "c if a < b, else d"
-msgstr ""
+msgstr "c si a < b; en caso contrario, d"
 
 #: lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
-msgstr ""
+msgstr "Cancelar"
 
 #: lib/updater.dart
 msgid "Can’t reach GitHub. Is the internet connected?"
-msgstr ""
+msgstr "No se puede conectar con GitHub. ¿Hay conexión a Internet?"
 
 msgid "Can’t find the recording to embed"
-msgstr ""
+msgstr "No se encuentra la grabación que se va a incrustar"
 
 msgid "Caption"
-msgstr ""
+msgstr "subtítulo"
 
 msgid "Caption curve"
-msgstr ""
+msgstr "Curvatura de subtítulo"
 
 msgid "Caption fade"
-msgstr ""
+msgstr "Desvanecimiento del subtítulo"
 
 msgid "Caption font"
-msgstr ""
+msgstr "Fuente de los subtítulos"
 
 msgid "Caption rise"
-msgstr ""
+msgstr "Elevación del subtítulo"
 
 #: lib/caption_lane.dart lib/captions_dialog.dart lib/web_player/player.dart
 msgid "Captions"
-msgstr ""
+msgstr "subtítulos"
 
 msgid "Carbon"
-msgstr ""
+msgstr "Carbón"
 
 msgid "Center"
-msgstr ""
+msgstr "Centro"
 
 msgid "Centered lyrics"
-msgstr ""
+msgstr "Letra centrada"
 
 msgid "Centers syllables under their notes."
-msgstr ""
+msgstr "Centra cada sílaba bajo la nota correspondiente."
 
 msgid "Changelog"
-msgstr ""
+msgstr "Historial de cambios"
 
 msgid "Check at launch"
-msgstr ""
+msgstr "Buscar actualizaciones al iniciar"
 
 #: lib/settings_dialog.dart
 msgid "Check for Updates"
-msgstr ""
+msgstr "Buscar actualizaciones"
 
 #: lib/settings_dialog.dart
 msgid "Checking…"
-msgstr ""
+msgstr "Comprobando…"
 
 #: lib/audio_panel.dart
 msgid "Pick a spot between the neighboring anchors."
-msgstr ""
+msgstr "Elige un punto entre los dos puntos de sincronización contiguos."
 
 msgid "Chord symbols"
-msgstr ""
+msgstr "Cifrado de acordes"
 
 msgid "Chords"
-msgstr ""
+msgstr "Acordes"
 
 #: lib/home_screen.dart lib/phrase_search_window.dart
 msgid "Clear"
-msgstr ""
+msgstr "Vaciar"
 
 #: lib/instruments_toolbar.dart
 msgid "Clear all lanes"
-msgstr ""
+msgstr "Vaciar todas las pistas"
 
 msgid "Clear Lane"
-msgstr ""
+msgstr "Vaciar pista"
 
 #: lib/app_menus.dart
 msgid "Clear Menu"
-msgstr ""
+msgstr "Vaciar menú"
 
 #: lib/phrase_search_window.dart
 msgid "Clef"
-msgstr ""
+msgstr "Clave"
 
 msgid "Clefs"
-msgstr ""
+msgstr "Claves"
 
 #: lib/app_menus.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
-msgstr ""
+msgstr "Cerrar"
 
 msgid "Close Curator, then replace its folder with the unzipped one."
-msgstr ""
+msgstr "Cierra Curator y sustituye su carpeta por la que has descomprimido."
 
 #: lib/settings_dialog.dart
 msgid "Close settings"
-msgstr ""
+msgstr "Cerrar ajustes"
 
 #: lib/project_tabs.dart
 msgid "Close tab ({key})"
-msgstr ""
+msgstr "Cerrar pestaña ({key})"
 
 msgid "Close up verses"
-msgstr ""
+msgstr "Acercar las estrofas"
 
 msgid "Closing barlines"
-msgstr ""
+msgstr "Barras de compás finales"
 
 #: lib/phrase_search_window.dart
 msgid "Collapse"
-msgstr ""
+msgstr "Contraer"
 
 msgid "Color names"
-msgstr ""
+msgstr "Nombres de los colores"
 
 msgid "Compact"
-msgstr ""
+msgstr "Compacto"
 
 #: lib/spacer_dialogs.dart
 msgid "Concert pitch"
-msgstr ""
+msgstr "Altura de concierto"
 
 msgid "Condensing"
-msgstr ""
+msgstr "Condensación de pentagramas"
 
 #: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart
 msgid "Copy"
-msgstr ""
+msgstr "Copiar"
 
 msgid "Copy Lane To…"
-msgstr ""
+msgstr "Copiar pista a…"
 
 #: lib/edit_dialogs.dart
 msgid "Copy {name} to…"
-msgstr ""
+msgstr "Copiar {name} a…"
 
 #: lib/score_view/attach_image.dart
 msgid "Couldn’t add the image. {error}"
-msgstr ""
+msgstr "No se ha podido añadir la imagen. {error}"
 
 #: lib/audio_panel.dart
 msgid "Couldn’t align. {error}"
-msgstr ""
+msgstr "No se ha podido sincronizar. {error}"
 
 #: lib/main.dart
 msgid "Couldn’t autosave. {error}"
-msgstr ""
+msgstr "Ha fallado el guardado automático. {error}"
 
 #: lib/audio_panel.dart
 msgid "Couldn’t hear the score in this recording."
-msgstr ""
+msgstr "No se ha podido reconocer la música de la partitura en esta grabación."
 
 #: lib/main.dart lib/score_editor.dart
 msgid "Couldn’t engrave. {error}"
-msgstr ""
+msgstr "No se ha podido maquetar la partitura. {error}"
 
 #: lib/settings_dialog.dart
 msgid "Couldn’t Export Settings"
-msgstr ""
+msgstr "No se han podido exportar los ajustes"
 
 msgid "Couldn’t Export Video"
-msgstr ""
+msgstr "No se ha podido exportar el vídeo"
 
 #: lib/settings_dialog.dart
 msgid "Couldn’t Import Settings"
-msgstr ""
+msgstr "No se han podido importar los ajustes"
 
 #: lib/main.dart
 msgid "Couldn’t Load Recording"
-msgstr ""
+msgstr "No se ha podido cargar la grabación"
 
 #: lib/audio_panel.dart
 msgid "Couldn’t load the recording. {error}"
-msgstr ""
+msgstr "No se ha podido cargar la grabación. {error}"
 
 #: lib/main.dart
 msgid "Couldn’t Open Project"
-msgstr ""
+msgstr "No se ha podido abrir el proyecto"
 
 #: lib/main.dart
 msgid "Couldn’t Open Sample"
-msgstr ""
+msgstr "No se ha podido abrir el ejemplo"
 
 #: lib/main.dart
 msgid "Couldn’t Open Score"
-msgstr ""
+msgstr "No se ha podido abrir la partitura"
 
 #: lib/main.dart lib/score_view/attach_image.dart
 msgid "Couldn’t paste the image. {error}"
-msgstr ""
+msgstr "No se ha podido pegar la imagen. {error}"
 
 msgid "Couldn’t read an image in the project."
-msgstr ""
+msgstr "No se ha podido leer una imagen del proyecto."
 
 #: lib/updater.dart
 msgid "Couldn’t read GitHub’s response."
-msgstr ""
+msgstr "No se ha podido leer la respuesta de GitHub."
 
 msgid "Couldn’t read the music font."
-msgstr ""
+msgstr "No se ha podido leer la fuente musical."
 
 #: lib/image_patch.dart
 msgid "Couldn’t make sense of this image."
-msgstr ""
+msgstr "No se ha podido interpretar esta imagen."
 
 msgid "Couldn’t make sense of this SVG."
-msgstr ""
+msgstr "No se ha podido interpretar este SVG."
 
 #: lib/main.dart
 msgid "Couldn’t Save Project"
-msgstr ""
+msgstr "No se ha podido guardar el proyecto"
 
 msgid "Couldn’t start the engraver."
-msgstr ""
+msgstr "No se ha podido iniciar el motor de notación."
 
 #: lib/main.dart
 msgid "Couldn’t Use MIDI File"
-msgstr ""
+msgstr "No se ha podido utilizar el archivo MIDI"
 
 #: lib/error_text.dart
 msgid "Couldn’t use the file"
-msgstr ""
+msgstr "No se ha podido utilizar el archivo"
 
 #: lib/audio_panel.dart
 msgid "Couldn’t use the MIDI file. {error}"
-msgstr ""
+msgstr "No se ha podido utilizar el archivo MIDI. {error}"
 
 msgid "Countdown"
-msgstr ""
+msgstr "Cuenta atrás"
 
 msgid "Crop"
-msgstr ""
+msgstr "Recortar"
 
 #: lib/audio_panel.dart
 msgid "Crossfade"
-msgstr ""
+msgstr "Fundido cruzado"
 
 msgid "Crossfade (its own)"
-msgstr ""
+msgstr "Fundido cruzado propio"
 
 msgid "Crossfade (the project’s)"
-msgstr ""
+msgstr "Fundido cruzado del proyecto"
 
 #: lib/settings_dialog.dart
 msgid "Curator is up to date! ☆"
-msgstr ""
+msgstr "¡Curator está actualizado! ☆"
 
 #: lib/main.dart
 msgid "Curator project"
-msgstr ""
+msgstr "Proyecto de Curator"
 
 #: lib/settings_dialog.dart
 msgid "Curator settings"
-msgstr ""
+msgstr "Ajustes de Curator"
 
 #: lib/settings_dialog.dart
 msgid "Curator {version} is out, but not for this system yet."
-msgstr ""
+msgstr "Ya está disponible Curator {version}, pero aún no hay una versión para este sistema."
 
 #: lib/main.dart lib/settings_dialog.dart
 msgid "Curator {version} is available! ☆"
-msgstr ""
+msgstr "¡Curator {version} ya está disponible! ☆"
 
 #: lib/motion_settings.dart
 msgid "Custom"
-msgstr ""
+msgstr "Personalizado"
 
 #: lib/editor_toolbar.dart
 msgid "Custom ({ratio})…"
-msgstr ""
+msgstr "Personalizado ({ratio})…"
 
 #: lib/color_dialog.dart
 msgid "Custom Color"
-msgstr ""
+msgstr "Color personalizado"
 
 #: lib/motion_settings.dart
 msgid "Custom Curve"
-msgstr ""
+msgstr "Curva personalizada"
 
 #: lib/editor_toolbar.dart
 msgid "Custom…"
-msgstr ""
+msgstr "Personalizar…"
 
 #: lib/app_menus.dart
 msgid "Cut"
-msgstr ""
+msgstr "Cortar"
 
 msgid "Cyan"
-msgstr ""
+msgstr "Cian"
 
 #: lib/settings_dialog.dart
 msgid "Dark"
-msgstr ""
+msgstr "Oscuro"
 
 msgid "Dark also turns the score dark."
-msgstr ""
+msgstr "El modo oscuro también oscurece la partitura."
 
 msgid "Dash gap"
-msgstr ""
+msgstr "Separación entre trazos"
 
 msgid "Dash length"
-msgstr ""
+msgstr "Longitud del trazo"
 
 #: lib/font_settings.dart lib/settings_dialog.dart
 msgid "Default"
-msgstr ""
+msgstr "Predeterminado"
 
 #: lib/app_menus.dart
 msgid "Delete"
-msgstr ""
+msgstr "Eliminar"
 
 #: lib/phrase_search_window.dart
 msgid "Delete note ({key})"
-msgstr ""
+msgstr "Eliminar nota ({key})"
 
 msgid "Density"
-msgstr ""
+msgstr "Densidad"
 
 #: lib/audio_panel.dart
 msgid "Deselect (Esc)"
-msgstr ""
+msgstr "Anular selección (Esc)"
 
 #: lib/main.dart
 msgid "Save your changes to “{name}” first?"
-msgstr ""
+msgstr "¿Quieres guardar primero los cambios en «{name}»?"
 
 #: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
-msgstr ""
+msgstr "Listo"
 
 #: lib/main.dart
 msgid "Don’t Save"
-msgstr ""
+msgstr "No guardar"
 
 #: lib/phrase_search_window.dart lib/score_editor.dart
 msgid "Dot (.)"
-msgstr ""
+msgstr "Puntillo (.)"
 
 msgid "Dots"
-msgstr ""
+msgstr "Puntillos"
 
 msgid "Double barline gap"
-msgstr ""
+msgstr "Separación entre las líneas de la doble barra"
 
 #: lib/settings_dialog.dart
 msgid "Download {version}"
-msgstr ""
+msgstr "Descargar {version}"
 
 #: lib/settings_dialog.dart
 msgid "Downloading {version}…"
-msgstr ""
+msgstr "Descargando {version}…"
 
 #: lib/instruments_toolbar.dart
 msgid "Draw (D)"
-msgstr ""
+msgstr "Dibujar (D)"
 
 msgid "Try a MIDI file or a recording."
-msgstr ""
+msgstr "Prueba con un archivo MIDI o una grabación."
 
 msgid "Drop a recording or a MIDI file"
-msgstr ""
+msgstr "Arrastra aquí una grabación o un archivo MIDI"
 
 msgid "That needs to be an image file."
-msgstr ""
+msgstr "Se necesita un archivo de imagen."
 
 msgid "Recordings and MIDI files go on the Audio tab!"
-msgstr ""
+msgstr "Las grabaciones y los archivos MIDI se añaden en la pestaña Audio."
 
 msgid "Drop to add"
-msgstr ""
+msgstr "Suelta para añadir"
 
 msgid "Drop to add an image"
-msgstr ""
+msgstr "Suelta para añadir una imagen"
 
 msgid "Drop to open"
-msgstr ""
+msgstr "Suelta para abrir"
 
 msgid "Dynamics"
-msgstr ""
+msgstr "Dinámicas"
 
 msgid "Dynamics and lines"
-msgstr ""
+msgstr "Dinámicas y líneas"
 
 msgid "Dynamics as one glyph"
-msgstr ""
+msgstr "Dinámicas en un solo glifo"
 
 msgid "Dynamics distance"
-msgstr ""
+msgstr "Distancia de las dinámicas"
 
 msgid "Dynamics typed as text"
-msgstr ""
+msgstr "Dinámicas introducidas como texto"
 
 msgid "Ease In"
-msgstr ""
+msgstr "Inicio suave"
 
 msgid "Ease In-Out"
-msgstr ""
+msgstr "Inicio y final suaves"
 
 msgid "Ease Out"
-msgstr ""
+msgstr "Final suave"
 
 #: lib/app_menus.dart
 msgid "Edit"
-msgstr ""
+msgstr "Editar"
 
 #: lib/score_view.dart
 msgid "Edit Caption…"
-msgstr ""
+msgstr "Editar subtítulo…"
 
 #: lib/score_view.dart
 msgid "Edit Spacer…"
-msgstr ""
+msgstr "Editar espaciador…"
 
 #: lib/settings_dialog.dart
 msgid "Edit…"
-msgstr ""
+msgstr "Editar…"
 
 #: lib/phrase_search_window.dart
 msgid "Eighth (5)"
-msgstr ""
+msgstr "Corchea (5)"
 
 msgid "Embed font"
-msgstr ""
+msgstr "Incrustar fuente"
 
 #: lib/instruments_toolbar.dart
 msgid "end ({at})"
-msgstr ""
+msgstr "fin ({at})"
 
 #: lib/instruments_toolbar.dart
 msgid "End at the playhead (])"
-msgstr ""
+msgstr "Fijar el final en el cursor de reproducción (])"
 
 msgid "Ending"
-msgstr ""
+msgstr "Final"
 
 msgid "Ending brackets"
-msgstr ""
+msgstr "Casillas de repetición"
 
 msgid "Engraves “f” set in a music font as a dynamic."
-msgstr ""
+msgstr "Interpreta como dinámica una «f» escrita con una fuente musical."
 
 msgid "Engraving"
-msgstr ""
+msgstr "Notación musical"
 
 msgid "Engraving…"
-msgstr ""
+msgstr "Maquetando la partitura…"
 
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
-msgstr ""
+msgstr "Introduce un compás o un compás seguido del pulso, por ejemplo, 12 o 12.3"
 
 #: lib/spacer_dialogs.dart
 msgid "Enter {min} to {max} staff spaces"
-msgstr ""
+msgstr "Introduce un valor de {min} a {max} espacios de pentagrama"
 
 #: lib/instruments_toolbar.dart
 msgid "Erase (E)"
-msgstr ""
+msgstr "Borrar (E)"
 
 msgid "Even spacing"
-msgstr ""
+msgstr "Espaciado uniforme"
 
 #: lib/settings_dialog.dart
 msgid "Every minute"
-msgstr ""
+msgstr "Cada minuto"
 
 #: lib/settings_dialog.dart
 msgid "Every note is under the playhead exactly as it sounds: slower through long notes, quicker through runs."
-msgstr ""
+msgstr "El cursor de reproducción pasa por cada nota justo cuando suena: avanza más despacio en las notas largas y más deprisa en los pasajes rápidos."
 
 #: lib/settings_dialog.dart
 msgid "Every {n} minutes"
-msgstr ""
+msgstr "Cada {n} minutos"
 
 #: lib/settings_dialog.dart
 msgid "Every {n} seconds"
-msgstr ""
+msgstr "Cada {n} segundos"
 
 #: lib/phrase_search_window.dart
 msgid "Exact"
-msgstr ""
+msgstr "Exacto"
 
 #: lib/phrase_search_window.dart
 msgid "Expand"
-msgstr ""
+msgstr "Expandir"
 
 #: lib/editor_toolbar.dart
 msgid "Export"
-msgstr ""
+msgstr "Exportar"
 
 msgid "Export anyway"
-msgstr ""
+msgstr "Exportar de todos modos"
 
 msgid "Export Video"
-msgstr ""
+msgstr "Exportar vídeo"
 
 #: lib/app_menus.dart
 msgid "Export Video…"
-msgstr ""
+msgstr "Exportar vídeo…"
 
 #: lib/captions_dialog.dart
 msgid "Exported “{name}”"
-msgstr ""
+msgstr "Se ha exportado «{name}»"
 
 msgid "Exporting Video…"
-msgstr ""
+msgstr "Exportando vídeo…"
 
 #: lib/captions_dialog.dart lib/export_dialog.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Export…"
-msgstr ""
+msgstr "Exportar…"
 
 msgid "Expressions"
-msgstr ""
+msgstr "Expresiones"
 
 msgid "Extensions"
-msgstr ""
+msgstr "Extensiones"
 
 #: lib/extensions/extensions_dialog.dart
 msgid "Extensions in this project"
-msgstr ""
+msgstr "Extensiones en este proyecto"
 
 msgid "Extra width (staff spaces)"
-msgstr ""
+msgstr "Anchura adicional (en espacios de pentagrama)"
 
 msgid "f(1) must differ from f(0)."
-msgstr ""
+msgstr "f(1) debe ser distinto de f(0)."
 
 msgid "Fade"
-msgstr ""
+msgstr "Fundido"
 
 msgid "Fade out"
-msgstr ""
+msgstr "Fundido de salida"
 
 msgid "Fade-out curve"
-msgstr ""
+msgstr "Curva de fundido de salida"
 
 msgid "Fermatas"
-msgstr ""
+msgstr "Calderones"
 
 #: lib/app_menus.dart
 msgid "File"
-msgstr ""
+msgstr "Archivo"
 
 msgid "Fill the window"
-msgstr ""
+msgstr "Llenar la ventana"
 
 #: lib/phrase_search_window.dart
 msgid "Find Phrase"
-msgstr ""
+msgstr "Buscar frase musical"
 
 #: lib/editor_toolbar.dart
 msgid "Find phrase ({key})"
-msgstr ""
+msgstr "Buscar frase musical ({key})"
 
 #: lib/app_menus.dart
 msgid "Find Phrase…"
-msgstr ""
+msgstr "Buscar frase musical…"
 
 msgid "Fingering"
-msgstr ""
+msgstr "Digitación"
 
 #: lib/bottom_panel.dart
 msgid "Fit"
-msgstr ""
+msgstr "Ajustar"
 
 msgid "Flags"
-msgstr ""
+msgstr "Corchetes de las notas"
 
 #: lib/phrase_search_window.dart lib/score_editor.dart
 msgid "Flat (-)"
-msgstr ""
+msgstr "Bemol (-)"
 
 msgid "Folder"
-msgstr ""
+msgstr "Carpeta"
 
 msgid "Font"
-msgstr ""
+msgstr "Fuente"
 
 #: lib/font_settings.dart
 msgid "Font File…"
-msgstr ""
+msgstr "Archivo de fuente…"
 
 #: lib/main.dart
 msgid "Can’t find the font “{name}”, so Bravura is filling in."
-msgstr ""
+msgstr "No se encuentra la fuente «{name}». Se utiliza Bravura en su lugar."
 
 #: lib/font_settings.dart
 msgid "Fonts"
-msgstr ""
+msgstr "Fuentes"
 
 msgid "Format"
-msgstr ""
+msgstr "Formato"
 
 msgid "Frame rate"
-msgstr ""
+msgstr "Fotogramas por segundo"
 
 #: lib/export_dialog.dart
 msgid "Frame {n} of {all}"
-msgstr ""
+msgstr "Fotograma {n} de {all}"
 
 #: lib/captions_dialog.dart
 msgid "From"
-msgstr ""
+msgstr "Desde"
 
 msgid "From bar"
-msgstr ""
+msgstr "Desde el compás"
 
 #: lib/settings_dialog.dart
 msgid "From GitHub."
-msgstr ""
+msgstr "Desde GitHub."
 
 msgid "General"
 msgstr ""
 
 #: lib/updater.dart
 msgid "GitHub isn’t answering. Try again in a bit."
-msgstr ""
+msgstr "GitHub no responde. Inténtalo de nuevo en unos instantes."
 
 #: lib/updater.dart
 msgid "GitHub returned an error ({code})"
-msgstr ""
+msgstr "GitHub ha devuelto un error ({code})"
 
 msgid "Glide"
-msgstr ""
+msgstr "Deslizamiento"
 
 #: lib/settings_dialog.dart
 msgid "Glides from beat to beat: the speed changes only with the tempo."
-msgstr ""
+msgstr "El cursor se desliza de un pulso a otro y solo cambia de velocidad cuando varía el tempo."
 
 msgid "Glissandos"
-msgstr ""
+msgstr "Glissandi"
 
 #: lib/editor_toolbar.dart
 msgid "Go to bar ({key})"
-msgstr ""
+msgstr "Ir al compás ({key})"
 
 #: lib/editor_toolbar.dart
 msgid "Go to start (Home)"
-msgstr ""
+msgstr "Ir al inicio (Inicio)"
 
 #: lib/editor_toolbar.dart
 msgid "Go to time ({key})"
-msgstr ""
+msgstr "Ir al tiempo ({key})"
 
 msgid "Grace note size"
-msgstr ""
+msgstr "Tamaño de las notas de adorno"
 
 msgid "Graphite"
-msgstr ""
+msgstr "Grafito"
 
 msgid "Green"
-msgstr ""
+msgstr "Verde"
 
 msgid "Group sections"
-msgstr ""
+msgstr "Agrupar secciones"
 
 msgid "Groups"
-msgstr ""
+msgstr "Grupos"
 
 msgid "H-bar"
-msgstr ""
+msgstr "Silencio de espera en forma de H"
 
 msgid "Hairpin opening"
-msgstr ""
+msgstr "Abertura de los reguladores"
 
 msgid "Hairpins"
-msgstr ""
+msgstr "Reguladores"
 
 #: lib/phrase_search_window.dart
 msgid "Half (7)"
-msgstr ""
+msgstr "Blanca (7)"
 
 msgid "Height (staff spaces)"
-msgstr ""
+msgstr "Altura (en espacios de pentagrama)"
 
 #: lib/app_menus.dart
 msgid "Help"
-msgstr ""
+msgstr "Ayuda"
 
 msgid "Hex"
-msgstr ""
+msgstr "Hexadecimal"
 
 #: lib/app_menus.dart
 msgid "Hide Preview"
-msgstr ""
+msgstr "Ocultar vista previa"
 
 #: lib/app_menus.dart
 msgid "Hide Tab Bar"
-msgstr ""
+msgstr "Ocultar barra de pestañas"
 
 #: lib/app_menus.dart
 msgid "Hide Timeline"
-msgstr ""
+msgstr "Ocultar línea de tiempo"
 
 #: lib/project_tabs.dart
 msgid "Home"
-msgstr ""
+msgstr "Inicio"
 
 #: lib/spacer_dialogs.dart
 msgid "Horizontal Spacer"
-msgstr ""
+msgstr "Espaciador horizontal"
 
 msgid "Hue"
-msgstr ""
+msgstr "Matiz"
 
 #: lib/image_patch.dart
 msgid "Image"
-msgstr ""
+msgstr "Imagen"
 
 msgid "Images and spacers that scroll with the score."
-msgstr ""
+msgstr "Imágenes y espaciadores que se desplazan con la partitura."
 
 #: lib/app_menus.dart lib/captions_dialog.dart lib/home_screen.dart lib/settings_dialog.dart
 msgid "Import…"
-msgstr ""
+msgstr "Importar…"
 
 #: lib/spacer_dialogs.dart
 msgid "In {key}"
-msgstr ""
+msgstr "En {key}"
 
 msgid "Indigo"
-msgstr ""
+msgstr "Índigo"
 
 msgid "Ink delay"
-msgstr ""
+msgstr "Retardo de la tinta"
 
 msgid "Ink fade"
-msgstr ""
+msgstr "Fundido de la tinta"
 
 #: lib/edit_dialogs.dart lib/pdf_import_changes.dart
 msgid "Insert {symbol}"
-msgstr ""
+msgstr "Insertar {symbol}"
 
 #: lib/font_settings.dart
 msgid "Installed Font…"
-msgstr ""
+msgstr "Fuente instalada…"
 
 #: lib/web_player/player.dart
 msgid "Instruments"
-msgstr ""
+msgstr "Instrumentos"
 
 msgid "Italic"
-msgstr ""
+msgstr "Cursiva"
 
 msgid "Jump to"
-msgstr ""
+msgstr "Ir a"
 
 #: lib/audio_panel.dart
 msgid "Kept {warps} from the anchors"
-msgstr ""
+msgstr "Se han conservado {warps} a partir de los puntos de sincronización"
 
 #: lib/audio_panel.dart
 msgid "Kept {warps} from {file}"
-msgstr ""
+msgstr "Se han conservado {warps} de {file}"
 
 msgid "Key signatures"
-msgstr ""
+msgstr "Armaduras"
 
 msgid "Keyboards"
-msgstr ""
+msgstr "Teclados"
 
 #: lib/instrument_lanes/lane_header.dart
 msgid "Lane options"
-msgstr ""
+msgstr "Opciones de pista"
 
 msgid "Language"
-msgstr ""
+msgstr "Idioma"
 
 msgid "Large"
-msgstr ""
+msgstr "Grande"
 
 #: lib/captions_dialog.dart
 msgid "Leave empty to remove"
-msgstr ""
+msgstr "Déjalo en blanco para eliminarlo"
 
 msgid "Ledger line length"
-msgstr ""
+msgstr "Longitud de las líneas adicionales"
 
 msgid "Ledger lines"
-msgstr ""
+msgstr "Líneas adicionales"
 
 msgid "Left"
-msgstr ""
+msgstr "Izquierda"
 
 msgid "Letter spacing"
-msgstr ""
+msgstr "Espaciado entre letras"
 
 msgid "License"
-msgstr ""
+msgstr "Licencia"
 
 #: lib/settings_dialog.dart
 msgid "Light"
-msgstr ""
+msgstr "Claro"
 
 msgid "Lightness"
-msgstr ""
+msgstr "Luminosidad"
 
 msgid "Line"
-msgstr ""
+msgstr "Línea"
 
 msgid "Line thickness"
-msgstr ""
+msgstr "Grosor de línea"
 
 msgid "Linear"
-msgstr ""
+msgstr "Lineal"
 
 #: lib/main.dart
 msgid "Locate…"
-msgstr ""
+msgstr "Localizar…"
 
 #: lib/score_replacement.dart
 msgid "Lost past bar {n}: {items}"
-msgstr ""
+msgstr "Elementos perdidos después del compás {n}: {items}"
 
 msgid "Lyric lines"
-msgstr ""
+msgstr "Líneas de la letra"
 
 msgid "Lyric size"
-msgstr ""
+msgstr "Tamaño de la letra cantada"
 
 msgid "Lyrics"
-msgstr ""
+msgstr "Letra"
 
 #: lib/editor_toolbar.dart
 msgid "Manage assets…"
-msgstr ""
+msgstr "Gestionar recursos…"
 
 msgid "Maximum beam slope"
-msgstr ""
+msgstr "Inclinación máxima de las barras de unión"
 
 msgid "Maximum gap"
-msgstr ""
+msgstr "Separación máxima"
 
 msgid "Maximum slur slope"
-msgstr ""
+msgstr "Inclinación máxima de las ligaduras de expresión"
 
 #: lib/app_menus.dart
 msgid "Maximize Preview"
-msgstr ""
+msgstr "Maximizar vista previa"
 
 #: lib/app_menus.dart
 msgid "Maximize Timeline"
-msgstr ""
+msgstr "Maximizar línea de tiempo"
 
 msgid "Medium"
-msgstr ""
+msgstr "Mediano"
 
 msgid "Mensuration signs"
-msgstr ""
+msgstr "Signos de mensuración"
 
 #: lib/editor_toolbar.dart
 msgid "Metronome (C)"
-msgstr ""
+msgstr "Metrónomo (C)"
 
 #: lib/audio_panel.dart
 msgid "MIDI tempo"
-msgstr ""
+msgstr "Tempo MIDI"
 
 msgid "Minimum bar width"
-msgstr ""
+msgstr "Anchura mínima de compás"
 
 msgid "Minimum gap"
-msgstr ""
+msgstr "Separación mínima"
 
 msgid "Minimum tie length"
-msgstr ""
+msgstr "Longitud mínima de las ligaduras de prolongación"
 
 msgid "Missing “)”."
-msgstr ""
+msgstr "Falta «)»."
 
 msgid "Missing “:”."
-msgstr ""
+msgstr "Falta «:»."
 
 #: lib/instruments_toolbar.dart
 msgid "Mixed"
-msgstr ""
+msgstr "Mixto"
 
 msgid "Move to Bottom"
-msgstr ""
+msgstr "Mover al final"
 
 msgid "Move to Top"
-msgstr ""
+msgstr "Mover al principio"
 
 msgid "MP4 video"
-msgstr ""
+msgstr "Vídeo MP4"
 
 msgid "Multi-bar repeats"
-msgstr ""
+msgstr "Repeticiones de varios compases"
 
 msgid "Multi-bar rests"
-msgstr ""
+msgstr "Silencios de varios compases"
 
 msgid "Music font"
-msgstr ""
+msgstr "Fuente musical"
 
 msgid "Music symbols"
-msgstr ""
+msgstr "Símbolos musicales"
 
 msgid "Name"
-msgstr ""
+msgstr "Nombre"
 
 msgid "Name and clef"
-msgstr ""
+msgstr "Nombre y clave"
 
 msgid "Names"
-msgstr ""
+msgstr "Nombres"
 
 #: lib/phrase_search_window.dart lib/score_editor.dart
 msgid "Natural (0)"
-msgstr ""
+msgstr "Becuadro (0)"
 
 #: lib/phrase_search_window.dart
 msgid "Next ({key})"
-msgstr ""
+msgstr "Siguiente ({key})"
 
 #: lib/captions_dialog.dart
 msgid "No captions"
-msgstr ""
+msgstr "Sin subtítulos"
 
 msgid "No extensions yet."
-msgstr ""
+msgstr "Todavía no hay extensiones."
 
 #: lib/main.dart
 msgid "There’s no image to paste."
-msgstr ""
+msgstr "No hay ninguna imagen que pegar."
 
 #: lib/assets_dialog.dart
 msgid "No images"
-msgstr ""
+msgstr "Sin imágenes"
 
 #: lib/phrase_search_window.dart
 msgid "No matches"
-msgstr ""
+msgstr "Sin coincidencias"
 
 #: lib/settings_dialog.dart
 msgid "No matching settings"
-msgstr ""
+msgstr "Ningún ajuste coincide con la búsqueda"
 
 msgid "No players in this score can share a staff."
-msgstr ""
+msgstr "Ningún intérprete de esta partitura puede compartir pentagrama."
 
 #: lib/app_menus.dart
 msgid "No Recent Files"
-msgstr ""
+msgstr "No hay archivos recientes"
 
 msgid "No score was found inside the .mxl archive."
-msgstr ""
+msgstr "No se ha encontrado ninguna partitura dentro del archivo .mxl."
 
 msgid "No settings"
-msgstr ""
+msgstr "Sin ajustes"
 
 #: lib/captions_dialog.dart
 msgid "None of these subtitles land inside the music."
-msgstr ""
+msgstr "Ninguno de estos subtítulos coincide con la duración de la música."
 
 msgid "No subtitles found in this file."
-msgstr ""
+msgstr "No se han encontrado subtítulos en este archivo."
 
 #: lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "None"
-msgstr ""
+msgstr "Ninguno"
 
 #: lib/score_replacement.dart
 msgid "none"
-msgstr ""
+msgstr "ninguno"
 
 #: lib/settings_dialog.dart
 msgid "None."
-msgstr ""
+msgstr "Ninguno."
 
 #: lib/home_screen.dart
 msgid "Not found · {folder}"
-msgstr ""
+msgstr "No se ha encontrado · {folder}"
 
 msgid "Not installed"
-msgstr ""
+msgstr "Sin instalar"
 
 msgid "Not supported in MP4"
-msgstr ""
+msgstr "No compatible con MP4"
 
 #: lib/edit_dialogs.dart
 msgid "Not supported:"
-msgstr ""
+msgstr "No compatible:"
 
 msgid "Not with a PNG sequence"
-msgstr ""
+msgstr "No disponible con una secuencia PNG"
 
 msgid "Notation"
-msgstr ""
+msgstr "Notación"
 
 #: lib/export_dialog.dart
 msgid "Notation runs off the frame"
-msgstr ""
+msgstr "La notación se sale del encuadre"
 
 #: lib/lanes_common.dart
 msgid "Notation runs off the video frame: {bars}"
-msgstr ""
+msgstr "La notación se sale del encuadre del vídeo: {bars}"
 
 msgid "Note spacing"
-msgstr ""
+msgstr "Espaciado entre notas"
 
 msgid "Noteheads"
-msgstr ""
+msgstr "Cabezas de nota"
 
 #: lib/settings_dialog.dart
 msgid "Notes"
-msgstr ""
+msgstr "Notas"
 
 msgid "Notes and rests"
-msgstr ""
+msgstr "Notas y silencios"
 
 msgid "Nothing to save yet! Open a project or score first."
-msgstr ""
+msgstr "Aún no hay nada que guardar. Abre primero un proyecto o una partitura."
 
 msgid "Number by the noteheads"
-msgstr ""
+msgstr "Número junto a las cabezas de nota"
 
 msgid "Octave lines"
-msgstr ""
+msgstr "Líneas de octava"
 
 msgid "Octave marks"
-msgstr ""
+msgstr "Indicaciones de octava"
 
 #: lib/settings_dialog.dart
 msgid "Off"
-msgstr ""
+msgstr "Desactivado"
 
 #: lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
-msgstr ""
+msgstr "Aceptar"
 
 msgid "Opacity"
-msgstr ""
+msgstr "Opacidad"
 
 msgid "Open a score first, then its MIDI tempo map."
-msgstr ""
+msgstr "Abre primero una partitura y después su mapa de tempo MIDI."
 
 msgid "Open a score first, then its recording."
-msgstr ""
+msgstr "Abre primero una partitura y después su grabación."
 
 msgid "Open Folder"
-msgstr ""
+msgstr "Abrir carpeta"
 
 #: lib/settings_dialog.dart
 msgid "Open in the browser"
-msgstr ""
+msgstr "Abrir en el navegador"
 
 #: lib/settings_dialog.dart
 msgid "Created using EmoteLab"
-msgstr ""
+msgstr "Creado con EmoteLab"
 
 #: lib/settings_dialog.dart
 msgid "Open in Window"
-msgstr ""
+msgstr "Abrir en una ventana"
 
 #: lib/app_menus.dart
 msgid "Open Recent"
-msgstr ""
+msgstr "Abrir reciente"
 
 #: lib/settings_dialog.dart
 msgid "Open Release Page"
-msgstr ""
+msgstr "Abrir la página de la versión"
 
 #: lib/home_screen.dart
 msgid "Open Sample"
-msgstr ""
+msgstr "Abrir ejemplo"
 
 msgid "Opening barlines"
-msgstr ""
+msgstr "Barras de compás iniciales"
 
 #: lib/app_menus.dart lib/home_screen.dart
 msgid "Open…"
-msgstr ""
+msgstr "Abrir…"
 
 msgid "Option-click"
-msgstr ""
+msgstr "Opción+clic"
 
 msgid "Ornaments"
-msgstr ""
+msgstr "Adornos"
 
 msgid "Other"
-msgstr ""
+msgstr "Otros"
 
 msgid "Other projects start with these"
-msgstr ""
+msgstr "Ajustes iniciales para otros proyectos"
 
 msgid "Overlaps another caption"
-msgstr ""
+msgstr "Se solapa con otro subtítulo"
 
 #: lib/captions_dialog.dart
 msgid "Overlaps the caption in row {n}"
-msgstr ""
+msgstr "Se solapa con el subtítulo de la fila {n}"
 
 msgid "Overshoot"
-msgstr ""
+msgstr "Sobrepasar el destino"
 
 msgctxt "page"
 msgid "Flags"
-msgstr ""
+msgstr "Banderas"
 
 msgid "Pairs"
-msgstr ""
+msgstr "Pares"
 
 msgid "Paper"
-msgstr ""
+msgstr "Papel"
 
 #: lib/app_menus.dart lib/score_view.dart
 msgid "Paste"
-msgstr ""
+msgstr "Pegar"
 
 msgid "Pause (Space)"
-msgstr ""
+msgstr "Pausar (Espacio)"
 
 msgid "Pedal lines"
-msgstr ""
+msgstr "Líneas de pedal"
 
 msgid "Pedal marks"
-msgstr ""
+msgstr "Indicaciones de pedal"
 
 msgid "Per project."
-msgstr ""
+msgstr "Por proyecto."
 
 msgid "Percussion"
-msgstr ""
+msgstr "Percusión"
 
 msgid "Picture"
-msgstr ""
+msgstr "Imagen"
 
 #: lib/caption_lane.dart
 msgid "Pinned"
-msgstr ""
+msgstr "Fijado"
 
 msgid "Play (Space)"
-msgstr ""
+msgstr "Reproducir (Espacio)"
 
 #: lib/settings_dialog.dart
 msgid "Playback line"
-msgstr ""
+msgstr "Línea de reproducción"
 
 msgid "Playback line color"
-msgstr ""
+msgstr "Color de la línea de reproducción"
 
 #: lib/audio_panel.dart
 msgid "Playback speed"
-msgstr ""
+msgstr "Velocidad de reproducción"
 
 #: lib/condensing_editor.dart
 msgid "Player"
-msgstr ""
+msgstr "Intérprete"
 
 msgid "PNG Sequence"
-msgstr ""
+msgstr "Secuencia PNG"
 
 #: lib/phrase_search_window.dart
 msgid "Previous ({key})"
-msgstr ""
+msgstr "Anterior ({key})"
 
 msgid "Project Info"
-msgstr ""
+msgstr "Información del proyecto"
 
 msgid "Project, MusicXML or PDF ({key})"
-msgstr ""
+msgstr "Proyecto, MusicXML o PDF ({key})"
 
 #: lib/bottom_panel.dart
 msgid "Project Settings ({key})"
-msgstr ""
+msgstr "Ajustes del proyecto ({key})"
 
 #: lib/app_menus.dart
 msgid "Project Settings…"
-msgstr ""
+msgstr "Ajustes del proyecto…"
 
 #: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
 msgid "Project's ({n} s)"
-msgstr ""
+msgstr "Del proyecto ({n} s)"
 
 #: lib/main.dart
 msgid "Projects and scores"
-msgstr ""
+msgstr "Proyectos y partituras"
 
 #: lib/phrase_search_window.dart
 msgid "Quarter (6)"
-msgstr ""
+msgstr "Negra (6)"
 
 msgid "QuickTime movie"
-msgstr ""
+msgstr "Vídeo QuickTime"
 
 msgid "Ratio"
-msgstr ""
+msgstr "Proporción"
 
 msgid "Reading the recording…"
-msgstr ""
+msgstr "Leyendo la grabación…"
 
 #: lib/home_screen.dart
 msgid "RECENT"
-msgstr ""
+msgstr "RECIENTES"
 
 #: lib/audio_panel.dart lib/take_lanes.dart lib/web_player/player.dart
 msgid "Recording"
-msgstr ""
+msgstr "Grabación"
 
 #: lib/app_menus.dart
 msgid "Redo"
-msgstr ""
+msgstr "Rehacer"
 
 #: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
-msgstr ""
+msgstr "Rehacer ({key})"
 
 msgid "Reduce motion"
-msgstr ""
+msgstr "Reducir el movimiento"
 
 msgid "Remember window"
-msgstr ""
+msgstr "Recordar la ventana"
 
 msgid "Refined"
-msgstr ""
+msgstr "Refinado"
 
 msgid "Regions can have their own."
-msgstr ""
+msgstr "Cada región puede tener el suyo."
 
 msgid "Regular"
-msgstr ""
+msgstr "Normal"
 
 msgid "Rehearsal marks"
-msgstr ""
+msgstr "Marcas de ensayo"
 
 msgid "Rehearsal marks in bar numbers"
-msgstr ""
+msgstr "Incluir marcas de ensayo en los números de compás"
 
 #: lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
 msgid "Remove"
-msgstr ""
+msgstr "Quitar"
 
 #: lib/instruments_toolbar.dart
 msgid "Remove (Delete)"
-msgstr ""
+msgstr "Quitar (Suprimir)"
 
 #: lib/audio_panel.dart
 msgid "Remove All Anchors"
-msgstr ""
+msgstr "Quitar todos los puntos de sincronización"
 
 #: lib/score_view.dart
 msgid "Remove Caption"
-msgstr ""
+msgstr "Quitar subtítulo"
 
 #: lib/home_screen.dart
 msgid "Remove from Recent"
-msgstr ""
+msgstr "Quitar de los recientes"
 
 #: lib/settings_dialog.dart
 msgid "Remove group"
-msgstr ""
+msgstr "Quitar grupo"
 
 #: lib/settings_dialog.dart
 msgid "Remove pair"
-msgstr ""
+msgstr "Quitar par"
 
 #: lib/instruments_toolbar.dart
 msgid "Remove Regions Shorter Than {bars}"
-msgstr ""
+msgstr "Quitar regiones de menos de {bars} compases"
 
 #: lib/score_view.dart lib/spacer_lane.dart
 msgid "Remove Spacer"
-msgstr ""
+msgstr "Quitar espaciador"
 
 #: lib/assets_dialog.dart
 msgid "Remove Unused"
-msgstr ""
+msgstr "Quitar los elementos sin usar"
 
 #: lib/score_replacement.dart
 msgid "Removed: {names}"
-msgstr ""
+msgstr "Se ha quitado: {names}"
 
 #: lib/edit_dialogs.dart
 msgid "Rename"
-msgstr ""
+msgstr "Cambiar nombre"
 
 msgid "Rename Group"
-msgstr ""
+msgstr "Cambiar nombre del grupo"
 
 #: lib/edit_dialogs.dart
 msgid "Rename Instrument"
-msgstr ""
+msgstr "Cambiar nombre del instrumento"
 
 msgid "Rename Recording"
-msgstr ""
+msgstr "Cambiar nombre de la grabación"
 
 #: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart
 msgid "Rename {name}…"
-msgstr ""
+msgstr "Cambiar nombre de {name}…"
 
 #: lib/score_replacement.dart
 msgid "Renamed: {from} → {to}"
-msgstr ""
+msgstr "Nombre cambiado: {from} → {to}"
 
 #: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/settings_dialog.dart lib/take_lanes.dart
 msgid "Rename…"
-msgstr ""
+msgstr "Cambiar nombre…"
 
 msgid "Repeat dot gap"
-msgstr ""
+msgstr "Separación entre puntos de repetición"
 
 msgid "Repeat dots"
-msgstr ""
+msgstr "Puntos de repetición"
 
 #: lib/captions_dialog.dart lib/edit_dialogs.dart
 msgid "Replace"
-msgstr ""
+msgstr "Sustituir"
 
 #: lib/take_lanes.dart
 msgid "Replace Recording…"
-msgstr ""
+msgstr "Sustituir grabación…"
 
 #: lib/captions_dialog.dart
 msgid "Replace the old captions?"
-msgstr ""
+msgstr "¿Sustituir los subtítulos anteriores?"
 
 #: lib/edit_dialogs.dart
 msgid "Replace with “{name}”?"
-msgstr ""
+msgstr "¿Sustituir por «{name}»?"
 
 #: lib/edit_dialogs.dart
 msgid "Replaces the chosen lanes’ regions"
-msgstr ""
+msgstr "Sustituye las regiones de las pistas seleccionadas"
 
 msgid "Replace…"
-msgstr ""
+msgstr "Sustituir…"
 
 #: lib/edit_dialogs.dart lib/motion_settings.dart lib/sections_editor.dart lib/settings_dialog.dart
 msgid "Reset"
-msgstr ""
+msgstr "Restablecer"
 
 #: lib/settings_dialog.dart
 msgid "Reset to Default"
-msgstr ""
+msgstr "Restablecer el valor predeterminado"
 
 #: lib/phrase_search_window.dart
 msgid "Rest (R)"
-msgstr ""
+msgstr "Silencio (R)"
 
 msgid "Rest symbols"
-msgstr ""
+msgstr "Signos de silencio"
 
 msgid "Restore Score Order"
-msgstr ""
+msgstr "Restaurar el orden de la partitura"
 
 msgid "Rests"
-msgstr ""
+msgstr "Silencios"
 
 #: lib/phrase_search_window.dart
 msgid "Rhythm"
-msgstr ""
+msgstr "Ritmo"
 
 msgid "Right"
-msgstr ""
+msgstr "Derecha"
 
 msgid "Ring"
-msgstr ""
+msgstr "Anillo"
 
 msgid "Roomy"
-msgstr ""
+msgstr "Amplio"
 
 msgid "Rose"
-msgstr ""
+msgstr "Rosa"
 
 msgid "Row curve"
-msgstr ""
+msgstr "Curva de la fila"
 
 msgid "Row rise"
-msgstr ""
+msgstr "Elevación de la fila"
 
 msgid "Sand"
-msgstr ""
+msgstr "Arena"
 
 msgid "Saturation"
-msgstr ""
+msgstr "Saturación"
 
 #: lib/app_menus.dart
 msgid "Save"
-msgstr ""
+msgstr "Guardar"
 
 #: lib/settings_dialog.dart
 msgid "Save as Default"
-msgstr ""
+msgstr "Guardar como predeterminado"
 
 #: lib/app_menus.dart
 msgid "Save As…"
-msgstr ""
+msgstr "Guardar como…"
 
 msgid "Saved projects only."
-msgstr ""
+msgstr "Solo para proyectos guardados."
 
 #: lib/audio_panel.dart
 msgid "Set the anchors from the recording"
-msgstr ""
+msgstr "Establecer los puntos de sincronización a partir de la grabación"
 
 #: lib/export_dialog.dart lib/settings_dialog.dart
 msgid "Saved “{name}”."
-msgstr ""
+msgstr "Se ha guardado «{name}»."
 
 msgid "Save…"
-msgstr ""
+msgstr "Guardar…"
 
 #: lib/editor_toolbar.dart
 msgid "Saving…"
-msgstr ""
+msgstr "Guardando…"
 
 msgid "Score"
-msgstr ""
+msgstr "Partitura"
 
 #: lib/score_view.dart
 msgid "Score Ink"
-msgstr ""
+msgstr "Tinta de la partitura"
 
 #: lib/editor_toolbar.dart
 msgid "Score size"
-msgstr ""
+msgstr "Tamaño de la partitura"
 
 #: lib/caption_settings.dart
 msgid "Score text"
-msgstr ""
+msgstr "Texto de la partitura"
 
 #: lib/home_screen.dart
 msgid "Scores that follow the music."
-msgstr ""
+msgstr "Partituras que siguen la música."
 
 msgid "Scrolling"
-msgstr ""
+msgstr "Desplazamiento"
 
 #: lib/settings_dialog.dart
 msgid "Search"
-msgstr ""
+msgstr "Buscar"
 
 #: lib/settings_dialog.dart
 msgid "Search results"
-msgstr ""
+msgstr "Resultados de la búsqueda"
 
 msgid "Sections"
-msgstr ""
+msgstr "Secciones"
 
 msgid "Segno and coda"
-msgstr ""
+msgstr "Segno y coda"
 
 #: lib/instruments_toolbar.dart lib/pdf_import.dart
 msgid "Select (V)"
-msgstr ""
+msgstr "Seleccionar (V)"
 
 #: lib/app_menus.dart
 msgid "Select All"
-msgstr ""
+msgstr "Seleccionar todo"
 
 msgid "Select All in Lane"
-msgstr ""
+msgstr "Seleccionar todo en la pista"
 
 #: lib/edit_dialogs.dart
 msgid "Set"
-msgstr ""
+msgstr "Establecer"
 
 msgid "Set Until after From"
-msgstr ""
+msgstr "El final debe ser posterior al inicio"
 
 #: lib/settings_dialog.dart
 msgid "Settings"
-msgstr ""
+msgstr "Ajustes"
 
 #: lib/settings_dialog.dart
 msgid "Settings Imported"
-msgstr ""
+msgstr "Ajustes importados"
 
 #: lib/app_menus.dart
 msgid "Settings…"
-msgstr ""
+msgstr "Ajustes…"
 
 msgid "Settle"
-msgstr ""
+msgstr "Estabilización"
 
 msgid "Settle curve"
-msgstr ""
+msgstr "Curva de estabilización"
 
 #: lib/phrase_search_window.dart lib/score_editor.dart
 msgid "Sharp (=)"
-msgstr ""
+msgstr "Sostenido (=)"
 
 msgid "Short name"
-msgstr ""
+msgstr "Nombre abreviado"
 
 #: lib/app_menus.dart
 msgid "Show All Tabs"
-msgstr ""
+msgstr "Mostrar todas las pestañas"
 
 msgid "Show in Explorer"
-msgstr ""
+msgstr "Mostrar en el Explorador de archivos"
 
 msgid "Show in Finder"
-msgstr ""
+msgstr "Mostrar en el Finder"
 
 #: lib/assets_dialog.dart
 msgid "Show in Score"
-msgstr ""
+msgstr "Mostrar en la partitura"
 
 #: lib/app_menus.dart
 msgid "Show Next Tab"
-msgstr ""
+msgstr "Mostrar pestaña siguiente"
 
 #: lib/app_menus.dart
 msgid "Show Preview"
-msgstr ""
+msgstr "Mostrar vista previa"
 
 #: lib/app_menus.dart
 msgid "Show Previous Tab"
-msgstr ""
+msgstr "Mostrar pestaña anterior"
 
 #: lib/app_menus.dart
 msgid "Show Tab Bar"
-msgstr ""
+msgstr "Mostrar barra de pestañas"
 
 #: lib/editor_toolbar.dart
 msgid "Show tab bar ({key})"
-msgstr ""
+msgstr "Mostrar barra de pestañas ({key})"
 
 #: lib/app_menus.dart
 msgid "Show Timeline"
-msgstr ""
+msgstr "Mostrar línea de tiempo"
 
 msgid "Show the video's frame"
-msgstr ""
+msgstr "Mostrar el encuadre del vídeo"
 
 msgid "Show Throughout"
-msgstr ""
+msgstr "Mostrar en toda la partitura"
 
 #: lib/edit_dialogs.dart
 msgid "Show {name}"
-msgstr ""
+msgstr "Mostrar {name}"
 
 #: lib/audio_panel.dart
 msgid "Silence before bar 1 (s)"
-msgstr ""
+msgstr "Silencio antes del compás 1 (s)"
 
 #: lib/export_dialog.dart
 msgid "Silent"
-msgstr ""
+msgstr "Sin sonido"
 
 #: lib/phrase_search_window.dart
 msgid "Similar"
 msgstr ""
 
 msgid "Sine"
-msgstr ""
+msgstr "Senoidal"
 
 msgid "Size"
-msgstr ""
+msgstr "Tamaño"
 
 msgid "Sky"
-msgstr ""
+msgstr "Azul cielo"
 
 msgid "Slowest speed"
-msgstr ""
+msgstr "Velocidad mínima"
 
 msgid "Slur clearance"
-msgstr ""
+msgstr "Separación de las ligaduras de expresión"
 
 msgid "Slur curvature"
-msgstr ""
+msgstr "Curvatura de las ligaduras de expresión"
 
 msgid "Slur ends"
-msgstr ""
+msgstr "Extremos de las ligaduras de expresión"
 
 msgid "Slur middles"
-msgstr ""
+msgstr "Centro de las ligaduras de expresión"
 
 msgid "Slur symmetry"
-msgstr ""
+msgstr "Simetría de las ligaduras de expresión"
 
 msgid "Slurs and ties"
-msgstr ""
+msgstr "Ligaduras de expresión y de prolongación"
 
 msgid "Small"
-msgstr ""
+msgstr "Pequeño"
 
 msgid "Smooth"
-msgstr ""
+msgstr "Suave"
 
 msgid "Smoother"
-msgstr ""
+msgstr "Más suave"
 
 #: lib/audio_panel.dart
 msgid "Snap to Notes"
-msgstr ""
+msgstr "Ajustar a las notas"
 
 #: lib/take_lanes.dart
 msgid "Back to all recordings"
-msgstr ""
+msgstr "Volver a todas las grabaciones"
 
 #: lib/take_lanes.dart
 msgid "Edit its sync"
-msgstr ""
+msgstr "Editar su sincronización"
 
 #: lib/audio_panel.dart
 msgid "Click a recording to edit its sync"
-msgstr ""
+msgstr "Haz clic en una grabación para editar su sincronización"
 
 #: lib/edit_dialogs.dart
 msgid "Some of “{name}” got left out"
-msgstr ""
+msgstr "Se ha omitido parte de «{name}»"
 
 msgid "Source code"
-msgstr ""
+msgstr "Código fuente"
 
 #: lib/audio_panel.dart
 msgid "Space"
-msgstr ""
+msgstr "Barra espaciadora"
 
 msgid "Space above"
-msgstr ""
+msgstr "Espacio superior"
 
 msgid "Space after"
-msgstr ""
+msgstr "Espacio posterior"
 
 msgid "Space before"
-msgstr ""
+msgstr "Espacio anterior"
 
 msgid "Space below"
-msgstr ""
+msgstr "Espacio inferior"
 
 msgid "Space marks · T or Esc stops"
-msgstr ""
+msgstr "Espacio para marcar · T o Esc para terminar"
 
 #: lib/instrument_lanes/lane_header.dart
 msgid "Spacer"
-msgstr ""
+msgstr "Espaciador"
 
 #: lib/spacer_lane.dart
 msgid "Spacers"
-msgstr ""
+msgstr "Espaciadores"
 
 msgid "Spacing"
-msgstr ""
+msgstr "Espaciado"
 
 msgid "Spacing ratio"
-msgstr ""
+msgstr "Proporción de espaciado"
 
 #: lib/condensing_editor.dart
 msgid "Splits {pairs}."
-msgstr ""
+msgstr "Separa {pairs}."
 
 msgid "Staff lines"
-msgstr ""
+msgstr "Líneas del pentagrama"
 
 msgid "Staff spacing"
-msgstr ""
+msgstr "Separación entre pentagramas"
 
 msgid "Staff transition"
-msgstr ""
+msgstr "Transición entre pentagramas"
 
 msgid "Standard"
-msgstr ""
+msgstr "Estándar"
 
 #: lib/instruments_toolbar.dart
 msgid "start ({at})"
-msgstr ""
+msgstr "inicio ({at})"
 
 #: lib/instruments_toolbar.dart
 msgid "Start at the playhead ([)"
-msgstr ""
+msgstr "Fijar el inicio en el cursor de reproducción ([)"
 
 #: lib/export_dialog.dart
 msgid "Starting…"
-msgstr ""
+msgstr "Iniciando…"
 
 #: lib/instruments_toolbar.dart
 msgid "Staves"
-msgstr ""
+msgstr "Pentagramas"
 
 msgid "Stems"
-msgstr ""
+msgstr "Plicas"
 
 #: lib/audio_panel.dart
 msgid "Step for taps, {click}, and ↑/↓"
-msgstr ""
+msgstr "Intervalo para las pulsaciones, {click} y ↑/↓"
 
 #: lib/audio_panel.dart
 msgid "Follow {name}"
-msgstr ""
+msgstr "Seguir a {name}"
 
 #: lib/audio_panel.dart
 msgid "Sync"
-msgstr ""
+msgstr "Sincronización"
 
 msgid "Strings"
-msgstr ""
+msgstr "Cuerda"
 
 msgid "Style"
-msgstr ""
+msgstr "Estilo"
 
 msgid "Sub-brackets"
-msgstr ""
+msgstr "Corchetes secundarios"
 
 msgid "Subtitles"
-msgstr ""
+msgstr "subtítulos"
 
 msgid "SVG, PNG, GIF, JPEG…"
 msgstr ""
 
 #: lib/settings_dialog.dart
 msgid "System"
-msgstr ""
+msgstr "Sistema"
 
 msgid "Tablature"
-msgstr ""
+msgstr "Tablatura"
 
 msgid "Tablature rhythms"
-msgstr ""
+msgstr "Ritmos en tablatura"
 
 msgid "Tap anchors (T)"
-msgstr ""
+msgstr "Marcar puntos de sincronización (T)"
 
 msgid "Teal"
-msgstr ""
+msgstr "Verde azulado"
 
 #: lib/audio_panel.dart lib/pdf_import_changes.dart
 msgid "Tempo"
 msgstr ""
 
 msgid "Tempo at left"
-msgstr ""
+msgstr "Tempo a la izquierda"
 
 msgid "Tempo curve"
-msgstr ""
+msgstr "Curva de tempo"
 
 msgid "Tempo fade"
-msgstr ""
+msgstr "Fundido del tempo"
 
 msgid "Tempo marks"
-msgstr ""
+msgstr "Indicaciones de tempo"
 
 #: lib/score_replacement.dart
 msgid "Tempo: {from} → {to}"
@@ -2269,509 +2270,511 @@ msgstr ""
 
 #: lib/phrase_search_window.dart
 msgid "Tenor"
-msgstr ""
+msgstr "Clave de do en cuarta"
 
 #: lib/captions_dialog.dart
 msgid "Text"
-msgstr ""
+msgstr "Texto"
 
 msgid "Text boxes"
-msgstr ""
+msgstr "Cuadros de texto"
 
 #: lib/score_replacement.dart
 msgid "Text edits lost: {n}"
-msgstr ""
+msgstr "Cambios de texto perdidos: {n}"
 
 msgid "Text font"
-msgstr ""
+msgstr "Fuente del texto"
 
 msgid "Text size"
-msgstr ""
+msgstr "Tamaño del texto"
 
 #: lib/caption_settings.dart
 msgid "The *horns* answer, softly"
-msgstr ""
+msgstr "Las *trompas* responden suavemente"
 
 msgid "The equation ends too soon."
-msgstr ""
+msgstr "La ecuación está incompleta."
 
 msgid "The font has no name."
-msgstr ""
+msgstr "La fuente no tiene nombre."
 
 msgid "The latest release has no version"
-msgstr ""
+msgstr "La última versión publicada no tiene número de versión"
 
 msgid "The project has no score in it."
-msgstr ""
+msgstr "El proyecto no contiene ninguna partitura."
 
 msgid "The project has not been saved yet: choose where to save it."
-msgstr ""
+msgstr "El proyecto aún no se ha guardado. Elige dónde guardarlo."
 
 msgid "The sample can’t be saved."
-msgstr ""
+msgstr "No se puede guardar el ejemplo."
 
 msgid "The sample is just for looking. Open a score to start your own!"
-msgstr ""
+msgstr "El ejemplo es solo de consulta. Abre una partitura para empezar tu propio proyecto."
 
 #: lib/edit_dialogs.dart
 msgid "Here’s what differs:"
-msgstr ""
+msgstr "Estas son las diferencias:"
 
 msgid "The SMuFL metadata is not JSON."
-msgstr ""
+msgstr "Los metadatos SMuFL no están en formato JSON."
 
 msgid "Theme"
-msgstr ""
+msgstr "Tema"
 
 msgid "These settings are from a newer Curator. Update to import them!"
-msgstr ""
+msgstr "Estos ajustes proceden de una versión más reciente de Curator. Actualiza la aplicación para importarlos."
 
 msgid "Thick barlines"
-msgstr ""
+msgstr "Barras de compás gruesas"
 
 #: lib/video_export.dart
 msgid "This FFmpeg can’t write {format}. Install a full build (with {encoder})."
-msgstr ""
+msgstr "Esta versión de FFmpeg no puede generar archivos en formato {format}. Instala una versión completa que incluya {encoder}."
 
 #: lib/settings_dialog.dart
 msgid "This file is a little old. Export again to update it."
-msgstr ""
+msgstr "Este archivo es de una versión anterior. Vuelve a exportarlo para actualizarlo."
 
 msgid "This font file is incomplete."
-msgstr ""
+msgstr "Este archivo de fuente está incompleto."
 
 msgid "That doesn’t look like a Curator project."
-msgstr ""
+msgstr "Este archivo no parece ser un proyecto de Curator."
 
 msgid "That doesn’t look like a Curator settings file."
-msgstr ""
+msgstr "Este archivo no parece ser un archivo de ajustes de Curator."
 
 msgid "This isn’t a font file."
-msgstr ""
+msgstr "Este archivo no es una fuente."
 
 msgid "This isn’t a MIDI file."
-msgstr ""
+msgstr "Este archivo no es un archivo MIDI."
 
 #: lib/audio_panel.dart
 msgid "That jump would put the anchors out of order or past the end."
-msgstr ""
+msgstr "Ese salto alteraría el orden de los puntos de sincronización o los situaría más allá del final."
 
 msgid "This MIDI file counts time in SMPTE frames, so it has no tempo map."
-msgstr ""
+msgstr "Este archivo MIDI mide el tiempo en fotogramas SMPTE, por lo que no contiene un mapa de tempo."
 
 msgid "This MIDI file has no tracks."
-msgstr ""
+msgstr "Este archivo MIDI no contiene pistas."
 
 msgid "This MIDI file is cut short."
-msgstr ""
+msgstr "Este archivo MIDI está incompleto."
 
 msgid "This MIDI file is damaged: a length runs over four bytes."
-msgstr ""
+msgstr "El archivo MIDI está dañado: un campo de longitud ocupa más de cuatro bytes."
 
 msgid "This MIDI file is damaged: a track ends in the middle of an event."
-msgstr ""
+msgstr "El archivo MIDI está dañado: una pista termina a mitad de un evento."
 
 msgid "This MIDI file is damaged: an event has no status."
-msgstr ""
+msgstr "El archivo MIDI está dañado: un evento carece de byte de estado."
 
 msgid "This MIDI file is damaged: an event runs past its track."
-msgstr ""
+msgstr "El archivo MIDI está dañado: un evento sobrepasa el final de su pista."
 
 msgid "This MIDI file is damaged: its header gives no ticks per quarter note."
-msgstr ""
+msgstr "El archivo MIDI está dañado: la cabecera no indica cuántos pulsos MIDI hay por negra."
 
 #: lib/main.dart
 msgid "A project from an older Curator! Saving updates it, so older versions won’t open it after."
-msgstr ""
+msgstr "Este proyecto es de una versión anterior de Curator. Al guardarlo se actualizará y las versiones anteriores ya no podrán abrirlo."
 
 msgid "This project is from a newer Curator. Update to open it!"
-msgstr ""
+msgstr "Este proyecto es de una versión más reciente de Curator. Actualiza la aplicación para abrirlo."
 
 msgid "This RIFF file has no MIDI data."
-msgstr ""
+msgstr "Este archivo RIFF no contiene datos MIDI."
 
 msgid "This subtitle file is a bit too big."
-msgstr ""
+msgstr "El archivo de subtítulos es demasiado grande."
 
 msgid "This SVG has no width or height."
-msgstr ""
+msgstr "Este SVG carece de anchura o de altura."
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy 1 selected lane"
-msgstr ""
+msgstr "Ordenar 1 pista seleccionada"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy 1 Selected Lane"
-msgstr ""
+msgstr "Ordenar 1 pista seleccionada"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy all lanes"
-msgstr ""
+msgstr "Ordenar todas las pistas"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy All Lanes"
-msgstr ""
+msgstr "Ordenar todas las pistas"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy {n} selected lanes"
-msgstr ""
+msgstr "Ordenar {n} pistas seleccionadas"
 
 #: lib/instruments_toolbar.dart
 msgid "Tidy {n} Selected Lanes"
-msgstr ""
+msgstr "Ordenar {n} pistas seleccionadas"
 
 msgid "Tie ends"
-msgstr ""
+msgstr "Extremos de las ligaduras de prolongación"
 
 msgid "Tie middles"
-msgstr ""
+msgstr "Centro de las ligaduras de prolongación"
 
 #: lib/score_replacement.dart
 msgid "Time signature differs from bar {n}"
-msgstr ""
+msgstr "La indicación de compás difiere de la del compás {n}"
 
 msgid "Time signatures"
-msgstr ""
+msgstr "Indicaciones de compás"
 
 msgid "Timed text under the score."
-msgstr ""
+msgstr "Texto sincronizado bajo la partitura."
 
 msgid "Timewise MusicXML is not supported yet; export as partwise."
-msgstr ""
+msgstr "Todavía no se admite MusicXML organizado por compases (timewise). Expórtalo por partes (partwise)."
 
 msgid "To bar"
-msgstr ""
+msgstr "Hasta el compás"
 
 #: lib/video_export.dart
 msgid "To export video, install FFmpeg (free), then export again:"
-msgstr ""
+msgstr "Para exportar vídeo, instala FFmpeg (gratuito) y repite la exportación:"
 
 msgid "Top and bottom"
-msgstr ""
+msgstr "Arriba y abajo"
 
 #: lib/instruments_toolbar.dart
 msgid "Transition (mixed)"
-msgstr ""
+msgstr "Transición (mixta)"
 
 #: lib/instruments_toolbar.dart
 msgid "Transition (the project's)"
-msgstr ""
+msgstr "Transición del proyecto"
 
 #: lib/instruments_toolbar.dart
 msgid "Transition (their own)"
-msgstr ""
+msgstr "Transición propia"
 
 msgid "Transition in"
-msgstr ""
+msgstr "Transición de entrada"
 
 msgid "Transition out"
-msgstr ""
+msgstr "Transición de salida"
 
 msgid "Transparent"
-msgstr ""
+msgstr "Transparente"
 
 msgid "Transposition"
-msgstr ""
+msgstr "Transposición"
 
 #: lib/phrase_search_window.dart
 msgid "Treble"
-msgstr ""
+msgstr "Clave de sol"
 
 #: lib/phrase_search_window.dart
 msgid "Treble 8vb"
-msgstr ""
+msgstr "Clave de sol con octava baja"
 
 msgid "Tremolos"
-msgstr ""
+msgstr "Trémolos"
 
 #: lib/settings_dialog.dart
 msgid "Try Again"
-msgstr ""
+msgstr "Reintentar"
 
 #: lib/settings_dialog.dart
 msgid "Try another word, such as “font” or “transition”."
-msgstr ""
+msgstr "Prueba con otra palabra, como «fuente» o «transición»."
 
 #: lib/settings_dialog.dart
 msgid "Try another word, such as “theme” or “update”."
-msgstr ""
+msgstr "Prueba con otra palabra, como «tema» o «actualizar»."
 
 msgid "Tuplet brackets"
-msgstr ""
+msgstr "Corchetes de grupos de valoración especial"
 
 msgid "Tuplet numbers"
-msgstr ""
+msgstr "Números de grupos de valoración especial"
 
 msgid "Tuplets"
-msgstr ""
+msgstr "Grupos de valoración especial"
 
 msgid "Turn on in Project Settings ▸ Extensions"
-msgstr ""
+msgstr "Actívalo en Ajustes del proyecto ▸ Extensiones"
 
 msgid "Type an equation in t."
-msgstr ""
+msgstr "Introduce una ecuación en función de t."
 
 msgid "Typography"
-msgstr ""
+msgstr "Tipografía"
 
 #: lib/sections_editor.dart
 msgid "Unbracket"
-msgstr ""
+msgstr "Quitar corchete"
 
 msgid "Undefined at t = 0 or 1."
-msgstr ""
+msgstr "No está definida para t = 0 o t = 1."
 
 #: lib/app_menus.dart
 msgid "Undo"
-msgstr ""
+msgstr "Deshacer"
 
 #: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
-msgstr ""
+msgstr "Deshacer ({key})"
 
 #: lib/audio_panel.dart
 msgid "Convert to Anchors"
-msgstr ""
+msgstr "Convertir en puntos de sincronización"
 
 #: lib/audio_panel.dart
 msgid "Convert to Tempo Map"
-msgstr ""
+msgstr "Convertir en mapa de tempo"
 
 #: lib/editor_controller.dart
 msgid "Tempo Map"
-msgstr ""
+msgstr "Mapa de tempo"
 
 msgid "Anchor nudge"
-msgstr ""
+msgstr "Desplazamiento fino del punto de sincronización"
 
 msgid "←/→ · ⇧ 1 ms"
 msgstr ""
 
 msgid "Fine seek"
-msgstr ""
+msgstr "Avance y retroceso de precisión"
 
 msgid "⌥←/→"
 msgstr ""
 
 msgid "Undo history"
-msgstr ""
+msgstr "Historial de cambios que se pueden deshacer"
 
 #: lib/captions_dialog.dart
 msgid "Until"
-msgstr ""
+msgstr "Hasta"
 
 #: lib/project_document.dart
 msgid "Untitled"
-msgstr ""
+msgstr "Sin subtítulo"
 
 #: lib/assets_dialog.dart
 msgid "Unused"
-msgstr ""
+msgstr "Sin usar"
 
 msgid "Unzip it and replace this app with it."
-msgstr ""
+msgstr "Descomprime el archivo y sustituye esta aplicación por la versión descomprimida."
 
 msgid "Updates"
-msgstr ""
+msgstr "Actualizaciones"
 
 #: lib/main.dart
 msgid "Update…"
-msgstr ""
+msgstr "Actualizar…"
 
 msgid "That’s a lot of frames. Keep it to 2000 or fewer."
-msgstr ""
+msgstr "Hay demasiados fotogramas. El máximo es de 2000."
 
 msgid "That image is too big. Use one under 64 MB."
-msgstr ""
+msgstr "La imagen es demasiado grande. Utiliza una de menos de 64 MB."
 
 msgid "That score is too big. Use one under 256 MB."
-msgstr ""
+msgstr "La partitura es demasiado grande. Utiliza una de menos de 256 MB."
 
 msgid "That MIDI file is too big."
-msgstr ""
+msgstr "El archivo MIDI es demasiado grande."
 
 #: lib/edit_dialogs.dart
 msgid "Use Name from File"
-msgstr ""
+msgstr "Usar el nombre del archivo"
 
 #: lib/settings_dialog.dart
 msgid "Use the saved defaults here"
-msgstr ""
+msgstr "Usar aquí los valores predeterminados guardados"
 
 msgid "Use these for other projects"
-msgstr ""
+msgstr "Usar estos ajustes en otros proyectos"
 
 msgid "UTF-16 MusicXML is not supported yet; save the file as UTF-8."
-msgstr ""
+msgstr "Todavía no se admite MusicXML en UTF-16. Guarda el archivo en UTF-8."
 
 msgid "Version"
-msgstr ""
+msgstr "Versión"
 
 #: lib/settings_dialog.dart
 msgid "Version {version}"
-msgstr ""
+msgstr "Versión {version}"
 
 #: lib/spacer_dialogs.dart
 msgid "Vertical Spacer"
-msgstr ""
+msgstr "Espaciador vertical"
 
 msgid "Video"
-msgstr ""
+msgstr "Vídeo"
 
 msgid "Video Exported"
-msgstr ""
+msgstr "Vídeo exportado"
 
 #: lib/edit_dialogs.dart
 msgid "Video Ratio"
-msgstr ""
+msgstr "Relación de aspecto del vídeo"
 
 #: lib/editor_toolbar.dart
 msgid "Video ratio"
-msgstr ""
+msgstr "Relación de aspecto del vídeo"
 
 #: lib/media_converter.dart
 msgid "Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:"
-msgstr ""
+msgstr "Para utilizar vídeos o audio AAC/M4A necesitas FFmpeg (gratuito). Instálalo y vuelve a añadir la grabación:"
 
 #: lib/app_menus.dart
 msgid "View"
-msgstr ""
+msgstr "Ver"
 
 msgid "Violet"
-msgstr ""
+msgstr "Violeta"
 
 msgid "Voices"
-msgstr ""
+msgstr "Voces"
 
 msgid "Warp"
-msgstr ""
+msgstr "Salto"
 
 #: lib/audio_panel.dart
 msgid "Warp (W)\n"
 "Jump to another bar here"
-msgstr ""
+msgstr "Salto (W)\n"
+"Saltar a otro compás desde aquí"
 
 #: lib/audio_panel.dart
 msgid "Warp (W)\n"
 "Make this anchor jump to another bar"
-msgstr ""
+msgstr "Salto (W)\n"
+"Hacer que este punto de sincronización salte a otro compás"
 
 #: lib/audio_panel.dart
 msgid "Warps from Score"
-msgstr ""
+msgstr "Saltos de la partitura"
 
 msgid "When no anchors are set yet."
-msgstr ""
+msgstr "Cuando aún no hay puntos de sincronización."
 
 msgid "WebM video"
-msgstr ""
+msgstr "Vídeo WebM"
 
 msgid "Website"
-msgstr ""
+msgstr "Sitio web"
 
 #: lib/phrase_search_window.dart
 msgid "Whole (8)"
-msgstr ""
+msgstr "Redonda (8)"
 
 #: lib/export_dialog.dart
 msgid "Whole piece"
-msgstr ""
+msgstr "Obra completa"
 
 msgid "Whole-bar rests"
-msgstr ""
+msgstr "Silencios de compás completo"
 
 msgid "Width : height"
-msgstr ""
+msgstr "Anchura : altura"
 
 #: lib/app_menus.dart
 msgid "Window"
-msgstr ""
+msgstr "Ventana"
 
 msgid "With bar numbers, shows rehearsal marks beside them, out of the music."
-msgstr ""
+msgstr "Si se muestran los números de compás, coloca las marcas de ensayo a su lado, fuera del pentagrama."
 
 msgid "Woodwinds"
-msgstr ""
+msgstr "Viento madera"
 
 #: lib/edit_dialogs.dart
 msgid "This one can’t be undone."
-msgstr ""
+msgstr "Esta acción no se puede deshacer."
 
 #: lib/main.dart
 msgid "If you don’t, they’ll be lost."
-msgstr ""
+msgstr "De lo contrario, se perderán."
 
 msgid "Your own server"
-msgstr ""
+msgstr "Tu propio servidor"
 
 #: lib/settings_dialog.dart
 msgid "Yours."
-msgstr ""
+msgstr "Propio."
 
 #: lib/bottom_panel.dart
 msgid "Zoom in ({key} or pinch)"
-msgstr ""
+msgstr "Acercar ({key} o gesto de pinza)"
 
 #: lib/bottom_panel.dart
 msgid "Zoom out ({key} or pinch)"
-msgstr ""
+msgstr "Alejar ({key} o gesto de pinza)"
 
 #: lib/instrument_lanes/lane_header.dart
 msgid "{names}: one lane"
-msgstr ""
+msgstr "{names}: una pista"
 
 #: lib/font_settings.dart
 msgid "{name} not found."
-msgstr ""
+msgstr "No se ha encontrado {name}."
 
 #: lib/audio_panel.dart
 msgid "{n} anchors"
-msgstr ""
+msgstr "{n} puntos de sincronización"
 
 #: lib/audio_panel.dart
 msgid "{n} anchors from the recording"
-msgstr ""
+msgstr "{n} puntos de sincronización de la grabación"
 
 msgid "{n} Bars"
-msgstr ""
+msgstr "{n} compases"
 
 msgid "{n} captions"
-msgstr ""
+msgstr "{n} subtítulos"
 
 msgid "{n} edges"
-msgstr ""
+msgstr "{n} bordes"
 
 #: lib/assets_dialog.dart lib/export_dialog.dart
 msgid "{n} frames"
-msgstr ""
+msgstr "{n} fotogramas"
 
 msgid "{n} images"
-msgstr ""
+msgstr "{n} imágenes"
 
 msgid "{n} imported"
-msgstr ""
+msgstr "Se han importado {n}"
 
 msgid "{n} imported, {left} overlapping left out"
-msgstr ""
+msgstr "Se han importado {n}; se han omitido {left} por solapamiento"
 
 #: lib/edit_dialogs.dart
 msgid "{n} items not supported:"
-msgstr ""
+msgstr "{n} elementos no compatibles:"
 
 #: lib/instruments_toolbar.dart
 msgid "{n} lanes"
-msgstr ""
+msgstr "{n} pistas"
 
 #: lib/phrase_search_window.dart
 msgid "{n} matches"
-msgstr ""
+msgstr "{n} coincidencias"
 
 #: lib/export_dialog.dart
 msgid "{n} minutes"
-msgstr ""
+msgstr "{n} minutos"
 
 msgid "{n} regions"
-msgstr ""
+msgstr "{n} regiones"
 
 #: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
 msgid "{n} s"
@@ -2779,138 +2782,138 @@ msgstr ""
 
 #: lib/export_dialog.dart
 msgid "{n} seconds"
-msgstr ""
+msgstr "{n} segundos"
 
 #: lib/settings_dialog.dart
 msgid "{n} steps"
-msgstr ""
+msgstr "{n} pasos"
 
 msgid "{n} warps"
-msgstr ""
+msgstr "{n} saltos"
 
 #: lib/settings_dialog.dart
 msgid "{shared} of {all} share a staff."
-msgstr ""
+msgstr "{shared} de {all} comparten pentagrama."
 
 #: lib/audio_panel.dart
 msgid "{warps} from the score’s repeats"
-msgstr ""
+msgstr "{warps} a partir de las repeticiones de la partitura"
 
 msgid "{what} in 1 lane"
-msgstr ""
+msgstr "{what} en 1 pista"
 
 msgid "{what} in {n} lanes"
-msgstr ""
+msgstr "{what} en {n} pistas"
 
 #: lib/edit_dialogs.dart
 msgid "“{name}” already exists. Replace it?"
-msgstr ""
+msgstr "«{name}» ya existe. ¿Quieres sustituirlo?"
 
 #: lib/video_export.dart lib/web_export.dart
 msgid "“{name}” already holds other files. Choose another name."
-msgstr ""
+msgstr "«{name}» ya contiene otros archivos. Elige otro nombre."
 
 #: lib/main.dart
 msgid "Can’t find “{name}”. Was it moved or deleted?"
-msgstr ""
+msgstr "No se encuentra «{name}». ¿Se ha movido o eliminado?"
 
 #: lib/instruments_toolbar.dart
 msgid "←/→ a bar (⇧ a beat)"
-msgstr ""
+msgstr "←/→ un compás (⇧ un pulso)"
 
 #: lib/audio_panel.dart
 msgid "↑/↓ re-point · ←/→ nudge · {key} remove"
-msgstr ""
+msgstr "↑/↓ reasignar · ←/→ desplazar con precisión · {key} quitar"
 
 #: lib/instruments_toolbar.dart
 msgid "⇧ add · ⌘ toggle, no snap · ⌥ draw"
-msgstr ""
+msgstr "⇧ añadir · ⌘ alternar sin ajuste · ⌥ dibujar"
 
 #: lib/instruments_toolbar.dart
 msgid "⌘ no snap · ⌥ draw"
-msgstr ""
+msgstr "⌘ sin ajuste · ⌥ dibujar"
 
 #: lib/instruments_toolbar.dart
 msgid "⌘ no snap · ⌥ erase"
-msgstr ""
+msgstr "⌘ sin ajuste · ⌥ borrar"
 
 #: lib/audio_panel.dart
 msgid "⌥ add, draw · ⌘ no snap"
-msgstr ""
+msgstr "⌥ añadir o dibujar · ⌘ sin ajuste"
 
 #: lib/score_editor.dart
 msgid "128th"
-msgstr ""
+msgstr "Garrapatea"
 
 #: lib/score_editor.dart
 msgid "16th"
-msgstr ""
+msgstr "Semicorchea"
 
 #: lib/score_editor.dart
 msgid "32nd"
-msgstr ""
+msgstr "Fusa"
 
 #: lib/score_editor.dart
 msgid "64th"
-msgstr ""
+msgstr "Semifusa"
 
 #: lib/score_editor.dart
 msgid "Accent ([)"
-msgstr ""
+msgstr "Acento ([)"
 
 msgid "Bars and Barlines"
-msgstr ""
+msgstr "Compases y barras de compás"
 
 #: lib/score_editor.dart
 msgid "Breve"
-msgstr ""
+msgstr "Cuadrada"
 
 #: lib/score_editor.dart
 msgid "Chord"
-msgstr ""
+msgstr "Acorde"
 
 #: lib/score_editor.dart
 msgid "Chord (Q)"
-msgstr ""
+msgstr "Acorde (Q)"
 
 #: lib/main.dart
 msgid "Couldn’t Edit Score"
-msgstr ""
+msgstr "No se ha podido editar la partitura"
 
 #: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
-msgstr ""
+msgstr "Descartar"
 
 #: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
-msgstr ""
+msgstr "¿Descartar los cambios?"
 
 #: lib/score_editor.dart
 msgid "Dotted {value}"
-msgstr ""
+msgstr "{value} con puntillo"
 
 #: lib/score_editor.dart
 msgid "Edit Score"
-msgstr ""
+msgstr "Editar partitura"
 
 #: lib/score_editor.dart
 msgid "Eighth"
-msgstr ""
+msgstr "Corchea"
 
 #: lib/score_editor.dart
 msgid "Half"
-msgstr ""
+msgstr "Blanca"
 
 msgid "Holds"
-msgstr ""
+msgstr "Prolongaciones"
 
 #: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
-msgstr ""
+msgstr "Seguir editando"
 
 #: lib/pdf_import_changes.dart
 msgid "Key Signature"
-msgstr ""
+msgstr "Armadura"
 
 #: lib/score_editor.dart
 msgid "Marcato (⇧[)"
@@ -2918,27 +2921,27 @@ msgstr ""
 
 #: lib/score_editor.dart
 msgid "Note Input (⇧N)"
-msgstr ""
+msgstr "Introducción de notas (⇧N)"
 
 #: lib/score_editor.dart
 msgid "Note input"
-msgstr ""
+msgstr "Introducción de notas"
 
 #: lib/score_editor.dart
 msgid "Quarter"
-msgstr ""
+msgstr "Negra"
 
 #: lib/score_editor.dart
 msgid "Rest"
-msgstr ""
+msgstr "Silencio"
 
 #: lib/score_editor.dart
 msgid "Rest (,)"
-msgstr ""
+msgstr "Silencio (,)"
 
 #: lib/score_editor.dart
 msgid "Slur (S)"
-msgstr ""
+msgstr "Ligadura de expresión (S)"
 
 #: lib/score_editor.dart
 msgid "Staccatissimo (')"
@@ -2954,234 +2957,234 @@ msgstr ""
 
 #: lib/score_editor.dart
 msgid "The score stays as it was."
-msgstr ""
+msgstr "La partitura se conserva tal como estaba."
 
 #: lib/score_editor.dart
 msgid "Tie (T)"
-msgstr ""
+msgstr "Ligadura de prolongación (T)"
 
 #: lib/pdf_import.dart
 msgid "Time Signature"
-msgstr ""
+msgstr "Indicación de compás"
 
 msgid "Tuplet"
-msgstr ""
+msgstr "Grupo de valoración especial"
 
 #: lib/score_editor.dart
 msgid "Tuplet (;)"
-msgstr ""
+msgstr "Grupo de valoración especial (;)"
 
 #: lib/score_editor.dart
 msgid "Whole"
-msgstr ""
+msgstr "Redonda"
 
 #: lib/pdf_import.dart lib/score_editor.dart
 msgid "Zoom In"
-msgstr ""
+msgstr "Acercar"
 
 #: lib/pdf_import.dart lib/score_editor.dart
 msgid "Zoom Out"
-msgstr ""
+msgstr "Alejar"
 
 #: lib/score_editor.dart
 msgid "{count} selected"
-msgstr ""
+msgstr "Selección: {count}"
 
 #: lib/score_editor.dart
 msgid "{value} ({key})"
 msgstr ""
 
 msgid "Abbreviation"
-msgstr ""
+msgstr "Abreviatura"
 
 msgid "Add Instrument"
-msgstr ""
+msgstr "Añadir instrumento"
 
 #: lib/pdf_import.dart
 msgid "Bar {n}"
-msgstr ""
+msgstr "Compás {n}"
 
 msgid "Barline"
-msgstr ""
+msgstr "Barra de compás"
 
 #: lib/main.dart
 msgid "Couldn’t Import PDF"
-msgstr ""
+msgstr "No se ha podido importar el PDF"
 
 #: lib/pdf_import.dart
 msgid "Couldn’t measure the bars. {error}"
-msgstr ""
+msgstr "No se han podido medir los compases. {error}"
 
 #: lib/pdf_import.dart
 msgid "Couldn’t read the PDF. {error}"
-msgstr ""
+msgstr "No se ha podido leer el PDF. {error}"
 
 #: lib/pdf_import.dart
 msgid "Detect Page Again"
-msgstr ""
+msgstr "Volver a detectar la página"
 
 msgid "Divisi"
 msgstr ""
 
 msgid "Double"
-msgstr ""
+msgstr "Doble"
 
 msgid "End Repeat"
-msgstr ""
+msgstr "Fin de repetición"
 
 msgid "End and Start Repeat"
-msgstr ""
+msgstr "Fin e inicio de repetición"
 
 msgid "Final"
 msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Import PDF"
-msgstr ""
+msgstr "Importar PDF"
 
 #: lib/pdf_import.dart
 msgid "Instrument"
-msgstr ""
+msgstr "Instrumento"
 
 msgid "Key"
-msgstr ""
+msgstr "Tonalidad"
 
 msgid "Kind"
-msgstr ""
+msgstr "Tipo"
 
 msgid "Mask"
-msgstr ""
+msgstr "Máscara"
 
 msgid "Mask (M)"
-msgstr ""
+msgstr "Máscara (M)"
 
 #: lib/pdf_import.dart
 msgid "Measuring system {n} of {count}…"
-msgstr ""
+msgstr "Midiendo el sistema {n} de {count}…"
 
 #: lib/pdf_import.dart
 msgid "Move Down"
-msgstr ""
+msgstr "Bajar"
 
 #: lib/pdf_import.dart
 msgid "Move Up"
-msgstr ""
+msgstr "Subir"
 
 #: lib/pdf_import.dart
 msgid "Next Page"
-msgstr ""
+msgstr "Página siguiente"
 
 #: lib/pdf_import.dart
 msgid "Previous Page"
-msgstr ""
+msgstr "Página anterior"
 
 #: lib/pdf_import.dart
 msgid "Reading page {n} of {count}…"
-msgstr ""
+msgstr "Leyendo la página {n} de {count}…"
 
 #: lib/pdf_import.dart
 msgid "Remove Barline"
-msgstr ""
+msgstr "Quitar barra de compás"
 
 msgid "Remove Instrument"
-msgstr ""
+msgstr "Quitar instrumento"
 
 #: lib/pdf_import.dart
 msgid "Remove Mask"
-msgstr ""
+msgstr "Quitar máscara"
 
 msgid "Gap"
-msgstr ""
+msgstr "Separación"
 
 #: lib/pdf_import.dart
 msgid "Remove Gap"
-msgstr ""
+msgstr "Quitar separación"
 
 #: lib/pdf_import_changes.dart
 msgid "Concert"
-msgstr ""
+msgstr "En tono de concierto"
 
 msgid "Read as"
-msgstr ""
+msgstr "Interpretar como"
 
 #: lib/pdf_import_changes.dart
 msgid "Concert: {key}"
-msgstr ""
+msgstr "En tono de concierto: {key}"
 
 msgid "New Instrument"
-msgstr ""
+msgstr "Nuevo instrumento"
 
 #: lib/pdf_import.dart
 msgid "Time Signature for {name}"
-msgstr ""
+msgstr "Indicación de compás para {name}"
 
 #: lib/pdf_import.dart
 msgid "Clef for {name}"
-msgstr ""
+msgstr "Clave para {name}"
 
 #: lib/pdf_import.dart
 msgid "Insert Tempo…"
-msgstr ""
+msgstr "Insertar tempo…"
 
 #: lib/pdf_import.dart
 msgid "Insert Key Signature…"
-msgstr ""
+msgstr "Insertar armadura…"
 
 #: lib/pdf_import.dart
 msgid "Insert Time Signature…"
-msgstr ""
+msgstr "Insertar indicación de compás…"
 
 #: lib/pdf_import.dart
 msgid "Insert Time Signature for {name}…"
-msgstr ""
+msgstr "Insertar indicación de compás para {name}…"
 
 #: lib/pdf_import.dart
 msgid "Insert Clef for {name}…"
-msgstr ""
+msgstr "Insertar clave para {name}…"
 
 #: lib/pdf_import.dart
 msgid "Key {key}"
-msgstr ""
+msgstr "Tonalidad: {key}"
 
 #: lib/pdf_import.dart
 msgid "Insert"
-msgstr ""
+msgstr "Insertar"
 
 #: lib/pdf_import.dart
 msgid "New Instrument…"
-msgstr ""
+msgstr "Nuevo instrumento…"
 
 #: lib/pdf_import.dart
 msgid "Remove System"
-msgstr ""
+msgstr "Quitar sistema"
 
 msgid "Single"
-msgstr ""
+msgstr "Simple"
 
 #: lib/instruments_toolbar.dart lib/pdf_import.dart
 msgid "Staff {n}"
-msgstr ""
+msgstr "Pentagrama {n}"
 
 msgid "Start Repeat"
-msgstr ""
+msgstr "Inicio de repetición"
 
 msgid "Time"
-msgstr ""
+msgstr "Compás"
 
 msgid "Upbeat (beats)"
-msgstr ""
+msgstr "Anacrusa (en pulsos)"
 
 #: lib/pdf_import.dart lib/pdf_import_changes.dart
 msgid "in {key}"
-msgstr ""
+msgstr "en {key}"
 
 #: lib/pdf_import.dart
 msgid "{bars} bars · {systems} systems"
-msgstr ""
+msgstr "{bars} compases · {systems} sistemas"
 
 #: lib/pdf_import.dart
 msgid "{n} of {count}"
-msgstr ""
+msgstr "{n} de {count}"
 
 #: lib/pdf_import.dart
 msgid "×{n}"
@@ -3189,216 +3192,219 @@ msgstr ""
 
 #: lib/edit_dialogs.dart
 msgid "Spacing of {name}"
-msgstr ""
+msgstr "Espaciado de {name}"
 
 msgid "Spacing…"
-msgstr ""
+msgstr "Espaciado…"
 
 msgid "Above (spaces)"
-msgstr ""
+msgstr "Por encima (en espacios)"
 
 msgid "Below (spaces)"
-msgstr ""
+msgstr "Por debajo (en espacios)"
 
 msgid "Add Blank Lane"
-msgstr ""
+msgstr "Añadir pista vacía"
 
 #: lib/pdf_import.dart
 msgid "Blank"
-msgstr ""
+msgstr "Vacía"
 
 msgid "Rename Lane"
-msgstr ""
+msgstr "Cambiar nombre de la pista"
 
 msgid "Opening…"
-msgstr ""
+msgstr "Abriendo…"
 
 msgid "Reading score…"
-msgstr ""
+msgstr "Leyendo la partitura…"
 
 msgid "Measuring…"
-msgstr ""
+msgstr "Midiendo…"
 
 msgid "Loading pages…"
-msgstr ""
+msgstr "Cargando páginas…"
 
 msgid "Split Lane"
-msgstr ""
+msgstr "Dividir pista"
 
 msgid "Join Lanes"
-msgstr ""
+msgstr "Unir pistas"
 
 msgid "Pages"
-msgstr ""
+msgstr "Páginas"
 
 msgid "Changes"
-msgstr ""
+msgstr "Cambios"
 
 msgid "Review"
-msgstr ""
+msgstr "Revisar"
 
 msgid "Next"
-msgstr ""
+msgstr "Siguiente"
 
 msgid "Import"
-msgstr ""
+msgstr "Importar"
 
 #: lib/pdf_import.dart
 msgid "Read Names from Score"
-msgstr ""
+msgstr "Leer los nombres de la partitura"
 
 #: lib/pdf_import.dart
 msgid "Every staff has an instrument"
-msgstr ""
+msgstr "Todos los pentagramas tienen un instrumento asignado"
 
 #: lib/pdf_import.dart
 msgid "{n} staves without an instrument"
-msgstr ""
+msgstr "{n} pentagramas sin instrumento asignado"
 
 #: lib/pdf_import.dart
 msgid "Show Next"
-msgstr ""
+msgstr "Mostrar siguiente"
 
 msgid "Summary"
-msgstr ""
+msgstr "Resumen"
 
 #: lib/pdf_import.dart
 msgid "Reading text… {n} of {count}"
-msgstr ""
+msgstr "Leyendo el texto… {n} de {count}"
 
 #: lib/pdf_import.dart
 msgid "No text found"
-msgstr ""
+msgstr "No se ha encontrado texto"
 
 msgid "Read from Score"
-msgstr ""
+msgstr "Leer de la partitura"
 
 #: lib/pdf_import.dart
 msgid "Add All"
-msgstr ""
+msgstr "Añadir todo"
 
 msgid "Bars"
-msgstr ""
+msgstr "Compases"
 
 msgid "Systems"
-msgstr ""
+msgstr "Sistemas"
 
 msgid "Blank Lanes"
-msgstr ""
+msgstr "Pistas vacías"
 
 msgid "Tempo Marks"
-msgstr ""
+msgstr "Indicaciones de tempo"
 
 msgid "Staves without an instrument"
-msgstr ""
+msgstr "Pentagramas sin instrumento asignado"
 
 #: lib/pdf_import.dart
 msgid "More"
-msgstr ""
+msgstr "Más"
 
 msgid "Blank Lane"
-msgstr ""
+msgstr "Pista vacía"
 
 #: lib/pdf_import.dart
 msgid "Dismiss"
-msgstr ""
+msgstr "Cerrar"
 
 #: lib/pdf_import.dart
 msgid "Select a bar"
-msgstr ""
+msgstr "Selecciona un compás"
 
 #: lib/pdf_import.dart
 msgid "Lane"
-msgstr ""
+msgstr "Pista"
 
 #: lib/pdf_import.dart
 msgid "All Lanes"
-msgstr ""
+msgstr "Todas las pistas"
 
 #: lib/pdf_import.dart
 msgid "Mask Lane (M)"
-msgstr ""
+msgstr "Enmascarar pista (M)"
 
 #: lib/pdf_import.dart
 msgid "Mask All Lanes (⇧M)"
-msgstr ""
+msgstr "Enmascarar todas las pistas (⇧M)"
 
 msgid "Remove (⌫)"
-msgstr ""
+msgstr "Quitar (⌫)"
 
 msgid "Remove System (⌫)"
-msgstr ""
+msgstr "Quitar sistema (⌫)"
 
 msgid "Remove Barline (⌫)"
-msgstr ""
+msgstr "Quitar barra de compás (⌫)"
 
 msgid "Remove Gap (⌫)"
-msgstr ""
+msgstr "Quitar separación (⌫)"
 
 msgid "Remove Mask (⌫)"
-msgstr ""
+msgstr "Quitar máscara (⌫)"
 
 msgid "Show Next Staff without an Instrument"
-msgstr ""
+msgstr "Mostrar el siguiente pentagrama sin instrumento asignado"
 
 #: lib/pdf_import.dart
 msgid "Time for {name}"
-msgstr ""
+msgstr "Compás de {name}"
 
 msgid "Select a staff"
-msgstr ""
+msgstr "Selecciona un pentagrama"
 
 msgid "Add All Tempo Marks"
-msgstr ""
+msgstr "Añadir todas las indicaciones de tempo"
 
 msgid "Masks"
-msgstr ""
+msgstr "Máscaras"
 
 #: lib/pdf_import.dart
 msgid "None on this page"
-msgstr ""
+msgstr "Ninguna en esta página"
 
 msgid "Add Barline (B)"
-msgstr ""
+msgstr "Añadir barra de compás (B)"
 
 msgid "Add Staff (S)"
-msgstr ""
+msgstr "Añadir pentagrama (S)"
 
 #: lib/pdf_import.dart
 msgid "Remove Staff"
-msgstr ""
+msgstr "Quitar pentagrama"
 
 #: lib/condensing_editor.dart
 msgctxt "condensing"
 msgid "with"
-msgstr ""
+msgstr "con"
 
 #: lib/editor_controller.dart
 msgid "Couldn’t load the recording.\n"
 "{error}"
-msgstr ""
+msgstr "No se ha podido cargar la grabación.\n"
+"{error}"
 
 #: lib/error_text.dart
 msgid "The project is damaged: {detail}"
-msgstr ""
+msgstr "El proyecto está dañado: {detail}"
 
 #: lib/error_text.dart
 msgid "The settings are damaged: {detail}"
-msgstr ""
+msgstr "Los ajustes están dañados: {detail}"
 
 #: lib/media_converter.dart
 msgid "Couldn’t read audio from this file.\n"
 "{error}"
-msgstr ""
+msgstr "No se ha podido leer el audio de este archivo.\n"
+"{error}"
 
 #: lib/project_document.dart
 msgid "Can’t find the linked recording:\n"
 "{file}"
-msgstr ""
+msgstr "No se encuentra la grabación vinculada:\n"
+"{file}"
 
 #: lib/score_editor.dart
 msgid "Voice {n}"
-msgstr ""
+msgstr "Voz {n}"
 
 #: lib/error_text.dart lib/updater.dart
 msgid "{error}."
@@ -3406,112 +3412,115 @@ msgstr ""
 
 #: lib/updater.dart
 msgid "Couldn’t write the download."
-msgstr ""
+msgstr "No se ha podido guardar la descarga."
 
 #: lib/updater.dart
 msgid "Couldn’t write {file}."
-msgstr ""
+msgstr "No se ha podido guardar {file}."
 
 #: lib/video_export.dart
 msgid "FFmpeg couldn’t write the sound.\n"
 "{error}"
-msgstr ""
+msgstr "FFmpeg no ha podido escribir el audio.\n"
+"{error}"
 
 #: lib/video_export.dart
 msgid "FFmpeg couldn’t write the video.\n"
 "{error}"
-msgstr ""
+msgstr "FFmpeg no ha podido escribir el vídeo.\n"
+"{error}"
 
 #: lib/web_export.dart
 msgid "Couldn’t write the page.\n"
 "{error}"
-msgstr ""
+msgstr "No se ha podido escribir la página.\n"
+"{error}"
 
 #: lib/error_text.dart
 msgid "{error}: “{file}”."
-msgstr ""
+msgstr "{error}: «{file}»."
 
 #: lib/settings_dialog.dart
 msgid "Help translate Curator"
-msgstr ""
+msgstr "Ayuda a traducir Curator"
 
 msgid "Only partwise MusicXML can be edited."
-msgstr ""
+msgstr "Solo se pueden editar archivos MusicXML organizados por partes (partwise)."
 
 msgid "The score has no bars."
-msgstr ""
+msgstr "La partitura no contiene compases."
 
 msgid "The instruments have different numbers of bars."
-msgstr ""
+msgstr "Los instrumentos tienen distinto número de compases."
 
 #: lib/pdf_import.dart
 msgid "No staff has an instrument yet."
-msgstr ""
+msgstr "Ningún pentagrama tiene todavía un instrumento asignado."
 
 #: lib/main.dart
 msgid "“{name}” is open in another tab. Close it there first."
-msgstr ""
+msgstr "«{name}» está abierto en otra pestaña. Ciérrelo allí primero."
 
 #: lib/captions_dialog.dart
 msgid "No room for another caption"
-msgstr ""
+msgstr "No hay espacio para otro subtítulo"
 
 #: lib/home_screen.dart
 msgid "Project or MusicXML ({key})"
-msgstr ""
+msgstr "Proyecto o MusicXML ({key})"
 
 #: lib/home_screen.dart
 msgid "PDF score ({key})"
-msgstr ""
+msgstr "Partitura en PDF ({key})"
 
 msgid "Projects"
-msgstr ""
+msgstr "Proyectos"
 
 msgctxt "heading"
 msgid "Import"
-msgstr ""
+msgstr "Importación"
 
 msgid "Keyboard"
-msgstr ""
+msgstr "Teclado"
 
 msgid "Chapter"
-msgstr ""
+msgstr "Capítulo"
 
 msgid "Set From before the end"
-msgstr ""
+msgstr "El inicio debe ser anterior al final"
 
 msgid "Another chapter starts here"
-msgstr ""
+msgstr "Aquí empieza otro capítulo"
 
 msgid "In the video, and as times beside it"
-msgstr ""
+msgstr "En el vídeo y como marcas de tiempo junto a él"
 
 msgid "Named places to jump to in a video or web page."
-msgstr ""
+msgstr "Puntos con nombre a los que se puede saltar en un vídeo o una página web."
 
 msgid "1 chapter"
-msgstr ""
+msgstr "1 capítulo"
 
 msgid "{n} chapters"
-msgstr ""
+msgstr "{n} capítulos"
 
 #: lib/chapter_lane.dart
 msgid "Add Chapter"
-msgstr ""
+msgstr "Añadir capítulo"
 
 #: lib/chapter_lane.dart
 msgid "Add from Rehearsal Marks"
-msgstr ""
+msgstr "Añadir a partir de las marcas de ensayo"
 
 #: lib/chapter_lane.dart
 msgid "Remove Chapter"
-msgstr ""
+msgstr "Quitar capítulo"
 
 #: lib/chapter_lane.dart lib/web_player/player.dart
 msgid "Chapters"
-msgstr ""
+msgstr "Capítulos"
 
 #: lib/video_export.dart lib/web_player/player.dart
 msgid "Start"
-msgstr ""
+msgstr "Inicio"
 
