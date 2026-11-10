@@ -266,9 +266,17 @@ class AppTextField extends StatelessWidget {
     this.onSubmitted,
     this.onTap,
     this.focusNode,
+    this.obscureText = false,
+    this.suffix,
   });
 
   final TextEditingController controller;
+
+  /// Dots for what is typed (a key).
+  final bool obscureText;
+
+  /// A small button at the field's right end (show what [obscureText] hides).
+  final Widget? suffix;
   final FocusNode? focusNode;
   final String label;
   final String? hint, helper;
@@ -296,6 +304,9 @@ class AppTextField extends StatelessWidget {
           focusNode: focusNode,
           autofocus: autofocus,
           maxLength: maxLength,
+          obscureText: obscureText,
+          autocorrect: !obscureText,
+          enableSuggestions: !obscureText,
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
           onTap: onTap,
@@ -314,8 +325,9 @@ class AppTextField extends StatelessWidget {
             focusedBorder: borders.focused,
             border: borders.rest,
             // Carbon's invalid field: its warning icon at the right.
-            suffixIcon: k != null && bad ? Icon(AppIcon.invalid.of(context), size: 16, color: k.error) : null,
-            suffixIconConstraints: const BoxConstraints.tightFor(width: 32, height: 16),
+            suffixIcon: suffix ?? (k != null && bad ? Icon(AppIcon.invalid.of(context), size: 16, color: k.error) : null),
+            suffixIconConstraints:
+                suffix != null ? BoxConstraints.tightFor(width: style.field, height: style.field) : const BoxConstraints.tightFor(width: 32, height: 16),
           ),
           onChanged: onChanged,
           onSubmitted: onSubmitted,

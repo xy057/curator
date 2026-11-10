@@ -230,7 +230,7 @@ msgstr "強調色"
 msgid "Accidentals"
 msgstr "變音記號"
 
-#: lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
 msgid "Add"
 msgstr "加入"
 
@@ -319,7 +319,7 @@ msgstr "關：全程顯示所有譜表。"
 msgid "Aligning…"
 msgstr "正在對齊…"
 
-#: lib/extensions/extensions_dialog.dart lib/instruments_toolbar.dart lib/pdf_import.dart
+#: lib/ai_settings.dart lib/extensions/extensions_dialog.dart lib/instruments_toolbar.dart lib/pdf_import.dart
 msgid "All"
 msgstr "全部"
 
@@ -523,7 +523,7 @@ msgstr "填補不超過 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 則為 c，否則為 d"
 
-#: lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -831,7 +831,7 @@ msgstr "虛線長度"
 msgid "Default"
 msgstr "預設"
 
-#: lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart
 msgid "Delete"
 msgstr "刪除"
 
@@ -1421,6 +1421,7 @@ msgstr "音樂字型"
 msgid "Music symbols"
 msgstr "音樂符號"
 
+#: lib/ai_settings.dart
 msgid "Name"
 msgstr "名稱"
 
@@ -1550,7 +1551,7 @@ msgstr "八度記號"
 msgid "Off"
 msgstr "關閉"
 
-#: lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "好"
 
@@ -1752,7 +1753,7 @@ msgstr "排練記號"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小節號行中的排練記號"
 
-#: lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
 msgid "Remove"
 msgstr "移除"
 
@@ -1900,7 +1901,7 @@ msgstr "沙色"
 msgid "Saturation"
 msgstr "飽和度"
 
-#: lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart
 msgid "Save"
 msgstr "儲存"
 
@@ -1970,7 +1971,7 @@ msgstr "記號與尾聲"
 msgid "Select (V)"
 msgstr "選擇（V）"
 
-#: lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart
 msgid "Select All"
 msgstr "全選"
 
@@ -3533,3 +3534,183 @@ msgstr "章節"
 #: lib/video_export.dart lib/web_player/player.dart
 msgid "Start"
 msgstr "開頭"
+
+#: lib/ai_providers.dart
+msgid "The base URL isn’t a web address."
+msgstr "基礎 URL 不是網址。"
+
+#: lib/ai_providers.dart
+msgid "The server’s answer isn’t a list of models."
+msgstr "伺服器的回覆不是模型列表。"
+
+#: lib/ai_providers.dart
+msgid "No answer."
+msgstr "沒有回覆。"
+
+#: lib/ai_providers.dart
+msgid "The server’s answer isn’t JSON."
+msgstr "伺服器的回覆不是 JSON。"
+
+#: lib/ai_providers.dart
+msgid "The server didn’t answer in time."
+msgstr "伺服器未及時回覆。"
+
+#: lib/ai_settings.dart
+msgid "No matching providers"
+msgstr "沒有符合的供應商"
+
+#: lib/ai_settings.dart
+msgid "Add Provider…"
+msgstr "加入供應商…"
+
+#: lib/ai_settings.dart
+msgid "Search providers"
+msgstr "搜尋供應商"
+
+#: lib/ai_settings.dart
+msgctxt "provider"
+msgid "On"
+msgstr "啟用"
+
+#: lib/ai_settings.dart
+msgctxt "provider"
+msgid "Off"
+msgstr "停用"
+
+#: lib/ai_settings.dart
+msgid "Connected"
+msgstr "已連線"
+
+#: lib/ai_settings.dart
+msgid "Couldn’t Fetch Models"
+msgstr "無法取得模型"
+
+#: lib/ai_settings.dart
+msgid "Edit provider"
+msgstr "編輯供應商"
+
+#: lib/ai_settings.dart
+msgid "API key"
+msgstr "API 金鑰"
+
+#: lib/ai_settings.dart
+msgid "Hide key"
+msgstr "隱藏金鑰"
+
+#: lib/ai_settings.dart
+msgid "Show key"
+msgstr "顯示金鑰"
+
+#: lib/ai_settings.dart
+msgid "API base URL"
+msgstr "API 基礎 URL"
+
+#: lib/ai_settings.dart
+msgid "API path"
+msgstr "API 路徑"
+
+#: lib/ai_settings.dart
+msgid "Models"
+msgstr "模型"
+
+#: lib/ai_settings.dart
+msgid "Search models"
+msgstr "搜尋模型"
+
+#: lib/ai_settings.dart
+msgid "Select models"
+msgstr "選擇模型"
+
+#: lib/ai_settings.dart
+msgid "Add model"
+msgstr "加入模型"
+
+#: lib/ai_settings.dart
+msgid "Fetch"
+msgstr "取得"
+
+#: lib/ai_settings.dart
+msgid "Select None"
+msgstr "全不選"
+
+#: lib/ai_settings.dart
+msgid "Remove {n}"
+msgstr "移除 {n} 個"
+
+#: lib/ai_settings.dart
+msgid "No models yet."
+msgstr "還沒有模型。"
+
+#: lib/ai_settings.dart
+msgid "No matching models"
+msgstr "沒有符合的模型"
+
+#: lib/ai_settings.dart
+msgid "Test"
+msgstr "測試"
+
+#: lib/ai_settings.dart
+msgid "Test a model"
+msgstr "測試一個模型"
+
+#: lib/ai_settings.dart
+msgid "Remove model"
+msgstr "移除模型"
+
+#: lib/ai_settings.dart
+msgid "Delete “{name}”?"
+msgstr "刪除「{name}」？"
+
+#: lib/ai_settings.dart
+msgid "Its key and models go with it."
+msgstr "其金鑰和模型也會一併刪除。"
+
+#: lib/ai_settings.dart
+msgid "Add Provider"
+msgstr "加入供應商"
+
+#: lib/ai_settings.dart
+msgid "Edit Provider"
+msgstr "編輯供應商"
+
+#: lib/ai_settings.dart
+msgid "API format"
+msgstr "API 格式"
+
+#: lib/ai_settings.dart
+msgid "Delete…"
+msgstr "刪除…"
+
+#: lib/ai_settings.dart
+msgid "Add Model"
+msgstr "加入模型"
+
+#: lib/ai_settings.dart
+msgid "Model ID"
+msgstr "模型 ID"
+
+#: lib/ai_settings.dart
+msgid "Already added"
+msgstr "已加入"
+
+#: lib/ai_settings.dart
+msgid "Choose Models"
+msgstr "選擇模型"
+
+#: lib/ai_settings.dart
+msgid "The provider offers no models."
+msgstr "該供應商沒有提供模型。"
+
+#: lib/ai_settings.dart
+msgid "All matching"
+msgstr "全部符合項目"
+
+#: lib/ai_settings.dart
+msgid "{n} of {all}"
+msgstr "{n} / {all}"
+
+msgid "AI"
+msgstr "AI"
+
+msgid "Providers"
+msgstr "供應商"

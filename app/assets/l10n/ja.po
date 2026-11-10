@@ -230,7 +230,7 @@ msgstr "アクセントカラー"
 msgid "Accidentals"
 msgstr "臨時記号"
 
-#: lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
 msgid "Add"
 msgstr "追加"
 
@@ -319,7 +319,7 @@ msgstr "オフ：全体を通してすべての譜表。"
 msgid "Aligning…"
 msgstr "揃えています…"
 
-#: lib/extensions/extensions_dialog.dart lib/instruments_toolbar.dart lib/pdf_import.dart
+#: lib/ai_settings.dart lib/extensions/extensions_dialog.dart lib/instruments_toolbar.dart lib/pdf_import.dart
 msgid "All"
 msgstr "すべて"
 
@@ -523,7 +523,7 @@ msgstr "{bars}までの休符をつなぐ"
 msgid "c if a < b, else d"
 msgstr "a < b なら c、そうでなければ d"
 
-#: lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "キャンセル"
 
@@ -831,7 +831,7 @@ msgstr "破線の長さ"
 msgid "Default"
 msgstr "デフォルト"
 
-#: lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart
 msgid "Delete"
 msgstr "削除"
 
@@ -1421,6 +1421,7 @@ msgstr "音楽フォント"
 msgid "Music symbols"
 msgstr "音楽記号"
 
+#: lib/ai_settings.dart
 msgid "Name"
 msgstr "名前"
 
@@ -1550,7 +1551,7 @@ msgstr "オクターブ記号"
 msgid "Off"
 msgstr "オフ"
 
-#: lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "OK"
 
@@ -1752,7 +1753,7 @@ msgstr "リハーサルマーク"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小節番号の行にリハーサルマーク"
 
-#: lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
 msgid "Remove"
 msgstr "削除"
 
@@ -1900,7 +1901,7 @@ msgstr "サンド"
 msgid "Saturation"
 msgstr "彩度"
 
-#: lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart
 msgid "Save"
 msgstr "保存"
 
@@ -1970,7 +1971,7 @@ msgstr "セーニョとコーダ"
 msgid "Select (V)"
 msgstr "選択（V）"
 
-#: lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart
 msgid "Select All"
 msgstr "すべて選択"
 
@@ -3533,3 +3534,183 @@ msgstr "チャプター"
 #: lib/video_export.dart lib/web_player/player.dart
 msgid "Start"
 msgstr "冒頭"
+
+#: lib/ai_providers.dart
+msgid "The base URL isn’t a web address."
+msgstr "ベース URL がウェブアドレスではありません。"
+
+#: lib/ai_providers.dart
+msgid "The server’s answer isn’t a list of models."
+msgstr "サーバーの応答がモデルの一覧ではありません。"
+
+#: lib/ai_providers.dart
+msgid "No answer."
+msgstr "応答がありません。"
+
+#: lib/ai_providers.dart
+msgid "The server’s answer isn’t JSON."
+msgstr "サーバーの応答が JSON ではありません。"
+
+#: lib/ai_providers.dart
+msgid "The server didn’t answer in time."
+msgstr "サーバーが時間内に応答しませんでした。"
+
+#: lib/ai_settings.dart
+msgid "No matching providers"
+msgstr "一致するプロバイダーはありません"
+
+#: lib/ai_settings.dart
+msgid "Add Provider…"
+msgstr "プロバイダーを追加…"
+
+#: lib/ai_settings.dart
+msgid "Search providers"
+msgstr "プロバイダーを検索"
+
+#: lib/ai_settings.dart
+msgctxt "provider"
+msgid "On"
+msgstr "オン"
+
+#: lib/ai_settings.dart
+msgctxt "provider"
+msgid "Off"
+msgstr "オフ"
+
+#: lib/ai_settings.dart
+msgid "Connected"
+msgstr "接続しました"
+
+#: lib/ai_settings.dart
+msgid "Couldn’t Fetch Models"
+msgstr "モデルを取得できませんでした"
+
+#: lib/ai_settings.dart
+msgid "Edit provider"
+msgstr "プロバイダーを編集"
+
+#: lib/ai_settings.dart
+msgid "API key"
+msgstr "API キー"
+
+#: lib/ai_settings.dart
+msgid "Hide key"
+msgstr "キーを隠す"
+
+#: lib/ai_settings.dart
+msgid "Show key"
+msgstr "キーを表示"
+
+#: lib/ai_settings.dart
+msgid "API base URL"
+msgstr "API ベース URL"
+
+#: lib/ai_settings.dart
+msgid "API path"
+msgstr "API パス"
+
+#: lib/ai_settings.dart
+msgid "Models"
+msgstr "モデル"
+
+#: lib/ai_settings.dart
+msgid "Search models"
+msgstr "モデルを検索"
+
+#: lib/ai_settings.dart
+msgid "Select models"
+msgstr "モデルを選択"
+
+#: lib/ai_settings.dart
+msgid "Add model"
+msgstr "モデルを追加"
+
+#: lib/ai_settings.dart
+msgid "Fetch"
+msgstr "取得"
+
+#: lib/ai_settings.dart
+msgid "Select None"
+msgstr "選択を解除"
+
+#: lib/ai_settings.dart
+msgid "Remove {n}"
+msgstr "{n} 件を削除"
+
+#: lib/ai_settings.dart
+msgid "No models yet."
+msgstr "まだモデルがありません。"
+
+#: lib/ai_settings.dart
+msgid "No matching models"
+msgstr "一致するモデルはありません"
+
+#: lib/ai_settings.dart
+msgid "Test"
+msgstr "テスト"
+
+#: lib/ai_settings.dart
+msgid "Test a model"
+msgstr "モデルをテスト"
+
+#: lib/ai_settings.dart
+msgid "Remove model"
+msgstr "モデルを削除"
+
+#: lib/ai_settings.dart
+msgid "Delete “{name}”?"
+msgstr "「{name}」を削除しますか？"
+
+#: lib/ai_settings.dart
+msgid "Its key and models go with it."
+msgstr "キーとモデルも一緒に削除されます。"
+
+#: lib/ai_settings.dart
+msgid "Add Provider"
+msgstr "プロバイダーを追加"
+
+#: lib/ai_settings.dart
+msgid "Edit Provider"
+msgstr "プロバイダーを編集"
+
+#: lib/ai_settings.dart
+msgid "API format"
+msgstr "API 形式"
+
+#: lib/ai_settings.dart
+msgid "Delete…"
+msgstr "削除…"
+
+#: lib/ai_settings.dart
+msgid "Add Model"
+msgstr "モデルを追加"
+
+#: lib/ai_settings.dart
+msgid "Model ID"
+msgstr "モデル ID"
+
+#: lib/ai_settings.dart
+msgid "Already added"
+msgstr "追加済み"
+
+#: lib/ai_settings.dart
+msgid "Choose Models"
+msgstr "モデルを選択"
+
+#: lib/ai_settings.dart
+msgid "The provider offers no models."
+msgstr "このプロバイダーにはモデルがありません。"
+
+#: lib/ai_settings.dart
+msgid "All matching"
+msgstr "一致するすべて"
+
+#: lib/ai_settings.dart
+msgid "{n} of {all}"
+msgstr "{n} / {all}"
+
+msgid "AI"
+msgstr "AI"
+
+msgid "Providers"
+msgstr "プロバイダー"

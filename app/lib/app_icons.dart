@@ -277,7 +277,25 @@ enum AppIcon {
   addStaff(IconData(0xE059, fontFamily: _refined), IconData(0xE059, fontFamily: _carbon)),
 
   /// Chapters. Refined: bookmark; Carbon: bookmark.
-  chapters(IconData(0xE05A, fontFamily: _refined), IconData(0xE05A, fontFamily: _carbon));
+  chapters(IconData(0xE05A, fontFamily: _refined), IconData(0xE05A, fontFamily: _carbon)),
+
+  /// AI providers. Refined: auto_awesome; Carbon: ai-generate.
+  ai(IconData(0xE05B, fontFamily: _refined), IconData(0xE05B, fontFamily: _carbon)),
+
+  /// Shows what a field hides (a key). Refined: visibility; Carbon: view.
+  show(IconData(0xE05C, fontFamily: _refined), IconData(0xE05C, fontFamily: _carbon)),
+
+  /// Hides it again. Refined: visibility_off; Carbon: view--off.
+  hide(IconData(0xE05D, fontFamily: _refined), IconData(0xE05D, fontFamily: _carbon)),
+
+  /// Tries a connection. Refined: ecg_heart; Carbon: activity.
+  test(IconData(0xE05E, fontFamily: _refined), IconData(0xE05E, fontFamily: _carbon)),
+
+  /// Asks a server for its list. Refined: sync; Carbon: renew.
+  fetch(IconData(0xE05F, fontFamily: _refined), IconData(0xE05F, fontFamily: _carbon)),
+
+  /// Chooses several items of a list. Refined: check_box; Carbon: checkbox--checked.
+  selectMany(IconData(0xE060, fontFamily: _refined), IconData(0xE060, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

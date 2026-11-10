@@ -6,6 +6,7 @@ import 'package:score_engine/score_engine.dart'
     show CaptionAlign, CaptionCountdown, CaptionSize, EngravingOptions, MusicFont, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'ai_providers.dart';
 import 'app_colors.dart';
 import 'l10n/l10n.dart';
 import 'video_export.dart';
@@ -64,6 +65,7 @@ class AppSettings extends ChangeNotifier {
         _tabBar = _prefs?.getBool(_tabBarKey) ?? true,
         _rememberWindow = _prefs?.getBool(_rememberWindowKey) ?? true,
         _windowFrame = WindowFrame.parse(_prefs?.getString(_windowFrameKey)),
+        _aiProviders = List.unmodifiable(AiProvider.read(_prefs?.getString(_aiProvidersKey))),
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
@@ -100,6 +102,7 @@ class AppSettings extends ChangeNotifier {
   static const _tabBarKey = 'showTabBar';
   // macOS reads the flag itself, before Dart runs (MainFlutterWindow.swift: "flutter." + this).
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
+  static const _aiProvidersKey = 'aiProviders';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
 
@@ -533,6 +536,29 @@ class AppSettings extends ChangeNotifier {
     _prefs?.setBool(_rememberWindowKey, value);
     notifyListeners();
   }
+
+  /// Settings ▸ AI: the AI services and their credentials, in the order listed; the built-in
+  /// ones always among them ([AiProvider.read]).
+  List<AiProvider> get aiProviders => _aiProviders;
+  List<AiProvider> _aiProviders;
+  set aiProviders(List<AiProvider> value) {
+    if (listEquals(value, _aiProviders)) return;
+    _aiProviders = List.unmodifiable(value);
+    _prefs?.setString(_aiProvidersKey, AiProvider.write(value));
+    notifyListeners();
+  }
+
+  /// [provider] in place of the one with its id, or after the others when there is none.
+  void setAiProvider(AiProvider provider) {
+    final i = _aiProviders.indexWhere((p) => p.id == provider.id);
+    aiProviders = [
+      for (final p in _aiProviders) p.id == provider.id ? provider : p,
+      if (i < 0) provider,
+    ];
+  }
+
+  /// The provider with [id] gone (only one of the user's).
+  void removeAiProvider(String id) => aiProviders = [for (final p in _aiProviders) if (p.id != id || p.builtIn) p];
 
   /// The window as it was left (Windows and Linux; macOS keeps its own, NSWindow's autosave).
   WindowFrame? get windowFrame => _windowFrame;
