@@ -125,7 +125,17 @@ abstract final class PdfDetect {
         final other = fullest(k);
         if (other != null && weakest(other) > weakest(staff)) staff = other;
       }
+      // A line a scan leans across rows can break in two: a line left out close to one of the
+      // five, filling half as much or more, is part of it.
       final rows = [for (final k in staff) (lines[k].$1, lines[k].$2)];
+      final near = (middle(staff.last) - middle(staff.first)) / 12;
+      for (var k = staff.first + 1; k < staff.last; k++) {
+        for (final (n, p) in staff.indexed) {
+          if (k != p && (middle(k) - middle(p)).abs() <= near && lines[k].$3 * 2 >= lines[p].$3) {
+            rows[n] = (math.min(rows[n].$1, lines[k].$1), math.max(rows[n].$2, lines[k].$2));
+          }
+        }
+      }
       final mids = [for (final (a, b) in rows) (a + b) / 2];
       final space = (mids[4] - mids[0]) / 4;
       final thickness = [for (final (a, b) in rows) b - a + 1].reduce(math.max);
@@ -146,17 +156,28 @@ abstract final class PdfDetect {
     return found;
   }
 
+  /// Whether column [x] has ink on four of a staff's lines (at [rows], [space] pixels apart),
+  /// give or take a fifth of a space: a scan leaning puts a line a row or two off its middle
+  /// row at its ends.
+  static bool _lined(PdfRaster page, List<int> rows, double space, int x) {
+    final near = math.max(1, (space * 0.2).round());
+    var n = 0;
+    for (final y in rows) {
+      for (var d = -near; d <= near; d++) {
+        if (page.isDark(x, y + d)) {
+          n++;
+          break;
+        }
+      }
+    }
+    return n >= 4;
+  }
+
   /// The columns from where a staff's lines start to where they end: the longest stretch where
   /// four of its five lines have ink, gaps under a staff space bridged.
   static (int, int) _reach(PdfRaster page, List<int> rows, double space) {
     final w = page.width;
-    bool lined(int x) {
-      var n = 0;
-      for (final y in rows) {
-        if (page.isDark(x, y) || page.isDark(x, y - 1) || page.isDark(x, y + 1)) n++;
-      }
-      return n >= 4;
-    }
+    bool lined(int x) => _lined(page, rows, space, x);
 
     var best = (0, 0), start = -1, lastLined = -1;
     final bridge = space.ceil();
@@ -175,13 +196,7 @@ abstract final class PdfDetect {
   /// inked and its spaces not (a brace's, a bracket's or a barline's column has both), for a
   /// space on. Null if none.
   static int? _lineStart(PdfRaster page, List<int> rows, double space, int from, int to) {
-    bool lined(int x) {
-      var n = 0;
-      for (final y in rows) {
-        if (page.isDark(x, y) || page.isDark(x, y - 1) || page.isDark(x, y + 1)) n++;
-      }
-      return n >= 4;
-    }
+    bool lined(int x) => _lined(page, rows, space, x);
 
     bool open(int x) {
       var n = 0;

@@ -58,9 +58,10 @@ void main() {
     expect(PdfDetect.assign(page, system, [margin]), PdfDetect.assign(page, system, const []));
   });
 
-  test('a staff’s lines are told from ties over it', () {
+  test('a staff’s lines are told from ties over it, and found leaning', () {
     // Two staves joined by a line at x 30 points, barlines at 160 and 290. Ties over the upper
-    // one fill the row a space above its lines a third of the way along, as a line can't.
+    // one fill the row a space above its lines a third of the way along, as a line can't; the
+    // lower one leans as a scan can, each line's right half three rows below its left.
     const scale = PdfDetect.scale, width = 320, height = 120, space = 4.0;
     final w = (width * scale).round(), h = (height * scale).round();
     final ink = Uint8List(w * h);
@@ -73,7 +74,8 @@ void main() {
 
     for (var l = 0; l < 5; l++) {
       fill(30, 290, row(30 + l * space));
-      fill(30, 290, row(70 + l * space));
+      fill(30, 160, row(70 + l * space) - 1);
+      fill(160, 290, row(70 + l * space) + 2);
     }
     for (var t = 0; t < 6; t++) {
       final mid = 60.0 + t * 40;
@@ -88,7 +90,8 @@ void main() {
     }
     final systems = PdfDetect.page(PdfRaster(ink, w, h, scale: scale), 0);
     expect(systems, hasLength(1));
-    expect([for (final s in systems.single.staves) s.top], [closeTo(30, 0.2), closeTo(70, 0.2)]);
+    // The leaning staff's lines are where their halves are between.
+    expect([for (final s in systems.single.staves) s.top], [closeTo(30, 0.2), closeTo(70.2, 0.2)]);
     expect([for (final s in systems.single.staves) s.space], [closeTo(4, 0.2), closeTo(4, 0.2)]);
   });
 
