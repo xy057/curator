@@ -3482,3 +3482,13 @@ msgstr "プロジェクトまたは MusicXML（{key}）"
 #: lib/home_screen.dart
 msgid "PDF score ({key})"
 msgstr "PDF 楽譜（{key}）"
+
+msgid "Projects"
+msgstr "プロジェクト"
+
+msgctxt "heading"
+msgid "Import"
+msgstr "読み込み"
+
+msgid "Keyboard"
+msgstr "キーボード"
