@@ -1,13 +1,21 @@
-# Curator’s interface in Japanese.
-#
-# Terms: score 楽譜, project プロジェクト, lane レーン, region リージョン, playhead 再生ヘッド, bar 小節, staff 譜表, system 段, staff space 譜線間隔, engraving 浄書, anchor アンカー, warp ワープ, tempo map テンポマップ, caption 字幕, spacer スペーサー, transition トランジション, condensing コンデンス, recording 録音.
+# Curator’s interface, in US English: the template every language is translated from.
+# Each text is its own key; a msgctxt tells apart one English word that means two things.
+# Keep every {placeholder} in the translation (its place is yours).
 msgid ""
 msgstr ""
-"Project-Id-Version: Curator\n"
+"Project-Id-Version: curator-by-xy057\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: ja\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Crowdin-Project: curator-by-xy057\n"
+"X-Crowdin-Project-ID: 945415\n"
+"X-Crowdin-Language: ja\n"
+"X-Crowdin-File: /main/app/assets/l10n/curator.pot\n"
+"X-Crowdin-File-ID: 21\n"
+"Language-Team: Japanese\n"
+"Language: ja_JP\n"
+"PO-Revision-Date: 2026-11-10 22:23\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -293,11 +301,9 @@ msgid "Align"
 msgstr "揃える"
 
 #: lib/audio_panel.dart
-msgid ""
-"Align\n"
+msgid "Align\n"
 "Set the anchors from the recording"
-msgstr ""
-"揃える\n"
+msgstr "揃える\n"
 "録音からアンカーを設定"
 
 msgid "Align grace notes"
@@ -313,7 +319,7 @@ msgid "Auto-curate PDF scores"
 msgstr "PDF 楽譜を自動キュレート"
 
 msgid "AI for PDF import"
-msgstr "PDF の読み込みに使う AI"
+msgstr ""
 
 msgid "Off: every staff throughout."
 msgstr "オフ：全体を通してすべての譜表。"
@@ -558,7 +564,7 @@ msgid "Captions"
 msgstr "字幕"
 
 msgid "Carbon"
-msgstr "Carbon"
+msgstr ""
 
 msgid "Center"
 msgstr "中央"
@@ -1559,7 +1565,7 @@ msgstr "オフ"
 
 #: lib/ai_settings.dart lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
-msgstr "OK"
+msgstr ""
 
 msgid "Opacity"
 msgstr "不透明度"
@@ -2547,13 +2553,13 @@ msgid "Anchor nudge"
 msgstr "アンカーの微調整"
 
 msgid "←/→ · ⇧ 1 ms"
-msgstr "←/→ · ⇧ 1 ms"
+msgstr ""
 
 msgid "Fine seek"
 msgstr "細かいシーク"
 
 msgid "⌥←/→"
-msgstr "⌥←/→"
+msgstr ""
 
 msgid "Undo history"
 msgstr "取り消しの履歴"
@@ -2649,19 +2655,15 @@ msgid "Warp"
 msgstr "ワープ"
 
 #: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
+msgid "Warp (W)\n"
 "Jump to another bar here"
-msgstr ""
-"ワープ（W）\n"
+msgstr "ワープ（W）\n"
 "ここから別の小節へジャンプ"
 
 #: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
+msgid "Warp (W)\n"
 "Make this anchor jump to another bar"
-msgstr ""
-"ワープ（W）\n"
+msgstr "ワープ（W）\n"
 "このアンカーを別の小節へジャンプさせる"
 
 #: lib/audio_panel.dart
@@ -3193,7 +3195,7 @@ msgstr "{n} / {count}"
 
 #: lib/pdf_import.dart
 msgid "×{n}"
-msgstr "×{n}"
+msgstr ""
 
 #: lib/edit_dialogs.dart
 msgid "Spacing of {name}"
@@ -3382,11 +3384,9 @@ msgid "with"
 msgstr "と"
 
 #: lib/editor_controller.dart
-msgid ""
-"Couldn’t load the recording.\n"
+msgid "Couldn’t load the recording.\n"
 "{error}"
-msgstr ""
-"録音を読み込めませんでした。\n"
+msgstr "録音を読み込めませんでした。\n"
 "{error}"
 
 #: lib/error_text.dart
@@ -3398,19 +3398,15 @@ msgid "The settings are damaged: {detail}"
 msgstr "設定が壊れています：{detail}"
 
 #: lib/media_converter.dart
-msgid ""
-"Couldn’t read audio from this file.\n"
+msgid "Couldn’t read audio from this file.\n"
 "{error}"
-msgstr ""
-"このファイルからオーディオを読み取れませんでした。\n"
+msgstr "このファイルからオーディオを読み取れませんでした。\n"
 "{error}"
 
 #: lib/project_document.dart
-msgid ""
-"Can’t find the linked recording:\n"
+msgid "Can’t find the linked recording:\n"
 "{file}"
-msgstr ""
-"リンクされた録音が見つかりません：\n"
+msgstr "リンクされた録音が見つかりません：\n"
 "{file}"
 
 #: lib/score_editor.dart
@@ -3430,27 +3426,21 @@ msgid "Couldn’t write {file}."
 msgstr "{file} を書き込めませんでした。"
 
 #: lib/video_export.dart
-msgid ""
-"FFmpeg couldn’t write the sound.\n"
+msgid "FFmpeg couldn’t write the sound.\n"
 "{error}"
-msgstr ""
-"FFmpeg が音声を書き出せませんでした。\n"
+msgstr "FFmpeg が音声を書き出せませんでした。\n"
 "{error}"
 
 #: lib/video_export.dart
-msgid ""
-"FFmpeg couldn’t write the video.\n"
+msgid "FFmpeg couldn’t write the video.\n"
 "{error}"
-msgstr ""
-"FFmpeg がビデオを書き出せませんでした。\n"
+msgstr "FFmpeg がビデオを書き出せませんでした。\n"
 "{error}"
 
 #: lib/web_export.dart
-msgid ""
-"Couldn’t write the page.\n"
+msgid "Couldn’t write the page.\n"
 "{error}"
-msgstr ""
-"ページを書き込めませんでした。\n"
+msgstr "ページを書き込めませんでした。\n"
 "{error}"
 
 #: lib/error_text.dart
@@ -3484,389 +3474,390 @@ msgstr "字幕を追加する余地がありません"
 
 #: lib/home_screen.dart
 msgid "Project or MusicXML ({key})"
-msgstr "プロジェクトまたは MusicXML（{key}）"
+msgstr ""
 
 #: lib/home_screen.dart
 msgid "PDF score ({key})"
-msgstr "PDF 楽譜（{key}）"
+msgstr ""
 
 msgid "Projects"
-msgstr "プロジェクト"
+msgstr ""
 
 msgctxt "heading"
 msgid "Import"
-msgstr "読み込み"
+msgstr ""
 
 msgid "Keyboard"
-msgstr "キーボード"
+msgstr ""
 
 msgid "Chapter"
-msgstr "チャプター"
+msgstr ""
 
 msgid "Set From before the end"
-msgstr "「開始」を終わりより前にしてください"
+msgstr ""
 
 msgid "Another chapter starts here"
-msgstr "ここから始まるチャプターがあります"
+msgstr ""
 
 msgid "In the video, and as times beside it"
-msgstr "ビデオに入れ、横に時刻のリストも"
+msgstr ""
 
 msgid "Named places to jump to in a video or web page."
-msgstr "ビデオや Web ページで移動できる、名前付きの位置。"
+msgstr ""
 
 msgid "1 chapter"
-msgstr "チャプター 1 件"
+msgstr ""
 
 msgid "{n} chapters"
-msgstr "チャプター {n} 件"
+msgstr ""
 
 #: lib/chapter_lane.dart
 msgid "Add Chapter"
-msgstr "チャプターを追加"
+msgstr ""
 
 #: lib/chapter_lane.dart
 msgid "Add from Rehearsal Marks"
-msgstr "リハーサルマークから追加"
+msgstr ""
 
 #: lib/chapter_lane.dart
 msgid "Remove Chapter"
-msgstr "チャプターを削除"
+msgstr ""
 
 #: lib/chapter_lane.dart lib/web_player/player.dart
 msgid "Chapters"
-msgstr "チャプター"
+msgstr ""
 
 #: lib/video_export.dart lib/web_player/player.dart
 msgid "Start"
-msgstr "冒頭"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The base URL isn’t a web address."
-msgstr "ベース URL がウェブアドレスではありません。"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The server’s answer isn’t a list of models."
-msgstr "サーバーの応答がモデルの一覧ではありません。"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "No answer."
-msgstr "応答がありません。"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The server’s answer isn’t JSON."
-msgstr "サーバーの応答が JSON ではありません。"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The server didn’t answer in time."
-msgstr "サーバーが時間内に応答しませんでした。"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "No matching providers"
-msgstr "一致するプロバイダーはありません"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Add Provider…"
-msgstr "プロバイダーを追加…"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Search providers"
-msgstr "プロバイダーを検索"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgctxt "provider"
 msgid "On"
-msgstr "オン"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgctxt "provider"
 msgid "Off"
-msgstr "オフ"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Connected"
-msgstr "接続しました"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Couldn’t Fetch Models"
-msgstr "モデルを取得できませんでした"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Edit provider"
-msgstr "プロバイダーを編集"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "API key"
-msgstr "API キー"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Hide key"
-msgstr "キーを隠す"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Show key"
-msgstr "キーを表示"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "API base URL"
-msgstr "API ベース URL"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "API path"
-msgstr "API パス"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Models"
-msgstr "モデル"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Search models"
-msgstr "モデルを検索"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Select models"
-msgstr "モデルを選択"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Add model"
-msgstr "モデルを追加"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Fetch"
-msgstr "取得"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Select None"
-msgstr "選択を解除"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Remove {n}"
-msgstr "{n} 件を削除"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "No models yet."
-msgstr "まだモデルがありません。"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "No matching models"
-msgstr "一致するモデルはありません"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Test"
-msgstr "テスト"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Test a model"
-msgstr "モデルをテスト"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Remove model"
-msgstr "モデルを削除"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Delete “{name}”?"
-msgstr "「{name}」を削除しますか？"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Its key and models go with it."
-msgstr "キーとモデルも一緒に削除されます。"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Add Provider"
-msgstr "プロバイダーを追加"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Edit Provider"
-msgstr "プロバイダーを編集"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "API format"
-msgstr "API 形式"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Delete…"
-msgstr "削除…"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Add Model"
-msgstr "モデルを追加"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Model ID"
-msgstr "モデル ID"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Already added"
-msgstr "追加済み"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Choose Models"
-msgstr "モデルを選択"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "The provider offers no models."
-msgstr "このプロバイダーにはモデルがありません。"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "All matching"
-msgstr "一致するすべて"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "{n} of {all}"
-msgstr "{n} / {all}"
+msgstr ""
 
 msgid "AI"
-msgstr "AI"
+msgstr ""
 
 msgid "Providers"
-msgstr "プロバイダー"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The server’s answer has no text."
-msgstr "サーバーの応答にテキストがありません。"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "AI couldn’t read 1 page. {error}"
-msgstr "AI が 1 ページを読み取れませんでした。{error}"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "AI couldn’t read {n} pages. {error}"
-msgstr "AI が {n} ページを読み取れませんでした。{error}"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Couldn’t read with AI. {error}"
-msgstr "AI で読み取れませんでした。{error}"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "The model’s answer couldn’t be read."
-msgstr "モデルの応答を読み取れませんでした。"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Stop Reading"
-msgstr "読み取りを停止"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Read with AI ({model})"
-msgstr "AI で読み取る（{model}）"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Reading with AI… {n} of {count}"
-msgstr "AI で読み取り中… {n} / {count}"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Passed"
-msgstr "合格"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Passed with mistakes"
-msgstr "合格（誤りあり）"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Inaccurate"
-msgstr "精度不足"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Not recommended"
-msgstr "非推奨"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Failed"
-msgstr "不合格"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Reads PDF scores well."
-msgstr "PDF の楽譜をよく読み取れます。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Some marks may need fixing."
-msgstr "一部の印は修正が必要かもしれません。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Check its marks after reading."
-msgstr "読み取り後に印を確認してください。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Many marks will need fixing."
-msgstr "多くの印に修正が必要です。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Most marks will need fixing."
-msgstr "ほとんどの印に修正が必要です。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "This model can’t mark PDF scores."
-msgstr "このモデルでは PDF の楽譜に印を付けられません。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Horizontal borders"
-msgstr "横の境界"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Instrument names"
-msgstr "楽器名"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Tempo and time"
-msgstr "テンポと拍子"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Use an inaccurate model?"
-msgstr "精度の低いモデルを使いますか？"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "It got {n}% of the exam right. Expect to fix its marks on every page."
-msgstr "テストの正答率は {n}% でした。どのページでも印の修正が必要になるでしょう。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Use Anyway"
-msgstr "それでも使用"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "AI for PDF Import"
-msgstr "PDF の読み込みに使う AI"
+msgstr ""
 
 msgid "Model"
-msgstr "モデル"
+msgstr ""
 
 msgid "Use anyway"
-msgstr "それでも使用"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Turn on a provider in Settings ▸ AI to choose a model."
-msgstr "設定 ▸ AI でプロバイダをオンにすると、モデルを選べます。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Use"
-msgstr "使用"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Taking the exam… {n} of {count} pages"
-msgstr "テスト中… {count} ページ中 {n} ページ"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Stop"
-msgstr "停止"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Run Again"
-msgstr "もう一度実行"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "The exam couldn’t be run."
-msgstr "テストを実行できませんでした。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Not tested yet."
-msgstr "まだテストしていません。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Run Exam"
-msgstr "テストを実行"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart
 msgid "{n}%"
-msgstr "{n}%"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Read with AI…"
-msgstr "AI で読み取る…"
+msgstr ""
+
