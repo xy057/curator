@@ -123,6 +123,8 @@ class _Item {
   final Widget Function(_Context)? below;
 
   /// The heading it is under on its page; items in a row with the same one share a group.
+  /// Translated as a `heading` where it has such an entry ("Import", not the button's), and
+  /// added to curator.pot by hand: it is not a literal `.tr`.
   final String? group;
 
   /// Whether it is offered now (on its page and in the search); null: always.
@@ -207,6 +209,12 @@ final _categories = <_Category>[
       keywords: 'language chinese english locale translation translate crowdin contribute 语言 中文 翻译',
     ),
     _Item(
+      'Remember window',
+      null,
+      (c) => AppSwitch(value: c.settings.rememberWindow, onChanged: (v) => c.settings.rememberWindow = v),
+      keywords: 'window size position screen monitor display restore reopen launch frame',
+    ),
+    _Item(
       'Autosave',
       (_) => 'Saved projects only.',
       (c) => _Dropdown<Duration>(
@@ -215,6 +223,7 @@ final _categories = <_Category>[
         label: _autosaveLabel,
         onChanged: (v) => c.settings.autosave = v,
       ),
+      group: 'Projects',
       keywords: 'save interval',
     ),
     _Item(
@@ -226,31 +235,29 @@ final _categories = <_Category>[
         label: (n) => '{n} steps'.fill({'n': n}),
         onChanged: (v) => c.settings.undoSteps = v,
       ),
+      group: 'Projects',
       keywords: 'undo redo steps',
-    ),
-    _Item(
-      'Remember window',
-      null,
-      (c) => AppSwitch(value: c.settings.rememberWindow, onChanged: (v) => c.settings.rememberWindow = v),
-      keywords: 'window size position screen monitor display restore reopen launch frame',
-    ),
-    _Item(
-      'Align added recordings',
-      (_) => 'When no anchors are set yet.',
-      (c) => AppSwitch(value: c.settings.alignAddedRecordings, onChanged: (v) => c.settings.alignAddedRecordings = v),
-      keywords: 'align sync automatic anchors recording audio import add',
     ),
     _Item(
       'Auto-curate imported scores',
       (_) => 'Off: every staff throughout.',
       (c) => AppSwitch(value: c.settings.autoCurateImported, onChanged: (v) => c.settings.autoCurateImported = v),
+      group: 'Import',
       keywords: 'auto curate lanes import new score staves automatic',
     ),
     _Item(
       'Auto-curate PDF scores',
       null,
       (c) => AppSwitch(value: c.settings.autoCuratePdf, onChanged: (v) => c.settings.autoCuratePdf = v),
+      group: 'Import',
       keywords: 'auto curate lanes pdf import scan staves automatic',
+    ),
+    _Item(
+      'Align added recordings',
+      (_) => 'When no anchors are set yet.',
+      (c) => AppSwitch(value: c.settings.alignAddedRecordings, onChanged: (v) => c.settings.alignAddedRecordings = v),
+      group: 'Import',
+      keywords: 'align sync automatic anchors recording audio import add',
     ),
     _Item(
       'Fine seek',
@@ -261,6 +268,7 @@ final _categories = <_Category>[
         label: (s) => '$s s',
         onChanged: (v) => c.settings.fineSeek = v,
       ),
+      group: 'Keyboard',
       keywords: 'seek step nudge playhead arrow alt option keyboard playback position small',
     ),
     _Item(
@@ -272,6 +280,7 @@ final _categories = <_Category>[
         label: (s) => '${(s * 1000).round()} ms',
         onChanged: (v) => c.settings.anchorNudge = v,
       ),
+      group: 'Keyboard',
       keywords: 'anchor nudge step arrow keyboard sync time move precise fine milliseconds',
     ),
   ]),
@@ -881,7 +890,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   /// What the search looks in: [item]'s words in English and as shown.
   String _searched(_Category cat, _Item item) {
     final help = item.help?.call(_ctx) ?? '';
-    return '${cat.label} ${cat.label.trIn('page')} ${item.title} ${item.title.tr} ${item.group?.tr ?? ''} ${item.keywords} $help ${help.tr}';
+    return '${cat.label} ${cat.label.trIn('page')} ${item.title} ${item.title.tr} ${item.group?.trIn('heading') ?? ''} ${item.keywords} $help ${help.tr}';
   }
 
   /// The project closed under it (the menu bar works while it is open): it closes too
@@ -1124,7 +1133,7 @@ Iterable<_Item> _shown(_Category cat, _Context ctx) => cat.items.where((item) =>
 // ("Size · Lyrics").
 Widget _rowOf(_Item item, _Context ctx, {bool withGroup = false}) => _SettingRow(
     key: ObjectKey(item),
-    title: withGroup && item.group != null ? '${item.title.tr} · ${item.group!.tr}' : item.title,
+    title: withGroup && item.group != null ? '${item.title.tr} · ${item.group!.trIn('heading')}' : item.title,
     note: item.note,
     help: item.help?.call(ctx),
     below: item.below?.call(ctx),
@@ -1580,7 +1589,7 @@ class _Page extends StatelessWidget {
           if (heading != null)
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 6),
-              child: Text(heading.tr,
+              child: Text(heading.trIn('heading'),
                   style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: colors.textMuted, letterSpacing: 0.2)),
             ),
           DecoratedBox(

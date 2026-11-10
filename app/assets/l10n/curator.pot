@@ -3463,3 +3463,13 @@ msgstr ""
 #: lib/home_screen.dart
 msgid "PDF score ({key})"
 msgstr ""
+
+msgid "Projects"
+msgstr ""
+
+msgctxt "heading"
+msgid "Import"
+msgstr ""
+
+msgid "Keyboard"
+msgstr ""
