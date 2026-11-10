@@ -68,7 +68,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit… done (the score editor's, a PDF's import again): a project carried over to the new score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
-| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start, barlines (the last two by handles above the system, as the edges' at its right), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
+| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start and end, barlines (the start's and the barlines' by handles above the system, the end's below it, as the edges' at its right), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -933,7 +933,7 @@ Space on, T tie, S slur, V the next voice, R repeat, ⌥↑↓ a step, ⌘⌥↑
 or `-` to the next note), `;` a tuplet (`:` ends it). A time signature change fills or cuts bars
 rather than rebarring the music after it.
 
-**A PDF score is the PDF, cut by rectangles.** A `.pdf` opened is imported (`pdf_import.dart`):
+**A PDF score is the PDF, cut by rectangles.** A `.pdf` is imported (`pdf_import.dart`; File ▸ Import… ⌘I and Home's Import…, their own beside Open…, whose picker lists no PDF; one dropped or opened from the Finder or Open Recent is imported too):
 `PdfPages.read` finds every page's systems (`PdfDetect`, on PDFium's ink at 2.5 pixels a point:
 staves by row projection, systems by a line joining them, braces, where the music starts past
 the clef, key and time signature, barlines, the row between two staves least ink crosses) and
@@ -1000,7 +1000,8 @@ different one its abbreviation (`names`; a new import's "Staff 1"… are named s
 names in capitals written as names); a tempo mark is the words above a system's first staff that
 name a tempo or a change (`isTempo`) or stand before a metronome mark on its line, at the bar they
 start over (`tempos`, `tempoOf`; the speed is taken as quarters). A field being typed in keeps
-its keys (the import's are asked first: only ⌘Z and Page Up / Down stay its own); a drag's Undo
+its keys (the import's are asked first: only ⌘Z and Page Up / Down stay its own); where a system's music ends (`PdfSystem.right`) is dragged as where it starts (`_EndDrag`: a barline at
+the end goes with it, and it stops at the barline before); a drag's Undo
 step is made at its first move, so a click on a barline only selects it; opened again
 (Edit…) and left as it came, Done hands nothing back, and nothing is replaced.
 
