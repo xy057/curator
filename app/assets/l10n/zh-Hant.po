@@ -460,6 +460,7 @@ msgstr "小節反覆記號"
 msgid "Bar {bar}"
 msgstr "第 {bar} 小節"
 
+#: lib/pdf_ai_model_dialog.dart
 msgid "Barlines"
 msgstr "小節線"
 
@@ -526,7 +527,7 @@ msgstr "填補不超過 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 則為 c，否則為 d"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -611,6 +612,7 @@ msgstr "清除選單"
 msgid "Clef"
 msgstr "譜號"
 
+#: lib/pdf_ai_model_dialog.dart
 msgid "Clefs"
 msgstr "譜號"
 
@@ -1281,6 +1283,7 @@ msgstr "保留了錨點中的 {warps}"
 msgid "Kept {warps} from {file}"
 msgstr "保留了 {file} 中的 {warps}"
 
+#: lib/pdf_ai_model_dialog.dart
 msgid "Key signatures"
 msgstr "調號"
 
@@ -1485,7 +1488,7 @@ msgstr "這些字幕都不在音樂範圍內。"
 msgid "No subtitles found in this file."
 msgstr "這個檔案中沒有字幕。"
 
-#: lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "None"
 msgstr "無"
 
@@ -3747,9 +3750,123 @@ msgid "Read with AI ({model})"
 msgstr "用 AI 讀取（{model}）"
 
 #: lib/pdf_import.dart
-msgid "Read with AI (choose a model in Settings ▸ General)"
-msgstr "用 AI 讀取（在「設定 ▸ 一般」中選擇模型）"
-
-#: lib/pdf_import.dart
 msgid "Reading with AI… {n} of {count}"
 msgstr "正在用 AI 讀取… 第 {n} 頁，共 {count} 頁"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Passed"
+msgstr "通過"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Passed with mistakes"
+msgstr "通過，但有錯誤"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Inaccurate"
+msgstr "不夠準確"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Not recommended"
+msgstr "不推薦"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Failed"
+msgstr "未通過"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Reads PDF scores well."
+msgstr "能很好地讀取 PDF 樂譜。"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Some marks may need fixing."
+msgstr "部分標記可能需要修正。"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Check its marks after reading."
+msgstr "讀取後請檢查其標記。"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Many marks will need fixing."
+msgstr "許多標記需要修正。"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Most marks will need fixing."
+msgstr "大部分標記需要修正。"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "This model can’t mark PDF scores."
+msgstr "此模型無法標記 PDF 樂譜。"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Horizontal borders"
+msgstr "水平邊界"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Instrument names"
+msgstr "樂器名稱"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Tempo and time"
+msgstr "速度與拍號"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Use an inaccurate model?"
+msgstr "使用不夠準確的模型？"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "It got {n}% of the exam right. Expect to fix its marks on every page."
+msgstr "它在測試中答對了 {n}%。每一頁的標記都可能需要修正。"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Use Anyway"
+msgstr "仍然使用"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "AI for PDF Import"
+msgstr "PDF 匯入所用 AI"
+
+msgid "Model"
+msgstr "模型"
+
+msgid "Use anyway"
+msgstr "仍然使用"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Turn on a provider in Settings ▸ AI to choose a model."
+msgstr "在「設定 ▸ AI」中開啟一個服務商，即可選擇模型。"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Use"
+msgstr "使用"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Taking the exam… {n} of {count} pages"
+msgstr "正在測試… 第 {n} 頁，共 {count} 頁"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Stop"
+msgstr "停止"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Run Again"
+msgstr "再次執行"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "The exam couldn’t be run."
+msgstr "無法執行測試。"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Not tested yet."
+msgstr "尚未測試。"
+
+#: lib/pdf_ai_model_dialog.dart
+msgid "Run Exam"
+msgstr "執行測試"
+
+#: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart
+msgid "{n}%"
+msgstr "{n}%"
+
+#: lib/pdf_import.dart
+msgid "Read with AI…"
+msgstr "用 AI 讀取…"

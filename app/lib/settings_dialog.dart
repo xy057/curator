@@ -9,7 +9,6 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart' show RenderStyle, TextKind, verovioVersion;
 
-import 'ai_providers.dart' show AiModels;
 import 'ai_settings.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
@@ -27,6 +26,7 @@ import 'file_names.dart';
 import 'font_settings.dart';
 import 'menu_kit.dart';
 import 'motion_settings.dart';
+import 'pdf_ai_model_dialog.dart';
 import 'typography_settings.dart';
 import 'project_state.dart' show NameGroupInfo;
 import 'edit_dialogs.dart' show confirmSavePath, showNameGroupDialog;
@@ -1742,23 +1742,31 @@ class _Dropdown<T> extends StatelessWidget {
       );
 }
 
-/// The model the PDF import's Read with AI asks: None, or one of the providers turned on in
-/// Settings ▸ AI (each "model · provider", names as they are).
+/// The model the PDF import's Read with AI asks ("model · provider", names as they are, and its
+/// exam's result), or None: a click chooses one ([showPdfAiModelDialog]).
 class _PdfAiModel extends StatelessWidget {
   const _PdfAiModel({required this.settings});
   final AppSettings settings;
 
   @override
   Widget build(BuildContext context) {
-    final models = settings.aiProviders.models;
     final chosen = settings.pdfAi;
-    return SettingsDropdown<String>(
-      value: chosen == null ? '' : AiModels.keyOf(chosen),
-      onChanged: (v) => settings.pdfAiModel = v,
-      items: [
-        DropdownMenuItem(value: '', child: Text('None'.tr)),
-        for (final m in models) DropdownMenuItem(value: AiModels.keyOf(m), child: Text('${m.model} · ${m.provider.name}')),
-      ],
+    final result = chosen == null ? null : settings.pdfAiExam(settings.pdfAiModel);
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+      onPressed: () => showPdfAiModelDialog(context, settings),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Flexible(
+          child: Text(chosen == null ? 'None'.tr : '${chosen.model} · ${chosen.provider.name}',
+              overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: context.colors.text)),
+        ),
+        if (result != null) ...[
+          const SizedBox(width: 8),
+          Text('{n}%'.fill({'n': pdfAiPercent(result)}),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: PdfAiVerdict.of(pdfAiPercent(result)).color(context))),
+        ],
+      ]),
     );
   }
 }

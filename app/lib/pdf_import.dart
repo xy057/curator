@@ -29,12 +29,12 @@ import 'ui_kit.dart';
 /// layout, each system's bars measured ([PdfPages.measure]); null when cancelled. With [ai] (Settings
 /// ▸ General ▸ AI for PDF import), Read with AI reads the pages with that model ([PdfAiReader]).
 Future<PdfScoreLayout?> showPdfImport(BuildContext context, PdfPages pages,
-        {required String name, PdfScoreLayout? layout, AiModel? ai}) =>
+        {required String name, PdfScoreLayout? layout, AiModel? ai, Future<AiModel?> Function()? chooseAi}) =>
     Navigator.of(context, rootNavigator: true).push<PdfScoreLayout>(PageRouteBuilder(
       opaque: true,
       transitionDuration: motion(context, 200),
       reverseTransitionDuration: motion(context, 160),
-      pageBuilder: (_, _, _) => PdfImport(pages: pages, name: name, layout: layout, ai: ai),
+      pageBuilder: (_, _, _) => PdfImport(pages: pages, name: name, layout: layout, ai: ai, chooseAi: chooseAi),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic), child: child),
     ));
@@ -125,13 +125,16 @@ class _BarlineDrag extends _Drag {
 }
 
 class PdfImport extends StatefulWidget {
-  const PdfImport({super.key, required this.pages, required this.name, this.layout, this.ai});
+  const PdfImport({super.key, required this.pages, required this.name, this.layout, this.ai, this.chooseAi});
   final PdfPages pages;
   final String name;
   final PdfScoreLayout? layout;
 
-  /// The model Read with AI asks; none: it is greyed out.
+  /// The model Read with AI asks; none: [chooseAi] asks for one first.
   final AiModel? ai;
+
+  /// Asks for a model to read with ([showPdfAiModelDialog]): the one chosen, or null.
+  final Future<AiModel?> Function()? chooseAi;
 
   @override
   State<PdfImport> createState() => _PdfImportState();
@@ -159,6 +162,9 @@ class _PdfImportState extends State<PdfImport> {
 
   /// Reading the pages with AI ([_readWithAi]): nothing is edited meanwhile.
   PdfAiReader? _ai;
+
+  /// The model Read with AI asks: the one given, or the one chosen when there was none.
+  late AiModel? _model = widget.ai;
 
   /// Pages read with AI so far, and of how many.
   int _aiDone = 0, _aiOf = 0;
@@ -360,10 +366,16 @@ class _PdfImportState extends State<PdfImport> {
 
   /// Every page with systems read by the model chosen ([PdfAiReader]), the one the instruments are
   /// named from first: what it says put in as one Undo step ([PdfAi.apply]), even when stopped
-  /// part way (the pages read until then). Nothing is edited meanwhile.
+  /// part way (the pages read until then). Nothing is edited meanwhile. With no model, one is
+  /// asked for first ([PdfImport.chooseAi]).
   Future<void> _readWithAi() async {
-    final model = widget.ai;
-    if (model == null || _layout == null || _busy) return;
+    if (_layout == null || _busy) return;
+    if (_model == null) {
+      final chosen = await widget.chooseAi?.call();
+      if (!mounted || chosen == null || _busy) return;
+      setState(() => _model = chosen);
+    }
+    final model = _model!;
     final reader = PdfAiReader(pages, model);
     setState(() {
       _ai = reader;
@@ -1338,11 +1350,11 @@ class _PdfImportState extends State<PdfImport> {
           else
             ToolbarButton(
                 icon: AppIcon.ai.of(context),
-                tooltip: switch (widget.ai) {
+                tooltip: switch (_model) {
                   final ai? => 'Read with AI ({model})'.fill({'model': ai.model}),
-                  null => 'Read with AI (choose a model in Settings ▸ General)'.tr,
+                  null => 'Read with AI…'.tr,
                 },
-                onPressed: ready && widget.ai != null && layout.systems.isNotEmpty ? _readWithAi : null),
+                onPressed: ready && (_model != null || widget.chooseAi != null) && layout.systems.isNotEmpty ? _readWithAi : null),
           const ToolbarDivider(),
           ..._stepTools(context, ready),
         ],

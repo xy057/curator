@@ -29,6 +29,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time (`EditChunk`) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
 | `pdf_detect.dart`, `pdf_pages.dart`, `pdf_text.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`); names and tempo marks read from the pages' words (`PdfText`) |
 | `pdf_ai.dart` | A PDF score's pages read by an AI model (see *Read with AI*): what it is asked (`PdfAi.prompt`, about a picture of the page with each staff found numbered, `PdfAi.labels`, `PdfAiView`), its answer (`PdfAiPage.parse`), put on the page's ink (`PdfAi.refine`, through `PdfPages.refine`) and into the layout (`PdfAi.apply`) |
+| `pdf_ai_exam.dart` | The exam a model takes before Read with AI asks it (see *A model is examined*): two pages' key and the marking (`PdfAiExam.score`, `PdfAiExamResult`) |
 | `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, cuts, gaps, barlines and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
@@ -72,7 +73,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit… done (the score editor's, a PDF's import again): a project carried over to the new score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
-| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start and end, barlines (the start's and the barlines' by handles above the system, the end's below it, as the edges' at its right), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs; `pdf_import_ai.dart` reads the pages with AI (`PdfAiReader`) |
+| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start and end, barlines (the start's and the barlines' by handles above the system, the end's below it, as the edges' at its right), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs; `pdf_import_ai.dart` reads the pages with AI (`PdfAiReader`) and gives a model the exam (`PdfAiExamRun`); `pdf_ai_model_dialog.dart` chooses the model, by its exam |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -1042,7 +1043,7 @@ step is made at its first move, so a click on a barline only selects it; opened 
 
 **Read with AI asks a model, then checks it against the page.** The import's toolbar button (by
 Undo and Redo, on every step) reads every page with systems with the model picked in Settings ▸
-General ▸ AI for PDF import (`AppSettings.pdfAi`; none: greyed out), only when clicked:
+General ▸ AI for PDF import (`AppSettings.pdfAi`; none: it asks for one first), only when clicked:
 `PdfAiReader` shows the model each page as two PNGs drawn on white (the page, and its systems'
 starts enlarged: names, clefs, keys, time signatures), each staff found numbered in red in a column
 at their right (`PdfAi.labels`, in the bundled IBM Plex Sans), and asks (`PdfAi.prompt`) for JSON:
@@ -1052,7 +1053,7 @@ tempo marks; and where each staff's middle is. The page the instruments are name
 alone (its answer names them for the other questions), then the rest three at a time; Stop ends the
 requests under way (`AiClient.close`). A model's places are rough and sometimes made up, so they
 are checked (`PdfAi.refine`, on the worker with the page's ink): where it says the staves are,
-against where they are, gives a line that sets its other places right (`_fit`), and unless most
+against where they are, gives a line that sets its other places right (`PdfAi.fit`), and unless most
 staves lie on it within ¾ of a space none of its places is taken. Taken, each edge, cut and gap
 goes on the quiet row nearest where it says (`PdfDetect.quietRow`), never into ink its outer staves
 reach (`PdfDetect.inkEnd`); its barlines are lined up in order with those found (`_barlines`), a
@@ -1067,6 +1068,23 @@ tempo marks put in at their bars where they differ from those in force; nothing 
 is all one Undo step, made when the reading ends (stopped: the pages read until then); meanwhile
 nothing is edited (`_busy`) but the pages are turned. A page that fails is passed over and said in
 the status line; the first failing ends it all.
+
+**A model is examined before it reads.** Settings ▸ General ▸ AI for PDF import (and Read with AI
+with none chosen) opens a dialog (`showPdfAiModelDialog`) where a model chosen takes the exam
+(`PdfAiExam`, run by `PdfAiExamRun`): the first two pages of a scanned orchestral score
+(`assets/exam/pdf-ai-exam.pdf`), asked exactly as Read with AI asks (the same pictures and
+prompt, the staves numbered from the key's, not from what the detector finds), both at once. The
+answers are marked against a key measured on a 300 dpi render (`PdfAiExam.score`), in six parts
+counting the same: horizontal borders (one system, its top and bottom between the ink around it,
+each border between its two staves, all through `PdfAi.fit` and none counted where Read with AI
+would take none), barlines (paired in order within two spaces, all moved as far as most are off;
+F1, a plain one only), instrument names (whose, and the names printed), clefs and keys (a change
+made up is wrong), and tempo and time (nothing where nothing is printed). An answer that isn't
+JSON is wrong throughout; an error asking stops the exam and is shown whole. The result, by whole
+percent (`PdfAiVerdict`): over 95 used; over 85 used with a warning; over 75 once Use anyway is
+ticked; over 65 once a warning is confirmed; over 50 both, Use in red; no more, not used. Results
+are kept by model (`AppSettings.pdfAiExam`, with `PdfAiExam.version`: a new key or prompt bumps
+it, and every model is examined again).
 
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;

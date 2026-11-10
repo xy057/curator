@@ -378,7 +378,7 @@ Answer with one JSON object and nothing else, like this:
       for (final (k, f) in found.indexed)
         if (answer.staff(k + 1)?.y case final y?) (view.y(y), f.staff.middle),
     ];
-    final fit = _fit(pairs, n, systems.first.space);
+    final fit = PdfAi.fit(pairs, n, systems.first.space);
     double down(double thousandths) => view.y(thousandths) * fit.scale + fit.shift;
     final out = <PdfAiSystemRead>[];
     var above = 0.0; // where the system before ends, points
@@ -572,8 +572,9 @@ Answer with one JSON object and nothing else, like this:
 
   /// The line `true = said × scale + shift` through [pairs] (said, true), staves' middles, those a
   /// few staff [space]s off it left out once (with too few or too alike, a shift alone); [sure]
-  /// when most of the [staves] are among them and lie on it, give or take ¾ of a space.
-  static ({double scale, double shift, bool sure}) _fit(List<(double, double)> pairs, int staves, double space) {
+  /// when most of the [staves] are among them and lie on it, give or take ¾ of a space. The exam
+  /// ([PdfAiExam]) measures an answer's places through it too.
+  static ({double scale, double shift, bool sure}) fit(List<(double, double)> pairs, int staves, double space) {
     ({double scale, double shift, bool clamped}) line(List<(double, double)> ps) {
       if (ps.isEmpty) return (scale: 1, shift: 0, clamped: false);
       final n = ps.length;
