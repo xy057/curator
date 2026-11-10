@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart' show RenderStyle, TextKind, verovioVersion;
 
+import 'ai_providers.dart' show AiModels;
 import 'ai_settings.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
@@ -252,6 +253,13 @@ final _categories = <_Category>[
       (c) => AppSwitch(value: c.settings.autoCuratePdf, onChanged: (v) => c.settings.autoCuratePdf = v),
       group: 'Import',
       keywords: 'auto curate lanes pdf import scan staves automatic',
+    ),
+    _Item(
+      'AI for PDF import',
+      null,
+      (c) => _PdfAiModel(settings: c.settings),
+      group: 'Import',
+      keywords: 'ai model pdf import read scan names clefs keys barlines tempo llm openai anthropic gemini openrouter',
     ),
     _Item(
       'Align added recordings',
@@ -1732,6 +1740,27 @@ class _Dropdown<T> extends StatelessWidget {
         onChanged: onChanged,
         items: [for (final v in values) DropdownMenuItem(value: v, child: Text(label(v).tr))],
       );
+}
+
+/// The model the PDF import's Read with AI asks: None, or one of the providers turned on in
+/// Settings ▸ AI (each "model · provider", names as they are).
+class _PdfAiModel extends StatelessWidget {
+  const _PdfAiModel({required this.settings});
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final models = settings.aiProviders.models;
+    final chosen = settings.pdfAi;
+    return SettingsDropdown<String>(
+      value: chosen == null ? '' : AiModels.keyOf(chosen),
+      onChanged: (v) => settings.pdfAiModel = v,
+      items: [
+        DropdownMenuItem(value: '', child: Text('None'.tr)),
+        for (final m in models) DropdownMenuItem(value: AiModels.keyOf(m), child: Text('${m.model} · ${m.provider.name}')),
+      ],
+    );
+  }
 }
 
 /// A row of colour swatches, then the user's own (a colour wheel until there is one), which asks

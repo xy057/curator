@@ -8,12 +8,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
+import 'ai_providers.dart' show AiError, AiModel;
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'dialog_kit.dart';
 import 'l10n/l10n.dart';
 import 'lanes_common.dart';
 import 'menu_kit.dart';
+import 'pdf_import_ai.dart';
 import 'pdf_import_changes.dart';
 import 'pdf_ocr.dart';
 import 'ui_kit.dart';
@@ -24,13 +26,15 @@ import 'ui_kit.dart';
 /// and key at the right. Everything found can be moved, added or taken away here; this is the
 /// only place the PDF is worked on (the score shows it as printed, cut along what is set here).
 /// [layout] is the one to edit; none: the PDF is read first ([PdfPages.read]). Returns the
-/// layout, each system's bars measured ([PdfPages.measure]); null when cancelled.
-Future<PdfScoreLayout?> showPdfImport(BuildContext context, PdfPages pages, {required String name, PdfScoreLayout? layout}) =>
+/// layout, each system's bars measured ([PdfPages.measure]); null when cancelled. With [ai] (Settings
+/// ▸ General ▸ AI for PDF import), Read with AI reads the pages with that model ([PdfAiReader]).
+Future<PdfScoreLayout?> showPdfImport(BuildContext context, PdfPages pages,
+        {required String name, PdfScoreLayout? layout, AiModel? ai}) =>
     Navigator.of(context, rootNavigator: true).push<PdfScoreLayout>(PageRouteBuilder(
       opaque: true,
       transitionDuration: motion(context, 200),
       reverseTransitionDuration: motion(context, 160),
-      pageBuilder: (_, _, _) => PdfImport(pages: pages, name: name, layout: layout),
+      pageBuilder: (_, _, _) => PdfImport(pages: pages, name: name, layout: layout, ai: ai),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic), child: child),
     ));
@@ -121,10 +125,13 @@ class _BarlineDrag extends _Drag {
 }
 
 class PdfImport extends StatefulWidget {
-  const PdfImport({super.key, required this.pages, required this.name, this.layout});
+  const PdfImport({super.key, required this.pages, required this.name, this.layout, this.ai});
   final PdfPages pages;
   final String name;
   final PdfScoreLayout? layout;
+
+  /// The model Read with AI asks; none: it is greyed out.
+  final AiModel? ai;
 
   @override
   State<PdfImport> createState() => _PdfImportState();
@@ -149,6 +156,18 @@ class _PdfImportState extends State<PdfImport> {
   /// Systems measured so far, while Done measures them.
   int? _measured;
   String? _error;
+
+  /// Reading the pages with AI ([_readWithAi]): nothing is edited meanwhile.
+  PdfAiReader? _ai;
+
+  /// Pages read with AI so far, and of how many.
+  int _aiDone = 0, _aiOf = 0;
+
+  /// What went wrong reading with AI, until the next edit.
+  String? _aiError;
+
+  /// Whether the import is measuring or reading with AI: nothing is edited meanwhile.
+  bool get _busy => _measured != null || _ai != null;
 
   int _page = 0;
   double _zoom = 1.4; // view points a page point
@@ -204,6 +223,7 @@ class _PdfImportState extends State<PdfImport> {
 
   @override
   void dispose() {
+    _ai?.stop();
     _focus.dispose();
     _horizontal.dispose();
     _vertical.dispose();
@@ -336,10 +356,64 @@ class _PdfImportState extends State<PdfImport> {
   /// "Bar 12", counted as printed (an upbeat is bar 0).
   String _barName(int bar) => 'Bar {n}'.fill({'n': bar + 1 - (layout.pickup > 0 ? 1 : 0)});
 
+  // MARK: AI
+
+  /// Every page with systems read by the model chosen ([PdfAiReader]), the one the instruments are
+  /// named from first: what it says put in as one Undo step ([PdfAi.apply]), even when stopped
+  /// part way (the pages read until then). Nothing is edited meanwhile.
+  Future<void> _readWithAi() async {
+    final model = widget.ai;
+    if (model == null || _layout == null || _busy) return;
+    final reader = PdfAiReader(pages, model);
+    setState(() {
+      _ai = reader;
+      _aiDone = 0;
+      _aiOf = PdfAiReader.pagesOf(layout).length;
+      _aiError = null;
+      _tool = _Tool.select;
+      _drag = null;
+      _drawFrom = null;
+      _drawing = null;
+    });
+    try {
+      final result = await reader.read(layout, first: _namesPage, onPage: (done, of) {
+        if (mounted) {
+          setState(() {
+            _aiDone = done;
+            _aiOf = of;
+          });
+        }
+      });
+      if (!mounted) return;
+      if (result.read.isNotEmpty) {
+        _namedByText = true; // named now: the text read later doesn't name them again
+        _changed(PdfAi.apply(layout, result.read));
+        setState(() => _selection = null);
+      }
+      if (result.errors case [final error, ...]) {
+        final n = result.errors.length;
+        setState(() => _aiError = n == 1
+            ? 'AI couldn’t read 1 page. {error}'.fill({'error': _aiText(error)})
+            : 'AI couldn’t read {n} pages. {error}'.fill({'n': n, 'error': _aiText(error)}));
+      }
+    } on Object catch (e) {
+      if (mounted && !reader.stopped) setState(() => _aiError = 'Couldn’t read with AI. {error}'.fill({'error': _aiText(e)}));
+    } finally {
+      if (mounted) setState(() => _ai = null);
+    }
+  }
+
+  /// What went wrong asking the model, as said to the user.
+  static String _aiText(Object e) => switch (e) {
+        AiError() => '$e',
+        FormatException() => 'The model’s answer couldn’t be read.'.tr,
+        _ => '$e',
+      };
+
   // MARK: Steps
 
   void _goToStep(_Step step) {
-    if (_layout == null || _measured != null) return;
+    if (_layout == null || _busy) return;
     setState(() {
       _step = step;
       _selection = null;
@@ -385,6 +459,7 @@ class _PdfImportState extends State<PdfImport> {
       _layout = next;
       _edited = true;
       _error = null; // what couldn't be measured may have changed
+      _aiError = null;
     });
   }
 
@@ -573,6 +648,7 @@ class _PdfImportState extends State<PdfImport> {
 
   void _down(Offset local) {
     _focus.requestFocus();
+    if (_ai != null) return;
     final p = _toPage(local);
     if (_step == _Step.edit && _tool != _Tool.select) {
       _drawFrom = p;
@@ -699,6 +775,7 @@ class _PdfImportState extends State<PdfImport> {
   /// A double click in a system: on a cut, a gap there, no one's (a third of the room between
   /// the staves, which its edges then change); in a gap, nothing; elsewhere a barline.
   void _doubleClick(Offset local) {
+    if (_ai != null) return;
     final p = _toPage(local), grab = _grab / _zoom;
     for (final (i, s) in _onPage) {
       if (p.dx < s.left - grab || p.dx > s.right + 14 / _zoom) continue;
@@ -998,7 +1075,7 @@ class _PdfImportState extends State<PdfImport> {
 
   /// A right click on a bar: it selected, and what can be inserted there.
   Future<void> _contextMenu(Offset local, Offset global) async {
-    if (_step != _Step.changes) return;
+    if (_step != _Step.changes || _ai != null) return;
     final hit = _selectionAt(_toPage(local));
     if (hit is! _BarSelection) return;
     setState(() => _selection = hit);
@@ -1070,6 +1147,12 @@ class _PdfImportState extends State<PdfImport> {
   KeyEventResult _key(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
     if (_layout == null) return KeyEventResult.ignored;
+    // Reading with AI: only the pages are turned.
+    if (_ai != null &&
+        ![LogicalKeyboardKey.pageDown, LogicalKeyboardKey.pageUp, LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.arrowRight]
+            .contains(event.logicalKey)) {
+      return KeyEventResult.ignored;
+    }
     final meta = HardwareKeyboard.instance.isMetaPressed || HardwareKeyboard.instance.isControlPressed;
     final shift = HardwareKeyboard.instance.isShiftPressed;
     final key = event.logicalKey;
@@ -1110,7 +1193,7 @@ class _PdfImportState extends State<PdfImport> {
 
   /// Measures every system's bars (what plays where), then leaves with the layout.
   Future<void> _done() async {
-    if (_layout == null || _measured != null) return;
+    if (_layout == null || _busy) return;
     final systems = [...layout.systems];
     setState(() {
       _measured = 0;
@@ -1202,7 +1285,7 @@ class _PdfImportState extends State<PdfImport> {
                         ]),
                       ),
                       VerticalDivider(width: 1, color: colors.line),
-                      _panel(context),
+                      AbsorbPointer(absorbing: _ai != null, child: _panel(context)),
                     ]),
             ),
             Divider(height: 1, color: colors.line),
@@ -1228,7 +1311,7 @@ class _PdfImportState extends State<PdfImport> {
             Flexible(child: Text(widget.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.textMuted))),
           ]),
         ),
-        _StepBar(step: _step, enabled: _layout != null && _measured == null, onPick: _goToStep),
+        _StepBar(step: _step, enabled: _layout != null && !_busy, onPick: _goToStep),
         Expanded(
           child: Align(alignment: Alignment.centerRight, child: OutlinedButton(onPressed: _cancel, child: Text('Cancel'.tr))),
         ),
@@ -1239,8 +1322,8 @@ class _PdfImportState extends State<PdfImport> {
   /// Over the page: Undo, the pages' tools (on their step), zoom and the page showing.
   Widget _viewBar(BuildContext context) {
     final colors = context.colors, style = AppStyle.of(context);
-    final ready = _measured == null;
-    final busy = _measured != null || _rendering.isNotEmpty || _readingText != null;
+    final ready = !_busy;
+    final busy = _busy || _rendering.isNotEmpty || _readingText != null;
     return Container(
       height: style.toolbar,
       color: colors.chrome,
@@ -1248,7 +1331,21 @@ class _PdfImportState extends State<PdfImport> {
       child: Row(children: [
         ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: ready && _undo.isNotEmpty ? _undoStep : null),
         ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: ready && _redo.isNotEmpty ? _redoStep : null),
-        if (_layout != null) ...[const ToolbarDivider(), ..._stepTools(context, ready)],
+        if (_layout != null) ...[
+          const ToolbarDivider(),
+          if (_ai case final reader?)
+            ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Stop Reading'.tr, onPressed: reader.stop)
+          else
+            ToolbarButton(
+                icon: AppIcon.ai.of(context),
+                tooltip: switch (widget.ai) {
+                  final ai? => 'Read with AI ({model})'.fill({'model': ai.model}),
+                  null => 'Read with AI (choose a model in Settings ▸ General)'.tr,
+                },
+                onPressed: ready && widget.ai != null && layout.systems.isNotEmpty ? _readWithAi : null),
+          const ToolbarDivider(),
+          ..._stepTools(context, ready),
+        ],
         const ToolbarDivider(),
         ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom Out'.tr, onPressed: () => _zoomBy(1 / 1.2)),
         ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom In'.tr, onPressed: () => _zoomBy(1.2)),
@@ -1388,7 +1485,7 @@ class _PdfImportState extends State<PdfImport> {
   /// How far the import is, Back and Next (on the last step, Import).
   Widget _footer(BuildContext context) {
     final colors = context.colors, style = AppStyle.of(context);
-    final ready = _layout != null && _measured == null;
+    final ready = _layout != null && !_busy;
     final last = _step == _Step.review;
     return Container(
       height: style.control + 20,
@@ -1414,6 +1511,8 @@ class _PdfImportState extends State<PdfImport> {
 
   String get _status {
     if (_error case final error? when _layout != null) return 'Couldn’t measure the bars. {error}'.fill({'error': error});
+    if (_ai != null) return 'Reading with AI… {n} of {count}'.fill({'n': math.min(_aiDone + 1, _aiOf), 'count': _aiOf});
+    if (_aiError case final error?) return error;
     if (_measured case final n?) {
       return 'Measuring system {n} of {count}…'.fill({'n': math.min(n + 1, layout.systems.length), 'count': layout.systems.length});
     }
@@ -1550,8 +1649,8 @@ class _PdfImportState extends State<PdfImport> {
                       ),
                     ),
                   ),
-                  ...chips,
-                  ...tags,
+                  // Reading with AI, nothing is edited.
+                  Positioned.fill(child: IgnorePointer(ignoring: _ai != null, child: Stack(children: [...chips, ...tags]))),
                 ]),
               ),
             ),

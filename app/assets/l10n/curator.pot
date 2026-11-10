@@ -309,6 +309,9 @@ msgstr ""
 msgid "Auto-curate PDF scores"
 msgstr ""
 
+msgid "AI for PDF import"
+msgstr ""
+
 msgid "Off: every staff throughout."
 msgstr ""
 
@@ -3694,4 +3697,40 @@ msgid "AI"
 msgstr ""
 
 msgid "Providers"
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "The server’s answer has no text."
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "AI couldn’t read 1 page. {error}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "AI couldn’t read {n} pages. {error}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Couldn’t read with AI. {error}"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "The model’s answer couldn’t be read."
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Stop Reading"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Read with AI ({model})"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Read with AI (choose a model in Settings ▸ General)"
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "Reading with AI… {n} of {count}"
 msgstr ""

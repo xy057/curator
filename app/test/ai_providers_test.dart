@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:curated_score/ai_providers.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +26,7 @@ void main() {
     server.listen((request) async {
       final key = request.headers.value('authorization') ?? request.headers.value('x-api-key') ?? request.headers.value('x-goog-api-key');
       heard.add('${request.method} ${request.uri} $key');
+      final sent = await utf8.decoder.bind(request).join();
       final r = request.response..headers.contentType = ContentType.json;
       final body = switch (request.uri.path) {
         '/o/models' => {'data': [{'id': 'gpt-a'}, {'id': 'gpt-b'}]},
@@ -36,7 +38,31 @@ void main() {
               {'name': 'models/embed', 'supportedGenerationMethods': ['embedContent']},
             ],
           },
+        '/o/chat/completions' when sent.contains('"image_url"') => {
+            'choices': [
+              {
+                'message': {'content': 'seen'},
+              },
+            ],
+          },
         '/o/chat/completions' => {'choices': []},
+        '/a/messages' when sent.contains('"image"') => {
+            'content': [
+              {'type': 'text', 'text': 'se'},
+              {'type': 'text', 'text': 'en'},
+            ],
+          },
+        '/g/models/gem:generateContent' when sent.contains('"inline_data"') => {
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {'text': 'seen'},
+                  ],
+                },
+              },
+            ],
+          },
         '/away/models' => null,
         _ => {'error': {'message': 'Incorrect API key provided.'}},
       };
@@ -46,7 +72,6 @@ void main() {
       } else if (request.uri.path.startsWith('/bad')) {
         r.statusCode = 401;
       }
-      await request.drain<void>();
       if (body != null) r.write(jsonEncode(body));
       await r.close();
     });
@@ -61,6 +86,14 @@ void main() {
     await AiClient(at('o', AiFormat.openai)).test('gpt-a');
     expect(heard, contains('POST /o/chat/completions Bearer secret'));
     expect(heard, contains('GET /a/models?limit=1000&after_id=c-1 secret'));
+
+    // A question about pictures, in each format: the words of the answer.
+    final picture = Uint8List.fromList(List.filled(300, 7));
+    for (final (path, format) in [('o', AiFormat.openai), ('a', AiFormat.anthropic), ('g', AiFormat.gemini)]) {
+      expect(await AiClient(at(path, format)).ask('gem', 'What is this?', images: [picture]), 'seen');
+    }
+    expect(heard, contains('POST /g/models/gem:generateContent secret'));
+    await expectLater(AiClient(at('o', AiFormat.openai)).ask('gpt-a', 'Hi'), throwsA(isA<AiError>())); // no words in it
 
     await expectLater(AiClient(at('bad', AiFormat.openai)).models(),
         throwsA(isA<AiError>().having((e) => '$e', 'text', 'HTTP 401: Incorrect API key provided.')));

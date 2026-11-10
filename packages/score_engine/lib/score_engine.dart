@@ -16,6 +16,7 @@ export 'src/engraving_options.dart';
 export 'src/font_files.dart';
 export 'src/frozen_zone.dart';
 export 'src/midi_tempo.dart';
+export 'src/pdf_ai.dart';
 export 'src/pdf_detect.dart';
 export 'src/pdf_layout.dart';
 export 'src/pdf_pages.dart';

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'native/pdfium.dart' if (dart.library.js_interop) 'native/pdfium_web.dart';
+import 'pdf_ai.dart';
 import 'pdf_detect.dart';
 import 'pdf_layout.dart';
 import 'pdf_text.dart';
@@ -192,6 +193,18 @@ class PdfPages {
           return f.system.copyWith(staves: staves);
         }(),
     ];
+  }
+
+  /// Page [page]'s [systems] as an AI model's [answer] about them sets them ([PdfAi.refine]): their
+  /// edges, cuts and barlines placed on the page's own ink.
+  Future<List<PdfAiSystemRead>> refine(int page, List<PdfSystem> systems, PdfAiPage answer) {
+    final id = _id;
+    final view = PdfAiView(sizes[page]);
+    return _Worker.run((docs) {
+      final doc = docs[id]!;
+      final (w, h) = doc.pageSizes[page];
+      return PdfAi.refine(_render(doc, page, ui.Rect.fromLTWH(0, 0, w, h), PdfDetect.scale), systems, answer, view);
+    });
   }
 
   /// Everything of a system that can be someone's ([picture]'s area): its music and a little either side.

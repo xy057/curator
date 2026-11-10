@@ -950,7 +950,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final pages = await PdfPages.open(bytes);
     PdfScoreLayout? layout;
     try {
-      if (mounted) layout = await showPdfImport(context, pages, name: fileNameOf(path));
+      if (mounted) layout = await showPdfImport(context, pages, name: fileNameOf(path), ai: settings.pdfAi);
     } finally {
       if (layout == null || !mounted) pages.close();
     }
@@ -1231,7 +1231,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final pages = controller.pdfPages;
     final name = controller.fileName ?? 'Score.pdf';
     if (pages == null) return;
-    final next = await showPdfImport(context, pages, name: name, layout: layout);
+    final next = await showPdfImport(context, pages, name: name, layout: layout, ai: settings.pdfAi);
     if (next == null || !mounted) return;
     await _guard(() async {
       final replacement = await document.prepareReplacementWith(name, controller.source!.bytes, pdf: next);

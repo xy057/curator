@@ -520,6 +520,82 @@ abstract final class PdfDetect {
     return page.yOf(best);
   }
 
+  /// The row from [from] to [to] (points) nearest [near] of those the least ink crosses between
+  /// [left] and [right] (a barline through them all aside: give or take a third of a staff
+  /// [space]): an edge there cuts through nothing printed.
+  static double quietRow(PdfRaster page, double from, double to, double near, double left, double right, {double space = 0}) {
+    final a = page.row(math.min(from, to)).round(), b = page.row(math.max(from, to)).round();
+    final want = page.row(near);
+    final ink = [for (var y = a; y <= b; y++) _inkIn(page, y, left, right)];
+    if (ink.isEmpty) return near;
+    final least = ink.reduce(math.min), slack = (space * page.scale / 3).round();
+    var best = a;
+    for (var y = a; y <= b; y++) {
+      if (ink[y - a] <= least + slack && ((y - want).abs() < (best - want).abs() || ink[best - a] > least + slack)) best = y;
+    }
+    return page.yOf(best);
+  }
+
+  /// From [from] toward [to] (points, either way): where the ink reaching on from there ends,
+  /// before [gap] points with none between [left] and [right] (a barline through them all aside,
+  /// give or take a third of [gap]); [from] when none reaches on.
+  static double inkEnd(PdfRaster page, double from, double to, double gap, double left, double right) {
+    final a = page.row(from).round(), b = page.row(to).round(), step = b >= a ? 1 : -1;
+    final ink = [for (var y = a; step > 0 ? y <= b : y >= b; y += step) _inkIn(page, y, left, right)];
+    if (ink.isEmpty) return from;
+    final least = ink.reduce(math.min), slack = (gap * page.scale / 3).round();
+    final clear = math.max(1, (gap * page.scale).round());
+    var end = 0, run = 0;
+    for (var k = 0; k < ink.length; k++) {
+      if (ink[k] > least + slack) {
+        end = k;
+        run = 0;
+      } else if (++run >= clear) {
+        break;
+      }
+    }
+    return page.yOf(a + end * step);
+  }
+
+  /// How many pixels of row [y] between [left] and [right] (points) are inked.
+  static int _inkIn(PdfRaster page, int y, double left, double right) {
+    final x0 = math.max(0, page.col(left).round()), x1 = math.min(page.width - 1, page.col(right).round());
+    var ink = 0;
+    for (var x = x0; x <= x1; x++) {
+      if (page.isInked(x, y)) ink++;
+    }
+    return ink;
+  }
+
+  /// The barline nearest [x] (points) within [reach] of it: a vertical line through every line of
+  /// most of [staves] (of a lone staff, through its lines). Where the bar changes, as [barlines]
+  /// says it (past its right edge); null when no line is there.
+  static double? lineNear(PdfRaster page, List<PdfStaff> staves, double x, double reach) {
+    if (staves.isEmpty) return null;
+    final from = math.max(0, page.col(x - reach).floor()), to = math.min(page.width - 1, page.col(x + reach).ceil());
+    final need = staves.length == 1 ? 1 : math.max(2, (staves.length * 0.6).ceil());
+    final rows = [for (final s in staves) (page.row(s.top).round(), page.row(s.bottom).round())];
+    final through = <int>[];
+    for (var c = from; c <= to; c++) {
+      var count = 0;
+      for (final (top, bottom) in rows) {
+        var y = top;
+        while (y <= bottom && page.isInked(c, y)) {
+          y++;
+        }
+        if (y > bottom) count++;
+      }
+      if (count >= need) through.add(c);
+    }
+    (int, int)? best;
+    final want = page.col(x);
+    double off((int, int) run) => ((run.$1 + run.$2) / 2 - want).abs();
+    for (final run in _runs(through)) {
+      if (best == null || off(run) < off(best)) best = run;
+    }
+    return best == null ? null : page.xOf(best.$2 + 1);
+  }
+
   /// [system]'s staves' ink, per staff and bar: how far it reaches past the lines and whether
   /// anything is played (a notehead, filled or open, or a stem), from its parts ([assign]).
   static List<List<PdfInk>> ink(PdfRaster raster, PdfSystem system, List<ui.Rect> masks,

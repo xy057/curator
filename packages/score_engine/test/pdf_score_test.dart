@@ -57,6 +57,52 @@ void main() {
     expect(PdfDetect.assign(page, system, [margin]), PdfDetect.assign(page, system, const []));
   });
 
+  test('an AI model\u2019s answer is put on the page\u2019s ink, and into the layout', () {
+    final page = _page();
+    // Found without the barline at 120, the staves the instruments' "Staff 1" and "Staff 2".
+    final found = PdfDetect.page(page, 0).single;
+    final system = found.copyWith(
+      barlines: [found.barlines.last],
+      staves: [found.staves[0].copyWith(part: () => 'P1'), found.staves[1].copyWith(part: () => 'P2')],
+    );
+    final layout = PdfScoreLayout(
+      pages: const [ui.Size(240, 120)],
+      instruments: const [PdfInstrument(id: 'P1', name: 'Staff 1'), PdfInstrument(id: 'P2', name: 'Staff 2')],
+      systems: [system],
+    );
+    final view = PdfAiView(const ui.Size(240, 120));
+    String x(double points) => (points / view.width * 1000).toStringAsFixed(1);
+    String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
+    // Its places off, as a model's are (all 6 points low, barlines to the left); in a code fence.
+    final answer = PdfAiPage.parse('''Here it is:
+```json
+{"systems": [{"staves": [
+  {"label": 1, "y": ${y(34)}, "instrument": "P1", "staff": 1, "name": "Flute", "printed": "Fl.", "clef": "treble", "key": -1},
+  {"label": 2, "y": ${y(74)}, "instrument": "p2", "staff": 1, "name": "Clarinet in B♭", "printed": "", "clef": "treble", "key": 1,
+   "changes": [{"bar": 2, "clef": "bass"}]}],
+  "top": ${y(16)}, "bottom": ${y(96)}, "borders": [{"below": 1, "y": ${y(50)}}],
+  "barlines": [{"x": ${x(114)}, "kind": "single"}, {"x": ${x(196)}, "kind": "final"}],
+  "time": "3/4", "tempos": [{"bar": 1, "text": "Allegro", "bpm": 132}, {"bar": 2, "text": "rit.", "bpm": null}]}]}
+```''');
+    final refined = PdfAi.refine(page, [system], answer, view);
+    final s = refined.single.system;
+    // The barline missed is found where it says, the last one kept where it was.
+    expect([for (final b in s.barlines) b.x], [closeTo(120, 0.8), s.right]);
+    expect([for (final b in s.barlines) b.kind], [PdfBarlineKind.normal, PdfBarlineKind.end]);
+    // Where it says the staves are sets right where it says the rest is.
+    expect([s.top, s.bottom, s.cuts.single], [closeTo(10, 1), closeTo(90, 1), closeTo(44, 1)]);
+    expect(refined.single.starts, [s.left, closeTo(120, 0.8), s.right]);
+    final next = PdfAi.apply(layout, [(page: 0, answer: answer, systems: refined)]);
+    // Named and abbreviated as printed, the transposition following the name.
+    expect([for (final i in next.instruments) (i.name, i.abbreviation, i.key)],
+        [('Flute', 'Fl.', SpacerKey.c), ('Clarinet in B♭', '', SpacerKey.bFlat)]);
+    // The clarinet's two sharps and the flute's flat both say F major.
+    expect([next.fifths, '${next.meter}', next.tempo], [-1, '3/4', 132]);
+    expect(next.tempos, {0: const PdfTempo('Allegro'), 1: const PdfTempo('rit.')});
+    expect(next.instruments.last.clefs, {(1, 1): PdfClef.bass});
+    expect(next.systems.single.ink, isNull);
+  });
+
   test('a divided instrument is a part a division, and the layout round-trips', () {
     const violin = PdfInstrument(id: 'P1', name: 'Violin', divisi: 2);
     PdfSystem system(int page, List<PdfStaff> staves) => PdfSystem(

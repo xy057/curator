@@ -66,6 +66,7 @@ class AppSettings extends ChangeNotifier {
         _rememberWindow = _prefs?.getBool(_rememberWindowKey) ?? true,
         _windowFrame = WindowFrame.parse(_prefs?.getString(_windowFrameKey)),
         _aiProviders = List.unmodifiable(AiProvider.read(_prefs?.getString(_aiProvidersKey))),
+        _pdfAiModel = _prefs?.getString(_pdfAiModelKey) ?? '',
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
@@ -102,7 +103,7 @@ class AppSettings extends ChangeNotifier {
   static const _tabBarKey = 'showTabBar';
   // macOS reads the flag itself, before Dart runs (MainFlutterWindow.swift: "flutter." + this).
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
-  static const _aiProvidersKey = 'aiProviders';
+  static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
 
@@ -559,6 +560,20 @@ class AppSettings extends ChangeNotifier {
 
   /// The provider with [id] gone (only one of the user's).
   void removeAiProvider(String id) => aiProviders = [for (final p in _aiProviders) if (p.id != id || p.builtIn) p];
+
+  /// The model the PDF import's Read with AI asks ([AiModels.keyOf]); '' for none. Kept while its
+  /// provider is off or without it, though then nothing is asked ([pdfAi]).
+  String get pdfAiModel => _pdfAiModel;
+  String _pdfAiModel;
+  set pdfAiModel(String value) {
+    if (value == _pdfAiModel) return;
+    _pdfAiModel = value;
+    _prefs?.setString(_pdfAiModelKey, value);
+    notifyListeners();
+  }
+
+  /// The model the PDF import reads with, while it is there to ask.
+  AiModel? get pdfAi => _pdfAiModel.isEmpty ? null : _aiProviders.model(_pdfAiModel);
 
   /// The window as it was left (Windows and Linux; macOS keeps its own, NSWindow's autosave).
   WindowFrame? get windowFrame => _windowFrame;
