@@ -54,7 +54,7 @@ Future<void> main() async {
   final keep = ScratchSpace.session.path;
   unawaited(Isolate.run(() => ScratchSpace.sweep(keep: keep)).catchError((_) {}));
   FontResources.workDirectory = ScratchSpace.folder('fonts').path; // metrics of fonts not bundled
-  LicenseRegistry.addLicense(_fontLicenses);
+  LicenseRegistry.addLicense(_bundledLicenses);
   final (settings, _) = await (AppSettings.load(), Strings.load(rootBundle.loadString)).wait;
   if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
   final updater = Updater();
@@ -62,14 +62,17 @@ Future<void> main() async {
   runApp(CuratedScoreApp(settings: settings, updater: updater));
 }
 
-/// The bundled fonts' licences, which go with them: read only when asked for.
-Stream<LicenseEntry> _fontLicenses() async* {
+/// The licences of what is bundled and pub doesn't list, which go with it: the fonts', and
+/// those of the libraries shipped compiled (Verovio and PDFium, each with what is built into
+/// it). Read only when asked for.
+Stream<LicenseEntry> _bundledLicenses() async* {
   for (final (package, file) in [
     ('Carbon Icons', 'assets/fonts/CarbonIcons-LICENSE.txt'),
     ('Material Symbols', 'assets/fonts/MaterialSymbols-LICENSE.txt'),
     ('IBM Plex Sans', 'assets/fonts/IBMPlexSans-OFL.txt'),
     for (final font in ['Bravura', 'Leland', 'Petaluma', 'Leipzig', 'Gootville', 'Academico'])
       (font, 'packages/score_engine/assets/fonts/$font-OFL.txt'),
+    for (final library in ['Verovio', 'PDFium']) (library, 'packages/score_engine/assets/licenses/$library.txt'),
   ]) {
     yield LicenseEntryWithLineBreaks([package], await rootBundle.loadString(file));
   }

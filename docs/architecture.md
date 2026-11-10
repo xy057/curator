@@ -176,6 +176,11 @@ A page is the GPL'd player passed on, so it carries Curator's licence (`LICENSE.
 player) and where the source of the build that wrote it is (`SOURCE.txt`, `WebExport.source`: the
 commit, or the version's tag), beside Flutter's `assets/NOTICES` and the fonts' licences; installed
 fonts it carries (`WebExport.installedFonts`) are named in the dialog, theirs to allow publishing.
+The app's own licence page (Settings ▸ About) also has what pub can't list: the bundled fonts'
+licences and those of the libraries shipped compiled, Verovio and PDFium, each with the libraries
+built into it (`_bundledLicenses` in main.dart; `packages/score_engine/assets/licenses/`, written by
+Tools/make_licenses.py, to run again when either is updated). A page has neither library, so the
+player is packed without them.
 
 **Beats come from `BeatGrid`, never "a quarter note".** Compound meters beat in dotted notes
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back
