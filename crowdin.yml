@@ -9,12 +9,14 @@ files:
   - source: /app/assets/l10n/curator.pot
     # One file a language, named by its BCP 47 tag (the locale AppLanguage gives it).
     translation: /app/assets/l10n/%locale_with_underscore%.po
+    # Keyed by the placeholder `translation` uses; each language's Crowdin code to the app's tag.
     languages_mapping:
-      two_letters_code:
+      locale_with_underscore:
         # Chinese is told apart by script, as the app's locales are. A language that comes in
         # more than one variant (Portuguese: pt-BR, pt-PT) needs a mapping like these.
         zh-CN: zh-Hans
         zh-TW: zh-Hant
+        ja: ja
     # Untranslated texts are kept, empty, so the app shows them in English.
     skip_untranslated_strings: false
     export_only_approved: false
