@@ -12,6 +12,7 @@ class AppMenus extends StatelessWidget {
   const AppMenus({
     super.key,
     required this.onOpen,
+    required this.onImport,
     required this.onSave,
     required this.onSaveAs,
     required this.onSettings,
@@ -46,6 +47,9 @@ class AppMenus extends StatelessWidget {
 
   /// Open…: a project, or a score to start one from.
   final VoidCallback? onOpen;
+
+  /// Import…: a PDF score to start a project from.
+  final VoidCallback? onImport;
   final VoidCallback? onSave;
   final VoidCallback? onSaveAs;
   final VoidCallback? onSettings;
@@ -141,6 +145,7 @@ class AppMenus extends StatelessWidget {
         PlatformMenu(label: 'File'.tr, menus: [
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(label: 'Open…'.tr, shortcut: _key(LogicalKeyboardKey.keyO), onSelected: onOpen),
+            PlatformMenuItem(label: 'Import…'.tr, shortcut: _key(LogicalKeyboardKey.keyI), onSelected: onImport),
             PlatformMenu(label: 'Open Recent'.tr, menus: [
               if (recentFiles.isEmpty)
                 PlatformMenuItem(label: 'No Recent Files'.tr) // no handler: greyed out

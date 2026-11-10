@@ -1235,7 +1235,7 @@ msgstr "图像"
 msgid "Images and spacers that scroll with the score."
 msgstr "随乐谱滚动的图像和间隔。"
 
-#: lib/captions_dialog.dart lib/settings_dialog.dart
+#: lib/app_menus.dart lib/captions_dialog.dart lib/home_screen.dart lib/settings_dialog.dart
 msgid "Import…"
 msgstr "导入…"
 
@@ -1683,7 +1683,6 @@ msgstr "上一个（{key}）"
 msgid "Project Info"
 msgstr "项目信息"
 
-#: lib/home_screen.dart
 msgid "Project, MusicXML or PDF ({key})"
 msgstr "项目、MusicXML 或 PDF（{key}）"
 
@@ -3475,3 +3474,11 @@ msgstr "“{name}”已在另一个标签页中打开，请先在那里关闭它
 #: lib/captions_dialog.dart
 msgid "No room for another caption"
 msgstr "没有空间再添加字幕"
+
+#: lib/home_screen.dart
+msgid "Project or MusicXML ({key})"
+msgstr "项目或 MusicXML（{key}）"
+
+#: lib/home_screen.dart
+msgid "PDF score ({key})"
+msgstr "PDF 乐谱（{key}）"

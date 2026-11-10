@@ -23,6 +23,7 @@ void main() {
             settings: settings,
             recentFiles: settings.recentFiles,
             onOpen: () {},
+            onImport: () {},
             onOpenRecent: (_) {},
             onRemoveRecent: settings.removeRecent,
             onClearRecent: settings.clearRecent,

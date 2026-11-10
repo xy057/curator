@@ -19,6 +19,7 @@ class HomeScreen extends StatelessWidget {
     required this.settings,
     required this.recentFiles,
     required this.onOpen,
+    required this.onImport,
     required this.onOpenRecent,
     required this.onRemoveRecent,
     required this.onClearRecent,
@@ -29,6 +30,7 @@ class HomeScreen extends StatelessWidget {
   final AppSettings settings;
   final List<String> recentFiles;
   final VoidCallback onOpen;
+  final VoidCallback onImport;
   final ValueChanged<String> onOpenRecent;
   final ValueChanged<String> onRemoveRecent;
   final VoidCallback onClearRecent;
@@ -74,11 +76,19 @@ class HomeScreen extends StatelessWidget {
                   alignment: WrapAlignment.center,
                   children: [
                     Tip(
-                      message: 'Project, MusicXML or PDF ({key})'.fill({'key': shortcut('⌘O')}),
+                      message: 'Project or MusicXML ({key})'.fill({'key': shortcut('⌘O')}),
                       child: FilledButton.icon(
                         onPressed: onOpen,
                         icon: Icon(AppIcon.open.of(context), size: 18),
                         label: Text('Open…'.tr),
+                      ),
+                    ),
+                    Tip(
+                      message: 'PDF score ({key})'.fill({'key': shortcut('⌘I')}),
+                      child: OutlinedButton.icon(
+                        onPressed: onImport,
+                        icon: Icon(AppIcon.drop.of(context), size: 18),
+                        label: Text('Import…'.tr),
                       ),
                     ),
                     OutlinedButton.icon(

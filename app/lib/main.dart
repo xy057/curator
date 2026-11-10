@@ -326,7 +326,7 @@ class _AppWindowState extends State<AppWindow> {
   static const _scoreExtensions = ['musicxml', 'xml', 'mxl'];
   static XTypeGroup get _openableTypes => XTypeGroup(
         label: 'Projects and scores'.tr,
-        extensions: const [ProjectFile.extension, ..._scoreExtensions, 'pdf'],
+        extensions: const [ProjectFile.extension, ..._scoreExtensions],
       );
   static const _scoreTypes = XTypeGroup(label: 'MusicXML', extensions: _scoreExtensions);
   static const _pdfTypes = XTypeGroup(label: 'PDF', extensions: ['pdf']);
@@ -481,7 +481,13 @@ class _AppWindowState extends State<AppWindow> {
 
   /// Open… (⌘O): a Curator project, or a MusicXML score to start a new one, in a new tab.
   Future<void> _open() async {
-    final file = await openFile(acceptedTypeGroups: [_openableTypes, _projectTypes, _scoreTypes, _pdfTypes]);
+    final file = await openFile(acceptedTypeGroups: [_openableTypes, _projectTypes, _scoreTypes]);
+    if (file != null && mounted) _openPath(file.path);
+  }
+
+  /// Import… (⌘I): a PDF score, set out in its import, to start a new project in a new tab.
+  Future<void> _import() async {
+    final file = await openFile(acceptedTypeGroups: [_pdfTypes]);
     if (file != null && mounted) _openPath(file.path);
   }
 
@@ -555,6 +561,7 @@ class _AppWindowState extends State<AppWindow> {
         final commands = page?._commands;
         return AppMenus(
           onOpen: free ? _open : null,
+          onImport: free ? _import : null,
           // Enabled but for the demo: Save explains when there is nothing to save.
           onSave: page == null ? _nothingToSave : page._isSample.value ? null : page._save,
           onSaveAs: page == null ? _nothingToSave : page._isSample.value ? null : page._saveAs,
@@ -683,6 +690,7 @@ class _AppWindowState extends State<AppWindow> {
                   settings: settings,
                   recentFiles: recent,
                   onOpen: _open,
+                  onImport: _import,
                   onOpenRecent: _openPath,
                   onRemoveRecent: settings.removeRecent,
                   onClearRecent: settings.clearRecent,
