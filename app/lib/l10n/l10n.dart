@@ -15,7 +15,8 @@ enum AppLanguage {
   system('System', Locale('en')),
   english('English', Locale('en')),
   chineseSimplified('简体中文', Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans')),
-  chineseTraditional('繁體中文', Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'));
+  chineseTraditional('繁體中文', Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant')),
+  japanese('日本語', Locale('ja'));
 
   const AppLanguage(this.label, this._locale);
 

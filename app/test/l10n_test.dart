@@ -42,7 +42,7 @@ void main() {
         if (e.text.isNotEmpty) expect(placeholders(e.text), placeholders(e.id), reason: '$file: ${e.id}');
       }
       // The languages translated here are kept whole; one Crowdin adds may be partly translated.
-      if (const {AppLanguage.chineseSimplified, AppLanguage.chineseTraditional}.contains(language)) {
+      if (const {AppLanguage.chineseSimplified, AppLanguage.chineseTraditional, AppLanguage.japanese}.contains(language)) {
         expect([for (final e in po.entries) if (e.text.isEmpty || e.fuzzy) e.key], isEmpty, reason: '$file: untranslated');
       }
       expect(Strings.tableOf(language), po.table, reason: '$file: loaded');
@@ -56,7 +56,7 @@ void main() {
     expect(po.table['Align\nSet the anchors from the recording'], contains('\n'));
   });
 
-  testWidgets('choosing Chinese re-labels the window, and English brings it back', (tester) async {
+  testWidgets('choosing Chinese or Japanese re-labels the window, and English brings it back', (tester) async {
     desktopWindow(tester);
     addTearDown(() => Strings.use(AppLanguage.english));
     final settings = AppSettings.memory();
@@ -72,6 +72,10 @@ void main() {
     settings.language = AppLanguage.chineseTraditional;
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('打開範例'), findsOneWidget);
+
+    settings.language = AppLanguage.japanese;
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('サンプルを開く'), findsOneWidget);
 
     settings.language = AppLanguage.english;
     await tester.pump(const Duration(milliseconds: 400));
