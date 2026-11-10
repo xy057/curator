@@ -58,6 +58,40 @@ void main() {
     expect(PdfDetect.assign(page, system, [margin]), PdfDetect.assign(page, system, const []));
   });
 
+  test('a staff’s lines are told from ties over it', () {
+    // Two staves joined by a line at x 30 points, barlines at 160 and 290. Ties over the upper
+    // one fill the row a space above its lines a third of the way along, as a line can't.
+    const scale = PdfDetect.scale, width = 320, height = 120, space = 4.0;
+    final w = (width * scale).round(), h = (height * scale).round();
+    final ink = Uint8List(w * h);
+    int row(double y) => (y * scale).round();
+    void fill(double x0, double x1, int y0, [int? y1]) {
+      for (var y = y0; y <= (y1 ?? y0); y++) {
+        ink.fillRange(y * w + (x0 * scale).round(), y * w + (x1 * scale).round() + 1, 255);
+      }
+    }
+
+    for (var l = 0; l < 5; l++) {
+      fill(30, 290, row(30 + l * space));
+      fill(30, 290, row(70 + l * space));
+    }
+    for (var t = 0; t < 6; t++) {
+      final mid = 60.0 + t * 40;
+      fill(mid - 8, mid + 8, row(30 - space));
+      fill(mid - 12, mid - 8, row(30 - space) + 1);
+      fill(mid + 8, mid + 12, row(30 - space) + 1);
+      fill(mid - 14, mid - 12, row(30 - space) + 2, row(30 - space) + 4);
+      fill(mid + 12, mid + 14, row(30 - space) + 2, row(30 - space) + 4);
+    }
+    for (final x in [30.0, 160.0, 290.0]) {
+      fill(x, x + 0.4, row(30), row(86) + 2);
+    }
+    final systems = PdfDetect.page(PdfRaster(ink, w, h, scale: scale), 0);
+    expect(systems, hasLength(1));
+    expect([for (final s in systems.single.staves) s.top], [closeTo(30, 0.2), closeTo(70, 0.2)]);
+    expect([for (final s in systems.single.staves) s.space], [closeTo(4, 0.2), closeTo(4, 0.2)]);
+  });
+
   test('an AI model\u2019s answer is put on the page\u2019s ink, and into the layout', () {
     final page = _page();
     // Found without the barline at 120, the staves the instruments' "Staff 1" and "Staff 2".

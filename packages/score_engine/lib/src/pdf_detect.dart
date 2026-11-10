@@ -44,7 +44,7 @@ abstract final class PdfDetect {
   static List<FoundStaff> staves(PdfRaster page) {
     final w = page.width, h = page.height, ink = page.ink;
     // A staff line's row is mostly long runs of ink: text has short ones.
-    final lineRow = List<bool>.filled(h, false);
+    final long = List<int>.filled(h, 0);
     final minRun = math.max(8, (w * 0.02).round());
     for (var y = 0; y < h; y++) {
       var inLong = 0, run = 0;
@@ -57,50 +57,91 @@ abstract final class PdfDetect {
           run = 0;
         }
       }
-      lineRow[y] = inLong >= w * 0.2;
+      long[y] = inLong;
     }
-    // Rows of ink together are one line: its middle and thickness.
-    final lines = <(double, double)>[];
+    // Rows of ink together are one line: its first and last row, and how much its fullest fills.
+    final lines = <(int, int, int)>[];
     for (var y = 0; y < h; y++) {
-      if (!lineRow[y]) continue;
+      if (long[y] < w * 0.2) continue;
       var end = y;
-      while (end + 1 < h && lineRow[end + 1]) {
+      while (end + 1 < h && long[end + 1] >= w * 0.2) {
         end++;
       }
-      lines.add(((y + end) / 2, (end - y + 1).toDouble()));
+      lines.add((y, end, [for (var r = y; r <= end; r++) long[r]].reduce(math.max)));
       y = end;
     }
-    // Five lines evenly apart are a staff.
-    final found = <FoundStaff>[];
-    var i = 0;
-    while (i + 4 < lines.length) {
-      final gap = lines[i + 1].$1 - lines[i].$1;
+    double middle(int k) => (lines[k].$1 + lines[k].$2) / 2;
+    int weakest(List<int> five) => [for (final k in five) lines[k].$3].reduce(math.min);
+    // Five lines evenly apart are a staff, from line [i] and line [j] (the next or the one after)
+    // on, each next the fuller of the two after the last that lie a gap on. A line it leaves out
+    // (one between two of its lines at most) fills under half as much of its row as they do
+    // (ties' crests, a beam), or is a third of a gap or less from one of them. Null if none.
+    List<int>? five(int i, int j) {
+      final gap = middle(j) - middle(i), off = math.max(1.5, gap * 0.2);
       // A space is under a fortieth of the page's width: a line of each of five staves (their
       // others too faint to be found) is no staff.
-      var even = gap >= 3 && gap <= w / 40;
-      for (var k = 1; k < 4 && even; k++) {
-        final g = lines[i + k + 1].$1 - lines[i + k].$1;
-        even = (g - gap).abs() <= math.max(1.5, gap * 0.2);
+      if (gap < 3 || gap > w / 40) return null;
+      final picked = [i, j];
+      while (picked.length < 5) {
+        final want = middle(picked.last) + gap;
+        int? next;
+        for (var k = picked.last + 1; k <= picked.last + 2 && k < lines.length; k++) {
+          if ((middle(k) - want).abs() <= off && (next == null || lines[k].$3 > lines[next].$3)) next = k;
+        }
+        if (next == null) return null;
+        picked.add(next);
       }
-      if (!even) {
+      final least = weakest(picked);
+      for (var k = i + 1; k < picked.last; k++) {
+        if (!picked.contains(k) && lines[k].$3 * 2 >= least && !picked.any((p) => (middle(p) - middle(k)).abs() <= gap / 3)) {
+          return null;
+        }
+      }
+      return picked;
+    }
+
+    // The five from line [i] whose weakest line is fullest: a staff's lines run its length.
+    List<int>? fullest(int i) {
+      List<int>? best;
+      for (var j = i + 1; j <= i + 2 && j < lines.length; j++) {
+        final staff = five(i, j);
+        if (staff != null && (best == null || weakest(staff) > weakest(best))) best = staff;
+      }
+      return best;
+    }
+
+    final found = <FoundStaff>[];
+    var i = 0;
+    while (i < lines.length) {
+      final first = fullest(i);
+      if (first == null) {
         i++;
         continue;
       }
-      final space = (lines[i + 4].$1 - lines[i].$1) / 4;
-      final thickness = [for (var k = 0; k < 5; k++) lines[i + k].$2].reduce(math.max);
-      final rows = [for (var k = 0; k < 5; k++) lines[i + k].$1.round()];
-      var (left, right) = _reach(page, rows, space);
-      left = _lineStart(page, rows, space, left, left + (space * 4).round()) ?? left;
+      // Ties a space above a staff can fill a row as a line would: of the fives starting before
+      // this one's last line, the fullest.
+      var staff = first;
+      for (var k = i + 1; k < first.last; k++) {
+        final other = fullest(k);
+        if (other != null && weakest(other) > weakest(staff)) staff = other;
+      }
+      final rows = [for (final k in staff) (lines[k].$1, lines[k].$2)];
+      final mids = [for (final (a, b) in rows) (a + b) / 2];
+      final space = (mids[4] - mids[0]) / 4;
+      final thickness = [for (final (a, b) in rows) b - a + 1].reduce(math.max);
+      final at = [for (final m in mids) m.round()];
+      var (left, right) = _reach(page, at, space);
+      left = _lineStart(page, at, space, left, left + (space * 4).round()) ?? left;
       if (right - left > space * 8) {
         found.add((
-          top: page.yOf(lines[i].$1),
+          top: page.yOf(mids[0]),
           space: space / page.scale,
           left: page.xOf(left),
           right: page.xOf(right),
           thickness: thickness / page.scale,
         ));
       }
-      i += 5;
+      i = staff.last + 1;
     }
     return found;
   }
