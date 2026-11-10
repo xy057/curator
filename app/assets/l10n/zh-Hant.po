@@ -1,13 +1,21 @@
-# Curator’s interface in Traditional Chinese (Taiwan).
-#
-# Terms: score 樂譜, project 專案, file 檔案, video 影片, audio 音訊, lane 軌道, region 區域, playhead 播放磁頭, bar 小節, staff 譜表, staff space 譜間距, engraving 刻譜, anchor 錨點, warp 跳轉, tempo map 速度圖, caption 字幕, spacer 間隔, transition 轉場, condensing 聲部合併, recording 錄音.
+# Curator’s interface, in US English: the template every language is translated from.
+# Each text is its own key; a msgctxt tells apart one English word that means two things.
+# Keep every {placeholder} in the translation (its place is yours).
 msgid ""
 msgstr ""
-"Project-Id-Version: Curator\n"
+"Project-Id-Version: curator-by-xy057\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: zh-Hant\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Crowdin-Project: curator-by-xy057\n"
+"X-Crowdin-Project-ID: 945415\n"
+"X-Crowdin-Language: zh-TW\n"
+"X-Crowdin-File: /main/app/assets/l10n/curator.pot\n"
+"X-Crowdin-File-ID: 21\n"
+"Language-Team: Chinese Traditional\n"
+"Language: zh_TW\n"
+"PO-Revision-Date: 2026-11-10 08:19\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -78,8 +86,8 @@ msgstr "比較需要寫成「? … : …」。"
 msgid "A MIDI tempo map or a recording"
 msgstr "MIDI 速度圖或錄音"
 
-msgid "A project or a MusicXML score"
-msgstr "專案或 MusicXML 樂譜"
+msgid "A project, or a MusicXML or PDF score"
+msgstr ""
 
 msgid "A tempo map starts at quarter 0."
 msgstr "速度圖須從第 0 個四分音符開始。"
@@ -92,7 +100,7 @@ msgid "About Curator"
 msgstr "關於 Curator"
 
 msgid "Add the files to a repository, then Settings ▸ Pages ▸ Deploy from a branch."
-msgstr "將檔案加入儲存庫，然後選擇 Settings ▸ Pages ▸ Deploy from a branch。"
+msgstr ""
 
 msgid "After exporting, Open in Browser does it for you. Or, in a terminal:"
 msgstr "匯出後，「在瀏覽器中打開」會替你完成。或者在終端機中："
@@ -293,11 +301,9 @@ msgid "Align"
 msgstr "對齊"
 
 #: lib/audio_panel.dart
-msgid ""
-"Align\n"
+msgid "Align\n"
 "Set the anchors from the recording"
-msgstr ""
-"對齊\n"
+msgstr "對齊\n"
 "依錄音設定錨點"
 
 msgid "Align grace notes"
@@ -308,6 +314,9 @@ msgstr "自動對齊加入的錄音"
 
 msgid "Auto-curate imported scores"
 msgstr "自動編排匯入的樂譜"
+
+msgid "Auto-curate PDF scores"
+msgstr ""
 
 msgid "Off: every staff throughout."
 msgstr "關：全程顯示所有譜表。"
@@ -551,7 +560,7 @@ msgid "Captions"
 msgstr "字幕"
 
 msgid "Carbon"
-msgstr "Carbon"
+msgstr ""
 
 msgid "Center"
 msgstr "置中"
@@ -792,6 +801,7 @@ msgstr "自訂"
 msgid "Custom ({ratio})…"
 msgstr "自訂（{ratio}）…"
 
+#: lib/color_dialog.dart
 msgid "Custom Color"
 msgstr "自訂顏色"
 
@@ -1231,7 +1241,7 @@ msgstr "影像"
 msgid "Images and spacers that scroll with the score."
 msgstr "隨樂譜捲動的影像和間隔。"
 
-#: lib/captions_dialog.dart lib/settings_dialog.dart
+#: lib/app_menus.dart lib/captions_dialog.dart lib/home_screen.dart lib/settings_dialog.dart
 msgid "Import…"
 msgstr "匯入…"
 
@@ -1290,6 +1300,7 @@ msgstr "語言"
 msgid "Large"
 msgstr "大"
 
+#: lib/captions_dialog.dart
 msgid "Leave empty to remove"
 msgstr "留空即可移除"
 
@@ -1653,6 +1664,7 @@ msgstr "已固定"
 msgid "Play (Space)"
 msgstr "播放（空白鍵）"
 
+#: lib/settings_dialog.dart
 msgid "Playback line"
 msgstr "播放線"
 
@@ -1677,9 +1689,8 @@ msgstr "上一個（{key}）"
 msgid "Project Info"
 msgstr "專案資訊"
 
-#: lib/home_screen.dart
-msgid "Project or MusicXML ({key})"
-msgstr "專案或 MusicXML（{key}）"
+msgid "Project, MusicXML or PDF ({key})"
+msgstr ""
 
 #: lib/bottom_panel.dart
 msgid "Project Settings ({key})"
@@ -1718,11 +1729,11 @@ msgstr "最近使用"
 msgid "Recording"
 msgstr "錄音"
 
-#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/app_menus.dart
 msgid "Redo"
 msgstr "重做"
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr "重做（{key}）"
 
@@ -1843,7 +1854,6 @@ msgstr "替換為「{name}」？"
 msgid "Replaces the chosen lanes’ regions"
 msgstr "替換所選軌道中的區域"
 
-#: lib/settings_dialog.dart
 msgid "Replace…"
 msgstr "替換…"
 
@@ -2512,11 +2522,11 @@ msgstr "去除括號"
 msgid "Undefined at t = 0 or 1."
 msgstr "在 t = 0 或 1 處無定義。"
 
-#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/app_menus.dart
 msgid "Undo"
 msgstr "還原"
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr "還原（{key}）"
 
@@ -2542,7 +2552,7 @@ msgid "Fine seek"
 msgstr "精細定位"
 
 msgid "⌥←/→"
-msgstr "⌥←/→"
+msgstr ""
 
 msgid "Undo history"
 msgstr "還原記錄"
@@ -2574,6 +2584,12 @@ msgstr "影格太多了，請控制在 2000 格以內。"
 
 msgid "That image is too big. Use one under 64 MB."
 msgstr "影像太大了，請用小於 64 MB 的。"
+
+msgid "That score is too big. Use one under 256 MB."
+msgstr ""
+
+msgid "That MIDI file is too big."
+msgstr ""
 
 #: lib/edit_dialogs.dart
 msgid "Use Name from File"
@@ -2632,19 +2648,15 @@ msgid "Warp"
 msgstr "跳轉"
 
 #: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
+msgid "Warp (W)\n"
 "Jump to another bar here"
-msgstr ""
-"跳轉（W）\n"
+msgstr "跳轉（W）\n"
 "在此跳到另一小節"
 
 #: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
+msgid "Warp (W)\n"
 "Make this anchor jump to another bar"
-msgstr ""
-"跳轉（W）\n"
+msgstr "跳轉（W）\n"
 "讓此錨點跳到另一小節"
 
 #: lib/audio_panel.dart
@@ -2868,11 +2880,11 @@ msgstr "和弦（Q）"
 msgid "Couldn’t Edit Score"
 msgstr "無法編輯樂譜"
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr "放棄"
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr "放棄變更？"
 
@@ -2895,7 +2907,7 @@ msgstr "二分音符"
 msgid "Holds"
 msgstr "延長與停頓"
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr "繼續編輯"
 
@@ -3176,7 +3188,7 @@ msgstr "{n} / {count}"
 
 #: lib/pdf_import.dart
 msgid "×{n}"
-msgstr "×{n}"
+msgstr ""
 
 #: lib/edit_dialogs.dart
 msgid "Spacing of {name}"
@@ -3362,80 +3374,96 @@ msgstr "移除譜表"
 #: lib/condensing_editor.dart
 msgctxt "condensing"
 msgid "with"
-msgstr "與"
+msgstr ""
 
 #: lib/editor_controller.dart
-msgid ""
-"Couldn’t load the recording.\n"
+msgid "Couldn’t load the recording.\n"
 "{error}"
 msgstr ""
-"無法載入錄音。\n"
-"{error}"
 
 #: lib/error_text.dart
 msgid "The project is damaged: {detail}"
-msgstr "專案已損壞：{detail}"
+msgstr ""
 
 #: lib/error_text.dart
 msgid "The settings are damaged: {detail}"
-msgstr "設定檔案已損壞：{detail}"
+msgstr ""
 
 #: lib/media_converter.dart
-msgid ""
-"Couldn’t read audio from this file.\n"
+msgid "Couldn’t read audio from this file.\n"
 "{error}"
 msgstr ""
-"無法從這個檔案讀取音訊。\n"
-"{error}"
 
 #: lib/project_document.dart
-msgid ""
-"Can’t find the linked recording:\n"
+msgid "Can’t find the linked recording:\n"
 "{file}"
 msgstr ""
-"找不到連結的錄音：\n"
-"{file}"
 
 #: lib/score_editor.dart
 msgid "Voice {n}"
-msgstr "聲部 {n}"
+msgstr ""
 
 #: lib/error_text.dart lib/updater.dart
 msgid "{error}."
-msgstr "{error}。"
+msgstr ""
 
 #: lib/updater.dart
 msgid "Couldn’t write the download."
-msgstr "無法寫入下載檔案。"
+msgstr ""
 
 #: lib/updater.dart
 msgid "Couldn’t write {file}."
-msgstr "無法寫入 {file}。"
+msgstr ""
 
 #: lib/video_export.dart
-msgid ""
-"FFmpeg couldn’t write the sound.\n"
+msgid "FFmpeg couldn’t write the sound.\n"
 "{error}"
 msgstr ""
-"FFmpeg 無法寫入聲音。\n"
-"{error}"
 
 #: lib/video_export.dart
-msgid ""
-"FFmpeg couldn’t write the video.\n"
+msgid "FFmpeg couldn’t write the video.\n"
 "{error}"
 msgstr ""
-"FFmpeg 無法寫入影片。\n"
-"{error}"
 
 #: lib/web_export.dart
-msgid ""
-"Couldn’t write the page.\n"
+msgid "Couldn’t write the page.\n"
 "{error}"
 msgstr ""
-"無法寫入網頁。\n"
-"{error}"
 
 #: lib/error_text.dart
 msgid "{error}: “{file}”."
-msgstr "{error}：「{file}」。"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Help translate Curator"
+msgstr ""
+
+msgid "Only partwise MusicXML can be edited."
+msgstr ""
+
+msgid "The score has no bars."
+msgstr ""
+
+msgid "The instruments have different numbers of bars."
+msgstr ""
+
+#: lib/pdf_import.dart
+msgid "No staff has an instrument yet."
+msgstr ""
+
+#: lib/main.dart
+msgid "“{name}” is open in another tab. Close it there first."
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "No room for another caption"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "Project or MusicXML ({key})"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "PDF score ({key})"
+msgstr ""
+
