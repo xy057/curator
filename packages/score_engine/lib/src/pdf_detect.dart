@@ -75,7 +75,9 @@ abstract final class PdfDetect {
     var i = 0;
     while (i + 4 < lines.length) {
       final gap = lines[i + 1].$1 - lines[i].$1;
-      var even = gap >= 3 && gap <= h / 8;
+      // A space is under a fortieth of the page's width: a line of each of five staves (their
+      // others too faint to be found) is no staff.
+      var even = gap >= 3 && gap <= w / 40;
       for (var k = 1; k < 4 && even; k++) {
         final g = lines[i + k + 1].$1 - lines[i + k].$1;
         even = (g - gap).abs() <= math.max(1.5, gap * 0.2);
