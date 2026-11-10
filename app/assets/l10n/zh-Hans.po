@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Chinese Simplified\n"
 "Language: zh_CN\n"
-"PO-Revision-Date: 2026-11-10 14:47\n"
+"PO-Revision-Date: 2026-11-10 16:06\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -87,7 +87,7 @@ msgid "A MIDI tempo map or a recording"
 msgstr "MIDI 速度图或录音"
 
 msgid "A project, or a MusicXML or PDF score"
-msgstr ""
+msgstr "项目，或 MusicXML、PDF 乐谱"
 
 msgid "A tempo map starts at quarter 0."
 msgstr "速度图须从第 0 个四分音符开始。"
@@ -100,7 +100,7 @@ msgid "About Curator"
 msgstr "关于 Curator"
 
 msgid "Add the files to a repository, then Settings ▸ Pages ▸ Deploy from a branch."
-msgstr ""
+msgstr "将文件添加到仓库，然后选择 Settings ▸ Pages ▸ Deploy from a branch。"
 
 msgid "After exporting, Open in Browser does it for you. Or, in a terminal:"
 msgstr "导出后，“在浏览器中打开”会替你完成。或者在终端中："
@@ -316,7 +316,7 @@ msgid "Auto-curate imported scores"
 msgstr "自动编排导入的乐谱"
 
 msgid "Auto-curate PDF scores"
-msgstr ""
+msgstr "自动编排 PDF 乐谱"
 
 msgid "Off: every staff throughout."
 msgstr "关：全程显示所有谱表。"
@@ -1690,7 +1690,7 @@ msgid "Project Info"
 msgstr "项目信息"
 
 msgid "Project, MusicXML or PDF ({key})"
-msgstr ""
+msgstr "项目、MusicXML 或 PDF（{key}）"
 
 #: lib/bottom_panel.dart
 msgid "Project Settings ({key})"
@@ -2586,10 +2586,10 @@ msgid "That image is too big. Use one under 64 MB."
 msgstr "图像太大了，请用小于 64 MB 的。"
 
 msgid "That score is too big. Use one under 256 MB."
-msgstr ""
+msgstr "乐谱太大了，请用小于 256 MB 的。"
 
 msgid "That MIDI file is too big."
-msgstr ""
+msgstr "这个 MIDI 文件太大了。"
 
 #: lib/edit_dialogs.dart
 msgid "Use Name from File"
@@ -3374,98 +3374,104 @@ msgstr "移除谱表"
 #: lib/condensing_editor.dart
 msgctxt "condensing"
 msgid "with"
-msgstr ""
+msgstr "与"
 
 #: lib/editor_controller.dart
 msgid "Couldn’t load the recording.\n"
 "{error}"
-msgstr ""
+msgstr "无法载入录音。\n"
+"{error}"
 
 #: lib/error_text.dart
 msgid "The project is damaged: {detail}"
-msgstr ""
+msgstr "项目已损坏：{detail}"
 
 #: lib/error_text.dart
 msgid "The settings are damaged: {detail}"
-msgstr ""
+msgstr "设置文件已损坏：{detail}"
 
 #: lib/media_converter.dart
 msgid "Couldn’t read audio from this file.\n"
 "{error}"
-msgstr ""
+msgstr "无法从这个文件读取音频。\n"
+"{error}"
 
 #: lib/project_document.dart
 msgid "Can’t find the linked recording:\n"
 "{file}"
-msgstr ""
+msgstr "找不到链接的录音：\n"
+"{file}"
 
 #: lib/score_editor.dart
 msgid "Voice {n}"
-msgstr ""
+msgstr "声部 {n}"
 
 #: lib/error_text.dart lib/updater.dart
 msgid "{error}."
-msgstr ""
+msgstr "{error}。"
 
 #: lib/updater.dart
 msgid "Couldn’t write the download."
-msgstr ""
+msgstr "无法写入下载文件。"
 
 #: lib/updater.dart
 msgid "Couldn’t write {file}."
-msgstr ""
+msgstr "无法写入 {file}。"
 
 #: lib/video_export.dart
 msgid "FFmpeg couldn’t write the sound.\n"
 "{error}"
-msgstr ""
+msgstr "FFmpeg 无法写入声音。\n"
+"{error}"
 
 #: lib/video_export.dart
 msgid "FFmpeg couldn’t write the video.\n"
 "{error}"
-msgstr ""
+msgstr "FFmpeg 无法写入视频。\n"
+"{error}"
 
 #: lib/web_export.dart
 msgid "Couldn’t write the page.\n"
 "{error}"
-msgstr ""
+msgstr "无法写入网页。\n"
+"{error}"
 
 #: lib/error_text.dart
 msgid "{error}: “{file}”."
-msgstr ""
+msgstr "{error}：“{file}”。"
 
 #: lib/settings_dialog.dart
 msgid "Help translate Curator"
-msgstr ""
+msgstr "帮助翻译 Curator"
 
 msgid "Only partwise MusicXML can be edited."
-msgstr ""
+msgstr "只能编辑 partwise 格式的 MusicXML。"
 
 msgid "The score has no bars."
-msgstr ""
+msgstr "乐谱没有小节。"
 
 msgid "The instruments have different numbers of bars."
-msgstr ""
+msgstr "各乐器的小节数不同。"
 
 #: lib/pdf_import.dart
 msgid "No staff has an instrument yet."
-msgstr ""
+msgstr "还没有谱表指定乐器。"
 
 #: lib/main.dart
 msgid "“{name}” is open in another tab. Close it there first."
-msgstr ""
+msgstr "“{name}”已在另一个标签页中打开，请先在那里关闭它。"
 
 #: lib/captions_dialog.dart
 msgid "No room for another caption"
-msgstr ""
+msgstr "没有空间再添加字幕"
 
 #: lib/home_screen.dart
 msgid "Project or MusicXML ({key})"
-msgstr ""
+msgstr "项目或 MusicXML（{key}）"
 
 #: lib/home_screen.dart
 msgid "PDF score ({key})"
-msgstr ""
+msgstr "PDF 乐谱（{key}）"
 
 msgid "Projects"
 msgstr ""
