@@ -610,7 +610,9 @@ while it runs sideways; a Listener sees each event before any recognizer does, s
 known before the scroll view moves, and it is kept after the swipe for the scroll view's fling),
 and glides on after a flick. In the lanes it pans the time; on the score it scrubs
 (`Playback.scrub`), at the score's own speed there (`ScoreViewState._speedAt`), so the notes stay
-under the fingers.
+under the fingers. A mouse's wheel is not a swipe (it comes as scroll events): over the score it
+scrubs turned either way, down moving on in time (`ScoreViewState._wheel`); a trackpad's
+up-and-down swipe there still does nothing.
 
 **Auto-Curate fits the frame.** A new score's lanes (unless Settings ▸ General ▸ Auto-curate
 imported scores is off: then each lane is whole), Auto-Curate and a lane's Auto-Curate Lane start from where each part plays (`autoCurateMeasures`: rests of one bar bridged), then ask that
@@ -868,7 +870,7 @@ closes Find Phrase and the Engraving window (one at a time, over whichever tab s
 one menu bar (on macOS one `PlatformMenuBar` may be built): the window builds it for the tab
 showing, from that page's state, and a page says when what it offers changes (`onMenusChanged`).
 Show Next / Previous Tab (⌃Tab, ⌃⇧Tab: Window on macOS, View elsewhere) go round the tabs, Home
-among them; past the window's width the strip scrolls, and to the tab showing when another does (`_ProjectTabsState._reveal`). View ▸ Show / Hide Tab Bar (⇧⌘T, `AppSettings.tabBar`) hides the strip, the editor's toolbar
+among them; past the window's width the strip scrolls, and to the tab showing when another does (`_ProjectTabsState._reveal`). A project's tab dragged along the strip changes places with those it passes (`ProjectTabs.onMove`, `_AppWindowState._moveTab`: the order of `_projects`), following the pointer over the others, which slide aside. View ▸ Show / Hide Tab Bar (⇧⌘T, `AppSettings.tabBar`) hides the strip, the editor's toolbar
 taking a button that shows it again meanwhile (`AppIcon.tabBar`); Show All Tabs (⇧⌘\) shows it again. The strip folds up under the menu as it goes, still painted
 (clipped, kept in the tree), and the window has a background under everything: a place left
 unpainted, even for a frame, shows the window's black backing. AppKit's own window tabs are off
