@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart'
-    show CaptionAlign, CaptionCountdown, CaptionSize, EngravingOptions, MusicFont, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
+    show CaptionAlign, CaptionCountdown, CaptionSize, EngravingOptions, MusicFont, PdfAiExamResult, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ai_providers.dart';
@@ -67,6 +67,7 @@ class AppSettings extends ChangeNotifier {
         _windowFrame = WindowFrame.parse(_prefs?.getString(_windowFrameKey)),
         _aiProviders = List.unmodifiable(AiProvider.read(_prefs?.getString(_aiProvidersKey))),
         _pdfAiModel = _prefs?.getString(_pdfAiModelKey) ?? '',
+        _pdfAiExams = _readPdfAiExams(_prefs?.getString(_pdfAiExamsKey)),
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
@@ -103,7 +104,7 @@ class AppSettings extends ChangeNotifier {
   static const _tabBarKey = 'showTabBar';
   // macOS reads the flag itself, before Dart runs (MainFlutterWindow.swift: "flutter." + this).
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
-  static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel';
+  static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel', _pdfAiExamsKey = 'pdfAiExams';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
 
@@ -574,6 +575,31 @@ class AppSettings extends ChangeNotifier {
 
   /// The model the PDF import reads with, while it is there to ask.
   AiModel? get pdfAi => _pdfAiModel.isEmpty ? null : _aiProviders.model(_pdfAiModel);
+
+  /// How [model] ([AiModels.keyOf]) last did in the PDF import's exam ([PdfAiExam]); null: it hasn't
+  /// taken this one.
+  PdfAiExamResult? pdfAiExam(String model) => _pdfAiExams[model];
+  Map<String, PdfAiExamResult> _pdfAiExams;
+  void setPdfAiExam(String model, PdfAiExamResult result) {
+    _pdfAiExams = Map.unmodifiable({..._pdfAiExams, model: result});
+    _prefs?.setString(_pdfAiExamsKey, jsonEncode({for (final e in _pdfAiExams.entries) e.key: e.value.toJson()}));
+    notifyListeners();
+  }
+
+  /// The results kept, those of this exam ([PdfAiExamResult.fromJson]).
+  static Map<String, PdfAiExamResult> _readPdfAiExams(String? json) {
+    try {
+      if (jsonDecode(json ?? '{}') case final Map map) {
+        return Map.unmodifiable({
+          for (final MapEntry(:key, :value) in map.entries)
+            if ((key, PdfAiExamResult.fromJson(value)) case (final String model, final result?)) model: result,
+        });
+      }
+    } on FormatException {
+      // Unreadable: none kept.
+    }
+    return const {};
+  }
 
   /// The window as it was left (Windows and Linux; macOS keeps its own, NSWindow's autosave).
   WindowFrame? get windowFrame => _windowFrame;

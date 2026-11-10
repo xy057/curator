@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:score_engine/score_engine.dart';
 
 import 'ai_providers.dart';
@@ -141,6 +142,51 @@ class PdfAiReader {
       return bytes!.buffer.asUint8List();
     } finally {
       out.dispose();
+    }
+  }
+}
+
+/// The exam ([PdfAiExam]) as [model] takes it before Read with AI asks it anything: each of its
+/// pages asked as Read with AI asks (the same pictures and question), both at once, and the
+/// answers marked.
+class PdfAiExamRun {
+  PdfAiExamRun(this.model) : _client = AiClient(model.provider, timeout: const Duration(minutes: 8));
+
+  final AiModel model;
+  final AiClient _client;
+
+  /// Whether [stop] was called.
+  bool get stopped => _stopped;
+  bool _stopped = false;
+
+  /// Stops the exam: requests under way are ended.
+  void stop() {
+    _stopped = true;
+    _client.close();
+  }
+
+  /// The answers marked; [onPage] hears how many pages are answered. An answer that isn't the
+  /// JSON asked for is wrong throughout; what goes wrong asking (the key, the server) is thrown.
+  Future<PdfAiExamResult> run({void Function(int done, int of)? onPage}) async {
+    final bytes = await rootBundle.load(PdfAiExam.asset);
+    final pages = await PdfPages.open(bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes));
+    try {
+      var done = 0;
+      Future<PdfAiPage?> ask(PdfAiExamPage page) async {
+        final images = await PdfAiReader.pictures(pages, page.index, [page.system]);
+        if (_stopped) throw StateError('stopped');
+        final text = await _client.ask(model.model, PdfAiExam.prompt(page), images: images);
+        if (!_stopped) onPage?.call(++done, PdfAiExam.pages.length);
+        try {
+          return PdfAiPage.parse(text);
+        } on FormatException {
+          return null;
+        }
+      }
+
+      return PdfAiExam.score(await Future.wait([for (final page in PdfAiExam.pages) ask(page)]));
+    } finally {
+      pages.close();
     }
   }
 }

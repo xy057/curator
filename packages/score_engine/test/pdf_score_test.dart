@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -101,6 +102,69 @@ void main() {
     expect(next.tempos, {0: const PdfTempo('Allegro'), 1: const PdfTempo('rit.')});
     expect(next.instruments.last.clefs, {(1, 1): PdfClef.bass});
     expect(next.systems.single.ink, isNull);
+  });
+
+  test('the exam marks a model’s answers as Read with AI takes them', () {
+    final view = PdfAiView(PdfAiExam.size);
+    // A page's answer as printed, its places scaled and moved as a model's drift.
+    String answer(PdfAiExamPage page,
+        {double scale = 1, double by = 0, double across = 0, int borders = 99, List<Object>? barlines, List<Object>? tempos,
+        Map<String, Object?> Function(int k, Map<String, Object?> staff)? staff}) {
+      double y(double p) => (p * scale + by) / PdfAiExam.size.height * 1000;
+      double x(double p) => (p + across) / view.width * 1000;
+      return jsonEncode({
+        'systems': [
+          {
+            'staves': [
+              for (final (k, s) in page.staves.indexed)
+                (staff ?? (_, m) => m)(k, {
+                  'label': k + 1, 'y': y((s.top + s.bottom) / 2), 'instrument': 'P${k + 1}', 'staff': 1, //
+                  'name': s.name, 'printed': s.printed, 'clef': s.clef.name, 'key': s.key,
+                }),
+            ],
+            'top': y((page.top.$1 + page.top.$2) / 2),
+            'bottom': y((page.bottom.$1 + page.bottom.$2) / 2),
+            'borders': [
+              for (var k = 1; k < page.staves.length && k <= borders; k++) {'below': k, 'y': y((page.staves[k - 1].bottom + page.staves[k].top) / 2)},
+            ],
+            'barlines': barlines ?? [for (final b in page.barlines) {'x': x(b), 'kind': 'single'}],
+            'time': page.time?.toString(),
+            'tempos': tempos ?? [if (page.tempo case final t?) {'bar': 1, 'text': t.words, 'bpm': t.bpm}],
+          },
+        ],
+      });
+    }
+
+    PdfAiExamResult score(List<String?> answers) => PdfAiExam.score([for (final a in answers) a == null ? null : PdfAiPage.parse(a)]);
+    final [first, second] = PdfAiExam.pages;
+    final all = {for (final p in PdfAiExamPart.values) p: 1.0};
+    expect(score([answer(first), answer(second)]).parts, all);
+    // Places off by as much throughout are as good: Read with AI sets them right.
+    expect(score([answer(first, scale: 1.03, by: 8, across: 10), answer(second, scale: 0.98, by: -6, across: -12)]).parts, all);
+
+    // The clarinets' key misread, a clef change made up, two borders, four barlines and the
+    // metronome mark left out, the system's end called final; the next page's answer unreadable.
+    double x(double p) => p / view.width * 1000;
+    final poor = score([
+      answer(first,
+          borders: 10,
+          barlines: [for (final b in first.barlines.take(5)) {'x': x(b)}, {'x': x(first.barlines.last), 'kind': 'final'}],
+          tempos: [{'bar': 1, 'text': 'Allegro ma non troppo, un poco maestoso', 'bpm': null}],
+          staff: (k, s) => {...s, if (k == 2) 'key': -1, if (k == 3) 'changes': [{'bar': 3, 'clef': 'treble'}]}),
+      null,
+    ]);
+    expect(poor.parts, {
+      PdfAiExamPart.horizontal: 13 / 30,
+      PdfAiExamPart.barlines: 10 / 24,
+      PdfAiExamPart.names: 26 / 52,
+      PdfAiExamPart.clefs: 12 / 26,
+      PdfAiExamPart.keys: 12 / 26,
+      PdfAiExamPart.tempo: 2 / 5,
+    });
+    // Kept as this exam's, and not another's.
+    final kept = PdfAiExamResult.fromJson(jsonDecode(jsonEncode(poor.toJson())))!;
+    expect(kept.accuracy, closeTo(poor.accuracy, 0.001));
+    expect(PdfAiExamResult.fromJson({...poor.toJson(), 'version': PdfAiExam.version + 1}), isNull);
   });
 
   test('a divided instrument is a part a division, and the layout round-trips', () {

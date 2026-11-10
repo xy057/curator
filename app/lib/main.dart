@@ -34,6 +34,7 @@ import 'home_screen.dart';
 import 'l10n/l10n.dart';
 import 'media_converter.dart';
 import 'phrase_search_window.dart';
+import 'pdf_ai_model_dialog.dart';
 import 'pdf_import.dart';
 import 'project_document.dart';
 import 'project_file.dart';
@@ -950,7 +951,10 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final pages = await PdfPages.open(bytes);
     PdfScoreLayout? layout;
     try {
-      if (mounted) layout = await showPdfImport(context, pages, name: fileNameOf(path), ai: settings.pdfAi);
+      if (mounted) {
+        layout = await showPdfImport(context, pages,
+            name: fileNameOf(path), ai: settings.pdfAi, chooseAi: () => showPdfAiModelDialog(context, settings));
+      }
     } finally {
       if (layout == null || !mounted) pages.close();
     }
@@ -1231,7 +1235,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final pages = controller.pdfPages;
     final name = controller.fileName ?? 'Score.pdf';
     if (pages == null) return;
-    final next = await showPdfImport(context, pages, name: name, layout: layout, ai: settings.pdfAi);
+    final next = await showPdfImport(context, pages,
+        name: name, layout: layout, ai: settings.pdfAi, chooseAi: () => showPdfAiModelDialog(context, settings));
     if (next == null || !mounted) return;
     await _guard(() async {
       final replacement = await document.prepareReplacementWith(name, controller.source!.bytes, pdf: next);
