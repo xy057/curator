@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart' show RenderStyle, TextKind, verovioVersion;
 
+import 'ai_settings.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_logo.dart';
@@ -341,6 +342,12 @@ final _categories = <_Category>[
       (c) => AppSwitch(value: c.settings.reduceMotion, onChanged: (v) => c.settings.reduceMotion = v),
       keywords: 'animation animations fade slide still accessibility',
     ),
+  ]),
+  // The page is AiSettingsPage; this row is what the search finds.
+  _Category('AI', AppIcon.ai, page: (c) => AiSettingsPage(settings: c.settings, groupColor: _groupColor), [
+    _Item('Providers', null, (_) => const SizedBox.shrink(),
+        keywords: 'ai api key keys credentials token provider providers model models llm openai chatgpt gpt anthropic '
+            'claude openrouter gemini google deepseek base url endpoint'),
   ]),
   // The page is _AboutPage; these rows are what the search finds.
   _Category('About', AppIcon.about, page: (c) => _AboutPage(c), [

@@ -142,6 +142,13 @@ ICONS = [
     ('addBarline', 'Adds a barline.', 'splitscreen_vertical_add', 'column--insert'),
     ('addStaff', 'Adds a staff.', 'add_row_below', 'row--insert'),
     ('chapters', 'Chapters.', 'bookmark', 'bookmark'),
+    # AI (Settings ▸ AI)
+    ('ai', 'AI providers.', 'auto_awesome', 'ai-generate'),
+    ('show', 'Shows what a field hides (a key).', 'visibility', 'view'),
+    ('hide', 'Hides it again.', 'visibility_off', 'view--off'),
+    ('test', 'Tries a connection.', 'ecg_heart', 'activity'),
+    ('fetch', 'Asks a server for its list.', 'sync', 'renew'),
+    ('selectMany', 'Chooses several items of a list.', 'check_box', 'checkbox--checked'),
 ]
 
 

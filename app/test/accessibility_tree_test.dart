@@ -65,7 +65,7 @@ void main() {
       await frames('closing $name');
     }
 
-    for (final p in ['General', 'Appearance', 'Advanced', 'About']) {
+    for (final p in ['General', 'Appearance', 'Advanced', 'AI', 'About']) {
       await page(p, () => showSettingsDialog(context(), settings, controller: c, page: p));
     }
     for (final p in ['Project Info', 'Animation', 'Instruments', 'Sections', 'Condensing', 'Extensions', 'Flags', 'Engraving']) {

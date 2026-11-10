@@ -229,7 +229,7 @@ msgstr ""
 msgid "Accidentals"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
 msgid "Add"
 msgstr ""
 
@@ -316,7 +316,7 @@ msgstr ""
 msgid "Aligning…"
 msgstr ""
 
-#: lib/extensions/extensions_dialog.dart lib/instruments_toolbar.dart lib/pdf_import.dart
+#: lib/ai_settings.dart lib/extensions/extensions_dialog.dart lib/instruments_toolbar.dart lib/pdf_import.dart
 msgid "All"
 msgstr ""
 
@@ -520,7 +520,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -828,7 +828,7 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
-#: lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart
 msgid "Delete"
 msgstr ""
 
@@ -1418,6 +1418,7 @@ msgstr ""
 msgid "Music symbols"
 msgstr ""
 
+#: lib/ai_settings.dart
 msgid "Name"
 msgstr ""
 
@@ -1547,7 +1548,7 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr ""
 
@@ -1749,7 +1750,7 @@ msgstr ""
 msgid "Rehearsal marks in bar numbers"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
 msgid "Remove"
 msgstr ""
 
@@ -1897,7 +1898,7 @@ msgstr ""
 msgid "Saturation"
 msgstr ""
 
-#: lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart
 msgid "Save"
 msgstr ""
 
@@ -1967,7 +1968,7 @@ msgstr ""
 msgid "Select (V)"
 msgstr ""
 
-#: lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart
 msgid "Select All"
 msgstr ""
 
@@ -3513,4 +3514,184 @@ msgstr ""
 
 #: lib/video_export.dart lib/web_player/player.dart
 msgid "Start"
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "The base URL isn’t a web address."
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "The server’s answer isn’t a list of models."
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "No answer."
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "The server’s answer isn’t JSON."
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "The server didn’t answer in time."
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "No matching providers"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Add Provider…"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Search providers"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgctxt "provider"
+msgid "On"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgctxt "provider"
+msgid "Off"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Connected"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Couldn’t Fetch Models"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Edit provider"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "API key"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Hide key"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Show key"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "API base URL"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "API path"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Models"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Search models"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Select models"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Add model"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Fetch"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Select None"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Remove {n}"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "No models yet."
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "No matching models"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Test"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Test a model"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Remove model"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Delete “{name}”?"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Its key and models go with it."
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Add Provider"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Edit Provider"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "API format"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Delete…"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Add Model"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Model ID"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Already added"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Choose Models"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "The provider offers no models."
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "All matching"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "{n} of {all}"
+msgstr ""
+
+msgid "AI"
+msgstr ""
+
+msgid "Providers"
 msgstr ""
