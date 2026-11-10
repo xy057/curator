@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Japanese\n"
 "Language: ja_JP\n"
-"PO-Revision-Date: 2026-11-09 23:11\n"
+"PO-Revision-Date: 2026-11-10 07:45\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -86,7 +86,7 @@ msgstr ""
 msgid "A MIDI tempo map or a recording"
 msgstr ""
 
-msgid "A project or a MusicXML score"
+msgid "A project, or a MusicXML or PDF score"
 msgstr ""
 
 msgid "A tempo map starts at quarter 0."
@@ -1689,7 +1689,7 @@ msgid "Project Info"
 msgstr ""
 
 #: lib/home_screen.dart
-msgid "Project or MusicXML ({key})"
+msgid "Project, MusicXML or PDF ({key})"
 msgstr ""
 
 #: lib/bottom_panel.dart
@@ -1729,11 +1729,11 @@ msgstr ""
 msgid "Recording"
 msgstr ""
 
-#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/app_menus.dart
 msgid "Redo"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr ""
 
@@ -2522,11 +2522,11 @@ msgstr ""
 msgid "Undefined at t = 0 or 1."
 msgstr ""
 
-#: lib/app_menus.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/app_menus.dart
 msgid "Undo"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr ""
 
@@ -2878,11 +2878,11 @@ msgstr ""
 msgid "Couldn’t Edit Score"
 msgstr ""
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr ""
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr ""
 
@@ -2905,7 +2905,7 @@ msgstr ""
 msgid "Holds"
 msgstr ""
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr ""
 
@@ -3451,5 +3451,9 @@ msgstr ""
 
 #: lib/main.dart
 msgid "“{name}” is open in another tab. Close it there first."
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "No room for another caption"
 msgstr ""
 
