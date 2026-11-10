@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2026-11-10 07:45\n"
+"PO-Revision-Date: 2026-11-10 08:19\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -1240,7 +1240,7 @@ msgstr ""
 msgid "Images and spacers that scroll with the score."
 msgstr ""
 
-#: lib/captions_dialog.dart lib/settings_dialog.dart
+#: lib/app_menus.dart lib/captions_dialog.dart lib/home_screen.dart lib/settings_dialog.dart
 msgid "Import…"
 msgstr ""
 
@@ -1688,7 +1688,6 @@ msgstr ""
 msgid "Project Info"
 msgstr ""
 
-#: lib/home_screen.dart
 msgid "Project, MusicXML or PDF ({key})"
 msgstr ""
 
@@ -3455,5 +3454,13 @@ msgstr ""
 
 #: lib/captions_dialog.dart
 msgid "No room for another caption"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "Project or MusicXML ({key})"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "PDF score ({key})"
 msgstr ""
 
