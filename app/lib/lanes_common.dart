@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,54 @@ import 'app_icons.dart';
 import 'ui_kit.dart';
 import 'editor_controller.dart';
 import 'l10n/l10n.dart';
+
+/// The cursor over a lane, which says what a press there would do ([cursorAt]). That changes as
+/// the mouse moves, and as a key does with the mouse at rest: ⌥ swaps the tool, and V, D or E
+/// chooses one. The lane's [MouseRegion] takes [laneCursor], [cursorHover] and [cursorExit].
+mixin LaneCursor<T extends StatefulWidget> on State<T> {
+  /// What a press at [local] (in the lane) would do now, as a cursor.
+  MouseCursor cursorAt(Offset local);
+
+  /// A drag is under way: the cursor it took (a hand closed on a region) stays.
+  bool get cursorHeld => false;
+
+  MouseCursor laneCursor = SystemMouseCursors.basic;
+
+  /// Where the mouse is over the lane; null: not over it.
+  Offset? _over;
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_keyed);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_keyed);
+    super.dispose();
+  }
+
+  bool _keyed(KeyEvent _) {
+    // Once the shortcuts have had the key: they choose the tool.
+    scheduleMicrotask(() {
+      final at = _over;
+      if (mounted && at != null && !cursorHeld) showCursor(cursorAt(at));
+    });
+    return false; // only watching
+  }
+
+  void cursorHover(PointerHoverEvent e) {
+    _over = e.localPosition;
+    showCursor(cursorAt(e.localPosition));
+  }
+
+  void cursorExit(PointerExitEvent _) => _over = null;
+
+  void showCursor(MouseCursor cursor) {
+    if (cursor != laneCursor) setState(() => laneCursor = cursor);
+  }
+}
 
 /// Width of the name column on the left of every lane (both tabs, so time lines up).
 const kLaneHeaderWidth = 176.0;
@@ -229,7 +278,7 @@ class _ViewportGesturesState extends State<ViewportGestures> with SingleTickerPr
 }
 
 /// Bar numbers at the times they sound (so a tempo change is visible as uneven bars), time
-/// ticks, and the playhead. Click or drag to move the playhead. While notation runs off the
+/// ticks, and the playhead. Click or drag to move the playhead (the selection stays). While notation runs off the
 /// video's frame it is red, and a warning by its name says at which bars.
 class BarRuler extends StatelessWidget {
   const BarRuler({super.key, required this.controller});
@@ -271,9 +320,10 @@ class BarRuler extends StatelessWidget {
         Expanded(
           child: Listener(
             // The primary button only, as in the lanes: a right-click leaves the playhead be.
+            // What is selected stays so: the playhead is put where the selection is then
+            // trimmed to ([ and ]), or where what was copied is pasted into the lane selected.
             onPointerDown: (e) {
               if (e.buttons != kPrimaryButton) return;
-              c.clearSelection();
               c.playback.scrub(c.viewport.seconds(e.localPosition.dx));
             },
             onPointerMove: (e) {

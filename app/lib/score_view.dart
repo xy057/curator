@@ -44,8 +44,8 @@ typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double q
 /// to select it, drag it to move it, drag a handle to resize it ([_SpacerHandles]); double-click
 /// one (or right-click it) to change or remove it. A horizontal one is the stretch it widens.
 ///
-/// A sideways two-finger swipe (or shift-scroll) scrubs: the score follows the fingers past the
-/// pointer, and glides on after a flick ([SideSwipe]).
+/// A sideways two-finger swipe scrubs: the score follows the fingers past the pointer, and glides
+/// on after a flick ([SideSwipe]). A mouse's wheel scrubs too, turned either way.
 ///
 /// With Captions on, right-click ▸ Add Caption… adds one from where it was clicked;
 /// double-click the caption showing (or right-click it) to change or remove it.
@@ -82,10 +82,12 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
     return playback.time.value != from;
   }
 
-  /// A turn of the wheel sideways (or shift-scrolled) moves the score as far as the lanes'.
+  /// A turn of a mouse's wheel scrubs: down (or to the right) moves on in time, the score going
+  /// by as far as the wheel turned, as the lanes do under a sideways one. (A trackpad's swipe
+  /// isn't a wheel: sideways it scrubs through [_swipe], up and down it does nothing.)
   void _wheel(PointerScrollEvent e) {
-    final frame = _frame, shift = HardwareKeyboard.instance.isShiftPressed;
-    final d = shift ? e.scrollDelta.dy : e.scrollDelta.dx;
+    final frame = _frame;
+    final d = e.scrollDelta.dx.abs() >= e.scrollDelta.dy.abs() ? e.scrollDelta.dx : e.scrollDelta.dy;
     if (c.scene == null || frame == null || isZoomModifierPressed || d == 0) return;
     _swipe.stop();
     final playback = c.playback;

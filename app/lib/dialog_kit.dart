@@ -23,7 +23,7 @@ double dialogWidth(BuildContext context, double base) => (base * 1.2).roundToDou
 ///
 /// A title, a body that scrolls when the window is short, and a footer with [leading] buttons at
 /// its left, a [status] (a problem in what was typed) beside them, and the [actions] at its
-/// right, the default one last. [divided] draws a hairline above the footer, for a body that is a
+/// right, the default one last: Return presses it ([DialogKeys]). [divided] draws a hairline above the footer, for a body that is a
 /// list or a table. [UiStyle.refined] sets it as a desktop editor does; [UiStyle.carbon] as
 /// Carbon's modal: square, its footer's buttons 40 px tall and edge to edge at its right.
 class AppDialog extends StatelessWidget {
@@ -35,6 +35,8 @@ class AppDialog extends StatelessWidget {
     this.status,
     required this.actions,
     this.divided = false,
+    this.confirmsOnReturn = true,
+    this.onEscape,
   });
 
   final Widget title;
@@ -43,6 +45,13 @@ class AppDialog extends StatelessWidget {
   final Widget? status;
   final List<Widget> actions;
   final bool divided;
+
+  /// Whether Return presses the default button. Not where that throws work away (Discard): a
+  /// key pressed once too often must not.
+  final bool confirmsOnReturn;
+
+  /// Esc, in a dialog a click outside doesn't close (so Esc doesn't either); null: nothing more.
+  final VoidCallback? onEscape;
 
   @override
   Widget build(BuildContext context) {
@@ -84,17 +93,29 @@ class AppDialog extends StatelessWidget {
           ),
         ),
     ];
-    return Dialog(
-      insetPadding: const EdgeInsets.all(32),
-      clipBehavior: Clip.antiAlias,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minWidth: 380, maxWidth: 820),
-        child: IntrinsicWidth(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: body),
+    return DialogKeys(
+      onReturn: confirmsOnReturn ? _defaultAction : null,
+      onEscape: onEscape,
+      child: Dialog(
+        insetPadding: const EdgeInsets.all(32),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 380, maxWidth: 820),
+          child: IntrinsicWidth(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: body),
+          ),
         ),
       ),
     );
   }
+
+  /// What Return does ([DialogKeys]): the default button's press, the filled one last among the
+  /// [actions], or the only one there is (an OK); null while it is greyed out.
+  VoidCallback? get _defaultAction => switch (actions) {
+        [final ButtonStyleButton only] => only.onPressed,
+        [..., final FilledButton last] => last.onPressed,
+        _ => null,
+      };
 
   /// Carbon's modal footer, slim: [_footerHeight] tall, each action a quarter of the dialog wide
   /// (narrower when there are more than two beside [leading] or a [status], which take the rest),

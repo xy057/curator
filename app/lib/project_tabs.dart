@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart' show GestureBinding, PointerScrollEvent, PointerSignalEvent, kMiddleMouseButton;
 import 'package:flutter/material.dart';
@@ -11,9 +13,10 @@ import 'ui_kit.dart';
 typedef ProjectTabLabel = ({String name, bool edited, String? path});
 
 /// The tabs along the top of the window while a project is open: Home first (an icon), then each
-/// project open by its name. A click shows one; its ×, or a middle click, closes it. Unsaved
+/// project open by its name. A click shows one; its ×, or a middle click, closes it; dragged, it
+/// changes places with the tabs it passes. Unsaved
 /// changes are a dot where the × goes, which the × takes over under the pointer. Past the
-/// window's width they scroll, under a mouse wheel too.
+/// window's width they scroll, under a mouse wheel too, and to the tab showing when another does.
 class ProjectTabs extends StatefulWidget {
   const ProjectTabs({
     super.key,
@@ -21,6 +24,7 @@ class ProjectTabs extends StatefulWidget {
     required this.shown,
     required this.onShow,
     required this.onClose,
+    this.onMove,
   });
 
   /// The projects' tabs, in order.
@@ -30,6 +34,10 @@ class ProjectTabs extends StatefulWidget {
   final int? shown;
   final ValueChanged<int?> onShow;
   final ValueChanged<int> onClose;
+
+  /// A project's tab dragged along the strip, from one place among [labels] to another; null:
+  /// they stay as they are.
+  final void Function(int from, int to)? onMove;
 
   static double heightOf(BuildContext context) => AppStyle.of(context).control + 4;
 
@@ -42,10 +50,92 @@ class ProjectTabs extends StatefulWidget {
 class _ProjectTabsState extends State<ProjectTabs> {
   final _scroll = ScrollController();
 
+  /// How wide each project's tab is laid out.
+  double _tabWidth = ProjectTabs._minWidth;
+
+  // MARK: Dragging a tab
+
+  final _row = GlobalKey();
+
+  /// The tab held, and where its left edge is dragged to (in the row of tabs).
+  ValueListenable<ProjectTabLabel>? _held;
+  double _heldLeft = 0;
+  double _grab = 0; // from the tab's left edge to the pointer
+
+  /// How far the held tab is drawn from its place, following the pointer.
+  double _offsetOf(int index) => _heldLeft - index * _tabWidth;
+
+  /// Tabs slide to their places: while one is held, and as it settles once let go. Not
+  /// otherwise (a window resized lays them out at once).
+  bool _sliding = false;
+  Timer? _settled;
+
+  void _dragStart(int index, DragStartDetails d) {
+    widget.onShow(index); // the tab dragged shows, as one clicked does
+    _settled?.cancel();
+    setState(() {
+      _sliding = true;
+      _held = widget.labels[index];
+      _grab = d.localPosition.dx;
+      _heldLeft = index * _tabWidth;
+    });
+  }
+
+  void _dragUpdate(DragUpdateDetails d) {
+    final held = _held, row = _row.currentContext?.findRenderObject() as RenderBox?;
+    final index = held == null ? -1 : widget.labels.indexOf(held);
+    if (index < 0 || row == null) return;
+    final last = widget.labels.length - 1;
+    setState(() => _heldLeft = (row.globalToLocal(d.globalPosition).dx - _grab).clamp(0.0, last * _tabWidth));
+    // Past the middle of the tab beside it: they change places (the strip is built again in
+    // the new order, the held tab still under the pointer).
+    final offset = _offsetOf(index);
+    if (offset > _tabWidth / 2 && index < last) widget.onMove?.call(index, index + 1);
+    if (offset < -_tabWidth / 2 && index > 0) widget.onMove?.call(index, index - 1);
+  }
+
+  void _dragEnd() {
+    setState(() => _held = null);
+    _settled = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) setState(() => _sliding = false);
+    });
+  }
+
   @override
   void dispose() {
+    _settled?.cancel();
     _scroll.dispose();
     super.dispose();
+  }
+
+  // Another tab shows (one just opened is the last, Show Next Tab goes round): past the
+  // window's width, the strip scrolls to it.
+  @override
+  void didUpdateWidget(ProjectTabs old) {
+    super.didUpdateWidget(old);
+    if (widget.shown == old.shown && widget.labels.length == old.labels.length) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reveal());
+  }
+
+  /// Scrolls just far enough that the tab showing is all in view.
+  void _reveal() {
+    final shown = widget.shown;
+    if (!mounted || shown == null || !_scroll.hasClients) return;
+    final position = _scroll.position;
+    final left = shown * _tabWidth, right = left + _tabWidth;
+    final to = left < position.pixels
+        ? left
+        : right > position.pixels + position.viewportDimension
+            ? right - position.viewportDimension
+            : null;
+    if (to == null) return;
+    final target = to.clamp(position.minScrollExtent, position.maxScrollExtent);
+    final duration = motion(context, 220);
+    if (duration == Duration.zero) {
+      position.jumpTo(target);
+    } else {
+      position.animateTo(target, duration: duration, curve: AppStyle.of(context).curve);
+    }
   }
 
   /// A wheel turns up and down, and the tabs run across: its turn scrolls them. (A sideways
@@ -82,30 +172,55 @@ class _ProjectTabsState extends State<ProjectTabs> {
             Expanded(
               child: LayoutBuilder(builder: (context, constraints) {
                 final width = (constraints.maxWidth / labels.length).clamp(ProjectTabs._minWidth, ProjectTabs._maxWidth);
+                _tabWidth = width;
                 return Listener(
                   onPointerSignal: _wheel,
                   child: SingleChildScrollView(
                     controller: _scroll,
                     scrollDirection: Axis.horizontal,
-                    child: Row(children: [
-                      for (final (i, label) in labels.indexed)
-                        ValueListenableBuilder(
-                          key: ObjectKey(label), // a tab closed takes its own hover with it
-                          valueListenable: label,
-                          builder: (context, label, _) => SizedBox(
-                            width: width,
-                            child: _Tab(
-                              selected: shown == i,
-                              fill: colors.chrome,
-                              tip: label.path ?? label.name,
-                              onShow: () => onShow(i),
-                              onClose: () => onClose(i),
-                              edited: label.edited,
-                              child: Text(label.name, maxLines: 1, overflow: TextOverflow.ellipsis, softWrap: false),
+                    // Each tab at its place; the one held follows the pointer, over the others
+                    // (drawn last), which slide aside as it passes them.
+                    child: SizedBox(
+                      key: _row,
+                      width: labels.length * width,
+                      height: height,
+                      child: Stack(children: [
+                      for (final (i, label) in [
+                        for (final (i, l) in labels.indexed)
+                          if (!identical(l, _held)) (i, l),
+                        for (final (i, l) in labels.indexed)
+                          if (identical(l, _held)) (i, l),
+                      ])
+                        // Keyed: a tab closed takes its own hover with it, and one dragged past
+                        // another keeps its drag.
+                        AnimatedPositioned(
+                          key: ObjectKey(label),
+                          duration: _sliding && !identical(label, _held) ? motion(context, 180) : Duration.zero,
+                          curve: Curves.easeOutCubic,
+                          left: identical(label, _held) ? _heldLeft : i * width,
+                          top: 0,
+                          bottom: 0,
+                          child: ValueListenableBuilder(
+                            valueListenable: label,
+                            builder: (context, label, _) => SizedBox(
+                              width: width,
+                              child: _Tab(
+                                selected: shown == i,
+                                fill: colors.chrome,
+                                tip: label.path ?? label.name,
+                                onShow: () => onShow(i),
+                                onClose: () => onClose(i),
+                                onDragStart: widget.onMove == null || labels.length < 2 ? null : (d) => _dragStart(i, d),
+                                onDragUpdate: _dragUpdate,
+                                onDragEnd: _dragEnd,
+                                edited: label.edited,
+                                child: Text(label.name, maxLines: 1, overflow: TextOverflow.ellipsis, softWrap: false),
+                              ),
                             ),
                           ),
                         ),
-                    ]),
+                      ]),
+                    ),
                   ),
                 );
               }),
@@ -125,8 +240,16 @@ class _Tab extends StatefulWidget {
     required this.onShow,
     required this.child,
     this.onClose,
+    this.onDragStart,
+    this.onDragUpdate,
+    this.onDragEnd,
     this.edited = false,
   });
+
+  /// Dragged along the strip, to another place in it; null: it stays where it is.
+  final GestureDragStartCallback? onDragStart;
+  final GestureDragUpdateCallback? onDragUpdate;
+  final VoidCallback? onDragEnd;
 
   final bool selected;
 
@@ -225,6 +348,11 @@ class _TabState extends State<_Tab> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: widget.onShow,
+            supportedDevices: kDragDevices, // a swipe scrolls the strip
+            onHorizontalDragStart: widget.onDragStart,
+            onHorizontalDragUpdate: widget.onDragStart == null ? null : widget.onDragUpdate,
+            onHorizontalDragEnd: widget.onDragStart == null ? null : (_) => widget.onDragEnd?.call(),
+            onHorizontalDragCancel: widget.onDragStart == null ? null : widget.onDragEnd,
                 child: DecoratedBox(
               decoration: BoxDecoration(
                 color: selected ? widget.fill : null,

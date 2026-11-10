@@ -929,6 +929,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
           TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
           FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
         ],
+        confirmsOnReturn: false,
       ),
     );
     if (discard == true && mounted) Navigator.of(context).pop();
@@ -987,8 +988,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
             if (_running > 0 || _queue.isNotEmpty) PulsingDot(color: colors.accent, size: 8),
           ]),
         ),
-        ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo'.tr, onPressed: score.canUndo ? _undo : null),
-        ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo'.tr, onPressed: score.canRedo ? _redo : null),
+        ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: score.canUndo ? _undo : null),
+        ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: score.canRedo ? _redo : null),
         const ToolbarDivider(),
         ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom Out'.tr, onPressed: () => _zoomBy(1 / 1.2)),
         ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom In'.tr, onPressed: () => _zoomBy(1.2)),

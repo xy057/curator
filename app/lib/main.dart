@@ -446,6 +446,19 @@ class _AppWindowState extends State<AppWindow> {
     _show(tabs[(tabs.indexOf(_showing) + step) % tabs.length]);
   }
 
+  /// A tab dragged along the strip: tab [from] takes tab [to]'s place (Show Next Tab follows
+  /// the new order).
+  void _moveTab(int from, int to) {
+    final tabs = _tabs;
+    if (from == to || from < 0 || to < 0 || from >= tabs.length || to >= tabs.length) return;
+    final moved = tabs[from], target = tabs[to];
+    setState(() {
+      _projects.remove(moved);
+      _projects.insert(_projects.indexOf(target) + (to > from ? 1 : 0), moved);
+    });
+    _menus.value++;
+  }
+
   /// Open…, Open Recent, a drop, the Finder: the project or score at [path] in a tab of its own,
   /// or the tab it is open in already.
   void _openPath(String path) {
@@ -598,6 +611,7 @@ class _AppWindowState extends State<AppWindow> {
                       shown: _showing == null ? null : tabs.indexOf(_showing!),
                       onShow: (i) => _show(i == null ? null : tabs[i]),
                       onClose: (i) => _close(tabs[i]),
+                      onMove: _moveTab,
                     ),
                   ),
                 ),
@@ -655,7 +669,10 @@ class _AppWindowState extends State<AppWindow> {
         onDragExited: (_) => setState(() => _dropping = false),
         onDragDone: (details) {
           setState(() => _dropping = false);
-          if (details.files.isNotEmpty) _droppedOnHome(details.files.first.path);
+          // Several dropped together: a tab each.
+          for (final file in details.files) {
+            _droppedOnHome(file.path);
+          }
         },
         child: Scaffold(
           body: Stack(children: [
@@ -1285,7 +1302,12 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
             onDragDone: (details) {
               final area = _areaAt(details.globalPosition);
               setState(() => _drop = null);
-              if (details.files.isNotEmpty) _dropped(details.files.first.path, area, details.globalPosition);
+              // Projects and scores dropped together open in a tab each; an image, a recording
+              // or a MIDI tempo map is one, the first.
+              final opens = area == _DropArea.project || area == _DropArea.home;
+              for (final file in opens ? details.files : details.files.take(1)) {
+                _dropped(file.path, area, details.globalPosition);
+              }
             },
             // Rebuilt when a score opens, not at every edit: the toolbar, the score and the
             // timeline each follow what they show.
@@ -1356,6 +1378,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true): controller.redo,
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): controller.undo,
         const SingleActivator(LogicalKeyboardKey.keyY, control: true): controller.redo,
+        // Windows' and Linux's other Redo, as the score editor takes it.
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): controller.redo,
         const SingleActivator(LogicalKeyboardKey.escape): _commands.escape,
         // Instruments tab: the selected regions. Paste: those, or Attach Image's image at the pointer.
         const SingleActivator(LogicalKeyboardKey.keyC, meta: true): _commands.copy,
@@ -1573,8 +1597,8 @@ class _DropHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final (icon, title, detail) = switch (area) {
-      _DropArea.home => (AppIcon.drop.of(context), 'Drop to open', 'A project or a MusicXML score'),
-      _DropArea.project => (AppIcon.drop.of(context), 'Drop to open', 'A project or a MusicXML score'),
+      _DropArea.home => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML or PDF score'),
+      _DropArea.project => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML or PDF score'),
       _DropArea.audio => (AppIcon.audio.of(context), 'Drop to add', 'A MIDI tempo map or a recording'),
       _DropArea.image when attachImage => (AppIcon.image.of(context), 'Drop to add an image', 'SVG, PNG, GIF, JPEG…'),
       _DropArea.image => (AppIcon.noImage.of(context), 'Attach Image is off', 'Turn on in Project Settings ▸ Extensions'),

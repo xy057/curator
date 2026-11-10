@@ -76,7 +76,7 @@ void main() {
     await tester.pump();
     await screenshot(tester, 'score-editor', inside: find.byType(ScoreEditor));
     expect(score.canUndo, isTrue);
-    expect(tester.widget<ToolbarButton>(find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip == 'Undo')).onPressed, isNotNull);
+    expect(tester.widget<ToolbarButton>(find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Undo'))).onPressed, isNotNull);
 
     // ⌘Z takes the rest back; Done gives the score as edited.
     await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);

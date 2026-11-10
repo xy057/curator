@@ -574,7 +574,10 @@ erasing trims. Touching regions are merged on purpose: a seam between two region
 the staff's fade. During a drag regions may overlap (`Curation.updateLanes`); `normalize`
 merges them when the drag ends. Every lane snaps through `snapInLanes`, takes a click's beat (or
 bar, zoomed out) through `beatInLanes`, and tells a double-click through `DoubleClicks`
-(lanes_common.dart).
+(lanes_common.dart). The cursor over a lane says what a press there would do, and follows the
+tool as a key changes it with the mouse at rest (⌥, or V, D, E): every lane's state is a
+`LaneCursor` (`cursorAt`). A click on the bar ruler moves the playhead and leaves the selection,
+so regions are trimmed to a playhead put there (`[`, `]`) and copied ones pasted into the lane selected.
 A drag in the timeline measures from where it began in the score or the recording (kept at the
 press), never from a point on the screen: the view pages on under it while playing
 (`TimeViewport.follow`). One the system cancels (the pointer taken) keeps what it changed so far
@@ -607,7 +610,9 @@ while it runs sideways; a Listener sees each event before any recognizer does, s
 known before the scroll view moves, and it is kept after the swipe for the scroll view's fling),
 and glides on after a flick. In the lanes it pans the time; on the score it scrubs
 (`Playback.scrub`), at the score's own speed there (`ScoreViewState._speedAt`), so the notes stay
-under the fingers.
+under the fingers. A mouse's wheel is not a swipe (it comes as scroll events): over the score it
+scrubs turned either way, down moving on in time (`ScoreViewState._wheel`); a trackpad's
+up-and-down swipe there still does nothing.
 
 **Auto-Curate fits the frame.** A new score's lanes (unless Settings ▸ General ▸ Auto-curate
 imported scores is off: then each lane is whole), Auto-Curate and a lane's Auto-Curate Lane start from where each part plays (`autoCurateMeasures`: rests of one bar bridged), then ask that
@@ -865,7 +870,7 @@ closes Find Phrase and the Engraving window (one at a time, over whichever tab s
 one menu bar (on macOS one `PlatformMenuBar` may be built): the window builds it for the tab
 showing, from that page's state, and a page says when what it offers changes (`onMenusChanged`).
 Show Next / Previous Tab (⌃Tab, ⌃⇧Tab: Window on macOS, View elsewhere) go round the tabs, Home
-among them. View ▸ Show / Hide Tab Bar (⇧⌘T, `AppSettings.tabBar`) hides the strip, the editor's toolbar
+among them; past the window's width the strip scrolls, and to the tab showing when another does (`_ProjectTabsState._reveal`). A project's tab dragged along the strip changes places with those it passes (`ProjectTabs.onMove`, `_AppWindowState._moveTab`: the order of `_projects`), following the pointer over the others, which slide aside. View ▸ Show / Hide Tab Bar (⇧⌘T, `AppSettings.tabBar`) hides the strip, the editor's toolbar
 taking a button that shows it again meanwhile (`AppIcon.tabBar`); Show All Tabs (⇧⌘\) shows it again. The strip folds up under the menu as it goes, still painted
 (clipped, kept in the tree), and the window has a background under everything: a place left
 unpainted, even for a frame, shows the window's black backing. AppKit's own window tabs are off
@@ -1262,9 +1267,19 @@ footer uses `DialogButtons` too. Inside a field, typed and chosen text both star
 `AppStyle.fieldInset` in from the border, so an `AppTextField`'s outline has no label gap and an
 `AppDropdown` draws its border over itself; a menu's heading is a `menuHeader`, on its items'
 edge. A dialog is an `AppDialog`, never an `AlertDialog`; a labelled field an `AppTextField`,
-a select an `AppDropdown(label: …)`, and one that filters as it is
+a select an `AppDropdown(label: …)` (a long one opens scrolled to its chosen item), and one that filters as it is
 typed in (a long font list) a `DropdownMenu` built through `dialogMenuField`. `Export` is a
 `Dialog` of its own, in the same measures.
+A dialog's keys are `DialogKeys` (ui_kit.dart), which `AppDialog` wraps itself in: Return presses
+the default button (the filled one last among the actions, or the only one), unless a field has
+the keyboard (it submits) or a button was reached with Tab (it is pressed); not where that
+throws work away (`confirmsOnReturn: false`: Discard Your Changes?). A dialog with no field has
+the keyboard in its route's focus scope, above everything it shows, so the handler is that
+scope's own (`FocusScope.of(context).onKeyEvent`), never a `Focus` or `CallbackShortcuts` among
+the dialog's widgets, which would not hear the key. A dialog a click outside must not close
+(`barrierDismissible: false`: Export Video, Export to Web, the Captions sheet) doesn't close on
+Esc by itself either: it gives `onEscape` (Cancel's own action; the Captions sheet's asks first
+once something was changed, and nothing while an export writes).
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that

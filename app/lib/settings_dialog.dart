@@ -961,7 +961,19 @@ class _SettingsWindowState extends State<_SettingsWindow> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         SizedBox(
           height: carbon == null ? 30 : 32,
-          child: TextField(
+          // Esc with something typed clears the search (the page shows again); Esc again, or
+          // with nothing typed, is the window's and closes it.
+          child: Focus(
+            canRequestFocus: false,
+            skipTraversal: true,
+            onKeyEvent: (_, event) {
+              if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape || _search.text.isEmpty) {
+                return KeyEventResult.ignored;
+              }
+              _search.clear();
+              return KeyEventResult.handled;
+            },
+            child: TextField(
             controller: _search,
             style: TextStyle(fontSize: carbon == null ? 13 : 14),
             decoration: InputDecoration(
@@ -983,6 +995,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
                       borderRadius: BorderRadius.circular(7),
                       borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.6)),
                     ),
+            ),
             ),
           ),
         ),

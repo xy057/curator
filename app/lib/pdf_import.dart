@@ -1063,6 +1063,8 @@ class _PdfImportState extends State<PdfImport> {
     }
     if (meta && key == LogicalKeyboardKey.keyZ) {
       shift ? _redoStep() : _undoStep();
+    } else if (!typing && HardwareKeyboard.instance.isControlPressed && key == LogicalKeyboardKey.keyY) {
+      _redoStep(); // Windows' and Linux's Redo
     } else if ((key == LogicalKeyboardKey.delete || key == LogicalKeyboardKey.backspace) && (_step == _Step.pages || _step == _Step.edit)) {
       _remove();
     } else if (key == LogicalKeyboardKey.pageDown || key == LogicalKeyboardKey.arrowRight) {
@@ -1129,6 +1131,7 @@ class _PdfImportState extends State<PdfImport> {
           TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
           FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
         ],
+        confirmsOnReturn: false,
       ),
     );
     if (discard == true && mounted) Navigator.of(context).pop();
@@ -1224,8 +1227,8 @@ class _PdfImportState extends State<PdfImport> {
       color: colors.chrome,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(children: [
-        ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo'.tr, onPressed: ready && _undo.isNotEmpty ? _undoStep : null),
-        ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo'.tr, onPressed: ready && _redo.isNotEmpty ? _redoStep : null),
+        ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: ready && _undo.isNotEmpty ? _undoStep : null),
+        ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: ready && _redo.isNotEmpty ? _redoStep : null),
         if (_layout != null) ...[const ToolbarDivider(), ..._stepTools(context, ready)],
         const ToolbarDivider(),
         ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom Out'.tr, onPressed: () => _zoomBy(1 / 1.2)),
