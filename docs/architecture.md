@@ -28,6 +28,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time (`EditChunk`) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
 | `pdf_detect.dart`, `pdf_pages.dart`, `pdf_text.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`); names and tempo marks read from the pages' words (`PdfText`) |
+| `pdf_ai.dart` | A PDF score's pages read by an AI model (see *Read with AI*): what it is asked (`PdfAi.prompt`, about a picture of the page with each staff found numbered, `PdfAi.labels`, `PdfAiView`), its answer (`PdfAiPage.parse`), put on the page's ink (`PdfAi.refine`, through `PdfPages.refine`) and into the layout (`PdfAi.apply`) |
 | `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, cuts, gaps, barlines and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
@@ -67,11 +68,11 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
 | `motion_settings.dart` | Project Settings ▸ Advanced: the motion's rows (`MotionSetting.all`), a slider or a curve each, and the Custom Curve dialog; `SettingSlider`, a setting's slider set when let go, its number typed over in a `SliderValueField` (also Scroll follow's and Export's Score size) |
 | `typography_settings.dart` | Project Settings ▸ Engraving ▸ Typography: a row per property of each kind of text (`TypographySetting.all`), a slider or a style each |
-| `ai_providers.dart`, `ai_settings.dart` | Settings ▸ AI: AI services and their credentials (`AiProvider`, kept as JSON in `AppSettings.aiProviders`; five built in: OpenAI, Anthropic, OpenRouter, Gemini, DeepSeek), `AiClient` (model lists and a one-word Test in the OpenAI, Anthropic and Gemini formats; redirects not followed, so a key stays with its server), and the page: providers at the left, the chosen one's key, base URL, path and models at the right. Nothing else uses them yet |
+| `ai_providers.dart`, `ai_settings.dart` | Settings ▸ AI: AI services and their credentials (`AiProvider`, kept as JSON in `AppSettings.aiProviders`; five built in: OpenAI, Anthropic, OpenRouter, Gemini, DeepSeek), `AiClient` (model lists and a one-word Test in the OpenAI, Anthropic and Gemini formats; redirects not followed, so a key stays with its server), and the page: providers at the left, the chosen one's key, base URL, path and models at the right. A model of one turned on is asked about pictures (`AiClient.ask`, ended by `close`) by the PDF import's Read with AI, the one picked in Settings ▸ General ▸ AI for PDF import (`AppSettings.pdfAiModel`, `AiModels`) |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit… done (the score editor's, a PDF's import again): a project carried over to the new score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
-| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start and end, barlines (the start's and the barlines' by handles above the system, the end's below it, as the edges' at its right), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs |
+| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, every system's edges, cuts, gaps (a double click on a cut), music start and end, barlines (the start's and the barlines' by handles above the system, the end's below it, as the edges' at its right), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs; `pdf_import_ai.dart` reads the pages with AI (`PdfAiReader`) |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -1038,6 +1039,34 @@ its keys (the import's are asked first: only ⌘Z and Page Up / Down stay its ow
 the end goes with it, and it stops at the barline before); a drag's Undo
 step is made at its first move, so a click on a barline only selects it; opened again
 (Edit…) and left as it came, Done hands nothing back, and nothing is replaced.
+
+**Read with AI asks a model, then checks it against the page.** The import's toolbar button (by
+Undo and Redo, on every step) reads every page with systems with the model picked in Settings ▸
+General ▸ AI for PDF import (`AppSettings.pdfAi`; none: greyed out), only when clicked:
+`PdfAiReader` shows the model each page as two PNGs drawn on white (the page, and its systems'
+starts enlarged: names, clefs, keys, time signatures), each staff found numbered in red in a column
+at their right (`PdfAi.labels`, in the bundled IBM Plex Sans), and asks (`PdfAi.prompt`) for JSON:
+each staff's instrument (by id, from the list it is given), name, printed name, clef and key; each
+system's staves, edges, the borders and gaps between its staves, barlines, time signatures and
+tempo marks; and where each staff's middle is. The page the instruments are named from goes first,
+alone (its answer names them for the other questions), then the rest three at a time; Stop ends the
+requests under way (`AiClient.close`). A model's places are rough and sometimes made up, so they
+are checked (`PdfAi.refine`, on the worker with the page's ink): where it says the staves are,
+against where they are, gives a line that sets its other places right (`_fit`), and unless most
+staves lie on it within ¾ of a space none of its places is taken. Taken, each edge, cut and gap
+goes on the quiet row nearest where it says (`PdfDetect.quietRow`), never into ink its outer staves
+reach (`PdfDetect.inkEnd`); its barlines are lined up in order with those found (`_barlines`), a
+found one kept where it is, one it adds put on a line through the staves there
+(`PdfDetect.lineNear`), and a found one it leaves out removed only from a lone staff; too few
+paired and its barlines are passed over. Staves found apart join into one system only where their
+bars line up. What it names is taken as said (`PdfAi.apply`): staves given to the instruments it
+says (a one-staff instrument's further staff a division), instruments renamed (a name spelled
+otherwise, "B♭" or "Bb", kept) and abbreviated, the concert key the most staves say (each read
+through its transposition, concert-pitch staves counting twice), and clefs, time signatures and
+tempo marks put in at their bars where they differ from those in force; nothing is taken away. It
+is all one Undo step, made when the reading ends (stopped: the pages read until then); meanwhile
+nothing is edited (`_busy`) but the pages are turned. A page that fails is passed over and said in
+the status line; the first failing ends it all.
 
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;

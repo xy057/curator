@@ -312,6 +312,9 @@ msgstr "読み込んだ楽譜を自動キュレート"
 msgid "Auto-curate PDF scores"
 msgstr "PDF 楽譜を自動キュレート"
 
+msgid "AI for PDF import"
+msgstr "PDF の読み込みに使う AI"
+
 msgid "Off: every staff throughout."
 msgstr "オフ：全体を通してすべての譜表。"
 
@@ -3714,3 +3717,39 @@ msgstr "AI"
 
 msgid "Providers"
 msgstr "プロバイダー"
+
+#: lib/ai_providers.dart
+msgid "The server’s answer has no text."
+msgstr "サーバーの応答にテキストがありません。"
+
+#: lib/pdf_import.dart
+msgid "AI couldn’t read 1 page. {error}"
+msgstr "AI が 1 ページを読み取れませんでした。{error}"
+
+#: lib/pdf_import.dart
+msgid "AI couldn’t read {n} pages. {error}"
+msgstr "AI が {n} ページを読み取れませんでした。{error}"
+
+#: lib/pdf_import.dart
+msgid "Couldn’t read with AI. {error}"
+msgstr "AI で読み取れませんでした。{error}"
+
+#: lib/pdf_import.dart
+msgid "The model’s answer couldn’t be read."
+msgstr "モデルの応答を読み取れませんでした。"
+
+#: lib/pdf_import.dart
+msgid "Stop Reading"
+msgstr "読み取りを停止"
+
+#: lib/pdf_import.dart
+msgid "Read with AI ({model})"
+msgstr "AI で読み取る（{model}）"
+
+#: lib/pdf_import.dart
+msgid "Read with AI (choose a model in Settings ▸ General)"
+msgstr "AI で読み取る（設定 ▸ 一般 でモデルを選択）"
+
+#: lib/pdf_import.dart
+msgid "Reading with AI… {n} of {count}"
+msgstr "AI で読み取り中… {n} / {count}"

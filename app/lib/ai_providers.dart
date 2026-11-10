@@ -169,6 +169,24 @@ class AiProvider {
   int get hashCode => Object.hash(id, name, format, enabled, apiKey, baseUrl, path, Object.hashAll(models));
 }
 
+/// A model of a provider's: what a setting picks to do something with ([AppSettings.pdfAiModel]).
+typedef AiModel = ({AiProvider provider, String model});
+
+extension AiModels on List<AiProvider> {
+  /// Every model of the providers turned on, in their order.
+  List<AiModel> get models => [
+        for (final p in this)
+          if (p.enabled)
+            for (final m in p.models) (provider: p, model: m),
+      ];
+
+  /// The model a setting keeps as [saved] ([keyOf]), while its provider is on and has it.
+  AiModel? model(String saved) => models.where((m) => keyOf(m) == saved).firstOrNull;
+
+  /// How a setting keeps [model]: its provider's id, a slash, its ID (which may hold slashes too).
+  static String keyOf(AiModel model) => '${model.provider.id}/${model.model}';
+}
+
 /// What a provider's server answered when it refused, or why it couldn't be reached.
 class AiError implements Exception {
   const AiError(this.message, {this.status});
@@ -288,11 +306,101 @@ class AiClient {
     });
   }
 
+  /// Asks [model] [prompt] about [images] (PNG pictures, put before the words), through the
+  /// provider's API path; the text it answers. Throws an [AiError] when it doesn't answer.
+  Future<String> ask(String model, String prompt, {List<Uint8List> images = const []}) async {
+    final path = (provider.path.trim().isEmpty ? provider.format.path : provider.path.trim())
+        .replaceAll('{model}', Uri.encodeComponent(model));
+    final pictures = [for (final i in images) base64Encode(i)];
+    final json = await _send('POST', _at(path), switch (provider.format) {
+      AiFormat.openai => {
+          'model': model,
+          'messages': [
+            {
+              'role': 'user',
+              'content': [
+                for (final p in pictures)
+                  {
+                    'type': 'image_url',
+                    'image_url': {'url': 'data:image/png;base64,$p'},
+                  },
+                {'type': 'text', 'text': prompt},
+              ],
+            },
+          ],
+        },
+      AiFormat.anthropic => {
+          'model': model,
+          'max_tokens': 8192,
+          'messages': [
+            {
+              'role': 'user',
+              'content': [
+                for (final p in pictures)
+                  {
+                    'type': 'image',
+                    'source': {'type': 'base64', 'media_type': 'image/png', 'data': p},
+                  },
+                {'type': 'text', 'text': prompt},
+              ],
+            },
+          ],
+        },
+      AiFormat.gemini => {
+          'contents': [
+            {
+              'parts': [
+                for (final p in pictures)
+                  {
+                    'inline_data': {'mime_type': 'image/png', 'data': p},
+                  },
+                {'text': prompt},
+              ],
+            },
+          ],
+          'generationConfig': {'responseMimeType': 'application/json'},
+        },
+    });
+    final text = _answer(json);
+    if (text == null || text.trim().isEmpty) throw AiError('The server’s answer has no text.'.tr);
+    return text;
+  }
+
+  /// The words of a chat answer: OpenAI's first choice's message, Anthropic's text blocks,
+  /// Gemini's first candidate's parts.
+  static String? _answer(Object? json) {
+    String? joined(Object? parts, String key) => parts is List
+        ? [
+            for (final p in parts)
+              if (p is Map && p[key] is String) p[key] as String,
+          ].join()
+        : null;
+    if (json is! Map) return null;
+    return switch (json) {
+      {'choices': [{'message': {'content': final String text}}, ...]} => text,
+      {'choices': [{'message': {'content': final List parts}}, ...]} => joined(parts, 'text'),
+      {'content': final List blocks} => joined(blocks, 'text'),
+      {'candidates': [{'content': {'parts': final List parts}}, ...]} => joined(parts, 'text'),
+      _ => null,
+    };
+  }
+
+  final _open = <HttpClient>{};
+
+  /// Ends every request under way: each throws an [AiError].
+  void close() {
+    for (final c in [..._open]) {
+      c.close(force: true);
+    }
+    _open.clear();
+  }
+
   /// The JSON a request answers with; an [AiError] with the server's message when it refuses.
   Future<Object?> _send(String method, Uri uri, [Object? body]) async {
     final client = HttpClient()
       ..connectionTimeout = timeout
       ..userAgent = 'Curator/$appVersion';
+    _open.add(client);
     try {
       final request = await client.openUrl(method, uri).timeout(timeout);
       request.followRedirects = false; // the key stays with this server
@@ -327,6 +435,7 @@ class AiClient {
     } on HttpException catch (e) {
       throw AiError(e.message);
     } finally {
+      _open.remove(client);
       client.close(force: true);
     }
   }

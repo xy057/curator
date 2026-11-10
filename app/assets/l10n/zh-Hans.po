@@ -312,6 +312,9 @@ msgstr "自动编排导入的乐谱"
 msgid "Auto-curate PDF scores"
 msgstr "自动编排 PDF 乐谱"
 
+msgid "AI for PDF import"
+msgstr "PDF 导入所用 AI"
+
 msgid "Off: every staff throughout."
 msgstr "关：全程显示所有谱表。"
 
@@ -3714,3 +3717,39 @@ msgstr "AI"
 
 msgid "Providers"
 msgstr "供应商"
+
+#: lib/ai_providers.dart
+msgid "The server’s answer has no text."
+msgstr "服务器的回复中没有文字。"
+
+#: lib/pdf_import.dart
+msgid "AI couldn’t read 1 page. {error}"
+msgstr "AI 无法读取 1 页。{error}"
+
+#: lib/pdf_import.dart
+msgid "AI couldn’t read {n} pages. {error}"
+msgstr "AI 无法读取 {n} 页。{error}"
+
+#: lib/pdf_import.dart
+msgid "Couldn’t read with AI. {error}"
+msgstr "无法用 AI 读取。{error}"
+
+#: lib/pdf_import.dart
+msgid "The model’s answer couldn’t be read."
+msgstr "无法读取模型的回复。"
+
+#: lib/pdf_import.dart
+msgid "Stop Reading"
+msgstr "停止读取"
+
+#: lib/pdf_import.dart
+msgid "Read with AI ({model})"
+msgstr "用 AI 读取（{model}）"
+
+#: lib/pdf_import.dart
+msgid "Read with AI (choose a model in Settings ▸ General)"
+msgstr "用 AI 读取（在“设置 ▸ 通用”中选择模型）"
+
+#: lib/pdf_import.dart
+msgid "Reading with AI… {n} of {count}"
+msgstr "正在用 AI 读取… 第 {n} 页，共 {count} 页"
