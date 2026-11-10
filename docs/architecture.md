@@ -971,7 +971,10 @@ rather than rebarring the music after it.
 
 **A PDF score is the PDF, cut by rectangles.** A `.pdf` is imported (`pdf_import.dart`; File ▸ Import… ⌘I and Home's Import…, their own beside Open…, whose picker lists no PDF; one dropped or opened from the Finder or Open Recent is imported too):
 `PdfPages.read` finds every page's systems (`PdfDetect`, on PDFium's ink at 2.5 pixels a point:
-staves by row projection, systems by a line joining them, braces, where the music starts past
+staves by row projection (five lines evenly apart, a space under a fortieth of the page's width;
+of fives that overlap, the one whose weakest line fills most of its row, so a tie's crest a space
+off a staff is no line of it; a line a leaning scan breaks in two taken whole, its ends looked
+for a fifth of a space either way), systems by a line joining them, braces, where the music starts past
 the clef, key and time signature, barlines, the row between two staves least ink crosses) and
 the instruments: the system with the most staves names them, and every other system's staves
 are matched to them by the PDF's text (names, abbreviations) or, with none, by how alike their
