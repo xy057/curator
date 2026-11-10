@@ -17,14 +17,17 @@ import 'ui_kit.dart';
 import 'l10n/l10n.dart';
 
 /// The Captions sheet (double-click the Captions lane): every caption as a row of From, Until
-/// and Text cells, in the order they show. Tab goes across, ↑ / ↓ and Enter up and down;
+/// and Text cells, in the order they show. Tab goes across, ↑ / ↓ and Enter up and down (Enter on
+/// the last row adds one);
 /// Done applies everything as one Undo step, and a row left without text goes. [focus] (an
 /// index into the captions) starts on that caption's text. Import… brings in an SRT or WebVTT
 /// file's subtitles as rows (placed in the score by the sync), Export… writes the rows as one,
 /// timed as the recording plays them.
 Future<void> showCaptionsDialog(BuildContext context, EditorController c, {int? focus}) async {
+  // Not closed by a click outside it: a sheet of captions typed would go with it. Esc is its
+  // Cancel, which asks first once something was changed.
   final result = await showAppDialog<List<Caption>>(
-      context: context, builder: (context) => CaptionsDialog(controller: c, focus: focus));
+      context: context, barrierDismissible: false, builder: (context) => CaptionsDialog(controller: c, focus: focus));
   if (result != null) c.captions.replaceAll(result);
 }
 
@@ -68,6 +71,9 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
 
   /// What Import… or Export… last did, shown while no row has a problem.
   String? _notice;
+
+  /// Whether anything was typed, added, removed or imported: Cancel asks before it goes.
+  bool _edited = false;
 
   static const _types = [XTypeGroup(label: 'SubRip', extensions: ['srt']), XTypeGroup(label: 'WebVTT', extensions: ['vtt'])];
 
@@ -142,12 +148,18 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
     final last = _rows.isEmpty ? null : _end(_rows.last);
     final draft = (last != null && last < _beats.totalQuarters - 1e-9 ? c.captions.draft(last, rows) : null) ??
         c.captions.draft(c.timeline.quarterAtSeconds(c.playback.time.value), rows);
-    if (draft == null) return;
-    setState(() => _rows.add(_Row(draft, _beats)));
+    if (draft == null) return setState(() => _notice = 'No room for another caption'.tr);
+    setState(() {
+      _edited = true;
+      _rows.add(_Row(draft, _beats));
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _focusCell(_rows.length - 1, 2));
   }
 
-  void _remove(int i) => setState(() => _rows.removeAt(i).dispose());
+  void _remove(int i) => setState(() {
+        _edited = true;
+        _rows.removeAt(i).dispose();
+      });
 
   /// The rows as captions, those whose bars read.
   List<Caption> get _valid => [
@@ -189,6 +201,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
     final kept = add ? _valid : const <Caption>[];
     final taken = [for (final cap in read) if (captionOverlapping(kept, cap.start, cap.end) == null) cap];
     setState(() {
+      _edited = true;
       if (!add) {
         for (final r in _rows) {
           r.dispose();
@@ -219,6 +232,23 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
     } catch (e) {
       if (mounted) setState(() => _notice = describeError(e));
     }
+  }
+
+  /// Cancel, or Esc: with something changed, asks before the sheet goes.
+  Future<void> _cancel() async {
+    if (!_edited) return Navigator.pop(context);
+    final discard = await showAppDialog<bool>(
+      context: context,
+      builder: (context) => AppDialog(
+        title: Text('Discard Your Changes?'.tr),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
+        ],
+        confirmsOnReturn: false,
+      ),
+    );
+    if (discard == true && mounted) Navigator.pop(context);
   }
 
   void _done() {
@@ -278,6 +308,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
         ]),
       ),
       divided: true,
+      onEscape: _cancel,
       leading: [
         TextButton.icon(onPressed: _add, icon: Icon(AppIcon.add.of(context), size: 18), label: Text('Add'.tr)),
         TextButton(onPressed: _import, child: Text('Import…'.tr)),
@@ -287,7 +318,7 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
           ? null
           : Text(status.tr, style: TextStyle(color: problem != null ? colors.erase : colors.textMuted), overflow: TextOverflow.ellipsis),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+        TextButton(onPressed: _cancel, child: Text('Cancel'.tr)),
         FilledButton(onPressed: invalid ? null : _done, child: Text('Done'.tr)),
       ],
     );
@@ -330,8 +361,13 @@ class _CaptionsDialogState extends State<CaptionsDialog> {
               hintText: column == 2 ? 'Leave empty to remove'.tr : null,
               hintStyle: TextStyle(fontSize: size, color: colors.textMuted.withValues(alpha: 0.6)),
             ),
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) => _focusCell(i + 1, column),
+            onChanged: (_) => setState(() => _edited = true),
+            // Return goes down a row; on the last one, with its text typed, to a new row's text.
+            onSubmitted: (_) => i + 1 < _rows.length
+                ? _focusCell(i + 1, column)
+                : r.text.text.trim().isEmpty
+                    ? null
+                    : _add(),
           ),
         ),
       );

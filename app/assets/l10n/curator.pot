@@ -2872,11 +2872,11 @@ msgstr ""
 msgid "Couldn’t Edit Score"
 msgstr ""
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr ""
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr ""
 
@@ -2899,7 +2899,7 @@ msgstr ""
 msgid "Holds"
 msgstr ""
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr ""
 
@@ -3451,4 +3451,8 @@ msgstr ""
 
 #: lib/main.dart
 msgid "“{name}” is open in another tab. Close it there first."
+msgstr ""
+
+#: lib/captions_dialog.dart
+msgid "No room for another caption"
 msgstr ""

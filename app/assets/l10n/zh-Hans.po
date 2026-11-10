@@ -2879,11 +2879,11 @@ msgstr "和弦（Q）"
 msgid "Couldn’t Edit Score"
 msgstr "无法编辑乐谱"
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr "放弃"
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr "放弃更改？"
 
@@ -2906,7 +2906,7 @@ msgstr "二分音符"
 msgid "Holds"
 msgstr "延长与停顿"
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr "继续编辑"
 
@@ -3471,3 +3471,7 @@ msgstr "还没有谱表指定乐器。"
 #: lib/main.dart
 msgid "“{name}” is open in another tab. Close it there first."
 msgstr "“{name}”已在另一个标签页中打开，请先在那里关闭它。"
+
+#: lib/captions_dialog.dart
+msgid "No room for another caption"
+msgstr "没有空间再添加字幕"
