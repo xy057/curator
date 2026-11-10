@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-10 08:19\n"
+"PO-Revision-Date: 2026-11-10 14:47\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -3462,5 +3462,56 @@ msgstr ""
 
 #: lib/home_screen.dart
 msgid "PDF score ({key})"
+msgstr ""
+
+msgid "Projects"
+msgstr ""
+
+msgctxt "heading"
+msgid "Import"
+msgstr ""
+
+msgid "Keyboard"
+msgstr ""
+
+msgid "Chapter"
+msgstr ""
+
+msgid "Set From before the end"
+msgstr ""
+
+msgid "Another chapter starts here"
+msgstr ""
+
+msgid "In the video, and as times beside it"
+msgstr ""
+
+msgid "Named places to jump to in a video or web page."
+msgstr ""
+
+msgid "1 chapter"
+msgstr ""
+
+msgid "{n} chapters"
+msgstr ""
+
+#: lib/chapter_lane.dart
+msgid "Add Chapter"
+msgstr ""
+
+#: lib/chapter_lane.dart
+msgid "Add from Rehearsal Marks"
+msgstr ""
+
+#: lib/chapter_lane.dart
+msgid "Remove Chapter"
+msgstr ""
+
+#: lib/chapter_lane.dart lib/web_player/player.dart
+msgid "Chapters"
+msgstr ""
+
+#: lib/video_export.dart lib/web_player/player.dart
+msgid "Start"
 msgstr ""
 
