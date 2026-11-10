@@ -1,13 +1,21 @@
-# Curator’s interface in Simplified Chinese.
-#
-# Terms: score 乐谱, project 项目, lane 轨道, region 区域, playhead 播放头, bar 小节, staff 谱表, staff space 谱间距, engraving 刻谱, anchor 锚点, warp 跳转, tempo map 速度图, caption 字幕, spacer 间隔, transition 过渡, condensing 声部合并, recording 录音.
+# Curator’s interface, in US English: the template every language is translated from.
+# Each text is its own key; a msgctxt tells apart one English word that means two things.
+# Keep every {placeholder} in the translation (its place is yours).
 msgid ""
 msgstr ""
-"Project-Id-Version: Curator\n"
+"Project-Id-Version: curator-by-xy057\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: zh-Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Crowdin-Project: curator-by-xy057\n"
+"X-Crowdin-Project-ID: 945415\n"
+"X-Crowdin-Language: zh-CN\n"
+"X-Crowdin-File: /main/app/assets/l10n/curator.pot\n"
+"X-Crowdin-File-ID: 21\n"
+"Language-Team: Chinese Simplified\n"
+"Language: zh_CN\n"
+"PO-Revision-Date: 2026-11-10 22:23\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -293,11 +301,9 @@ msgid "Align"
 msgstr "对齐"
 
 #: lib/audio_panel.dart
-msgid ""
-"Align\n"
+msgid "Align\n"
 "Set the anchors from the recording"
-msgstr ""
-"对齐\n"
+msgstr "对齐\n"
 "根据录音设置锚点"
 
 msgid "Align grace notes"
@@ -313,7 +319,7 @@ msgid "Auto-curate PDF scores"
 msgstr "自动编排 PDF 乐谱"
 
 msgid "AI for PDF import"
-msgstr "PDF 导入所用 AI"
+msgstr ""
 
 msgid "Off: every staff throughout."
 msgstr "关：全程显示所有谱表。"
@@ -558,7 +564,7 @@ msgid "Captions"
 msgstr "字幕"
 
 msgid "Carbon"
-msgstr "Carbon"
+msgstr ""
 
 msgid "Center"
 msgstr "居中"
@@ -2553,7 +2559,7 @@ msgid "Fine seek"
 msgstr "精细定位"
 
 msgid "⌥←/→"
-msgstr "⌥←/→"
+msgstr ""
 
 msgid "Undo history"
 msgstr "撤销历史"
@@ -2649,19 +2655,15 @@ msgid "Warp"
 msgstr "跳转"
 
 #: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
+msgid "Warp (W)\n"
 "Jump to another bar here"
-msgstr ""
-"跳转（W）\n"
+msgstr "跳转（W）\n"
 "在此跳到另一小节"
 
 #: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
+msgid "Warp (W)\n"
 "Make this anchor jump to another bar"
-msgstr ""
-"跳转（W）\n"
+msgstr "跳转（W）\n"
 "让此锚点跳到另一小节"
 
 #: lib/audio_panel.dart
@@ -3193,7 +3195,7 @@ msgstr "{n} / {count}"
 
 #: lib/pdf_import.dart
 msgid "×{n}"
-msgstr "×{n}"
+msgstr ""
 
 #: lib/edit_dialogs.dart
 msgid "Spacing of {name}"
@@ -3382,11 +3384,9 @@ msgid "with"
 msgstr "与"
 
 #: lib/editor_controller.dart
-msgid ""
-"Couldn’t load the recording.\n"
+msgid "Couldn’t load the recording.\n"
 "{error}"
-msgstr ""
-"无法载入录音。\n"
+msgstr "无法载入录音。\n"
 "{error}"
 
 #: lib/error_text.dart
@@ -3398,19 +3398,15 @@ msgid "The settings are damaged: {detail}"
 msgstr "设置文件已损坏：{detail}"
 
 #: lib/media_converter.dart
-msgid ""
-"Couldn’t read audio from this file.\n"
+msgid "Couldn’t read audio from this file.\n"
 "{error}"
-msgstr ""
-"无法从这个文件读取音频。\n"
+msgstr "无法从这个文件读取音频。\n"
 "{error}"
 
 #: lib/project_document.dart
-msgid ""
-"Can’t find the linked recording:\n"
+msgid "Can’t find the linked recording:\n"
 "{file}"
-msgstr ""
-"找不到链接的录音：\n"
+msgstr "找不到链接的录音：\n"
 "{file}"
 
 #: lib/score_editor.dart
@@ -3430,27 +3426,21 @@ msgid "Couldn’t write {file}."
 msgstr "无法写入 {file}。"
 
 #: lib/video_export.dart
-msgid ""
-"FFmpeg couldn’t write the sound.\n"
+msgid "FFmpeg couldn’t write the sound.\n"
 "{error}"
-msgstr ""
-"FFmpeg 无法写入声音。\n"
+msgstr "FFmpeg 无法写入声音。\n"
 "{error}"
 
 #: lib/video_export.dart
-msgid ""
-"FFmpeg couldn’t write the video.\n"
+msgid "FFmpeg couldn’t write the video.\n"
 "{error}"
-msgstr ""
-"FFmpeg 无法写入视频。\n"
+msgstr "FFmpeg 无法写入视频。\n"
 "{error}"
 
 #: lib/web_export.dart
-msgid ""
-"Couldn’t write the page.\n"
+msgid "Couldn’t write the page.\n"
 "{error}"
-msgstr ""
-"无法写入网页。\n"
+msgstr "无法写入网页。\n"
 "{error}"
 
 #: lib/error_text.dart
@@ -3491,382 +3481,383 @@ msgid "PDF score ({key})"
 msgstr "PDF 乐谱（{key}）"
 
 msgid "Projects"
-msgstr "项目"
+msgstr ""
 
 msgctxt "heading"
 msgid "Import"
-msgstr "导入"
+msgstr ""
 
 msgid "Keyboard"
-msgstr "键盘"
+msgstr ""
 
 msgid "Chapter"
-msgstr "章节"
+msgstr ""
 
 msgid "Set From before the end"
-msgstr "“起始”须在结尾之前"
+msgstr ""
 
 msgid "Another chapter starts here"
-msgstr "此处已有章节"
+msgstr ""
 
 msgid "In the video, and as times beside it"
-msgstr "写入视频，并在旁生成时间列表"
+msgstr ""
 
 msgid "Named places to jump to in a video or web page."
-msgstr "视频或网页中可跳转的命名位置。"
+msgstr ""
 
 msgid "1 chapter"
-msgstr "1 个章节"
+msgstr ""
 
 msgid "{n} chapters"
-msgstr "{n} 个章节"
+msgstr ""
 
 #: lib/chapter_lane.dart
 msgid "Add Chapter"
-msgstr "添加章节"
+msgstr ""
 
 #: lib/chapter_lane.dart
 msgid "Add from Rehearsal Marks"
-msgstr "从排练记号添加"
+msgstr ""
 
 #: lib/chapter_lane.dart
 msgid "Remove Chapter"
-msgstr "移除章节"
+msgstr ""
 
 #: lib/chapter_lane.dart lib/web_player/player.dart
 msgid "Chapters"
-msgstr "章节"
+msgstr ""
 
 #: lib/video_export.dart lib/web_player/player.dart
 msgid "Start"
-msgstr "开头"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The base URL isn’t a web address."
-msgstr "基础 URL 不是网址。"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The server’s answer isn’t a list of models."
-msgstr "服务器的回复不是模型列表。"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "No answer."
-msgstr "没有回复。"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The server’s answer isn’t JSON."
-msgstr "服务器的回复不是 JSON。"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The server didn’t answer in time."
-msgstr "服务器未及时回复。"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "No matching providers"
-msgstr "没有匹配的供应商"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Add Provider…"
-msgstr "添加供应商…"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Search providers"
-msgstr "搜索供应商"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgctxt "provider"
 msgid "On"
-msgstr "启用"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgctxt "provider"
 msgid "Off"
-msgstr "禁用"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Connected"
-msgstr "已连接"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Couldn’t Fetch Models"
-msgstr "无法获取模型"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Edit provider"
-msgstr "编辑供应商"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "API key"
-msgstr "API 密钥"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Hide key"
-msgstr "隐藏密钥"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Show key"
-msgstr "显示密钥"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "API base URL"
-msgstr "API 基础 URL"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "API path"
-msgstr "API 路径"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Models"
-msgstr "模型"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Search models"
-msgstr "搜索模型"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Select models"
-msgstr "选择模型"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Add model"
-msgstr "添加模型"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Fetch"
-msgstr "获取"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Select None"
-msgstr "全不选"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Remove {n}"
-msgstr "移除 {n} 个"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "No models yet."
-msgstr "还没有模型。"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "No matching models"
-msgstr "没有匹配的模型"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Test"
-msgstr "测试"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Test a model"
-msgstr "测试一个模型"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Remove model"
-msgstr "移除模型"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Delete “{name}”?"
-msgstr "删除“{name}”？"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Its key and models go with it."
-msgstr "其密钥和模型也会一并删除。"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Add Provider"
-msgstr "添加供应商"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Edit Provider"
-msgstr "编辑供应商"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "API format"
-msgstr "API 格式"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Delete…"
-msgstr "删除…"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Add Model"
-msgstr "添加模型"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Model ID"
-msgstr "模型 ID"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Already added"
-msgstr "已添加"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Choose Models"
-msgstr "选择模型"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "The provider offers no models."
-msgstr "该供应商没有提供模型。"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "All matching"
-msgstr "全部匹配项"
+msgstr ""
 
 #: lib/ai_settings.dart
 msgid "{n} of {all}"
-msgstr "{n} / {all}"
+msgstr ""
 
 msgid "AI"
-msgstr "AI"
+msgstr ""
 
 msgid "Providers"
-msgstr "供应商"
+msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The server’s answer has no text."
-msgstr "服务器的回复中没有文字。"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "AI couldn’t read 1 page. {error}"
-msgstr "AI 无法读取 1 页。{error}"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "AI couldn’t read {n} pages. {error}"
-msgstr "AI 无法读取 {n} 页。{error}"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Couldn’t read with AI. {error}"
-msgstr "无法用 AI 读取。{error}"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "The model’s answer couldn’t be read."
-msgstr "无法读取模型的回复。"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Stop Reading"
-msgstr "停止读取"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Read with AI ({model})"
-msgstr "用 AI 读取（{model}）"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Reading with AI… {n} of {count}"
-msgstr "正在用 AI 读取… 第 {n} 页，共 {count} 页"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Passed"
-msgstr "通过"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Passed with mistakes"
-msgstr "通过，但有错误"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Inaccurate"
-msgstr "不够准确"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Not recommended"
-msgstr "不推荐"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Failed"
-msgstr "未通过"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Reads PDF scores well."
-msgstr "能很好地读取 PDF 乐谱。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Some marks may need fixing."
-msgstr "部分标记可能需要修正。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Check its marks after reading."
-msgstr "读取后请检查其标记。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Many marks will need fixing."
-msgstr "许多标记需要修正。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Most marks will need fixing."
-msgstr "大部分标记需要修正。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "This model can’t mark PDF scores."
-msgstr "此模型无法标记 PDF 乐谱。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Horizontal borders"
-msgstr "水平边界"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Instrument names"
-msgstr "乐器名称"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Tempo and time"
-msgstr "速度与拍号"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Use an inaccurate model?"
-msgstr "使用不够准确的模型？"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "It got {n}% of the exam right. Expect to fix its marks on every page."
-msgstr "它在测试中答对了 {n}%。每一页的标记都可能需要修正。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Use Anyway"
-msgstr "仍然使用"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "AI for PDF Import"
-msgstr "PDF 导入所用 AI"
+msgstr ""
 
 msgid "Model"
-msgstr "模型"
+msgstr ""
 
 msgid "Use anyway"
-msgstr "仍然使用"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Turn on a provider in Settings ▸ AI to choose a model."
-msgstr "在“设置 ▸ AI”中开启一个服务商，即可选择模型。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Use"
-msgstr "使用"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Taking the exam… {n} of {count} pages"
-msgstr "正在测试… 第 {n} 页，共 {count} 页"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Stop"
-msgstr "停止"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Run Again"
-msgstr "再次运行"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "The exam couldn’t be run."
-msgstr "无法运行测试。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Not tested yet."
-msgstr "尚未测试。"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Run Exam"
-msgstr "运行测试"
+msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart
 msgid "{n}%"
-msgstr "{n}%"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Read with AI…"
-msgstr "用 AI 读取…"
+msgstr ""
+
