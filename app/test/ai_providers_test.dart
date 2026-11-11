@@ -108,6 +108,9 @@ void main() {
     await expectLater(AiClient(at('o', AiFormat.openai).copyWith(baseUrl: 'api.openai.com')).models(), throwsA(isA<AiError>()));
     // An answer that is no text at all isn't JSON, said as every such answer is.
     await expectLater(AiClient(at('raw', AiFormat.openai)).models(), throwsA(isA<AiError>()));
+    // An answer past the most one may be is ended there.
+    await expectLater(AiClient(at('o', AiFormat.openai), mostBytes: 20).models(),
+        throwsA(isA<AiError>().having((e) => e.status, 'status', isNull)));
     // A key no header can hold is said to be one, without repeating it, and nothing is asked.
     final asked = heard.length;
     for (final key in ['sk-密钥', 'sk-a\nb', 'sk-“quoted”']) {

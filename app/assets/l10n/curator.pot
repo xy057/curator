@@ -3863,3 +3863,7 @@ msgstr ""
 #: lib/ai_providers.dart
 msgid "The API key has invalid characters."
 msgstr ""
+
+#: lib/ai_providers.dart
+msgid "The server’s answer is too long."
+msgstr ""

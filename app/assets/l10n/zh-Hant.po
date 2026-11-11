@@ -3882,3 +3882,7 @@ msgstr "重新啟動後生效。"
 #: lib/ai_providers.dart
 msgid "The API key has invalid characters."
 msgstr "API 金鑰包含無效字元。"
+
+#: lib/ai_providers.dart
+msgid "The server’s answer is too long."
+msgstr "伺服器的回覆過長。"

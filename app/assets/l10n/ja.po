@@ -3882,3 +3882,7 @@ msgstr "再起動すると反映されます。"
 #: lib/ai_providers.dart
 msgid "The API key has invalid characters."
 msgstr "API キーに無効な文字が含まれています。"
+
+#: lib/ai_providers.dart
+msgid "The server’s answer is too long."
+msgstr "サーバーの応答が長すぎます。"

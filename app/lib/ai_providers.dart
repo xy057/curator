@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -202,10 +203,20 @@ class AiError implements Exception {
 /// Talks to one [provider]'s API: its model list ([models]) and a one-word request to a model
 /// ([test]). The key goes only to the provider's own base URL: redirects are not followed.
 class AiClient {
-  AiClient(this.provider, {this.timeout = const Duration(seconds: 30)});
+  AiClient(this.provider, {this.timeout = const Duration(seconds: 30), this.mostBytes = 32 << 20});
 
   final AiProvider provider;
+
+  /// How long a server may take to answer (a model reading a page: minutes).
   final Duration timeout;
+
+  /// The most a server may answer, bytes: a model list or an answer about a page is far under
+  /// it. Past it the request is ended: an address that is no API's (a file's, a stream's) isn't
+  /// read whole into memory.
+  final int mostBytes;
+
+  /// Reaching a server takes seconds, however long its answer may.
+  static const _connecting = Duration(seconds: 30);
 
   /// The base URL as typed, without a trailing slash; an error when it isn't an http(s) URL.
   Uri _base() {
@@ -402,7 +413,7 @@ class AiClient {
   Future<Object?> _send(String method, Uri uri, [Object? body]) async {
     final headers = _headers; // before anything is opened: a key that can't be sent
     final client = HttpClient()
-      ..connectionTimeout = timeout
+      ..connectionTimeout = timeout < _connecting ? timeout : _connecting
       ..userAgent = 'Curator/$appVersion';
     _open.add(client);
     try {
@@ -415,8 +426,13 @@ class AiClient {
         request.add(utf8.encode(jsonEncode(body)));
       }
       final response = await request.close().timeout(timeout);
+      final bytes = BytesBuilder(copy: false);
+      await response.forEach((chunk) {
+        bytes.add(chunk);
+        if (bytes.length > mostBytes) throw AiError('The server’s answer is too long.'.tr);
+      }).timeout(timeout);
       // (Bytes that are no UTF-8 are no JSON either: said below, not as a decoder's error.)
-      final text = await response.transform(const Utf8Decoder(allowMalformed: true)).join().timeout(timeout);
+      final text = const Utf8Decoder(allowMalformed: true).convert(bytes.takeBytes());
       Object? json;
       try {
         json = text.isEmpty ? null : jsonDecode(text);
