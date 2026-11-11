@@ -277,18 +277,42 @@ abstract final class PdfDetect {
   }
 
   /// Where the music of a system whose staves are [staves] starts: past the clef, key and time
-  /// signature at their left (points).
+  /// signature at their left (points). Each staff's own start is looked for, and the furthest
+  /// is the system's (the staff with the most sharps or flats): staves in different keys have
+  /// their accidentals where another's are not, and a tie held over from the last system fills
+  /// the way from a clef to its first note, so all their ink together is one long mark. When no
+  /// staff's is sure, what their ink together says.
   static double musicStart(PdfRaster page, List<FoundStaff> staves) {
+    final whole = _start(page, staves, staves);
+    if (staves.length == 1) return whole.$1;
+    // How far past its own lines' start each staff's music starts: a scan leaning has each
+    // staff start a little further along than the one above, and the system's start is where
+    // its middle staff's is.
+    final each = [
+      for (final staff in staves)
+        if (_start(page, [staff], staves) case (final x, true)) x - staff.left,
+    ];
+    final lefts = [for (final staff in staves) staff.left]..sort();
+    return each.isEmpty ? whole.$1 : lefts[lefts.length ~/ 2] + each.reduce(math.max);
+  }
+
+  /// Where the music starts by the ink of [of] (some of the system's [staves], or all), and
+  /// whether that is sure: a clef was found, and it stood apart from what follows it.
+  static (double, bool) _start(PdfRaster page, List<FoundStaff> of, List<FoundStaff> staves) {
     final space = staves.map((s) => s.space).reduce(math.min);
-    final start = staves.map((s) => s.left).reduce(math.min);
+    // From where their own lines start: a scan leaning has the lines of one staff start where
+    // the system's line still is in another.
+    final start = of.map((s) => s.left).reduce(math.min);
     final from = page.col(start + space * 0.4).round(), to = math.min(page.width, page.col(start + space * 22).round());
-    if (to <= from) return start;
-    // Columns holding ink besides the staff lines, in any staff.
+    if (to <= from) return (start, false);
+    // Columns holding ink besides the staff lines, in any staff. A scan's lines are some rows
+    // thick, and ragged.
     final inked = List<bool>.filled(to - from, false);
-    for (final staff in staves) {
+    for (final staff in of) {
+      final half = (staff.thickness * page.scale / 2).floor() + 1;
       final lineRows = <int>{
         for (var k = 0; k < 5; k++)
-          for (var d = -1; d <= 1; d++) page.row(staff.top + k * staff.space).round() + d,
+          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
       };
       final top = page.row(staff.top - staff.space).round(), bottom = page.row(staff.top + 5 * staff.space).round();
       for (var x = from; x < to; x++) {
@@ -313,39 +337,110 @@ abstract final class PdfDetect {
       glyphs.add((x, end));
       x = end;
     }
-    if (glyphs.isEmpty || glyphs.first.$1 > px * 2.5) return start + space * 0.5; // no clef here
+    if (glyphs.isEmpty || glyphs.first.$1 > px * 2.5) return (start + space * 0.5, false); // no clef here
     // The clef, then what follows it closely and is no wider than an accidental or a time
     // signature's digits: the key and time signature.
     var end = glyphs.first.$2;
-    if (end - glyphs.first.$1 > px * 4.5) return page.xOf(from + glyphs.first.$1) + space * 3.2; // run into the music
+    if (end - glyphs.first.$1 > px * 4.5) return (page.xOf(from + glyphs.first.$1) + space * 3.2, false); // run into the music
+    final clef = end, own = of.length == 1 ? of.first : null;
     for (final (a, b) in glyphs.skip(1).take(10)) {
       if (b - a > px * 2.6) break;
-      // The key's accidentals close together; a time signature can stand a little apart, alike
-      // in every staff.
-      if (a - end > px * 1.15 && (a - end > px * 4 || !_signatureLike(page, staves, from + a, from + b))) break;
+      // The key's accidentals close together (the first a little further from the clef in
+      // some engraving, when it is as tall as an accidental and no taller: a note's stem is, its
+      // head alone is not); a time signature can stand a little apart, alike in every staff. A
+      // note's head, filled, is no accidental however close.
+      final time = _signatureLike(page, staves, from + a, from + b, of: own, whole: true);
+      final near = a - end <= px * 1.15 || (end == clef && a - end <= px * 2 && _accidentalLike(page, of, from + a, from + b));
+      if (!near && !time && (a - end > px * 4 || !_signatureLike(page, staves, from + a, from + b, of: own))) break;
+      if (!time && _headIn(page, of, from + a, from + b)) break;
       end = b;
+      // Two digits filling the staff, in every staff: the time signature, which is the last.
+      if (time && staves.length > 1) break;
     }
+    // Seven accidentals and a time signature are twelve spaces: more is notes close together.
+    if (end - clef > px * 13) return (page.xOf(from + clef) + space * 0.5, false);
     final next = glyphs.where((g) => g.$1 > end).firstOrNull;
     final gap = next == null ? px : math.min(px, (next.$1 - end) / 2);
-    return page.xOf(from + end + gap);
+    return (page.xOf(from + end + gap), true);
+  }
+
+  /// Whether what columns [a]–[b] hold in [staves] is as tall as an accidental: two staff spaces
+  /// to a little over three, and at least half a space wide.
+  static bool _accidentalLike(PdfRaster page, List<FoundStaff> staves, int a, int b) {
+    for (final staff in staves) {
+      final px = staff.space * page.scale;
+      final half = (staff.thickness * page.scale / 2).floor() + 1;
+      final lineRows = <int>{
+        for (var k = 0; k < 5; k++)
+          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
+      };
+      final top = page.row(staff.top - staff.space * 2).round(), bottom = page.row(staff.top + staff.space * 6).round();
+      int? lo, hi, left, right;
+      for (var y = top; y <= bottom; y++) {
+        if (lineRows.contains(y)) continue;
+        for (var x = a; x <= b; x++) {
+          if (!page.isDark(x, y)) continue;
+          lo ??= y;
+          hi = y;
+          left = left == null ? x : math.min(left, x);
+          right = right == null ? x : math.max(right, x);
+        }
+      }
+      if (lo == null) continue;
+      final tall = (hi! - lo + 1) / px;
+      if (tall < 1.8 || tall > 3.2 || right! - left! + 1 < px * 0.5) return false;
+    }
+    return true;
+  }
+
+  /// Whether columns [a]–[b] hold a filled notehead in one of [staves]: rows of ink over a staff
+  /// space wide, one under the other for two fifths of a space (a sharp's bars are thinner, a
+  /// flat's bowl hollow), the staff's lines aside.
+  static bool _headIn(PdfRaster page, List<FoundStaff> staves, int a, int b) {
+    for (final staff in staves) {
+      final px = staff.space * page.scale;
+      final half = (staff.thickness * page.scale / 2).floor() + 1;
+      final lineRows = <int>{
+        for (var k = 0; k < 5; k++)
+          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
+      };
+      final top = page.row(staff.top - staff.space * 2).round(), bottom = page.row(staff.top + staff.space * 6).round();
+      var rows = 0;
+      for (var y = top; y <= bottom; y++) {
+        if (lineRows.contains(y)) continue;
+        var run = 0, longest = 0;
+        for (var x = a; x <= b; x++) {
+          run = page.isDark(x, y) ? run + 1 : 0;
+          if (run > longest) longest = run;
+        }
+        rows = longest >= px * 1.05 ? rows + 1 : 0;
+        if (rows >= px * 0.4) return true;
+      }
+    }
+    return false;
   }
 
   /// Whether columns [a]–[b] hold a time signature: ink within every staff's lines (or most of
-  /// them), alike from staff to staff, at least two spaces tall.
-  static bool _signatureLike(PdfRaster page, List<FoundStaff> staves, int a, int b) {
+  /// them), alike from staff to staff, at least two spaces tall; [whole]: from its top line to
+  /// its bottom one (two digits, one over the other). The columns are [of]'s, when given: each
+  /// other staff's as far from where its own lines start.
+  static bool _signatureLike(PdfRaster page, List<FoundStaff> staves, int a, int b, {FoundStaff? of, bool whole = false}) {
     final extents = <(double, double)>[];
     var inked = 0;
     for (final staff in staves) {
       final px = staff.space * page.scale;
+      final half = (staff.thickness * page.scale / 2).floor() + 1;
       final lineRows = <int>{
         for (var k = 0; k < 5; k++)
-          for (var d = -1; d <= 1; d++) page.row(staff.top + k * staff.space).round() + d,
+          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
       };
       final top = page.row(staff.top - staff.space * 1.5).round(), bottom = page.row(staff.top + staff.space * 5.5).round();
+      // As far along this staff as [a]–[b] are along [of]'s (a scan leaning).
+      final along = of == null ? 0 : ((staff.left - of.left) * page.scale).round();
       double? lo, hi;
       for (var y = top; y <= bottom; y++) {
         if (lineRows.contains(y)) continue;
-        for (var x = a; x <= b; x++) {
+        for (var x = a + along; x <= b + along; x++) {
           if (page.isDark(x, y)) {
             final at = (y - page.row(staff.top)) / px;
             lo ??= at;
@@ -354,7 +449,9 @@ abstract final class PdfDetect {
           }
         }
       }
-      if (lo == null) continue;
+      // (a speck is no ink: a staff whose lines were found to start a little off has its digits
+      // beside these columns)
+      if (lo == null || (of != null && hi! - lo < 0.5)) continue;
       inked++;
       if (lo < -0.4 || hi! > 4.4 || hi - lo < 1.5) return false;
       extents.add((lo, hi));
@@ -362,6 +459,7 @@ abstract final class PdfDetect {
     if (inked < math.max(1, (staves.length * 0.7).ceil())) return false;
     final los = [for (final e in extents) e.$1]..sort(), his = [for (final e in extents) e.$2]..sort();
     final lo = los[los.length ~/ 2], hi = his[his.length ~/ 2];
+    if (whole && (lo > 0.6 || hi < 3.4)) return false;
     return extents.every((e) => (e.$1 - lo).abs() <= 0.45 && (e.$2 - hi).abs() <= 0.45);
   }
 
