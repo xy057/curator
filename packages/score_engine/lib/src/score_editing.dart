@@ -1066,6 +1066,8 @@ class EditableScore {
   }
 
   /// [part]'s divisions made fine enough for [length]s and times like it: every bar rescaled.
+  /// (They are engraved as they were, so none is said to have changed: the first triplet typed
+  /// would have every chunk of the score engraved again.)
   void _ensureDivisions(EditPart part, Iterable<Frac> times) {
     var needed = 1;
     for (final t in times) {
@@ -1083,7 +1085,6 @@ class EditableScore {
       }
       part._measures[i].replace(copy);
       part._measures[i] = copy;
-      _changed.add(i);
     }
     part.divisions = next;
     part._contexts = null;

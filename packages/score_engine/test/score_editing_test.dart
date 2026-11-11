@@ -113,6 +113,12 @@ void main() {
     }
     expect(score.canRedo, isFalse);
 
+    // A triplet needs finer divisions in every bar of its part: only its own bar is engraved again.
+    score.takeChanged();
+    score.input(at, [InputItem(const Rhythm(NoteType.eighth, tuplet: Tuplet(7, 4, NoteType.eighth)), [const Pitch(0, 5)])]);
+    expect(score.takeChanged().bars, {2});
+    expect(EditableScore.parse(score.toMusicXML()).eventsIn(0, 2, voice).first.length, Frac(2, 7));
+
     // A dynamic deleted is nothing in the score; undone, it is again.
     final flute = EditableScore.parse(_flute);
     final start = ScorePosition(0, const VoiceKey(1, '1'), 0, Frac.zero);
