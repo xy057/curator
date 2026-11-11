@@ -962,9 +962,15 @@ class EditableScore {
 
   void _indexAll() {
     _where.clear();
+    _indexFrom(0);
+  }
+
+  /// The bars from [from] on found again by their ids (bars put in or taken out before them
+  /// moved them).
+  void _indexFrom(int from) {
     for (final (p, part) in parts.indexed) {
-      for (final (m, measure) in part._measures.indexed) {
-        _indexMeasure(p, m, measure);
+      for (var m = from; m < part._measures.length; m++) {
+        _indexMeasure(p, m, part._measures[m]);
       }
     }
   }
@@ -1085,17 +1091,27 @@ class EditableScore {
 
   // MARK: Contexts
 
-  List<_Context> _contextsOf(EditPart part) => part._contexts ??= () {
-        var context = _Context(divisions: part.divisions, key: const KeySig(0), meter: null, clefs: const {}, transpose: null, staves: 1);
-        final out = <_Context>[];
-        for (final m in part._measures) {
-          out.add(context);
-          for (final a in m.findElements('attributes')) {
-            context = _applyAttributes(context, a);
-          }
-        }
-        return out;
-      }();
+  /// What is in force where bar [m] of [part] starts. Kept bar by bar and worked out as far as
+  /// asked: a bar written again leaves those before it as they were ([_contextsStaleFrom]).
+  _Context _contextBefore(EditPart part, int m) {
+    final known = part._contexts ??= [];
+    if (known.isEmpty) {
+      known.add(_Context(divisions: part.divisions, key: const KeySig(0), meter: null, clefs: const {}, transpose: null, staves: 1));
+    }
+    while (known.length <= m) {
+      var context = known.last;
+      for (final a in part._measures[known.length - 1].findElements('attributes')) {
+        context = _applyAttributes(context, a);
+      }
+      known.add(context);
+    }
+    return known[m];
+  }
+
+  /// Bar [m] of [part] was written again: what is in force after it may have changed.
+  static void _contextsStaleFrom(EditPart part, int m) {
+    if (part._contexts case final known? when known.length > m + 1) known.length = m + 1;
+  }
 
   static _Context _applyAttributes(_Context context, XmlElement a) {
     var c = context;
@@ -1125,7 +1141,7 @@ class EditableScore {
   /// What is in force in bar [m] of [part] at [time] (its own changes up to then included).
   _Context _contextAt(int part, int m, Frac time) {
     final p = parts[part];
-    var context = _contextsOf(p)[m];
+    var context = _contextBefore(p, m);
     for (final o in _view(part, m).others) {
       if (o.time > time) break;
       if (o.element.name.local == 'attributes') context = _applyAttributes(context, o.element);
@@ -1193,7 +1209,7 @@ class EditableScore {
     p._measures[m] = written;
     _indexMeasure(part, m, written);
     _changed.add(m);
-    p._contexts = null;
+    _contextsStaleFrom(p, m);
   }
 
   // MARK: Undo
@@ -1297,8 +1313,12 @@ class EditableScore {
           _changed.add(m);
         }
       }
+      if (all != null || p.divisions != step.divisions[i]) {
+        p._contexts = null;
+      } else if (step.bars[i].isNotEmpty) {
+        _contextsStaleFrom(p, step.bars[i].keys.reduce(math.min));
+      }
       p.divisions = step.divisions[i];
-      p._contexts = null;
     }
     if (measureCount != count) _markFrom(math.min(count, measureCount));
     if (counted) _indexAll();
@@ -1344,7 +1364,7 @@ class EditableScore {
         if (m == from && from > 0) {
           // What the bar itself changes, against what was in force before it: shown at the
           // chunk's start; what is only carried in is not.
-          final before = _contextsOf(part)[m];
+          final before = _contextBefore(part, m);
           if (_attributesAtStartOrNull(measure) case final own?) {
             final after = _applyAttributes(before, own);
             final (t0, t1) = (before.meter, after.meter);
@@ -1356,7 +1376,7 @@ class EditableScore {
             }
           }
           final copy = measure.copy();
-          _carry(copy, _contextsOf(part)[m], part.staves);
+          _carry(copy, _contextBefore(part, m), part.staves);
           b.write(copy.toXmlString());
         } else {
           b.write(_xml[measure] ??= measure.toXmlString());
@@ -2562,7 +2582,7 @@ class EditableScore {
           p._contexts = null;
         }
         _renumber();
-        _indexAll();
+        _indexFrom(math.max(0, index - 1));
         _markFrom(math.max(0, index - 1));
       });
 
@@ -2608,13 +2628,14 @@ class EditableScore {
             }
           }
           for (var k = to - 1; k >= from; k--) {
+            _unindexMeasure(parts.indexOf(p), k, p._measures[k]);
             p._measures[k].remove();
             p._measures.removeAt(k);
           }
           p._contexts = null;
         }
         _renumber();
-        _indexAll();
+        _indexFrom(math.max(0, from - 1));
         _markFrom(math.max(0, from - 1));
       });
 

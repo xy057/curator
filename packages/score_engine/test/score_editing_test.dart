@@ -81,10 +81,17 @@ void main() {
     states.add(written());
     score.addDynamic(at, 'mf');
     states.add(written());
+    // What is in force in a bar, and where a note is, follow the bars before it.
+    final key = score.keyAt(0, 6, Frac.zero).fifths;
+    final later = score.eventsIn(0, 5, score.voicesIn(0, 5).first).first.ids.first;
+    expect(score.whereIs(later)!.measure, 5);
     score.addBars(3, 2); // the bars' number changes: every bar after is put back
     states.add(written());
+    expect(score.whereIs(later)!.measure, 7);
     score.setKey(1, KeySig.parse('A')!);
     states.add(written());
+    expect(score.keyAt(0, 8, Frac.zero).fifths, 3);
+    expect(score.keyAt(0, 0, Frac.zero).fifths, key);
     score.deleteBars(0, 1);
     states.add(written());
     for (var i = states.length - 2; i >= 0; i--) {
@@ -92,6 +99,8 @@ void main() {
       expect(written(), states[i], reason: 'undone to state $i');
     }
     expect(score.canUndo, isFalse);
+    expect(score.keyAt(0, 6, Frac.zero).fifths, key);
+    expect(score.whereIs(later)!.measure, 5);
     // A step of one bar says one bar changed.
     score.takeChanged();
     score.redo();
