@@ -123,7 +123,7 @@ class AiProvider {
       id: id,
       name: name,
       // A built-in one speaks its own format, whatever was saved.
-      format: builtIn?.format ?? AiFormat.named(json['format'] as String?),
+      format: builtIn?.format ?? AiFormat.named(switch (json['format']) { final String name => name, _ => null }),
       enabled: json['enabled'] == true,
       apiKey: text('apiKey'),
       baseUrl: text('baseUrl'),
@@ -255,13 +255,13 @@ class AiClient {
               (final String name, null) => name.replaceFirst(RegExp('^models/'), ''),
               _ => null,
             },
-          _ => m['id'] as String?,
+          _ => switch (m['id']) { final String id => id, _ => null },
         };
         if (id != null && id.isNotEmpty && !ids.contains(id)) ids.add(id);
       }
-      after = switch (provider.format) {
-        AiFormat.anthropic when json['has_more'] == true => json['last_id'] as String?,
-        AiFormat.gemini => json['nextPageToken'] as String?,
+      after = switch ((provider.format, json['last_id'], json['nextPageToken'])) {
+        (AiFormat.anthropic, final String last, _) when json['has_more'] == true => last,
+        (AiFormat.gemini, _, final String next) => next,
         _ => null,
       };
       if (after == null || after.isEmpty) break;
