@@ -232,6 +232,18 @@ void main() {
     expect(refined.starts, [found.left, for (final b in found.barlines) b.x]);
   });
 
+  test('a lone staff keeps its barlines when an AI model’s are nowhere near it', () {
+    final page = _page();
+    final view = PdfAiView(const ui.Size(240, 120));
+    final found = PdfDetect.page(page, 0).single;
+    final system = found.copyWith(staves: [found.staves[0]]);
+    // Its staff where it is, its only barline at the page's left edge.
+    final answer = PdfAiPage.parse('{"systems": [{"staves": [{"label": 1, "y": ${(28 / 120 * 1000).toStringAsFixed(1)}}], "barlines": [{"x": 0}]}]}');
+    final refined = PdfAi.refine(page, [system], answer, view).single;
+    expect(refined.system.barlines, system.barlines);
+    expect(refined.starts, [system.left, for (final b in system.barlines) b.x]);
+  });
+
   test('an answer’s numbers that are no numbers are passed over', () {
     // "NaN" and "Infinity" read as numbers: rounding one would throw, where a wrong answer is
     // only wrong.

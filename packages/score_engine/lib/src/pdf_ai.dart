@@ -583,6 +583,10 @@ Answer with one JSON object and nothing else, like this:
       for (final b in given)
         if (view.x(b.x) case final x when x > left - space * 8 && x < right + space * 8) (x: x, kind: b.kind),
     ]..sort((a, b) => a.x.compareTo(b.x));
+    final asFound = (found, [left, for (final b in found) if (b.x >= left + space * 0.5) b.x]);
+    // None of them anywhere near the system: it says nothing of these (a lone staff would
+    // otherwise lose every barline found, as ones it left out).
+    if (said.isEmpty) return asFound;
     final reach = math.max(space * 6, (right - left) * 0.06);
     // The cheapest alignment in order: a pair costs how far apart they are, one alone the reach.
     final n = said.length, m = found.length;
@@ -615,7 +619,7 @@ Answer with one JSON object and nothing else, like this:
     }
     // Too few of them paired: its barlines aren't the page's (its bars counted as those found).
     final paired = pair.whereType<int>().length;
-    if (m > 0 && paired < (math.min(n, m) / 2).ceil()) return (found, [left, for (final b in found) if (b.x >= left + space * 0.5) b.x]);
+    if (m > 0 && paired < (math.min(n, m) / 2).ceil()) return asFound;
     // How far off the answer's places are, as the pairs say.
     final offsets = [
       for (var i = 0; i < n; i++)
