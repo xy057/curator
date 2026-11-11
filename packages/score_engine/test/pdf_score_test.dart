@@ -185,6 +185,22 @@ void main() {
     expect(next.systems.single.ink, isNull);
   });
 
+  test('an answer’s numbers that are no numbers are passed over', () {
+    // "NaN" and "Infinity" read as numbers: rounding one would throw, where a wrong answer is
+    // only wrong.
+    final answer = PdfAiPage.parse('{"systems": [{"staves": ['
+        '{"label": "1", "y": "NaN", "region": ["Infinity", 50], "staff": "NaN", "key": "-Infinity", "changes": [{"bar": "NaN", "key": 2}]}, '
+        '{"label": null, "y": "NaN"}], '
+        '"barlines": [{"x": "NaN"}, "Infinity", {"x": "310"}], "times": [{"bar": "NaN", "time": "2/4"}], '
+        '"tempos": [{"bar": "Infinity", "text": "Lento", "bpm": "NaN"}]}]}');
+    final system = answer.systems.single, staff = system.staves.single;
+    expect((staff.label, staff.y, staff.region, staff.staff, staff.key), (1, null, null, 1, null));
+    expect(staff.changes, [(bar: 1, clef: null, key: 2)]);
+    expect([for (final b in system.barlines!) b.x], [310]);
+    expect(system.times, [(bar: 1, meter: const PdfMeter('2', 4))]);
+    expect(system.tempos, [(bar: 1, tempo: const PdfTempo('Lento'))]);
+  });
+
   test('regions an AI model says overlap do only where no row between the staves is clear', () {
     final view = PdfAiView(const ui.Size(240, 120));
     String y(double points) => (points / 120 * 1000).toStringAsFixed(1);

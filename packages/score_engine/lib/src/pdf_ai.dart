@@ -195,9 +195,9 @@ class PdfAiPage {
 
   static Iterable<Map> _maps(Object? v) => v is List ? v.whereType<Map>() : const [];
 
-  static double? _num(Object? v) => switch (v) {
+  /// A number, or one written as text ("152"); not "NaN" or "Infinity", which read as numbers too.
+  static double? _num(Object? v) => switch (v is String ? double.tryParse(v.trim()) : v) {
         final num n when n.isFinite => n.toDouble(),
-        final String s => double.tryParse(s.trim()),
         _ => null,
       };
 
