@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Japanese\n"
 "Language: ja_JP\n"
-"PO-Revision-Date: 2026-11-10 22:23\n"
+"PO-Revision-Date: 2026-11-11 04:18\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -3100,12 +3100,8 @@ msgstr "楽器を削除"
 msgid "Remove Mask"
 msgstr "マスクを削除"
 
-msgid "Gap"
-msgstr "ギャップ"
-
-#: lib/pdf_import.dart
-msgid "Remove Gap"
-msgstr "ギャップを削除"
+msgid "Region"
+msgstr ""
 
 #: lib/pdf_import_changes.dart
 msgid "Concert"
@@ -3342,8 +3338,8 @@ msgstr "段を削除（⌫）"
 msgid "Remove Barline (⌫)"
 msgstr "小節線を削除（⌫）"
 
-msgid "Remove Gap (⌫)"
-msgstr "ギャップを削除（⌫）"
+msgid "Remove Region (⌫)"
+msgstr ""
 
 msgid "Remove Mask (⌫)"
 msgstr "マスクを削除（⌫）"
@@ -3371,12 +3367,12 @@ msgstr "このページにはありません"
 msgid "Add Barline (B)"
 msgstr "小節線を追加（B）"
 
-msgid "Add Staff (S)"
-msgstr "譜表を追加（S）"
+msgid "Draw Region (R)"
+msgstr ""
 
 #: lib/pdf_import.dart
-msgid "Remove Staff"
-msgstr "譜表を削除"
+msgid "Remove Region"
+msgstr ""
 
 #: lib/condensing_editor.dart
 msgctxt "condensing"
@@ -3859,5 +3855,17 @@ msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Read with AI…"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "AI features are hidden"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Hide AI features"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Restart to apply."
 msgstr ""
 
