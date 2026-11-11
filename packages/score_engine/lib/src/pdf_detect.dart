@@ -7,11 +7,14 @@ import 'pdf_layout.dart';
 /// Part of a page as ink: a byte a pixel (0 paper … 255 black), [scale] pixels a point, its top
 /// left at ([left], [top]) points on the page.
 class PdfRaster {
-  PdfRaster(this.ink, this.width, this.height, {required this.scale, this.left = 0, this.top = 0});
+  PdfRaster(this.ink, this.width, this.height, {required this.scale, this.left = 0, this.top = 0, this.level = false});
 
   final Uint8List ink;
   final int width, height;
   final double scale, left, top;
+
+  /// Whether its staff lines were made level ([PdfDetect.flat]).
+  final bool level;
 
   /// Pixel column / row of a page x / y (points).
   double col(double x) => (x - left) * scale;
@@ -57,6 +60,110 @@ typedef FoundStaff = ({double top, double space, double left, double right, doub
 abstract final class PdfDetect {
   /// Pixels a point pages are read at for finding things: a staff space of 4 points is 10 pixels.
   static const scale = 2.5;
+
+  /// [page] with its staff lines level. A scan of a page that lay curved, or a little turned,
+  /// has a staff's lines rise or fall some rows on their way: no row holds a line then, a
+  /// staff's lines are found for a part of their length or not at all, and its systems fall
+  /// apart. The page is taken in strips of columns, and each strip is moved up or down, band by
+  /// band down the page, to where its lines meet those of the strips between it and the page's
+  /// middle one (three rows from its neighbour's at most: less than half a staff space, so a
+  /// line is not taken for the next). Columns only move up and down: what is found across the
+  /// page is where it was, and up and down it is where the page's middle has it. A page whose
+  /// lines are level, or within two rows of it, is returned as it is.
+  static PdfRaster flat(PdfRaster page) {
+    if (page.level) return page;
+    const strip = 48, bands = 16, reach = 3, most = 24;
+    final w = page.width, h = page.height, ink = page.ink;
+    final n = w ~/ strip, tall = h ~/ bands;
+    PdfRaster as(Uint8List ink) => PdfRaster(ink, w, h, scale: page.scale, left: page.left, top: page.top, level: true);
+    if (n < 3 || tall < 8) return as(ink);
+    // Per strip and row, how much of the row's ink is a line's: most of the strip across, or
+    // none (notes and text fill less).
+    final filled = Uint8List(n * h);
+    for (var y = 0; y < h; y++) {
+      final base = y * w;
+      for (var s = 0; s < n; s++) {
+        final from = base + s * strip;
+        var count = 0;
+        for (var i = from; i < from + strip; i += 2) {
+          if (ink[i] >= PdfRaster.dark) count++;
+        }
+        if (count * 10 >= strip * 3) filled[s * h + y] = count;
+      }
+    }
+    // Per strip and band, how many rows down its lines are from the middle strip's: outward
+    // from the middle, each strip against what those before it, moved, hold in the band.
+    final shift = Int16List(n * bands), middle = n ~/ 2, held = Float64List(tall);
+    var furthest = 0;
+    for (var b = 0; b < bands; b++) {
+      final y0 = b * tall;
+      for (final step in const [1, -1]) {
+        for (var k = 0; k < tall; k++) {
+          held[k] = filled[middle * h + y0 + k].toDouble();
+        }
+        var now = 0, empty = !held.any((v) => v > 0);
+        for (var s = middle + step; s >= 0 && s < n; s += step) {
+          // How well the strip, [d] rows down, meets what is held, and in how many lines.
+          (double, int) match(int d) {
+            if (y0 + d < 0 || y0 + d + tall > h) return (-1, 0);
+            final at = s * h + y0 + d;
+            var sum = 0.0, lines = 0, on = false;
+            for (var k = 0; k < tall; k++) {
+              final both = held[k] > 0 && filled[at + k] > 0;
+              if (both) sum += held[k] * filled[at + k];
+              if (both && !on) lines++;
+              on = both;
+            }
+            return (sum, lines);
+          }
+
+          // It stays where the last strip was unless another place is clearly better, in three
+          // lines or more: a beam or a hairpin's line meeting a staff's is no staff found again.
+          final stay = match(now).$1;
+          var best = now, bestSum = stay;
+          for (var r = 1; r <= reach; r++) {
+            for (final d in [now - r, now + r]) {
+              if (d.abs() > most) continue;
+              final (sum, lines) = match(d);
+              if (lines >= 3 && sum > bestSum && sum > stay * 1.1) (best, bestSum) = (d, sum);
+            }
+          }
+          final at = s * h + y0 + best;
+          if (empty) {
+            // (nothing in the middle strip here: the first strip with lines is what is held)
+            for (var k = 0; k < tall; k++) {
+              held[k] = filled[s * h + y0 + k].toDouble();
+              if (held[k] > 0) empty = false;
+            }
+          } else if (bestSum > 0) {
+            now = best;
+            for (var k = 0; k < tall; k++) {
+              held[k] = held[k] * 0.7 + filled[at + k] * 0.3;
+            }
+          }
+          shift[s * bands + b] = now;
+          if (now.abs() > furthest) furthest = now.abs();
+        }
+      }
+    }
+    // Lines a row or two off are level enough for what looks for them, and moving a strip a
+    // row puts a step in what crosses its edge (a time signature's digits, a notehead).
+    if (furthest <= 2) return as(ink);
+    // Each strip's rows from where they were: the bands' shifts, eased from one band's middle
+    // to the next's.
+    final out = Uint8List(ink.length);
+    for (var s = 0; s < n; s++) {
+      final x0 = s * strip, x1 = s == n - 1 ? w : x0 + strip;
+      for (var y = 0; y < h; y++) {
+        final at = (y - tall / 2) / tall;
+        final above = at.floor().clamp(0, bands - 1), below = math.min(bands - 1, above + 1);
+        final t = (at - above).clamp(0.0, 1.0);
+        final from = (y + (shift[s * bands + above] * (1 - t) + shift[s * bands + below] * t).round()).clamp(0, h - 1);
+        out.setRange(y * w + x0, y * w + x1, ink, from * w + x0);
+      }
+    }
+    return as(out);
+  }
 
   /// The staves of [page] (five-line ones), top to bottom.
   static List<FoundStaff> staves(PdfRaster page) {
@@ -258,8 +365,10 @@ abstract final class PdfDetect {
     return out;
   }
 
-  /// Whether a vertical line runs from [above]'s bottom line to [below]'s top line near their
-  /// left ends.
+  /// Whether a vertical line runs from [above]'s bottom line to [below]'s top line: near their
+  /// left ends (the system's line, a bracket), or anywhere along them when it runs on through
+  /// one of them (a barline: a faint scan's line at the left is broken where its barlines are
+  /// not, and a line is followed as it leans, a few rows of it missing).
   static bool _joined(PdfRaster page, FoundStaff above, FoundStaff below) {
     if ((above.left - below.left).abs() > above.space * 3) return false;
     final from = page.row(above.top + 4 * above.space).round(), to = page.row(below.top).round();
@@ -273,22 +382,61 @@ abstract final class PdfDetect {
       }
       if (y > to) return true;
     }
+    final px = above.space * page.scale, gap = (px * 0.4).round();
+    final lead = (above.thickness * page.scale).ceil() + 2, lean = math.max(1, ((to - from) * 0.05).ceil());
+    final top = page.row(above.top).round(), bottom = page.row(below.top + 4 * below.space).round();
+    final within = math.max(1, ((from - top) * 0.05).ceil());
+    final end = math.min(page.width - 1, page.col(math.min(above.right, below.right)).floor());
+    for (var x = math.max(0, left); x <= end; x++) {
+      final at = _down(page, x, from, to, lead: lead, lean: lean, gap: gap);
+      if (at == null) continue;
+      if (x <= right) return true;
+      if (_down(page, at, to, bottom, lead: (below.thickness * page.scale).ceil() + 2, lean: within, gap: (px * 0.12).round()) != null) return true;
+      for (var start = x - within; start <= x + within; start++) {
+        final through = _down(page, start, top, from, lead: lead, lean: within, gap: (px * 0.12).round());
+        if (through != null && (through - x).abs() <= 1) return true;
+      }
+    }
     return false;
   }
 
   /// Where the music of a system whose staves are [staves] starts: past the clef, key and time
-  /// signature at their left (points).
+  /// signature at their left (points). Each staff's own start is looked for, and the furthest
+  /// is the system's (the staff with the most sharps or flats): staves in different keys have
+  /// their accidentals where another's are not, and a tie held over from the last system fills
+  /// the way from a clef to its first note, so all their ink together is one long mark. When no
+  /// staff's is sure, what their ink together says.
   static double musicStart(PdfRaster page, List<FoundStaff> staves) {
+    final whole = _start(page, staves, staves);
+    if (staves.length == 1) return whole.$1;
+    // How far past its own lines' start each staff's music starts: a scan leaning has each
+    // staff start a little further along than the one above, and the system's start is where
+    // its middle staff's is.
+    final each = [
+      for (final staff in staves)
+        if (_start(page, [staff], staves) case (final x, true)) x - staff.left,
+    ];
+    final lefts = [for (final staff in staves) staff.left]..sort();
+    return each.isEmpty ? whole.$1 : lefts[lefts.length ~/ 2] + each.reduce(math.max);
+  }
+
+  /// Where the music starts by the ink of [of] (some of the system's [staves], or all), and
+  /// whether that is sure: a clef was found, and it stood apart from what follows it.
+  static (double, bool) _start(PdfRaster page, List<FoundStaff> of, List<FoundStaff> staves) {
     final space = staves.map((s) => s.space).reduce(math.min);
-    final start = staves.map((s) => s.left).reduce(math.min);
+    // From where their own lines start: a scan leaning has the lines of one staff start where
+    // the system's line still is in another.
+    final start = of.map((s) => s.left).reduce(math.min);
     final from = page.col(start + space * 0.4).round(), to = math.min(page.width, page.col(start + space * 22).round());
-    if (to <= from) return start;
-    // Columns holding ink besides the staff lines, in any staff.
+    if (to <= from) return (start, false);
+    // Columns holding ink besides the staff lines, in any staff. A scan's lines are some rows
+    // thick, and ragged.
     final inked = List<bool>.filled(to - from, false);
-    for (final staff in staves) {
+    for (final staff in of) {
+      final half = (staff.thickness * page.scale / 2).floor() + 1;
       final lineRows = <int>{
         for (var k = 0; k < 5; k++)
-          for (var d = -1; d <= 1; d++) page.row(staff.top + k * staff.space).round() + d,
+          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
       };
       final top = page.row(staff.top - staff.space).round(), bottom = page.row(staff.top + 5 * staff.space).round();
       for (var x = from; x < to; x++) {
@@ -313,39 +461,110 @@ abstract final class PdfDetect {
       glyphs.add((x, end));
       x = end;
     }
-    if (glyphs.isEmpty || glyphs.first.$1 > px * 2.5) return start + space * 0.5; // no clef here
+    if (glyphs.isEmpty || glyphs.first.$1 > px * 2.5) return (start + space * 0.5, false); // no clef here
     // The clef, then what follows it closely and is no wider than an accidental or a time
     // signature's digits: the key and time signature.
     var end = glyphs.first.$2;
-    if (end - glyphs.first.$1 > px * 4.5) return page.xOf(from + glyphs.first.$1) + space * 3.2; // run into the music
+    if (end - glyphs.first.$1 > px * 4.5) return (page.xOf(from + glyphs.first.$1) + space * 3.2, false); // run into the music
+    final clef = end, own = of.length == 1 ? of.first : null;
     for (final (a, b) in glyphs.skip(1).take(10)) {
       if (b - a > px * 2.6) break;
-      // The key's accidentals close together; a time signature can stand a little apart, alike
-      // in every staff.
-      if (a - end > px * 1.15 && (a - end > px * 4 || !_signatureLike(page, staves, from + a, from + b))) break;
+      // The key's accidentals close together (the first a little further from the clef in
+      // some engraving, when it is as tall as an accidental and no taller: a note's stem is, its
+      // head alone is not); a time signature can stand a little apart, alike in every staff. A
+      // note's head, filled, is no accidental however close.
+      final time = _signatureLike(page, staves, from + a, from + b, of: own, whole: true);
+      final near = a - end <= px * 1.15 || (end == clef && a - end <= px * 2 && _accidentalLike(page, of, from + a, from + b));
+      if (!near && !time && (a - end > px * 4 || !_signatureLike(page, staves, from + a, from + b, of: own))) break;
+      if (!time && _headIn(page, of, from + a, from + b)) break;
       end = b;
+      // Two digits filling the staff, in every staff: the time signature, which is the last.
+      if (time && staves.length > 1) break;
     }
+    // Seven accidentals and a time signature are twelve spaces: more is notes close together.
+    if (end - clef > px * 13) return (page.xOf(from + clef) + space * 0.5, false);
     final next = glyphs.where((g) => g.$1 > end).firstOrNull;
     final gap = next == null ? px : math.min(px, (next.$1 - end) / 2);
-    return page.xOf(from + end + gap);
+    return (page.xOf(from + end + gap), true);
+  }
+
+  /// Whether what columns [a]–[b] hold in [staves] is as tall as an accidental: two staff spaces
+  /// to a little over three, and at least half a space wide.
+  static bool _accidentalLike(PdfRaster page, List<FoundStaff> staves, int a, int b) {
+    for (final staff in staves) {
+      final px = staff.space * page.scale;
+      final half = (staff.thickness * page.scale / 2).floor() + 1;
+      final lineRows = <int>{
+        for (var k = 0; k < 5; k++)
+          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
+      };
+      final top = page.row(staff.top - staff.space * 2).round(), bottom = page.row(staff.top + staff.space * 6).round();
+      int? lo, hi, left, right;
+      for (var y = top; y <= bottom; y++) {
+        if (lineRows.contains(y)) continue;
+        for (var x = a; x <= b; x++) {
+          if (!page.isDark(x, y)) continue;
+          lo ??= y;
+          hi = y;
+          left = left == null ? x : math.min(left, x);
+          right = right == null ? x : math.max(right, x);
+        }
+      }
+      if (lo == null) continue;
+      final tall = (hi! - lo + 1) / px;
+      if (tall < 1.8 || tall > 3.2 || right! - left! + 1 < px * 0.5) return false;
+    }
+    return true;
+  }
+
+  /// Whether columns [a]–[b] hold a filled notehead in one of [staves]: rows of ink over a staff
+  /// space wide, one under the other for two fifths of a space (a sharp's bars are thinner, a
+  /// flat's bowl hollow), the staff's lines aside.
+  static bool _headIn(PdfRaster page, List<FoundStaff> staves, int a, int b) {
+    for (final staff in staves) {
+      final px = staff.space * page.scale;
+      final half = (staff.thickness * page.scale / 2).floor() + 1;
+      final lineRows = <int>{
+        for (var k = 0; k < 5; k++)
+          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
+      };
+      final top = page.row(staff.top - staff.space * 2).round(), bottom = page.row(staff.top + staff.space * 6).round();
+      var rows = 0;
+      for (var y = top; y <= bottom; y++) {
+        if (lineRows.contains(y)) continue;
+        var run = 0, longest = 0;
+        for (var x = a; x <= b; x++) {
+          run = page.isDark(x, y) ? run + 1 : 0;
+          if (run > longest) longest = run;
+        }
+        rows = longest >= px * 1.05 ? rows + 1 : 0;
+        if (rows >= px * 0.4) return true;
+      }
+    }
+    return false;
   }
 
   /// Whether columns [a]–[b] hold a time signature: ink within every staff's lines (or most of
-  /// them), alike from staff to staff, at least two spaces tall.
-  static bool _signatureLike(PdfRaster page, List<FoundStaff> staves, int a, int b) {
+  /// them), alike from staff to staff, at least two spaces tall; [whole]: from its top line to
+  /// its bottom one (two digits, one over the other). The columns are [of]'s, when given: each
+  /// other staff's as far from where its own lines start.
+  static bool _signatureLike(PdfRaster page, List<FoundStaff> staves, int a, int b, {FoundStaff? of, bool whole = false}) {
     final extents = <(double, double)>[];
     var inked = 0;
     for (final staff in staves) {
       final px = staff.space * page.scale;
+      final half = (staff.thickness * page.scale / 2).floor() + 1;
       final lineRows = <int>{
         for (var k = 0; k < 5; k++)
-          for (var d = -1; d <= 1; d++) page.row(staff.top + k * staff.space).round() + d,
+          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
       };
       final top = page.row(staff.top - staff.space * 1.5).round(), bottom = page.row(staff.top + staff.space * 5.5).round();
+      // As far along this staff as [a]–[b] are along [of]'s (a scan leaning).
+      final along = of == null ? 0 : ((staff.left - of.left) * page.scale).round();
       double? lo, hi;
       for (var y = top; y <= bottom; y++) {
         if (lineRows.contains(y)) continue;
-        for (var x = a; x <= b; x++) {
+        for (var x = a + along; x <= b + along; x++) {
           if (page.isDark(x, y)) {
             final at = (y - page.row(staff.top)) / px;
             lo ??= at;
@@ -354,7 +573,9 @@ abstract final class PdfDetect {
           }
         }
       }
-      if (lo == null) continue;
+      // (a speck is no ink: a staff whose lines were found to start a little off has its digits
+      // beside these columns)
+      if (lo == null || (of != null && hi! - lo < 0.5)) continue;
       inked++;
       if (lo < -0.4 || hi! > 4.4 || hi - lo < 1.5) return false;
       extents.add((lo, hi));
@@ -362,6 +583,7 @@ abstract final class PdfDetect {
     if (inked < math.max(1, (staves.length * 0.7).ceil())) return false;
     final los = [for (final e in extents) e.$1]..sort(), his = [for (final e in extents) e.$2]..sort();
     final lo = los[los.length ~/ 2], hi = his[his.length ~/ 2];
+    if (whole && (lo > 0.6 || hi < 3.4)) return false;
     return extents.every((e) => (e.$1 - lo).abs() <= 0.45 && (e.$2 - hi).abs() <= 0.45);
   }
 
@@ -403,64 +625,140 @@ abstract final class PdfDetect {
   }
 
   /// The barlines of a system whose staves are [staves], left to right, past [musicLeft]: a
-  /// vertical line through every line of a staff, at the same place in most of its staves (or,
-  /// with one staff, standing alone: no notehead on it, ending at the staff).
+  /// vertical line through every line of a staff, found again in most of its staves where a
+  /// barline would be there (a scan's barlines lean, each staff's a little further along than the
+  /// one above's), and a barline in each: joined to the next staff's, or standing alone (no
+  /// notehead on it, ending at the staff). Stems one under the other in a tutti are neither.
   static List<PdfBarline> barlines(PdfRaster page, List<FoundStaff> staves, double musicLeft) {
     final space = staves.map((s) => s.space).reduce(math.min);
     final px = space * page.scale;
     final right = staves.map((s) => s.right).reduce(math.max);
     final from = math.max(0, page.col(musicLeft - space * 0.8).round()), to = math.min(page.width - 1, page.col(right + space).round());
-    // Per staff, the columns where ink runs through all its lines.
-    final perStaff = <List<(int, int)>>[];
-    for (final staff in staves) {
-      final top = page.row(staff.top).round(), bottom = page.row(staff.top + 4 * staff.space).round();
-      final through = <int>[];
-      for (var x = from; x <= to; x++) {
-        var y = top;
-        while (y <= bottom && page.isInked(x, y)) {
-          y++;
+    final n = staves.length;
+    final tops = [for (final s in staves) page.row(s.top).round()], bottoms = [for (final s in staves) page.row(s.top + 4 * s.space).round()];
+    // Per staff, the lines through all its lines, no wider than a barline (a beam's end, a
+    // cluster are): the columns each starts at, and those it ends at.
+    final lines = <({int staff, int l, int r, int bl, int br})>[];
+    for (var i = 0; i < n; i++) {
+      final lead = (staves[i].thickness * page.scale).ceil() + 2, lean = math.max(1, ((bottoms[i] - tops[i]) * 0.05).ceil());
+      int? start, last, bl, br;
+      void close() {
+        if (start != null && last! - start! <= px * 0.7 && _thin(page, staves[i], start!, last)) {
+          lines.add((staff: i, l: start!, r: last, bl: bl!, br: br!));
         }
-        if (y > bottom) through.add(x);
+        start = null;
       }
-      perStaff.add(_runs(through));
+
+      for (var x = from; x <= to; x++) {
+        final end = _down(page, x, tops[i], bottoms[i], lead: lead, lean: lean, gap: (px * 0.12).round());
+        if (end == null) {
+          close();
+          continue;
+        }
+        if (start == null) {
+          start = x;
+          bl = end;
+        }
+        last = x;
+        br = end;
+      }
+      close();
     }
-    // Lines of one staff found again in the others.
-    final candidates = <(int, int)>[];
-    for (final run in perStaff.expand((r) => r)) {
-      if (run.$2 - run.$1 > px * 0.7) continue; // too wide: a beam's end, a cluster
-      candidates.add(run);
+    double mid(({int staff, int l, int r, int bl, int br}) line) => (line.l + line.r + line.bl + line.br) / 4;
+    double middle(int staff) => (tops[staff] + bottoms[staff]) / 2;
+    // Which lines a line between the staves joins.
+    final group = [for (var k = 0; k < lines.length; k++) k];
+    int find(int k) {
+      while (group[k] != k) {
+        k = group[k] = group[group[k]];
+      }
+      return k;
     }
-    candidates.sort((a, b) => a.$1.compareTo(b.$1));
-    final merged = <(int, int, int)>[]; // left, right, staves seen
-    for (final c in candidates) {
-      final last = merged.lastOrNull;
-      if (last != null && c.$1 <= last.$2 + px * 0.25) {
-        merged.last = (last.$1, math.max(last.$2, c.$2), last.$3 + 1);
-      } else {
-        merged.add((c.$1, c.$2, 1));
+
+    final joined = List<bool>.filled(lines.length, false);
+    final byStaff = [for (var i = 0; i < n; i++) [for (final (k, line) in lines.indexed) if (line.staff == i) k]];
+    for (var i = 0; i + 1 < n; i++) {
+      final rows = tops[i + 1] - bottoms[i];
+      if (rows <= 0) continue;
+      final lead = (staves[i].thickness * page.scale).ceil() + 2, lean = math.max(1, (rows * 0.05).ceil()), gap = (px * 0.25).round();
+      for (final k in byStaff[i]) {
+        for (var x = lines[k].bl; x <= lines[k].br; x++) {
+          final end = _down(page, x, bottoms[i], tops[i + 1], lead: lead, lean: lean, gap: gap);
+          if (end == null) continue;
+          for (final j in byStaff[i + 1]) {
+            if (end < lines[j].l - 1 || end > lines[j].r + 1) continue;
+            joined[k] = joined[j] = true;
+            group[find(k)] = find(j);
+          }
+        }
       }
     }
-    final need = staves.length == 1 ? 1 : math.max(2, (staves.length * 0.6).ceil());
-    final lines = <(int, int)>[];
-    for (final (l, r, seen) in merged) {
-      final count = [for (final runs in perStaff) runs.any((run) => run.$1 <= r + 1 && run.$2 >= l - 1)].where((b) => b).length;
-      if (count < need && seen < need) continue;
-      if (staves.length == 1 && !_alone(page, staves.first, l, r)) continue;
-      lines.add((l, r));
+    // How far a barline leans from one staff to the next: what most lines' nearest in the staff
+    // below say (columns a row).
+    final slopes = <double>[];
+    for (var i = 0; i + 1 < n; i++) {
+      for (final k in byStaff[i]) {
+        double? best;
+        for (final j in byStaff[i + 1]) {
+          final d = mid(lines[j]) - mid(lines[k]);
+          if (d.abs() <= px * 0.6 && (best == null || d.abs() < best.abs())) best = d;
+        }
+        if (best != null) slopes.add(best / (middle(i + 1) - middle(i)));
+      }
     }
+    slopes.sort();
+    final lean = slopes.isEmpty ? 0.0 : slopes[slopes.length ~/ 2];
+    // A line where the one above's would be in this staff is the same barline (a staff's whose
+    // line is too faint to be found is passed over).
+    for (var i = 0; i < n; i++) {
+      for (var d = 1; d <= 2 && i + d < n; d++) {
+        for (final k in byStaff[i]) {
+          final want = mid(lines[k]) + lean * (middle(i + d) - middle(i));
+          for (final j in byStaff[i + d]) {
+            if ((mid(lines[j]) - want).abs() <= px * 0.3 * d) group[find(k)] = find(j);
+          }
+        }
+      }
+    }
+    // A barline: found in most staves, and in most a barline (joined to the next staff's, or
+    // alone). Where it is: at the system's middle staff, as most of its staves say.
+    final need = n == 1 ? 1 : math.max(2, (n * 0.6).ceil());
+    final centre = (tops.first + bottoms.last) / 2;
+    final found = <({double l, double r, int? first})>[];
+    final members = <int, List<int>>{};
+    for (var k = 0; k < lines.length; k++) {
+      members.putIfAbsent(find(k), () => []).add(k);
+    }
+    for (final of in members.values) {
+      final seen = {for (final k in of) lines[k].staff};
+      final sure = {
+        for (final k in of)
+          if (joined[k] || (n == 1 ? _alone(page, staves[0], lines[k].l, lines[k].r) : _headless(page, staves, lines[k].staff, lines[k].l, lines[k].r)))
+            lines[k].staff,
+      };
+      if (seen.length < need || sure.length < need) continue;
+      double at(int k, int x) => x - lean * (middle(lines[k].staff) - centre);
+      final ls = [for (final k in of) at(k, (lines[k].l + lines[k].bl) ~/ 2)]..sort();
+      final rs = [for (final k in of) at(k, (lines[k].r + lines[k].br + 1) ~/ 2)]..sort();
+      found.add((l: ls[ls.length ~/ 2], r: rs[rs.length ~/ 2], first: of.where((k) => lines[k].staff == 0).firstOrNull));
+    }
+    found.sort((a, b) => a.l.compareTo(b.l));
     // Lines close together are one barline: a double, a final or a repeat's.
     final out = <PdfBarline>[];
     final staff = staves.first;
-    for (var k = 0; k < lines.length; k++) {
-      var group = [lines[k]];
-      while (k + 1 < lines.length && lines[k + 1].$1 - group.last.$2 <= px * 0.9) {
-        group.add(lines[++k]);
+    // (the first staff's columns of a place at the system's middle)
+    int inFirst(double x) => (x + lean * (middle(0) - centre)).round();
+    for (var k = 0; k < found.length; k++) {
+      var group = [found[k]];
+      while (k + 1 < found.length && found[k + 1].l - group.last.r <= px * 0.9) {
+        group.add(found[++k]);
       }
-      final l = group.first.$1, r = group.last.$2;
-      if (page.xOf(r) < musicLeft + space * 0.6 && out.isEmpty && !_dotsRight(page, staff, r)) continue; // the system's start
-      final widths = [for (final g in group) g.$2 - g.$1 + 1];
-      final thick = [for (final w in widths) w > math.max(2, px * 0.28)];
-      final dotsLeft = _dotsLeft(page, staff, l), dotsRight = _dotsRight(page, staff, r);
+      final l = group.first.l, r = group.last.r;
+      final firstL = group.first.first == null ? inFirst(l) : lines[group.first.first!].l;
+      final firstR = group.last.first == null ? inFirst(r) : lines[group.last.first!].r;
+      if (page.xOf(r) < musicLeft + space * 0.6 && out.isEmpty && !_dotsRight(page, staff, firstR)) continue; // the system's start
+      final thick = [for (final g in group) g.r - g.l + 1 > math.max(2, px * 0.28)];
+      final dotsLeft = _dotsLeft(page, staff, firstL), dotsRight = _dotsRight(page, staff, firstR);
       final kind = switch ((dotsLeft, dotsRight)) {
         (true, true) => PdfBarlineKind.repeatBoth,
         (true, false) => PdfBarlineKind.repeatEnd,
@@ -474,6 +772,55 @@ abstract final class PdfDetect {
       out.add(PdfBarline(x, kind));
     }
     return out;
+  }
+
+  /// Whether what runs through [staff] at columns [l]–[r] is a line: in most rows between the
+  /// staff's lines its ink is no wider than that (a time signature's digits, one over the
+  /// other, run through a staff too, and are wide most of the way).
+  static bool _thin(PdfRaster page, FoundStaff staff, int l, int r) {
+    final px = staff.space * page.scale, wide = math.max(2, (px * 0.3).round());
+    final half = (staff.thickness * page.scale / 2).floor() + 1;
+    final top = page.row(staff.top).round(), bottom = page.row(staff.top + 4 * staff.space).round();
+    final lineRows = <int>{
+      for (var k = 0; k < 5; k++)
+        for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
+    };
+    var rows = 0, fat = 0;
+    for (var y = top; y <= bottom; y++) {
+      if (lineRows.contains(y)) continue;
+      rows++;
+      var left = 0, right = 0;
+      while (left < wide && page.isDark(l - 1 - left, y)) {
+        left++;
+      }
+      while (right < wide && page.isDark(r + 1 + right, y)) {
+        right++;
+      }
+      if (left == wide || right == wide) fat++;
+    }
+    return fat <= rows * 0.4;
+  }
+
+  /// The column ink starting at column [x] of row [from] ends at in row [to], running down all
+  /// the way; null if it doesn't. A scan's line leans a column or so on its way ([lean] columns
+  /// at most, and none in its first [lead] rows: beside a line, a staff line's ink is no start
+  /// of it), and a faint one has rows missing ([gap] in a row at most).
+  static int? _down(PdfRaster page, int x, int from, int to, {required int lead, int lean = 1, int gap = 0}) {
+    var at = x, missing = 0;
+    for (var y = from; y <= to; y++) {
+      if (page.isInked(at, y)) {
+        missing = 0;
+      } else if (y > from + lead && at + 1 - x <= lean && page.isInked(at + 1, y)) {
+        at++;
+        missing = 0;
+      } else if (y > from + lead && x - (at - 1) <= lean && page.isInked(at - 1, y)) {
+        at--;
+        missing = 0;
+      } else if (++missing > gap) {
+        return null;
+      }
+    }
+    return at;
   }
 
   static List<(int, int)> _runs(List<int> xs) {
@@ -495,17 +842,48 @@ abstract final class PdfDetect {
     final top = page.row(staff.top).round(), bottom = page.row(staff.top + 4 * staff.space).round();
     final reach = (px * 0.8).round();
     if (page.isDark(l, top - reach) || page.isDark(l, bottom + reach)) return false;
+    return !_headBeside(page, staff, l, r, top - reach, bottom + reach);
+  }
+
+  /// Whether a notehead (or a beam) touches the line at columns [l]–[r] from row [from] to row
+  /// [to]: ink beside it, a staff space wide, not on a staff line.
+  static bool _headBeside(PdfRaster page, FoundStaff staff, int l, int r, int from, int to) {
+    final px = staff.space * page.scale;
     for (final side in [l - 2, r + 2]) {
-      for (var y = top - reach; y <= bottom + reach; y++) {
-        // A head's ink beside the line, a staff space wide, not on a staff line.
+      for (var y = from; y <= to; y++) {
         var run = 0;
         for (var d = 0; d < px; d++) {
           if (page.isDark(side + (side < l ? -d : d), y)) run++;
         }
-        if (run > px * 0.75 && !_onLine(page, staff, y)) return false;
+        if (run > px * 0.75 && !_onLine(page, staff, y)) return true;
       }
     }
-    return true;
+    return false;
+  }
+
+  /// Whether the line at columns [l]–[r] of staff [index] of [staves] has no notehead on it, as
+  /// far as it goes on above and below the staff (to the next staff at most): a barline whose
+  /// way to the next staff is too faint to follow has none, a stem has one at its end.
+  static bool _headless(PdfRaster page, List<FoundStaff> staves, int index, int l, int r) {
+    final staff = staves[index], px = staff.space * page.scale, reach = (px * 0.8).round();
+    final top = page.row(staff.top).round(), bottom = page.row(staff.top + 4 * staff.space).round();
+    final least = index == 0 ? top - (px * 8).round() : page.row(staves[index - 1].top + 4 * staves[index - 1].space).round();
+    final most = index == staves.length - 1 ? bottom + (px * 8).round() : page.row(staves[index + 1].top).round();
+    bool inked(int y) {
+      for (var x = l - 1; x <= r + 1; x++) {
+        if (page.isInked(x, y)) return true;
+      }
+      return false;
+    }
+
+    var from = top, to = bottom;
+    while (from > least && inked(from - 1)) {
+      from--;
+    }
+    while (to < most && inked(to + 1)) {
+      to++;
+    }
+    return !_headBeside(page, staff, l, r, math.max(least, from - reach), math.min(most, to + reach));
   }
 
   static bool _onLine(PdfRaster page, FoundStaff staff, int y) {
@@ -539,8 +917,10 @@ abstract final class PdfDetect {
 
   /// A page's systems as found: staves, where the music starts, barlines, each staff's region
   /// (from the music's start to its end, the regions meeting at the row the least ink crosses
-  /// between two staves). Each staff is no one's yet.
+  /// between two staves). Each staff is no one's yet. The page is looked at with its staff lines
+  /// level ([flat]).
   static List<PdfSystem> page(PdfRaster page, int index) {
+    page = flat(page);
     final found = systems(page, staves(page));
     final out = <PdfSystem>[];
     for (final (k, staves) in found.indexed) {
