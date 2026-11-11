@@ -358,6 +358,29 @@ class EditGalley {
     return null;
   }
 
+  /// The bar at [x] and how far into it [x] is, in quarters: between the notes either side as
+  /// [x] is between where they are drawn (where no note starts, as [timeAtX] can't say).
+  ({int measure, double quarters})? timeNearX(double x) {
+    final k = _chunkAtX(x);
+    final c = chunks[k];
+    if (c == null) return null;
+    final local = x - _lefts[k] + c.left;
+    for (var bar = c.from; bar < c.to; bar++) {
+      final m = c.measure(bar);
+      if (m == null) break;
+      if (local >= m.right && bar < c.to - 1 && c.measure(bar + 1) != null) continue;
+      final points = _points(m);
+      if (local <= points.first.x) return (measure: bar, quarters: points.first.time);
+      for (var i = 1; i < points.length; i++) {
+        final a = points[i - 1], b = points[i];
+        if (local > b.x) continue;
+        return (measure: bar, quarters: b.x <= a.x ? a.time : a.time + (b.time - a.time) * (local - a.x) / (b.x - a.x));
+      }
+      return (measure: bar, quarters: m.duration);
+    }
+    return null;
+  }
+
   /// Where in bar [m] time [t] is drawn: at a note starting then, else between its neighbours.
   double? xOf(int m, Frac t) {
     final c = _chunkOf(m), layout = c?.measure(m);

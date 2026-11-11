@@ -110,6 +110,13 @@ class _ScoreEditorState extends State<ScoreEditor> {
   Set<String> _dragOver = const {};
   final _marquee = ValueNotifier<Rect?>(null);
 
+  // In note input, the note a click would put in, under the pointer.
+  final _shadow = ValueNotifier<_Shadow?>(null);
+
+  // The last click, for telling a double one.
+  Duration _clickedAt = const Duration(days: -1);
+  Offset _clickedWhere = Offset.zero;
+
   _Popover? _popover;
   final _popoverText = TextEditingController();
   final _popoverFocus = FocusNode(debugLabel: 'Popover');
@@ -132,6 +139,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _scrolled.dispose();
     _zoomed.dispose();
     _marquee.dispose();
+    _shadow.dispose();
     for (final number in _numbers.values) {
       number.dispose();
     }
@@ -371,6 +379,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
   }
 
   void _stopInput() => setState(() {
+        _shadow.value = null;
         _caret = null;
         _chordAt = null;
         _tuplet = null;
@@ -663,6 +672,64 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _marquee.value = null;
   }
 
+  /// Where a click at [local] would put a note in note input, and which: the staff it is on or
+  /// nearest (within its ledger lines' reach), the pitch of the line or space there by the clef
+  /// (the key's accidental, or the one chosen), at the step of the note value's grid nearest in
+  /// its bar. Null over a note or a marking (a click selects that), or far from any staff.
+  ({ScorePosition at, Pitch pitch, _Shadow shadow})? _placeAt(Offset local) {
+    if (local.dx < _gutter || local.dy < _ruler) return null;
+    final p = _toGalley(local);
+    if (_galley.hitTest(p) case final id? when !(score.locate(id)?.isRest ?? false)) return null;
+    final near = _galley.timeNearX(p.dx);
+    final n = _galley.staffAtY(p.dy);
+    final top = _galley.staffTop(n);
+    if (near == null || top == null) return null;
+    final space = _galley.staffSpace, middle = top + _galley.staffHeight(n) / 2;
+    final steps = ((middle - p.dy) / (space / 2)).round();
+    if (steps.abs() > 16) return null;
+    final m = near.measure, grid = _rhythm.length, length = score.barLength(m);
+    var k = (near.quarters / grid.toDouble()).round();
+    while (k > 0 && grid * Frac(k) >= length) {
+      k--;
+    }
+    final time = grid * Frac(k);
+    final (:part, :staff) = _partStaffOf(n);
+    final voice = _caret != null && _caret!.part == part && _caret!.staff == staff ? _caret!.voice : score.defaultVoice(part, staff, m);
+    final x = _galley.xOf(m, time);
+    if (x == null) return null;
+    final diatonic = score.clefAt(part, staff, m, time).middle.diatonic + steps;
+    final natural = Pitch.fromDiatonic(diatonic);
+    final pitch = natural.withAlter(_alter ?? Pitch.keyAlter(natural.step, score.keyAt(part, m, time).fifths));
+    return (
+      at: ScorePosition(part, voice, m, time),
+      pitch: pitch,
+      shadow: (x: x, y: middle - steps * space / 2, steps: steps, outer: (_galley.staffHeight(n) / space).round(), value: _value),
+    );
+  }
+
+  /// The pointer moved with no button down: in note input, the note a click would put in follows it.
+  void _hover(Offset local) => _shadow.value = _caret == null || _popover != null ? null : _placeAt(local)?.shadow;
+
+  /// A click in note input where no note is: the note under the pointer put in (into the chord
+  /// there, in chord mode), the caret after it.
+  bool _clickNote(Offset local) {
+    final place = _placeAt(local);
+    if (place == null) return false;
+    final there = score.eventAt(place.at.part, place.at.staff, place.at.measure, place.at.time, voice: place.at.voice.voice);
+    if (_chordMode && there != null && !there.isRest && there.position.time == place.at.time) {
+      _edit(() => score.addToChord(there.position, place.pitch));
+      setState(() => _caret = there.position);
+    } else {
+      setState(() {
+        _caret = place.at;
+        _chordAt = null;
+      });
+      _put([InputItem(_rhythm, [place.pitch])]);
+    }
+    _shadow.value = null;
+    return true;
+  }
+
   /// A click on a bar's number: what the bar holds, in every instrument (added, with ⇧ or ⌘).
   void _clickBar(Offset local, {required bool add}) {
     _focus.requestFocus();
@@ -676,13 +743,27 @@ class _ScoreEditorState extends State<ScoreEditor> {
     });
   }
 
-  void _click(Offset local, {required bool shift, required bool toggle}) {
+  void _click(Offset local, {required bool shift, required bool toggle, Duration now = Duration.zero}) {
     _focus.requestFocus();
     if (_popover != null) _closePopover();
     final p = _toGalley(local);
     final id = _galley.hitTest(p);
+    // A second click in the same place, outside note input: note input from there.
+    final twice = _caret == null && now - _clickedAt < kDoubleTapTimeout && (local - _clickedWhere).distance < kDoubleTapSlop / 4;
+    _clickedAt = now;
+    _clickedWhere = local;
     _dragFrom = id == null ? p : null;
     _dragOver = toggle || shift ? _selected : const {};
+    if (_caret != null && !shift && !toggle && _clickNote(local)) {
+      _dragFrom = null;
+      return;
+    }
+    if (twice && !shift && !toggle) {
+      _dragFrom = null;
+      final e = id == null ? null : score.locate(id);
+      final at = e?.position ?? _positionAt(p);
+      if (at != null) return _startInput(at);
+    }
     if (id != null) {
       final e = score.locate(id);
       final ids = [id]; // a chord's note on its own, as Dorico selects
@@ -710,10 +791,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
       }
       return;
     }
-    final at = _galley.timeAtX(p.dx);
-    if (at == null) return;
-    final (:part, :staff) = _partStaffOf(_galley.staffAtY(p.dy));
-    final position = ScorePosition(part, score.defaultVoice(part, staff, at.measure), at.measure, score.onsetAt(at.measure, at.time));
+    final position = _positionAt(p);
+    if (position == null) return;
     setState(() {
       _anchor = position;
       if (!toggle && !shift) _selected = {};
@@ -722,6 +801,15 @@ class _ScoreEditorState extends State<ScoreEditor> {
         _chordAt = null;
       }
     });
+  }
+
+  /// The place in the score at [p] (galley units): the staff nearest, at the note there or the
+  /// nearest before or after.
+  ScorePosition? _positionAt(Offset p) {
+    final at = _galley.timeAtX(p.dx);
+    if (at == null) return null;
+    final (:part, :staff) = _partStaffOf(_galley.staffAtY(p.dy));
+    return ScorePosition(part, score.defaultVoice(part, staff, at.measure), at.measure, score.onsetAt(at.measure, at.time));
   }
 
   // MARK: Copy and paste
@@ -1297,11 +1385,12 @@ class _ScoreEditorState extends State<ScoreEditor> {
                 final keys = HardwareKeyboard.instance;
                 final add = keys.isShiftPressed || keys.isMetaPressed || keys.isControlPressed;
                 if (event.localPosition.dy < _ruler) return _clickBar(event.localPosition, add: add);
-                _click(event.localPosition, shift: keys.isShiftPressed, toggle: keys.isMetaPressed || keys.isControlPressed);
+                _click(event.localPosition, shift: keys.isShiftPressed, toggle: keys.isMetaPressed || keys.isControlPressed, now: event.timeStamp);
               },
               onPointerMove: (event) {
                 if (event.buttons == kPrimaryButton) _dragTo(event.localPosition);
               },
+              onPointerHover: (event) => _hover(event.localPosition),
               onPointerUp: (_) => _dragDone(),
               onPointerCancel: (_) => _dragDone(),
               child: RepaintBoundary(
@@ -1311,6 +1400,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
                     zoom: _zoomed,
                     scroll: _scrolled,
                     marquee: _marquee,
+                    shadow: _shadow,
                     gutter: _gutter,
                     ruler: _ruler,
                     bars: score.measureCount,
@@ -1383,6 +1473,11 @@ class _ScoreEditorState extends State<ScoreEditor> {
         NoteType.hundredTwentyEighth => '128th'.tr,
       };
 }
+
+/// The note a click would put in: its head's left and middle (galley units), how many steps
+/// (lines and spaces) it is above the staff's middle, how many the staff's outer lines are,
+/// and its value.
+typedef _Shadow = ({double x, double y, int steps, int outer, NoteType value});
 
 /// A row of the notations panel: its name and its key.
 class _PanelRow extends StatelessWidget {
@@ -1579,7 +1674,8 @@ class _GalleyPainter extends CustomPainter {
     required this.caret,
     required this.names,
     required this.marquee,
-  }) : super(repaint: Listenable.merge([zoom, scroll, marquee]));
+    required this.shadow,
+  }) : super(repaint: Listenable.merge([zoom, scroll, marquee, shadow]));
 
   final EditGalley galley;
   final double gutter, ruler;
@@ -1599,6 +1695,9 @@ class _GalleyPainter extends CustomPainter {
 
   /// The rectangle being dragged out, galley units.
   final ValueListenable<Rect?> marquee;
+
+  /// In note input, the note a click would put in.
+  final ValueListenable<_Shadow?> shadow;
   final Color paper, ink, accent, chrome, line, text;
   final Set<String> selected;
   final ({double? x, int staff})? caret;
@@ -1624,6 +1723,30 @@ class _GalleyPainter extends CustomPainter {
         canvas.drawLine(Offset(x - space * 0.6, top - space * 1.5), Offset(x - space * 0.6, top + galley.staffHeight(staff) + space * 1.5), paint);
         canvas.drawRect(Rect.fromLTWH(x - space * 0.6, top - space * 1.5, space * 0.9, 2 / scale), paint);
       }
+    }
+    if (shadow.value case final note?) {
+      final space = galley.staffSpace, faint = accent.withValues(alpha: 0.6);
+      final code = switch (note.value) {
+        NoteType.breve => 0xE0A0,
+        NoteType.whole => 0xE0A2,
+        NoteType.half => 0xE0A3,
+        _ => 0xE0A4,
+      };
+      final head = numbers['$code ${faint.toARGB32()} $space'] ??= TextPainter(
+        text: TextSpan(
+            text: String.fromCharCode(code),
+            style: TextStyle(color: faint, fontFamily: const RenderStyle().musicFontFamily, fontSize: space * 4, height: 1)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      // Ledger lines out to it, past the staff's outer lines.
+      final ledger = Paint()
+        ..color = faint
+        ..strokeWidth = space * 0.16;
+      for (var step = note.outer + 2; step <= note.steps.abs(); step += 2) {
+        final y = note.y + (note.steps - step * note.steps.sign) * space / 2;
+        canvas.drawLine(Offset(note.x - space * 0.4, y), Offset(note.x + head.width + space * 0.4, y), ledger);
+      }
+      head.paint(canvas, Offset(note.x, note.y - head.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
     }
     if (marquee.value case final area?) {
       canvas.drawRect(area, Paint()..color = accent.withValues(alpha: 0.12));

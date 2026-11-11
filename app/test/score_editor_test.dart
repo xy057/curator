@@ -80,6 +80,45 @@ void main() {
     expect(score.canUndo, isTrue);
     expect(tester.widget<ToolbarButton>(find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Undo'))).onPressed, isNotNull);
 
+    // In note input a click puts a note in where the pointer is: bar 2's third beat, on the middle
+    // line (B4 in the treble clef) and a step above it; over a note already there it selects.
+    final paint = find.descendant(
+        of: find.byType(ScoreEditor), matching: find.byWidgetPredicate((w) => w is CustomPaint && '${w.painter.runtimeType}' == '_GalleyPainter'));
+    // ignore: avoid_dynamic_calls
+    final galley = (tester.widget<CustomPaint>(paint).painter as dynamic).galley as EditGalley;
+    final scale = 9 / galley.staffSpace;
+    Offset at(int bar, Frac time, int steps) =>
+        tester.getTopLeft(paint) +
+        Offset(132 + galley.xOf(bar, time)! * scale, 20 + (galley.staffTop(1)! + galley.staffHeight(1) / 2 - steps * galley.staffSpace / 2) * scale);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter); // note input, at the rest
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit6);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: at(1, Frac(2), 0));
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(at(1, Frac(2), 0) + const Offset(3, 1));
+    await tester.pump();
+    await screenshot(tester, 'score-editor-shadow', inside: find.byType(ScoreEditor));
+    await tester.tapAt(at(1, Frac(2), 0) + const Offset(3, 1), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    await tester.tapAt(at(1, Frac(3), 1), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    final clicked = score.eventsIn(0, 1, voice);
+    expect([for (final e in clicked) (e.position.time, e.isRest ? '-' : e.pitches.single.name)], [(Frac.zero, '-'), (Frac(2), 'B4'), (Frac(3), 'C5')]);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    await engraved();
+    // Twice in one place, outside note input: note input from there.
+    expect(find.textContaining('Note input'), findsNothing);
+    await tester.tapAt(at(0, Frac.zero, 9), kind: PointerDeviceKind.mouse);
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tapAt(at(0, Frac.zero, 9), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(find.textContaining('Note input'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    score.undo();
+    score.undo();
+
     // ⌘Z takes the rest back; Done gives the score as edited.
     await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
