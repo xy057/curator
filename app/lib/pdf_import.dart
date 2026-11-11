@@ -155,6 +155,9 @@ class PdfImport extends StatefulWidget {
   /// Asks for a model to read with ([showPdfAiModelDialog]): the one chosen, or null.
   final Future<AiModel?> Function()? chooseAi;
 
+  /// Whether there is Read with AI: a model, or a way to choose one (neither while AI is hidden).
+  bool get offersAi => ai != null || chooseAi != null;
+
   @override
   State<PdfImport> createState() => _PdfImportState();
 }
@@ -1541,15 +1544,15 @@ class _PdfImportState extends State<PdfImport> {
           const ToolbarDivider(),
           if (_ai case final reader?)
             ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Stop Reading'.tr, onPressed: reader.stop)
-          else
+          else if (widget.offersAi)
             ToolbarButton(
                 icon: AppIcon.ai.of(context),
                 tooltip: switch (_model) {
                   final ai? => 'Read with AI ({model})'.fill({'model': ai.model}),
                   null => 'Read with AI…'.tr,
                 },
-                onPressed: ready && (_model != null || widget.chooseAi != null) && layout.systems.isNotEmpty ? _readWithAi : null),
-          const ToolbarDivider(),
+                onPressed: ready && layout.systems.isNotEmpty ? _readWithAi : null),
+          if (_ai != null || widget.offersAi) const ToolbarDivider(),
           ..._stepTools(context, ready),
         ],
         const ToolbarDivider(),

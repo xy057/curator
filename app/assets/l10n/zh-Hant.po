@@ -3866,3 +3866,15 @@ msgstr "{n}%"
 #: lib/pdf_import.dart
 msgid "Read with AI…"
 msgstr "用 AI 讀取…"
+
+#: lib/ai_settings.dart
+msgid "AI features are hidden"
+msgstr "AI 功能已隱藏"
+
+#: lib/ai_settings.dart
+msgid "Hide AI features"
+msgstr "隱藏 AI 功能"
+
+#: lib/ai_settings.dart
+msgid "Restart to apply."
+msgstr "重新啟動後生效。"
