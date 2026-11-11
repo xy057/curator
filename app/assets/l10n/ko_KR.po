@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-11 10:14\n"
+"PO-Revision-Date: 2026-11-11 23:00\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -1163,6 +1163,9 @@ msgid "Glides from beat to beat: the speed changes only with the tempo."
 msgstr ""
 
 msgid "Glissandos"
+msgstr ""
+
+msgid "Go to Bar"
 msgstr ""
 
 #: lib/editor_toolbar.dart
