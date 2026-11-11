@@ -995,6 +995,13 @@ class EditableScore {
   /// slurs.
   Iterable<String> get ids => _where.keys;
 
+  /// What bar [m] holds that has an id, in every part.
+  Set<String> idsIn(int m) => {
+        for (final part in parts)
+          for (final e in part._measures[m].descendantElements)
+            if (e.getAttribute('id') case final id? when id.startsWith('cxe')) id,
+      };
+
   /// Whether [id] is something in the score now.
   bool has(String id) => _where.containsKey(id);
 

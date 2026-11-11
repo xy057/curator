@@ -180,6 +180,13 @@ class EditGalley {
 
   /// The chunk bar [m] is in, if it is engraved.
   EditChunk? _chunkOf(int m) {
+    if (m < 0) return null;
+    // Where it is when every chunk holds as many bars as the first.
+    final first = chunks.isEmpty ? null : chunks.first;
+    if (first != null && first.from == 0 && first.to > 0 && m ~/ first.to < chunks.length) {
+      final c = chunks[m ~/ first.to];
+      if (c != null && m >= c.from && m < c.to) return c;
+    }
     for (final c in chunks) {
       if (c != null && m >= c.from && m < c.to) return c;
     }
@@ -315,6 +322,19 @@ class EditGalley {
       }
     }
     return best;
+  }
+
+  /// The bars drawn between [left] and [right] (galley units): the first and the one after
+  /// the last, of those engraved.
+  ({int from, int to})? barsIn(double left, double right) {
+    int? from, to;
+    for (var k = _chunkAtX(left); k < chunks.length && _lefts[k] <= right; k++) {
+      final c = chunks[k];
+      if (c == null) continue;
+      from ??= c.from;
+      to = c.to;
+    }
+    return from == null ? null : (from: from, to: to!);
   }
 
   /// The bar and the time in it nearest [x]: a note's start, or a bar's.

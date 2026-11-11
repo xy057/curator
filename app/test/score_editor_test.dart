@@ -136,7 +136,7 @@ void main() {
     // ignore: avoid_dynamic_calls
     double zoom() => (tester.widget<CustomPaint>(paint).painter as dynamic).zoom.value as double;
     final at = tester.getCenter(paint), local = at - tester.getTopLeft(paint);
-    Offset under() => Offset(local.dx - 132 + scrolled().dx, local.dy + scrolled().dy) / zoom();
+    Offset under() => Offset(local.dx - 132 + scrolled().dx, local.dy - 20 + scrolled().dy) / zoom();
     final held = under();
     expect(zoom(), 9);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
@@ -164,7 +164,7 @@ void main() {
     }
 
     expect(selected(), 0);
-    final corner = tester.getTopLeft(paint) + const Offset(140, 4);
+    final corner = tester.getTopLeft(paint) + const Offset(140, 24);
     final drag = await tester.startGesture(corner, kind: PointerDeviceKind.mouse);
     await drag.moveTo(corner + const Offset(300, 200));
     await tester.pump();
@@ -186,5 +186,14 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     expect(selected(), 0);
+
+    // A click on a bar's number, in the strip along the top, selects what the bar holds.
+    tester.binding.handlePointerEvent(PointerScrollEvent(position: tester.getCenter(paint), scrollDelta: const Offset(-5000, -5000)));
+    await tester.pump();
+    expect(scrolled(), Offset.zero);
+    await tester.tapAt(tester.getTopLeft(paint) + const Offset(132 + 60, 10), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(selected(), score.idsIn(0).length);
+    await screenshot(tester, 'score-editor-bar', inside: find.byType(ScoreEditor));
   });
 }

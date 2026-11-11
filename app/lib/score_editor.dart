@@ -93,6 +93,10 @@ class _ScoreEditorState extends State<ScoreEditor> {
   Size _viewport = Size.zero;
   static const _gutter = 132.0;
 
+  /// The strip along the top that numbers the bars: the score is under it.
+  static const _ruler = 20.0;
+  final _numbers = <String, TextPainter>{};
+
   // A rectangle being dragged out (galley units): where it began, what was selected then.
   Offset? _dragFrom;
   Set<String> _dragOver = const {};
@@ -120,6 +124,9 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _scrolled.dispose();
     _zoomed.dispose();
     _marquee.dispose();
+    for (final number in _numbers.values) {
+      number.dispose();
+    }
     _popoverText.dispose();
     _popoverFocus.dispose();
     super.dispose();
@@ -231,7 +238,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
   /// Points a galley unit.
   double get _scale => _zoom / _galley.staffSpace;
 
-  Offset _toGalley(Offset local) => Offset((local.dx - _gutter + _scroll.dx) / _scale, (local.dy + _scroll.dy) / _scale);
+  Offset _toGalley(Offset local) => Offset((local.dx - _gutter + _scroll.dx) / _scale, (local.dy - _ruler + _scroll.dy) / _scale);
 
   /// Verovio's staff number for [staff] of [part].
   int _staffNumber(int part, int staff) {
@@ -253,7 +260,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   void _setScroll(Offset to) {
     final maxX = math.max(0.0, _galley.width * _scale - (_viewport.width - _gutter));
-    final maxY = math.max(0.0, _galley.height * _scale - _viewport.height);
+    final maxY = math.max(0.0, _galley.height * _scale - (_viewport.height - _ruler));
     final clamped = Offset(to.dx.clamp(0, maxX), to.dy.clamp(0, maxY));
     if (clamped == _scroll) return;
     _scrolled.value = clamped;
@@ -264,7 +271,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
   void _reveal(Rect? rect) {
     if (rect == null || _viewport.isEmpty) return;
     final r = Rect.fromLTRB(rect.left * _scale, rect.top * _scale, rect.right * _scale, rect.bottom * _scale);
-    final width = _viewport.width - _gutter, height = _viewport.height, pad = 6 * _zoom;
+    final width = _viewport.width - _gutter, height = _viewport.height - _ruler, pad = 6 * _zoom;
     var dx = _scroll.dx, dy = _scroll.dy;
     if (r.left - pad < dx) dx = r.left - pad;
     if (r.right + pad > dx + width) dx = r.right + pad - width;
@@ -614,6 +621,19 @@ class _ScoreEditorState extends State<ScoreEditor> {
   void _dragDone() {
     _dragFrom = null;
     _marquee.value = null;
+  }
+
+  /// A click on a bar's number: what the bar holds, in every instrument (added, with ⇧ or ⌘).
+  void _clickBar(Offset local, {required bool add}) {
+    _focus.requestFocus();
+    if (_popover != null) _closePopover();
+    _dragFrom = null;
+    final at = local.dx < _gutter ? null : _galley.timeAtX(_toGalley(local).dx);
+    if (at == null) return;
+    setState(() {
+      _selected = {if (add) ..._selected, ...score.idsIn(at.measure)};
+      _anchor = ScorePosition(0, score.defaultVoice(0, 1, at.measure), at.measure, Frac.zero);
+    });
   }
 
   void _click(Offset local, {required bool shift, required bool toggle}) {
@@ -982,10 +1002,10 @@ class _ScoreEditorState extends State<ScoreEditor> {
   void _zoomTo(double zoom, {Offset? about}) {
     final to = zoom.clamp(3.0, 20.0);
     if (to == _zoom) return;
-    final at = about ?? Offset(_gutter + (_viewport.width - _gutter) / 2, _viewport.height / 2);
+    final at = about ?? Offset(_gutter + (_viewport.width - _gutter) / 2, _ruler + (_viewport.height - _ruler) / 2);
     final held = _toGalley(at);
     _zoomed.value = to;
-    _setScroll(Offset(held.dx * _scale - (at.dx - _gutter), held.dy * _scale - at.dy));
+    _setScroll(Offset(held.dx * _scale - (at.dx - _gutter), held.dy * _scale - (at.dy - _ruler)));
     if (_popover != null) setState(() {});
   }
 
@@ -1190,8 +1210,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
         final target = caret ?? _target;
         final r = (_selectedNotes.isNotEmpty ? _selectionRect() : null) ?? (target == null ? null : _caretRect(target));
         if (r != null) {
-          anchorRect = Rect.fromLTRB(r.left * _scale - _scroll.dx + _gutter, r.top * _scale - _scroll.dy, r.right * _scale - _scroll.dx + _gutter,
-              r.bottom * _scale - _scroll.dy);
+          anchorRect = Rect.fromLTRB(r.left * _scale - _scroll.dx + _gutter, r.top * _scale - _scroll.dy + _ruler,
+              r.right * _scale - _scroll.dx + _gutter, r.bottom * _scale - _scroll.dy + _ruler);
         }
       }
       return ClipRect(
@@ -1219,6 +1239,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
               onPointerDown: (event) {
                 if (event.buttons != kPrimaryButton) return;
                 final keys = HardwareKeyboard.instance;
+                final add = keys.isShiftPressed || keys.isMetaPressed || keys.isControlPressed;
+                if (event.localPosition.dy < _ruler) return _clickBar(event.localPosition, add: add);
                 _click(event.localPosition, shift: keys.isShiftPressed, toggle: keys.isMetaPressed || keys.isControlPressed);
               },
               onPointerMove: (event) {
@@ -1234,6 +1256,10 @@ class _ScoreEditorState extends State<ScoreEditor> {
                     scroll: _scrolled,
                     marquee: _marquee,
                     gutter: _gutter,
+                    ruler: _ruler,
+                    bars: score.measureCount,
+                    barNumber: score.barNumber,
+                    numbers: _numbers,
                     paper: colors.scorePaper,
                     ink: colors.scoreInk,
                     accent: colors.accent,
@@ -1483,6 +1509,10 @@ class _GalleyPainter extends CustomPainter {
     required this.zoom,
     required this.scroll,
     required this.gutter,
+    required this.ruler,
+    required this.bars,
+    required this.barNumber,
+    required this.numbers,
     required this.paper,
     required this.ink,
     required this.accent,
@@ -1496,7 +1526,14 @@ class _GalleyPainter extends CustomPainter {
   }) : super(repaint: Listenable.merge([zoom, scroll, marquee]));
 
   final EditGalley galley;
-  final double gutter;
+  final double gutter, ruler;
+
+  /// How many bars the score has, and what each is numbered.
+  final int bars;
+  final String Function(int bar) barNumber;
+
+  /// The numbers laid out, kept from one frame to the next.
+  final Map<String, TextPainter> numbers;
 
   /// Points a staff space: drawn again when it changes, as when scrolled.
   final ValueListenable<double> zoom;
@@ -1516,10 +1553,10 @@ class _GalleyPainter extends CustomPainter {
     final scroll = this.scroll.value, scale = zoom.value / galley.staffSpace;
     canvas.drawRect(Offset.zero & size, Paint()..color = paper);
     canvas.save();
-    canvas.clipRect(Rect.fromLTRB(gutter, 0, size.width, size.height));
-    canvas.translate(gutter - scroll.dx, -scroll.dy);
+    canvas.clipRect(Rect.fromLTRB(gutter, ruler, size.width, size.height));
+    canvas.translate(gutter - scroll.dx, ruler - scroll.dy);
     canvas.scale(scale);
-    final visible = Rect.fromLTWH(scroll.dx / scale, scroll.dy / scale, (size.width - gutter) / scale, size.height / scale);
+    final visible = Rect.fromLTWH(scroll.dx / scale, scroll.dy / scale, (size.width - gutter) / scale, (size.height - ruler) / scale);
     galley.paint(canvas, visible, ink: ink, selected: selected, accent: accent);
     if (caret case (:final x?, :final staff)) {
       final top = galley.staffTop(staff);
@@ -1543,14 +1580,37 @@ class _GalleyPainter extends CustomPainter {
     }
     canvas.restore();
 
+    // The bars' numbers along the top, each at its bar's left.
+    canvas.drawRect(Rect.fromLTWH(gutter, 0, size.width - gutter, ruler), Paint()..color = chrome);
+    canvas.drawRect(Rect.fromLTWH(gutter, ruler - 1, size.width - gutter, 1), Paint()..color = line);
+    if (galley.barsIn(visible.left, visible.right) case (:final from, :final to)) {
+      canvas.save();
+      canvas.clipRect(Rect.fromLTRB(gutter, 0, size.width, ruler));
+      final muted = text.withValues(alpha: 0.62);
+      for (var m = from; m < to && m < bars; m++) {
+        final bar = galley.barOf(m);
+        if (bar == null) continue;
+        final x = bar.left * scale - scroll.dx + gutter;
+        if (x > size.width) break;
+        canvas.drawRect(Rect.fromLTWH(x, ruler - 6, 1, 5), Paint()..color = line);
+        final label = barNumber(m);
+        final number = numbers['$label ${muted.toARGB32()}'] ??= TextPainter(
+          text: TextSpan(text: label, style: TextStyle(fontSize: 11, color: muted, fontFeatures: const [FontFeature.tabularFigures()])),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        number.paint(canvas, Offset(x + 4, (ruler - number.height) / 2));
+      }
+      canvas.restore();
+    }
+
     // The names, over a column of their own.
     canvas.drawRect(Rect.fromLTWH(0, 0, gutter, size.height), Paint()..color = chrome);
     canvas.drawRect(Rect.fromLTWH(gutter - 1, 0, 1, size.height), Paint()..color = line);
     for (final (:name, :first, :last) in names) {
       final top = galley.staffTop(first), bottom = galley.staffTop(last);
       if (top == null || bottom == null) continue;
-      final middle = ((top + bottom + galley.staffHeight(last)) / 2) * scale - scroll.dy;
-      if (middle < -20 || middle > size.height + 20) continue;
+      final middle = ((top + bottom + galley.staffHeight(last)) / 2) * scale - scroll.dy + ruler;
+      if (middle < ruler + 4 || middle > size.height + 20) continue;
       final painter = TextPainter(
         text: TextSpan(text: name, style: TextStyle(fontSize: 12, color: text)),
         textDirection: TextDirection.ltr,
