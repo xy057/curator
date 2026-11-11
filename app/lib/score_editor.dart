@@ -90,6 +90,11 @@ class _ScoreEditorState extends State<ScoreEditor> {
   Size _viewport = Size.zero;
   static const _gutter = 132.0;
 
+  // A rectangle being dragged out (galley units): where it began, what was selected then.
+  Offset? _dragFrom;
+  Set<String> _dragOver = const {};
+  final _marquee = ValueNotifier<Rect?>(null);
+
   _Popover? _popover;
   final _popoverText = TextEditingController();
   final _popoverFocus = FocusNode(debugLabel: 'Popover');
@@ -110,6 +115,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _chunks = [];
     _focus.dispose();
     _scrolled.dispose();
+    _marquee.dispose();
     _popoverText.dispose();
     _popoverFocus.dispose();
     super.dispose();
@@ -300,10 +306,21 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   Rhythm get _rhythm => Rhythm(_value, dots: _dots, tuplet: _tuplet);
 
-  List<String> get _selectedNotes => [
+  /// The notes and rests among what is selected (found once for a selection: every note of a
+  /// symphony may be).
+  List<String> get _selectedNotes {
+    if (!identical(_notesOf, _selected)) {
+      _notesOf = _selected;
+      _notes = [
         for (final id in _selected)
           if (score.isNote(id)) id,
       ];
+    }
+    return _notes;
+  }
+
+  Set<String>? _notesOf;
+  List<String> _notes = const [];
 
   /// Where an edit with no note to work on goes: the caret, the first note selected, or where
   /// the score was last clicked.
@@ -574,11 +591,34 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (e != null) _select(e.ids);
   }
 
+  /// ⌘A: everything in the score.
+  void _selectAll() => setState(() => _selected = {...score.ids});
+
+  /// A drag from where nothing is: what the rectangle dragged out touches is selected (added
+  /// to what was, with ⇧ or ⌘).
+  void _dragTo(Offset local) {
+    final from = _dragFrom;
+    if (from == null) return;
+    final to = _toGalley(local);
+    if (_marquee.value == null && (to - from).distance * _scale < 4) return;
+    final area = Rect.fromPoints(from, to);
+    _marquee.value = area;
+    final ids = {..._dragOver, ..._galley.idsIn(area)};
+    if (ids.length != _selected.length || !ids.containsAll(_selected)) setState(() => _selected = ids);
+  }
+
+  void _dragDone() {
+    _dragFrom = null;
+    _marquee.value = null;
+  }
+
   void _click(Offset local, {required bool shift, required bool toggle}) {
     _focus.requestFocus();
     if (_popover != null) _closePopover();
     final p = _toGalley(local);
     final id = _galley.hitTest(p);
+    _dragFrom = id == null ? p : null;
+    _dragOver = toggle || shift ? _selected : const {};
     if (id != null) {
       final e = score.locate(id);
       final ids = [id]; // a chord's note on its own, as Dorico selects
@@ -829,6 +869,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
         LogicalKeyboardKey.keyC => _copy,
         LogicalKeyboardKey.keyX => () => _copy(cut: true),
         LogicalKeyboardKey.keyV => _paste,
+        LogicalKeyboardKey.keyA => _selectAll,
         LogicalKeyboardKey.equal || LogicalKeyboardKey.add || LogicalKeyboardKey.numpadAdd => () => _zoomBy(1.2),
         LogicalKeyboardKey.minus || LogicalKeyboardKey.numpadSubtract => () => _zoomBy(1 / 1.2),
         LogicalKeyboardKey.arrowUp when alt => () => _edit(() => score.transpose(_selectedNotes, octaves: 1)),
@@ -1158,12 +1199,18 @@ class _ScoreEditorState extends State<ScoreEditor> {
                 final keys = HardwareKeyboard.instance;
                 _click(event.localPosition, shift: keys.isShiftPressed, toggle: keys.isMetaPressed || keys.isControlPressed);
               },
+              onPointerMove: (event) {
+                if (event.buttons == kPrimaryButton) _dragTo(event.localPosition);
+              },
+              onPointerUp: (_) => _dragDone(),
+              onPointerCancel: (_) => _dragDone(),
               child: RepaintBoundary(
                 child: CustomPaint(
                   painter: _GalleyPainter(
                     galley: _galley,
                     scale: _scale,
                     scroll: _scrolled,
+                    marquee: _marquee,
                     gutter: _gutter,
                     paper: colors.scorePaper,
                     ink: colors.scoreInk,
@@ -1423,13 +1470,17 @@ class _GalleyPainter extends CustomPainter {
     required this.selected,
     required this.caret,
     required this.names,
-  }) : super(repaint: scroll);
+    required this.marquee,
+  }) : super(repaint: Listenable.merge([scroll, marquee]));
 
   final EditGalley galley;
   final double scale, gutter;
 
   /// How far the score is scrolled: drawn again when it changes.
   final ValueListenable<Offset> scroll;
+
+  /// The rectangle being dragged out, galley units.
+  final ValueListenable<Rect?> marquee;
   final Color paper, ink, accent, chrome, line, text;
   final Set<String> selected;
   final ({double? x, int staff})? caret;
@@ -1455,6 +1506,15 @@ class _GalleyPainter extends CustomPainter {
         canvas.drawLine(Offset(x - space * 0.6, top - space * 1.5), Offset(x - space * 0.6, top + galley.staffHeight(staff) + space * 1.5), paint);
         canvas.drawRect(Rect.fromLTWH(x - space * 0.6, top - space * 1.5, space * 0.9, 2 / scale), paint);
       }
+    }
+    if (marquee.value case final area?) {
+      canvas.drawRect(area, Paint()..color = accent.withValues(alpha: 0.12));
+      canvas.drawRect(
+          area,
+          Paint()
+            ..color = accent
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1 / scale);
     }
     canvas.restore();
 

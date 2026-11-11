@@ -991,6 +991,10 @@ class EditableScore {
     }
   }
 
+  /// Everything in the score that has an id: notes and rests, directions, dynamics, hairpins,
+  /// slurs.
+  Iterable<String> get ids => _where.keys;
+
   /// Whether [id] is something in the score now.
   bool has(String id) => _where.containsKey(id);
 

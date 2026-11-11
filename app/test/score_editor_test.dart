@@ -131,5 +131,36 @@ void main() {
     expect(scrolled(), const Offset(900, 120));
     expect(built, isEmpty);
     await screenshot(tester, 'score-editor-orchestra-scrolled', inside: find.byType(ScoreEditor));
+
+    // A rectangle dragged out from where nothing is selects what it touches; ⌘A, everything.
+    int selected() {
+      final status = find.textContaining(' selected');
+      if (status.evaluate().isEmpty) return 0;
+      return int.parse(RegExp(r'(\d+) selected').firstMatch(tester.widget<Text>(status).data!)!.group(1)!);
+    }
+
+    expect(selected(), 0);
+    final corner = tester.getTopLeft(paint) + const Offset(140, 4);
+    final drag = await tester.startGesture(corner, kind: PointerDeviceKind.mouse);
+    await drag.moveTo(corner + const Offset(300, 200));
+    await tester.pump();
+    final some = selected();
+    expect(some, greaterThan(3));
+    await screenshot(tester, 'score-editor-marquee', inside: find.byType(ScoreEditor));
+    await drag.moveTo(corner + const Offset(600, 500));
+    await tester.pump();
+    expect(selected(), greaterThan(some));
+    await drag.up();
+    await tester.pump();
+    final dragged = selected();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump();
+    expect(selected(), score.ids.length);
+    expect(selected(), greaterThan(dragged));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(selected(), 0);
   });
 }

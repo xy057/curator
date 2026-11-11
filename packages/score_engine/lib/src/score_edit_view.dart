@@ -273,6 +273,23 @@ class EditGalley {
     return best;
   }
 
+  /// The tagged elements drawn in [area] or across its edge (galley units).
+  Set<String> idsIn(ui.Rect area) {
+    final out = <String>{};
+    for (var k = 0; k < chunks.length; k++) {
+      if (!_inView(k, area.left, area.right)) continue;
+      for (final MapEntry(key: id, value: outlines) in chunks[k]!.outlines.entries) {
+        for (final (:staff, :rect) in outlines) {
+          if (rect.shift(_shift(k, staff)).overlaps(area)) {
+            out.add(id);
+            break;
+          }
+        }
+      }
+    }
+    return out;
+  }
+
   /// Where [id] is drawn (the union over its staves), galley units.
   ui.Rect? boundsOf(String id) {
     ui.Rect? out;
