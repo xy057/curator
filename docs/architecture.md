@@ -1026,6 +1026,32 @@ no staff of the PDF is: a staff's room in the main view, drawn empty and unnamed
 its frozen zone (`_bareStaves`, `_unnamed`); auto-curation leaves it shown (`isBlankLane`), and its
 lane and Spacing… say when and how much room there is. Export to Web writes each system's picture as `score/pdf/N.png`: those the page's bars are in, and a frame's width of the music either side of them, which a page of some bars shows too.
 
+**What is found on a page, and how a scan's is.** `PdfDetect.page` looks at the page with its staff
+lines level (`PdfDetect.flat`: a scan of a page that lay curved has a staff's lines rise or fall
+some rows on their way, so no row holds a line; the page is taken in strips of 48 columns, each
+moved up or down, in 16 bands down the page, to where its lines meet those of the strips between
+it and the page's middle one, three lines or more meeting, three rows from its neighbour at most;
+only up and down, so what is found across the page is where it was; a page within two rows of
+level is left as it is, a row's move putting a step in what crosses a strip's edge, and
+`PdfRaster.level` says it was looked at). Staves are one system where a line joins them
+(`_joined`): near their left ends, or anywhere along them when it runs on through one of them (a
+barline; a faint scan's system line is broken), followed as it leans with a few rows missing
+(`_down`). Where the music starts (`musicStart`) is looked for staff by staff, each from where its
+own lines start, and the furthest is the system's, placed where its middle staff starts (staves in
+different keys have their accidentals where another's are not, and a tie held over fills the way
+from a clef to its first note: all their ink together is one long mark): the clef, then what
+follows closely and is no wider than an accidental (the first up to two spaces off when as tall as
+one, `_accidentalLike`; a filled notehead never, `_headIn`), a time signature a little apart when
+alike in most staves (`_signatureLike`; two digits filling the staff are the last of it), the
+staff's lines left out by their thickness. A barline (`barlines`) is a line through all of a
+staff's lines (`_down`), thin most of its way (`_thin`: a time signature's digits one over the
+other run through a staff too), found in most staves where it would be by how far most lean from
+one staff to the next, and a barline in most: joined to the next staff's, or with no notehead on it
+as far as it goes (`_headless`; a lone staff's ends at the staff, `_alone`); it is placed where its
+staves' middle one has it. Still wrong, on the scores this was worked out on: a key whose
+accidentals touch is cut through, a staff of faint broken lines is not found, and a time signature
+a strip's move put a step in is read as no time signature.
+
 **A PDF's page stays loaded while it is asked of.** PDFium keeps what it worked out of a page
 (a scan's picture decoded, some 105 of the 135 ms a render of a 600 dpi page takes; its text)
 only while the page is loaded, and a page is asked of many times in a row: each staff's name as
