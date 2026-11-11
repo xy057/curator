@@ -209,6 +209,40 @@ void main() {
     expect([above, below], [closeTo(42, 1), closeTo(54, 1)]);
   });
 
+  test('a staff an AI model says was missed is added where the page has its lines', () {
+    final page = _page();
+    final found = PdfDetect.page(page, 0).single;
+    // Found without its lower staff.
+    final system = found.copyWith(staves: [found.staves[0].copyWith(part: () => 'P1')]);
+    final layout = PdfScoreLayout(
+      pages: const [ui.Size(240, 120)],
+      instruments: const [PdfInstrument(id: 'P1', name: 'Staff 1'), PdfInstrument(id: 'P2', name: 'Staff 2')],
+      systems: [system],
+    );
+    final view = PdfAiView(const ui.Size(240, 120));
+    String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
+    // Its places 5 points low; a staff at 68, where there is one, and one at 100, where there isn't.
+    final answer = PdfAiPage.parse('''{"systems": [{"staves": [
+  {"label": 1, "y": ${y(33)}, "region": [${y(15)}, ${y(53)}], "instrument": "P1", "clef": "treble"},
+  {"label": null, "y": ${y(73)}, "region": [${y(53)}, ${y(95)}], "instrument": "P2", "name": "Bassoon", "clef": "bass"},
+  {"label": null, "y": ${y(105)}, "instrument": "P2", "staff": 2}]}]}''');
+    expect([for (final t in answer.systems.single.staves) (t.label, t.found)], [(1, true), (-1, false), (-2, false)]);
+    final refined = PdfAi.refine(page, [system], answer, view);
+    final s = refined.single.system;
+    expect(refined.single.labels, [1, -1]);
+    expect([for (final t in s.staves) t.top], [closeTo(20, 0.3), closeTo(60, 0.3)]);
+    expect([for (final t in s.staves) t.space], [closeTo(4, 0.1), closeTo(4, 0.1)]);
+    // Its region as said, meeting the staff above's.
+    expect([s.staves.first.regionBottom, s.staves.last.regionTop, s.staves.last.regionBottom], [closeTo(48, 1), closeTo(48, 1), closeTo(90, 1)]);
+    // Whose it says, named and with the clef it says.
+    final next = PdfAi.apply(layout, [(page: 0, answer: answer, systems: refined)]);
+    expect([for (final t in next.systems.single.staves) t.part], ['P1', 'P2']);
+    expect([for (final i in next.instruments) (i.name, i.clef)], [('Staff 1', PdfClef.treble), ('Bassoon', PdfClef.bass)]);
+    // Places that are no good add nothing.
+    final wild = PdfAiPage.parse('{"systems": [{"staves": [{"label": 1, "y": 900}, {"label": null, "y": ${y(68)}}]}]}');
+    expect(PdfAi.refine(page, [system], wild, view).single.system.staves, hasLength(1));
+  });
+
   test('the exam marks a model’s answers as Read with AI takes them', () {
     final view = PdfAiView(PdfAiExam.size);
     // A page's answer as printed, its places scaled and moved as a model's drift.

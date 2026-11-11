@@ -71,7 +71,8 @@ class PdfAiExamPage {
 /// What the exam measures, each the share of its items a model got right: the user's six
 /// questions about a page.
 enum PdfAiExamPart {
-  /// The system's staves kept together, and each staff's region: its top and its bottom.
+  /// The system's staves kept together (none made up), and each staff's region: its top and its
+  /// bottom.
   horizontal,
 
   /// The barlines (vertical borders): where each is, and that it is a plain one.
@@ -128,7 +129,7 @@ class PdfAiExamResult {
 /// off; none counts where Read with AI would take none.
 abstract final class PdfAiExam {
   /// Which exam this is: a result of another ([PdfAiExamResult.fromJson]) isn't this one's.
-  static const version = 2;
+  static const version = 3;
 
   /// The exam's PDF, in the app's assets.
   static const asset = 'assets/exam/pdf-ai-exam.pdf';
@@ -180,7 +181,8 @@ abstract final class PdfAiExam {
     // (its top between the staff above's lines and its own, the first one's past the ink above
     // the system; its bottom likewise), none where its staff places are no good.
     final labels = {for (final s in systems) for (final t in s.staves) t.label};
-    mark(PdfAiExamPart.horizontal, systems.length == 1 && [for (var k = 1; k <= n; k++) k].every(labels.contains));
+    // (every staff is numbered: one it says was missed is made up)
+    mark(PdfAiExamPart.horizontal, systems.length == 1 && [for (var k = 1; k <= n; k++) k].every(labels.contains) && labels.every((l) => l > 0));
     final fit = PdfAi.fit([
       for (final (k, t) in staves.indexed)
         if (t?.y case final y?) (view.y(y), (page.staves[k].top + page.staves[k].bottom) / 2),
