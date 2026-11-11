@@ -1349,45 +1349,155 @@ class EditableScore {
   }();
 
   /// Bars [from] to [to] (exclusive) as a score of their own, ids kept, for the editor's
-  /// engraving: the first starts with what is in force there (clefs, key, time, divisions,
-  /// transposition). What the first bar changes is said: [timeShown] whether the time signature,
-  /// [clefsShown] and [keysShown] the staves (numbered across the parts) whose clef or key.
-  ({String xml, bool timeShown, Set<int> clefsShown, Set<int> keysShown}) chunk(int from, int to) {
+  /// engraving, with the bars around them it takes to engrave them as they are in the whole
+  /// score: [lead] bars before (one, so the first carries on from a barline and not from a
+  /// system's start; it starts with what is in force there: clefs, key, time, divisions,
+  /// transposition) and [trail] bars after (one, for a tie into the next bar or a clef change
+  /// before the barline, and as many as a slur, hairpin or line begun in these bars runs on
+  /// for, up to [reach]). A slur, hairpin or line with only one of its ends in those bars is
+  /// left out.
+  ({String xml, int lead, int trail}) chunk(int from, int to) {
     final version = _document.rootElement.getAttribute('version') ?? '4.0';
     final b = StringBuffer('<?xml version="1.0" encoding="UTF-8"?><score-partwise version="$version">')..write(_header);
-    var timeShown = from == 0;
-    final clefsShown = <int>{}, keysShown = <int>{};
-    var staff = 0; // staves of the parts before, as Verovio numbers them
+    final lead = from > 0 ? 1 : 0;
+    final trail = _trailOf(from, to);
+    final first = from - lead, end = math.min(to + trail, measureCount);
     for (final part in parts) {
       b.write('<part id="${_escape(part.id)}">');
-      for (var m = from; m < to && m < part._measures.length; m++) {
+      final halves = _halvesIn(part, first, end);
+      for (var m = first; m < end; m++) {
         final measure = part._measures[m];
-        if (m == from && from > 0) {
-          // What the bar itself changes, against what was in force before it: shown at the
-          // chunk's start; what is only carried in is not.
-          final before = _contextBefore(part, m);
-          if (_attributesAtStartOrNull(measure) case final own?) {
-            final after = _applyAttributes(before, own);
-            final (t0, t1) = (before.meter, after.meter);
-            if (t1 != null && (t0 == null || t0.beats != t1.beats || t0.beatType != t1.beatType || t0.symbol != t1.symbol)) timeShown = true;
-            final keyChanged = own.getElement('key') != null && (after.key.fifths != before.key.fifths || after.key.minor != before.key.minor);
-            for (var s = 1; s <= part.staves; s++) {
-              if (keyChanged) keysShown.add(staff + s);
-              if (after.clef(s) != before.clef(s)) clefsShown.add(staff + s);
-            }
-          }
-          final copy = measure.copy();
-          _carry(copy, _contextBefore(part, m), part.staves);
-          b.write(copy.toXmlString());
-        } else {
+        final cut = halves[m];
+        if (cut == null && !(m == first && first > 0)) {
           b.write(_xml[measure] ??= measure.toXmlString());
+          continue;
         }
+        final copy = measure.copy();
+        if (cut != null) _removeSpans(copy, cut);
+        if (m == first && first > 0) _carry(copy, _contextBefore(part, m), part.staves);
+        b.write(copy.toXmlString());
       }
       b.write('</part>');
-      staff += part.staves;
     }
     b.write('</score-partwise>');
-    return (xml: b.toString(), timeShown: timeShown, clefsShown: clefsShown, keysShown: keysShown);
+    return (xml: b.toString(), lead: lead, trail: trail);
+  }
+
+  /// How many bars past a chunk are engraved with it, at most, for what begins in it and ends
+  /// later.
+  static const reach = 12;
+
+  /// The bars after [to] that bars [from] to [to] are engraved with: where the last slur,
+  /// hairpin, octave line, pedal or ending begun in them ends, when that is within [reach];
+  /// one bar otherwise, none at the score's end.
+  int _trailOf(int from, int to) {
+    final count = measureCount;
+    if (to >= count) return 0;
+    var trail = 1;
+    for (final part in parts) {
+      final open = <String>{};
+      for (var m = from; m < to; m++) {
+        for (final span in _spansOf(part._measures[m])) {
+          span.starts ? open.add(span.key) : open.remove(span.key);
+        }
+      }
+      for (var m = to; open.isNotEmpty && m < count && m - to < reach; m++) {
+        for (final span in _spansOf(part._measures[m])) {
+          if (!span.starts && open.remove(span.key)) trail = math.max(trail, m - to + 1);
+        }
+      }
+    }
+    return trail;
+  }
+
+  /// The slurs, hairpins and lines of [part] with one end only in bars [from] to [to]: by bar,
+  /// which of its [_spansOf] they are. Engraved, a slur's end with no start would be taken for
+  /// the end of the next slur that starts (Verovio keeps an end for a start written after it,
+  /// as one in another voice is).
+  Map<int, Set<int>> _halvesIn(EditPart part, int from, int to) {
+    final halves = <int, Set<int>>{};
+    final open = <String, (int, int)>{};
+    void half(int m, int index) => halves.putIfAbsent(m, () => {}).add(index);
+    for (var m = from; m < to; m++) {
+      for (final span in _spansOf(part._measures[m])) {
+        if (span.starts) {
+          if (open[span.key] case (final bar, final index)?) half(bar, index);
+          open[span.key] = (m, span.index);
+        } else if (open.remove(span.key) == null) {
+          half(m, span.index);
+        }
+      }
+    }
+    for (final (bar, index) in open.values) {
+      half(bar, index);
+    }
+    return halves;
+  }
+
+  final _spans = Expando<List<_Span>>();
+
+  /// Where bar [measure] begins or ends something that runs over notes, in the order sounded
+  /// (a slur into another voice may end, as written, before it starts).
+  List<_Span> _spansOf(XmlElement measure) => _spans[measure] ??= () {
+        final out = <_Span>[];
+        var cursor = 0, start = 0, index = 0;
+        for (final child in measure.childElements) {
+          var time = cursor;
+          switch (child.name.local) {
+            case 'note':
+              if (child.getElement('grace') != null) break;
+              if (child.getElement('chord') != null) {
+                time = start;
+                break;
+              }
+              start = cursor;
+              cursor += int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0;
+            case 'backup':
+              cursor = math.max(0, cursor - (int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0));
+            case 'forward':
+              cursor += int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0;
+          }
+          for (final e in child.descendantElements) {
+            final starts = _spanStarts(e);
+            if (starts == null) continue;
+            out.add((key: '${e.name.local} ${e.getAttribute('number') ?? '1'}', starts: starts, time: time, index: index++));
+          }
+        }
+        if (out.length > 1) _stableSort(out, (a, b) => a.time.compareTo(b.time));
+        return out.isEmpty ? const <_Span>[] : out;
+      }();
+
+  /// Whether [e] starts something that runs over notes (false: ends it; null: is neither).
+  static bool? _spanStarts(XmlElement e) => !_spanning.contains(e.name.local)
+      ? null
+      : switch (e.getAttribute('type')) {
+          'start' || 'crescendo' || 'diminuendo' || 'up' || 'down' => true,
+          'stop' || 'discontinue' => false,
+          _ => null,
+        };
+
+  static const _spanning = {'slur', 'wedge', 'octave-shift', 'pedal', 'dashes', 'bracket', 'wavy-line', 'glissando', 'slide', 'ending'};
+
+  /// Takes out of [measure] (a copy) those of its [_spansOf] numbered in [indices]; a direction
+  /// that was nothing else goes with it.
+  static void _removeSpans(XmlElement measure, Set<int> indices) {
+    var index = 0;
+    final gone = <XmlElement>[];
+    for (final e in measure.descendantElements) {
+      if (_spanStarts(e) == null) continue;
+      if (indices.contains(index++)) gone.add(e);
+    }
+    for (final e in gone) {
+      var out = e;
+      while (true) {
+        final parent = out.parentElement;
+        if (parent == null || (parent.name.local != 'direction-type' && parent.name.local != 'direction')) break;
+        final alone = parent.childElements.every((c) => identical(c, out) || c.name.local == 'staff' || c.name.local == 'voice' || c.name.local == 'offset');
+        if (!alone) break;
+        out = parent;
+      }
+      out.remove();
+    }
   }
 
   /// Each bar as text: a bar is never changed (an edit writes another in its place), so it is
@@ -2734,6 +2844,10 @@ class EditableScore {
 
 /// An Undo step: for each part the bars to put back, by their place ([bars]), or every bar it
 /// had when their number changed ([whole]), and its divisions.
+/// Where a bar starts (or ends) a slur, a hairpin, a line: [key] its kind and number, [time]
+/// when in the bar (divisions), [index] which of the bar's such elements it is, as written.
+typedef _Span = ({String key, bool starts, int time, int index});
+
 class _Step {
   _Step(this.whole, this.bars, this.divisions);
   final List<List<XmlElement>?> whole;

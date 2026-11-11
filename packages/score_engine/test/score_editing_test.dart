@@ -15,6 +15,11 @@ const _flute = '''<?xml version="1.0" encoding="UTF-8"?>
   </part>
 </score-partwise>''';
 
+/// A flute, [bars] empty bars of 4/4.
+String _fluteOf(int bars) => _flute.replaceFirst(
+    RegExp(r'<measure number="2">.*</measure>'),
+    [for (var i = 2; i <= bars; i++) '<measure number="$i"><note><rest measure="yes"/><duration>4</duration><voice>1</voice></note></measure>'].join());
+
 void main() {
   test('the score editor types notes over rests, ties them across a barline, and writes MusicXML', () async {
     final score = EditableScore.parse(_flute);
@@ -133,6 +138,59 @@ void main() {
     expect(flute.has(id), isFalse);
   });
 
+  test('chunks side by side draw what one engraving of the whole score does, each thing once', () async {
+    final score = EditableScore.parse(_fluteOf(12));
+    const voice = VoiceKey(1, '1');
+    var at = ScorePosition(0, voice, 0, Frac.zero);
+    for (var i = 0; i < 24; i++) {
+      at = score.input(at, [InputItem(const Rhythm(NoteType.half), [Pitch(i % 7, 4)])]);
+    }
+    List<String> idsIn(int m) => [for (final e in score.eventsIn(0, m, voice)) e.ids.first];
+    // Across the barline between bars 4 and 5, where chunks of two and of four bars both meet:
+    // a tie, a slur, a hairpin, a clef and a key and a time signature that change, a repeat
+    // that ends and one that starts; and a slur over bars 1 to 4, longer than a chunk of two.
+    score.input(ScorePosition(0, voice, 3, Frac(3)), [InputItem(const Rhythm(NoteType.half), [const Pitch(4, 4)])]);
+    score.toggleSlur([idsIn(3)[1], idsIn(4).last]);
+    score.addHairpin(ScorePosition(0, voice, 3, Frac.one), ScorePosition(0, voice, 4, Frac(3)), crescendo: true);
+    score.setClef(ScorePosition(0, voice, 4, Frac.zero), Clef.named('alto')!);
+    score.setKey(4, KeySig.parse('Eb')!);
+    score.setTime(4, TimeSig.parse('3/4')!);
+    score.setBarline(3, ':|:');
+    score.toggleSlur([idsIn(0).first, idsIn(3).first]);
+    final slur = RegExp(r'<slur[^>]*type="start"[^>]* id="(cxe\d+)"|<slur[^>]* id="(cxe\d+)"[^>]*type="start"').allMatches(score.chunk(3, 4).xml).map((m) => m.group(1) ?? m.group(2)!).first;
+
+    int drawn(EditChunk c) => [...c.list.staves, c.list.barlines].fold(0, (n, layer) => n + layer.items.where(c.owns).length);
+    final whole = await EditChunk.engrave(score, 0, 12);
+    expect((whole.lead, whole.trail), (0, 0));
+    for (final bars in [2, 4]) {
+      final chunks = [for (var from = 0; from < 12; from += bars) await EditChunk.engrave(score, from, from + bars)];
+      expect(chunks.fold(0, (n, c) => n + drawn(c)), drawn(whole), reason: 'chunks of $bars bars');
+      // The first of two bars is engraved with a third, where its slur ends.
+      expect(chunks.first.trail, bars == 2 ? 2 : 1);
+      // The slur over the barline is the chunk's it starts in, whole, and found on either side.
+      final galley = EditGalley(chunks, bars: bars);
+      final before = chunks[4 ~/ bars - 1], after = chunks[4 ~/ bars];
+      expect(before.outlines[slur], isNotNull);
+      expect(after.outlines[slur], isNull);
+      final seam = galley.barOf(4)!.left, bounds = galley.boundsOf(slur)!;
+      expect(bounds.left, lessThan(seam));
+      expect(bounds.right, greaterThan(seam));
+      expect(before.spill, greaterThan(0));
+      // Bars are where they are in the whole score, to a hair.
+      final one = EditGalley([whole]);
+      for (var m = 0; m < 12; m++) {
+        expect(galley.barOf(m)!.right - galley.barOf(m)!.left, closeTo(one.barOf(m)!.right - one.barOf(m)!.left, 1), reason: 'bar $m, chunks of $bars');
+        expect(galley.barOf(m)!.left, closeTo(one.barOf(m)!.left, 20), reason: 'bar $m, chunks of $bars');
+      }
+      expect(galley.timeAtX(galley.xOf(5, Frac(2))!), (measure: 5, time: Frac(2)));
+      for (final c in chunks) {
+        c.dispose();
+      }
+    }
+    whole.dispose();
+    expect([for (final staves in [1, 2, 4, 5, 8, 12, 21, 60]) EditChunk.barsFor(staves)], [6, 6, 6, 4, 3, 2, 2, 2]);
+  });
+
   test('the score editor changes keys, time signatures and bars in every part of the demo', () async {
     final score = EditableScore.parse(demoScore());
     final bars = score.measureCount;
@@ -149,30 +207,16 @@ void main() {
     expect(score.barLength(10), Frac(3));
     expect(score.setBarline(12, ':|'), isTrue);
     score.toggleMark([score.eventsIn(0, 2, score.voicesIn(0, 2).first).first.ids.first], 'fermata');
-    // Bars 8–16 engrave on their own.
+    // Bars 8–16 engrave with the bar before them and the one after, and say where their own are.
     final chunk = await EditChunk.engrave(score, 8, 16);
-    expect(chunk.data.measures.length, 8);
+    expect((chunk.lead, chunk.trail), (1, 1));
+    expect(chunk.data.measures.length, 10);
     expect(chunk.data.staves.length, greaterThanOrEqualTo(score.parts.length));
+    expect(chunk.left, chunk.data.measures.first.right);
+    expect(chunk.right, chunk.data.measures[8].right);
+    expect(chunk.measure(8), same(chunk.data.measures[1]));
+    expect(chunk.measure(16), isNull);
     chunk.dispose();
-    // A chunk after the first carries on the one before: the clefs and keys Verovio starts
-    // it with are cut off, all but a change the bar makes (bass clef at bar 25, top staff).
-    score.setClef(ScorePosition(0, score.defaultVoice(0, 1, 24), 24, Frac.zero), Clef.named('bass')!);
-    for (final from in [16, 24]) {
-      final c = await EditChunk.engrave(score, from, from + 8);
-      final start = c.data.measures.first.left;
-      final shown = [
-        for (final s in c.data.signatures)
-          if (s.x < start && !c.hides(s.commandStart)) s,
-      ];
-      if (from == 16) {
-        expect(shown, isEmpty);
-        expect(c.left, start);
-      } else {
-        expect([for (final s in shown) (s.runtimeType, s.staff)], [(ClefSignature, 1)]);
-        expect(c.left, lessThan(shown.single.x));
-      }
-      c.dispose();
-    }
     score.undo();
     // And what was written reads as a score again.
     final again = EditableScore.parse(score.toMusicXML());

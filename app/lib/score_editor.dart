@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -112,16 +113,32 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   // MARK: Engraving
 
-  int get _chunkCount => (score.measureCount + EditChunk.bars - 1) ~/ EditChunk.bars;
+  /// How many bars a chunk holds: fewer the more staves the score has.
+  late final int _bars = EditChunk.barsFor(score.parts.fold(0, (a, p) => a + p.staves));
 
-  /// The chunks whose bars changed engraved again (all of them, with [all]).
+  /// How many chunks are engraved at a time.
+  static final _engravers = (Platform.numberOfProcessors - 2).clamp(2, 6);
+
+  int get _chunkCount => (score.measureCount + _bars - 1) ~/ _bars;
+
+  /// The chunks whose bars changed engraved again (all of them, with [all]): a bar's own, and
+  /// those engraved with it (the chunk after its last bar, the ones before whose slurs run into it).
   void _refresh({bool all = false}) {
     final changed = score.takeChanged();
     final count = _chunkCount;
+    // The bars chunk k was engraved with after its own (one, until it is known).
+    int trail(int k) => (k < _chunks.length ? _chunks[k]?.trail : null) ?? 1;
     final dirty = <int>{
       if (all) for (var k = 0; k < count; k++) k,
-      for (final m in changed.bars) m ~/ EditChunk.bars,
-      if (changed.from case final from?) for (var k = from ~/ EditChunk.bars; k < count; k++) k,
+      for (final m in changed.bars) ...[
+        m ~/ _bars,
+        if (m % _bars == _bars - 1) m ~/ _bars + 1,
+        for (var k = m ~/ _bars - 1; k >= 0 && (k + 1) * _bars + EditableScore.reach > m; k--)
+          if ((k + 1) * _bars + trail(k) > m) k,
+      ],
+      if (changed.from case final from?)
+        for (var k = 0; k < count; k++)
+          if ((k + 1) * _bars + trail(k) > from) k,
     };
     if (_chunks.length > count) {
       _retire(_chunks.sublist(count));
@@ -140,17 +157,17 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   EditGalley _galleyOf(List<EditChunk?> chunks) {
     final space = chunks.firstWhere((c) => c != null, orElse: () => null)?.data.staffSpace ?? 0;
-    return EditGalley(chunks, margin: space * 3);
+    return EditGalley(chunks, margin: space * 3, bars: _bars);
   }
 
-  /// Engraves the chunks waiting, three at a time, the ones nearest the view first.
+  /// Engraves the chunks waiting, a few at a time, the ones nearest the view first.
   void _pump() {
-    while (_running < 3 && _queue.isNotEmpty) {
+    while (_running < _engravers && _queue.isNotEmpty) {
       final near = _visibleChunk();
       final k = _queue.reduce((a, b) => (a - near).abs() <= (b - near).abs() ? a : b);
       _queue.remove(k);
       final version = _wanted[k];
-      final from = k * EditChunk.bars, to = math.min(score.measureCount, from + EditChunk.bars);
+      final from = k * _bars, to = math.min(score.measureCount, from + _bars);
       _running++;
       EditChunk.engrave(score, from, to).then((chunk) {
         _running--;
