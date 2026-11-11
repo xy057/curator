@@ -16,16 +16,21 @@ import 'package:score_engine/score_engine.dart';
 String _answer(PdfAiExamPage page) {
   final view = PdfAiView(PdfAiExam.size);
   double y(double p) => p / PdfAiExam.size.height * 1000;
+  final cuts = [
+    (page.top.$1 + page.top.$2) / 2,
+    for (var k = 1; k < page.staves.length; k++) (page.staves[k - 1].bottom + page.staves[k].top) / 2,
+    (page.bottom.$1 + page.bottom.$2) / 2,
+  ];
   return jsonEncode({
     'systems': [
       {
         'staves': [
           for (final (k, s) in page.staves.indexed)
-            {'label': k + 1, 'y': y((s.top + s.bottom) / 2), 'instrument': 'P${k + 1}', 'name': s.name, 'printed': s.printed, 'clef': s.clef.name, 'key': s.key},
+            {
+              'label': k + 1, 'y': y((s.top + s.bottom) / 2), 'region': [y(cuts[k]), y(cuts[k + 1])], //
+              'instrument': 'P${k + 1}', 'name': s.name, 'printed': s.printed, 'clef': s.clef.name, 'key': s.key,
+            },
         ],
-        'top': y((page.top.$1 + page.top.$2) / 2),
-        'bottom': y((page.bottom.$1 + page.bottom.$2) / 2),
-        'borders': [for (var k = 1; k < page.staves.length; k++) {'below': k, 'y': y((page.staves[k - 1].bottom + page.staves[k].top) / 2)}],
         'barlines': [for (final b in page.barlines) {'x': b / view.width * 1000}],
         'time': page.time?.toString(),
         'tempos': [if (page.tempo case final t?) {'bar': 1, 'text': t.words, 'bpm': t.bpm}],

@@ -1073,16 +1073,20 @@ General ▸ AI for PDF import (`AppSettings.pdfAi`; none: it asks for one first)
 `PdfAiReader` shows the model each page as two PNGs drawn on white (the page, and its systems'
 starts enlarged: names, clefs, keys, time signatures), each staff found numbered in red in a column
 at their right (`PdfAi.labels`, in the bundled IBM Plex Sans), and asks (`PdfAi.prompt`) for JSON:
-each staff's instrument (by id, from the list it is given), name, printed name, clef and key; each
-system's staves, edges, the borders and gaps between its staves, barlines, time signatures and
-tempo marks; and where each staff's middle is. The page the instruments are named from goes first,
+each staff's instrument (by id, from the list it is given), name, printed name, clef and key, where
+its middle is and its region (its own top and bottom: two staves' may meet, lie apart or overlap);
+each system's staves, barlines, time signatures and tempo marks. The page the instruments are named from goes first,
 alone (its answer names them for the other questions), then the rest three at a time; Stop ends the
 requests under way (`AiClient.close`). A model's places are rough and sometimes made up, so they
 are checked (`PdfAi.refine`, on the worker with the page's ink): where it says the staves are,
 against where they are, gives a line that sets its other places right (`PdfAi.fit`), and unless most
-staves lie on it within ¾ of a space none of its places is taken. Taken, each edge, and where
-two staves' regions meet (or end and begin, a gap between) goes on the quiet row nearest where it says (`PdfDetect.quietRow`), never into ink its outer staves
-reach (`PdfDetect.inkEnd`); its barlines are lined up in order with those found (`_barlines`), a
+staves lie on it within ¾ of a space none of its places is taken. Taken, each region's edge goes on
+the quiet row nearest where it says (`PdfDetect.quietRow`), a system's top and bottom never into ink
+its outer staves reach (`PdfDetect.inkEnd`). Between two staves the regions meet on one row, or end
+and begin with room between that is no one's, as it says; where it says they overlap, they do only
+if no row between the two edges is clear of ink (`PdfDetect.clearRow`, the barlines' columns left
+out): each then ends within a space of where it says, and with a row clear they meet on it, a cut
+there losing nothing. Its barlines are lined up in order with those found (`_barlines`), a
 found one kept where it is, one it adds put on a line through the staves there
 (`PdfDetect.lineNear`), and a found one it leaves out removed only from a lone staff; too few
 paired and its barlines are passed over. Staves found apart join into one system only where their
@@ -1101,8 +1105,9 @@ with none chosen) opens a dialog (`showPdfAiModelDialog`) where a model chosen t
 (`assets/exam/pdf-ai-exam.pdf`), asked exactly as Read with AI asks (the same pictures and
 prompt, the staves numbered from the key's, not from what the detector finds), both at once. The
 answers are marked against a key measured on a 300 dpi render (`PdfAiExam.score`), in six parts
-counting the same: horizontal borders (one system, its top and bottom between the ink around it,
-each border between its two staves, all through `PdfAi.fit` and none counted where Read with AI
+counting the same: horizontal borders (one system; each staff's region, its top between the staff
+above's lines and its own and its bottom between its own and the staff below's, the system's first
+and last between the ink around it, all through `PdfAi.fit` and none counted where Read with AI
 would take none), barlines (paired in order within two spaces, all moved as far as most are off;
 F1, a plain one only), instrument names (whose, and the names printed), clefs and keys (a change
 made up is wrong), and tempo and time (nothing where nothing is printed). An answer that isn't

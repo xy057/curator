@@ -71,7 +71,7 @@ class PdfAiExamPage {
 /// What the exam measures, each the share of its items a model got right: the user's six
 /// questions about a page.
 enum PdfAiExamPart {
-  /// The system's staves kept together, its top and bottom, and a border between each two staves.
+  /// The system's staves kept together, and each staff's region: its top and its bottom.
   horizontal,
 
   /// The barlines (vertical borders): where each is, and that it is a plain one.
@@ -128,7 +128,7 @@ class PdfAiExamResult {
 /// off; none counts where Read with AI would take none.
 abstract final class PdfAiExam {
   /// Which exam this is: a result of another ([PdfAiExamResult.fromJson]) isn't this one's.
-  static const version = 1;
+  static const version = 2;
 
   /// The exam's PDF, in the app's assets.
   static const asset = 'assets/exam/pdf-ai-exam.pdf';
@@ -176,8 +176,9 @@ abstract final class PdfAiExam {
     final main = systems.fold<PdfAiSystem?>(
         null, (best, s) => best == null || s.staves.length > best.staves.length ? s : best);
 
-    // Horizontal borders: one system, all of it; its edges and borders as Read with AI places
-    // them, none where its staff places are no good.
+    // Horizontal borders: one system, all of it; each staff's region as Read with AI places it
+    // (its top between the staff above's lines and its own, the first one's past the ink above
+    // the system; its bottom likewise), none where its staff places are no good.
     final labels = {for (final s in systems) for (final t in s.staves) t.label};
     mark(PdfAiExamPart.horizontal, systems.length == 1 && [for (var k = 1; k <= n; k++) k].every(labels.contains));
     final fit = PdfAi.fit([
@@ -187,16 +188,12 @@ abstract final class PdfAiExam {
     double? down(double? thousandths) => thousandths == null || !fit.sure ? null : view.y(thousandths) * fit.scale + fit.shift;
     bool within(double? y, double from, double to) => y != null && y >= from && y <= to;
     final margin = space * 0.5;
-    mark(PdfAiExamPart.horizontal, within(down(systems.firstOrNull?.top), page.top.$1 - margin, page.top.$2 + margin));
-    mark(PdfAiExamPart.horizontal, within(down(systems.lastOrNull?.bottom), page.bottom.$1 - margin, page.bottom.$2 + margin));
-    for (var k = 1; k < n; k++) {
-      final border = [for (final s in systems) ...s.borders].where((b) => b.below == k).firstOrNull;
-      final ys = [
-        ?border?.y,
-        if (border?.gap case (final a, final b)) ...[a, b],
-      ];
-      final from = page.staves[k - 1].bottom, to = page.staves[k].top;
-      mark(PdfAiExamPart.horizontal, ys.isNotEmpty && ys.every((y) => within(down(y), from, to)));
+    for (final (k, s) in page.staves.indexed) {
+      final region = staves[k]?.region;
+      final (above, top) = k == 0 ? (page.top.$1 - margin, page.top.$2 + margin) : (page.staves[k - 1].bottom, s.top);
+      final (bottom, below) = k == n - 1 ? (page.bottom.$1 - margin, page.bottom.$2 + margin) : (s.bottom, page.staves[k + 1].top);
+      mark(PdfAiExamPart.horizontal, within(down(region?.$1), above, top));
+      mark(PdfAiExamPart.horizontal, within(down(region?.$2), bottom, below));
     }
 
     // Barlines: in order, all moved as far as most are off.

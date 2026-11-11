@@ -31,8 +31,8 @@ class PdfAiView {
 /// (counted from 1 at the system's start, by the answer's barlines).
 typedef PdfAiChange = ({int bar, PdfClef? clef, int? key});
 
-/// What an AI model read of one staff found ([PdfAi.labels]' number): whose it is, and its clef
-/// and key at its system's start.
+/// What an AI model read of one staff found ([PdfAi.labels]' number): whose it is, its region,
+/// and its clef and key at its system's start.
 class PdfAiStaff {
   const PdfAiStaff({
     required this.label,
@@ -44,6 +44,7 @@ class PdfAiStaff {
     this.key,
     this.changes = const [],
     this.y,
+    this.region,
   });
 
   final int label;
@@ -51,6 +52,11 @@ class PdfAiStaff {
   /// Where the answer places its middle line, thousandths: what its other places are measured
   /// against ([PdfAi.refine]).
   final double? y;
+
+  /// Where the answer says its region begins and ends (top, bottom), thousandths: its lines and
+  /// all that is printed for it. Its neighbour's may reach into it (an overlap), or stop short
+  /// of it (a gap that is no one's).
+  final (double, double)? region;
 
   /// An instrument's id ([PdfInstrument.id]), as the prompt listed them; null: none of them.
   final String? instrument;
@@ -68,19 +74,12 @@ class PdfAiStaff {
   final List<PdfAiChange> changes;
 }
 
-/// Where one staff's part ends and the next one's begins: below staff [below] (its number), at
-/// [y], or a gap there that is no one's ([gap], its top and bottom). Thousandths.
-typedef PdfAiBorder = ({int below, double? y, (double, double)? gap});
-
-/// What an AI model read of one system: its staves, its edges and borders, its barlines, and the
+/// What an AI model read of one system: its staves (each with its region), its barlines, and the
 /// time signatures and tempo marks printed in it. Positions are thousandths ([PdfAiView]); bars
 /// are counted from 1 at its start by its [barlines].
 class PdfAiSystem {
   const PdfAiSystem({
     this.staves = const [],
-    this.top,
-    this.bottom,
-    this.borders = const [],
     this.barlines,
     this.time,
     this.times = const [],
@@ -88,8 +87,6 @@ class PdfAiSystem {
   });
 
   final List<PdfAiStaff> staves;
-  final double? top, bottom;
-  final List<PdfAiBorder> borders;
 
   /// Left to right; null when the answer gave none.
   final List<({double x, PdfBarlineKind? kind})>? barlines;
@@ -136,20 +133,6 @@ class PdfAiPage {
 
   static PdfAiSystem _system(Map s) => PdfAiSystem(
         staves: [for (final t in _maps(s['staves'])) ?_staff(t)],
-        top: _num(s['top']),
-        bottom: _num(s['bottom']),
-        borders: [
-          for (final b in _maps(s['borders']))
-            if (_int(b['below']) case final below?)
-              (
-                below: below,
-                y: _num(b['y']),
-                gap: switch (b['gap']) {
-                  [final a, final b] when _num(a) != null && _num(b) != null => (_num(a)!, _num(b)!),
-                  _ => null,
-                },
-              ),
-        ],
         barlines: s['barlines'] is List
             ? [
                 for (final b in s['barlines'] as List)
@@ -176,6 +159,10 @@ class PdfAiPage {
       clef: _clef(t['clef']),
       key: _key(t['key']),
       y: _num(t['y']),
+      region: switch (t['region']) {
+        [final a, final b] when _num(a) != null && _num(b) != null => (math.min(_num(a)!, _num(b)!), math.max(_num(a)!, _num(b)!)),
+        _ => null,
+      },
       changes: [
         for (final c in _maps(t['changes']))
           if (_clef(c['clef']) != null || _key(c['key']) != null)
@@ -251,7 +238,7 @@ typedef PdfAiPageRead = ({int page, PdfAiPage answer, List<PdfAiSystemRead> syst
 
 /// Reading a PDF score's pages with an AI model: what it is asked ([prompt], about a picture of
 /// the page with its staves numbered, [labels]), and what its answer sets ([refine] on the page's
-/// ink, then [apply] to the layout). Its positions are rough: every edge, cut and barline it
+/// ink, then [apply] to the layout). Its positions are rough: every region's edge and barline it
 /// gives is placed on the ink near it (a row nothing crosses, a line through the staves); what
 /// it names (instruments, clefs, keys, meters, tempo marks) is taken as said.
 abstract final class PdfAi {
@@ -294,9 +281,7 @@ $list
 $from
 Answer with one JSON object and nothing else, like this:
 {"systems": [{
-  "staves": [{"label": 1, "y": 152, "instrument": "P1", "staff": 1, "name": "Flute", "printed": "Fl.", "clef": "treble", "key": -1, "changes": [{"bar": 3, "clef": "bass"}, {"bar": 5, "key": 2}]}],
-  "top": 120, "bottom": 410,
-  "borders": [{"below": 1, "y": 180}, {"below": 2, "y": 250, "gap": [242, 258]}],
+  "staves": [{"label": 1, "y": 152, "region": [120, 182], "instrument": "P1", "staff": 1, "name": "Flute", "printed": "Fl.", "clef": "treble", "key": -1, "changes": [{"bar": 3, "clef": "bass"}, {"bar": 5, "key": 2}]}],
   "barlines": [{"x": 310, "kind": "single"}, {"x": 905, "kind": "final"}],
   "time": "3/4",
   "times": [{"bar": 4, "time": "2/4"}],
@@ -305,13 +290,12 @@ Answer with one JSON object and nothing else, like this:
 
 - "systems": the page's systems, top to bottom (staves played together, joined at their left). Every staff number goes in one system.
 - "y": where the staff's middle line is.
+- "region": the staff's own strip of the page, its top and bottom: its lines and everything printed for it (notes above and below the lines, slurs, dynamics, lyrics, fingerings; over a system's top staff its tempo marks and bar numbers too), not the page's title, headers, footers or page number, nor another system's marks. Where nothing crosses between two staves, the upper one's region ends where the lower one's begins, so that each mark goes with the staff it belongs to. Where one staff's notes or marks reach in among the other's, let the two regions overlap, each as far as its own staff's ink goes: what lies in both is shown with both. A line of text between two staves belonging to neither (a tempo mark repeated inside the system) is left out of both.
 - "instrument": the id of the instrument the staff is, from the list, by the name or abbreviation printed left of it (a staff with none is the instrument it continues); null when it is none of them. "staff": which of the instrument's staves it is, from 1 (a piano's lower staff is 2; a section divided onto several staves: 2, 3… for the further ones).
 - "name": the instrument's full name as the score prints it where it first appears (not an abbreviation). "printed": what is printed left of this staff on this page, or "".
 - "clef": the clef at the system's start: "treble", "treble8vb" (an 8 below it), "alto", "tenor", "bass" or "percussion". "key": the key signature there as printed on this staff, sharps positive, flats negative, 0 for none.
 - "changes": clef or key changes inside the system on this staff, at the bar they take effect. A courtesy clef, key or time signature at a system's end is not one.
 - "bar": a bar of the system, counted from 1 at its start by the barlines you give.
-- "top", "bottom": where what belongs to the system begins and ends: its staves and everything printed with them (tempo marks, dynamics, lyrics, bar numbers), not the page's title, headers, footers or page number, nor the next system's marks.
-- "borders": between each staff and the one below ("below": the upper one's number), where one's ink ends and the other's begins, so that dynamics, lyrics and markings go with the staff they belong to. "gap": a line of text there belonging to neither staff (a tempo mark repeated inside the system), its top and bottom; leave it out when there is none.
 - "barlines": every barline past the clefs, keys and time signatures at the start, left to right, the one ending the system included; "kind": "single", "double", "final", "repeat-start", "repeat-end" or "repeat-both". Stems and other strokes are not barlines.
 - "time": the time signature at the system's start, null when none is printed there; "times": those inside it.
 - "tempos": tempo marks and changes printed above the system (Allegro, rit., a tempo, ♩ = 96): the words as printed, and "bpm", the metronome mark in quarter notes a minute, or null.
@@ -320,8 +304,9 @@ Answer with one JSON object and nothing else, like this:
 
   /// One page's [systems] as [answer] sets them, placed on its ink ([raster], the whole page):
   /// staves joined into systems as it says (two found apart joined only where their bars line
-  /// up), each system's top and bottom and where each two of its staves' regions meet (or, a gap
-  /// between, end and begin) at the rows nothing crosses nearest where it says, and its barlines
+  /// up), each staff's region from top to bottom as it says, its edges at the rows nothing
+  /// crosses nearest (two staves' regions meeting there, or apart, a gap between; overlapping
+  /// only where it says so and no row between is clear, [PdfDetect.clearRow]), and its barlines
   /// those found nearest the ones it gives, else a line through the staves there (one with none
   /// there is passed over). What it doesn't give stays as found. Each system is to be measured
   /// again.
@@ -381,6 +366,12 @@ Answer with one JSON object and nothing else, like this:
     ];
     final fit = PdfAi.fit(pairs, n, systems.first.space);
     double down(double thousandths) => view.y(thousandths) * fit.scale + fit.shift;
+    // Where it says staff [k]'s region begins and ends, points; null: nowhere, or its places are
+    // no good.
+    (double, double)? regionSaid(int k) => switch (fit.sure ? answer.staff(k + 1)?.region : null) {
+          (final a, final b) => (down(a), down(b)),
+          null => null,
+        };
     final out = <PdfAiSystemRead>[];
     var above = 0.0; // where the system before ends, points
     for (final (r, run) in runs.indexed) {
@@ -402,8 +393,8 @@ Answer with one JSON object and nothing else, like this:
       final topHigh = math.max(
           topLow, math.min(staves.first.top - space * 0.5, PdfDetect.inkEnd(raster, staves.first.top, topLow, space, left, right) - space * 0.25));
       final double top;
-      if (said?.top case final t?) {
-        top = quiet(topLow, topHigh, down(t).clamp(topLow, topHigh));
+      if (regionSaid(run.staves.first)?.$1 case final t?) {
+        top = quiet(topLow, topHigh, t.clamp(topLow, topHigh));
       } else {
         final was = systems[head.system].staves[head.index].regionTop;
         top = was.clamp(topLow, topHigh);
@@ -412,40 +403,13 @@ Answer with one JSON object and nothing else, like this:
       final bottomLow = math.min(bottomHigh,
           math.max(staves.last.bottom + space * 0.5, PdfDetect.inkEnd(raster, staves.last.bottom, bottomHigh, space, left, right) + space * 0.25));
       final double bottom;
-      if (said?.bottom case final b?) {
-        bottom = quiet(bottomLow, bottomHigh, down(b).clamp(bottomLow, bottomHigh));
+      if (regionSaid(run.staves.last)?.$2 case final b?) {
+        bottom = quiet(bottomLow, bottomHigh, b.clamp(bottomLow, bottomHigh));
       } else {
         final was = systems[tail.system].staves[tail.index].regionBottom;
         bottom = was.clamp(bottomLow, bottomHigh);
       }
       above = bottom;
-
-      // Between each two of its staves, where the upper one's region ends and the lower one's
-      // begins: the quiet rows nearest where it says, apart where it says the room between is no
-      // one's; as they were, overlapping or apart, where it says nothing of two found together.
-      final borders = <(double, double)>[];
-      for (var j = 0; j + 1 < run.staves.length; j++) {
-        final a = found[run.staves[j]], b = found[run.staves[j + 1]];
-        final lo = a.staff.bottom + space * 0.3, hi = math.max(lo, b.staff.top - space * 0.3);
-        final border = said?.borders.where((x) => x.below == run.staves[j] + 1).firstOrNull;
-        if (border?.gap case (final g0, final g1)) {
-          final y0 = quiet(lo, hi, down(math.min(g0, g1)).clamp(lo, hi));
-          final y1 = quiet(y0, hi, down(math.max(g0, g1)).clamp(y0, hi));
-          if (y1 - y0 >= space * 0.5) {
-            borders.add((y0, y1));
-            continue;
-          }
-        }
-        if (border?.y case final y?) {
-          final cut = quiet(lo, hi, down(y).clamp(lo, hi));
-          borders.add((cut, cut));
-        } else if (a.system == b.system) {
-          borders.add((a.staff.regionBottom, b.staff.regionTop));
-        } else {
-          final cut = quiet(lo, hi, (lo + hi) / 2);
-          borders.add((cut, cut));
-        }
-      }
 
       // Its barlines: those the answer gives, on the page's.
       final lines = [
@@ -457,6 +421,47 @@ Answer with one JSON object and nothing else, like this:
         final given? when given.isNotEmpty => _barlines(raster, staves, given, lines, left: left, right: right, space: space, view: view),
         _ => (lines, [left, for (final b in lines) if (b.x >= left + space * 0.5) b.x]),
       };
+
+      // Between each two of its staves, where the upper one's region ends and the lower one's
+      // begins: the quiet rows nearest where it says. One row for both where they meet; apart
+      // where it leaves room between that is no one's; and where it says they overlap, each as
+      // far as it says only if no row between is clear (one clear, a cut there loses nothing: they
+      // meet on it). As they were where it says nothing of two found together.
+      final crossing = [for (final b in {...lines, ...barlines}) b.x];
+      final borders = <(double, double)>[]; // the upper one's bottom, the lower one's top
+      for (var j = 0; j + 1 < run.staves.length; j++) {
+        final a = found[run.staves[j]], b = found[run.staves[j + 1]];
+        final lo = a.staff.bottom + space * 0.3, hi = math.max(lo, b.staff.top - space * 0.3);
+        final end = regionSaid(run.staves[j])?.$2, start = regionSaid(run.staves[j + 1])?.$1;
+        if (end == null && start == null) {
+          if (a.system == b.system) {
+            borders.add((a.staff.regionBottom, b.staff.regionTop));
+          } else {
+            final cut = quiet(lo, hi, (lo + hi) / 2);
+            borders.add((cut, cut));
+          }
+          continue;
+        }
+        // One of the two said alone is where both are.
+        final under = (end ?? start!).clamp(lo, hi).toDouble(), over = (start ?? end!).clamp(lo, hi).toDouble();
+        final overlap = under - over > space * 0.5;
+        if (overlap && !PdfDetect.clearRow(raster, over, under, left, right, space: space, barlines: crossing)) {
+          final y0 = quiet(math.max(lo, under - space), math.min(hi, under + space), under);
+          final y1 = quiet(math.max(lo, over - space), math.min(hi, over + space), over);
+          if (y0 > y1) {
+            borders.add((y0, y1));
+            continue;
+          }
+        } else if (over - under >= space * 0.5) {
+          final y0 = quiet(lo, hi, under), y1 = quiet(y0, hi, over);
+          if (y1 - y0 >= space * 0.5) {
+            borders.add((y0, y1));
+            continue;
+          }
+        }
+        final cut = overlap ? quiet(over, under, (over + under) / 2) : quiet(lo, hi, (over + under) / 2);
+        borders.add((cut, cut));
+      }
 
       out.add((
         system: PdfSystem(
