@@ -196,7 +196,7 @@ class PdfPages {
   }
 
   /// Page [page]'s [systems] as an AI model's [answer] about them sets them ([PdfAi.refine]): their
-  /// edges, cuts and barlines placed on the page's own ink.
+  /// staves' bands and barlines placed on the page's own ink.
   Future<List<PdfAiSystemRead>> refine(int page, List<PdfSystem> systems, PdfAiPage answer) {
     final id = _id;
     final view = PdfAiView(sizes[page]);

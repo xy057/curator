@@ -223,11 +223,14 @@ class PdfInstrument {
   int get hashCode => Object.hash(id, name, abbreviation, clef, staves, key, divisi, clefs.length, meters.length, blank);
 }
 
-/// A staff as printed in one system: where its lines are (points, from the page's top) and whose
-/// it is.
+/// A staff as printed in one system: where its lines are (points, from the page's top), what of
+/// the page is its, and whose it is.
 @immutable
 class PdfStaff {
-  const PdfStaff({required this.top, required this.space, this.lines = 5, this.part, this.staff = 1});
+  /// With no band given, two spaces either side of its lines.
+  const PdfStaff({required this.top, required this.space, this.lines = 5, this.part, this.staff = 1, double? bandTop, double? bandBottom})
+      : bandTop = bandTop ?? top - 2 * space,
+        bandBottom = bandBottom ?? top + (lines - 1) * space + 2 * space;
 
   /// The top line's y, points from the page's top.
   final double top;
@@ -243,32 +246,63 @@ class PdfStaff {
   /// divisi ([PdfInstrument.divisi]).
   final int staff;
 
+  /// Its band, points from the page's top: the stretch of its system its bars are cut from
+  /// ([PdfSystem.bandOf]), its lines inside it. Each staff's is its own: two may overlap (what
+  /// lies in both is both's) or leave room between them that is no one's.
+  final double bandTop, bandBottom;
+
   double get bottom => top + (math.max(1, lines) - 1) * space;
   double get middle => (top + bottom) / 2;
 
-  PdfStaff copyWith({double? top, double? space, int? lines, String? Function()? part, int? staff}) => PdfStaff(
-      top: top ?? this.top,
-      space: space ?? this.space,
-      lines: lines ?? this.lines,
-      part: part == null ? this.part : part(),
-      staff: staff ?? this.staff);
+  PdfStaff copyWith({double? top, double? space, int? lines, String? Function()? part, int? staff, double? bandTop, double? bandBottom}) =>
+      PdfStaff(
+          top: top ?? this.top,
+          space: space ?? this.space,
+          lines: lines ?? this.lines,
+          part: part == null ? this.part : part(),
+          staff: staff ?? this.staff,
+          bandTop: bandTop ?? this.bandTop,
+          bandBottom: bandBottom ?? this.bandBottom);
 
-  Map<String, Object?> toJson() => {'top': _round(top), 'space': _round(space), 'lines': lines, 'part': part, 'staff': staff};
+  Map<String, Object?> toJson() => {
+        'top': _round(top),
+        'space': _round(space),
+        'lines': lines,
+        'part': part,
+        'staff': staff,
+        'band': [_round(bandTop), _round(bandBottom)],
+      };
 
-  static PdfStaff fromJson(Map<String, Object?> json) => PdfStaff(
-        top: _number(json, 'top'),
-        space: _positive(json, 'space'),
-        lines: (_numberOrNull(json, 'lines')?.toInt() ?? 5).clamp(1, 6),
-        part: _textOrNull(json, 'part'),
-        staff: (_numberOrNull(json, 'staff')?.toInt() ?? 1).clamp(1, 4),
-      );
+  /// Reads what [toJson] wrote; a band that leaves out its lines is widened to take them in.
+  static PdfStaff fromJson(Map<String, Object?> json) {
+    final staff = PdfStaff(
+      top: _number(json, 'top'),
+      space: _positive(json, 'space'),
+      lines: (_numberOrNull(json, 'lines')?.toInt() ?? 5).clamp(1, 6),
+      part: _textOrNull(json, 'part'),
+      staff: (_numberOrNull(json, 'staff')?.toInt() ?? 1).clamp(1, 4),
+    );
+    return switch (json['band']) {
+      null => staff,
+      [final num t, final num b] when t.isFinite && b.isFinite =>
+        staff.copyWith(bandTop: math.min(t.toDouble(), staff.top), bandBottom: math.max(b.toDouble(), staff.bottom)),
+      _ => throw _bad('band'),
+    };
+  }
 
   @override
   bool operator ==(Object other) =>
-      other is PdfStaff && other.top == top && other.space == space && other.lines == lines && other.part == part && other.staff == staff;
+      other is PdfStaff &&
+      other.top == top &&
+      other.space == space &&
+      other.lines == lines &&
+      other.part == part &&
+      other.staff == staff &&
+      other.bandTop == bandTop &&
+      other.bandBottom == bandBottom;
 
   @override
-  int get hashCode => Object.hash(top, space, lines, part, staff);
+  int get hashCode => Object.hash(top, space, lines, part, staff, bandTop, bandBottom);
 }
 
 /// How a barline is drawn: what it means for the score's form.
@@ -304,27 +338,57 @@ class PdfBarline {
 /// below its bottom one, and whether anything is played there (more than a rest).
 typedef PdfInk = ({double above, double below, bool played});
 
-/// One system of the PDF: its staves, where its music starts and ends, and its barlines.
+/// One system of the PDF: its staves (each with its own band), where its music starts and ends,
+/// and its barlines, which are all its staves'.
 @immutable
 class PdfSystem {
   const PdfSystem({
     required this.page,
-    required this.top,
-    required this.bottom,
     required this.left,
     required this.right,
     required this.staves,
-    this.cuts = const [],
-    this.gaps = const {},
     this.barlines = const [],
     this.ink,
   });
 
+  /// A system whose staves' bands meet: from [top] to the first of [cuts] (one between each staff
+  /// and the next, where one's band ends and the next one's begins; the middle between their
+  /// lines where none is given), between each two, and from the last to [bottom]. [gaps], by
+  /// cut, end stretches below a cut that are no one's (as the pdf module's version 1 kept them).
+  factory PdfSystem.cut({
+    required int page,
+    required double top,
+    required double bottom,
+    required double left,
+    required double right,
+    required List<PdfStaff> staves,
+    List<double> cuts = const [],
+    Map<int, double> gaps = const {},
+    List<PdfBarline> barlines = const [],
+  }) {
+    final n = staves.length;
+    double cutAfter(int i) => i < cuts.length ? cuts[i] : (staves[i].bottom + staves[i + 1].top) / 2;
+    return PdfSystem(
+      page: page,
+      left: left,
+      right: right,
+      staves: [
+        for (final (i, s) in staves.indexed)
+          s.copyWith(
+            bandTop: math.min(s.top, i == 0 ? top : math.max(cutAfter(i - 1), gaps[i - 1] ?? 0)),
+            bandBottom: math.max(s.bottom, i == n - 1 ? bottom : cutAfter(i)),
+          ),
+      ],
+      barlines: barlines,
+    );
+  }
+
   final int page;
 
-  /// What may belong to it, points from the page's top: nothing above [top] or below [bottom]
-  /// is in any staff's part.
-  final double top, bottom;
+  /// What may belong to it, points from the page's top: its staves' bands, from the highest to
+  /// the lowest. Nothing above [top] or below [bottom] is in any staff's part.
+  double get top => staves.isEmpty ? 0 : staves.map((s) => s.bandTop).reduce(math.min);
+  double get bottom => staves.isEmpty ? 0 : staves.map((s) => s.bandBottom).reduce(math.max);
 
   /// Where its music starts (past the clefs and key signatures at its start) and ends (its
   /// staves' right end), points from the page's left.
@@ -332,15 +396,6 @@ class PdfSystem {
 
   /// Top to bottom.
   final List<PdfStaff> staves;
-
-  /// Between each staff and the next, where one's part ends and the next one's begins (points
-  /// from the page's top); [staves] − 1 of them. What crosses a cut goes with the staff where
-  /// most of it is.
-  final List<double> cuts;
-
-  /// Stretches between two staves no one's, keyed by the cut above each ([cuts]' index): where
-  /// it ends, points from the page's top. What is printed in one goes with neither staff.
-  final Map<int, double> gaps;
 
   /// Left to right, past [left]; the last at [right] unless the bar goes on in the next system.
   final List<PdfBarline> barlines;
@@ -371,127 +426,92 @@ class PdfSystem {
   /// Whether its last bar goes on in the next system (no barline at its end).
   bool get continues => barlines.isEmpty || right - barlines.last.x > space;
 
-  /// The cut between staff [i] and the one below, or the middle between them when none is set.
-  double cutAfter(int i) => i < cuts.length ? cuts[i] : (staves[i].bottom + staves[i + 1].top) / 2;
+  /// The band of staff [i], top and bottom ([PdfStaff.bandTop]).
+  (double, double) bandOf(int i) => (staves[i].bandTop, staves[i].bandBottom);
 
-  /// Where the staff below staff [i] begins: past the gap after [cutAfter] ([gaps]), if any.
-  double resumeAfter(int i) => math.max(cutAfter(i), gaps[i] ?? 0);
-
-  /// The gap between staff [i] and the one below, top and bottom; null when there is none.
-  (double, double)? gapAfter(int i) => resumeAfter(i) > cutAfter(i) ? (cutAfter(i), resumeAfter(i)) : null;
-
-  /// The band of staff [i]: from the cut (or gap) above it, or [top], to the cut below it, or
-  /// [bottom].
-  (double, double) bandOf(int i) => (i == 0 ? top : resumeAfter(i - 1), i == staves.length - 1 ? bottom : cutAfter(i));
-
-  /// It with [staff] added among its staves, where its middle falls: the cut (and any gap) it
-  /// lands in made two cuts, its edges moved out to take it in. Measured again.
-  PdfSystem withStaff(PdfStaff staff) {
-    final n = staves.length;
-    final at = staves.where((s) => s.middle < staff.middle).length;
-    final cs = [for (var c = 0; c + 1 < n; c++) cutAfter(c)];
-    final room = staff.space * 2;
-    if (n == 0) {
-      return copyWith(top: math.min(top, staff.top - room), bottom: math.max(bottom, staff.bottom + room), staves: [staff], cuts: [], gaps: {}, ink: () => null);
+  /// The staff whose band [y] is in (from its top, short of its bottom); where bands overlap, the
+  /// one whose lines are nearest. -1: no one's.
+  int staffAt(double y) {
+    var best = -1;
+    var off = double.infinity;
+    for (final (k, s) in staves.indexed) {
+      if (y < s.bandTop || y >= s.bandBottom) continue;
+      final d = y < s.top ? s.top - y : (y > s.bottom ? y - s.bottom : 0.0);
+      if (d < off) {
+        off = d;
+        best = k;
+      }
     }
-    final List<double> cuts;
-    final Map<int, double> moved;
-    if (at == 0) {
-      cuts = [(staff.bottom + staves.first.top) / 2, ...cs];
-      moved = {for (final e in gaps.entries) e.key + 1: e.value};
-    } else if (at == n) {
-      cuts = [...cs, (staves.last.bottom + staff.top) / 2];
-      moved = {...gaps};
-    } else {
-      final above = (staves[at - 1].bottom + staff.top) / 2;
-      final lowest = at >= 2 ? resumeAfter(at - 2) : top;
-      final first = math.max(above, lowest);
-      cuts = [...cs.take(at - 1), first, math.max(first, (staff.bottom + staves[at].top) / 2), ...cs.skip(at)];
-      moved = {
-        for (final e in gaps.entries)
-          if (e.key < at - 1) e.key: e.value else if (e.key >= at) e.key + 1: e.value,
-      };
-    }
-    return copyWith(
-      top: at == 0 ? math.min(top, staff.top - room) : top,
-      bottom: at == n ? math.max(bottom, staff.bottom + room) : bottom,
-      staves: [...staves]..insert(at, staff),
-      cuts: cuts,
-      gaps: moved,
-      ink: () => null,
-    );
+    return best;
   }
 
-  /// It without staff [k], its band no one's: at either end the system's edge moved in past it,
-  /// between two a gap. Measured again. Of a system of one staff, call it no system instead.
-  PdfSystem withoutStaff(int k) {
-    final n = staves.length;
-    final cs = [for (var c = 0; c + 1 < n; c++) cutAfter(c)];
-    final rest = [...staves]..removeAt(k);
-    if (k == 0) {
-      return copyWith(
-          top: resumeAfter(0),
-          staves: rest,
-          cuts: cs.sublist(1),
-          gaps: {for (final e in gaps.entries) if (e.key > 0) e.key - 1: e.value},
-          ink: () => null);
+  /// It with [staff] added among its staves, where its middle falls. Its band is the room
+  /// between the bands either side (two spaces past its lines where there is no staff); a band
+  /// of theirs that reaches into its lines ends halfway to them, and its own starts there.
+  /// Measured again.
+  PdfSystem withStaff(PdfStaff staff) {
+    final at = staves.where((s) => s.middle < staff.middle).length;
+    final rest = [...staves];
+    final room = staff.space * 2;
+    var top = staff.top - room, bottom = staff.bottom + room;
+    if (at > 0) {
+      final above = rest[at - 1];
+      if (above.bandBottom > staff.top) {
+        top = math.min(staff.top, (above.bottom + staff.top) / 2);
+        rest[at - 1] = above.copyWith(bandBottom: math.max(above.bottom, top));
+      } else {
+        top = above.bandBottom;
+      }
     }
-    if (k == n - 1) {
-      return copyWith(
-          bottom: cutAfter(n - 2),
-          staves: rest,
-          cuts: cs.sublist(0, n - 2),
-          gaps: {for (final e in gaps.entries) if (e.key < n - 2) e.key: e.value},
-          ink: () => null);
+    if (at < rest.length) {
+      final below = rest[at];
+      if (below.bandTop < staff.bottom) {
+        bottom = math.max(staff.bottom, (staff.bottom + below.top) / 2);
+        rest[at] = below.copyWith(bandTop: math.min(below.top, bottom));
+      } else {
+        bottom = below.bandTop;
+      }
     }
+    return copyWith(staves: rest..insert(at, staff.copyWith(bandTop: top, bandBottom: bottom)), ink: () => null);
+  }
+
+  /// It without staff [k], its band no one's. Measured again. Of a system of one staff, call it
+  /// no system instead.
+  PdfSystem withoutStaff(int k) => copyWith(staves: [...staves]..removeAt(k), ink: () => null);
+
+  /// It with staff [k]'s band from [top] to [bottom], kept round its lines. Measured again.
+  PdfSystem withBand(int k, {double? top, double? bottom}) {
+    final s = staves[k];
     return copyWith(
-      staves: rest,
-      cuts: [...cs]..removeAt(k),
-      gaps: {
-        for (final e in gaps.entries)
-          if (e.key < k - 1) e.key: e.value else if (e.key > k) e.key - 1: e.value,
-        k - 1: resumeAfter(k),
-      },
+      staves: [...staves]..[k] = s.copyWith(
+          bandTop: top == null ? null : math.min(top, s.top),
+          bandBottom: bottom == null ? null : math.max(bottom, s.bottom),
+        ),
       ink: () => null,
     );
   }
 
   PdfSystem copyWith({
-    double? top,
-    double? bottom,
     double? left,
     double? right,
     List<PdfStaff>? staves,
-    List<double>? cuts,
-    Map<int, double>? gaps,
     List<PdfBarline>? barlines,
     List<List<PdfInk>>? Function()? ink,
   }) =>
       PdfSystem(
         page: page,
-        top: top ?? this.top,
-        bottom: bottom ?? this.bottom,
         left: left ?? this.left,
         right: right ?? this.right,
         staves: staves ?? this.staves,
-        cuts: cuts ?? this.cuts,
-        gaps: gaps ?? this.gaps,
         barlines: barlines ?? this.barlines,
         ink: ink == null ? this.ink : ink(),
       );
 
   Map<String, Object?> toJson() => {
         'page': page,
-        'top': _round(top),
-        'bottom': _round(bottom),
         'left': _round(left),
         'right': _round(right),
         'staves': [for (final s in staves) s.toJson()],
-        'cuts': [for (final c in cuts) _round(c)],
-        if (gaps.isNotEmpty)
-          'gaps': [
-            for (final c in gaps.keys.toList()..sort()) [c, _round(gaps[c]!)],
-          ],
         'barlines': [
           for (final b in barlines) [_round(b.x), b.kind.name],
         ],
@@ -524,47 +544,59 @@ class PdfSystem {
           ];
     return PdfSystem(
       page: _numberOrNull(json, 'page')?.toInt() ?? (throw _bad('page')),
-      top: _number(json, 'top'),
-      bottom: _number(json, 'bottom'),
       left: _number(json, 'left'),
       right: _number(json, 'right'),
       staves: staves,
-      cuts: [for (final c in _list(json, 'cuts')) c is num ? c.toDouble() : throw _bad('cuts')],
-      gaps: _gaps(json, staves.length),
       barlines: barlines,
       ink: ink != null && ink.length == staves.length ? ink : null,
     );
   }
 
-  /// [gaps] as written, those past the staves left out.
-  static Map<int, double> _gaps(Map<String, Object?> json, int staves) {
-    final out = <int, double>{};
-    for (final g in json['gaps'] == null ? const [] : _list(json, 'gaps')) {
-      if (g case [final int c, final num bottom]) {
-        if (c >= 0 && c + 1 < staves) out[c] = bottom.toDouble();
-      } else {
-        throw _bad('gaps');
-      }
+  /// A system as the pdf module's version 1 wrote it (its top and bottom, the cuts between its
+  /// staves and the gaps below them) as [toJson] writes it: each staff with its band. What it
+  /// can't make out is left as it is, for [fromJson] to say.
+  static Map<String, Object?> upgradeJson(Map<String, Object?> json) {
+    try {
+      final staves = [for (final s in _list(json, 'staves')) PdfStaff.fromJson(_map(s, 'staves'))];
+      if (staves.isEmpty) return json;
+      final gaps = <int, double>{
+        for (final g in _list(json, 'gaps'))
+          if (g case [final int c, final num bottom] when c >= 0 && c + 1 < staves.length) c: bottom.toDouble(),
+      };
+      final cut = PdfSystem.cut(
+        page: 0,
+        top: _number(json, 'top'),
+        bottom: _number(json, 'bottom'),
+        left: 0,
+        right: 0,
+        staves: staves,
+        cuts: [for (final c in _list(json, 'cuts')) c is num ? c.toDouble() : throw _bad('cuts')],
+        gaps: gaps,
+      );
+      return {
+        for (final MapEntry(:key, :value) in json.entries)
+          if (!const {'top', 'bottom', 'cuts', 'gaps', 'staves'}.contains(key)) key: value,
+        'staves': [
+          for (final (k, s) in _list(json, 'staves').indexed) {..._map(s, 'staves'), 'band': cut.staves[k].toJson()['band']},
+        ],
+      };
+    } on FormatException {
+      return json;
     }
-    return out;
   }
 
   @override
   bool operator ==(Object other) =>
       other is PdfSystem &&
       other.page == page &&
-      other.top == top &&
-      other.bottom == bottom &&
       other.left == left &&
       other.right == right &&
       listEquals(other.staves, staves) &&
-      listEquals(other.cuts, cuts) &&
-      mapEquals(other.gaps, gaps) &&
       listEquals(other.barlines, barlines) &&
       _sameInk(other.ink, ink);
 
   @override
-  int get hashCode => Object.hash(page, top, bottom, left, right, Object.hashAll(staves), Object.hashAll(barlines));
+  int get hashCode => Object.hash(page, left, right, Object.hashAll(staves), Object.hashAll(barlines));
 
   static bool _sameInk(List<List<PdfInk>>? a, List<List<PdfInk>>? b) {
     if (a == null || b == null) return a == b;
@@ -1052,6 +1084,16 @@ class PdfScoreLayout {
       },
     );
   }
+
+  /// A layout as the pdf module's version 1 wrote it as [toJson] writes it: each system's top,
+  /// bottom, cuts and gaps made its staves' bands ([PdfSystem.upgradeJson]).
+  static Map<String, Object?> upgradeJson(Map<String, Object?> json) => switch (json['systems']) {
+        final List<Object?> systems => {
+            ...json,
+            'systems': [for (final s in systems) s is Map ? PdfSystem.upgradeJson(s.cast<String, Object?>()) : s],
+          },
+        _ => json,
+      };
 
   @override
   bool operator ==(Object other) =>

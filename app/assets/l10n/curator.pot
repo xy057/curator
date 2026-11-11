@@ -3091,11 +3091,7 @@ msgstr ""
 msgid "Remove Mask"
 msgstr ""
 
-msgid "Gap"
-msgstr ""
-
-#: lib/pdf_import.dart
-msgid "Remove Gap"
+msgid "Staff"
 msgstr ""
 
 #: lib/pdf_import_changes.dart
@@ -3333,7 +3329,7 @@ msgstr ""
 msgid "Remove Barline (⌫)"
 msgstr ""
 
-msgid "Remove Gap (⌫)"
+msgid "Remove Staff (⌫)"
 msgstr ""
 
 msgid "Remove Mask (⌫)"

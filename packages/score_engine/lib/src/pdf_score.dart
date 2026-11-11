@@ -50,7 +50,7 @@ class PdfPagesSource implements PdfPartSource {
 /// A PDF score as the scene draws it: [layout], and each system as printed, as a picture, read
 /// when a frame first asks for it and kept while they fit in [budget] bytes (the least recently
 /// drawn go first, never those a frame is drawn with: [load]). Nothing in it is changed: each staff's bar is a rectangle of its system's
-/// picture (between its cuts, [PdfSystem.bandOf]), the masks cut out. It notifies when one is
+/// picture (its staff's band, [PdfSystem.bandOf]), the masks cut out. It notifies when one is
 /// ready, so a view can draw again; a video waits for them ([load]).
 class PdfScoreArt extends ChangeNotifier {
   PdfScoreArt(this.layout, this._source, {this.budget = 384 << 20});

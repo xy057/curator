@@ -320,10 +320,11 @@ Answer with one JSON object and nothing else, like this:
 
   /// One page's [systems] as [answer] sets them, placed on its ink ([raster], the whole page):
   /// staves joined into systems as it says (two found apart joined only where their bars line
-  /// up), each system's top and bottom and the cuts and gaps between its staves at the rows
-  /// nothing crosses nearest where it says, and its barlines those found nearest the ones it
-  /// gives, else a line through the staves there (one with none there is passed over). What it
-  /// doesn't give stays as found. Each system is to be measured again.
+  /// up), each system's top and bottom and where each two of its staves' bands meet (or, a gap
+  /// between, end and begin) at the rows nothing crosses nearest where it says, and its barlines
+  /// those found nearest the ones it gives, else a line through the staves there (one with none
+  /// there is passed over). What it doesn't give stays as found. Each system is to be measured
+  /// again.
   static List<PdfAiSystemRead> refine(PdfRaster raster, List<PdfSystem> systems, PdfAiPage answer, PdfAiView view) {
     final found = [
       for (final (i, s) in systems.indexed)
@@ -404,7 +405,7 @@ Answer with one JSON object and nothing else, like this:
       if (said?.top case final t?) {
         top = quiet(topLow, topHigh, down(t).clamp(topLow, topHigh));
       } else {
-        final was = head.index == 0 ? systems[head.system].top : systems[head.system].resumeAfter(head.index - 1);
+        final was = systems[head.system].staves[head.index].bandTop;
         top = was.clamp(topLow, topHigh);
       }
       final bottomHigh = math.max(staves.last.bottom + space * 0.5, math.min(below, staves.last.bottom + space * 12));
@@ -414,40 +415,36 @@ Answer with one JSON object and nothing else, like this:
       if (said?.bottom case final b?) {
         bottom = quiet(bottomLow, bottomHigh, down(b).clamp(bottomLow, bottomHigh));
       } else {
-        final last = systems[tail.system];
-        final was = tail.index == last.staves.length - 1 ? last.bottom : last.cutAfter(tail.index);
+        final was = systems[tail.system].staves[tail.index].bandBottom;
         bottom = was.clamp(bottomLow, bottomHigh);
       }
       above = bottom;
 
-      // The cuts between its staves, and the gaps: the quiet rows nearest where it says.
-      final cuts = <double>[], gaps = <int, double>{};
+      // Between each two of its staves, where the upper one's band ends and the lower one's
+      // begins: the quiet rows nearest where it says, apart where it says the room between is no
+      // one's; as they were, overlapping or apart, where it says nothing of two found together.
+      final borders = <(double, double)>[];
       for (var j = 0; j + 1 < run.staves.length; j++) {
         final a = found[run.staves[j]], b = found[run.staves[j + 1]];
         final lo = a.staff.bottom + space * 0.3, hi = math.max(lo, b.staff.top - space * 0.3);
-        final source = systems[a.system], together = a.system == b.system;
         final border = said?.borders.where((x) => x.below == run.staves[j] + 1).firstOrNull;
         if (border?.gap case (final g0, final g1)) {
           final y0 = quiet(lo, hi, down(math.min(g0, g1)).clamp(lo, hi));
           final y1 = quiet(y0, hi, down(math.max(g0, g1)).clamp(y0, hi));
           if (y1 - y0 >= space * 0.5) {
-            cuts.add(y0);
-            gaps[j] = y1;
+            borders.add((y0, y1));
             continue;
           }
         }
         if (border?.y case final y?) {
-          cuts.add(quiet(lo, hi, down(y).clamp(lo, hi)));
-        } else if (together) {
-          cuts.add(source.cutAfter(a.index));
-          if (source.gaps.containsKey(a.index)) gaps[j] = source.resumeAfter(a.index);
+          final cut = quiet(lo, hi, down(y).clamp(lo, hi));
+          borders.add((cut, cut));
+        } else if (a.system == b.system) {
+          borders.add((a.staff.bandBottom, b.staff.bandTop));
         } else {
-          cuts.add(quiet(lo, hi, (lo + hi) / 2));
+          final cut = quiet(lo, hi, (lo + hi) / 2);
+          borders.add((cut, cut));
         }
-      }
-      // A cut in a gap's room above it: cuts and gaps stay in order.
-      for (var j = 1; j < cuts.length; j++) {
-        if (cuts[j] < (gaps[j - 1] ?? cuts[j - 1])) cuts[j] = gaps[j - 1] ?? cuts[j - 1];
       }
 
       // Its barlines: those the answer gives, on the page's.
@@ -464,13 +461,15 @@ Answer with one JSON object and nothing else, like this:
       out.add((
         system: PdfSystem(
           page: main.page,
-          top: top,
-          bottom: bottom,
           left: left,
           right: right,
-          staves: staves,
-          cuts: cuts,
-          gaps: gaps,
+          staves: [
+            for (final (j, s) in staves.indexed)
+              s.copyWith(
+                bandTop: math.min(s.top, j == 0 ? top : borders[j - 1].$2),
+                bandBottom: math.max(s.bottom, j == staves.length - 1 ? bottom : borders[j].$1),
+              ),
+          ],
           barlines: barlines,
         ),
         labels: [for (final k in run.staves) k + 1],

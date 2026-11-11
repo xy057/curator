@@ -39,23 +39,46 @@ void main() {
     expect([for (final s in system.staves) s.top], [closeTo(20, 0.5), closeTo(60, 0.5)]);
     expect([for (final s in system.staves) s.space], [closeTo(4, 0.2), closeTo(4, 0.2)]);
     expect([for (final b in system.barlines) b.x], [closeTo(120, 0.8), closeTo(200, 0.8)]);
-    // The cut between the staves is where nothing but the barlines cross.
-    expect(system.cuts.single, inExclusiveRange(system.staves.first.bottom, system.staves.last.top));
-    // A gap between them is no one's: the barlines crossing it go with neither staff.
-    final page = _page(), cut = system.cuts.single;
-    int owner(PdfSystem s, double y) => PdfDetect.assign(page, s, const [])[page.row(y).round() * page.width + page.col(120).round()];
-    expect(owner(system, cut + 2), 1);
-    final gapped = system.copyWith(gaps: {0: cut + 6});
-    expect(gapped.bandOf(1).$1, cut + 6);
-    expect([owner(gapped, cut + 2), owner(gapped, cut + 8), owner(gapped, cut - 2)], [-1, 1, 0]);
+    // The staves' bands meet where nothing but the barlines cross.
+    final cut = system.staves.first.bandBottom;
+    expect(system.staves.last.bandTop, cut);
+    expect(cut, inExclusiveRange(system.staves.first.bottom, system.staves.last.top));
+    // Room between two bands is no one's: the barlines crossing it go with neither staff.
+    final page = _page();
+    List<int> owners(PdfSystem s, double y, {PdfRaster? on, double x = 120}) {
+      final r = on ?? page;
+      return PdfDetect.assign(r, s, const []).at(r.row(y).round() * r.width + r.col(x).round());
+    }
+
+    expect(owners(system, cut + 2), [1]);
+    final apart = system.withBand(1, top: cut + 6);
+    expect(apart.bandOf(1).$1, cut + 6);
+    expect([owners(apart, cut + 2), owners(apart, cut + 8), owners(apart, cut - 2)], [<int>[], [1], [0]]);
     // A mask of one staff's leaves the others' ink as it was.
-    int masked(int staff) => PdfDetect.assign(page, system, const [], staffMasks: {
+    List<int> masked(int staff) => PdfDetect.assign(page, system, const [], staffMasks: {
           staff: [ui.Rect.fromCenter(center: ui.Offset(120, cut + 2), width: 4, height: 4)],
-        })[page.row(cut + 2).round() * page.width + page.col(120).round()];
-    expect([masked(0), masked(1)], [1, -1]);
+        }).at(page.row(cut + 2).round() * page.width + page.col(120).round());
+    expect([masked(0), masked(1)], [[1], <int>[]]);
     // A mask in the margin right of what was read, across its last row, leaves out nothing.
     final margin = ui.Rect.fromLTRB(page.xOf(page.width) + 20, 100, page.xOf(page.width) + 40, 140);
-    expect(PdfDetect.assign(page, system, [margin]), PdfDetect.assign(page, system, const []));
+    expect(PdfDetect.assign(page, system, [margin]).of, PdfDetect.assign(page, system, const []).of);
+
+    // Bands may overlap. A mark (a dot just below the cut) lying whole in both is both's, and the
+    // upper staff's ink then reaches it; one only part in the upper band stays the lower's.
+    final dotted = PdfRaster(Uint8List.fromList(page.ink), page.width, page.height, scale: page.scale);
+    for (var y = dotted.row(cut + 2).round(); y <= dotted.row(cut + 4).round(); y++) {
+      dotted.ink.fillRange(y * dotted.width + dotted.col(78).round(), y * dotted.width + dotted.col(82).round() + 1, 255);
+    }
+    final over = system.withBand(0, bottom: cut + 8);
+    expect([over.staffAt(cut + 2), over.staffAt(cut - 2), over.staffAt(system.staves.first.top - 30)], [1, 0, -1]);
+    expect(owners(system, cut + 3, on: dotted, x: 80), [1]);
+    expect(owners(over, cut + 3, on: dotted, x: 80), [0, 1]);
+    expect(owners(system.withBand(0, bottom: cut + 3), cut + 3, on: dotted, x: 80), [1]);
+    final reach = [for (final s in [system, over]) PdfDetect.ink(dotted, s, const [])[0][0].below];
+    expect(reach, [closeTo(0, 0.3), closeTo((cut + 4 - system.staves.first.bottom) / 4, 0.3)]);
+    // A barline through an overlap is cut in it: each row the nearer staff's.
+    final wide = system.withBand(0, bottom: 58).withBand(1, top: 38);
+    expect([owners(wide, 40), owners(wide, 56)], [[0], [1]]);
   });
 
   test('a staff’s lines are told from ties over it, and found leaning', () {
@@ -128,7 +151,7 @@ void main() {
     expect([for (final b in s.barlines) b.x], [closeTo(120, 0.8), s.right]);
     expect([for (final b in s.barlines) b.kind], [PdfBarlineKind.normal, PdfBarlineKind.end]);
     // Where it says the staves are sets right where it says the rest is.
-    expect([s.top, s.bottom, s.cuts.single], [closeTo(10, 1), closeTo(90, 1), closeTo(44, 1)]);
+    expect([s.top, s.bottom, s.staves.first.bandBottom, s.staves.last.bandTop], [closeTo(10, 1), closeTo(90, 1), closeTo(44, 1), closeTo(44, 1)]);
     expect(refined.single.starts, [s.left, closeTo(120, 0.8), s.right]);
     final next = PdfAi.apply(layout, [(page: 0, answer: answer, systems: refined)]);
     // Named and abbreviated as printed, the transposition following the name.
@@ -206,8 +229,16 @@ void main() {
 
   test('a divided instrument is a part a division, and the layout round-trips', () {
     const violin = PdfInstrument(id: 'P1', name: 'Violin', divisi: 2);
-    PdfSystem system(int page, List<PdfStaff> staves) => PdfSystem(
-        page: page, top: 20, bottom: 76, left: 40, right: 200, staves: staves, barlines: const [PdfBarline(120), PdfBarline(200)]);
+    PdfSystem system(int page, List<PdfStaff> staves, {List<double> cuts = const []}) => PdfSystem.cut(
+        page: page,
+        top: 20,
+        bottom: 76,
+        left: 40,
+        right: 200,
+        staves: staves,
+        cuts: cuts,
+        gaps: cuts.isEmpty ? const {} : {0: 48},
+        barlines: const [PdfBarline(120), PdfBarline(200)]);
     final layout = PdfScoreLayout(
       title: 'Divisi',
       pages: const [ui.Size(240, 120), ui.Size(240, 120)],
@@ -215,8 +246,7 @@ void main() {
       systems: [
         // Together on one staff, then divided onto two: the second one division 2's.
         system(0, const [PdfStaff(top: 20, space: 4, part: 'P1')]),
-        system(1, const [PdfStaff(top: 20, space: 4, part: 'P1'), PdfStaff(top: 60, space: 4, part: 'P1', staff: 2)])
-            .copyWith(cuts: [40], gaps: {0: 48}),
+        system(1, const [PdfStaff(top: 20, space: 4, part: 'P1'), PdfStaff(top: 60, space: 4, part: 'P1', staff: 2)], cuts: [40]),
       ],
       masks: const [PdfMask(1, ui.Rect.fromLTRB(50, 30, 60, 40)), PdfMask(1, ui.Rect.fromLTRB(50, 60, 60, 70), 'P1d2')],
     );
@@ -236,18 +266,41 @@ void main() {
     final xml = layout.musicXML();
     expect(ScoreMetadata.read(xml).parts.map((p) => p.name), ['Violin', 'Violin 2']);
     expect([layout.systems[1].bandOf(0), layout.systems[1].bandOf(1)], [(20.0, 40.0), (48.0, 76.0)]);
-    expect(PdfScoreLayout.fromJson(layout.toJson()).systems[1].gaps, {0: 48.0});
-    // A staff added or removed: its band made or left no one's, the others' kept.
+    expect([layout.systems[0].top, layout.systems[1].top, layout.systems[1].bottom], [20.0, 20.0, 76.0]);
+    // A staff added takes the room between its neighbours' bands, or halfway into one that
+    // covered its lines; one removed leaves its band no one's, the others' kept.
     final two = layout.systems[1];
     final three = two.withStaff(const PdfStaff(top: 42, space: 1));
-    expect([three.cuts, three.gaps, three.ink], [[39.0, 53.0], <int, double>{}, null]);
-    expect([for (var k = 0; k < 3; k++) three.bandOf(k)], [(20.0, 39.0), (39.0, 53.0), (53.0, 76.0)]);
+    expect(three.ink, isNull);
+    expect([for (var k = 0; k < 3; k++) three.bandOf(k)], [(20.0, 40.0), (40.0, 48.0), (48.0, 76.0)]);
     final middleGone = three.withoutStaff(1);
-    expect([middleGone.bandOf(0), middleGone.gapAfter(0), middleGone.bandOf(1)], [(20.0, 39.0), (39.0, 53.0), (53.0, 76.0)]);
+    expect([middleGone.bandOf(0), middleGone.bandOf(1)], [(20.0, 40.0), (48.0, 76.0)]);
     expect([two.withoutStaff(0).bandOf(0), two.withoutStaff(1).bandOf(0)], [(48.0, 76.0), (20.0, 40.0)]);
     final below = two.withStaff(const PdfStaff(top: 90, space: 4));
-    expect([below.cuts, below.gaps, below.bottom], [[40.0, 83.0], {0: 48.0}, 114.0]);
+    expect([below.bandOf(2), below.bottom], [(76.0, 114.0), 114.0]);
+    final inside = layout.systems[0].withStaff(const PdfStaff(top: 50, space: 2));
+    expect([inside.bandOf(0), inside.bandOf(1)], [(20.0, 43.0), (43.0, 62.0)]);
+    // A band is dragged on its own, over another's if need be, never off its lines.
+    final overlapping = two.withBand(0, bottom: 64).withBand(1, top: 10);
+    expect([overlapping.bandOf(0), overlapping.bandOf(1), overlapping.top], [(20.0, 64.0), (10.0, 76.0), 10.0]);
+    expect([two.withBand(0, top: 30, bottom: 30).bandOf(0)], [(20.0, 36.0)]);
     expect(PdfScoreLayout.fromJson(layout.toJson()).toJson(), layout.toJson());
+    expect(PdfScoreLayout.fromJson(layout.copyWith(systems: [overlapping]).toJson()).systems.single, overlapping);
+    // As the pdf module's version 1 kept it: a system's top, bottom, cuts and gaps.
+    final v1 = {
+      ...layout.toJson(),
+      'systems': [
+        {
+          'page': 1, 'top': 20, 'bottom': 76, 'left': 40, 'right': 200, 'cuts': [40], 'gaps': [[0, 48]], //
+          'staves': [
+            {'top': 20, 'space': 4, 'lines': 5, 'part': 'P1', 'staff': 1},
+            {'top': 60, 'space': 4, 'lines': 5, 'part': 'P1', 'staff': 2},
+          ],
+          'barlines': [[120, 'normal'], [200, 'normal']],
+        },
+      ],
+    };
+    expect(PdfScoreLayout.fromJson(PdfScoreLayout.upgradeJson(v1)).systems.single, layout.systems[1]);
 
     // Changes inserted: a tempo mark, the violin's own clef and time signature from bar 2.
     final changed = layout.copyWith(
