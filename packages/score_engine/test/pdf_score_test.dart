@@ -185,6 +185,34 @@ void main() {
     expect(next.systems.single.ink, isNull);
   });
 
+  test('an instrument’s abbreviation is what a later page prints, not its name with a full stop', () {
+    final page = _page();
+    final view = PdfAiView(const ui.Size(240, 120));
+    String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
+    final systems = [
+      for (var p = 0; p < 2; p++)
+        () {
+          final found = PdfDetect.page(page, p).single;
+          return found.copyWith(staves: [found.staves[0].copyWith(part: () => 'P1'), found.staves[1].copyWith(part: () => 'P2')]);
+        }(),
+    ];
+    final layout = PdfScoreLayout(
+      pages: const [ui.Size(240, 120), ui.Size(240, 120)],
+      instruments: const [PdfInstrument(id: 'P1', name: 'Staff 1'), PdfInstrument(id: 'P2', name: 'Oboi')],
+      systems: systems,
+    );
+    PdfAiPage answer(String first, String second) => PdfAiPage.parse('{"systems": [{"staves": ['
+        '{"label": 1, "y": ${y(28)}, "instrument": "P1", "name": "Flauti", "printed": "$first"}, '
+        '{"label": 2, "y": ${y(68)}, "instrument": "P2", "name": "", "printed": "$second"}]}]}');
+    // The page they are named from prints the names in full; the next, their abbreviations.
+    final read = [
+      for (final (p, a) in [answer('Flauti.', 'OBOI.'), answer('Fl.', 'Ob.')].indexed)
+        (page: p, answer: a, systems: PdfAi.refine(page, [systems[p]], a, view)),
+    ];
+    final next = PdfAi.apply(layout, read);
+    expect([for (final i in next.instruments) (i.name, i.abbreviation)], [('Flauti', 'Fl.'), ('Oboi', 'Ob.')]);
+  });
+
   test('an answer’s numbers that are no numbers are passed over', () {
     // "NaN" and "Infinity" read as numbers: rounding one would throw, where a wrong answer is
     // only wrong.

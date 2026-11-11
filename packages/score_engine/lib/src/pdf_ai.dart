@@ -727,9 +727,11 @@ Answer with one JSON object and nothing else, like this:
         staves[k] = staves[k].copyWith(part: () => i.id, staff: n);
         if (i.staves == 1 && n > 1) divisi.update(i.id, (d) => math.max(d, n), ifAbsent: () => n);
         if (t.name.isNotEmpty) names.putIfAbsent(i.id, () => t.name);
-        final printed = t.printed;
-        if (printed.isNotEmpty && !RegExp(r'^[\d\s.]+$').hasMatch(printed) && printed.toLowerCase() != (names[i.id] ?? '').toLowerCase()) {
-          abbreviations.putIfAbsent(i.id, () => printed);
+        // What is printed beside it, unless that is its name (the page they are named from prints
+        // "Flauti." beside the staff it calls "Flauti": the next page's "Fl." is the abbreviation).
+        final printed = _loose(t.printed);
+        if (printed.isNotEmpty && !RegExp(r'^\d+$').hasMatch(printed) && printed != _loose(names[i.id] ?? '') && printed != _loose(i.name)) {
+          abbreviations.putIfAbsent(i.id, () => t.printed);
         }
       }
       systems[at] = s.copyWith(staves: staves);
