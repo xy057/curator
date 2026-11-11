@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2026-11-11 10:14\n"
+"PO-Revision-Date: 2026-11-11 23:00\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -1165,6 +1165,9 @@ msgstr "El cursor se desliza de un pulso a otro y solo cambia de velocidad cuand
 
 msgid "Glissandos"
 msgstr "Glissandi"
+
+msgid "Go to Bar"
+msgstr ""
 
 #: lib/editor_toolbar.dart
 msgid "Go to bar ({key})"
