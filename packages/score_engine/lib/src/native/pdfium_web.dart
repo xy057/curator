@@ -19,5 +19,7 @@ final class PdfiumDocument {
 
   List<(String, double, double, double, double)> runs(int index) => const [];
 
+  void release() {}
+
   void close() {}
 }

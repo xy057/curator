@@ -385,12 +385,24 @@ abstract final class _Worker {
     return _port = port;
   }
 
+  /// How long after the last job each document's page stays loaded ([PdfiumDocument.release]):
+  /// the next job on that page meanwhile (a system's ink or picture after another's, a page shown
+  /// again closer) needn't have PDFium read it again.
+  static const _kept = Duration(seconds: 20);
+
   static void _main(SendPort ready) {
     final docs = <int, PdfiumDocument>{};
     final inbox = ReceivePort();
     ready.send(inbox.sendPort);
+    Timer? idle;
     inbox.listen((message) {
       final (job, reply) = message as (Object? Function(Map<int, PdfiumDocument>), SendPort);
+      idle?.cancel();
+      idle = Timer(_kept, () {
+        for (final doc in docs.values) {
+          doc.release();
+        }
+      });
       try {
         reply.send(_Answer(job(docs)));
       } catch (e, stack) {
