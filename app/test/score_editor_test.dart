@@ -187,6 +187,28 @@ void main() {
     await tester.pump();
     expect(selected(), 0);
 
+    // ⌘G, a bar's number, Return: the bar is at the view's left, its first note selected.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Go to Bar'), findsNWidgets(2)); // the popover's title, and its row in the panel
+    await tester.enterText(find.byType(TextField), '30');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(find.byType(TextField), findsNothing);
+    expect(scrolled().dx, greaterThan(2000));
+    expect(find.textContaining(' · 30.1'), findsOneWidget); // the status line: where the selection is
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump();
+    expect(scrolled().dx, 0);
+    expect(find.textContaining(' · 1.1'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+
     // A click on a bar's number, in the strip along the top, selects what the bar holds.
     tester.binding.handlePointerEvent(PointerScrollEvent(position: tester.getCenter(paint), scrollDelta: const Offset(-5000, -5000)));
     await tester.pump();

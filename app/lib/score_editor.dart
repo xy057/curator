@@ -40,10 +40,18 @@ enum _Popover {
   holds('Holds', 'H', 'fermata  breath  caesura'),
   ornaments('Ornaments', 'O', 'tr  mordent  turn'),
   lyrics('Lyrics', 'L', ''),
-  tuplet('Tuplet', ';', '3  5:4');
+  tuplet('Tuplet', ';', '3  5:4'),
+  goTo('Go to Bar', 'G', '12');
 
   const _Popover(this.title, this.letter, this.hint);
   final String title, letter, hint;
+
+  /// Its keys, as the notations panel says them.
+  String get keys => switch (this) {
+        tuplet => ';',
+        goTo => shortcut('⌘G'),
+        _ => '⇧$letter',
+      };
 }
 
 class ScoreEditor extends StatefulWidget {
@@ -567,6 +575,33 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _reveal(_selectionRect());
   }
 
+  /// Bar [m] brought to the view's left: the caret there in note input, else its first note on
+  /// the staff last worked on selected.
+  void _goToBar(int m) {
+    final from = _target;
+    final part = from?.part ?? 0, staff = from?.staff ?? 1;
+    final at = ScorePosition(part, score.defaultVoice(part, staff, m), m, Frac.zero);
+    setState(() {
+      _anchor = at;
+      if (_caret != null) {
+        _caret = at;
+        _chordAt = null;
+      } else {
+        _selected = {...?score.eventAt(part, staff, m, Frac.zero)?.ids};
+      }
+    });
+    _showBar(m);
+  }
+
+  /// Scrolls across so bar [m] starts at the view's left (a little in).
+  void _showBar(int m) {
+    final bar = _galley.barOf(m);
+    // One not engraved yet: where its chunk is guessed to be.
+    final left = bar?.left ?? _galley.chunkLeft((m ~/ _bars).clamp(0, _chunks.length - 1));
+    // (The first bar, from the clefs before it.)
+    _setScroll(Offset(m == 0 ? 0 : left * _scale - 24, _scroll.dy));
+  }
+
   /// ←/→ outside note input: the note before or after the selection in its voice (⇧ adds it).
   void _step(int delta, {bool extend = false, bool bar = false}) {
     final events = score.eventsOf(_selectedNotes);
@@ -731,7 +766,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
   // MARK: Popovers
 
   void _openPopover(_Popover kind) {
-    if (_target == null && kind != _Popover.bars) return;
+    if (_target == null && kind != _Popover.bars && kind != _Popover.goTo) return;
     if (kind == _Popover.lyrics && _selectedNotes.isEmpty) return;
     if (kind == _Popover.tuplet && _caret == null) return;
     _popoverText.text = kind == _Popover.lyrics ? score.lyricOf(_selectedNotes.first) : '';
@@ -864,6 +899,17 @@ class _ScoreEditorState extends State<ScoreEditor> {
         final tuplet = Tuplet.parse(t, _value);
         if (tuplet == null) return false;
         setState(() => _tuplet = tuplet);
+      case _Popover.goTo:
+        // The bar numbered so, as the score numbers them; else the bar that many from the first.
+        var m = [for (var i = 0; i < score.measureCount; i++) score.barNumber(i)].indexOf(t);
+        if (m < 0) {
+          final n = int.tryParse(t);
+          if (n == null || n < 1 || n > score.measureCount) return false;
+          m = n - 1;
+        }
+        _closePopover();
+        _goToBar(m);
+        return true;
     }
     if (!next) _closePopover();
     return true;
@@ -894,6 +940,9 @@ class _ScoreEditorState extends State<ScoreEditor> {
         LogicalKeyboardKey.keyX => () => _copy(cut: true),
         LogicalKeyboardKey.keyV => _paste,
         LogicalKeyboardKey.keyA => _selectAll,
+        LogicalKeyboardKey.keyG => () => _openPopover(_Popover.goTo),
+        LogicalKeyboardKey.home => () => _goToBar(0),
+        LogicalKeyboardKey.end => () => _goToBar(score.measureCount - 1),
         LogicalKeyboardKey.equal || LogicalKeyboardKey.add || LogicalKeyboardKey.numpadAdd => () => _zoomBy(1.2),
         LogicalKeyboardKey.minus || LogicalKeyboardKey.numpadSubtract => () => _zoomBy(1 / 1.2),
         LogicalKeyboardKey.digit0 || LogicalKeyboardKey.numpad0 => () => _zoomTo(_defaultZoom),
@@ -930,6 +979,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
         LogicalKeyboardKey.arrowUp => () => input ? _caretToStaff(-1) : _stepStaff(-1),
         LogicalKeyboardKey.arrowDown => () => input ? _caretToStaff(1) : _stepStaff(1),
         LogicalKeyboardKey.space => () => input ? _moveCaret(_rhythm.length) : null,
+        LogicalKeyboardKey.home => () => _showBar(0),
+        LogicalKeyboardKey.end => () => _showBar(score.measureCount - 1),
         _ when shift && letter != null => switch (letter) {
             'n' => () => input ? _stopInput() : _startInput(),
             'd' => () => _openPopover(_Popover.dynamics),
@@ -1143,7 +1194,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
         for (final p in _Popover.values)
           _PanelRow(
             label: p.title.tr,
-            shortcut: p.letter == ';' ? ';' : '⇧${p.letter}',
+            shortcut: p.keys,
             selected: _popover == p,
             onPressed: () => _openPopover(p),
           ),
