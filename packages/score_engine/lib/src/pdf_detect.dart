@@ -706,30 +706,82 @@ abstract final class PdfDetect {
       {Map<int, List<ui.Rect>> staffMasks = const {}}) {
     final parts = assign(raster, system, masks, staffMasks: staffMasks);
     final segments = system.segments;
-    // Ink anyone owns, summed over every rectangle from the top left: a block's ink in four reads.
-    final w = raster.width, h = raster.height;
-    final sat = Int32List((w + 1) * (h + 1));
-    for (var y = 0; y < h; y++) {
+    final w = raster.width, h = raster.height, of = parts.of, ink = raster.ink;
+    final n = system.staves.length, bars = segments.length;
+    // Per staff, the bar each column is in (-1: none's; a bar's columns are [_barColumns]). A
+    // staff with a column in two bars (bars out of order, or off the raster) is looked through
+    // bar by bar instead ([_barInk]).
+    final barOf = [for (var s = 0; s < n; s++) Int32List(w)..fillRange(0, w, -1)];
+    final apart = List<bool>.filled(n, true);
+    for (final (s, staff) in system.staves.indexed) {
+      for (final (b, (l, r)) in segments.indexed) {
+        final (x0, x1) = _barColumns(raster, staff, l, r);
+        for (var x = x0; x <= x1; x++) {
+          if (barOf[s][x] >= 0) apart[s] = false;
+          barOf[s][x] = b;
+        }
+      }
+    }
+    // The staff a set of owners is, when it is one staff; -1: several.
+    final sets = parts.sets, only = Int32List.fromList([for (final set in sets) set.length == 1 ? set.single : -1]);
+    // Each staff's first and last row with ink of its own in each bar (-1: none), and ink anyone
+    // owns summed over every rectangle from the top left (a block's ink in four reads): both in
+    // one pass over the raster.
+    final first = Int32List(n * bars)..fillRange(0, n * bars, -1), last = Int32List(n * bars)..fillRange(0, n * bars, -1);
+    void reached(int s, int x, int y) {
+      final b = barOf[s][x];
+      if (b < 0) return;
+      if (first[s * bars + b] < 0) first[s * bars + b] = y;
+      last[s * bars + b] = y;
+    }
+
+    final stride = w + 1;
+    final sat = Int32List(stride * (h + 1));
+    for (var y = 0, i = 0; y < h; y++) {
       var row = 0;
-      for (var x = 0; x < w; x++) {
-        final i = y * w + x;
-        if (parts.of[i] >= 0 && raster.ink[i] >= PdfRaster.dark) row++;
-        sat[(y + 1) * (w + 1) + x + 1] = sat[y * (w + 1) + x + 1] + row;
+      final above = y * stride + 1, here = above + stride;
+      for (var x = 0; x < w; x++, i++) {
+        final set = of[i];
+        if (set >= 0 && ink[i] >= PdfRaster.dark) {
+          row++;
+          final s = only[set];
+          if (s >= 0) {
+            reached(s, x, y);
+          } else {
+            for (final s in sets[set]) {
+              reached(s, x, y);
+            }
+          }
+        }
+        sat[here + x] = sat[above + x] + row;
       }
     }
     return [
       for (final (s, staff) in system.staves.indexed)
-        [
-          for (final (l, r) in segments) _barInk(raster, parts.of, parts.holding(s), sat, staff, l, r),
-        ],
+        () {
+          final holds = parts.holding(s);
+          return [
+            for (final (b, (l, r)) in segments.indexed)
+              _barInk(raster, of, holds, sat, staff, l, r, rows: apart[s] ? (first[s * bars + b], last[s * bars + b]) : null),
+          ];
+        }(),
     ];
   }
 
+  /// The columns of [raster] a staff's ink is looked for in, in the bar from [l] to [r]: the bar
+  /// less what stands on its barlines.
+  static (int, int) _barColumns(PdfRaster raster, PdfStaff staff, double l, double r) => (
+        math.max(0, raster.col(l + staff.space * 0.4).round()),
+        math.min(raster.width - 1, raster.col(r - staff.space * 0.4).round()),
+      );
+
   /// One staff's ink in the bar from [l] to [r]: the pixels whose owners ([PdfParts.of]) are those
-  /// [holds] marks as holding it.
-  static PdfInk _barInk(PdfRaster raster, Int16List parts, Uint8List holds, Int32List sat, PdfStaff staff, double l, double r) {
+  /// [holds] marks as holding it. [rows]: the first and last row with any of it (-1: none), where
+  /// they are known.
+  static PdfInk _barInk(PdfRaster raster, Int16List parts, Uint8List holds, Int32List sat, PdfStaff staff, double l, double r,
+      {(int, int)? rows}) {
     final w = raster.width, h = raster.height;
-    final x0 = math.max(0, raster.col(l + staff.space * 0.4).round()), x1 = math.min(w - 1, raster.col(r - staff.space * 0.4).round());
+    final (x0, x1) = _barColumns(raster, staff, l, r);
     final top = raster.row(staff.top), bottom = raster.row(staff.bottom);
     var minY = top, maxY = bottom;
     final px = staff.space * raster.scale;
@@ -739,12 +791,19 @@ abstract final class PdfDetect {
     };
     bool owns(int i) => parts[i] >= 0 && holds[parts[i]] != 0;
     bool mine(int x, int y) => x >= 0 && y >= 0 && x < w && y < h && owns(y * w + x) && raster.ink[y * w + x] >= PdfRaster.dark;
-    for (var y = 0; y < h; y++) {
-      for (var x = x0; x <= x1; x++) {
-        if (mine(x, y)) {
-          minY = math.min(minY, y.toDouble());
-          maxY = math.max(maxY, y.toDouble());
-          break;
+    if (rows case (final first, final last)) {
+      if (first >= 0) {
+        minY = math.min(minY, first.toDouble());
+        maxY = math.max(maxY, last.toDouble());
+      }
+    } else {
+      for (var y = 0; y < h; y++) {
+        for (var x = x0; x <= x1; x++) {
+          if (mine(x, y)) {
+            minY = math.min(minY, y.toDouble());
+            maxY = math.max(maxY, y.toDouble());
+            break;
+          }
         }
       }
     }
@@ -835,10 +894,24 @@ abstract final class PdfDetect {
       linesFrom[k] = raster.row(s.top);
       linesTo[k] = raster.row(s.bottom);
     }
-    final inRows = List<List<int>>.generate(h, (y) => [
+    // (Rows one after another in the same regions share one list.)
+    final inRows = <List<int>>[];
+    var last = const <int>[];
+    for (var y = 0; y < h; y++) {
+      var same = true, count = 0;
+      for (var k = 0; k < n; k++) {
+        if (y < rowFrom[k] || y >= rowTo[k]) continue;
+        if (count >= last.length || last[count] != k) same = false;
+        count++;
+      }
+      if (!same || count != last.length) {
+        last = [
           for (var k = 0; k < n; k++)
             if (y >= rowFrom[k] && y < rowTo[k]) k,
-        ]);
+        ];
+      }
+      inRows.add(last);
+    }
     bool inside(int k, int x) => x >= colFrom[k] && x < colTo[k];
     // The staff whose region pixel (x, y) is in; where they overlap, the one whose lines are
     // nearest ([PdfSystem.staffAt]). -1: none's.
@@ -914,25 +987,40 @@ abstract final class PdfDetect {
       if (a != b) parent[math.max(a, b)] = math.min(a, b);
     }
 
+    // The columns ink can be someone's in, and of those the ones in some region of the row's:
+    // worked out once for the rows that share their regions.
+    final xFrom = math.max(0, xLeft.floor()), xTo = math.min(w, xRight.ceil());
+    final inSome = Uint8List(w);
+    List<int>? inSomeOf;
     for (var y = 0; y < h; y++) {
       final rows = inRows[y];
       if (rows.isEmpty) continue;
-      for (var x = math.max(0, xLeft.floor()); x < math.min(w, xRight.ceil()); x++) {
-        final i = y * w + x;
-        if (ink[i] < PdfRaster.dark || blocked[i] != 0 || !rows.any((k) => inside(k, x))) continue;
+      if (!identical(rows, inSomeOf)) {
+        inSome.fillRange(0, w, 0);
+        for (final k in rows) {
+          inSome.fillRange(colFrom[k], colTo[k], 1);
+        }
+        inSomeOf = rows;
+      }
+      final line = lineOf[y], lineHere = line >= 0 && rows.contains(line);
+      for (var x = xFrom, i = y * w + xFrom; x < xTo; x++, i++) {
+        if (ink[i] < PdfRaster.dark || blocked[i] != 0 || inSome[x] == 0) continue;
         if (isLine(x, y)) {
-          if (inside(lineOf[y], x) && rows.contains(lineOf[y])) out[i] = single[lineOf[y]];
+          if (lineHere && inside(line, x)) out[i] = single[line];
           continue;
         }
-        var l = -1;
-        for (final j in [i - 1, i - w - 1, i - w, i - w + 1]) {
-          if (j < 0 || (j % w - x).abs() > 1) continue;
-          final lj = label[j];
-          if (lj < 0) continue;
-          if (l < 0) {
-            l = lj;
-          } else {
-            union(l, lj);
+        // The marks of the pixels before it that touch it: left, and above left, above and above
+        // right.
+        var l = x > 0 ? label[i - 1] : -1;
+        if (y > 0) {
+          for (var j = x > 0 ? i - w - 1 : i - w, to = x + 1 < w ? i - w + 1 : i - w; j <= to; j++) {
+            final lj = label[j];
+            if (lj < 0) continue;
+            if (l < 0) {
+              l = lj;
+            } else if (l != lj) {
+              union(l, lj);
+            }
           }
         }
         if (l < 0) {
@@ -956,11 +1044,13 @@ abstract final class PdfDetect {
     }
     for (var y = 0; y < h; y++) {
       final rows = inRows[y];
-      for (var x = 0; x < w; x++) {
-        final l = label[y * w + x];
+      if (rows.isEmpty) continue; // no marks there
+      final zone = zoneOf[y] >= 0 && zoneOf[y] < 30 ? 1 << zoneOf[y] : 0;
+      for (var x = xFrom, i = y * w + xFrom; x < xTo; x++, i++) {
+        final l = label[i];
         if (l < 0) continue;
         final root = find(l);
-        label[y * w + x] = root;
+        label[i] = root;
         for (final b in rows) {
           if (inside(b, x)) perBand[root * n + b]++;
         }
@@ -968,7 +1058,7 @@ abstract final class PdfDetect {
         if (y > bottom[root]) bottom[root] = y;
         if (x < left[root]) left[root] = x;
         if (x > right[root]) right[root] = x;
-        if (zoneOf[y] >= 0 && zoneOf[y] < 30) crosses[root] |= 1 << zoneOf[y];
+        crosses[root] |= zone;
       }
     }
     // Its owners: -1, split by row.
@@ -996,25 +1086,27 @@ abstract final class PdfDetect {
     }
     // Light ink around marks (anti-aliasing) goes with the region it is in, as does a split mark.
     int where(int x, int y) => switch (nearest(x, y)) { < 0 => -1, final k => single[k] };
+    // The owners of the mark pixel [j] is of, when it is one and has some; -1: none.
+    int ownersAt(int j) {
+      if (j < 0 || j >= w * h) return -1;
+      final lj = label[j];
+      return lj >= 0 ? owner[lj] : -1;
+    }
+
     for (var y = 0; y < h; y++) {
-      for (var x = 0; x < w; x++) {
-        final i = y * w + x;
-        if (out[i] >= 0 || blocked[i] != 0 || ink[i] == 0) continue;
+      // (Past the columns ink can be someone's in there is no mark, and nothing next to one.)
+      for (var x = xFrom, i = y * w + xFrom; x < xTo; x++, i++) {
+        if (ink[i] == 0 || out[i] >= 0 || blocked[i] != 0) continue;
         final l = label[i];
         if (l >= 0) {
           final o = owner[l];
           out[i] = o >= 0 ? o : where(x, y);
         } else if (x >= xLeft && x < xRight) {
           // Next to a mark: its owners, so its edge goes with it.
-          var o = -1;
-          for (final j in [i - 1, i + 1, i - w, i + w]) {
-            if (j < 0 || j >= w * h) continue;
-            final lj = label[j];
-            if (lj >= 0 && owner[lj] >= 0) {
-              o = owner[lj];
-              break;
-            }
-          }
+          var o = ownersAt(i - 1);
+          if (o < 0) o = ownersAt(i + 1);
+          if (o < 0) o = ownersAt(i - w);
+          if (o < 0) o = ownersAt(i + w);
           out[i] = o >= 0 ? o : where(x, y);
         }
       }
