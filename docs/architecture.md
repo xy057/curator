@@ -28,7 +28,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
 | `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time (`EditChunk`) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
 | `pdf_detect.dart`, `pdf_pages.dart`, `pdf_text.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`); names and tempo marks read from the pages' words (`PdfText`) |
-| `pdf_ai.dart` | A PDF score's pages read by an AI model (see *Read with AI*): what it is asked (`PdfAi.prompt`, about a picture of the page with each staff found numbered, `PdfAi.labels`, `PdfAiView`), its answer (`PdfAiPage.parse`), put on the page's ink (`PdfAi.refine`, through `PdfPages.refine`) and into the layout (`PdfAi.apply`) |
+| `pdf_ai.dart` | A PDF score's pages read by an AI model (see *Read with AI*): what it is asked (`PdfAi.prompt`, about a picture of the page with each staff found numbered, `PdfAi.labels`, `PdfAiView`), its answer (`PdfAiPage.parse`: each staff's region, staves it says were missed), put on the page's ink (`PdfAi.refine`, through `PdfPages.refine`) and into the layout (`PdfAi.apply`) |
 | `pdf_ai_exam.dart` | The exam a model takes before Read with AI asks it (see *A model is examined*): two pages' key and the marking (`PdfAiExam.score`, `PdfAiExamResult`) |
 | `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, each staff's region, the system's barlines, and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
@@ -1073,24 +1073,34 @@ General ▸ AI for PDF import (`AppSettings.pdfAi`; none: it asks for one first)
 `PdfAiReader` shows the model each page as two PNGs drawn on white (the page, and its systems'
 starts enlarged: names, clefs, keys, time signatures), each staff found numbered in red in a column
 at their right (`PdfAi.labels`, in the bundled IBM Plex Sans), and asks (`PdfAi.prompt`) for JSON:
-each staff's instrument (by id, from the list it is given), name, printed name, clef and key; each
-system's staves, edges, the borders and gaps between its staves, barlines, time signatures and
-tempo marks; and where each staff's middle is. The page the instruments are named from goes first,
+each staff's instrument (by id, from the list it is given), name, printed name, clef and key, where
+its middle is and its region (its own top and bottom: two staves' may meet, lie apart or overlap);
+each system's staves, barlines, time signatures and tempo marks. The page the instruments are named from goes first,
 alone (its answer names them for the other questions), then the rest three at a time; Stop ends the
 requests under way (`AiClient.close`). A model's places are rough and sometimes made up, so they
 are checked (`PdfAi.refine`, on the worker with the page's ink): where it says the staves are,
 against where they are, gives a line that sets its other places right (`PdfAi.fit`), and unless most
-staves lie on it within ¾ of a space none of its places is taken. Taken, each edge, and where
-two staves' regions meet (or end and begin, a gap between) goes on the quiet row nearest where it says (`PdfDetect.quietRow`), never into ink its outer staves
-reach (`PdfDetect.inkEnd`); its barlines are lined up in order with those found (`_barlines`), a
+staves lie on it within ¾ of a space none of its places is taken. Taken, each region's edge goes on
+the quiet row nearest where it says (`PdfDetect.quietRow`), a system's top and bottom never into ink
+its outer staves reach (`PdfDetect.inkEnd`). Between two staves the regions meet on one row, or end
+and begin with room between that is no one's, as it says; where it says they overlap, they do only
+if no row between the two edges is clear of ink (`PdfDetect.clearRow`, the barlines' columns left
+out): each then ends within a space of where it says, and with a row clear they meet on it, a cut
+there losing nothing. Its barlines are lined up in order with those found (`_barlines`), a
 found one kept where it is, one it adds put on a line through the staves there
 (`PdfDetect.lineNear`), and a found one it leaves out removed only from a lone staff; too few
 paired and its barlines are passed over. Staves found apart join into one system only where their
-bars line up. What it names is taken as said (`PdfAi.apply`): staves given to the instruments it
+bars line up. A staff it says was missed (one it gives no number, only where it is) is added only
+where the page has it (`PdfAi._missed`): five lines found within three spaces of where it says,
+looked for in the strip between the staves either side (`PdfDetect.staves` on those rows), across
+the system's music and spaced as its staves are; it joins the system its answer's system's staves
+are in, and is then a staff like the others (its region, instrument and clef as said). No lines
+there, or places that are no good, and nothing is added. What it names is taken as said (`PdfAi.apply`): staves given to the instruments it
 says (a one-staff instrument's further staff a division), instruments renamed (a name spelled
 otherwise, "B♭" or "Bb", kept) and abbreviated, the concert key the most staves say (each read
 through its transposition, concert-pitch staves counting twice), and clefs, time signatures and
-tempo marks put in at their bars where they differ from those in force; nothing is taken away. It
+tempo marks put in at their bars where they differ from those in force; nothing is taken away (a
+staff found is never removed). It
 is all one Undo step, made when the reading ends (stopped: the pages read until then); meanwhile
 nothing is edited (`_busy`) but the pages are turned. A page that fails is passed over and said in
 the status line; the first failing ends it all.
@@ -1101,8 +1111,9 @@ with none chosen) opens a dialog (`showPdfAiModelDialog`) where a model chosen t
 (`assets/exam/pdf-ai-exam.pdf`), asked exactly as Read with AI asks (the same pictures and
 prompt, the staves numbered from the key's, not from what the detector finds), both at once. The
 answers are marked against a key measured on a 300 dpi render (`PdfAiExam.score`), in six parts
-counting the same: horizontal borders (one system, its top and bottom between the ink around it,
-each border between its two staves, all through `PdfAi.fit` and none counted where Read with AI
+counting the same: horizontal borders (one system, no staff made up as missed; each staff's region, its top between the staff
+above's lines and its own and its bottom between its own and the staff below's, the system's first
+and last between the ink around it, all through `PdfAi.fit` and none counted where Read with AI
 would take none), barlines (paired in order within two spaces, all moved as far as most are off;
 F1, a plain one only), instrument names (whose, and the names printed), clefs and keys (a change
 made up is wrong), and tempo and time (nothing where nothing is printed). An answer that isn't

@@ -6,8 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
 /// A page of ink at [PdfDetect.scale]: two staves joined by a system barline at x 40 points,
-/// with barlines through both at x 120 and 200 (the last one the system's end).
-PdfRaster _page() {
+/// with barlines through both at x 120 and 200 (the last one the system's end). [crossing]: a
+/// block of ink from one staff to the other at x 80 (no row between them is clear).
+PdfRaster _page({bool crossing = false}) {
   const scale = PdfDetect.scale, width = 240, height = 120;
   final w = (width * scale).round(), h = (height * scale).round();
   final ink = Uint8List(w * h);
@@ -28,6 +29,7 @@ PdfRaster _page() {
   for (final x in [40.0, 120.0, 200.0]) {
     line(x, tops.first, x + 0.4, tops.last + 4 * space);
   }
+  if (crossing) line(80, tops.first + 4 * space, 84, tops.last);
   return PdfRaster(ink, w, h, scale: scale);
 }
 
@@ -158,10 +160,9 @@ void main() {
     final answer = PdfAiPage.parse('''Here it is:
 ```json
 {"systems": [{"staves": [
-  {"label": 1, "y": ${y(34)}, "instrument": "P1", "staff": 1, "name": "Flute", "printed": "Fl.", "clef": "treble", "key": -1},
-  {"label": 2, "y": ${y(74)}, "instrument": "p2", "staff": 1, "name": "Clarinet in B♭", "printed": "", "clef": "treble", "key": 1,
+  {"label": 1, "y": ${y(34)}, "region": [${y(16)}, ${y(50)}], "instrument": "P1", "staff": 1, "name": "Flute", "printed": "Fl.", "clef": "treble", "key": -1},
+  {"label": 2, "y": ${y(74)}, "region": [${y(50)}, ${y(96)}], "instrument": "p2", "staff": 1, "name": "Clarinet in B♭", "printed": "", "clef": "treble", "key": 1,
    "changes": [{"bar": 2, "clef": "bass"}]}],
-  "top": ${y(16)}, "bottom": ${y(96)}, "borders": [{"below": 1, "y": ${y(50)}}],
   "barlines": [{"x": ${x(114)}, "kind": "single"}, {"x": ${x(196)}, "kind": "final"}],
   "time": "3/4", "tempos": [{"bar": 1, "text": "Allegro", "bpm": 132}, {"bar": 2, "text": "rit.", "bpm": null}]}]}
 ```''');
@@ -184,14 +185,78 @@ void main() {
     expect(next.systems.single.ink, isNull);
   });
 
+  test('regions an AI model says overlap do only where no row between the staves is clear', () {
+    final view = PdfAiView(const ui.Size(240, 120));
+    String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
+    // The upper staff's region down to 54, the lower one's up from 42; then a gap, 42 to 54.
+    PdfAiPage answer(double end, double start) => PdfAiPage.parse(
+        '{"systems": [{"staves": [{"label": 1, "y": ${y(28)}, "region": [${y(10)}, ${y(end)}]}, '
+        '{"label": 2, "y": ${y(68)}, "region": [${y(start)}, ${y(90)}]}]}]}');
+    (double, double) between(PdfRaster page, PdfAiPage answer) {
+      final s = PdfAi.refine(page, [PdfDetect.page(page, 0).single], answer, view).single.system;
+      return (s.staves.first.regionBottom, s.staves.last.regionTop);
+    }
+
+    // Ink from one staff to the other: each keeps what it says is its.
+    final (under, over) = between(_page(crossing: true), answer(54, 42));
+    expect([under, over], [closeTo(54, 1), closeTo(42, 1)]);
+    // Rows clear between them: a cut loses nothing, so they meet, between where it said.
+    final (end, start) = between(_page(), answer(54, 42));
+    expect(end, start);
+    expect(end, inInclusiveRange(42, 54));
+    // Room it says is no one's stays no one's.
+    final (above, below) = between(_page(), answer(42, 54));
+    expect([above, below], [closeTo(42, 1), closeTo(54, 1)]);
+  });
+
+  test('a staff an AI model says was missed is added where the page has its lines', () {
+    final page = _page();
+    final found = PdfDetect.page(page, 0).single;
+    // Found without its lower staff.
+    final system = found.copyWith(staves: [found.staves[0].copyWith(part: () => 'P1')]);
+    final layout = PdfScoreLayout(
+      pages: const [ui.Size(240, 120)],
+      instruments: const [PdfInstrument(id: 'P1', name: 'Staff 1'), PdfInstrument(id: 'P2', name: 'Staff 2')],
+      systems: [system],
+    );
+    final view = PdfAiView(const ui.Size(240, 120));
+    String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
+    // Its places 5 points low; a staff at 68, where there is one, and one at 100, where there isn't.
+    final answer = PdfAiPage.parse('''{"systems": [{"staves": [
+  {"label": 1, "y": ${y(33)}, "region": [${y(15)}, ${y(53)}], "instrument": "P1", "clef": "treble"},
+  {"label": null, "y": ${y(73)}, "region": [${y(53)}, ${y(95)}], "instrument": "P2", "name": "Bassoon", "clef": "bass"},
+  {"label": null, "y": ${y(105)}, "instrument": "P2", "staff": 2}]}]}''');
+    expect([for (final t in answer.systems.single.staves) (t.label, t.found)], [(1, true), (-1, false), (-2, false)]);
+    final refined = PdfAi.refine(page, [system], answer, view);
+    final s = refined.single.system;
+    expect(refined.single.labels, [1, -1]);
+    expect([for (final t in s.staves) t.top], [closeTo(20, 0.3), closeTo(60, 0.3)]);
+    expect([for (final t in s.staves) t.space], [closeTo(4, 0.1), closeTo(4, 0.1)]);
+    // Its region as said, meeting the staff above's.
+    expect([s.staves.first.regionBottom, s.staves.last.regionTop, s.staves.last.regionBottom], [closeTo(48, 1), closeTo(48, 1), closeTo(90, 1)]);
+    // Whose it says, named and with the clef it says.
+    final next = PdfAi.apply(layout, [(page: 0, answer: answer, systems: refined)]);
+    expect([for (final t in next.systems.single.staves) t.part], ['P1', 'P2']);
+    expect([for (final i in next.instruments) (i.name, i.clef)], [('Staff 1', PdfClef.treble), ('Bassoon', PdfClef.bass)]);
+    // Places that are no good add nothing.
+    final wild = PdfAiPage.parse('{"systems": [{"staves": [{"label": 1, "y": 900}, {"label": null, "y": ${y(68)}}]}]}');
+    expect(PdfAi.refine(page, [system], wild, view).single.system.staves, hasLength(1));
+  });
+
   test('the exam marks a model’s answers as Read with AI takes them', () {
     final view = PdfAiView(PdfAiExam.size);
     // A page's answer as printed, its places scaled and moved as a model's drift.
     String answer(PdfAiExamPage page,
-        {double scale = 1, double by = 0, double across = 0, int borders = 99, List<Object>? barlines, List<Object>? tempos,
+        {double scale = 1, double by = 0, double across = 0, int regions = 99, List<Object>? barlines, List<Object>? tempos,
         Map<String, Object?> Function(int k, Map<String, Object?> staff)? staff}) {
       double y(double p) => (p * scale + by) / PdfAiExam.size.height * 1000;
       double x(double p) => (p + across) / view.width * 1000;
+      // Between each two staves' lines, and past the ink above and below the system.
+      final cuts = [
+        (page.top.$1 + page.top.$2) / 2,
+        for (var k = 1; k < page.staves.length; k++) (page.staves[k - 1].bottom + page.staves[k].top) / 2,
+        (page.bottom.$1 + page.bottom.$2) / 2,
+      ];
       return jsonEncode({
         'systems': [
           {
@@ -200,12 +265,8 @@ void main() {
                 (staff ?? (_, m) => m)(k, {
                   'label': k + 1, 'y': y((s.top + s.bottom) / 2), 'instrument': 'P${k + 1}', 'staff': 1, //
                   'name': s.name, 'printed': s.printed, 'clef': s.clef.name, 'key': s.key,
+                  if (k < regions) 'region': [y(cuts[k]), y(cuts[k + 1])],
                 }),
-            ],
-            'top': y((page.top.$1 + page.top.$2) / 2),
-            'bottom': y((page.bottom.$1 + page.bottom.$2) / 2),
-            'borders': [
-              for (var k = 1; k < page.staves.length && k <= borders; k++) {'below': k, 'y': y((page.staves[k - 1].bottom + page.staves[k].top) / 2)},
             ],
             'barlines': barlines ?? [for (final b in page.barlines) {'x': x(b), 'kind': 'single'}],
             'time': page.time?.toString(),
@@ -222,19 +283,19 @@ void main() {
     // Places off by as much throughout are as good: Read with AI sets them right.
     expect(score([answer(first, scale: 1.03, by: 8, across: 10), answer(second, scale: 0.98, by: -6, across: -12)]).parts, all);
 
-    // The clarinets' key misread, a clef change made up, two borders, four barlines and the
+    // The clarinets' key misread, a clef change made up, two staves' regions, four barlines and the
     // metronome mark left out, the system's end called final; the next page's answer unreadable.
     double x(double p) => p / view.width * 1000;
     final poor = score([
       answer(first,
-          borders: 10,
+          regions: 11,
           barlines: [for (final b in first.barlines.take(5)) {'x': x(b)}, {'x': x(first.barlines.last), 'kind': 'final'}],
           tempos: [{'bar': 1, 'text': 'Allegro ma non troppo, un poco maestoso', 'bpm': null}],
           staff: (k, s) => {...s, if (k == 2) 'key': -1, if (k == 3) 'changes': [{'bar': 3, 'clef': 'treble'}]}),
       null,
     ]);
     expect(poor.parts, {
-      PdfAiExamPart.horizontal: 13 / 30,
+      PdfAiExamPart.horizontal: 23 / 54,
       PdfAiExamPart.barlines: 10 / 24,
       PdfAiExamPart.names: 26 / 52,
       PdfAiExamPart.clefs: 12 / 26,

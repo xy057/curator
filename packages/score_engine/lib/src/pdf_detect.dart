@@ -613,6 +613,33 @@ abstract final class PdfDetect {
     return page.yOf(best);
   }
 
+  /// Whether some row from [from] to [to] (points) has nothing across it between [left] and
+  /// [right] but barlines (those at [barlines], x in points: half a staff [space] either side of
+  /// each left out), give or take a third of a space of ink: a cut there goes through nothing
+  /// printed, so two regions needn't overlap to keep what is theirs.
+  static bool clearRow(PdfRaster page, double from, double to, double left, double right,
+      {required double space, List<double> barlines = const []}) {
+    final a = math.max(0, page.row(math.min(from, to)).round()), b = math.min(page.height - 1, page.row(math.max(from, to)).round());
+    final x0 = math.max(0, page.col(left).round()), x1 = math.min(page.width - 1, page.col(right).round());
+    if (x1 < x0) return true;
+    final skip = Uint8List(x1 - x0 + 1);
+    for (final x in barlines) {
+      final c0 = math.max(x0, page.col(x - space / 2).floor()), c1 = math.min(x1, page.col(x + space / 2).ceil());
+      for (var c = c0; c <= c1; c++) {
+        skip[c - x0] = 1;
+      }
+    }
+    final slack = (space * page.scale / 3).round();
+    for (var y = a; y <= b; y++) {
+      var ink = 0;
+      for (var x = x0; x <= x1 && ink <= slack; x++) {
+        if (skip[x - x0] == 0 && page.isInked(x, y)) ink++;
+      }
+      if (ink <= slack) return true;
+    }
+    return false;
+  }
+
   /// From [from] toward [to] (points, either way): where the ink reaching on from there ends,
   /// before [gap] points with none between [left] and [right] (a barline through them all aside,
   /// give or take a third of [gap]); [from] when none reaches on.
