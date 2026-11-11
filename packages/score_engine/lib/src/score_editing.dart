@@ -1309,7 +1309,7 @@ class EditableScore {
           _carry(copy, _contextsOf(part)[m], part.staves);
           b.write(copy.toXmlString());
         } else {
-          b.write(measure.toXmlString());
+          b.write(_xml[measure] ??= measure.toXmlString());
         }
       }
       b.write('</part>');
@@ -1318,6 +1318,10 @@ class EditableScore {
     b.write('</score-partwise>');
     return (xml: b.toString(), timeShown: timeShown, clefsShown: clefsShown, keysShown: keysShown);
   }
+
+  /// Each bar as text: a bar is never changed (an edit writes another in its place), so it is
+  /// written out once, not at every engraving of its chunk.
+  final _xml = Expando<String>();
 
   static String _escape(String s) => s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
 
