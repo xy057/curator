@@ -235,12 +235,20 @@ class EditGalley {
       }
     }
     canvas.restore();
-    if (selected.isEmpty || accent == null) return;
-    canvas.saveLayer(visible, ui.Paint()..colorFilter = ui.ColorFilter.mode(accent, ui.BlendMode.srcIn));
+    if (accent != null) paintOnly(canvas, visible, selected, accent);
+  }
+
+  /// Draws what [ids] are, of what lies in [visible], in [color]: [by] from where it is (what a
+  /// drag carries).
+  void paintOnly(ui.Canvas canvas, ui.Rect visible, Set<String> ids, ui.Color color, {ui.Offset by = ui.Offset.zero}) {
+    if (ids.isEmpty) return;
+    canvas.saveLayer(visible, ui.Paint()..colorFilter = ui.ColorFilter.mode(color, ui.BlendMode.srcIn));
+    canvas.translate(by.dx, by.dy);
+    final left = visible.left - by.dx, right = visible.right - by.dx;
     for (var k = 0; k < chunks.length; k++) {
-      if (!_inView(k, visible.left, visible.right)) continue;
+      if (!_inView(k, left, right)) continue;
       final c = chunks[k]!;
-      for (final id in selected) {
+      for (final id in ids) {
         for (final (:staff, :item) in c.list.sourced[id] ?? const <({int staff, DisplayItem item})>[]) {
           if (!c.owns(item)) continue;
           final shift = _shift(k, staff);

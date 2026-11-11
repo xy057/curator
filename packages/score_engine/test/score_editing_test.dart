@@ -73,12 +73,15 @@ void main() {
     expect(xml.toXmlString(), isNot(contains('cxe'))); // the editor's ids stay its own
     expect(xml.findAllElements('barline').length, 1); // the final barline kept
 
-    // A click on a note's head finds it.
+    // A click on a note's head finds it, and one on a dynamic the dynamic.
+    score.addDynamic(start, 'mf');
     final chunk = await EditChunk.engrave(score, 0, score.measureCount);
     final galley = EditGalley([chunk]);
     final id = bar1[2].ids.single;
     final bounds = galley.boundsOf(id)!;
     expect(galley.hitTest(bounds.center), id);
+    final dynamic = RegExp(r'<dynamics id="(cxe\d+)"').firstMatch(score.chunk(0, 1).xml)!.group(1)!;
+    expect(galley.hitTest(galley.boundsOf(dynamic)!.center), dynamic);
     expect(galley.timeAtX(galley.xOf(0, Frac(3, 2))!), (measure: 0, time: Frac(3, 2)));
     chunk.dispose();
 
@@ -172,6 +175,184 @@ void main() {
     expect(flute.has(id), isTrue);
     flute.undo();
     expect(flute.has(id), isFalse);
+  });
+
+  test('markings move on and back by the notes and the grid, up and down the staves, by a drag, a hairpin with its end', () async {
+    var score = EditableScore.parse(_fluteOf(4));
+    // Every direction as written: its part and bar, when in it, what it says, where by the staff.
+    List<String> written() {
+      final out = <String>[];
+      for (final (p, part) in XmlDocument.parse(score.toMusicXML()).findAllElements('part').indexed) {
+        final divisions = int.parse(part.findAllElements('divisions').first.innerText);
+        for (final (m, measure) in part.findElements('measure').indexed) {
+          var cursor = 0;
+          for (final child in measure.childElements) {
+            final duration = int.tryParse(child.getElement('duration')?.innerText ?? '') ?? 0;
+            switch (child.name.local) {
+              case 'note' when child.getElement('chord') == null:
+              case 'forward':
+                cursor += duration;
+              case 'backup':
+                cursor -= duration;
+              case 'direction':
+                final said = child.findElements('direction-type').expand((t) => t.childElements).map((e) => switch (e.name.local) {
+                      'dynamics' => e.childElements.first.name.local,
+                      'wedge' => e.getAttribute('type')!,
+                      _ => e.innerText,
+                    });
+                final staff = child.getElement('staff')?.innerText;
+                out.add('$p:$m@${Frac(cursor, divisions)} ${said.join('+')} ${child.getAttribute('placement')}${staff == null ? '' : ' staff $staff'}');
+            }
+          }
+        }
+      }
+      return out;
+    }
+
+    const voice = VoiceKey(1, '1');
+    ScorePosition at(int m, Frac t) => ScorePosition(0, voice, m, t);
+    score.input(at(0, Frac.zero), [
+      InputItem(const Rhythm(NoteType.quarter), [const Pitch(0, 5)]),
+      InputItem(const Rhythm(NoteType.eighth), [const Pitch(1, 5)]),
+      InputItem(const Rhythm(NoteType.eighth), [const Pitch(2, 5)]),
+      InputItem(const Rhythm(NoteType.half), [const Pitch(3, 5)]),
+    ]);
+    score.addDynamic(at(0, Frac.zero), 'p');
+    score.addText(at(0, Frac.one), 'dolce');
+    score.addHairpin(at(0, Frac.one), at(1, Frac(2)), crescendo: true);
+    final start = written();
+    expect(start, ['0:0@0 p below', '0:0@1 dolce above', '0:0@1 crescendo below', '0:1@2 stop below']);
+
+    // A dynamic, a text and a hairpin are markings; where the hairpin ends is not one of its own.
+    // A dynamic is found by its own id and by its direction's, once.
+    final markings = score.markingsOf(score.ids);
+    expect([for (final m in markings) (m.at.measure, m.at.time, m.below)], [(0, Frac.zero, true), (0, Frac.one, false), (0, Frac.one, true)]);
+    final p = markings[0].id, dolce = markings[1].id, hairpin = markings[2].id;
+    expect(score.markingsOf(score.ids.where((id) => score.isNote(id))), isEmpty);
+
+    // On: to the next note of the staff or the next step of the grid, whichever is nearer, and
+    // over the barline; back, to the last such place of the bar before.
+    void step(String id, int delta) => score.stepMarkings([id], delta, grid: Frac.one);
+    final went = <Object>[];
+    for (final delta in [1, 1, 1, 1, 1, -1]) {
+      step(p, delta);
+      final m = score.markingsOf([p]).single;
+      went.add((m.at.measure, m.at.time));
+    }
+    expect(went, [(0, Frac.one), (0, Frac(3, 2)), (0, Frac(2)), (0, Frac(3)), (1, Frac.zero), (0, Frac(3))]);
+    expect(score.has(p), isTrue); // it is what it was: still selected, in the editor
+    for (var i = 0; i < 6; i++) {
+      score.undo();
+    }
+    expect(written(), start);
+    step(p, -1); // nowhere before the score's start: nothing done, nothing to undo
+    expect(written(), start);
+
+    // A hairpin moved takes its end as far.
+    step(hairpin, 1);
+    expect(written(), ['0:0@0 p below', '0:0@1 dolce above', '0:0@3/2 crescendo below', '0:1@5/2 stop below']);
+    score.undo();
+    // Where its end would be after the last bar, it stays.
+    score.moveMarkings([hairpin], from: hairpin, to: at(3, Frac(3)));
+    expect(written(), start);
+    score.moveMarkings([hairpin], from: hairpin, to: at(2, Frac(2)));
+    expect(written(), ['0:0@0 p below', '0:0@1 dolce above', '0:2@2 crescendo below', '0:3@3 stop below']);
+    score.undo();
+    expect(written(), start);
+
+    // A drag's end: what is selected goes as far as the one held, and changes sides as it does.
+    score.moveMarkings([p, dolce], from: p, to: at(2, Frac.one), below: false);
+    // (In a bar of rest they are written from the last back, each at its time.)
+    expect(written(), ['0:0@1 crescendo below', '0:1@2 stop below', '0:2@2 dolce below', '0:2@1 p above']);
+    score.undo();
+
+    // Up: from under the staff to over it; there is no staff above the top one's.
+    score.liftMarkings([p], -1);
+    expect(written().first, '0:0@0 p above');
+    score.liftMarkings([p], -1);
+    expect(written().first, '0:0@0 p above');
+    score.liftMarkings([p], 1);
+    expect(written(), start);
+
+    // A hairpin made longer and shorter by its end: back over the barline to the bar's end, and
+    // never to where it starts.
+    void stretch(int delta) => score.stepEnds([hairpin], delta, grid: Frac.one);
+    stretch(1);
+    expect(written().last, '0:1@3 stop below');
+    for (var i = 0; i < 3; i++) {
+      stretch(-1);
+    }
+    expect(written().last, '0:0@4 stop below');
+    for (var i = 0; i < 6; i++) {
+      stretch(-1);
+    }
+    expect(written().last, '0:0@3/2 stop below');
+
+    // Engraved, the dynamic is drawn where it was moved to, and found there.
+    step(p, 1);
+    step(p, 1);
+    step(p, 1);
+    final chunk = await EditChunk.engrave(score, 0, score.measureCount);
+    final galley = EditGalley([chunk]);
+    final drawn = score.ids.where((id) => score.markingsOf([id]).firstOrNull?.id == p).map(galley.boundsOf).nonNulls.single;
+    expect(drawn.center.dx, closeTo(galley.xOf(0, Frac(2))!, galley.staffSpace * 2));
+    expect(score.markingsOf([galley.hitTest(drawn.center)!]).single.id, p);
+    chunk.dispose();
+
+    // Down through the instruments: under the flute, over the piano's upper staff, under it,
+    // over its lower one. A part of two staves says which.
+    score = EditableScore.parse(flutePianoScore);
+    score.addDynamic(ScorePosition(0, score.voicesIn(0, 1).first, 1, Frac.zero), 'f');
+    final f = score.markingsOf(score.ids).firstWhere((m) => m.at.part == 0 && m.at.measure == 1).id;
+    String where() => written().firstWhere((d) => d.contains(' f '));
+    expect(where(), '0:1@0 f below');
+    final down = <String>[];
+    for (var i = 0; i < 4; i++) {
+      score.liftMarkings([f], 1);
+      down.add(where());
+    }
+    expect(down, ['1:1@0 f above staff 1', '1:1@0 f below staff 1', '1:1@0 f above staff 2', '1:1@0 f below staff 2']);
+    score.liftMarkings([f], 1); // the last staff: no further
+    expect(where(), down.last);
+    expect(score.markingsOf([f]).single.at.staff, 2);
+  });
+
+  test('a hairpin or a slur deleted takes its own end with it, not that of the one that ends where it starts', () {
+    const voice = VoiceKey(1, '1');
+    ScorePosition at(Frac t) => ScorePosition(0, voice, 0, t);
+    EditableScore fresh() => EditableScore.parse(_flute)..input(at(Frac.zero), [for (var i = 0; i < 4; i++) InputItem(const Rhythm(NoteType.quarter), [Pitch(i, 5)])]);
+    // Notes (n), and where hairpins and slurs start and end, as written.
+    String written(EditableScore score) => RegExp(r'<(wedge|slur) type="(\w+)"|<note')
+        .allMatches(score.toMusicXML().split('<measure').elementAt(1))
+        .map((m) => m.group(1) == null ? 'n' : '${m.group(1)} ${m.group(2)}')
+        .join(', ');
+
+    // The second of two hairpins that meet, by its own id (a click on it) and by every id it has
+    // (⌘A): the first is left whole, and no end is left behind.
+    for (final all in [false, true]) {
+      final score = fresh();
+      score.addHairpin(at(Frac.zero), at(Frac(2)), crescendo: true);
+      score.addHairpin(at(Frac(2)), at(Frac(3)), crescendo: false);
+      expect(written(score), 'wedge crescendo, n, n, wedge stop, wedge diminuendo, n, wedge stop, n');
+      final second = score.markingsOf(score.ids).firstWhere((m) => m.at.time == Frac(2)).id;
+      final wedge = score.ids.firstWhere((id) => id != second && score.markingsOf([id]).firstOrNull?.id == second);
+      score.delete(all ? [second, wedge] : [wedge]);
+      expect(written(score), 'wedge crescendo, n, n, wedge stop, n, n', reason: all ? 'every id' : 'its own id');
+      score.undo();
+      // The first: the second is left whole.
+      final first = score.markingsOf(score.ids).firstWhere((m) => m.at.time == Frac.zero).id;
+      score.delete([first]);
+      expect(written(score), 'n, n, wedge diminuendo, n, wedge stop, n');
+    }
+
+    // Two slurs that meet on a note: the second taken off, the first still ends there.
+    final score = fresh();
+    final notes = [for (final e in score.eventsIn(0, 0, voice)) e.ids.single];
+    score.toggleSlur([notes[0], notes[1]]);
+    score.toggleSlur([notes[1], notes[2]]);
+    expect(written(score), 'n, slur start, n, slur stop, slur start, n, slur stop, n');
+    score.toggleSlur([notes[1], notes[2]]);
+    expect(written(score), 'n, slur start, n, slur stop, n, n');
   });
 
   test('chunks side by side draw what one engraving of the whole score does, each thing once', () async {

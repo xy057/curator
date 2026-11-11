@@ -487,6 +487,13 @@ class CopiedMusic {
   Frac get length => events.isEmpty ? Frac.zero : events.last.offset + events.last.length;
 }
 
+/// A marking as the editor sees it ([EditableScore.markingsOf]): [id] its direction's, [at] the
+/// staff it is on and when, [below] whether it is under the staff.
+typedef MarkingInfo = ({String id, ScorePosition at, bool below});
+
+/// Where a marking is, or goes: a staff of a part, a bar and a time in it, a side of the staff.
+typedef _Place = ({int part, int staff, int measure, Frac time, bool below});
+
 /// A part of the score: [id], [name], how many staves it has.
 class EditPart {
   EditPart._(this.id, this.name, this.element);
@@ -2161,19 +2168,18 @@ class EditableScore {
         _commit(where.part, where.measure, content);
         _removeStop(where.part, where.measure, (e) => e.name.local == 'slur' && e.getAttribute('type') == 'stop' && (e.getAttribute('number') ?? '1') == number,
             after: _timeOfNote(content, note));
-      case 'wedge':
-        final number = found.getAttribute('number') ?? '1';
-        final direction = found.ancestors.whereType<XmlElement>().firstWhere((a) => a.name.local == 'direction');
-        final time = content.others.firstWhere((o) => o.element == direction).time;
-        content.others.removeWhere((o) => o.element == direction);
-        _commit(where.part, where.measure, content);
-        _removeStop(where.part, where.measure, (e) => e.name.local == 'wedge' && e.getAttribute('type') == 'stop' && (e.getAttribute('number') ?? '1') == number,
-            after: time, whole: true);
       default:
+        // A direction, or what one says (a dynamic, a hairpin's start): it goes, and with it the
+        // ends of the lines it starts (a hairpin's: its own, not that of one that ends here).
         final direction = found.name.local == 'direction' ? found : found.ancestors.whereType<XmlElement>().where((a) => a.name.local == 'direction').firstOrNull;
-        if (direction == null) return;
+        final own = direction?.getAttribute('id'), placed = own == null ? null : _directionOf(own);
+        if (direction == null || placed == null) return;
+        final ends = _endsOf(placed.other.element, _placeOf(placed));
         content.others.removeWhere((o) => o.element == direction);
         _commit(where.part, where.measure, content);
+        for (final end in ends) {
+          _lift(end.id, end: (end.name, end.number));
+        }
     }
   }
 
@@ -2185,8 +2191,8 @@ class EditableScore {
   }
 
   /// Takes out the first element [matches] after [after] in bar [m] of [part] or the bars after
-  /// (the end of a slur or hairpin); [whole]: its direction with it.
-  void _removeStop(int part, int m, bool Function(XmlElement) matches, {required Frac after, bool whole = false}) {
+  /// (the end of a slur: on a later note than its start, so not one that ends on that note).
+  void _removeStop(int part, int m, bool Function(XmlElement) matches, {required Frac after}) {
     for (var i = m; i < measureCount && i < m + 64; i++) {
       final view = _view(part, i);
       final candidates = <(Frac, XmlElement)>[
@@ -2199,17 +2205,13 @@ class EditableScore {
               if (matches(d)) (e.start, d),
       ]..sort((a, b) => a.$1.compareTo(b.$1));
       for (final (t, _) in candidates) {
-        if (i == m && t < after) continue;
+        if (i == m && t <= after) continue;
         final content = _mutable(part, i);
         for (final o in [...content.others]) {
           if (o.time != t) continue;
           final d = o.element.descendantElements.where(matches).firstOrNull;
           if (d == null) continue;
-          if (whole) {
-            content.others.remove(o);
-          } else {
-            d.remove();
-          }
+          d.remove();
           _commit(part, i, content);
           return;
         }
@@ -2546,6 +2548,317 @@ class EditableScore {
   /// Text above the staff at [at].
   void addText(ScorePosition at, String text, {bool below = false, bool italic = false}) =>
       addDirection(at, [_text('words', text, {if (italic) 'font-style': 'italic'})], placement: below ? 'below' : 'above');
+
+  // MARK: Moving markings
+
+  /// The markings among [ids] (a dynamic, a text, a tempo, a hairpin by its start: what a
+  /// `<direction>` is), each once: the staff it is on and when, and whether it is under it.
+  /// Notes and slurs (which are their notes') are none, nor is where a hairpin ends: that goes
+  /// where its start does.
+  List<MarkingInfo> markingsOf(Iterable<String> ids) {
+    final seen = <String>{};
+    final out = <MarkingInfo>[];
+    for (final id in ids) {
+      final found = _directionOf(id);
+      if (found == null || _onlyEnds(found.other.element)) continue;
+      final own = found.other.element.getAttribute('id');
+      if (own == null || !seen.add(own)) continue;
+      final place = _placeOf(found);
+      out.add((
+        id: own,
+        at: ScorePosition(place.part, defaultVoice(place.part, place.staff, place.measure), place.measure, place.time),
+        below: place.below,
+      ));
+    }
+    return out;
+  }
+
+  /// The direction that is the marking [id], or holds it (a dynamic's, a hairpin's).
+  ({int part, int measure, _Other other})? _directionOf(String id) {
+    final where = _where[id];
+    if (where == null) return null;
+    for (final o in _view(where.part, where.measure).others) {
+      final e = o.element;
+      if (e.name.local != 'direction') continue;
+      if (e.getAttribute('id') == id || e.descendantElements.any((d) => d.getAttribute('id') == id)) {
+        return (part: where.part, measure: where.measure, other: o);
+      }
+    }
+    return null;
+  }
+
+  /// What [direction] says: its `<direction-type>`s' contents.
+  static Iterable<XmlElement> _saidBy(XmlElement direction) => direction.findElements('direction-type').expand((t) => t.childElements);
+
+  /// Whether [direction] is nothing but where hairpins or other lines end.
+  static bool _onlyEnds(XmlElement direction) => _saidBy(direction).isNotEmpty && _saidBy(direction).every((e) => _spanStarts(e) == false);
+
+  _Place _placeOf(({int part, int measure, _Other other}) d) {
+    final e = d.other.element, placement = e.getAttribute('placement');
+    return (
+      part: d.part,
+      staff: (d.other.staff ?? 1).clamp(1, parts[d.part].staves),
+      measure: d.measure,
+      time: _timeOfDirection(d.part, d.measure, d.other),
+      // (One that doesn't say is engraved as its kind usually is.)
+      below: placement == null ? _saidBy(e).any((x) => x.name.local == 'dynamics' || x.name.local == 'wedge') : placement == 'below',
+    );
+  }
+
+  /// When in bar [m] the direction [o] is: where it is written, and as much after as its
+  /// `<offset>` says (within the bar).
+  Frac _timeOfDirection(int part, int m, _Other o) {
+    final offset = num.tryParse(_childText(o.element, 'offset')?.trim() ?? '')?.round() ?? 0;
+    if (offset == 0) return o.time;
+    final time = o.time + Frac(offset, parts[part].divisions), length = barLength(m);
+    return time < Frac.zero ? Frac.zero : Frac.min(time, length);
+  }
+
+  /// How much later [m2]:[t2] is than [m1]:[t1], through the bars between (negative: earlier).
+  Frac timeBetween(int m1, Frac t1, int m2, Frac t2) {
+    var d = t2 - t1;
+    for (var m = math.min(m1, m2); m < math.max(m1, m2); m++) {
+      d = m1 < m2 ? d + barLength(m) : d - barLength(m);
+    }
+    return d;
+  }
+
+  /// The bar and the time in it [by] after [m]:[t] (before, when negative); as an [end], a
+  /// bar's end rather than the start of the next. Null: before the score or after it.
+  ({int measure, Frac time})? _timeAfter(int m, Frac t, Frac by, {bool end = false}) {
+    var bar = m, time = t + by;
+    while (bar > 0 && (time < Frac.zero || (end && time.isZero))) {
+      bar--;
+      time = time + barLength(bar);
+    }
+    if (time < Frac.zero) return null;
+    while (true) {
+      final length = barLength(bar);
+      if (end ? time <= length : time < length) return (measure: bar, time: time);
+      if (bar >= measureCount - 1) return null;
+      time = time - length;
+      bar++;
+    }
+  }
+
+  /// The times in bar [m] a marking on [staff] of [part] is moved to: where a note or rest of
+  /// the staff starts, and every [grid] from the bar's start.
+  List<Frac> _stops(int part, int staff, int m, Frac grid) {
+    final length = barLength(m);
+    final times = <Frac>{Frac.zero};
+    for (final MapEntry(key: voice, value: events) in _view(part, m).voices.entries) {
+      if (voice.staff != staff) continue;
+      for (final e in events) {
+        if (e.start < length) times.add(e.start);
+      }
+    }
+    if (grid.isPositive) {
+      for (var t = grid; t < length; t = t + grid) {
+        times.add(t);
+      }
+    }
+    return times.toList()..sort();
+  }
+
+  /// The time in bar [m] nearest [quarters] into it that a marking on [staff] of [part] goes to
+  /// (a drag's end): where a note or rest starts, or a step of [grid].
+  Frac placeNear(int part, int staff, int m, double quarters, {required Frac grid}) {
+    var best = Frac.zero;
+    for (final t in _stops(part, staff, m, grid)) {
+      if ((t.toDouble() - quarters).abs() < (best.toDouble() - quarters).abs()) best = t;
+    }
+    return best;
+  }
+
+  /// Every staff of the score from the top: its part and its number in it.
+  List<({int part, int staff})> get _allStaves => [
+        for (final (i, p) in parts.indexed)
+          for (var s = 1; s <= p.staves; s++) (part: i, staff: s),
+      ];
+
+  /// The lines [direction] (at [from]) starts, and where each ends: the first end of its kind
+  /// and number after it, in the bars that follow.
+  List<({String id, String name, String number, int measure, Frac time})> _endsOf(XmlElement direction, _Place from) {
+    final out = <({String id, String name, String number, int measure, Frac time})>[];
+    for (final start in _saidBy(direction)) {
+      if (_spanStarts(start) != true) continue;
+      final name = start.name.local, number = start.getAttribute('number') ?? '1';
+      for (var m = from.measure; m < measureCount && m < from.measure + 64; m++) {
+        final found = <(Frac, String)>[];
+        for (final o in _view(from.part, m).others) {
+          final id = o.element.getAttribute('id');
+          if (o.element.name.local != 'direction' || id == null) continue;
+          final ends = _saidBy(o.element).any((e) => e.name.local == name && (e.getAttribute('number') ?? '1') == number && _spanStarts(e) == false);
+          if (!ends) continue;
+          final time = _timeOfDirection(from.part, m, o);
+          if (m > from.measure || time > from.time) found.add((time, id));
+        }
+        if (found.isEmpty) continue;
+        _stableSort(found, (a, b) => a.$1.compareTo(b.$1));
+        out.add((id: found.first.$2, name: name, number: number, measure: m, time: found.first.$1));
+        break;
+      }
+    }
+    return out;
+  }
+
+  /// The direction [id] taken out of its bar, to be put elsewhere. With [end] (a kind of line
+  /// and its number) only where that ends: the direction when it is nothing else, or that
+  /// alone, as a direction of its own, out of one that says more (a dynamic stays where it is).
+  XmlElement? _lift(String id, {(String, String)? end}) {
+    final where = _where[id];
+    if (where == null) return null;
+    final content = _mutable(where.part, where.measure);
+    final o = content.others.where((o) => o.element.getAttribute('id') == id).firstOrNull;
+    if (o == null) return null;
+    XmlElement lifted;
+    if (end == null || _saidBy(o.element).length == 1) {
+      content.others.remove(o);
+      lifted = o.element.copy();
+    } else {
+      final (name, number) = end;
+      final stop = _saidBy(o.element).where((e) => e.name.local == name && (e.getAttribute('number') ?? '1') == number && _spanStarts(e) == false).firstOrNull;
+      final type = stop?.parentElement;
+      if (type == null) return null;
+      type.remove();
+      lifted = _el('direction', [type.copy()]);
+    }
+    _commit(where.part, where.measure, content);
+    return lifted;
+  }
+
+  /// [direction] (in no bar) put at [to]: on its staff, over or under it. [voice]: it keeps the
+  /// voice it names (it stays on its staff).
+  void _setDown(XmlElement direction, _Place to, {bool voice = false}) {
+    direction.setAttribute('placement', to.below ? 'below' : 'above');
+    for (final name in ['offset', 'staff', if (!voice) 'voice']) {
+      _removeChildren(direction, name);
+    }
+    if (parts[to.part].staves > 1) {
+      final staff = _text('staff', '${to.staff}');
+      final at = direction.children.indexWhere((c) => c is XmlElement && (c.name.local == 'sound' || c.name.local == 'listening'));
+      at < 0 ? direction.children.add(staff) : direction.children.insert(at, staff);
+    }
+    final content = _mutable(to.part, to.measure);
+    _insertOther(content, to.time, direction);
+    _commit(to.part, to.measure, content);
+  }
+
+  /// The markings [ids], each moved to where [to] says for where it is (null: it stays). The
+  /// end of a hairpin (of any line a marking starts) stays as far after it as it was; one that
+  /// would end after the score stays where it is.
+  void _moveMarkings(Iterable<String> ids, _Place? Function(_Place from) to) => edit(() {
+        // Where each goes is worked out before any is moved: what one does never tells on another.
+        final moves = <({String id, _Place from, _Place to, List<({String id, String name, String number, _Place to})> ends})>[];
+        marking:
+        for (final marking in markingsOf(ids)) {
+          final found = _directionOf(marking.id)!;
+          final from = _placeOf(found), target = to(from);
+          if (target == null || target == from) continue;
+          if (target.measure < 0 || target.measure >= measureCount || target.time < Frac.zero || target.time >= barLength(target.measure)) continue;
+          final ends = <({String id, String name, String number, _Place to})>[];
+          for (final end in _endsOf(found.other.element, from)) {
+            final at = _timeAfter(target.measure, target.time, timeBetween(from.measure, from.time, end.measure, end.time), end: true);
+            if (at == null) continue marking;
+            ends.add((id: end.id, name: end.name, number: end.number, to: (part: target.part, staff: target.staff, measure: at.measure, time: at.time, below: target.below)));
+          }
+          moves.add((id: marking.id, from: from, to: target, ends: ends));
+        }
+        for (final move in moves) {
+          final direction = _lift(move.id);
+          if (direction == null) continue;
+          _setDown(direction, move.to, voice: move.to.part == move.from.part && move.to.staff == move.from.staff);
+          for (final end in move.ends) {
+            final stop = _lift(end.id, end: (end.name, end.number));
+            if (stop != null) _setDown(stop, end.to);
+          }
+        }
+      });
+
+  /// The markings [ids] moved by as much as takes the one [from] to [to] (a drag's end: its
+  /// staff, bar and time), and, with [below], all put under their staves or over them when
+  /// [from] changes sides.
+  void moveMarkings(Iterable<String> ids, {required String from, required ScorePosition to, bool? below}) {
+    final held = markingsOf([from]).firstOrNull;
+    if (held == null) return;
+    final staves = _allStaves;
+    int index(int part, int staff) => staves.indexWhere((s) => s.part == part && s.staff == staff);
+    final by = timeBetween(held.at.measure, held.at.time, to.measure, to.time);
+    final down = index(to.part, to.staff) - index(held.at.part, held.at.staff);
+    final flip = below != null && below != held.below;
+    _moveMarkings(ids, (p) {
+      final at = _timeAfter(p.measure, p.time, by);
+      final n = index(p.part, p.staff) + down;
+      if (at == null || n < 0 || n >= staves.length) return null;
+      return (part: staves[n].part, staff: staves[n].staff, measure: at.measure, time: at.time, below: flip ? !p.below : p.below);
+    });
+  }
+
+  /// The markings [ids] each moved on ([delta] 1) or back (-1) to the next place a note or rest
+  /// of its staff starts or the next step of [grid] in its bar, whichever is nearer; over the
+  /// barline, to the next bar's start or the last such place of the one before.
+  void stepMarkings(Iterable<String> ids, int delta, {required Frac grid}) => _moveMarkings(ids, (p) {
+        final stops = _stops(p.part, p.staff, p.measure, grid);
+        if (delta > 0) {
+          final later = stops.where((t) => t > p.time).firstOrNull;
+          if (later != null) return (part: p.part, staff: p.staff, measure: p.measure, time: later, below: p.below);
+          return p.measure + 1 >= measureCount ? null : (part: p.part, staff: p.staff, measure: p.measure + 1, time: Frac.zero, below: p.below);
+        }
+        final earlier = stops.where((t) => t < p.time).lastOrNull;
+        if (earlier != null) return (part: p.part, staff: p.staff, measure: p.measure, time: earlier, below: p.below);
+        if (p.measure == 0) return null;
+        return (part: p.part, staff: p.staff, measure: p.measure - 1, time: _stops(p.part, p.staff, p.measure - 1, grid).last, below: p.below);
+      });
+
+  /// The markings [ids] each moved a place up ([delta] -1) or down (1): from under its staff to
+  /// over it, from over it to under the staff above (of the instrument above, from the top one).
+  void liftMarkings(Iterable<String> ids, int delta) {
+    final staves = _allStaves;
+    _moveMarkings(ids, (p) {
+      final n = staves.indexWhere((s) => s.part == p.part && s.staff == p.staff) * 2 + (p.below ? 1 : 0) + delta.sign;
+      if (n < 0 || n >= staves.length * 2) return null;
+      return (part: staves[n ~/ 2].part, staff: staves[n ~/ 2].staff, measure: p.measure, time: p.time, below: n.isOdd);
+    });
+  }
+
+  /// The hairpins among [ids] (any line a marking starts) each made longer ([delta] 1) or
+  /// shorter (-1): its end at the next place before or after it where a note or rest of the
+  /// staff starts or ends, or a step of [grid]. Never as short as nothing.
+  void stepEnds(Iterable<String> ids, int delta, {required Frac grid}) => edit(() {
+        for (final marking in markingsOf(ids)) {
+          final found = _directionOf(marking.id)!;
+          final from = _placeOf(found);
+          for (final end in _endsOf(found.other.element, from)) {
+            // Where one may end in a bar: after its start, up to its end.
+            List<Frac> stops(int m) {
+              final length = barLength(m);
+              final ends = [
+                for (final MapEntry(key: voice, value: events) in _view(from.part, m).voices.entries)
+                  if (voice.staff == from.staff)
+                    for (final e in events) e.end,
+              ];
+              return ({..._stops(from.part, from.staff, m, grid), ...ends, length}.where((t) => t.isPositive && t <= length).toList()..sort());
+            }
+
+            int? m;
+            Frac? time;
+            if (delta > 0) {
+              time = stops(end.measure).where((t) => t > end.time).firstOrNull;
+              m = time == null ? end.measure + 1 : end.measure;
+              if (m >= measureCount) continue;
+              time ??= stops(m).first;
+            } else {
+              time = stops(end.measure).where((t) => t < end.time).lastOrNull;
+              m = time == null ? end.measure - 1 : end.measure;
+              if (m < 0) continue;
+              time ??= barLength(m);
+            }
+            if (!timeBetween(from.measure, from.time, m, time).isPositive) continue;
+            final stop = _lift(end.id, end: (end.name, end.number));
+            if (stop != null) _setDown(stop, (part: from.part, staff: from.staff, measure: m, time: time, below: from.below));
+          }
+        }
+      });
 
   // MARK: Clefs, keys, time signatures
 

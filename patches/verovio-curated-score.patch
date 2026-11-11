@@ -488,7 +488,7 @@ index 5772420..a9ad7d2 100644
              return 2 * unit;
          }
 diff --git a/src/iomusxml.cpp b/src/iomusxml.cpp
-index b0c792f..87def8a 100644
+index b0c792f..5b08253 100644
 --- a/src/iomusxml.cpp
 +++ b/src/iomusxml.cpp
 @@ -711,6 +711,21 @@ std::string MusicXmlInput::GetWordsOrDynamicsText(const pugi::xml_node node) con
@@ -663,7 +663,19 @@ index b0c792f..87def8a 100644
              if (words.size() == 1) {
                  dir->SetLang(words.first().node().attribute("xml:lang").as_string());
              }
-@@ -2765,6 +2833,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2493,6 +2561,11 @@ void MusicXmlInput::ReadMusicXmlDirection(
+         dynamics.sort();
+ 
+         Dynam *dynam = new Dynam();
++        // [curated-score patch] keep the MusicXML id (as a dynamic on a note does), so the score
++        // editor finds the dynamic it drew.
++        if (dynamics.first().node().attribute("id")) {
++            dynam->SetID(dynamics.first().node().attribute("id").as_string());
++        }
+         dynam->SetPlace(dynam->AttPlacementRelStaff::StrToStaffrel(placeStr.c_str()));
+         dynam->SetTstamp(timeStamp);
+         if (staffNode) {
+@@ -2765,6 +2838,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
      pugi::xml_node rehearsal = typeNode.child("rehearsal");
      if (rehearsal) {
          Reh *reh = new Reh();
@@ -671,7 +683,7 @@ index b0c792f..87def8a 100644
          reh->SetPlace(reh->AttPlacementRelStaff::StrToStaffrel(placeStr.c_str()));
          const std::string halign = rehearsal.attribute("halign").as_string();
          const std::string lang = rehearsal.attribute("xml:lang") ? rehearsal.attribute("xml:lang").as_string() : "it";
-@@ -2776,6 +2845,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2776,6 +2850,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
          reh->SetLang(lang);
          Rend *rend = new Rend();
          rend->SetFontweight(rend->AttTypography::StrToFontweight(rehearsal.attribute("font-weight").as_string()));
@@ -680,7 +692,7 @@ index b0c792f..87def8a 100644
          rend->SetHalign(rend->AttHorizontalAlign::StrToHorizontalalignment(halign));
          const std::string enclosure = rehearsal.attribute("enclosure").as_string();
          rend->SetRend(enclosure.empty() ? TEXTRENDITION_box : ConvertEnclosure(enclosure));
-@@ -2789,6 +2860,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2789,6 +2865,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
      // Tempo
      if (containsTempo) {
          Tempo *tempo = new Tempo();
@@ -688,7 +700,7 @@ index b0c792f..87def8a 100644
          if (!words.empty()) {
              const std::string lang = words.first().node().attribute("xml:lang")
                  ? words.first().node().attribute("xml:lang").as_string()
-@@ -3530,6 +3602,7 @@ void MusicXmlInput::ReadMusicXmlNote(
+@@ -3530,6 +3607,7 @@ void MusicXmlInput::ReadMusicXmlNote(
                      if (!textStyle.empty()) syl->SetFontstyle(syl->AttTypography::StrToFontstyle(textStyle.c_str()));
                      if (!textWeight.empty())
                          syl->SetFontweight(syl->AttTypography::StrToFontweight(textWeight.c_str()));

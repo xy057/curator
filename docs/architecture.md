@@ -26,7 +26,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `take_splice.dart` | `TakeSplice`: a performance spliced from several recordings' syncs by their lanes, and its sound as crossfaded `SoundChunk`s |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
-| `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time with the bars around them (`EditChunk`, drawing what starts in its own) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
+| `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text (and moving them), clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time with the bars around them (`EditChunk`, drawing what starts in its own) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
 | `pdf_detect.dart`, `pdf_pages.dart`, `pdf_text.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`); names and tempo marks read from the pages' words (`PdfText`) |
 | `pdf_ai.dart` | A PDF score's pages read by an AI model (see *Read with AI*): what it is asked (`PdfAi.prompt`, about a picture of the page with each staff found numbered, `PdfAi.labels`, `PdfAiView`), its answer (`PdfAiPage.parse`: each staff's region, staves it says were missed), put on the page's ink (`PdfAi.refine`, through `PdfPages.refine`) and into the layout (`PdfAi.apply`) |
 | `pdf_ai_exam.dart` | The exam a model takes before Read with AI asks it (see *A model is examined*): two pages' key and the marking (`PdfAiExam.score`, `PdfAiExamResult`) |
@@ -976,6 +976,18 @@ follows the pointer and a click puts it in (`_placeAt`: the staff's middle line 
 `middle`, half a space a step; the time is the note value's grid step nearest, between the
 notes either side as the engraving spaces them, `EditGalley.timeNearX`); over a note a click
 selects it, as outside note input, where a second click in the same place starts note input.
+A marking (a dynamic, a text, a tempo, a hairpin: a `<direction>`, `EditableScore.markingsOf`) is
+moved in music, not in points (Verovio places a direction by its time, staff and side, and reads
+no offset): dragged, it follows the pointer faint and a line shows where it would go
+(`_dropAt`: as far on or back as it was dragged, at the nearest note or rest of the staff or
+step of the note value's grid, `placeNear`; up or down by more than a staff space and a half,
+on the nearest staff, over or under it by the side of its middle), and let go, it and the other
+markings selected go as far (`moveMarkings`); ⌥←→ steps them on and back the same way
+(`stepMarkings`), ⌥↑↓ a place up or down, from under a staff to over it to under the one above
+(`liftMarkings`, when no note is selected: those it transposes), ⇧⌥←→ makes a hairpin end later
+or sooner (`stepEnds`). A hairpin's end (any line a direction starts: the first end of its kind
+and number after it) goes as far as its start; one that would end past the last bar stays. The
+direction is the same element in its new bar, so it keeps its id and stays selected.
 The caret may be past the last bar (the last is full): that place answers as an empty bar the
 last one's key and time are in force in, and a note typed there adds its bar. A caret placed
 by a click is at the note there exactly (`EditableScore.onsetAt`: the engraving's place is in
@@ -986,7 +998,7 @@ have different numbers of bars is refused, saying so. The keys are
 Dorico's: ⇧N or Enter note input, 1–9 note values (6 a quarter), `.` dot, `-` `=` `0` flat,
 sharp, natural, A–G a note at the nearest octave (⇧⌥ adds to the chord; Q chord mode), `,` rest,
 Space on, T tie, S slur, V the next voice, R repeat, ⌥↑↓ a step, ⌘⌥↑↓ an octave, ⌥= ⌥- the same
-sound spelled as the note above or below, `[` `]` `{` `}`
+sound spelled as the note above or below, ⌥←→ ⌥↑↓ a marking moved (⇧⌥←→ a hairpin's end), `[` `]` `{` `}`
 `'` articulations, and the popovers: ⇧D dynamics and hairpins, ⇧T tempo, ⇧M time, ⇧K key,
 ⇧C clef, ⇧X text, ⇧B bars (`+2`, `-1`) and barlines, ⇧H holds, ⇧O ornaments, ⇧L lyrics (Space
 or `-` to the next note), `;` a tuplet (`:` ends it). A time signature change fills or cuts bars
