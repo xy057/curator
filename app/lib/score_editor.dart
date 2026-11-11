@@ -1052,6 +1052,12 @@ class _ScoreEditorState extends State<ScoreEditor> {
         final ids = _selectedNotes;
         if (ids.isNotEmpty) _edit(() => score.transpose(ids, steps: steps));
       };
+    } else if (alt && !shift && (key == LogicalKeyboardKey.equal || key == LogicalKeyboardKey.minus)) {
+      // ⌥= and ⌥-: the same sound spelled as the note above or below.
+      action = () {
+        final ids = _selectedNotes;
+        if (ids.isNotEmpty) _edit(() => score.respell(ids, up: key == LogicalKeyboardKey.equal));
+      };
     } else if (alt && shift && char != null && 'abcdefg'.contains(char) && char.length == 1) {
       action = () => _letter('cdefgab'.indexOf(char), chord: true);
     } else {

@@ -2273,6 +2273,28 @@ class EditableScore {
         }
       });
 
+  /// Notes of [ids] spelled as the note above ([up]: C♯ as D♭) or below (D♭ as C♯) that sounds
+  /// the same, where that takes no more than a double sharp or flat (Dorico's ⌥= and ⌥-).
+  void respell(Iterable<String> ids, {required bool up}) => edit(() {
+        final chosen = {...ids};
+        Pitch? other(Pitch p) {
+          final to = Pitch.fromDiatonic(p.diatonic + (up ? 1 : -1));
+          final alter = p.midi - to.midi;
+          return alter.abs() <= 2 ? to.withAlter(alter) : null;
+        }
+
+        for (final e in eventsOf(ids)) {
+          // (A chord none of whose notes can be spelled so is left as it is: no step to undo.)
+          if (e.isRest || !e.pitches.any((p) => other(p) != null)) continue;
+          _editNotes(e, (notes) {
+            for (final n in notes) {
+              if (!chosen.contains(n.getAttribute('id')) || n.getElement('pitch') == null) continue;
+              if (_pitchOf(n) case final p? when other(p) != null) _setPitch(n, other(p)!);
+            }
+          });
+        }
+      });
+
   /// Notes of [ids] given [alter] (−1 a flat, 0 a natural, 1 a sharp: Dorico's − 0 =).
   void setAlter(Iterable<String> ids, int alter) => edit(() {
         final chosen = {...ids};

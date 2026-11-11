@@ -82,6 +82,21 @@ void main() {
     expect(galley.timeAtX(galley.xOf(0, Frac(3, 2))!), (measure: 0, time: Frac(3, 2)));
     chunk.dispose();
 
+    // The same sound spelled as the note above, and back: F♯ is G♭, and its accidental follows.
+    score.respell([id], up: true);
+    expect(score.locate(id)!.pitches.single, const Pitch(4, 5, -1));
+    expect(XmlDocument.parse(score.toMusicXML()).findAllElements('note').elementAt(2).getElement('accidental')?.innerText, 'flat');
+    score.respell([id], up: false);
+    expect(score.locate(id)!.pitches.single, fSharp);
+    score.respell([id], up: false);
+    expect(score.locate(id)!.pitches.single, const Pitch(2, 5, 2)); // E double sharp
+    score.respell([id], up: false);
+    expect(score.locate(id)!.pitches.single, const Pitch(2, 5, 2)); // no further: D would take three sharps
+    score.undo();
+    score.undo();
+    score.undo();
+    expect(score.locate(id)!.pitches.single, fSharp);
+
     // Pitches and rhythms change; Undo takes each back.
     score.transpose([id], steps: 1);
     expect(score.locate(id)!.pitches.single, const Pitch(4, 5)); // G5: the key's, no sharp
