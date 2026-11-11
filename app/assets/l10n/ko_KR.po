@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-10 22:23\n"
+"PO-Revision-Date: 2026-11-11 04:18\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -3097,11 +3097,7 @@ msgstr ""
 msgid "Remove Mask"
 msgstr ""
 
-msgid "Gap"
-msgstr ""
-
-#: lib/pdf_import.dart
-msgid "Remove Gap"
+msgid "Region"
 msgstr ""
 
 #: lib/pdf_import_changes.dart
@@ -3339,7 +3335,7 @@ msgstr ""
 msgid "Remove Barline (⌫)"
 msgstr ""
 
-msgid "Remove Gap (⌫)"
+msgid "Remove Region (⌫)"
 msgstr ""
 
 msgid "Remove Mask (⌫)"
@@ -3368,11 +3364,11 @@ msgstr ""
 msgid "Add Barline (B)"
 msgstr ""
 
-msgid "Add Staff (S)"
+msgid "Draw Region (R)"
 msgstr ""
 
 #: lib/pdf_import.dart
-msgid "Remove Staff"
+msgid "Remove Region"
 msgstr ""
 
 #: lib/condensing_editor.dart
@@ -3850,5 +3846,17 @@ msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Read with AI…"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "AI features are hidden"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Hide AI features"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Restart to apply."
 msgstr ""
 
