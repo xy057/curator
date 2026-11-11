@@ -70,6 +70,54 @@ void main() {
     expect(score.eventsIn(0, 0, voice).single.isRest, isTrue);
   });
 
+  test('Undo and Redo put back the bars a step changed, and only what is in the score has an id', () {
+    final score = EditableScore.parse(demoScore());
+    // (The space between bars aside: a part whose bars were counted again is written without.)
+    String written() => score.toMusicXML().replaceAll(RegExp(r'>\s+<'), '><');
+    final states = [written()];
+    final voice = score.voicesIn(0, 2).first;
+    final at = ScorePosition(0, voice, 2, Frac.zero);
+    score.input(at, [InputItem(const Rhythm(NoteType.quarter), [const Pitch(0, 5)])]);
+    states.add(written());
+    score.addDynamic(at, 'mf');
+    states.add(written());
+    score.addBars(3, 2); // the bars' number changes: every bar after is put back
+    states.add(written());
+    score.setKey(1, KeySig.parse('A')!);
+    states.add(written());
+    score.deleteBars(0, 1);
+    states.add(written());
+    for (var i = states.length - 2; i >= 0; i--) {
+      score.undo();
+      expect(written(), states[i], reason: 'undone to state $i');
+    }
+    expect(score.canUndo, isFalse);
+    // A step of one bar says one bar changed.
+    score.takeChanged();
+    score.redo();
+    final changed = score.takeChanged();
+    expect(changed.bars, {2});
+    expect(changed.from, isNull);
+    for (var i = 2; i < states.length; i++) {
+      score.redo();
+      expect(written(), states[i], reason: 'redone to state $i');
+    }
+    expect(score.canRedo, isFalse);
+
+    // A dynamic deleted is nothing in the score; undone, it is again.
+    final flute = EditableScore.parse(_flute);
+    final start = ScorePosition(0, const VoiceKey(1, '1'), 0, Frac.zero);
+    flute.addDynamic(start, 'p');
+    final id = RegExp(r'<direction[^>]* id="(cxe\d+)"').firstMatch(flute.chunk(0, 2).xml)!.group(1)!;
+    expect(flute.has(id), isTrue);
+    flute.delete([id]);
+    expect(flute.has(id), isFalse);
+    flute.undo();
+    expect(flute.has(id), isTrue);
+    flute.undo();
+    expect(flute.has(id), isFalse);
+  });
+
   test('the score editor changes keys, time signatures and bars in every part of the demo', () async {
     final score = EditableScore.parse(demoScore());
     final bars = score.measureCount;

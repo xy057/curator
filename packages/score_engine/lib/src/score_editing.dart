@@ -976,6 +976,15 @@ class EditableScore {
     }
   }
 
+  /// A bar that is leaving its place: its ids are nothing in the score until a bar that has
+  /// them is put there.
+  void _unindexMeasure(int part, int measure, XmlElement element) {
+    for (final e in element.descendantElements) {
+      final id = e.getAttribute('id');
+      if (id != null && _where[id] == (part: part, measure: measure)) _where.remove(id);
+    }
+  }
+
   /// Whether [id] is something in the score now.
   bool has(String id) => _where.containsKey(id);
 
@@ -1179,6 +1188,7 @@ class EditableScore {
     final old = p._measures[m];
     final written = _write(old, content, p.divisions, multiStaff: p.staves > 1);
     _tagIn(written);
+    _unindexMeasure(part, m, old);
     old.replace(written);
     p._measures[m] = written;
     _indexMeasure(part, m, written);
@@ -1188,74 +1198,114 @@ class EditableScore {
 
   // MARK: Undo
 
-  final _undo = <_Snapshot>[], _redo = <_Snapshot>[];
-  _Snapshot? _open;
+  final _undo = <_Step>[], _redo = <_Step>[];
+  bool _editing = false;
 
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
 
-  _Snapshot _snapshot() => _Snapshot(
-        [for (final p in parts) List.of(p._measures)],
-        [for (final p in parts) p.divisions],
-      );
-
   /// Runs [change] as one Undo step (nested calls join the outer one). Nothing changed, no step.
   T edit<T>(T Function() change) {
-    if (_open != null) return change();
-    final before = _open = _snapshot();
+    if (_editing) return change();
+    _editing = true;
+    final bars = [for (final p in parts) List.of(p._measures)], divisions = [for (final p in parts) p.divisions];
     try {
       return change();
     } finally {
-      _open = null;
-      if (!_sameAs(before)) {
-        _undo.add(before);
+      _editing = false;
+      final step = _stepBackTo(bars, divisions);
+      if (step != null) {
+        _undo.add(step);
         _redo.clear();
         if (_undo.length > 500) _undo.removeAt(0);
       }
     }
   }
 
-  bool _sameAs(_Snapshot s) {
+  /// What takes the score back to [bars] (each part's, as they were): the bars that differ, or
+  /// all of a part's when it has more or fewer now. Null: nothing differs.
+  _Step? _stepBackTo(List<List<XmlElement>> bars, List<int> divisions) {
+    final whole = <List<XmlElement>?>[], some = <Map<int, XmlElement>>[];
+    var any = false;
     for (final (i, p) in parts.indexed) {
-      if (p._measures.length != s.measures[i].length) return false;
-      for (var m = 0; m < p._measures.length; m++) {
-        if (!identical(p._measures[m], s.measures[i][m])) return false;
+      final now = p._measures, was = bars[i];
+      if (now.length != was.length) {
+        whole.add(was);
+        some.add(const {});
+        any = true;
+        continue;
       }
+      final differ = <int, XmlElement>{
+        for (var m = 0; m < now.length; m++)
+          if (!identical(now[m], was[m])) m: was[m],
+      };
+      whole.add(null);
+      some.add(differ);
+      any = any || differ.isNotEmpty;
     }
-    return true;
+    return any ? _Step(whole, some, divisions) : null;
   }
 
   void undo() {
     if (_undo.isEmpty) return;
-    _redo.add(_snapshot());
-    _restore(_undo.removeLast());
+    _redo.add(_take(_undo.removeLast()));
   }
 
   void redo() {
     if (_redo.isEmpty) return;
-    _undo.add(_snapshot());
-    _restore(_redo.removeLast());
+    _undo.add(_take(_redo.removeLast()));
   }
 
-  void _restore(_Snapshot s) {
+  /// Puts [step]'s bars back, and returns the step that undoes that. Only the bars it names are
+  /// touched: a step of one bar costs one bar, however long the score.
+  _Step _take(_Step step) {
     final count = measureCount;
+    final back = _stepBackToNow();
+    var counted = false;
     for (final (i, p) in parts.indexed) {
       final now = p._measures;
-      // Bars that differ are written again in the engraving.
-      for (var m = 0; m < math.max(now.length, s.measures[i].length); m++) {
-        if (m >= now.length || m >= s.measures[i].length || !identical(now[m], s.measures[i][m])) _changed.add(m);
+      var all = step.whole[i];
+      if (all == null && step.bars[i].values.any((bar) => bar.hasParent)) {
+        // A bar to put back is in the part now, at another place: every bar set, as when their
+        // number changed (an element is in one place at a time).
+        all = List.of(now);
+        for (final MapEntry(key: m, value: bar) in step.bars[i].entries) {
+          all[m] = bar;
+        }
       }
-      p.element.children.clear();
-      p.element.children.addAll(s.measures[i]);
-      p._measures
-        ..clear()
-        ..addAll(s.measures[i]);
-      p.divisions = s.divisions[i];
+      if (all != null) {
+        back.whole[i] = List.of(now);
+        // Bars that differ are written again in the engraving.
+        for (var m = 0; m < math.max(now.length, all.length); m++) {
+          if (m >= now.length || m >= all.length || !identical(now[m], all[m])) _changed.add(m);
+        }
+        p.element.children.clear();
+        p.element.children.addAll(all);
+        now
+          ..clear()
+          ..addAll(all);
+        counted = true;
+      } else {
+        final bars = back.bars[i] = <int, XmlElement>{};
+        for (final MapEntry(key: m, value: bar) in step.bars[i].entries) {
+          final old = now[m];
+          bars[m] = old;
+          _unindexMeasure(i, m, old);
+          old.replace(bar);
+          now[m] = bar;
+          _indexMeasure(i, m, bar);
+          _changed.add(m);
+        }
+      }
+      p.divisions = step.divisions[i];
       p._contexts = null;
     }
     if (measureCount != count) _markFrom(math.min(count, measureCount));
-    _indexAll();
+    if (counted) _indexAll();
+    return back;
   }
+
+  _Step _stepBackToNow() => _Step([for (final _ in parts) null], [for (final _ in parts) const {}], [for (final p in parts) p.divisions]);
 
   void _markFrom(int m) => _changedFrom = _changedFrom == null ? m : math.min(_changedFrom!, m);
 
@@ -2660,8 +2710,11 @@ class EditableScore {
       ]);
 }
 
-class _Snapshot {
-  _Snapshot(this.measures, this.divisions);
-  final List<List<XmlElement>> measures;
+/// An Undo step: for each part the bars to put back, by their place ([bars]), or every bar it
+/// had when their number changed ([whole]), and its divisions.
+class _Step {
+  _Step(this.whole, this.bars, this.divisions);
+  final List<List<XmlElement>?> whole;
+  final List<Map<int, XmlElement>> bars;
   final List<int> divisions;
 }
