@@ -196,7 +196,7 @@ class PdfPages {
   }
 
   /// Page [page]'s [systems] as an AI model's [answer] about them sets them ([PdfAi.refine]): their
-  /// edges, cuts and barlines placed on the page's own ink.
+  /// staves' regions and barlines placed on the page's own ink.
   Future<List<PdfAiSystemRead>> refine(int page, List<PdfSystem> systems, PdfAiPage answer) {
     final id = _id;
     final view = PdfAiView(sizes[page]);
@@ -204,6 +204,30 @@ class PdfPages {
       final doc = docs[id]!;
       final (w, h) = doc.pageSizes[page];
       return PdfAi.refine(_render(doc, page, ui.Rect.fromLTWH(0, 0, w, h), PdfDetect.scale), systems, answer, view);
+    });
+  }
+
+  /// The staff whose lines lie in [rect] (points) of page [page], found across the page's width
+  /// ([PdfDetect.staves]): of those, the one reaching into [rect] whose middle is nearest its
+  /// middle. Null: none is there.
+  Future<({double top, double space})?> staffIn(int page, ui.Rect rect) {
+    final id = _id;
+    return _Worker.run((docs) {
+      final doc = docs[id]!;
+      final (w, h) = doc.pageSizes[page];
+      final area = ui.Rect.fromLTRB(0, math.max(0.0, rect.top), w, math.min(h, rect.bottom));
+      if (area.height < 1) return null;
+      ({double top, double space})? best;
+      var off = double.infinity;
+      for (final f in PdfDetect.staves(_render(doc, page, area, PdfDetect.scale))) {
+        final middle = f.top + 2 * f.space;
+        if (f.top < rect.top || f.top + 4 * f.space > rect.bottom || f.right < rect.left || f.left > rect.right) continue;
+        if ((middle - rect.center.dy).abs() < off) {
+          off = (middle - rect.center.dy).abs();
+          best = (top: f.top, space: f.space);
+        }
+      }
+      return best;
     });
   }
 

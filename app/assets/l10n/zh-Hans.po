@@ -3098,12 +3098,8 @@ msgstr "移除乐器"
 msgid "Remove Mask"
 msgstr "移除遮蔽"
 
-msgid "Gap"
-msgstr "间隙"
-
-#: lib/pdf_import.dart
-msgid "Remove Gap"
-msgstr "移除间隙"
+msgid "Region"
+msgstr "区域"
 
 #: lib/pdf_import_changes.dart
 msgid "Concert"
@@ -3340,8 +3336,8 @@ msgstr "移除谱行 (⌫)"
 msgid "Remove Barline (⌫)"
 msgstr "移除小节线 (⌫)"
 
-msgid "Remove Gap (⌫)"
-msgstr "移除间隙 (⌫)"
+msgid "Remove Region (⌫)"
+msgstr "移除区域 (⌫)"
 
 msgid "Remove Mask (⌫)"
 msgstr "移除遮蔽 (⌫)"
@@ -3369,12 +3365,12 @@ msgstr "本页没有"
 msgid "Add Barline (B)"
 msgstr "添加小节线（B）"
 
-msgid "Add Staff (S)"
-msgstr "添加谱表（S）"
+msgid "Draw Region (R)"
+msgstr "绘制区域（R）"
 
 #: lib/pdf_import.dart
-msgid "Remove Staff"
-msgstr "移除谱表"
+msgid "Remove Region"
+msgstr "移除区域"
 
 #: lib/condensing_editor.dart
 msgctxt "condensing"

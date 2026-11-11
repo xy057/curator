@@ -761,11 +761,20 @@ final class _View extends ProjectModule {
       );
 }
 
-/// A PDF score's layout ([ProjectState.pdf]): its pages' systems, staves and barlines, whose
-/// each staff is, the masks, and the instruments, meter and key the score is read as. A
-/// Curator that can't read it can't show the score.
+/// A PDF score's layout ([ProjectState.pdf]): its pages' systems, staves (each with its own band)
+/// and barlines, whose each staff is, the masks, and the instruments, meter and key the score is
+/// read as. A Curator that can't read it can't show the score. Version 2: each staff's band, in
+/// place of a system's top, bottom, cuts and gaps ([PdfScoreLayout.upgradeJson]).
 final class _Pdf extends ProjectModule {
-  const _Pdf() : super('pdf');
+  const _Pdf() : super('pdf', version: 2);
+
+  @override
+  Map<int, Map<String, Object?> Function(Map<String, Object?>)> get migrations => {
+        1: (json) => switch (json['layout']) {
+              final Map<String, Object?> layout => {...json, 'layout': PdfScoreLayout.upgradeJson(layout)},
+              _ => json,
+            },
+      };
 
   @override
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {'layout': ?state.pdf?.toJson()};

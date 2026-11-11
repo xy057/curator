@@ -21,8 +21,8 @@ import 'pdf_ocr.dart';
 import 'ui_kit.dart';
 
 /// Opening a PDF score, or Project Info ▸ Score ▸ Edit… for one: its pages over the window, what
-/// was found on them drawn over each (systems, the cuts between their staves, barlines, where the
-/// music starts, masks), each staff's instrument at its left, and the score's instruments, meter
+/// was found on them drawn over each (systems, each staff's region, barlines, where the music
+/// starts, masks), each staff's instrument at its left, and the score's instruments, meter
 /// and key at the right. Everything found can be moved, added or taken away here; this is the
 /// only place the PDF is worked on (the score shows it as printed, cut along what is set here).
 /// [layout] is the one to edit; none: the PDF is read first ([PdfPages.read]). Returns the
@@ -40,8 +40,9 @@ Future<PdfScoreLayout?> showPdfImport(BuildContext context, PdfPages pages,
     ));
 
 /// What the pointer does on a page.
-/// (A mask is one lane's; [maskAll]'s every lane's.)
-enum _Tool { select, mask, maskAll, addBarline, addStaff }
+/// (A mask is one lane's; [maskAll]'s every lane's. [drawRegion] draws a staff's region, or a
+/// click a staff.)
+enum _Tool { select, mask, maskAll, addBarline, drawRegion }
 
 /// The import's steps, in order: the systems found on the pages, the instruments and whose each
 /// staff is, what is left out (masks, each a lane's or every one's), what changes where, then
@@ -62,12 +63,25 @@ sealed class _Selection {
   const _Selection();
 }
 
-/// A bar: system [system], its [segment]th bar ([PdfSystem.segments]), on its [staff]th staff
-/// (null: between the system's edges, on none).
+/// A bar (Changes): system [system], its [segment]th bar ([PdfSystem.segments]), on its [staff]th
+/// staff (null: between the system's edges, on none).
 class _BarSelection extends _Selection {
   const _BarSelection(this.system, this.segment, [this.staff]);
   final int system, segment;
   final int? staff;
+}
+
+/// A staff's region (Pages): system [system]'s [staff]th staff's, a box with handles at its
+/// corners and the middles of its sides.
+class _RegionSelection extends _Selection {
+  const _RegionSelection(this.system, this.staff);
+  final int system, staff;
+
+  @override
+  bool operator ==(Object other) => other is _RegionSelection && other.system == system && other.staff == staff;
+
+  @override
+  int get hashCode => Object.hash(system, staff);
 }
 
 class _BarlineSelection extends _Selection {
@@ -80,34 +94,39 @@ class _MaskSelection extends _Selection {
   final int mask;
 }
 
-/// The gap below system [system]'s cut [cut] ([PdfSystem.gaps]).
-class _GapSelection extends _Selection {
-  const _GapSelection(this.system, this.cut);
-  final int system, cut;
-
-  @override
-  bool operator ==(Object other) => other is _GapSelection && other.system == system && other.cut == cut;
-
-  @override
-  int get hashCode => Object.hash(system, cut);
-}
-
-/// What a drag moves: a system's top (-1), bottom (-2) or a cut (0…), a gap's bottom, its
-/// music's start or end, or a barline.
+/// What a drag moves: a staff's region (whole, or by a handle), its system's music's start or
+/// end, or a barline (the system's: every staff's).
 sealed class _Drag {
   const _Drag(this.system);
   final int system;
 }
 
-class _EdgeDrag extends _Drag {
-  const _EdgeDrag(super.system, this.edge);
-  final int edge;
+/// What of a region a drag holds: all of it, or a side or a corner (the compass point).
+enum _Handle {
+  move,
+  n,
+  s,
+  e,
+  w,
+  nw,
+  ne,
+  sw,
+  se;
+
+  bool get north => this == n || this == nw || this == ne;
+  bool get south => this == s || this == sw || this == se;
+  bool get west => this == w || this == nw || this == sw;
+  bool get east => this == e || this == ne || this == se;
 }
 
-/// The bottom of the gap below cut [cut] (its top is the cut).
-class _GapDrag extends _Drag {
-  const _GapDrag(super.system, this.cut);
-  final int cut;
+/// Staff [staff]'s region, held by [handle] at [from] (page points) when it was [start]: its own,
+/// a neighbour's staying where it is.
+class _RegionDrag extends _Drag {
+  const _RegionDrag(super.system, this.staff, this.handle, this.from, this.start);
+  final int staff;
+  final _Handle handle;
+  final Offset from;
+  final Rect start;
 }
 
 class _StartDrag extends _Drag {
@@ -202,8 +221,14 @@ class _PdfImportState extends State<PdfImport> {
 
   /// Whether the drag has moved what it holds (its Undo step is made then).
   bool _dragged = false;
-  Rect? _drawing; // a mask being drawn, page points
+  Rect? _drawing; // a mask or a region being drawn, page points
   Offset? _drawFrom;
+
+  /// The region under the pointer, outlined (Pages); null: none.
+  (int, int)? _hovered;
+
+  /// The lines a region dragged has snapped to, page points: drawn while it is held.
+  List<(Offset, Offset)> _guides = const [];
 
   final _focus = FocusNode(debugLabel: 'PDF import');
   final _horizontal = ScrollController(), _vertical = ScrollController();
@@ -511,15 +536,47 @@ class _PdfImportState extends State<PdfImport> {
   }
 
   /// The lane whose staff [p] is on, on the page showing; null: none's.
-  String? _laneAt(Offset p) {
-    for (final (_, s) in _onPage) {
-      for (var k = 0; k < s.staves.length; k++) {
-        if (s.bandOf(k) case (final top, final bottom) when p.dy >= top && p.dy < bottom && p.dx >= s.left - 4 && p.dx <= s.right + 4) {
-          return layout.partOf(s.staves[k]);
-        }
+  String? _laneAt(Offset p) => switch (_staffAt(p)) {
+        (final system, final k) => layout.partOf(layout.systems[system].staves[k]),
+        null => null,
+      };
+
+  /// The staff whose region [p] is in, on the page showing: its system and index. Where regions
+  /// overlap, the one whose lines are nearest ([PdfSystem.staffAt]); none: null.
+  (int, int)? _staffAt(Offset p) {
+    (int, int)? best;
+    var off = double.infinity;
+    for (final (i, s) in _onPage) {
+      final k = s.staffAt(p.dx, p.dy);
+      if (k < 0) continue;
+      final t = s.staves[k];
+      final d = p.dy < t.top ? t.top - p.dy : math.max(0.0, p.dy - t.bottom);
+      if (d < off) {
+        off = d;
+        best = (i, k);
       }
     }
-    return null;
+    return best;
+  }
+
+  /// The system the selection is in: a region's or a barline's.
+  int? get _selectedSystem => switch (_selection) {
+        _RegionSelection(:final system) || _BarlineSelection(:final system) => system,
+        _ => null,
+      };
+
+  /// The region selected, when it is on the page showing: its system and staff.
+  (int, int)? get _selectedRegion => switch (_selection) {
+        _RegionSelection(:final system, :final staff)
+            when system < layout.systems.length && layout.systems[system].page == _page && staff < layout.systems[system].staves.length =>
+          (system, staff),
+        _ => null,
+      };
+
+  /// The region [p] is in, on the page showing: the one selected if it is, else [_staffAt]'s.
+  (int, int)? _regionAt(Offset p) {
+    if (_selectedRegion case (final system, final staff) when layout.systems[system].regionOf(staff).contains(p)) return (system, staff);
+    return _staffAt(p);
   }
 
   /// The systems on the page showing, with their indices.
@@ -532,21 +589,20 @@ class _PdfImportState extends State<PdfImport> {
         _setSystem(system, s.copyWith(barlines: [...s.barlines]..removeAt(barline)));
       case _MaskSelection(:final mask):
         _setMasks([...layout.masks]..removeAt(mask));
-      case _BarSelection(:final system):
-        _edit(layout.copyWith(systems: [...layout.systems]..removeAt(system)));
-      case _GapSelection(:final system, :final cut):
-        _setSystem(system, _withoutGap(layout.systems[system], cut));
-      case null:
+      case _RegionSelection(:final system, :final staff):
+        _removeStaff(system, staff);
+      case _BarSelection() || null:
         return;
     }
     setState(() => _selection = null);
   }
 
-  /// [s] with the gap below cut [c] gone, the cut in its middle.
-  static PdfSystem _withoutGap(PdfSystem s, int c) {
-    final cuts = [for (var k = 0; k + 1 < s.staves.length; k++) s.cutAfter(k)];
-    cuts[c] = (s.cutAfter(c) + s.resumeAfter(c)) / 2;
-    return s.copyWith(cuts: cuts, gaps: {...s.gaps}..remove(c));
+  /// The selection's system gone.
+  void _removeSystem() {
+    if (_selectedSystem case final system? when system < layout.systems.length) {
+      _edit(layout.copyWith(systems: [...layout.systems]..removeAt(system)));
+      setState(() => _selection = null);
+    }
   }
 
   Future<void> _detectAgain() async {
@@ -600,18 +656,16 @@ class _PdfImportState extends State<PdfImport> {
 
   Offset _toPage(Offset local) => (local - const Offset(_gutter, _margin)) / _zoom;
 
-  /// What is under [p] (page points) to drag, if anything.
+  /// What is under [p] (page points) to drag, if anything: the selected region's handles and
+  /// sides first, then the systems' handles and lines, then a region (selected as it is moved,
+  /// as an image on a canvas).
   _Drag? _dragAt(Offset p) {
     final grab = _grab / _zoom;
+    if (_selectedRegion case (final system, final staff)) {
+      final r = layout.systems[system].regionOf(staff);
+      if (_handleAt(r, p) case final handle?) return _RegionDrag(system, staff, handle, p, r);
+    }
     for (final (i, s) in _onPage) {
-      final handleX = s.right + 10 / _zoom;
-      final edges = [(-1, s.top), for (var c = 0; c + 1 < s.staves.length; c++) (c, s.cutAfter(c)), (-2, s.bottom)];
-      for (final (edge, y) in edges) {
-        if ((p - Offset(handleX, y)).distance <= grab * 1.4) return _EdgeDrag(i, edge);
-      }
-      for (final c in s.gaps.keys) {
-        if ((p - Offset(handleX, s.resumeAfter(c))).distance <= grab * 1.4) return _GapDrag(i, c);
-      }
       // The barlines' handles above the top, and where the music starts.
       final handleY = s.top - _handleRise / _zoom;
       for (final (b, line) in s.barlines.indexed) {
@@ -630,30 +684,123 @@ class _PdfImportState extends State<PdfImport> {
       }
       if ((p.dx - s.right).abs() <= grab) return _EndDrag(i);
     }
+    if (_regionAt(p) case (final system, final staff)) {
+      return _RegionDrag(system, staff, _Handle.move, p, layout.systems[system].regionOf(staff));
+    }
     return null;
   }
 
+  /// Which of region [r]'s handles [p] is on: a corner's, a side's middle one, or a side
+  /// anywhere along it. Null: none.
+  _Handle? _handleAt(Rect r, Offset p) {
+    final grab = _grab / _zoom, reach = grab * 1.4;
+    for (final (at, handle) in [
+      (r.topLeft, _Handle.nw),
+      (r.topRight, _Handle.ne),
+      (r.bottomLeft, _Handle.sw),
+      (r.bottomRight, _Handle.se),
+      (r.topCenter, _Handle.n),
+      (r.bottomCenter, _Handle.s),
+      (r.centerLeft, _Handle.w),
+      (r.centerRight, _Handle.e),
+    ]) {
+      if ((p - at).distance <= reach) return handle;
+    }
+    final across = p.dx >= r.left - grab && p.dx <= r.right + grab, down = p.dy >= r.top - grab && p.dy <= r.bottom + grab;
+    if (across && (p.dy - r.top).abs() <= grab) return _Handle.n;
+    if (across && (p.dy - r.bottom).abs() <= grab) return _Handle.s;
+    if (down && (p.dx - r.left).abs() <= grab) return _Handle.w;
+    if (down && (p.dx - r.right).abs() <= grab) return _Handle.e;
+    return null;
+  }
+
+  /// Where staff [k]'s region goes, of system [s], held by [handle] when it was [start] and the
+  /// pointer moved by [d]: on the page, round its lines, a space wide at least; its edges snapped
+  /// to where its system's music starts and ends and to the other regions' edges, when a few
+  /// pixels off. With the lines it snapped to ([_guides]).
+  (Rect, List<(Offset, Offset)>) _dragRegion(PdfSystem s, int k, _Handle handle, Rect start, Offset d) {
+    final staff = s.staves[k], page = layout.pages[s.page], snap = 5 / _zoom;
+    final others = [for (var j = 0; j < s.staves.length; j++) if (j != k) s.regionOf(j)];
+    final xs = {s.left, s.right, for (final o in others) ...[o.left, o.right]};
+    final ys = {for (final o in others) ...[o.top, o.bottom]};
+    // How far [v] is from the nearest of [to] within reach; null: none is.
+    double? pull(double v, Iterable<double> to) {
+      double? best;
+      for (final t in to) {
+        if ((t - v).abs() <= snap && (best == null || (t - v).abs() < best.abs())) best = t - v;
+      }
+      return best;
+    }
+
+    final snappedX = <double>{}, snappedY = <double>{};
+    double side(double v, Iterable<double> to, double lo, double hi, Set<double> snapped) {
+      v = v.clamp(lo, math.max(lo, hi)).toDouble();
+      if (pull(v, to) case final p? when v + p >= lo && v + p <= hi) {
+        snapped.add(v + p);
+        return v + p;
+      }
+      return v;
+    }
+
+    var (l, t, r, b) = (start.left, start.top, start.right, start.bottom);
+    if (handle == _Handle.move) {
+      // Kept round its lines and on the page.
+      final dyLo = math.max(staff.bottom - b, -t), dyHi = math.min(staff.top - t, page.height - b);
+      final dxLo = -l, dxHi = page.width - r;
+      var dx = dxLo > dxHi ? 0.0 : d.dx.clamp(dxLo, dxHi).toDouble(), dy = dyLo > dyHi ? 0.0 : d.dy.clamp(dyLo, dyHi).toDouble();
+      // The nearer of its two sides snaps, as does the nearer of its top and bottom.
+      double? nearer(double? a, double? c) => a == null ? c : (c == null || a.abs() <= c.abs() ? a : c);
+      if (nearer(pull(l + dx, xs), pull(r + dx, xs)) case final p? when dx + p >= dxLo && dx + p <= dxHi) {
+        dx += p;
+        snappedX.addAll({if (xs.contains(l + dx)) l + dx, if (xs.contains(r + dx)) r + dx});
+      }
+      if (nearer(pull(t + dy, ys), pull(b + dy, ys)) case final p? when dy + p >= dyLo && dy + p <= dyHi) {
+        dy += p;
+        snappedY.addAll({if (ys.contains(t + dy)) t + dy, if (ys.contains(b + dy)) b + dy});
+      }
+      (l, t, r, b) = (l + dx, t + dy, r + dx, b + dy);
+    } else {
+      if (handle.north) t = side(t + d.dy, ys, 0, staff.top, snappedY);
+      if (handle.south) b = side(b + d.dy, ys, staff.bottom, page.height, snappedY);
+      if (handle.west) l = side(l + d.dx, xs, 0, r - staff.space, snappedX);
+      if (handle.east) r = side(r + d.dx, xs, l + staff.space, page.width, snappedX);
+    }
+    final rect = Rect.fromLTRB(l, t, r, b);
+    final top = math.min(s.top, rect.top), bottom = math.max(s.bottom, rect.bottom);
+    final from = math.min(s.left, rect.left) - s.space, to = math.max(s.right, rect.right) + s.space;
+    return (
+      rect,
+      [
+        for (final x in snappedX) (Offset(x, top), Offset(x, bottom)),
+        for (final y in snappedY) (Offset(from, y), Offset(to, y)),
+      ],
+    );
+  }
+
+  /// What a click at [p] selects: on Pages a barline or a staff, in Edit a mask, in Changes a bar
+  /// (on the staff clicked, if any).
   _Selection? _selectionAt(Offset p) {
     for (final (i, m) in layout.masks.indexed) {
       if (_step == _Step.edit && m.page == _page && m.rect.contains(p)) return _MaskSelection(i);
     }
+    final grab = _grab / _zoom;
     for (final (i, s) in _onPage) {
       if (p.dy < s.top || p.dy > s.bottom || p.dx < s.left - 4 || p.dx > s.right + 4) continue;
-      final grab = _grab / _zoom;
-      for (final (b, line) in s.barlines.indexed) {
-        if ((p.dx - line.x).abs() <= grab) return _BarlineSelection(i, b);
+      if (_step == _Step.pages) {
+        for (final (b, line) in s.barlines.indexed) {
+          if ((p.dx - line.x).abs() <= grab) return _BarlineSelection(i, b);
+        }
+        continue;
       }
-      for (final c in s.gaps.keys) {
-        if (s.gapAfter(c) case (final top, final bottom) when p.dy >= top && p.dy <= bottom) return _GapSelection(i, c);
-      }
-      final staff = [
-        for (var k = 0; k < s.staves.length; k++)
-          if (s.bandOf(k) case (final top, final bottom) when p.dy >= top && p.dy < bottom) k,
-      ].firstOrNull;
+      final k = s.staffAt(p.dx, p.dy);
+      final staff = k < 0 ? null : k;
       for (final (k, (l, r)) in s.segments.indexed) {
         if (p.dx >= l && p.dx <= r) return _BarSelection(i, k, staff);
       }
       return _BarSelection(i, 0, staff);
+    }
+    if (_step == _Step.pages) {
+      if (_regionAt(p) case (final system, final staff)) return _RegionSelection(system, staff);
     }
     return null;
   }
@@ -662,7 +809,7 @@ class _PdfImportState extends State<PdfImport> {
     _focus.requestFocus();
     if (_ai != null) return;
     final p = _toPage(local);
-    if (_step == _Step.edit && _tool != _Tool.select) {
+    if ((_step == _Step.edit && _tool != _Tool.select) || (_step == _Step.pages && _tool == _Tool.drawRegion)) {
       _drawFrom = p;
       return;
     }
@@ -673,24 +820,30 @@ class _PdfImportState extends State<PdfImport> {
       setState(() {
         if (_step == _Step.changes) _selection = hit is _BarSelection ? hit : null;
         if (_step == _Step.edit) _selection = hit is _MaskSelection ? hit : null;
-        if (hit case _BarSelection(:final system, staff: final k?) when _step != _Step.changes) {
-          final staff = layout.systems[system].staves[k];
-          final at = layout.instruments.indexWhere((i) => i.id == staff.part);
-          if (at >= 0) _instrument = at;
-          if (_step == _Step.edit) {
-            if (layout.partOf(staff) case final lane?) _maskLane = lane;
+        if (_step != _Step.changes && hit is! _MaskSelection) {
+          if (_staffAt(p) case (final system, final k)) {
+            final staff = layout.systems[system].staves[k];
+            final at = layout.instruments.indexWhere((i) => i.id == staff.part);
+            if (at >= 0) _instrument = at;
+            if (_step == _Step.edit) {
+              if (layout.partOf(staff) case final lane?) _maskLane = lane;
+            }
           }
         }
       });
       return;
     }
     if (_tool == _Tool.addBarline) return _addBarlineAt(p);
-    if (_tool == _Tool.addStaff) return _addStaffAt(p);
     final drag = _dragAt(p);
     setState(() {
       _drag = drag;
       _dragged = false;
-      _selection = drag is _BarlineDrag ? _BarlineSelection(drag.system, drag.barline) : _selectionAt(p);
+      _hovered = null;
+      _selection = switch (drag) {
+        _BarlineDrag(:final system, :final barline) => _BarlineSelection(system, barline),
+        _RegionDrag(:final system, :final staff) => _RegionSelection(system, staff),
+        _ => _selectionAt(p),
+      };
     });
   }
 
@@ -705,18 +858,15 @@ class _PdfImportState extends State<PdfImport> {
     final s = layout.systems[drag.system];
     final PdfSystem next;
     switch (drag) {
-      case _EdgeDrag(edge: -1):
-        next = s.copyWith(top: math.min(p.dy, s.staves.first.top));
-      case _EdgeDrag(edge: -2):
-        next = s.copyWith(bottom: math.max(p.dy, s.staves.last.bottom));
-      case _EdgeDrag(:final edge):
-        // A gap's top: no lower than its bottom.
-        final cuts = [for (var c = 0; c + 1 < s.staves.length; c++) s.cutAfter(c)];
-        final below = s.gaps.containsKey(edge) ? s.resumeAfter(edge) : s.staves[edge + 1].top;
-        cuts[edge] = p.dy.clamp(s.staves[edge].bottom, math.max(s.staves[edge].bottom, below));
-        next = s.copyWith(cuts: cuts);
-      case _GapDrag(:final cut):
-        next = s.copyWith(gaps: {...s.gaps, cut: p.dy.clamp(s.cutAfter(cut), math.max(s.cutAfter(cut), s.staves[cut + 1].top))});
+      case _RegionDrag(:final staff, :final handle, :final from, :final start):
+        // Moved only once the pointer has gone a few pixels: a click alone selects it. Over a
+        // neighbour's region if need be; a side snapped to where the music starts or ends goes
+        // with it.
+        final d = p - from;
+        if (!_dragged && d.distance < 3 / _zoom) return;
+        final (rect, guides) = _dragRegion(s, staff, handle, start, d);
+        _guides = guides;
+        next = s.withRegion(staff, rect, followLeft: rect.left == s.left, followRight: rect.right == s.right);
       case _StartDrag():
         next = s.copyWith(left: p.dx.clamp(0, s.right - s.space));
       case _EndDrag():
@@ -750,8 +900,11 @@ class _PdfImportState extends State<PdfImport> {
   }
 
   void _up() {
-    if (_drawing case final rect? when rect.width > 2 && rect.height > 2) {
-      // The selected staff's lane's, else the lane it was drawn from; off the staves, every one's.
+    if (_drawing case final rect? when rect.width > 2 && rect.height > 2 && _step == _Step.pages) {
+      unawaited(_addRegion(rect));
+    } else if (_drawFrom case final from? when _step == _Step.pages) {
+      _addStaffAt(from); // a click: a staff there
+    } else if (_drawing case final rect? when rect.width > 2 && rect.height > 2) {
       // Mask Lane: the lane picked, else the one it was drawn from; off the staves every one's.
       final lane = _tool == _Tool.maskAll ? null : _lanes.any((l) => l.id == _maskLane) ? _maskLane : _laneAt(_drawFrom!);
       _setMasks([...layout.masks, PdfMask(_page, rect, lane)]);
@@ -760,14 +913,6 @@ class _PdfImportState extends State<PdfImport> {
       // A click with the mask tool: selects a mask.
       final hit = _selectionAt(from);
       setState(() => _selection = hit is _MaskSelection ? hit : null);
-    }
-    // A gap dragged shut is gone.
-    if (_drag case _EdgeDrag(:final system, :final edge) || _GapDrag(:final system, cut: final edge) when edge >= 0 && _dragged) {
-      final s = layout.systems[system];
-      if (s.gaps.containsKey(edge) && s.resumeAfter(edge) - s.cutAfter(edge) < 0.5) {
-        _layout = layout.copyWith(systems: [...layout.systems]..[system] = s.copyWith(gaps: {...s.gaps}..remove(edge)));
-        if (_selection == _GapSelection(system, edge)) _selection = null;
-      }
     }
     if (_drag case _BarlineDrag(:final system, :final barline) when _dragged) {
       // Kept in order, the one moved still selected.
@@ -781,27 +926,15 @@ class _PdfImportState extends State<PdfImport> {
       _drag = null;
       _drawFrom = null;
       _drawing = null;
+      _guides = const [];
     });
   }
 
-  /// A double click in a system: on a cut, a gap there, no one's (a third of the room between
-  /// the staves, which its edges then change); in a gap, nothing; elsewhere a barline.
+  /// A double click in a system: a barline there (not on the selected region's handles or sides).
   void _doubleClick(Offset local) {
     if (_ai != null) return;
-    final p = _toPage(local), grab = _grab / _zoom;
-    for (final (i, s) in _onPage) {
-      if (p.dx < s.left - grab || p.dx > s.right + 14 / _zoom) continue;
-      for (var c = 0; c + 1 < s.staves.length; c++) {
-        if (s.gapAfter(c) case (final top, final bottom) when p.dy >= top - grab && p.dy <= bottom + grab) return;
-        if ((p.dy - s.cutAfter(c)).abs() > grab) continue;
-        final from = s.staves[c].bottom, to = s.staves[c + 1].top, height = (to - from) / 3;
-        final top = (s.cutAfter(c) - height / 2).clamp(from, math.max(from, to - height)).toDouble();
-        final cuts = [for (var k = 0; k + 1 < s.staves.length; k++) s.cutAfter(k)]..[c] = top;
-        _setSystem(i, s.copyWith(cuts: cuts, gaps: {...s.gaps, c: top + height}));
-        setState(() => _selection = _GapSelection(i, c));
-        return;
-      }
-    }
+    final p = _toPage(local);
+    if (_dragAt(p) case _RegionDrag(:final handle) when handle != _Handle.move) return;
     _addBarlineAt(p);
   }
 
@@ -816,8 +949,9 @@ class _PdfImportState extends State<PdfImport> {
     }
   }
 
-  /// A staff added with its middle at [p], no one's, selected: among the staves of the system it
-  /// is in, else a system of its own as wide as the nearest (between its neighbours, a single
+  /// A staff added with its middle at [p] (a click with Draw Region), no one's, selected: among
+  /// the staves of the system it is in ([PdfSystem.withStaff]), else a system of its own as wide
+  /// as the nearest (its region two spaces past its lines, short of its neighbours; a single
   /// barline at its end).
   void _addStaffAt(Offset p) {
     final here = _onPage.toList();
@@ -826,11 +960,13 @@ class _PdfImportState extends State<PdfImport> {
     final nearest = inside ?? (here..sort((a, b) => off(a).compareTo(off(b)))).firstOrNull;
     final space = nearest?.$2.space ?? layout.systems.firstOrNull?.space ?? 6;
     final staff = PdfStaff(top: p.dy - 2 * space, space: space);
-    int segmentOf(PdfSystem s) => math.max(0, s.segments.indexWhere((g) => p.dx >= g.$1 && p.dx <= g.$2));
     if (inside case (final i, final s)) {
       final next = s.withStaff(staff);
       _edit(layout.copyWith(systems: [...layout.systems]..[i] = next));
-      setState(() => _selection = _BarSelection(i, segmentOf(next), next.staves.indexOf(staff)));
+      setState(() {
+        _selection = _RegionSelection(i, next.staves.indexWhere((t) => t.top == staff.top && t.space == staff.space));
+        _tool = _Tool.select;
+      });
       return;
     }
     final width = layout.pages[_page].width;
@@ -839,29 +975,84 @@ class _PdfImportState extends State<PdfImport> {
     final below = here.where((e) => e.$2.top > p.dy).map((e) => e.$2.top).fold<double>(layout.pages[_page].height, math.min);
     final system = PdfSystem(
       page: _page,
-      top: math.max(above, staff.top - 2 * space),
-      bottom: math.min(below, staff.bottom + 2 * space),
       left: left,
       right: right,
-      staves: [staff],
+      staves: [
+        staff.copyWith(
+          regionTop: math.min(staff.top, math.max(above, staff.top - 2 * space)),
+          regionBottom: math.max(staff.bottom, math.min(below, staff.bottom + 2 * space)),
+        ),
+      ],
       barlines: [PdfBarline(right)],
     );
-    final found = layout.systems.indexWhere((s) => s.page > _page || (s.page == _page && s.top > system.top));
-    final at = found < 0 ? layout.systems.length : found;
-    _edit(layout.copyWith(systems: [...layout.systems]..insert(at, system)));
-    setState(() => _selection = _BarSelection(at, segmentOf(system), 0));
+    _insertSystem(system);
   }
 
-  /// The staff selected gone, its band no one's; a system's only staff, the system.
-  void _removeStaff() {
-    if (_selection case _BarSelection(:final system, staff: final k?)) {
-      final s = layout.systems[system];
-      if (s.staves.length == 1) {
-        _edit(layout.copyWith(systems: [...layout.systems]..removeAt(system)));
-      } else {
-        _setSystem(system, s.withoutStaff(k));
+  /// [system], a new one, put among the page's in reading order, its staff selected.
+  void _insertSystem(PdfSystem system) {
+    final found = layout.systems.indexWhere((s) => s.page > system.page || (s.page == system.page && s.top > system.top));
+    final at = found < 0 ? layout.systems.length : found;
+    _edit(layout.copyWith(systems: [...layout.systems]..insert(at, system)));
+    setState(() {
+      _selection = _RegionSelection(at, 0);
+      _tool = _Tool.select;
+    });
+  }
+
+  /// A region drawn ([rect], page points) made a staff's, selected: the staff whose lines it
+  /// holds, found on the page ([PdfPages.staffIn]). One already in a system there gets it as its
+  /// region; else it is a staff added to the system it lies in, over its neighbours' regions if
+  /// need be, or a system of its own (its music from the region's left to its right). Where no
+  /// lines are found, five are put in its middle, spaced as the nearest system's. A side drawn a
+  /// few pixels from where the music starts or ends goes with it.
+  Future<void> _addRegion(Rect rect) async {
+    final page = _page;
+    final area = rect.intersect(Offset.zero & layout.pages[page]);
+    if (area.width <= 2 || area.height <= 2) return;
+    final found = await pages.staffIn(page, area);
+    if (!mounted || _page != page || _busy) return;
+    final here = _onPage.toList();
+    double off((int, PdfSystem) e) => math.max(0, math.max(e.$2.top - area.center.dy, area.center.dy - e.$2.bottom));
+    final nearest = ([...here]..sort((a, b) => off(a).compareTo(off(b)))).firstOrNull;
+    final space = found?.space ?? nearest?.$2.space ?? layout.systems.firstOrNull?.space ?? 6;
+    final top = found?.top ?? area.center.dy - 2 * space;
+    final snap = 5 / _zoom;
+    bool near(double a, double b) => (a - b).abs() <= snap;
+    for (final (i, s) in here) {
+      for (final (k, t) in s.staves.indexed) {
+        if ((t.top - top).abs() < space / 2 && (t.space - space).abs() < space / 4) {
+          _setSystem(i, s.withRegion(k, area, followLeft: near(area.left, s.left), followRight: near(area.right, s.right)));
+          setState(() {
+            _selection = _RegionSelection(i, k);
+            _tool = _Tool.select;
+          });
+          return;
+        }
       }
-      setState(() => _selection = null);
+    }
+    final staff = PdfStaff(
+        top: top, space: space, regionTop: math.min(area.top, top), regionBottom: math.max(area.bottom, top + 4 * space));
+    if (here.where((e) => staff.middle >= e.$2.top && staff.middle <= e.$2.bottom).firstOrNull case (final i, final s)) {
+      final placed = staff.copyWith(
+          regionLeft: () => near(area.left, s.left) ? null : area.left, regionRight: () => near(area.right, s.right) ? null : area.right);
+      final next = s.withStaff(placed, fit: false);
+      _edit(layout.copyWith(systems: [...layout.systems]..[i] = next));
+      setState(() {
+        _selection = _RegionSelection(i, next.staves.indexOf(placed));
+        _tool = _Tool.select;
+      });
+      return;
+    }
+    _insertSystem(PdfSystem(page: page, left: area.left, right: area.right, staves: [staff], barlines: [PdfBarline(area.right)]));
+  }
+
+  /// Staff [k] of system [system] gone, its region no one's; a system's only staff, the system.
+  void _removeStaff(int system, int k) {
+    final s = layout.systems[system];
+    if (s.staves.length == 1) {
+      _edit(layout.copyWith(systems: [...layout.systems]..removeAt(system)));
+    } else {
+      _setSystem(system, s.withoutStaff(k));
     }
   }
 
@@ -1145,8 +1336,11 @@ class _PdfImportState extends State<PdfImport> {
     if (_tool != _Tool.select) return SystemMouseCursors.precise;
     if (_step != _Step.pages) return SystemMouseCursors.basic;
     return switch (_dragAt(_toPage(local))) {
-      _EdgeDrag() => SystemMouseCursors.resizeRow,
-      _GapDrag() => SystemMouseCursors.resizeRow,
+      _RegionDrag(handle: _Handle.n || _Handle.s) => SystemMouseCursors.resizeUpDown,
+      _RegionDrag(handle: _Handle.e || _Handle.w) => SystemMouseCursors.resizeLeftRight,
+      _RegionDrag(handle: _Handle.nw || _Handle.se) => SystemMouseCursors.resizeUpLeftDownRight,
+      _RegionDrag(handle: _Handle.ne || _Handle.sw) => SystemMouseCursors.resizeUpRightDownLeft,
+      _RegionDrag(:final system, :final staff) => _selectedRegion == (system, staff) ? SystemMouseCursors.move : SystemMouseCursors.basic,
       _StartDrag() || _EndDrag() || _BarlineDrag() => SystemMouseCursors.resizeColumn,
       null => SystemMouseCursors.basic,
     };
@@ -1191,8 +1385,8 @@ class _PdfImportState extends State<PdfImport> {
       setState(() => _tool = _Tool.select);
     } else if (key == LogicalKeyboardKey.keyB && _step == _Step.pages) {
       setState(() => _tool = _Tool.addBarline);
-    } else if (key == LogicalKeyboardKey.keyS && _step == _Step.pages && !meta) {
-      setState(() => _tool = _Tool.addStaff);
+    } else if (key == LogicalKeyboardKey.keyR && _step == _Step.pages && !meta) {
+      setState(() => _tool = _Tool.drawRegion);
     } else if (key == LogicalKeyboardKey.keyM && _step == _Step.edit) {
       setState(() => _tool = shift ? _Tool.maskAll : _Tool.mask);
     } else {
@@ -1390,9 +1584,8 @@ class _PdfImportState extends State<PdfImport> {
     switch (_step) {
       case _Step.pages:
         final removable = switch (_selection) {
-          _BarSelection() => 'Remove System',
+          _RegionSelection() => 'Remove Region',
           _BarlineSelection() => 'Remove Barline',
-          _GapSelection() => 'Remove Gap',
           _ => 'Remove',
         };
         Widget tool(AppIcon icon, String tip, _Tool value) => ToolbarButton(
@@ -1401,11 +1594,11 @@ class _PdfImportState extends State<PdfImport> {
           ToolGroup(children: [
             tool(AppIcon.pointer, 'Select (V)', _Tool.select),
             tool(AppIcon.addBarline, 'Add Barline (B)', _Tool.addBarline),
-            tool(AppIcon.addStaff, 'Add Staff (S)', _Tool.addStaff),
+            tool(AppIcon.addStaff, 'Draw Region (R)', _Tool.drawRegion),
           ]),
           const SizedBox(width: 6),
           button(AppIcon.delete, '$removable (⌫)', _selection == null ? null : _remove),
-          button(AppIcon.close, 'Remove Staff', _selection is _BarSelection && (_selection as _BarSelection).staff != null ? _removeStaff : null),
+          button(AppIcon.close, 'Remove System', _selectedSystem == null ? null : _removeSystem),
           button(AppIcon.reset, 'Detect Page Again', _detectAgain),
         ];
       case _Step.instruments:
@@ -1625,11 +1818,16 @@ class _PdfImportState extends State<PdfImport> {
                   Positioned.fill(
                     child: MouseRegion(
                       cursor: _drag != null ? MouseCursor.defer : _cursorAt(_hover),
-                      // Only a new cursor draws again: the pointer's every move would build it all.
+                      // Only a new cursor or region under it draws again: the pointer's every move
+                      // would build it all.
                       onHover: (e) {
                         final before = _cursorAt(_hover);
                         _hover = e.localPosition;
-                        if (_cursorAt(_hover) != before) setState(() {});
+                        final hovered = _step == _Step.pages && _tool == _Tool.select && _ai == null ? _regionAt(_toPage(_hover)) : null;
+                        if (_cursorAt(_hover) != before || hovered != _hovered) setState(() => _hovered = hovered);
+                      },
+                      onExit: (_) {
+                        if (_hovered != null) setState(() => _hovered = null);
                       },
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
@@ -1648,6 +1846,9 @@ class _PdfImportState extends State<PdfImport> {
                             zoom: _zoom,
                             selection: _selection,
                             drawing: _drawing,
+                            drawingRegion: _step == _Step.pages,
+                            hovered: _drag == null ? _hovered : null,
+                            guides: _guides,
                             colors: context.colors,
                             colorOf: (id) => _colorOf(layout.instruments.indexWhere((i) => i.id == id)),
                             editing: _step == _Step.pages,
@@ -1867,6 +2068,13 @@ class _PdfImportState extends State<PdfImport> {
           const SizedBox(height: 10),
           OutlinedButton(onPressed: _remove, child: Text('Remove Barline'.tr)),
         ]);
+      case _RegionSelection():
+        out.addAll([
+          _heading(context, 'Region'),
+          OutlinedButton(onPressed: _remove, child: Text('Remove Region'.tr)),
+          const SizedBox(height: 10),
+          OutlinedButton(onPressed: _removeSystem, child: Text('Remove System'.tr)),
+        ]);
       case _BarSelection(:final system, :final segment):
         final bars = layout.barOfSegment[system];
         final bar = segment < bars.length ? bars[segment] : null;
@@ -1889,11 +2097,6 @@ class _PdfImportState extends State<PdfImport> {
             ),
             const SizedBox(height: 10),
           ],
-          if (_step == _Step.pages && selection.staff != null) ...[
-            OutlinedButton(onPressed: _removeStaff, child: Text('Remove Staff'.tr)),
-            const SizedBox(height: 10),
-          ],
-          if (_step == _Step.pages) OutlinedButton(onPressed: _remove, child: Text('Remove System'.tr)),
         ]);
       case _MaskSelection(:final mask):
         final m = layout.masks[mask];
@@ -1912,11 +2115,6 @@ class _PdfImportState extends State<PdfImport> {
           ),
           const SizedBox(height: 10),
           OutlinedButton(onPressed: _remove, child: Text('Remove Mask'.tr)),
-        ]);
-      case _GapSelection():
-        out.addAll([
-          _heading(context, 'Gap'),
-          OutlinedButton(onPressed: _remove, child: Text('Remove Gap'.tr)),
         ]);
       case null when _step == _Step.changes:
         out.addAll([
@@ -2575,9 +2773,9 @@ class _InstrumentFieldsState extends State<_InstrumentFields> {
   }
 }
 
-/// A page with what was found on it: the systems (dashed), the cuts between their staves with
-/// handles at the right (a gap's two edges, hatched between), each staff's band in its
-/// instrument's colour, the barlines, where the music starts, and the masks.
+/// A page with what was found on it: each staff's region in its instrument's colour (on Pages a
+/// box, outlined under the pointer, the one selected with a handle at each corner and side as an
+/// image on a canvas), the barlines, where the music starts and ends, and the masks.
 class _PagePainter extends CustomPainter {
   _PagePainter({
     required this.layout,
@@ -2586,15 +2784,27 @@ class _PagePainter extends CustomPainter {
     required this.zoom,
     required this.selection,
     required this.drawing,
+    required this.drawingRegion,
+    required this.hovered,
+    required this.guides,
     required this.colors,
     required this.colorOf,
     required this.editing,
     required this.focus,
   });
 
-  /// Whether what was found can be moved here (the pages' step): its edges' handles, where the
-  /// music starts and the barlines drawn to be grabbed.
+  /// Whether what was found can be moved here (the pages' step): the staves' regions, where the
+  /// music starts and ends and the barlines drawn to be grabbed.
   final bool editing;
+
+  /// Whether [drawing] is a region (else a mask).
+  final bool drawingRegion;
+
+  /// The region under the pointer (its system and staff), outlined.
+  final (int, int)? hovered;
+
+  /// The lines a region dragged has snapped to.
+  final List<(Offset, Offset)> guides;
 
   /// The instrument picked, its staves tinted the more.
   final String? focus;
@@ -2631,7 +2841,26 @@ class _PagePainter extends CustomPainter {
       final lane = switch (m.part) { final p? => layout.playerOf(p)?.$1.id, null => null };
       _mask(canvas, m.rect, px, selected: selected, lane: lane == null ? null : colorOf(lane));
     }
-    if (drawing case final rect?) _mask(canvas, rect, px, selected: true);
+    if (drawing case final rect?) {
+      if (drawingRegion) {
+        canvas.drawRect(rect, Paint()..color = colors.accent.withValues(alpha: 0.08));
+        final edge = Paint()
+          ..color = colors.accent
+          ..strokeWidth = 1.5 * px;
+        for (final (a, b) in [(rect.topLeft, rect.topRight), (rect.topRight, rect.bottomRight), (rect.bottomRight, rect.bottomLeft), (rect.bottomLeft, rect.topLeft)]) {
+          _dash(canvas, a, b, edge, px);
+        }
+      } else {
+        _mask(canvas, rect, px, selected: true);
+      }
+    }
+    // Where a region dragged lines up with the music's start or end, or another region.
+    final guide = Paint()
+      ..color = const Color(0xFFE5398F)
+      ..strokeWidth = px;
+    for (final (a, b) in guides) {
+      canvas.drawLine(a, b, guide);
+    }
   }
 
   /// A mask: grey, or one lane's tinted in its instrument's colour.
@@ -2655,38 +2884,31 @@ class _PagePainter extends CustomPainter {
   }
 
   void _system(Canvas canvas, int index, PdfSystem s, double px) {
-    final selectedSystem = switch (selection) {
-      _BarSelection(:final system) || _BarlineSelection(:final system) || _GapSelection(:final system) => system == index,
-      _ => false,
+    final picked = switch (selection) {
+      _RegionSelection(:final system, :final staff) when system == index && staff < s.staves.length => staff,
+      _ => -1,
     };
-    // Each staff's band, tinted in its instrument's colour (grey: no one's).
+    // Each staff's region, tinted in its instrument's colour (grey: no one's): where two overlap,
+    // the tints add up. On Pages each is a box, dashed.
     for (var k = 0; k < s.staves.length; k++) {
-      final (top, bottom) = s.bandOf(k);
+      final region = s.regionOf(k);
       final staff = s.staves[k];
       final color = staff.part == null ? const Color(0xFF9E9E9E) : colorOf(staff.part);
       final tint = focus == null ? 0.06 : (staff.part == focus ? 0.2 : 0.03);
-      canvas.drawRect(Rect.fromLTRB(s.left, top, s.right, bottom), Paint()..color = color.withValues(alpha: tint));
-      canvas.drawLine(Offset(s.left, staff.bottom + 1.5 * px), Offset(s.right, staff.bottom + 1.5 * px),
+      canvas.drawRect(region, Paint()..color = color.withValues(alpha: tint));
+      canvas.drawLine(Offset(region.left, staff.bottom + 1.5 * px), Offset(region.right, staff.bottom + 1.5 * px),
           Paint()
             ..color = color.withValues(alpha: 0.85)
             ..strokeWidth = 2.5 * px);
-    }
-    // The gaps, no one's: hatched.
-    for (final c in s.gaps.keys) {
-      final (top, bottom) = s.gapAfter(c) ?? (0.0, 0.0);
-      if (bottom <= top) continue;
-      final rect = Rect.fromLTRB(s.left, top, s.right, bottom);
-      final selected = selection == _GapSelection(index, c);
-      canvas.drawRect(rect, Paint()..color = (selected ? colors.accent : const Color(0xFF9E9E9E)).withValues(alpha: 0.12));
-      canvas.save();
-      canvas.clipRect(rect);
-      final hatch = Paint()
-        ..color = const Color(0x40000000)
-        ..strokeWidth = px;
-      for (var x = rect.left - rect.height; x < rect.right; x += 8 * px) {
-        canvas.drawLine(Offset(x, rect.bottom), Offset(x + rect.height, rect.top), hatch);
+      if (editing && k != picked) {
+        final edge = Paint()
+          ..color = color.withValues(alpha: 0.7)
+          ..strokeWidth = px;
+        final r = region;
+        for (final (a, b) in [(r.topLeft, r.topRight), (r.bottomLeft, r.bottomRight), (r.topLeft, r.bottomLeft), (r.topRight, r.bottomRight)]) {
+          _dash(canvas, a, b, edge, px);
+        }
       }
-      canvas.restore();
     }
     // The selected bar.
     if (selection case _BarSelection(:final system, :final segment) when system == index) {
@@ -2706,18 +2928,14 @@ class _PagePainter extends CustomPainter {
       }
       return;
     }
-    final dashed = Paint()
-      ..color = (selectedSystem ? colors.accent : const Color(0xFF3E63DD)).withValues(alpha: 0.8)
-      ..strokeWidth = px;
-    // Its top, the cuts and its bottom, with their handles at the right.
-    final edges = [
-      s.top,
-      for (var c = 0; c + 1 < s.staves.length; c++) ...[s.cutAfter(c), if (s.gapAfter(c) case (_, final bottom)) bottom],
-      s.bottom,
-    ];
-    for (final y in edges) {
-      _dash(canvas, Offset(s.left - 6 * px, y), Offset(s.right + 10 * px, y), dashed, px);
-      _handle(canvas, Offset(s.right + 10 * px, y), dashed.color, px);
+    // The region under the pointer, outlined as a canvas outlines what a click would pick.
+    if (hovered case (final system, final staff) when system == index && staff != picked && staff < s.staves.length) {
+      canvas.drawRect(
+          s.regionOf(staff),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5 * px
+            ..color = colors.accent.withValues(alpha: 0.6));
     }
     // Where the music starts, its handle above the top as the barlines'.
     final handleY = s.top - _PdfImportState._handleRise * px;
@@ -2734,7 +2952,7 @@ class _PagePainter extends CustomPainter {
           ..color = start
           ..strokeWidth = 1.5 * px);
     _handle(canvas, Offset(s.right, endY), start, px);
-    // The barlines.
+    // The barlines: the system's, through every staff.
     for (final (b, line) in s.barlines.indexed) {
       final selected = selection is _BarlineSelection &&
           (selection as _BarlineSelection).system == index &&
@@ -2749,6 +2967,37 @@ class _PagePainter extends CustomPainter {
             ..color = color.withValues(alpha: 0.5)
             ..strokeWidth = px);
       _handle(canvas, Offset(line.x, handleY), color, px, filled: line.kind != PdfBarlineKind.normal || selected);
+    }
+    // The region selected, over the rest, as a canvas shows an image selected: its box in the
+    // accent, a round handle at each corner and a bar at the middle of each side.
+    if (picked >= 0) {
+      final r = s.regionOf(picked);
+      canvas.drawRect(
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2 * px
+            ..color = colors.accent);
+      final fill = Paint()..color = const Color(0xFFFFFFFF);
+      final shadow = Paint()
+        ..color = const Color(0x40000000)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 1.5 * px);
+      final ring = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = px
+        ..color = const Color(0xFFB8B8B8);
+      for (final c in [r.topLeft, r.topRight, r.bottomLeft, r.bottomRight]) {
+        canvas.drawCircle(c + Offset(0, 0.5 * px), 5 * px, shadow);
+        canvas.drawCircle(c, 5 * px, fill);
+        canvas.drawCircle(c, 5 * px, ring);
+      }
+      for (final (c, across) in [(r.topCenter, true), (r.bottomCenter, true), (r.centerLeft, false), (r.centerRight, false)]) {
+        final bar = RRect.fromRectAndRadius(
+            Rect.fromCenter(center: c, width: (across ? 18 : 6) * px, height: (across ? 6 : 18) * px), Radius.circular(3 * px));
+        canvas.drawRRect(bar.shift(Offset(0, 0.5 * px)), shadow);
+        canvas.drawRRect(bar, fill);
+        canvas.drawRRect(bar, ring);
+      }
     }
   }
 
@@ -2780,6 +3029,9 @@ class _PagePainter extends CustomPainter {
       old.zoom != zoom ||
       old.selection != selection ||
       old.drawing != drawing ||
+      old.drawingRegion != drawingRegion ||
+      old.hovered != hovered ||
+      !listEquals(old.guides, guides) ||
       old.colors != colors ||
       old.editing != editing ||
       old.focus != focus;

@@ -26,7 +26,7 @@ abstract final class PdfText {
     for (final s in layout.systems) {
       final onPage = runs[s.page];
       if (onPage == null || onPage.isEmpty) continue;
-      // The instruments' staves in the system, each run of staves of one in one band.
+      // The instruments' staves in the system, each run of staves of one taken together.
       for (var k = 0; k < s.staves.length;) {
         final part = s.staves[k].part;
         var end = k + 1;
@@ -36,9 +36,9 @@ abstract final class PdfText {
         final instrument = layout.instrument(part);
         if (instrument != null && !instrument.blank) {
           // Level with its staves, give or take a space and a half: not a line of text above the
-          // system (an epigraph) that its band reaches up to.
-          final top = math.max(s.bandOf(k).$1, s.staves[k].top - s.space * 1.5);
-          final bottom = math.min(s.bandOf(end - 1).$2, s.staves[end - 1].bottom + s.space * 1.5);
+          // system (an epigraph) that its region reaches up to.
+          final top = math.max(s.staves[k].regionTop, s.staves[k].top - s.space * 1.5);
+          final bottom = math.min(s.staves[end - 1].regionBottom, s.staves[end - 1].bottom + s.space * 1.5);
           var name = _beside(onPage, top, bottom, s.left - s.space * 0.3);
           // A system's first bar number may stand above its first staff, read with the name.
           if (k == 0) name = name.replaceFirst(RegExp(r'^(?:\d+\s+)+(?=\D)'), '');

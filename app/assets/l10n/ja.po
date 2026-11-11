@@ -3098,12 +3098,8 @@ msgstr "楽器を削除"
 msgid "Remove Mask"
 msgstr "マスクを削除"
 
-msgid "Gap"
-msgstr "ギャップ"
-
-#: lib/pdf_import.dart
-msgid "Remove Gap"
-msgstr "ギャップを削除"
+msgid "Region"
+msgstr "領域"
 
 #: lib/pdf_import_changes.dart
 msgid "Concert"
@@ -3340,8 +3336,8 @@ msgstr "段を削除（⌫）"
 msgid "Remove Barline (⌫)"
 msgstr "小節線を削除（⌫）"
 
-msgid "Remove Gap (⌫)"
-msgstr "ギャップを削除（⌫）"
+msgid "Remove Region (⌫)"
+msgstr "領域を削除（⌫）"
 
 msgid "Remove Mask (⌫)"
 msgstr "マスクを削除（⌫）"
@@ -3369,12 +3365,12 @@ msgstr "このページにはありません"
 msgid "Add Barline (B)"
 msgstr "小節線を追加（B）"
 
-msgid "Add Staff (S)"
-msgstr "譜表を追加（S）"
+msgid "Draw Region (R)"
+msgstr "領域を描く（R）"
 
 #: lib/pdf_import.dart
-msgid "Remove Staff"
-msgstr "譜表を削除"
+msgid "Remove Region"
+msgstr "領域を削除"
 
 #: lib/condensing_editor.dart
 msgctxt "condensing"

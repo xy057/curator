@@ -273,7 +273,7 @@ enum AppIcon {
   /// Adds a barline. Refined: splitscreen_vertical_add; Carbon: column--insert.
   addBarline(IconData(0xE058, fontFamily: _refined), IconData(0xE058, fontFamily: _carbon)),
 
-  /// Adds a staff. Refined: add_row_below; Carbon: row--insert.
+  /// Draws a staff's region (Draw Region). Refined: add_row_below; Carbon: row--insert.
   addStaff(IconData(0xE059, fontFamily: _refined), IconData(0xE059, fontFamily: _carbon)),
 
   /// Chapters. Refined: bookmark; Carbon: bookmark.

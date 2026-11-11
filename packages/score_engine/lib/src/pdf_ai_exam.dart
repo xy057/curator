@@ -51,7 +51,7 @@ class PdfAiExamPage {
   final bool first;
 
   /// Its system as the question shows it: each staff numbered ([PdfAi.labels]).
-  PdfSystem get system => PdfSystem(
+  PdfSystem get system => PdfSystem.cut(
         page: index,
         top: top.$1,
         bottom: bottom.$2,
