@@ -2168,19 +2168,18 @@ class EditableScore {
         _commit(where.part, where.measure, content);
         _removeStop(where.part, where.measure, (e) => e.name.local == 'slur' && e.getAttribute('type') == 'stop' && (e.getAttribute('number') ?? '1') == number,
             after: _timeOfNote(content, note));
-      case 'wedge':
-        final number = found.getAttribute('number') ?? '1';
-        final direction = found.ancestors.whereType<XmlElement>().firstWhere((a) => a.name.local == 'direction');
-        final time = content.others.firstWhere((o) => o.element == direction).time;
-        content.others.removeWhere((o) => o.element == direction);
-        _commit(where.part, where.measure, content);
-        _removeStop(where.part, where.measure, (e) => e.name.local == 'wedge' && e.getAttribute('type') == 'stop' && (e.getAttribute('number') ?? '1') == number,
-            after: time, whole: true);
       default:
+        // A direction, or what one says (a dynamic, a hairpin's start): it goes, and with it the
+        // ends of the lines it starts (a hairpin's: its own, not that of one that ends here).
         final direction = found.name.local == 'direction' ? found : found.ancestors.whereType<XmlElement>().where((a) => a.name.local == 'direction').firstOrNull;
-        if (direction == null) return;
+        final own = direction?.getAttribute('id'), placed = own == null ? null : _directionOf(own);
+        if (direction == null || placed == null) return;
+        final ends = _endsOf(placed.other.element, _placeOf(placed));
         content.others.removeWhere((o) => o.element == direction);
         _commit(where.part, where.measure, content);
+        for (final end in ends) {
+          _lift(end.id, end: (end.name, end.number));
+        }
     }
   }
 
@@ -2192,8 +2191,8 @@ class EditableScore {
   }
 
   /// Takes out the first element [matches] after [after] in bar [m] of [part] or the bars after
-  /// (the end of a slur or hairpin); [whole]: its direction with it.
-  void _removeStop(int part, int m, bool Function(XmlElement) matches, {required Frac after, bool whole = false}) {
+  /// (the end of a slur: on a later note than its start, so not one that ends on that note).
+  void _removeStop(int part, int m, bool Function(XmlElement) matches, {required Frac after}) {
     for (var i = m; i < measureCount && i < m + 64; i++) {
       final view = _view(part, i);
       final candidates = <(Frac, XmlElement)>[
@@ -2206,17 +2205,13 @@ class EditableScore {
               if (matches(d)) (e.start, d),
       ]..sort((a, b) => a.$1.compareTo(b.$1));
       for (final (t, _) in candidates) {
-        if (i == m && t < after) continue;
+        if (i == m && t <= after) continue;
         final content = _mutable(part, i);
         for (final o in [...content.others]) {
           if (o.time != t) continue;
           final d = o.element.descendantElements.where(matches).firstOrNull;
           if (d == null) continue;
-          if (whole) {
-            content.others.remove(o);
-          } else {
-            d.remove();
-          }
+          d.remove();
           _commit(part, i, content);
           return;
         }

@@ -317,6 +317,44 @@ void main() {
     expect(score.markingsOf([f]).single.at.staff, 2);
   });
 
+  test('a hairpin or a slur deleted takes its own end with it, not that of the one that ends where it starts', () {
+    const voice = VoiceKey(1, '1');
+    ScorePosition at(Frac t) => ScorePosition(0, voice, 0, t);
+    EditableScore fresh() => EditableScore.parse(_flute)..input(at(Frac.zero), [for (var i = 0; i < 4; i++) InputItem(const Rhythm(NoteType.quarter), [Pitch(i, 5)])]);
+    // Notes (n), and where hairpins and slurs start and end, as written.
+    String written(EditableScore score) => RegExp(r'<(wedge|slur) type="(\w+)"|<note')
+        .allMatches(score.toMusicXML().split('<measure').elementAt(1))
+        .map((m) => m.group(1) == null ? 'n' : '${m.group(1)} ${m.group(2)}')
+        .join(', ');
+
+    // The second of two hairpins that meet, by its own id (a click on it) and by every id it has
+    // (⌘A): the first is left whole, and no end is left behind.
+    for (final all in [false, true]) {
+      final score = fresh();
+      score.addHairpin(at(Frac.zero), at(Frac(2)), crescendo: true);
+      score.addHairpin(at(Frac(2)), at(Frac(3)), crescendo: false);
+      expect(written(score), 'wedge crescendo, n, n, wedge stop, wedge diminuendo, n, wedge stop, n');
+      final second = score.markingsOf(score.ids).firstWhere((m) => m.at.time == Frac(2)).id;
+      final wedge = score.ids.firstWhere((id) => id != second && score.markingsOf([id]).firstOrNull?.id == second);
+      score.delete(all ? [second, wedge] : [wedge]);
+      expect(written(score), 'wedge crescendo, n, n, wedge stop, n, n', reason: all ? 'every id' : 'its own id');
+      score.undo();
+      // The first: the second is left whole.
+      final first = score.markingsOf(score.ids).firstWhere((m) => m.at.time == Frac.zero).id;
+      score.delete([first]);
+      expect(written(score), 'n, n, wedge diminuendo, n, wedge stop, n');
+    }
+
+    // Two slurs that meet on a note: the second taken off, the first still ends there.
+    final score = fresh();
+    final notes = [for (final e in score.eventsIn(0, 0, voice)) e.ids.single];
+    score.toggleSlur([notes[0], notes[1]]);
+    score.toggleSlur([notes[1], notes[2]]);
+    expect(written(score), 'n, slur start, n, slur stop, slur start, n, slur stop, n');
+    score.toggleSlur([notes[1], notes[2]]);
+    expect(written(score), 'n, slur start, n, slur stop, n, n');
+  });
+
   test('chunks side by side draw what one engraving of the whole score does, each thing once', () async {
     final score = EditableScore.parse(_fluteOf(12));
     const voice = VoiceKey(1, '1');
