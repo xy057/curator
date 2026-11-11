@@ -154,4 +154,53 @@ void main() {
     expect(added.regionOf(0), rectMoreOrLessEquals(drawn, epsilon: 0.5));
     expect([added.left, added.right], [closeTo(drawn.left, 0.5), closeTo(drawn.right, 0.5)]);
   });
+
+  testWidgets('Detect Page Again finds the page it was asked on, though another is turned to meanwhile', (tester) async {
+    await tester.runAsync(loadTestFonts);
+    desktopWindow(tester);
+    final pages = (await tester.runAsync(() async => PdfPages.open(await File('assets/exam/pdf-ai-exam.pdf').readAsBytes())))!;
+    addTearDown(pages.close);
+    final printed = (await tester.runAsync(() => pages.detectAgain(0, const [])))!;
+    // A staff made up on each of the two pages.
+    PdfSystem made(int page) => PdfSystem.cut(
+        page: page, top: 80, bottom: 150, left: 100, right: 420, //
+        staves: const [PdfStaff(top: 100, space: 6, part: 'P1')], barlines: const [PdfBarline(420)]);
+    final layout =
+        PdfScoreLayout(pages: pages.sizes, instruments: const [PdfInstrument(id: 'P1', name: 'Flute')], systems: [made(0), made(1)]);
+    PdfScoreLayout? done;
+    await tester.pumpWidget(MaterialApp(
+      theme: AppColors.theme(),
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => TextButton(
+              onPressed: () async => done = await showPdfImport(context, pages, name: 'Exam.pdf', layout: layout), child: const Text('Open')),
+        ),
+      ),
+    ));
+    Future<void> settle() async {
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+    }
+
+    await tester.tap(find.text('Open'));
+    await settle();
+    // Asked on the first page, the second turned to before it is found.
+    await tester.tap(find.byTooltip('Detect Page Again'));
+    await tester.tap(find.byTooltip('Next Page'));
+    for (var i = 0; i < 40; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 25)));
+      await tester.pump();
+    }
+    await tester.tap(find.text('Review'));
+    await settle();
+    await tester.tap(find.text('Done'));
+    for (var i = 0; i < 400 && done == null; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 25)));
+      await tester.pump();
+    }
+    // The first page as printed, the second as it was.
+    expect([for (final s in done!.systems) if (s.page == 0) s.staves.length], [for (final s in printed) s.staves.length]);
+    expect([for (final s in done!.systems) if (s.page == 1) s.copyWith(ink: () => null)], [made(1)]);
+  });
 }

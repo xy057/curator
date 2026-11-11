@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -123,7 +124,7 @@ class AiProvider {
       id: id,
       name: name,
       // A built-in one speaks its own format, whatever was saved.
-      format: builtIn?.format ?? AiFormat.named(json['format'] as String?),
+      format: builtIn?.format ?? AiFormat.named(switch (json['format']) { final String name => name, _ => null }),
       enabled: json['enabled'] == true,
       apiKey: text('apiKey'),
       baseUrl: text('baseUrl'),
@@ -202,10 +203,20 @@ class AiError implements Exception {
 /// Talks to one [provider]'s API: its model list ([models]) and a one-word request to a model
 /// ([test]). The key goes only to the provider's own base URL: redirects are not followed.
 class AiClient {
-  AiClient(this.provider, {this.timeout = const Duration(seconds: 30)});
+  AiClient(this.provider, {this.timeout = const Duration(seconds: 30), this.mostBytes = 32 << 20});
 
   final AiProvider provider;
+
+  /// How long a server may take to answer (a model reading a page: minutes).
   final Duration timeout;
+
+  /// The most a server may answer, bytes: a model list or an answer about a page is far under
+  /// it. Past it the request is ended: an address that is no API's (a file's, a stream's) isn't
+  /// read whole into memory.
+  final int mostBytes;
+
+  /// Reaching a server takes seconds, however long its answer may.
+  static const _connecting = Duration(seconds: 30);
 
   /// The base URL as typed, without a trailing slash; an error when it isn't an http(s) URL.
   Uri _base() {
@@ -224,8 +235,11 @@ class AiClient {
     return base.replace(path: '${base.path}$rest', queryParameters: query == null ? null : {...base.queryParameters, ...query});
   }
 
+  /// The key, where the provider's API wants it; an error when it can't go in a header (which
+  /// holds printable ASCII), in words that don't repeat the key, as dart:io's do.
   Map<String, String> get _headers {
     final key = provider.apiKey.trim();
+    if (key.codeUnits.any((c) => c < 0x20 || c > 0x7e)) throw AiError('The API key has invalid characters.'.tr);
     return switch (provider.format) {
       AiFormat.openai => {if (key.isNotEmpty) 'Authorization': 'Bearer $key'},
       AiFormat.anthropic => {if (key.isNotEmpty) 'x-api-key': key, 'anthropic-version': '2023-06-01'},
@@ -255,13 +269,13 @@ class AiClient {
               (final String name, null) => name.replaceFirst(RegExp('^models/'), ''),
               _ => null,
             },
-          _ => m['id'] as String?,
+          _ => switch (m['id']) { final String id => id, _ => null },
         };
         if (id != null && id.isNotEmpty && !ids.contains(id)) ids.add(id);
       }
-      after = switch (provider.format) {
-        AiFormat.anthropic when json['has_more'] == true => json['last_id'] as String?,
-        AiFormat.gemini => json['nextPageToken'] as String?,
+      after = switch ((provider.format, json['last_id'], json['nextPageToken'])) {
+        (AiFormat.anthropic, final String last, _) when json['has_more'] == true => last,
+        (AiFormat.gemini, _, final String next) => next,
         _ => null,
       };
       if (after == null || after.isEmpty) break;
@@ -397,21 +411,28 @@ class AiClient {
 
   /// The JSON a request answers with; an [AiError] with the server's message when it refuses.
   Future<Object?> _send(String method, Uri uri, [Object? body]) async {
+    final headers = _headers; // before anything is opened: a key that can't be sent
     final client = HttpClient()
-      ..connectionTimeout = timeout
+      ..connectionTimeout = timeout < _connecting ? timeout : _connecting
       ..userAgent = 'Curator/$appVersion';
     _open.add(client);
     try {
       final request = await client.openUrl(method, uri).timeout(timeout);
       request.followRedirects = false; // the key stays with this server
-      _headers.forEach(request.headers.set);
+      headers.forEach(request.headers.set);
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       if (body != null) {
         request.headers.contentType = ContentType.json;
         request.add(utf8.encode(jsonEncode(body)));
       }
       final response = await request.close().timeout(timeout);
-      final text = await response.transform(utf8.decoder).join().timeout(timeout);
+      final bytes = BytesBuilder(copy: false);
+      await response.forEach((chunk) {
+        bytes.add(chunk);
+        if (bytes.length > mostBytes) throw AiError('The server’s answer is too long.'.tr);
+      }).timeout(timeout);
+      // (Bytes that are no UTF-8 are no JSON either: said below, not as a decoder's error.)
+      final text = const Utf8Decoder(allowMalformed: true).convert(bytes.takeBytes());
       Object? json;
       try {
         json = text.isEmpty ? null : jsonDecode(text);
@@ -430,8 +451,9 @@ class AiClient {
       throw AiError('The server didn’t answer in time.'.tr);
     } on SocketException catch (e) {
       throw AiError(e.osError?.message.isNotEmpty == true ? e.osError!.message : e.message);
-    } on HandshakeException catch (e) {
-      throw AiError(e.message);
+    } on TlsException catch (e) {
+      // A handshake refused, or a certificate that isn't the server's.
+      throw AiError(e.message.isNotEmpty ? e.message : '$e');
     } on HttpException catch (e) {
       throw AiError(e.message);
     } finally {

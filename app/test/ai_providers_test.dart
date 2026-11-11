@@ -20,6 +20,10 @@ void main() {
     final read = AiProvider.read(saved);
     expect(read.take(2), [AiProvider.builtIns.first.copyWith(enabled: true, apiKey: 'sk'), mine]);
     expect(read.length, 6);
+    // What isn't as written is passed over, not an error that stops the settings being read.
+    final odd = AiProvider.read('[{"id": "x", "name": "X", "format": 5, "enabled": "yes", "apiKey": 7, "models": {"a": 1}}, {"id": 3}, 4]');
+    expect(odd.first, const AiProvider(id: 'x', name: 'X', format: AiFormat.openai, baseUrl: ''));
+    expect(odd.length, 6);
 
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final heard = <String>[];
@@ -29,7 +33,7 @@ void main() {
       final sent = await utf8.decoder.bind(request).join();
       final r = request.response..headers.contentType = ContentType.json;
       final body = switch (request.uri.path) {
-        '/o/models' => {'data': [{'id': 'gpt-a'}, {'id': 'gpt-b'}]},
+        '/o/models' => {'data': [{'id': 'gpt-a'}, {'id': 7}, {'id': 'gpt-b'}], 'last_id': 9, 'nextPageToken': 9},
         '/a/models' when request.uri.queryParameters['after_id'] == null => {'data': [{'id': 'c-1'}], 'has_more': true, 'last_id': 'c-1'},
         '/a/models' => {'data': [{'id': 'c-2'}], 'has_more': false},
         '/g/models' => {
@@ -63,7 +67,7 @@ void main() {
               },
             ],
           },
-        '/away/models' => null,
+        '/away/models' || '/raw/models' => null,
         _ => {'error': {'message': 'Incorrect API key provided.'}},
       };
       if (request.uri.path == '/away/models') {
@@ -72,6 +76,7 @@ void main() {
       } else if (request.uri.path.startsWith('/bad')) {
         r.statusCode = 401;
       }
+      if (request.uri.path == '/raw/models') r.add([0x7b, 0xff, 0xfe, 0x7d]); // no UTF-8
       if (body != null) r.write(jsonEncode(body));
       await r.close();
     });
@@ -101,5 +106,18 @@ void main() {
     await expectLater(AiClient(at('away', AiFormat.openai)).models(), throwsA(isA<AiError>().having((e) => e.status, 'status', 302)));
     expect(heard.where((h) => h.contains('steal')), isEmpty);
     await expectLater(AiClient(at('o', AiFormat.openai).copyWith(baseUrl: 'api.openai.com')).models(), throwsA(isA<AiError>()));
+    // An answer that is no text at all isn't JSON, said as every such answer is.
+    await expectLater(AiClient(at('raw', AiFormat.openai)).models(), throwsA(isA<AiError>()));
+    // An answer past the most one may be is ended there.
+    await expectLater(AiClient(at('o', AiFormat.openai), mostBytes: 20).models(),
+        throwsA(isA<AiError>().having((e) => e.status, 'status', isNull)));
+    // A key no header can hold is said to be one, without repeating it, and nothing is asked.
+    final asked = heard.length;
+    for (final key in ['sk-密钥', 'sk-a\nb', 'sk-“quoted”']) {
+      await expectLater(
+          AiClient(at('o', AiFormat.openai).copyWith(apiKey: key)).models(),
+          throwsA(isA<AiError>().having((e) => '$e', 'text', allOf(contains('API key'), isNot(contains('sk-'))))));
+    }
+    expect(heard.length, asked);
   });
 }

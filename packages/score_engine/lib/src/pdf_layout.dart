@@ -315,19 +315,21 @@ class PdfStaff {
       part: _textOrNull(json, 'part'),
       staff: (_numberOrNull(json, 'staff')?.toInt() ?? 1).clamp(1, 4),
     );
+    // A place on a page, as [_number] takes one: a region of no size a page has is damage (it is
+    // what is drawn of the page).
     double? side(Object? x) => switch (x) {
           null => null,
-          final num n when n.isFinite => n.toDouble(),
+          final num n when n.isFinite && n.abs() < 1e6 => n.toDouble(),
           _ => throw _bad('region'),
         };
     return switch (json['region']) {
       null => staff,
-      [final l, final num t, final r, final num b] when t.isFinite && b.isFinite => () {
+      [final l, final Object t, final r, final Object b] => () {
           var (left, right) = (side(l), side(r));
           if (left != null && right != null && right <= left) (left, right) = (null, null);
           return staff.copyWith(
-            regionTop: math.min(t.toDouble(), staff.top),
-            regionBottom: math.max(b.toDouble(), staff.bottom),
+            regionTop: math.min(side(t)!, staff.top),
+            regionBottom: math.max(side(b)!, staff.bottom),
             regionLeft: () => left,
             regionRight: () => right,
           );

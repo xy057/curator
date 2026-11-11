@@ -195,9 +195,9 @@ class PdfAiPage {
 
   static Iterable<Map> _maps(Object? v) => v is List ? v.whereType<Map>() : const [];
 
-  static double? _num(Object? v) => switch (v) {
+  /// A number, or one written as text ("152"); not "NaN" or "Infinity", which read as numbers too.
+  static double? _num(Object? v) => switch (v is String ? double.tryParse(v.trim()) : v) {
         final num n when n.isFinite => n.toDouble(),
-        final String s => double.tryParse(s.trim()),
         _ => null,
       };
 
@@ -432,12 +432,21 @@ Answer with one JSON object and nothing else, like this:
       }
       above = bottom;
 
-      // Its barlines: those the answer gives, on the page's.
-      final lines = [
+      // Its barlines: those the answer gives, on the page's. Of two systems found apart and now
+      // one, each has the line through both: one of the two, the one that says more than a plain
+      // one (a bar a hair wide between them would be counted as a bar).
+      final lines = <PdfBarline>[];
+      for (final b in [
         for (final i in from)
           for (final b in systems[i].barlines)
             if (b.x > left - space && b.x <= right + space) b,
-      ]..sort((a, b) => a.x.compareTo(b.x));
+      ]..sort((a, b) => a.x.compareTo(b.x))) {
+        if (from.length > 1 && lines.isNotEmpty && b.x - lines.last.x < space) {
+          if (lines.last.kind == PdfBarlineKind.normal) lines.last = lines.last.copyWith(kind: b.kind);
+        } else {
+          lines.add(b);
+        }
+      }
       final (barlines, starts) = switch (said?.barlines) {
         final given? when given.isNotEmpty => _barlines(raster, staves, given, lines, left: left, right: right, space: space, view: view),
         _ => (lines, [left, for (final b in lines) if (b.x >= left + space * 0.5) b.x]),
@@ -574,6 +583,10 @@ Answer with one JSON object and nothing else, like this:
       for (final b in given)
         if (view.x(b.x) case final x when x > left - space * 8 && x < right + space * 8) (x: x, kind: b.kind),
     ]..sort((a, b) => a.x.compareTo(b.x));
+    final asFound = (found, [left, for (final b in found) if (b.x >= left + space * 0.5) b.x]);
+    // None of them anywhere near the system: it says nothing of these (a lone staff would
+    // otherwise lose every barline found, as ones it left out).
+    if (said.isEmpty) return asFound;
     final reach = math.max(space * 6, (right - left) * 0.06);
     // The cheapest alignment in order: a pair costs how far apart they are, one alone the reach.
     final n = said.length, m = found.length;
@@ -606,7 +619,7 @@ Answer with one JSON object and nothing else, like this:
     }
     // Too few of them paired: its barlines aren't the page's (its bars counted as those found).
     final paired = pair.whereType<int>().length;
-    if (m > 0 && paired < (math.min(n, m) / 2).ceil()) return (found, [left, for (final b in found) if (b.x >= left + space * 0.5) b.x]);
+    if (m > 0 && paired < (math.min(n, m) / 2).ceil()) return asFound;
     // How far off the answer's places are, as the pairs say.
     final offsets = [
       for (var i = 0; i < n; i++)
@@ -727,9 +740,11 @@ Answer with one JSON object and nothing else, like this:
         staves[k] = staves[k].copyWith(part: () => i.id, staff: n);
         if (i.staves == 1 && n > 1) divisi.update(i.id, (d) => math.max(d, n), ifAbsent: () => n);
         if (t.name.isNotEmpty) names.putIfAbsent(i.id, () => t.name);
-        final printed = t.printed;
-        if (printed.isNotEmpty && !RegExp(r'^[\d\s.]+$').hasMatch(printed) && printed.toLowerCase() != (names[i.id] ?? '').toLowerCase()) {
-          abbreviations.putIfAbsent(i.id, () => printed);
+        // What is printed beside it, unless that is its name (the page they are named from prints
+        // "Flauti." beside the staff it calls "Flauti": the next page's "Fl." is the abbreviation).
+        final printed = _loose(t.printed);
+        if (printed.isNotEmpty && !RegExp(r'^\d+$').hasMatch(printed) && printed != _loose(names[i.id] ?? '') && printed != _loose(i.name)) {
+          abbreviations.putIfAbsent(i.id, () => t.printed);
         }
       }
       systems[at] = s.copyWith(staves: staves);

@@ -945,9 +945,10 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.tr)));
   }
 
-  /// The model the PDF import's Read with AI asks, and how one is chosen when there is none:
-  /// neither while AI is hidden ([AppSettings.aiHidden]), and the import has no Read with AI.
-  AiModel? get _pdfAi => settings.aiHidden ? null : settings.pdfAi;
+  /// The model the PDF import's Read with AI asks (as Settings has it when it reads: Settings can
+  /// be opened over the import), and how one is chosen when there is none: neither while AI is
+  /// hidden ([AppSettings.aiHidden]), and the import has no Read with AI.
+  AiModel? Function()? get _pdfAi => settings.aiHidden ? null : () => settings.pdfAi;
   Future<AiModel?> Function()? get _choosePdfAi => settings.aiHidden ? null : () => showPdfAiModelDialog(context, settings);
 
   /// A PDF score: read and set out in the PDF import ([showPdfImport]), then a new project of

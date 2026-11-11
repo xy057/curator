@@ -27,9 +27,10 @@ import 'ui_kit.dart';
 /// only place the PDF is worked on (the score shows it as printed, cut along what is set here).
 /// [layout] is the one to edit; none: the PDF is read first ([PdfPages.read]). Returns the
 /// layout, each system's bars measured ([PdfPages.measure]); null when cancelled. With [ai] (Settings
-/// ▸ General ▸ AI for PDF import), Read with AI reads the pages with that model ([PdfAiReader]).
+/// ▸ General ▸ AI for PDF import, as it is when asked), Read with AI reads the pages with that
+/// model ([PdfAiReader]).
 Future<PdfScoreLayout?> showPdfImport(BuildContext context, PdfPages pages,
-        {required String name, PdfScoreLayout? layout, AiModel? ai, Future<AiModel?> Function()? chooseAi}) =>
+        {required String name, PdfScoreLayout? layout, AiModel? Function()? ai, Future<AiModel?> Function()? chooseAi}) =>
     Navigator.of(context, rootNavigator: true).push<PdfScoreLayout>(PageRouteBuilder(
       opaque: true,
       transitionDuration: motion(context, 200),
@@ -149,8 +150,10 @@ class PdfImport extends StatefulWidget {
   final String name;
   final PdfScoreLayout? layout;
 
-  /// The model Read with AI asks; none: [chooseAi] asks for one first.
-  final AiModel? ai;
+  /// The model Read with AI asks, as Settings has it now: asked each time it reads, as Settings
+  /// can be opened over the import (a key put right there, another model chosen). Giving none:
+  /// [chooseAi] asks for one first.
+  final AiModel? Function()? ai;
 
   /// Asks for a model to read with ([showPdfAiModelDialog]): the one chosen, or null.
   final Future<AiModel?> Function()? chooseAi;
@@ -185,8 +188,11 @@ class _PdfImportState extends State<PdfImport> {
   /// Reading the pages with AI ([_readWithAi]): nothing is edited meanwhile.
   PdfAiReader? _ai;
 
-  /// The model Read with AI asks: the one given, or the one chosen when there was none.
-  late AiModel? _model = widget.ai;
+  /// The model chosen here ([PdfImport.chooseAi]), where Settings' isn't given ([PdfImport.ai]).
+  AiModel? _chosen;
+
+  /// The model Read with AI asks: Settings' as it is now, else the one chosen here.
+  AiModel? get _model => switch (widget.ai) { final ai? => ai(), null => _chosen };
 
   /// Pages read with AI so far, and of how many.
   int _aiDone = 0, _aiOf = 0;
@@ -398,12 +404,12 @@ class _PdfImportState extends State<PdfImport> {
   /// asked for first ([PdfImport.chooseAi]).
   Future<void> _readWithAi() async {
     if (_layout == null || _busy) return;
-    if (_model == null) {
-      final chosen = await widget.chooseAi?.call();
-      if (!mounted || chosen == null || _busy) return;
-      setState(() => _model = chosen);
+    var model = _model;
+    if (model == null) {
+      model = await widget.chooseAi?.call();
+      if (!mounted || model == null || _busy) return;
+      _chosen = model;
     }
-    final model = _model!;
     final reader = PdfAiReader(pages, model);
     setState(() {
       _ai = reader;
@@ -608,10 +614,14 @@ class _PdfImportState extends State<PdfImport> {
     }
   }
 
+  /// The page showing found again, as when the PDF was first read, in place of what it had. The
+  /// page asked for, though another is turned to meanwhile; not once measuring or reading with AI
+  /// has begun (they work on the systems as they were).
   Future<void> _detectAgain() async {
-    final found = await pages.detectAgain(_page, [for (final i in layout.instruments) if (!i.blank) i]);
-    if (!mounted) return;
-    final systems = [...layout.systems.where((s) => s.page < _page), ...found, ...layout.systems.where((s) => s.page > _page)];
+    final page = _page;
+    final found = await pages.detectAgain(page, [for (final i in layout.instruments) if (!i.blank) i]);
+    if (!mounted || _busy) return;
+    final systems = [...layout.systems.where((s) => s.page < page), ...found, ...layout.systems.where((s) => s.page > page)];
     _edit(layout.copyWith(systems: systems));
     setState(() => _selection = null);
   }

@@ -369,10 +369,14 @@ class _ProviderPaneState extends State<_ProviderPane> {
   @override
   void didUpdateWidget(_ProviderPane old) {
     super.didUpdateWidget(old);
-    // Changed elsewhere (Edit Provider…'s format): the fields follow.
-    if (_base.text != _p.baseUrl) _base.text = _p.baseUrl;
-    if (_path.text != _p.path) _path.text = _p.path;
-    if (_key.text != _p.apiKey) _key.text = _p.apiKey;
+    // Changed elsewhere (Edit Provider…'s format): the fields follow. What is typed stays as
+    // typed: a space at its end isn't kept with the provider, but taken from the field it would
+    // take the caret with it.
+    if (_base.text.trim() != _p.baseUrl) _base.text = _p.baseUrl;
+    if (_path.text.trim() != _p.path) _path.text = _p.path;
+    if (_key.text.trim() != _p.apiKey) _key.text = _p.apiKey;
+    // What Test found was of the key and the address as they were.
+    if (!_sameServer(old.provider, _p)) _tested = null;
     _picked.retainAll(_p.models);
   }
 
@@ -404,9 +408,10 @@ class _ProviderPaneState extends State<_ProviderPane> {
       _testing = true;
       _tested = null;
     });
+    final asked = _p;
     _TestResult result;
     try {
-      await AiClient(_p).test(model);
+      await AiClient(asked).test(model);
       result = (ok: true, message: 'Connected'.tr);
     } catch (e) {
       result = (ok: false, message: _errorText(e));
@@ -414,9 +419,13 @@ class _ProviderPaneState extends State<_ProviderPane> {
     if (!mounted) return;
     setState(() {
       _testing = false;
-      _tested = result;
+      _tested = _sameServer(asked, _p) ? result : null; // not of a key changed meanwhile
     });
   }
+
+  /// Whether [a] and [b] are asked alike: the same key, at the same address, in the same format.
+  static bool _sameServer(AiProvider a, AiProvider b) =>
+      a.format == b.format && a.apiKey == b.apiKey && a.baseUrl == b.baseUrl && a.path == b.path;
 
   Future<void> _fetch() async {
     setState(() => _fetching = true);

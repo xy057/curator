@@ -185,6 +185,81 @@ void main() {
     expect(next.systems.single.ink, isNull);
   });
 
+  test('an instrument’s abbreviation is what a later page prints, not its name with a full stop', () {
+    final page = _page();
+    final view = PdfAiView(const ui.Size(240, 120));
+    String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
+    final systems = [
+      for (var p = 0; p < 2; p++)
+        () {
+          final found = PdfDetect.page(page, p).single;
+          return found.copyWith(staves: [found.staves[0].copyWith(part: () => 'P1'), found.staves[1].copyWith(part: () => 'P2')]);
+        }(),
+    ];
+    final layout = PdfScoreLayout(
+      pages: const [ui.Size(240, 120), ui.Size(240, 120)],
+      instruments: const [PdfInstrument(id: 'P1', name: 'Staff 1'), PdfInstrument(id: 'P2', name: 'Oboi')],
+      systems: systems,
+    );
+    PdfAiPage answer(String first, String second) => PdfAiPage.parse('{"systems": [{"staves": ['
+        '{"label": 1, "y": ${y(28)}, "instrument": "P1", "name": "Flauti", "printed": "$first"}, '
+        '{"label": 2, "y": ${y(68)}, "instrument": "P2", "name": "", "printed": "$second"}]}]}');
+    // The page they are named from prints the names in full; the next, their abbreviations.
+    final read = [
+      for (final (p, a) in [answer('Flauti.', 'OBOI.'), answer('Fl.', 'Ob.')].indexed)
+        (page: p, answer: a, systems: PdfAi.refine(page, [systems[p]], a, view)),
+    ];
+    final next = PdfAi.apply(layout, read);
+    expect([for (final i in next.instruments) (i.name, i.abbreviation)], [('Flauti', 'Fl.'), ('Oboi', 'Ob.')]);
+  });
+
+  test('two systems found apart that an AI model says are one have each barline once', () {
+    final page = _page();
+    final view = PdfAiView(const ui.Size(240, 120));
+    String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
+    // Found as two systems of a staff each, the lower one's barlines a hair to the right.
+    final found = PdfDetect.page(page, 0).single;
+    final upper = found.copyWith(staves: [found.staves[0]]);
+    final lower = found.copyWith(
+        staves: [found.staves[1]], barlines: [for (final b in found.barlines) b.copyWith(x: b.x + 0.7, kind: PdfBarlineKind.end)]);
+    // One system, it says, and nothing of its barlines.
+    final answer = PdfAiPage.parse('{"systems": [{"staves": [{"label": 1, "y": ${y(28)}}, {"label": 2, "y": ${y(68)}}]}]}');
+    final refined = PdfAi.refine(page, [upper, lower], answer, view).single;
+    expect(refined.system.staves, hasLength(2));
+    expect([for (final b in refined.system.barlines) b.x], [for (final b in found.barlines) b.x]);
+    expect({for (final b in refined.system.barlines) b.kind}, {PdfBarlineKind.end});
+    expect(refined.system.segments, hasLength(found.segments.length));
+    expect(refined.starts, [found.left, for (final b in found.barlines) b.x]);
+  });
+
+  test('a lone staff keeps its barlines when an AI model’s are nowhere near it', () {
+    final page = _page();
+    final view = PdfAiView(const ui.Size(240, 120));
+    final found = PdfDetect.page(page, 0).single;
+    final system = found.copyWith(staves: [found.staves[0]]);
+    // Its staff where it is, its only barline at the page's left edge.
+    final answer = PdfAiPage.parse('{"systems": [{"staves": [{"label": 1, "y": ${(28 / 120 * 1000).toStringAsFixed(1)}}], "barlines": [{"x": 0}]}]}');
+    final refined = PdfAi.refine(page, [system], answer, view).single;
+    expect(refined.system.barlines, system.barlines);
+    expect(refined.starts, [system.left, for (final b in system.barlines) b.x]);
+  });
+
+  test('an answer’s numbers that are no numbers are passed over', () {
+    // "NaN" and "Infinity" read as numbers: rounding one would throw, where a wrong answer is
+    // only wrong.
+    final answer = PdfAiPage.parse('{"systems": [{"staves": ['
+        '{"label": "1", "y": "NaN", "region": ["Infinity", 50], "staff": "NaN", "key": "-Infinity", "changes": [{"bar": "NaN", "key": 2}]}, '
+        '{"label": null, "y": "NaN"}], '
+        '"barlines": [{"x": "NaN"}, "Infinity", {"x": "310"}], "times": [{"bar": "NaN", "time": "2/4"}], '
+        '"tempos": [{"bar": "Infinity", "text": "Lento", "bpm": "NaN"}]}]}');
+    final system = answer.systems.single, staff = system.staves.single;
+    expect((staff.label, staff.y, staff.region, staff.staff, staff.key), (1, null, null, 1, null));
+    expect(staff.changes, [(bar: 1, clef: null, key: 2)]);
+    expect([for (final b in system.barlines!) b.x], [310]);
+    expect(system.times, [(bar: 1, meter: const PdfMeter('2', 4))]);
+    expect(system.tempos, [(bar: 1, tempo: const PdfTempo('Lento'))]);
+  });
+
   test('regions an AI model says overlap do only where no row between the staves is clear', () {
     final view = PdfAiView(const ui.Size(240, 120));
     String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
@@ -387,6 +462,11 @@ void main() {
       ],
     };
     expect(PdfScoreLayout.fromJson(PdfScoreLayout.upgradeJson(v1)).systems.single, layout.systems[1]);
+    // A region that is nowhere on a page is damage, said as such (it is what is drawn of the page).
+    for (final region in [[null, 1e300, null, 40], [null, 20, null, -1e9], [1e7, 20, null, 40], [null, null, null, 40], [null, '20', null, 40]]) {
+      final staff = {...layout.systems[1].staves.first.toJson(), 'region': region};
+      expect(() => PdfStaff.fromJson(staff), throwsFormatException, reason: '$region');
+    }
 
     // Changes inserted: a tempo mark, the violin's own clef and time signature from bar 2.
     final changed = layout.copyWith(
