@@ -132,6 +132,30 @@ void main() {
     expect(built, isEmpty);
     await screenshot(tester, 'score-editor-orchestra-scrolled', inside: find.byType(ScoreEditor));
 
+    // ⌘ and the wheel zoom about the pointer: what is under it stays under it, and nothing is built.
+    // ignore: avoid_dynamic_calls
+    double zoom() => (tester.widget<CustomPaint>(paint).painter as dynamic).zoom.value as double;
+    final at = tester.getCenter(paint), local = at - tester.getTopLeft(paint);
+    Offset under() => Offset(local.dx - 132 + scrolled().dx, local.dy + scrolled().dy) / zoom();
+    final held = under();
+    expect(zoom(), 9);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump(); // (a key pressed has the buttons built for the keyboard)
+    built.clear();
+    debugOnRebuildDirtyWidget = (element, _) => built.add(element.widget.runtimeType);
+    tester.binding.handlePointerEvent(PointerScrollEvent(position: at, scrollDelta: const Offset(0, -120)));
+    await tester.pump();
+    debugOnRebuildDirtyWidget = null;
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    expect(zoom(), closeTo(9 * 1.6487, 0.01));
+    expect((under() - held).distance, lessThan(0.01));
+    expect(built, isEmpty);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump();
+    expect(zoom(), 9);
+
     // A rectangle dragged out from where nothing is selects what it touches; ⌘A, everything.
     int selected() {
       final status = find.textContaining(' selected');

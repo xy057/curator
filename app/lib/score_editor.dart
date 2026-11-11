@@ -84,7 +84,10 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   // The view: points a staff space, and how far it is scrolled (points).
   // Scrolling draws the score again and builds nothing: only the painter listens.
-  double _zoom = 9;
+  static const _defaultZoom = 9.0;
+  final _zoomed = ValueNotifier(_defaultZoom);
+  double get _zoom => _zoomed.value;
+  double _zoomAtPinch = _defaultZoom;
   final _scrolled = ValueNotifier(Offset.zero);
   Offset get _scroll => _scrolled.value;
   Size _viewport = Size.zero;
@@ -115,6 +118,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _chunks = [];
     _focus.dispose();
     _scrolled.dispose();
+    _zoomed.dispose();
     _marquee.dispose();
     _popoverText.dispose();
     _popoverFocus.dispose();
@@ -872,6 +876,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
         LogicalKeyboardKey.keyA => _selectAll,
         LogicalKeyboardKey.equal || LogicalKeyboardKey.add || LogicalKeyboardKey.numpadAdd => () => _zoomBy(1.2),
         LogicalKeyboardKey.minus || LogicalKeyboardKey.numpadSubtract => () => _zoomBy(1 / 1.2),
+        LogicalKeyboardKey.digit0 || LogicalKeyboardKey.numpad0 => () => _zoomTo(_defaultZoom),
         LogicalKeyboardKey.arrowUp when alt => () => _edit(() => score.transpose(_selectedNotes, octaves: 1)),
         LogicalKeyboardKey.arrowDown when alt => () => _edit(() => score.transpose(_selectedNotes, octaves: -1)),
         LogicalKeyboardKey.arrowLeft => () => input ? _caretToBar(-1) : _step(-1, bar: true, extend: shift),
@@ -971,11 +976,17 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _edit(score.redo);
   }
 
-  void _zoomBy(double factor) {
-    final centre = _scroll + Offset((_viewport.width - _gutter) / 2, _viewport.height / 2);
-    final before = _zoom;
-    setState(() => _zoom = (_zoom * factor).clamp(3.0, 20.0));
-    _setScroll(centre * (_zoom / before) - Offset((_viewport.width - _gutter) / 2, _viewport.height / 2));
+  /// Zooms by [factor], what is at [about] in the view (its middle, if not said) staying there.
+  void _zoomBy(double factor, {Offset? about}) => _zoomTo(_zoom * factor, about: about);
+
+  void _zoomTo(double zoom, {Offset? about}) {
+    final to = zoom.clamp(3.0, 20.0);
+    if (to == _zoom) return;
+    final at = about ?? Offset(_gutter + (_viewport.width - _gutter) / 2, _viewport.height / 2);
+    final held = _toGalley(at);
+    _zoomed.value = to;
+    _setScroll(Offset(held.dx * _scale - (at.dx - _gutter), held.dy * _scale - at.dy));
+    if (_popover != null) setState(() {});
   }
 
   // MARK: Leaving
@@ -1188,12 +1199,23 @@ class _ScoreEditorState extends State<ScoreEditor> {
           Positioned.fill(
             child: Listener(
               onPointerSignal: (event) {
-                if (event is PointerScrollEvent) {
-                  final d = HardwareKeyboard.instance.isShiftPressed ? Offset(event.scrollDelta.dy, event.scrollDelta.dx) : event.scrollDelta;
+                final keys = HardwareKeyboard.instance;
+                if (event is PointerScaleEvent) {
+                  _zoomBy(event.scale, about: event.localPosition);
+                } else if (event is PointerScrollEvent && (keys.isMetaPressed || keys.isControlPressed)) {
+                  // ⌘ and the wheel zoom about the pointer.
+                  _zoomBy(math.exp(-event.scrollDelta.dy / 240), about: event.localPosition);
+                } else if (event is PointerScrollEvent) {
+                  final d = keys.isShiftPressed ? Offset(event.scrollDelta.dy, event.scrollDelta.dx) : event.scrollDelta;
                   _setScroll(_scroll + d);
                 }
               },
-              onPointerPanZoomUpdate: (event) => _setScroll(_scroll - event.panDelta),
+              // Two fingers on a trackpad: moved, they scroll; pinched, they zoom about themselves.
+              onPointerPanZoomStart: (_) => _zoomAtPinch = _zoom,
+              onPointerPanZoomUpdate: (event) {
+                if (event.scale != 1) _zoomTo(_zoomAtPinch * event.scale, about: event.localPosition);
+                _setScroll(_scroll - event.panDelta);
+              },
               onPointerDown: (event) {
                 if (event.buttons != kPrimaryButton) return;
                 final keys = HardwareKeyboard.instance;
@@ -1208,7 +1230,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
                 child: CustomPaint(
                   painter: _GalleyPainter(
                     galley: _galley,
-                    scale: _scale,
+                    zoom: _zoomed,
                     scroll: _scrolled,
                     marquee: _marquee,
                     gutter: _gutter,
@@ -1458,7 +1480,7 @@ class _SlurPainter extends CustomPainter {
 class _GalleyPainter extends CustomPainter {
   _GalleyPainter({
     required this.galley,
-    required this.scale,
+    required this.zoom,
     required this.scroll,
     required this.gutter,
     required this.paper,
@@ -1471,10 +1493,13 @@ class _GalleyPainter extends CustomPainter {
     required this.caret,
     required this.names,
     required this.marquee,
-  }) : super(repaint: Listenable.merge([scroll, marquee]));
+  }) : super(repaint: Listenable.merge([zoom, scroll, marquee]));
 
   final EditGalley galley;
-  final double scale, gutter;
+  final double gutter;
+
+  /// Points a staff space: drawn again when it changes, as when scrolled.
+  final ValueListenable<double> zoom;
 
   /// How far the score is scrolled: drawn again when it changes.
   final ValueListenable<Offset> scroll;
@@ -1488,7 +1513,7 @@ class _GalleyPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final scroll = this.scroll.value;
+    final scroll = this.scroll.value, scale = zoom.value / galley.staffSpace;
     canvas.drawRect(Offset.zero & size, Paint()..color = paper);
     canvas.save();
     canvas.clipRect(Rect.fromLTRB(gutter, 0, size.width, size.height));
@@ -1540,7 +1565,7 @@ class _GalleyPainter extends CustomPainter {
   @override
   bool shouldRepaint(_GalleyPainter old) =>
       old.galley != galley ||
-      old.scale != scale ||
+      old.zoom != zoom ||
       old.scroll != scroll ||
       old.selected != selected ||
       old.caret != caret ||
