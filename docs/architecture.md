@@ -30,7 +30,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `pdf_detect.dart`, `pdf_pages.dart`, `pdf_text.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`); names and tempo marks read from the pages' words (`PdfText`) |
 | `pdf_ai.dart` | A PDF score's pages read by an AI model (see *Read with AI*): what it is asked (`PdfAi.prompt`, about a picture of the page with each staff found numbered, `PdfAi.labels`, `PdfAiView`), its answer (`PdfAiPage.parse`), put on the page's ink (`PdfAi.refine`, through `PdfPages.refine`) and into the layout (`PdfAi.apply`) |
 | `pdf_ai_exam.dart` | The exam a model takes before Read with AI asks it (see *A model is examined*): two pages' key and the marking (`PdfAiExam.score`, `PdfAiExamResult`) |
-| `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, each staff's band, the system's barlines, and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
+| `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, each staff's region, the system's barlines, and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
@@ -73,7 +73,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit… done (the score editor's, a PDF's import again): a project carried over to the new score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
-| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, each staff's band (a box: the staff clicked is selected, its top and bottom dragged by square handles at their middles or anywhere along them, on their own), every system's music start and end and barlines (the start's and the barlines' by handles above the system, the end's below it; a double click adds a barline), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs; `pdf_import_ai.dart` reads the pages with AI (`PdfAiReader`) and gives a model the exam (`PdfAiExamRun`); `pdf_ai_model_dialog.dart` chooses the model, by its exam |
+| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, each staff's region (a box edited as an image on a canvas: clicked, it is selected; its corners and sides dragged, it is resized; dragged inside, it is moved; Draw Region drags out a new one), every system's music start and end and barlines (the start's and the barlines' by handles above the system, the end's below it; a double click adds a barline), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs; `pdf_import_ai.dart` reads the pages with AI (`PdfAiReader`) and gives a model the exam (`PdfAiExamRun`); `pdf_ai_model_dialog.dart` chooses the model, by its exam |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -993,21 +993,24 @@ engraving: each system is drawn by PDFium as printed (RGBA, on nothing; `PdfPage
 systems ahead of the view, `CuratedScene.ready`, and an LRU of decoded images: the systems a
 scene asks for together, `PdfScoreArt.load`'s holder, are never let go for one another, and each
 video frame got ready holds its own until it is drawn), and each staff's
-bar is the rectangle of it its band spans (`PdfStaff.bandTop`, `bandBottom`), the masks clipped out (a mask is every
+bar is the rectangle of it its region spans (`PdfSystem.regionOf`), the masks clipped out (a mask is every
 lane's, or one lane's, `PdfMask.part`: Mask Lane (M) gives it the selected staff's, or the one drawn from; Mask All
 Lanes (⇧M) none;
 `masksOf` gives a system's, and the ink measured leaves a lane's out of its staves only); never tinted,
-recoloured or processed. Each staff's band is its own: the barlines (and where the music starts
-and ends) are the system's, every staff's, but a band's top and bottom are its staff's alone. Two
-bands may overlap: what lies in both is in both pictures, and in the ink measured a mark that lies
-whole in two bands is both staves' (`PdfDetect.assign`, `PdfParts`; one partly in a band goes to
-the staff whose band holds most of it, and a mark through two staves' lines, a barline, is cut
-row by row, each row the staff's whose band it is in, where they overlap the one whose lines are
-nearest: `PdfSystem.staffAt`). Room between two bands is no one's: what is printed there (a line
-of text between two staves) goes with neither, in the picture and in the ink measured. The
-`pdf` module's version 1 kept a system's top, bottom, cuts between staves and gaps below them;
-version 2 keeps each staff's band (`PdfScoreLayout.upgradeJson` reads the first as the second:
-the bands meeting at the cuts, apart across a gap). What the import inserts at a bar is the score's: tempo marks
+recoloured or processed. Each staff's region is its own: the barlines (and where the music starts
+and ends) are the system's, every staff's, but a region's four sides are its staff's alone
+(`PdfStaff.regionTop`, `regionBottom`, `regionLeft`, `regionRight`; a left or right left null is
+where the system's music starts or ends, and goes with it). A region holds its staff's lines and
+is a space wide at least (`PdfSystem.withRegion`). Two regions may overlap: what lies in both is in
+both pictures, and in the ink measured a mark that lies whole in two regions is both staves'
+(`PdfDetect.assign`, `PdfParts`; one partly in a region goes to the staff whose region holds most of
+it, and a mark through two staves' lines, a barline, is cut pixel by pixel, each the staff's whose
+region it is in, where they overlap the one whose lines are nearest: `PdfSystem.staffAt`). Room in
+no region is no one's: what is printed there (a line of text between two staves, a staff's bars
+past a region cut short) goes with no one, in the picture and in the ink measured. The `pdf`
+module's version 1 kept a system's top, bottom, cuts between staves and gaps below them; version 2
+keeps each staff's region (`PdfScoreLayout.upgradeJson` reads the first as the second: the regions
+meeting at the cuts, apart across a gap, their sides the system's). What the import inserts at a bar is the score's: tempo marks
 (`PdfScoreLayout.tempos`, words and a speed; the first part writes them, `tempoId`, and the
 display list sets each apart where its bar starts, so the frame's left names the speed as for
 any score; a speed past the first bar is written, not played), keys (concert; read off a
@@ -1025,15 +1028,22 @@ lane and Spacing… say when and how much room there is. Export to Web writes ea
 
 **The import goes in steps, and reads the words on the pages.** `PdfImport` is five steps
 (`_Step`, a bar across the top, Back and Next below): Pages (only here can the systems found be
-dragged, drawn or removed, and staves and barlines added, by Add Staff and Add Barline, or
-removed: `PdfSystem.withStaff` gives a staff added the room between its neighbours' bands, ending
-one that reached into its lines halfway to them, and `withoutStaff` leaves a staff removed's band
-no one's. A click selects a staff (`_StaffSelection`, in an overlap the one whose lines are
-nearest) or a barline, never a bar: the staff's band is drawn as a box, the others' tops and
-bottoms dashed in their instruments' colours, and its top and bottom are dragged on their own
-(`_BandDrag`, `PdfSystem.withBand`: over a neighbour's band if need be, never past its own lines
-or off the page); Delete removes the staff or barline selected, Remove System its system;
-elsewhere the page shows the bands, not their boxes: `_PagePainter.editing`), Instruments (the list, dragged by its handles, a ⋯ menu each; Add
+dragged, drawn or removed, and staves and barlines added, by Draw Region and Add Barline, or
+removed). Each staff's region is edited as an image on a canvas: the region under the pointer is
+outlined, a click selects it (`_RegionSelection`; in an overlap the selected one, else the one whose
+lines are nearest) or a barline, never a bar, and the region selected has a round handle at each
+corner and a bar at the middle of each side (`_Handle`; a side is grabbed anywhere along it). Its
+handles resize it, a drag inside it moves it once the pointer has gone 3 pixels (a click alone
+selects), over a neighbour's region if need be, never off its own lines or the page
+(`_RegionDrag`, `_dragRegion`); its edges snap, within 5 pixels, to where the system's music starts
+and ends and to the other regions' edges, each snap drawn as a guide (`_guides`), and a side snapped
+to the music's start or end follows it. Draw Region (R) drags out a region: the staff whose lines
+it holds, found across the page's width (`PdfPages.staffIn`), gets it, one already found its region
+replaced, else a staff added to the system it lies in (`PdfSystem.withStaff`, `fit: false`) or a
+system of its own; a click with it adds a staff there (`withStaff` giving it the room between its
+neighbours' regions). Delete removes the region (its staff) or barline selected, Remove System its
+system, `withoutStaff` leaving a staff removed's region no one's; elsewhere the page shows the
+regions, not their boxes: `_PagePainter.editing`), Instruments (the list, dragged by its handles, a ⋯ menu each; Add
 Instrument and Add Blank Lane are tiles in the accent under it; each staff's chip, and the staves
 no one's), Edit (the masks: Mask Lane leaves what it draws out of the lane picked, `_maskLane`,
 a staff's click or the toolbar's picker; Mask All Lanes out of every one), Changes (a bar's,
@@ -1071,7 +1081,7 @@ requests under way (`AiClient.close`). A model's places are rough and sometimes 
 are checked (`PdfAi.refine`, on the worker with the page's ink): where it says the staves are,
 against where they are, gives a line that sets its other places right (`PdfAi.fit`), and unless most
 staves lie on it within ¾ of a space none of its places is taken. Taken, each edge, and where
-two staves' bands meet (or end and begin, a gap between) goes on the quiet row nearest where it says (`PdfDetect.quietRow`), never into ink its outer staves
+two staves' regions meet (or end and begin, a gap between) goes on the quiet row nearest where it says (`PdfDetect.quietRow`), never into ink its outer staves
 reach (`PdfDetect.inkEnd`); its barlines are lined up in order with those found (`_barlines`), a
 found one kept where it is, one it adds put on a line through the staves there
 (`PdfDetect.lineNear`), and a found one it leaves out removed only from a lone staff; too few

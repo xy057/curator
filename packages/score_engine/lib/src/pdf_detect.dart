@@ -31,7 +31,7 @@ class PdfRaster {
 }
 
 /// Whose each pixel of a system's raster is ([PdfDetect.assign]): no one's, one staff's, or
-/// (a mark lying whole where staves' bands overlap) each of theirs.
+/// (a mark lying whole where staves' regions overlap) each of theirs.
 final class PdfParts {
   PdfParts(this.of, this.sets);
 
@@ -537,9 +537,9 @@ abstract final class PdfDetect {
     return dotAt(1.5) && dotAt(2.5);
   }
 
-  /// A page's systems as found: staves, where the music starts, barlines, each staff's band (the
-  /// bands meeting at the row the least ink crosses between two staves). Each staff is no one's
-  /// yet.
+  /// A page's systems as found: staves, where the music starts, barlines, each staff's region
+  /// (from the music's start to its end, the regions meeting at the row the least ink crosses
+  /// between two staves). Each staff is no one's yet.
   static List<PdfSystem> page(PdfRaster page, int index) {
     final found = systems(page, staves(page));
     final out = <PdfSystem>[];
@@ -775,13 +775,14 @@ abstract final class PdfDetect {
   }
 
   /// Whose each pixel of [raster] (a part of [system]'s page) is ([PdfParts]): what is under a
-  /// mask, outside every staff's band or outside the system is no one's; a staff's lines are its
-  /// own; every other mark is the staff's whose band holds it whole, both's where two bands overlap
-  /// round it, else goes whole to the staff whose band holds most of it; but one that runs through
-  /// the lines of two staves or more (a barline, a beam across them) is cut, each row going to the
-  /// staff whose band it is in (where they overlap, the one whose lines are nearest:
-  /// [PdfSystem.staffAt]). [masks] in points; [staffMasks] (by staff index) are one staff's: what
-  /// is under them is no one's where it would have been that staff's.
+  /// mask, outside every staff's region ([PdfSystem.regionOf]) or outside the system is no one's;
+  /// a staff's lines are its own, inside its region; every other mark is the staff's whose region
+  /// holds it whole, both's where two regions overlap round it, else goes whole to the staff whose
+  /// region holds most of it; but one that runs through the lines of two staves or more (a
+  /// barline, a beam across them) is cut, each pixel going to the staff whose region it is in
+  /// (where they overlap, the one whose lines are nearest: [PdfSystem.staffAt]). [masks] in
+  /// points; [staffMasks] (by staff index) are one staff's: what is under them is no one's where
+  /// it would have been that staff's.
   static PdfParts assign(PdfRaster raster, PdfSystem system, List<ui.Rect> masks,
       {Map<int, List<ui.Rect>> staffMasks = const {}}) {
     final w = raster.width, h = raster.height, ink = raster.ink;
@@ -794,22 +795,40 @@ abstract final class PdfDetect {
     final out = Int16List(w * h)..fillRange(0, w * h, -1);
     final n = system.staves.length;
     if (n == 0) return PdfParts(out, sets);
-    // The staff of each row ([PdfSystem.staffAt]), and the rows of each staff's band: from its
-    // first to the first past it.
-    final band = Int8List(h);
-    for (var y = 0; y < h; y++) {
-      band[y] = system.staffAt(raster.yOf(y + 0.5));
-    }
-    final rowFrom = Int32List(n), rowTo = Int32List(n);
+    // Each staff's region in pixels, its rows and columns from the first to the first past it,
+    // and its lines' rows; the regions each row is in (mostly one, two where they overlap).
+    final rowFrom = Int32List(n), rowTo = Int32List(n), colFrom = Int32List(n), colTo = Int32List(n);
+    final linesFrom = Float64List(n), linesTo = Float64List(n);
     for (final (k, s) in system.staves.indexed) {
-      rowFrom[k] = (raster.row(s.bandTop) - 0.5).ceil().clamp(0, h);
-      rowTo[k] = math.max(rowFrom[k], (raster.row(s.bandBottom) - 0.5).ceil().clamp(0, h));
+      final r = system.regionOf(k);
+      rowFrom[k] = (raster.row(r.top) - 0.5).ceil().clamp(0, h);
+      rowTo[k] = math.max(rowFrom[k], (raster.row(r.bottom) - 0.5).ceil().clamp(0, h));
+      colFrom[k] = (raster.col(r.left) - 0.5).ceil().clamp(0, w);
+      colTo[k] = math.max(colFrom[k], ((raster.col(r.right) - 0.5).floor() + 1).clamp(0, w));
+      linesFrom[k] = raster.row(s.top);
+      linesTo[k] = raster.row(s.bottom);
     }
-    // The bands each row is in: mostly one, two where they overlap.
-    final inBands = List<List<int>>.generate(h, (y) => [
+    final inRows = List<List<int>>.generate(h, (y) => [
           for (var k = 0; k < n; k++)
             if (y >= rowFrom[k] && y < rowTo[k]) k,
         ]);
+    bool inside(int k, int x) => x >= colFrom[k] && x < colTo[k];
+    // The staff whose region pixel (x, y) is in; where they overlap, the one whose lines are
+    // nearest ([PdfSystem.staffAt]). -1: none's.
+    int nearest(int x, int y) {
+      var best = -1;
+      var off = double.infinity;
+      for (final k in inRows[y]) {
+        if (!inside(k, x)) continue;
+        final d = y + 0.5 < linesFrom[k] ? linesFrom[k] - y - 0.5 : math.max(0.0, y + 0.5 - linesTo[k]);
+        if (d < off) {
+          off = d;
+          best = k;
+        }
+      }
+      return best;
+    }
+
     final single = [for (var k = 0; k < n; k++) setOf([k])];
     final blocked = Uint8List(w * h);
     for (final m in masks) {
@@ -869,12 +888,13 @@ abstract final class PdfDetect {
     }
 
     for (var y = 0; y < h; y++) {
-      if (band[y] < 0) continue;
+      final rows = inRows[y];
+      if (rows.isEmpty) continue;
       for (var x = math.max(0, xLeft.floor()); x < math.min(w, xRight.ceil()); x++) {
         final i = y * w + x;
-        if (ink[i] < PdfRaster.dark || blocked[i] != 0) continue;
+        if (ink[i] < PdfRaster.dark || blocked[i] != 0 || !rows.any((k) => inside(k, x))) continue;
         if (isLine(x, y)) {
-          out[i] = single[lineOf[y]];
+          if (inside(lineOf[y], x) && rows.contains(lineOf[y])) out[i] = single[lineOf[y]];
           continue;
         }
         var l = -1;
@@ -895,10 +915,11 @@ abstract final class PdfDetect {
         label[i] = l;
       }
     }
-    // Each mark: its ink in each band, its rows, and which staves' lines it crosses.
+    // Each mark: its ink in each region, its rows and columns, and which staves' lines it crosses.
     final count = parent.length;
     final perBand = Int32List(count * n);
     final top = Int32List(count)..fillRange(0, count, h), bottom = Int32List(count)..fillRange(0, count, -1);
+    final left = Int32List(count)..fillRange(0, count, w), right = Int32List(count)..fillRange(0, count, -1);
     final crosses = List<int>.filled(count, 0); // bit per staff whose line zone it reaches
     final zoneOf = Int8List(h)..fillRange(0, h, -1);
     for (final (i, staff) in system.staves.indexed) {
@@ -907,17 +928,19 @@ abstract final class PdfDetect {
       }
     }
     for (var y = 0; y < h; y++) {
-      final bands = inBands[y];
+      final rows = inRows[y];
       for (var x = 0; x < w; x++) {
         final l = label[y * w + x];
         if (l < 0) continue;
         final root = find(l);
         label[y * w + x] = root;
-        for (final b in bands) {
-          perBand[root * n + b]++;
+        for (final b in rows) {
+          if (inside(b, x)) perBand[root * n + b]++;
         }
         if (y < top[root]) top[root] = y;
         if (y > bottom[root]) bottom[root] = y;
+        if (x < left[root]) left[root] = x;
+        if (x > right[root]) right[root] = x;
         if (zoneOf[y] >= 0 && zoneOf[y] < 30) crosses[root] |= 1 << zoneOf[y];
       }
     }
@@ -928,7 +951,7 @@ abstract final class PdfDetect {
       if (crosses[root] & (crosses[root] - 1) != 0) continue;
       final whole = [
         for (var b = 0; b < n; b++)
-          if (top[root] >= rowFrom[b] && bottom[root] < rowTo[b]) b,
+          if (top[root] >= rowFrom[b] && bottom[root] < rowTo[b] && left[root] >= colFrom[b] && right[root] < colTo[b]) b,
       ];
       if (whole.isNotEmpty) {
         owner[root] = whole.length == 1 ? single[whole.single] : setOf(whole);
@@ -944,16 +967,16 @@ abstract final class PdfDetect {
       }
       owner[root] = single[best];
     }
-    // Light ink around marks (anti-aliasing) goes with its row's band, as does a split mark.
+    // Light ink around marks (anti-aliasing) goes with the region it is in, as does a split mark.
+    int where(int x, int y) => switch (nearest(x, y)) { < 0 => -1, final k => single[k] };
     for (var y = 0; y < h; y++) {
-      final row = band[y] < 0 ? -1 : single[band[y]];
       for (var x = 0; x < w; x++) {
         final i = y * w + x;
         if (out[i] >= 0 || blocked[i] != 0 || ink[i] == 0) continue;
         final l = label[i];
         if (l >= 0) {
           final o = owner[l];
-          out[i] = o >= 0 ? o : row;
+          out[i] = o >= 0 ? o : where(x, y);
         } else if (x >= xLeft && x < xRight) {
           // Next to a mark: its owners, so its edge goes with it.
           var o = -1;
@@ -965,7 +988,7 @@ abstract final class PdfDetect {
               break;
             }
           }
-          out[i] = o >= 0 ? o : row;
+          out[i] = o >= 0 ? o : where(x, y);
         }
       }
     }

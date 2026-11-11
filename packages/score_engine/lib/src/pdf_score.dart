@@ -50,7 +50,7 @@ class PdfPagesSource implements PdfPartSource {
 /// A PDF score as the scene draws it: [layout], and each system as printed, as a picture, read
 /// when a frame first asks for it and kept while they fit in [budget] bytes (the least recently
 /// drawn go first, never those a frame is drawn with: [load]). Nothing in it is changed: each staff's bar is a rectangle of its system's
-/// picture (its staff's band, [PdfSystem.bandOf]), the masks cut out. It notifies when one is
+/// picture (where it meets its staff's region, [PdfSystem.regionOf]), the masks cut out. It notifies when one is
 /// ready, so a view can draw again; a video waits for them ([load]).
 class PdfScoreArt extends ChangeNotifier {
   PdfScoreArt(this.layout, this._source, {this.budget = 384 << 20});
@@ -316,15 +316,19 @@ abstract final class PdfEngraving {
               ? (above: 4.0, below: 4.0, played: true)
               : ink[s][segment];
           double yOf(double pageY) => top + (pageY - staff.top) / staff.space * unit;
-          // Its band of the system, cut straight: what the import set, nothing worked out here.
-          final (bandTop, bandBottom) = system.bandOf(s);
-          final from = ui.Rect.fromLTRB(piece.left, bandTop, piece.right, bandBottom);
+          double xOf(double pageX) => x + (pageX - piece.left) / system.space * unit;
+          // The bar where it meets the staff's region, cut straight: what the import set, nothing
+          // worked out here. A region that ends before the bar does leaves the rest of it blank.
+          final region = system.regionOf(s);
+          final l = math.max(piece.left, region.left), r = math.min(piece.right, region.right);
+          if (r <= l) continue;
+          final from = ui.Rect.fromLTRB(l, region.top, r, region.bottom);
           items.putIfAbsent(n, () => []).add(_PdfPiece(
                 _SystemPicture(art, piece.system),
                 from,
-                ui.Rect.fromLTRB(x, yOf(bandTop), x + width, yOf(bandBottom)),
-                ui.Rect.fromLTRB(x, math.max(yOf(bandTop), top - reach.above * unit), x + width,
-                    math.min(yOf(bandBottom), top + 4 * unit + reach.below * unit)),
+                ui.Rect.fromLTRB(xOf(l), yOf(region.top), xOf(r), yOf(region.bottom)),
+                ui.Rect.fromLTRB(xOf(l), math.max(yOf(region.top), top - reach.above * unit), xOf(r),
+                    math.min(yOf(region.bottom), top + 4 * unit + reach.below * unit)),
                 [for (final m in masks[system.page] ?? const <PdfMask>[]) if (m.covers(part)) m.rect],
               ));
         }

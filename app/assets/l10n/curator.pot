@@ -3091,7 +3091,7 @@ msgstr ""
 msgid "Remove Mask"
 msgstr ""
 
-msgid "Staff"
+msgid "Region"
 msgstr ""
 
 #: lib/pdf_import_changes.dart
@@ -3329,7 +3329,7 @@ msgstr ""
 msgid "Remove Barline (⌫)"
 msgstr ""
 
-msgid "Remove Staff (⌫)"
+msgid "Remove Region (⌫)"
 msgstr ""
 
 msgid "Remove Mask (⌫)"
@@ -3358,11 +3358,11 @@ msgstr ""
 msgid "Add Barline (B)"
 msgstr ""
 
-msgid "Add Staff (S)"
+msgid "Draw Region (R)"
 msgstr ""
 
 #: lib/pdf_import.dart
-msgid "Remove Staff"
+msgid "Remove Region"
 msgstr ""
 
 #: lib/condensing_editor.dart

@@ -223,14 +223,24 @@ class PdfInstrument {
   int get hashCode => Object.hash(id, name, abbreviation, clef, staves, key, divisi, clefs.length, meters.length, blank);
 }
 
-/// A staff as printed in one system: where its lines are (points, from the page's top), what of
-/// the page is its, and whose it is.
+/// A staff as printed in one system: where its lines are (points, from the page's top), its
+/// region of the page, and whose it is.
 @immutable
 class PdfStaff {
-  /// With no band given, two spaces either side of its lines.
-  const PdfStaff({required this.top, required this.space, this.lines = 5, this.part, this.staff = 1, double? bandTop, double? bandBottom})
-      : bandTop = bandTop ?? top - 2 * space,
-        bandBottom = bandBottom ?? top + (lines - 1) * space + 2 * space;
+  /// With no region given, two spaces above and below its lines, from where its system's music
+  /// starts to where it ends.
+  const PdfStaff({
+    required this.top,
+    required this.space,
+    this.lines = 5,
+    this.part,
+    this.staff = 1,
+    double? regionTop,
+    double? regionBottom,
+    this.regionLeft,
+    this.regionRight,
+  })  : regionTop = regionTop ?? top - 2 * space,
+        regionBottom = regionBottom ?? top + (lines - 1) * space + 2 * space;
 
   /// The top line's y, points from the page's top.
   final double top;
@@ -246,23 +256,40 @@ class PdfStaff {
   /// divisi ([PdfInstrument.divisi]).
   final int staff;
 
-  /// Its band, points from the page's top: the stretch of its system its bars are cut from
-  /// ([PdfSystem.bandOf]), its lines inside it. Each staff's is its own: two may overlap (what
-  /// lies in both is both's) or leave room between them that is no one's.
-  final double bandTop, bandBottom;
+  /// Its region's top and bottom, points from the page's top: its lines inside them.
+  final double regionTop, regionBottom;
+
+  /// Its region's left and right, points from the page's left; null: where its system's music
+  /// starts or ends ([PdfSystem.left], [PdfSystem.right]), going with it. Its bars are cut from
+  /// its region ([PdfSystem.regionOf]): each staff's is its own, and two may overlap (what lies
+  /// in both is both's) or leave room between them that is no one's.
+  final double? regionLeft, regionRight;
 
   double get bottom => top + (math.max(1, lines) - 1) * space;
   double get middle => (top + bottom) / 2;
 
-  PdfStaff copyWith({double? top, double? space, int? lines, String? Function()? part, int? staff, double? bandTop, double? bandBottom}) =>
+  PdfStaff copyWith({
+    double? top,
+    double? space,
+    int? lines,
+    String? Function()? part,
+    int? staff,
+    double? regionTop,
+    double? regionBottom,
+    double? Function()? regionLeft,
+    double? Function()? regionRight,
+  }) =>
       PdfStaff(
-          top: top ?? this.top,
-          space: space ?? this.space,
-          lines: lines ?? this.lines,
-          part: part == null ? this.part : part(),
-          staff: staff ?? this.staff,
-          bandTop: bandTop ?? this.bandTop,
-          bandBottom: bandBottom ?? this.bandBottom);
+        top: top ?? this.top,
+        space: space ?? this.space,
+        lines: lines ?? this.lines,
+        part: part == null ? this.part : part(),
+        staff: staff ?? this.staff,
+        regionTop: regionTop ?? this.regionTop,
+        regionBottom: regionBottom ?? this.regionBottom,
+        regionLeft: regionLeft == null ? this.regionLeft : regionLeft(),
+        regionRight: regionRight == null ? this.regionRight : regionRight(),
+      );
 
   Map<String, Object?> toJson() => {
         'top': _round(top),
@@ -270,10 +297,16 @@ class PdfStaff {
         'lines': lines,
         'part': part,
         'staff': staff,
-        'band': [_round(bandTop), _round(bandBottom)],
+        'region': [
+          if (regionLeft case final l?) _round(l) else null,
+          _round(regionTop),
+          if (regionRight case final r?) _round(r) else null,
+          _round(regionBottom),
+        ],
       };
 
-  /// Reads what [toJson] wrote; a band that leaves out its lines is widened to take them in.
+  /// Reads what [toJson] wrote; a region that leaves out its lines is made taller to take them
+  /// in, and one with its right left of its left follows its system's music at both.
   static PdfStaff fromJson(Map<String, Object?> json) {
     final staff = PdfStaff(
       top: _number(json, 'top'),
@@ -282,11 +315,24 @@ class PdfStaff {
       part: _textOrNull(json, 'part'),
       staff: (_numberOrNull(json, 'staff')?.toInt() ?? 1).clamp(1, 4),
     );
-    return switch (json['band']) {
+    double? side(Object? x) => switch (x) {
+          null => null,
+          final num n when n.isFinite => n.toDouble(),
+          _ => throw _bad('region'),
+        };
+    return switch (json['region']) {
       null => staff,
-      [final num t, final num b] when t.isFinite && b.isFinite =>
-        staff.copyWith(bandTop: math.min(t.toDouble(), staff.top), bandBottom: math.max(b.toDouble(), staff.bottom)),
-      _ => throw _bad('band'),
+      [final l, final num t, final r, final num b] when t.isFinite && b.isFinite => () {
+          var (left, right) = (side(l), side(r));
+          if (left != null && right != null && right <= left) (left, right) = (null, null);
+          return staff.copyWith(
+            regionTop: math.min(t.toDouble(), staff.top),
+            regionBottom: math.max(b.toDouble(), staff.bottom),
+            regionLeft: () => left,
+            regionRight: () => right,
+          );
+        }(),
+      _ => throw _bad('region'),
     };
   }
 
@@ -298,11 +344,13 @@ class PdfStaff {
       other.lines == lines &&
       other.part == part &&
       other.staff == staff &&
-      other.bandTop == bandTop &&
-      other.bandBottom == bandBottom;
+      other.regionTop == regionTop &&
+      other.regionBottom == regionBottom &&
+      other.regionLeft == regionLeft &&
+      other.regionRight == regionRight;
 
   @override
-  int get hashCode => Object.hash(top, space, lines, part, staff, bandTop, bandBottom);
+  int get hashCode => Object.hash(top, space, lines, part, staff, regionTop, regionBottom, regionLeft, regionRight);
 }
 
 /// How a barline is drawn: what it means for the score's form.
@@ -338,8 +386,8 @@ class PdfBarline {
 /// below its bottom one, and whether anything is played there (more than a rest).
 typedef PdfInk = ({double above, double below, bool played});
 
-/// One system of the PDF: its staves (each with its own band), where its music starts and ends,
-/// and its barlines, which are all its staves'.
+/// One system of the PDF: its staves (each with its own region), where its music starts and
+/// ends, and its barlines, which are all its staves'.
 @immutable
 class PdfSystem {
   const PdfSystem({
@@ -351,10 +399,11 @@ class PdfSystem {
     this.ink,
   });
 
-  /// A system whose staves' bands meet: from [top] to the first of [cuts] (one between each staff
-  /// and the next, where one's band ends and the next one's begins; the middle between their
-  /// lines where none is given), between each two, and from the last to [bottom]. [gaps], by
-  /// cut, end stretches below a cut that are no one's (as the pdf module's version 1 kept them).
+  /// A system whose staves' regions meet, each from its music's start to its end: from [top] to
+  /// the first of [cuts] (one between each staff and the next, where one's region ends and the
+  /// next one's begins; the middle between their lines where none is given), between each two,
+  /// and from the last to [bottom]. [gaps], by cut, end stretches below a cut that are no one's
+  /// (as the pdf module's version 1 kept them).
   factory PdfSystem.cut({
     required int page,
     required double top,
@@ -375,8 +424,10 @@ class PdfSystem {
       staves: [
         for (final (i, s) in staves.indexed)
           s.copyWith(
-            bandTop: math.min(s.top, i == 0 ? top : math.max(cutAfter(i - 1), gaps[i - 1] ?? 0)),
-            bandBottom: math.max(s.bottom, i == n - 1 ? bottom : cutAfter(i)),
+            regionTop: math.min(s.top, i == 0 ? top : math.max(cutAfter(i - 1), gaps[i - 1] ?? 0)),
+            regionBottom: math.max(s.bottom, i == n - 1 ? bottom : cutAfter(i)),
+            regionLeft: () => null,
+            regionRight: () => null,
           ),
       ],
       barlines: barlines,
@@ -385,10 +436,10 @@ class PdfSystem {
 
   final int page;
 
-  /// What may belong to it, points from the page's top: its staves' bands, from the highest to
+  /// What may belong to it, points from the page's top: its staves' regions, from the highest to
   /// the lowest. Nothing above [top] or below [bottom] is in any staff's part.
-  double get top => staves.isEmpty ? 0 : staves.map((s) => s.bandTop).reduce(math.min);
-  double get bottom => staves.isEmpty ? 0 : staves.map((s) => s.bandBottom).reduce(math.max);
+  double get top => staves.isEmpty ? 0 : staves.map((s) => s.regionTop).reduce(math.min);
+  double get bottom => staves.isEmpty ? 0 : staves.map((s) => s.regionBottom).reduce(math.max);
 
   /// Where its music starts (past the clefs and key signatures at its start) and ends (its
   /// staves' right end), points from the page's left.
@@ -426,16 +477,20 @@ class PdfSystem {
   /// Whether its last bar goes on in the next system (no barline at its end).
   bool get continues => barlines.isEmpty || right - barlines.last.x > space;
 
-  /// The band of staff [i], top and bottom ([PdfStaff.bandTop]).
-  (double, double) bandOf(int i) => (staves[i].bandTop, staves[i].bandBottom);
+  /// Staff [i]'s region, points on the page ([PdfStaff.regionTop]…): its left and right where its
+  /// music starts and ends unless it has its own.
+  ui.Rect regionOf(int i) {
+    final s = staves[i];
+    return ui.Rect.fromLTRB(s.regionLeft ?? left, s.regionTop, s.regionRight ?? right, s.regionBottom);
+  }
 
-  /// The staff whose band [y] is in (from its top, short of its bottom); where bands overlap, the
-  /// one whose lines are nearest. -1: no one's.
-  int staffAt(double y) {
+  /// The staff whose region ([x], [y]) is in (from its top, short of its bottom; from its left to
+  /// its right); where regions overlap, the one whose lines are nearest. -1: no one's.
+  int staffAt(double x, double y) {
     var best = -1;
     var off = double.infinity;
     for (final (k, s) in staves.indexed) {
-      if (y < s.bandTop || y >= s.bandBottom) continue;
+      if (y < s.regionTop || y >= s.regionBottom || x < (s.regionLeft ?? left) || x > (s.regionRight ?? right)) continue;
       final d = y < s.top ? s.top - y : (y > s.bottom ? y - s.bottom : 0.0);
       if (d < off) {
         off = d;
@@ -445,47 +500,55 @@ class PdfSystem {
     return best;
   }
 
-  /// It with [staff] added among its staves, where its middle falls. Its band is the room
-  /// between the bands either side (two spaces past its lines where there is no staff); a band
-  /// of theirs that reaches into its lines ends halfway to them, and its own starts there.
-  /// Measured again.
-  PdfSystem withStaff(PdfStaff staff) {
+  /// It with [staff] added among its staves, where its middle falls. [fit]: its region is the
+  /// room between the regions either side (two spaces past its lines where there is no staff),
+  /// and a region of theirs that reaches into its lines ends halfway to them, its own starting
+  /// there; else its region is as given, over theirs if need be. Measured again.
+  PdfSystem withStaff(PdfStaff staff, {bool fit = true}) {
     final at = staves.where((s) => s.middle < staff.middle).length;
     final rest = [...staves];
+    if (!fit) return copyWith(staves: rest..insert(at, staff), ink: () => null);
     final room = staff.space * 2;
     var top = staff.top - room, bottom = staff.bottom + room;
     if (at > 0) {
       final above = rest[at - 1];
-      if (above.bandBottom > staff.top) {
+      if (above.regionBottom > staff.top) {
         top = math.min(staff.top, (above.bottom + staff.top) / 2);
-        rest[at - 1] = above.copyWith(bandBottom: math.max(above.bottom, top));
+        rest[at - 1] = above.copyWith(regionBottom: math.max(above.bottom, top));
       } else {
-        top = above.bandBottom;
+        top = above.regionBottom;
       }
     }
     if (at < rest.length) {
       final below = rest[at];
-      if (below.bandTop < staff.bottom) {
+      if (below.regionTop < staff.bottom) {
         bottom = math.max(staff.bottom, (staff.bottom + below.top) / 2);
-        rest[at] = below.copyWith(bandTop: math.min(below.top, bottom));
+        rest[at] = below.copyWith(regionTop: math.min(below.top, bottom));
       } else {
-        bottom = below.bandTop;
+        bottom = below.regionTop;
       }
     }
-    return copyWith(staves: rest..insert(at, staff.copyWith(bandTop: top, bandBottom: bottom)), ink: () => null);
+    return copyWith(staves: rest..insert(at, staff.copyWith(regionTop: top, regionBottom: bottom)), ink: () => null);
   }
 
-  /// It without staff [k], its band no one's. Measured again. Of a system of one staff, call it
+  /// It without staff [k], its region no one's. Measured again. Of a system of one staff, call it
   /// no system instead.
   PdfSystem withoutStaff(int k) => copyWith(staves: [...staves]..removeAt(k), ink: () => null);
 
-  /// It with staff [k]'s band from [top] to [bottom], kept round its lines. Measured again.
-  PdfSystem withBand(int k, {double? top, double? bottom}) {
+  /// It with staff [k]'s region [region], kept round its lines (its top no lower than its top
+  /// line, its bottom no higher than its bottom one) and a space wide at least; with [followLeft]
+  /// or [followRight], that side where the music starts or ends ([PdfStaff.regionLeft]).
+  /// Measured again.
+  PdfSystem withRegion(int k, ui.Rect region, {bool followLeft = false, bool followRight = false}) {
     final s = staves[k];
+    final l = followLeft ? left : region.left;
+    final r = math.max(followRight ? right : region.right, l + s.space);
     return copyWith(
       staves: [...staves]..[k] = s.copyWith(
-          bandTop: top == null ? null : math.min(top, s.top),
-          bandBottom: bottom == null ? null : math.max(bottom, s.bottom),
+          regionTop: math.min(region.top, s.top),
+          regionBottom: math.max(region.bottom, s.bottom),
+          regionLeft: () => followLeft ? null : l,
+          regionRight: () => followRight && r == right ? null : r,
         ),
       ink: () => null,
     );
@@ -553,7 +616,7 @@ class PdfSystem {
   }
 
   /// A system as the pdf module's version 1 wrote it (its top and bottom, the cuts between its
-  /// staves and the gaps below them) as [toJson] writes it: each staff with its band. What it
+  /// staves and the gaps below them) as [toJson] writes it: each staff with its region. What it
   /// can't make out is left as it is, for [fromJson] to say.
   static Map<String, Object?> upgradeJson(Map<String, Object?> json) {
     try {
@@ -577,7 +640,7 @@ class PdfSystem {
         for (final MapEntry(:key, :value) in json.entries)
           if (!const {'top', 'bottom', 'cuts', 'gaps', 'staves'}.contains(key)) key: value,
         'staves': [
-          for (final (k, s) in _list(json, 'staves').indexed) {..._map(s, 'staves'), 'band': cut.staves[k].toJson()['band']},
+          for (final (k, s) in _list(json, 'staves').indexed) {..._map(s, 'staves'), 'region': cut.staves[k].toJson()['region']},
         ],
       };
     } on FormatException {
@@ -1086,7 +1149,7 @@ class PdfScoreLayout {
   }
 
   /// A layout as the pdf module's version 1 wrote it as [toJson] writes it: each system's top,
-  /// bottom, cuts and gaps made its staves' bands ([PdfSystem.upgradeJson]).
+  /// bottom, cuts and gaps made its staves' regions ([PdfSystem.upgradeJson]).
   static Map<String, Object?> upgradeJson(Map<String, Object?> json) => switch (json['systems']) {
         final List<Object?> systems => {
             ...json,

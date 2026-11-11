@@ -320,7 +320,7 @@ Answer with one JSON object and nothing else, like this:
 
   /// One page's [systems] as [answer] sets them, placed on its ink ([raster], the whole page):
   /// staves joined into systems as it says (two found apart joined only where their bars line
-  /// up), each system's top and bottom and where each two of its staves' bands meet (or, a gap
+  /// up), each system's top and bottom and where each two of its staves' regions meet (or, a gap
   /// between, end and begin) at the rows nothing crosses nearest where it says, and its barlines
   /// those found nearest the ones it gives, else a line through the staves there (one with none
   /// there is passed over). What it doesn't give stays as found. Each system is to be measured
@@ -405,7 +405,7 @@ Answer with one JSON object and nothing else, like this:
       if (said?.top case final t?) {
         top = quiet(topLow, topHigh, down(t).clamp(topLow, topHigh));
       } else {
-        final was = systems[head.system].staves[head.index].bandTop;
+        final was = systems[head.system].staves[head.index].regionTop;
         top = was.clamp(topLow, topHigh);
       }
       final bottomHigh = math.max(staves.last.bottom + space * 0.5, math.min(below, staves.last.bottom + space * 12));
@@ -415,12 +415,12 @@ Answer with one JSON object and nothing else, like this:
       if (said?.bottom case final b?) {
         bottom = quiet(bottomLow, bottomHigh, down(b).clamp(bottomLow, bottomHigh));
       } else {
-        final was = systems[tail.system].staves[tail.index].bandBottom;
+        final was = systems[tail.system].staves[tail.index].regionBottom;
         bottom = was.clamp(bottomLow, bottomHigh);
       }
       above = bottom;
 
-      // Between each two of its staves, where the upper one's band ends and the lower one's
+      // Between each two of its staves, where the upper one's region ends and the lower one's
       // begins: the quiet rows nearest where it says, apart where it says the room between is no
       // one's; as they were, overlapping or apart, where it says nothing of two found together.
       final borders = <(double, double)>[];
@@ -440,7 +440,7 @@ Answer with one JSON object and nothing else, like this:
           final cut = quiet(lo, hi, down(y).clamp(lo, hi));
           borders.add((cut, cut));
         } else if (a.system == b.system) {
-          borders.add((a.staff.bandBottom, b.staff.bandTop));
+          borders.add((a.staff.regionBottom, b.staff.regionTop));
         } else {
           final cut = quiet(lo, hi, (lo + hi) / 2);
           borders.add((cut, cut));
@@ -466,8 +466,8 @@ Answer with one JSON object and nothing else, like this:
           staves: [
             for (final (j, s) in staves.indexed)
               s.copyWith(
-                bandTop: math.min(s.top, j == 0 ? top : borders[j - 1].$2),
-                bandBottom: math.max(s.bottom, j == staves.length - 1 ? bottom : borders[j].$1),
+                regionTop: math.min(s.top, j == 0 ? top : borders[j - 1].$2),
+                regionBottom: math.max(s.bottom, j == staves.length - 1 ? bottom : borders[j].$1),
               ),
           ],
           barlines: barlines,

@@ -3098,8 +3098,8 @@ msgstr "移除樂器"
 msgid "Remove Mask"
 msgstr "移除遮蔽"
 
-msgid "Staff"
-msgstr "譜表"
+msgid "Region"
+msgstr "區域"
 
 #: lib/pdf_import_changes.dart
 msgid "Concert"
@@ -3336,8 +3336,8 @@ msgstr "移除譜行 (⌫)"
 msgid "Remove Barline (⌫)"
 msgstr "移除小節線 (⌫)"
 
-msgid "Remove Staff (⌫)"
-msgstr "移除譜表 (⌫)"
+msgid "Remove Region (⌫)"
+msgstr "移除區域 (⌫)"
 
 msgid "Remove Mask (⌫)"
 msgstr "移除遮蔽 (⌫)"
@@ -3365,12 +3365,12 @@ msgstr "本頁沒有"
 msgid "Add Barline (B)"
 msgstr "新增小節線（B）"
 
-msgid "Add Staff (S)"
-msgstr "新增譜表（S）"
+msgid "Draw Region (R)"
+msgstr "繪製區域（R）"
 
 #: lib/pdf_import.dart
-msgid "Remove Staff"
-msgstr "移除譜表"
+msgid "Remove Region"
+msgstr "移除區域"
 
 #: lib/condensing_editor.dart
 msgctxt "condensing"
