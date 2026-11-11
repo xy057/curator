@@ -90,6 +90,37 @@ final class PdfiumDocument {
   /// Each page's width and height, points, as shown (its rotation applied).
   final List<(double, double)> pageSizes;
 
+  // The page asked of last stays loaded, with its text once that is asked for: PDFium keeps what
+  // it worked out of a page (a scan's picture decoded: most of a render's time) only while the
+  // page is loaded, and a page is asked of many times in a row (each staff's name, each system's
+  // ink and picture).
+  int _loaded = -1;
+  Pointer<Void> _page = nullptr, _text = nullptr;
+
+  /// Page [index], loaded (the one loaded before it let go); nullptr if it can't be.
+  Pointer<Void> _load(int index) {
+    if (index == _loaded) return _page;
+    release();
+    final page = FPDF_LoadPage(_handle, index);
+    if (page != nullptr) {
+      _loaded = index;
+      _page = page;
+    }
+    return page;
+  }
+
+  /// The text of the page loaded ([_load]); nullptr if it has none to give.
+  Pointer<Void> get _loadedText => _text != nullptr ? _text : _text = FPDFText_LoadPage(_page);
+
+  /// Lets go of the page kept loaded, and the memory PDFium holds for it: the next call loads its
+  /// page afresh.
+  void release() {
+    if (_text != nullptr) FPDFText_ClosePage(_text);
+    if (_page != nullptr) FPDF_ClosePage(_page);
+    _text = _page = nullptr;
+    _loaded = -1;
+  }
+
   /// Opens [bytes]; throws a [FormatException] saying why it can't.
   static PdfiumDocument open(Uint8List bytes) {
     if (!_started) {
@@ -126,10 +157,10 @@ final class PdfiumDocument {
   /// [width] × [height] pixels come back, the region's size times [scale] rounded up.
   ({Uint8List ink, int width, int height}) render(int index, double left, double top, double width, double height, double scale) {
     final w = (width * scale).ceil().clamp(1, 1 << 15), h = (height * scale).ceil().clamp(1, 1 << 15);
-    final page = FPDF_LoadPage(_handle, index);
+    final page = _load(index);
     if (page == nullptr) return (ink: Uint8List(w * h), width: w, height: h);
     final stride = w * 4;
-    final pixels = _pixels(stride * h, page);
+    final pixels = malloc<Uint8>(stride * h);
     final bitmap = FPDFBitmap_CreateEx(w, h, _bgrx, pixels.cast(), stride);
     try {
       FPDFBitmap_FillRect(bitmap, 0, 0, w, h, 0xFFFFFFFF);
@@ -145,17 +176,6 @@ final class PdfiumDocument {
     } finally {
       FPDFBitmap_Destroy(bitmap);
       malloc.free(pixels);
-      FPDF_ClosePage(page);
-    }
-  }
-
-  /// Room for a bitmap's [bytes]; where there is none, [page] is closed before saying so.
-  static Pointer<Uint8> _pixels(int bytes, Pointer<Void> page) {
-    try {
-      return malloc<Uint8>(bytes);
-    } catch (_) {
-      FPDF_ClosePage(page);
-      rethrow;
     }
   }
 
@@ -164,10 +184,10 @@ final class PdfiumDocument {
   /// nothing): RGBA bytes, straight alpha.
   ({Uint8List rgba, int width, int height}) picture(int index, double left, double top, double width, double height, double scale) {
     final w = (width * scale).ceil().clamp(1, 1 << 15), h = (height * scale).ceil().clamp(1, 1 << 15);
-    final page = FPDF_LoadPage(_handle, index);
+    final page = _load(index);
     if (page == nullptr) return (rgba: Uint8List(w * h * 4), width: w, height: h);
     final stride = w * 4;
-    final pixels = _pixels(stride * h, page);
+    final pixels = malloc<Uint8>(stride * h);
     final bitmap = FPDFBitmap_CreateEx(w, h, _bgra, pixels.cast(), stride);
     try {
       FPDFBitmap_FillRect(bitmap, 0, 0, w, h, 0x00000000);
@@ -178,19 +198,18 @@ final class PdfiumDocument {
     } finally {
       FPDFBitmap_Destroy(bitmap);
       malloc.free(pixels);
-      FPDF_ClosePage(page);
     }
   }
 
   /// The text PDF has in [rect] of page [index] (points, from the page's top left): '' for a
   /// scan, which has none.
   String text(int index, double left, double top, double right, double bottom) {
-    final page = FPDF_LoadPage(_handle, index);
+    final page = _load(index);
     if (page == nullptr) return '';
-    final textPage = FPDFText_LoadPage(page);
+    final textPage = _loadedText;
+    if (textPage == nullptr) return '';
     final at = malloc<Double>(4);
     try {
-      if (textPage == nullptr) return '';
       // Points from the top left to PDF's own (from the bottom left, the page's rotation and box
       // taken into account), a hundredth of a point at a time.
       final (w, h) = pageSizes[index];
@@ -210,21 +229,19 @@ final class PdfiumDocument {
       }
     } finally {
       malloc.free(at);
-      if (textPage != nullptr) FPDFText_ClosePage(textPage);
-      FPDF_ClosePage(page);
     }
   }
 
   /// Page [index]'s text as the PDF lays it out: each run (a stretch of a line, as PDFium groups
   /// it) with its box (points, from the page's top left). None for a scan.
   List<(String, double, double, double, double)> runs(int index) {
-    final page = FPDF_LoadPage(_handle, index);
+    final page = _load(index);
     if (page == nullptr) return const [];
-    final textPage = FPDFText_LoadPage(page);
+    final textPage = _loadedText;
+    if (textPage == nullptr) return const [];
     final box = malloc<Double>(4);
     final device = malloc<Int>(2);
     try {
-      if (textPage == nullptr) return const [];
       final (w, h) = pageSizes[index];
       final (sw, sh) = ((w * 100).round(), (h * 100).round());
       (double, double) toTopLeft(double x, double y) {
@@ -255,12 +272,11 @@ final class PdfiumDocument {
     } finally {
       malloc.free(box);
       malloc.free(device);
-      if (textPage != nullptr) FPDFText_ClosePage(textPage);
-      FPDF_ClosePage(page);
     }
   }
 
   void close() {
+    release();
     FPDF_CloseDocument(_handle);
     malloc.free(_data);
   }

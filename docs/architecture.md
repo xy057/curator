@@ -1026,6 +1026,19 @@ no staff of the PDF is: a staff's room in the main view, drawn empty and unnamed
 its frozen zone (`_bareStaves`, `_unnamed`); auto-curation leaves it shown (`isBlankLane`), and its
 lane and Spacing… say when and how much room there is. Export to Web writes each system's picture as `score/pdf/N.png`: those the page's bars are in, and a frame's width of the music either side of them, which a page of some bars shows too.
 
+**A PDF's page stays loaded while it is asked of.** PDFium keeps what it worked out of a page
+(a scan's picture decoded, some 105 of the 135 ms a render of a 600 dpi page takes; its text)
+only while the page is loaded, and a page is asked of many times in a row: each staff's name as
+it is read, each system's ink (`PdfPages.measure`) and picture, the import's page shown closer.
+So `PdfiumDocument` keeps the page asked of last, and its text, loaded until another is asked for
+(`_load`, `release`), and the worker lets every document's go 20 s after its last job (`_Worker._kept`:
+a decoded scan is some 13 MB). A scan's first render of each page is PDFium's to decode: that is
+what reading one costs (some 140 ms a page; one with text some 25), and measuring it once more
+(Done). A system's ink is measured in passes over its pixels, none for each staff or bar
+(`PdfDetect.assign`: marks labelled, summed up and given to staves; `PdfDetect.ink`: the ink
+summed and each staff's first and last row in each bar in one pass): some 30 ms a system of a
+dozen staves. Nothing here changes what is found.
+
 **The import goes in steps, and reads the words on the pages.** `PdfImport` is five steps
 (`_Step`, a bar across the top, Back and Next below): Pages (only here can the systems found be
 dragged, drawn or removed, and staves and barlines added, by Draw Region and Add Barline, or
