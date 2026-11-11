@@ -1,6 +1,7 @@
 // Settings ▸ General ▸ AI for PDF import: a model chosen takes the exam (both pages asked as Read
 // with AI asks them), and is used as its result allows; what goes wrong asking is shown whole.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -47,15 +48,21 @@ void main() {
     ]);
 
     // A server whose "good" model reads both pages right, "half" the first only (the second's
-    // answer isn't JSON), and whose "bad" one's key is refused.
+    // answer isn't JSON), and whose "bad" one's key is refused; "slow" is refused its first page
+    // at once, its second never answered while the test runs.
+    final held = Completer<void>();
     HttpOverrides.global = null; // the binding answers every request with 400 otherwise
     final server = (await tester.runAsync(() => HttpServer.bind(InternetAddress.loopbackIPv4, 0)))!;
     addTearDown(server.close);
-    server.listen((request) async {
+    Future<void> answer(HttpRequest request) async {
       final body = jsonDecode(await utf8.decoder.bind(request).join()) as Map;
       final first = '${body['messages']}'.contains('This is the page they were taken from');
       final r = request.response..headers.contentType = ContentType.json;
-      if (body['model'] == 'bad') {
+      if (body['model'] == 'slow' && !first) {
+        await held.future;
+        return;
+      }
+      if (body['model'] == 'bad' || body['model'] == 'slow') {
         r
           ..statusCode = 401
           ..write(jsonEncode({'error': {'message': 'Incorrect API key provided.'}}));
@@ -64,12 +71,15 @@ void main() {
         r.write(jsonEncode({'choices': [{'message': {'content': text}}]}));
       }
       await r.close();
-    });
+    }
+
+    // (A request the exam ends part way, once its other page has failed, is the client's to drop.)
+    server.listen((request) => answer(request).catchError((Object _) {}, test: (e) => e is HttpException || e is SocketException));
     final settings = AppSettings.memory()
       ..aiProviders = [
         AiProvider(
             id: 'local', name: 'Local', format: AiFormat.openai, enabled: true, apiKey: 'k', //
-            baseUrl: 'http://127.0.0.1:${server.port}/', path: AiFormat.openai.path, models: const ['good', 'half', 'bad']),
+            baseUrl: 'http://127.0.0.1:${server.port}/', path: AiFormat.openai.path, models: const ['good', 'half', 'bad', 'slow']),
       ];
 
     AiModel? used;
@@ -136,5 +146,14 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await settle();
     expect([used, settings.pdfAiModel, settings.pdfAiExam('local/bad')], [null, 'local/half', null]);
+
+    // One page refused while the other is still being read: said at once, not once that one is
+    // answered too.
+    await choose('half · Local', 'slow');
+    await until(find.text('HTTP 401: Incorrect API key provided.'));
+    expect(find.textContaining('Taking the exam'), findsNothing);
+    await tester.tap(find.text('Cancel'));
+    await settle();
+    held.complete();
   });
 }

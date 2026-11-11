@@ -184,8 +184,10 @@ class PdfAiExamRun {
         }
       }
 
-      return PdfAiExam.score(await Future.wait([for (final page in PdfAiExam.pages) ask(page)]));
+      // What goes wrong with one page is said at once, not when the other is answered (minutes).
+      return PdfAiExam.score(await Future.wait([for (final page in PdfAiExam.pages) ask(page)], eagerError: true));
     } finally {
+      _client.close(); // the other page's request, still under way when one failed
       pages.close();
     }
   }
