@@ -224,8 +224,11 @@ class AiClient {
     return base.replace(path: '${base.path}$rest', queryParameters: query == null ? null : {...base.queryParameters, ...query});
   }
 
+  /// The key, where the provider's API wants it; an error when it can't go in a header (which
+  /// holds printable ASCII), in words that don't repeat the key, as dart:io's do.
   Map<String, String> get _headers {
     final key = provider.apiKey.trim();
+    if (key.codeUnits.any((c) => c < 0x20 || c > 0x7e)) throw AiError('The API key has invalid characters.'.tr);
     return switch (provider.format) {
       AiFormat.openai => {if (key.isNotEmpty) 'Authorization': 'Bearer $key'},
       AiFormat.anthropic => {if (key.isNotEmpty) 'x-api-key': key, 'anthropic-version': '2023-06-01'},
@@ -397,6 +400,7 @@ class AiClient {
 
   /// The JSON a request answers with; an [AiError] with the server's message when it refuses.
   Future<Object?> _send(String method, Uri uri, [Object? body]) async {
+    final headers = _headers; // before anything is opened: a key that can't be sent
     final client = HttpClient()
       ..connectionTimeout = timeout
       ..userAgent = 'Curator/$appVersion';
@@ -404,14 +408,15 @@ class AiClient {
     try {
       final request = await client.openUrl(method, uri).timeout(timeout);
       request.followRedirects = false; // the key stays with this server
-      _headers.forEach(request.headers.set);
+      headers.forEach(request.headers.set);
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       if (body != null) {
         request.headers.contentType = ContentType.json;
         request.add(utf8.encode(jsonEncode(body)));
       }
       final response = await request.close().timeout(timeout);
-      final text = await response.transform(utf8.decoder).join().timeout(timeout);
+      // (Bytes that are no UTF-8 are no JSON either: said below, not as a decoder's error.)
+      final text = await response.transform(const Utf8Decoder(allowMalformed: true)).join().timeout(timeout);
       Object? json;
       try {
         json = text.isEmpty ? null : jsonDecode(text);
@@ -430,8 +435,9 @@ class AiClient {
       throw AiError('The server didn’t answer in time.'.tr);
     } on SocketException catch (e) {
       throw AiError(e.osError?.message.isNotEmpty == true ? e.osError!.message : e.message);
-    } on HandshakeException catch (e) {
-      throw AiError(e.message);
+    } on TlsException catch (e) {
+      // A handshake refused, or a certificate that isn't the server's.
+      throw AiError(e.message.isNotEmpty ? e.message : '$e');
     } on HttpException catch (e) {
       throw AiError(e.message);
     } finally {

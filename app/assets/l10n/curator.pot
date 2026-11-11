@@ -3859,3 +3859,7 @@ msgstr ""
 #: lib/ai_settings.dart
 msgid "Restart to apply."
 msgstr ""
+
+#: lib/ai_providers.dart
+msgid "The API key has invalid characters."
+msgstr ""

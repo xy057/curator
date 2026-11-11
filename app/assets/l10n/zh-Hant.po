@@ -3878,3 +3878,7 @@ msgstr "隱藏 AI 功能"
 #: lib/ai_settings.dart
 msgid "Restart to apply."
 msgstr "重新啟動後生效。"
+
+#: lib/ai_providers.dart
+msgid "The API key has invalid characters."
+msgstr "API 金鑰包含無效字元。"
