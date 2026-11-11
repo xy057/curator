@@ -258,8 +258,10 @@ abstract final class PdfDetect {
     return out;
   }
 
-  /// Whether a vertical line runs from [above]'s bottom line to [below]'s top line near their
-  /// left ends.
+  /// Whether a vertical line runs from [above]'s bottom line to [below]'s top line: near their
+  /// left ends (the system's line, a bracket), or anywhere along them when it runs on through
+  /// one of them (a barline: a faint scan's line at the left is broken where its barlines are
+  /// not, and a line is followed as it leans, a few rows of it missing).
   static bool _joined(PdfRaster page, FoundStaff above, FoundStaff below) {
     if ((above.left - below.left).abs() > above.space * 3) return false;
     final from = page.row(above.top + 4 * above.space).round(), to = page.row(below.top).round();
@@ -272,6 +274,21 @@ abstract final class PdfDetect {
         y++;
       }
       if (y > to) return true;
+    }
+    final px = above.space * page.scale, gap = (px * 0.4).round();
+    final lead = (above.thickness * page.scale).ceil() + 2, lean = math.max(1, ((to - from) * 0.05).ceil());
+    final top = page.row(above.top).round(), bottom = page.row(below.top + 4 * below.space).round();
+    final within = math.max(1, ((from - top) * 0.05).ceil());
+    final end = math.min(page.width - 1, page.col(math.min(above.right, below.right)).floor());
+    for (var x = math.max(0, left); x <= end; x++) {
+      final at = _down(page, x, from, to, lead: lead, lean: lean, gap: gap);
+      if (at == null) continue;
+      if (x <= right) return true;
+      if (_down(page, at, to, bottom, lead: (below.thickness * page.scale).ceil() + 2, lean: within, gap: (px * 0.12).round()) != null) return true;
+      for (var start = x - within; start <= x + within; start++) {
+        final through = _down(page, start, top, from, lead: lead, lean: within, gap: (px * 0.12).round());
+        if (through != null && (through - x).abs() <= 1) return true;
+      }
     }
     return false;
   }
