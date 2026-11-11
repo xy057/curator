@@ -3,11 +3,13 @@
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/score_editor.dart';
 import 'package:curated_score/ui_kit.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
+import 'demo_project.dart';
 import 'window.dart';
 
 /// A flute, two empty bars of 4/4.
@@ -103,5 +105,31 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(closed, isTrue);
     expect(result, isNull);
+  });
+
+  testWidgets('an orchestral score scrolls in the editor without the page being built again', (tester) async {
+    desktopWindow(tester);
+    final score = EditableScore.parse(ScoreFile.decodeMusicXML(demoScore.readAsBytesSync()));
+    await tester.pumpWidget(MaterialApp(theme: AppColors.theme(), home: ScoreEditor(score: score, name: 'Intro.musicxml')));
+    for (var i = 0; i < 60; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+    }
+    await screenshot(tester, 'score-editor-orchestra', inside: find.byType(ScoreEditor));
+    final paint = find.descendant(
+        of: find.byType(ScoreEditor), matching: find.byWidgetPredicate((w) => w is CustomPaint && '${w.painter.runtimeType}' == '_GalleyPainter'));
+    // ignore: avoid_dynamic_calls
+    Offset scrolled() => (tester.widget<CustomPaint>(paint).painter as dynamic).scroll.value as Offset;
+    expect(scrolled(), Offset.zero);
+
+    final built = <Type>[];
+    debugOnRebuildDirtyWidget = (element, _) => built.add(element.widget.runtimeType);
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    tester.binding.handlePointerEvent(PointerScrollEvent(position: tester.getCenter(paint), scrollDelta: const Offset(900, 120)));
+    await tester.pump();
+    debugOnRebuildDirtyWidget = null;
+    expect(scrolled(), const Offset(900, 120));
+    expect(built, isEmpty);
+    await screenshot(tester, 'score-editor-orchestra-scrolled', inside: find.byType(ScoreEditor));
   });
 }

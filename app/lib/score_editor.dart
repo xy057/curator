@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -82,8 +83,10 @@ class _ScoreEditorState extends State<ScoreEditor> {
   static CopiedMusic? _clipboard;
 
   // The view: points a staff space, and how far it is scrolled (points).
+  // Scrolling draws the score again and builds nothing: only the painter listens.
   double _zoom = 9;
-  Offset _scroll = Offset.zero;
+  final _scrolled = ValueNotifier(Offset.zero);
+  Offset get _scroll => _scrolled.value;
   Size _viewport = Size.zero;
   static const _gutter = 132.0;
 
@@ -106,6 +109,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
     }
     _chunks = [];
     _focus.dispose();
+    _scrolled.dispose();
     _popoverText.dispose();
     _popoverFocus.dispose();
     super.dispose();
@@ -241,7 +245,9 @@ class _ScoreEditorState extends State<ScoreEditor> {
     final maxX = math.max(0.0, _galley.width * _scale - (_viewport.width - _gutter));
     final maxY = math.max(0.0, _galley.height * _scale - _viewport.height);
     final clamped = Offset(to.dx.clamp(0, maxX), to.dy.clamp(0, maxY));
-    if (clamped != _scroll) setState(() => _scroll = clamped);
+    if (clamped == _scroll) return;
+    _scrolled.value = clamped;
+    if (_popover != null) setState(() {}); // it is by what it is about, which moved
   }
 
   /// Scrolls so [rect] (galley units) is in view.
@@ -1152,28 +1158,30 @@ class _ScoreEditorState extends State<ScoreEditor> {
                 final keys = HardwareKeyboard.instance;
                 _click(event.localPosition, shift: keys.isShiftPressed, toggle: keys.isMetaPressed || keys.isControlPressed);
               },
-              child: CustomPaint(
-                painter: _GalleyPainter(
-                  galley: _galley,
-                  scale: _scale,
-                  scroll: _scroll,
-                  gutter: _gutter,
-                  paper: colors.scorePaper,
-                  ink: colors.scoreInk,
-                  accent: colors.accent,
-                  chrome: colors.chrome,
-                  line: colors.line,
-                  text: colors.text,
-                  selected: _selected,
-                  caret: caret == null
-                      ? null
-                      : (
-                          x: _galley.xOf(caret.measure, caret.time),
-                          staff: _staffNumber(caret.part, caret.staff),
-                        ),
-                  names: [
-                    for (final (i, p) in score.parts.indexed) (name: p.name, first: _staffNumber(i, 1), last: _staffNumber(i, p.staves)),
-                  ],
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: _GalleyPainter(
+                    galley: _galley,
+                    scale: _scale,
+                    scroll: _scrolled,
+                    gutter: _gutter,
+                    paper: colors.scorePaper,
+                    ink: colors.scoreInk,
+                    accent: colors.accent,
+                    chrome: colors.chrome,
+                    line: colors.line,
+                    text: colors.text,
+                    selected: _selected,
+                    caret: caret == null
+                        ? null
+                        : (
+                            x: _galley.xOf(caret.measure, caret.time),
+                            staff: _staffNumber(caret.part, caret.staff),
+                          ),
+                    names: [
+                      for (final (i, p) in score.parts.indexed) (name: p.name, first: _staffNumber(i, 1), last: _staffNumber(i, p.staves)),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1415,11 +1423,13 @@ class _GalleyPainter extends CustomPainter {
     required this.selected,
     required this.caret,
     required this.names,
-  });
+  }) : super(repaint: scroll);
 
   final EditGalley galley;
   final double scale, gutter;
-  final Offset scroll;
+
+  /// How far the score is scrolled: drawn again when it changes.
+  final ValueListenable<Offset> scroll;
   final Color paper, ink, accent, chrome, line, text;
   final Set<String> selected;
   final ({double? x, int staff})? caret;
@@ -1427,6 +1437,7 @@ class _GalleyPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final scroll = this.scroll.value;
     canvas.drawRect(Offset.zero & size, Paint()..color = paper);
     canvas.save();
     canvas.clipRect(Rect.fromLTRB(gutter, 0, size.width, size.height));
