@@ -73,12 +73,15 @@ void main() {
     expect(xml.toXmlString(), isNot(contains('cxe'))); // the editor's ids stay its own
     expect(xml.findAllElements('barline').length, 1); // the final barline kept
 
-    // A click on a note's head finds it.
+    // A click on a note's head finds it, and one on a dynamic the dynamic.
+    score.addDynamic(start, 'mf');
     final chunk = await EditChunk.engrave(score, 0, score.measureCount);
     final galley = EditGalley([chunk]);
     final id = bar1[2].ids.single;
     final bounds = galley.boundsOf(id)!;
     expect(galley.hitTest(bounds.center), id);
+    final dynamic = RegExp(r'<dynamics id="(cxe\d+)"').firstMatch(score.chunk(0, 1).xml)!.group(1)!;
+    expect(galley.hitTest(galley.boundsOf(dynamic)!.center), dynamic);
     expect(galley.timeAtX(galley.xOf(0, Frac(3, 2))!), (measure: 0, time: Frac(3, 2)));
     chunk.dispose();
 
