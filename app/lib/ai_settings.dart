@@ -64,7 +64,7 @@ class _AiSettingsPageState extends State<AiSettingsPage> {
       for (final p in providers)
         if (q.isEmpty || p.name.toLowerCase().contains(q) || p.format.label.toLowerCase().contains(q)) p,
     ];
-    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    final page = Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SizedBox(
         width: 176,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -108,6 +108,59 @@ class _AiSettingsPageState extends State<AiSettingsPage> {
         ),
       ),
     ]);
+    if (!_settings.aiHidden) return page;
+    // AI hidden: the page under a cover, nothing on it reached; Hide AI features on the cover.
+    return Stack(fit: StackFit.expand, children: [
+      ExcludeSemantics(
+        child: ExcludeFocus(child: IgnorePointer(child: Opacity(opacity: 0.3, child: page))),
+      ),
+      Center(child: _HiddenCover(settings: _settings, groupColor: widget.groupColor)),
+    ]);
+  }
+}
+
+/// Over Settings ▸ AI while AI is hidden ([AppSettings.aiHidden]): that it is, and the switch
+/// (Settings ▸ General's own) to show it again from the next launch.
+class _HiddenCover extends StatelessWidget {
+  const _HiddenCover({required this.settings, required this.groupColor});
+  final AppSettings settings;
+  final Color Function(BuildContext) groupColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final style = AppStyle.of(context);
+    final carbon = CarbonColors.maybeOf(context);
+    return Container(
+      key: const ValueKey('aiHidden'),
+      width: 300,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      decoration: BoxDecoration(
+        color: groupColor(context),
+        borderRadius: style.radius(12),
+        border: Border.all(color: carbon?.borderSubtle ?? colors.line),
+        boxShadow: [if (carbon == null) BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 18, offset: const Offset(0, 6))],
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(AppIcon.ai.of(context), size: 26, color: colors.textMuted),
+        const SizedBox(height: 10),
+        Text('AI features are hidden'.tr,
+            textAlign: TextAlign.center, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.text)),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: Text('Hide AI features'.tr, style: TextStyle(fontSize: 13, color: colors.text))),
+          AppSwitch(value: settings.hideAi, onChanged: (v) => settings.hideAi = v),
+        ]),
+        if (settings.aiRestartPending)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('Restart to apply.'.tr, style: TextStyle(fontSize: 12, color: colors.textMuted)),
+            ),
+          ),
+      ]),
+    );
   }
 }
 

@@ -68,6 +68,8 @@ class AppSettings extends ChangeNotifier {
         _aiProviders = List.unmodifiable(AiProvider.read(_prefs?.getString(_aiProvidersKey))),
         _pdfAiModel = _prefs?.getString(_pdfAiModelKey) ?? '',
         _pdfAiExams = _readPdfAiExams(_prefs?.getString(_pdfAiExamsKey)),
+        _hideAi = _prefs?.getBool(_hideAiKey) ?? false,
+        aiHidden = _prefs?.getBool(_hideAiKey) ?? false,
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
@@ -105,6 +107,7 @@ class AppSettings extends ChangeNotifier {
   // macOS reads the flag itself, before Dart runs (MainFlutterWindow.swift: "flutter." + this).
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
   static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel', _pdfAiExamsKey = 'pdfAiExams';
+  static const _hideAiKey = 'hideAi';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
 
@@ -538,6 +541,23 @@ class AppSettings extends ChangeNotifier {
     _prefs?.setBool(_rememberWindowKey, value);
     notifyListeners();
   }
+
+  /// Settings ▸ General ▸ Hide AI features: no AI anywhere, from the next launch on ([aiHidden]).
+  bool get hideAi => _hideAi;
+  bool _hideAi;
+  set hideAi(bool value) {
+    if (value == _hideAi) return;
+    _hideAi = value;
+    _prefs?.setBool(_hideAiKey, value);
+    notifyListeners();
+  }
+
+  /// Whether AI is hidden while the app runs: [hideAi] as it was at launch. Nothing asks a model
+  /// then (no Read with AI, no AI for PDF import), and Settings ▸ AI lies under a cover.
+  final bool aiHidden;
+
+  /// Whether [hideAi] has changed since launch: it applies once the app is opened again.
+  bool get aiRestartPending => _hideAi != aiHidden;
 
   /// Settings ▸ AI: the AI services and their credentials, in the order listed; the built-in
   /// ones always among them ([AiProvider.read]).

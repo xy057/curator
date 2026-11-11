@@ -135,8 +135,8 @@ class _Item {
   /// Small and muted after the title (a version).
   final String? note;
 
-  /// One short line under the title; null when the control says it all.
-  final String Function(_Context)? help;
+  /// One short line under the title; null (or giving null) when the control says it all.
+  final String? Function(_Context)? help;
   final Widget Function(_Context) control;
   final String keywords;
 }
@@ -217,6 +217,12 @@ final _categories = <_Category>[
       keywords: 'window size position screen monitor display restore reopen launch frame',
     ),
     _Item(
+      'Hide AI features',
+      (c) => c.settings.aiRestartPending ? 'Restart to apply.' : null,
+      (c) => AppSwitch(value: c.settings.hideAi, onChanged: (v) => c.settings.hideAi = v),
+      keywords: 'ai hide disable turn off remove artificial intelligence llm model read pdf providers privacy',
+    ),
+    _Item(
       'Autosave',
       (_) => 'Saved projects only.',
       (c) => _Dropdown<Duration>(
@@ -258,6 +264,7 @@ final _categories = <_Category>[
       'AI for PDF import',
       null,
       (c) => _PdfAiModel(settings: c.settings),
+      shown: (c) => !c.settings.aiHidden,
       group: 'Import',
       keywords: 'ai model pdf import read scan names clefs keys barlines tempo llm openai anthropic gemini openrouter',
     ),

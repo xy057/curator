@@ -15,6 +15,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:score_engine/score_engine.dart';
 
+import 'ai_providers.dart' show AiModel;
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_menus.dart';
@@ -944,6 +945,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.tr)));
   }
 
+  /// The model the PDF import's Read with AI asks, and how one is chosen when there is none:
+  /// neither while AI is hidden ([AppSettings.aiHidden]), and the import has no Read with AI.
+  AiModel? get _pdfAi => settings.aiHidden ? null : settings.pdfAi;
+  Future<AiModel?> Function()? get _choosePdfAi => settings.aiHidden ? null : () => showPdfAiModelDialog(context, settings);
+
   /// A PDF score: read and set out in the PDF import ([showPdfImport]), then a new project of
   /// it. Cancelled, nothing opens.
   Future<void> _importPdf(String path) async {
@@ -952,8 +958,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     PdfScoreLayout? layout;
     try {
       if (mounted) {
-        layout = await showPdfImport(context, pages,
-            name: fileNameOf(path), ai: settings.pdfAi, chooseAi: () => showPdfAiModelDialog(context, settings));
+        layout = await showPdfImport(context, pages, name: fileNameOf(path), ai: _pdfAi, chooseAi: _choosePdfAi);
       }
     } finally {
       if (layout == null || !mounted) pages.close();
@@ -1235,8 +1240,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final pages = controller.pdfPages;
     final name = controller.fileName ?? 'Score.pdf';
     if (pages == null) return;
-    final next = await showPdfImport(context, pages,
-        name: name, layout: layout, ai: settings.pdfAi, chooseAi: () => showPdfAiModelDialog(context, settings));
+    final next = await showPdfImport(context, pages, name: name, layout: layout, ai: _pdfAi, chooseAi: _choosePdfAi);
     if (next == null || !mounted) return;
     await _guard(() async {
       final replacement = await document.prepareReplacementWith(name, controller.source!.bytes, pdf: next);
