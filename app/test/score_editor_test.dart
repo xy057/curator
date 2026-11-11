@@ -146,6 +146,110 @@ void main() {
     expect(result, isNull);
   });
 
+  testWidgets('a dynamic is dragged to another note in the score editor, and moved with ⌥ and the arrows; a hairpin ends later', (tester) async {
+    desktopWindow(tester);
+    final score = EditableScore.parse(_flute);
+    const voice = VoiceKey(1, '1');
+    final start = ScorePosition(0, voice, 0, Frac.zero);
+    score.input(start, [for (var i = 0; i < 8; i++) InputItem(const Rhythm(NoteType.quarter), [Pitch(i % 4, 5)])]);
+    score.addDynamic(start, 'p');
+    score.addHairpin(start.at(1, Frac.one), start.at(1, Frac(2)), crescendo: true);
+    await tester.pumpWidget(MaterialApp(theme: AppColors.theme(), home: ScoreEditor(score: score, name: 'Flute.musicxml')));
+    Future<void> engraved() async {
+      for (var i = 0; i < 20; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+        await tester.pump();
+      }
+    }
+
+    await engraved();
+    final paint = find.descendant(
+        of: find.byType(ScoreEditor), matching: find.byWidgetPredicate((w) => w is CustomPaint && '${w.painter.runtimeType}' == '_GalleyPainter'));
+    // ignore: avoid_dynamic_calls
+    EditGalley galley() => (tester.widget<CustomPaint>(paint).painter as dynamic).galley as EditGalley;
+    double scale() => 9 / galley().staffSpace;
+    MarkingInfo marked() => score.markingsOf(score.ids).firstWhere((m) => m.at.measure == 0);
+    // Where a marking is drawn, in the window: its middle.
+    Offset drawn(MarkingInfo marking) {
+      final bounds = score.ids.where((id) => score.markingsOf([id]).firstOrNull?.id == marking.id).map(galley().boundsOf).nonNulls.first;
+      return tester.getTopLeft(paint) + Offset(132 + bounds.center.dx * scale(), 20 + bounds.center.dy * scale());
+    }
+
+    double across(Frac from, Frac to) => (galley().xOf(0, to)! - galley().xOf(0, from)!) * scale();
+
+    // Pressed on, it is selected (the status line says where it is); dragged, it follows the
+    // pointer, and let go it is at the note nearest: the third.
+    expect((marked().at.time, marked().below), (Frac.zero, true));
+    var drag = await tester.startGesture(drawn(marked()), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(find.text('Flute · 1.1'), findsOneWidget);
+    await drag.moveBy(Offset(across(Frac.zero, Frac(2)) * 0.5, 2));
+    await drag.moveBy(Offset(across(Frac.zero, Frac(2)) * 0.5 - 6, 0));
+    await tester.pump();
+    await screenshot(tester, 'score-editor-marking-drag', inside: find.byType(ScoreEditor));
+    expect(marked().at.time, Frac.zero); // not until it is let go
+    await drag.up();
+    await tester.pump();
+    expect((marked().at.time, marked().below), (Frac(2), true));
+    expect(find.text('Flute · 1.3'), findsOneWidget);
+    await engraved();
+
+    // ⌥→ and ⌥←: on and back a note; ⌥↑: over the staff.
+    Future<void> alt(LogicalKeyboardKey key, {bool shift = false}) async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      if (shift) await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(key);
+      if (shift) await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      await tester.pump();
+    }
+
+    await alt(LogicalKeyboardKey.arrowRight);
+    expect(marked().at.time, Frac(3));
+    await alt(LogicalKeyboardKey.arrowLeft);
+    await alt(LogicalKeyboardKey.arrowLeft);
+    expect(marked().at.time, Frac.one);
+    await alt(LogicalKeyboardKey.arrowUp);
+    expect(marked().below, isFalse);
+    await engraved();
+    await screenshot(tester, 'score-editor-marking-above', inside: find.byType(ScoreEditor));
+
+    // Dragged down past the staff's middle it is under it again, at the note it is dropped by;
+    // Esc while it is dragged leaves it where it was.
+    final above = drawn(marked());
+    drag = await tester.startGesture(above, kind: PointerDeviceKind.mouse);
+    await drag.moveBy(Offset(across(Frac.one, Frac(3)), 90));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await drag.up();
+    await tester.pump();
+    expect((marked().at.time, marked().below), (Frac.one, false));
+    drag = await tester.startGesture(above, kind: PointerDeviceKind.mouse);
+    await drag.moveBy(Offset(across(Frac.one, Frac(3)), 90));
+    await drag.up();
+    await tester.pump();
+    expect((marked().at.time, marked().below), (Frac(3), true));
+    // ⌘Z: one step back.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump();
+    expect((marked().at.time, marked().below), (Frac.one, false));
+    await engraved();
+
+    // A hairpin clicked, ⇧⌥→: it ends a beat later, and starts where it did.
+    final hairpin = score.markingsOf(score.ids).firstWhere((m) => m.at.measure == 1);
+    await tester.tapAt(drawn(hairpin), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(find.text('Flute · 2.2'), findsOneWidget);
+    double width() => score.ids.where((id) => score.markingsOf([id]).firstOrNull?.id == hairpin.id).map(galley().boundsOf).nonNulls.first.width;
+    final before = width(), beat = (galley().xOf(1, Frac(3))! - galley().xOf(1, Frac(2))!);
+    await alt(LogicalKeyboardKey.arrowRight, shift: true);
+    await engraved();
+    expect(width() - before, closeTo(beat, beat * 0.5));
+    expect(score.markingsOf([hairpin.id]).single.at.time, Frac.one);
+  });
+
   testWidgets('an orchestral score scrolls in the editor without the page being built again', (tester) async {
     desktopWindow(tester);
     final score = EditableScore.parse(ScoreFile.decodeMusicXML(demoScore.readAsBytesSync()));

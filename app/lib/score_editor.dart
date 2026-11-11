@@ -113,6 +113,11 @@ class _ScoreEditorState extends State<ScoreEditor> {
   // In note input, the note a click would put in, under the pointer.
   final _shadow = ValueNotifier<_Shadow?>(null);
 
+  // A marking the pointer is down on, and where it would go once it is dragged.
+  _Held? _held;
+  _Drop? _drop;
+  final _carried = ValueNotifier<_Carry?>(null);
+
   // The last click, for telling a double one.
   Duration _clickedAt = const Duration(days: -1);
   Offset _clickedWhere = Offset.zero;
@@ -140,6 +145,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _zoomed.dispose();
     _marquee.dispose();
     _shadow.dispose();
+    _carried.dispose();
     for (final number in _numbers.values) {
       number.dispose();
     }
@@ -354,12 +360,25 @@ class _ScoreEditorState extends State<ScoreEditor> {
   Set<String>? _notesOf;
   List<String> _notes = const [];
 
+  /// The markings among what is selected: dynamics, texts, tempos, hairpins.
+  List<MarkingInfo> get _selectedMarkings {
+    if (!identical(_markingsOf, _selected)) {
+      _markingsOf = _selected;
+      _markings = score.markingsOf(_selected);
+    }
+    return _markings;
+  }
+
+  Set<String>? _markingsOf;
+  List<MarkingInfo> _markings = const [];
+
   /// Where an edit with no note to work on goes: the caret, the first note selected, or where
   /// the score was last clicked.
   ScorePosition? get _target {
     if (_caret != null) return _caret;
     final events = score.eventsOf(_selectedNotes);
     if (events.isNotEmpty) return events.first.position;
+    if (_selectedMarkings.firstOrNull case final marking?) return marking.at;
     for (final id in _selected) {
       if (score.whereIs(id) case (:final part, :final measure)) {
         return ScorePosition(part, score.defaultVoice(part, 1, measure), measure, Frac.zero);
@@ -657,6 +676,12 @@ class _ScoreEditorState extends State<ScoreEditor> {
   /// A drag from where nothing is: what the rectangle dragged out touches is selected (added
   /// to what was, with ⇧ or ⌘).
   void _dragTo(Offset local) {
+    if (_held case final held?) {
+      if (_drop == null && (_toGalley(local) - held.from).distance * _scale < 4) return;
+      _drop = _dropAt(held, local);
+      _carried.value = _drop!.carry;
+      return;
+    }
     final from = _dragFrom;
     if (from == null) return;
     final to = _toGalley(local);
@@ -667,9 +692,67 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (ids.length != _selected.length || !ids.containsAll(_selected)) setState(() => _selected = ids);
   }
 
-  void _dragDone() {
+  /// The button is up (or, [cancelled], the drag is off): a marking carried goes where it was
+  /// dropped, with the others selected.
+  void _dragDone({bool cancelled = false}) {
     _dragFrom = null;
     _marquee.value = null;
+    final held = _held, drop = _drop;
+    _held = null;
+    _drop = null;
+    _carried.value = null;
+    if (held == null || cancelled) return;
+    if (drop != null) {
+      _edit(() => score.moveMarkings(held.ids, from: held.marking.id, to: drop.to, below: drop.below));
+    } else if (held.others) {
+      setState(() => _selected = {held.id}); // a click on one of several selected: that one
+    }
+  }
+
+  /// Where the marking [held] would go, dropped with the pointer at [local]: as far on or back
+  /// as it was dragged, at the nearest place a note or rest of the staff starts or a step of
+  /// the note value's grid; and, dragged up or down by more than a staff space and a half, on
+  /// the staff nearest, over or under it as it is above or below its middle.
+  _Drop _dropAt(_Held held, Offset local) {
+    final by = _toGalley(local) - held.from, at = held.marking.at;
+    var n = _staffNumber(at.part, at.staff), below = held.marking.below;
+    if (by.dy.abs() > _galley.staffSpace * 1.5) {
+      final y = held.bounds.center.dy + by.dy;
+      n = _galley.staffAtY(y);
+      if (_galley.staffTop(n) case final top?) below = y > top + _galley.staffHeight(n) / 2;
+    }
+    final (:part, :staff) = _partStaffOf(n);
+    var measure = at.measure, time = at.time;
+    final from = _galley.xOf(at.measure, at.time);
+    final near = from == null ? null : _galley.timeNearX(from + by.dx);
+    if (near != null && near.measure < score.measureCount) {
+      measure = near.measure;
+      time = score.placeNear(part, staff, measure, near.quarters, grid: _rhythm.length);
+    }
+    return (
+      to: ScorePosition(part, score.defaultVoice(part, staff, measure), measure, time),
+      below: below,
+      carry: (ids: held.ids, by: by, x: _galley.xOf(measure, time), staff: n, below: below),
+    );
+  }
+
+  /// ⌥←/→: the markings selected go on or back to the next note of their staff or step of the
+  /// note value's grid; with ⇧, hairpins end later or sooner. ⌥↑/↓ (no note selected): a place
+  /// up or down, over or under a staff.
+  void _moveMarkings({int along = 0, int across = 0, bool ends = false}) {
+    if (_selectedMarkings.isEmpty) return;
+    final grid = _rhythm.length;
+    _edit(() {
+      if (across != 0) {
+        score.liftMarkings(_selected, across);
+      } else if (ends) {
+        score.stepEnds(_selected, along, grid: grid);
+      } else {
+        score.stepMarkings(_selected, along, grid: grid);
+      }
+    });
+    // In view where it is now (as the bars were engraved: it is drawn there in a moment).
+    if (_selectedMarkings.firstOrNull case final marking?) _reveal(_caretRect(marking.at));
   }
 
   /// Where a click at [local] would put a note in note input, and which: the staff it is on or
@@ -758,7 +841,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
       _dragFrom = null;
       return;
     }
-    if (twice && !shift && !toggle) {
+    // (Not on a marking: pressed again at once, it is being dragged.)
+    if (twice && !shift && !toggle && (id == null || score.markingsOf([id]).isEmpty)) {
       _dragFrom = null;
       final e = id == null ? null : score.locate(id);
       final at = e?.position ?? _positionAt(p);
@@ -767,7 +851,23 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (id != null) {
       final e = score.locate(id);
       final ids = [id]; // a chord's note on its own, as Dorico selects
-      if (toggle && _selected.contains(id)) {
+      final marking = shift || toggle ? null : score.markingsOf(ids).firstOrNull;
+      if (marking != null) {
+        // A marking may be dragged from here, with the others selected when it is one of them.
+        final others = _selected.length > 1 && _selected.contains(id);
+        if (!others) setState(() => _selected = {id});
+        _held = (
+          id: id,
+          marking: marking,
+          from: p,
+          bounds: _galley.boundsOf(id) ?? (p & Size.zero),
+          ids: {
+            for (final x in _selected)
+              if (score.markingsOf([x]).isNotEmpty) x,
+          },
+          others: others,
+        );
+      } else if (toggle && _selected.contains(id)) {
         setState(() => _selected = {..._selected}..remove(id));
       } else if (shift && e != null && _selectedNotes.isNotEmpty) {
         // A range in the voice of the first selected.
@@ -1050,8 +1150,11 @@ class _ScoreEditorState extends State<ScoreEditor> {
       final steps = key == LogicalKeyboardKey.arrowUp ? 1 : -1;
       action = () {
         final ids = _selectedNotes;
-        if (ids.isNotEmpty) _edit(() => score.transpose(ids, steps: steps));
+        if (ids.isNotEmpty) return _edit(() => score.transpose(ids, steps: steps));
+        _moveMarkings(across: -steps);
       };
+    } else if (alt && (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.arrowRight)) {
+      action = () => _moveMarkings(along: key == LogicalKeyboardKey.arrowRight ? 1 : -1, ends: shift);
     } else if (alt && !shift && (key == LogicalKeyboardKey.equal || key == LogicalKeyboardKey.minus)) {
       // ⌥= and ⌥-: the same sound spelled as the note above or below.
       action = () {
@@ -1064,7 +1167,9 @@ class _ScoreEditorState extends State<ScoreEditor> {
       final letter = _letterOf(key);
       action = switch (key) {
         LogicalKeyboardKey.escape => () {
-            if (input) {
+            if (_held != null) {
+              _dragDone(cancelled: true);
+            } else if (input) {
               _stopInput();
             } else {
               setState(() => _selected = {});
@@ -1328,6 +1433,11 @@ class _ScoreEditorState extends State<ScoreEditor> {
           if (e.rhythm case final r?) r.dots > 0 ? 'Dotted {value}'.fill({'value': _valueName(r.type)}) : _valueName(r.type),
           if (_selected.length > e.ids.length) '{count} selected'.fill({'count': _selected.length}),
         ].join(' · ');
+      } else if (_selectedMarkings.firstOrNull case final marking?) {
+        text = [
+          where(marking.at),
+          if (_selectedMarkings.length > 1) '{count} selected'.fill({'count': _selectedMarkings.length}),
+        ].join(' · ');
       } else if (_selected.isNotEmpty) {
         text = '{count} selected'.fill({'count': _selected.length});
       } else {
@@ -1398,7 +1508,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
               },
               onPointerHover: (event) => _hover(event.localPosition),
               onPointerUp: (_) => _dragDone(),
-              onPointerCancel: (_) => _dragDone(),
+              onPointerCancel: (_) => _dragDone(cancelled: true),
               child: RepaintBoundary(
                 child: CustomPaint(
                   painter: _GalleyPainter(
@@ -1407,6 +1517,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
                     scroll: _scrolled,
                     marquee: _marquee,
                     shadow: _shadow,
+                    carried: _carried,
                     gutter: _gutter,
                     ruler: _ruler,
                     bars: score.measureCount,
@@ -1484,6 +1595,18 @@ class _ScoreEditorState extends State<ScoreEditor> {
 /// (lines and spaces) it is above the staff's middle, how many the staff's outer lines are,
 /// and its value.
 typedef _Shadow = ({double x, double y, int steps, int outer, NoteType value});
+
+/// A marking the pointer is down on: its [id] as drawn, where the pointer went down ([from]) and
+/// where it is drawn ([bounds], galley units), the [ids] that would go with it (the markings
+/// selected), and whether [others] than it are selected.
+typedef _Held = ({String id, MarkingInfo marking, Offset from, Rect bounds, Set<String> ids, bool others});
+
+/// What a drag carries: the [ids] drawn [by] from where they are, and where the one held would
+/// go: at [x] (null: not engraved yet), over or under ([below]) [staff].
+typedef _Carry = ({Set<String> ids, Offset by, double? x, int staff, bool below});
+
+/// Where a marking dragged would go, and what is drawn of that.
+typedef _Drop = ({ScorePosition to, bool below, _Carry carry});
 
 /// A row of the notations panel: its name and its key.
 class _PanelRow extends StatelessWidget {
@@ -1681,7 +1804,8 @@ class _GalleyPainter extends CustomPainter {
     required this.names,
     required this.marquee,
     required this.shadow,
-  }) : super(repaint: Listenable.merge([zoom, scroll, marquee, shadow]));
+    required this.carried,
+  }) : super(repaint: Listenable.merge([zoom, scroll, marquee, shadow, carried]));
 
   final EditGalley galley;
   final double gutter, ruler;
@@ -1704,6 +1828,9 @@ class _GalleyPainter extends CustomPainter {
 
   /// In note input, the note a click would put in.
   final ValueListenable<_Shadow?> shadow;
+
+  /// The markings being dragged.
+  final ValueListenable<_Carry?> carried;
   final Color paper, ink, accent, chrome, line, text;
   final Set<String> selected;
   final ({double? x, int staff})? caret;
@@ -1753,6 +1880,21 @@ class _GalleyPainter extends CustomPainter {
         canvas.drawLine(Offset(note.x - space * 0.4, y), Offset(note.x + head.width + space * 0.4, y), ledger);
       }
       head.paint(canvas, Offset(note.x, note.y - head.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
+    }
+    if (carried.value case final carry?) {
+      // What is dragged, faint, where the pointer has it, and a line at the place it would go:
+      // through the staff, out to the side it would be on.
+      galley.paintOnly(canvas, visible, carry.ids, accent.withValues(alpha: 0.55), by: carry.by);
+      final top = galley.staffTop(carry.staff);
+      if ((carry.x, top) case (final x?, final top?)) {
+        final space = galley.staffSpace, bottom = top + galley.staffHeight(carry.staff);
+        canvas.drawLine(
+            Offset(x, carry.below ? top : top - space * 3),
+            Offset(x, carry.below ? bottom + space * 3 : bottom),
+            Paint()
+              ..color = accent
+              ..strokeWidth = 1.5 / scale);
+      }
     }
     if (marquee.value case final area?) {
       canvas.drawRect(area, Paint()..color = accent.withValues(alpha: 0.12));
