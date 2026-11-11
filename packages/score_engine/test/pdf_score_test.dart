@@ -462,6 +462,11 @@ void main() {
       ],
     };
     expect(PdfScoreLayout.fromJson(PdfScoreLayout.upgradeJson(v1)).systems.single, layout.systems[1]);
+    // A region that is nowhere on a page is damage, said as such (it is what is drawn of the page).
+    for (final region in [[null, 1e300, null, 40], [null, 20, null, -1e9], [1e7, 20, null, 40], [null, null, null, 40], [null, '20', null, 40]]) {
+      final staff = {...layout.systems[1].staves.first.toJson(), 'region': region};
+      expect(() => PdfStaff.fromJson(staff), throwsFormatException, reason: '$region');
+    }
 
     // Changes inserted: a tempo mark, the violin's own clef and time signature from bar 2.
     final changed = layout.copyWith(
