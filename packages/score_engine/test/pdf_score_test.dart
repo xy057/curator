@@ -213,6 +213,25 @@ void main() {
     expect([for (final i in next.instruments) (i.name, i.abbreviation)], [('Flauti', 'Fl.'), ('Oboi', 'Ob.')]);
   });
 
+  test('two systems found apart that an AI model says are one have each barline once', () {
+    final page = _page();
+    final view = PdfAiView(const ui.Size(240, 120));
+    String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
+    // Found as two systems of a staff each, the lower one's barlines a hair to the right.
+    final found = PdfDetect.page(page, 0).single;
+    final upper = found.copyWith(staves: [found.staves[0]]);
+    final lower = found.copyWith(
+        staves: [found.staves[1]], barlines: [for (final b in found.barlines) b.copyWith(x: b.x + 0.7, kind: PdfBarlineKind.end)]);
+    // One system, it says, and nothing of its barlines.
+    final answer = PdfAiPage.parse('{"systems": [{"staves": [{"label": 1, "y": ${y(28)}}, {"label": 2, "y": ${y(68)}}]}]}');
+    final refined = PdfAi.refine(page, [upper, lower], answer, view).single;
+    expect(refined.system.staves, hasLength(2));
+    expect([for (final b in refined.system.barlines) b.x], [for (final b in found.barlines) b.x]);
+    expect({for (final b in refined.system.barlines) b.kind}, {PdfBarlineKind.end});
+    expect(refined.system.segments, hasLength(found.segments.length));
+    expect(refined.starts, [found.left, for (final b in found.barlines) b.x]);
+  });
+
   test('an answer’s numbers that are no numbers are passed over', () {
     // "NaN" and "Infinity" read as numbers: rounding one would throw, where a wrong answer is
     // only wrong.

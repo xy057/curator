@@ -432,12 +432,21 @@ Answer with one JSON object and nothing else, like this:
       }
       above = bottom;
 
-      // Its barlines: those the answer gives, on the page's.
-      final lines = [
+      // Its barlines: those the answer gives, on the page's. Of two systems found apart and now
+      // one, each has the line through both: one of the two, the one that says more than a plain
+      // one (a bar a hair wide between them would be counted as a bar).
+      final lines = <PdfBarline>[];
+      for (final b in [
         for (final i in from)
           for (final b in systems[i].barlines)
             if (b.x > left - space && b.x <= right + space) b,
-      ]..sort((a, b) => a.x.compareTo(b.x));
+      ]..sort((a, b) => a.x.compareTo(b.x))) {
+        if (from.length > 1 && lines.isNotEmpty && b.x - lines.last.x < space) {
+          if (lines.last.kind == PdfBarlineKind.normal) lines.last = lines.last.copyWith(kind: b.kind);
+        } else {
+          lines.add(b);
+        }
+      }
       final (barlines, starts) = switch (said?.barlines) {
         final given? when given.isNotEmpty => _barlines(raster, staves, given, lines, left: left, right: right, space: space, view: view),
         _ => (lines, [left, for (final b in lines) if (b.x >= left + space * 0.5) b.x]),
