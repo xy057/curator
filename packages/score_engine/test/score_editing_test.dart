@@ -44,6 +44,27 @@ void main() {
     expect(bar2.first.pitches.single, c5);
     expect([for (final e in bar2.skip(1)) e.isRest], everyElement(isTrue)); // the rest of the bar is rests
 
+    // The last bar filled, the caret is past it: everything asked of that place answers, and a
+    // note typed there adds the bar it goes in. Undone, the bar is gone again.
+    final end = score.input(at, [InputItem(const Rhythm(NoteType.half, dots: 1), [d5])]);
+    expect(end, ScorePosition(0, voice, 2, Frac.zero));
+    expect(score.measureCount, 2);
+    expect(score.barLength(2), Frac(4));
+    expect(score.describe(2, Frac.zero), '3.1');
+    expect(score.keyAt(0, 2, Frac.zero).fifths, 0);
+    expect(score.pitchBefore(end), d5);
+    expect(score.eventBefore(end)!.pitches.single, d5);
+    expect(score.eventAt(0, 1, 2, Frac.zero), isNull);
+    expect(score.eventsIn(0, 2, voice), isEmpty);
+    expect(score.defaultVoice(0, 1, 2), voice);
+    expect(score.input(end, [InputItem(const Rhythm(NoteType.quarter), [c5])]), ScorePosition(0, voice, 2, Frac.one));
+    expect(score.measureCount, 3);
+    expect(score.barNumber(2), '3');
+    score.undo();
+    expect(score.measureCount, 2);
+    score.undo();
+    at = ScorePosition(0, voice, 1, Frac.one);
+
     final xml = XmlDocument.parse(score.toMusicXML());
     final notes = xml.findAllElements('note').toList();
     expect(xml.findAllElements('beam').length, 2); // the two eighths, beamed

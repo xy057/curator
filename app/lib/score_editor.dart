@@ -288,8 +288,13 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _setScroll(Offset(dx, dy));
   }
 
+  /// Where the caret at [at] is drawn across the score: after the last bar when it is past it
+  /// (the last bar is full; a note typed adds a bar).
+  double? _caretX(ScorePosition at) =>
+      _galley.xOf(at.measure, at.time) ?? (at.measure >= score.measureCount ? _galley.barOf(score.measureCount - 1)?.right : null);
+
   Rect? _caretRect(ScorePosition at) {
-    final x = _galley.xOf(at.measure, at.time);
+    final x = _caretX(at);
     final n = _staffNumber(at.part, at.staff);
     final top = _galley.staffTop(n);
     if (x == null || top == null) return null;
@@ -1321,7 +1326,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
                     caret: caret == null
                         ? null
                         : (
-                            x: _galley.xOf(caret.measure, caret.time),
+                            x: _caretX(caret),
                             staff: _staffNumber(caret.part, caret.staff),
                           ),
                     names: [

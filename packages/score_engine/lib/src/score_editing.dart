@@ -1105,7 +1105,8 @@ class EditableScore {
 
   /// What is in force where bar [m] of [part] starts. Kept bar by bar and worked out as far as
   /// asked: a bar written again leaves those before it as they were ([_contextsStaleFrom]).
-  _Context _contextBefore(EditPart part, int m) {
+  _Context _contextBefore(EditPart part, int bar) {
+    final m = math.min(bar, part._measures.length); // past the last bar: what it leaves in force
     final known = part._contexts ??= [];
     if (known.isEmpty) {
       known.add(_Context(divisions: part.divisions, key: const KeySig(0), meter: null, clefs: const {}, transpose: null, staves: 1));
@@ -1171,16 +1172,23 @@ class EditableScore {
   TimeSig? meterAt(int m) => _contextAt(0, m, Frac.zero).meter;
 
   /// How long bar [m] is: its time signature's length, or what it holds (an upbeat, a bar
-  /// with no time signature).
+  /// with no time signature). One past the last (where the caret is when the last is full, and
+  /// a bar is added when a note is typed): what the time signature in force says.
   Frac barLength(int m) {
+    if (m >= measureCount) return meterAt(m)?.length ?? Frac(4);
     final measure = parts.first._measures[m];
     final held = parts.indexed.fold(Frac.zero, (a, p) => Frac.max(a, _view(p.$1, m).length));
     if (measure.getAttribute('implicit') == 'yes') return held.isPositive ? held : (meterAt(m)?.length ?? Frac(4));
     return meterAt(m)?.length ?? (held.isPositive ? held : Frac(4));
   }
 
-  /// The bar's number as the score prints it.
-  String barNumber(int m) => parts.first._measures[m].getAttribute('number') ?? '${m + 1}';
+  /// The bar's number as the score prints it (past the last bar: counted on from it).
+  String barNumber(int m) {
+    final count = measureCount;
+    if (m < count) return parts.first._measures[m].getAttribute('number') ?? '${m + 1}';
+    final last = int.tryParse(barNumber(count - 1));
+    return '${last == null ? m + 1 : last + m - count + 1}';
+  }
 
   // MARK: Reading bars
 
@@ -1188,9 +1196,12 @@ class EditableScore {
 
   /// Bar [m] of [part] as it is (never changed: edits work on [_mutable]).
   _Content _view(int part, int m) {
+    if (m >= parts[part]._measures.length) return _nothing; // past the last bar
     final measure = parts[part]._measures[m];
     return _views[measure] ??= _read(measure, parts[part].divisions);
   }
+
+  static final _nothing = _Content();
 
   _Content _mutable(int part, int m) => _read(parts[part]._measures[m].copy(), parts[part].divisions);
 
