@@ -1160,6 +1160,9 @@ msgstr "拍から拍へなめらかに進みます：速さはテンポととも
 msgid "Glissandos"
 msgstr "グリッサンド"
 
+msgid "Go to Bar"
+msgstr "小節へ移動"
+
 #: lib/editor_toolbar.dart
 msgid "Go to bar ({key})"
 msgstr "小節へ移動（{key}）"

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -38,10 +40,18 @@ enum _Popover {
   holds('Holds', 'H', 'fermata  breath  caesura'),
   ornaments('Ornaments', 'O', 'tr  mordent  turn'),
   lyrics('Lyrics', 'L', ''),
-  tuplet('Tuplet', ';', '3  5:4');
+  tuplet('Tuplet', ';', '3  5:4'),
+  goTo('Go to Bar', 'G', '12');
 
   const _Popover(this.title, this.letter, this.hint);
   final String title, letter, hint;
+
+  /// Its keys, as the notations panel says them.
+  String get keys => switch (this) {
+        tuplet => ';',
+        goTo => shortcut('⌘G'),
+        _ => '⇧$letter',
+      };
 }
 
 class ScoreEditor extends StatefulWidget {
@@ -81,10 +91,31 @@ class _ScoreEditorState extends State<ScoreEditor> {
   static CopiedMusic? _clipboard;
 
   // The view: points a staff space, and how far it is scrolled (points).
-  double _zoom = 9;
-  Offset _scroll = Offset.zero;
+  // Scrolling draws the score again and builds nothing: only the painter listens.
+  static const _defaultZoom = 9.0;
+  final _zoomed = ValueNotifier(_defaultZoom);
+  double get _zoom => _zoomed.value;
+  double _zoomAtPinch = _defaultZoom;
+  final _scrolled = ValueNotifier(Offset.zero);
+  Offset get _scroll => _scrolled.value;
   Size _viewport = Size.zero;
   static const _gutter = 132.0;
+
+  /// The strip along the top that numbers the bars: the score is under it.
+  static const _ruler = 20.0;
+  final _numbers = <String, TextPainter>{};
+
+  // A rectangle being dragged out (galley units): where it began, what was selected then.
+  Offset? _dragFrom;
+  Set<String> _dragOver = const {};
+  final _marquee = ValueNotifier<Rect?>(null);
+
+  // In note input, the note a click would put in, under the pointer.
+  final _shadow = ValueNotifier<_Shadow?>(null);
+
+  // The last click, for telling a double one.
+  Duration _clickedAt = const Duration(days: -1);
+  Offset _clickedWhere = Offset.zero;
 
   _Popover? _popover;
   final _popoverText = TextEditingController();
@@ -105,6 +136,13 @@ class _ScoreEditorState extends State<ScoreEditor> {
     }
     _chunks = [];
     _focus.dispose();
+    _scrolled.dispose();
+    _zoomed.dispose();
+    _marquee.dispose();
+    _shadow.dispose();
+    for (final number in _numbers.values) {
+      number.dispose();
+    }
     _popoverText.dispose();
     _popoverFocus.dispose();
     super.dispose();
@@ -112,16 +150,32 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   // MARK: Engraving
 
-  int get _chunkCount => (score.measureCount + EditChunk.bars - 1) ~/ EditChunk.bars;
+  /// How many bars a chunk holds: fewer the more staves the score has.
+  late final int _bars = EditChunk.barsFor(score.parts.fold(0, (a, p) => a + p.staves));
 
-  /// The chunks whose bars changed engraved again (all of them, with [all]).
+  /// How many chunks are engraved at a time.
+  static final _engravers = (Platform.numberOfProcessors - 2).clamp(2, 6);
+
+  int get _chunkCount => (score.measureCount + _bars - 1) ~/ _bars;
+
+  /// The chunks whose bars changed engraved again (all of them, with [all]): a bar's own, and
+  /// those engraved with it (the chunk after its last bar, the ones before whose slurs run into it).
   void _refresh({bool all = false}) {
     final changed = score.takeChanged();
     final count = _chunkCount;
+    // The bars chunk k was engraved with after its own (one, until it is known).
+    int trail(int k) => (k < _chunks.length ? _chunks[k]?.trail : null) ?? 1;
     final dirty = <int>{
       if (all) for (var k = 0; k < count; k++) k,
-      for (final m in changed.bars) m ~/ EditChunk.bars,
-      if (changed.from case final from?) for (var k = from ~/ EditChunk.bars; k < count; k++) k,
+      for (final m in changed.bars) ...[
+        m ~/ _bars,
+        if (m % _bars == _bars - 1) m ~/ _bars + 1,
+        for (var k = m ~/ _bars - 1; k >= 0 && (k + 1) * _bars + EditableScore.reach > m; k--)
+          if ((k + 1) * _bars + trail(k) > m) k,
+      ],
+      if (changed.from case final from?)
+        for (var k = 0; k < count; k++)
+          if ((k + 1) * _bars + trail(k) > from) k,
     };
     if (_chunks.length > count) {
       _retire(_chunks.sublist(count));
@@ -140,17 +194,17 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   EditGalley _galleyOf(List<EditChunk?> chunks) {
     final space = chunks.firstWhere((c) => c != null, orElse: () => null)?.data.staffSpace ?? 0;
-    return EditGalley(chunks, margin: space * 3);
+    return EditGalley(chunks, margin: space * 3, bars: _bars);
   }
 
-  /// Engraves the chunks waiting, three at a time, the ones nearest the view first.
+  /// Engraves the chunks waiting, a few at a time, the ones nearest the view first.
   void _pump() {
-    while (_running < 3 && _queue.isNotEmpty) {
+    while (_running < _engravers && _queue.isNotEmpty) {
       final near = _visibleChunk();
       final k = _queue.reduce((a, b) => (a - near).abs() <= (b - near).abs() ? a : b);
       _queue.remove(k);
       final version = _wanted[k];
-      final from = k * EditChunk.bars, to = math.min(score.measureCount, from + EditChunk.bars);
+      final from = k * _bars, to = math.min(score.measureCount, from + _bars);
       _running++;
       EditChunk.engrave(score, from, to).then((chunk) {
         _running--;
@@ -200,7 +254,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
   /// Points a galley unit.
   double get _scale => _zoom / _galley.staffSpace;
 
-  Offset _toGalley(Offset local) => Offset((local.dx - _gutter + _scroll.dx) / _scale, (local.dy + _scroll.dy) / _scale);
+  Offset _toGalley(Offset local) => Offset((local.dx - _gutter + _scroll.dx) / _scale, (local.dy - _ruler + _scroll.dy) / _scale);
 
   /// Verovio's staff number for [staff] of [part].
   int _staffNumber(int part, int staff) {
@@ -222,16 +276,18 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   void _setScroll(Offset to) {
     final maxX = math.max(0.0, _galley.width * _scale - (_viewport.width - _gutter));
-    final maxY = math.max(0.0, _galley.height * _scale - _viewport.height);
+    final maxY = math.max(0.0, _galley.height * _scale - (_viewport.height - _ruler));
     final clamped = Offset(to.dx.clamp(0, maxX), to.dy.clamp(0, maxY));
-    if (clamped != _scroll) setState(() => _scroll = clamped);
+    if (clamped == _scroll) return;
+    _scrolled.value = clamped;
+    if (_popover != null) setState(() {}); // it is by what it is about, which moved
   }
 
   /// Scrolls so [rect] (galley units) is in view.
   void _reveal(Rect? rect) {
     if (rect == null || _viewport.isEmpty) return;
     final r = Rect.fromLTRB(rect.left * _scale, rect.top * _scale, rect.right * _scale, rect.bottom * _scale);
-    final width = _viewport.width - _gutter, height = _viewport.height, pad = 6 * _zoom;
+    final width = _viewport.width - _gutter, height = _viewport.height - _ruler, pad = 6 * _zoom;
     var dx = _scroll.dx, dy = _scroll.dy;
     if (r.left - pad < dx) dx = r.left - pad;
     if (r.right + pad > dx + width) dx = r.right + pad - width;
@@ -240,8 +296,13 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _setScroll(Offset(dx, dy));
   }
 
+  /// Where the caret at [at] is drawn across the score: after the last bar when it is past it
+  /// (the last bar is full; a note typed adds a bar).
+  double? _caretX(ScorePosition at) =>
+      _galley.xOf(at.measure, at.time) ?? (at.measure >= score.measureCount ? _galley.barOf(score.measureCount - 1)?.right : null);
+
   Rect? _caretRect(ScorePosition at) {
-    final x = _galley.xOf(at.measure, at.time);
+    final x = _caretX(at);
     final n = _staffNumber(at.part, at.staff);
     final top = _galley.staffTop(n);
     if (x == null || top == null) return null;
@@ -277,10 +338,21 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   Rhythm get _rhythm => Rhythm(_value, dots: _dots, tuplet: _tuplet);
 
-  List<String> get _selectedNotes => [
+  /// The notes and rests among what is selected (found once for a selection: every note of a
+  /// symphony may be).
+  List<String> get _selectedNotes {
+    if (!identical(_notesOf, _selected)) {
+      _notesOf = _selected;
+      _notes = [
         for (final id in _selected)
           if (score.isNote(id)) id,
       ];
+    }
+    return _notes;
+  }
+
+  Set<String>? _notesOf;
+  List<String> _notes = const [];
 
   /// Where an edit with no note to work on goes: the caret, the first note selected, or where
   /// the score was last clicked.
@@ -307,6 +379,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
   }
 
   void _stopInput() => setState(() {
+        _shadow.value = null;
         _caret = null;
         _chordAt = null;
         _tuplet = null;
@@ -516,6 +589,33 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _reveal(_selectionRect());
   }
 
+  /// Bar [m] brought to the view's left: the caret there in note input, else its first note on
+  /// the staff last worked on selected.
+  void _goToBar(int m) {
+    final from = _target;
+    final part = from?.part ?? 0, staff = from?.staff ?? 1;
+    final at = ScorePosition(part, score.defaultVoice(part, staff, m), m, Frac.zero);
+    setState(() {
+      _anchor = at;
+      if (_caret != null) {
+        _caret = at;
+        _chordAt = null;
+      } else {
+        _selected = {...?score.eventAt(part, staff, m, Frac.zero)?.ids};
+      }
+    });
+    _showBar(m);
+  }
+
+  /// Scrolls across so bar [m] starts at the view's left (a little in).
+  void _showBar(int m) {
+    final bar = _galley.barOf(m);
+    // One not engraved yet: where its chunk is guessed to be.
+    final left = bar?.left ?? _galley.chunkLeft((m ~/ _bars).clamp(0, _chunks.length - 1));
+    // (The first bar, from the clefs before it.)
+    _setScroll(Offset(m == 0 ? 0 : left * _scale - 24, _scroll.dy));
+  }
+
   /// ←/→ outside note input: the note before or after the selection in its voice (⇧ adds it).
   void _step(int delta, {bool extend = false, bool bar = false}) {
     final events = score.eventsOf(_selectedNotes);
@@ -551,11 +651,119 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (e != null) _select(e.ids);
   }
 
-  void _click(Offset local, {required bool shift, required bool toggle}) {
+  /// ⌘A: everything in the score.
+  void _selectAll() => setState(() => _selected = {...score.ids});
+
+  /// A drag from where nothing is: what the rectangle dragged out touches is selected (added
+  /// to what was, with ⇧ or ⌘).
+  void _dragTo(Offset local) {
+    final from = _dragFrom;
+    if (from == null) return;
+    final to = _toGalley(local);
+    if (_marquee.value == null && (to - from).distance * _scale < 4) return;
+    final area = Rect.fromPoints(from, to);
+    _marquee.value = area;
+    final ids = {..._dragOver, ..._galley.idsIn(area)};
+    if (ids.length != _selected.length || !ids.containsAll(_selected)) setState(() => _selected = ids);
+  }
+
+  void _dragDone() {
+    _dragFrom = null;
+    _marquee.value = null;
+  }
+
+  /// Where a click at [local] would put a note in note input, and which: the staff it is on or
+  /// nearest (within its ledger lines' reach), the pitch of the line or space there by the clef
+  /// (the key's accidental, or the one chosen), at the step of the note value's grid nearest in
+  /// its bar. Null over a note or a marking (a click selects that), or far from any staff.
+  ({ScorePosition at, Pitch pitch, _Shadow shadow})? _placeAt(Offset local) {
+    if (local.dx < _gutter || local.dy < _ruler) return null;
+    final p = _toGalley(local);
+    if (_galley.hitTest(p) case final id? when !(score.locate(id)?.isRest ?? false)) return null;
+    final near = _galley.timeNearX(p.dx);
+    final n = _galley.staffAtY(p.dy);
+    final top = _galley.staffTop(n);
+    if (near == null || top == null) return null;
+    final space = _galley.staffSpace, middle = top + _galley.staffHeight(n) / 2;
+    final steps = ((middle - p.dy) / (space / 2)).round();
+    if (steps.abs() > 16) return null;
+    final m = near.measure, grid = _rhythm.length, length = score.barLength(m);
+    var k = (near.quarters / grid.toDouble()).round();
+    while (k > 0 && grid * Frac(k) >= length) {
+      k--;
+    }
+    final time = grid * Frac(k);
+    final (:part, :staff) = _partStaffOf(n);
+    final voice = _caret != null && _caret!.part == part && _caret!.staff == staff ? _caret!.voice : score.defaultVoice(part, staff, m);
+    final x = _galley.xOf(m, time);
+    if (x == null) return null;
+    final diatonic = score.clefAt(part, staff, m, time).middle.diatonic + steps;
+    final natural = Pitch.fromDiatonic(diatonic);
+    final pitch = natural.withAlter(_alter ?? Pitch.keyAlter(natural.step, score.keyAt(part, m, time).fifths));
+    return (
+      at: ScorePosition(part, voice, m, time),
+      pitch: pitch,
+      shadow: (x: x, y: middle - steps * space / 2, steps: steps, outer: (_galley.staffHeight(n) / space).round(), value: _value),
+    );
+  }
+
+  /// The pointer moved with no button down: in note input, the note a click would put in follows it.
+  void _hover(Offset local) => _shadow.value = _caret == null || _popover != null ? null : _placeAt(local)?.shadow;
+
+  /// A click in note input where no note is: the note under the pointer put in (into the chord
+  /// there, in chord mode), the caret after it.
+  bool _clickNote(Offset local) {
+    final place = _placeAt(local);
+    if (place == null) return false;
+    final there = score.eventAt(place.at.part, place.at.staff, place.at.measure, place.at.time, voice: place.at.voice.voice);
+    if (_chordMode && there != null && !there.isRest && there.position.time == place.at.time) {
+      _edit(() => score.addToChord(there.position, place.pitch));
+      setState(() => _caret = there.position);
+    } else {
+      setState(() {
+        _caret = place.at;
+        _chordAt = null;
+      });
+      _put([InputItem(_rhythm, [place.pitch])]);
+    }
+    _shadow.value = null;
+    return true;
+  }
+
+  /// A click on a bar's number: what the bar holds, in every instrument (added, with ⇧ or ⌘).
+  void _clickBar(Offset local, {required bool add}) {
+    _focus.requestFocus();
+    if (_popover != null) _closePopover();
+    _dragFrom = null;
+    final at = local.dx < _gutter ? null : _galley.timeAtX(_toGalley(local).dx);
+    if (at == null) return;
+    setState(() {
+      _selected = {if (add) ..._selected, ...score.idsIn(at.measure)};
+      _anchor = ScorePosition(0, score.defaultVoice(0, 1, at.measure), at.measure, Frac.zero);
+    });
+  }
+
+  void _click(Offset local, {required bool shift, required bool toggle, Duration now = Duration.zero}) {
     _focus.requestFocus();
     if (_popover != null) _closePopover();
     final p = _toGalley(local);
     final id = _galley.hitTest(p);
+    // A second click in the same place, outside note input: note input from there.
+    final twice = _caret == null && now - _clickedAt < kDoubleTapTimeout && (local - _clickedWhere).distance < kDoubleTapSlop / 4;
+    _clickedAt = now;
+    _clickedWhere = local;
+    _dragFrom = id == null ? p : null;
+    _dragOver = toggle || shift ? _selected : const {};
+    if (_caret != null && !shift && !toggle && _clickNote(local)) {
+      _dragFrom = null;
+      return;
+    }
+    if (twice && !shift && !toggle) {
+      _dragFrom = null;
+      final e = id == null ? null : score.locate(id);
+      final at = e?.position ?? _positionAt(p);
+      if (at != null) return _startInput(at);
+    }
     if (id != null) {
       final e = score.locate(id);
       final ids = [id]; // a chord's note on its own, as Dorico selects
@@ -583,10 +791,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
       }
       return;
     }
-    final at = _galley.timeAtX(p.dx);
-    if (at == null) return;
-    final (:part, :staff) = _partStaffOf(_galley.staffAtY(p.dy));
-    final position = ScorePosition(part, score.defaultVoice(part, staff, at.measure), at.measure, score.onsetAt(at.measure, at.time));
+    final position = _positionAt(p);
+    if (position == null) return;
     setState(() {
       _anchor = position;
       if (!toggle && !shift) _selected = {};
@@ -595,6 +801,15 @@ class _ScoreEditorState extends State<ScoreEditor> {
         _chordAt = null;
       }
     });
+  }
+
+  /// The place in the score at [p] (galley units): the staff nearest, at the note there or the
+  /// nearest before or after.
+  ScorePosition? _positionAt(Offset p) {
+    final at = _galley.timeAtX(p.dx);
+    if (at == null) return null;
+    final (:part, :staff) = _partStaffOf(_galley.staffAtY(p.dy));
+    return ScorePosition(part, score.defaultVoice(part, staff, at.measure), at.measure, score.onsetAt(at.measure, at.time));
   }
 
   // MARK: Copy and paste
@@ -644,7 +859,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
   // MARK: Popovers
 
   void _openPopover(_Popover kind) {
-    if (_target == null && kind != _Popover.bars) return;
+    if (_target == null && kind != _Popover.bars && kind != _Popover.goTo) return;
     if (kind == _Popover.lyrics && _selectedNotes.isEmpty) return;
     if (kind == _Popover.tuplet && _caret == null) return;
     _popoverText.text = kind == _Popover.lyrics ? score.lyricOf(_selectedNotes.first) : '';
@@ -777,6 +992,17 @@ class _ScoreEditorState extends State<ScoreEditor> {
         final tuplet = Tuplet.parse(t, _value);
         if (tuplet == null) return false;
         setState(() => _tuplet = tuplet);
+      case _Popover.goTo:
+        // The bar numbered so, as the score numbers them; else the bar that many from the first.
+        var m = [for (var i = 0; i < score.measureCount; i++) score.barNumber(i)].indexOf(t);
+        if (m < 0) {
+          final n = int.tryParse(t);
+          if (n == null || n < 1 || n > score.measureCount) return false;
+          m = n - 1;
+        }
+        _closePopover();
+        _goToBar(m);
+        return true;
     }
     if (!next) _closePopover();
     return true;
@@ -806,8 +1032,13 @@ class _ScoreEditorState extends State<ScoreEditor> {
         LogicalKeyboardKey.keyC => _copy,
         LogicalKeyboardKey.keyX => () => _copy(cut: true),
         LogicalKeyboardKey.keyV => _paste,
+        LogicalKeyboardKey.keyA => _selectAll,
+        LogicalKeyboardKey.keyG => () => _openPopover(_Popover.goTo),
+        LogicalKeyboardKey.home => () => _goToBar(0),
+        LogicalKeyboardKey.end => () => _goToBar(score.measureCount - 1),
         LogicalKeyboardKey.equal || LogicalKeyboardKey.add || LogicalKeyboardKey.numpadAdd => () => _zoomBy(1.2),
         LogicalKeyboardKey.minus || LogicalKeyboardKey.numpadSubtract => () => _zoomBy(1 / 1.2),
+        LogicalKeyboardKey.digit0 || LogicalKeyboardKey.numpad0 => () => _zoomTo(_defaultZoom),
         LogicalKeyboardKey.arrowUp when alt => () => _edit(() => score.transpose(_selectedNotes, octaves: 1)),
         LogicalKeyboardKey.arrowDown when alt => () => _edit(() => score.transpose(_selectedNotes, octaves: -1)),
         LogicalKeyboardKey.arrowLeft => () => input ? _caretToBar(-1) : _step(-1, bar: true, extend: shift),
@@ -820,6 +1051,12 @@ class _ScoreEditorState extends State<ScoreEditor> {
       action = () {
         final ids = _selectedNotes;
         if (ids.isNotEmpty) _edit(() => score.transpose(ids, steps: steps));
+      };
+    } else if (alt && !shift && (key == LogicalKeyboardKey.equal || key == LogicalKeyboardKey.minus)) {
+      // ⌥= and ⌥-: the same sound spelled as the note above or below.
+      action = () {
+        final ids = _selectedNotes;
+        if (ids.isNotEmpty) _edit(() => score.respell(ids, up: key == LogicalKeyboardKey.equal));
       };
     } else if (alt && shift && char != null && 'abcdefg'.contains(char) && char.length == 1) {
       action = () => _letter('cdefgab'.indexOf(char), chord: true);
@@ -841,6 +1078,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
         LogicalKeyboardKey.arrowUp => () => input ? _caretToStaff(-1) : _stepStaff(-1),
         LogicalKeyboardKey.arrowDown => () => input ? _caretToStaff(1) : _stepStaff(1),
         LogicalKeyboardKey.space => () => input ? _moveCaret(_rhythm.length) : null,
+        LogicalKeyboardKey.home => () => _showBar(0),
+        LogicalKeyboardKey.end => () => _showBar(score.measureCount - 1),
         _ when shift && letter != null => switch (letter) {
             'n' => () => input ? _stopInput() : _startInput(),
             'd' => () => _openPopover(_Popover.dynamics),
@@ -907,11 +1146,17 @@ class _ScoreEditorState extends State<ScoreEditor> {
     _edit(score.redo);
   }
 
-  void _zoomBy(double factor) {
-    final centre = _scroll + Offset((_viewport.width - _gutter) / 2, _viewport.height / 2);
-    final before = _zoom;
-    setState(() => _zoom = (_zoom * factor).clamp(3.0, 20.0));
-    _setScroll(centre * (_zoom / before) - Offset((_viewport.width - _gutter) / 2, _viewport.height / 2));
+  /// Zooms by [factor], what is at [about] in the view (its middle, if not said) staying there.
+  void _zoomBy(double factor, {Offset? about}) => _zoomTo(_zoom * factor, about: about);
+
+  void _zoomTo(double zoom, {Offset? about}) {
+    final to = zoom.clamp(3.0, 20.0);
+    if (to == _zoom) return;
+    final at = about ?? Offset(_gutter + (_viewport.width - _gutter) / 2, _ruler + (_viewport.height - _ruler) / 2);
+    final held = _toGalley(at);
+    _zoomed.value = to;
+    _setScroll(Offset(held.dx * _scale - (at.dx - _gutter), held.dy * _scale - (at.dy - _ruler)));
+    if (_popover != null) setState(() {});
   }
 
   // MARK: Leaving
@@ -1048,7 +1293,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
         for (final p in _Popover.values)
           _PanelRow(
             label: p.title.tr,
-            shortcut: p.letter == ';' ? ';' : '⇧${p.letter}',
+            shortcut: p.keys,
             selected: _popover == p,
             onPressed: () => _openPopover(p),
           ),
@@ -1115,8 +1360,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
         final target = caret ?? _target;
         final r = (_selectedNotes.isNotEmpty ? _selectionRect() : null) ?? (target == null ? null : _caretRect(target));
         if (r != null) {
-          anchorRect = Rect.fromLTRB(r.left * _scale - _scroll.dx + _gutter, r.top * _scale - _scroll.dy, r.right * _scale - _scroll.dx + _gutter,
-              r.bottom * _scale - _scroll.dy);
+          anchorRect = Rect.fromLTRB(r.left * _scale - _scroll.dx + _gutter, r.top * _scale - _scroll.dy + _ruler,
+              r.right * _scale - _scroll.dx + _gutter, r.bottom * _scale - _scroll.dy + _ruler);
         }
       }
       return ClipRect(
@@ -1124,39 +1369,66 @@ class _ScoreEditorState extends State<ScoreEditor> {
           Positioned.fill(
             child: Listener(
               onPointerSignal: (event) {
-                if (event is PointerScrollEvent) {
-                  final d = HardwareKeyboard.instance.isShiftPressed ? Offset(event.scrollDelta.dy, event.scrollDelta.dx) : event.scrollDelta;
+                final keys = HardwareKeyboard.instance;
+                if (event is PointerScaleEvent) {
+                  _zoomBy(event.scale, about: event.localPosition);
+                } else if (event is PointerScrollEvent && (keys.isMetaPressed || keys.isControlPressed)) {
+                  // ⌘ and the wheel zoom about the pointer.
+                  _zoomBy(math.exp(-event.scrollDelta.dy / 240), about: event.localPosition);
+                } else if (event is PointerScrollEvent) {
+                  final d = keys.isShiftPressed ? Offset(event.scrollDelta.dy, event.scrollDelta.dx) : event.scrollDelta;
                   _setScroll(_scroll + d);
                 }
               },
-              onPointerPanZoomUpdate: (event) => _setScroll(_scroll - event.panDelta),
+              // Two fingers on a trackpad: moved, they scroll; pinched, they zoom about themselves.
+              onPointerPanZoomStart: (_) => _zoomAtPinch = _zoom,
+              onPointerPanZoomUpdate: (event) {
+                if (event.scale != 1) _zoomTo(_zoomAtPinch * event.scale, about: event.localPosition);
+                _setScroll(_scroll - event.panDelta);
+              },
               onPointerDown: (event) {
                 if (event.buttons != kPrimaryButton) return;
                 final keys = HardwareKeyboard.instance;
-                _click(event.localPosition, shift: keys.isShiftPressed, toggle: keys.isMetaPressed || keys.isControlPressed);
+                final add = keys.isShiftPressed || keys.isMetaPressed || keys.isControlPressed;
+                if (event.localPosition.dy < _ruler) return _clickBar(event.localPosition, add: add);
+                _click(event.localPosition, shift: keys.isShiftPressed, toggle: keys.isMetaPressed || keys.isControlPressed, now: event.timeStamp);
               },
-              child: CustomPaint(
-                painter: _GalleyPainter(
-                  galley: _galley,
-                  scale: _scale,
-                  scroll: _scroll,
-                  gutter: _gutter,
-                  paper: colors.scorePaper,
-                  ink: colors.scoreInk,
-                  accent: colors.accent,
-                  chrome: colors.chrome,
-                  line: colors.line,
-                  text: colors.text,
-                  selected: _selected,
-                  caret: caret == null
-                      ? null
-                      : (
-                          x: _galley.xOf(caret.measure, caret.time),
-                          staff: _staffNumber(caret.part, caret.staff),
-                        ),
-                  names: [
-                    for (final (i, p) in score.parts.indexed) (name: p.name, first: _staffNumber(i, 1), last: _staffNumber(i, p.staves)),
-                  ],
+              onPointerMove: (event) {
+                if (event.buttons == kPrimaryButton) _dragTo(event.localPosition);
+              },
+              onPointerHover: (event) => _hover(event.localPosition),
+              onPointerUp: (_) => _dragDone(),
+              onPointerCancel: (_) => _dragDone(),
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: _GalleyPainter(
+                    galley: _galley,
+                    zoom: _zoomed,
+                    scroll: _scrolled,
+                    marquee: _marquee,
+                    shadow: _shadow,
+                    gutter: _gutter,
+                    ruler: _ruler,
+                    bars: score.measureCount,
+                    barNumber: score.barNumber,
+                    numbers: _numbers,
+                    paper: colors.scorePaper,
+                    ink: colors.scoreInk,
+                    accent: colors.accent,
+                    chrome: colors.chrome,
+                    line: colors.line,
+                    text: colors.text,
+                    selected: _selected,
+                    caret: caret == null
+                        ? null
+                        : (
+                            x: _caretX(caret),
+                            staff: _staffNumber(caret.part, caret.staff),
+                          ),
+                    names: [
+                      for (final (i, p) in score.parts.indexed) (name: p.name, first: _staffNumber(i, 1), last: _staffNumber(i, p.staves)),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1207,6 +1479,11 @@ class _ScoreEditorState extends State<ScoreEditor> {
         NoteType.hundredTwentyEighth => '128th'.tr,
       };
 }
+
+/// The note a click would put in: its head's left and middle (galley units), how many steps
+/// (lines and spaces) it is above the staff's middle, how many the staff's outer lines are,
+/// and its value.
+typedef _Shadow = ({double x, double y, int steps, int outer, NoteType value});
 
 /// A row of the notations panel: its name and its key.
 class _PanelRow extends StatelessWidget {
@@ -1386,9 +1663,13 @@ class _SlurPainter extends CustomPainter {
 class _GalleyPainter extends CustomPainter {
   _GalleyPainter({
     required this.galley,
-    required this.scale,
+    required this.zoom,
     required this.scroll,
     required this.gutter,
+    required this.ruler,
+    required this.bars,
+    required this.barNumber,
+    required this.numbers,
     required this.paper,
     required this.ink,
     required this.accent,
@@ -1398,11 +1679,31 @@ class _GalleyPainter extends CustomPainter {
     required this.selected,
     required this.caret,
     required this.names,
-  });
+    required this.marquee,
+    required this.shadow,
+  }) : super(repaint: Listenable.merge([zoom, scroll, marquee, shadow]));
 
   final EditGalley galley;
-  final double scale, gutter;
-  final Offset scroll;
+  final double gutter, ruler;
+
+  /// How many bars the score has, and what each is numbered.
+  final int bars;
+  final String Function(int bar) barNumber;
+
+  /// The numbers laid out, kept from one frame to the next.
+  final Map<String, TextPainter> numbers;
+
+  /// Points a staff space: drawn again when it changes, as when scrolled.
+  final ValueListenable<double> zoom;
+
+  /// How far the score is scrolled: drawn again when it changes.
+  final ValueListenable<Offset> scroll;
+
+  /// The rectangle being dragged out, galley units.
+  final ValueListenable<Rect?> marquee;
+
+  /// In note input, the note a click would put in.
+  final ValueListenable<_Shadow?> shadow;
   final Color paper, ink, accent, chrome, line, text;
   final Set<String> selected;
   final ({double? x, int staff})? caret;
@@ -1410,12 +1711,13 @@ class _GalleyPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final scroll = this.scroll.value, scale = zoom.value / galley.staffSpace;
     canvas.drawRect(Offset.zero & size, Paint()..color = paper);
     canvas.save();
-    canvas.clipRect(Rect.fromLTRB(gutter, 0, size.width, size.height));
-    canvas.translate(gutter - scroll.dx, -scroll.dy);
+    canvas.clipRect(Rect.fromLTRB(gutter, ruler, size.width, size.height));
+    canvas.translate(gutter - scroll.dx, ruler - scroll.dy);
     canvas.scale(scale);
-    final visible = Rect.fromLTWH(scroll.dx / scale, scroll.dy / scale, (size.width - gutter) / scale, size.height / scale);
+    final visible = Rect.fromLTWH(scroll.dx / scale, scroll.dy / scale, (size.width - gutter) / scale, (size.height - ruler) / scale);
     galley.paint(canvas, visible, ink: ink, selected: selected, accent: accent);
     if (caret case (:final x?, :final staff)) {
       final top = galley.staffTop(staff);
@@ -1428,7 +1730,63 @@ class _GalleyPainter extends CustomPainter {
         canvas.drawRect(Rect.fromLTWH(x - space * 0.6, top - space * 1.5, space * 0.9, 2 / scale), paint);
       }
     }
+    if (shadow.value case final note?) {
+      final space = galley.staffSpace, faint = accent.withValues(alpha: 0.6);
+      final code = switch (note.value) {
+        NoteType.breve => 0xE0A0,
+        NoteType.whole => 0xE0A2,
+        NoteType.half => 0xE0A3,
+        _ => 0xE0A4,
+      };
+      final head = numbers['$code ${faint.toARGB32()} $space'] ??= TextPainter(
+        text: TextSpan(
+            text: String.fromCharCode(code),
+            style: TextStyle(color: faint, fontFamily: const RenderStyle().musicFontFamily, fontSize: space * 4, height: 1)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      // Ledger lines out to it, past the staff's outer lines.
+      final ledger = Paint()
+        ..color = faint
+        ..strokeWidth = space * 0.16;
+      for (var step = note.outer + 2; step <= note.steps.abs(); step += 2) {
+        final y = note.y + (note.steps - step * note.steps.sign) * space / 2;
+        canvas.drawLine(Offset(note.x - space * 0.4, y), Offset(note.x + head.width + space * 0.4, y), ledger);
+      }
+      head.paint(canvas, Offset(note.x, note.y - head.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
+    }
+    if (marquee.value case final area?) {
+      canvas.drawRect(area, Paint()..color = accent.withValues(alpha: 0.12));
+      canvas.drawRect(
+          area,
+          Paint()
+            ..color = accent
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1 / scale);
+    }
     canvas.restore();
+
+    // The bars' numbers along the top, each at its bar's left.
+    canvas.drawRect(Rect.fromLTWH(gutter, 0, size.width - gutter, ruler), Paint()..color = chrome);
+    canvas.drawRect(Rect.fromLTWH(gutter, ruler - 1, size.width - gutter, 1), Paint()..color = line);
+    if (galley.barsIn(visible.left, visible.right) case (:final from, :final to)) {
+      canvas.save();
+      canvas.clipRect(Rect.fromLTRB(gutter, 0, size.width, ruler));
+      final muted = text.withValues(alpha: 0.62);
+      for (var m = from; m < to && m < bars; m++) {
+        final bar = galley.barOf(m);
+        if (bar == null) continue;
+        final x = bar.left * scale - scroll.dx + gutter;
+        if (x > size.width) break;
+        canvas.drawRect(Rect.fromLTWH(x, ruler - 6, 1, 5), Paint()..color = line);
+        final label = barNumber(m);
+        final number = numbers['$label ${muted.toARGB32()}'] ??= TextPainter(
+          text: TextSpan(text: label, style: TextStyle(fontSize: 11, color: muted, fontFeatures: const [FontFeature.tabularFigures()])),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        number.paint(canvas, Offset(x + 4, (ruler - number.height) / 2));
+      }
+      canvas.restore();
+    }
 
     // The names, over a column of their own.
     canvas.drawRect(Rect.fromLTWH(0, 0, gutter, size.height), Paint()..color = chrome);
@@ -1436,8 +1794,8 @@ class _GalleyPainter extends CustomPainter {
     for (final (:name, :first, :last) in names) {
       final top = galley.staffTop(first), bottom = galley.staffTop(last);
       if (top == null || bottom == null) continue;
-      final middle = ((top + bottom + galley.staffHeight(last)) / 2) * scale - scroll.dy;
-      if (middle < -20 || middle > size.height + 20) continue;
+      final middle = ((top + bottom + galley.staffHeight(last)) / 2) * scale - scroll.dy + ruler;
+      if (middle < ruler + 4 || middle > size.height + 20) continue;
       final painter = TextPainter(
         text: TextSpan(text: name, style: TextStyle(fontSize: 12, color: text)),
         textDirection: TextDirection.ltr,
@@ -1452,7 +1810,7 @@ class _GalleyPainter extends CustomPainter {
   @override
   bool shouldRepaint(_GalleyPainter old) =>
       old.galley != galley ||
-      old.scale != scale ||
+      old.zoom != zoom ||
       old.scroll != scroll ||
       old.selected != selected ||
       old.caret != caret ||

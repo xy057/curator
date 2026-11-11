@@ -1160,6 +1160,9 @@ msgstr "逐拍平滑滑动：速度只随速度标记变化。"
 msgid "Glissandos"
 msgstr "滑音"
 
+msgid "Go to Bar"
+msgstr "跳到小节"
+
 #: lib/editor_toolbar.dart
 msgid "Go to bar ({key})"
 msgstr "跳到小节（{key}）"

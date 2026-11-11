@@ -1157,6 +1157,9 @@ msgstr ""
 msgid "Glissandos"
 msgstr ""
 
+msgid "Go to Bar"
+msgstr ""
+
 #: lib/editor_toolbar.dart
 msgid "Go to bar ({key})"
 msgstr ""

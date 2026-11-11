@@ -962,9 +962,15 @@ class EditableScore {
 
   void _indexAll() {
     _where.clear();
+    _indexFrom(0);
+  }
+
+  /// The bars from [from] on found again by their ids (bars put in or taken out before them
+  /// moved them).
+  void _indexFrom(int from) {
     for (final (p, part) in parts.indexed) {
-      for (final (m, measure) in part._measures.indexed) {
-        _indexMeasure(p, m, measure);
+      for (var m = from; m < part._measures.length; m++) {
+        _indexMeasure(p, m, part._measures[m]);
       }
     }
   }
@@ -975,6 +981,26 @@ class EditableScore {
       if (id != null && id.startsWith('cxe')) _where[id] = (part: part, measure: measure);
     }
   }
+
+  /// A bar that is leaving its place: its ids are nothing in the score until a bar that has
+  /// them is put there.
+  void _unindexMeasure(int part, int measure, XmlElement element) {
+    for (final e in element.descendantElements) {
+      final id = e.getAttribute('id');
+      if (id != null && _where[id] == (part: part, measure: measure)) _where.remove(id);
+    }
+  }
+
+  /// Everything in the score that has an id: notes and rests, directions, dynamics, hairpins,
+  /// slurs.
+  Iterable<String> get ids => _where.keys;
+
+  /// What bar [m] holds that has an id, in every part.
+  Set<String> idsIn(int m) => {
+        for (final part in parts)
+          for (final e in part._measures[m].descendantElements)
+            if (e.getAttribute('id') case final id? when id.startsWith('cxe')) id,
+      };
 
   /// Whether [id] is something in the score now.
   bool has(String id) => _where.containsKey(id);
@@ -1051,6 +1077,8 @@ class EditableScore {
   }
 
   /// [part]'s divisions made fine enough for [length]s and times like it: every bar rescaled.
+  /// (They are engraved as they were, so none is said to have changed: the first triplet typed
+  /// would have every chunk of the score engraved again.)
   void _ensureDivisions(EditPart part, Iterable<Frac> times) {
     var needed = 1;
     for (final t in times) {
@@ -1068,7 +1096,6 @@ class EditableScore {
       }
       part._measures[i].replace(copy);
       part._measures[i] = copy;
-      _changed.add(i);
     }
     part.divisions = next;
     part._contexts = null;
@@ -1076,17 +1103,28 @@ class EditableScore {
 
   // MARK: Contexts
 
-  List<_Context> _contextsOf(EditPart part) => part._contexts ??= () {
-        var context = _Context(divisions: part.divisions, key: const KeySig(0), meter: null, clefs: const {}, transpose: null, staves: 1);
-        final out = <_Context>[];
-        for (final m in part._measures) {
-          out.add(context);
-          for (final a in m.findElements('attributes')) {
-            context = _applyAttributes(context, a);
-          }
-        }
-        return out;
-      }();
+  /// What is in force where bar [m] of [part] starts. Kept bar by bar and worked out as far as
+  /// asked: a bar written again leaves those before it as they were ([_contextsStaleFrom]).
+  _Context _contextBefore(EditPart part, int bar) {
+    final m = math.min(bar, part._measures.length); // past the last bar: what it leaves in force
+    final known = part._contexts ??= [];
+    if (known.isEmpty) {
+      known.add(_Context(divisions: part.divisions, key: const KeySig(0), meter: null, clefs: const {}, transpose: null, staves: 1));
+    }
+    while (known.length <= m) {
+      var context = known.last;
+      for (final a in part._measures[known.length - 1].findElements('attributes')) {
+        context = _applyAttributes(context, a);
+      }
+      known.add(context);
+    }
+    return known[m];
+  }
+
+  /// Bar [m] of [part] was written again: what is in force after it may have changed.
+  static void _contextsStaleFrom(EditPart part, int m) {
+    if (part._contexts case final known? when known.length > m + 1) known.length = m + 1;
+  }
 
   static _Context _applyAttributes(_Context context, XmlElement a) {
     var c = context;
@@ -1116,7 +1154,7 @@ class EditableScore {
   /// What is in force in bar [m] of [part] at [time] (its own changes up to then included).
   _Context _contextAt(int part, int m, Frac time) {
     final p = parts[part];
-    var context = _contextsOf(p)[m];
+    var context = _contextBefore(p, m);
     for (final o in _view(part, m).others) {
       if (o.time > time) break;
       if (o.element.name.local == 'attributes') context = _applyAttributes(context, o.element);
@@ -1134,16 +1172,23 @@ class EditableScore {
   TimeSig? meterAt(int m) => _contextAt(0, m, Frac.zero).meter;
 
   /// How long bar [m] is: its time signature's length, or what it holds (an upbeat, a bar
-  /// with no time signature).
+  /// with no time signature). One past the last (where the caret is when the last is full, and
+  /// a bar is added when a note is typed): what the time signature in force says.
   Frac barLength(int m) {
+    if (m >= measureCount) return meterAt(m)?.length ?? Frac(4);
     final measure = parts.first._measures[m];
     final held = parts.indexed.fold(Frac.zero, (a, p) => Frac.max(a, _view(p.$1, m).length));
     if (measure.getAttribute('implicit') == 'yes') return held.isPositive ? held : (meterAt(m)?.length ?? Frac(4));
     return meterAt(m)?.length ?? (held.isPositive ? held : Frac(4));
   }
 
-  /// The bar's number as the score prints it.
-  String barNumber(int m) => parts.first._measures[m].getAttribute('number') ?? '${m + 1}';
+  /// The bar's number as the score prints it (past the last bar: counted on from it).
+  String barNumber(int m) {
+    final count = measureCount;
+    if (m < count) return parts.first._measures[m].getAttribute('number') ?? '${m + 1}';
+    final last = int.tryParse(barNumber(count - 1));
+    return '${last == null ? m + 1 : last + m - count + 1}';
+  }
 
   // MARK: Reading bars
 
@@ -1151,9 +1196,12 @@ class EditableScore {
 
   /// Bar [m] of [part] as it is (never changed: edits work on [_mutable]).
   _Content _view(int part, int m) {
+    if (m >= parts[part]._measures.length) return _nothing; // past the last bar
     final measure = parts[part]._measures[m];
     return _views[measure] ??= _read(measure, parts[part].divisions);
   }
+
+  static final _nothing = _Content();
 
   _Content _mutable(int part, int m) => _read(parts[part]._measures[m].copy(), parts[part].divisions);
 
@@ -1179,83 +1227,128 @@ class EditableScore {
     final old = p._measures[m];
     final written = _write(old, content, p.divisions, multiStaff: p.staves > 1);
     _tagIn(written);
+    _unindexMeasure(part, m, old);
     old.replace(written);
     p._measures[m] = written;
     _indexMeasure(part, m, written);
     _changed.add(m);
-    p._contexts = null;
+    _contextsStaleFrom(p, m);
   }
 
   // MARK: Undo
 
-  final _undo = <_Snapshot>[], _redo = <_Snapshot>[];
-  _Snapshot? _open;
+  final _undo = <_Step>[], _redo = <_Step>[];
+  bool _editing = false;
 
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
 
-  _Snapshot _snapshot() => _Snapshot(
-        [for (final p in parts) List.of(p._measures)],
-        [for (final p in parts) p.divisions],
-      );
-
   /// Runs [change] as one Undo step (nested calls join the outer one). Nothing changed, no step.
   T edit<T>(T Function() change) {
-    if (_open != null) return change();
-    final before = _open = _snapshot();
+    if (_editing) return change();
+    _editing = true;
+    final bars = [for (final p in parts) List.of(p._measures)], divisions = [for (final p in parts) p.divisions];
     try {
       return change();
     } finally {
-      _open = null;
-      if (!_sameAs(before)) {
-        _undo.add(before);
+      _editing = false;
+      final step = _stepBackTo(bars, divisions);
+      if (step != null) {
+        _undo.add(step);
         _redo.clear();
         if (_undo.length > 500) _undo.removeAt(0);
       }
     }
   }
 
-  bool _sameAs(_Snapshot s) {
+  /// What takes the score back to [bars] (each part's, as they were): the bars that differ, or
+  /// all of a part's when it has more or fewer now. Null: nothing differs.
+  _Step? _stepBackTo(List<List<XmlElement>> bars, List<int> divisions) {
+    final whole = <List<XmlElement>?>[], some = <Map<int, XmlElement>>[];
+    var any = false;
     for (final (i, p) in parts.indexed) {
-      if (p._measures.length != s.measures[i].length) return false;
-      for (var m = 0; m < p._measures.length; m++) {
-        if (!identical(p._measures[m], s.measures[i][m])) return false;
+      final now = p._measures, was = bars[i];
+      if (now.length != was.length) {
+        whole.add(was);
+        some.add(const {});
+        any = true;
+        continue;
       }
+      final differ = <int, XmlElement>{
+        for (var m = 0; m < now.length; m++)
+          if (!identical(now[m], was[m])) m: was[m],
+      };
+      whole.add(null);
+      some.add(differ);
+      any = any || differ.isNotEmpty;
     }
-    return true;
+    return any ? _Step(whole, some, divisions) : null;
   }
 
   void undo() {
     if (_undo.isEmpty) return;
-    _redo.add(_snapshot());
-    _restore(_undo.removeLast());
+    _redo.add(_take(_undo.removeLast()));
   }
 
   void redo() {
     if (_redo.isEmpty) return;
-    _undo.add(_snapshot());
-    _restore(_redo.removeLast());
+    _undo.add(_take(_redo.removeLast()));
   }
 
-  void _restore(_Snapshot s) {
+  /// Puts [step]'s bars back, and returns the step that undoes that. Only the bars it names are
+  /// touched: a step of one bar costs one bar, however long the score.
+  _Step _take(_Step step) {
     final count = measureCount;
+    final back = _stepBackToNow();
+    var counted = false;
     for (final (i, p) in parts.indexed) {
       final now = p._measures;
-      // Bars that differ are written again in the engraving.
-      for (var m = 0; m < math.max(now.length, s.measures[i].length); m++) {
-        if (m >= now.length || m >= s.measures[i].length || !identical(now[m], s.measures[i][m])) _changed.add(m);
+      var all = step.whole[i];
+      if (all == null && step.bars[i].values.any((bar) => bar.hasParent)) {
+        // A bar to put back is in the part now, at another place: every bar set, as when their
+        // number changed (an element is in one place at a time).
+        all = List.of(now);
+        for (final MapEntry(key: m, value: bar) in step.bars[i].entries) {
+          all[m] = bar;
+        }
       }
-      p.element.children.clear();
-      p.element.children.addAll(s.measures[i]);
-      p._measures
-        ..clear()
-        ..addAll(s.measures[i]);
-      p.divisions = s.divisions[i];
-      p._contexts = null;
+      if (all != null) {
+        back.whole[i] = List.of(now);
+        // Bars that differ are written again in the engraving.
+        for (var m = 0; m < math.max(now.length, all.length); m++) {
+          if (m >= now.length || m >= all.length || !identical(now[m], all[m])) _changed.add(m);
+        }
+        p.element.children.clear();
+        p.element.children.addAll(all);
+        now
+          ..clear()
+          ..addAll(all);
+        counted = true;
+      } else {
+        final bars = back.bars[i] = <int, XmlElement>{};
+        for (final MapEntry(key: m, value: bar) in step.bars[i].entries) {
+          final old = now[m];
+          bars[m] = old;
+          _unindexMeasure(i, m, old);
+          old.replace(bar);
+          now[m] = bar;
+          _indexMeasure(i, m, bar);
+          _changed.add(m);
+        }
+      }
+      if (all != null || p.divisions != step.divisions[i]) {
+        p._contexts = null;
+      } else if (step.bars[i].isNotEmpty) {
+        _contextsStaleFrom(p, step.bars[i].keys.reduce(math.min));
+      }
+      p.divisions = step.divisions[i];
     }
     if (measureCount != count) _markFrom(math.min(count, measureCount));
-    _indexAll();
+    if (counted) _indexAll();
+    return back;
   }
+
+  _Step _stepBackToNow() => _Step([for (final _ in parts) null], [for (final _ in parts) const {}], [for (final p in parts) p.divisions]);
 
   void _markFrom(int m) => _changedFrom = _changedFrom == null ? m : math.min(_changedFrom!, m);
 
@@ -1278,46 +1371,160 @@ class EditableScore {
   }();
 
   /// Bars [from] to [to] (exclusive) as a score of their own, ids kept, for the editor's
-  /// engraving: the first starts with what is in force there (clefs, key, time, divisions,
-  /// transposition). What the first bar changes is said: [timeShown] whether the time signature,
-  /// [clefsShown] and [keysShown] the staves (numbered across the parts) whose clef or key.
-  ({String xml, bool timeShown, Set<int> clefsShown, Set<int> keysShown}) chunk(int from, int to) {
+  /// engraving, with the bars around them it takes to engrave them as they are in the whole
+  /// score: [lead] bars before (one, so the first carries on from a barline and not from a
+  /// system's start; it starts with what is in force there: clefs, key, time, divisions,
+  /// transposition) and [trail] bars after (one, for a tie into the next bar or a clef change
+  /// before the barline, and as many as a slur, hairpin or line begun in these bars runs on
+  /// for, up to [reach]). A slur, hairpin or line with only one of its ends in those bars is
+  /// left out.
+  ({String xml, int lead, int trail}) chunk(int from, int to) {
     final version = _document.rootElement.getAttribute('version') ?? '4.0';
     final b = StringBuffer('<?xml version="1.0" encoding="UTF-8"?><score-partwise version="$version">')..write(_header);
-    var timeShown = from == 0;
-    final clefsShown = <int>{}, keysShown = <int>{};
-    var staff = 0; // staves of the parts before, as Verovio numbers them
+    final lead = from > 0 ? 1 : 0;
+    final trail = _trailOf(from, to);
+    final first = from - lead, end = math.min(to + trail, measureCount);
     for (final part in parts) {
       b.write('<part id="${_escape(part.id)}">');
-      for (var m = from; m < to && m < part._measures.length; m++) {
+      final halves = _halvesIn(part, first, end);
+      for (var m = first; m < end; m++) {
         final measure = part._measures[m];
-        if (m == from && from > 0) {
-          // What the bar itself changes, against what was in force before it: shown at the
-          // chunk's start; what is only carried in is not.
-          final before = _contextsOf(part)[m];
-          if (_attributesAtStartOrNull(measure) case final own?) {
-            final after = _applyAttributes(before, own);
-            final (t0, t1) = (before.meter, after.meter);
-            if (t1 != null && (t0 == null || t0.beats != t1.beats || t0.beatType != t1.beatType || t0.symbol != t1.symbol)) timeShown = true;
-            final keyChanged = own.getElement('key') != null && (after.key.fifths != before.key.fifths || after.key.minor != before.key.minor);
-            for (var s = 1; s <= part.staves; s++) {
-              if (keyChanged) keysShown.add(staff + s);
-              if (after.clef(s) != before.clef(s)) clefsShown.add(staff + s);
-            }
-          }
-          final copy = measure.copy();
-          _carry(copy, _contextsOf(part)[m], part.staves);
-          b.write(copy.toXmlString());
-        } else {
-          b.write(measure.toXmlString());
+        final cut = halves[m];
+        if (cut == null && !(m == first && first > 0)) {
+          b.write(_xml[measure] ??= measure.toXmlString());
+          continue;
         }
+        final copy = measure.copy();
+        if (cut != null) _removeSpans(copy, cut);
+        if (m == first && first > 0) _carry(copy, _contextBefore(part, m), part.staves);
+        b.write(copy.toXmlString());
       }
       b.write('</part>');
-      staff += part.staves;
     }
     b.write('</score-partwise>');
-    return (xml: b.toString(), timeShown: timeShown, clefsShown: clefsShown, keysShown: keysShown);
+    return (xml: b.toString(), lead: lead, trail: trail);
   }
+
+  /// How many bars past a chunk are engraved with it, at most, for what begins in it and ends
+  /// later.
+  static const reach = 12;
+
+  /// The bars after [to] that bars [from] to [to] are engraved with: where the last slur,
+  /// hairpin, octave line, pedal or ending begun in them ends, when that is within [reach];
+  /// one bar otherwise, none at the score's end.
+  int _trailOf(int from, int to) {
+    final count = measureCount;
+    if (to >= count) return 0;
+    var trail = 1;
+    for (final part in parts) {
+      final open = <String>{};
+      for (var m = from; m < to; m++) {
+        for (final span in _spansOf(part._measures[m])) {
+          span.starts ? open.add(span.key) : open.remove(span.key);
+        }
+      }
+      for (var m = to; open.isNotEmpty && m < count && m - to < reach; m++) {
+        for (final span in _spansOf(part._measures[m])) {
+          if (!span.starts && open.remove(span.key)) trail = math.max(trail, m - to + 1);
+        }
+      }
+    }
+    return trail;
+  }
+
+  /// The slurs, hairpins and lines of [part] with one end only in bars [from] to [to]: by bar,
+  /// which of its [_spansOf] they are. Engraved, a slur's end with no start would be taken for
+  /// the end of the next slur that starts (Verovio keeps an end for a start written after it,
+  /// as one in another voice is).
+  Map<int, Set<int>> _halvesIn(EditPart part, int from, int to) {
+    final halves = <int, Set<int>>{};
+    final open = <String, (int, int)>{};
+    void half(int m, int index) => halves.putIfAbsent(m, () => {}).add(index);
+    for (var m = from; m < to; m++) {
+      for (final span in _spansOf(part._measures[m])) {
+        if (span.starts) {
+          if (open[span.key] case (final bar, final index)?) half(bar, index);
+          open[span.key] = (m, span.index);
+        } else if (open.remove(span.key) == null) {
+          half(m, span.index);
+        }
+      }
+    }
+    for (final (bar, index) in open.values) {
+      half(bar, index);
+    }
+    return halves;
+  }
+
+  final _spans = Expando<List<_Span>>();
+
+  /// Where bar [measure] begins or ends something that runs over notes, in the order sounded
+  /// (a slur into another voice may end, as written, before it starts).
+  List<_Span> _spansOf(XmlElement measure) => _spans[measure] ??= () {
+        final out = <_Span>[];
+        var cursor = 0, start = 0, index = 0;
+        for (final child in measure.childElements) {
+          var time = cursor;
+          switch (child.name.local) {
+            case 'note':
+              if (child.getElement('grace') != null) break;
+              if (child.getElement('chord') != null) {
+                time = start;
+                break;
+              }
+              start = cursor;
+              cursor += int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0;
+            case 'backup':
+              cursor = math.max(0, cursor - (int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0));
+            case 'forward':
+              cursor += int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0;
+          }
+          for (final e in child.descendantElements) {
+            final starts = _spanStarts(e);
+            if (starts == null) continue;
+            out.add((key: '${e.name.local} ${e.getAttribute('number') ?? '1'}', starts: starts, time: time, index: index++));
+          }
+        }
+        if (out.length > 1) _stableSort(out, (a, b) => a.time.compareTo(b.time));
+        return out.isEmpty ? const <_Span>[] : out;
+      }();
+
+  /// Whether [e] starts something that runs over notes (false: ends it; null: is neither).
+  static bool? _spanStarts(XmlElement e) => !_spanning.contains(e.name.local)
+      ? null
+      : switch (e.getAttribute('type')) {
+          'start' || 'crescendo' || 'diminuendo' || 'up' || 'down' => true,
+          'stop' || 'discontinue' => false,
+          _ => null,
+        };
+
+  static const _spanning = {'slur', 'wedge', 'octave-shift', 'pedal', 'dashes', 'bracket', 'wavy-line', 'glissando', 'slide', 'ending'};
+
+  /// Takes out of [measure] (a copy) those of its [_spansOf] numbered in [indices]; a direction
+  /// that was nothing else goes with it.
+  static void _removeSpans(XmlElement measure, Set<int> indices) {
+    var index = 0;
+    final gone = <XmlElement>[];
+    for (final e in measure.descendantElements) {
+      if (_spanStarts(e) == null) continue;
+      if (indices.contains(index++)) gone.add(e);
+    }
+    for (final e in gone) {
+      var out = e;
+      while (true) {
+        final parent = out.parentElement;
+        if (parent == null || (parent.name.local != 'direction-type' && parent.name.local != 'direction')) break;
+        final alone = parent.childElements.every((c) => identical(c, out) || c.name.local == 'staff' || c.name.local == 'voice' || c.name.local == 'offset');
+        if (!alone) break;
+        out = parent;
+      }
+      out.remove();
+    }
+  }
+
+  /// Each bar as text: a bar is never changed (an edit writes another in its place), so it is
+  /// written out once, not at every engraving of its chunk.
+  final _xml = Expando<String>();
 
   static String _escape(String s) => s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
 
@@ -2066,6 +2273,28 @@ class EditableScore {
         }
       });
 
+  /// Notes of [ids] spelled as the note above ([up]: C♯ as D♭) or below (D♭ as C♯) that sounds
+  /// the same, where that takes no more than a double sharp or flat (Dorico's ⌥= and ⌥-).
+  void respell(Iterable<String> ids, {required bool up}) => edit(() {
+        final chosen = {...ids};
+        Pitch? other(Pitch p) {
+          final to = Pitch.fromDiatonic(p.diatonic + (up ? 1 : -1));
+          final alter = p.midi - to.midi;
+          return alter.abs() <= 2 ? to.withAlter(alter) : null;
+        }
+
+        for (final e in eventsOf(ids)) {
+          // (A chord none of whose notes can be spelled so is left as it is: no step to undo.)
+          if (e.isRest || !e.pitches.any((p) => other(p) != null)) continue;
+          _editNotes(e, (notes) {
+            for (final n in notes) {
+              if (!chosen.contains(n.getAttribute('id')) || n.getElement('pitch') == null) continue;
+              if (_pitchOf(n) case final p? when other(p) != null) _setPitch(n, other(p)!);
+            }
+          });
+        }
+      });
+
   /// Notes of [ids] given [alter] (−1 a flat, 0 a natural, 1 a sharp: Dorico's − 0 =).
   void setAlter(Iterable<String> ids, int alter) => edit(() {
         final chosen = {...ids};
@@ -2508,7 +2737,7 @@ class EditableScore {
           p._contexts = null;
         }
         _renumber();
-        _indexAll();
+        _indexFrom(math.max(0, index - 1));
         _markFrom(math.max(0, index - 1));
       });
 
@@ -2554,13 +2783,14 @@ class EditableScore {
             }
           }
           for (var k = to - 1; k >= from; k--) {
+            _unindexMeasure(parts.indexOf(p), k, p._measures[k]);
             p._measures[k].remove();
             p._measures.removeAt(k);
           }
           p._contexts = null;
         }
         _renumber();
-        _indexAll();
+        _indexFrom(math.max(0, from - 1));
         _markFrom(math.max(0, from - 1));
       });
 
@@ -2656,8 +2886,15 @@ class EditableScore {
       ]);
 }
 
-class _Snapshot {
-  _Snapshot(this.measures, this.divisions);
-  final List<List<XmlElement>> measures;
+/// An Undo step: for each part the bars to put back, by their place ([bars]), or every bar it
+/// had when their number changed ([whole]), and its divisions.
+/// Where a bar starts (or ends) a slur, a hairpin, a line: [key] its kind and number, [time]
+/// when in the bar (divisions), [index] which of the bar's such elements it is, as written.
+typedef _Span = ({String key, bool starts, int time, int index});
+
+class _Step {
+  _Step(this.whole, this.bars, this.divisions);
+  final List<List<XmlElement>?> whole;
+  final List<Map<int, XmlElement>> bars;
   final List<int> divisions;
 }

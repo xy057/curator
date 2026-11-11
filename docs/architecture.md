@@ -26,7 +26,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `take_splice.dart` | `TakeSplice`: a performance spliced from several recordings' syncs by their lanes, and its sound as crossfaded `SoundChunk`s |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
 | `display_list.dart`, `frozen_zone.dart`, `score_renderer.dart` | Drawable items per staff; the clef/key/time column and braces; tile-cached drawing |
-| `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time (`EditChunk`) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
+| `score_editing.dart`, `score_edit_view.dart` | The score editor's model: MusicXML held as elements and edited by position (`EditableScore`: note input, pitches, rhythms, ties, slurs, marks, lyrics, dynamics, hairpins, tempo, text, clefs, keys, time signatures, bars and barlines, copy and paste, Undo), and its view: a few bars engraved at a time with the bars around them (`EditChunk`, drawing what starts in its own) laid end to end as one system (`EditGalley`: drawing, hit testing, x ↔ bar and beat) |
 | `pdf_detect.dart`, `pdf_pages.dart`, `pdf_text.dart`, `lib/src/native/pdfium.dart`, `pdfium_web.dart` | A PDF score read (see *A PDF score is the PDF*): PDFium through `dart:ffi` on one worker isolate (`PdfPages`; the hook bundles bblanchon's build, checked by SHA-256; on the web a stub), its pages' staves, systems, braces, music start, barlines and played bars found (`PdfDetect`), instruments matched system to system by name or by look (`PdfDetect.match`); names and tempo marks read from the pages' words (`PdfText`) |
 | `pdf_ai.dart` | A PDF score's pages read by an AI model (see *Read with AI*): what it is asked (`PdfAi.prompt`, about a picture of the page with each staff found numbered, `PdfAi.labels`, `PdfAiView`), its answer (`PdfAiPage.parse`: each staff's region, staves it says were missed), put on the page's ink (`PdfAi.refine`, through `PdfPages.refine`) and into the layout (`PdfAi.apply`) |
 | `pdf_ai_exam.dart` | The exam a model takes before Read with AI asks it (see *A model is examined*): two pages' key and the marking (`PdfAiExam.score`, `PdfAiExamResult`) |
@@ -951,11 +951,33 @@ there (`ScoreDisplayList.sourced`). A bar is never changed in place but copied, 
 of each part's bars (`edit` makes one step of whatever it wraps). After every change it tidies the
 bars it touched: rests merged and written by the beat, a voice filled or dropped, beams by the
 time signature's groups, tuplet brackets, accidentals spelled for the key and the bar.
-The view is a galley, one endless system: the score is engraved in chunks of `EditChunk.bars`
-bars (each starting with the clefs, key and time carried into it, then cut off at its first bar
-so a chunk carries on the one before: of Verovio's system start only a clef, key or time
-signature the bar itself changes stays), only the chunks an edit touched again, nearest the view first, three at a
-time, and laid end to end with staves aligned to the widest gap any chunk needs. A caret placed
+The view is a galley, one endless system, engraved a few bars at a time so a key typed engraves
+only its own bars again: a chunk is `EditChunk.barsFor` bars (24 staves' worth: two of an
+orchestra, six of a piano; Verovio's time is as the notes are many), engraved with the bars it
+takes to engrave them as they are in the whole score (`EditableScore.chunk`): the bar before (so
+the first carries on from a barline, not a system's start) and the bar after (a tie into it, a
+clef change before the barline), and as many more as a slur, hairpin, octave line, pedal or
+ending begun in the chunk runs on for (up to `EditableScore.reach`; one with a single end in
+those bars is left out of them: Verovio would take a slur's end with no start for the next
+slur's). A chunk draws what starts in its own bars, whole, and nothing that starts in the others
+(`EditChunk.owns`, by an item's left edge, from the barline before its first bar), so chunks side
+by side draw each thing once, as one engraving of the score would (the test counts them). What
+the chunks can't agree on is where things are pushed up or down out of each other's way: a text
+wider than its bars may be drawn over a slur the next chunk has. A bar written again engraves
+its chunk, the one after its last bar and the ones before whose slurs reach it, nearest the
+view first, up to six at a time, and they are laid end to end with staves aligned to the widest
+gap any chunk needs. A bar's text is written once (`_xml`: a bar is never changed), what is in
+force at each bar is kept up to the bar that changed (`_contextBefore`), and an Undo step is the
+bars that differ, by their place. Scrolling and zooming (a pinch, ⌘ and the wheel, about the
+pointer) draw the score again and build nothing: the painter listens to them. A strip along the
+top numbers the bars (a click on a number selects the bar); a rectangle dragged out from where
+nothing is selects what it touches, ⌘A everything; ⌘G goes to a bar. In note input a faint note
+follows the pointer and a click puts it in (`_placeAt`: the staff's middle line is the clef's
+`middle`, half a space a step; the time is the note value's grid step nearest, between the
+notes either side as the engraving spaces them, `EditGalley.timeNearX`); over a note a click
+selects it, as outside note input, where a second click in the same place starts note input.
+The caret may be past the last bar (the last is full): that place answers as an empty bar the
+last one's key and time are in force in, and a note typed there adds its bar. A caret placed
 by a click is at the note there exactly (`EditableScore.onsetAt`: the engraving's place is in
 3840ths of a quarter, which a septuplet's notes are not). While a popover's field has the
 keyboard the editor takes no key (it is asked before the field, and a key it took would never
@@ -963,7 +985,8 @@ reach it). A time signature that says no length is read as none, and a score who
 have different numbers of bars is refused, saying so. The keys are
 Dorico's: ⇧N or Enter note input, 1–9 note values (6 a quarter), `.` dot, `-` `=` `0` flat,
 sharp, natural, A–G a note at the nearest octave (⇧⌥ adds to the chord; Q chord mode), `,` rest,
-Space on, T tie, S slur, V the next voice, R repeat, ⌥↑↓ a step, ⌘⌥↑↓ an octave, `[` `]` `{` `}`
+Space on, T tie, S slur, V the next voice, R repeat, ⌥↑↓ a step, ⌘⌥↑↓ an octave, ⌥= ⌥- the same
+sound spelled as the note above or below, `[` `]` `{` `}`
 `'` articulations, and the popovers: ⇧D dynamics and hairpins, ⇧T tempo, ⇧M time, ⇧K key,
 ⇧C clef, ⇧X text, ⇧B bars (`+2`, `-1`) and barlines, ⇧H holds, ⇧O ornaments, ⇧L lyrics (Space
 or `-` to the next note), `;` a tuplet (`:` ends it). A time signature change fills or cuts bars

@@ -3,11 +3,13 @@
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/score_editor.dart';
 import 'package:curated_score/ui_kit.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
+import 'demo_project.dart';
 import 'window.dart';
 
 /// A flute, two empty bars of 4/4.
@@ -78,6 +80,45 @@ void main() {
     expect(score.canUndo, isTrue);
     expect(tester.widget<ToolbarButton>(find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Undo'))).onPressed, isNotNull);
 
+    // In note input a click puts a note in where the pointer is: bar 2's third beat, on the middle
+    // line (B4 in the treble clef) and a step above it; over a note already there it selects.
+    final paint = find.descendant(
+        of: find.byType(ScoreEditor), matching: find.byWidgetPredicate((w) => w is CustomPaint && '${w.painter.runtimeType}' == '_GalleyPainter'));
+    // ignore: avoid_dynamic_calls
+    final galley = (tester.widget<CustomPaint>(paint).painter as dynamic).galley as EditGalley;
+    final scale = 9 / galley.staffSpace;
+    Offset at(int bar, Frac time, int steps) =>
+        tester.getTopLeft(paint) +
+        Offset(132 + galley.xOf(bar, time)! * scale, 20 + (galley.staffTop(1)! + galley.staffHeight(1) / 2 - steps * galley.staffSpace / 2) * scale);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter); // note input, at the rest
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit6);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: at(1, Frac(2), 0));
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(at(1, Frac(2), 0) + const Offset(3, 1));
+    await tester.pump();
+    await screenshot(tester, 'score-editor-shadow', inside: find.byType(ScoreEditor));
+    await tester.tapAt(at(1, Frac(2), 0) + const Offset(3, 1), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    await tester.tapAt(at(1, Frac(3), 1), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    final clicked = score.eventsIn(0, 1, voice);
+    expect([for (final e in clicked) (e.position.time, e.isRest ? '-' : e.pitches.single.name)], [(Frac.zero, '-'), (Frac(2), 'B4'), (Frac(3), 'C5')]);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    await engraved();
+    // Twice in one place, outside note input: note input from there.
+    expect(find.textContaining('Note input'), findsNothing);
+    await tester.tapAt(at(0, Frac.zero, 9), kind: PointerDeviceKind.mouse);
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tapAt(at(0, Frac.zero, 9), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(find.textContaining('Note input'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    score.undo();
+    score.undo();
+
     // ⌘Z takes the rest back; Done gives the score as edited.
     await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
@@ -103,5 +144,117 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(closed, isTrue);
     expect(result, isNull);
+  });
+
+  testWidgets('an orchestral score scrolls in the editor without the page being built again', (tester) async {
+    desktopWindow(tester);
+    final score = EditableScore.parse(ScoreFile.decodeMusicXML(demoScore.readAsBytesSync()));
+    await tester.pumpWidget(MaterialApp(theme: AppColors.theme(), home: ScoreEditor(score: score, name: 'Intro.musicxml')));
+    for (var i = 0; i < 60; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+    }
+    await screenshot(tester, 'score-editor-orchestra', inside: find.byType(ScoreEditor));
+    final paint = find.descendant(
+        of: find.byType(ScoreEditor), matching: find.byWidgetPredicate((w) => w is CustomPaint && '${w.painter.runtimeType}' == '_GalleyPainter'));
+    // ignore: avoid_dynamic_calls
+    Offset scrolled() => (tester.widget<CustomPaint>(paint).painter as dynamic).scroll.value as Offset;
+    expect(scrolled(), Offset.zero);
+
+    final built = <Type>[];
+    debugOnRebuildDirtyWidget = (element, _) => built.add(element.widget.runtimeType);
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    tester.binding.handlePointerEvent(PointerScrollEvent(position: tester.getCenter(paint), scrollDelta: const Offset(900, 120)));
+    await tester.pump();
+    debugOnRebuildDirtyWidget = null;
+    expect(scrolled(), const Offset(900, 120));
+    expect(built, isEmpty);
+    await screenshot(tester, 'score-editor-orchestra-scrolled', inside: find.byType(ScoreEditor));
+
+    // ⌘ and the wheel zoom about the pointer: what is under it stays under it, and nothing is built.
+    // ignore: avoid_dynamic_calls
+    double zoom() => (tester.widget<CustomPaint>(paint).painter as dynamic).zoom.value as double;
+    final at = tester.getCenter(paint), local = at - tester.getTopLeft(paint);
+    Offset under() => Offset(local.dx - 132 + scrolled().dx, local.dy - 20 + scrolled().dy) / zoom();
+    final held = under();
+    expect(zoom(), 9);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump(); // (a key pressed has the buttons built for the keyboard)
+    built.clear();
+    debugOnRebuildDirtyWidget = (element, _) => built.add(element.widget.runtimeType);
+    tester.binding.handlePointerEvent(PointerScrollEvent(position: at, scrollDelta: const Offset(0, -120)));
+    await tester.pump();
+    debugOnRebuildDirtyWidget = null;
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    expect(zoom(), closeTo(9 * 1.6487, 0.01));
+    expect((under() - held).distance, lessThan(0.01));
+    expect(built, isEmpty);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump();
+    expect(zoom(), 9);
+
+    // A rectangle dragged out from where nothing is selects what it touches; ⌘A, everything.
+    int selected() {
+      final status = find.textContaining(' selected');
+      if (status.evaluate().isEmpty) return 0;
+      return int.parse(RegExp(r'(\d+) selected').firstMatch(tester.widget<Text>(status).data!)!.group(1)!);
+    }
+
+    expect(selected(), 0);
+    final corner = tester.getTopLeft(paint) + const Offset(140, 24);
+    final drag = await tester.startGesture(corner, kind: PointerDeviceKind.mouse);
+    await drag.moveTo(corner + const Offset(300, 200));
+    await tester.pump();
+    final some = selected();
+    expect(some, greaterThan(3));
+    await screenshot(tester, 'score-editor-marquee', inside: find.byType(ScoreEditor));
+    await drag.moveTo(corner + const Offset(600, 500));
+    await tester.pump();
+    expect(selected(), greaterThan(some));
+    await drag.up();
+    await tester.pump();
+    final dragged = selected();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump();
+    expect(selected(), score.ids.length);
+    expect(selected(), greaterThan(dragged));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(selected(), 0);
+
+    // ⌘G, a bar's number, Return: the bar is at the view's left, its first note selected.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Go to Bar'), findsNWidgets(2)); // the popover's title, and its row in the panel
+    await tester.enterText(find.byType(TextField), '30');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(find.byType(TextField), findsNothing);
+    expect(scrolled().dx, greaterThan(2000));
+    expect(find.textContaining(' · 30.1'), findsOneWidget); // the status line: where the selection is
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pump();
+    expect(scrolled().dx, 0);
+    expect(find.textContaining(' · 1.1'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+
+    // A click on a bar's number, in the strip along the top, selects what the bar holds.
+    tester.binding.handlePointerEvent(PointerScrollEvent(position: tester.getCenter(paint), scrollDelta: const Offset(-5000, -5000)));
+    await tester.pump();
+    expect(scrolled(), Offset.zero);
+    await tester.tapAt(tester.getTopLeft(paint) + const Offset(132 + 60, 10), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(selected(), score.idsIn(0).length);
+    await screenshot(tester, 'score-editor-bar', inside: find.byType(ScoreEditor));
   });
 }

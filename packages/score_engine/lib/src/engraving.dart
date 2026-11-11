@@ -231,14 +231,33 @@ abstract final class Engraver {
     MusicFont font = MusicFont.bravura,
     EngravingOptions options = const EngravingOptions(),
     Map<String, Object> verovioOptions = const {},
-  }) {
+  }) async {
     final json = options.verovioJson(font, verovioOptions);
     final defaults = options.engravingDefaults(font), name = font.name;
-    return Isolate.run(() {
-      final data = native.engrave(musicXML, resourceDirectory, json);
-      return data._with(glyphs: glyphMetrics(resourceDirectory, name), engravingDefaults: defaults);
-    });
+    // The font's glyph boxes are read once for as long as its metrics files stay as they are:
+    // reading them is some 5 ms, as much as a bar of an orchestra takes to engrave, and the
+    // score editor engraves at every key.
+    final key = [
+      for (final f in {'Bravura', name}) '$resourceDirectory/$f.xml ${_stamp('$resourceDirectory/$f.xml')}',
+    ].join('\n');
+    final known = _glyphs[key];
+    final data = await _run(musicXML, resourceDirectory, json, known == null ? name : null);
+    return data._with(glyphs: known ?? (_glyphs[key] = data.glyphs), engravingDefaults: defaults);
   }
+
+  static final _glyphs = <String, Map<int, GlyphBox>>{};
+
+  static String _stamp(String path) {
+    final stat = FileStat.statSync(path);
+    return stat.type == FileSystemEntityType.notFound ? '-' : '${stat.modified.microsecondsSinceEpoch} ${stat.size}';
+  }
+
+  /// On an isolate of its own (which is sent nothing but these): with [metricsOf], that font's
+  /// glyph boxes read too.
+  static Future<EngravingData> _run(String musicXML, String resourceDirectory, String json, String? metricsOf) => Isolate.run(() {
+        final data = native.engrave(musicXML, resourceDirectory, json);
+        return metricsOf == null ? data : data._with(glyphs: glyphMetrics(resourceDirectory, metricsOf), engravingDefaults: const {});
+      });
 
   /// Font [name]'s glyph boxes from Verovio's metrics in [resourceDirectory] (`<name>.xml`),
   /// over Bravura's.
