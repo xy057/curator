@@ -614,10 +614,14 @@ class _PdfImportState extends State<PdfImport> {
     }
   }
 
+  /// The page showing found again, as when the PDF was first read, in place of what it had. The
+  /// page asked for, though another is turned to meanwhile; not once measuring or reading with AI
+  /// has begun (they work on the systems as they were).
   Future<void> _detectAgain() async {
-    final found = await pages.detectAgain(_page, [for (final i in layout.instruments) if (!i.blank) i]);
-    if (!mounted) return;
-    final systems = [...layout.systems.where((s) => s.page < _page), ...found, ...layout.systems.where((s) => s.page > _page)];
+    final page = _page;
+    final found = await pages.detectAgain(page, [for (final i in layout.instruments) if (!i.blank) i]);
+    if (!mounted || _busy) return;
+    final systems = [...layout.systems.where((s) => s.page < page), ...found, ...layout.systems.where((s) => s.page > page)];
     _edit(layout.copyWith(systems: systems));
     setState(() => _selection = null);
   }
