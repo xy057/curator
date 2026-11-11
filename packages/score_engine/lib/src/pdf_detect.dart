@@ -7,11 +7,14 @@ import 'pdf_layout.dart';
 /// Part of a page as ink: a byte a pixel (0 paper … 255 black), [scale] pixels a point, its top
 /// left at ([left], [top]) points on the page.
 class PdfRaster {
-  PdfRaster(this.ink, this.width, this.height, {required this.scale, this.left = 0, this.top = 0});
+  PdfRaster(this.ink, this.width, this.height, {required this.scale, this.left = 0, this.top = 0, this.level = false});
 
   final Uint8List ink;
   final int width, height;
   final double scale, left, top;
+
+  /// Whether its staff lines were made level ([PdfDetect.flat]).
+  final bool level;
 
   /// Pixel column / row of a page x / y (points).
   double col(double x) => (x - left) * scale;
@@ -57,6 +60,110 @@ typedef FoundStaff = ({double top, double space, double left, double right, doub
 abstract final class PdfDetect {
   /// Pixels a point pages are read at for finding things: a staff space of 4 points is 10 pixels.
   static const scale = 2.5;
+
+  /// [page] with its staff lines level. A scan of a page that lay curved, or a little turned,
+  /// has a staff's lines rise or fall some rows on their way: no row holds a line then, a
+  /// staff's lines are found for a part of their length or not at all, and its systems fall
+  /// apart. The page is taken in strips of columns, and each strip is moved up or down, band by
+  /// band down the page, to where its lines meet those of the strips between it and the page's
+  /// middle one (three rows from its neighbour's at most: less than half a staff space, so a
+  /// line is not taken for the next). Columns only move up and down: what is found across the
+  /// page is where it was, and up and down it is where the page's middle has it. A page whose
+  /// lines are level, or within two rows of it, is returned as it is.
+  static PdfRaster flat(PdfRaster page) {
+    if (page.level) return page;
+    const strip = 48, bands = 16, reach = 3, most = 24;
+    final w = page.width, h = page.height, ink = page.ink;
+    final n = w ~/ strip, tall = h ~/ bands;
+    PdfRaster as(Uint8List ink) => PdfRaster(ink, w, h, scale: page.scale, left: page.left, top: page.top, level: true);
+    if (n < 3 || tall < 8) return as(ink);
+    // Per strip and row, how much of the row's ink is a line's: most of the strip across, or
+    // none (notes and text fill less).
+    final filled = Uint8List(n * h);
+    for (var y = 0; y < h; y++) {
+      final base = y * w;
+      for (var s = 0; s < n; s++) {
+        final from = base + s * strip;
+        var count = 0;
+        for (var i = from; i < from + strip; i += 2) {
+          if (ink[i] >= PdfRaster.dark) count++;
+        }
+        if (count * 10 >= strip * 3) filled[s * h + y] = count;
+      }
+    }
+    // Per strip and band, how many rows down its lines are from the middle strip's: outward
+    // from the middle, each strip against what those before it, moved, hold in the band.
+    final shift = Int16List(n * bands), middle = n ~/ 2, held = Float64List(tall);
+    var furthest = 0;
+    for (var b = 0; b < bands; b++) {
+      final y0 = b * tall;
+      for (final step in const [1, -1]) {
+        for (var k = 0; k < tall; k++) {
+          held[k] = filled[middle * h + y0 + k].toDouble();
+        }
+        var now = 0, empty = !held.any((v) => v > 0);
+        for (var s = middle + step; s >= 0 && s < n; s += step) {
+          // How well the strip, [d] rows down, meets what is held, and in how many lines.
+          (double, int) match(int d) {
+            if (y0 + d < 0 || y0 + d + tall > h) return (-1, 0);
+            final at = s * h + y0 + d;
+            var sum = 0.0, lines = 0, on = false;
+            for (var k = 0; k < tall; k++) {
+              final both = held[k] > 0 && filled[at + k] > 0;
+              if (both) sum += held[k] * filled[at + k];
+              if (both && !on) lines++;
+              on = both;
+            }
+            return (sum, lines);
+          }
+
+          // It stays where the last strip was unless another place is clearly better, in three
+          // lines or more: a beam or a hairpin's line meeting a staff's is no staff found again.
+          final stay = match(now).$1;
+          var best = now, bestSum = stay;
+          for (var r = 1; r <= reach; r++) {
+            for (final d in [now - r, now + r]) {
+              if (d.abs() > most) continue;
+              final (sum, lines) = match(d);
+              if (lines >= 3 && sum > bestSum && sum > stay * 1.1) (best, bestSum) = (d, sum);
+            }
+          }
+          final at = s * h + y0 + best;
+          if (empty) {
+            // (nothing in the middle strip here: the first strip with lines is what is held)
+            for (var k = 0; k < tall; k++) {
+              held[k] = filled[s * h + y0 + k].toDouble();
+              if (held[k] > 0) empty = false;
+            }
+          } else if (bestSum > 0) {
+            now = best;
+            for (var k = 0; k < tall; k++) {
+              held[k] = held[k] * 0.7 + filled[at + k] * 0.3;
+            }
+          }
+          shift[s * bands + b] = now;
+          if (now.abs() > furthest) furthest = now.abs();
+        }
+      }
+    }
+    // Lines a row or two off are level enough for what looks for them, and moving a strip a
+    // row puts a step in what crosses its edge (a time signature's digits, a notehead).
+    if (furthest <= 2) return as(ink);
+    // Each strip's rows from where they were: the bands' shifts, eased from one band's middle
+    // to the next's.
+    final out = Uint8List(ink.length);
+    for (var s = 0; s < n; s++) {
+      final x0 = s * strip, x1 = s == n - 1 ? w : x0 + strip;
+      for (var y = 0; y < h; y++) {
+        final at = (y - tall / 2) / tall;
+        final above = at.floor().clamp(0, bands - 1), below = math.min(bands - 1, above + 1);
+        final t = (at - above).clamp(0.0, 1.0);
+        final from = (y + (shift[s * bands + above] * (1 - t) + shift[s * bands + below] * t).round()).clamp(0, h - 1);
+        out.setRange(y * w + x0, y * w + x1, ink, from * w + x0);
+      }
+    }
+    return as(out);
+  }
 
   /// The staves of [page] (five-line ones), top to bottom.
   static List<FoundStaff> staves(PdfRaster page) {
@@ -810,8 +917,10 @@ abstract final class PdfDetect {
 
   /// A page's systems as found: staves, where the music starts, barlines, each staff's region
   /// (from the music's start to its end, the regions meeting at the row the least ink crosses
-  /// between two staves). Each staff is no one's yet.
+  /// between two staves). Each staff is no one's yet. The page is looked at with its staff lines
+  /// level ([flat]).
   static List<PdfSystem> page(PdfRaster page, int index) {
+    page = flat(page);
     final found = systems(page, staves(page));
     final out = <PdfSystem>[];
     for (final (k, staves) in found.indexed) {

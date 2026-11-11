@@ -80,7 +80,7 @@ class PdfPages {
     return _Worker.run((docs) {
       final doc = docs[id]!;
       final (w, h) = doc.pageSizes[page];
-      final raster = _render(doc, page, ui.Rect.fromLTWH(0, 0, w, h), PdfDetect.scale);
+      final raster = PdfDetect.flat(_render(doc, page, ui.Rect.fromLTWH(0, 0, w, h), PdfDetect.scale));
       return [
         for (final system in PdfDetect.page(raster, page))
           () {
