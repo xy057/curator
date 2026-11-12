@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:curated_score/lilypond.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:score_engine/score_engine.dart' show LilyPondScore;
 
 void main() {
   test("LilyPond's problems are read with where they are, its own folder taken off", () {
@@ -38,6 +39,14 @@ void main() {
     const capitals = '<a xlink:href="textedit:///Users/%E5%B1%B1%E7%94%B0/Temp/a%2Bb%7Ec_d/s%20q.ly:2:2:3">';
     expect(LilyPond.relativeLinks(capitals, '/Users/山田/Temp/a+b~c_d'), '<a xlink:href="textedit://s%20q.ly:2:2:3">',
         reason: 'escaped in capitals, as another writer may');
+  });
+
+  test('a new score starts from a staff of a few bars, its instrument named as given, quoted as LilyPond reads it', () {
+    final blank = LilySource.blank('Untitled.ly', part: r'Fl"ute\');
+    expect(blank.text, startsWith('\\version "${LilyPond.version}"\n'));
+    expect(blank.text, contains(r'instrumentName = "Fl\"ute\\"'));
+    expect(blank.path, 'Untitled.ly');
+    expect(blank.files, isEmpty);
   });
 
   test("a score is read with the files it includes, as far as they go, and LilyPond's own left out", () {
@@ -112,6 +121,19 @@ void main() {
     expect(ok.engraved, isTrue, reason: ok.log);
     expect(ok.svg, contains('textedit://melody.ily:1:'));
     expect(ok.data, contains('"t":"NoteHead"'));
+  }, skip: lilypond == null);
+
+  testWidgets('a new score engraves as it starts, named in Japanese: its part named, its links naming its file', (tester) async {
+    LilyPond.debugExecutable = File(lilypond!);
+    addTearDown(() => LilyPond.debugExecutable = null);
+    final run = await tester.runAsync(() => LilyPond.engrave(LilySource.blank('名称未設定.ly', part: 'メロディ'))).then((r) => r!);
+    expect(run.engraved, isTrue, reason: run.log);
+    // No errors. (Warnings may come of the fonts here: without a font cache it can write, LilyPond
+    // finds none with kana in, and says so.)
+    expect(run.problems.where((p) => p.error), isEmpty, reason: run.log);
+    final score = LilyPondScore.read(run.svg!, run.data!);
+    expect(score.musicXML, contains('<part-name>メロディ</part-name>'));
+    expect({for (final l in score.links) l.file}, {'名称未設定.ly'});
   }, skip: lilypond == null);
 
   testWidgets('a score including from above its own folder is engraved laid out as it was, with nothing else to look in', (tester) async {

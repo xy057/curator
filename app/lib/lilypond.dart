@@ -69,6 +69,29 @@ class LilySource {
 
   LilySource withText(String text) => LilySource(name: name, text: text, folder: folder, files: files, origin: origin);
 
+  /// A score to start from (File ▸ New LilyPond Score…) in a main file named [name]: a staff of
+  /// a few bars, its instrument named [part].
+  factory LilySource.blank(String name, {required String part}) => LilySource(name: name, text: '''
+\\version "${LilyPond.version}"
+
+global = {
+  \\key c \\major
+  \\time 4/4
+}
+
+melody = \\relative c'' {
+  \\global
+  c4 d e f | g2 g | a4 g f e | d1 \\bar "|."
+}
+
+\\score {
+  \\new Staff \\with { instrumentName = ${quoted(part)} } \\melody
+}
+''');
+
+  /// [text] as a LilyPond string, quoted: its `\` and `"` escaped.
+  static String quoted(String text) => '"${text.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"';
+
   /// The main file's path under the root, as LilyPond's links and problems name it: its name
   /// made safe as a file's (no folders, nothing a system refuses).
   String get path {

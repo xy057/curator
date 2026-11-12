@@ -4,16 +4,24 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:curated_score/app_colors.dart';
+import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/main.dart';
+import 'package:curated_score/project_document.dart';
+import 'package:curated_score/project_tabs.dart';
 import 'package:curated_score/lilypond.dart';
 import 'package:curated_score/lilypond_editor.dart';
 import 'package:curated_score/lilypond_language.dart';
 import 'package:curated_score/ui_kit.dart' show SidebarTile;
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:re_highlight/re_highlight.dart';
 import 'package:score_engine/score_engine.dart';
+
+import 'window.dart';
 
 /// The engine's fixture: a score LilyPond 2.26.0 engraved with Curator's settings.
 const _fixture = '../packages/score_engine/test/lilypond/fixture';
@@ -245,5 +253,60 @@ melody = \\relative c' { \\clef treble c4. d8 e2 | f1~ f }
       await until(tester, () => closed);
       expect(edit, isNull);
     }, variant: _mac);
+
+    testWidgets('File ▸ New LilyPond Score… opens the editor on a few bars; Done makes them a new project in a tab, unsaved, Cancel nothing',
+        (tester) async {
+      standIn("cp '$svg' \"\$OUT.svg\"\ncp '$data' \"\$CURATOR_LILYPOND_DATA\"\n");
+      desktopWindow(tester);
+      final settings = AppSettings.memory()..autosave = Duration.zero;
+      await tester.pumpWidget(CuratedScoreApp(settings: settings));
+      await tester.pump(const Duration(seconds: 1));
+      Future<void> frames([int n = 20]) async {
+        for (var i = 0; i < n; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+      }
+
+      // The menu bar in the window, as off a Mac.
+      Future<void> newScore() async {
+        await tester.tap(find.text('File'));
+        await frames(10);
+        await tester.tap(find.text('New LilyPond Score…'));
+        await frames();
+      }
+
+      final pages = find.byType(ProjectPage, skipOffstage: false);
+      await newScore();
+      expect(code(tester).text, contains('instrumentName = "Melody"'));
+      await tester.tap(find.text('Cancel'));
+      await frames();
+      expect(find.byType(LilyPondEditor), findsNothing);
+      expect(pages, findsNothing);
+
+      await newScore();
+      await tester.tap(find.text('Done'));
+      dynamic page() => (pages.evaluate().single as StatefulElement).state;
+      await until(tester, () => pages.evaluate().isNotEmpty && (page().controller as EditorController).score != null);
+      await frames();
+      final controller = page().controller as EditorController, document = page().document as ProjectDocument;
+      expect((controller.isLilyPond, controller.fileName), (true, 'Untitled.ly'));
+      // In no file: unsaved from the start, and not a recent file.
+      expect((document.isDirty, document.path), (true, null));
+      expect(settings.recentFiles, isEmpty);
+      expect(find.descendant(of: find.byType(ProjectTabs), matching: find.text('Untitled')), findsOneWidget);
+
+      // Closed (its × shows under the pointer: an edited tab has a dot), it asks to save it first.
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.descendant(of: find.byType(ProjectTabs), matching: find.text('Untitled'))));
+      await tester.pump();
+      await tester.tap(find.descendant(of: find.byType(ProjectTabs), matching: find.byType(IconButton)));
+      await frames();
+      expect(find.text('Don’t Save'), findsOneWidget);
+      await tester.tap(find.text('Don’t Save'));
+      await until(tester, () => pages.evaluate().isEmpty);
+      await frames(30);
+    });
   }, skip: Platform.isWindows);
 }

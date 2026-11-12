@@ -2567,7 +2567,7 @@ msgstr "還原記錄"
 msgid "Until"
 msgstr "結束"
 
-#: lib/project_document.dart
+#: lib/main.dart lib/project_document.dart
 msgid "Untitled"
 msgstr "未命名"
 
@@ -4041,3 +4041,15 @@ msgstr "變數"
 msgctxt "lilypond"
 msgid "command"
 msgstr "命令"
+
+#: lib/app_menus.dart
+msgid "New LilyPond Score…"
+msgstr "新增 LilyPond 樂譜…"
+
+#: lib/main.dart
+msgid "Melody"
+msgstr "旋律"
+
+#: lib/main.dart
+msgid "Couldn’t Create LilyPond Score"
+msgstr "無法建立 LilyPond 樂譜"

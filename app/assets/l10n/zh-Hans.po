@@ -2567,7 +2567,7 @@ msgstr "撤销历史"
 msgid "Until"
 msgstr "结束"
 
-#: lib/project_document.dart
+#: lib/main.dart lib/project_document.dart
 msgid "Untitled"
 msgstr "未命名"
 
@@ -4041,3 +4041,15 @@ msgstr "变量"
 msgctxt "lilypond"
 msgid "command"
 msgstr "命令"
+
+#: lib/app_menus.dart
+msgid "New LilyPond Score…"
+msgstr "新建 LilyPond 乐谱…"
+
+#: lib/main.dart
+msgid "Melody"
+msgstr "旋律"
+
+#: lib/main.dart
+msgid "Couldn’t Create LilyPond Score"
+msgstr "无法创建 LilyPond 乐谱"

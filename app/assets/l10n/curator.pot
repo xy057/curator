@@ -2564,7 +2564,7 @@ msgstr ""
 msgid "Until"
 msgstr ""
 
-#: lib/project_document.dart
+#: lib/main.dart lib/project_document.dart
 msgid "Untitled"
 msgstr ""
 
@@ -4021,4 +4021,16 @@ msgstr ""
 #: lib/lilypond_editor.dart
 msgctxt "lilypond"
 msgid "command"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "New LilyPond Score…"
+msgstr ""
+
+#: lib/main.dart
+msgid "Melody"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Create LilyPond Score"
 msgstr ""

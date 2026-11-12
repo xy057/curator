@@ -281,10 +281,19 @@ class AppWindow extends StatefulWidget {
 /// A project open in a tab.
 class _OpenProject {
   _OpenProject(this.path)
-      : label = ValueNotifier((name: stemOf(fileNameOf(path ?? sampleProjectAsset)), edited: false, path: path));
+      : lilypond = null,
+        label = ValueNotifier((name: stemOf(fileNameOf(path ?? sampleProjectAsset)), edited: false, path: path));
 
-  /// The project or score file it opened; null: the sample.
+  /// A score written in the LilyPond editor (File ▸ New LilyPond Score…), as a new project.
+  _OpenProject.lilypond(LilyPondEdit this.lilypond)
+      : path = null,
+        label = ValueNotifier((name: stemOf(lilypond.source.name), edited: true, path: null));
+
+  /// The project or score file it opened; null: the sample, or a [lilypond] score.
   final String? path;
+
+  /// The score written in the LilyPond editor it opened, in no file yet.
+  final LilyPondEdit? lilypond;
   final key = GlobalKey<_ProjectPageState>();
   final messenger = GlobalKey<ScaffoldMessengerState>();
   final ValueNotifier<ProjectTabLabel> label;
@@ -302,7 +311,7 @@ class _OpenProject {
         _ => path,
       };
 
-  bool get isSample => path == null;
+  bool get isSample => path == null && lilypond == null;
 }
 
 class _AppWindowState extends State<AppWindow> {
@@ -508,6 +517,13 @@ class _AppWindowState extends State<AppWindow> {
     if (file != null && mounted) _openPath(file.path);
   }
 
+  /// New LilyPond Score…: a score written in the LilyPond editor from a few bars to start from;
+  /// Done makes it a new project in a tab of its own (not saved yet).
+  Future<void> _newLilyPond() async {
+    final edit = await showLilyPondEditor(context, LilySource.blank('${'Untitled'.tr}.ly', part: 'Melody'.tr));
+    if (edit != null && mounted) _show(_add(_OpenProject.lilypond(edit)));
+  }
+
   /// File ▸ Close (⌘W), a tab's ×: offers to save unsaved changes (showing the project they're
   /// in), then the tab goes, the one after it showing (or before it, or Home).
   Future<void> _close(_OpenProject project) async {
@@ -579,6 +595,7 @@ class _AppWindowState extends State<AppWindow> {
         return AppMenus(
           onOpen: free ? _open : null,
           onImport: free ? _import : null,
+          onNewLilyPond: free ? _newLilyPond : null,
           // Enabled but for the demo: Save explains when there is nothing to save.
           onSave: page == null ? _nothingToSave : page._isSample.value ? null : page._save,
           onSaveAs: page == null ? _nothingToSave : page._isSample.value ? null : page._saveAs,
@@ -659,6 +676,7 @@ class _AppWindowState extends State<AppWindow> {
                     key: project.key,
                     settings: settings,
                     path: project.path,
+                    lilypond: project.lilypond,
                     showing: _showing == project,
                     closing: project.closing,
                     label: project.label,
@@ -729,6 +747,7 @@ class ProjectPage extends StatefulWidget {
     super.key,
     required this.settings,
     required this.path,
+    this.lilypond,
     required this.showing,
     required this.closing,
     required this.label,
@@ -740,8 +759,11 @@ class ProjectPage extends StatefulWidget {
 
   final AppSettings settings;
 
-  /// The project or score it opens; null: the sample.
+  /// The project or score it opens; null: the sample, or [lilypond].
   final String? path;
+
+  /// A score written in the LilyPond editor, which it opens as a new project.
+  final LilyPondEdit? lilypond;
 
   /// Whether its tab shows (before it stops, [_ProjectPageState._hide] has stopped it playing and
   /// closed its floating windows).
@@ -927,7 +949,14 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// doesn't open, it has said why, and the tab goes.
   Future<void> _load() async {
     final path = widget.path;
-    if (path == null) {
+    if (widget.lilypond case (:final source, :final run)) {
+      await _guard(() async {
+        await document.newLilyPond(source.name, utf8.encode(source.text), run.keep(source));
+        if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
+        final left = [...lilyPondErrors(run), ...?controller.score?.warnings];
+        if (left.isNotEmpty && mounted) await showImportWarnings(context, source.name, left);
+      }, title: 'Couldn’t Create LilyPond Score'.tr);
+    } else if (path == null) {
       await _guard(() async {
         final problem = await document.openSample();
         if (problem != null && mounted) _recordingProblem(problem);

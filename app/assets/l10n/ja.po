@@ -2567,7 +2567,7 @@ msgstr "取り消しの履歴"
 msgid "Until"
 msgstr "終了"
 
-#: lib/project_document.dart
+#: lib/main.dart lib/project_document.dart
 msgid "Untitled"
 msgstr "名称未設定"
 
@@ -4041,3 +4041,15 @@ msgstr "変数"
 msgctxt "lilypond"
 msgid "command"
 msgstr "コマンド"
+
+#: lib/app_menus.dart
+msgid "New LilyPond Score…"
+msgstr "新規 LilyPond 楽譜…"
+
+#: lib/main.dart
+msgid "Melody"
+msgstr "メロディ"
+
+#: lib/main.dart
+msgid "Couldn’t Create LilyPond Score"
+msgstr "LilyPond の楽譜を作成できませんでした"
