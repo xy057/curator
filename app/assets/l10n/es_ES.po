@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2026-11-11 23:00\n"
+"PO-Revision-Date: 2026-11-12 05:00\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -1864,6 +1864,7 @@ msgstr "¿Sustituir por «{name}»?"
 msgid "Replaces the chosen lanes’ regions"
 msgstr "Sustituye las regiones de las pistas seleccionadas"
 
+#: lib/settings_dialog.dart
 msgid "Replace…"
 msgstr "Sustituir…"
 
@@ -3704,7 +3705,10 @@ msgstr ""
 msgid "{n} of {all}"
 msgstr ""
 
-msgid "AI"
+msgid "Local AI"
+msgstr ""
+
+msgid "Remote AI Provider"
 msgstr ""
 
 msgid "Providers"
@@ -3821,7 +3825,7 @@ msgid "Use anyway"
 msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
-msgid "Turn on a provider in Settings ▸ AI to choose a model."
+msgid "Turn on a provider in Settings ▸ Remote AI Provider to choose a model."
 msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
@@ -3878,5 +3882,9 @@ msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The server’s answer is too long."
+msgstr ""
+
+#: lib/main.dart
+msgid "Scores"
 msgstr ""
 
