@@ -214,7 +214,7 @@ class _SearchField extends StatelessWidget {
   }
 }
 
-/// A provider in the list: its initial in a circle, its name, and whether it is on.
+/// A provider in the list: its name, and whether it is on.
 class _ProviderTile extends StatefulWidget {
   const _ProviderTile({required this.provider, required this.selected, required this.onTap});
   final AiProvider provider;
@@ -259,11 +259,9 @@ class _ProviderTileState extends State<_ProviderTile> {
               duration: stateDuration(motion(context, 120)),
               curve: style.curve,
               height: 38,
-              padding: const EdgeInsets.only(left: 6, right: 6),
+              padding: const EdgeInsets.only(left: 10, right: 6),
               decoration: BoxDecoration(color: fill, borderRadius: style.radius(7)),
               child: Row(children: [
-                _Initial(name: p.name),
-                const SizedBox(width: 9),
                 Expanded(
                   child: Text(p.name, // the provider's own name: not translated
                       maxLines: 1,
@@ -278,29 +276,6 @@ class _ProviderTileState extends State<_ProviderTile> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// A provider's first letter in a small tinted circle.
-class _Initial extends StatelessWidget {
-  const _Initial({required this.name});
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final letter = name.trim().isEmpty ? '?' : String.fromCharCode(name.trim().runes.first).toUpperCase();
-    return Container(
-      width: 24,
-      height: 24,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: AppStyle.of(context).isCarbon ? BoxShape.rectangle : BoxShape.circle,
-        color: colors.accentSoft,
-        border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
-      ),
-      child: Text(letter, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: colors.accentStrong)),
     );
   }
 }
