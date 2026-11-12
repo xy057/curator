@@ -9,10 +9,11 @@ part 'musicxml_schema.dart';
 /// MusicXML 4.0 schema: musicxml_schema.dart, which Tools/make_musicxml_schema.py writes) and where
 /// a bar is in it ([MusicXmlLines]).
 ///
-/// Not re_highlight, as the LilyPond editor is: it colours the whole text at once, on every change,
-/// and copies what is left of the text at every word it colours, so the time grows as the square
-/// of the text (a 55,000-line orchestral score: 35 seconds). A line is coloured alone, by what is
-/// on it: MusicXML written an element a line has nothing that runs over a line but a comment.
+/// Not re_highlight (nor is LilyPond: lilypond_language.dart): it colours the whole text at once,
+/// on every change, and copies what is left of the text at every word it colours, so the time
+/// grows as the square of the text (a 55,000-line orchestral score: 35 seconds). A line is
+/// coloured alone, by what is on it: MusicXML written an element a line has nothing that runs over
+/// a line but a comment.
 
 /// A name as XML writes one.
 const _name = r'[A-Za-z_][\w.:-]*';

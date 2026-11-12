@@ -61,8 +61,7 @@ class _LilyPondEditorState extends State<LilyPondEditor> {
   /// The score's files by their path under its root, the main one first.
   late final List<String> _paths = [_source.path, ...(_source.files.keys.toList()..sort())];
   late final Map<String, CodeLineEditingController> _code = {
-    for (final p in _paths)
-      p: CodeLineEditingController.fromText(p == _source.path ? _source.text : utf8.decode(_source.files[p]!, allowMalformed: true)),
+    for (final p in _paths) p: lilyPondCode(p == _source.path ? _source.text : utf8.decode(_source.files[p]!, allowMalformed: true)),
   };
 
   /// Each file's text as it opened.
@@ -90,8 +89,6 @@ class _LilyPondEditorState extends State<LilyPondEditor> {
   double _previewHeight = 220;
 
   late final _prompts = LilyPondPrompts(() => [for (final c in _code.values) c.text].join('\n'));
-
-  static final _language = CodeLanguage('lilypond', lilyPondMode(), lilyPondTheme);
 
   @override
   void initState() {
@@ -415,7 +412,6 @@ class _LilyPondEditorState extends State<LilyPondEditor> {
         controller: code,
         findController: _findControllers[_shown] ??= CodeFindController(code),
         focusNode: _editorFocus,
-        language: _language,
         prompts: _prompts,
         kindOf: _kind,
       ),

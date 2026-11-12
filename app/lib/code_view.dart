@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:re_editor/re_editor.dart';
-import 'package:re_highlight/re_highlight.dart';
 
 import 'app_colors.dart';
 import 'app_icons.dart';
@@ -12,34 +11,23 @@ import 'lilypond_dialog.dart' show monospace;
 import 'ui_kit.dart';
 
 /// What the code editors share (the LilyPond editor's, the score editor's MusicXML): code in
-/// re_editor ([CodeView]), highlighted as its [CodeLanguage] says, what can be typed offered as it
-/// is, Find and Replace over it, and what is wrong with it listed under it ([CodeProblemList]).
-
-/// A language the code view highlights: its [name], how it is read (a re_highlight [mode]) and
-/// the colours of the mode's scopes on a light page or a dark one ([theme]).
-class CodeLanguage {
-  CodeLanguage(this.name, this.mode, this.theme);
-  final String name;
-  final Mode mode;
-  final Map<String, TextStyle> Function(Brightness brightness) theme;
-
-  final _themes = <Brightness, CodeHighlightTheme>{};
-
-  CodeHighlightTheme highlightIn(Brightness brightness) =>
-      _themes[brightness] ??= CodeHighlightTheme(languages: {name: CodeHighlightThemeMode(mode: mode)}, theme: theme(brightness));
-}
+/// re_editor ([CodeView]), coloured a line at a time by its controller, what can be typed offered
+/// as it is, Find and Replace over it, and what is wrong with it listed under it
+/// ([CodeProblemList]).
+///
+/// Not re_highlight, re_editor's own highlighting: it colours the whole text again on every
+/// change, in a time that grows as the square of the text.
 
 /// Code being edited: monospace, numbered lines, what [folds] finds folded (default: brackets'
-/// insides), [language] highlighted (null: the [controller] colours its own lines, as the
-/// MusicXML view's does); what [prompts] offers where the caret is shown under it as it is typed
-/// (with what [kindOf] says each is beside it); Find (⌘F) and Replace (⌥⌘F) at its top right.
+/// insides), each line coloured as the [controller] says (its span builder: `lilyPondCode`,
+/// `musicXmlCode`); what [prompts] offers where the caret is shown under it as it is typed (with
+/// what [kindOf] says each is beside it); Find (⌘F) and Replace (⌥⌘F) at its top right.
 class CodeView extends StatelessWidget {
   const CodeView({
     super.key,
     required this.controller,
     required this.findController,
     required this.focusNode,
-    required this.language,
     required this.prompts,
     this.kindOf,
     this.folds,
@@ -48,14 +36,13 @@ class CodeView extends StatelessWidget {
   final CodeLineEditingController controller;
   final CodeFindController findController;
   final FocusNode focusNode;
-  final CodeLanguage? language;
   final CodeChunkAnalyzer? folds;
   final CodeAutocompletePromptsBuilder prompts;
   final String? Function(CodePrompt prompt)? kindOf;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors, theme = Theme.of(context);
+    final colors = context.colors;
     final gutter = TextStyle(fontSize: 12, color: colors.textMuted.withValues(alpha: 0.7), fontFamily: monospace.fontFamily,
         fontFamilyFallback: monospace.fontFamilyFallback);
     return CodeAutocomplete(
@@ -79,7 +66,6 @@ class CodeView extends StatelessWidget {
           highlightColor: colors.accent.withValues(alpha: 0.3),
           cursorColor: colors.accent,
           cursorLineColor: colors.accentWash.withValues(alpha: 0.5),
-          codeTheme: language?.highlightIn(theme.brightness),
         ),
         indicatorBuilder: (context, editing, chunks, notifier) => Row(children: [
           DefaultCodeLineNumber(controller: editing, notifier: notifier, textStyle: gutter, focusedTextStyle: gutter.copyWith(color: colors.text)),

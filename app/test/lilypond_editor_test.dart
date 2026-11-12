@@ -1,5 +1,5 @@
-// The LilyPond editor: its highlighting, what it offers as LilyPond is typed, and the editor
-// itself (engraving with a stand-in LilyPond, its preview and problems, Done).
+// The LilyPond editor: its colouring, what it offers as LilyPond is typed, and the editor itself
+// (engraving with a stand-in LilyPond, its preview and problems, Done).
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -19,7 +19,6 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:re_editor/re_editor.dart';
-import 'package:re_highlight/re_highlight.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'window.dart';
@@ -31,39 +30,20 @@ const _fixture = '../packages/score_engine/test/lilypond/fixture';
 /// waits on a timer of its own).
 final _mac = TargetPlatformVariant.only(TargetPlatform.macOS);
 
-/// [source] highlighted: each scoped run of text, as (scope, text), a nested scope its own.
+/// [source] coloured a line at a time, each line from where the one above left off: each run of
+/// text that is coloured, as (scope, text).
 List<(String, String)> _scoped(String source) {
-  final highlight = Highlight()..registerLanguage('lilypond', lilyPondMode());
-  final out = _Runs();
-  highlight.highlight(code: source, language: 'lilypond').render(out);
-  return out.runs;
-}
-
-class _Runs implements HighlightRenderer {
-  final runs = <(String, String)>[];
-  final _scopes = <String?>[];
-  String? _text;
-
-  @override
-  void addText(String text) => _text = (_text ?? '') + text;
-
-  @override
-  void openNode(DataNode node) {
-    _flush();
-    _scopes.add(node.scope ?? (_scopes.isEmpty ? null : _scopes.last));
+  final lines = source.split('\n'), out = <(String, String)>[];
+  var state = 0;
+  for (var i = 0; i < lines.length; i++) {
+    final tokens = lilyPondTokens(lines[i], state: state, after: lines.skip(i + 1));
+    expect(tokens.runs.map((r) => r.$2).join(), lines[i]);
+    state = tokens.state;
+    for (final (scope, text) in tokens.runs) {
+      if (scope != null && text.trim().isNotEmpty) out.add((scope, text.trim()));
+    }
   }
-
-  @override
-  void closeNode(DataNode node) {
-    _flush();
-    if (_scopes.isNotEmpty) _scopes.removeLast();
-  }
-
-  void _flush() {
-    final text = _text, scope = _scopes.isEmpty ? null : _scopes.last;
-    _text = null;
-    if (text != null && scope != null && text.trim().isNotEmpty) runs.add((scope, text.trim()));
-  }
+  return out;
 }
 
 void main() {
@@ -93,6 +73,57 @@ melody = \\relative c' { \\clef treble c4. d8 e2 | f1~ f }
       ('comment', '%{ a block %}'),
       ('literal', '##f'),
     ]));
+  });
+
+  test('a block comment, a string or Scheme running over lines colours the lines after it, as a variable whose = is on the next', () {
+    expect(_scoped('''
+%{ a comment
+over \\new Staff lines %} \\new Staff
+\\markup "a string
+over lines" c4
+#(define (f x)
+  (display "x") ; done
+  #! a block
+  comment !# x) d8
+melody
+  = { c }
+'''), [
+      ('comment', '%{ a comment'),
+      ('comment', r'over \new Staff lines %}'),
+      ('keyword', r'\new'),
+      ('title', 'Staff'),
+      ('keyword', r'\markup'),
+      ('string', '"a string'),
+      ('string', 'over lines"'),
+      ('number', '4'),
+      ('keyword', 'define'),
+      ('built_in', 'display'),
+      ('string', '"x"'),
+      ('comment', '; done'),
+      ('comment', '#! a block'),
+      ('comment', 'comment !#'),
+      ('number', '8'),
+      ('variable', 'melody'),
+    ]);
+  });
+
+  test('each line starts where the one above left off, read again from the first line changed: edited, put in, folded', () {
+    final code = CodeLineEditingController.fromText('c4 d\n\\new Staff\ne8 f');
+    addTearDown(code.dispose);
+    final states = LilyPondStates(() => code.codeLines);
+    List<String?> scopes(int i) => [for (final (scope, _) in lilyPondTokens(code.codeLines[i].text, state: states.at(i)).runs) scope];
+    expect(scopes(1), ['keyword', null, 'title']);
+    // A block comment opened on the first line: the lines under it in it.
+    code.selection = const CodeLineSelection.collapsed(index: 0, offset: 0);
+    code.replaceSelection('%{ ');
+    expect([scopes(1), scopes(2)], [['comment'], ['comment']]);
+    // Closed on a line put in under it: the lines under that out of it again.
+    code.selection = const CodeLineSelection.collapsed(index: 0, offset: 7);
+    code.replaceSelection('\n%}');
+    expect([scopes(1), scopes(2)], [['comment'], ['keyword', null, 'title']]);
+    // A line folded: what is folded under it read with it.
+    code.codeLines = CodeLines.of(const [CodeLine('{', [CodeLine('%{'), CodeLine('}')]), CodeLine(r'\new Staff')]);
+    expect(scopes(1), ['comment']);
   });
 
   group('what is offered', () {
@@ -200,6 +231,18 @@ melody = \\relative c' { \\clef treble c4. d8 e2 | f1~ f }
     }
 
     CodeLineEditingController code(WidgetTester tester) => tester.widget<CodeEditor>(find.byType(CodeEditor)).controller!;
+
+    testWidgets('its code is coloured a line at a time as it is drawn, in the page’s colours', (tester) async {
+      await open(tester);
+      final view = tester.element(find.byType(CodeEditor));
+      List<InlineSpan>? line(int i) =>
+          code(tester).buildTextSpan(context: view, index: i, textSpan: const TextSpan(), style: const TextStyle()).children;
+      final theme = lilyPondTheme(Brightness.light);
+      expect(line(0), [TextSpan(text: r'\version', style: theme['keyword']), const TextSpan(text: ' '), TextSpan(text: '"2.26.0"', style: theme['string'])]);
+      expect(line(1), [TextSpan(text: source.text.split('\n')[1], style: theme['comment'])]);
+      await tester.tap(find.text('Cancel'));
+      await until(tester, () => closed);
+    }, variant: _mac);
 
     testWidgets('engraved, its score is drawn, a click goes to where a note is written, a problem to its line, and Done gives it back',
         (tester) async {

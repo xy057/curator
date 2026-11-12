@@ -1833,7 +1833,6 @@ class _ScoreEditorState extends State<ScoreEditor> {
           controller: code,
           findController: _xmlFind!,
           focusNode: _xmlFocus,
-          language: null, // the text colours its own lines (musicXmlCode)
           folds: const MusicXmlFolds(),
           prompts: _xmlPrompts,
           kindOf: _xmlKind,
