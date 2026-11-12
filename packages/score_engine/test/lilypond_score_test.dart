@@ -1,9 +1,13 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
+import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 import 'package:score_engine/src/display_list.dart' show ParagraphItem, ScoreDisplayList;
 import 'package:score_engine/src/engraving.dart' show Cmd;
+import 'package:score_engine/src/native/constants.dart' show VBKind;
 
 /// LilyPond's engraving of test/lilypond/fixture.ly with Curator's settings (how it was made is
 /// in that file): a flute with an upbeat, a B♭ clarinet, a piano (a note crossing to the lower
@@ -98,6 +102,46 @@ void main() {
         if (data.commandInts[i * Cmd.words + Cmd.source] == tempo) data.commandInts[i * Cmd.words + Cmd.staff],
     };
     expect(staffOfTempo, {1});
+    display.dispose();
+  });
+
+  test('a run of text is drawn no wider than LilyPond spaced it: the tempo mark’s word keeps clear of its "("', () async {
+    // The fixture's text was spaced in Times, LilyPond's own serif with the SVG backend on a Mac
+    // (Curator's settings give it Academico now); drawn in Academico, "Allegro" is wider.
+    final academico = FontLoader('packages/score_engine/Academico');
+    for (final face in ['Regular', 'Bold']) {
+      academico.addFont(File('assets/fonts/Academico-$face.otf').readAsBytes().then(ByteData.sublistView));
+    }
+    await academico.load();
+    double at(int i, int word) => data.commandFloats[i * Cmd.words + word];
+    final tempo = data.sourceIds.indexOf('ly-tempo-52');
+    // "Allegro", " (", the note, " = 120)".
+    final runs = [
+      for (var i = 0; i < data.commandCount; i++)
+        if (data.commandInts[i * Cmd.words + Cmd.kind] == VBKind.text && data.commandInts[i * Cmd.words + Cmd.source] == tempo) i,
+    ];
+    expect(runs, hasLength(3));
+    final [allegro, open, rest] = runs;
+    expect(at(allegro, Cmd.fitWidth), closeTo(at(open, Cmd.x) - at(allegro, Cmd.x), 1e-3));
+    expect(at(open, Cmd.fitWidth), inExclusiveRange(0, at(rest, Cmd.x) - at(open, Cmd.x))); // as far as the note
+    expect(at(rest, Cmd.fitWidth), 0); // nothing after it
+    final natural = (ui.ParagraphBuilder(ui.ParagraphStyle())
+          ..pushStyle(ui.TextStyle(fontFamily: 'packages/score_engine/Academico', fontSize: at(allegro, Cmd.size), fontWeight: ui.FontWeight.bold))
+          ..addText('Allegro'))
+        .build()
+      ..layout(const ui.ParagraphConstraints(width: double.infinity));
+    expect(natural.maxIntrinsicWidth, greaterThan(at(allegro, Cmd.fitWidth) * 1.05));
+
+    final display = ScoreDisplayList.build(data, const RenderStyle());
+    final drawn = [
+      for (final layer in display.staves)
+        for (final item in layer.items)
+          if (item is ParagraphItem && item.sourceId == 'ly-tempo-52') item,
+    ];
+    expect(drawn, hasLength(3));
+    final word = drawn.singleWhere((p) => (p.bounds.left - at(allegro, Cmd.x)).abs() < 1e-3);
+    expect(word.bounds.right, lessThanOrEqualTo(at(open, Cmd.x) + 1e-3));
+    expect(word.bounds.width, greaterThan(at(allegro, Cmd.fitWidth) * 0.98)); // set closer, as wide as it was spaced
     display.dispose();
   });
 

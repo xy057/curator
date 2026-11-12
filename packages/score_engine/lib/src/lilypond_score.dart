@@ -277,10 +277,11 @@ class _CommandWriter {
     int count = 0,
     ui.Rect bounds = ui.Rect.zero,
     int source = -1,
+    double fitWidth = 0,
   }) {
     _ints.addAll([
       kind, staff, flags, classIndex, _f(strokeWidth), _f(dash), _f(gap), _f(x), _f(y), _f(size), 0, alignment, start, count, 0, //
-      _f(bounds.left), _f(bounds.top), _f(bounds.width), _f(bounds.height), source, _f(0), _f(0),
+      _f(bounds.left), _f(bounds.top), _f(bounds.width), _f(bounds.height), source, _f(fitWidth), _f(0),
     ]);
   }
 
@@ -321,7 +322,8 @@ class _CommandWriter {
         bounds: ui.Rect.fromLTRB(x0, y - width / 2, x1, y + width / 2));
   }
 
-  void text(int staff, int classIndex, LilyText t, {int source = -1}) {
+  /// [t], drawn no wider than [fitWidth] (0: any).
+  void text(int staff, int classIndex, LilyText t, {int source = -1, double fitWidth = 0}) {
     final bytes = utf8.encode(t.text);
     final start = _text.length;
     _text.add(bytes);
@@ -337,7 +339,8 @@ class _CommandWriter {
         start: start,
         count: bytes.length,
         bounds: t.bounds,
-        source: source);
+        source: source,
+        fitWidth: fitWidth);
   }
 
   /// [data]'s command [i] again, on [staff], [dy] lower.
@@ -509,7 +512,7 @@ class _Reader {
             case LilyPath():
               w.path(staff, classIndex, s, source: source);
             case LilyText():
-              w.text(staff, classIndex, s, source: source);
+              w.text(staff, classIndex, s, source: source, fitWidth: _spaced(g, s));
           }
         }
       }
@@ -706,6 +709,23 @@ class _Reader {
       'TextScript' || 'TextMark' || 'SectionLabel' when '${r['text'] ?? ''}'.trim().isNotEmpty => 'ly-text-${g.id}',
       _ => null,
     };
+  }
+
+  /// The width LilyPond spaced [t] in, a run of [g]'s text: as far as the nearest of [g]'s
+  /// shapes after it on its line (a run in another style, a tempo mark's note, a box's side); 0
+  /// when there is none. A run drawn wider than LilyPond measured it, in another font, would
+  /// run into what follows it. What starts in the run's first quarter em (an underline) isn't
+  /// after it.
+  static double _spaced(LilyGroup g, LilyText t) {
+    if (t.anchor != 0) return 0;
+    final line = t.bounds;
+    var width = 0.0;
+    for (final s in g.shapes) {
+      final b = s.bounds;
+      if (identical(s, t) || b.left < t.x + t.size / 4 || b.bottom <= line.top || b.top >= line.bottom) continue;
+      if (width == 0 || b.left - t.x < width) width = b.left - t.x;
+    }
+    return width;
   }
 
   /// The groups in drawing order, each clef's octave mark (the 8 of a tenor's treble clef) right

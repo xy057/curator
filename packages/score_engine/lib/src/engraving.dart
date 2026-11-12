@@ -130,6 +130,11 @@ abstract final class Cmd {
   static const bounds = 15; // x, y, w, h
   static const source = 19; // index into sourceIds, or -1
   static const rotation = 20; // glyph: degrees clockwise about its origin
+
+  /// Text: the width it was spaced in, drawn no wider; 0, any. Only LilyPond's text has one
+  /// (a LilyPondScore's commands are written in Dart): the bridge leaves a text's [rotation]
+  /// word 0.
+  static const fitWidth = 20;
   static const letterSpacing = 21; // text: added between its characters
 }
 

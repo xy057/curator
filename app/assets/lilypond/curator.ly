@@ -6,7 +6,19 @@
 %% CURATOR_LILYPOND_DATA names. Nothing here may stop a score from engraving: a failure is
 %% written as an error line and the score goes on.
 
+%% Text is set in Academico, the font Curator draws it in, so that it is spaced as it is drawn
+%% (LilyPond's own, with the SVG backend, is the system's serif: Times on a Mac, narrower). Its
+%% files are in the folder CURATOR_LILYPOND_FONTS names, added one by one: a folder added
+%% would leave a font cache behind for each engraving. A score setting its own fonts keeps them.
+#(use-modules (ice-9 ftw))
+#(define curator:serif
+   (let* ((dir (getenv "CURATOR_LILYPOND_FONTS"))
+          (names (or (and dir (scandir dir (lambda (name) (string-suffix? ".otf" name)))) '())))
+     (for-each (lambda (name) (ly:font-config-add-font (string-append dir "/" name))) names)
+     (if (null? names) "serif" "Academico")))
+
 \paper {
+  property-defaults.fonts.serif = #curator:serif
   page-breaking = #ly:one-line-breaking
   bookTitleMarkup = ##f
   scoreTitleMarkup = ##f

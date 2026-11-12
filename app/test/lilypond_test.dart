@@ -136,6 +136,24 @@ void main() {
     expect({for (final l in score.links) l.file}, {'名称未設定.ly'});
   }, skip: lilypond == null);
 
+  testWidgets('a score’s text is spaced in Academico, the font it is drawn in', (tester) async {
+    LilyPond.debugExecutable = File(lilypond!);
+    addTearDown(() => LilyPond.debugExecutable = null);
+    final run = await tester.runAsync(() => LilyPond.engrave(const LilySource(
+        name: 'tempo.ly', text: '\\version "2.26.0"\n{ \\tempo "Allegro" 4 = 120 c\'1 }\n', files: {}))).then((r) => r!);
+    expect(run.engraved, isTrue, reason: run.log);
+    // Each run where LilyPond put it: bold "Allegro" as wide as Academico Bold has it, 3.54 em
+    // (Times Bold, LilyPond's own serif on a Mac, 3.17).
+    final runs = RegExp(r'translate\(([\d.]+), [\d.]+\)">\s*<text font-family="([^"]*)"[^>]*font-size="([\d.]+)"[^>]*>\s*<tspan>([^<]*)<')
+        .allMatches(run.svg!)
+        .toList();
+    final allegro = runs.indexWhere((m) => m[4] == 'Allegro');
+    expect(runs[allegro][2], 'Academico');
+    expect(runs[allegro + 1][4], ' (');
+    final width = double.parse(runs[allegro + 1][1]!) - double.parse(runs[allegro][1]!);
+    expect(width / double.parse(runs[allegro][3]!), closeTo(3.54, 0.03));
+  }, skip: lilypond == null);
+
   testWidgets('a score including from above its own folder is engraved laid out as it was, with nothing else to look in', (tester) async {
     LilyPond.debugExecutable = File(lilypond!);
     addTearDown(() => LilyPond.debugExecutable = null);

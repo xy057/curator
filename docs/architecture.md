@@ -1225,7 +1225,14 @@ titles, headers or footers, every graphical object tagged in the SVG with what m
 its number, `data-g` its kind, `data-l` the staff or lyrics it belongs to), and what the score is
 (contexts, bars, notes, clefs, keys, times, tempo and rehearsal marks) written one JSON object a
 line to the file `CURATOR_LILYPOND_DATA` names; nothing in the settings may stop a score engraving
-(a failure is written as an error line). `LilyPondScore.read` makes the two Curator's engraving:
+(a failure is written as an error line). Its text is set in Academico, the font Curator draws it
+in, so that it is spaced as it is drawn: the engine's files of it, in the folder
+`CURATOR_LILYPOND_FONTS` names, each added to LilyPond's fontconfig (a folder added would leave a
+font cache behind for each engraving). With the SVG backend LilyPond's own text font is the
+system's serif (Times on a Mac, narrower: tempo marks ran into their "(", syllables into the
+next). A run spaced in another font (a score setting its own) is drawn no wider than LilyPond
+spaced it, as far as what follows it in its grob (`Cmd.fitWidth`), set closer by up to a tenth
+of an em a character. `LilyPondScore.read` makes the two Curator's engraving:
 LilyPond's own shapes are what the views draw (not Verovio's engraving), and a MusicXML of what was
 written is what curation, sync, Align and Find Phrase read. Its point-and-click links
 (`textedit://file:line:column:column`) name each file by its path in the score's folder
