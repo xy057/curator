@@ -8,9 +8,9 @@ import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/phrase_search_window.dart';
 import 'package:curated_score/video_export.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';

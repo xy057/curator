@@ -30,7 +30,8 @@ void main(List<String> args) async {
       '-DCMAKE_BUILD_TYPE=Release',
       if (os == OS.macOS) ...[
         '-DCMAKE_OSX_ARCHITECTURES=${arch == Architecture.arm64 ? 'arm64' : 'x86_64'}',
-        '-DCMAKE_OSX_DEPLOYMENT_TARGET=${code.macOS.targetVersion}',
+        // The whole version (12.0, not 12); AppleVersion's toString isn't one.
+        '-DCMAKE_OSX_DEPLOYMENT_TARGET=${code.macOS.deploymentVersion.major}.${code.macOS.deploymentVersion.minor}',
       ],
       if (os == OS.windows) ...['-A', arch == Architecture.arm64 ? 'ARM64' : 'x64'],
     ]);
@@ -71,14 +72,14 @@ void main(List<String> args) async {
 }
 
 /// PDFium's release, and each build's SHA-256 (its .tgz as published).
-const _pdfiumRelease = 'chromium/8100';
+const _pdfiumRelease = 'chromium/8152';
 const _pdfiumBuilds = {
-  'mac-arm64': '7ea647c7a7a9c1169be3f947000bc071ece2fade2cd6bd7e401e3675c6560cce',
-  'mac-x64': 'd513a0530a0f0c1ca9929ded06660e27edb9a108a7d18d9df55a5fb060b091c8',
-  'win-x64': '51621bcc1d9be9ea448f4b84b0516862b928e3968d3fca899af1a6d6e2848d6d',
-  'win-arm64': 'cca9b28d406ae2a902b0b710a92ab699c4c2931564ab6efe44630014d492a9ca',
-  'linux-x64': '1c1894a12d4d96ee01400c3874444126254180c5c7d2ab628576b67f8120320a',
-  'linux-arm64': '58c87a95a40a24c914a9c755fae798843f46f06adf9e5e9f2c893302d4bdb040',
+  'mac-arm64': '30b0c3f55448840f0947b54bedbe35185bbaccbadd35b8cd960270d6fa6caf80',
+  'mac-x64': 'acb975e637ffa1f41430205c62baacac70e34b60811e22fc0e0274dfcd601fcc',
+  'win-x64': 'cee2b0e9990bc67c0721774932961b9dbf2766046c10eec925acd4cfba6fdfe3',
+  'win-arm64': '8614b10c6a780acc3ae9fdd425d6b61f9d22ae84301b19e1ac82f573930c217c',
+  'linux-x64': '384ab5c51882408a143a21f9c14dcd2caf1f75280ae41c554d0489b46c3dba9f',
+  'linux-arm64': 'c6ed1a91234aede0cfafdc09c401b83bd44ac69deafc4599fda75d511c36403e',
 };
 
 /// PDFium's library for [os] on [arch], fetched into [shared] the first time (and kept there,

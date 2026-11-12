@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter/foundation.dart';
+import 'package:material_ui/material_ui.dart' show Color, ThemeMode;
 import 'package:score_engine/score_engine.dart'
     show CaptionAlign, CaptionCountdown, CaptionSize, EngravingOptions, MusicFont, PdfAiExamResult, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';

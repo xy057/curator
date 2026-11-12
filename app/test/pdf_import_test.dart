@@ -9,9 +9,9 @@ import 'dart:io';
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/pdf_import.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'test_fonts.dart';

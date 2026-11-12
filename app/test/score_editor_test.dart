@@ -4,9 +4,9 @@ import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/score_editor.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';

@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show ValueListenable, listEquals, mapEquals;
-import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:score_engine/score_engine.dart';
 

@@ -2,13 +2,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
 import 'ui_kit.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart';
 import 'l10n/l10n.dart';
 

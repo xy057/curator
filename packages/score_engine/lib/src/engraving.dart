@@ -223,7 +223,7 @@ class EngravingData {
       );
 }
 
-/// The Verovio this engine was built with, e.g. `6.4.0`.
+/// The Verovio this engine was built with, e.g. `6.4.1`.
 String get verovioVersion => native.verovioVersion();
 
 abstract final class Engraver {

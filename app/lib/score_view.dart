@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/gestures.dart' show DragStartBehavior, PointerScrollEvent, PointerScrollInertiaCancelEvent, kPrimaryButton;
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart' show HorizontalSpacer, ScenePatch, VerticalSpacer;
 
 import 'app_colors.dart';

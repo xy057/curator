@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/home_screen.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   testWidgets('removing a missing recent file leaves the next one as it was', (tester) async {

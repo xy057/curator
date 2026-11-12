@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// An accent colour (Settings ▸ Appearance): one of the swatches, [values], or one of the user's
 /// own ([AccentColor.custom]), from which each style works out the shades it needs.

@@ -9,8 +9,8 @@ import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/dialog_kit.dart';
 import 'package:curated_score/settings_dialog.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'test_fonts.dart';
 import 'window.dart';

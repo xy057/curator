@@ -2,9 +2,9 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A 1440 × 900 window at 2 pixels a point, as on a MacBook; back to the default after the test.
 void desktopWindow(WidgetTester tester) {

@@ -6,8 +6,8 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/settings_dialog.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'accessibility_mirror.dart';
 import 'demo_project.dart';

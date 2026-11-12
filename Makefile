@@ -1,5 +1,5 @@
 # Curator — common tasks. Run `make` to see them.
-VEROVIO_TAG := version-6.4.0
+VEROVIO_TAG := version-6.4.1
 VEROVIO_DIR := packages/score_engine/third_party/verovio
 # Written after the patches are applied; hook/build.dart refuses to build when a patch is newer.
 VEROVIO_STAMP := $(VEROVIO_DIR)/.curated-score-patched

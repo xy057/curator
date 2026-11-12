@@ -10,8 +10,8 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/pdf_import.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/ui_kit.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
