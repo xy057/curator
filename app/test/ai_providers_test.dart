@@ -25,6 +25,23 @@ void main() {
     expect(odd.first, const AiProvider(id: 'x', name: 'X', format: AiFormat.openai, baseUrl: ''));
     expect(odd.length, 6);
 
+    // What is known of its models is kept with them, and goes with a model removed.
+    const seeing = AiModelInfo(vision: true, context: 128000);
+    final described = mine.withInfo('a', seeing).withInfo('b', const AiModelInfo(reasoning: false, byHand: true));
+    expect(AiProvider.read(AiProvider.write([described])).first.details, {'a': seeing, 'b': const AiModelInfo(reasoning: false, byHand: true)});
+    expect(described.copyWith(models: ['b']).details.keys, ['b']);
+    expect(described.withInfo('a', const AiModelInfo()).details.keys, ['b']); // nothing known: nothing kept
+    expect(AiProvider.read(AiProvider.write([mine])).first.details, isEmpty);
+    expect(AiProvider.read('[{"id": "x", "name": "X", "models": ["m"], "details": {"m": {"vision": "yes", "context": -1}, "n": {"vision": true}}}]').first.details,
+        isEmpty);
+    // A list says what it says; what was set by hand stays as set.
+    expect(seeing.fetched(const AiModelInfo(reasoning: true, context: 200000)), const AiModelInfo(vision: true, reasoning: true, context: 200000));
+    expect(const AiModelInfo(vision: false, byHand: true).fetched(seeing), const AiModelInfo(vision: false, byHand: true));
+    expect([for (final n in [512, 8192, 131072, 200000, 999999, 1048576, 1500000, 2097152]) AiModelInfo.short(n)],
+        ['512', '8K', '131K', '200K', '1M', '1M', '1.5M', '2.1M']);
+    expect([for (final t in ['128000', '128K', '128 k', '1,048,576', '1.5M', '', 'K', '-5', '0.4', '12x']) AiModelInfo.parseTokens(t)],
+        [128000, 128000, 128000, 1048576, 1500000, null, null, null, null, null]);
+
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final heard = <String>[];
     server.listen((request) async {
@@ -34,12 +51,46 @@ void main() {
       final r = request.response..headers.contentType = ContentType.json;
       final body = switch (request.uri.path) {
         '/o/models' => {'data': [{'id': 'gpt-a'}, {'id': 7}, {'id': 'gpt-b'}], 'last_id': 9, 'nextPageToken': 9},
-        '/a/models' when request.uri.queryParameters['after_id'] == null => {'data': [{'id': 'c-1'}], 'has_more': true, 'last_id': 'c-1'},
-        '/a/models' => {'data': [{'id': 'c-2'}], 'has_more': false},
+        '/a/models' when request.uri.queryParameters['after_id'] == null => {
+            'data': [
+              {
+                'id': 'c-1',
+                'max_input_tokens': 200000,
+                'capabilities': {
+                  'image_input': {'supported': true},
+                  'thinking': {'supported': true, 'types': {}},
+                },
+              },
+            ],
+            'has_more': true,
+            'last_id': 'c-1',
+          },
+        '/a/models' => {'data': [{'id': 'c-2', 'capabilities': null}], 'has_more': false},
         '/g/models' => {
             'models': [
-              {'name': 'models/gem', 'supportedGenerationMethods': ['generateContent']},
+              {'name': 'models/gem', 'supportedGenerationMethods': ['generateContent'], 'inputTokenLimit': 1048576, 'thinking': true},
+              {'name': 'models/gem-old', 'supportedGenerationMethods': ['generateContent'], 'inputTokenLimit': 32768},
               {'name': 'models/embed', 'supportedGenerationMethods': ['embedContent']},
+            ],
+          },
+        '/r/models' => {
+            'data': [
+              {
+                'id': 'see/think',
+                'context_length': 131072,
+                'architecture': {'input_modalities': ['text', 'image'], 'output_modalities': ['text']},
+                'supported_parameters': ['max_tokens', 'reasoning', 'include_reasoning'],
+                'reasoning': {'mandatory': false},
+              },
+              {
+                'id': 'text/only',
+                'context_length': null,
+                'top_provider': {'context_length': 8192},
+                'architecture': {'input_modalities': ['text']},
+                'supported_parameters': ['max_tokens'],
+              },
+              {'id': 'mistral', 'capabilities': {'vision': true}, 'max_context_length': 32000.0},
+              {'id': 'lm', 'type': 'vlm', 'context_window': 4096},
             ],
           },
         '/o/chat/completions' when sent.contains('"image_url"') => {
@@ -85,9 +136,24 @@ void main() {
     AiProvider at(String path, AiFormat format) =>
         AiProvider(id: 'x', name: 'x', format: format, apiKey: 'secret', baseUrl: '$base/$path/', path: format.path);
 
-    expect(await AiClient(at('o', AiFormat.openai)).models(), ['gpt-a', 'gpt-b']);
-    expect(await AiClient(at('a', AiFormat.anthropic)).models(), ['c-1', 'c-2']); // two pages
-    expect(await AiClient(at('g', AiFormat.gemini)).models(), ['gem']); // only those that write text
+    // OpenAI's list says nothing of a model but its ID.
+    expect(await AiClient(at('o', AiFormat.openai)).models(), {'gpt-a': const AiModelInfo(), 'gpt-b': const AiModelInfo()});
+    expect(await AiClient(at('a', AiFormat.anthropic)).models(), {
+      'c-1': const AiModelInfo(vision: true, reasoning: true, context: 200000),
+      'c-2': const AiModelInfo(), // two pages
+    });
+    // Only those that write text; a Gemini model that doesn't think leaves it out; nothing of images.
+    expect(await AiClient(at('g', AiFormat.gemini)).models(), {
+      'gem': const AiModelInfo(reasoning: true, context: 1048576),
+      'gem-old': const AiModelInfo(reasoning: false, context: 32768),
+    });
+    // OpenRouter's, and other servers' of OpenAI's format.
+    expect(await AiClient(at('r', AiFormat.openai)).models(), {
+      'see/think': const AiModelInfo(vision: true, reasoning: true, context: 131072),
+      'text/only': const AiModelInfo(vision: false, reasoning: false, context: 8192),
+      'mistral': const AiModelInfo(vision: true, context: 32000),
+      'lm': const AiModelInfo(vision: true, context: 4096),
+    });
     await AiClient(at('o', AiFormat.openai)).test('gpt-a');
     expect(heard, contains('POST /o/chat/completions Bearer secret'));
     expect(heard, contains('GET /a/models?limit=1000&after_id=c-1 secret'));
@@ -118,6 +184,77 @@ void main() {
           AiClient(at('o', AiFormat.openai).copyWith(apiKey: key)).models(),
           throwsA(isA<AiError>().having((e) => '$e', 'text', allOf(contains('API key'), isNot(contains('sk-'))))));
     }
+    expect(heard.length, asked);
+  });
+
+  test('custom headers and bodies go with the requests, the provider’s then the model’s', () async {
+    // Read: one header a line, by name in lower case; what isn't one named by its line, never
+    // repeating a value.
+    expect(AiClient.headersIn('X-Title: Curator\n\n  HTTP-Referer:https://a.example/x:1  \nx-title: again'),
+        {'x-title': 'again', 'http-referer': 'https://a.example/x:1'});
+    expect(AiClient.headersIn('  '), isEmpty);
+    for (final (text, said) in [
+      ('X-A: 1\nno colon', 'Custom headers, line 2: not “Name: value”.'),
+      (': value', 'Custom headers, line 1: not “Name: value”.'),
+      ('Bad Name: 1', 'Custom headers, line 1: characters a header can’t hold.'),
+      ('X-Key: sk-密钥', 'Custom headers, line 1: characters a header can’t hold.'),
+    ]) {
+      expect(() => AiClient.headersIn(text), throwsA(isA<AiError>().having((e) => e.message, 'message', said)));
+    }
+    expect(AiClient.bodyIn(' '), isEmpty);
+    expect(AiClient.bodyIn('{"temperature": 0, "provider": {"order": ["a"]}}'), {'temperature': 0, 'provider': {'order': ['a']}});
+    for (final text in ['[1]', '{"a": ', '7']) {
+      expect(() => AiClient.bodyIn(text), throwsA(isA<AiError>().having((e) => e.message, 'message', 'The custom body isn’t a JSON object.')));
+    }
+
+    // Kept with the provider and its model.
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(server.close);
+    final heard = <({String path, HttpHeaders headers, Object? body})>[];
+    server.listen((request) async {
+      final sent = await utf8.decoder.bind(request).join();
+      heard.add((path: request.uri.path, headers: request.headers, body: sent.isEmpty ? null : jsonDecode(sent)));
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode(request.uri.path.endsWith('/models')
+          ? {'data': [{'id': 'm'}], 'models': [{'name': 'models/m'}]}
+          : {'choices': [{'message': {'content': 'seen'}}], 'candidates': [{'content': {'parts': [{'text': 'seen'}]}}]}));
+      await request.response.close();
+    });
+    final provider = AiProvider(
+      id: 'x', name: 'x', format: AiFormat.openai, apiKey: 'secret', baseUrl: 'http://127.0.0.1:${server.port}', path: AiFormat.openai.path,
+      models: ['m', 'n'],
+      headers: 'X-Title: Curator\nX-Both: provider',
+      body: '{"temperature": 0, "max_tokens": 100, "provider": {"order": ["a"], "allow_fallbacks": false}}',
+      details: {
+        'm': const AiModelInfo(
+            headers: 'X-Both: model\nAuthorization: Bearer other', body: '{"max_tokens": null, "provider": {"order": ["b"]}, "reasoning": {"effort": "low"}}'),
+      },
+    );
+    expect(AiProvider.read(AiProvider.write([provider])).first, provider);
+
+    await AiClient(provider).models(); // the provider's headers, no body
+    await AiClient(provider).ask('m', 'Hi');
+    await AiClient(provider).ask('n', 'Hi');
+    final [list, m, n] = heard;
+    expect([list.headers.value('x-title'), list.headers.value('x-both'), list.headers.value('authorization'), list.body],
+        ['Curator', 'provider', 'Bearer secret', null]);
+    // The model's after the provider's: a header named again replaces it, the key's too.
+    expect([m.headers.value('x-title'), m.headers.value('x-both'), m.headers.value('authorization')], ['Curator', 'model', 'Bearer other']);
+    // Bodies merged: an object in both merged, a null taking its name out, anything else replaced.
+    final body = m.body! as Map;
+    expect([body['model'], body['temperature'], body.containsKey('max_tokens'), body['provider'], body['reasoning']],
+        ['m', 0, false, {'order': ['b'], 'allow_fallbacks': false}, {'effort': 'low'}]);
+    expect(body['messages'], isA<List>());
+    expect([n.headers.value('x-both'), n.headers.value('authorization'), (n.body! as Map)['max_tokens']], ['provider', 'Bearer secret', 100]);
+
+    // Gemini's: what the app asks of it kept where the body adds to the same object.
+    final gemini = provider.copyWith(format: AiFormat.gemini, path: AiFormat.gemini.path, body: '{"generationConfig": {"temperature": 0}}');
+    expect(await AiClient(gemini).ask('n', 'Hi'), 'seen');
+    expect((heard.last.body! as Map)['generationConfig'], {'responseMimeType': 'application/json', 'temperature': 0});
+    // A custom header that isn't one: said, and nothing is asked.
+    final asked = heard.length;
+    await expectLater(AiClient(provider.copyWith(headers: 'X-Key: 秘密')).models(), throwsA(isA<AiError>()));
+    await expectLater(AiClient(provider.copyWith(body: '[]')).ask('n', 'Hi'), throwsA(isA<AiError>()));
     expect(heard.length, asked);
   });
 

@@ -282,6 +282,7 @@ msgstr "追加：{names}"
 msgid "Add…"
 msgstr "追加…"
 
+#: lib/ai_settings.dart
 msgid "Advanced"
 msgstr "詳細"
 
@@ -4058,3 +4059,69 @@ msgstr "LilyPond の楽譜は LilyPond で浄書します（{size} MB）。"
 #: lib/lilypond_dialog.dart
 msgid "Open Download Hub"
 msgstr "ダウンロードハブを開く"
+
+#: lib/ai_settings.dart
+msgctxt "ability"
+msgid "Vision"
+msgstr "画像認識"
+
+#: lib/ai_settings.dart
+msgctxt "ability"
+msgid "Reasoning"
+msgstr "推論"
+
+#: lib/ai_settings.dart
+msgid "Context size: {tokens} tokens"
+msgstr "コンテキスト長：{tokens} トークン"
+
+#: lib/ai_settings.dart
+msgid "Edit model"
+msgstr "モデルを編集"
+
+#: lib/ai_settings.dart
+msgid "{provider} doesn’t list this model."
+msgstr "{provider} のモデル一覧にこのモデルはありません。"
+
+#: lib/ai_settings.dart
+msgid "{provider} gives no details of this model."
+msgstr "{provider} はこのモデルの詳細を提供していません。"
+
+#: lib/ai_settings.dart
+msgid "Fetched from {provider}."
+msgstr "{provider} から取得しました。"
+
+#: lib/ai_settings.dart
+msgid "Edit Model"
+msgstr "モデルを編集"
+
+#: lib/ai_settings.dart
+msgid "Abilities"
+msgstr "機能"
+
+#: lib/ai_settings.dart
+msgid "Context size"
+msgstr "コンテキスト長"
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: not “Name: value”."
+msgstr "カスタムヘッダー、{line} 行目：「名前: 値」の形式ではありません。"
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: characters a header can’t hold."
+msgstr "カスタムヘッダー、{line} 行目：ヘッダーに使えない文字が含まれています。"
+
+#: lib/ai_providers.dart
+msgid "The custom body isn’t a JSON object."
+msgstr "カスタムボディが JSON オブジェクトではありません。"
+
+#: lib/ai_settings.dart
+msgid "Custom headers"
+msgstr "カスタムヘッダー"
+
+#: lib/ai_settings.dart
+msgid "Name: value"
+msgstr "名前: 値"
+
+#: lib/ai_settings.dart
+msgid "Custom body"
+msgstr "カスタムボディ"

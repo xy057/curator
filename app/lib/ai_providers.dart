@@ -26,6 +26,101 @@ enum AiFormat {
   static AiFormat named(String? name) => values.asNameMap()[name] ?? openai;
 }
 
+/// What is known of one of a provider's models (Settings ▸ Remote AI Provider ▸ Edit Model):
+/// whether it reads images, whether it reasons, how much it reads at once, each null while
+/// nothing says (what the provider's model list says, [AiClient.models], or the user); and what
+/// its requests add to the provider's: [headers] and [body].
+@immutable
+class AiModelInfo {
+  const AiModelInfo({this.vision, this.reasoning, this.context, this.byHand = false, this.headers = '', this.body = ''});
+
+  /// Reads images (as Read with AI asks it to).
+  final bool? vision;
+
+  /// Reasons (thinks) before it answers.
+  final bool? reasoning;
+
+  /// Its context window: the most tokens it reads at once.
+  final int? context;
+
+  /// What it can do was set by the user: Fetch leaves it as set.
+  final bool byHand;
+
+  /// Headers its requests send after the provider's ([AiProvider.headers]), as typed: "Name: value" lines.
+  final String headers;
+
+  /// What its requests' bodies take after the provider's ([AiProvider.body]), as typed: a JSON object.
+  final String body;
+
+  bool get isEmpty =>
+      vision == null && reasoning == null && context == null && !byHand && headers.trim().isEmpty && body.trim().isEmpty;
+
+  /// This with what the provider's list says of the model ([found]) where it says something;
+  /// what it can do unchanged when set [byHand].
+  AiModelInfo fetched(AiModelInfo found) => byHand
+      ? this
+      : AiModelInfo(
+          vision: found.vision ?? vision,
+          reasoning: found.reasoning ?? reasoning,
+          context: found.context ?? context,
+          headers: headers,
+          body: body);
+
+  /// [context] in short: 8192, 128K, 1M, 1.5M (thousands and millions, as models' windows are
+  /// told).
+  static String short(int tokens) {
+    final k = (tokens / 1000).round();
+    if (tokens < 1000) return '$tokens';
+    if (k < 1000) return '${k}K';
+    final m = (tokens / 100000).round() / 10;
+    return '${m == m.truncate() ? m.toInt() : m}M';
+  }
+
+  /// A context size as typed: digits (commas, spaces or underscores between them), and K or M
+  /// after them for thousands or millions (128K, 1.5M); null when it isn't one.
+  static int? parseTokens(String text) {
+    final match = RegExp(r'^(\d+(?:\.\d+)?)([km]?)$').firstMatch(text.replaceAll(RegExp(r'[\s,_]'), '').toLowerCase());
+    if (match == null) return null;
+    final n = double.parse(match[1]!) * switch (match[2]) { 'k' => 1e3, 'm' => 1e6, _ => 1 };
+    return n >= 1 && n < 1e12 ? n.round() : null;
+  }
+
+  Map<String, Object?> toJson() => {
+        'vision': ?vision,
+        'reasoning': ?reasoning,
+        'context': ?context,
+        if (byHand) 'byHand': true,
+        if (headers.trim().isNotEmpty) 'headers': headers,
+        if (body.trim().isNotEmpty) 'body': body,
+      };
+
+  static AiModelInfo fromJson(Object? json) {
+    if (json is! Map) return const AiModelInfo();
+    bool? flag(String key) => switch (json[key]) { final bool b => b, _ => null };
+    return AiModelInfo(
+      vision: flag('vision'),
+      reasoning: flag('reasoning'),
+      context: switch (json['context']) { final int n when n > 0 => n, _ => null },
+      byHand: json['byHand'] == true,
+      headers: switch (json['headers']) { final String s => s, _ => '' },
+      body: switch (json['body']) { final String s => s, _ => '' },
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is AiModelInfo &&
+      other.vision == vision &&
+      other.reasoning == reasoning &&
+      other.context == context &&
+      other.byHand == byHand &&
+      other.headers == headers &&
+      other.body == body;
+
+  @override
+  int get hashCode => Object.hash(vision, reasoning, context, byHand, headers, body);
+}
+
 /// One AI service and the credentials for it (Settings ▸ Remote AI Provider): an API key, where
 /// its API is, and the models chosen from it. Kept in the app's settings
 /// ([AppSettings.aiProviders]), for every project. Five come with the app ([builtIns]); the user
@@ -41,6 +136,9 @@ class AiProvider {
     required this.baseUrl,
     String? path,
     this.models = const [],
+    this.details = const {},
+    this.headers = '',
+    this.body = '',
   }) : path = path ?? '';
 
   /// Stays the same when it is renamed: a built-in one's is its [builtIns] entry's.
@@ -54,6 +152,20 @@ class AiProvider {
 
   /// Model IDs, in the order shown.
   final List<String> models;
+
+  /// What is known of its [models], by ID: only those something is known of.
+  final Map<String, AiModelInfo> details;
+
+  /// What is known of [model].
+  AiModelInfo infoOf(String model) => details[model] ?? const AiModelInfo();
+
+  /// Headers every request to it sends after the key's (custom ones), as typed: "Name: value"
+  /// lines ([AiClient.headersIn]). A model's own ([AiModelInfo.headers]) come after them.
+  final String headers;
+
+  /// What every request asking a model takes in its body, as typed: a JSON object merged into
+  /// the one the app makes ([AiClient.bodyIn]). A model's own ([AiModelInfo.body]) after it.
+  final String body;
 
   /// One of [builtIns]: it can't be removed, and speaks only its own format.
   bool get builtIn => builtIns.any((p) => p.id == id);
@@ -90,6 +202,9 @@ class AiProvider {
     String? baseUrl,
     String? path,
     List<String>? models,
+    Map<String, AiModelInfo>? details,
+    String? headers,
+    String? body,
   }) =>
       AiProvider(
         id: id,
@@ -100,7 +215,22 @@ class AiProvider {
         baseUrl: baseUrl ?? this.baseUrl,
         path: path ?? this.path,
         models: models ?? this.models,
+        // What is known of a model goes with it.
+        details: {
+          for (final MapEntry(:key, :value) in (details ?? this.details).entries)
+            if ((models ?? this.models).contains(key) && !value.isEmpty) key: value,
+        },
+        headers: headers ?? this.headers,
+        body: body ?? this.body,
       );
+
+  /// This with [info] known of [model] (nothing, when it is empty).
+  AiProvider withInfo(String model, AiModelInfo info) =>
+      copyWith(details: {
+        for (final MapEntry(:key, :value) in details.entries)
+          if (key != model) key: value,
+        model: info,
+      });
 
   Map<String, Object?> toJson() => {
         'id': id,
@@ -111,6 +241,9 @@ class AiProvider {
         'baseUrl': baseUrl,
         'path': path,
         'models': models,
+        if (details.isNotEmpty) 'details': {for (final MapEntry(:key, :value) in details.entries) key: value.toJson()},
+        if (headers.isNotEmpty) 'headers': headers,
+        if (body.isNotEmpty) 'body': body,
       };
 
   /// One read back from [toJson]; null when it isn't one (a damaged entry is left out).
@@ -120,6 +253,11 @@ class AiProvider {
     if (id is! String || id.isEmpty || name is! String) return null;
     String text(String key) => switch (json[key]) { final String s => s, _ => '' };
     final builtIn = builtIns.where((p) => p.id == id).firstOrNull;
+    final models = [
+      for (final m in json['models'] is List ? json['models'] as List : const [])
+        if (m is String && m.isNotEmpty) m,
+    ];
+    final details = json['details'] is Map ? json['details'] as Map : const {};
     return AiProvider(
       id: id,
       name: name,
@@ -129,10 +267,13 @@ class AiProvider {
       apiKey: text('apiKey'),
       baseUrl: text('baseUrl'),
       path: text('path'),
-      models: [
-        for (final m in json['models'] is List ? json['models'] as List : const [])
-          if (m is String && m.isNotEmpty) m,
-      ],
+      models: models,
+      details: {
+        for (final m in models)
+          if (AiModelInfo.fromJson(details[m]) case final info when !info.isEmpty) m: info,
+      },
+      headers: text('headers'),
+      body: text('body'),
     );
   }
 
@@ -164,10 +305,14 @@ class AiProvider {
       other.apiKey == apiKey &&
       other.baseUrl == baseUrl &&
       other.path == path &&
-      listEquals(other.models, models);
+      listEquals(other.models, models) &&
+      mapEquals(other.details, details) &&
+      other.headers == headers &&
+      other.body == body;
 
   @override
-  int get hashCode => Object.hash(id, name, format, enabled, apiKey, baseUrl, path, Object.hashAll(models));
+  int get hashCode => Object.hash(id, name, format, enabled, apiKey, baseUrl, path, Object.hashAll(models),
+      Object.hashAllUnordered([for (final MapEntry(:key, :value) in details.entries) Object.hash(key, value)]), headers, body);
 }
 
 /// A model of a provider's: what a setting picks to do something with ([AppSettings.pdfAiModel]).
@@ -235,25 +380,82 @@ class AiClient {
     return base.replace(path: '${base.path}$rest', queryParameters: query == null ? null : {...base.queryParameters, ...query});
   }
 
-  /// The key, where the provider's API wants it; an error when it can't go in a header (which
-  /// holds printable ASCII), in words that don't repeat the key, as dart:io's do.
-  Map<String, String> get _headers {
+  /// The key, where the provider's API wants it, then the provider's custom headers and [model]'s
+  /// (a header named again replaces the one before: a custom Authorization, the key's). An error
+  /// when the key can't go in a header (which holds printable ASCII), in words that don't repeat
+  /// the key, as dart:io's do; or when the custom ones aren't headers ([headersIn]).
+  Map<String, String> _headersFor(String? model) {
     final key = provider.apiKey.trim();
     if (key.codeUnits.any((c) => c < 0x20 || c > 0x7e)) throw AiError('The API key has invalid characters.'.tr);
-    return switch (provider.format) {
-      AiFormat.openai => {if (key.isNotEmpty) 'Authorization': 'Bearer $key'},
-      AiFormat.anthropic => {if (key.isNotEmpty) 'x-api-key': key, 'anthropic-version': '2023-06-01'},
-      AiFormat.gemini => {if (key.isNotEmpty) 'x-goog-api-key': key},
+    return {
+      ...switch (provider.format) {
+        AiFormat.openai => {if (key.isNotEmpty) 'authorization': 'Bearer $key'},
+        AiFormat.anthropic => {if (key.isNotEmpty) 'x-api-key': key, 'anthropic-version': '2023-06-01'},
+        AiFormat.gemini => {if (key.isNotEmpty) 'x-goog-api-key': key},
+      },
+      ...headersIn(provider.headers),
+      if (model != null) ...headersIn(provider.infoOf(model).headers),
     };
   }
 
-  /// The IDs of the models the provider offers, in its order (several pages of them, where it
-  /// pages its list). Gemini's: those that can write text.
-  Future<List<String>> models() async {
-    final ids = <String>[];
+  /// The headers [text] holds, one "Name: value" a line (blank lines passed over), by name in
+  /// lower case (as HTTP's are the same in any case); an [AiError] naming the line that isn't one,
+  /// or that holds what a header can't (a value: printable ASCII), never repeating a value (which
+  /// may be a key).
+  static Map<String, String> headersIn(String text) {
+    final headers = <String, String>{};
+    for (final (i, line) in text.split('\n').indexed) {
+      if (line.trim().isEmpty) continue;
+      final colon = line.indexOf(':');
+      final name = colon < 0 ? '' : line.substring(0, colon).trim();
+      if (name.isEmpty) throw AiError('Custom headers, line {line}: not “Name: value”.'.fill({'line': i + 1}));
+      final value = line.substring(colon + 1).trim();
+      if (!RegExp(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$").hasMatch(name) || value.codeUnits.any((c) => (c < 0x20 && c != 0x09) || c > 0x7e)) {
+        throw AiError('Custom headers, line {line}: characters a header can’t hold.'.fill({'line': i + 1}));
+      }
+      headers[name.toLowerCase()] = value;
+    }
+    return headers;
+  }
+
+  /// The JSON object [text] holds (none when it is blank); an [AiError] when it isn't one.
+  static Map<String, Object?> bodyIn(String text) {
+    if (text.trim().isEmpty) return const {};
+    try {
+      if (jsonDecode(text) case final Map<String, Object?> body) return body;
+    } on FormatException {
+      // said below
+    }
+    throw AiError('The custom body isn’t a JSON object.'.tr);
+  }
+
+  /// [body] (a request asking [model]) with the provider's custom body merged in, then the
+  /// model's: an object in both merged the same way, a null taking its name out, anything else
+  /// in place of what was there.
+  Map<String, Object?> _bodyFor(String model, Map<String, Object?> body) =>
+      _merged(_merged(body, bodyIn(provider.body)), bodyIn(provider.infoOf(model).body));
+
+  static Map<String, Object?> _merged(Map base, Map extra) {
+    final merged = <String, Object?>{for (final MapEntry(:key, :value) in base.entries) '$key': value};
+    for (final MapEntry(:key, :value) in extra.entries) {
+      final was = merged['$key'];
+      if (value == null) {
+        merged.remove('$key');
+      } else {
+        merged['$key'] = was is Map && value is Map ? _merged(was, value) : value;
+      }
+    }
+    return merged;
+  }
+
+  /// The models the provider offers, by ID in its order (several pages of them, where it pages
+  /// its list), each with what the list says of it ([infoIn]). Gemini's: those that can write
+  /// text.
+  Future<Map<String, AiModelInfo>> models() async {
+    final ids = <String, AiModelInfo>{};
     String? after;
     for (var page = 0; page < 50; page++) {
-      final json = await _send('GET', switch (provider.format) {
+      final json = await _send(null, 'GET', switch (provider.format) {
         AiFormat.openai => _at('/models'),
         AiFormat.anthropic => _at('/models', {'limit': '1000', 'after_id': ?after}),
         AiFormat.gemini => _at('/models', {'pageSize': '1000', 'pageToken': ?after}),
@@ -271,7 +473,7 @@ class AiClient {
             },
           _ => switch (m['id']) { final String id => id, _ => null },
         };
-        if (id != null && id.isNotEmpty && !ids.contains(id)) ids.add(id);
+        if (id != null && id.isNotEmpty) ids.putIfAbsent(id, () => infoIn(m, provider.format));
       }
       after = switch ((provider.format, json['last_id'], json['nextPageToken'])) {
         (AiFormat.anthropic, final String last, _) when json['has_more'] == true => last,
@@ -281,6 +483,49 @@ class AiClient {
       if (after == null || after.isEmpty) break;
     }
     return ids;
+  }
+
+  /// What an entry of a model list ([m]) says of the model, in [format]; null where it says
+  /// nothing. Read from where the providers known here say it: Anthropic's capabilities and
+  /// max_input_tokens; Gemini's inputTokenLimit and thinking (a model that doesn't think leaves
+  /// it out); OpenRouter's architecture, reasoning, supported_parameters and context_length; and
+  /// other servers of OpenAI's format: Mistral's capabilities, LM Studio's type ("vlm"), Groq's
+  /// context_window, vLLM's max_model_len. Gemini's list says nothing of images.
+  @visibleForTesting
+  static AiModelInfo infoIn(Map m, AiFormat format) {
+    bool? supported(Object? v) => switch (v) { {'supported': final bool b} => b, final bool b => b, _ => null };
+    int? count(Object? v) => switch (v) {
+          final int n when n > 0 => n,
+          final double d when d >= 1 && d.isFinite => d.round(),
+          _ => null,
+        };
+    final capabilities = m['capabilities'] is Map ? m['capabilities'] as Map : const {};
+    final modalities = switch (m) {
+      {'architecture': {'input_modalities': final List l}} => l,
+      {'input_modalities': final List l} => l,
+      _ => null,
+    };
+    final parameters = switch (m['supported_parameters']) { final List l => l, _ => null };
+    const reasons = ['reasoning', 'include_reasoning', 'reasoning_effort'];
+    return AiModelInfo(
+      vision: modalities?.contains('image') ??
+          supported(capabilities['image_input']) ??
+          supported(capabilities['vision']) ??
+          switch (m['type']) { 'vlm' => true, 'llm' => false, _ => null },
+      reasoning: m['reasoning'] is Map
+          ? true
+          : parameters?.any(reasons.contains) ??
+              supported(capabilities['thinking']) ??
+              supported(capabilities['reasoning']) ??
+              (format == AiFormat.gemini ? m['thinking'] == true : null),
+      context: count(m['max_input_tokens']) ??
+          count(m['inputTokenLimit']) ??
+          count(m['context_length']) ??
+          count(switch (m['top_provider']) { {'context_length': final Object n} => n, _ => null }) ??
+          count(m['context_window']) ??
+          count(m['max_context_length']) ??
+          count(m['max_model_len']),
+    );
   }
 
   /// Asks [model] for a word, through the provider's API path; throws an [AiError] when it
@@ -294,7 +539,7 @@ class AiClient {
     const prompt = 'Hi';
     final path = (provider.path.trim().isEmpty ? provider.format.path : provider.path.trim())
         .replaceAll('{model}', Uri.encodeComponent(model));
-    await _send('POST', _at(path), switch (provider.format) {
+    await _send(model, 'POST', _at(path), _bodyFor(model, switch (provider.format) {
       AiFormat.openai => {
           'model': model,
           'messages': [
@@ -317,7 +562,7 @@ class AiClient {
             },
           ],
         },
-    });
+    }));
   }
 
   /// Asks [model] [prompt] about [images] (PNG pictures, put before the words), through the
@@ -326,7 +571,7 @@ class AiClient {
     final path = (provider.path.trim().isEmpty ? provider.format.path : provider.path.trim())
         .replaceAll('{model}', Uri.encodeComponent(model));
     final pictures = [for (final i in images) base64Encode(i)];
-    final json = await _send('POST', _at(path), switch (provider.format) {
+    final json = await _send(model, 'POST', _at(path), _bodyFor(model, switch (provider.format) {
       AiFormat.openai => {
           'model': model,
           'messages': [
@@ -374,7 +619,7 @@ class AiClient {
           ],
           'generationConfig': {'responseMimeType': 'application/json'},
         },
-    });
+    }));
     final text = _answer(json);
     if (text == null || text.trim().isEmpty) throw AiError('The server’s answer has no text.'.tr);
     return text;
@@ -410,10 +655,11 @@ class AiClient {
     }
   }
 
-  /// The JSON a request answers with; an [AiError] with the server's message when it refuses.
-  Future<Object?> _send(String method, Uri uri, [Object? body]) async {
+  /// The JSON a request (asking [model], when it does) answers with; an [AiError] with the
+  /// server's message when it refuses.
+  Future<Object?> _send(String? model, String method, Uri uri, [Object? body]) async {
     if (_closed) throw StateError('closed');
-    final headers = _headers; // before anything is opened: a key that can't be sent
+    final headers = _headersFor(model); // before anything is opened: a key that can't be sent
     final client = HttpClient()
       ..connectionTimeout = timeout < _connecting ? timeout : _connecting
       ..userAgent = 'Curator/$appVersion';
@@ -427,12 +673,10 @@ class AiClient {
         throw StateError('closed');
       }
       request.followRedirects = false; // the key stays with this server
-      headers.forEach(request.headers.set);
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      if (body != null) {
-        request.headers.contentType = ContentType.json;
-        request.add(utf8.encode(jsonEncode(body)));
-      }
+      if (body != null) request.headers.contentType = ContentType.json;
+      headers.forEach(request.headers.set); // after those: a custom Accept or Content-Type in their place
+      if (body != null) request.add(utf8.encode(jsonEncode(body)));
       final response = await request.close().timeout(timeout);
       final bytes = BytesBuilder(copy: false);
       await response.forEach((chunk) {

@@ -282,6 +282,7 @@ msgstr "新增：{names}"
 msgid "Add…"
 msgstr "添加…"
 
+#: lib/ai_settings.dart
 msgid "Advanced"
 msgstr "高级"
 
@@ -4058,3 +4059,69 @@ msgstr "LilyPond 乐谱需用 LilyPond 刻谱（{size} MB）。"
 #: lib/lilypond_dialog.dart
 msgid "Open Download Hub"
 msgstr "打开下载中心"
+
+#: lib/ai_settings.dart
+msgctxt "ability"
+msgid "Vision"
+msgstr "视觉"
+
+#: lib/ai_settings.dart
+msgctxt "ability"
+msgid "Reasoning"
+msgstr "推理"
+
+#: lib/ai_settings.dart
+msgid "Context size: {tokens} tokens"
+msgstr "上下文长度：{tokens} 个词元"
+
+#: lib/ai_settings.dart
+msgid "Edit model"
+msgstr "编辑模型"
+
+#: lib/ai_settings.dart
+msgid "{provider} doesn’t list this model."
+msgstr "{provider} 的模型列表中没有此模型。"
+
+#: lib/ai_settings.dart
+msgid "{provider} gives no details of this model."
+msgstr "{provider} 未提供此模型的详细信息。"
+
+#: lib/ai_settings.dart
+msgid "Fetched from {provider}."
+msgstr "已从 {provider} 获取。"
+
+#: lib/ai_settings.dart
+msgid "Edit Model"
+msgstr "编辑模型"
+
+#: lib/ai_settings.dart
+msgid "Abilities"
+msgstr "能力"
+
+#: lib/ai_settings.dart
+msgid "Context size"
+msgstr "上下文长度"
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: not “Name: value”."
+msgstr "自定义请求头，第 {line} 行：不是“名称: 值”格式。"
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: characters a header can’t hold."
+msgstr "自定义请求头，第 {line} 行：含有请求头不能包含的字符。"
+
+#: lib/ai_providers.dart
+msgid "The custom body isn’t a JSON object."
+msgstr "自定义请求体不是 JSON 对象。"
+
+#: lib/ai_settings.dart
+msgid "Custom headers"
+msgstr "自定义请求头"
+
+#: lib/ai_settings.dart
+msgid "Name: value"
+msgstr "名称: 值"
+
+#: lib/ai_settings.dart
+msgid "Custom body"
+msgstr "自定义请求体"

@@ -7,6 +7,7 @@ import 'app_icons.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'error_text.dart';
+import 'lilypond_dialog.dart' show monospace;
 import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
@@ -214,7 +215,7 @@ class _SearchField extends StatelessWidget {
   }
 }
 
-/// A provider in the list: its initial in a circle, its name, and whether it is on.
+/// A provider in the list: its name, and whether it is on.
 class _ProviderTile extends StatefulWidget {
   const _ProviderTile({required this.provider, required this.selected, required this.onTap});
   final AiProvider provider;
@@ -259,11 +260,9 @@ class _ProviderTileState extends State<_ProviderTile> {
               duration: stateDuration(motion(context, 120)),
               curve: style.curve,
               height: 38,
-              padding: const EdgeInsets.only(left: 6, right: 6),
+              padding: const EdgeInsets.only(left: 10, right: 6),
               decoration: BoxDecoration(color: fill, borderRadius: style.radius(7)),
               child: Row(children: [
-                _Initial(name: p.name),
-                const SizedBox(width: 9),
                 Expanded(
                   child: Text(p.name, // the provider's own name: not translated
                       maxLines: 1,
@@ -278,29 +277,6 @@ class _ProviderTileState extends State<_ProviderTile> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// A provider's first letter in a small tinted circle.
-class _Initial extends StatelessWidget {
-  const _Initial({required this.name});
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final letter = name.trim().isEmpty ? '?' : String.fromCharCode(name.trim().runes.first).toUpperCase();
-    return Container(
-      width: 24,
-      height: 24,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: AppStyle.of(context).isCarbon ? BoxShape.rectangle : BoxShape.circle,
-        color: colors.accentSoft,
-        border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
-      ),
-      child: Text(letter, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: colors.accentStrong)),
     );
   }
 }
@@ -352,8 +328,13 @@ class _ProviderPaneState extends State<_ProviderPane> {
   late final _key = TextEditingController(text: widget.provider.apiKey);
   late final _base = TextEditingController(text: widget.provider.baseUrl);
   late final _path = TextEditingController(text: widget.provider.path);
+  late final _headers = TextEditingController(text: widget.provider.headers);
+  late final _body = TextEditingController(text: widget.provider.body);
   final _modelSearch = TextEditingController();
   bool _keyShown = false, _searching = false, _selecting = false, _testing = false, _fetching = false;
+
+  /// Advanced shown: from the start, when the provider has custom headers or a body.
+  late bool _advanced = widget.provider.headers.trim().isNotEmpty || widget.provider.body.trim().isNotEmpty;
   final _picked = <String>{};
   _TestResult? _tested;
 
@@ -376,6 +357,8 @@ class _ProviderPaneState extends State<_ProviderPane> {
     if (_base.text.trim() != _p.baseUrl) _base.text = _p.baseUrl;
     if (_path.text.trim() != _p.path) _path.text = _p.path;
     if (_key.text.trim() != _p.apiKey) _key.text = _p.apiKey;
+    if (_headers.text != _p.headers) _headers.text = _p.headers;
+    if (_body.text != _p.body) _body.text = _p.body;
     // What Test found was of the key and the address as they were.
     if (!_sameServer(old.provider, _p)) _tested = null;
     _picked.retainAll(_p.models);
@@ -386,6 +369,8 @@ class _ProviderPaneState extends State<_ProviderPane> {
     _key.dispose();
     _base.dispose();
     _path.dispose();
+    _headers.dispose();
+    _body.dispose();
     _modelSearch.dispose();
     super.dispose();
   }
@@ -424,14 +409,20 @@ class _ProviderPaneState extends State<_ProviderPane> {
     });
   }
 
-  /// Whether [a] and [b] are asked alike: the same key, at the same address, in the same format.
+  /// Whether [a] and [b] are asked alike: the same key, at the same address, in the same format,
+  /// with the same custom headers and body.
   static bool _sameServer(AiProvider a, AiProvider b) =>
-      a.format == b.format && a.apiKey == b.apiKey && a.baseUrl == b.baseUrl && a.path == b.path;
+      a.format == b.format &&
+      a.apiKey == b.apiKey &&
+      a.baseUrl == b.baseUrl &&
+      a.path == b.path &&
+      a.headers == b.headers &&
+      a.body == b.body;
 
   Future<void> _fetch() async {
     setState(() => _fetching = true);
     final provider = _p;
-    List<String>? offered;
+    Map<String, AiModelInfo>? offered;
     Object? error;
     try {
       offered = await AiClient(provider).models();
@@ -452,11 +443,23 @@ class _ProviderPaneState extends State<_ProviderPane> {
       return;
     }
     if (!mounted) return;
+    final list = offered!;
     final chosen = await showAppDialog<List<String>>(
       context: context,
-      builder: (_) => _FetchedModelsDialog(offered: offered!, chosen: _p.models),
+      builder: (_) => _FetchedModelsDialog(offered: list, chosen: _p.models),
     );
-    if (chosen != null) _set(_p.copyWith(models: chosen));
+    if (chosen == null) return;
+    // What the list says of each model chosen goes with it, but for what was set by hand.
+    final p = _p;
+    _set(p.copyWith(models: chosen, details: {
+      for (final m in chosen) m: switch (list[m]) { final found? => p.infoOf(m).fetched(found), null => p.infoOf(m) },
+    }));
+  }
+
+  /// Edit Model: what is known of [model].
+  Future<void> _editModel(String model) async {
+    final info = await showAppDialog<AiModelInfo>(context: context, builder: (_) => _ModelDialog(provider: _p, model: model));
+    if (info != null && _p.models.contains(model)) _set(_p.withInfo(model, info));
   }
 
   Future<void> _addModel() async {
@@ -537,7 +540,19 @@ class _ProviderPaneState extends State<_ProviderPane> {
           hint: p.format.path,
           onChanged: (v) => _set(_p.copyWith(path: v.trim())),
         ),
-        const SizedBox(height: 22),
+        SizedBox(height: dialogGap(context)),
+        _Disclosure(
+          label: 'Advanced'.tr,
+          open: _advanced,
+          onToggle: () => setState(() => _advanced = !_advanced),
+          child: _RequestFields(
+            headers: _headers,
+            body: _body,
+            onHeaders: (v) => _set(_p.copyWith(headers: v)),
+            onBody: (v) => _set(_p.copyWith(body: v)),
+          ),
+        ),
+        const SizedBox(height: 18),
         Row(children: [
           Text('Models'.tr, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.text)),
           const SizedBox(width: 8),
@@ -609,8 +624,12 @@ class _ProviderPaneState extends State<_ProviderPane> {
                 if (i > 0) Divider(height: 1, indent: 12, endIndent: 12, color: colors.line),
                 _ModelRow(
                   id: m,
+                  info: p.infoOf(m),
                   picked: _selecting ? _picked.contains(m) : null,
-                  onTap: _selecting ? () => setState(() => _picked.contains(m) ? _picked.remove(m) : _picked.add(m)) : null,
+                  onTap: _selecting
+                      ? () => setState(() => _picked.contains(m) ? _picked.remove(m) : _picked.add(m))
+                      : () => _editModel(m),
+                  onEdit: () => _editModel(m),
                   onRemove: () => _removeModels([m]),
                 ),
               ],
@@ -667,6 +686,91 @@ class _ProviderPaneState extends State<_ProviderPane> {
   }
 }
 
+/// A heading that shows what is under it while [open] (Advanced), its arrow turning.
+class _Disclosure extends StatelessWidget {
+  const _Disclosure({required this.label, required this.open, required this.onToggle, required this.child});
+  final String label;
+  final bool open;
+  final VoidCallback onToggle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = context.colors.textMuted;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Semantics(
+          button: true,
+          expanded: open,
+          child: InkWell(
+            onTap: onToggle,
+            borderRadius: AppStyle.of(context).radius(6),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 4, 8, 4),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                AnimatedRotation(
+                  turns: open ? 0 : -0.25,
+                  duration: stateDuration(motion(context, 150)),
+                  curve: AppStyle.of(context).curve,
+                  child: Icon(AppIcon.dropDown.of(context), size: 18, color: muted),
+                ),
+                const SizedBox(width: 4),
+                _Label(label),
+              ]),
+            ),
+          ),
+        ),
+      ),
+      if (open) Padding(padding: const EdgeInsets.only(top: 8), child: child),
+    ]);
+  }
+}
+
+/// Custom headers and a custom body (a provider's, or a model's after it), in monospace, each
+/// saying under it what of it isn't right.
+class _RequestFields extends StatelessWidget {
+  const _RequestFields({required this.headers, required this.body, required this.onHeaders, required this.onBody});
+  final TextEditingController headers, body;
+  final ValueChanged<String> onHeaders, onBody;
+
+  /// What [parse] finds wrong in [text]; null when nothing.
+  static String? problem(String text, void Function(String) parse) {
+    try {
+      parse(text);
+      return null;
+    } on AiError catch (e) {
+      return e.message;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget field(TextEditingController controller, String label, String hint, String? problem, ValueChanged<String> onChanged) =>
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          AppTextField(
+            controller: controller,
+            label: label,
+            hint: hint,
+            bad: problem != null,
+            lines: 3,
+            textStyle: monospace.copyWith(fontSize: 12.5),
+            onChanged: onChanged,
+          ),
+          if (problem != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Text(problem, style: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.error)),
+            ),
+        ]);
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      field(headers, 'Custom headers'.tr, 'Name: value'.tr, problem(headers.text, AiClient.headersIn), onHeaders),
+      SizedBox(height: dialogGap(context)),
+      field(body, 'Custom body'.tr, '{"temperature": 0}', problem(body.text, AiClient.bodyIn), onBody),
+    ]);
+  }
+}
+
 /// What went wrong talking to a provider, as the interface says it.
 String _errorText(Object e) => e is AiError ? '$e' : describeError(e);
 
@@ -712,13 +816,59 @@ class _CountBadge extends StatelessWidget {
   }
 }
 
-/// A model in the list: its ID, and a remove button; while models are being chosen ([picked] not
-/// null), a checkbox in front instead.
+/// What is known of a model, small at the right of its ID: whether it reads images and whether it
+/// reasons, as icons; its context, as 128K; each named in a hover text. Nothing for what isn't
+/// known or it can't do.
+class _Abilities extends StatelessWidget {
+  const _Abilities(this.info);
+  final AiModelInfo info;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = context.colors.textMuted;
+    final tokens = info.context;
+    Widget icon(AppIcon icon, String tip) => Tip(
+          message: tip,
+          child: Padding(padding: const EdgeInsets.symmetric(horizontal: 3), child: Icon(icon.of(context), size: 15, color: muted)),
+        );
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (info.vision == true) icon(AppIcon.vision, 'Vision'.trIn('ability')),
+      if (info.reasoning == true) icon(AppIcon.reasoning, 'Reasoning'.trIn('ability')),
+      if (tokens != null)
+        Tip(
+          message: 'Context size: {tokens} tokens'.fill({'tokens': _grouped(tokens)}),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 5, right: 2),
+            child: Text(AiModelInfo.short(tokens),
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: muted, fontFeatures: const [FontFeature.tabularFigures()])),
+          ),
+        ),
+    ]);
+  }
+}
+
+/// [n] with its thousands apart: 131,072.
+String _grouped(int n) => '$n'.replaceAllMapped(RegExp(r'\B(?=(\d{3})+$)'), (_) => ',');
+
+/// A context size in its field: grouped, nothing while it isn't known.
+String _tokensText(int? tokens) => tokens == null ? '' : _grouped(tokens);
+
+/// A model in the list: its ID, what is known of it ([_Abilities]), Edit Model and a remove
+/// button; while models are being chosen ([picked] not null), a checkbox in front instead of
+/// the buttons. A click edits it, or (choosing) ticks it.
 class _ModelRow extends StatelessWidget {
-  const _ModelRow({required this.id, required this.picked, required this.onTap, required this.onRemove});
+  const _ModelRow(
+      {required this.id,
+      required this.info,
+      required this.picked,
+      required this.onTap,
+      required this.onEdit,
+      required this.onRemove});
   final String id;
+  final AiModelInfo info;
   final bool? picked;
   final VoidCallback? onTap;
+  final VoidCallback onEdit;
   final VoidCallback onRemove;
 
   @override
@@ -745,8 +895,13 @@ class _ModelRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 13, color: colors.text)),
             ),
-            if (picked == null)
+            _Abilities(info),
+            if (picked == null) ...[
+              const SizedBox(width: 4),
+              ToolbarButton(icon: AppIcon.settings.of(context), tooltip: 'Edit model'.tr, color: colors.textMuted, onPressed: onEdit),
               ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Remove model'.tr, color: colors.textMuted, onPressed: onRemove),
+            ] else
+              const SizedBox(width: 8),
           ]),
         ),
       ),
@@ -904,11 +1059,172 @@ class _AddModelDialogState extends State<_AddModelDialog> {
       );
 }
 
-/// Fetch: the models the provider [offered], those already [chosen] ticked; Save keeps the
-/// ticked ones, those added by hand (not offered) as they were.
+/// Edit Model: what is known of [model] (whether it reads images, whether it reasons, its context
+/// size), set by hand or filled in from the provider's list (Fetch). Save answers it.
+class _ModelDialog extends StatefulWidget {
+  const _ModelDialog({required this.provider, required this.model});
+  final AiProvider provider;
+  final String model;
+
+  @override
+  State<_ModelDialog> createState() => _ModelDialogState();
+}
+
+class _ModelDialogState extends State<_ModelDialog> {
+  late AiModelInfo _info = widget.provider.infoOf(widget.model);
+  late final _context = TextEditingController(text: _tokensText(_info.context));
+  late final _headers = TextEditingController(text: _info.headers);
+  late final _body = TextEditingController(text: _info.body);
+  bool _fetching = false;
+  late bool _advanced = _info.headers.trim().isNotEmpty || _info.body.trim().isNotEmpty;
+
+  /// What Fetch found, [bad] when it found nothing.
+  ({String text, bool bad})? _fetched;
+
+  @override
+  void dispose() {
+    _context.dispose();
+    _headers.dispose();
+    _body.dispose();
+    super.dispose();
+  }
+
+  bool get _contextBad => _context.text.trim().isNotEmpty && AiModelInfo.parseTokens(_context.text) == null;
+
+  bool get _ready =>
+      !_contextBad && _RequestFields.problem(_headers.text, AiClient.headersIn) == null && _RequestFields.problem(_body.text, AiClient.bodyIn) == null;
+
+  /// Set by hand: a Fetch from the list after it leaves it as set.
+  void _setByHand({bool? vision, bool? reasoning, int? Function()? tokens}) => setState(() {
+        _info = AiModelInfo(
+          vision: vision ?? _info.vision,
+          reasoning: reasoning ?? _info.reasoning,
+          context: tokens == null ? _info.context : tokens(),
+          byHand: true,
+        );
+        _fetched = null;
+      });
+
+  Future<void> _fetch() async {
+    setState(() {
+      _fetching = true;
+      _fetched = null;
+    });
+    final name = widget.provider.name;
+    ({String text, bool bad}) fetched;
+    try {
+      final found = (await AiClient(widget.provider).models())[widget.model];
+      if (!mounted) return;
+      if (found == null) {
+        fetched = (text: '{provider} doesn’t list this model.'.fill({'provider': name}), bad: true);
+      } else if (found.isEmpty) {
+        fetched = (text: '{provider} gives no details of this model.'.fill({'provider': name}), bad: false);
+      } else {
+        fetched = (text: 'Fetched from {provider}.'.fill({'provider': name}), bad: false);
+        // What the list says, in place of what was set by hand.
+        _info = AiModelInfo(vision: _info.vision, reasoning: _info.reasoning, context: _info.context).fetched(found);
+        _context.text = _tokensText(_info.context);
+      }
+    } catch (e) {
+      fetched = (text: _errorText(e), bad: true);
+    }
+    if (!mounted) return;
+    setState(() {
+      _fetching = false;
+      _fetched = fetched;
+    });
+  }
+
+  void _save() {
+    if (!_ready) return;
+    Navigator.pop(
+        context,
+        AiModelInfo(
+            vision: _info.vision,
+            reasoning: _info.reasoning,
+            context: _info.context,
+            byHand: _info.byHand,
+            headers: _headers.text,
+            body: _body.text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final fetched = _fetched;
+    return AppDialog(
+      title: Text('Edit Model'.tr),
+      content: SizedBox(
+        width: dialogWidth(context, 340),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          FieldLabel(
+            label: 'Model ID'.tr,
+            child: SelectableText(widget.model, style: TextStyle(fontSize: 14, color: colors.text)), // not translated
+          ),
+          SizedBox(height: dialogGap(context)),
+          FieldLabel(
+            label: 'Abilities'.tr,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              AppCheckRow(
+                value: _info.vision == true,
+                label: 'Vision'.trIn('ability'),
+                named: true,
+                trailing: Icon(AppIcon.vision.of(context), size: 16, color: colors.textMuted),
+                onChanged: (v) => _setByHand(vision: v ?? false),
+              ),
+              AppCheckRow(
+                value: _info.reasoning == true,
+                label: 'Reasoning'.trIn('ability'),
+                named: true,
+                trailing: Icon(AppIcon.reasoning.of(context), size: 16, color: colors.textMuted),
+                onChanged: (v) => _setByHand(reasoning: v ?? false),
+              ),
+            ]),
+          ),
+          SizedBox(height: dialogGap(context)),
+          AppTextField(
+            controller: _context,
+            label: 'Context size'.tr,
+            hint: '128K',
+            bad: _contextBad,
+            onChanged: (v) => _setByHand(tokens: () => AiModelInfo.parseTokens(v)),
+            onSubmitted: (_) => _save(),
+          ),
+          SizedBox(height: dialogGap(context)),
+          _Disclosure(
+            label: 'Advanced'.tr,
+            open: _advanced,
+            onToggle: () => setState(() => _advanced = !_advanced),
+            child: _RequestFields(headers: _headers, body: _body, onHeaders: (_) => setState(() {}), onBody: (_) => setState(() {})),
+          ),
+        ]),
+      ),
+      leading: [
+        TextButton.icon(
+          onPressed: _fetching ? null : _fetch,
+          icon: _fetching ? const _Spinner() : Icon(AppIcon.fetch.of(context), size: 16),
+          label: Text('Fetch'.tr),
+        ),
+      ],
+      status: fetched == null
+          ? null
+          : Text(fetched.text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: fetched.bad ? Theme.of(context).colorScheme.error : colors.textMuted)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+        FilledButton(onPressed: _ready ? _save : null, child: Text('Save'.tr)),
+      ],
+    );
+  }
+}
+
+/// Fetch: the models the provider [offered] (with what its list says of each), those already
+/// [chosen] ticked; Save keeps the ticked ones, those added by hand (not offered) as they were.
 class _FetchedModelsDialog extends StatefulWidget {
   const _FetchedModelsDialog({required this.offered, required this.chosen});
-  final List<String> offered;
+  final Map<String, AiModelInfo> offered;
   final List<String> chosen;
 
   @override
@@ -916,7 +1232,7 @@ class _FetchedModelsDialog extends StatefulWidget {
 }
 
 class _FetchedModelsDialogState extends State<_FetchedModelsDialog> {
-  late final _ticked = {...widget.chosen.where(widget.offered.contains)};
+  late final _ticked = {...widget.chosen.where(widget.offered.containsKey)};
   final _search = TextEditingController();
 
   @override
@@ -933,15 +1249,15 @@ class _FetchedModelsDialogState extends State<_FetchedModelsDialog> {
 
   List<String> get _result => [
         for (final m in widget.chosen)
-          if (!widget.offered.contains(m) || _ticked.contains(m)) m,
-        for (final m in widget.offered)
+          if (!widget.offered.containsKey(m) || _ticked.contains(m)) m,
+        for (final m in widget.offered.keys)
           if (_ticked.contains(m) && !widget.chosen.contains(m)) m,
       ];
 
   @override
   Widget build(BuildContext context) {
     final q = _search.text.trim().toLowerCase();
-    final shown = [for (final m in widget.offered) if (q.isEmpty || m.toLowerCase().contains(q)) m];
+    final shown = [for (final m in widget.offered.keys) if (q.isEmpty || m.toLowerCase().contains(q)) m];
     final all = shown.isNotEmpty && _ticked.containsAll(shown);
     final none = !shown.any(_ticked.contains);
     return AppDialog(
@@ -979,6 +1295,7 @@ class _FetchedModelsDialogState extends State<_FetchedModelsDialog> {
                   value: _ticked.contains(shown[i]),
                   label: shown[i],
                   named: true,
+                  trailing: _Abilities(widget.offered[shown[i]]!),
                   onChanged: (_) => setState(() => _ticked.contains(shown[i]) ? _ticked.remove(shown[i]) : _ticked.add(shown[i])),
                 ),
               ),
