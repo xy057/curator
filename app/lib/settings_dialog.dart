@@ -62,9 +62,10 @@ Future<void> showSettingsDialog(
 
 /// Edit ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
 /// ([_projectCategories]). Each change is an edit: an Undo step, saved with the project.
-/// [editScore] is Project Info's Edit…, called once this window is gone.
+/// [editScore] is Project Info's Edit…, called once this window is gone; [replaceScore] its
+/// Replace… (the app's, which asks first), called over it with a way to close it.
 Future<void> showProjectSettingsDialog(BuildContext context, AppSettings settings, EditorController controller,
-        {String? page, Future<void> Function()? editScore}) =>
+        {String? page, Future<void> Function()? editScore, Future<void> Function(VoidCallback leave)? replaceScore}) =>
     _showWindow(
       context,
       _SettingsWindow(
@@ -74,6 +75,7 @@ Future<void> showProjectSettingsDialog(BuildContext context, AppSettings setting
         updater: Updater(), // nothing here asks it
         page: page,
         editScore: editScore,
+        replaceScore: replaceScore,
       ),
     );
 
@@ -194,6 +196,7 @@ typedef _Context = ({
   EditorController? controller,
   Updater updater,
   Future<void> Function()? editScore,
+  Future<void> Function(VoidCallback leave)? replaceScore,
 });
 
 final _categories = <_Category>[
@@ -399,18 +402,29 @@ final _projectCategories = <_Category>[
     _Item(
       'Score',
       (c) => c.controller!.fileName ?? '',
-      (c) => Builder(
-        builder: (context) => OutlinedButton(
-          onPressed: c.editScore == null || c.controller?.score == null
-              ? null
-              : () {
-                  Navigator.pop(context); // the editor takes the window
-                  c.editScore!();
-                },
-          child: Text('Edit…'.tr),
-        ),
-      ),
-      keywords: 'edit editor score file musicxml mei pdf import notes write',
+      (c) => Builder(builder: (context) {
+        final open = c.controller?.score != null;
+        return Row(mainAxisSize: MainAxisSize.min, spacing: 8, children: [
+          OutlinedButton(
+            onPressed: c.editScore == null || !open
+                ? null
+                : () {
+                    Navigator.pop(context); // the editor takes the window
+                    c.editScore!();
+                  },
+            child: Text('Edit…'.tr),
+          ),
+          OutlinedButton(
+            onPressed: c.replaceScore == null || !open
+                ? null
+                : () => c.replaceScore!(() {
+                      if (context.mounted) Navigator.pop(context); // a PDF's import takes the window
+                    }),
+            child: Text('Replace…'.tr),
+          ),
+        ]);
+      }),
+      keywords: 'edit editor replace swap another score file musicxml mei pdf import notes write',
     ),
     _Item(
       'Recording',
@@ -837,9 +851,11 @@ class _SettingsWindow extends StatefulWidget {
       this.controller,
       required this.updater,
       this.page,
-      this.editScore});
+      this.editScore,
+      this.replaceScore});
   final _Window kind;
   final Future<void> Function()? editScore;
+  final Future<void> Function(VoidCallback leave)? replaceScore;
   final AppSettings settings;
   final EditorController? controller;
   final Updater updater;
@@ -855,8 +871,10 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   late final _categories = widget.kind.categories;
   late int _page = _lastPage = _open(widget.page) ?? _lastPage;
 
-  /// The page named [name] (a page's label, or a tab's label or title, choosing the tab).
+  /// The page named [name] (a page's label, or a tab's label or title, choosing the tab); none
+  /// for no name (a tab without a title isn't one named so).
   int? _open(String? name) {
+    if (name == null) return null;
     for (final (i, c) in _categories.indexed) {
       if (c.label == name) return i;
       final tab = c.tabs?.indexWhere((t) => t.label == name || t.title == name) ?? -1;
@@ -876,7 +894,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     final overlay = Overlay.of(context, rootOverlay: true);
     Navigator.pop(context);
     _EngravingWindow.show(
-        overlay, tab, (settings: widget.settings, controller: widget.controller, updater: Updater(), editScore: null));
+        overlay, tab, (settings: widget.settings, controller: widget.controller, updater: Updater(), editScore: null, replaceScore: null));
   }
   final _search = TextEditingController();
 
@@ -896,6 +914,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         controller: widget.controller,
         updater: widget.updater,
         editScore: widget.editScore,
+        replaceScore: widget.replaceScore,
       );
 
   /// Items matching the search, with their category; null when not searching.

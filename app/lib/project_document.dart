@@ -138,10 +138,16 @@ class ProjectDocument extends ChangeNotifier {
     settings.addRecent(path);
   }
 
-  /// A score's [bytes] (the score editor's, or the PDF import's [pdf]) engraved with this
-  /// project's edits carried over ([EditorController.prepareReplacementWith]); nothing changes yet.
-  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes, {PdfScoreLayout? pdf}) =>
-      _oneAtATime(() => controller.prepareReplacementWith(name, bytes, pdf: pdf));
+  /// Project Info ▸ Score ▸ Replace… with the score file at [path]: engraved with this project's
+  /// edits carried over ([EditorController.prepareReplacement]); nothing changes yet.
+  Future<ScoreReplacement> prepareReplacement(String path) =>
+      _oneAtATime(() => controller.prepareReplacement(path));
+
+  /// A score's [bytes] (the score editor's, or the PDF import's [pdf], of [pages] or the open
+  /// PDF) engraved with this project's edits carried over
+  /// ([EditorController.prepareReplacementWith]); nothing changes yet.
+  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes, {PdfScoreLayout? pdf, PdfPages? pages}) =>
+      _oneAtATime(() => controller.prepareReplacementWith(name, bytes, pdf: pdf, pages: pages));
 
   /// Puts [replacement] in place of the score: the project, its path and recording stay,
   /// with unsaved changes.

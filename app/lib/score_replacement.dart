@@ -6,8 +6,8 @@ import 'package:score_engine/score_engine.dart';
 import 'project_state.dart';
 import 'l10n/l10n.dart';
 
-/// Project Info ▸ Score ▸ Edit… done: how a project made for one score file reads against another, and
-/// what differs between them.
+/// Project Info ▸ Score ▸ Replace…, or Edit… done: how a project made for one score file reads
+/// against another, and what differs between them.
 ///
 /// Instruments are matched by name and id ([parts]), so a part that moved (an instrument
 /// added above it renumbers it) keeps its lane, name, pair and place; texts by where they are
@@ -355,6 +355,7 @@ class ScoreReplacement {
     required this.state,
     required this.differences,
     required this.replacing,
+    this.pages,
   });
 
   /// The new file's name and bytes, as a project keeps them.
@@ -372,4 +373,8 @@ class ScoreReplacement {
 
   /// The score it was made to replace: if another is open by then, it isn't used.
   final LoadedScore replacing;
+
+  /// The PDF a PDF [score] is drawn from (the open one's, or another's: Replace… with a PDF);
+  /// null for an engraved score.
+  final PdfPages? pages;
 }

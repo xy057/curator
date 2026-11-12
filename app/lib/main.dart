@@ -41,6 +41,7 @@ import 'project_document.dart';
 import 'project_file.dart';
 import 'project_tabs.dart';
 import 'score_editor.dart';
+import 'score_replacement.dart';
 import 'score_view.dart';
 import 'scratch_space.dart';
 import 'settings_dialog.dart';
@@ -335,6 +336,8 @@ class _AppWindowState extends State<AppWindow> {
       );
   static const _scoreTypes = XTypeGroup(label: 'MusicXML', extensions: _scoreExtensions);
   static const _pdfTypes = XTypeGroup(label: 'PDF', extensions: ['pdf']);
+  /// What Replace… takes: a score file, or a PDF to set out in its import.
+  static XTypeGroup get _replaceableTypes => XTypeGroup(label: 'Scores'.tr, extensions: const [..._scoreExtensions, 'pdf']);
   static XTypeGroup get _projectTypes => XTypeGroup(label: 'Curator project'.tr, extensions: const [ProjectFile.extension]);
 
   @override
@@ -1202,7 +1205,53 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   }
 
   void _projectSettings() =>
-      showProjectSettingsDialog(context, settings, controller, editScore: _editScore);
+      showProjectSettingsDialog(context, settings, controller, editScore: _editScore, replaceScore: _replaceScore);
+
+  /// Project Settings ▸ Project Info ▸ Score ▸ Replace…: another score file under this project's
+  /// edits and recording, read over the settings window ([leave] unused); or another PDF, set
+  /// out in its import first, which takes the window ([leave] closes it). Asks first when the
+  /// two differ; picked a score file, the project is a score's, a PDF, a PDF's.
+  Future<void> _replaceScore(VoidCallback leave) async {
+    final file = await openFile(
+        acceptedTypeGroups: [_AppWindowState._replaceableTypes, _AppWindowState._scoreTypes, _AppWindowState._pdfTypes]);
+    if (file == null || !mounted || controller.score == null) return;
+    if (file.path.toLowerCase().endsWith('.pdf')) {
+      leave();
+      await _guard(() => _replaceWithPdf(file.path), title: 'Couldn’t Import PDF'.tr);
+    } else {
+      await _guard(() async => _putInPlace(await document.prepareReplacement(file.path)));
+    }
+  }
+
+  /// Replace… with the PDF at [path]: set out in its import as one opened is (nothing detected
+  /// carried from the open score), then put in place of the score. Cancelled, nothing changes.
+  Future<void> _replaceWithPdf(String path) async {
+    final name = fileNameOf(path), bytes = await File(path).readAsBytes();
+    final pages = await PdfPages.open(bytes);
+    ScoreReplacement? replacement;
+    try {
+      if (!mounted) return;
+      final layout = await showPdfImport(context, pages, name: name, ai: _pdfAi, chooseAi: _choosePdfAi);
+      if (layout == null || !mounted) return;
+      replacement = await document.prepareReplacementWith(name, bytes, pdf: layout, pages: pages);
+    } finally {
+      if (replacement == null) pages.close(); // else the replacement's, let go with it
+    }
+    await _putInPlace(replacement);
+  }
+
+  /// Puts [replacement] in place of the score once the user agrees to what differs (when
+  /// anything does), then says what the new file's import found odd. Declined, nothing changes.
+  Future<void> _putInPlace(ScoreReplacement replacement) async {
+    if (!mounted ||
+        replacement.differences.isNotEmpty &&
+            !await confirmReplaceScore(context, replacement.name, replacement.differences)) {
+      return controller.discardReplacement(replacement);
+    }
+    await document.replaceScore(replacement);
+    final warnings = replacement.score.warnings;
+    if (warnings.isNotEmpty && mounted) await showImportWarnings(context, replacement.name, warnings);
+  }
 
   /// Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score's MusicXML in the score editor;
   /// what is edited there replaces the score (this project's edits and recording kept; asks
@@ -1222,17 +1271,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (!mounted) return;
     final xml = await showScoreEditor(context, score, name: name);
     if (xml == null || !mounted) return;
-    await _guard(() async {
-      final replacement = await document.prepareReplacementWith(name, utf8.encode(xml));
-      if (!mounted) return;
-      if (replacement.differences.isNotEmpty &&
-          !await confirmReplaceScore(context, replacement.name, replacement.differences)) {
-        return;
-      }
-      await document.replaceScore(replacement);
-      final warnings = replacement.score.warnings;
-      if (warnings.isNotEmpty && mounted) await showImportWarnings(context, replacement.name, warnings);
-    }, title: 'Couldn’t Edit Score'.tr);
+    await _guard(() async => _putInPlace(await document.prepareReplacementWith(name, utf8.encode(xml))),
+        title: 'Couldn’t Edit Score'.tr);
   }
 
   /// Project Info ▸ Score ▸ Edit… for a PDF score: its import again; what is set there replaces
@@ -1243,16 +1283,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (pages == null) return;
     final next = await showPdfImport(context, pages, name: name, layout: layout, ai: _pdfAi, chooseAi: _choosePdfAi);
     if (next == null || !mounted) return;
-    await _guard(() async {
-      final replacement = await document.prepareReplacementWith(name, controller.source!.bytes, pdf: next);
-      if (!mounted) return;
-      if (replacement.differences.isNotEmpty &&
-          !await confirmReplaceScore(context, replacement.name, replacement.differences)) {
-        replacement.score.pdf?.dispose();
-        return;
-      }
-      await document.replaceScore(replacement);
-    }, title: 'Couldn’t Edit Score'.tr);
+    await _guard(() async => _putInPlace(await document.prepareReplacementWith(name, controller.source!.bytes, pdf: next)),
+        title: 'Couldn’t Edit Score'.tr);
   }
 
   /// File ▸ Export Video… (⌘E): offers the project's (or the score's) name for the video.
