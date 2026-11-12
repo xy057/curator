@@ -2868,6 +2868,12 @@ msgstr ""
 msgid "Bars and Barlines"
 msgstr ""
 
+msgid "Repeats"
+msgstr ""
+
+msgid "Rehearsal Mark"
+msgstr ""
+
 #: lib/score_editor.dart
 msgid "Breve"
 msgstr ""
@@ -4134,4 +4140,12 @@ msgstr ""
 #: lib/score_editor.dart
 msgctxt "musicxml"
 msgid "entity"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Grace Note (/)"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Grace notes"
 msgstr ""

@@ -61,11 +61,26 @@ class EditChunk {
   MeasureLayout? measure(int m) => m < from || m >= to || m - from + lead >= data.measures.length ? null : data.measures[m - from + lead];
 
   /// Whether [item] is its own to draw: one that starts in its bars. A barline between two
-  /// chunks is the later one's (its left edge is before the bar by half its width).
-  bool owns(DisplayItem item) {
+  /// chunks is the later one's (its left edge is before the bar by half its width). What is
+  /// drawn in pieces (an ending) is the chunk's its first piece is, whole: an ending's closing
+  /// hook lies on its last barline as that barline does.
+  bool owns(DisplayItem item) => _wholes[item] ?? _startsHere(item);
+
+  bool _startsHere(DisplayItem item) {
     final x = item.bounds.left + data.staffSpace * _seam;
     return (lead == 0 || x >= left) && (trail == 0 || x < right);
   }
+
+  late final Map<DisplayItem, bool> _wholes = () {
+    final out = Map<DisplayItem, bool>.identity();
+    for (final items in list.wholes.values) {
+      final own = _startsHere(items.reduce((a, b) => a.bounds.left <= b.bounds.left ? a : b));
+      for (final item in items) {
+        out[item] = own;
+      }
+    }
+    return out;
+  }();
 
   /// How far before a bar's left barline what is drawn there is still the bar's, staff spaces.
   static const _seam = 0.5;
@@ -84,16 +99,24 @@ class EditChunk {
   /// Each tagged element's outline per staff, in the chunk's units: of what it draws.
   late final Map<String, List<({int staff, ui.Rect rect})>> outlines = () {
     final out = <String, List<({int staff, ui.Rect rect})>>{};
-    for (final MapEntry(key: id, value: items) in list.sourced.entries) {
+    for (final MapEntry(key: source, value: items) in list.sourced.entries) {
       final byStaff = <int, ui.Rect>{};
       for (final (:staff, :item) in items) {
         if (!owns(item)) continue;
         byStaff[staff] = byStaff[staff]?.expandToInclude(item.bounds) ?? item.bounds;
       }
-      if (byStaff.isNotEmpty) out[id] = [for (final MapEntry(key: staff, value: rect) in byStaff.entries) (staff: staff, rect: rect)];
+      if (byStaff.isNotEmpty) (out[_elementOf(source)] ??= []).addAll([for (final MapEntry(key: staff, value: rect) in byStaff.entries) (staff: staff, rect: rect)]);
     }
     return out;
   }();
+
+  /// The element [source] is drawn for: a rehearsal mark is drawn as its direction's id and
+  /// "-reh" (patched Verovio), and is its direction.
+  static String _elementOf(String source) => source.endsWith(_reh) ? source.substring(0, source.length - _reh.length) : source;
+  static const _reh = '-reh';
+
+  /// What is drawn for [id]: its own items, and its rehearsal mark's.
+  Iterable<({int staff, DisplayItem item})> _drawnFor(String id) => [...?list.sourced[id], ...?list.sourced['$id$_reh']];
 
   void dispose() => list.dispose();
 }
@@ -249,7 +272,7 @@ class EditGalley {
       if (!_inView(k, left, right)) continue;
       final c = chunks[k]!;
       for (final id in ids) {
-        for (final (:staff, :item) in c.list.sourced[id] ?? const <({int staff, DisplayItem item})>[]) {
+        for (final (:staff, :item) in c._drawnFor(id)) {
           if (!c.owns(item)) continue;
           final shift = _shift(k, staff);
           canvas

@@ -407,6 +407,8 @@ void main() {
     score.setKey(4, KeySig.parse('Eb')!);
     score.setTime(4, TimeSig.parse('3/4')!);
     score.setBarline(3, ':|:');
+    score.setEnding(2, 3, [1]);
+    score.setEnding(4, 5, [2]);
     score.toggleSlur([idsIn(0).first, idsIn(3).first]);
     final slur = RegExp(r'<slur[^>]*type="start"[^>]* id="(cxe\d+)"|<slur[^>]* id="(cxe\d+)"[^>]*type="start"').allMatches(score.chunk(3, 4).xml).map((m) => m.group(1) ?? m.group(2)!).first;
 
@@ -473,5 +475,85 @@ void main() {
     final again = EditableScore.parse(score.toMusicXML());
     expect(again.measureCount, bars);
     expect(again.barLength(10), Frac(3));
+  });
+
+  test('endings, segno, coda, D.C., D.S. and Fine play as ScoreForm reads them; rehearsal marks letter on; both are clicked as markings', () async {
+    final score = EditableScore.parse(_fluteOf(8));
+    List<int> played() => ScoreForm.fromDocument(XmlDocument.parse(score.toMusicXML())).playedOrder();
+    // Bars 1–2 repeated, a first ending over bar 2 and a second over bar 3; the repeat set after
+    // the first ending closes it.
+    score.setEnding(1, 1, EditableScore.endingNumbers('1.')!);
+    expect(score.setBarline(1, ':|'), isTrue);
+    score.setEnding(2, 2, EditableScore.endingNumbers('2')!);
+    expect(score.endings, [(from: 1, to: 1, number: '1'), (from: 2, to: 2, number: '2')]);
+    final xml = score.toMusicXML();
+    expect(xml, contains('<ending number="1" type="start">1.</ending>'));
+    expect(xml, contains('<ending number="1" type="stop"/><repeat direction="backward"/>'));
+    expect(xml, contains('<ending number="2" type="discontinue"/>'));
+    // A barline changed keeps the ending it holds; the same ending again takes it out.
+    score.setBarline(2, '||');
+    score.setBarline(2, '|');
+    expect(score.endings.length, 2);
+    score.setEnding(2, 2, [2]);
+    expect(score.endings.length, 1);
+    score.undo();
+    expect(played(), [0, 1, 0, 2, 3, 4, 5, 6, 7]);
+    // A segno at bar 4, Fine at the end of bar 6, D.S. al Fine at the end of bar 7.
+    score.addJump(3, EditableScore.jumpNamed('Segno')!);
+    score.addJump(5, EditableScore.jumpNamed('fine')!);
+    score.addJump(6, EditableScore.jumpNamed('D.S. al Fine')!);
+    expect(EditableScore.jumpNamed('ds al  fine'), 'dsalfine');
+    expect(EditableScore.jumpNamed('3'), isNull);
+    expect(played(), [0, 1, 0, 2, 3, 4, 5, 6, 3, 4, 5]);
+    // Rehearsal marks: the next offered after the last before, one there said again.
+    expect(score.nextRehearsal(2), 'A');
+    score.setRehearsal(0, 'A');
+    score.setRehearsal(3, score.nextRehearsal(3));
+    expect((score.rehearsalAt(3), score.nextRehearsal(7)), ('B', 'C'));
+    score.setRehearsal(3, 'Z');
+    expect((score.rehearsalAt(3), score.nextRehearsal(7)), ('Z', 'AA'));
+    expect(score.toMusicXML().split('<rehearsal>').length, 3);
+    // The segno is drawn by the editor's id, a rehearsal mark by its direction's: a click
+    // selects either, as a marking.
+    final xml8 = score.chunk(0, 8).xml;
+    final segno = RegExp(r'<segno id="(cxe\d+)"').firstMatch(xml8)!.group(1)!;
+    final mark = RegExp(r'<direction placement="above" id="(cxe\d+)"><direction-type><rehearsal>Z<').firstMatch(xml8)!.group(1)!;
+    expect(score.markingsOf([segno]).single.at.measure, 3);
+    expect(score.markingsOf([mark]).single.at.measure, 3);
+    final chunk = await EditChunk.engrave(score, 0, 8);
+    expect(chunk.outlines[segno], isNotNull);
+    expect(chunk.outlines[mark], isNotNull);
+    chunk.dispose();
+  });
+
+  test('grace notes go in before a note or a rest, beamed and spelled, stay before a note typed there, move, and go', () async {
+    final score = EditableScore.parse(_flute);
+    const voice = VoiceKey(1, '1');
+    final beat2 = ScorePosition(0, voice, 0, Frac.one);
+    int count(String pattern) => RegExp(pattern).allMatches(score.toMusicXML()).length;
+    // D5, then F♯5 with G5 on its chord, before beat 2 of the bar's rest (split there).
+    final d = score.addGrace(beat2, [const Pitch(1, 5)]);
+    final fSharp = score.addGrace(beat2, [const Pitch(3, 5, 1)]);
+    score.addGrace(beat2, [const Pitch(4, 5)], chord: true);
+    expect([...d, ...fSharp].every(score.isGrace), isTrue);
+    expect(score.isNote(d.single), isFalse);
+    expect(score.lastGraceAt(beat2), const Pitch(4, 5));
+    expect(count('<grace slash="yes"/>'), 3);
+    expect(count('<accidental>sharp</accidental>'), 1);
+    expect(count(r'<beam number="1">(begin|end)</beam>'), 2);
+    // A note typed over the rest has them before it; none inside a note.
+    score.input(beat2, [InputItem(const Rhythm(NoteType.quarter), [const Pitch(4, 5)])]);
+    expect(score.eventsIn(0, 0, voice)[1].pitches, [const Pitch(4, 5)]);
+    expect(count('<grace'), 3);
+    expect(score.addGrace(ScorePosition(0, voice, 0, Frac(3, 2)), [const Pitch(0, 5)]), isEmpty);
+    // Clicked by its own id.
+    final chunk = await EditChunk.engrave(score, 0, 2);
+    expect(chunk.outlines[d.single], isNotNull);
+    chunk.dispose();
+    // A step up; one deleted, the next of its chord standing for it.
+    score.transpose(d, steps: 1);
+    expect(count('<grace slash="yes"/><pitch><step>E</step><octave>5</octave>'), 1);
+    score.delete(fSharp);
+    expect((count('<grace'), count('<chord/>')), (2, 0));
   });
 }

@@ -727,13 +727,24 @@ XmlElement _text(String name, String value, [Map<String, String> attributes = co
 
 String? _childText(XmlElement element, String name) => element.getElement(name)?.innerText;
 
+/// MusicXML's order of a barline's children.
+const _barlineOrder = ['bar-style', 'footnote', 'level', 'wavy-line', 'segno', 'coda', 'fermata', 'ending', 'repeat'];
+
 /// Puts [child] among [note]'s children where the schema has it.
-void _insertNoteChild(XmlElement note, XmlElement child) {
-  final rank = _noteOrder.indexOf(child.name.local);
-  final children = note.children;
+void _insertNoteChild(XmlElement note, XmlElement child) => _insertInOrder(note, child, _noteOrder);
+
+/// [barline]'s [name] made [child] (null: none), where the schema has it.
+void _setBarlineChild(XmlElement barline, String name, XmlElement? child) {
+  _removeChildren(barline, name);
+  if (child != null) _insertInOrder(barline, child, _barlineOrder);
+}
+
+void _insertInOrder(XmlElement parent, XmlElement child, List<String> order) {
+  final rank = order.indexOf(child.name.local);
+  final children = parent.children;
   for (var i = 0; i < children.length; i++) {
     final c = children[i];
-    if (c is XmlElement && _noteOrder.indexOf(c.name.local) > rank) {
+    if (c is XmlElement && order.indexOf(c.name.local) > rank) {
       children.insert(i, child);
       return;
     }
@@ -928,8 +939,9 @@ class EditableScore {
   // MARK: Ids
 
   /// What the editor tells apart on the engraving: notes and rests, directions, dynamics,
-  /// hairpins' starts, slurs' starts. An id the file had is kept aside and given back on export.
-  static const _tagged = {'note', 'direction', 'dynamics', 'wedge', 'slur'};
+  /// hairpins' starts, slurs' starts, segno and coda signs (Verovio draws a sign by its own id,
+  /// not its direction's). An id the file had is kept aside and given back on export.
+  static const _tagged = {'note', 'direction', 'dynamics', 'wedge', 'slur', 'segno', 'coda'};
 
   void _tagAll() {
     for (final part in parts) {
@@ -1863,7 +1875,14 @@ class EditableScore {
         out.add(e);
         continue;
       }
-      if (e.start < from) out.addAll(_shortened(e, from - e.start));
+      // Its grace notes stay before whatever starts where it did.
+      if (e.start < from) {
+        final kept = _shortened(e, from - e.start);
+        if (kept.isNotEmpty && kept.first.graces.isEmpty) kept.first.graces.addAll(e.graces);
+        out.addAll(kept);
+      } else if (e.start == from && made.isNotEmpty && made.first.start == from) {
+        made.first.graces.addAll(e.graces);
+      }
       if (e.end > to) out.addAll(_rests(voice, to, e.end, tuplet: e.tuplet, tupletStart: _tupletStartOf(events, e)));
     }
     out.addAll(made);
@@ -1976,7 +1995,8 @@ class EditableScore {
     }
     if (isPrimary && t < length) out.addAll(_rests(voice, t, length, beat: meter?.beat));
 
-    if (out.every((e) => e.isRest) && out.every((e) => e.main.getElement('notations') == null)) {
+    // (A rest grace notes are before stays: they'd go with it.)
+    if (out.every((e) => e.isRest && e.graces.isEmpty) && out.every((e) => e.main.getElement('notations') == null)) {
       if (!isPrimary || content.voices.keys.any((k) => k.staff == voice.staff && k != voice && content.voices[k]!.any((e) => !e.isRest))) {
         content.voices.remove(voice);
         return;
@@ -2086,8 +2106,8 @@ class EditableScore {
     _stableSort(events, (a, b) => a.start.compareTo(b.start));
     final state = <int, int>{};
     for (final e in events) {
-      if (e.isRest) continue;
-      for (final note in e.notes) {
+      // Grace notes as the notes they are before, and before them.
+      for (final note in [...e.graces, if (!e.isRest) ...e.notes]) {
         if (note.getElement('unpitched') != null) continue;
         final p = _pitchOf(note);
         if (p == null) continue;
@@ -2142,13 +2162,17 @@ class EditableScore {
   }
 
   /// Deletes what [ids] are: a note becomes a rest (one of a chord only leaves it), a rest in a
-  /// voice of its own goes, a direction, dynamic, hairpin or slur is taken out.
+  /// voice of its own goes, a grace note, direction, dynamic, hairpin or slur is taken out.
   void delete(Iterable<String> ids) => edit(() {
         final notes = <String>{}, others = <String>{};
         for (final id in ids) {
           (isNote(id) ? notes : others).add(id);
         }
-        for (final id in others) {
+        final graces = {for (final id in others) if (isGrace(id)) id};
+        for (final id in graces) {
+          _deleteGrace(id);
+        }
+        for (final id in others.difference(graces)) {
           _deleteMarking(id);
         }
         for (final e in eventsOf(notes)) {
@@ -2307,6 +2331,7 @@ class EditableScore {
             }
           });
         }
+        _transposeGraces(chosen, steps, octaves);
       });
 
   /// Notes of [ids] spelled as the note above ([up]: C♯ as D♭) or below (D♭ as C♯) that sounds
@@ -3173,32 +3198,328 @@ class EditableScore {
       for (var i = 0; i < parts.length; i++) {
         if (!(m == 0 && t == '|:')) {
           final content = _mutable(i, m);
-          content.others.removeWhere((o) => o.element.name.local == 'barline' && (o.element.getAttribute('location') ?? 'right') == 'right');
-          final right = switch (t) {
-            '||' => _el('barline', [_text('bar-style', 'light-light')], {'location': 'right'}),
-            '|]' => _el('barline', [_text('bar-style', 'light-heavy')], {'location': 'right'}),
-            '!' => _el('barline', [_text('bar-style', 'dashed')], {'location': 'right'}),
-            _ when endRepeat => _el('barline', [_text('bar-style', 'light-heavy'), _el('repeat', const [], {'direction': 'backward'})], {'location': 'right'}),
-            _ => null,
-          };
-          if (right != null) content.others.add(_Other(barLength(m), right));
+          _barline(content, left: false, end: barLength(m), (b) {
+            final style = switch (t) { '||' => 'light-light', '|]' => 'light-heavy', '!' => 'dashed', _ when endRepeat => 'light-heavy', _ => null };
+            _setBarlineChild(b, 'bar-style', style == null ? null : _text('bar-style', style));
+            _setBarlineChild(b, 'repeat', endRepeat ? _el('repeat', const [], {'direction': 'backward'}) : null);
+            // An ending that ends here is closed by the repeat.
+            if (endRepeat) b.getElement('ending')?.setAttribute('type', 'stop');
+          });
           _commit(i, m, content);
         }
         if (opened < measureCount) {
           final c = _mutable(i, opened);
           final had = c.others.any((o) => o.element.name.local == 'barline' && o.element.getAttribute('location') == 'left');
           if (startRepeat || had) {
-            c.others.removeWhere((o) => o.element.name.local == 'barline' && o.element.getAttribute('location') == 'left');
-            if (startRepeat) {
-              c.others.insert(
-                  0, _Other(Frac.zero, _el('barline', [_text('bar-style', 'heavy-light'), _el('repeat', const [], {'direction': 'forward'})], {'location': 'left'})));
-            }
+            _barline(c, left: true, end: barLength(opened), (b) {
+              _setBarlineChild(b, 'bar-style', startRepeat ? _text('bar-style', 'heavy-light') : null);
+              _setBarlineChild(b, 'repeat', startRepeat ? _el('repeat', const [], {'direction': 'forward'}) : null);
+            });
             _commit(i, opened, c);
           }
         }
       }
     });
     return true;
+  }
+
+  /// [content]'s barline at its start ([left]) or at its [end] changed by [change], one made if
+  /// it has none: what else it holds (an ending, a fermata) is kept, and one left holding
+  /// nothing goes.
+  static void _barline(_Content content, void Function(XmlElement barline) change, {required bool left, required Frac end}) {
+    final side = left ? 'left' : 'right';
+    var o = content.others.where((o) => o.element.name.local == 'barline' && (o.element.getAttribute('location') ?? 'right') == side).firstOrNull;
+    if (o == null) {
+      o = _Other(left ? Frac.zero : end, _el('barline', const [], {'location': side}));
+      left ? content.others.insert(0, o) : content.others.add(o);
+    }
+    change(o.element);
+    if (o.element.childElements.isEmpty) content.others.remove(o);
+  }
+
+  // MARK: Repeats
+
+  /// The endings (voltas) as the first part has them: the bars each is over, its numbers as
+  /// written.
+  List<({int from, int to, String number})> get endings {
+    final out = <({int from, int to, String number})>[];
+    final measures = parts.first._measures;
+    int? from;
+    var number = '';
+    for (var m = 0; m < measures.length; m++) {
+      for (final b in measures[m].findElements('barline')) {
+        final e = b.getElement('ending');
+        if (e == null) continue;
+        if (e.getAttribute('type') == 'start') {
+          if (from != null) out.add((from: from, to: math.max(from, m - 1), number: number));
+          from = m;
+          number = e.getAttribute('number') ?? '';
+        } else if (b.getAttribute('location') != 'left') {
+          out.add((from: from ?? m, to: m, number: from == null ? e.getAttribute('number') ?? '' : number));
+          from = null;
+        }
+      }
+    }
+    if (from != null) out.add((from: from, to: measures.length - 1, number: number));
+    return out;
+  }
+
+  /// The times through an ending is played on, as typed or written ("1", "1, 2", "1-3", "1."),
+  /// in order; null if [text] says none.
+  static List<int>? endingNumbers(String text) {
+    final t = text.trim();
+    if (!RegExp(r'^\d+\.?(\s*[,\-–]?\s*\d+\.?)*$').hasMatch(t)) return null;
+    final out = <int>{};
+    for (final m in RegExp(r'(\d+)\.?(?:\s*[-–]\s*(\d+))?').allMatches(t)) {
+      final from = int.tryParse(m.group(1)!), to = int.tryParse(m.group(2) ?? m.group(1)!);
+      if (from == null || to == null || from < 1 || to < from || to - from > 32) return null;
+      for (var n = from; n <= to; n++) {
+        out.add(n);
+      }
+    }
+    return out.isEmpty || out.length > 32 ? null : (out.toList()..sort());
+  }
+
+  /// An ending (volta) played on the times through in [numbers], over bars [from] to [to] in
+  /// every part, in place of those it overlaps; the same ending over the same bars again takes
+  /// it out. It ends closed where its last bar ends in a repeat, else open.
+  void setEnding(int from, int to, List<int> numbers) {
+    if (numbers.isEmpty || from < 0 || to < from || to >= measureCount) return;
+    final times = {...numbers}.toList()..sort();
+    edit(() {
+      final overlapping = endings.where((e) => e.from <= to && e.to >= from).toList();
+      for (final e in overlapping) {
+        _removeEnding(e.from, e.to);
+      }
+      final same = overlapping.length == 1 && (overlapping.single.from, overlapping.single.to) == (from, to);
+      if (same && endingNumbers(overlapping.single.number)?.join(',') == times.join(',')) return;
+      // Verovio pairs an ending's start with the next of the same number written.
+      final number = times.join(', '), label = times.map((n) => '$n.').join(', ');
+      for (var i = 0; i < parts.length; i++) {
+        final first = _mutable(i, from);
+        _barline(first, left: true, end: barLength(from), (b) => _setBarlineChild(b, 'ending', _text('ending', label, {'number': number, 'type': 'start'})));
+        _commit(i, from, first);
+        final last = _mutable(i, to);
+        _barline(last, left: false, end: barLength(to), (b) {
+          final closed = b.getElement('repeat')?.getAttribute('direction') == 'backward';
+          _setBarlineChild(b, 'ending', _el('ending', const [], {'number': number, 'type': closed ? 'stop' : 'discontinue'}));
+        });
+        _commit(i, to, last);
+      }
+    });
+  }
+
+  /// The endings in bars [from] to [to] taken out, in every part.
+  void _removeEnding(int from, int to) {
+    for (var i = 0; i < parts.length; i++) {
+      for (var m = from; m <= to; m++) {
+        if (!parts[i]._measures[m].findElements('barline').any((b) => b.getElement('ending') != null)) continue;
+        final content = _mutable(i, m);
+        for (final o in content.others.where((o) => o.element.name.local == 'barline').toList()) {
+          _removeChildren(o.element, 'ending');
+          if (o.element.childElements.isEmpty) content.others.remove(o);
+        }
+        _commit(i, m, content);
+      }
+    }
+  }
+
+  /// The marks of a score's form the repeats popover puts in ([addJump]), by what is typed for
+  /// them (any case, spaces and full stops left out): their words.
+  static const jumps = {
+    'segno': 'Segno', 'coda': 'Coda', //
+    'dc': 'D.C.', 'dcalfine': 'D.C. al Fine', 'dcalcoda': 'D.C. al Coda',
+    'ds': 'D.S.', 'dsalfine': 'D.S. al Fine', 'dsalcoda': 'D.S. al Coda',
+    'fine': 'Fine', 'tocoda': 'To Coda',
+  };
+
+  /// Which of [jumps] [text] names, or null.
+  static String? jumpNamed(String text) {
+    final key = text.toLowerCase().replaceAll(RegExp(r'[\s.]'), '');
+    return jumps.containsKey(key) ? key : null;
+  }
+
+  /// [kind] (one of [jumps]) in bar [m] over the first part's top staff, with the `<sound>` that
+  /// plays it so (ScoreForm's): a segno or a coda as its sign where the bar starts, the others
+  /// as words that end where it ends.
+  void addJump(int m, String kind) {
+    final words = jumps[kind];
+    if (words == null || m < 0 || m >= measureCount) return;
+    final sound = _el('sound', const [], switch (kind) {
+      'segno' => {'segno': 'segno'},
+      'coda' => {'coda': 'coda'},
+      'dc' || 'dcalfine' || 'dcalcoda' => {'dacapo': 'yes'},
+      'ds' || 'dsalfine' || 'dsalcoda' => {'dalsegno': 'segno'},
+      'fine' => {'fine': 'yes'},
+      _ => {'tocoda': 'coda'},
+    });
+    final start = ScorePosition(0, defaultVoice(0, 1, m), m, Frac.zero);
+    if (kind == 'segno' || kind == 'coda') {
+      addDirection(start, [_el(kind)], sound: sound);
+    } else {
+      addDirection(start.at(m, barLength(m)), [_text('words', words, {'font-style': 'italic', 'justify': 'right'})], sound: sound);
+    }
+  }
+
+  // MARK: Rehearsal marks
+
+  /// Bar [m]'s rehearsal mark (any part's), or null.
+  String? rehearsalAt(int m) {
+    for (final p in parts) {
+      if (m >= p._measures.length) continue;
+      if (p._measures[m].findAllElements('rehearsal').firstOrNull case final r?) return r.innerText.trim();
+    }
+    return null;
+  }
+
+  /// The mark after the last before bar [m]: "B" after "A", "AA" after "Z", "13" after "12";
+  /// "A" for the first.
+  String nextRehearsal(int m) {
+    String? last;
+    for (var k = math.min(m, measureCount) - 1; k >= 0 && last == null; k--) {
+      last = rehearsalAt(k);
+    }
+    if (last == null) return 'A';
+    if (int.tryParse(last) case final n? when n >= 0) return '${n + 1}';
+    final upper = last.toUpperCase();
+    if (!RegExp(r'^[A-Z]{1,3}$').hasMatch(upper)) return 'A';
+    // As a spreadsheet's columns: A–Z, then AA, AB…
+    var n = 0;
+    for (final c in upper.codeUnits) {
+      n = n * 26 + c - 64;
+    }
+    var next = '';
+    for (n++; n > 0; n = (n - 1) ~/ 26) {
+      next = String.fromCharCode(65 + (n - 1) % 26) + next;
+    }
+    return last == upper ? next : next.toLowerCase();
+  }
+
+  /// Bar [m]'s rehearsal mark made [text]: those it has (in any part) say it, or one is put in
+  /// where it starts, over the first part's top staff.
+  void setRehearsal(int m, String text) {
+    final t = text.trim();
+    if (t.isEmpty || m < 0 || m >= measureCount) return;
+    edit(() {
+      var had = false;
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i]._measures[m].findAllElements('rehearsal').isEmpty) continue;
+        final content = _mutable(i, m);
+        for (final o in content.others) {
+          for (final r in o.element.findAllElements('rehearsal')) {
+            r.innerText = t;
+            had = true;
+          }
+        }
+        _commit(i, m, content);
+      }
+      if (!had) addDirection(ScorePosition(0, defaultVoice(0, 1, m), m, Frac.zero), [_text('rehearsal', t)]);
+    });
+  }
+
+  // MARK: Grace notes
+
+  /// Whether [id] is a grace note's (which [locate] doesn't find: it is no note or rest of its
+  /// own, but the one after it's).
+  bool isGrace(String id) => _graceOf(id) != null;
+
+  ({int part, int measure, VoiceKey voice, Frac time})? _graceOf(String id) {
+    final where = _where[id];
+    if (where == null) return null;
+    for (final MapEntry(key: voice, value: events) in _view(where.part, where.measure).voices.entries) {
+      for (final e in events) {
+        if (e.graces.any((g) => g.getAttribute('id') == id)) return (part: where.part, measure: where.measure, voice: voice, time: e.start);
+      }
+    }
+    return null;
+  }
+
+  /// The pitch of the last grace note before the note or rest at [at], or null.
+  Pitch? lastGraceAt(ScorePosition at) {
+    final e = _view(at.part, at.measure).voices[at.voice]?.where((e) => e.start == at.time).firstOrNull;
+    final g = e?.graces.lastOrNull;
+    return g == null ? null : _pitchOf(g);
+  }
+
+  /// A grace note of [pitches] put in before the note or rest at [at] (a rest split there if it
+  /// starts before), after those it has; with [chord], [pitches] added to the last of them.
+  /// [slash]: crossed through (an acciaccatura). Its notes' ids; none where [at] is inside a
+  /// note.
+  List<String> addGrace(ScorePosition at, List<Pitch> pitches, {NoteType type = NoteType.eighth, bool slash = true, bool chord = false}) {
+    if (pitches.isEmpty) return const [];
+    return edit(() {
+      var pos = at;
+      while (pos.measure >= measureCount || pos.time >= barLength(pos.measure)) {
+        if (pos.measure < measureCount) pos = pos.at(pos.measure + 1, Frac.zero);
+        if (pos.measure >= measureCount) addBars(measureCount, 1);
+      }
+      final content = _mutable(pos.part, pos.measure);
+      final events = content.voices[pos.voice] ?? const <_Event>[];
+      var e = events.where((x) => x.start == pos.time).firstOrNull;
+      if (e == null) {
+        final inside = events.where((x) => x.start < pos.time && x.end > pos.time).firstOrNull;
+        if (inside != null && !inside.isRest) return const <String>[];
+        final end = inside?.end ?? events.where((x) => x.start > pos.time).fold<Frac>(barLength(pos.measure), (t, x) => Frac.min(t, x.start));
+        _overwrite(content, pos.voice, pos.time, end, _rests(pos.voice, pos.time, end));
+        e = content.voices[pos.voice]!.firstWhere((x) => x.start == pos.time);
+      }
+      final made = _makeEvent(pos.part, pos.voice, pos.time, Rhythm(type), pitches).notes;
+      final onChord = chord && e.graces.isNotEmpty;
+      for (final (i, n) in made.indexed) {
+        _removeChildren(n, 'duration');
+        _insertNoteChild(n, _el('grace', const [], {if (slash) 'slash': 'yes'}));
+        _setChord(n, onChord || i > 0);
+      }
+      e.graces.addAll(made);
+      _beamGraces(e.graces);
+      _commit(pos.part, pos.measure, content, voices: [pos.voice]);
+      return [for (final n in made) ?n.getAttribute('id')];
+    });
+  }
+
+  /// [graces] (those before one note) beamed together, two or more of them with flags: by as
+  /// many beams as they all have.
+  static void _beamGraces(List<XmlElement> graces) {
+    for (final g in graces) {
+      _removeChildren(g, 'beam');
+    }
+    final heads = [for (final g in graces) if (g.getElement('chord') == null) g];
+    if (heads.length < 2) return;
+    final beams = heads.map((g) => _rhythmOf(g)?.type.beams ?? 0).reduce(math.min);
+    for (final (i, g) in heads.indexed) {
+      for (var b = 1; b <= beams; b++) {
+        _insertNoteChild(g, _text('beam', i == 0 ? 'begin' : i == heads.length - 1 ? 'end' : 'continue', {'number': '$b'}));
+      }
+    }
+  }
+
+  /// The grace note [id] taken out (the next of its chord, if any, standing for the chord).
+  void _deleteGrace(String id) {
+    final g = _graceOf(id);
+    if (g == null) return;
+    final content = _mutable(g.part, g.measure);
+    final graces = content.voices[g.voice]!.firstWhere((e) => e.start == g.time).graces;
+    final i = graces.indexWhere((n) => n.getAttribute('id') == id);
+    final gone = graces.removeAt(i);
+    if (gone.getElement('chord') == null && i < graces.length) _setChord(graces[i], false);
+    _beamGraces(graces);
+    _commit(g.part, g.measure, content, voices: [g.voice]);
+  }
+
+  /// The grace notes among [ids] moved as [transpose] moves notes.
+  void _transposeGraces(Set<String> ids, int steps, int octaves) {
+    for (final id in ids) {
+      final g = _graceOf(id);
+      if (g == null) continue;
+      final content = _mutable(g.part, g.measure);
+      final note = content.voices[g.voice]!.firstWhere((e) => e.start == g.time).graces.firstWhere((n) => n.getAttribute('id') == id);
+      final p = _pitchOf(note);
+      if (p == null) continue;
+      final key = keyAt(g.part, g.measure, g.time).fifths;
+      final moved = octaves != 0 ? Pitch(p.step, p.octave + octaves, p.alter) : Pitch.fromDiatonic(p.diatonic + steps);
+      _setPitch(note, octaves != 0 ? moved : moved.withAlter(Pitch.keyAlter(moved.step, key)));
+      _commit(g.part, g.measure, content, voices: [g.voice]);
+    }
   }
 
   // MARK: Copy and paste

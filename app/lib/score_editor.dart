@@ -42,6 +42,8 @@ enum _Popover {
   clef('Clef', 'C', 'treble  bass  alto'),
   text('Text', 'X', ''),
   bars('Bars and Barlines', 'B', '+2  -1  ||  |]  :|  |:'),
+  repeats('Repeats', 'R', '1.  2.  segno  D.S.  Fine'),
+  rehearsal('Rehearsal Mark', 'A', 'A  B  12'),
   holds('Holds', 'H', 'fermata  breath  caesura'),
   ornaments('Ornaments', 'O', 'tr  mordent  turn'),
   lyrics('Lyrics', 'L', ''),
@@ -101,6 +103,10 @@ class _ScoreEditorState extends State<ScoreEditor> {
   Tuplet? _tuplet;
   int? _alter;
   bool _chordMode = false;
+
+  /// Grace notes are what note input puts in (Dorico's / and ⇧/): crossed through (true) or
+  /// not; null: notes.
+  bool? _grace;
 
   /// Notes copied, kept while the app runs (across scores).
   static CopiedMusic? _clipboard;
@@ -409,6 +415,28 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   Rhythm get _rhythm => Rhythm(_value, dots: _dots, tuplet: _tuplet);
 
+  /// A grace note's value: the one chosen, at most an eighth crossed through, a quarter not.
+  NoteType get _graceValue {
+    final most = _grace == false ? NoteType.quarter : NoteType.eighth;
+    return _value.index < most.index ? most : _value;
+  }
+
+  void _toggleGrace({bool slash = true}) => setState(() => _grace = _grace == slash ? null : slash);
+
+  /// A grace note of [pitch] put in before the note at [at] (onto the last one's chord, with
+  /// [chord]); the caret stays.
+  void _putGrace(ScorePosition at, Pitch pitch, {bool chord = false}) {
+    var ids = const <String>[];
+    _edit(() => ids = score.addGrace(at, [pitch], type: _graceValue, slash: _grace ?? true, chord: chord));
+    setState(() {
+      _alter = null;
+      if (ids.isNotEmpty) _selected = {...ids};
+    });
+  }
+
+  /// The grace notes among what is selected.
+  List<String> get _selectedGraces => [for (final id in _selected) if (score.isGrace(id)) id];
+
   /// The notes and rests among what is selected (found once for a selection: every note of a
   /// symphony may be).
   List<String> get _selectedNotes {
@@ -452,6 +480,15 @@ class _ScoreEditorState extends State<ScoreEditor> {
     return _anchor;
   }
 
+  /// The first and last bar of what is selected (outside note input), else [at]'s bar alone.
+  (int, int) _selectedBars(ScorePosition at) {
+    if (_caret == null) {
+      final bars = [for (final e in score.eventsOf(_selectedNotes)) e.position.measure, for (final m in _selectedMarkings) m.at.measure];
+      if (bars.isNotEmpty) return (bars.reduce(math.min), bars.reduce(math.max));
+    }
+    return (at.measure, at.measure);
+  }
+
   void _startInput([ScorePosition? at]) {
     final start = at ?? _target ?? ScorePosition(0, score.defaultVoice(0, 1, 0), 0, Frac.zero);
     setState(() {
@@ -468,6 +505,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
         _chordAt = null;
         _tuplet = null;
         _alter = null;
+        _grace = null;
       });
 
   /// The note value keys (Dorico's 1–9): the caret's next note, or the selected notes'.
@@ -513,6 +551,15 @@ class _ScoreEditorState extends State<ScoreEditor> {
       });
       return;
     }
+    if (_grace != null) {
+      // Near the grace note before it (above it, onto its chord), else the note before.
+      final last = score.lastGraceAt(caret);
+      final fifths = score.keyAt(caret.part, caret.measure, caret.time).fifths;
+      final onChord = (chord || _chordMode) && last != null;
+      var pitch = Pitch.nearest(step, last ?? score.pitchBefore(caret), alter: _alter ?? Pitch.keyAlter(step, fifths));
+      if (onChord && pitch.diatonic <= last.diatonic) pitch = Pitch(pitch.step, pitch.octave + 1, pitch.alter);
+      return _putGrace(caret, pitch, chord: onChord);
+    }
     if (chord || (_chordMode && _chordAt == caret)) {
       final last = _chordMode ? score.eventAt(caret.part, caret.staff, caret.measure, caret.time, voice: caret.voice.voice) : score.eventBefore(caret);
       if (last != null && !last.isRest) return _addAbove([last], step);
@@ -557,7 +604,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
   }
 
   void _rest() {
-    if (_caret == null) return;
+    if (_caret == null || _grace != null) return;
     _put([InputItem(_rhythm, const [])]);
   }
 
@@ -864,7 +911,13 @@ class _ScoreEditorState extends State<ScoreEditor> {
     final place = _placeAt(local);
     if (place == null) return false;
     final there = score.eventAt(place.at.part, place.at.staff, place.at.measure, place.at.time, voice: place.at.voice.voice);
-    if (_chordMode && there != null && !there.isRest && there.position.time == place.at.time) {
+    if (_grace != null) {
+      setState(() {
+        _caret = place.at;
+        _chordAt = null;
+      });
+      _putGrace(place.at, place.pitch);
+    } else if (_chordMode && there != null && !there.isRest && there.position.time == place.at.time) {
       _edit(() => score.addToChord(there.position, place.pitch));
       setState(() => _caret = there.position);
     } else {
@@ -1027,7 +1080,12 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (_target == null && kind != _Popover.bars && kind != _Popover.goTo) return;
     if (kind == _Popover.lyrics && _selectedNotes.isEmpty) return;
     if (kind == _Popover.tuplet && _caret == null) return;
-    _popoverText.text = kind == _Popover.lyrics ? score.lyricOf(_selectedNotes.first) : '';
+    _popoverText.text = switch (kind) {
+      _Popover.lyrics => score.lyricOf(_selectedNotes.first),
+      // The bar's mark, or the one after the last before it.
+      _Popover.rehearsal => score.rehearsalAt(_target!.measure) ?? score.nextRehearsal(_target!.measure),
+      _ => '',
+    };
     _popoverText.selection = TextSelection(baseOffset: 0, extentOffset: _popoverText.text.length);
     setState(() {
       _popover = kind;
@@ -1117,6 +1175,17 @@ class _ScoreEditorState extends State<ScoreEditor> {
           _edit(() => ok = score.setBarline(at.measure, t));
           if (!ok) return false;
         }
+      case _Popover.repeats:
+        if (EditableScore.endingNumbers(t) case final numbers?) {
+          final (from, to) = _selectedBars(at);
+          _edit(() => score.setEnding(from, to, numbers));
+        } else if (EditableScore.jumpNamed(t) case final kind?) {
+          _edit(() => score.addJump(at.measure, kind));
+        } else {
+          return false;
+        }
+      case _Popover.rehearsal:
+        _edit(() => score.setRehearsal(at.measure, t));
       case _Popover.holds:
         final name = switch (t.toLowerCase()) {
           'fermata' || 'pause' || 'u' => 'fermata',
@@ -1206,8 +1275,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
         LogicalKeyboardKey.equal || LogicalKeyboardKey.add || LogicalKeyboardKey.numpadAdd => () => _zoomBy(1.2),
         LogicalKeyboardKey.minus || LogicalKeyboardKey.numpadSubtract => () => _zoomBy(1 / 1.2),
         LogicalKeyboardKey.digit0 || LogicalKeyboardKey.numpad0 => () => _zoomTo(_defaultZoom),
-        LogicalKeyboardKey.arrowUp when alt => () => _edit(() => score.transpose(_selectedNotes, octaves: 1)),
-        LogicalKeyboardKey.arrowDown when alt => () => _edit(() => score.transpose(_selectedNotes, octaves: -1)),
+        LogicalKeyboardKey.arrowUp when alt => () => _edit(() => score.transpose([..._selectedNotes, ..._selectedGraces], octaves: 1)),
+        LogicalKeyboardKey.arrowDown when alt => () => _edit(() => score.transpose([..._selectedNotes, ..._selectedGraces], octaves: -1)),
         LogicalKeyboardKey.arrowLeft => () => input ? _caretToBar(-1) : _step(-1, bar: true, extend: shift),
         LogicalKeyboardKey.arrowRight => () => input ? _caretToBar(1) : _step(1, bar: true, extend: shift),
         LogicalKeyboardKey.enter => _done,
@@ -1216,7 +1285,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
     } else if (alt && (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowDown)) {
       final steps = key == LogicalKeyboardKey.arrowUp ? 1 : -1;
       action = () {
-        final ids = _selectedNotes;
+        final ids = [..._selectedNotes, ..._selectedGraces];
         if (ids.isNotEmpty) return _edit(() => score.transpose(ids, steps: steps));
         _moveMarkings(across: -steps);
       };
@@ -1261,6 +1330,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
             'c' => () => _openPopover(_Popover.clef),
             'x' => () => _openPopover(_Popover.text),
             'b' => () => _openPopover(_Popover.bars),
+            'r' => () => _openPopover(_Popover.repeats),
+            'a' => () => _openPopover(_Popover.rehearsal),
             'h' => () => _openPopover(_Popover.holds),
             'o' => () => _openPopover(_Popover.ornaments),
             'l' => () => _openPopover(_Popover.lyrics),
@@ -1282,6 +1353,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
             '=' => () => _setAlter(1),
             '0' => () => _setAlter(0),
             ',' => _rest,
+            '/' => _toggleGrace,
+            '?' => () => _toggleGrace(slash: false),
             ';' => () => _openPopover(_Popover.tuplet),
             ':' => () => setState(() => _tuplet = null),
             '[' => () => _mark('accent'),
@@ -1608,7 +1681,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
       glyph('Chord (Q)'.tr, [(0xE0A4, -0.5), (0xE0A4, 0.5)], () => setState(() => _chordMode = !_chordMode), selected: _chordMode),
       ...values,
       glyph('Dot (.)'.tr, [(0xE1E7, 0)], _toggleDot, selected: _dots > 0),
-      glyph('Rest (,)'.tr, [(0xE4E5, 0)], input ? _rest : null),
+      glyph('Rest (,)'.tr, [(0xE4E5, 0)], input && _grace == null ? _rest : null),
+      glyph('Grace Note (/)'.tr, [(_grace == false ? 0xE562 : 0xE560, 0)], _toggleGrace, selected: _grace != null),
       glyph('Flat (-)'.tr, [(0xE260, 0)], () => _setAlter(-1), selected: _alter == -1),
       glyph('Natural (0)'.tr, [(0xE261, 0)], () => _setAlter(0), selected: _alter == 0),
       glyph('Sharp (=)'.tr, [(0xE262, 0)], () => _setAlter(1), selected: _alter == 1),
@@ -1678,6 +1752,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
         where(caret),
         'Voice {n}'.fill({'n': caret.voice.voice}),
         value,
+        if (_grace != null) 'Grace notes'.tr,
         if (_alter != null) switch (_alter) { -1 => '♭', 1 => '♯', _ => '♮' },
         if (_chordMode) 'Chord'.tr,
       ].join(' · ');

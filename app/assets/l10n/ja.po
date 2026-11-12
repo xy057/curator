@@ -2875,6 +2875,12 @@ msgstr "アクセント（[）"
 msgid "Bars and Barlines"
 msgstr "小節と小節線"
 
+msgid "Repeats"
+msgstr "反復記号"
+
+msgid "Rehearsal Mark"
+msgstr "リハーサルマーク"
+
 #: lib/score_editor.dart
 msgid "Breve"
 msgstr "倍全音符"
@@ -4154,3 +4160,11 @@ msgstr "値"
 msgctxt "musicxml"
 msgid "entity"
 msgstr "実体参照"
+
+#: lib/score_editor.dart
+msgid "Grace Note (/)"
+msgstr "装飾音（/）"
+
+#: lib/score_editor.dart
+msgid "Grace notes"
+msgstr "装飾音"
