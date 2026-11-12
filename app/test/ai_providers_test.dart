@@ -120,4 +120,42 @@ void main() {
     }
     expect(heard.length, asked);
   });
+
+  test('a client closed ends its requests, one whose connection is still being made too, and asks nothing after', () async {
+    // A server that answers every model at once but "held", which it never answers.
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final heard = <String>[];
+    server.listen((request) async {
+      final model = (jsonDecode(await utf8.decoder.bind(request).join()) as Map)['model'] as String;
+      heard.add(model);
+      if (model == 'held') return;
+      request.response
+        ..headers.contentType = ContentType.json
+        ..write(jsonEncode({'choices': [{'message': {'content': 'seen'}}]}));
+      await request.response.close();
+    });
+    AiClient client() => AiClient(
+        AiProvider(id: 'x', name: 'x', format: AiFormat.openai, apiKey: 'k', baseUrl: 'http://127.0.0.1:${server.port}/', path: AiFormat.openai.path),
+        timeout: const Duration(seconds: 20));
+
+    // Under way: ended, with the reason.
+    var c = client();
+    final held = c.ask('held', 'Hi');
+    while (!heard.contains('held')) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    c.close();
+    await expectLater(held, throwsA(isA<AiError>()));
+
+    // Closed while its connection is being made (which closing an HttpClient doesn't end): ended
+    // once it is made, before anything is sent; and nothing asked after is sent.
+    c = client();
+    final opening = c.ask('opening', 'Hi');
+    c.close();
+    await expectLater(opening, throwsStateError);
+    await expectLater(c.ask('after', 'Hi'), throwsStateError);
+    expect(await client().ask('last', 'Hi'), 'seen');
+    expect(heard, ['held', 'last']);
+  });
 }

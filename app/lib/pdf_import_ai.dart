@@ -166,28 +166,34 @@ class PdfAiExamRun {
   }
 
   /// The answers marked; [onPage] hears how many pages are answered. An answer that isn't the
-  /// JSON asked for is wrong throughout; what goes wrong asking (the key, the server) is thrown.
+  /// JSON asked for is wrong throughout; what goes wrong asking (the key, the server) is thrown,
+  /// once the other page's request is ended: nothing the exam asked outlasts it.
   Future<PdfAiExamResult> run({void Function(int done, int of)? onPage}) async {
     final bytes = await rootBundle.load(PdfAiExam.asset);
     final pages = await PdfPages.open(bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes));
     try {
       var done = 0;
       Future<PdfAiPage?> ask(PdfAiExamPage page) async {
-        final images = await PdfAiReader.pictures(pages, page.index, [page.system]);
-        if (_stopped) throw StateError('stopped');
-        final text = await _client.ask(model.model, PdfAiExam.prompt(page), images: images);
-        if (!_stopped) onPage?.call(++done, PdfAiExam.pages.length);
         try {
-          return PdfAiPage.parse(text);
-        } on FormatException {
-          return null;
+          final images = await PdfAiReader.pictures(pages, page.index, [page.system]);
+          if (_stopped) throw StateError('stopped');
+          final text = await _client.ask(model.model, PdfAiExam.prompt(page), images: images);
+          if (!_stopped) onPage?.call(++done, PdfAiExam.pages.length);
+          try {
+            return PdfAiPage.parse(text);
+          } on FormatException {
+            return null;
+          }
+        } on Object {
+          // What goes wrong with one page is said at once, not when the other is answered
+          // (minutes): the other's request is ended, or it asks nothing.
+          _client.close();
+          rethrow;
         }
       }
 
-      // What goes wrong with one page is said at once, not when the other is answered (minutes).
-      return PdfAiExam.score(await Future.wait([for (final page in PdfAiExam.pages) ask(page)], eagerError: true));
+      return PdfAiExam.score(await Future.wait([for (final page in PdfAiExam.pages) ask(page)]));
     } finally {
-      _client.close(); // the other page's request, still under way when one failed
       pages.close();
     }
   }
