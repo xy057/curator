@@ -1875,7 +1875,14 @@ class EditableScore {
         out.add(e);
         continue;
       }
-      if (e.start < from) out.addAll(_shortened(e, from - e.start));
+      // Its grace notes stay before whatever starts where it did.
+      if (e.start < from) {
+        final kept = _shortened(e, from - e.start);
+        if (kept.isNotEmpty && kept.first.graces.isEmpty) kept.first.graces.addAll(e.graces);
+        out.addAll(kept);
+      } else if (e.start == from && made.isNotEmpty && made.first.start == from) {
+        made.first.graces.addAll(e.graces);
+      }
       if (e.end > to) out.addAll(_rests(voice, to, e.end, tuplet: e.tuplet, tupletStart: _tupletStartOf(events, e)));
     }
     out.addAll(made);
@@ -1988,7 +1995,8 @@ class EditableScore {
     }
     if (isPrimary && t < length) out.addAll(_rests(voice, t, length, beat: meter?.beat));
 
-    if (out.every((e) => e.isRest) && out.every((e) => e.main.getElement('notations') == null)) {
+    // (A rest grace notes are before stays: they'd go with it.)
+    if (out.every((e) => e.isRest && e.graces.isEmpty) && out.every((e) => e.main.getElement('notations') == null)) {
       if (!isPrimary || content.voices.keys.any((k) => k.staff == voice.staff && k != voice && content.voices[k]!.any((e) => !e.isRest))) {
         content.voices.remove(voice);
         return;
@@ -2098,8 +2106,8 @@ class EditableScore {
     _stableSort(events, (a, b) => a.start.compareTo(b.start));
     final state = <int, int>{};
     for (final e in events) {
-      if (e.isRest) continue;
-      for (final note in e.notes) {
+      // Grace notes as the notes they are before, and before them.
+      for (final note in [...e.graces, if (!e.isRest) ...e.notes]) {
         if (note.getElement('unpitched') != null) continue;
         final p = _pitchOf(note);
         if (p == null) continue;
@@ -2154,13 +2162,17 @@ class EditableScore {
   }
 
   /// Deletes what [ids] are: a note becomes a rest (one of a chord only leaves it), a rest in a
-  /// voice of its own goes, a direction, dynamic, hairpin or slur is taken out.
+  /// voice of its own goes, a grace note, direction, dynamic, hairpin or slur is taken out.
   void delete(Iterable<String> ids) => edit(() {
         final notes = <String>{}, others = <String>{};
         for (final id in ids) {
           (isNote(id) ? notes : others).add(id);
         }
-        for (final id in others) {
+        final graces = {for (final id in others) if (isGrace(id)) id};
+        for (final id in graces) {
+          _deleteGrace(id);
+        }
+        for (final id in others.difference(graces)) {
           _deleteMarking(id);
         }
         for (final e in eventsOf(notes)) {
@@ -2319,6 +2331,7 @@ class EditableScore {
             }
           });
         }
+        _transposeGraces(chosen, steps, octaves);
       });
 
   /// Notes of [ids] spelled as the note above ([up]: C♯ as D♭) or below (D♭ as C♯) that sounds
@@ -3402,6 +3415,111 @@ class EditableScore {
       }
       if (!had) addDirection(ScorePosition(0, defaultVoice(0, 1, m), m, Frac.zero), [_text('rehearsal', t)]);
     });
+  }
+
+  // MARK: Grace notes
+
+  /// Whether [id] is a grace note's (which [locate] doesn't find: it is no note or rest of its
+  /// own, but the one after it's).
+  bool isGrace(String id) => _graceOf(id) != null;
+
+  ({int part, int measure, VoiceKey voice, Frac time})? _graceOf(String id) {
+    final where = _where[id];
+    if (where == null) return null;
+    for (final MapEntry(key: voice, value: events) in _view(where.part, where.measure).voices.entries) {
+      for (final e in events) {
+        if (e.graces.any((g) => g.getAttribute('id') == id)) return (part: where.part, measure: where.measure, voice: voice, time: e.start);
+      }
+    }
+    return null;
+  }
+
+  /// The pitch of the last grace note before the note or rest at [at], or null.
+  Pitch? lastGraceAt(ScorePosition at) {
+    final e = _view(at.part, at.measure).voices[at.voice]?.where((e) => e.start == at.time).firstOrNull;
+    final g = e?.graces.lastOrNull;
+    return g == null ? null : _pitchOf(g);
+  }
+
+  /// A grace note of [pitches] put in before the note or rest at [at] (a rest split there if it
+  /// starts before), after those it has; with [chord], [pitches] added to the last of them.
+  /// [slash]: crossed through (an acciaccatura). Its notes' ids; none where [at] is inside a
+  /// note.
+  List<String> addGrace(ScorePosition at, List<Pitch> pitches, {NoteType type = NoteType.eighth, bool slash = true, bool chord = false}) {
+    if (pitches.isEmpty) return const [];
+    return edit(() {
+      var pos = at;
+      while (pos.measure >= measureCount || pos.time >= barLength(pos.measure)) {
+        if (pos.measure < measureCount) pos = pos.at(pos.measure + 1, Frac.zero);
+        if (pos.measure >= measureCount) addBars(measureCount, 1);
+      }
+      final content = _mutable(pos.part, pos.measure);
+      final events = content.voices[pos.voice] ?? const <_Event>[];
+      var e = events.where((x) => x.start == pos.time).firstOrNull;
+      if (e == null) {
+        final inside = events.where((x) => x.start < pos.time && x.end > pos.time).firstOrNull;
+        if (inside != null && !inside.isRest) return const <String>[];
+        final end = inside?.end ?? events.where((x) => x.start > pos.time).fold<Frac>(barLength(pos.measure), (t, x) => Frac.min(t, x.start));
+        _overwrite(content, pos.voice, pos.time, end, _rests(pos.voice, pos.time, end));
+        e = content.voices[pos.voice]!.firstWhere((x) => x.start == pos.time);
+      }
+      final made = _makeEvent(pos.part, pos.voice, pos.time, Rhythm(type), pitches).notes;
+      final onChord = chord && e.graces.isNotEmpty;
+      for (final (i, n) in made.indexed) {
+        _removeChildren(n, 'duration');
+        _insertNoteChild(n, _el('grace', const [], {if (slash) 'slash': 'yes'}));
+        _setChord(n, onChord || i > 0);
+      }
+      e.graces.addAll(made);
+      _beamGraces(e.graces);
+      _commit(pos.part, pos.measure, content, voices: [pos.voice]);
+      return [for (final n in made) ?n.getAttribute('id')];
+    });
+  }
+
+  /// [graces] (those before one note) beamed together, two or more of them with flags: by as
+  /// many beams as they all have.
+  static void _beamGraces(List<XmlElement> graces) {
+    for (final g in graces) {
+      _removeChildren(g, 'beam');
+    }
+    final heads = [for (final g in graces) if (g.getElement('chord') == null) g];
+    if (heads.length < 2) return;
+    final beams = heads.map((g) => _rhythmOf(g)?.type.beams ?? 0).reduce(math.min);
+    for (final (i, g) in heads.indexed) {
+      for (var b = 1; b <= beams; b++) {
+        _insertNoteChild(g, _text('beam', i == 0 ? 'begin' : i == heads.length - 1 ? 'end' : 'continue', {'number': '$b'}));
+      }
+    }
+  }
+
+  /// The grace note [id] taken out (the next of its chord, if any, standing for the chord).
+  void _deleteGrace(String id) {
+    final g = _graceOf(id);
+    if (g == null) return;
+    final content = _mutable(g.part, g.measure);
+    final graces = content.voices[g.voice]!.firstWhere((e) => e.start == g.time).graces;
+    final i = graces.indexWhere((n) => n.getAttribute('id') == id);
+    final gone = graces.removeAt(i);
+    if (gone.getElement('chord') == null && i < graces.length) _setChord(graces[i], false);
+    _beamGraces(graces);
+    _commit(g.part, g.measure, content, voices: [g.voice]);
+  }
+
+  /// The grace notes among [ids] moved as [transpose] moves notes.
+  void _transposeGraces(Set<String> ids, int steps, int octaves) {
+    for (final id in ids) {
+      final g = _graceOf(id);
+      if (g == null) continue;
+      final content = _mutable(g.part, g.measure);
+      final note = content.voices[g.voice]!.firstWhere((e) => e.start == g.time).graces.firstWhere((n) => n.getAttribute('id') == id);
+      final p = _pitchOf(note);
+      if (p == null) continue;
+      final key = keyAt(g.part, g.measure, g.time).fifths;
+      final moved = octaves != 0 ? Pitch(p.step, p.octave + octaves, p.alter) : Pitch.fromDiatonic(p.diatonic + steps);
+      _setPitch(note, octaves != 0 ? moved : moved.withAlter(Pitch.keyAlter(moved.step, key)));
+      _commit(g.part, g.measure, content, voices: [g.voice]);
+    }
   }
 
   // MARK: Copy and paste

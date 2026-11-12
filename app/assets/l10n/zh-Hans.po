@@ -4160,3 +4160,11 @@ msgstr "值"
 msgctxt "musicxml"
 msgid "entity"
 msgstr "实体"
+
+#: lib/score_editor.dart
+msgid "Grace Note (/)"
+msgstr "装饰音（/）"
+
+#: lib/score_editor.dart
+msgid "Grace notes"
+msgstr "装饰音"

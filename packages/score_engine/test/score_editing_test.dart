@@ -525,4 +525,35 @@ void main() {
     expect(chunk.outlines[mark], isNotNull);
     chunk.dispose();
   });
+
+  test('grace notes go in before a note or a rest, beamed and spelled, stay before a note typed there, move, and go', () async {
+    final score = EditableScore.parse(_flute);
+    const voice = VoiceKey(1, '1');
+    final beat2 = ScorePosition(0, voice, 0, Frac.one);
+    int count(String pattern) => RegExp(pattern).allMatches(score.toMusicXML()).length;
+    // D5, then F♯5 with G5 on its chord, before beat 2 of the bar's rest (split there).
+    final d = score.addGrace(beat2, [const Pitch(1, 5)]);
+    final fSharp = score.addGrace(beat2, [const Pitch(3, 5, 1)]);
+    score.addGrace(beat2, [const Pitch(4, 5)], chord: true);
+    expect([...d, ...fSharp].every(score.isGrace), isTrue);
+    expect(score.isNote(d.single), isFalse);
+    expect(score.lastGraceAt(beat2), const Pitch(4, 5));
+    expect(count('<grace slash="yes"/>'), 3);
+    expect(count('<accidental>sharp</accidental>'), 1);
+    expect(count(r'<beam number="1">(begin|end)</beam>'), 2);
+    // A note typed over the rest has them before it; none inside a note.
+    score.input(beat2, [InputItem(const Rhythm(NoteType.quarter), [const Pitch(4, 5)])]);
+    expect(score.eventsIn(0, 0, voice)[1].pitches, [const Pitch(4, 5)]);
+    expect(count('<grace'), 3);
+    expect(score.addGrace(ScorePosition(0, voice, 0, Frac(3, 2)), [const Pitch(0, 5)]), isEmpty);
+    // Clicked by its own id.
+    final chunk = await EditChunk.engrave(score, 0, 2);
+    expect(chunk.outlines[d.single], isNotNull);
+    chunk.dispose();
+    // A step up; one deleted, the next of its chord standing for it.
+    score.transpose(d, steps: 1);
+    expect(count('<grace slash="yes"/><pitch><step>E</step><octave>5</octave>'), 1);
+    score.delete(fSharp);
+    expect((count('<grace'), count('<chord/>')), (2, 0));
+  });
 }

@@ -4141,3 +4141,11 @@ msgstr ""
 msgctxt "musicxml"
 msgid "entity"
 msgstr ""
+
+#: lib/score_editor.dart
+msgid "Grace Note (/)"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Grace notes"
+msgstr ""
