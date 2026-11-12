@@ -15,6 +15,8 @@ export 'src/engraving_file.dart';
 export 'src/engraving_options.dart';
 export 'src/font_files.dart';
 export 'src/frozen_zone.dart';
+export 'src/lilypond_score.dart';
+export 'src/lilypond_svg.dart' show readLilyPondSvg;
 export 'src/midi_tempo.dart';
 export 'src/pdf_ai.dart';
 export 'src/pdf_ai_exam.dart';

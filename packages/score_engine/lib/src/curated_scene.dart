@@ -10,6 +10,7 @@ import 'display_list.dart';
 import 'engraving.dart';
 import 'engraving_options.dart';
 import 'frozen_zone.dart';
+import 'lilypond_score.dart';
 import 'pdf_score.dart';
 import 'auto_curate.dart';
 import 'beat_grid.dart';
@@ -109,6 +110,7 @@ class LoadedScore {
       required this.spacers,
       required this.gaps,
       this.pdf,
+      this.lilypond,
       this._salience});
 
   final ScoreMetadata metadata;
@@ -116,6 +118,10 @@ class LoadedScore {
   /// A score read from a PDF: drawn from its pages ([PdfScoreArt]), not engraved. Its
   /// [musicXML] is the score written for it ([PdfScoreLayout.musicXML]).
   final PdfScoreArt? pdf;
+
+  /// A score LilyPond engraved: drawn as it drew it ([LilyPondScore.engraving]), not by Verovio.
+  /// Its [musicXML] is the score written for it ([LilyPondScore.musicXML]).
+  final LilyPondScore? lilypond;
   final EngravingData engraving;
   final ScoreTimeline timeline;
   final ScrollMap scrollMap;
@@ -197,7 +203,7 @@ class LoadedScore {
           gaps: gaps);
 
   /// Engraves [musicXML] as [request] asks; with [pdf], lays out that PDF score instead
-  /// ([fromPdf]).
+  /// ([fromPdf]); with [lilypond], takes the score LilyPond engraved ([fromLilyPond]).
   ///
   /// Reading the file is done on other isolates, so a large score keeps the app drawing
   /// meanwhile; with [measure], what each bar plays ([salience], for auto-curation) is worked
@@ -207,11 +213,15 @@ class LoadedScore {
           {String? resourceDirectory,
           double? tempo,
           PdfScoreArt? pdf,
+          LilyPondScore? lilypond,
           bool measure = false,
           void Function(LoadStage stage)? onStage}) async =>
       pdf != null
           ? await prepareFonts(request.fonts)
               .then((_) => _fromPdfApart(pdf, request, tempo: tempo, measure: measure, onStage: onStage))
+          : lilypond != null
+          ? await prepareFonts(request.fonts)
+              .then((_) => _fromLilyPondApart(lilypond, request, tempo: tempo, measure: measure, onStage: onStage))
           : await load(musicXML,
           measure: measure,
           onStage: onStage,
@@ -345,6 +355,63 @@ class LoadedScore {
         salience: salience == null ? null : (starts: starts, salience: salience));
   }
 
+  /// The score LilyPond engraved ([LilyPondScore]): the score written for it, drawn as LilyPond
+  /// drew it, with a staff for each vertical spacer. Of [request] only what doesn't engrave
+  /// counts, and the spacers; text edits and shared staves don't (the source says what is drawn).
+  /// Its fonts must be loaded already ([prepareFonts]).
+  static LoadedScore fromLilyPond(LilyPondScore lilypond, EngraveRequest request, {double? tempo}) {
+    final r = request;
+    final (:metadata, :prepared, barLengths: _) =
+        _prepare(lilypond.musicXML, const {}, const [], false, r.typography, r.options, r.spacers);
+    return _of(lilypond.musicXML, metadata, prepared, lilypond.engravingWith(metadata, r.spacers),
+        tempo: tempo,
+        textEdits: const {},
+        fonts: r.fonts,
+        textFontFound: true,
+        options: r.options,
+        textDynamics: r.textDynamics,
+        typography: r.typography,
+        centeredLyrics: r.centeredLyrics,
+        pairs: const [],
+        spacers: r.spacers,
+        gaps: r.gaps,
+        lilypond: lilypond);
+  }
+
+  /// [fromLilyPond], read on another isolate (the main one only waits); with [measure], what
+  /// each bar plays measured there too.
+  static Future<LoadedScore> _fromLilyPondApart(LilyPondScore lilypond, EngraveRequest request,
+      {double? tempo, bool measure = false, void Function(LoadStage stage)? onStage}) async {
+    final r = request;
+    onStage?.call(LoadStage.reading);
+    final read = await Isolate.run(() {
+      final (:metadata, :prepared, barLengths: _) =
+          _prepare(lilypond.musicXML, const {}, const [], false, r.typography, r.options, r.spacers);
+      return (metadata: metadata, prepared: prepared, engraving: lilypond.engravingWith(metadata, r.spacers));
+    });
+    final starts = ConstantTempoTimeline(read.engraving.measures, quarterNotesPerMinute: 100).measureStarts;
+    BarSalience? salience;
+    if (measure) {
+      onStage?.call(LoadStage.measuring);
+      final musicXML = lilypond.musicXML, metadata = read.metadata;
+      salience = await Isolate.run(() => BarSalience.of(musicXML, metadata, starts)).then<BarSalience?>((s) => s, onError: (_) => null);
+    }
+    return _of(lilypond.musicXML, read.metadata, read.prepared, read.engraving,
+        tempo: tempo,
+        textEdits: const {},
+        fonts: r.fonts,
+        textFontFound: true,
+        options: r.options,
+        textDynamics: r.textDynamics,
+        typography: r.typography,
+        centeredLyrics: r.centeredLyrics,
+        pairs: const [],
+        spacers: r.spacers,
+        gaps: r.gaps,
+        lilypond: lilypond,
+        salience: salience == null ? null : (starts: starts, salience: salience));
+  }
+
   /// [musicXML] engraved beforehand with [request] as [engraving] ([EngravingFile]): where there is
   /// no engraver. Its fonts must be loaded already ([MusicFont.load], [TextFonts]).
   static LoadedScore engraved(String musicXML, EngraveRequest request, EngravingData engraving,
@@ -400,6 +467,7 @@ class LoadedScore {
       required List<VerticalSpacer> spacers,
       required List<HorizontalSpacer> gaps,
       PdfScoreArt? pdf,
+      LilyPondScore? lilypond,
       ({List<double> starts, BarSalience salience})? salience}) {
     final timeline = ConstantTempoTimeline(engraving.measures,
         quarterNotesPerMinute: tempo ?? metadata.tempo ?? 100);
@@ -418,13 +486,14 @@ class LoadedScore {
         textDynamics: textDynamics,
         typography: typography,
         centeredLyrics: centeredLyrics,
-        // A PDF has no staff two players could share.
-        condensed: pdf != null ? const [] : prepared.condensed,
+        // A PDF has no staff two players could share, nor has LilyPond drawn one.
+        condensed: pdf != null || lilypond != null ? const [] : prepared.condensed,
         condensing: prepared.condensing!,
         pairs: List.unmodifiable(pairs),
         spacers: List.unmodifiable(spacers),
         gaps: List.unmodifiable(gaps),
         pdf: pdf,
+        lilypond: lilypond,
         salience: measured ? salience.salience : null);
   }
 
@@ -446,7 +515,8 @@ class LoadedScore {
       load(await ScoreFile.readMusicXML(path), fonts: fonts);
 
   /// Re-engraves as [request] asks (the structure, and so the curation and sync, stay valid).
-  Future<LoadedScore> withRequest(EngraveRequest request) => engrave(musicXML, request, tempo: metadata.tempo, pdf: pdf);
+  Future<LoadedScore> withRequest(EngraveRequest request) =>
+      engrave(musicXML, request, tempo: metadata.tempo, pdf: pdf, lilypond: lilypond);
 }
 
 /// Where Verovio's font metrics live on disk (bundled as package assets).
