@@ -31,6 +31,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `pdf_ai.dart` | A PDF score's pages read by an AI model (see *Read with AI*): what it is asked (`PdfAi.prompt`, about a picture of the page with each staff found numbered, `PdfAi.labels`, `PdfAiView`), its answer (`PdfAiPage.parse`: each staff's region, staves it says were missed), put on the page's ink (`PdfAi.refine`, through `PdfPages.refine`) and into the layout (`PdfAi.apply`) |
 | `pdf_ai_exam.dart` | The exam a model takes before Read with AI asks it (see *A model is examined*): two pages' key and the marking (`PdfAiExam.score`, `PdfAiExamResult`) |
 | `pdf_layout.dart`, `pdf_score.dart` | What an import decided (`PdfScoreLayout`: instruments with their divisi, systems with their staves, each staff's region, the system's barlines, and masks), the skeleton MusicXML written from it, and the main view's PDF: each system as PDFium draws it (`PdfScoreArt`, `PdfPartSource`), each staff's bar a rectangle of it (`PdfEngraving`) |
+| `lilypond_svg.dart`, `lilypond_score.dart` | A score LilyPond engraved (see *A LilyPond score is LilyPond's engraving*): its SVG read into shapes (`LilyPath`, `LilyText`) grouped by what made them (`LilyGroup`, by the tags Curator's settings put on them), and with the data file beside it made Curator's engraving of one endless system (`LilyPondScore.read`: its `engraving`, a `musicXML` of what the score is, and point-and-click `links` from the drawing to the source, `linkAt`); drawn as it is in the LilyPond editor's preview (`LilyPondDrawing`) |
 | `curated_scene.dart` | `LoadedScore` (engraved, ready; what it was engraved with is an `EngraveRequest`) and `CuratedScene`: one frame is `paint(time)`; what it shows besides the score, time, curation and sync is a `SceneSettings` |
 | `score_fonts.dart`, `font_files.dart`, `src/font_metrics.cpp` | The music and text fonts (`ScoreFonts`): bundled SMuFL fonts, added ones, installed text fonts; the fonts installed (read from the font folders, `FontFiles`); Verovio's metrics for them, measured with stb_truetype (`FontResources`) |
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
@@ -74,6 +75,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace… (another score file or PDF), or Edit… done (the score editor's, a PDF's import again): a project carried over to the new score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
 | `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, Project Settings ▸ Project Info ▸ Score ▸ Edit… for one and Replace… with one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, each staff's region (a box edited as an image on a canvas: clicked, it is selected; its corners and sides dragged, it is resized; dragged inside, it is moved; Draw Region drags out a new one), every system's music start and end and barlines (the start's and the barlines' by handles above the system, the end's below it; a double click adds a barline), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs; `pdf_import_ai.dart` reads the pages with AI (`PdfAiReader`) and gives a model the exam (`PdfAiExamRun`); `pdf_ai_model_dialog.dart` chooses the model, by its exam |
+| `lilypond.dart`, `lilypond_dialog.dart` | LilyPond (see *A LilyPond score is LilyPond's engraving*): this computer's official build (`LilyPond.package`), downloaded from Settings ▸ Download Hub or as a LilyPond score is opened (`LilyPondInstaller`), a score's files (`LilySource`: its main file and those it includes, `LilySource.read`), engraving it with Curator's settings (`LilyPond.engrave`, giving a `LilyPondRun`: the SVG, the data file and LilyPond's problems where they are, `LilyProblem`); the dialog that offers the download, then engraves (`engraveWithLilyPond`), and LilyPond's errors (`showLilyPondErrors`) |
+| `lilypond_editor.dart`, `lilypond_language.dart` | The LilyPond editor (`showLilyPondEditor`: Project Info ▸ Score ▸ Edit… of a LilyPond project, File ▸ New LilyPond Score…, Edit… where LilyPond's errors stop an import): the code in re_editor with the score's files beside it, Find and Replace, Engrave (⌘R) and what LilyPond made drawn under the code (a click on a note goes to where it is written; the caret's line marks its notes), LilyPond's problems listed under it; LilyPond highlighted (`lilyPondMode`, a re_highlight mode, its Scheme too; `lilyPondTheme`) and what is offered as it is typed (`LilyPondPrompts`) |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -89,7 +92,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `app_folders.dart`, `downloader.dart` | Where files the app keeps go (see *Kept files and downloads*); fetching one over https, from an address or a Git Xet repository on Hugging Face (`Downloader`, `XetSource`) |
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
-| `app_menus.dart` | The menu bar (native on macOS): File (Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
+| `app_menus.dart` | The menu bar (native on macOS): File (New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's toolbar |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
@@ -1207,6 +1210,40 @@ ticked; over 65 once a warning is confirmed; over 50 both, Use in red; no more, 
 are kept by model (`AppSettings.pdfAiExam`, with `PdfAiExam.version`: a new key or prompt bumps
 it, and every model is examined again).
 
+**A LilyPond score is LilyPond's engraving, read as Curator's own.** A `.ly` (or `.ily`) is
+imported as a PDF is (File ▸ Import… ⌘I, a drop, the Finder, Open Recent; Project Info ▸ Score ▸
+Replace… takes one too): read with the files it includes (`LilySource.read`: each `\include "…"`
+found from the folder of the file that includes it, as LilyPond finds it, up to three folders
+above the main file's, 64 MB in 256 files at most; LilyPond's own and paths elsewhere on the
+computer left to LilyPond), then engraved by LilyPond 2.26.0, its official build for this computer
+(macOS arm64 and x86-64, Linux x86-64, Windows x86-64, which Windows on Arm runs; Linux on Arm has
+none). Settings ▸ Download Hub downloads it, or a dialog offers to when a LilyPond score is opened
+(`LilyPondInstaller`: checked by SHA-256, unpacked whole into the app's data folder). LilyPond runs
+in a scratch folder holding the score's files (`LilyPond.engrave`) with Curator's settings
+(`assets/lilypond/curator.ly`, through `-dinclude-settings`): the piece on one endless line, no
+titles, headers or footers, every graphical object tagged in the SVG with what made it (`data-c`
+its number, `data-g` its kind, `data-l` the staff or lyrics it belongs to), and what the score is
+(contexts, bars, notes, clefs, keys, times, tempo and rehearsal marks) written one JSON object a
+line to the file `CURATOR_LILYPOND_DATA` names; nothing in the settings may stop a score engraving
+(a failure is written as an error line). `LilyPondScore.read` makes the two Curator's engraving:
+LilyPond's own shapes are what the views draw (not Verovio's engraving), and a MusicXML of what was
+written is what curation, sync, Align and Find Phrase read. Its point-and-click links
+(`textedit://file:line:column:column`) name each file by its path in the score's folder
+(`LilyPond.relativeLinks`; LilyPond writes the folder it ran in as it is, or with every byte but
+letters, digits and `-._/` escaped `%xx` in lowercase), so no path of this computer is kept.
+
+A LilyPond project is a kind of its own (`ProjectKind.lilypond`). Its main file is the project's
+score; its `lilypond` module keeps the files it includes (`lilypond/files/<path>`, each checked
+to be a path inside the score's folder, `LilyPondProject.isPath`), the engraving as LilyPond made
+it (`lilypond/score.svg`, `lilypond/score.jsonl`), and the versions of LilyPond and of the settings
+it was made with (`LilyPond.settingsVersion`), so it opens again without LilyPond. Its staves are
+LilyPond's, so none are condensed. Project Info ▸ Score ▸ Edit… opens the LilyPond editor
+(`showLilyPondEditor`); its Done engraves what changed since, and the score is replaced with the
+project's edits carried over, as the score editor's is. File ▸ New LilyPond Score… opens the
+editor on a few bars (`LilySource.blank`), its Done making them a new project, unsaved. A LilyPond
+file is a program: its Scheme can do whatever the user can, and LilyPond has no safe mode any
+more, so engraving a score runs it, as running a script would.
+
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;
 `EngravingData.warnings` / `LoadedScore.warnings` carry them, each once, and importing a
@@ -1217,7 +1254,7 @@ re-engraving after an edit, doesn't show them again.
 (stored, first), a stub `project.json` (`{"format": "application/x-curated-score", "version": 27}`:
 Curator 0.1–0.6.1 read only that file and refuse a version past theirs, 26 at most, asking for an
 update, so every release knows the file and none opens it), `manifest.json` (format, `layout` 2,
-`writer` (`ProjectArchive.writer`: "Curator <version> (<build>)"), the project's `kind` (`ProjectKind`: `score` or `pdf`;
+`writer` (`ProjectArchive.writer`: "Curator <version> (<build>)"), the project's `kind` (`ProjectKind`: `score`, `pdf` or `lilypond`;
 absent or unknown, what its score is), the score's and recording's names and entries, and each module's
 `version` and whether it is `optional`), `modules/<id>.json` (compact JSON), each module's files
 under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` (the
@@ -1228,7 +1265,8 @@ Each module (`ProjectModule`, all in `ProjectModules.all`) owns a part of `Proje
 `engraving` (options, typography, the flags), `display` (transitions, scroll, motion, bar numbers,
 sections, the playback line, family colours), `extensions`, `instruments` (order, names, sections,
 name groups, pairs), `texts`, `curation`, `sync`, `takes` (optional: every recording's lane, and
-each but the focus's sync), `images`, `captions`, `spacers`, `view`. It writes
+each but the focus's sync), `images`, `captions`, `chapters`, `spacers`, `view`, and a PDF
+project's `pdf` and a LilyPond project's `lilypond`. It writes
 its JSON and files, and reads them back checking every field, naming the damaged one
 (`sync.anchors[3]`). Long lists are tuples (an anchor `[quarter, seconds, jumpTo?]`, a region
 `[start, end, in?, out?]`, a caption `[start, end, text]`); every value is written, defaults too,

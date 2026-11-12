@@ -10,7 +10,7 @@ The translations are gettext files in `app/assets/l10n/`:
 
 Each text is its own key: `msgid` is the English exactly as the interface shows it. A
 `msgctxt` tells apart one English word that means two things (`page` / `Flags`: the Settings
-page, not a note's flags; `heading` / `Import`: what a group of settings is about, not the button). Keep every `{placeholder}`; where it goes is up to the language.
+page, not a note's flags; `heading` / `Import`: what a group of settings is about, not the button; `lilypond` / `repeat`: the kind of word the LilyPond editor offers, in LilyPond's own terms). Keep every `{placeholder}`; where it goes is up to the language.
 Text left untranslated shows in English.
 
 ## Terms
