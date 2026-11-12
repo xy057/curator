@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-12 11:44\n"
+"PO-Revision-Date: 2026-11-12 18:52\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -622,7 +622,7 @@ msgstr ""
 msgid "Clefs"
 msgstr ""
 
-#: lib/app_menus.dart lib/export_dialog.dart lib/lilypond_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr ""
 
@@ -1451,7 +1451,7 @@ msgstr ""
 msgid "Natural (0)"
 msgstr ""
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "Next ({key})"
 msgstr ""
 
@@ -1470,7 +1470,7 @@ msgstr ""
 msgid "No images"
 msgstr ""
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "No matches"
 msgstr ""
 
@@ -1693,7 +1693,7 @@ msgstr ""
 msgid "PNG Sequence"
 msgstr ""
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "Previous ({key})"
 msgstr ""
 
@@ -1845,7 +1845,7 @@ msgstr ""
 msgid "Repeat dots"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/edit_dialogs.dart lib/lilypond_editor.dart
+#: lib/captions_dialog.dart lib/code_view.dart lib/edit_dialogs.dart
 msgid "Replace"
 msgstr ""
 
@@ -3010,7 +3010,7 @@ msgstr ""
 msgid "Add Instrument"
 msgstr ""
 
-#: lib/pdf_import.dart
+#: lib/pdf_import.dart lib/score_editor.dart
 msgid "Bar {n}"
 msgstr ""
 
@@ -3693,7 +3693,7 @@ msgstr ""
 msgid "All matching"
 msgstr ""
 
-#: lib/ai_settings.dart lib/lilypond_editor.dart
+#: lib/ai_settings.dart lib/code_view.dart
 msgid "{n} of {all}"
 msgstr ""
 
@@ -3948,7 +3948,7 @@ msgstr ""
 msgid "Couldn’t Import LilyPond Score"
 msgstr ""
 
-#: lib/lilypond_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Find ({key})"
 msgstr ""
 
@@ -3968,11 +3968,11 @@ msgstr ""
 msgid "Nothing to show yet."
 msgstr ""
 
-#: lib/lilypond_editor.dart
+#: lib/code_view.dart
 msgid "Find"
 msgstr ""
 
-#: lib/lilypond_editor.dart
+#: lib/code_view.dart
 msgid "Replace All"
 msgstr ""
 
@@ -4105,5 +4105,34 @@ msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Custom body"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "MusicXML"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "element"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "end tag"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "attribute"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "value"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "entity"
 msgstr ""
 
