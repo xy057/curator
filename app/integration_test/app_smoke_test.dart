@@ -1,7 +1,8 @@
 // The built app, run as a user gets it (`make smoke`, or `flutter test integration_test -d macos`
 // / `-d windows` in app/): the engine's library and Verovio's resources are found inside the
-// app's own bundle, the sample opens with its recording, engraves, draws, engraves again in
-// another music font, and (where FFmpeg is installed) exports a second of video.
+// app's own bundle, the sample opens with its recording, engraves, draws, aligns its recording
+// (Basic Pitch's weights from the bundle), engraves again in another music font, and (where
+// FFmpeg is installed) exports a second of video.
 import 'dart:io';
 
 import 'package:curated_score/app_settings.dart';
@@ -53,6 +54,14 @@ void main() {
       if (pixels.getUint8(i) < 128) inked++;
     }
     expect(inked, greaterThan(500));
+
+    // Align: Basic Pitch's weights from the bundle, the recording read by SoLoud on several
+    // isolates at once; every bar but the final barline within 0.2 s of the anchors set by hand.
+    final byHand = SyncMap(measureStarts: c.sync!.measureStarts, defaultTempo: 100)..load([...c.sync!.anchors]);
+    expect(await c.anchors.align(), greaterThan(2));
+    for (final q in c.sync!.measureStarts.take(44)) {
+      expect(c.sync!.secondsAtQuarter(q), closeTo(byHand.secondsAtQuarter(q), 0.2), reason: 'bar ${q ~/ 3 + 1}');
+    }
 
     // Another music font: its metrics read from the bundle, engraved again.
     await c.setFonts(const ScoreFonts(music: MusicFont.leland));

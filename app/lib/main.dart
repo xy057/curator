@@ -65,9 +65,9 @@ Future<void> main() async {
   runApp(CuratedScoreApp(settings: settings, updater: updater));
 }
 
-/// The licences of what is bundled and pub doesn't list, which go with it: the fonts', and
-/// those of the libraries shipped compiled (Verovio and PDFium, each with what is built into
-/// it). Read only when asked for.
+/// The licences of what is bundled and pub doesn't list, which go with it: the fonts', those of
+/// the libraries shipped compiled (Verovio and PDFium, each with what is built into it), and
+/// Basic Pitch's (Align's model). Read only when asked for.
 Stream<LicenseEntry> _bundledLicenses() async* {
   for (final (package, file) in [
     ('Carbon Icons', 'assets/fonts/CarbonIcons-LICENSE.txt'),
@@ -76,6 +76,7 @@ Stream<LicenseEntry> _bundledLicenses() async* {
     for (final font in ['Bravura', 'Leland', 'Petaluma', 'Leipzig', 'Gootville', 'Academico'])
       (font, 'packages/score_engine/assets/fonts/$font-OFL.txt'),
     for (final library in ['Verovio', 'PDFium']) (library, 'packages/score_engine/assets/licenses/$library.txt'),
+    ('Basic Pitch', 'assets/basic_pitch/LICENSE.txt'),
   ]) {
     yield LicenseEntryWithLineBreaks([package], await rootBundle.loadString(file));
   }

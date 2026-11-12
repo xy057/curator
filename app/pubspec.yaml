@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.8.0+325
+version: 0.8.0+326
 
 environment:
   sdk: ^3.13.4
@@ -39,6 +39,7 @@ flutter:
     - assets/web_player/ # the web player File ▸ Export to Web… copies (made by `make web-player`, not in git)
     - assets/l10n/ # the interface's translations, one gettext file a language (Crowdin's; see docs/translating.md)
     - assets/exam/ # the exam a model takes before the PDF import's Read with AI asks it (two pages of a scan; PdfAiExam)
+    - assets/basic_pitch/ # Spotify's Basic Pitch, which Align hears a recording with (Apache 2.0, with its licence; Tools/make_basic_pitch_weights.py)
     - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one), and the mascot a click on it shows (on the same tile)
     # The fonts' licences (Apache 2.0 and the OFL ask that a copy go with them; not every font
     # file holds its whole): shipped, and in the app's LicenseRegistry. The score's are the
