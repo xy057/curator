@@ -153,6 +153,9 @@ ICONS = [
     # Download Hub, LilyPond
     ('downloads', 'What the app can download (Settings ▸ Download Hub).', 'cloud_download', 'cloud--download'),
     ('code', "A LilyPond score's source.", 'code', 'code'),
+    # A model's abilities (Settings ▸ Remote AI Provider)
+    ('vision', 'A model that reads images.', 'visibility', 'view'),
+    ('reasoning', 'A model that reasons before it answers.', 'lightbulb', 'idea'),
 ]
 
 

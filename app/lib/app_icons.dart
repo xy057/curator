@@ -304,7 +304,13 @@ enum AppIcon {
   downloads(IconData(0xE062, fontFamily: _refined), IconData(0xE062, fontFamily: _carbon)),
 
   /// A LilyPond score's source. Refined: code; Carbon: code.
-  code(IconData(0xE063, fontFamily: _refined), IconData(0xE063, fontFamily: _carbon));
+  code(IconData(0xE063, fontFamily: _refined), IconData(0xE063, fontFamily: _carbon)),
+
+  /// A model that reads images. Refined: visibility; Carbon: view.
+  vision(IconData(0xE064, fontFamily: _refined), IconData(0xE064, fontFamily: _carbon)),
+
+  /// A model that reasons before it answers. Refined: lightbulb; Carbon: idea.
+  reasoning(IconData(0xE065, fontFamily: _refined), IconData(0xE065, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

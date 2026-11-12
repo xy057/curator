@@ -26,6 +26,78 @@ enum AiFormat {
   static AiFormat named(String? name) => values.asNameMap()[name] ?? openai;
 }
 
+/// What is known of one of a provider's models (Settings ▸ Remote AI Provider ▸ Edit Model):
+/// whether it reads images, whether it reasons, how much it reads at once. Each is null while
+/// nothing says: what the provider's model list says ([AiClient.models]), or the user.
+@immutable
+class AiModelInfo {
+  const AiModelInfo({this.vision, this.reasoning, this.context, this.byHand = false});
+
+  /// Reads images (as Read with AI asks it to).
+  final bool? vision;
+
+  /// Reasons (thinks) before it answers.
+  final bool? reasoning;
+
+  /// Its context window: the most tokens it reads at once.
+  final int? context;
+
+  /// What it can do was set by the user: Fetch leaves it as set.
+  final bool byHand;
+
+  bool get isEmpty => vision == null && reasoning == null && context == null && !byHand;
+
+  /// This with what the provider's list says of the model ([found]) where it says something;
+  /// unchanged when set [byHand].
+  AiModelInfo fetched(AiModelInfo found) => byHand
+      ? this
+      : AiModelInfo(vision: found.vision ?? vision, reasoning: found.reasoning ?? reasoning, context: found.context ?? context);
+
+  /// [context] in short: 8192, 128K, 1M, 1.5M (thousands and millions, as models' windows are
+  /// told).
+  static String short(int tokens) {
+    final k = (tokens / 1000).round();
+    if (tokens < 1000) return '$tokens';
+    if (k < 1000) return '${k}K';
+    final m = (tokens / 100000).round() / 10;
+    return '${m == m.truncate() ? m.toInt() : m}M';
+  }
+
+  /// A context size as typed: digits (commas, spaces or underscores between them), and K or M
+  /// after them for thousands or millions (128K, 1.5M); null when it isn't one.
+  static int? parseTokens(String text) {
+    final match = RegExp(r'^(\d+(?:\.\d+)?)([km]?)$').firstMatch(text.replaceAll(RegExp(r'[\s,_]'), '').toLowerCase());
+    if (match == null) return null;
+    final n = double.parse(match[1]!) * switch (match[2]) { 'k' => 1e3, 'm' => 1e6, _ => 1 };
+    return n >= 1 && n < 1e12 ? n.round() : null;
+  }
+
+  Map<String, Object?> toJson() =>
+      {'vision': ?vision, 'reasoning': ?reasoning, 'context': ?context, if (byHand) 'byHand': true};
+
+  static AiModelInfo fromJson(Object? json) {
+    if (json is! Map) return const AiModelInfo();
+    bool? flag(String key) => switch (json[key]) { final bool b => b, _ => null };
+    return AiModelInfo(
+      vision: flag('vision'),
+      reasoning: flag('reasoning'),
+      context: switch (json['context']) { final int n when n > 0 => n, _ => null },
+      byHand: json['byHand'] == true,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is AiModelInfo &&
+      other.vision == vision &&
+      other.reasoning == reasoning &&
+      other.context == context &&
+      other.byHand == byHand;
+
+  @override
+  int get hashCode => Object.hash(vision, reasoning, context, byHand);
+}
+
 /// One AI service and the credentials for it (Settings ▸ Remote AI Provider): an API key, where
 /// its API is, and the models chosen from it. Kept in the app's settings
 /// ([AppSettings.aiProviders]), for every project. Five come with the app ([builtIns]); the user
@@ -41,6 +113,7 @@ class AiProvider {
     required this.baseUrl,
     String? path,
     this.models = const [],
+    this.details = const {},
   }) : path = path ?? '';
 
   /// Stays the same when it is renamed: a built-in one's is its [builtIns] entry's.
@@ -54,6 +127,12 @@ class AiProvider {
 
   /// Model IDs, in the order shown.
   final List<String> models;
+
+  /// What is known of its [models], by ID: only those something is known of.
+  final Map<String, AiModelInfo> details;
+
+  /// What is known of [model].
+  AiModelInfo infoOf(String model) => details[model] ?? const AiModelInfo();
 
   /// One of [builtIns]: it can't be removed, and speaks only its own format.
   bool get builtIn => builtIns.any((p) => p.id == id);
@@ -90,6 +169,7 @@ class AiProvider {
     String? baseUrl,
     String? path,
     List<String>? models,
+    Map<String, AiModelInfo>? details,
   }) =>
       AiProvider(
         id: id,
@@ -100,7 +180,20 @@ class AiProvider {
         baseUrl: baseUrl ?? this.baseUrl,
         path: path ?? this.path,
         models: models ?? this.models,
+        // What is known of a model goes with it.
+        details: {
+          for (final MapEntry(:key, :value) in (details ?? this.details).entries)
+            if ((models ?? this.models).contains(key) && !value.isEmpty) key: value,
+        },
       );
+
+  /// This with [info] known of [model] (nothing, when it is empty).
+  AiProvider withInfo(String model, AiModelInfo info) =>
+      copyWith(details: {
+        for (final MapEntry(:key, :value) in details.entries)
+          if (key != model) key: value,
+        model: info,
+      });
 
   Map<String, Object?> toJson() => {
         'id': id,
@@ -111,6 +204,7 @@ class AiProvider {
         'baseUrl': baseUrl,
         'path': path,
         'models': models,
+        if (details.isNotEmpty) 'details': {for (final MapEntry(:key, :value) in details.entries) key: value.toJson()},
       };
 
   /// One read back from [toJson]; null when it isn't one (a damaged entry is left out).
@@ -120,6 +214,11 @@ class AiProvider {
     if (id is! String || id.isEmpty || name is! String) return null;
     String text(String key) => switch (json[key]) { final String s => s, _ => '' };
     final builtIn = builtIns.where((p) => p.id == id).firstOrNull;
+    final models = [
+      for (final m in json['models'] is List ? json['models'] as List : const [])
+        if (m is String && m.isNotEmpty) m,
+    ];
+    final details = json['details'] is Map ? json['details'] as Map : const {};
     return AiProvider(
       id: id,
       name: name,
@@ -129,10 +228,11 @@ class AiProvider {
       apiKey: text('apiKey'),
       baseUrl: text('baseUrl'),
       path: text('path'),
-      models: [
-        for (final m in json['models'] is List ? json['models'] as List : const [])
-          if (m is String && m.isNotEmpty) m,
-      ],
+      models: models,
+      details: {
+        for (final m in models)
+          if (AiModelInfo.fromJson(details[m]) case final info when !info.isEmpty) m: info,
+      },
     );
   }
 
@@ -164,10 +264,12 @@ class AiProvider {
       other.apiKey == apiKey &&
       other.baseUrl == baseUrl &&
       other.path == path &&
-      listEquals(other.models, models);
+      listEquals(other.models, models) &&
+      mapEquals(other.details, details);
 
   @override
-  int get hashCode => Object.hash(id, name, format, enabled, apiKey, baseUrl, path, Object.hashAll(models));
+  int get hashCode => Object.hash(id, name, format, enabled, apiKey, baseUrl, path, Object.hashAll(models),
+      Object.hashAllUnordered([for (final MapEntry(:key, :value) in details.entries) Object.hash(key, value)]));
 }
 
 /// A model of a provider's: what a setting picks to do something with ([AppSettings.pdfAiModel]).
@@ -247,10 +349,11 @@ class AiClient {
     };
   }
 
-  /// The IDs of the models the provider offers, in its order (several pages of them, where it
-  /// pages its list). Gemini's: those that can write text.
-  Future<List<String>> models() async {
-    final ids = <String>[];
+  /// The models the provider offers, by ID in its order (several pages of them, where it pages
+  /// its list), each with what the list says of it ([infoIn]). Gemini's: those that can write
+  /// text.
+  Future<Map<String, AiModelInfo>> models() async {
+    final ids = <String, AiModelInfo>{};
     String? after;
     for (var page = 0; page < 50; page++) {
       final json = await _send('GET', switch (provider.format) {
@@ -271,7 +374,7 @@ class AiClient {
             },
           _ => switch (m['id']) { final String id => id, _ => null },
         };
-        if (id != null && id.isNotEmpty && !ids.contains(id)) ids.add(id);
+        if (id != null && id.isNotEmpty) ids.putIfAbsent(id, () => infoIn(m, provider.format));
       }
       after = switch ((provider.format, json['last_id'], json['nextPageToken'])) {
         (AiFormat.anthropic, final String last, _) when json['has_more'] == true => last,
@@ -281,6 +384,49 @@ class AiClient {
       if (after == null || after.isEmpty) break;
     }
     return ids;
+  }
+
+  /// What an entry of a model list ([m]) says of the model, in [format]; null where it says
+  /// nothing. Read from where the providers known here say it: Anthropic's capabilities and
+  /// max_input_tokens; Gemini's inputTokenLimit and thinking (a model that doesn't think leaves
+  /// it out); OpenRouter's architecture, reasoning, supported_parameters and context_length; and
+  /// other servers of OpenAI's format: Mistral's capabilities, LM Studio's type ("vlm"), Groq's
+  /// context_window, vLLM's max_model_len. Gemini's list says nothing of images.
+  @visibleForTesting
+  static AiModelInfo infoIn(Map m, AiFormat format) {
+    bool? supported(Object? v) => switch (v) { {'supported': final bool b} => b, final bool b => b, _ => null };
+    int? count(Object? v) => switch (v) {
+          final int n when n > 0 => n,
+          final double d when d >= 1 && d.isFinite => d.round(),
+          _ => null,
+        };
+    final capabilities = m['capabilities'] is Map ? m['capabilities'] as Map : const {};
+    final modalities = switch (m) {
+      {'architecture': {'input_modalities': final List l}} => l,
+      {'input_modalities': final List l} => l,
+      _ => null,
+    };
+    final parameters = switch (m['supported_parameters']) { final List l => l, _ => null };
+    const reasons = ['reasoning', 'include_reasoning', 'reasoning_effort'];
+    return AiModelInfo(
+      vision: modalities?.contains('image') ??
+          supported(capabilities['image_input']) ??
+          supported(capabilities['vision']) ??
+          switch (m['type']) { 'vlm' => true, 'llm' => false, _ => null },
+      reasoning: m['reasoning'] is Map
+          ? true
+          : parameters?.any(reasons.contains) ??
+              supported(capabilities['thinking']) ??
+              supported(capabilities['reasoning']) ??
+              (format == AiFormat.gemini ? m['thinking'] == true : null),
+      context: count(m['max_input_tokens']) ??
+          count(m['inputTokenLimit']) ??
+          count(m['context_length']) ??
+          count(switch (m['top_provider']) { {'context_length': final Object n} => n, _ => null }) ??
+          count(m['context_window']) ??
+          count(m['max_context_length']) ??
+          count(m['max_model_len']),
+    );
   }
 
   /// Asks [model] for a word, through the provider's API path; throws an [AiError] when it

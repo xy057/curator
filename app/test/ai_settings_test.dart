@@ -1,5 +1,6 @@
 // Settings ▸ Remote AI Provider: a provider's fields keep what is typed in them (the key kept without the spaces
-// round it), and what Test found is shown only while the key and the address are those it tried.
+// round it), and what Test found is shown only while the key and the address are those it tried; a
+// model's abilities and context size are shown by its ID, set in Edit Model or fetched from the list.
 
 import 'dart:io';
 
@@ -78,6 +79,102 @@ void main() {
     await tester.enterText(field(1), '${local().baseUrl}/v1 ');
     await settle();
     expect([local().baseUrl, typed(1)], ['http://127.0.0.1:${server.port}/v1', 'http://127.0.0.1:${server.port}/v1 ']);
+
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await settle();
+  });
+
+  testWidgets('a model’s abilities and context are shown by it, set in Edit Model, and fetched from the list', (tester) async {
+    await tester.runAsync(loadTestFonts);
+    desktopWindow(tester);
+    HttpOverrides.global = null; // the binding answers every request with 400 otherwise
+    final server = (await tester.runAsync(() => HttpServer.bind(InternetAddress.loopbackIPv4, 0)))!;
+    addTearDown(() => server.close(force: true));
+    server.listen((request) async {
+      await request.drain<void>();
+      request.response
+        ..headers.contentType = ContentType.json
+        ..write('{"data": [{"id": "see", "context_length": 1000000, "architecture": {"input_modalities": ["text", "image"]}, '
+            '"supported_parameters": ["reasoning"]}, {"id": "new", "context_length": 8192}]}');
+      await request.response.close();
+    });
+    final settings = AppSettings.memory()
+      ..aiProviders = [
+        AiProvider(
+            id: 'local', name: 'Local', format: AiFormat.openai, enabled: true, apiKey: 'k', //
+            baseUrl: 'http://127.0.0.1:${server.port}', path: AiFormat.openai.path, models: ['see', 'plain'],
+            details: {'see': const AiModelInfo(vision: true, context: 131072)}),
+      ];
+    AiProvider local() => settings.aiProviders.single;
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppColors.theme(),
+      home: Scaffold(
+        body: Builder(
+            builder: (context) => TextButton(
+                onPressed: () => showSettingsDialog(context, settings, page: 'Remote AI Provider'), child: const Text('Open'))),
+      ),
+    ));
+    Future<void> settle() async {
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+    }
+
+    Future<void> until(Finder f) async {
+      for (var i = 0; i < 200 && f.evaluate().isEmpty; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 25)));
+        await tester.pump();
+      }
+      await settle();
+    }
+
+    await tester.tap(find.text('Open'));
+    await settle();
+    // What is known of a model, by its ID: its context in short, its abilities as icons.
+    expect(find.text('131K'), findsOneWidget);
+    expect(find.byTooltip('Vision'), findsOneWidget);
+    expect(find.byTooltip('Reasoning'), findsNothing);
+    expect(find.byTooltip('Context size: 131,072 tokens'), findsOneWidget);
+
+    // Set by hand: it reasons, and reads 200K.
+    await tester.tap(find.byTooltip('Edit model').at(1));
+    await settle();
+    expect(find.text('Edit Model'), findsOneWidget);
+    expect(find.text('plain'), findsNWidgets(2)); // its row, and the dialog's ID
+    await tester.tap(find.text('Reasoning'));
+    final contextField = find.descendant(of: find.byType(AppTextField).last, matching: find.byType(EditableText));
+    await tester.enterText(contextField, '20x');
+    await settle();
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Save')).onPressed, isNull); // no size
+    await tester.enterText(contextField, '200K');
+    await settle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await settle();
+    expect(local().infoOf('plain'), const AiModelInfo(reasoning: true, context: 200000, byHand: true));
+    expect(find.text('200K'), findsOneWidget);
+    expect(find.byTooltip('Reasoning'), findsOneWidget);
+
+    // Fetched in Edit Model: what the provider's list says of it.
+    await tester.tap(find.text('see'));
+    await settle();
+    await tester.tap(find.widgetWithText(TextButton, 'Fetch').last);
+    await until(find.text('Fetched from Local.'));
+    expect(tester.widget<EditableText>(contextField).controller.text, '1,000,000');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await settle();
+    expect(local().infoOf('see'), const AiModelInfo(vision: true, reasoning: true, context: 1000000));
+
+    // Fetch: the list's models with what it says of each; what was set by hand stays as set.
+    await tester.tap(find.widgetWithText(TextButton, 'Fetch'));
+    await until(find.text('Choose Models'));
+    expect(find.text('8K'), findsOneWidget);
+    await tester.tap(find.text('new'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await settle();
+    expect(local().models, ['see', 'plain', 'new']);
+    expect(local().infoOf('new'), const AiModelInfo(context: 8192));
+    expect(local().infoOf('plain'), const AiModelInfo(reasoning: true, context: 200000, byHand: true));
 
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await settle();
