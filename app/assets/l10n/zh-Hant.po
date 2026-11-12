@@ -78,8 +78,8 @@ msgstr "比較需要寫成「? … : …」。"
 msgid "A MIDI tempo map or a recording"
 msgstr "MIDI 速度圖或錄音"
 
-msgid "A project, or a MusicXML or PDF score"
-msgstr "專案，或 MusicXML、PDF 樂譜"
+msgid "A project, or a MusicXML, PDF or LilyPond score"
+msgstr "專案，或 MusicXML、PDF、LilyPond 樂譜"
 
 msgid "A tempo map starts at quarter 0."
 msgstr "速度圖須從第 0 個四分音符開始。"
@@ -527,7 +527,7 @@ msgstr "填補不超過 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 則為 c，否則為 d"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -616,7 +616,7 @@ msgstr "譜號"
 msgid "Clefs"
 msgstr "譜號"
 
-#: lib/app_menus.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/export_dialog.dart lib/lilypond_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "關閉"
 
@@ -855,7 +855,7 @@ msgstr "取消選取（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先儲存對「{name}」的更動嗎？"
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完成"
 
@@ -942,7 +942,7 @@ msgstr "編輯字幕…"
 msgid "Edit Spacer…"
 msgstr "編輯間隔…"
 
-#: lib/settings_dialog.dart
+#: lib/lilypond_dialog.dart lib/settings_dialog.dart
 msgid "Edit…"
 msgstr "編輯…"
 
@@ -973,6 +973,7 @@ msgstr "將以音樂字型排出的「f」刻為力度記號。"
 msgid "Engraving"
 msgstr "刻譜"
 
+#: lib/lilypond_editor.dart
 msgid "Engraving…"
 msgstr "正在刻譜…"
 
@@ -1444,7 +1445,7 @@ msgstr "樂器名"
 msgid "Natural (0)"
 msgstr "還原記號（0）"
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "Next ({key})"
 msgstr "下一個（{key}）"
 
@@ -1463,7 +1464,7 @@ msgstr "沒有可貼上的影像喔。"
 msgid "No images"
 msgstr "沒有影像"
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "No matches"
 msgstr "沒有找到"
 
@@ -1560,7 +1561,7 @@ msgstr "八度記號"
 msgid "Off"
 msgstr "關閉"
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "好"
 
@@ -1686,7 +1687,7 @@ msgstr "演奏者"
 msgid "PNG Sequence"
 msgstr "PNG 序列"
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "Previous ({key})"
 msgstr "上一個（{key}）"
 
@@ -1737,7 +1738,7 @@ msgstr "錄音"
 msgid "Redo"
 msgstr "重做"
 
-#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr "重做（{key}）"
 
@@ -1838,7 +1839,7 @@ msgstr "反覆點間隙"
 msgid "Repeat dots"
 msgstr "反覆點"
 
-#: lib/captions_dialog.dart lib/edit_dialogs.dart
+#: lib/captions_dialog.dart lib/edit_dialogs.dart lib/lilypond_editor.dart
 msgid "Replace"
 msgstr "替換"
 
@@ -2531,7 +2532,7 @@ msgstr "在 t = 0 或 1 處無定義。"
 msgid "Undo"
 msgstr "還原"
 
-#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr "還原（{key}）"
 
@@ -2566,7 +2567,7 @@ msgstr "還原記錄"
 msgid "Until"
 msgstr "結束"
 
-#: lib/project_document.dart
+#: lib/main.dart lib/project_document.dart
 msgid "Untitled"
 msgstr "未命名"
 
@@ -2889,11 +2890,11 @@ msgstr "和弦（Q）"
 msgid "Couldn’t Edit Score"
 msgstr "無法編輯樂譜"
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr "放棄"
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr "放棄變更？"
 
@@ -2901,7 +2902,7 @@ msgstr "放棄變更？"
 msgid "Dotted {value}"
 msgstr "附點{value}"
 
-#: lib/score_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Edit Score"
 msgstr "編輯樂譜"
 
@@ -2916,7 +2917,7 @@ msgstr "二分音符"
 msgid "Holds"
 msgstr "延長與停頓"
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr "繼續編輯"
 
@@ -2964,7 +2965,7 @@ msgstr "斷奏（]）"
 msgid "Tenuto (⇧])"
 msgstr "保持音（⇧]）"
 
-#: lib/score_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "The score stays as it was."
 msgstr "樂譜保持原樣。"
 
@@ -3421,7 +3422,7 @@ msgstr "聲部 {n}"
 msgid "{error}."
 msgstr "{error}。"
 
-#: lib/updater.dart
+#: lib/lilypond.dart lib/updater.dart
 msgid "Couldn’t write the download."
 msgstr "無法寫入下載檔案。"
 
@@ -3486,7 +3487,6 @@ msgstr "沒有空間再加入字幕"
 msgid "Project or MusicXML ({key})"
 msgstr "專案或 MusicXML（{key}）"
 
-#: lib/home_screen.dart
 msgid "PDF score ({key})"
 msgstr "PDF 樂譜（{key}）"
 
@@ -3711,7 +3711,7 @@ msgstr "該供應商沒有提供模型。"
 msgid "All matching"
 msgstr "全部符合項目"
 
-#: lib/ai_settings.dart
+#: lib/ai_settings.dart lib/lilypond_editor.dart
 msgid "{n} of {all}"
 msgstr "{n} / {all}"
 
@@ -3897,3 +3897,167 @@ msgstr "伺服器的回覆過長。"
 #: lib/main.dart
 msgid "Scores"
 msgstr "樂譜"
+
+#: lib/lilypond.dart
+msgid "Can’t reach GitLab. Is the internet connected?"
+msgstr "連不上 GitLab。網路連線了嗎？"
+
+#: lib/lilypond.dart
+msgid "The download was damaged. Try again."
+msgstr "下載的檔案已損壞。請重試。"
+
+#: lib/lilypond.dart
+msgid "GitLab answered {status}."
+msgstr "GitLab 回應了 {status}。"
+
+#: lib/lilypond.dart lib/lilypond_dialog.dart lib/settings_dialog.dart
+msgid "Not available for this computer."
+msgstr "此電腦上無法使用。"
+
+#: lib/lilypond.dart
+msgid "Couldn’t download LilyPond."
+msgstr "無法下載 LilyPond。"
+
+#: lib/lilypond_dialog.dart lib/settings_dialog.dart
+msgid "Downloading… {received} of {total} MB"
+msgstr "正在下載… {received} / {total} MB"
+
+#: lib/lilypond_dialog.dart lib/settings_dialog.dart
+msgid "Installing…"
+msgstr "正在安裝…"
+
+#: lib/settings_dialog.dart
+msgid "Engraves LilyPond scores."
+msgstr "為 LilyPond 樂譜刻譜。"
+
+#: lib/settings_dialog.dart
+msgid "Engraves LilyPond scores. {size} MB."
+msgstr "為 LilyPond 樂譜刻譜。{size} MB。"
+
+#: lib/settings_dialog.dart
+msgid "Download"
+msgstr "下載"
+
+msgid "Download Hub"
+msgstr "下載中心"
+
+#: lib/home_screen.dart
+msgid "PDF or LilyPond score ({key})"
+msgstr "PDF 或 LilyPond 樂譜（{key}）"
+
+#: lib/lilypond_dialog.dart
+msgid "Engraving “{name}”"
+msgstr "正在為「{name}」刻譜"
+
+#: lib/lilypond_dialog.dart
+msgid "Download LilyPond?"
+msgstr "下載 LilyPond？"
+
+#: lib/lilypond_dialog.dart
+msgid "“{name}” is engraved with LilyPond ({size} MB)."
+msgstr "「{name}」需用 LilyPond 刻譜（{size} MB）。"
+
+#: lib/lilypond_dialog.dart
+msgid "LilyPond couldn’t engrave “{name}”"
+msgstr "LilyPond 無法為「{name}」刻譜"
+
+#: lib/lilypond_dialog.dart
+msgid "Nothing to engrave."
+msgstr "沒有可刻譜的內容。"
+
+#: lib/main.dart
+msgid "Couldn’t Import LilyPond Score"
+msgstr "無法匯入 LilyPond 樂譜"
+
+#: lib/lilypond_editor.dart
+msgid "Find ({key})"
+msgstr "尋找（{key}）"
+
+#: lib/lilypond_editor.dart
+msgid "Engrave ({key})"
+msgstr "刻譜（{key}）"
+
+#: lib/lilypond_editor.dart
+msgid "Engrave"
+msgstr "刻譜"
+
+#: lib/lilypond_editor.dart
+msgid "Engrave to see the score."
+msgstr "刻譜後即可看到樂譜。"
+
+#: lib/lilypond_editor.dart
+msgid "Nothing to show yet."
+msgstr "暫無可顯示的內容。"
+
+#: lib/lilypond_editor.dart
+msgid "Find"
+msgstr "尋找"
+
+#: lib/lilypond_editor.dart
+msgid "Replace All"
+msgstr "全部替換"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "context"
+msgstr "上下文"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "clef"
+msgstr "譜號"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "repeat"
+msgstr "反覆"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "barline"
+msgstr "小節線"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "language"
+msgstr "語言"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "property"
+msgstr "屬性"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "grob"
+msgstr "圖形物件"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "variable"
+msgstr "變數"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "command"
+msgstr "命令"
+
+#: lib/app_menus.dart
+msgid "New LilyPond Score…"
+msgstr "新增 LilyPond 樂譜…"
+
+#: lib/main.dart
+msgid "Melody"
+msgstr "旋律"
+
+#: lib/main.dart
+msgid "Couldn’t Create LilyPond Score"
+msgstr "無法建立 LilyPond 樂譜"
+
+#: lib/lilypond_dialog.dart
+msgid "LilyPond scores are engraved with LilyPond ({size} MB)."
+msgstr "LilyPond 樂譜需用 LilyPond 刻譜（{size} MB）。"
+
+#: lib/lilypond_dialog.dart
+msgid "Open Download Hub"
+msgstr "打開下載中心"

@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.8.0+327
+version: 0.8.0+336
 
 environment:
   sdk: ^3.13.4
@@ -24,6 +24,8 @@ dependencies:
   vector_graphics_compiler: ^1.3.4 # what an SVG with no size of its own draws (Attach Image)
   pasteboard: ^0.6.0
   crypto: ^3.0.6 # SHA-256 of downloads (downloader.dart)
+  re_editor: ^0.10.0 # the LilyPond editor's code view (lilypond_editor.dart), with re_highlight's highlighting
+  re_highlight: ^0.0.3
 
 dev_dependencies:
   flutter_test:
@@ -40,6 +42,7 @@ flutter:
     - assets/l10n/ # the interface's translations, one gettext file a language (Crowdin's; see docs/translating.md)
     - assets/exam/ # the exam a model takes before the PDF import's Read with AI asks it (two pages of a scan; PdfAiExam)
     - assets/basic_pitch/ # Spotify's Basic Pitch, which Align hears a recording with (Apache 2.0, with its licence; Tools/make_basic_pitch_weights.py)
+    - assets/lilypond/ # Curator's settings for LilyPond: the piece on one line, what it is written beside it (lilypond.dart)
     - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one), and the mascot a click on it shows (on the same tile)
     # The fonts' licences (Apache 2.0 and the OFL ask that a copy go with them; not every font
     # file holds its whole): shipped, and in the app's LicenseRegistry. The score's are the

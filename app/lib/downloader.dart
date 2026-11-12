@@ -119,6 +119,9 @@ class DownloadCancel {
   var _cancelled = false;
   final _listeners = <void Function()>[];
 
+  /// Calls [listener] when it is cancelled (now, when it is already): another job it stops.
+  void whenCancelled(void Function() listener) => _cancelled ? listener() : _listeners.add(listener);
+
   void cancel() {
     if (_cancelled) return;
     _cancelled = true;

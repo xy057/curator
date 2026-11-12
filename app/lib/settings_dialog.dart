@@ -24,6 +24,7 @@ import 'extensions/extension.dart';
 import 'export_dialog.dart' show revealInFileManager;
 import 'file_names.dart';
 import 'font_settings.dart';
+import 'lilypond.dart';
 import 'menu_kit.dart';
 import 'motion_settings.dart';
 import 'pdf_ai_model_dialog.dart';
@@ -63,9 +64,14 @@ Future<void> showSettingsDialog(
 /// Edit ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
 /// ([_projectCategories]). Each change is an edit: an Undo step, saved with the project.
 /// [editScore] is Project Info's Edit…, called once this window is gone; [replaceScore] its
-/// Replace… (the app's, which asks first), called over it with a way to close it.
+/// Replace… (the app's, which asks first), called over it with a way to close it; [downloadHub]
+/// opens Settings ▸ Download Hub, called once this window is gone (one settings window at a
+/// time), where a LilyPond score's text font asks for LilyPond.
 Future<void> showProjectSettingsDialog(BuildContext context, AppSettings settings, EditorController controller,
-        {String? page, Future<void> Function()? editScore, Future<void> Function(VoidCallback leave)? replaceScore}) =>
+        {String? page,
+        Future<void> Function()? editScore,
+        Future<void> Function(VoidCallback leave)? replaceScore,
+        VoidCallback? downloadHub}) =>
     _showWindow(
       context,
       _SettingsWindow(
@@ -76,6 +82,7 @@ Future<void> showProjectSettingsDialog(BuildContext context, AppSettings setting
         page: page,
         editScore: editScore,
         replaceScore: replaceScore,
+        downloadHub: downloadHub,
       ),
     );
 
@@ -197,6 +204,7 @@ typedef _Context = ({
   Updater updater,
   Future<void> Function()? editScore,
   Future<void> Function(VoidCallback leave)? replaceScore,
+  VoidCallback? downloadHub, // Settings ▸ Download Hub, the window it is called from gone
 });
 
 final _categories = <_Category>[
@@ -359,6 +367,16 @@ final _categories = <_Category>[
       null,
       (c) => AppSwitch(value: c.settings.reduceMotion, onChanged: (v) => c.settings.reduceMotion = v),
       keywords: 'animation animations fade slide still accessibility',
+    ),
+  ]),
+  // What the app can download and keep on this computer, beside it.
+  _Category('Download Hub', AppIcon.downloads, [
+    _Item(
+      'LilyPond',
+      (_) => _lilyPondHelp(),
+      (_) => const _LilyPondControl(),
+      note: LilyPond.version,
+      keywords: 'lilypond download install remove engraver engrave ly notation text source',
     ),
   ]),
   // AI run on this computer: nothing yet.
@@ -789,7 +807,7 @@ _Category _engravingCategory() {
         group: 'Fonts',
         keywords: 'font embed include file installed',
       ),
-      _Item('Text font', null, (c) => TextFontPicker(controller: c.controller!),
+      _Item('Text font', null, (c) => TextFontPicker(controller: c.controller!, downloadHub: c.downloadHub),
           group: 'Fonts', keywords: 'font academico family typeface'),
       _Item(
         'Caption font',
@@ -840,6 +858,21 @@ String _updateHelp(UpdateStatus status) => switch (status) {
       UpdateFailed(:final message) => message.tr,
     };
 
+/// Settings ▸ Download Hub ▸ LilyPond's line: what it is for, how far its download has got, or
+/// why it failed.
+String _lilyPondHelp() {
+  final installer = LilyPondInstaller.instance, package = LilyPond.package;
+  if (package == null) return 'Not available for this computer.'.tr;
+  int mb(int bytes) => (bytes / 1e6).round();
+  return switch (installer.stage) {
+    LilyPondStage.downloading => 'Downloading… {received} of {total} MB'.fill({'received': mb(installer.received), 'total': mb(package.size)}),
+    LilyPondStage.unpacking => 'Installing…'.tr,
+    LilyPondStage.failed => describeLilyPondFailure(installer.failure),
+    _ when LilyPond.installed => 'Engraves LilyPond scores.'.tr,
+    _ => 'Engraves LilyPond scores. {size} MB.'.fill({'size': mb(package.size)}),
+  };
+}
+
 String _autosaveLabel(Duration d) => switch (d) {
       Duration.zero => 'Off'.tr,
       Duration(inMinutes: 0, :final inSeconds) => 'Every {n} seconds'.fill({'n': inSeconds}),
@@ -855,10 +888,12 @@ class _SettingsWindow extends StatefulWidget {
       required this.updater,
       this.page,
       this.editScore,
-      this.replaceScore});
+      this.replaceScore,
+      this.downloadHub});
   final _Window kind;
   final Future<void> Function()? editScore;
   final Future<void> Function(VoidCallback leave)? replaceScore;
+  final VoidCallback? downloadHub;
   final AppSettings settings;
   final EditorController? controller;
   final Updater updater;
@@ -894,11 +929,30 @@ class _SettingsWindowState extends State<_SettingsWindow> {
 
   /// [tab] in a window of its own, over the editor, in place of this one.
   void _popOut(_Category tab) {
-    final overlay = Overlay.of(context, rootOverlay: true);
+    final overlay = Overlay.of(context, rootOverlay: true), hub = widget.downloadHub;
     Navigator.pop(context);
-    _EngravingWindow.show(
-        overlay, tab, (settings: widget.settings, controller: widget.controller, updater: Updater(), editScore: null, replaceScore: null));
+    _EngravingWindow.show(overlay, tab, (
+      settings: widget.settings,
+      controller: widget.controller,
+      updater: Updater(),
+      editScore: null,
+      replaceScore: null,
+      downloadHub: hub == null
+          ? null
+          : () {
+              _EngravingWindow.close();
+              hub();
+            },
+    ));
   }
+
+  /// Settings ▸ Download Hub, once this window is gone (see [dispose]).
+  void _downloadHub() {
+    _thenDownloadHub = true;
+    Navigator.pop(context);
+  }
+
+  bool _thenDownloadHub = false;
   final _search = TextEditingController();
 
   int get _lastPage => _lastPages[widget.kind] ?? 0;
@@ -909,6 +963,8 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     widget.controller?.removeListener(_controllerChanged);
     _search.dispose();
     _windowShown = false;
+    // Its fade-out over: the next window can open.
+    if (_thenDownloadHub) WidgetsBinding.instance.addPostFrameCallback((_) => widget.downloadHub!());
     super.dispose();
   }
 
@@ -918,6 +974,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         updater: widget.updater,
         editScore: widget.editScore,
         replaceScore: widget.replaceScore,
+        downloadHub: widget.downloadHub == null ? null : _downloadHub,
       );
 
   /// Items matching the search, with their category; null when not searching.
@@ -988,7 +1045,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
               : RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.line)),
           clipBehavior: Clip.antiAlias,
           child: ListenableBuilder(
-            listenable: Listenable.merge([widget.settings, _search, widget.updater, ?widget.controller]),
+            listenable: Listenable.merge([widget.settings, _search, widget.updater, LilyPondInstaller.instance, ?widget.controller]),
             builder: (context, _) => _closed
                 ? const SizedBox.shrink()
                 : Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -1054,7 +1111,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         ),
         const SizedBox(height: 14),
         for (final (i, cat) in _categories.indexed)
-          _SidebarTile(
+          SidebarTile(
             icon: cat.icon.of(context),
             label: cat.label.trIn('page'),
             selected: !searching && i == _page,
@@ -1473,93 +1530,6 @@ Color _groupColor(BuildContext context) {
   final colors = context.colors;
   if (CarbonColors.maybeOf(context) case final k?) return k.layer02;
   return _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.22)!;
-}
-
-class _SidebarTile extends StatefulWidget {
-  const _SidebarTile({required this.icon, required this.label, required this.selected, required this.onTap});
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  State<_SidebarTile> createState() => _SidebarTileState();
-}
-
-class _SidebarTileState extends State<_SidebarTile> {
-  bool _hover = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final selected = widget.selected;
-    final style = AppStyle.of(context);
-    final k = CarbonColors.maybeOf(context);
-    // Refined: the accent's light tint, as a chosen segment's, the label in the accent and
-    // semibold (the solid accent is left for the default button). Carbon: its side nav's item,
-    // $layer-selected with a 3 px bar of the accent at its left, the text semibold.
-    final tinted = k == null && selected;
-    final fill = k != null
-        ? (selected ? k.layerSelected : _hover ? k.layerHover : k.layerHover.withValues(alpha: 0))
-        : tinted
-            ? colors.accentSoft
-            : _hover
-                ? colors.line.withValues(alpha: 0.45)
-                : colors.line.withValues(alpha: 0);
-    final ink = k != null
-        ? (selected || _hover ? k.textPrimary : k.textSecondary)
-        : tinted
-            ? colors.accentOn(fill, dark: Theme.of(context).brightness == Brightness.dark)
-            // The rows not chosen a step quieter, so the chosen one stands out without more weight.
-            : _hover
-                ? colors.text
-                : Color.lerp(colors.text, colors.textMuted, 0.4)!;
-    return Padding(
-      padding: EdgeInsets.only(bottom: k != null ? 0 : 1),
-      child: Semantics(
-        button: true,
-        selected: selected,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => setState(() => _hover = true),
-          onExit: (_) => setState(() => _hover = false),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.onTap,
-            child: AnimatedContainer(
-              duration: stateDuration(motion(context, 120)),
-              curve: style.curve,
-              height: k != null ? 32 : 30,
-              padding: EdgeInsets.only(left: k != null ? 13 : 8, right: 8),
-              decoration: BoxDecoration(
-                color: fill,
-                borderRadius: style.radius(5),
-                // $border-interactive: the accent, in the dark too.
-                border: k == null
-                    ? null
-                    : Border(left: BorderSide(color: selected ? colors.accent : Colors.transparent, width: 3)),
-              ),
-              child: Row(children: [
-                Icon(widget.icon, size: 16, color: k != null || tinted ? ink : colors.textMuted),
-                SizedBox(width: k != null ? 8 : 10),
-                Flexible(
-                  child: Text(widget.label.tr,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: k != null ? 14 : 13,
-                        letterSpacing: k != null ? 0.16 : null,
-                        color: ink,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                      )),
-                ),
-              ]),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Save as Default, slim beside a page's title: once saved (or already the same), a muted
@@ -2137,6 +2107,34 @@ class _UpdateControl extends StatelessWidget {
         OutlinedButton(onPressed: () => revealInFileManager(path), child: Text(_revealLabel)),
       UpdateFailed(release: final release?) =>
         OutlinedButton(onPressed: () => updater.download(release), child: Text('Try Again'.tr)),
+    };
+    return AnimatedSwitcher(duration: motion(context, 120), child: control);
+  }
+}
+
+/// Settings ▸ Download Hub ▸ LilyPond's control: Download, its progress with Cancel, then
+/// Remove.
+class _LilyPondControl extends StatelessWidget {
+  const _LilyPondControl();
+
+  @override
+  Widget build(BuildContext context) {
+    final installer = LilyPondInstaller.instance;
+    final Widget control = switch (installer.stage) {
+      _ when LilyPond.package == null => const SizedBox.shrink(),
+      LilyPondStage.downloading => Row(key: const ValueKey('downloading'), mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(
+            width: 120,
+            child: LinearProgressIndicator(
+                value: installer.total > 0 ? installer.received / installer.total : null, borderRadius: AppStyle.of(context).radius(2)),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton(onPressed: installer.cancel, child: Text('Cancel'.tr)),
+        ]),
+      LilyPondStage.unpacking => const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+      _ when LilyPond.installed => OutlinedButton(onPressed: installer.remove, child: Text('Remove'.tr)),
+      LilyPondStage.failed => OutlinedButton(onPressed: installer.install, child: Text('Try Again'.tr)),
+      _ => FilledButton(onPressed: installer.install, child: Text('Download'.tr)),
     };
     return AnimatedSwitcher(duration: motion(context, 120), child: control);
   }

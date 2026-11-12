@@ -478,38 +478,54 @@ class _ItemBuilder {
     return ParagraphItem(paragraph, origin.translate(0, -paragraph.alphabeticBaseline), bounds);
   }
 
-  /// Joins consecutive text runs of one positioned block into one paragraph.
+  /// Joins consecutive text runs of one positioned block into one paragraph. One drawn wider
+  /// than it was spaced ([Cmd.fitWidth]: LilyPond's, measured in another font) is set closer,
+  /// by a tenth of an em at most between characters.
   DisplayItem _textBlock(int index) {
     final ints = d.commandInts, floats = d.commandFloats;
     final base = index * Cmd.words;
-    final builder = ui.ParagraphBuilder(ui.ParagraphStyle(fontFamily: style.textFontFamily));
-    var i = index;
-    var spacing = 0.0;
-    do {
-      final b = i * Cmd.words;
-      final flags = ints[b + Cmd.flags];
-      final start = ints[b + Cmd.start];
-      final music = flags & VBFlag.smuflText != 0;
-      builder
-        ..pushStyle(ui.TextStyle(
-          color: style.ink,
-          fontFamily: music ? style.musicFontFamily : style.textFontFamily,
-          fontFamilyFallback: music ? RenderStyle.musicFontFallback : null,
-          fontSize: floats[b + Cmd.size],
-          fontStyle: flags & VBFlag.italic != 0 ? ui.FontStyle.italic : ui.FontStyle.normal,
-          fontWeight: flags & VBFlag.bold != 0 ? ui.FontWeight.bold : ui.FontWeight.normal,
-          letterSpacing: spacing = floats[b + Cmd.letterSpacing],
-        ))
-        ..addText(utf8.decode(d.text.sublist(start, start + ints[b + Cmd.count]), allowMalformed: true))
-        ..pop();
-      i++;
-    } while (i < d.commandCount &&
-        ints[i * Cmd.words + Cmd.kind] == VBKind.text &&
-        ints[i * Cmd.words + Cmd.flags] & VBFlag.newTextBlock == 0);
+    var end = index + 1;
+    while (end < d.commandCount &&
+        ints[end * Cmd.words + Cmd.kind] == VBKind.text &&
+        ints[end * Cmd.words + Cmd.flags] & VBFlag.newTextBlock == 0) {
+      end++;
+    }
+    final runs = [
+      for (var b = index * Cmd.words; b < end * Cmd.words; b += Cmd.words)
+        utf8.decode(d.text.sublist(ints[b + Cmd.start], ints[b + Cmd.start] + ints[b + Cmd.count]), allowMalformed: true),
+    ];
 
-    final paragraph = builder.build()..layout(const ui.ParagraphConstraints(width: double.maxFinite));
-    // Flutter spaces the last character too; Verovio only between them.
-    final width = paragraph.maxIntrinsicWidth - spacing;
+    (ui.Paragraph, double) layOut({double closer = 0}) {
+      final builder = ui.ParagraphBuilder(ui.ParagraphStyle(fontFamily: style.textFontFamily));
+      var spacing = 0.0;
+      for (final (n, text) in runs.indexed) {
+        final b = (index + n) * Cmd.words;
+        final flags = ints[b + Cmd.flags];
+        final music = flags & VBFlag.smuflText != 0;
+        builder
+          ..pushStyle(ui.TextStyle(
+            color: style.ink,
+            fontFamily: music ? style.musicFontFamily : style.textFontFamily,
+            fontFamilyFallback: music ? RenderStyle.musicFontFallback : null,
+            fontSize: floats[b + Cmd.size],
+            fontStyle: flags & VBFlag.italic != 0 ? ui.FontStyle.italic : ui.FontStyle.normal,
+            fontWeight: flags & VBFlag.bold != 0 ? ui.FontWeight.bold : ui.FontWeight.normal,
+            letterSpacing: spacing = floats[b + Cmd.letterSpacing] - closer,
+          ))
+          ..addText(text)
+          ..pop();
+      }
+      final paragraph = builder.build()..layout(const ui.ParagraphConstraints(width: double.maxFinite));
+      // Flutter spaces the last character too; Verovio only between them.
+      return (paragraph, paragraph.maxIntrinsicWidth - spacing);
+    }
+
+    var (paragraph, width) = layOut();
+    final fit = floats[base + Cmd.fitWidth];
+    final gaps = runs.fold(0, (n, run) => n + run.runes.length) - 1;
+    if (fit > 0 && width > fit && gaps > 0) {
+      (paragraph, width) = layOut(closer: math.min((width - fit) / gaps, floats[base + Cmd.size] / 10));
+    }
     var x = floats[base + Cmd.x].toDouble();
     final alignment = ints[base + Cmd.alignment];
     if (alignment == 1) x -= width / 2;

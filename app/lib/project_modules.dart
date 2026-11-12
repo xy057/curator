@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io' show FileSystemException;
 import 'dart:typed_data';
 import 'dart:ui' show Color, Rect;
@@ -63,10 +64,12 @@ abstract final class ProjectModules {
   static const spacers = _Spacers();
   static const view = _View();
   static const pdf = _Pdf();
+  static const lilypond = _LilyPond();
 
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
-    pdf, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, chapters, spacers, view, //
+    pdf, lilypond, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, chapters, //
+    spacers, view,
   ];
 
   /// The score-wide settings, what a page of Project Settings sets for the whole score: a
@@ -782,4 +785,71 @@ final class _Pdf extends ProjectModule {
   @override
   ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) =>
       state.copyWith(pdf: () => _nested(r, 'layout', PdfScoreLayout.fromJson));
+}
+
+/// A LilyPond score's ([ProjectState.lilypond]): the files it includes, each as
+/// `lilypond/files/<path>`, byte for byte, and LilyPond's engraving of it, `lilypond/score.svg`
+/// with the data beside it `lilypond/score.jsonl`, so it opens without LilyPond; which LilyPond
+/// engraved it, and where the main file is among the files. A Curator that can't read it can't
+/// show the score.
+final class _LilyPond extends ProjectModule {
+  const _LilyPond() : super('lilypond');
+
+  static const _svg = 'lilypond/score.svg', _data = 'lilypond/score.jsonl';
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) {
+    final lilypond = state.lilypond;
+    if (lilypond == null) return const {};
+    for (final MapEntry(key: path, value: bytes) in lilypond.files.entries) {
+      files('lilypond/files/$path', bytes);
+    }
+    files(_svg, utf8.encode(lilypond.svg));
+    files(_data, utf8.encode(lilypond.data));
+    return {
+      'version': lilypond.version,
+      'settings': lilypond.settings,
+      if (lilypond.folder.isNotEmpty) 'folder': lilypond.folder,
+      'files': [...lilypond.files.keys],
+    };
+  }
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    if (r.isAbsent('version')) return state;
+    final folder = r.string('folder') ?? '';
+    if (folder.isNotEmpty && !LilyPondProject.isPath(folder)) throw _damaged('${r.where}.folder is not a folder.');
+    final included = <String, Uint8List>{};
+    var total = 0;
+    for (final (i, name) in r.list('files').indexed) {
+      if (name is! String || !LilyPondProject.isPath(name) || included.containsKey(name)) {
+        throw _damaged('${r.where}.files[$i] is not a file’s name.');
+      }
+      if (included.length >= LilyPondProject.maxFiles) throw _damaged('${r.where}.files has too many.');
+      final bytes = files('lilypond/files/$name', limit: LilyPondProject.maxIncluded - total) ??
+          (throw _damaged('lilypond/files/$name is missing.'));
+      total += bytes.length;
+      included[name] = bytes;
+    }
+    String text(String entry) {
+      final bytes = files(entry, limit: LilyPondProject.maxEngraving) ?? (throw _damaged('$entry is missing.'));
+      try {
+        return utf8.decode(bytes);
+      } on FormatException {
+        throw _damaged('$entry is not text.');
+      }
+    }
+
+    final settings = r.number('settings')?.toInt() ?? 1;
+    return state.copyWith(
+      lilypond: () => LilyPondProject(
+        version: r.string('version', required: true)!,
+        settings: settings,
+        folder: folder,
+        files: included,
+        svg: text(_svg),
+        data: text(_data),
+      ),
+    );
+  }
 }

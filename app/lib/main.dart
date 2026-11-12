@@ -33,12 +33,16 @@ import 'export_dialog.dart';
 import 'file_names.dart';
 import 'home_screen.dart';
 import 'l10n/l10n.dart';
+import 'lilypond.dart';
+import 'lilypond_dialog.dart';
+import 'lilypond_editor.dart';
 import 'media_converter.dart';
 import 'phrase_search_window.dart';
 import 'pdf_ai_model_dialog.dart';
 import 'pdf_import.dart';
 import 'project_document.dart';
 import 'project_file.dart';
+import 'project_state.dart' show LilyPondProject;
 import 'project_tabs.dart';
 import 'score_editor.dart';
 import 'score_replacement.dart';
@@ -278,10 +282,19 @@ class AppWindow extends StatefulWidget {
 /// A project open in a tab.
 class _OpenProject {
   _OpenProject(this.path)
-      : label = ValueNotifier((name: stemOf(fileNameOf(path ?? sampleProjectAsset)), edited: false, path: path));
+      : lilypond = null,
+        label = ValueNotifier((name: stemOf(fileNameOf(path ?? sampleProjectAsset)), edited: false, path: path));
 
-  /// The project or score file it opened; null: the sample.
+  /// A score written in the LilyPond editor (File ▸ New LilyPond Score…), as a new project.
+  _OpenProject.lilypond(LilyPondEdit this.lilypond)
+      : path = null,
+        label = ValueNotifier((name: stemOf(lilypond.source.name), edited: true, path: null));
+
+  /// The project or score file it opened; null: the sample, or a [lilypond] score.
   final String? path;
+
+  /// The score written in the LilyPond editor it opened, in no file yet.
+  final LilyPondEdit? lilypond;
   final key = GlobalKey<_ProjectPageState>();
   final messenger = GlobalKey<ScaffoldMessengerState>();
   final ValueNotifier<ProjectTabLabel> label;
@@ -299,7 +312,7 @@ class _OpenProject {
         _ => path,
       };
 
-  bool get isSample => path == null;
+  bool get isSample => path == null && lilypond == null;
 }
 
 class _AppWindowState extends State<AppWindow> {
@@ -337,8 +350,12 @@ class _AppWindowState extends State<AppWindow> {
       );
   static const _scoreTypes = XTypeGroup(label: 'MusicXML', extensions: _scoreExtensions);
   static const _pdfTypes = XTypeGroup(label: 'PDF', extensions: ['pdf']);
-  /// What Replace… takes: a score file, or a PDF to set out in its import.
-  static XTypeGroup get _replaceableTypes => XTypeGroup(label: 'Scores'.tr, extensions: const [..._scoreExtensions, 'pdf']);
+  static const _lilyPondTypes = XTypeGroup(label: 'LilyPond', extensions: LilyPond.extensions);
+  /// What Import… takes: a PDF to set out in its import, or a LilyPond score for LilyPond to engrave.
+  static XTypeGroup get _importableTypes => XTypeGroup(label: 'Scores'.tr, extensions: const ['pdf', ...LilyPond.extensions]);
+  /// What Replace… takes: a score file, a PDF to set out in its import, or a LilyPond score.
+  static XTypeGroup get _replaceableTypes =>
+      XTypeGroup(label: 'Scores'.tr, extensions: const [..._scoreExtensions, 'pdf', ...LilyPond.extensions]);
   static XTypeGroup get _projectTypes => XTypeGroup(label: 'Curator project'.tr, extensions: const [ProjectFile.extension]);
 
   @override
@@ -494,11 +511,28 @@ class _AppWindowState extends State<AppWindow> {
     if (file != null && mounted) _openPath(file.path);
   }
 
-  /// Import… (⌘I): a PDF score, set out in its import, to start a new project in a new tab.
+  /// Import… (⌘I): a PDF score, set out in its import, or a LilyPond score, engraved by
+  /// LilyPond, to start a new project in a new tab.
   Future<void> _import() async {
-    final file = await openFile(acceptedTypeGroups: [_pdfTypes]);
+    final file = await openFile(acceptedTypeGroups: [_importableTypes, _pdfTypes, _lilyPondTypes]);
     if (file != null && mounted) _openPath(file.path);
   }
+
+  /// New LilyPond Score…: a score written in the LilyPond editor from a few bars to start from;
+  /// Done makes it a new project in a tab of its own (not saved yet). Without LilyPond, it is
+  /// asked for first ([ensureLilyPond]).
+  Future<void> _newLilyPond() async {
+    if (!await ensureLilyPond(context, downloadHub: _downloadHub) || !mounted) return;
+    final textFont = await LilyPond.textFontFor(settings.textFont); // a new project's
+    if (!mounted) return;
+    final edit = await showLilyPondEditor(context, LilySource.blank('${'Untitled'.tr}.ly', part: 'Melody'.tr),
+        textFont: textFont, downloadHub: _downloadHub);
+    if (edit != null && mounted) _show(_add(_OpenProject.lilypond(edit)));
+  }
+
+  /// Settings ▸ Download Hub, where LilyPond is downloaded: what a LilyPond score asks for
+  /// without it.
+  void _downloadHub() => _settings(page: 'Download Hub');
 
   /// File ▸ Close (⌘W), a tab's ×: offers to save unsaved changes (showing the project they're
   /// in), then the tab goes, the one after it showing (or before it, or Home).
@@ -571,6 +605,7 @@ class _AppWindowState extends State<AppWindow> {
         return AppMenus(
           onOpen: free ? _open : null,
           onImport: free ? _import : null,
+          onNewLilyPond: free ? _newLilyPond : null,
           // Enabled but for the demo: Save explains when there is nothing to save.
           onSave: page == null ? _nothingToSave : page._isSample.value ? null : page._save,
           onSaveAs: page == null ? _nothingToSave : page._isSample.value ? null : page._saveAs,
@@ -651,12 +686,14 @@ class _AppWindowState extends State<AppWindow> {
                     key: project.key,
                     settings: settings,
                     path: project.path,
+                    lilypond: project.lilypond,
                     showing: _showing == project,
                     closing: project.closing,
                     label: project.label,
                     onMenusChanged: () => _menus.value++,
                     onOpen: _openPath,
                     openElsewhere: (path) => _tabs.any((p) => p != project && p.file == path),
+                    onDownloadHub: _downloadHub,
                     onFailed: () => _close(project),
                   ),
                 ),
@@ -721,19 +758,24 @@ class ProjectPage extends StatefulWidget {
     super.key,
     required this.settings,
     required this.path,
+    this.lilypond,
     required this.showing,
     required this.closing,
     required this.label,
     required this.onMenusChanged,
     required this.onOpen,
     required this.openElsewhere,
+    required this.onDownloadHub,
     required this.onFailed,
   });
 
   final AppSettings settings;
 
-  /// The project or score it opens; null: the sample.
+  /// The project or score it opens; null: the sample, or [lilypond].
   final String? path;
+
+  /// A score written in the LilyPond editor, which it opens as a new project.
+  final LilyPondEdit? lilypond;
 
   /// Whether its tab shows (before it stops, [_ProjectPageState._hide] has stopped it playing and
   /// closed its floating windows).
@@ -753,6 +795,9 @@ class ProjectPage extends StatefulWidget {
 
   /// Whether the file at a path is open in another tab.
   final bool Function(String path) openElsewhere;
+
+  /// Opens Settings ▸ Download Hub: a LilyPond score asks for LilyPond there.
+  final VoidCallback onDownloadHub;
 
   /// It didn't open (said why already): its tab goes.
   final VoidCallback onFailed;
@@ -919,7 +964,14 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// doesn't open, it has said why, and the tab goes.
   Future<void> _load() async {
     final path = widget.path;
-    if (path == null) {
+    if (widget.lilypond case (:final source, :final run)) {
+      await _guard(() async {
+        await document.newLilyPond(source.name, utf8.encode(source.text), run.keep(source));
+        if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
+        final left = [...lilyPondErrors(run), ...?controller.score?.warnings];
+        if (left.isNotEmpty && mounted) await showImportWarnings(context, source.name, left);
+      }, title: 'Couldn’t Create LilyPond Score'.tr);
+    } else if (path == null) {
       await _guard(() async {
         final problem = await document.openSample();
         if (problem != null && mounted) _recordingProblem(problem);
@@ -934,6 +986,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       }, title: 'Couldn’t Open Project'.tr);
     } else if (path.toLowerCase().endsWith('.pdf')) {
       await _guard(() => _importPdf(path), title: 'Couldn’t Import PDF'.tr);
+    } else if (LilyPond.isLilyPond(path)) {
+      await _guard(() => _importLilyPond(path), title: 'Couldn’t Import LilyPond Score'.tr);
     } else {
       await _guard(() async {
         await document.importScore(path);
@@ -971,6 +1025,35 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (layout == null || !mounted) return;
     await document.importPdf(path, bytes, pages, layout);
     if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
+  }
+
+  /// [source] engraved by LilyPond (asked for from Settings ▸ Download Hub when it isn't here),
+  /// its text in the project's text font, [fonts]' ([LilyPond.textFontFor]). Where it engraves
+  /// nothing, its errors are said, and Edit… opens the LilyPond editor to put them right: what is
+  /// done there is what it gives. Null when cancelled, or nothing engraved.
+  Future<LilyPondEdit?> _engraveLilyPond(LilySource source, ScoreFonts fonts) async {
+    final textFont = await LilyPond.textFontFor(fonts.text);
+    if (!mounted) return null;
+    final run = await engraveWithLilyPond(context, source, textFont: textFont, downloadHub: widget.onDownloadHub);
+    if (run == null || !mounted) return null;
+    if (run.engraved) return (source: source, run: run);
+    if (!await showLilyPondErrors(context, source.name, run, canEdit: true) || !mounted) return null;
+    return showLilyPondEditor(context, source, run: run, textFont: textFont, downloadHub: widget.onDownloadHub);
+  }
+
+  /// A LilyPond score: engraved by LilyPond (asked for when it isn't here), then a new project of
+  /// it. Cancelled, nothing opens; nor when LilyPond engraved nothing, which says why.
+  Future<void> _importLilyPond(String path) async {
+    final read = await LilySource.readApart(path);
+    final fonts = (await controller.defaultFonts()).fonts; // the new project's
+    if (!mounted) return;
+    final engraved = await _engraveLilyPond(read, fonts);
+    if (engraved == null || !mounted) return;
+    final (:source, :run) = engraved;
+    await document.importLilyPond(path, utf8.encode(source.text), run.keep(source));
+    if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
+    final left = [...lilyPondErrors(run), ...?controller.score?.warnings];
+    if (left.isNotEmpty && mounted) await showImportWarnings(context, source.name, left);
   }
 
   /// The project opened, but not its recording: says why, and offers to pick it.
@@ -1206,7 +1289,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   }
 
   void _projectSettings() =>
-      showProjectSettingsDialog(context, settings, controller, editScore: _editScore, replaceScore: _replaceScore);
+      showProjectSettingsDialog(context, settings, controller,
+          editScore: _editScore, replaceScore: _replaceScore, downloadHub: widget.onDownloadHub);
 
   /// Project Settings ▸ Project Info ▸ Score ▸ Replace…: another score file under this project's
   /// edits and recording, read over the settings window ([leave] unused); or another PDF, set
@@ -1219,6 +1303,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (file.path.toLowerCase().endsWith('.pdf')) {
       leave();
       await _guard(() => _replaceWithPdf(file.path), title: 'Couldn’t Import PDF'.tr);
+    } else if (LilyPond.isLilyPond(file.path)) {
+      await _guard(() => _replaceWithLilyPond(file.path), title: 'Couldn’t Import LilyPond Score'.tr);
     } else {
       await _guard(() async => _putInPlace(await document.prepareReplacement(file.path)));
     }
@@ -1241,6 +1327,17 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     await _putInPlace(replacement);
   }
 
+  /// Replace… with the LilyPond score at [path]: engraved by LilyPond (asked for when it isn't
+  /// here), then put in place of the score. Cancelled, or engraving nothing, nothing changes.
+  Future<void> _replaceWithLilyPond(String path) async {
+    final read = await LilySource.readApart(path);
+    if (!mounted) return;
+    final engraved = await _engraveLilyPond(read, controller.fonts);
+    if (engraved == null || !mounted) return;
+    final (:source, :run) = engraved;
+    await _putInPlace(await document.prepareReplacementWith(source.name, utf8.encode(source.text), lilypond: run.keep(source)));
+  }
+
   /// Puts [replacement] in place of the score once the user agrees to what differs (when
   /// anything does), then says what the new file's import found odd. Declined, nothing changes.
   Future<void> _putInPlace(ScoreReplacement replacement) async {
@@ -1261,6 +1358,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final loaded = controller.score;
     if (loaded == null) return;
     if (loaded.pdf case final pdf?) return _editPdf(pdf.layout);
+    if (controller.lilypond case final lilypond?) return _editLilyPond(lilypond);
     final name = '${stemOf(controller.fileName ?? document.title ?? 'Score')}.musicxml';
     final EditableScore score;
     try {
@@ -1285,6 +1383,23 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final next = await showPdfImport(context, pages, name: name, layout: layout, ai: _pdfAi, chooseAi: _choosePdfAi);
     if (next == null || !mounted) return;
     await _guard(() async => _putInPlace(await document.prepareReplacementWith(name, controller.source!.bytes, pdf: next)),
+        title: 'Couldn’t Edit Score'.tr);
+  }
+
+  /// Project Info ▸ Score ▸ Edit… for a LilyPond score: its source in the LilyPond editor, as
+  /// LilyPond last engraved it; what is engraved there replaces the score, as the score editor's
+  /// does.
+  Future<void> _editLilyPond(LilyPondProject lilypond) async {
+    final name = controller.fileName ?? 'score.ly';
+    final source = LilySource.of(name, utf8.decode(controller.source!.bytes, allowMalformed: true), lilypond);
+    final textFont = await LilyPond.textFontFor(controller.fonts.text);
+    if (!mounted) return;
+    final edit = await showLilyPondEditor(context, source,
+        run: LilyPondRun(svg: lilypond.svg, data: lilypond.data), textFont: textFont, downloadHub: widget.onDownloadHub);
+    if (edit == null || !mounted) return;
+    await _guard(
+        () async =>
+            _putInPlace(await document.prepareReplacementWith(name, utf8.encode(edit.source.text), lilypond: edit.run.keep(edit.source))),
         title: 'Couldn’t Edit Score'.tr);
   }
 
@@ -1651,8 +1766,8 @@ class _DropHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final (icon, title, detail) = switch (area) {
-      _DropArea.home => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML or PDF score'),
-      _DropArea.project => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML or PDF score'),
+      _DropArea.home => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML, PDF or LilyPond score'),
+      _DropArea.project => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML, PDF or LilyPond score'),
       _DropArea.audio => (AppIcon.audio.of(context), 'Drop to add', 'A MIDI tempo map or a recording'),
       _DropArea.image when attachImage => (AppIcon.image.of(context), 'Drop to add an image', 'SVG, PNG, GIF, JPEG…'),
       _DropArea.image => (AppIcon.noImage.of(context), 'Attach Image is off', 'Turn on in Project Settings ▸ Extensions'),
