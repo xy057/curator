@@ -1,4 +1,4 @@
-Verovio (version-6.4.0), https://www.verovio.org
+Verovio (version-6.4.1), https://www.verovio.org
 Copyright (c) Authors and others. All rights reserved.
 
 Verovio is free software under the GNU Lesser General Public License, version 3 or
