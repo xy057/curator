@@ -10,6 +10,7 @@ import 'app_folders.dart';
 import 'downloader.dart';
 import 'error_text.dart';
 import 'l10n/l10n.dart';
+import 'project_state.dart';
 import 'scratch_space.dart';
 
 /// One of LilyPond's official builds: its file in the release, its size and SHA-256 (the
@@ -46,50 +47,113 @@ class LilyProblem {
   int get hashCode => Object.hash(message, file, line, column, error);
 }
 
-/// A LilyPond score's source: its main file (by name) and the files it includes, by their path
-/// from the main file's folder (`/`-separated); [origin], the folder it came from, where what
-/// it includes and isn't kept is looked for.
+/// A LilyPond score's source: its main file's [text], named [name], in [folder] under the
+/// score's root, and the files it includes ([files]), each by its path under that root (`/`
+/// between folders). The root is the main file's folder, or one above it that an include
+/// reaches (`\include "../global.ily"`). [origin]: the folder it was read from, where anything
+/// it includes and isn't kept is looked for too; none for a project's.
 @immutable
 class LilySource {
-  const LilySource({required this.name, required this.text, this.files = const {}, this.origin});
+  const LilySource({required this.name, required this.text, this.folder = '', this.files = const {}, this.origin});
   final String name;
   final String text;
+  final String folder;
   final Map<String, Uint8List> files;
   final String? origin;
 
-  LilySource withText(String text) => LilySource(name: name, text: text, files: files, origin: origin);
+  /// A project's score: its main file, [name] and [text], with what it keeps ([project]).
+  factory LilySource.of(String name, String text, LilyPondProject project) =>
+      LilySource(name: name, text: text, folder: project.folder, files: project.files);
 
-  /// [path]'s score with the files it includes (`\include "…"`, found from its folder, as far
-  /// as they go), and that folder as its origin.
+  LilySource withText(String text) => LilySource(name: name, text: text, folder: folder, files: files, origin: origin);
+
+  /// The main file's path under the root, as LilyPond's links and problems name it: its name
+  /// made safe as a file's (no folders, nothing a system refuses).
+  String get path {
+    final plain = name.replaceAll(RegExp(r'[/\\:\x00-\x1f]'), '_').trim();
+    final file = plain.isEmpty || plain == '.' || plain == '..' ? 'score.ly' : plain;
+    return folder.isEmpty ? file : '$folder/$file';
+  }
+
+  /// How many folders above the main file's an include may reach.
+  static const maxUp = 3;
+
+  /// [path]'s score with the files it includes (`\include "…"`, each found from the folder of
+  /// the file that includes it, as LilyPond does, and as far as they go: not on another drive,
+  /// nor more than [maxUp] folders up), rooted where the highest of them is.
   static LilySource read(String path) {
-    final file = File(path);
-    final folder = file.parent.path;
+    final file = File(path).absolute;
+    final origin = file.parent.path;
     final text = utf8.decode(file.readAsBytesSync(), allowMalformed: true);
-    final files = <String, Uint8List>{};
+    // Each file found, by its path from the main file's folder ("parts/flute.ily", "../global.ily").
+    final found = <String, Uint8List>{};
     var total = 0;
-    void include(String text, String from) {
+    var full = false;
+    void include(String text, List<String> from) {
       for (final m in _includes.allMatches(_withoutComments(text))) {
+        if (full) return;
         final name = m.group(1)!.replaceAll(r'\', '/');
-        if (name.startsWith('/') || name.contains(':') || name.split('/').contains('..')) continue;
-        final relative = from.isEmpty ? name : '$from/$name';
-        if (files.containsKey(relative)) continue;
-        final found = File('$folder${Platform.pathSeparator}${relative.replaceAll('/', Platform.pathSeparator)}');
-        if (!found.existsSync()) continue; // LilyPond's own (english.ly…), or not there
-        final bytes = found.readAsBytesSync();
+        if (name.startsWith('/') || name.contains(':')) continue; // a path of this computer's: LilyPond's own, or elsewhere
+        final segments = _resolved([...from, ...name.split('/')]);
+        final up = segments.takeWhile((s) => s == '..').length;
+        if (up > maxUp || up == segments.length) continue;
+        final relative = segments.join('/');
+        if (found.containsKey(relative)) continue;
+        final included = File([origin, ...segments].join(Platform.pathSeparator));
+        if (!included.existsSync()) continue; // LilyPond's own (english.ly…), or not there
+        final bytes = included.readAsBytesSync();
         total += bytes.length;
-        if (total > maxIncluded || files.length >= 256) return;
-        files[relative] = bytes;
-        final at = relative.lastIndexOf('/');
-        include(utf8.decode(bytes, allowMalformed: true), at < 0 ? '' : relative.substring(0, at));
+        if (total > LilyPondProject.maxIncluded || found.length >= LilyPondProject.maxFiles) {
+          full = true;
+          return;
+        }
+        found[relative] = bytes;
+        include(utf8.decode(bytes, allowMalformed: true), segments.sublist(0, segments.length - 1));
       }
     }
 
-    include(text, '');
-    return LilySource(name: file.uri.pathSegments.last, text: text, files: files, origin: folder);
+    include(text, const []);
+    // The folders between the root and the main file's: as many as the files reach up, while
+    // there are folders above it.
+    final reach = found.keys.map((k) => k.split('/').takeWhile((s) => s == '..').length).fold(0, (a, b) => a > b ? a : b);
+    final above = <String>[];
+    for (var dir = Directory(origin); above.length < reach && dir.parent.path != dir.path; dir = dir.parent) {
+      above.insert(0, dir.uri.pathSegments.lastWhere((s) => s.isNotEmpty));
+    }
+    return LilySource(
+      name: file.uri.pathSegments.last,
+      text: text,
+      folder: above.join('/'),
+      files: {
+        for (final MapEntry(key: relative, value: bytes) in found.entries)
+          ?_rooted(relative, above): bytes,
+      },
+      origin: origin,
+    );
   }
 
-  /// The most the files a score includes may come to.
-  static const maxIncluded = 64 << 20;
+  /// [segments] with `.` and `..` taken out where they can be: those left lead (`../..`).
+  static List<String> _resolved(List<String> segments) {
+    final out = <String>[];
+    for (final s in segments) {
+      if (s.isEmpty || s == '.') continue;
+      if (s == '..' && out.isNotEmpty && out.last != '..') {
+        out.removeLast();
+      } else {
+        out.add(s);
+      }
+    }
+    return out;
+  }
+
+  /// [relative] (from the main file's folder) as a path under the root, [above] the folders
+  /// between them; null when it reaches higher.
+  static String? _rooted(String relative, List<String> above) {
+    final segments = relative.split('/');
+    final up = segments.takeWhile((s) => s == '..').length;
+    if (up > above.length) return null;
+    return [...above.take(above.length - up), ...segments.skip(up)].join('/');
+  }
 
   static final _includes = RegExp(r'\\include\s+"([^"]+)"');
 
@@ -109,6 +173,10 @@ class LilyPondRun {
   final String log;
 
   bool get engraved => svg != null && data != null;
+
+  /// What a project keeps of [source] as this run engraved it ([engraved]).
+  LilyPondProject keep(LilySource source) => LilyPondProject(
+      folder: source.folder, files: source.files, svg: svg!, data: data!, version: LilyPond.version, settings: LilyPond.settingsVersion);
 }
 
 /// LilyPond, which engraves a LilyPond project's score: the official build of [version],
@@ -119,6 +187,10 @@ class LilyPondRun {
 /// safe mode any more), so a score is engraved as the file says, like running a script.
 abstract final class LilyPond {
   static const version = '2.26.0';
+
+  /// The revision of Curator's settings ([settingsAsset]) a project's engraving was made with:
+  /// one older than this build's can be engraved again from its source.
+  static const settingsVersion = 1;
 
   /// This computer's build; null where LilyPond makes none (Linux on Arm). Windows on Arm runs
   /// the x86-64 build.
@@ -135,7 +207,11 @@ abstract final class LilyPond {
       };
 
   /// Where it is installed: `LilyPond/<version>` in the app's data folder.
-  static Directory get folder => Directory([AppFolders.data.path, 'LilyPond', version].join(Platform.pathSeparator));
+  static Directory get folder => debugFolder ?? Directory([AppFolders.data.path, 'LilyPond', version].join(Platform.pathSeparator));
+
+  /// Where a test has it installed, or not, in place of [folder].
+  @visibleForTesting
+  static Directory? debugFolder;
 
   /// Its program, when it is installed.
   static File? get executable {
@@ -143,14 +219,14 @@ abstract final class LilyPond {
     return file.existsSync() ? file : null;
   }
 
-  static bool get installed => executable != null;
+  static bool get installed => debugExecutable != null || executable != null;
 
-  /// A LilyPond to run in place of the installed one (a test's).
+  /// A LilyPond to run in place of the installed one (a test's): installed while it is set.
   @visibleForTesting
   static File? debugExecutable;
 
-  /// The file names LilyPond scores have.
-  static const extensions = ['ly', 'ily', 'lytex'];
+  /// The file names LilyPond scores have (a score, a file one includes).
+  static const extensions = ['ly', 'ily'];
 
   static bool isLilyPond(String path) => extensions.contains(path.split('.').last.toLowerCase());
 
@@ -171,7 +247,9 @@ abstract final class LilyPond {
           ..parent.createSync(recursive: true)
           ..writeAsBytesSync(bytes);
       }
-      final main = File(at(_safeName(source.name)))..writeAsStringSync(source.text);
+      final main = File(at(source.path))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(source.text);
       final settings = File(at('.curator-settings.ly'))
         ..writeAsStringSync(await rootBundle.loadString(settingsAsset));
       final dataFile = File(at('.curator-data.jsonl'));
@@ -217,12 +295,6 @@ abstract final class LilyPond {
     }
   }
 
-  /// A file name that stays in the work folder.
-  static String _safeName(String name) {
-    final plain = name.replaceAll(RegExp(r'[/\\:\x00-\x1f]'), '_').trim();
-    return plain.isEmpty || plain == '.' || plain == '..' ? 'score.ly' : plain;
-  }
-
   /// The page LilyPond drew the score on: `<output>.svg`, or of several pages (a book with a
   /// title page) the first with anything Curator's settings tagged.
   static String? _page(String output) {
@@ -251,7 +323,23 @@ abstract final class LilyPond {
     for (final p in forms) {
       out = out.replaceAll('textedit://$p/', 'textedit://');
     }
-    return out;
+    // A file found through `..` is named so (`score/../global.ily`): named as it is.
+    return out.replaceAllMapped(RegExp(r'textedit://([^":]+)'), (m) => 'textedit://${_normalized(m[1]!)}');
+  }
+
+  /// [path] with its `.` and `..` folders taken out where they can be (a leading `/` kept).
+  static String _normalized(String path) {
+    if (!path.contains('.')) return path;
+    final out = <String>[];
+    for (final s in path.split('/')) {
+      if (s.isEmpty || s == '.') continue;
+      if (s == '..' && out.isNotEmpty && out.last != '..') {
+        out.removeLast();
+      } else {
+        out.add(s);
+      }
+    }
+    return '${path.startsWith('/') ? '/' : ''}${out.join('/')}';
   }
 
   /// [path] as LilyPond writes it in a link: every byte but letters, digits, `-._~` and `/`
@@ -276,7 +364,7 @@ abstract final class LilyPond {
       if (located.firstMatch(line) case final m?) {
         var file = m.group(1)!;
         if (workPath != null && file.startsWith(workPath)) {
-          file = file.substring(workPath.length).replaceAll(r'\', '/').replaceFirst(RegExp(r'^/+'), '');
+          file = _normalized(file.substring(workPath.length).replaceAll(r'\', '/').replaceFirst(RegExp(r'^/+'), ''));
         }
         out.add(LilyProblem(m.group(5)!.trim(),
             file: file, line: int.parse(m.group(2)!), column: int.parse(m.group(3)!), error: m.group(4) != 'warning'));

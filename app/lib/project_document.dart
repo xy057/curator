@@ -10,6 +10,7 @@ import 'editor_controller.dart';
 import 'file_names.dart';
 import 'project_file.dart';
 import 'project_modules.dart';
+import 'project_state.dart';
 import 'score_replacement.dart';
 import 'scratch_space.dart';
 import 'l10n/l10n.dart';
@@ -126,6 +127,13 @@ class ProjectDocument extends ChangeNotifier {
     _imported(path);
   });
 
+  /// A LilyPond score at [path] as a new project: its main file's [bytes], with the files it
+  /// includes and LilyPond's engraving of it ([lilypond]; [EditorController.openLilyPond]).
+  Future<void> importLilyPond(String path, Uint8List bytes, LilyPondProject lilypond) => _oneAtATime(() async {
+    await controller.openLilyPond(fileNameOf(path), bytes, lilypond);
+    _imported(path);
+  });
+
   /// A score opened as a new project: nothing of the one before kept, nothing saved yet.
   void _imported(String path) {
     ScratchSpace.release(_mediaDirectory); // the project before had its recording unpacked there
@@ -144,10 +152,12 @@ class ProjectDocument extends ChangeNotifier {
       _oneAtATime(() => controller.prepareReplacement(path));
 
   /// A score's [bytes] (the score editor's, or the PDF import's [pdf], of [pages] or the open
-  /// PDF) engraved with this project's edits carried over
-  /// ([EditorController.prepareReplacementWith]); nothing changes yet.
-  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes, {PdfScoreLayout? pdf, PdfPages? pages}) =>
-      _oneAtATime(() => controller.prepareReplacementWith(name, bytes, pdf: pdf, pages: pages));
+  /// PDF, or a LilyPond score's main file, as LilyPond engraved it: [lilypond]) engraved with
+  /// this project's edits carried over ([EditorController.prepareReplacementWith]); nothing
+  /// changes yet.
+  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes,
+          {PdfScoreLayout? pdf, PdfPages? pages, LilyPondProject? lilypond}) =>
+      _oneAtATime(() => controller.prepareReplacementWith(name, bytes, pdf: pdf, pages: pages, lilypond: lilypond));
 
   /// Puts [replacement] in place of the score: the project, its path and recording stay,
   /// with unsaved changes.

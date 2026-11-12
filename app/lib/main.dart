@@ -33,6 +33,8 @@ import 'export_dialog.dart';
 import 'file_names.dart';
 import 'home_screen.dart';
 import 'l10n/l10n.dart';
+import 'lilypond.dart';
+import 'lilypond_dialog.dart';
 import 'media_converter.dart';
 import 'phrase_search_window.dart';
 import 'pdf_ai_model_dialog.dart';
@@ -336,8 +338,12 @@ class _AppWindowState extends State<AppWindow> {
       );
   static const _scoreTypes = XTypeGroup(label: 'MusicXML', extensions: _scoreExtensions);
   static const _pdfTypes = XTypeGroup(label: 'PDF', extensions: ['pdf']);
-  /// What Replace… takes: a score file, or a PDF to set out in its import.
-  static XTypeGroup get _replaceableTypes => XTypeGroup(label: 'Scores'.tr, extensions: const [..._scoreExtensions, 'pdf']);
+  static const _lilyPondTypes = XTypeGroup(label: 'LilyPond', extensions: LilyPond.extensions);
+  /// What Import… takes: a PDF to set out in its import, or a LilyPond score for LilyPond to engrave.
+  static XTypeGroup get _importableTypes => XTypeGroup(label: 'Scores'.tr, extensions: const ['pdf', ...LilyPond.extensions]);
+  /// What Replace… takes: a score file, a PDF to set out in its import, or a LilyPond score.
+  static XTypeGroup get _replaceableTypes =>
+      XTypeGroup(label: 'Scores'.tr, extensions: const [..._scoreExtensions, 'pdf', ...LilyPond.extensions]);
   static XTypeGroup get _projectTypes => XTypeGroup(label: 'Curator project'.tr, extensions: const [ProjectFile.extension]);
 
   @override
@@ -493,9 +499,10 @@ class _AppWindowState extends State<AppWindow> {
     if (file != null && mounted) _openPath(file.path);
   }
 
-  /// Import… (⌘I): a PDF score, set out in its import, to start a new project in a new tab.
+  /// Import… (⌘I): a PDF score, set out in its import, or a LilyPond score, engraved by
+  /// LilyPond, to start a new project in a new tab.
   Future<void> _import() async {
-    final file = await openFile(acceptedTypeGroups: [_pdfTypes]);
+    final file = await openFile(acceptedTypeGroups: [_importableTypes, _pdfTypes, _lilyPondTypes]);
     if (file != null && mounted) _openPath(file.path);
   }
 
@@ -933,6 +940,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       }, title: 'Couldn’t Open Project'.tr);
     } else if (path.toLowerCase().endsWith('.pdf')) {
       await _guard(() => _importPdf(path), title: 'Couldn’t Import PDF'.tr);
+    } else if (LilyPond.isLilyPond(path)) {
+      await _guard(() => _importLilyPond(path), title: 'Couldn’t Import LilyPond Score'.tr);
     } else {
       await _guard(() async {
         await document.importScore(path);
@@ -970,6 +979,20 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (layout == null || !mounted) return;
     await document.importPdf(path, bytes, pages, layout);
     if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
+  }
+
+  /// A LilyPond score: engraved by LilyPond (downloaded first, once the user agrees), then a new
+  /// project of it. Cancelled, nothing opens; nor when LilyPond engraved nothing, which says why.
+  Future<void> _importLilyPond(String path) async {
+    final source = await Isolate.run(() => LilySource.read(path));
+    if (!mounted) return;
+    final run = await engraveWithLilyPond(context, source);
+    if (run == null || !mounted) return;
+    if (!run.engraved) return showLilyPondErrors(context, source.name, run);
+    await document.importLilyPond(path, utf8.encode(source.text), run.keep(source));
+    if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
+    final left = [...lilyPondErrors(run), ...?controller.score?.warnings];
+    if (left.isNotEmpty && mounted) await showImportWarnings(context, source.name, left);
   }
 
   /// The project opened, but not its recording: says why, and offers to pick it.
@@ -1218,6 +1241,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (file.path.toLowerCase().endsWith('.pdf')) {
       leave();
       await _guard(() => _replaceWithPdf(file.path), title: 'Couldn’t Import PDF'.tr);
+    } else if (LilyPond.isLilyPond(file.path)) {
+      await _guard(() => _replaceWithLilyPond(file.path), title: 'Couldn’t Import LilyPond Score'.tr);
     } else {
       await _guard(() async => _putInPlace(await document.prepareReplacement(file.path)));
     }
@@ -1238,6 +1263,17 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       if (replacement == null) pages.close(); // else the replacement's, let go with it
     }
     await _putInPlace(replacement);
+  }
+
+  /// Replace… with the LilyPond score at [path]: engraved by LilyPond (downloaded first, once the
+  /// user agrees), then put in place of the score. Cancelled, or engraving nothing, nothing changes.
+  Future<void> _replaceWithLilyPond(String path) async {
+    final source = await Isolate.run(() => LilySource.read(path));
+    if (!mounted) return;
+    final run = await engraveWithLilyPond(context, source);
+    if (run == null || !mounted) return;
+    if (!run.engraved) return showLilyPondErrors(context, source.name, run);
+    await _putInPlace(await document.prepareReplacementWith(source.name, utf8.encode(source.text), lilypond: run.keep(source)));
   }
 
   /// Puts [replacement] in place of the score once the user agrees to what differs (when
@@ -1650,8 +1686,8 @@ class _DropHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final (icon, title, detail) = switch (area) {
-      _DropArea.home => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML or PDF score'),
-      _DropArea.project => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML or PDF score'),
+      _DropArea.home => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML, PDF or LilyPond score'),
+      _DropArea.project => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML, PDF or LilyPond score'),
       _DropArea.audio => (AppIcon.audio.of(context), 'Drop to add', 'A MIDI tempo map or a recording'),
       _DropArea.image when attachImage => (AppIcon.image.of(context), 'Drop to add an image', 'SVG, PNG, GIF, JPEG…'),
       _DropArea.image => (AppIcon.noImage.of(context), 'Attach Image is off', 'Turn on in Project Settings ▸ Extensions'),

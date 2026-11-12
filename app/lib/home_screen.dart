@@ -84,7 +84,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     Tip(
-                      message: 'PDF score ({key})'.fill({'key': shortcut('⌘I')}),
+                      message: 'PDF or LilyPond score ({key})'.fill({'key': shortcut('⌘I')}),
                       child: OutlinedButton.icon(
                         onPressed: onImport,
                         icon: Icon(AppIcon.drop.of(context), size: 18),

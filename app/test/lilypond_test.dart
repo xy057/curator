@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:curated_score/lilypond.dart';
+import 'package:curated_score/project_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -20,10 +21,12 @@ void main() {
   });
 
   test('links name the files by their place in the score, not where it was engraved', () {
-    const svg = '<a xlink:href="textedit:///work/my%20scores/lilypond-3/score.ly:14:4:5">'
+    const svg = '<a xlink:href="textedit:///work/my%20scores/lilypond-3/score/../global.ily:1:4:5">'
+        '<a xlink:href="textedit:///work/my%20scores/lilypond-3/score.ly:14:4:5">'
         '<a xlink:href="textedit:///work/my scores/lilypond-3/parts/a.ily:2:0:1">'
         '<a xlink:href="textedit:///usr/share/lilypond/ly/init.ly:1:0:1">';
     expect(LilyPond.relativeLinks(svg, '/work/my scores/lilypond-3'),
+        '<a xlink:href="textedit://global.ily:1:4:5">'
         '<a xlink:href="textedit://score.ly:14:4:5"><a xlink:href="textedit://parts/a.ily:2:0:1">'
         '<a xlink:href="textedit:///usr/share/lilypond/ly/init.ly:1:0:1">');
   });
@@ -42,6 +45,23 @@ void main() {
     expect(source.origin, dir.path);
     expect(source.files.keys.toSet(), {'parts/flute.ily', 'parts/notes.ily'});
     expect(source.text, contains('{ \\flute }'));
+  });
+
+  test('a score including from the folders above its own is kept from the highest of them, as LilyPond finds them', () {
+    final dir = Directory.systemTemp.createTempSync('lilyroot');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    Directory('${dir.path}/piece/score/parts').createSync(recursive: true);
+    File('${dir.path}/piece/global.ily').writeAsStringSync('g = 1\n');
+    // Each from the folder of the file that includes it: both name piece/global.ily.
+    File('${dir.path}/piece/score/parts/flute.ily').writeAsStringSync('\\include "../../global.ily"\nflute = { c4 }\n');
+    File('${dir.path}/piece/score/full.ly').writeAsStringSync('\\include "../global.ily"\n\\include "parts/flute.ily"\n'
+        '\\include "../../../../../../../../../../etc/hosts"\n{ \\flute }\n');
+    final source = LilySource.read('${dir.path}/piece/score/full.ly');
+    expect((source.folder, source.path), ('score', 'score/full.ly'));
+    expect(source.files.keys.toSet(), {'global.ily', 'score/parts/flute.ily'});
+    // Kept as a project keeps it, and read back.
+    final kept = LilySource.of('full.ly', source.text, LilyPondProject(folder: source.folder, files: source.files, svg: '', data: '', version: ''));
+    expect((kept.path, kept.files.length, kept.origin), ('score/full.ly', 2, null));
   });
 
   test("LilyPond's download is unpacked into place whole, its own folder name taken off", () async {
@@ -83,5 +103,21 @@ void main() {
     expect(ok.engraved, isTrue, reason: ok.log);
     expect(ok.svg, contains('textedit://melody.ily:1:'));
     expect(ok.data, contains('"t":"NoteHead"'));
+  }, skip: lilypond == null);
+
+  testWidgets('a score including from above its own folder is engraved laid out as it was, with nothing else to look in', (tester) async {
+    LilyPond.debugExecutable = File(lilypond!);
+    addTearDown(() => LilyPond.debugExecutable = null);
+    final dir = Directory.systemTemp.createTempSync('lilyabove');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    Directory('${dir.path}/piece/score').createSync(recursive: true);
+    File('${dir.path}/piece/global.ily').writeAsStringSync('melody = \\relative { c\'4 d e f | g1 }\n');
+    File('${dir.path}/piece/score/full.ly')
+        .writeAsStringSync('\\version "2.26.0"\n\\include "../global.ily"\n\\score { \\new Staff \\melody }\n');
+    final read = LilySource.read('${dir.path}/piece/score/full.ly');
+    final kept = LilySource(name: read.name, text: read.text, folder: read.folder, files: read.files); // a project's: no origin
+    final run = await tester.runAsync(() => LilyPond.engrave(kept)).then((r) => r!);
+    expect(run.engraved, isTrue, reason: run.log);
+    expect(run.svg, contains('textedit://global.ily:1:'));
   }, skip: lilypond == null);
 }

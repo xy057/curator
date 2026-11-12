@@ -48,7 +48,7 @@ class AppMenus extends StatelessWidget {
   /// Open…: a project, or a score to start one from.
   final VoidCallback? onOpen;
 
-  /// Import…: a PDF score to start a project from.
+  /// Import…: a PDF or LilyPond score to start a project from.
   final VoidCallback? onImport;
   final VoidCallback? onSave;
   final VoidCallback? onSaveAs;

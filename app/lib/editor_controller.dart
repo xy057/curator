@@ -173,6 +173,41 @@ class EditorController extends ChangeNotifier {
     await _install(name, bytes, score, ProjectState(edits: edits, pdf: layout, kind: ProjectKind.pdf), pages: pages);
   }
 
+  /// Opens (imports) a LilyPond score: its main file, [bytes] named [name], with the files it
+  /// includes and LilyPond's engraving of it ([lilypond]), which is what shows.
+  Future<void> openLilyPond(String name, Uint8List bytes, LilyPondProject lilypond) async {
+    final edits = await _newProjectEdits();
+    final score = await _engrave('', _requestFor(edits), lilypond: await _readLilyPond(lilypond), measure: autoCurateImported);
+    await _install(name, bytes, score, ProjectState(edits: edits, lilypond: lilypond, kind: ProjectKind.lilypond));
+  }
+
+  /// [lilypond]'s engraving read as a score ([LilyPondScore.read]), on another isolate: a long
+  /// score's takes a while. Loading from here, [_engrave] next.
+  Future<LilyPondScore> _readLilyPond(LilyPondProject lilypond) async {
+    _loading = true;
+    _loadStage.value = LoadStage.reading;
+    notifyListeners();
+    final (svg, data) = (lilypond.svg, lilypond.data);
+    try {
+      return await Isolate.run(() => LilyPondScore.read(svg, data));
+    } on Object {
+      _loading = false;
+      if (!_disposed) {
+        _loadStage.value = null;
+        notifyListeners();
+      }
+      rethrow;
+    }
+  }
+
+  /// Whether the open project is a LilyPond score's ([openLilyPond], [ProjectKind.lilypond]):
+  /// drawn as LilyPond engraved it, its source edited in the LilyPond editor.
+  bool get isLilyPond => _score != null && _kind == ProjectKind.lilypond;
+
+  /// The open LilyPond score's files and engraving; null for any other.
+  LilyPondProject? get lilypond => _lilypond;
+  LilyPondProject? _lilypond;
+
   /// Whether [partId] is a PDF score's blank lane ([PdfInstrument.blank]): no staff of the PDF
   /// is its, auto-curation leaves it be.
   bool isBlankLane(String partId) => _score != null && _isBlank(_score!, partId);
@@ -254,6 +289,9 @@ class EditorController extends ChangeNotifier {
         pages.close();
         rethrow;
       }
+    } else if (state.lilypond case final lilypond?) {
+      pages = null;
+      score = await _engrave('', _requestFor(edits), lilypond: await _readLilyPond(lilypond));
     } else {
       pages = null;
       score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
@@ -284,10 +322,12 @@ class EditorController extends ChangeNotifier {
   /// Engraves a score's [bytes] (the score editor's, a file's), named [name], with this
   /// project's edits carried over to it ([ScoreSwap]), and says what differs; or, with [pdf],
   /// [bytes] as a PDF read as that layout: [pages], another PDF set out in its import (Replace…),
-  /// else the open one (its import edited again). Nothing changes until [replaceScore]; a
+  /// else the open one (its import edited again); or, with [lilypond], [bytes] as a LilyPond
+  /// score's main file, as LilyPond engraved it. Nothing changes until [replaceScore]; a
   /// replacement not used is let go by [discardReplacement]. [pages] stay the caller's if this
   /// fails.
-  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes, {PdfScoreLayout? pdf, PdfPages? pages}) async {
+  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes,
+      {PdfScoreLayout? pdf, PdfPages? pages, LilyPondProject? lilypond}) async {
     final before = _score!;
     final source = pdf == null ? null : pages ?? _pdfPages!;
     final art = pdf == null ? null : PdfScoreArt(pdf, PdfPagesSource(source!));
@@ -297,9 +337,9 @@ class EditorController extends ChangeNotifier {
     _loading = true;
     _loadStage.value = LoadStage.reading;
     notifyListeners();
-    final ({String xml, ScoreMetadata metadata, List<ScoreText> texts}) read;
+    final ({String xml, ScoreMetadata metadata, List<ScoreText> texts, LilyPondScore? drawn}) read;
     try {
-      read = await _readApart(pdf, bytes);
+      read = await _readApart(pdf, bytes, lilypond == null ? null : (lilypond.svg, lilypond.data));
     } on Object {
       art?.dispose();
       _loading = false;
@@ -309,13 +349,14 @@ class EditorController extends ChangeNotifier {
       }
       rethrow;
     }
-    final (:xml, :metadata, :texts) = read;
+    final (:xml, :metadata, :texts, :drawn) = read;
     final swap = ScoreSwap(before: before.metadata, after: metadata, textsBefore: before.texts, textsAfter: texts);
     final LoadedScore score;
     try {
       score = await _engrave(
           xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_doc.textEdits), pairs: swap.pairs(_doc.pairs))),
-          pdf: art);
+          pdf: art,
+          lilypond: drawn);
     } on Object {
       art?.dispose();
       rethrow;
@@ -324,7 +365,10 @@ class EditorController extends ChangeNotifier {
       art?.dispose();
       throw StateError('Another score was opened meanwhile.');
     }
-    final state = projectState.copyWith(pdf: () => pdf, kind: pdf == null ? ProjectKind.score : ProjectKind.pdf);
+    final state = projectState.copyWith(
+        pdf: () => pdf,
+        lilypond: () => lilypond,
+        kind: pdf != null ? ProjectKind.pdf : lilypond != null ? ProjectKind.lilypond : ProjectKind.score);
     final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
     final (state: carried, :lost) =
         swap.carry(state,
@@ -345,12 +389,15 @@ class EditorController extends ChangeNotifier {
   }
 
   /// A replacement score read on another isolate (a closure of its own, so it takes nothing
-  /// else along): [pdf]'s score, or [bytes]'.
-  static Future<({String xml, ScoreMetadata metadata, List<ScoreText> texts})> _readApart(PdfScoreLayout? pdf, Uint8List bytes) =>
+  /// else along): the score LilyPond drew ([lilypond]: its SVG and data) as [LilyPondScore], or
+  /// [pdf]'s score, or [bytes]'.
+  static Future<({String xml, ScoreMetadata metadata, List<ScoreText> texts, LilyPondScore? drawn})> _readApart(
+          PdfScoreLayout? pdf, Uint8List bytes, (String, String)? lilypond) =>
       Isolate.run(() {
-        final xml = pdf?.musicXML() ?? ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
+        final drawn = lilypond == null ? null : LilyPondScore.read(lilypond.$1, lilypond.$2);
+        final xml = drawn?.musicXML ?? pdf?.musicXML() ?? ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
         final metadata = ScoreMetadata.fromDocument(doc);
-        return (xml: xml, metadata: metadata, texts: PreparedScore.prepare(doc, const {}, metadata: metadata).texts);
+        return (xml: xml, metadata: metadata, texts: PreparedScore.prepare(doc, const {}, metadata: metadata).texts, drawn: drawn);
       });
 
   /// Puts [replacement] in place of the score, keeping the recording; Undo starts again from
@@ -378,11 +425,12 @@ class EditorController extends ChangeNotifier {
   /// Engraves a score (the slow part, and the one that can fail) without touching what is open.
   /// [measure]: what each bar plays worked out too ([LoadedScore.salience]), for a new score's
   /// auto-curation.
-  Future<LoadedScore> _engrave(String musicXML, EngraveRequest request, {PdfScoreArt? pdf, bool measure = false}) async {
+  Future<LoadedScore> _engrave(String musicXML, EngraveRequest request,
+      {PdfScoreArt? pdf, LilyPondScore? lilypond, bool measure = false}) async {
     _loading = true;
     notifyListeners();
     try {
-      return await LoadedScore.engrave(musicXML, request, pdf: pdf, measure: measure, onStage: (s) {
+      return await LoadedScore.engrave(musicXML, request, pdf: pdf, lilypond: lilypond, measure: measure, onStage: (s) {
         if (!_disposed) _loadStage.value = s;
       });
     } finally {
@@ -422,6 +470,7 @@ class EditorController extends ChangeNotifier {
     _foreign = state.foreign;
     _score = score;
     _kind = state.kind;
+    _lilypond = state.lilypond;
     _source = (name: name, bytes: bytes);
     _fileName = name;
     _staffSpace = (view.staffSpace ?? _staffSpace).clamp(minStaffSpace, maxStaffSpace);
@@ -526,6 +575,7 @@ class EditorController extends ChangeNotifier {
     _sync = null;
     _score = null;
     _kind = ProjectKind.score;
+    _lilypond = null;
     _source = null;
     _fileName = null;
     _doc = const EditState();
@@ -1341,8 +1391,8 @@ class EditorController extends ChangeNotifier {
   /// ask for every instrument at every paint, through [condensedGroupOf] and [laneParts].
   List<PlayerPair> get condensable {
     final score = _score;
-    // A PDF's staves are printed ones: none to share.
-    if (score == null || score.pdf != null) return const [];
+    // A PDF's staves are printed ones, a LilyPond score's engraved by LilyPond: none to share.
+    if (score == null || score.pdf != null || score.lilypond != null) return const [];
     if (_condensable case (final s, final p, final pairs) when identical(s, score) && identical(p, _doc.pairs)) return pairs;
     final pairs = List<PlayerPair>.unmodifiable(score.condensing.pairs(_doc.pairs));
     _condensable = (score, _doc.pairs, pairs);
@@ -2271,6 +2321,7 @@ class EditorController extends ChangeNotifier {
         ),
         foreign: _foreign,
         pdf: _score?.pdf?.layout,
+        lilypond: _lilypond,
         kind: _kind,
       );
 

@@ -492,9 +492,49 @@ class NameGroup {
 /// removed) or the user's ([NameGroup]).
 typedef NameGroupInfo = ({String id, String name, Color color, InstrumentFamily? family});
 
-/// What a project was made from, kept in its manifest (`kind`): a MusicXML score's, or a PDF's
-/// ([ProjectState.pdf]: no notes, so Find Phrase and auto-curation are off for it).
-enum ProjectKind { score, pdf }
+/// What a project was made from, kept in its manifest (`kind`): a MusicXML score's, a PDF's
+/// ([ProjectState.pdf]: no notes, so Find Phrase and auto-curation are off for it), or a
+/// LilyPond score's ([ProjectState.lilypond]: drawn as LilyPond engraved it).
+enum ProjectKind { score, pdf, lilypond }
+
+/// A LilyPond score's own ([ProjectKind.lilypond]; its main file is the project's score): the
+/// files it includes, and LilyPond's engraving of it ([svg], with the [data] Curator's settings
+/// write beside it), so the project opens without LilyPond.
+///
+/// The files are kept by their path under the score's root: its main file's folder, or one
+/// above it that an include reaches ([folder]: where the main file is under it).
+@immutable
+class LilyPondProject {
+  const LilyPondProject(
+      {this.folder = '', this.files = const {}, required this.svg, required this.data, required this.version, this.settings = 1});
+
+  /// Where the main file is under the root, `/` between folders; empty: the root itself.
+  final String folder;
+
+  /// The files the score includes, by their path under the root (`parts/flute.ily`).
+  final Map<String, Uint8List> files;
+
+  /// LilyPond's drawing of the score, and what it is ([LilyPondScore.read]).
+  final String svg, data;
+
+  /// The version of LilyPond that engraved it, and of Curator's settings it was engraved with.
+  final String version;
+  final int settings;
+
+  /// The most the files a score includes may come to, together; and how many there may be.
+  static const maxIncluded = 64 << 20, maxFiles = 256;
+
+  /// The most its drawing, or the data beside it, may come to.
+  static const maxEngraving = 256 << 20;
+
+  /// Whether [path] can be a file's (or a folder's) under the root: folders and a name, `/`
+  /// between them, none of them `.` or `..`, nothing that leaves the root or names a drive.
+  static bool isPath(String path) =>
+      path.isNotEmpty &&
+      path.length <= 1024 &&
+      !path.contains(RegExp(r'[\\:\x00-\x1f]')) &&
+      path.split('/').every((s) => s.isNotEmpty && s != '.' && s != '..');
+}
 
 /// Everything a project stores besides the score and the recording: the edits, the image files
 /// they show, and the view. Saved as modules ([ProjectModules]: `modules/<id>.json` in the
@@ -507,8 +547,9 @@ class ProjectState {
       this.view = const ViewState(),
       this.foreign = const {},
       this.pdf,
+      this.lilypond,
       ProjectKind? kind})
-      : kind = kind ?? (pdf == null ? ProjectKind.score : ProjectKind.pdf);
+      : kind = kind ?? (pdf != null ? ProjectKind.pdf : lilypond != null ? ProjectKind.lilypond : ProjectKind.score);
 
   final EditState edits;
 
@@ -518,6 +559,10 @@ class ProjectState {
   /// A PDF score's layout: what its pages hold, where ([PdfScoreLayout]). The source score is
   /// then that PDF; null for MusicXML.
   final PdfScoreLayout? pdf;
+
+  /// A LilyPond score's files and engraving ([LilyPondProject]). The source score is then its
+  /// main file; null for any other.
+  final LilyPondProject? lilypond;
 
   /// The image files [EditState.patches] show, by [PatchImage.id]. Not in the JSON: the
   /// project file keeps each as `images/<id>`.
@@ -535,6 +580,7 @@ class ProjectState {
           ViewState? view,
           Map<String, ForeignModule>? foreign,
           PdfScoreLayout? Function()? pdf,
+          LilyPondProject? Function()? lilypond,
           ProjectKind? kind}) =>
       ProjectState(
           edits: edits ?? this.edits,
@@ -542,6 +588,7 @@ class ProjectState {
           view: view ?? this.view,
           foreign: foreign ?? this.foreign,
           pdf: pdf == null ? this.pdf : pdf(),
+          lilypond: lilypond == null ? this.lilypond : lilypond(),
           kind: kind ?? this.kind);
 }
 

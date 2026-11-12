@@ -77,7 +77,7 @@ msgstr ""
 msgid "A MIDI tempo map or a recording"
 msgstr ""
 
-msgid "A project, or a MusicXML or PDF score"
+msgid "A project, or a MusicXML, PDF or LilyPond score"
 msgstr ""
 
 msgid "A tempo map starts at quarter 0."
@@ -524,7 +524,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -1557,7 +1557,7 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr ""
 
@@ -3467,7 +3467,6 @@ msgstr ""
 msgid "Project or MusicXML ({key})"
 msgstr ""
 
-#: lib/home_screen.dart
 msgid "PDF score ({key})"
 msgstr ""
 
@@ -3891,7 +3890,7 @@ msgstr ""
 msgid "GitLab answered {status}."
 msgstr ""
 
-#: lib/lilypond.dart lib/settings_dialog.dart
+#: lib/lilypond.dart lib/lilypond_dialog.dart lib/settings_dialog.dart
 msgid "Not available for this computer."
 msgstr ""
 
@@ -3899,11 +3898,11 @@ msgstr ""
 msgid "Couldn’t download LilyPond."
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/lilypond_dialog.dart lib/settings_dialog.dart
 msgid "Downloading… {received} of {total} MB"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/lilypond_dialog.dart lib/settings_dialog.dart
 msgid "Installing…"
 msgstr ""
 
@@ -3920,4 +3919,32 @@ msgid "Download"
 msgstr ""
 
 msgid "Download Hub"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "PDF or LilyPond score ({key})"
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "Engraving “{name}”"
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "Download LilyPond?"
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "“{name}” is engraved with LilyPond ({size} MB)."
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "LilyPond couldn’t engrave “{name}”"
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "Nothing to engrave."
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Import LilyPond Score"
 msgstr ""
