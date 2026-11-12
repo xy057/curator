@@ -3715,8 +3715,11 @@ msgstr "一致するすべて"
 msgid "{n} of {all}"
 msgstr "{n} / {all}"
 
-msgid "AI"
-msgstr "AI"
+msgid "Local AI"
+msgstr "ローカル AI"
+
+msgid "Remote AI Provider"
+msgstr "リモート AI プロバイダー"
 
 msgid "Providers"
 msgstr "プロバイダー"
@@ -3832,8 +3835,8 @@ msgid "Use anyway"
 msgstr "それでも使用"
 
 #: lib/pdf_ai_model_dialog.dart
-msgid "Turn on a provider in Settings ▸ AI to choose a model."
-msgstr "設定 ▸ AI でプロバイダをオンにすると、モデルを選べます。"
+msgid "Turn on a provider in Settings ▸ Remote AI Provider to choose a model."
+msgstr "設定 ▸ リモート AI プロバイダー でプロバイダーをオンにすると、モデルを選べます。"
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Use"

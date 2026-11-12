@@ -226,7 +226,7 @@ class _PdfAiModelDialogState extends State<_PdfAiModelDialog> {
             ),
             if (models.isEmpty) ...[
               const SizedBox(height: 8),
-              Text('Turn on a provider in Settings ▸ AI to choose a model.'.tr, style: TextStyle(fontSize: 13, color: context.colors.textMuted)),
+              Text('Turn on a provider in Settings ▸ Remote AI Provider to choose a model.'.tr, style: TextStyle(fontSize: 13, color: context.colors.textMuted)),
             ],
             if (_choice.isNotEmpty) ...[
               SizedBox(height: dialogGap(context)),

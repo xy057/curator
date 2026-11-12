@@ -1,4 +1,4 @@
-// Settings ▸ AI: a provider's fields keep what is typed in them (the key kept without the spaces
+// Settings ▸ Remote AI Provider: a provider's fields keep what is typed in them (the key kept without the spaces
 // round it), and what Test found is shown only while the key and the address are those it tried.
 
 import 'dart:io';
@@ -39,7 +39,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       theme: AppColors.theme(),
       home: Scaffold(
-        body: Builder(builder: (context) => TextButton(onPressed: () => showSettingsDialog(context, settings, page: 'AI'), child: const Text('Open'))),
+        body: Builder(
+            builder: (context) => TextButton(
+                onPressed: () => showSettingsDialog(context, settings, page: 'Remote AI Provider'), child: const Text('Open'))),
       ),
     ));
     Future<void> settle() async {
@@ -50,6 +52,8 @@ void main() {
 
     await tester.tap(find.text('Open'));
     await settle();
+    expect(find.text('Remote AI Provider'), findsNWidgets(2)); // its sidebar row and its title
+    expect(find.text('Local AI'), findsOneWidget); // the sidebar's: a page of its own
     // The key, the base URL and the path, in that order.
     Finder field(int n) => find.descendant(of: find.byType(AppTextField).at(n), matching: find.byType(EditableText));
     String typed(int n) => tester.widget<EditableText>(field(n)).controller.text;
@@ -73,6 +77,13 @@ void main() {
     await settle();
     expect([local().baseUrl, typed(1)], ['http://127.0.0.1:${server.port}/v1', 'http://127.0.0.1:${server.port}/v1 ']);
 
+
+    // Local AI: a page with nothing on it yet.
+    await tester.tap(find.text('Local AI'));
+    await settle();
+    expect(find.text('Local AI'), findsNWidgets(2));
+    expect(find.text('Add Provider…'), findsNothing);
+    expect(find.byType(AppTextField), findsNothing);
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await settle();
   });

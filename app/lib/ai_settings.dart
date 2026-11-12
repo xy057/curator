@@ -11,8 +11,9 @@ import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
 
-/// Settings ▸ AI: the providers at the left, searched by name, each on or off, Add Provider…
-/// under them; the chosen one's credentials and models at the right ([_ProviderPane]).
+/// Settings ▸ Remote AI Provider: the providers at the left, searched by name, each on or off,
+/// Add Provider… under them; the chosen one's credentials and models at the right
+/// ([_ProviderPane]).
 class AiSettingsPage extends StatefulWidget {
   const AiSettingsPage({super.key, required this.settings, required this.groupColor});
   final AppSettings settings;
@@ -119,8 +120,8 @@ class _AiSettingsPageState extends State<AiSettingsPage> {
   }
 }
 
-/// Over Settings ▸ AI while AI is hidden ([AppSettings.aiHidden]): that it is, and the switch
-/// (Settings ▸ General's own) to show it again from the next launch.
+/// Over Settings ▸ Remote AI Provider while AI is hidden ([AppSettings.aiHidden]): that it is,
+/// and the switch (Settings ▸ General's own) to show it again from the next launch.
 class _HiddenCover extends StatelessWidget {
   const _HiddenCover({required this.settings, required this.groupColor});
   final AppSettings settings;

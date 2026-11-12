@@ -19,7 +19,7 @@ import 'test_fonts.dart';
 import 'window.dart';
 
 void main() {
-  testWidgets('AI hidden from the next launch: General without it, Settings ▸ AI under a cover, no Read with AI', (tester) async {
+  testWidgets('AI hidden from the next launch: General without it, Settings ▸ Remote AI Provider under a cover, no Read with AI', (tester) async {
     await tester.runAsync(loadTestFonts);
     desktopWindow(tester);
     SharedPreferences.setMockInitialValues({});
@@ -47,7 +47,7 @@ void main() {
       home: Scaffold(
         body: Builder(
           builder: (context) => Column(children: [
-            for (final page in ['General', 'AI'])
+            for (final page in ['General', 'Remote AI Provider'])
               TextButton(onPressed: () => showSettingsDialog(context, settings, page: page), child: Text('Open $page')),
             // As main.dart opens it: with no model and no way to choose one while AI is hidden.
             for (final hidden in [true, false])
@@ -89,8 +89,8 @@ void main() {
     expect(find.text('Restart to apply.'), findsNothing);
     await close();
 
-    // Settings ▸ AI: the page drawn under the cover, nothing on it reached; the cover's switch.
-    await tester.tap(find.text('Open AI'));
+    // Settings ▸ Remote AI Provider: the page drawn under the cover, nothing on it reached; the cover's switch.
+    await tester.tap(find.text('Open Remote AI Provider'));
     await settle();
     final cover = find.byKey(const ValueKey('aiHidden'));
     expect(find.descendant(of: cover, matching: find.text('AI features are hidden')), findsOneWidget);
@@ -120,7 +120,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       theme: AppColors.theme(),
       home: Scaffold(
-        body: Builder(builder: (context) => TextButton(onPressed: () => showSettingsDialog(context, shown, page: 'AI'), child: const Text('Open'))),
+        body: Builder(
+            builder: (context) => TextButton(
+                onPressed: () => showSettingsDialog(context, shown, page: 'Remote AI Provider'), child: const Text('Open'))),
       ),
     ));
     await tester.tap(find.text('Open'));

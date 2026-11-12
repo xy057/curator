@@ -279,7 +279,7 @@ enum AppIcon {
   /// Chapters. Refined: bookmark; Carbon: bookmark.
   chapters(IconData(0xE05A, fontFamily: _refined), IconData(0xE05A, fontFamily: _carbon)),
 
-  /// AI providers. Refined: auto_awesome; Carbon: ai-generate.
+  /// Remote AI providers. Refined: auto_awesome; Carbon: ai-generate.
   ai(IconData(0xE05B, fontFamily: _refined), IconData(0xE05B, fontFamily: _carbon)),
 
   /// Shows what a field hides (a key). Refined: visibility; Carbon: view.
@@ -295,7 +295,10 @@ enum AppIcon {
   fetch(IconData(0xE05F, fontFamily: _refined), IconData(0xE05F, fontFamily: _carbon)),
 
   /// Chooses several items of a list. Refined: check_box; Carbon: checkbox--checked.
-  selectMany(IconData(0xE060, fontFamily: _refined), IconData(0xE060, fontFamily: _carbon));
+  selectMany(IconData(0xE060, fontFamily: _refined), IconData(0xE060, fontFamily: _carbon)),
+
+  /// AI run on this computer. Refined: computer; Carbon: laptop.
+  localAi(IconData(0xE061, fontFamily: _refined), IconData(0xE061, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

@@ -3696,7 +3696,10 @@ msgstr ""
 msgid "{n} of {all}"
 msgstr ""
 
-msgid "AI"
+msgid "Local AI"
+msgstr ""
+
+msgid "Remote AI Provider"
 msgstr ""
 
 msgid "Providers"
@@ -3813,7 +3816,7 @@ msgid "Use anyway"
 msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
-msgid "Turn on a provider in Settings ▸ AI to choose a model."
+msgid "Turn on a provider in Settings ▸ Remote AI Provider to choose a model."
 msgstr ""
 
 #: lib/pdf_ai_model_dialog.dart
