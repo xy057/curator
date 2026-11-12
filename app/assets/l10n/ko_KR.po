@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-12 05:00\n"
+"PO-Revision-Date: 2026-11-12 11:44\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -86,7 +86,7 @@ msgstr ""
 msgid "A MIDI tempo map or a recording"
 msgstr ""
 
-msgid "A project, or a MusicXML or PDF score"
+msgid "A project, or a MusicXML, PDF or LilyPond score"
 msgstr ""
 
 msgid "A tempo map starts at quarter 0."
@@ -290,6 +290,7 @@ msgstr ""
 msgid "Add…"
 msgstr ""
 
+#: lib/ai_settings.dart
 msgid "Advanced"
 msgstr ""
 
@@ -532,7 +533,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -621,7 +622,7 @@ msgstr ""
 msgid "Clefs"
 msgstr ""
 
-#: lib/app_menus.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/export_dialog.dart lib/lilypond_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr ""
 
@@ -860,7 +861,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -947,7 +948,7 @@ msgstr ""
 msgid "Edit Spacer…"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/lilypond_dialog.dart lib/settings_dialog.dart
 msgid "Edit…"
 msgstr ""
 
@@ -978,6 +979,7 @@ msgstr ""
 msgid "Engraving"
 msgstr ""
 
+#: lib/lilypond_editor.dart
 msgid "Engraving…"
 msgstr ""
 
@@ -1449,7 +1451,7 @@ msgstr ""
 msgid "Natural (0)"
 msgstr ""
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "Next ({key})"
 msgstr ""
 
@@ -1468,7 +1470,7 @@ msgstr ""
 msgid "No images"
 msgstr ""
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "No matches"
 msgstr ""
 
@@ -1565,7 +1567,7 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr ""
 
@@ -1691,7 +1693,7 @@ msgstr ""
 msgid "PNG Sequence"
 msgstr ""
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "Previous ({key})"
 msgstr ""
 
@@ -1742,7 +1744,7 @@ msgstr ""
 msgid "Redo"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr ""
 
@@ -1843,7 +1845,7 @@ msgstr ""
 msgid "Repeat dots"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/edit_dialogs.dart
+#: lib/captions_dialog.dart lib/edit_dialogs.dart lib/lilypond_editor.dart
 msgid "Replace"
 msgstr ""
 
@@ -2536,7 +2538,7 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr ""
 
@@ -2571,7 +2573,7 @@ msgstr ""
 msgid "Until"
 msgstr ""
 
-#: lib/project_document.dart
+#: lib/main.dart lib/project_document.dart
 msgid "Untitled"
 msgstr ""
 
@@ -2888,11 +2890,11 @@ msgstr ""
 msgid "Couldn’t Edit Score"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr ""
 
@@ -2900,7 +2902,7 @@ msgstr ""
 msgid "Dotted {value}"
 msgstr ""
 
-#: lib/score_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Edit Score"
 msgstr ""
 
@@ -2915,7 +2917,7 @@ msgstr ""
 msgid "Holds"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr ""
 
@@ -2963,7 +2965,7 @@ msgstr ""
 msgid "Tenuto (⇧])"
 msgstr ""
 
-#: lib/score_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "The score stays as it was."
 msgstr ""
 
@@ -3411,7 +3413,7 @@ msgstr ""
 msgid "{error}."
 msgstr ""
 
-#: lib/updater.dart
+#: lib/lilypond.dart lib/updater.dart
 msgid "Couldn’t write the download."
 msgstr ""
 
@@ -3467,7 +3469,6 @@ msgstr ""
 msgid "Project or MusicXML ({key})"
 msgstr ""
 
-#: lib/home_screen.dart
 msgid "PDF score ({key})"
 msgstr ""
 
@@ -3692,11 +3693,8 @@ msgstr ""
 msgid "All matching"
 msgstr ""
 
-#: lib/ai_settings.dart
+#: lib/ai_settings.dart lib/lilypond_editor.dart
 msgid "{n} of {all}"
-msgstr ""
-
-msgid "Local AI"
 msgstr ""
 
 msgid "Remote AI Provider"
@@ -3877,5 +3875,235 @@ msgstr ""
 
 #: lib/main.dart
 msgid "Scores"
+msgstr ""
+
+#: lib/lilypond.dart
+msgid "Can’t reach GitLab. Is the internet connected?"
+msgstr ""
+
+#: lib/lilypond.dart
+msgid "The download was damaged. Try again."
+msgstr ""
+
+#: lib/lilypond.dart
+msgid "GitLab answered {status}."
+msgstr ""
+
+#: lib/lilypond.dart lib/lilypond_dialog.dart lib/settings_dialog.dart
+msgid "Not available for this computer."
+msgstr ""
+
+#: lib/lilypond.dart
+msgid "Couldn’t download LilyPond."
+msgstr ""
+
+#: lib/lilypond_dialog.dart lib/settings_dialog.dart
+msgid "Downloading… {received} of {total} MB"
+msgstr ""
+
+#: lib/lilypond_dialog.dart lib/settings_dialog.dart
+msgid "Installing…"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Engraves LilyPond scores."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Engraves LilyPond scores. {size} MB."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Download"
+msgstr ""
+
+msgid "Download Hub"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "PDF or LilyPond score ({key})"
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "Engraving “{name}”"
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "Download LilyPond?"
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "“{name}” is engraved with LilyPond ({size} MB)."
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "LilyPond couldn’t engrave “{name}”"
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "Nothing to engrave."
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Import LilyPond Score"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Find ({key})"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Engrave ({key})"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Engrave"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Engrave to see the score."
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Nothing to show yet."
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Find"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Replace All"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "context"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "clef"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "repeat"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "barline"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "language"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "property"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "grob"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "variable"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "command"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "New LilyPond Score…"
+msgstr ""
+
+#: lib/main.dart
+msgid "Melody"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Create LilyPond Score"
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "LilyPond scores are engraved with LilyPond ({size} MB)."
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "Open Download Hub"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgctxt "ability"
+msgid "Vision"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgctxt "ability"
+msgid "Reasoning"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Context size: {tokens} tokens"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Edit model"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "{provider} doesn’t list this model."
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "{provider} gives no details of this model."
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Fetched from {provider}."
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Edit Model"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Abilities"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Context size"
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: not “Name: value”."
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: characters a header can’t hold."
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "The custom body isn’t a JSON object."
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Custom headers"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Name: value"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Custom body"
 msgstr ""
 
