@@ -400,17 +400,19 @@ class AiClient {
   }
 
   final _open = <HttpClient>{};
+  var _closed = false;
 
-  /// Ends every request under way: each throws an [AiError].
+  /// Ends every request under way, and any asked after: each throws.
   void close() {
+    _closed = true;
     for (final c in [..._open]) {
       c.close(force: true);
     }
-    _open.clear();
   }
 
   /// The JSON a request answers with; an [AiError] with the server's message when it refuses.
   Future<Object?> _send(String method, Uri uri, [Object? body]) async {
+    if (_closed) throw StateError('closed');
     final headers = _headers; // before anything is opened: a key that can't be sent
     final client = HttpClient()
       ..connectionTimeout = timeout < _connecting ? timeout : _connecting
@@ -418,6 +420,12 @@ class AiClient {
     _open.add(client);
     try {
       final request = await client.openUrl(method, uri).timeout(timeout);
+      if (_closed) {
+        // Closed while its connection was being made, which closing the HttpClient doesn't end:
+        // ended now it is made, before anything is sent.
+        request.abort();
+        throw StateError('closed');
+      }
       request.followRedirects = false; // the key stays with this server
       headers.forEach(request.headers.set);
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');

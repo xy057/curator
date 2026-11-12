@@ -1175,7 +1175,8 @@ each staff's instrument (by id, from the list it is given), name, printed name, 
 its middle is and its region (its own top and bottom: two staves' may meet, lie apart or overlap);
 each system's staves, barlines, time signatures and tempo marks. The page the instruments are named from goes first,
 alone (its answer names them for the other questions), then the rest three at a time; Stop ends the
-requests under way (`AiClient.close`). A model's places are rough and sometimes made up, so they
+requests under way, one whose connection is still being made too, and asks nothing more
+(`AiClient.close`). A model's places are rough and sometimes made up, so they
 are checked (`PdfAi.refine`, on the worker with the page's ink): where it says the staves are,
 against where they are, gives a line that sets its other places right (`PdfAi.fit`), and unless most
 staves lie on it within ¾ of a space none of its places is taken. Taken, each region's edge goes on
@@ -1215,7 +1216,8 @@ and last between the ink around it, all through `PdfAi.fit` and none counted whe
 would take none), barlines (paired in order within two spaces, all moved as far as most are off;
 F1, a plain one only), instrument names (whose, and the names printed), clefs and keys (a change
 made up is wrong), and tempo and time (nothing where nothing is printed). An answer that isn't
-JSON is wrong throughout; an error asking stops the exam and is shown whole. The result, by whole
+JSON is wrong throughout; an error asking ends the other page's request (or it asks nothing) and is
+shown whole once that has ended: nothing the exam asked outlasts it. The result, by whole
 percent (`PdfAiVerdict`): over 95 used; over 85 used with a warning; over 75 once Use anyway is
 ticked; over 65 once a warning is confirmed; over 50 both, Use in red; no more, not used. Results
 are kept by model (`AppSettings.pdfAiExam`, with `PdfAiExam.version`: a new key or prompt bumps
