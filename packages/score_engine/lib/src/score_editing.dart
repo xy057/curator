@@ -1250,6 +1250,9 @@ class EditableScore {
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
 
+  /// The step Undo would take back next (null: none): another after a change, if it made one.
+  Object? get undoStep => _undo.lastOrNull;
+
   /// Runs [change] as one Undo step (nested calls join the outer one). Nothing changed, no step.
   T edit<T>(T Function() change) {
     if (_editing) return change();
@@ -1366,6 +1369,37 @@ class EditableScore {
       .toXmlString()
       .replaceAll(RegExp(r' id="cxe\d+"'), '')
       .replaceAll(' cxe-orig="', ' id="');
+
+  /// The score as MusicXML to be read and edited as text: each element on a line of its own,
+  /// indented two spaces a level, an element's text as it was written (and one's whole under
+  /// `xml:space="preserve"`), without the editor's ids (as [toMusicXML]); and the line (from 0)
+  /// each of [ids] (the editor's: a note, a direction…) is on.
+  ({String text, Map<String, int> lines}) toMusicXMLText([Iterable<String> ids = const []]) {
+    final wanted = ids.toSet();
+    final lines = _document
+        .toXmlString(
+          pretty: true,
+          indent: '  ',
+          preserveWhitespace: (node) =>
+              node is XmlElement && (node.getAttribute('xml:space') == 'preserve' || node.children.every((c) => c is XmlText)),
+        )
+        .split('\n');
+    final found = <String, int>{};
+    for (var i = 0; i < lines.length; i++) {
+      if (!lines[i].contains(' id="cxe') && !lines[i].contains(' cxe-orig="')) continue;
+      lines[i] = lines[i].replaceAllMapped(_editorId, (m) {
+        if (wanted.contains(m[1])) found.putIfAbsent(m[1]!, () => i);
+        return '';
+      }).replaceAll(' cxe-orig="', ' id="');
+    }
+    return (text: lines.join('\n'), lines: found);
+  }
+
+  static final _editorId = RegExp(r' id="(cxe\d+)"');
+
+  /// Forgets what Redo would do: the score went on another way (its MusicXML edited as text, and
+  /// read as a score of its own).
+  void forgetRedo() => _redo.clear();
 
   late final String _header = () {
     final root = _document.rootElement;

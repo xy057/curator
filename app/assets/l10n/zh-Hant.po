@@ -3011,7 +3011,7 @@ msgstr "縮寫"
 msgid "Add Instrument"
 msgstr "新增樂器"
 
-#: lib/pdf_import.dart
+#: lib/pdf_import.dart lib/score_editor.dart
 msgid "Bar {n}"
 msgstr "第 {n} 小節"
 
@@ -3967,7 +3967,7 @@ msgstr "沒有可刻譜的內容。"
 msgid "Couldn’t Import LilyPond Score"
 msgstr "無法匯入 LilyPond 樂譜"
 
-#: lib/lilypond_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Find ({key})"
 msgstr "尋找（{key}）"
 
@@ -4125,3 +4125,32 @@ msgstr "名稱: 值"
 #: lib/ai_settings.dart
 msgid "Custom body"
 msgstr "自訂請求本文"
+
+#: lib/score_editor.dart
+msgid "MusicXML"
+msgstr "MusicXML"
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "element"
+msgstr "元素"
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "end tag"
+msgstr "結束標籤"
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "attribute"
+msgstr "屬性"
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "value"
+msgstr "值"
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "entity"
+msgstr "實體"

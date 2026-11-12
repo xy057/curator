@@ -177,6 +177,40 @@ void main() {
     expect(flute.has(id), isFalse);
   });
 
+  test('the score as text for the MusicXML view: an element a line, texts as written, the file\'s own ids, and where an element is', () {
+    final score = EditableScore.parse(_flute.replaceFirst('<part-name>Flute</part-name>', '<part-name>  Flute  1</part-name>')
+        .replaceFirst('<note><rest measure="yes"/><duration>4</duration><voice>1</voice></note><barline',
+            '<note id="n7"><rest measure="yes"/><duration>4</duration><voice>1</voice></note><barline'));
+    final rest = score.eventsIn(0, 1, const VoiceKey(1, '1')).single.ids.single;
+    final (:text, :lines) = score.toMusicXMLText([rest, 'cxe999']);
+    final rows = text.split('\n');
+    expect(rows.take(4), [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<score-partwise version="4.0">',
+      '  <part-list>',
+      '    <score-part id="P1">',
+    ]);
+    expect(rows, contains('      <part-name>  Flute  1</part-name>')); // a text as written
+    expect(rows, contains('        <rest measure="yes"/>'));
+    expect(lines, {rest: rows.indexOf('      <note id="n7">')}); // the file's id given back, the editor's gone
+    expect(text, isNot(contains('cxe')));
+    // Read again, it is the same score.
+    expect(EditableScore.parse(text).toMusicXML().replaceAll(RegExp(r'>\s+<'), '><'), score.toMusicXML().replaceAll(RegExp(r'>\s+<'), '><'));
+
+    // A change says it made a step; one that changes nothing makes none.
+    expect(score.undoStep, isNull);
+    score.addBars(0, 1);
+    final step = score.undoStep;
+    expect(step, isNotNull);
+    score.toggleSlur(const []);
+    expect(identical(score.undoStep, step), isTrue);
+    // Redo forgotten: the score went on another way.
+    score.undo();
+    expect(score.canRedo, isTrue);
+    score.forgetRedo();
+    expect((score.canRedo, score.measureCount), (false, 2));
+  });
+
   test('markings move on and back by the notes and the grid, up and down the staves, by a drag, a hairpin with its end', () async {
     var score = EditableScore.parse(_fluteOf(4));
     // Every direction as written: its part and bar, when in it, what it says, where by the staff.

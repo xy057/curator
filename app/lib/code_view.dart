@@ -29,9 +29,10 @@ class CodeLanguage {
       _themes[brightness] ??= CodeHighlightTheme(languages: {name: CodeHighlightThemeMode(mode: mode)}, theme: theme(brightness));
 }
 
-/// Code being edited: monospace, numbered lines, chunks folded, [language] highlighted; what
-/// [prompts] offers where the caret is shown under it as it is typed (with what [kindOf] says
-/// each is beside it); Find (⌘F) and Replace (⌥⌘F) at its top right.
+/// Code being edited: monospace, numbered lines, what [folds] finds folded (default: brackets'
+/// insides), [language] highlighted (null: the [controller] colours its own lines, as the
+/// MusicXML view's does); what [prompts] offers where the caret is shown under it as it is typed
+/// (with what [kindOf] says each is beside it); Find (⌘F) and Replace (⌥⌘F) at its top right.
 class CodeView extends StatelessWidget {
   const CodeView({
     super.key,
@@ -41,12 +42,14 @@ class CodeView extends StatelessWidget {
     required this.language,
     required this.prompts,
     this.kindOf,
+    this.folds,
   });
 
   final CodeLineEditingController controller;
   final CodeFindController findController;
   final FocusNode focusNode;
-  final CodeLanguage language;
+  final CodeLanguage? language;
+  final CodeChunkAnalyzer? folds;
   final CodeAutocompletePromptsBuilder prompts;
   final String? Function(CodePrompt prompt)? kindOf;
 
@@ -62,6 +65,7 @@ class CodeView extends StatelessWidget {
         controller: controller,
         findController: findController,
         focusNode: focusNode,
+        chunkAnalyzer: folds,
         wordWrap: false,
         padding: const EdgeInsets.fromLTRB(4, 8, 12, 8),
         style: CodeEditorStyle(
@@ -75,7 +79,7 @@ class CodeView extends StatelessWidget {
           highlightColor: colors.accent.withValues(alpha: 0.3),
           cursorColor: colors.accent,
           cursorLineColor: colors.accentWash.withValues(alpha: 0.5),
-          codeTheme: language.highlightIn(theme.brightness),
+          codeTheme: language?.highlightIn(theme.brightness),
         ),
         indicatorBuilder: (context, editing, chunks, notifier) => Row(children: [
           DefaultCodeLineNumber(controller: editing, notifier: notifier, textStyle: gutter, focusedTextStyle: gutter.copyWith(color: colors.text)),

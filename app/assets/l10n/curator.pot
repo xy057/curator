@@ -3004,7 +3004,7 @@ msgstr ""
 msgid "Add Instrument"
 msgstr ""
 
-#: lib/pdf_import.dart
+#: lib/pdf_import.dart lib/score_editor.dart
 msgid "Bar {n}"
 msgstr ""
 
@@ -3948,7 +3948,7 @@ msgstr ""
 msgid "Couldn’t Import LilyPond Score"
 msgstr ""
 
-#: lib/lilypond_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Find ({key})"
 msgstr ""
 
@@ -4105,4 +4105,33 @@ msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Custom body"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "MusicXML"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "element"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "end tag"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "attribute"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "value"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "entity"
 msgstr ""
