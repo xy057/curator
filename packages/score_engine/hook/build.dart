@@ -30,7 +30,8 @@ void main(List<String> args) async {
       '-DCMAKE_BUILD_TYPE=Release',
       if (os == OS.macOS) ...[
         '-DCMAKE_OSX_ARCHITECTURES=${arch == Architecture.arm64 ? 'arm64' : 'x86_64'}',
-        '-DCMAKE_OSX_DEPLOYMENT_TARGET=${code.macOS.targetVersion}',
+        // The whole version (12.0, not 12); AppleVersion's toString isn't one.
+        '-DCMAKE_OSX_DEPLOYMENT_TARGET=${code.macOS.deploymentVersion.major}.${code.macOS.deploymentVersion.minor}',
       ],
       if (os == OS.windows) ...['-A', arch == Architecture.arm64 ? 'ARM64' : 'x64'],
     ]);

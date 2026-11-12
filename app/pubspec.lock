@@ -41,6 +41,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  cli_util:
+    dependency: transitive
+    description:
+      name: cli_util
+      sha256: "89b8801ba49f8b593fbf2d3e59efd0f566c46cd4ba6837ae2610c72b52a0f899"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.0"
   clock:
     dependency: transitive
     description:
@@ -53,10 +61,10 @@ packages:
     dependency: transitive
     description:
       name: code_assets
-      sha256: "828110d598123b5ea96c00c9f3c72105bf79f8ee36c20a39b26209ade421ec57"
+      sha256: "1ef22a0be3af9370bd9481ac76db114db92bfe75d5ca2b2d7bc911764478a4d9"
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.0"
+    version: "2.2.0"
   collection:
     dependency: transitive
     description:
@@ -220,18 +228,18 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_soloud
-      sha256: "4a5ff74c0d3e4e59540bd14ff9a50fa892c49ac7171ebdcd1ce59b12662ef1c1"
+      sha256: "9a439ebd477ee7b1c5cdf0f70765fbfae21b484b5b5bfd1446057f61b4111003"
       url: "https://pub.dev"
     source: hosted
-    version: "5.2.2"
+    version: "5.2.3"
   flutter_svg:
     dependency: "direct main"
     description:
       name: flutter_svg
-      sha256: "100c19dcc4ff60083e95a44a6f44f3a1bb887d353c5d86f6a9b688aa3cb46236"
+      sha256: bce4a000275c0d0ac42f3fdcf0a6162fb95ac30983ba7ee6cffcf60f6ad33611
       url: "https://pub.dev"
     source: hosted
-    version: "2.3.2"
+    version: "2.3.4"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -312,10 +320,10 @@ packages:
     dependency: transitive
     description:
       name: jni
-      sha256: d8df6dab6847855512fe44dd9032b0bbe34dda7bf7597e41d30750879779813f
+      sha256: "2e91e6087291affd10b31b6c872f3e3ac7dc5d93b51b5ba485d930c8f08bde6c"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.1"
+    version: "1.1.2"
   jni_flutter:
     dependency: transitive
     description:
@@ -400,18 +408,18 @@ packages:
     dependency: transitive
     description:
       name: native_toolchain_c
-      sha256: "90eaad8059ebc2004a63810a4696ea9acdb02473e47ed3b6b3bafb100ac77e31"
+      sha256: "120b6fc66acd8a5ddeaeb1e59b78836bb3ec9919bd9d9dfb1e2401985710c2c0"
       url: "https://pub.dev"
     source: hosted
-    version: "0.19.5"
+    version: "0.19.6"
   objective_c:
     dependency: transitive
     description:
       name: objective_c
-      sha256: "5c80c2ad6e2c0397de5db38c6d653e69616a3397e13aa7633bf39eb668f2041b"
+      sha256: c965d264fd4b0b4dd402dce9d049b70656bf98d3ca108b9bc55d2544ceadbe5e
       url: "https://pub.dev"
     source: hosted
-    version: "9.6.2"
+    version: "9.6.4"
   package_config:
     dependency: transitive
     description:
@@ -583,18 +591,18 @@ packages:
     dependency: transitive
     description:
       name: shared_preferences_android
-      sha256: "33b38b07d9ac7d16aff0426c61418752fd3e7a8c7dc8be786c875d6ce673b002"
+      sha256: "137dedccacb394b8f470d6c9b435ffc3d33faaa6ce2949c4f54a61007d64396d"
       url: "https://pub.dev"
     source: hosted
-    version: "2.5.4"
+    version: "2.5.5"
   shared_preferences_foundation:
     dependency: transitive
     description:
       name: shared_preferences_foundation
-      sha256: "4e396ac6f8751ab7d2d6e27f22f32c8350b07006028d534f5221503382f1fa69"
+      sha256: "89435cb71ecb1ad1bf29ef73a381f871a06f433d4182b7e2ba7243b02b2c544b"
       url: "https://pub.dev"
     source: hosted
-    version: "2.6.1"
+    version: "2.6.2"
   shared_preferences_linux:
     dependency: transitive
     description:
@@ -716,26 +724,26 @@ packages:
     dependency: transitive
     description:
       name: vector_graphics
-      sha256: "82885f6ac633044e7a4e4d8d745724a67aa0dc50af5d8a81ec29379f63c29035"
+      sha256: "06081e4f2d8f17c306aa58989520694b463ad411bc7c7b93e76afa3e41ca17ac"
       url: "https://pub.dev"
     source: hosted
-    version: "1.2.6"
+    version: "1.3.1"
   vector_graphics_codec:
     dependency: transitive
     description:
       name: vector_graphics_codec
-      sha256: "99fd9fbd34d9f9a32efd7b6a6aae14125d8237b10403b422a6a6dfeac2806146"
+      sha256: "023f3afd1b08d040406e7ccc324f5173c04762a59e374f29d04cef00a4940742"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.13"
+    version: "1.2.0"
   vector_graphics_compiler:
     dependency: "direct main"
     description:
       name: vector_graphics_compiler
-      sha256: "4c9d2e7121eea8b4f160e6e435900a0ae7214cfc97c2d6cf84c25532b789b50d"
+      sha256: "7d3d604c1ede26711f865f74e9273c5c5504ac449f3d92faa722878dbac88807"
       url: "https://pub.dev"
     source: hosted
-    version: "1.3.4"
+    version: "1.3.6"
   vector_math:
     dependency: transitive
     description:
