@@ -1858,6 +1858,7 @@ msgstr "替換為「{name}」？"
 msgid "Replaces the chosen lanes’ regions"
 msgstr "替換所選軌道中的區域"
 
+#: lib/settings_dialog.dart
 msgid "Replace…"
 msgstr "替換…"
 
@@ -3889,3 +3890,7 @@ msgstr "API 金鑰包含無效字元。"
 #: lib/ai_providers.dart
 msgid "The server’s answer is too long."
 msgstr "伺服器的回覆過長。"
+
+#: lib/main.dart
+msgid "Scores"
+msgstr "樂譜"

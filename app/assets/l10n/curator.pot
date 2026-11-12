@@ -1855,6 +1855,7 @@ msgstr ""
 msgid "Replaces the chosen lanes’ regions"
 msgstr ""
 
+#: lib/settings_dialog.dart
 msgid "Replace…"
 msgstr ""
 
@@ -3869,4 +3870,8 @@ msgstr ""
 
 #: lib/ai_providers.dart
 msgid "The server’s answer is too long."
+msgstr ""
+
+#: lib/main.dart
+msgid "Scores"
 msgstr ""

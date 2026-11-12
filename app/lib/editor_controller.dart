@@ -272,12 +272,25 @@ class EditorController extends ChangeNotifier {
     }
   }
 
-  /// Engraves a score's [bytes] (the score editor's), named [name], with this project's edits
-  /// carried over to it ([ScoreSwap]), and says what differs; or, with [pdf], the open PDF read
-  /// as that layout (its import edited again). Nothing changes until [replaceScore].
-  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes, {PdfScoreLayout? pdf}) async {
+  /// Project Info ▸ Score ▸ Replace… with a score file: [prepareReplacementWith] for the file at
+  /// [path], refused before it is read when it is too big (as [openFile]).
+  Future<ScoreReplacement> prepareReplacement(String path) async {
+    if (await File(path).length() > ScoreFile.maxBytes) {
+      throw const FormatException('That score is too big. Use one under 256 MB.');
+    }
+    return prepareReplacementWith(fileNameOf(path), await File(path).readAsBytes());
+  }
+
+  /// Engraves a score's [bytes] (the score editor's, a file's), named [name], with this
+  /// project's edits carried over to it ([ScoreSwap]), and says what differs; or, with [pdf],
+  /// [bytes] as a PDF read as that layout: [pages], another PDF set out in its import (Replace…),
+  /// else the open one (its import edited again). Nothing changes until [replaceScore]; a
+  /// replacement not used is let go by [discardReplacement]. [pages] stay the caller's if this
+  /// fails.
+  Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes, {PdfScoreLayout? pdf, PdfPages? pages}) async {
     final before = _score!;
-    final art = pdf == null ? null : PdfScoreArt(pdf, PdfPagesSource(_pdfPages!));
+    final source = pdf == null ? null : pages ?? _pdfPages!;
+    final art = pdf == null ? null : PdfScoreArt(pdf, PdfPagesSource(source!));
     // Read once for what it holds (its texts as written: the edits are carried by them), and
     // once more as engraved.
     // (On another isolate: a large score takes a while.)
@@ -327,6 +340,7 @@ class EditorController extends ChangeNotifier {
       differences: swap.differences(
           measuresBefore: measures.before, measuresAfter: measures.after, edits: _doc.textEdits, lost: lost),
       replacing: before,
+      pages: source,
     );
   }
 
@@ -342,16 +356,23 @@ class EditorController extends ChangeNotifier {
   /// Puts [replacement] in place of the score, keeping the recording; Undo starts again from
   /// here. Does nothing if another score was opened since it was made.
   Future<void> replaceScore(ScoreReplacement replacement) async {
-    if (replacement.replacing != _score) return replacement.score.pdf?.dispose();
+    if (replacement.replacing != _score) return discardReplacement(replacement);
     final arts = await ImageEditing._decodeAll(replacement.state.images);
     if (replacement.replacing != _score) {
-      replacement.score.pdf?.dispose();
+      discardReplacement(replacement);
       return arts.values.forEach(ImageEditing._dispose);
     }
-    // A PDF read again is the same PDF: its pages stay open.
+    // A PDF read again is the same PDF: its pages stay open. Another PDF's take their place.
     await _install(replacement.name, replacement.bytes, replacement.score, replacement.state,
-        arts: arts, keepRecording: true, pages: replacement.score.pdf == null ? null : _pdfPages);
+        arts: arts, keepRecording: true, pages: replacement.pages);
     _edited(); // unsaved
+  }
+
+  /// Lets go of a [replacement] not put in place (declined, or another score opened): its PDF's
+  /// drawing, and its pages unless they are the open score's.
+  void discardReplacement(ScoreReplacement replacement) {
+    replacement.score.pdf?.dispose();
+    if (replacement.pages != _pdfPages) replacement.pages?.close();
   }
 
   /// Engraves a score (the slow part, and the one that can fail) without touching what is open.

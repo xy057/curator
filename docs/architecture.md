@@ -71,9 +71,9 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `typography_settings.dart` | Project Settings ▸ Engraving ▸ Typography: a row per property of each kind of text (`TypographySetting.all`), a slider or a style each |
 | `ai_providers.dart`, `ai_settings.dart` | Settings ▸ AI: AI services and their credentials (`AiProvider`, kept as JSON in `AppSettings.aiProviders`; five built in: OpenAI, Anthropic, OpenRouter, Gemini, DeepSeek), `AiClient` (model lists and a one-word Test in the OpenAI, Anthropic and Gemini formats; redirects not followed, so a key stays with its server; what goes wrong is an `AiError` that never repeats the key; a server is reached within half a minute and its answer ended past 32 MB), and the page: providers at the left, the chosen one's key, base URL, path and models at the right. A model of one turned on is asked about pictures (`AiClient.ask`, ended by `close`) by the PDF import's Read with AI, the one picked in Settings ▸ General ▸ AI for PDF import (`AppSettings.pdfAiModel`, `AiModels`). Settings ▸ General ▸ Hide AI features (`AppSettings.hideAi`) is read once, at launch (`aiHidden`): hidden, the import is opened with no model and no way to choose one (no Read with AI), General drops AI for PDF import, and this page lies dimmed and out of reach under a cover holding the same switch; a change says Restart to apply (`aiRestartPending`) |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
-| `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit… done (the score editor's, a PDF's import again): a project carried over to the new score file (`ScoreSwap`), and what differs between them |
+| `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace… (another score file or PDF), or Edit… done (the score editor's, a PDF's import again): a project carried over to the new score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
-| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, and Project Settings ▸ Project Info ▸ Score ▸ Edit… for one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, each staff's region (a box edited as an image on a canvas: clicked, it is selected; its corners and sides dragged, it is resized; dragged inside, it is moved; Draw Region drags out a new one), every system's music start and end and barlines (the start's and the barlines' by handles above the system, the end's below it; a double click adds a barline), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs; `pdf_import_ai.dart` reads the pages with AI (`PdfAiReader`) and gives a model the exam (`PdfAiExamRun`); `pdf_ai_model_dialog.dart` chooses the model, by its exam |
+| `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, Project Settings ▸ Project Info ▸ Score ▸ Edit… for one and Replace… with one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, each staff's region (a box edited as an image on a canvas: clicked, it is selected; its corners and sides dragged, it is resized; dragged inside, it is moved; Draw Region drags out a new one), every system's music start and end and barlines (the start's and the barlines' by handles above the system, the end's below it; a double click adds a barline), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs; `pdf_import_ai.dart` reads the pages with AI (`PdfAiReader`) and gives a model the exam (`PdfAiExamRun`); `pdf_ai_model_dialog.dart` chooses the model, by its exam |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
@@ -878,7 +878,7 @@ its recording included.
 **A large score opens without stopping the app.** Everything slow about opening runs on other
 isolates, so the window keeps drawing: reading the MusicXML and preparing it (`_prepare`, some
 half a second for a big orchestral file), Verovio, a PDF score's whole layout (`_fromPdfApart`:
-its skeleton written, read and laid out as printed), the replacement read of Edit…
+its skeleton written, read and laid out as printed), the replacement read of Replace… and Edit…
 (`_readApart`), and, for a new score that will be auto-curated (`measure`), what each bar plays
 (`BarSalience`). That last one runs after the engraving, not beside it: isolates from
 `Isolate.run` share one heap, and a second parse alongside Verovio's copying out made
@@ -919,11 +919,18 @@ tab (`_OpenProject.file`); a file the system asks to open while a dialog is up w
 gone (`_openFromSystem`); Save As onto a project open in another tab is refused. Two projects open on one recording file (a linked one) share SoLoud's one
 sound of it, which the last to let go disposes (`audio_track.dart`'s `_holders`).
 
-**Replacing the score keeps the project.** What Project Settings ▸ Project Info ▸ Score ▸ Edit… hands
-back (the score editor's MusicXML, or a PDF's import set again) is engraved with the project's
-edits carried over to it (`EditorController.prepareReplacementWith`,
-`ScoreSwap`), and only then swaps it in, like opening, keeping the recording, the path and
-the view (`replaceScore`). Instruments are matched by id and name, then by name (an
+**Replacing the score keeps the project.** Another score file picked by Project Settings ▸
+Project Info ▸ Score ▸ Replace… (read over the settings window, refused past `ScoreFile.maxBytes`
+as on opening: `EditorController.prepareReplacement`), another PDF picked there (set out in its
+own import first, which takes the window, nothing carried into it from the open score), or what
+Edit… hands back (the score editor's MusicXML, or a PDF's import set again) is engraved with the
+project's edits carried over to it (`EditorController.prepareReplacementWith`, `ScoreSwap`), and
+only then swaps it in, like opening, keeping the recording, the path and the view
+(`replaceScore`). A score file makes the project a score's, a PDF a PDF's (`ProjectState.kind`,
+`pdf`). A PDF's replacement holds the pages it is drawn from (`ScoreReplacement.pages`): the open
+PDF's when its import was set again, kept open; another's, which take their place once it is put
+in, and are closed with it when it is declined or another score was opened meanwhile
+(`discardReplacement`); if it can't be made, the caller still holds them. Instruments are matched by id and name, then by name (an
 instrument added above renumbers the rest), then by id (renamed); lanes, names, pairs,
 condensing, order, sections, name groups, a lane's split and each one's room (a staff's too,
 by its lane's id) follow them, and an instrument only in the new file is curated as on
@@ -1023,7 +1030,8 @@ curation, sync, captions, export and the web page work as for any score. The pro
 (`ProjectKind.pdf`, `EditorController.isPdf`): no Find Phrase, Align or condensing, and no
 auto-curation (Auto-curate and Auto-Curate Lane gone, lanes on import and a re-import's new
 instruments empty, drawn by hand) unless Settings ▸ General ▸ Auto-curate PDF scores
-(`autoCuratePdf`, off) is on (`canAutoCurate`); turned on or off, the open project follows at once. The main view draws no
+(`autoCuratePdf`, off) is on (`canAutoCurate`); turned on or off, the open project follows at once. Replace… with a
+score file makes it a score's project, and a score's project replaced by a PDF is a PDF's. The main view draws no
 engraving: each system is drawn by PDFium as printed (RGBA, on nothing; `PdfPagesSource`, a few
 systems ahead of the view, `CuratedScene.ready`, and an LRU of decoded images: the systems a
 scene asks for together, `PdfScoreArt.load`'s holder, are never let go for one another, and each
