@@ -986,7 +986,9 @@ clef change before the barline), and as many more as a slur, hairpin, octave lin
 ending begun in the chunk runs on for (up to `EditableScore.reach`; one with a single end in
 those bars is left out of them: Verovio would take a slur's end with no start for the next
 slur's). A chunk draws what starts in its own bars, whole, and nothing that starts in the others
-(`EditChunk.owns`, by an item's left edge, from the barline before its first bar), so chunks side
+(`EditChunk.owns`, by an item's left edge, from the barline before its first bar; what is drawn in
+pieces, an ending, by its first piece, whole: its closing hook lies on its last barline as that
+barline does, so the bridge records an ending as a source, `ScoreDisplayList.wholes`), so chunks side
 by side draw each thing once, as one engraving of the score would (the test counts them). What
 the chunks can't agree on is where things are pushed up or down out of each other's way: a text
 wider than its bars may be drawn over a slur the next chunk has. A bar written again engraves
@@ -1023,12 +1025,24 @@ reach it). A time signature that says no length is read as none, and a score who
 have different numbers of bars is refused, saying so. The keys are
 Dorico's: ⇧N or Enter note input, 1–9 note values (6 a quarter), `.` dot, `-` `=` `0` flat,
 sharp, natural, A–G a note at the nearest octave (⇧⌥ adds to the chord; Q chord mode), `,` rest,
-Space on, T tie, S slur, V the next voice, R repeat, ⌥↑↓ a step, ⌘⌥↑↓ an octave, ⌥= ⌥- the same
+Space on, T tie, S slur, V the next voice, R repeat, `/` and ⇧/ grace notes (crossed through or
+not), ⌥↑↓ a step, ⌘⌥↑↓ an octave, ⌥= ⌥- the same
 sound spelled as the note above or below, ⌥←→ ⌥↑↓ a marking moved (⇧⌥←→ a hairpin's end), `[` `]` `{` `}`
 `'` articulations, and the popovers: ⇧D dynamics and hairpins, ⇧T tempo, ⇧M time, ⇧K key,
-⇧C clef, ⇧X text, ⇧B bars (`+2`, `-1`) and barlines, ⇧H holds, ⇧O ornaments, ⇧L lyrics (Space
-or `-` to the next note), `;` a tuplet (`:` ends it). A time signature change fills or cuts bars
-rather than rebarring the music after it.
+⇧C clef, ⇧X text, ⇧B bars (`+2`, `-1`) and barlines, ⇧R repeats (`1.`, `1, 2` an ending over the
+bars selected; `segno`, `coda`, `D.C.`, `D.S.`, either `al Fine` or `al Coda`, `Fine`, `To Coda`),
+⇧A a rehearsal mark (the next after the last before it offered), ⇧H holds, ⇧O ornaments, ⇧L
+lyrics (Space or `-` to the next note), `;` a tuplet (`:` ends it). A time signature change fills
+or cuts bars rather than rebarring the music after it. An ending is written in every part
+(Verovio pairs a start with the next ending of its number), in place of those it overlaps, the
+same one over the same bars again taking it out, and closed where its last bar ends in a repeat; a
+barline changed keeps the ending it holds. A segno, coda, D.C., D.S., To Coda or Fine goes over the
+first part's top staff with the `<sound>` `ScoreForm` plays it by, so warps from the score follow
+it. A segno or coda sign is tagged itself (Verovio draws it by its own id, not its direction's) and
+a rehearsal mark is its direction's (drawn as that id and "-reh"), so either is clicked, moved and
+deleted as a marking. A grace note is the next note's or rest's (`_Event.graces`): `locate`
+doesn't find it (`isGrace` does), it stays before what is typed over its rest, and a bar of
+rests one is before stays rests.
 
 **The MusicXML view edits the score as text.** The toolbar's MusicXML toggle shows the score as
 its MusicXML in a `CodeView` (the LilyPond editor's code view) in place of the panels and the galley:
