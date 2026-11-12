@@ -1080,7 +1080,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         ),
         const SizedBox(height: 14),
         for (final (i, cat) in _categories.indexed)
-          _SidebarTile(
+          SidebarTile(
             icon: cat.icon.of(context),
             label: cat.label.trIn('page'),
             selected: !searching && i == _page,
@@ -1499,93 +1499,6 @@ Color _groupColor(BuildContext context) {
   final colors = context.colors;
   if (CarbonColors.maybeOf(context) case final k?) return k.layer02;
   return _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.22)!;
-}
-
-class _SidebarTile extends StatefulWidget {
-  const _SidebarTile({required this.icon, required this.label, required this.selected, required this.onTap});
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  State<_SidebarTile> createState() => _SidebarTileState();
-}
-
-class _SidebarTileState extends State<_SidebarTile> {
-  bool _hover = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final selected = widget.selected;
-    final style = AppStyle.of(context);
-    final k = CarbonColors.maybeOf(context);
-    // Refined: the accent's light tint, as a chosen segment's, the label in the accent and
-    // semibold (the solid accent is left for the default button). Carbon: its side nav's item,
-    // $layer-selected with a 3 px bar of the accent at its left, the text semibold.
-    final tinted = k == null && selected;
-    final fill = k != null
-        ? (selected ? k.layerSelected : _hover ? k.layerHover : k.layerHover.withValues(alpha: 0))
-        : tinted
-            ? colors.accentSoft
-            : _hover
-                ? colors.line.withValues(alpha: 0.45)
-                : colors.line.withValues(alpha: 0);
-    final ink = k != null
-        ? (selected || _hover ? k.textPrimary : k.textSecondary)
-        : tinted
-            ? colors.accentOn(fill, dark: Theme.of(context).brightness == Brightness.dark)
-            // The rows not chosen a step quieter, so the chosen one stands out without more weight.
-            : _hover
-                ? colors.text
-                : Color.lerp(colors.text, colors.textMuted, 0.4)!;
-    return Padding(
-      padding: EdgeInsets.only(bottom: k != null ? 0 : 1),
-      child: Semantics(
-        button: true,
-        selected: selected,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => setState(() => _hover = true),
-          onExit: (_) => setState(() => _hover = false),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.onTap,
-            child: AnimatedContainer(
-              duration: stateDuration(motion(context, 120)),
-              curve: style.curve,
-              height: k != null ? 32 : 30,
-              padding: EdgeInsets.only(left: k != null ? 13 : 8, right: 8),
-              decoration: BoxDecoration(
-                color: fill,
-                borderRadius: style.radius(5),
-                // $border-interactive: the accent, in the dark too.
-                border: k == null
-                    ? null
-                    : Border(left: BorderSide(color: selected ? colors.accent : Colors.transparent, width: 3)),
-              ),
-              child: Row(children: [
-                Icon(widget.icon, size: 16, color: k != null || tinted ? ink : colors.textMuted),
-                SizedBox(width: k != null ? 8 : 10),
-                Flexible(
-                  child: Text(widget.label.tr,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: k != null ? 14 : 13,
-                        letterSpacing: k != null ? 0.16 : null,
-                        color: ink,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                      )),
-                ),
-              ]),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Save as Default, slim beside a page's title: once saved (or already the same), a muted

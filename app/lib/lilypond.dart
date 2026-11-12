@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' show Abi;
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:score_engine/score_engine.dart' show LilyPondScore;
 
 import 'app_folders.dart';
 import 'downloader.dart';
@@ -157,6 +159,11 @@ class LilySource {
 
   static final _includes = RegExp(r'\\include\s+"([^"]+)"');
 
+  /// [read] on another isolate. Called from a static function, so its closure takes nothing else
+  /// along: one made beside code that uses an object's state would take that too, which can't be
+  /// sent.
+  static Future<LilySource> readApart(String path) => Isolate.run(() => read(path));
+
   /// [text] without its `%` comments (`%{ … %}` too), so an include commented out isn't kept.
   static String _withoutComments(String text) =>
       text.replaceAll(RegExp(r'%\{[\s\S]*?%\}'), '').replaceAll(RegExp(r'%[^\n]*'), '');
@@ -191,6 +198,10 @@ abstract final class LilyPond {
   /// The revision of Curator's settings ([settingsAsset]) a project's engraving was made with:
   /// one older than this build's can be engraved again from its source.
   static const settingsVersion = 1;
+
+  /// [svg] and [data] (a run's, or a project's) read as a score on another isolate: a long
+  /// score's takes a while. Static, so its closure takes nothing else along ([LilySource.readApart]).
+  static Future<LilyPondScore> readScore(String svg, String data) => Isolate.run(() => LilyPondScore.read(svg, data));
 
   /// This computer's build; null where LilyPond makes none (Linux on Arm). Windows on Arm runs
   /// the x86-64 build.

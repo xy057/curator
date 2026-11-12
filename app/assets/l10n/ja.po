@@ -527,7 +527,7 @@ msgstr "{bars}までの休符をつなぐ"
 msgid "c if a < b, else d"
 msgstr "a < b なら c、そうでなければ d"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "キャンセル"
 
@@ -616,7 +616,7 @@ msgstr "音部記号"
 msgid "Clefs"
 msgstr "音部記号"
 
-#: lib/app_menus.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/export_dialog.dart lib/lilypond_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "閉じる"
 
@@ -855,7 +855,7 @@ msgstr "選択解除（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先に「{name}」への変更を保存しますか？"
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完了"
 
@@ -942,7 +942,7 @@ msgstr "字幕を編集…"
 msgid "Edit Spacer…"
 msgstr "スペーサーを編集…"
 
-#: lib/settings_dialog.dart
+#: lib/lilypond_dialog.dart lib/settings_dialog.dart
 msgid "Edit…"
 msgstr "編集…"
 
@@ -973,6 +973,7 @@ msgstr "音楽フォントで書かれた「f」を強弱記号として浄書�
 msgid "Engraving"
 msgstr "浄書"
 
+#: lib/lilypond_editor.dart
 msgid "Engraving…"
 msgstr "浄書中…"
 
@@ -1444,7 +1445,7 @@ msgstr "名前"
 msgid "Natural (0)"
 msgstr "ナチュラル（0）"
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "Next ({key})"
 msgstr "次へ（{key}）"
 
@@ -1463,7 +1464,7 @@ msgstr "ペーストする画像がありません。"
 msgid "No images"
 msgstr "画像なし"
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "No matches"
 msgstr "一致なし"
 
@@ -1686,7 +1687,7 @@ msgstr "奏者"
 msgid "PNG Sequence"
 msgstr "PNG シーケンス"
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "Previous ({key})"
 msgstr "前へ（{key}）"
 
@@ -1737,7 +1738,7 @@ msgstr "録音"
 msgid "Redo"
 msgstr "やり直す"
 
-#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr "やり直す（{key}）"
 
@@ -1838,7 +1839,7 @@ msgstr "反復記号の点の間隔"
 msgid "Repeat dots"
 msgstr "反復記号の点"
 
-#: lib/captions_dialog.dart lib/edit_dialogs.dart
+#: lib/captions_dialog.dart lib/edit_dialogs.dart lib/lilypond_editor.dart
 msgid "Replace"
 msgstr "置き換える"
 
@@ -2531,7 +2532,7 @@ msgstr "t = 0 または 1 で定義されていません。"
 msgid "Undo"
 msgstr "取り消す"
 
-#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr "取り消す（{key}）"
 
@@ -2889,11 +2890,11 @@ msgstr "和音（Q）"
 msgid "Couldn’t Edit Score"
 msgstr "楽譜を編集できませんでした"
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr "破棄"
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr "変更を破棄しますか？"
 
@@ -2901,7 +2902,7 @@ msgstr "変更を破棄しますか？"
 msgid "Dotted {value}"
 msgstr "付点 {value}"
 
-#: lib/score_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Edit Score"
 msgstr "楽譜を編集"
 
@@ -2916,7 +2917,7 @@ msgstr "2 分音符"
 msgid "Holds"
 msgstr "延長と停止"
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr "編集を続ける"
 
@@ -2964,7 +2965,7 @@ msgstr "スタッカート（]）"
 msgid "Tenuto (⇧])"
 msgstr "テヌート（⇧]）"
 
-#: lib/score_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "The score stays as it was."
 msgstr "楽譜はそのままです。"
 
@@ -3710,7 +3711,7 @@ msgstr "このプロバイダーにはモデルがありません。"
 msgid "All matching"
 msgstr "一致するすべて"
 
-#: lib/ai_settings.dart
+#: lib/ai_settings.dart lib/lilypond_editor.dart
 msgid "{n} of {all}"
 msgstr "{n} / {all}"
 
@@ -3967,3 +3968,76 @@ msgstr "浄書するものがありません。"
 #: lib/main.dart
 msgid "Couldn’t Import LilyPond Score"
 msgstr "LilyPond の楽譜を読み込めませんでした"
+
+#: lib/lilypond_editor.dart
+msgid "Find ({key})"
+msgstr "検索（{key}）"
+
+#: lib/lilypond_editor.dart
+msgid "Engrave ({key})"
+msgstr "浄書（{key}）"
+
+#: lib/lilypond_editor.dart
+msgid "Engrave"
+msgstr "浄書"
+
+#: lib/lilypond_editor.dart
+msgid "Engrave to see the score."
+msgstr "浄書すると楽譜が表示されます。"
+
+#: lib/lilypond_editor.dart
+msgid "Nothing to show yet."
+msgstr "まだ表示するものがありません。"
+
+#: lib/lilypond_editor.dart
+msgid "Find"
+msgstr "検索"
+
+#: lib/lilypond_editor.dart
+msgid "Replace All"
+msgstr "すべて置き換える"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "context"
+msgstr "コンテキスト"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "clef"
+msgstr "音部記号"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "repeat"
+msgstr "反復"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "barline"
+msgstr "小節線"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "language"
+msgstr "言語"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "property"
+msgstr "プロパティ"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "grob"
+msgstr "オブジェクト"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "variable"
+msgstr "変数"
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "command"
+msgstr "コマンド"

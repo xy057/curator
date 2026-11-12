@@ -524,7 +524,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -613,7 +613,7 @@ msgstr ""
 msgid "Clefs"
 msgstr ""
 
-#: lib/app_menus.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/export_dialog.dart lib/lilypond_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr ""
 
@@ -852,7 +852,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -939,7 +939,7 @@ msgstr ""
 msgid "Edit Spacer…"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/lilypond_dialog.dart lib/settings_dialog.dart
 msgid "Edit…"
 msgstr ""
 
@@ -970,6 +970,7 @@ msgstr ""
 msgid "Engraving"
 msgstr ""
 
+#: lib/lilypond_editor.dart
 msgid "Engraving…"
 msgstr ""
 
@@ -1441,7 +1442,7 @@ msgstr ""
 msgid "Natural (0)"
 msgstr ""
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "Next ({key})"
 msgstr ""
 
@@ -1460,7 +1461,7 @@ msgstr ""
 msgid "No images"
 msgstr ""
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "No matches"
 msgstr ""
 
@@ -1683,7 +1684,7 @@ msgstr ""
 msgid "PNG Sequence"
 msgstr ""
 
-#: lib/phrase_search_window.dart
+#: lib/lilypond_editor.dart lib/phrase_search_window.dart
 msgid "Previous ({key})"
 msgstr ""
 
@@ -1734,7 +1735,7 @@ msgstr ""
 msgid "Redo"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr ""
 
@@ -1835,7 +1836,7 @@ msgstr ""
 msgid "Repeat dots"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/edit_dialogs.dart
+#: lib/captions_dialog.dart lib/edit_dialogs.dart lib/lilypond_editor.dart
 msgid "Replace"
 msgstr ""
 
@@ -2528,7 +2529,7 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr ""
 
@@ -2882,11 +2883,11 @@ msgstr ""
 msgid "Couldn’t Edit Score"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr ""
 
@@ -2894,7 +2895,7 @@ msgstr ""
 msgid "Dotted {value}"
 msgstr ""
 
-#: lib/score_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Edit Score"
 msgstr ""
 
@@ -2909,7 +2910,7 @@ msgstr ""
 msgid "Holds"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr ""
 
@@ -2957,7 +2958,7 @@ msgstr ""
 msgid "Tenuto (⇧])"
 msgstr ""
 
-#: lib/score_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "The score stays as it was."
 msgstr ""
 
@@ -3691,7 +3692,7 @@ msgstr ""
 msgid "All matching"
 msgstr ""
 
-#: lib/ai_settings.dart
+#: lib/ai_settings.dart lib/lilypond_editor.dart
 msgid "{n} of {all}"
 msgstr ""
 
@@ -3947,4 +3948,77 @@ msgstr ""
 
 #: lib/main.dart
 msgid "Couldn’t Import LilyPond Score"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Find ({key})"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Engrave ({key})"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Engrave"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Engrave to see the score."
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Nothing to show yet."
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Find"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgid "Replace All"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "context"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "clef"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "repeat"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "barline"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "language"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "property"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "grob"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "variable"
+msgstr ""
+
+#: lib/lilypond_editor.dart
+msgctxt "lilypond"
+msgid "command"
 msgstr ""

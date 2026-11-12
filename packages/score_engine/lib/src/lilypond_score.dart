@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'display_list.dart';
 import 'engraving.dart';
 import 'lilypond_svg.dart';
 import 'native/constants.dart';
@@ -1375,4 +1376,61 @@ class _MusicXmlWriter {
     }
     return cursor;
   }
+}
+
+/// A LilyPond score drawn whole as LilyPond engraved it, on its one line and nothing set apart:
+/// the LilyPond editor's preview. In the engraving's units ([LilyPondScore.unit] a staff space).
+class LilyPondDrawing {
+  LilyPondDrawing(this.score, {String textFontFamily = 'packages/score_engine/Academico'})
+      : _list = ScoreDisplayList.build(score.engraving, RenderStyle(textFontFamily: textFontFamily));
+
+  final LilyPondScore score;
+  final ScoreDisplayList _list;
+
+  /// Where its ink is.
+  late final ui.Rect bounds = () {
+    ui.Rect? all;
+    for (final layer in [..._list.staves, _list.barlines]) {
+      for (final item in layer.items) {
+        all = all?.expandToInclude(item.bounds) ?? item.bounds;
+      }
+      for (final line in layer.lines) {
+        final r = ui.Rect.fromLTRB(line.left, line.y - line.thickness / 2, line.right, line.y + line.thickness / 2);
+        all = all?.expandToInclude(r) ?? r;
+      }
+    }
+    return all ?? ui.Rect.zero;
+  }();
+
+  /// Draws what of it lies in [visible] in [ink].
+  void paint(ui.Canvas canvas, ui.Rect visible, ui.Color ink) {
+    canvas.saveLayer(visible, ui.Paint()..colorFilter = ui.ColorFilter.mode(ink, ui.BlendMode.srcIn));
+    final linePaint = ui.Paint()..color = const ui.Color(0xFF000000);
+    // What a staff draws reaches this far above and below its lines (lyrics, marks).
+    const reach = 16 * LilyPondScore.unit;
+    for (final layer in _list.staves) {
+      final top = layer.info.top, bottom = top + layer.info.height;
+      if (top - reach > visible.bottom || bottom + reach < visible.top) continue;
+      for (final line in layer.lines) {
+        final a = math.max(line.left, visible.left), b = math.min(line.right, visible.right);
+        if (a >= b) continue;
+        linePaint.strokeWidth = line.thickness;
+        canvas.drawLine(ui.Offset(a, line.y), ui.Offset(b, line.y), linePaint);
+      }
+      for (final item in layer.itemsIn(visible.left, visible.right)) {
+        item.paint(canvas);
+      }
+      // The barlines, the stretch over this staff's lines.
+      canvas
+        ..save()
+        ..clipRect(ui.Rect.fromLTRB(visible.left, top - 0.5, visible.right, bottom + 0.5));
+      for (final item in _list.barlines.itemsIn(visible.left, visible.right)) {
+        item.paint(canvas);
+      }
+      canvas.restore();
+    }
+    canvas.restore();
+  }
+
+  void dispose() => _list.dispose();
 }

@@ -15,6 +15,7 @@ import 'extensions/extension.dart';
 import 'file_names.dart';
 import 'image_patch.dart';
 import 'latest.dart';
+import 'lilypond.dart' show LilyPond;
 import 'project_state.dart';
 import 'score_replacement.dart';
 import 'time_viewport.dart';
@@ -189,7 +190,7 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
     final (svg, data) = (lilypond.svg, lilypond.data);
     try {
-      return await Isolate.run(() => LilyPondScore.read(svg, data));
+      return await LilyPond.readScore(svg, data);
     } on Object {
       _loading = false;
       if (!_disposed) {

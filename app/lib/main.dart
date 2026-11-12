@@ -35,12 +35,14 @@ import 'home_screen.dart';
 import 'l10n/l10n.dart';
 import 'lilypond.dart';
 import 'lilypond_dialog.dart';
+import 'lilypond_editor.dart';
 import 'media_converter.dart';
 import 'phrase_search_window.dart';
 import 'pdf_ai_model_dialog.dart';
 import 'pdf_import.dart';
 import 'project_document.dart';
 import 'project_file.dart';
+import 'project_state.dart' show LilyPondProject;
 import 'project_tabs.dart';
 import 'score_editor.dart';
 import 'score_replacement.dart';
@@ -981,14 +983,25 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
   }
 
+  /// [source] engraved by LilyPond (downloaded first, once the user agrees). Where it engraves
+  /// nothing, its errors are said, and Edit… opens the LilyPond editor to put them right: what is
+  /// done there is what it gives. Null when cancelled, or nothing engraved.
+  Future<LilyPondEdit?> _engraveLilyPond(LilySource source) async {
+    final run = await engraveWithLilyPond(context, source);
+    if (run == null || !mounted) return null;
+    if (run.engraved) return (source: source, run: run);
+    if (!await showLilyPondErrors(context, source.name, run, canEdit: true) || !mounted) return null;
+    return showLilyPondEditor(context, source, run: run);
+  }
+
   /// A LilyPond score: engraved by LilyPond (downloaded first, once the user agrees), then a new
   /// project of it. Cancelled, nothing opens; nor when LilyPond engraved nothing, which says why.
   Future<void> _importLilyPond(String path) async {
-    final source = await Isolate.run(() => LilySource.read(path));
+    final read = await LilySource.readApart(path);
     if (!mounted) return;
-    final run = await engraveWithLilyPond(context, source);
-    if (run == null || !mounted) return;
-    if (!run.engraved) return showLilyPondErrors(context, source.name, run);
+    final engraved = await _engraveLilyPond(read);
+    if (engraved == null || !mounted) return;
+    final (:source, :run) = engraved;
     await document.importLilyPond(path, utf8.encode(source.text), run.keep(source));
     if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
     final left = [...lilyPondErrors(run), ...?controller.score?.warnings];
@@ -1268,11 +1281,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// Replace… with the LilyPond score at [path]: engraved by LilyPond (downloaded first, once the
   /// user agrees), then put in place of the score. Cancelled, or engraving nothing, nothing changes.
   Future<void> _replaceWithLilyPond(String path) async {
-    final source = await Isolate.run(() => LilySource.read(path));
+    final read = await LilySource.readApart(path);
     if (!mounted) return;
-    final run = await engraveWithLilyPond(context, source);
-    if (run == null || !mounted) return;
-    if (!run.engraved) return showLilyPondErrors(context, source.name, run);
+    final engraved = await _engraveLilyPond(read);
+    if (engraved == null || !mounted) return;
+    final (:source, :run) = engraved;
     await _putInPlace(await document.prepareReplacementWith(source.name, utf8.encode(source.text), lilypond: run.keep(source)));
   }
 
@@ -1296,6 +1309,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final loaded = controller.score;
     if (loaded == null) return;
     if (loaded.pdf case final pdf?) return _editPdf(pdf.layout);
+    if (controller.lilypond case final lilypond?) return _editLilyPond(lilypond);
     final name = '${stemOf(controller.fileName ?? document.title ?? 'Score')}.musicxml';
     final EditableScore score;
     try {
@@ -1320,6 +1334,20 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final next = await showPdfImport(context, pages, name: name, layout: layout, ai: _pdfAi, chooseAi: _choosePdfAi);
     if (next == null || !mounted) return;
     await _guard(() async => _putInPlace(await document.prepareReplacementWith(name, controller.source!.bytes, pdf: next)),
+        title: 'Couldn’t Edit Score'.tr);
+  }
+
+  /// Project Info ▸ Score ▸ Edit… for a LilyPond score: its source in the LilyPond editor, as
+  /// LilyPond last engraved it; what is engraved there replaces the score, as the score editor's
+  /// does.
+  Future<void> _editLilyPond(LilyPondProject lilypond) async {
+    final name = controller.fileName ?? 'score.ly';
+    final source = LilySource.of(name, utf8.decode(controller.source!.bytes, allowMalformed: true), lilypond);
+    final edit = await showLilyPondEditor(context, source, run: LilyPondRun(svg: lilypond.svg, data: lilypond.data));
+    if (edit == null || !mounted) return;
+    await _guard(
+        () async =>
+            _putInPlace(await document.prepareReplacementWith(name, utf8.encode(edit.source.text), lilypond: edit.run.keep(edit.source))),
         title: 'Couldn’t Edit Score'.tr);
   }
 

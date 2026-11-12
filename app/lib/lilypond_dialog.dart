@@ -143,20 +143,26 @@ List<String> lilyPondErrors(LilyPondRun run) => [
         if (p.error) describeLilyProblem(p),
     ];
 
-/// LilyPond engraved nothing of [name] ([run]): its errors, or the end of what it said.
-Future<void> showLilyPondErrors(BuildContext context, String name, LilyPondRun run) {
+/// LilyPond engraved nothing of [name] ([run]): its errors, or the end of what it said. With
+/// [canEdit], Edit… is offered beside OK: true when it is chosen.
+Future<bool> showLilyPondErrors(BuildContext context, String name, LilyPondRun run, {bool canEdit = false}) async {
   final errors = lilyPondErrors(run);
   final lines = errors.isNotEmpty ? errors : run.log.trim().split('\n').where((l) => l.trim().isNotEmpty).toList();
   final text = lines.length > 40 ? lines.sublist(lines.length - 40).join('\n') : lines.join('\n');
-  return showAppDialog<void>(
-    context: context,
-    builder: (context) => AppDialog(
-      title: Text('LilyPond couldn’t engrave “{name}”'.fill({'name': name})),
-      content: SizedBox(
-        width: dialogWidth(context, 560),
-        child: text.isEmpty ? Text('Nothing to engrave.'.tr) : SelectableText(text, style: monospace.copyWith(fontSize: 12.5, height: 1.45)),
-      ),
-      actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-    ),
-  );
+  return await showAppDialog<bool>(
+        context: context,
+        builder: (context) => AppDialog(
+          title: Text('LilyPond couldn’t engrave “{name}”'.fill({'name': name})),
+          content: SizedBox(
+            width: dialogWidth(context, 560),
+            child:
+                text.isEmpty ? Text('Nothing to engrave.'.tr) : SelectableText(text, style: monospace.copyWith(fontSize: 12.5, height: 1.45)),
+          ),
+          actions: [
+            if (canEdit) OutlinedButton(onPressed: () => Navigator.pop(context, true), child: Text('Edit…'.tr)),
+            FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr)),
+          ],
+        ),
+      ) ??
+      false;
 }

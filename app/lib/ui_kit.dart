@@ -1046,3 +1046,100 @@ class CarbonFieldBorder extends OutlineInputBorder {
   @override
   int get hashCode => Object.hash(ring, borderSide);
 }
+
+/// A row of a sidebar's list, as Settings' pages are: in the refined style the chosen one in the
+/// accent's light tint, its label semibold; in Carbon's, its side nav's item. [label] is shown as
+/// given: translated, or a name.
+class SidebarTile extends StatefulWidget {
+  const SidebarTile({super.key, required this.icon, required this.label, required this.selected, required this.onTap, this.trailing});
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  /// At the row's end, after the label (a file's edited dot).
+  final Widget? trailing;
+
+  @override
+  State<SidebarTile> createState() => _SidebarTileState();
+}
+
+class _SidebarTileState extends State<SidebarTile> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final selected = widget.selected;
+    final style = AppStyle.of(context);
+    final k = CarbonColors.maybeOf(context);
+    // Refined: the accent's light tint, as a chosen segment's, the label in the accent and
+    // semibold (the solid accent is left for the default button). Carbon: its side nav's item,
+    // $layer-selected with a 3 px bar of the accent at its left, the text semibold.
+    final tinted = k == null && selected;
+    final fill = k != null
+        ? (selected ? k.layerSelected : _hover ? k.layerHover : k.layerHover.withValues(alpha: 0))
+        : tinted
+            ? colors.accentSoft
+            : _hover
+                ? colors.line.withValues(alpha: 0.45)
+                : colors.line.withValues(alpha: 0);
+    final ink = k != null
+        ? (selected || _hover ? k.textPrimary : k.textSecondary)
+        : tinted
+            ? colors.accentOn(fill, dark: Theme.of(context).brightness == Brightness.dark)
+            // The rows not chosen a step quieter, so the chosen one stands out without more weight.
+            : _hover
+                ? colors.text
+                : Color.lerp(colors.text, colors.textMuted, 0.4)!;
+    final label = Text(widget.label,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+        style: TextStyle(
+          fontSize: k != null ? 14 : 13,
+          letterSpacing: k != null ? 0.16 : null,
+          color: ink,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+        ));
+    return Padding(
+      padding: EdgeInsets.only(bottom: k != null ? 0 : 1),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onTap,
+            child: AnimatedContainer(
+              duration: stateDuration(motion(context, 120)),
+              curve: style.curve,
+              height: k != null ? 32 : 30,
+              padding: EdgeInsets.only(left: k != null ? 13 : 8, right: 8),
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: style.radius(5),
+                // $border-interactive: the accent, in the dark too.
+                border: k == null
+                    ? null
+                    : Border(left: BorderSide(color: selected ? colors.accent : Colors.transparent, width: 3)),
+              ),
+              child: Row(children: [
+                Icon(widget.icon, size: 16, color: k != null || tinted ? ink : colors.textMuted),
+                SizedBox(width: k != null ? 8 : 10),
+                if (widget.trailing case final trailing?) ...[
+                  Expanded(child: label),
+                  const SizedBox(width: 6),
+                  trailing,
+                ] else
+                  Flexible(child: label),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
