@@ -361,8 +361,11 @@ final _categories = <_Category>[
       keywords: 'animation animations fade slide still accessibility',
     ),
   ]),
-  // The page is AiSettingsPage; this row is what the search finds.
-  _Category('AI', AppIcon.ai, page: (c) => AiSettingsPage(settings: c.settings, groupColor: _groupColor), [
+  // AI run on this computer: nothing yet.
+  _Category('Local AI', AppIcon.localAi, []),
+  // AI services reached over the internet. The page is AiSettingsPage; this row is what the
+  // search finds.
+  _Category('Remote AI Provider', AppIcon.ai, page: (c) => AiSettingsPage(settings: c.settings, groupColor: _groupColor), [
     _Item('Providers', null, (_) => const SizedBox.shrink(),
         keywords: 'ai api key keys credentials token provider providers model models llm openai chatgpt gpt anthropic '
             'claude openrouter gemini google deepseek base url endpoint'),

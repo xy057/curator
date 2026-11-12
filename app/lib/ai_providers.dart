@@ -26,10 +26,10 @@ enum AiFormat {
   static AiFormat named(String? name) => values.asNameMap()[name] ?? openai;
 }
 
-/// One AI service and the credentials for it (Settings ▸ AI): an API key, where its API is, and
-/// the models chosen from it. Kept in the app's settings ([AppSettings.aiProviders]), for every
-/// project. Five come with the app ([builtIns]); the user can add others, which speak one of the
-/// [AiFormat]s.
+/// One AI service and the credentials for it (Settings ▸ Remote AI Provider): an API key, where
+/// its API is, and the models chosen from it. Kept in the app's settings
+/// ([AppSettings.aiProviders]), for every project. Five come with the app ([builtIns]); the user
+/// can add others, which speak one of the [AiFormat]s.
 @immutable
 class AiProvider {
   const AiProvider({

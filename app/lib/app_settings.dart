@@ -553,14 +553,15 @@ class AppSettings extends ChangeNotifier {
   }
 
   /// Whether AI is hidden while the app runs: [hideAi] as it was at launch. Nothing asks a model
-  /// then (no Read with AI, no AI for PDF import), and Settings ▸ AI lies under a cover.
+  /// then (no Read with AI, no AI for PDF import), and Settings ▸ Remote AI Provider lies under a
+  /// cover.
   final bool aiHidden;
 
   /// Whether [hideAi] has changed since launch: it applies once the app is opened again.
   bool get aiRestartPending => _hideAi != aiHidden;
 
-  /// Settings ▸ AI: the AI services and their credentials, in the order listed; the built-in
-  /// ones always among them ([AiProvider.read]).
+  /// Settings ▸ Remote AI Provider: the AI services and their credentials, in the order listed;
+  /// the built-in ones always among them ([AiProvider.read]).
   List<AiProvider> get aiProviders => _aiProviders;
   List<AiProvider> _aiProviders;
   set aiProviders(List<AiProvider> value) {

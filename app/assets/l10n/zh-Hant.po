@@ -3715,8 +3715,11 @@ msgstr "全部符合項目"
 msgid "{n} of {all}"
 msgstr "{n} / {all}"
 
-msgid "AI"
-msgstr "AI"
+msgid "Local AI"
+msgstr "本機 AI"
+
+msgid "Remote AI Provider"
+msgstr "遠端 AI 供應商"
 
 msgid "Providers"
 msgstr "供應商"
@@ -3832,8 +3835,8 @@ msgid "Use anyway"
 msgstr "仍然使用"
 
 #: lib/pdf_ai_model_dialog.dart
-msgid "Turn on a provider in Settings ▸ AI to choose a model."
-msgstr "在「設定 ▸ AI」中開啟一個服務商，即可選擇模型。"
+msgid "Turn on a provider in Settings ▸ Remote AI Provider to choose a model."
+msgstr "在「設定 ▸ 遠端 AI 供應商」中開啟一個供應商，即可選擇模型。"
 
 #: lib/pdf_ai_model_dialog.dart
 msgid "Use"

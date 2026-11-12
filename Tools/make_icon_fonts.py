@@ -140,15 +140,16 @@ ICONS = [
     ('maskLane', "Leaves part of a page out of one lane's staves.", 'visibility_off', 'view--off'),
     ('maskAll', "Leaves part of a page out of every lane's staves.", 'visibility_off:fill', 'view--off--filled'),
     ('addBarline', 'Adds a barline.', 'splitscreen_vertical_add', 'column--insert'),
-    ('addStaff', 'Adds a staff.', 'add_row_below', 'row--insert'),
+    ('addStaff', "Draws a staff's region (Draw Region).", 'add_row_below', 'row--insert'),
     ('chapters', 'Chapters.', 'bookmark', 'bookmark'),
-    # AI (Settings ▸ AI)
-    ('ai', 'AI providers.', 'auto_awesome', 'ai-generate'),
+    # AI (Settings ▸ Remote AI Provider, Local AI)
+    ('ai', 'Remote AI providers.', 'auto_awesome', 'ai-generate'),
     ('show', 'Shows what a field hides (a key).', 'visibility', 'view'),
     ('hide', 'Hides it again.', 'visibility_off', 'view--off'),
     ('test', 'Tries a connection.', 'ecg_heart', 'activity'),
     ('fetch', 'Asks a server for its list.', 'sync', 'renew'),
     ('selectMany', 'Chooses several items of a list.', 'check_box', 'checkbox--checked'),
+    ('localAi', 'AI run on this computer.', 'computer', 'laptop'),
 ]
 
 
