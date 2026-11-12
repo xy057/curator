@@ -527,7 +527,7 @@ msgstr "{bars}までの休符をつなぐ"
 msgid "c if a < b, else d"
 msgstr "a < b なら c、そうでなければ d"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "キャンセル"
 
@@ -3421,7 +3421,7 @@ msgstr "声部 {n}"
 msgid "{error}."
 msgstr "{error}。"
 
-#: lib/updater.dart
+#: lib/lilypond.dart lib/updater.dart
 msgid "Couldn’t write the download."
 msgstr "ダウンロードを書き込めませんでした。"
 
@@ -3897,3 +3897,46 @@ msgstr "サーバーの応答が長すぎます。"
 #: lib/main.dart
 msgid "Scores"
 msgstr "楽譜"
+
+#: lib/lilypond.dart
+msgid "Can’t reach GitLab. Is the internet connected?"
+msgstr "GitLab に接続できません。インターネットにつながっていますか？"
+
+#: lib/lilypond.dart
+msgid "The download was damaged. Try again."
+msgstr "ダウンロードが壊れていました。もう一度お試しください。"
+
+#: lib/lilypond.dart
+msgid "GitLab answered {status}."
+msgstr "GitLab の応答: {status}"
+
+#: lib/lilypond.dart lib/settings_dialog.dart
+msgid "Not available for this computer."
+msgstr "このコンピュータでは使えません。"
+
+#: lib/lilypond.dart
+msgid "Couldn’t download LilyPond."
+msgstr "LilyPond をダウンロードできませんでした。"
+
+#: lib/settings_dialog.dart
+msgid "Downloading… {received} of {total} MB"
+msgstr "ダウンロード中… {received} / {total} MB"
+
+#: lib/settings_dialog.dart
+msgid "Installing…"
+msgstr "インストール中…"
+
+#: lib/settings_dialog.dart
+msgid "Engraves LilyPond scores."
+msgstr "LilyPond の楽譜を浄書します。"
+
+#: lib/settings_dialog.dart
+msgid "Engraves LilyPond scores. {size} MB."
+msgstr "LilyPond の楽譜を浄書します。{size} MB。"
+
+#: lib/settings_dialog.dart
+msgid "Download"
+msgstr "ダウンロード"
+
+msgid "Download Hub"
+msgstr "ダウンロードハブ"

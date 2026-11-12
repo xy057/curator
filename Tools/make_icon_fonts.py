@@ -150,6 +150,9 @@ ICONS = [
     ('fetch', 'Asks a server for its list.', 'sync', 'renew'),
     ('selectMany', 'Chooses several items of a list.', 'check_box', 'checkbox--checked'),
     ('localAi', 'AI run on this computer.', 'computer', 'laptop'),
+    # Download Hub, LilyPond
+    ('downloads', 'What the app can download (Settings ▸ Download Hub).', 'cloud_download', 'cloud--download'),
+    ('code', "A LilyPond score's source.", 'code', 'code'),
 ]
 
 

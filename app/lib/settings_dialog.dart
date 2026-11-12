@@ -24,6 +24,7 @@ import 'extensions/extension.dart';
 import 'export_dialog.dart' show revealInFileManager;
 import 'file_names.dart';
 import 'font_settings.dart';
+import 'lilypond.dart';
 import 'menu_kit.dart';
 import 'motion_settings.dart';
 import 'pdf_ai_model_dialog.dart';
@@ -359,6 +360,16 @@ final _categories = <_Category>[
       null,
       (c) => AppSwitch(value: c.settings.reduceMotion, onChanged: (v) => c.settings.reduceMotion = v),
       keywords: 'animation animations fade slide still accessibility',
+    ),
+  ]),
+  // What the app can download and keep on this computer, beside it.
+  _Category('Download Hub', AppIcon.downloads, [
+    _Item(
+      'LilyPond',
+      (_) => _lilyPondHelp(),
+      (_) => const _LilyPondControl(),
+      note: LilyPond.version,
+      keywords: 'lilypond download install remove engraver engrave ly notation text source',
     ),
   ]),
   // AI run on this computer: nothing yet.
@@ -840,6 +851,21 @@ String _updateHelp(UpdateStatus status) => switch (status) {
       UpdateFailed(:final message) => message.tr,
     };
 
+/// Settings ▸ Download Hub ▸ LilyPond's line: what it is for, how far its download has got, or
+/// why it failed.
+String _lilyPondHelp() {
+  final installer = LilyPondInstaller.instance, package = LilyPond.package;
+  if (package == null) return 'Not available for this computer.'.tr;
+  int mb(int bytes) => (bytes / 1e6).round();
+  return switch (installer.stage) {
+    LilyPondStage.downloading => 'Downloading… {received} of {total} MB'.fill({'received': mb(installer.received), 'total': mb(package.size)}),
+    LilyPondStage.unpacking => 'Installing…'.tr,
+    LilyPondStage.failed => describeLilyPondFailure(installer.failure),
+    _ when LilyPond.installed => 'Engraves LilyPond scores.'.tr,
+    _ => 'Engraves LilyPond scores. {size} MB.'.fill({'size': mb(package.size)}),
+  };
+}
+
 String _autosaveLabel(Duration d) => switch (d) {
       Duration.zero => 'Off'.tr,
       Duration(inMinutes: 0, :final inSeconds) => 'Every {n} seconds'.fill({'n': inSeconds}),
@@ -988,7 +1014,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
               : RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: colors.line)),
           clipBehavior: Clip.antiAlias,
           child: ListenableBuilder(
-            listenable: Listenable.merge([widget.settings, _search, widget.updater, ?widget.controller]),
+            listenable: Listenable.merge([widget.settings, _search, widget.updater, LilyPondInstaller.instance, ?widget.controller]),
             builder: (context, _) => _closed
                 ? const SizedBox.shrink()
                 : Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -2137,6 +2163,34 @@ class _UpdateControl extends StatelessWidget {
         OutlinedButton(onPressed: () => revealInFileManager(path), child: Text(_revealLabel)),
       UpdateFailed(release: final release?) =>
         OutlinedButton(onPressed: () => updater.download(release), child: Text('Try Again'.tr)),
+    };
+    return AnimatedSwitcher(duration: motion(context, 120), child: control);
+  }
+}
+
+/// Settings ▸ Download Hub ▸ LilyPond's control: Download, its progress with Cancel, then
+/// Remove.
+class _LilyPondControl extends StatelessWidget {
+  const _LilyPondControl();
+
+  @override
+  Widget build(BuildContext context) {
+    final installer = LilyPondInstaller.instance;
+    final Widget control = switch (installer.stage) {
+      _ when LilyPond.package == null => const SizedBox.shrink(),
+      LilyPondStage.downloading => Row(key: const ValueKey('downloading'), mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(
+            width: 120,
+            child: LinearProgressIndicator(
+                value: installer.total > 0 ? installer.received / installer.total : null, borderRadius: AppStyle.of(context).radius(2)),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton(onPressed: installer.cancel, child: Text('Cancel'.tr)),
+        ]),
+      LilyPondStage.unpacking => const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+      _ when LilyPond.installed => OutlinedButton(onPressed: installer.remove, child: Text('Remove'.tr)),
+      LilyPondStage.failed => OutlinedButton(onPressed: installer.install, child: Text('Try Again'.tr)),
+      _ => FilledButton(onPressed: installer.install, child: Text('Download'.tr)),
     };
     return AnimatedSwitcher(duration: motion(context, 120), child: control);
   }

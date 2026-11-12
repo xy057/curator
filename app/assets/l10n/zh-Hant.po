@@ -527,7 +527,7 @@ msgstr "填補不超過 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 則為 c，否則為 d"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -3421,7 +3421,7 @@ msgstr "聲部 {n}"
 msgid "{error}."
 msgstr "{error}。"
 
-#: lib/updater.dart
+#: lib/lilypond.dart lib/updater.dart
 msgid "Couldn’t write the download."
 msgstr "無法寫入下載檔案。"
 
@@ -3897,3 +3897,46 @@ msgstr "伺服器的回覆過長。"
 #: lib/main.dart
 msgid "Scores"
 msgstr "樂譜"
+
+#: lib/lilypond.dart
+msgid "Can’t reach GitLab. Is the internet connected?"
+msgstr "連不上 GitLab。網路連線了嗎？"
+
+#: lib/lilypond.dart
+msgid "The download was damaged. Try again."
+msgstr "下載的檔案已損壞。請重試。"
+
+#: lib/lilypond.dart
+msgid "GitLab answered {status}."
+msgstr "GitLab 回應了 {status}。"
+
+#: lib/lilypond.dart lib/settings_dialog.dart
+msgid "Not available for this computer."
+msgstr "此電腦上無法使用。"
+
+#: lib/lilypond.dart
+msgid "Couldn’t download LilyPond."
+msgstr "無法下載 LilyPond。"
+
+#: lib/settings_dialog.dart
+msgid "Downloading… {received} of {total} MB"
+msgstr "正在下載… {received} / {total} MB"
+
+#: lib/settings_dialog.dart
+msgid "Installing…"
+msgstr "正在安裝…"
+
+#: lib/settings_dialog.dart
+msgid "Engraves LilyPond scores."
+msgstr "為 LilyPond 樂譜刻譜。"
+
+#: lib/settings_dialog.dart
+msgid "Engraves LilyPond scores. {size} MB."
+msgstr "為 LilyPond 樂譜刻譜。{size} MB。"
+
+#: lib/settings_dialog.dart
+msgid "Download"
+msgstr "下載"
+
+msgid "Download Hub"
+msgstr "下載中心"

@@ -298,7 +298,13 @@ enum AppIcon {
   selectMany(IconData(0xE060, fontFamily: _refined), IconData(0xE060, fontFamily: _carbon)),
 
   /// AI run on this computer. Refined: computer; Carbon: laptop.
-  localAi(IconData(0xE061, fontFamily: _refined), IconData(0xE061, fontFamily: _carbon));
+  localAi(IconData(0xE061, fontFamily: _refined), IconData(0xE061, fontFamily: _carbon)),
+
+  /// What the app can download (Settings ▸ Download Hub). Refined: cloud_download; Carbon: cloud--download.
+  downloads(IconData(0xE062, fontFamily: _refined), IconData(0xE062, fontFamily: _carbon)),
+
+  /// A LilyPond score's source. Refined: code; Carbon: code.
+  code(IconData(0xE063, fontFamily: _refined), IconData(0xE063, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;
