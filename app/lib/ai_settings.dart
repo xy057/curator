@@ -7,6 +7,7 @@ import 'app_icons.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'error_text.dart';
+import 'lilypond_dialog.dart' show monospace;
 import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
@@ -327,8 +328,13 @@ class _ProviderPaneState extends State<_ProviderPane> {
   late final _key = TextEditingController(text: widget.provider.apiKey);
   late final _base = TextEditingController(text: widget.provider.baseUrl);
   late final _path = TextEditingController(text: widget.provider.path);
+  late final _headers = TextEditingController(text: widget.provider.headers);
+  late final _body = TextEditingController(text: widget.provider.body);
   final _modelSearch = TextEditingController();
   bool _keyShown = false, _searching = false, _selecting = false, _testing = false, _fetching = false;
+
+  /// Advanced shown: from the start, when the provider has custom headers or a body.
+  late bool _advanced = widget.provider.headers.trim().isNotEmpty || widget.provider.body.trim().isNotEmpty;
   final _picked = <String>{};
   _TestResult? _tested;
 
@@ -351,6 +357,8 @@ class _ProviderPaneState extends State<_ProviderPane> {
     if (_base.text.trim() != _p.baseUrl) _base.text = _p.baseUrl;
     if (_path.text.trim() != _p.path) _path.text = _p.path;
     if (_key.text.trim() != _p.apiKey) _key.text = _p.apiKey;
+    if (_headers.text != _p.headers) _headers.text = _p.headers;
+    if (_body.text != _p.body) _body.text = _p.body;
     // What Test found was of the key and the address as they were.
     if (!_sameServer(old.provider, _p)) _tested = null;
     _picked.retainAll(_p.models);
@@ -361,6 +369,8 @@ class _ProviderPaneState extends State<_ProviderPane> {
     _key.dispose();
     _base.dispose();
     _path.dispose();
+    _headers.dispose();
+    _body.dispose();
     _modelSearch.dispose();
     super.dispose();
   }
@@ -399,9 +409,15 @@ class _ProviderPaneState extends State<_ProviderPane> {
     });
   }
 
-  /// Whether [a] and [b] are asked alike: the same key, at the same address, in the same format.
+  /// Whether [a] and [b] are asked alike: the same key, at the same address, in the same format,
+  /// with the same custom headers and body.
   static bool _sameServer(AiProvider a, AiProvider b) =>
-      a.format == b.format && a.apiKey == b.apiKey && a.baseUrl == b.baseUrl && a.path == b.path;
+      a.format == b.format &&
+      a.apiKey == b.apiKey &&
+      a.baseUrl == b.baseUrl &&
+      a.path == b.path &&
+      a.headers == b.headers &&
+      a.body == b.body;
 
   Future<void> _fetch() async {
     setState(() => _fetching = true);
@@ -524,7 +540,19 @@ class _ProviderPaneState extends State<_ProviderPane> {
           hint: p.format.path,
           onChanged: (v) => _set(_p.copyWith(path: v.trim())),
         ),
-        const SizedBox(height: 22),
+        SizedBox(height: dialogGap(context)),
+        _Disclosure(
+          label: 'Advanced'.tr,
+          open: _advanced,
+          onToggle: () => setState(() => _advanced = !_advanced),
+          child: _RequestFields(
+            headers: _headers,
+            body: _body,
+            onHeaders: (v) => _set(_p.copyWith(headers: v)),
+            onBody: (v) => _set(_p.copyWith(body: v)),
+          ),
+        ),
+        const SizedBox(height: 18),
         Row(children: [
           Text('Models'.tr, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.text)),
           const SizedBox(width: 8),
@@ -655,6 +683,91 @@ class _ProviderPaneState extends State<_ProviderPane> {
         ]),
       ),
     );
+  }
+}
+
+/// A heading that shows what is under it while [open] (Advanced), its arrow turning.
+class _Disclosure extends StatelessWidget {
+  const _Disclosure({required this.label, required this.open, required this.onToggle, required this.child});
+  final String label;
+  final bool open;
+  final VoidCallback onToggle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = context.colors.textMuted;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Semantics(
+          button: true,
+          expanded: open,
+          child: InkWell(
+            onTap: onToggle,
+            borderRadius: AppStyle.of(context).radius(6),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 4, 8, 4),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                AnimatedRotation(
+                  turns: open ? 0 : -0.25,
+                  duration: stateDuration(motion(context, 150)),
+                  curve: AppStyle.of(context).curve,
+                  child: Icon(AppIcon.dropDown.of(context), size: 18, color: muted),
+                ),
+                const SizedBox(width: 4),
+                _Label(label),
+              ]),
+            ),
+          ),
+        ),
+      ),
+      if (open) Padding(padding: const EdgeInsets.only(top: 8), child: child),
+    ]);
+  }
+}
+
+/// Custom headers and a custom body (a provider's, or a model's after it), in monospace, each
+/// saying under it what of it isn't right.
+class _RequestFields extends StatelessWidget {
+  const _RequestFields({required this.headers, required this.body, required this.onHeaders, required this.onBody});
+  final TextEditingController headers, body;
+  final ValueChanged<String> onHeaders, onBody;
+
+  /// What [parse] finds wrong in [text]; null when nothing.
+  static String? problem(String text, void Function(String) parse) {
+    try {
+      parse(text);
+      return null;
+    } on AiError catch (e) {
+      return e.message;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget field(TextEditingController controller, String label, String hint, String? problem, ValueChanged<String> onChanged) =>
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          AppTextField(
+            controller: controller,
+            label: label,
+            hint: hint,
+            bad: problem != null,
+            lines: 3,
+            textStyle: monospace.copyWith(fontSize: 12.5),
+            onChanged: onChanged,
+          ),
+          if (problem != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Text(problem, style: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.error)),
+            ),
+        ]);
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      field(headers, 'Custom headers'.tr, 'Name: value'.tr, problem(headers.text, AiClient.headersIn), onHeaders),
+      SizedBox(height: dialogGap(context)),
+      field(body, 'Custom body'.tr, '{"temperature": 0}', problem(body.text, AiClient.bodyIn), onBody),
+    ]);
   }
 }
 
@@ -960,7 +1073,10 @@ class _ModelDialog extends StatefulWidget {
 class _ModelDialogState extends State<_ModelDialog> {
   late AiModelInfo _info = widget.provider.infoOf(widget.model);
   late final _context = TextEditingController(text: _tokensText(_info.context));
+  late final _headers = TextEditingController(text: _info.headers);
+  late final _body = TextEditingController(text: _info.body);
   bool _fetching = false;
+  late bool _advanced = _info.headers.trim().isNotEmpty || _info.body.trim().isNotEmpty;
 
   /// What Fetch found, [bad] when it found nothing.
   ({String text, bool bad})? _fetched;
@@ -968,10 +1084,15 @@ class _ModelDialogState extends State<_ModelDialog> {
   @override
   void dispose() {
     _context.dispose();
+    _headers.dispose();
+    _body.dispose();
     super.dispose();
   }
 
   bool get _contextBad => _context.text.trim().isNotEmpty && AiModelInfo.parseTokens(_context.text) == null;
+
+  bool get _ready =>
+      !_contextBad && _RequestFields.problem(_headers.text, AiClient.headersIn) == null && _RequestFields.problem(_body.text, AiClient.bodyIn) == null;
 
   /// Set by hand: a Fetch from the list after it leaves it as set.
   void _setByHand({bool? vision, bool? reasoning, int? Function()? tokens}) => setState(() {
@@ -1015,7 +1136,16 @@ class _ModelDialogState extends State<_ModelDialog> {
   }
 
   void _save() {
-    if (!_contextBad) Navigator.pop(context, _info);
+    if (!_ready) return;
+    Navigator.pop(
+        context,
+        AiModelInfo(
+            vision: _info.vision,
+            reasoning: _info.reasoning,
+            context: _info.context,
+            byHand: _info.byHand,
+            headers: _headers.text,
+            body: _body.text));
   }
 
   @override
@@ -1060,6 +1190,13 @@ class _ModelDialogState extends State<_ModelDialog> {
             onChanged: (v) => _setByHand(tokens: () => AiModelInfo.parseTokens(v)),
             onSubmitted: (_) => _save(),
           ),
+          SizedBox(height: dialogGap(context)),
+          _Disclosure(
+            label: 'Advanced'.tr,
+            open: _advanced,
+            onToggle: () => setState(() => _advanced = !_advanced),
+            child: _RequestFields(headers: _headers, body: _body, onHeaders: (_) => setState(() {}), onBody: (_) => setState(() {})),
+          ),
         ]),
       ),
       leading: [
@@ -1077,7 +1214,7 @@ class _ModelDialogState extends State<_ModelDialog> {
               style: TextStyle(color: fetched.bad ? Theme.of(context).colorScheme.error : colors.textMuted)),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
-        FilledButton(onPressed: _contextBad ? null : _save, child: Text('Save'.tr)),
+        FilledButton(onPressed: _ready ? _save : null, child: Text('Save'.tr)),
       ],
     );
   }

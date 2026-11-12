@@ -268,9 +268,18 @@ class AppTextField extends StatelessWidget {
     this.focusNode,
     this.obscureText = false,
     this.suffix,
+    this.lines = 1,
+    this.textStyle,
   });
 
   final TextEditingController controller;
+
+  /// Lines shown: more than one, a field that takes them (Return starts one), as tall as they
+  /// are and growing with what is typed up to three times as many.
+  final int lines;
+
+  /// Over the field's own text style (monospace, for code).
+  final TextStyle? textStyle;
 
   /// Dots for what is typed (a key).
   final bool obscureText;
@@ -296,18 +305,22 @@ class AppTextField extends StatelessWidget {
     final k = CarbonColors.maybeOf(context);
     final borders = fieldBorders(context, bad: bad);
     final fill = fieldFill(context);
-    final text = k == null ? const TextStyle(fontSize: 14) : TextStyle(fontSize: 14, letterSpacing: 0.16, color: k.textPrimary);
+    final text = (k == null ? const TextStyle(fontSize: 14) : TextStyle(fontSize: 14, letterSpacing: 0.16, color: k.textPrimary))
+        .merge(textStyle);
+    final multiline = lines > 1;
     final field = SizedBox(
-        height: style.field,
+        height: multiline ? null : style.field,
         child: TextField(
           controller: controller,
           focusNode: focusNode,
           autofocus: autofocus,
           maxLength: maxLength,
           obscureText: obscureText,
-          autocorrect: !obscureText,
-          enableSuggestions: !obscureText,
-          keyboardType: keyboardType,
+          autocorrect: !obscureText && !multiline,
+          enableSuggestions: !obscureText && !multiline,
+          minLines: multiline ? lines : null,
+          maxLines: multiline ? lines * 3 : 1,
+          keyboardType: multiline ? TextInputType.multiline : keyboardType,
           inputFormatters: inputFormatters,
           onTap: onTap,
           // Proportional figures: a tabular 1 stands in a wide slot, its text looking indented.

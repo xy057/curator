@@ -80,6 +80,23 @@ void main() {
     await settle();
     expect([local().baseUrl, typed(1)], ['http://127.0.0.1:${server.port}/v1', 'http://127.0.0.1:${server.port}/v1 ']);
 
+    // Advanced: custom headers and body, kept as typed, each saying what of it isn't right.
+    expect(find.text('Custom headers'), findsNothing);
+    await tester.tap(find.text('Advanced'));
+    await settle();
+    await tester.enterText(field(3), 'X-Title: Curator\nno colon');
+    await settle();
+    expect(find.text('Custom headers, line 2: not “Name: value”.'), findsOneWidget);
+    await tester.enterText(field(3), 'X-Title: Curator\n');
+    await tester.enterText(field(4), '{"temperature": 0');
+    await settle();
+    expect(find.text('Custom headers, line 2: not “Name: value”.'), findsNothing);
+    expect(find.text('The custom body isn’t a JSON object.'), findsOneWidget);
+    await tester.enterText(field(4), '{"temperature": 0}');
+    await settle();
+    expect(find.text('The custom body isn’t a JSON object.'), findsNothing);
+    expect([local().headers, local().body], ['X-Title: Curator\n', '{"temperature": 0}']);
+
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await settle();
   });
@@ -164,6 +181,24 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle();
     expect(local().infoOf('see'), const AiModelInfo(vision: true, reasoning: true, context: 1000000));
+
+    // A model's own headers and body, under Advanced: Save waits for them to be right.
+    await tester.tap(find.text('see'));
+    await settle();
+    await tester.tap(find.text('Advanced').last);
+    await settle();
+    Finder inDialog(int n) => find.descendant(of: find.byType(AppTextField).at(n), matching: find.byType(EditableText));
+    final fields = find.byType(AppTextField).evaluate().length; // the pane's three, then the dialog's context, headers, body
+    await tester.enterText(inDialog(fields - 1), '{"reasoning": ');
+    await settle();
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Save')).onPressed, isNull);
+    await tester.enterText(inDialog(fields - 1), '{"reasoning": {"effort": "low"}}');
+    await tester.enterText(inDialog(fields - 2), 'X-Model: 1');
+    await settle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await settle();
+    expect(local().infoOf('see'),
+        const AiModelInfo(vision: true, reasoning: true, context: 1000000, headers: 'X-Model: 1', body: '{"reasoning": {"effort": "low"}}'));
 
     // Fetch: the list's models with what it says of each; what was set by hand stays as set.
     await tester.tap(find.widgetWithText(TextButton, 'Fetch'));

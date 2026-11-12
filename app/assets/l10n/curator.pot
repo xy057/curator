@@ -281,6 +281,7 @@ msgstr ""
 msgid "Add…"
 msgstr ""
 
+#: lib/ai_settings.dart
 msgid "Advanced"
 msgstr ""
 
@@ -4080,4 +4081,28 @@ msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Context size"
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: not “Name: value”."
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: characters a header can’t hold."
+msgstr ""
+
+#: lib/ai_providers.dart
+msgid "The custom body isn’t a JSON object."
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Custom headers"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Name: value"
+msgstr ""
+
+#: lib/ai_settings.dart
+msgid "Custom body"
 msgstr ""

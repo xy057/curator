@@ -282,6 +282,7 @@ msgstr "追加：{names}"
 msgid "Add…"
 msgstr "追加…"
 
+#: lib/ai_settings.dart
 msgid "Advanced"
 msgstr "詳細"
 
@@ -4100,3 +4101,27 @@ msgstr "機能"
 #: lib/ai_settings.dart
 msgid "Context size"
 msgstr "コンテキスト長"
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: not “Name: value”."
+msgstr "カスタムヘッダー、{line} 行目：「名前: 値」の形式ではありません。"
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: characters a header can’t hold."
+msgstr "カスタムヘッダー、{line} 行目：ヘッダーに使えない文字が含まれています。"
+
+#: lib/ai_providers.dart
+msgid "The custom body isn’t a JSON object."
+msgstr "カスタムボディが JSON オブジェクトではありません。"
+
+#: lib/ai_settings.dart
+msgid "Custom headers"
+msgstr "カスタムヘッダー"
+
+#: lib/ai_settings.dart
+msgid "Name: value"
+msgstr "名前: 値"
+
+#: lib/ai_settings.dart
+msgid "Custom body"
+msgstr "カスタムボディ"

@@ -282,6 +282,7 @@ msgstr "新增：{names}"
 msgid "Add…"
 msgstr "加入…"
 
+#: lib/ai_settings.dart
 msgid "Advanced"
 msgstr "進階"
 
@@ -4100,3 +4101,27 @@ msgstr "能力"
 #: lib/ai_settings.dart
 msgid "Context size"
 msgstr "上下文長度"
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: not “Name: value”."
+msgstr "自訂請求標頭，第 {line} 行：不是「名稱: 值」格式。"
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: characters a header can’t hold."
+msgstr "自訂請求標頭，第 {line} 行：含有請求標頭不能包含的字元。"
+
+#: lib/ai_providers.dart
+msgid "The custom body isn’t a JSON object."
+msgstr "自訂請求本文不是 JSON 物件。"
+
+#: lib/ai_settings.dart
+msgid "Custom headers"
+msgstr "自訂請求標頭"
+
+#: lib/ai_settings.dart
+msgid "Name: value"
+msgstr "名稱: 值"
+
+#: lib/ai_settings.dart
+msgid "Custom body"
+msgstr "自訂請求本文"

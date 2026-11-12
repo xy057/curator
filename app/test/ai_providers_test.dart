@@ -187,6 +187,77 @@ void main() {
     expect(heard.length, asked);
   });
 
+  test('custom headers and bodies go with the requests, the provider’s then the model’s', () async {
+    // Read: one header a line, by name in lower case; what isn't one named by its line, never
+    // repeating a value.
+    expect(AiClient.headersIn('X-Title: Curator\n\n  HTTP-Referer:https://a.example/x:1  \nx-title: again'),
+        {'x-title': 'again', 'http-referer': 'https://a.example/x:1'});
+    expect(AiClient.headersIn('  '), isEmpty);
+    for (final (text, said) in [
+      ('X-A: 1\nno colon', 'Custom headers, line 2: not “Name: value”.'),
+      (': value', 'Custom headers, line 1: not “Name: value”.'),
+      ('Bad Name: 1', 'Custom headers, line 1: characters a header can’t hold.'),
+      ('X-Key: sk-密钥', 'Custom headers, line 1: characters a header can’t hold.'),
+    ]) {
+      expect(() => AiClient.headersIn(text), throwsA(isA<AiError>().having((e) => e.message, 'message', said)));
+    }
+    expect(AiClient.bodyIn(' '), isEmpty);
+    expect(AiClient.bodyIn('{"temperature": 0, "provider": {"order": ["a"]}}'), {'temperature': 0, 'provider': {'order': ['a']}});
+    for (final text in ['[1]', '{"a": ', '7']) {
+      expect(() => AiClient.bodyIn(text), throwsA(isA<AiError>().having((e) => e.message, 'message', 'The custom body isn’t a JSON object.')));
+    }
+
+    // Kept with the provider and its model.
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(server.close);
+    final heard = <({String path, HttpHeaders headers, Object? body})>[];
+    server.listen((request) async {
+      final sent = await utf8.decoder.bind(request).join();
+      heard.add((path: request.uri.path, headers: request.headers, body: sent.isEmpty ? null : jsonDecode(sent)));
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode(request.uri.path.endsWith('/models')
+          ? {'data': [{'id': 'm'}], 'models': [{'name': 'models/m'}]}
+          : {'choices': [{'message': {'content': 'seen'}}], 'candidates': [{'content': {'parts': [{'text': 'seen'}]}}]}));
+      await request.response.close();
+    });
+    final provider = AiProvider(
+      id: 'x', name: 'x', format: AiFormat.openai, apiKey: 'secret', baseUrl: 'http://127.0.0.1:${server.port}', path: AiFormat.openai.path,
+      models: ['m', 'n'],
+      headers: 'X-Title: Curator\nX-Both: provider',
+      body: '{"temperature": 0, "max_tokens": 100, "provider": {"order": ["a"], "allow_fallbacks": false}}',
+      details: {
+        'm': const AiModelInfo(
+            headers: 'X-Both: model\nAuthorization: Bearer other', body: '{"max_tokens": null, "provider": {"order": ["b"]}, "reasoning": {"effort": "low"}}'),
+      },
+    );
+    expect(AiProvider.read(AiProvider.write([provider])).first, provider);
+
+    await AiClient(provider).models(); // the provider's headers, no body
+    await AiClient(provider).ask('m', 'Hi');
+    await AiClient(provider).ask('n', 'Hi');
+    final [list, m, n] = heard;
+    expect([list.headers.value('x-title'), list.headers.value('x-both'), list.headers.value('authorization'), list.body],
+        ['Curator', 'provider', 'Bearer secret', null]);
+    // The model's after the provider's: a header named again replaces it, the key's too.
+    expect([m.headers.value('x-title'), m.headers.value('x-both'), m.headers.value('authorization')], ['Curator', 'model', 'Bearer other']);
+    // Bodies merged: an object in both merged, a null taking its name out, anything else replaced.
+    final body = m.body! as Map;
+    expect([body['model'], body['temperature'], body.containsKey('max_tokens'), body['provider'], body['reasoning']],
+        ['m', 0, false, {'order': ['b'], 'allow_fallbacks': false}, {'effort': 'low'}]);
+    expect(body['messages'], isA<List>());
+    expect([n.headers.value('x-both'), n.headers.value('authorization'), (n.body! as Map)['max_tokens']], ['provider', 'Bearer secret', 100]);
+
+    // Gemini's: what the app asks of it kept where the body adds to the same object.
+    final gemini = provider.copyWith(format: AiFormat.gemini, path: AiFormat.gemini.path, body: '{"generationConfig": {"temperature": 0}}');
+    expect(await AiClient(gemini).ask('n', 'Hi'), 'seen');
+    expect((heard.last.body! as Map)['generationConfig'], {'responseMimeType': 'application/json', 'temperature': 0});
+    // A custom header that isn't one: said, and nothing is asked.
+    final asked = heard.length;
+    await expectLater(AiClient(provider.copyWith(headers: 'X-Key: 秘密')).models(), throwsA(isA<AiError>()));
+    await expectLater(AiClient(provider.copyWith(body: '[]')).ask('n', 'Hi'), throwsA(isA<AiError>()));
+    expect(heard.length, asked);
+  });
+
   test('a client closed ends its requests, one whose connection is still being made too, and asks nothing after', () async {
     // A server that answers every model at once but "held", which it never answers.
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

@@ -282,6 +282,7 @@ msgstr "新增：{names}"
 msgid "Add…"
 msgstr "添加…"
 
+#: lib/ai_settings.dart
 msgid "Advanced"
 msgstr "高级"
 
@@ -4100,3 +4101,27 @@ msgstr "能力"
 #: lib/ai_settings.dart
 msgid "Context size"
 msgstr "上下文长度"
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: not “Name: value”."
+msgstr "自定义请求头，第 {line} 行：不是“名称: 值”格式。"
+
+#: lib/ai_providers.dart
+msgid "Custom headers, line {line}: characters a header can’t hold."
+msgstr "自定义请求头，第 {line} 行：含有请求头不能包含的字符。"
+
+#: lib/ai_providers.dart
+msgid "The custom body isn’t a JSON object."
+msgstr "自定义请求体不是 JSON 对象。"
+
+#: lib/ai_settings.dart
+msgid "Custom headers"
+msgstr "自定义请求头"
+
+#: lib/ai_settings.dart
+msgid "Name: value"
+msgstr "名称: 值"
+
+#: lib/ai_settings.dart
+msgid "Custom body"
+msgstr "自定义请求体"
