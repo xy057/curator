@@ -3715,9 +3715,6 @@ msgstr "全部匹配项"
 msgid "{n} of {all}"
 msgstr "{n} / {all}"
 
-msgid "Local AI"
-msgstr "本地 AI"
-
 msgid "Remote AI Provider"
 msgstr "远程 AI 供应商"
 

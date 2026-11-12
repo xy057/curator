@@ -542,7 +542,8 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Settings ▸ General ▸ Hide AI features: no AI anywhere, from the next launch on ([aiHidden]).
+  /// Settings ▸ General ▸ Hide AI features: no remote AI anywhere, from the next launch on
+  /// ([aiHidden]).
   bool get hideAi => _hideAi;
   bool _hideAi;
   set hideAi(bool value) {
@@ -552,9 +553,10 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Whether AI is hidden while the app runs: [hideAi] as it was at launch. Nothing asks a model
-  /// then (no Read with AI, no AI for PDF import), and Settings ▸ Remote AI Provider lies under a
-  /// cover.
+  /// Whether AI is hidden while the app runs: [hideAi] as it was at launch. Nothing asks a remote
+  /// model then (no Read with AI, no AI for PDF import), and Settings ▸ Remote AI Provider lies
+  /// under a cover. AI run on this computer is never hidden: Align's Basic Pitch, and what
+  /// Settings ▸ Download Hub downloads.
   final bool aiHidden;
 
   /// Whether [hideAi] has changed since launch: it applies once the app is opened again.

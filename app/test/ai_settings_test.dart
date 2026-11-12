@@ -53,7 +53,9 @@ void main() {
     await tester.tap(find.text('Open'));
     await settle();
     expect(find.text('Remote AI Provider'), findsNWidgets(2)); // its sidebar row and its title
-    expect(find.text('Local AI'), findsOneWidget); // the sidebar's: a page of its own
+    // AI run on this computer has no page of its own: it is the Download Hub's.
+    expect(find.text('Local AI'), findsNothing);
+    expect(find.text('Download Hub'), findsOneWidget);
     // The key, the base URL and the path, in that order.
     Finder field(int n) => find.descendant(of: find.byType(AppTextField).at(n), matching: find.byType(EditableText));
     String typed(int n) => tester.widget<EditableText>(field(n)).controller.text;
@@ -77,13 +79,6 @@ void main() {
     await settle();
     expect([local().baseUrl, typed(1)], ['http://127.0.0.1:${server.port}/v1', 'http://127.0.0.1:${server.port}/v1 ']);
 
-
-    // Local AI: a page with nothing on it yet.
-    await tester.tap(find.text('Local AI'));
-    await settle();
-    expect(find.text('Local AI'), findsNWidgets(2));
-    expect(find.text('Add Provider…'), findsNothing);
-    expect(find.byType(AppTextField), findsNothing);
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await settle();
   });

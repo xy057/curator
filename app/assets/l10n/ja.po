@@ -3715,9 +3715,6 @@ msgstr "一致するすべて"
 msgid "{n} of {all}"
 msgstr "{n} / {all}"
 
-msgid "Local AI"
-msgstr "ローカル AI"
-
 msgid "Remote AI Provider"
 msgstr "リモート AI プロバイダー"
 

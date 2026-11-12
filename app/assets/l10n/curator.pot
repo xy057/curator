@@ -3696,9 +3696,6 @@ msgstr ""
 msgid "{n} of {all}"
 msgstr ""
 
-msgid "Local AI"
-msgstr ""
-
 msgid "Remote AI Provider"
 msgstr ""
 
