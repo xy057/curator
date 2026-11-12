@@ -6,16 +6,18 @@
 %% CURATOR_LILYPOND_DATA names. Nothing here may stop a score from engraving: a failure is
 %% written as an error line and the score goes on.
 
-%% Text is set in Academico, the font Curator draws it in, so that it is spaced as it is drawn
-%% (LilyPond's own, with the SVG backend, is the system's serif: Times on a Mac, narrower). Its
-%% files are in the folder CURATOR_LILYPOND_FONTS names, added one by one: a folder added
-%% would leave a font cache behind for each engraving. A score setting its own fonts keeps them.
-#(use-modules (ice-9 ftw))
+%% Text is set in the font Curator draws it in, so that it is spaced as it is drawn (LilyPond's
+%% own, with the SVG backend, is the system's serif: Times on a Mac, narrower): the family
+%% CURATOR_LILYPOND_SERIF names (Academico, or the project's text font), from the very files
+%% Curator draws it with, one a line in CURATOR_LILYPOND_FONTS, each added as it is (a folder
+%% added would leave a font cache behind for each engraving). A score setting its own fonts
+%% keeps them.
 #(define curator:serif
-   (let* ((dir (getenv "CURATOR_LILYPOND_FONTS"))
-          (names (or (and dir (scandir dir (lambda (name) (string-suffix? ".otf" name)))) '())))
-     (for-each (lambda (name) (ly:font-config-add-font (string-append dir "/" name))) names)
-     (if (null? names) "serif" "Academico")))
+   (let ((files (getenv "CURATOR_LILYPOND_FONTS"))
+         (family (getenv "CURATOR_LILYPOND_SERIF")))
+     (for-each (lambda (file) (if (file-exists? file) (ly:font-config-add-font file)))
+               (if files (string-split files #\newline) '()))
+     (or family "serif")))
 
 \paper {
   property-defaults.fonts.serif = #curator:serif

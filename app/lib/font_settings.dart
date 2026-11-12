@@ -19,6 +19,8 @@ import 'app_colors.dart';
 import 'app_icons.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
+import 'lilypond.dart' show LilyPond;
+import 'lilypond_dialog.dart' show ensureLilyPond;
 import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
@@ -184,10 +186,13 @@ class _MusicFontPickerState extends State<MusicFontPicker> {
 }
 
 /// The score's text font, or with [caption] the captions' ('' standing for Default, the app's).
+/// A LilyPond score's is LilyPond's to set: where LilyPond isn't here, it is asked for first,
+/// [downloadHub] opening Settings ▸ Download Hub.
 class TextFontPicker extends StatefulWidget {
-  const TextFontPicker({super.key, required this.controller, this.caption = false});
+  const TextFontPicker({super.key, required this.controller, this.caption = false, this.downloadHub});
   final EditorController controller;
   final bool caption;
+  final VoidCallback? downloadHub;
 
   @override
   State<TextFontPicker> createState() => _TextFontPickerState();
@@ -198,9 +203,21 @@ class _TextFontPickerState extends State<TextFontPicker> {
   List<String>? _installed;
   String? _error;
 
-  /// A family that can't be read changes nothing, and says why (as the music font does).
+  /// Counts choices that changed nothing, so the field shows the font as it is again.
+  int _unchosen = 0;
+
+  /// A family that can't be read changes nothing, and says why (as the music font does). A
+  /// LilyPond score is engraved again by LilyPond (see [EditorController.setFonts]): without it,
+  /// nothing changes unless it comes.
   Future<void> _choose(String family) async {
     setState(() => _error = null);
+    if (c.isLilyPond && !LilyPond.installed) {
+      final hub = widget.downloadHub;
+      if (hub == null || !await ensureLilyPond(context, downloadHub: hub)) {
+        if (mounted) setState(() => _unchosen++);
+        return;
+      }
+    }
     try {
       await c.setFonts(c.fonts.copyWith(text: family));
     } catch (e) {
@@ -236,7 +253,7 @@ class _TextFontPickerState extends State<TextFontPicker> {
           return _field(
             context,
             DropdownMenu<String>(
-              key: ValueKey((value, texts.length)), // shows an Undo's font, and the list once read
+              key: ValueKey((value, texts.length, _unchosen)), // shows an Undo's font, and the list once read
               expandedInsets: EdgeInsets.zero,
               inputDecorationTheme: _compact(context),
               textStyle: _text,

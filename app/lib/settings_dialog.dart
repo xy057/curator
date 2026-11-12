@@ -64,9 +64,14 @@ Future<void> showSettingsDialog(
 /// Edit ▸ Project Settings… (⇧⌘,): the open project's own settings, laid out as Settings
 /// ([_projectCategories]). Each change is an edit: an Undo step, saved with the project.
 /// [editScore] is Project Info's Edit…, called once this window is gone; [replaceScore] its
-/// Replace… (the app's, which asks first), called over it with a way to close it.
+/// Replace… (the app's, which asks first), called over it with a way to close it; [downloadHub]
+/// opens Settings ▸ Download Hub, called once this window is gone (one settings window at a
+/// time), where a LilyPond score's text font asks for LilyPond.
 Future<void> showProjectSettingsDialog(BuildContext context, AppSettings settings, EditorController controller,
-        {String? page, Future<void> Function()? editScore, Future<void> Function(VoidCallback leave)? replaceScore}) =>
+        {String? page,
+        Future<void> Function()? editScore,
+        Future<void> Function(VoidCallback leave)? replaceScore,
+        VoidCallback? downloadHub}) =>
     _showWindow(
       context,
       _SettingsWindow(
@@ -77,6 +82,7 @@ Future<void> showProjectSettingsDialog(BuildContext context, AppSettings setting
         page: page,
         editScore: editScore,
         replaceScore: replaceScore,
+        downloadHub: downloadHub,
       ),
     );
 
@@ -198,6 +204,7 @@ typedef _Context = ({
   Updater updater,
   Future<void> Function()? editScore,
   Future<void> Function(VoidCallback leave)? replaceScore,
+  VoidCallback? downloadHub, // Settings ▸ Download Hub, the window it is called from gone
 });
 
 final _categories = <_Category>[
@@ -800,7 +807,7 @@ _Category _engravingCategory() {
         group: 'Fonts',
         keywords: 'font embed include file installed',
       ),
-      _Item('Text font', null, (c) => TextFontPicker(controller: c.controller!),
+      _Item('Text font', null, (c) => TextFontPicker(controller: c.controller!, downloadHub: c.downloadHub),
           group: 'Fonts', keywords: 'font academico family typeface'),
       _Item(
         'Caption font',
@@ -881,10 +888,12 @@ class _SettingsWindow extends StatefulWidget {
       required this.updater,
       this.page,
       this.editScore,
-      this.replaceScore});
+      this.replaceScore,
+      this.downloadHub});
   final _Window kind;
   final Future<void> Function()? editScore;
   final Future<void> Function(VoidCallback leave)? replaceScore;
+  final VoidCallback? downloadHub;
   final AppSettings settings;
   final EditorController? controller;
   final Updater updater;
@@ -920,11 +929,30 @@ class _SettingsWindowState extends State<_SettingsWindow> {
 
   /// [tab] in a window of its own, over the editor, in place of this one.
   void _popOut(_Category tab) {
-    final overlay = Overlay.of(context, rootOverlay: true);
+    final overlay = Overlay.of(context, rootOverlay: true), hub = widget.downloadHub;
     Navigator.pop(context);
-    _EngravingWindow.show(
-        overlay, tab, (settings: widget.settings, controller: widget.controller, updater: Updater(), editScore: null, replaceScore: null));
+    _EngravingWindow.show(overlay, tab, (
+      settings: widget.settings,
+      controller: widget.controller,
+      updater: Updater(),
+      editScore: null,
+      replaceScore: null,
+      downloadHub: hub == null
+          ? null
+          : () {
+              _EngravingWindow.close();
+              hub();
+            },
+    ));
   }
+
+  /// Settings ▸ Download Hub, once this window is gone (see [dispose]).
+  void _downloadHub() {
+    _thenDownloadHub = true;
+    Navigator.pop(context);
+  }
+
+  bool _thenDownloadHub = false;
   final _search = TextEditingController();
 
   int get _lastPage => _lastPages[widget.kind] ?? 0;
@@ -935,6 +963,8 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     widget.controller?.removeListener(_controllerChanged);
     _search.dispose();
     _windowShown = false;
+    // Its fade-out over: the next window can open.
+    if (_thenDownloadHub) WidgetsBinding.instance.addPostFrameCallback((_) => widget.downloadHub!());
     super.dispose();
   }
 
@@ -944,6 +974,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         updater: widget.updater,
         editScore: widget.editScore,
         replaceScore: widget.replaceScore,
+        downloadHub: widget.downloadHub == null ? null : _downloadHub,
       );
 
   /// Items matching the search, with their category; null when not searching.

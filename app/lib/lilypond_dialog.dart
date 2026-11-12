@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:score_engine/score_engine.dart' show TextFonts;
 
 import 'app_colors.dart';
 import 'dialog_kit.dart';
@@ -7,13 +8,15 @@ import 'l10n/l10n.dart';
 import 'lilypond.dart';
 import 'ui_kit.dart';
 
-/// Engraves [source] with LilyPond in a dialog saying so, Cancel stopping it. Where LilyPond isn't
+/// Engraves [source] with LilyPond in a dialog saying so, its text in [textFont] (see
+/// [LilyPond.textFontFor]), Cancel stopping it. Where LilyPond isn't
 /// here yet, the dialog asks for it, from Settings ▸ Download Hub: Open Download Hub closes it and
 /// calls [downloadHub], which opens there. A download under way there is waited for, and the
 /// score engraved once it is in. Null when cancelled or gone to the Download Hub; throws what
 /// running LilyPond threw.
-Future<LilyPondRun?> engraveWithLilyPond(BuildContext context, LilySource source, {required VoidCallback downloadHub}) async {
-  final outcome = await _ask(context, source, downloadHub);
+Future<LilyPondRun?> engraveWithLilyPond(BuildContext context, LilySource source,
+    {String textFont = TextFonts.academico, required VoidCallback downloadHub}) async {
+  final outcome = await _ask(context, source, textFont, downloadHub);
   if (outcome?.error case final error?) Error.throwWithStackTrace(error, outcome!.stack ?? StackTrace.current);
   return outcome?.run;
 }
@@ -21,11 +24,11 @@ Future<LilyPondRun?> engraveWithLilyPond(BuildContext context, LilySource source
 /// Whether LilyPond is here: true at once when it is; else it is asked for as
 /// [engraveWithLilyPond] asks, true once a download under way is in.
 Future<bool> ensureLilyPond(BuildContext context, {required VoidCallback downloadHub}) async =>
-    LilyPond.installed || ((await _ask(context, null, downloadHub))?.ready ?? false);
+    LilyPond.installed || ((await _ask(context, null, TextFonts.academico, downloadHub))?.ready ?? false);
 
-Future<_Outcome?> _ask(BuildContext context, LilySource? source, VoidCallback downloadHub) async {
+Future<_Outcome?> _ask(BuildContext context, LilySource? source, String textFont, VoidCallback downloadHub) async {
   final outcome = await showAppDialog<_Outcome>(
-      context: context, barrierDismissible: false, builder: (_) => LilyPondDialog(source: source));
+      context: context, barrierDismissible: false, builder: (_) => LilyPondDialog(source: source, textFont: textFont));
   if (outcome?.downloadHub ?? false) downloadHub();
   return outcome;
 }
@@ -43,8 +46,9 @@ class _Outcome {
 /// [engraveWithLilyPond]'s dialog, and [ensureLilyPond]'s ([source] null: nothing to engrave).
 @visibleForTesting
 class LilyPondDialog extends StatefulWidget {
-  const LilyPondDialog({super.key, this.source});
+  const LilyPondDialog({super.key, this.source, this.textFont = TextFonts.academico});
   final LilySource? source;
+  final String textFont;
 
   @override
   State<LilyPondDialog> createState() => _LilyPondDialogState();
@@ -90,7 +94,7 @@ class _LilyPondDialogState extends State<LilyPondDialog> {
     if (mounted) setState(() {});
     _Outcome outcome;
     try {
-      outcome = _Outcome(run: await LilyPond.engrave(widget.source!, cancel: cancel));
+      outcome = _Outcome(run: await LilyPond.engrave(widget.source!, textFont: widget.textFont, cancel: cancel));
     } catch (e, stack) {
       outcome = _Outcome(error: e, stack: stack);
     }

@@ -3,8 +3,9 @@ import 'dart:typed_data';
 
 import 'package:curated_score/lilypond.dart';
 import 'package:curated_score/project_state.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:score_engine/score_engine.dart' show LilyPondScore;
+import 'package:score_engine/score_engine.dart' show LilyPondScore, TextFonts;
 
 void main() {
   test("LilyPond's problems are read with where they are, its own folder taken off", () {
@@ -136,22 +137,42 @@ void main() {
     expect({for (final l in score.links) l.file}, {'名称未設定.ly'});
   }, skip: lilypond == null);
 
-  testWidgets('a score’s text is spaced in Academico, the font it is drawn in', (tester) async {
+  testWidgets('a score’s text is spaced in the font it is drawn in: Academico, or a family installed here', (tester) async {
     LilyPond.debugExecutable = File(lilypond!);
     addTearDown(() => LilyPond.debugExecutable = null);
-    final run = await tester.runAsync(() => LilyPond.engrave(const LilySource(
-        name: 'tempo.ly', text: '\\version "2.26.0"\n{ \\tempo "Allegro" 4 = 120 c\'1 }\n', files: {}))).then((r) => r!);
-    expect(run.engraved, isTrue, reason: run.log);
-    // Each run where LilyPond put it: bold "Allegro" as wide as Academico Bold has it, 3.54 em
-    // (Times Bold, LilyPond's own serif on a Mac, 3.17).
-    final runs = RegExp(r'translate\(([\d.]+), [\d.]+\)">\s*<text font-family="([^"]*)"[^>]*font-size="([\d.]+)"[^>]*>\s*<tspan>([^<]*)<')
-        .allMatches(run.svg!)
-        .toList();
-    final allegro = runs.indexWhere((m) => m[4] == 'Allegro');
-    expect(runs[allegro][2], 'Academico');
-    expect(runs[allegro + 1][4], ' (');
-    final width = double.parse(runs[allegro + 1][1]!) - double.parse(runs[allegro][1]!);
-    expect(width / double.parse(runs[allegro][3]!), closeTo(3.54, 0.03));
+    const source = LilySource(name: 'tempo.ly', text: '\\version "2.26.0"\n{ \\tempo "Allegro" 4 = 120 c\'1 }\n', files: {});
+    // Bold "Allegro" where LilyPond put it: its font, and its width in ems (the run after it, " (",
+    // starts that far on).
+    Future<(String, double)> allegro({String textFont = TextFonts.academico}) async {
+      final run = (await tester.runAsync(() => LilyPond.engrave(source, textFont: textFont)))!;
+      expect(run.engraved, isTrue, reason: run.log);
+      final runs = RegExp(r'translate\(([\d.]+), [\d.]+\)">\s*<text font-family="([^"]*)"[^>]*font-size="([\d.]+)"[^>]*>\s*<tspan>([^<]*)<')
+          .allMatches(run.svg!)
+          .toList();
+      final at = runs.indexWhere((m) => m[4] == 'Allegro');
+      expect(runs[at + 1][4], ' (');
+      return (runs[at][2]!, (double.parse(runs[at + 1][1]!) - double.parse(runs[at][1]!)) / double.parse(runs[at][3]!));
+    }
+
+    // As wide as Academico Bold has it, 3.54 em (Times Bold, LilyPond's own serif on a Mac, 3.17).
+    final (family, width) = await allegro();
+    expect(family, 'Academico');
+    expect(width, closeTo(3.54, 0.03));
+
+    // An installed family: as wide as the app lays it out.
+    final faces = await tester.runAsync(() => TextFonts.faces('Georgia'));
+    if (faces == null) return; // not installed here
+    await tester.runAsync(() => TextFonts.load('Georgia', faces));
+    final drawn = TextPainter(
+        text: TextSpan(
+            text: 'Allegro', style: TextStyle(fontFamily: TextFonts.familyOf('Georgia'), fontWeight: FontWeight.bold, fontSize: 100)),
+        textDirection: TextDirection.ltr)
+      ..layout();
+    addTearDown(drawn.dispose);
+    final (georgia, georgiaWidth) = await allegro(textFont: 'Georgia');
+    expect(georgia, 'Georgia');
+    expect(georgiaWidth, closeTo(drawn.width / 100, 0.03));
+    expect(georgiaWidth, isNot(closeTo(width, 0.1)));
   }, skip: lilypond == null);
 
   testWidgets('a score including from above its own folder is engraved laid out as it was, with nothing else to look in', (tester) async {

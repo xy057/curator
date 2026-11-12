@@ -220,8 +220,8 @@ class LoadedScore {
           ? await prepareFonts(request.fonts)
               .then((_) => _fromPdfApart(pdf, request, tempo: tempo, measure: measure, onStage: onStage))
           : lilypond != null
-          ? await prepareFonts(request.fonts)
-              .then((_) => _fromLilyPondApart(lilypond, request, tempo: tempo, measure: measure, onStage: onStage))
+          ? await prepareFonts(request.fonts).then((fonts) => _fromLilyPondApart(lilypond, request,
+              tempo: tempo, measure: measure, onStage: onStage, textFontFound: fonts.textFound))
           : await load(musicXML,
           measure: measure,
           onStage: onStage,
@@ -379,9 +379,10 @@ class LoadedScore {
   }
 
   /// [fromLilyPond], read on another isolate (the main one only waits); with [measure], what
-  /// each bar plays measured there too.
+  /// each bar plays measured there too. [textFontFound] false: the text font isn't installed
+  /// here, and Academico draws the text (as LilyPond then sets it).
   static Future<LoadedScore> _fromLilyPondApart(LilyPondScore lilypond, EngraveRequest request,
-      {double? tempo, bool measure = false, void Function(LoadStage stage)? onStage}) async {
+      {double? tempo, bool measure = false, void Function(LoadStage stage)? onStage, bool textFontFound = true}) async {
     final r = request;
     onStage?.call(LoadStage.reading);
     final read = await Isolate.run(() {
@@ -400,7 +401,7 @@ class LoadedScore {
         tempo: tempo,
         textEdits: const {},
         fonts: r.fonts,
-        textFontFound: true,
+        textFontFound: textFontFound,
         options: r.options,
         textDynamics: r.textDynamics,
         typography: r.typography,

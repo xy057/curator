@@ -75,7 +75,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_replacement.dart` | Project Settings ▸ Project Info ▸ Score ▸ Replace… (another score file or PDF), or Edit… done (the score editor's, a PDF's import again): a project carried over to the new score file (`ScoreSwap`), and what differs between them |
 | `score_editor.dart` | Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score editor (`showScoreEditor`), laid out and keyed as Dorico's Write mode in galley view |
 | `pdf_import.dart`, `pdf_ocr.dart` | Opening a PDF, Project Settings ▸ Project Info ▸ Score ▸ Edit… for one and Replace… with one: the import (`showPdfImport`) in five steps, each one's actions on the toolbar (see *The import goes in steps*), a page at a time with what was found drawn over it, each staff's region (a box edited as an image on a canvas: clicked, it is selected; its corners and sides dragged, it is resized; dragged inside, it is moved; Draw Region drags out a new one), every system's music start and end and barlines (the start's and the barlines' by handles above the system, the end's below it; a double click adds a barline), masks and staves' instruments dragged, drawn or picked, the instruments listed (each dragged by its handle to its place, a double click renaming it; blank lanes among them) and edited (renamed or made from a staff's chip, a double click renaming); a bar's changes inserted (right click, or the panel's Insert), each a tag on the page; `pdf_import_changes.dart` holds their dialogs; `pdf_import_ai.dart` reads the pages with AI (`PdfAiReader`) and gives a model the exam (`PdfAiExamRun`); `pdf_ai_model_dialog.dart` chooses the model, by its exam |
-| `lilypond.dart`, `lilypond_dialog.dart` | LilyPond (see *A LilyPond score is LilyPond's engraving*): this computer's official build (`LilyPond.package`), downloaded from Settings ▸ Download Hub (`LilyPondInstaller`), a score's files (`LilySource`: its main file and those it includes, `LilySource.read`), engraving it with Curator's settings (`LilyPond.engrave`, giving a `LilyPondRun`: the SVG, the data file and LilyPond's problems where they are, `LilyProblem`); the dialog that engraves, asking for LilyPond from the Download Hub where it isn't here (`engraveWithLilyPond`; `ensureLilyPond` asks only), and LilyPond's errors (`showLilyPondErrors`) |
+| `lilypond.dart`, `lilypond_dialog.dart` | LilyPond (see *A LilyPond score is LilyPond's engraving*): this computer's official build (`LilyPond.package`), downloaded from Settings ▸ Download Hub (`LilyPondInstaller`), a score's files (`LilySource`: its main file and those it includes, `LilySource.read`), engraving it with Curator's settings in the score's text font (`LilyPond.engrave`, giving a `LilyPondRun`: the SVG, the data file and LilyPond's problems where they are, `LilyProblem`); the dialog that engraves, asking for LilyPond from the Download Hub where it isn't here (`engraveWithLilyPond`; `ensureLilyPond` asks only), and LilyPond's errors (`showLilyPondErrors`) |
 | `lilypond_editor.dart`, `lilypond_language.dart` | The LilyPond editor (`showLilyPondEditor`: Project Info ▸ Score ▸ Edit… of a LilyPond project, File ▸ New LilyPond Score…, Edit… where LilyPond's errors stop an import): the code in re_editor with the score's files beside it, Find and Replace, Engrave (⌘R) and what LilyPond made drawn under the code (a click on a note goes to where it is written; the caret's line marks its notes), LilyPond's problems listed under it; LilyPond highlighted (`lilyPondMode`, a re_highlight mode, its Scheme too; `lilyPondTheme`) and what is offered as it is typed (`LilyPondPrompts`) |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
@@ -1219,23 +1219,28 @@ computer left to LilyPond), then engraved by LilyPond 2.26.0, its official build
 (macOS arm64 and x86-64, Linux x86-64, Windows x86-64, which Windows on Arm runs; Linux on Arm has
 none). Settings ▸ Download Hub downloads it (`LilyPondInstaller`: checked by SHA-256, unpacked
 whole into the app's data folder). Everything that takes LilyPond is offered without it (opening
-a LilyPond score, File ▸ New LilyPond Score…, the editor's Engrave) and asks for it then, its
-Open Download Hub going there (`engraveWithLilyPond`, `ensureLilyPond`): the one place LilyPond
-is downloaded, a download under way there waited for and what was asked done once it is in. LilyPond runs
+a LilyPond score, File ▸ New LilyPond Score…, the editor's Engrave, a LilyPond score's text font)
+and asks for it then, its Open Download Hub going there (`engraveWithLilyPond`, `ensureLilyPond`;
+from Project Settings once that window has closed, one settings window being shown at a time): the
+one place LilyPond is downloaded, a download under way there waited for and what was asked done
+once it is in. LilyPond runs
 in a scratch folder holding the score's files (`LilyPond.engrave`) with Curator's settings
 (`assets/lilypond/curator.ly`, through `-dinclude-settings`): the piece on one endless line, no
 titles, headers or footers, every graphical object tagged in the SVG with what made it (`data-c`
 its number, `data-g` its kind, `data-l` the staff or lyrics it belongs to), and what the score is
 (contexts, bars, notes, clefs, keys, times, tempo and rehearsal marks) written one JSON object a
 line to the file `CURATOR_LILYPOND_DATA` names; nothing in the settings may stop a score engraving
-(a failure is written as an error line). Its text is set in Academico, the font Curator draws it
-in, so that it is spaced as it is drawn: the engine's files of it, in the folder
-`CURATOR_LILYPOND_FONTS` names, each added to LilyPond's fontconfig (a folder added would leave a
-font cache behind for each engraving). With the SVG backend LilyPond's own text font is the
-system's serif (Times on a Mac, narrower: tempo marks ran into their "(", syllables into the
-next). A run spaced in another font (a score setting its own) is drawn no wider than LilyPond
-spaced it, as far as what follows it in its grob (`Cmd.fitWidth`), set closer by up to a tenth
-of an em a character. `LilyPondScore.read` makes the two Curator's engraving:
+(a failure is written as an error line). Its text is set in the project's text font, the font
+Curator draws it in, so that it is spaced as it is drawn (`LilyPond.textFontFor`: Academico, or
+a family installed here; one that isn't, Academico, as Verovio's engraving has it): the font's
+files, one a line in `CURATOR_LILYPOND_FONTS` (an installed family's own; Academico's, the
+engine's, written into the scratch folder), each added to LilyPond's fontconfig (a folder added
+would leave a font cache behind for each engraving), and its family in `CURATOR_LILYPOND_SERIF`,
+made LilyPond's serif. With the SVG backend LilyPond's own text font is the system's serif (Times
+on a Mac, narrower: tempo marks ran into their "(", syllables into the next). A run spaced in
+another font (a score setting its own) is drawn no wider than LilyPond spaced it, as far as what
+follows it in its grob (`Cmd.fitWidth`), set closer by up to a tenth of an em a character.
+`LilyPondScore.read` makes the two Curator's engraving:
 LilyPond's own shapes are what the views draw (not Verovio's engraving), and a MusicXML of what was
 written is what curation, sync, Align and Find Phrase read. Its point-and-click links
 (`textedit://file:line:column:column`) name each file by its path in the score's folder
@@ -1249,7 +1254,12 @@ it (`lilypond/score.svg`, `lilypond/score.jsonl`), and the versions of LilyPond 
 it was made with (`LilyPond.settingsVersion`), so it opens again without LilyPond. Its staves are
 LilyPond's, so none are condensed. Project Info ▸ Score ▸ Edit… opens the LilyPond editor
 (`showLilyPondEditor`); its Done engraves what changed since, and the score is replaced with the
-project's edits carried over, as the score editor's is. File ▸ New LilyPond Score… opens the
+project's edits carried over, as the score editor's is. Project Settings ▸ Engraving ▸ Text font
+engraves it again in the font chosen before the change is taken on (`EditorController.setFonts`;
+failing, nothing changes and the field says why), as Import… does a settings file's (without
+LilyPond, the text is drawn in it as LilyPond spaced it before). Each engraving is kept by its font
+(`EditorController._lilyPondIn`) while the score is open, so Undo and Redo go back to one without
+LilyPond, and the project saves the one shown. File ▸ New LilyPond Score… opens the
 editor on a few bars (`LilySource.blank`), its Done making them a new project, unsaved. A LilyPond
 file is a program: its Scheme can do whatever the user can, and LilyPond has no safe mode any
 more, so engraving a score runs it, as running a script would.
@@ -1592,7 +1602,8 @@ Keep those changes when updating it. A font that
 can't be read is never taken on (`EditorController.setFonts` prepares it first,
 `LoadedScore.prepareFonts`), so a project never saves one it couldn't open with; its picker says
 why under the field. A text font not installed here falls back to Academico, the
-choice kept (`LoadedScore.textFontFound`). A glyph a music font lacks is laid out and drawn in
+choice kept (`LoadedScore.textFontFound`). A LilyPond score's is LilyPond's to set: engraved in it
+again first (see *A LilyPond score is LilyPond's engraving*). A glyph a music font lacks is laid out and drawn in
 Bravura (`fontFallback`, `RenderStyle.musicFontFallback`). The frozen zone still spaces its
 clef and time signature by Bravura's proportions.
 

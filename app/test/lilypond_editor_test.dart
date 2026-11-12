@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/font_settings.dart' show TextFontPicker;
 import 'package:curated_score/main.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:curated_score/project_tabs.dart';
@@ -306,6 +307,62 @@ melody = \\relative c' { \\clef treble c4. d8 e2 | f1~ f }
       expect(find.text('Engraves LilyPond scores. $mb MB.'), findsOneWidget);
       expect(find.text('Download'), findsOneWidget);
       expect(find.byType(LilyPondEditor), findsNothing);
+    });
+
+    testWidgets('without LilyPond, Project Settings ▸ Text font asks for it: Open Download Hub leaves for Settings there, the font as it was',
+        (tester) async {
+      final installed = await tester.runAsync(TextFonts.installed) ?? const <String>[];
+      final family = ['Georgia', 'Times New Roman', 'DejaVu Serif', 'Liberation Serif'].where(installed.contains).firstOrNull;
+      final package = LilyPond.package;
+      if (family == null || package == null) return markTestSkipped('no serif font installed here, or no LilyPond for this computer');
+      standIn("cp '$svg' \"\$OUT.svg\"\ncp '$data' \"\$CURATOR_LILYPOND_DATA\"\n");
+      desktopWindow(tester);
+      await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()..autosave = Duration.zero));
+      await tester.pump(const Duration(seconds: 1));
+      Future<void> frames([int n = 20]) async {
+        for (var i = 0; i < n; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+      }
+
+      // The menu bar in the window, as off a Mac.
+      Future<void> menu(String name, String item) async {
+        await tester.tap(find.text(name));
+        await frames(10);
+        await tester.tap(find.text(item));
+        await frames();
+      }
+
+      // A LilyPond score made here; then LilyPond is gone.
+      await menu('File', 'New LilyPond Score…');
+      await tester.tap(find.text('Done'));
+      final pages = find.byType(ProjectPage, skipOffstage: false);
+      EditorController? controller() =>
+          pages.evaluate().isEmpty ? null : ((pages.evaluate().single as StatefulElement).state as dynamic).controller as EditorController;
+      await until(tester, () => controller()?.score != null);
+      await frames();
+      LilyPond.debugExecutable = null;
+      LilyPond.debugFolder = Directory('${dir.path}/none');
+      addTearDown(() => LilyPond.debugFolder = null);
+
+      await menu('Edit', 'Project Settings…');
+      await tester.tap(find.text('Engraving').first);
+      await frames(30);
+      // The families installed here, read on another isolate, reach the picker outside the test's clock.
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await frames();
+      await tester.enterText(find.descendant(of: find.byType(TextFontPicker).first, matching: find.byType(TextField)), family);
+      await frames();
+      await tester.tap(find.descendant(of: find.byType(MenuItemButton), matching: find.text(family)).first);
+      await frames();
+      expect(find.text('Download LilyPond?'), findsOneWidget);
+      await tester.tap(find.text('Open Download Hub'));
+      await frames(40);
+      // Project Settings gone, Settings on the Download Hub: LilyPond's row, to download it. The font as it was.
+      expect(find.text('Download LilyPond?'), findsNothing);
+      expect(find.byType(TextFontPicker), findsNothing);
+      expect(find.text('Engraves LilyPond scores. ${(package.size / 1e6).round()} MB.'), findsOneWidget);
+      expect(controller()!.fonts.text, TextFonts.academico);
     });
 
     testWidgets('File ▸ New LilyPond Score… opens the editor on a few bars; Done makes them a new project in a tab, unsaved, Cancel nothing',

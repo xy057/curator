@@ -522,7 +522,10 @@ class _AppWindowState extends State<AppWindow> {
   /// asked for first ([ensureLilyPond]).
   Future<void> _newLilyPond() async {
     if (!await ensureLilyPond(context, downloadHub: _downloadHub) || !mounted) return;
-    final edit = await showLilyPondEditor(context, LilySource.blank('${'Untitled'.tr}.ly', part: 'Melody'.tr), downloadHub: _downloadHub);
+    final textFont = await LilyPond.textFontFor(settings.textFont); // a new project's
+    if (!mounted) return;
+    final edit = await showLilyPondEditor(context, LilySource.blank('${'Untitled'.tr}.ly', part: 'Melody'.tr),
+        textFont: textFont, downloadHub: _downloadHub);
     if (edit != null && mounted) _show(_add(_OpenProject.lilypond(edit)));
   }
 
@@ -1023,23 +1026,27 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
   }
 
-  /// [source] engraved by LilyPond (asked for from Settings ▸ Download Hub when it isn't here).
-  /// Where it engraves nothing, its errors are said, and Edit… opens the LilyPond editor to put
-  /// them right: what is done there is what it gives. Null when cancelled, or nothing engraved.
-  Future<LilyPondEdit?> _engraveLilyPond(LilySource source) async {
-    final run = await engraveWithLilyPond(context, source, downloadHub: widget.onDownloadHub);
+  /// [source] engraved by LilyPond (asked for from Settings ▸ Download Hub when it isn't here),
+  /// its text in the project's text font, [fonts]' ([LilyPond.textFontFor]). Where it engraves
+  /// nothing, its errors are said, and Edit… opens the LilyPond editor to put them right: what is
+  /// done there is what it gives. Null when cancelled, or nothing engraved.
+  Future<LilyPondEdit?> _engraveLilyPond(LilySource source, ScoreFonts fonts) async {
+    final textFont = await LilyPond.textFontFor(fonts.text);
+    if (!mounted) return null;
+    final run = await engraveWithLilyPond(context, source, textFont: textFont, downloadHub: widget.onDownloadHub);
     if (run == null || !mounted) return null;
     if (run.engraved) return (source: source, run: run);
     if (!await showLilyPondErrors(context, source.name, run, canEdit: true) || !mounted) return null;
-    return showLilyPondEditor(context, source, run: run, downloadHub: widget.onDownloadHub);
+    return showLilyPondEditor(context, source, run: run, textFont: textFont, downloadHub: widget.onDownloadHub);
   }
 
   /// A LilyPond score: engraved by LilyPond (asked for when it isn't here), then a new project of
   /// it. Cancelled, nothing opens; nor when LilyPond engraved nothing, which says why.
   Future<void> _importLilyPond(String path) async {
     final read = await LilySource.readApart(path);
+    final fonts = (await controller.defaultFonts()).fonts; // the new project's
     if (!mounted) return;
-    final engraved = await _engraveLilyPond(read);
+    final engraved = await _engraveLilyPond(read, fonts);
     if (engraved == null || !mounted) return;
     final (:source, :run) = engraved;
     await document.importLilyPond(path, utf8.encode(source.text), run.keep(source));
@@ -1281,7 +1288,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   }
 
   void _projectSettings() =>
-      showProjectSettingsDialog(context, settings, controller, editScore: _editScore, replaceScore: _replaceScore);
+      showProjectSettingsDialog(context, settings, controller,
+          editScore: _editScore, replaceScore: _replaceScore, downloadHub: widget.onDownloadHub);
 
   /// Project Settings ▸ Project Info ▸ Score ▸ Replace…: another score file under this project's
   /// edits and recording, read over the settings window ([leave] unused); or another PDF, set
@@ -1323,7 +1331,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   Future<void> _replaceWithLilyPond(String path) async {
     final read = await LilySource.readApart(path);
     if (!mounted) return;
-    final engraved = await _engraveLilyPond(read);
+    final engraved = await _engraveLilyPond(read, controller.fonts);
     if (engraved == null || !mounted) return;
     final (:source, :run) = engraved;
     await _putInPlace(await document.prepareReplacementWith(source.name, utf8.encode(source.text), lilypond: run.keep(source)));
@@ -1383,8 +1391,10 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   Future<void> _editLilyPond(LilyPondProject lilypond) async {
     final name = controller.fileName ?? 'score.ly';
     final source = LilySource.of(name, utf8.decode(controller.source!.bytes, allowMalformed: true), lilypond);
+    final textFont = await LilyPond.textFontFor(controller.fonts.text);
+    if (!mounted) return;
     final edit = await showLilyPondEditor(context, source,
-        run: LilyPondRun(svg: lilypond.svg, data: lilypond.data), downloadHub: widget.onDownloadHub);
+        run: LilyPondRun(svg: lilypond.svg, data: lilypond.data), textFont: textFont, downloadHub: widget.onDownloadHub);
     if (edit == null || !mounted) return;
     await _guard(
         () async =>

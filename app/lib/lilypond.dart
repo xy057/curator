@@ -6,7 +6,7 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:score_engine/score_engine.dart' show LilyPondScore;
+import 'package:score_engine/score_engine.dart' show FontFace, LilyPondScore, TextFonts;
 
 import 'app_folders.dart';
 import 'downloader.dart';
@@ -219,9 +219,9 @@ abstract final class LilyPond {
   static const version = '2.26.0';
 
   /// The revision of Curator's settings ([settingsAsset]) a project's engraving was made with:
-  /// one older than this build's can be engraved again from its source. 2: text set in
-  /// Academico ([textFontAssets]); 1 spaced it in the system's serif.
-  static const settingsVersion = 2;
+  /// one older than this build's can be engraved again from its source. 3: text set in the
+  /// project's text font ([engrave]); 2 in Academico; 1 in the system's serif.
+  static const settingsVersion = 3;
 
   /// [svg] and [data] (a run's, or a project's) read as a score on another isolate: a long
   /// score's takes a while. Static, so its closure takes nothing else along ([LilySource.readApart]).
@@ -269,15 +269,26 @@ abstract final class LilyPond {
   /// drawing tagged, what it is written to a data file.
   static const settingsAsset = 'assets/lilypond/curator.ly';
 
-  /// The font LilyPond sets a score's text in (the settings name it): Academico, the one it is
-  /// drawn in, the engine's files of it.
+  /// Academico's files, the engine's: LilyPond is given them to set text in it.
   static final textFontAssets = [
     for (final face in ['Regular', 'Italic', 'Bold', 'BoldItalic']) 'packages/score_engine/assets/fonts/Academico-$face.otf',
   ];
 
-  /// Engraves [source] with Curator's settings, its text in Academico ([textFontAssets]);
-  /// [cancel] stops it. Throws a [StateError] when LilyPond isn't installed.
-  static Future<LilyPondRun> engrave(LilySource source, {DownloadCancel? cancel}) async {
+  /// The font LilyPond sets the text of a score whose text font is [family] in, as that score
+  /// draws it: [family] when it is installed here (made ready to draw), else Academico.
+  static Future<String> textFontFor(String family) async {
+    if (family == TextFonts.academico) return family;
+    final faces = await TextFonts.faces(family);
+    if (faces == null) return TextFonts.academico;
+    await TextFonts.load(family, faces);
+    return family;
+  }
+
+  /// Engraves [source] with Curator's settings, its text in [textFont] (Academico, or a family
+  /// installed here: see [textFontFor]), from the very files Curator draws it with, so that it
+  /// is spaced as it is drawn; [cancel] stops it. Throws a [StateError] when LilyPond isn't
+  /// installed.
+  static Future<LilyPondRun> engrave(LilySource source, {String textFont = TextFonts.academico, DownloadCancel? cancel}) async {
     final program = debugExecutable ?? executable;
     if (program == null) throw StateError('LilyPond is not installed.');
     final work = ScratchSpace.folder('lilypond');
@@ -293,10 +304,17 @@ abstract final class LilyPond {
         ..writeAsStringSync(source.text);
       final settings = File(at('.curator-settings.ly'))
         ..writeAsStringSync(await rootBundle.loadString(settingsAsset));
-      final fonts = Directory(at('.curator-fonts'))..createSync();
-      for (final asset in textFontAssets) {
-        final bytes = await rootBundle.load(asset);
-        File(at('.curator-fonts/${asset.split('/').last}')).writeAsBytesSync(Uint8List.sublistView(bytes));
+      // The text font's files: an installed family's own, else Academico's, written here.
+      final faces = textFont == TextFonts.academico ? null : await TextFonts.faces(textFont);
+      final serif = faces == null ? TextFonts.academico : textFont;
+      final fonts = <String>{for (final face in faces?.values ?? const <FontFace>[]) face.path};
+      if (faces == null) {
+        Directory(at('.curator-fonts')).createSync();
+        for (final asset in textFontAssets) {
+          final bytes = await rootBundle.load(asset);
+          final file = File(at('.curator-fonts/${asset.split('/').last}'))..writeAsBytesSync(Uint8List.sublistView(bytes));
+          fonts.add(file.path);
+        }
       }
       final dataFile = File(at('.curator-data.jsonl'));
       final output = at('.curator-out');
@@ -314,7 +332,7 @@ abstract final class LilyPond {
           main.path,
         ],
         workingDirectory: work.path,
-        environment: {'CURATOR_LILYPOND_DATA': dataFile.path, 'CURATOR_LILYPOND_FONTS': fonts.path},
+        environment: {'CURATOR_LILYPOND_DATA': dataFile.path, 'CURATOR_LILYPOND_FONTS': fonts.join('\n'), 'CURATOR_LILYPOND_SERIF': serif},
       );
       cancel?.whenCancelled(process.kill);
       final log = StringBuffer();

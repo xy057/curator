@@ -13,7 +13,9 @@ import 'package:curated_score/lilypond_dialog.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:score_engine/score_engine.dart' show ScoreFonts, TextFonts;
 
 import 'demo_project.dart';
 
@@ -32,7 +34,12 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory dir;
   setUp(() => dir = Directory.systemTemp.createTempSync('lilypond-project-'));
-  tearDown(() => dir.deleteSync(recursive: true));
+  tearDown(() {
+    // Read again by the next test: the bundle keeps what it read as a future of this test's
+    // clock, which nothing moves after it.
+    rootBundle.evict(LilyPond.settingsAsset);
+    dir.deleteSync(recursive: true);
+  });
 
   test('a LilyPond score opens as LilyPond engraved it, and saved, opens again without LilyPond', () async {
     final c = EditorController(vsync: const TestVSync());
@@ -100,6 +107,75 @@ void main() {
     expect(c.score!.lilypond, isNotNull);
     await c.replaceScore(await c.prepareReplacement(demoScore.path));
     expect((c.isLilyPond, c.projectState.kind, c.lilypond, c.score!.lilypond), (false, ProjectKind.score, null, null));
+  });
+
+  test('a LilyPond score’s text font is LilyPond’s to set: engraved in it once, Undo and Redo going back without LilyPond', () async {
+    final installed = await TextFonts.installed();
+    final serifs = ['Georgia', 'Times New Roman', 'DejaVu Serif', 'Liberation Serif'].where(installed.contains).toList();
+    if (serifs.isEmpty) return markTestSkipped('no serif font installed here to set the score in');
+    final family = serifs.first;
+    // A stand-in for LilyPond: the fixture, with the family it was asked to set text in; each run counted.
+    final svg = File('$_fixture.svg').absolute.path, data = File('$_fixture.jsonl').absolute.path, runs = File('${dir.path}/runs');
+    final script = File('${dir.path}/lilypond')
+      ..writeAsStringSync('#!/bin/sh\nout=""\nwhile [ \$# -gt 0 ]; do\n  if [ "\$1" = "-o" ]; then out="\$2"; shift; fi\n  shift\ndone\n'
+          '{ cat \'$svg\'; printf \'<!-- serif: %s -->\\n\' "\$CURATOR_LILYPOND_SERIF"; } > "\$out.svg"\n'
+          'cp \'$data\' "\$CURATOR_LILYPOND_DATA"\necho run >> \'${runs.path}\'\n');
+    Process.runSync('chmod', ['+x', script.path]);
+    LilyPond.debugExecutable = script;
+    addTearDown(() => LilyPond.debugExecutable = null);
+
+    final c = EditorController(vsync: const TestVSync());
+    addTearDown(c.dispose);
+    await c.openLilyPond('fixture.ly', File('$_fixture.ly').readAsBytesSync(), _project());
+    final opened = c.lilypond!, drawn = c.score!.lilypond;
+    String? serif() => RegExp(r'<!-- serif: (.*) -->').firstMatch(c.lilypond!.svg)?[1];
+    Future<void> engraved() async {
+      for (var i = 0; i < 500 && c.isReengraving; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    await c.setFonts(c.fonts.copyWith(text: family));
+    expect(c.fonts.text, family);
+    expect(serif(), family);
+    expect(c.score!.lilypond, isNot(same(drawn)));
+    expect(c.projectState.lilypond, same(c.lilypond)); // what is saved
+    c.undo();
+    await engraved();
+    expect(c.fonts.text, TextFonts.academico);
+    expect(c.lilypond, same(opened));
+    expect(c.score!.lilypond, same(drawn));
+    c.redo();
+    await engraved();
+    expect(serif(), family);
+    expect(runs.readAsLinesSync(), hasLength(1)); // each engraving kept: LilyPond ran once
+
+    // A project in a family not installed here, drawn in Academico: choosing Academico sets the
+    // score in it (it was spaced in the other where it was engraved).
+    final other = EditorController(vsync: const TestVSync());
+    addTearDown(other.dispose);
+    await other.openProject(
+        name: 'fixture.ly',
+        scoreBytes: File('$_fixture.ly').readAsBytesSync(),
+        state: ProjectState(lilypond: _project(), edits: const EditState(fonts: ScoreFonts(text: 'No Such Family'))));
+    await other.setFonts(other.fonts.copyWith(text: TextFonts.academico));
+    expect(RegExp(r'<!-- serif: (.*) -->').firstMatch(other.lilypond!.svg)?[1], TextFonts.academico);
+    expect(runs.readAsLinesSync(), hasLength(2));
+
+    // Without LilyPond, a font it hasn't set the score in changes nothing.
+    if (serifs.length < 2) return;
+    LilyPond.debugExecutable = null;
+    LilyPond.debugFolder = Directory('${dir.path}/none');
+    addTearDown(() => LilyPond.debugFolder = null);
+    await expectLater(c.setFonts(c.fonts.copyWith(text: serifs[1])), throwsStateError);
+    expect(c.fonts.text, family);
+    expect(serif(), family);
+    // A settings file's is taken on, the text drawn in it as LilyPond spaced it.
+    await c.importSettings(EditState(fonts: c.fonts.copyWith(text: serifs[1])));
+    expect(c.fonts.text, serifs[1]);
+    expect(serif(), family);
+    expect(c.engravingFailure.value, isNull);
+    expect(c.score!.fonts.text, serifs[1]);
   });
 
   group('the dialog', () {
