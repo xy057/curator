@@ -104,17 +104,18 @@ void main() {
 
   group('the dialog', () {
     LilyPondRun? run;
-    var done = false;
+    var done = false, hub = 0;
     Future<void> open(WidgetTester tester) async {
       run = null;
       done = false;
+      hub = 0;
       await tester.pumpWidget(MaterialApp(
         theme: AppColors.theme(),
         home: Scaffold(
           body: Builder(
             builder: (context) => TextButton(
               onPressed: () async {
-                run = await engraveWithLilyPond(context, const LilySource(name: 'song.ly', text: '{ c }'));
+                run = await engraveWithLilyPond(context, const LilySource(name: 'song.ly', text: '{ c }'), downloadHub: () => hub++);
                 done = true;
               },
               child: const Text('Engrave'),
@@ -128,18 +129,24 @@ void main() {
       }
     }
 
-    testWidgets('LilyPond not here: it is offered first, its size said; Cancel engraves nothing', (tester) async {
+    testWidgets('LilyPond not here: it is asked for, its size said; Cancel engraves nothing, Open Download Hub goes there', (tester) async {
       LilyPond.debugFolder = Directory('${dir.path}/none');
       addTearDown(() => LilyPond.debugFolder = null);
       await open(tester);
       expect(find.text('Download LilyPond?'), findsOneWidget);
-      if (LilyPond.package case final package?) {
-        expect(find.text('“song.ly” is engraved with LilyPond (${(package.size / 1e6).round()} MB).'), findsOneWidget);
-        expect(find.widgetWithText(FilledButton, 'Download'), findsOneWidget);
-      }
+      expect(find.text('Download'), findsNothing); // downloaded in the Download Hub only
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-      expect((done, run), (true, null));
+      expect((done, run, hub), (true, null, 0));
+      expect(find.byType(LilyPondDialog), findsNothing);
+
+      final package = LilyPond.package;
+      if (package == null) return; // none for this computer: nothing to download
+      await open(tester);
+      expect(find.text('“song.ly” is engraved with LilyPond (${(package.size / 1e6).round()} MB).'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Open Download Hub'));
+      await tester.pumpAndSettle();
+      expect((done, run, hub), (true, null, 1));
       expect(find.byType(LilyPondDialog), findsNothing);
     });
 

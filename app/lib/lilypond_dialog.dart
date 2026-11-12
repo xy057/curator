@@ -8,22 +8,43 @@ import 'lilypond.dart';
 import 'ui_kit.dart';
 
 /// Engraves [source] with LilyPond in a dialog saying so, Cancel stopping it. Where LilyPond isn't
-/// here yet, the dialog first offers to download it (as Settings ▸ Download Hub does), and does
-/// once the user agrees. Null when cancelled; throws what running LilyPond threw.
-Future<LilyPondRun?> engraveWithLilyPond(BuildContext context, LilySource source) async {
-  final outcome = await showAppDialog<_Outcome>(
-      context: context, barrierDismissible: false, builder: (_) => LilyPondDialog(source: source));
+/// here yet, the dialog asks for it, from Settings ▸ Download Hub: Open Download Hub closes it and
+/// calls [downloadHub], which opens there. A download under way there is waited for, and the
+/// score engraved once it is in. Null when cancelled or gone to the Download Hub; throws what
+/// running LilyPond threw.
+Future<LilyPondRun?> engraveWithLilyPond(BuildContext context, LilySource source, {required VoidCallback downloadHub}) async {
+  final outcome = await _ask(context, source, downloadHub);
   if (outcome?.error case final error?) Error.throwWithStackTrace(error, outcome!.stack ?? StackTrace.current);
   return outcome?.run;
 }
 
-typedef _Outcome = ({LilyPondRun? run, Object? error, StackTrace? stack});
+/// Whether LilyPond is here: true at once when it is; else it is asked for as
+/// [engraveWithLilyPond] asks, true once a download under way is in.
+Future<bool> ensureLilyPond(BuildContext context, {required VoidCallback downloadHub}) async =>
+    LilyPond.installed || ((await _ask(context, null, downloadHub))?.ready ?? false);
 
-/// [engraveWithLilyPond]'s dialog.
+Future<_Outcome?> _ask(BuildContext context, LilySource? source, VoidCallback downloadHub) async {
+  final outcome = await showAppDialog<_Outcome>(
+      context: context, barrierDismissible: false, builder: (_) => LilyPondDialog(source: source));
+  if (outcome?.downloadHub ?? false) downloadHub();
+  return outcome;
+}
+
+/// How [LilyPondDialog] ended: LilyPond's [run], or what it threw; [ready] when LilyPond came
+/// with nothing to engrave; [downloadHub] when the user went to download it there.
+class _Outcome {
+  const _Outcome({this.run, this.error, this.stack, this.ready = false, this.downloadHub = false});
+  final LilyPondRun? run;
+  final Object? error;
+  final StackTrace? stack;
+  final bool ready, downloadHub;
+}
+
+/// [engraveWithLilyPond]'s dialog, and [ensureLilyPond]'s ([source] null: nothing to engrave).
 @visibleForTesting
 class LilyPondDialog extends StatefulWidget {
-  const LilyPondDialog({super.key, required this.source});
-  final LilySource source;
+  const LilyPondDialog({super.key, this.source});
+  final LilySource? source;
 
   @override
   State<LilyPondDialog> createState() => _LilyPondDialogState();
@@ -32,9 +53,6 @@ class LilyPondDialog extends StatefulWidget {
 class _LilyPondDialogState extends State<LilyPondDialog> {
   final _installer = LilyPondInstaller.instance;
 
-  /// Whether this dialog started the download: Cancel stops it then (not one Settings started).
-  bool _downloading = false;
-
   /// The engraving under way, once LilyPond is here.
   DownloadCancel? _engraving;
 
@@ -42,7 +60,13 @@ class _LilyPondDialogState extends State<LilyPondDialog> {
   void initState() {
     super.initState();
     _installer.addListener(_installed);
-    if (LilyPond.installed) _engrave();
+    if (LilyPond.installed) {
+      if (widget.source == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _installed());
+      } else {
+        _engrave();
+      }
+    }
   }
 
   @override
@@ -54,15 +78,11 @@ class _LilyPondDialogState extends State<LilyPondDialog> {
   void _installed() {
     if (!mounted) return;
     if (_engraving == null && !_installer.busy && LilyPond.installed) {
+      if (widget.source == null) return Navigator.pop(context, const _Outcome(ready: true));
       _engrave();
     } else {
       setState(() {});
     }
-  }
-
-  void _download() {
-    setState(() => _downloading = true);
-    _installer.install();
   }
 
   Future<void> _engrave() async {
@@ -70,22 +90,21 @@ class _LilyPondDialogState extends State<LilyPondDialog> {
     if (mounted) setState(() {});
     _Outcome outcome;
     try {
-      outcome = (run: await LilyPond.engrave(widget.source, cancel: cancel), error: null, stack: null);
+      outcome = _Outcome(run: await LilyPond.engrave(widget.source!, cancel: cancel));
     } catch (e, stack) {
-      outcome = (run: null, error: e, stack: stack);
+      outcome = _Outcome(error: e, stack: stack);
     }
     if (mounted && !cancel.cancelled) Navigator.pop(context, outcome);
   }
 
   void _cancel() {
     _engraving?.cancel();
-    if (_downloading && _installer.busy) _installer.cancel();
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    final name = widget.source.name, package = LilyPond.package;
+    final name = widget.source?.name, package = LilyPond.package;
     int mb(int bytes) => (bytes / 1e6).round();
     final cancel = OutlinedButton(onPressed: _cancel, child: Text('Cancel'.tr));
     Widget bar(double? value) => LinearProgressIndicator(value: value, minHeight: 4, borderRadius: AppStyle.of(context).radius(2));
@@ -96,7 +115,7 @@ class _LilyPondDialogState extends State<LilyPondDialog> {
     final muted = TextStyle(color: context.colors.textMuted);
     if (_engraving != null) {
       return AppDialog(
-        title: Text('Engraving “{name}”'.fill({'name': name})),
+        title: Text('Engraving “{name}”'.fill({'name': name!})),
         content: body([const SizedBox(height: 4), bar(null)]),
         actions: [cancel],
         onEscape: _cancel,
@@ -114,14 +133,16 @@ class _LilyPondDialogState extends State<LilyPondDialog> {
           ],
         LilyPondStage.unpacking => [bar(null), Text('Installing…'.tr, style: muted)],
         _ => [
-            Text('“{name}” is engraved with LilyPond ({size} MB).'.fill({'name': name, 'size': mb(package.size)})),
+            Text(name == null
+                ? 'LilyPond scores are engraved with LilyPond ({size} MB).'.fill({'size': mb(package.size)})
+                : '“{name}” is engraved with LilyPond ({size} MB).'.fill({'name': name, 'size': mb(package.size)})),
             if (failed) Text(describeLilyPondFailure(_installer.failure), style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
       }),
       actions: [
         cancel,
         if (package != null && !_installer.busy)
-          FilledButton(onPressed: _download, child: Text((failed ? 'Try Again' : 'Download').tr)),
+          FilledButton(onPressed: () => Navigator.pop(context, const _Outcome(downloadHub: true)), child: Text('Open Download Hub'.tr)),
       ],
       onEscape: _cancel,
     );

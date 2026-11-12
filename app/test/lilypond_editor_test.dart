@@ -160,10 +160,11 @@ melody = \\relative c' { \\clef treble c4. d8 e2 | f1~ f }
     });
 
     LilyPondEdit? edit;
-    var closed = false;
+    var closed = false, hub = 0;
     Future<void> open(WidgetTester tester) async {
       edit = null;
       closed = false;
+      hub = 0;
       tester.view.physicalSize = const Size(2400, 1600);
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.reset);
@@ -173,7 +174,7 @@ melody = \\relative c' { \\clef treble c4. d8 e2 | f1~ f }
           body: Builder(
             builder: (context) => TextButton(
               onPressed: () async {
-                edit = await showLilyPondEditor(context, source);
+                edit = await showLilyPondEditor(context, source, downloadHub: () => hub++);
                 closed = true;
               },
               child: const Text('Edit'),
@@ -253,6 +254,59 @@ melody = \\relative c' { \\clef treble c4. d8 e2 | f1~ f }
       await until(tester, () => closed);
       expect(edit, isNull);
     }, variant: _mac);
+
+    testWidgets('without LilyPond, Engrave asks for it: Open Download Hub goes there, the editor staying', (tester) async {
+      LilyPond.debugFolder = Directory('${dir.path}/none');
+      addTearDown(() => LilyPond.debugFolder = null);
+      await open(tester);
+      await tester.tap(find.text('Engrave'));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(find.text('Download LilyPond?'), findsOneWidget);
+      await tester.tap(find.text(LilyPond.package == null ? 'Cancel' : 'Open Download Hub').last);
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(find.text('Download LilyPond?'), findsNothing);
+      expect(hub, LilyPond.package == null ? 0 : 1);
+      expect((find.byType(LilyPondEditor).evaluate().length, closed), (1, false));
+      expect(find.text('Engrave to see the score.'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await until(tester, () => closed);
+      expect(edit, isNull);
+    }, variant: _mac);
+
+    testWidgets('without LilyPond, File ▸ New LilyPond Score… asks for it first; Open Download Hub opens Settings there', (tester) async {
+      LilyPond.debugFolder = Directory('${dir.path}/none');
+      addTearDown(() => LilyPond.debugFolder = null);
+      desktopWindow(tester);
+      await tester.pumpWidget(CuratedScoreApp(settings: AppSettings.memory()));
+      await tester.pump(const Duration(seconds: 1));
+      Future<void> frames([int n = 20]) async {
+        for (var i = 0; i < n; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+      }
+
+      await tester.tap(find.text('File'));
+      await frames(10);
+      await tester.tap(find.text('New LilyPond Score…'));
+      await frames();
+      expect(find.text('Download LilyPond?'), findsOneWidget);
+      expect(find.byType(LilyPondEditor), findsNothing);
+      final package = LilyPond.package;
+      if (package == null) return; // none for this computer
+      final mb = (package.size / 1e6).round();
+      expect(find.text('LilyPond scores are engraved with LilyPond ($mb MB).'), findsOneWidget);
+      await tester.tap(find.text('Open Download Hub'));
+      await frames(30);
+      // Settings, on the Download Hub: LilyPond's row, to download it; no editor.
+      expect(find.text('Download LilyPond?'), findsNothing);
+      expect(find.text('Engraves LilyPond scores. $mb MB.'), findsOneWidget);
+      expect(find.text('Download'), findsOneWidget);
+      expect(find.byType(LilyPondEditor), findsNothing);
+    });
 
     testWidgets('File ▸ New LilyPond Score… opens the editor on a few bars; Done makes them a new project in a tab, unsaved, Cancel nothing',
         (tester) async {

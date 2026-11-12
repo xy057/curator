@@ -4053,3 +4053,11 @@ msgstr "メロディ"
 #: lib/main.dart
 msgid "Couldn’t Create LilyPond Score"
 msgstr "LilyPond の楽譜を作成できませんでした"
+
+#: lib/lilypond_dialog.dart
+msgid "LilyPond scores are engraved with LilyPond ({size} MB)."
+msgstr "LilyPond の楽譜は LilyPond で浄書します（{size} MB）。"
+
+#: lib/lilypond_dialog.dart
+msgid "Open Download Hub"
+msgstr "ダウンロードハブを開く"

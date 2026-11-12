@@ -518,11 +518,17 @@ class _AppWindowState extends State<AppWindow> {
   }
 
   /// New LilyPond Score…: a score written in the LilyPond editor from a few bars to start from;
-  /// Done makes it a new project in a tab of its own (not saved yet).
+  /// Done makes it a new project in a tab of its own (not saved yet). Without LilyPond, it is
+  /// asked for first ([ensureLilyPond]).
   Future<void> _newLilyPond() async {
-    final edit = await showLilyPondEditor(context, LilySource.blank('${'Untitled'.tr}.ly', part: 'Melody'.tr));
+    if (!await ensureLilyPond(context, downloadHub: _downloadHub) || !mounted) return;
+    final edit = await showLilyPondEditor(context, LilySource.blank('${'Untitled'.tr}.ly', part: 'Melody'.tr), downloadHub: _downloadHub);
     if (edit != null && mounted) _show(_add(_OpenProject.lilypond(edit)));
   }
+
+  /// Settings ▸ Download Hub, where LilyPond is downloaded: what a LilyPond score asks for
+  /// without it.
+  void _downloadHub() => _settings(page: 'Download Hub');
 
   /// File ▸ Close (⌘W), a tab's ×: offers to save unsaved changes (showing the project they're
   /// in), then the tab goes, the one after it showing (or before it, or Home).
@@ -683,6 +689,7 @@ class _AppWindowState extends State<AppWindow> {
                     onMenusChanged: () => _menus.value++,
                     onOpen: _openPath,
                     openElsewhere: (path) => _tabs.any((p) => p != project && p.file == path),
+                    onDownloadHub: _downloadHub,
                     onFailed: () => _close(project),
                   ),
                 ),
@@ -754,6 +761,7 @@ class ProjectPage extends StatefulWidget {
     required this.onMenusChanged,
     required this.onOpen,
     required this.openElsewhere,
+    required this.onDownloadHub,
     required this.onFailed,
   });
 
@@ -783,6 +791,9 @@ class ProjectPage extends StatefulWidget {
 
   /// Whether the file at a path is open in another tab.
   final bool Function(String path) openElsewhere;
+
+  /// Opens Settings ▸ Download Hub: a LilyPond score asks for LilyPond there.
+  final VoidCallback onDownloadHub;
 
   /// It didn't open (said why already): its tab goes.
   final VoidCallback onFailed;
@@ -1012,19 +1023,19 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
   }
 
-  /// [source] engraved by LilyPond (downloaded first, once the user agrees). Where it engraves
-  /// nothing, its errors are said, and Edit… opens the LilyPond editor to put them right: what is
-  /// done there is what it gives. Null when cancelled, or nothing engraved.
+  /// [source] engraved by LilyPond (asked for from Settings ▸ Download Hub when it isn't here).
+  /// Where it engraves nothing, its errors are said, and Edit… opens the LilyPond editor to put
+  /// them right: what is done there is what it gives. Null when cancelled, or nothing engraved.
   Future<LilyPondEdit?> _engraveLilyPond(LilySource source) async {
-    final run = await engraveWithLilyPond(context, source);
+    final run = await engraveWithLilyPond(context, source, downloadHub: widget.onDownloadHub);
     if (run == null || !mounted) return null;
     if (run.engraved) return (source: source, run: run);
     if (!await showLilyPondErrors(context, source.name, run, canEdit: true) || !mounted) return null;
-    return showLilyPondEditor(context, source, run: run);
+    return showLilyPondEditor(context, source, run: run, downloadHub: widget.onDownloadHub);
   }
 
-  /// A LilyPond score: engraved by LilyPond (downloaded first, once the user agrees), then a new
-  /// project of it. Cancelled, nothing opens; nor when LilyPond engraved nothing, which says why.
+  /// A LilyPond score: engraved by LilyPond (asked for when it isn't here), then a new project of
+  /// it. Cancelled, nothing opens; nor when LilyPond engraved nothing, which says why.
   Future<void> _importLilyPond(String path) async {
     final read = await LilySource.readApart(path);
     if (!mounted) return;
@@ -1307,8 +1318,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     await _putInPlace(replacement);
   }
 
-  /// Replace… with the LilyPond score at [path]: engraved by LilyPond (downloaded first, once the
-  /// user agrees), then put in place of the score. Cancelled, or engraving nothing, nothing changes.
+  /// Replace… with the LilyPond score at [path]: engraved by LilyPond (asked for when it isn't
+  /// here), then put in place of the score. Cancelled, or engraving nothing, nothing changes.
   Future<void> _replaceWithLilyPond(String path) async {
     final read = await LilySource.readApart(path);
     if (!mounted) return;
@@ -1372,7 +1383,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   Future<void> _editLilyPond(LilyPondProject lilypond) async {
     final name = controller.fileName ?? 'score.ly';
     final source = LilySource.of(name, utf8.decode(controller.source!.bytes, allowMalformed: true), lilypond);
-    final edit = await showLilyPondEditor(context, source, run: LilyPondRun(svg: lilypond.svg, data: lilypond.data));
+    final edit = await showLilyPondEditor(context, source,
+        run: LilyPondRun(svg: lilypond.svg, data: lilypond.data), downloadHub: widget.onDownloadHub);
     if (edit == null || !mounted) return;
     await _guard(
         () async =>

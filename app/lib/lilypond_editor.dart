@@ -29,21 +29,24 @@ typedef LilyPondEdit = ({LilySource source, LilyPondRun run});
 /// what the caret's line wrote is marked), and what LilyPond said was wrong (a click goes there).
 /// Engrave (⌘R) engraves it again. Done gives back the source with its engraving, engraving it
 /// first when it changed since (and staying, its errors shown, when LilyPond found any); null when
-/// nothing changed. [run]: an engraving of [source] made already, shown as it opens.
-Future<LilyPondEdit?> showLilyPondEditor(BuildContext context, LilySource source, {LilyPondRun? run}) =>
+/// nothing changed. [run]: an engraving of [source] made already, shown as it opens. Without
+/// LilyPond, Engrave asks for it, [downloadHub] opening Settings ▸ Download Hub over the editor.
+Future<LilyPondEdit?> showLilyPondEditor(BuildContext context, LilySource source,
+        {LilyPondRun? run, required VoidCallback downloadHub}) =>
     Navigator.of(context, rootNavigator: true).push<LilyPondEdit>(PageRouteBuilder(
       opaque: true,
       transitionDuration: motion(context, 200),
       reverseTransitionDuration: motion(context, 160),
-      pageBuilder: (_, _, _) => LilyPondEditor(source: source, run: run),
+      pageBuilder: (_, _, _) => LilyPondEditor(source: source, run: run, downloadHub: downloadHub),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic), child: child),
     ));
 
 class LilyPondEditor extends StatefulWidget {
-  const LilyPondEditor({super.key, required this.source, this.run});
+  const LilyPondEditor({super.key, required this.source, this.run, required this.downloadHub});
   final LilySource source;
   final LilyPondRun? run;
+  final VoidCallback downloadHub;
 
   @override
   State<LilyPondEditor> createState() => _LilyPondEditorState();
@@ -159,14 +162,14 @@ class _LilyPondEditorState extends State<LilyPondEditor> {
 
   // MARK: Engraving
 
-  /// Engraves the source as it is now (LilyPond downloaded first when it isn't here, once the
-  /// user agrees); its problems shown, its drawing once read.
+  /// Engraves the source as it is now (where LilyPond isn't here, it is asked for: see
+  /// [engraveWithLilyPond]); its problems shown, its drawing once read.
   Future<void> _engrave() async {
     if (_engraving != null) return;
     final source = _current(), texts = _texts();
     LilyPondRun run;
     if (!LilyPond.installed) {
-      final got = await engraveWithLilyPond(context, source).then<LilyPondRun?>((r) => r,
+      final got = await engraveWithLilyPond(context, source, downloadHub: widget.downloadHub).then<LilyPondRun?>((r) => r,
           onError: (Object e) => LilyPondRun(problems: [LilyProblem(describeError(e), error: true)]));
       if (got == null || !mounted) return;
       run = got;

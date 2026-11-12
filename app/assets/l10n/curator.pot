@@ -4034,3 +4034,11 @@ msgstr ""
 #: lib/main.dart
 msgid "Couldn’t Create LilyPond Score"
 msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "LilyPond scores are engraved with LilyPond ({size} MB)."
+msgstr ""
+
+#: lib/lilypond_dialog.dart
+msgid "Open Download Hub"
+msgstr ""
