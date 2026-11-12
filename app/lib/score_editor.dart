@@ -43,6 +43,7 @@ enum _Popover {
   text('Text', 'X', ''),
   bars('Bars and Barlines', 'B', '+2  -1  ||  |]  :|  |:'),
   repeats('Repeats', 'R', '1.  2.  segno  D.S.  Fine'),
+  rehearsal('Rehearsal Mark', 'A', 'A  B  12'),
   holds('Holds', 'H', 'fermata  breath  caesura'),
   ornaments('Ornaments', 'O', 'tr  mordent  turn'),
   lyrics('Lyrics', 'L', ''),
@@ -1037,7 +1038,12 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (_target == null && kind != _Popover.bars && kind != _Popover.goTo) return;
     if (kind == _Popover.lyrics && _selectedNotes.isEmpty) return;
     if (kind == _Popover.tuplet && _caret == null) return;
-    _popoverText.text = kind == _Popover.lyrics ? score.lyricOf(_selectedNotes.first) : '';
+    _popoverText.text = switch (kind) {
+      _Popover.lyrics => score.lyricOf(_selectedNotes.first),
+      // The bar's mark, or the one after the last before it.
+      _Popover.rehearsal => score.rehearsalAt(_target!.measure) ?? score.nextRehearsal(_target!.measure),
+      _ => '',
+    };
     _popoverText.selection = TextSelection(baseOffset: 0, extentOffset: _popoverText.text.length);
     setState(() {
       _popover = kind;
@@ -1136,6 +1142,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
         } else {
           return false;
         }
+      case _Popover.rehearsal:
+        _edit(() => score.setRehearsal(at.measure, t));
       case _Popover.holds:
         final name = switch (t.toLowerCase()) {
           'fermata' || 'pause' || 'u' => 'fermata',
@@ -1281,6 +1289,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
             'x' => () => _openPopover(_Popover.text),
             'b' => () => _openPopover(_Popover.bars),
             'r' => () => _openPopover(_Popover.repeats),
+            'a' => () => _openPopover(_Popover.rehearsal),
             'h' => () => _openPopover(_Popover.holds),
             'o' => () => _openPopover(_Popover.ornaments),
             'l' => () => _openPopover(_Popover.lyrics),

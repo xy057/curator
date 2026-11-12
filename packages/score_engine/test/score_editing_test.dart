@@ -477,7 +477,7 @@ void main() {
     expect(again.barLength(10), Frac(3));
   });
 
-  test('endings, segno, coda, D.C., D.S. and Fine typed in the repeats popover play as ScoreForm reads them', () async {
+  test('endings, segno, coda, D.C., D.S. and Fine play as ScoreForm reads them; rehearsal marks letter on; both are clicked as markings', () async {
     final score = EditableScore.parse(_fluteOf(8));
     List<int> played() => ScoreForm.fromDocument(XmlDocument.parse(score.toMusicXML())).playedOrder();
     // Bars 1–2 repeated, a first ending over bar 2 and a second over bar 3; the repeat set after
@@ -505,11 +505,24 @@ void main() {
     expect(EditableScore.jumpNamed('ds al  fine'), 'dsalfine');
     expect(EditableScore.jumpNamed('3'), isNull);
     expect(played(), [0, 1, 0, 2, 3, 4, 5, 6, 3, 4, 5]);
-    // The segno is drawn by the editor's id: a click selects it, as a marking.
-    final segno = RegExp(r'<segno id="(cxe\d+)"').firstMatch(score.chunk(0, 8).xml)!.group(1)!;
+    // Rehearsal marks: the next offered after the last before, one there said again.
+    expect(score.nextRehearsal(2), 'A');
+    score.setRehearsal(0, 'A');
+    score.setRehearsal(3, score.nextRehearsal(3));
+    expect((score.rehearsalAt(3), score.nextRehearsal(7)), ('B', 'C'));
+    score.setRehearsal(3, 'Z');
+    expect((score.rehearsalAt(3), score.nextRehearsal(7)), ('Z', 'AA'));
+    expect(score.toMusicXML().split('<rehearsal>').length, 3);
+    // The segno is drawn by the editor's id, a rehearsal mark by its direction's: a click
+    // selects either, as a marking.
+    final xml8 = score.chunk(0, 8).xml;
+    final segno = RegExp(r'<segno id="(cxe\d+)"').firstMatch(xml8)!.group(1)!;
+    final mark = RegExp(r'<direction placement="above" id="(cxe\d+)"><direction-type><rehearsal>Z<').firstMatch(xml8)!.group(1)!;
     expect(score.markingsOf([segno]).single.at.measure, 3);
+    expect(score.markingsOf([mark]).single.at.measure, 3);
     final chunk = await EditChunk.engrave(score, 0, 8);
     expect(chunk.outlines[segno], isNotNull);
+    expect(chunk.outlines[mark], isNotNull);
     chunk.dispose();
   });
 }

@@ -2878,6 +2878,9 @@ msgstr "小節と小節線"
 msgid "Repeats"
 msgstr "反復記号"
 
+msgid "Rehearsal Mark"
+msgstr "リハーサルマーク"
+
 #: lib/score_editor.dart
 msgid "Breve"
 msgstr "倍全音符"

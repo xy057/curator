@@ -99,16 +99,24 @@ class EditChunk {
   /// Each tagged element's outline per staff, in the chunk's units: of what it draws.
   late final Map<String, List<({int staff, ui.Rect rect})>> outlines = () {
     final out = <String, List<({int staff, ui.Rect rect})>>{};
-    for (final MapEntry(key: id, value: items) in list.sourced.entries) {
+    for (final MapEntry(key: source, value: items) in list.sourced.entries) {
       final byStaff = <int, ui.Rect>{};
       for (final (:staff, :item) in items) {
         if (!owns(item)) continue;
         byStaff[staff] = byStaff[staff]?.expandToInclude(item.bounds) ?? item.bounds;
       }
-      if (byStaff.isNotEmpty) out[id] = [for (final MapEntry(key: staff, value: rect) in byStaff.entries) (staff: staff, rect: rect)];
+      if (byStaff.isNotEmpty) (out[_elementOf(source)] ??= []).addAll([for (final MapEntry(key: staff, value: rect) in byStaff.entries) (staff: staff, rect: rect)]);
     }
     return out;
   }();
+
+  /// The element [source] is drawn for: a rehearsal mark is drawn as its direction's id and
+  /// "-reh" (patched Verovio), and is its direction.
+  static String _elementOf(String source) => source.endsWith(_reh) ? source.substring(0, source.length - _reh.length) : source;
+  static const _reh = '-reh';
+
+  /// What is drawn for [id]: its own items, and its rehearsal mark's.
+  Iterable<({int staff, DisplayItem item})> _drawnFor(String id) => [...?list.sourced[id], ...?list.sourced['$id$_reh']];
 
   void dispose() => list.dispose();
 }
@@ -264,7 +272,7 @@ class EditGalley {
       if (!_inView(k, left, right)) continue;
       final c = chunks[k]!;
       for (final id in ids) {
-        for (final (:staff, :item) in c.list.sourced[id] ?? const <({int staff, DisplayItem item})>[]) {
+        for (final (:staff, :item) in c._drawnFor(id)) {
           if (!c.owns(item)) continue;
           final shift = _shift(k, staff);
           canvas

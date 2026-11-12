@@ -2871,6 +2871,9 @@ msgstr ""
 msgid "Repeats"
 msgstr ""
 
+msgid "Rehearsal Mark"
+msgstr ""
+
 #: lib/score_editor.dart
 msgid "Breve"
 msgstr ""

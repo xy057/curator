@@ -3348,6 +3348,62 @@ class EditableScore {
     }
   }
 
+  // MARK: Rehearsal marks
+
+  /// Bar [m]'s rehearsal mark (any part's), or null.
+  String? rehearsalAt(int m) {
+    for (final p in parts) {
+      if (m >= p._measures.length) continue;
+      if (p._measures[m].findAllElements('rehearsal').firstOrNull case final r?) return r.innerText.trim();
+    }
+    return null;
+  }
+
+  /// The mark after the last before bar [m]: "B" after "A", "AA" after "Z", "13" after "12";
+  /// "A" for the first.
+  String nextRehearsal(int m) {
+    String? last;
+    for (var k = math.min(m, measureCount) - 1; k >= 0 && last == null; k--) {
+      last = rehearsalAt(k);
+    }
+    if (last == null) return 'A';
+    if (int.tryParse(last) case final n? when n >= 0) return '${n + 1}';
+    final upper = last.toUpperCase();
+    if (!RegExp(r'^[A-Z]{1,3}$').hasMatch(upper)) return 'A';
+    // As a spreadsheet's columns: A–Z, then AA, AB…
+    var n = 0;
+    for (final c in upper.codeUnits) {
+      n = n * 26 + c - 64;
+    }
+    var next = '';
+    for (n++; n > 0; n = (n - 1) ~/ 26) {
+      next = String.fromCharCode(65 + (n - 1) % 26) + next;
+    }
+    return last == upper ? next : next.toLowerCase();
+  }
+
+  /// Bar [m]'s rehearsal mark made [text]: those it has (in any part) say it, or one is put in
+  /// where it starts, over the first part's top staff.
+  void setRehearsal(int m, String text) {
+    final t = text.trim();
+    if (t.isEmpty || m < 0 || m >= measureCount) return;
+    edit(() {
+      var had = false;
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i]._measures[m].findAllElements('rehearsal').isEmpty) continue;
+        final content = _mutable(i, m);
+        for (final o in content.others) {
+          for (final r in o.element.findAllElements('rehearsal')) {
+            r.innerText = t;
+            had = true;
+          }
+        }
+        _commit(i, m, content);
+      }
+      if (!had) addDirection(ScorePosition(0, defaultVoice(0, 1, m), m, Frac.zero), [_text('rehearsal', t)]);
+    });
+  }
+
   // MARK: Copy and paste
 
   /// The notes and rests of [ids] in the first one's voice, from the first to the last.
