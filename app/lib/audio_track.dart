@@ -6,6 +6,7 @@ import 'dart:math' as math;
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_soloud/flutter_soloud.dart';
 // The binding its readSamplesFromFile wraps: that keeps the buffer it reads into (never freed),
 // fine for a waveform's few samples, not for a recording read whole (Align).
@@ -165,60 +166,75 @@ class AudioTrack {
   final String _samples;
   final int? _sampleRate;
 
-  /// The recording heard as Align hears it ([AudioChroma]'s frames), read on an isolate half a
-  /// minute at a time, so it is never held whole; [progress] hears how far it has got (0–1).
-  /// Null when there is no sound to read, or its sample rate isn't known.
-  Future<({Float32List frames, double frameRate})?> chroma({void Function(double done)? progress}) async {
+  /// The recording heard as Align hears it ([AudioNotes]' frames, Basic Pitch's), on several
+  /// isolates at once, each taking the next stretch of about half a minute as it is free (some
+  /// cores are slower than others) and reading it from the file itself, so the recording is never
+  /// held whole; [progress] hears how far it has got (0–1). Null when there is no sound to read,
+  /// or its sample rate isn't known.
+  Future<Float32List?> notes({void Function(double done)? progress}) async {
     final rate = _sampleRate;
     if (source == null || rate == null) return null;
-    final port = ReceivePort();
-    final heard = port.listen((done) => progress?.call(done as double));
-    try {
-      return await _readChroma(_samples, rate, length, port.sendPort);
-    } finally {
-      await heard.cancel();
-      port.close();
+    final weights = await (_weights ??= rootBundle.load(BasicPitch.asset).then((d) => d.buffer.asUint8List(d.offsetInBytes, d.lengthInBytes)));
+    final chunks = AudioNotes.chunks(length), stretches = (chunks + _together - 1) ~/ _together;
+    final frames = Float32List(((length * AudioNotes.frameRate).floor() + 1) * AudioNotes.values);
+    var next = 0, done = 0;
+    Future<void> work() async {
+      while (next < stretches) {
+        final first = next++ * _together, end = math.min(chunks, first + _together);
+        final Float32List heard;
+        try {
+          heard = await _readNotes(_samples, rate, length, weights, first, end);
+        } catch (_) {
+          next = stretches; // the others take no more
+          rethrow;
+        }
+        final at = first * AudioNotes.chunkFrames * AudioNotes.values;
+        if (at < frames.length) frames.setRange(at, math.min(frames.length, at + heard.length), heard);
+        progress?.call((done += end - first) / chunks);
+      }
     }
+
+    // Half the cores: the rest keep the window, playback and the system going.
+    await Future.wait([for (var w = 0; w < math.max(1, math.min(stretches, Platform.numberOfProcessors ~/ 2)); w++) work()], eagerError: true);
+    return frames;
   }
 
-  /// On an isolate, from a static function: a closure made beside one that uses the track
-  /// would take it along.
-  static Future<({Float32List frames, double frameRate})> _readChroma(String path, int rate, double length, SendPort progress) =>
-      Isolate.run(() {
-        const block = 30; // seconds
+  /// Basic Pitch's weights (the app's asset), read once.
+  static Future<Uint8List>? _weights;
+
+  /// The chunks read from the file at once (about half a minute).
+  static const _together = 2;
+
+  /// Chunks [first] up to [end] of the recording at [path], heard on an isolate (from a static
+  /// function: a closure made beside one that uses the track would take it along).
+  static Future<Float32List> _readNotes(String path, int rate, double length, Uint8List weights, int first, int end) => Isolate.run(() {
+        const slack = 64; // frames read beyond what the chunks need, either side
         // As miniaudio works out a time's frame: in single precision.
         int frameAt(double seconds) => (Float32List.fromList([Float32List.fromList([seconds])[0] * rate])[0]).floor();
-        final chroma = AudioChroma(rate.toDouble());
-        final parts = <Float32List>[];
-        final capacity = block * rate + 64;
-        final buffer = malloc<Float>(capacity), name = path.toNativeUtf8();
+        const size = AudioNotes.chunkFrames * AudioNotes.values;
+        final out = Float32List((end - first) * size), total = (length * rate).round();
+        final from = math.max(0, AudioNotes.sourceRange(first, rate.toDouble()).from - slack);
+        final to = math.min(total, AudioNotes.sourceRange(end - 1, rate.toDouble()).to + slack);
+        final whole = to >= total, at = frameAt(from / rate);
+        final count = to > from ? (whole ? total : frameAt(to / rate)) - at : 0;
+        if (count <= 0) return out; // past the recording's end: silence
+        final buffer = malloc<Float>(count), name = path.toNativeUtf8();
         try {
-          for (var start = 0; start < length; start += block) {
-            final last = start + block >= length;
-            final from = frameAt(start.toDouble());
-            final count = math.min(capacity, (last ? (length * rate).round() : frameAt(start + block.toDouble())) - from);
-            if (count <= 0) break;
-            final samples = buffer.asTypedList(count)..fillRange(0, count, 0);
-            final error = soloud.readSamplesFromFile(name.cast(), start.toDouble(), last ? -1 : start + block.toDouble(), count, false, buffer);
-            if (error != soloud.ReadSamplesErrors.readSamplesNoError) {
-              throw SoLoudCppException.fromReadSampleError(ReadSamplesErrors.fromValue(error.value));
-            }
-            parts.add(chroma.add(Float32List.fromList(samples)));
-            progress.send(math.min(1.0, (start + block) / length));
+          final samples = buffer.asTypedList(count)..fillRange(0, count, 0);
+          final error = soloud.readSamplesFromFile(name.cast(), from / rate, whole ? -1 : to / rate, count, false, buffer);
+          if (error != soloud.ReadSamplesErrors.readSamplesNoError) {
+            throw SoLoudCppException.fromReadSampleError(ReadSamplesErrors.fromValue(error.value));
           }
-          parts.add(chroma.finish());
+          final model = BasicPitch(weights);
+          for (var c = first; c < end; c++) {
+            out.setAll((c - first) * size, AudioNotes.chunk(model, c, samples, from: at, sampleRate: rate.toDouble()));
+          }
         } finally {
           malloc
             ..free(buffer)
             ..free(name);
         }
-        final frames = Float32List(parts.fold(0, (sum, p) => sum + p.length));
-        var at = 0;
-        for (final p in parts) {
-          frames.setAll(at, p);
-          at += p.length;
-        }
-        return (frames: frames, frameRate: chroma.frameRate);
+        return out;
       });
 }
 

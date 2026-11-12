@@ -189,9 +189,9 @@ class SyncEditing {
 
     report(0);
     try {
-      ({Float32List frames, double frameRate})? heard;
+      Float32List? heard;
       // In turn: replacing the recording deletes the file read.
-      await _editor.inTurn(() async => heard = await track.chroma(progress: (done) => report(0.9 * done)));
+      await _editor.inTurn(() async => heard = await track.notes(progress: (done) => report(0.9 * done)));
       if (heard == null) return null;
       var anchors = await _alignOff(score.musicXML, starts, heard!, passes);
       if (_editor._disposed || _sync != sync || _editor.track != track) return null;
@@ -209,11 +209,9 @@ class SyncEditing {
 
   /// On an isolate, from a static function: a closure made beside one that uses the controller
   /// would take it along.
-  static Future<List<SyncAnchor>> _alignOff(
-          String xml, List<double> starts, ({Float32List frames, double frameRate}) heard, List<ScorePass> passes) =>
+  static Future<List<SyncAnchor>> _alignOff(String xml, List<double> starts, Float32List heard, List<ScorePass> passes) =>
       Isolate.run(() => AudioAlignment.anchors(
-            audio: heard.frames,
-            frameRate: heard.frameRate,
+            audio: heard,
             notes: soundingNotes(xml, starts).toList(),
             measureStarts: starts,
             passes: passes,

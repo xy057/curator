@@ -3,6 +3,7 @@
 library;
 
 export 'src/audio_alignment.dart';
+export 'src/basic_pitch.dart';
 export 'src/auto_curate.dart';
 export 'src/beat_grid.dart';
 export 'src/condensing.dart';

@@ -41,7 +41,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
 | `sounding_notes.dart` | `soundingNotes`: every pitched note of the MusicXML as it sounds (concert pitch, in score quarters), which Find Phrase and Align read |
-| `audio_alignment.dart` | Align: a recording's chroma and onsets (`AudioChroma`, fed a block at a time) matched to the score's by multiscale DTW, the path thinned into anchors (`AudioAlignment.anchors`) |
+| `audio_alignment.dart`, `basic_pitch.dart` | Align: a recording heard by Spotify's Basic Pitch (`BasicPitch`, its network run in Dart) as which keys sound and start, a chunk at a time (`AudioNotes`, resampled to its rate), matched to the score's notes by multiscale DTW, the path thinned into anchors (`AudioAlignment.anchors`) |
 | `phrase_search.dart` | Find Phrase: a melody entered (`Phrase`, `PhraseNote`) and its MusicXML for Verovio, drawn as `PhrasePicture`; every voice of the score as it sounds (`ScoreLine`); where a phrase is played (`PhraseSearch`) |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
 | `zip_entries.dart` | `ZipEntries`: an entry of someone else's zip (a project, an .mxl), its bytes counted as they unpack and refused past a limit |
@@ -78,7 +78,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `settings_file.dart` | The `.ccf` format: a project's score-wide settings, for other projects (Project Settings ▸ Export… / Import…) |
-| `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud; every take's recording held, a voice per `PlayChunk`), the waveform and onsets, the recording read whole for Align (`AudioTrack.chroma`), converting to FLAC; `MediaFormats` lists what is accepted |
+| `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud; every take's recording held, a voice per `PlayChunk`), the waveform and onsets, the recording heard for Align on several isolates (`AudioTrack.notes`), converting to FLAC; `MediaFormats` lists what is accepted |
 | `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
 | `video_frame.dart` | `VideoRatio`, and `VideoFrame`: where a video's frame sits in a view (the preview's, the web player's) |
 | `web_page.dart`, `web_export.dart`, `web_export_dialog.dart`, `web_guide.dart` | File ▸ Export to Web…: what a page is (`WebPage`, its `page.json`; `WebChoice`, a viewer's choice and whether it is theirs), writing one (`WebExport`), trying it here (`WebPreview`, the folder served on the loopback address to requests naming `localhost` only, so a site rebinding its name here gets nothing; byte ranges, 416 past the end), the dialog and its guide to publishing |
@@ -182,8 +182,9 @@ fonts it carries (`WebExport.installedFonts`) are named in the dialog, theirs to
 The app's own licence page (Settings ▸ About) also has what pub can't list: the bundled fonts'
 licences and those of the libraries shipped compiled, Verovio and PDFium, each with the libraries
 built into it (`_bundledLicenses` in main.dart; `packages/score_engine/assets/licenses/`, written by
-Tools/make_licenses.py, to run again when either is updated). A page has neither library, so the
-player is packed without them.
+Tools/make_licenses.py, to run again when either is updated), and Basic Pitch's, Align's model
+(`app/assets/basic_pitch/LICENSE.txt`, its NOTICE and licence as the release has them). A page has
+none of them, so the player is packed without them.
 
 **Beats come from `BeatGrid`, never "a quarter note".** Compound meters beat in dotted notes
 (6/8 has two beats), additive ones in their groups (2+2+3/8 has three), upbeats count back
@@ -196,24 +197,37 @@ shortcuts would stop (focus falls to the route's scope, above them).
 
 **Align sets the anchors by ear** (the Audio tab's Align, first of the sync's tools: a filled button
 with its name while the sync has no anchors, then an icon among the others; `SyncEditing.align`, one Undo step replacing the anchors there; at once when a recording is added to
-a score with no anchors yet, unless Settings ▸ General ▸ Align added recordings is off). The recording is read on an isolate half a minute at a time, through
-flutter_soloud's binding into a buffer of our own (its `readSamplesFromFile` never frees the one it
-reads into), and made into frames ~20 a second (`AudioChroma`): the energy of each pitch class over a
-long window (chroma) and a short one (whose rises are onsets). The score is laid out as played, its
-passes the warps set by hand, else the score's form's (`ScoreForm.passes`), and made into the same
-frames: each note its class and a little of its harmonics', fading from its strike (a tie's, from the
-note it carries on) to a third, smoothed as the long window smooths. Silence either side of the
-recording (40 dB under its loud frames) is left out. Dynamic time warping (steps weighted 1.5, 1.5, 2,
-as synctoolbox's) matches them, solved at a quarter, a sixteenth… of the frame rate first and then
-only in a band around the coarser path, so a 40-minute piece takes about as long as reading it (a few
-seconds); onsets count at every rate (the strongest of each class at a coarse one), since chroma alone
-can't tell apart bars of one harmony held, and a bar it misplaces coarse is further off than a band
-reaches. A bar gets an anchor only where a straight line through its neighbours' would put it more than
-30 ms off; a pass's end is a warp to the next; the final barline is where the music stops. With Snap to
-notes each anchor moves onto a note heard within 50 ms. Measured on synthesized renderings of the demo
-and a 36-minute run of it: median 10–20 ms, every bar within 0.5 s; on the demo's recording, median
-36 ms, but its pizzicato chord held over bars 41–43 is placed up to 2 s off (a held harmony whose sound
-has died away, with few notes struck over it, is what Align hears worst: those anchors are fixed by hand).
+a score with no anchors yet, unless Settings ▸ General ▸ Align added recordings is off). The recording is heard by
+Spotify's Basic Pitch (the ICASSP 2022 model, Apache 2.0; `app/assets/basic_pitch`, its weights written
+from the release's ONNX export by Tools/make_basic_pitch_weights.py): about 86 times a second, how likely
+each of the piano's 88 keys is to be sounding, and to be starting, whatever plays it. `BasicPitch` runs its
+network in Dart, four floats at a time (`Float32x4`; each convolution sums eight output planes in
+registers), its frames the release's to about 1e-5, a window allocating nothing. A recording is heard in
+chunks of about 16.5 s (`AudioNotes`), each from only the samples about it: resampled to 22,050 Hz
+(windowed sinc) and run as 2-second windows a whole number of frames apart, each keeping the frames away
+from its edges (the release's windows drift half a percent, 12 s over 40 minutes), four frames made one
+(about 21.5 a second: the notes' mean, the onsets' most) with the samples' mean square beside them. So the
+chunks are heard at once, on isolates as many as half the cores, each taking the next two as it is free
+(some cores are slower) and reading their samples itself through flutter_soloud's binding into a buffer of
+our own (its `readSamplesFromFile` never frees the one it reads into): 36 minutes in about 20 s on an M5
+Pro. The score is laid out as played, its passes the warps set by hand, else the score's form's
+(`ScoreForm.passes`), and made into the same frames: how many notes hold each key (none beyond the
+piano's, which Basic Pitch doesn't hear), and how many start on it (a tie's carrying on not one). Silence
+either side of the recording (40 dB under its loud frames) is left out. Dynamic time warping (steps
+weighted 1.5, 1.5, 2, as synctoolbox's) matches them, solved at a quarter, a sixteenth… of the frame rate
+first and then only in a band around the coarser path (under a second for 36 minutes); onsets count at
+every rate (the strongest of each key at a coarse one), since what sounds alone can't tell apart bars of
+one harmony held, and a bar it misplaces coarse is further off than a band reaches. A bar gets an anchor
+only where a straight line through its neighbours' would put it more than 30 ms off; a pass's end is a
+warp to the next; the final barline is where the music stops. With Snap to notes each anchor moves onto a
+note heard within 50 ms. Measured against the chroma Align heard with before (each bar's error: mean,
+90th percentile, worst but the final barline): the demo's recording, 109 / 124 / 1943 ms then, 50 / 71 /
+129 ms now (its pizzicato chord held over bars 41–43, 2 s off then); the demo through General MIDI
+soundfonts, with rubato, a held pause and a hall's reverb, 123 / 172 / 1357 → 44 / 56 / 85 ms, and
+steady with a ritardando, 93 / 141 / 359 → 46 / 49 / 87 ms; tones of three harmonics, sustained or
+dying away, worst 250 → 66 and 46 ms; a 36-minute run of 25 repeats, median 20 → 10 ms, worst 470 →
+87 ms. A final barline is placed as it was, where the sound dies away (0.5–0.65 s from the barline set
+by hand or played, above: where a held last chord ends is a matter of ear).
 
 **The scroll follows the beats, the notes, or a blend.** `ScrollMap.follow` (Project
 Settings ▸ Animation ▸ Scrolling, `EditState.scrollFollow`, an Undo step saved with the project; a project
