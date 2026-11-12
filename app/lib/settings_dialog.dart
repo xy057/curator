@@ -871,8 +871,10 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   late final _categories = widget.kind.categories;
   late int _page = _lastPage = _open(widget.page) ?? _lastPage;
 
-  /// The page named [name] (a page's label, or a tab's label or title, choosing the tab).
+  /// The page named [name] (a page's label, or a tab's label or title, choosing the tab); none
+  /// for no name (a tab without a title isn't one named so).
   int? _open(String? name) {
+    if (name == null) return null;
     for (final (i, c) in _categories.indexed) {
       if (c.label == name) return i;
       final tab = c.tabs?.indexWhere((t) => t.label == name || t.title == name) ?? -1;
