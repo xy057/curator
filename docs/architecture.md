@@ -1746,7 +1746,7 @@ on Windows wherever the registry says that folder now is): it never replaces the
   translated other than as a literal, an enum's label, is added to curator.pot by hand), and needs
   its Simplified and Traditional Chinese, with the same placeholders (`test/l10n_test.dart`
   checks); a language Crowdin adds may be partly translated. A new language is an `AppLanguage`
-  with its locale, and its file. Material's own strings come from `GlobalMaterialLocalizations`.
+  with its locale, and its file. Material's own strings come from `GlobalMaterialLocalizations` (material_ui's).
 - **Something a project saves**: a field of `EditState` (with its `==` and `copyWith`),
   written and read by the module it belongs to (`project_modules.dart`), bumping that module's
   version with a migration when an older build would lose it; or a new module. If the controller keeps it itself it lives in `_doc`, and
@@ -1759,3 +1759,13 @@ on Windows wherever the registry says that folder now is): it never replaces the
 - **A Verovio change**: edit `third_party/verovio`, then
   `git -C packages/score_engine/third_party/verovio diff > patches/verovio-curated-score.patch`,
   then `make setup` (it re-applies the patches from a clean tree, and records that it did).
+- **A Verovio release**: `VEROVIO_TAG` in the Makefile, then move the clone by hand (the Makefile
+  clones only into an empty folder): `git -C packages/score_engine/third_party/verovio checkout -- .`,
+  `fetch --depth 1 origin tag <tag>`, `checkout <tag>`, remove its `.curated-score-patched` and
+  `make setup`; write the patch again from the patched tree (above) so its lines are the release's,
+  and run Tools/make_licenses.py. `verovioVersion`'s doc comments name the version.
+- **A widget**: Material is the `material_ui` package (`package:material_ui/material_ui.dart`);
+  the framework's `package:flutter/material.dart`, deprecated since Flutter 3.50, has a `Theme`, a
+  `Scaffold`, a `MaterialLocalizations` of its own, which ours never find. A package still built on
+  it (re_editor, the LilyPond editor's code view) gets the app's theme and Material texts through
+  `MaterialUiCompatibilityBridge` in `CuratedScoreApp`'s builder; once none is, the bridge goes.
