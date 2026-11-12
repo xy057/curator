@@ -617,7 +617,7 @@ msgstr "谱号"
 msgid "Clefs"
 msgstr "谱号"
 
-#: lib/app_menus.dart lib/export_dialog.dart lib/lilypond_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "关闭"
 
@@ -1446,7 +1446,7 @@ msgstr "乐器名"
 msgid "Natural (0)"
 msgstr "还原号（0）"
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "Next ({key})"
 msgstr "下一个（{key}）"
 
@@ -1465,7 +1465,7 @@ msgstr "没有可粘贴的图像哦。"
 msgid "No images"
 msgstr "没有图像"
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "No matches"
 msgstr "没有找到"
 
@@ -1688,7 +1688,7 @@ msgstr "演奏者"
 msgid "PNG Sequence"
 msgstr "PNG 序列"
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "Previous ({key})"
 msgstr "上一个（{key}）"
 
@@ -1840,7 +1840,7 @@ msgstr "反复点间隙"
 msgid "Repeat dots"
 msgstr "反复点"
 
-#: lib/captions_dialog.dart lib/edit_dialogs.dart lib/lilypond_editor.dart
+#: lib/captions_dialog.dart lib/code_view.dart lib/edit_dialogs.dart
 msgid "Replace"
 msgstr "替换"
 
@@ -3712,7 +3712,7 @@ msgstr "该供应商没有提供模型。"
 msgid "All matching"
 msgstr "全部匹配项"
 
-#: lib/ai_settings.dart lib/lilypond_editor.dart
+#: lib/ai_settings.dart lib/code_view.dart
 msgid "{n} of {all}"
 msgstr "{n} / {all}"
 
@@ -3987,11 +3987,11 @@ msgstr "刻谱后即可看到乐谱。"
 msgid "Nothing to show yet."
 msgstr "暂无可显示的内容。"
 
-#: lib/lilypond_editor.dart
+#: lib/code_view.dart
 msgid "Find"
 msgstr "查找"
 
-#: lib/lilypond_editor.dart
+#: lib/code_view.dart
 msgid "Replace All"
 msgstr "全部替换"
 
