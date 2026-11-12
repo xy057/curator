@@ -2875,6 +2875,9 @@ msgstr "重音（[）"
 msgid "Bars and Barlines"
 msgstr "小节与小节线"
 
+msgid "Repeats"
+msgstr "反复记号"
+
 #: lib/score_editor.dart
 msgid "Breve"
 msgstr "二全音符"

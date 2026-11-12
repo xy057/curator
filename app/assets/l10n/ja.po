@@ -2875,6 +2875,9 @@ msgstr "アクセント（[）"
 msgid "Bars and Barlines"
 msgstr "小節と小節線"
 
+msgid "Repeats"
+msgstr "反復記号"
+
 #: lib/score_editor.dart
 msgid "Breve"
 msgstr "倍全音符"

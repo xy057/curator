@@ -435,7 +435,9 @@ private:
         if (staff < 0) staff = m_owners.empty() ? 0 : m_owners.back().staff;
         const int cls = this->Intern(classNames, m_classIndex, object->GetClassName());
         int source = m_owners.empty() ? -1 : m_owners.back().sourceIndex;
-        if (object->Is(DIR) || object->Is(TEMPO) || object->Is(REH) || EditorId(object->GetID())) {
+        // An ending too: its hooks, line and number are drawn apart, and the score editor's
+        // chunks draw them all or none.
+        if (object->Is(DIR) || object->Is(TEMPO) || object->Is(REH) || object->Is(ENDING) || EditorId(object->GetID())) {
             source = this->Intern(sourceIds, m_sourceIndex, object->GetID());
         }
         Owner owner{ staff, cls, int(commands.size()), source };

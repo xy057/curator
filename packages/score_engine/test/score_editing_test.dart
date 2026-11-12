@@ -407,6 +407,8 @@ void main() {
     score.setKey(4, KeySig.parse('Eb')!);
     score.setTime(4, TimeSig.parse('3/4')!);
     score.setBarline(3, ':|:');
+    score.setEnding(2, 3, [1]);
+    score.setEnding(4, 5, [2]);
     score.toggleSlur([idsIn(0).first, idsIn(3).first]);
     final slur = RegExp(r'<slur[^>]*type="start"[^>]* id="(cxe\d+)"|<slur[^>]* id="(cxe\d+)"[^>]*type="start"').allMatches(score.chunk(3, 4).xml).map((m) => m.group(1) ?? m.group(2)!).first;
 
@@ -473,5 +475,41 @@ void main() {
     final again = EditableScore.parse(score.toMusicXML());
     expect(again.measureCount, bars);
     expect(again.barLength(10), Frac(3));
+  });
+
+  test('endings, segno, coda, D.C., D.S. and Fine typed in the repeats popover play as ScoreForm reads them', () async {
+    final score = EditableScore.parse(_fluteOf(8));
+    List<int> played() => ScoreForm.fromDocument(XmlDocument.parse(score.toMusicXML())).playedOrder();
+    // Bars 1–2 repeated, a first ending over bar 2 and a second over bar 3; the repeat set after
+    // the first ending closes it.
+    score.setEnding(1, 1, EditableScore.endingNumbers('1.')!);
+    expect(score.setBarline(1, ':|'), isTrue);
+    score.setEnding(2, 2, EditableScore.endingNumbers('2')!);
+    expect(score.endings, [(from: 1, to: 1, number: '1'), (from: 2, to: 2, number: '2')]);
+    final xml = score.toMusicXML();
+    expect(xml, contains('<ending number="1" type="start">1.</ending>'));
+    expect(xml, contains('<ending number="1" type="stop"/><repeat direction="backward"/>'));
+    expect(xml, contains('<ending number="2" type="discontinue"/>'));
+    // A barline changed keeps the ending it holds; the same ending again takes it out.
+    score.setBarline(2, '||');
+    score.setBarline(2, '|');
+    expect(score.endings.length, 2);
+    score.setEnding(2, 2, [2]);
+    expect(score.endings.length, 1);
+    score.undo();
+    expect(played(), [0, 1, 0, 2, 3, 4, 5, 6, 7]);
+    // A segno at bar 4, Fine at the end of bar 6, D.S. al Fine at the end of bar 7.
+    score.addJump(3, EditableScore.jumpNamed('Segno')!);
+    score.addJump(5, EditableScore.jumpNamed('fine')!);
+    score.addJump(6, EditableScore.jumpNamed('D.S. al Fine')!);
+    expect(EditableScore.jumpNamed('ds al  fine'), 'dsalfine');
+    expect(EditableScore.jumpNamed('3'), isNull);
+    expect(played(), [0, 1, 0, 2, 3, 4, 5, 6, 3, 4, 5]);
+    // The segno is drawn by the editor's id: a click selects it, as a marking.
+    final segno = RegExp(r'<segno id="(cxe\d+)"').firstMatch(score.chunk(0, 8).xml)!.group(1)!;
+    expect(score.markingsOf([segno]).single.at.measure, 3);
+    final chunk = await EditChunk.engrave(score, 0, 8);
+    expect(chunk.outlines[segno], isNotNull);
+    chunk.dispose();
   });
 }

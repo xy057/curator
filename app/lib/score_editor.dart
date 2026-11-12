@@ -42,6 +42,7 @@ enum _Popover {
   clef('Clef', 'C', 'treble  bass  alto'),
   text('Text', 'X', ''),
   bars('Bars and Barlines', 'B', '+2  -1  ||  |]  :|  |:'),
+  repeats('Repeats', 'R', '1.  2.  segno  D.S.  Fine'),
   holds('Holds', 'H', 'fermata  breath  caesura'),
   ornaments('Ornaments', 'O', 'tr  mordent  turn'),
   lyrics('Lyrics', 'L', ''),
@@ -450,6 +451,15 @@ class _ScoreEditorState extends State<ScoreEditor> {
       }
     }
     return _anchor;
+  }
+
+  /// The first and last bar of what is selected (outside note input), else [at]'s bar alone.
+  (int, int) _selectedBars(ScorePosition at) {
+    if (_caret == null) {
+      final bars = [for (final e in score.eventsOf(_selectedNotes)) e.position.measure, for (final m in _selectedMarkings) m.at.measure];
+      if (bars.isNotEmpty) return (bars.reduce(math.min), bars.reduce(math.max));
+    }
+    return (at.measure, at.measure);
   }
 
   void _startInput([ScorePosition? at]) {
@@ -1117,6 +1127,15 @@ class _ScoreEditorState extends State<ScoreEditor> {
           _edit(() => ok = score.setBarline(at.measure, t));
           if (!ok) return false;
         }
+      case _Popover.repeats:
+        if (EditableScore.endingNumbers(t) case final numbers?) {
+          final (from, to) = _selectedBars(at);
+          _edit(() => score.setEnding(from, to, numbers));
+        } else if (EditableScore.jumpNamed(t) case final kind?) {
+          _edit(() => score.addJump(at.measure, kind));
+        } else {
+          return false;
+        }
       case _Popover.holds:
         final name = switch (t.toLowerCase()) {
           'fermata' || 'pause' || 'u' => 'fermata',
@@ -1261,6 +1280,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
             'c' => () => _openPopover(_Popover.clef),
             'x' => () => _openPopover(_Popover.text),
             'b' => () => _openPopover(_Popover.bars),
+            'r' => () => _openPopover(_Popover.repeats),
             'h' => () => _openPopover(_Popover.holds),
             'o' => () => _openPopover(_Popover.ornaments),
             'l' => () => _openPopover(_Popover.lyrics),

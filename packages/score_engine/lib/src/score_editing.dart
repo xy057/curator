@@ -727,13 +727,24 @@ XmlElement _text(String name, String value, [Map<String, String> attributes = co
 
 String? _childText(XmlElement element, String name) => element.getElement(name)?.innerText;
 
+/// MusicXML's order of a barline's children.
+const _barlineOrder = ['bar-style', 'footnote', 'level', 'wavy-line', 'segno', 'coda', 'fermata', 'ending', 'repeat'];
+
 /// Puts [child] among [note]'s children where the schema has it.
-void _insertNoteChild(XmlElement note, XmlElement child) {
-  final rank = _noteOrder.indexOf(child.name.local);
-  final children = note.children;
+void _insertNoteChild(XmlElement note, XmlElement child) => _insertInOrder(note, child, _noteOrder);
+
+/// [barline]'s [name] made [child] (null: none), where the schema has it.
+void _setBarlineChild(XmlElement barline, String name, XmlElement? child) {
+  _removeChildren(barline, name);
+  if (child != null) _insertInOrder(barline, child, _barlineOrder);
+}
+
+void _insertInOrder(XmlElement parent, XmlElement child, List<String> order) {
+  final rank = order.indexOf(child.name.local);
+  final children = parent.children;
   for (var i = 0; i < children.length; i++) {
     final c = children[i];
-    if (c is XmlElement && _noteOrder.indexOf(c.name.local) > rank) {
+    if (c is XmlElement && order.indexOf(c.name.local) > rank) {
       children.insert(i, child);
       return;
     }
@@ -928,8 +939,9 @@ class EditableScore {
   // MARK: Ids
 
   /// What the editor tells apart on the engraving: notes and rests, directions, dynamics,
-  /// hairpins' starts, slurs' starts. An id the file had is kept aside and given back on export.
-  static const _tagged = {'note', 'direction', 'dynamics', 'wedge', 'slur'};
+  /// hairpins' starts, slurs' starts, segno and coda signs (Verovio draws a sign by its own id,
+  /// not its direction's). An id the file had is kept aside and given back on export.
+  static const _tagged = {'note', 'direction', 'dynamics', 'wedge', 'slur', 'segno', 'coda'};
 
   void _tagAll() {
     for (final part in parts) {
@@ -3173,32 +3185,167 @@ class EditableScore {
       for (var i = 0; i < parts.length; i++) {
         if (!(m == 0 && t == '|:')) {
           final content = _mutable(i, m);
-          content.others.removeWhere((o) => o.element.name.local == 'barline' && (o.element.getAttribute('location') ?? 'right') == 'right');
-          final right = switch (t) {
-            '||' => _el('barline', [_text('bar-style', 'light-light')], {'location': 'right'}),
-            '|]' => _el('barline', [_text('bar-style', 'light-heavy')], {'location': 'right'}),
-            '!' => _el('barline', [_text('bar-style', 'dashed')], {'location': 'right'}),
-            _ when endRepeat => _el('barline', [_text('bar-style', 'light-heavy'), _el('repeat', const [], {'direction': 'backward'})], {'location': 'right'}),
-            _ => null,
-          };
-          if (right != null) content.others.add(_Other(barLength(m), right));
+          _barline(content, left: false, end: barLength(m), (b) {
+            final style = switch (t) { '||' => 'light-light', '|]' => 'light-heavy', '!' => 'dashed', _ when endRepeat => 'light-heavy', _ => null };
+            _setBarlineChild(b, 'bar-style', style == null ? null : _text('bar-style', style));
+            _setBarlineChild(b, 'repeat', endRepeat ? _el('repeat', const [], {'direction': 'backward'}) : null);
+            // An ending that ends here is closed by the repeat.
+            if (endRepeat) b.getElement('ending')?.setAttribute('type', 'stop');
+          });
           _commit(i, m, content);
         }
         if (opened < measureCount) {
           final c = _mutable(i, opened);
           final had = c.others.any((o) => o.element.name.local == 'barline' && o.element.getAttribute('location') == 'left');
           if (startRepeat || had) {
-            c.others.removeWhere((o) => o.element.name.local == 'barline' && o.element.getAttribute('location') == 'left');
-            if (startRepeat) {
-              c.others.insert(
-                  0, _Other(Frac.zero, _el('barline', [_text('bar-style', 'heavy-light'), _el('repeat', const [], {'direction': 'forward'})], {'location': 'left'})));
-            }
+            _barline(c, left: true, end: barLength(opened), (b) {
+              _setBarlineChild(b, 'bar-style', startRepeat ? _text('bar-style', 'heavy-light') : null);
+              _setBarlineChild(b, 'repeat', startRepeat ? _el('repeat', const [], {'direction': 'forward'}) : null);
+            });
             _commit(i, opened, c);
           }
         }
       }
     });
     return true;
+  }
+
+  /// [content]'s barline at its start ([left]) or at its [end] changed by [change], one made if
+  /// it has none: what else it holds (an ending, a fermata) is kept, and one left holding
+  /// nothing goes.
+  static void _barline(_Content content, void Function(XmlElement barline) change, {required bool left, required Frac end}) {
+    final side = left ? 'left' : 'right';
+    var o = content.others.where((o) => o.element.name.local == 'barline' && (o.element.getAttribute('location') ?? 'right') == side).firstOrNull;
+    if (o == null) {
+      o = _Other(left ? Frac.zero : end, _el('barline', const [], {'location': side}));
+      left ? content.others.insert(0, o) : content.others.add(o);
+    }
+    change(o.element);
+    if (o.element.childElements.isEmpty) content.others.remove(o);
+  }
+
+  // MARK: Repeats
+
+  /// The endings (voltas) as the first part has them: the bars each is over, its numbers as
+  /// written.
+  List<({int from, int to, String number})> get endings {
+    final out = <({int from, int to, String number})>[];
+    final measures = parts.first._measures;
+    int? from;
+    var number = '';
+    for (var m = 0; m < measures.length; m++) {
+      for (final b in measures[m].findElements('barline')) {
+        final e = b.getElement('ending');
+        if (e == null) continue;
+        if (e.getAttribute('type') == 'start') {
+          if (from != null) out.add((from: from, to: math.max(from, m - 1), number: number));
+          from = m;
+          number = e.getAttribute('number') ?? '';
+        } else if (b.getAttribute('location') != 'left') {
+          out.add((from: from ?? m, to: m, number: from == null ? e.getAttribute('number') ?? '' : number));
+          from = null;
+        }
+      }
+    }
+    if (from != null) out.add((from: from, to: measures.length - 1, number: number));
+    return out;
+  }
+
+  /// The times through an ending is played on, as typed or written ("1", "1, 2", "1-3", "1."),
+  /// in order; null if [text] says none.
+  static List<int>? endingNumbers(String text) {
+    final t = text.trim();
+    if (!RegExp(r'^\d+\.?(\s*[,\-–]?\s*\d+\.?)*$').hasMatch(t)) return null;
+    final out = <int>{};
+    for (final m in RegExp(r'(\d+)\.?(?:\s*[-–]\s*(\d+))?').allMatches(t)) {
+      final from = int.tryParse(m.group(1)!), to = int.tryParse(m.group(2) ?? m.group(1)!);
+      if (from == null || to == null || from < 1 || to < from || to - from > 32) return null;
+      for (var n = from; n <= to; n++) {
+        out.add(n);
+      }
+    }
+    return out.isEmpty || out.length > 32 ? null : (out.toList()..sort());
+  }
+
+  /// An ending (volta) played on the times through in [numbers], over bars [from] to [to] in
+  /// every part, in place of those it overlaps; the same ending over the same bars again takes
+  /// it out. It ends closed where its last bar ends in a repeat, else open.
+  void setEnding(int from, int to, List<int> numbers) {
+    if (numbers.isEmpty || from < 0 || to < from || to >= measureCount) return;
+    final times = {...numbers}.toList()..sort();
+    edit(() {
+      final overlapping = endings.where((e) => e.from <= to && e.to >= from).toList();
+      for (final e in overlapping) {
+        _removeEnding(e.from, e.to);
+      }
+      final same = overlapping.length == 1 && (overlapping.single.from, overlapping.single.to) == (from, to);
+      if (same && endingNumbers(overlapping.single.number)?.join(',') == times.join(',')) return;
+      // Verovio pairs an ending's start with the next of the same number written.
+      final number = times.join(', '), label = times.map((n) => '$n.').join(', ');
+      for (var i = 0; i < parts.length; i++) {
+        final first = _mutable(i, from);
+        _barline(first, left: true, end: barLength(from), (b) => _setBarlineChild(b, 'ending', _text('ending', label, {'number': number, 'type': 'start'})));
+        _commit(i, from, first);
+        final last = _mutable(i, to);
+        _barline(last, left: false, end: barLength(to), (b) {
+          final closed = b.getElement('repeat')?.getAttribute('direction') == 'backward';
+          _setBarlineChild(b, 'ending', _el('ending', const [], {'number': number, 'type': closed ? 'stop' : 'discontinue'}));
+        });
+        _commit(i, to, last);
+      }
+    });
+  }
+
+  /// The endings in bars [from] to [to] taken out, in every part.
+  void _removeEnding(int from, int to) {
+    for (var i = 0; i < parts.length; i++) {
+      for (var m = from; m <= to; m++) {
+        if (!parts[i]._measures[m].findElements('barline').any((b) => b.getElement('ending') != null)) continue;
+        final content = _mutable(i, m);
+        for (final o in content.others.where((o) => o.element.name.local == 'barline').toList()) {
+          _removeChildren(o.element, 'ending');
+          if (o.element.childElements.isEmpty) content.others.remove(o);
+        }
+        _commit(i, m, content);
+      }
+    }
+  }
+
+  /// The marks of a score's form the repeats popover puts in ([addJump]), by what is typed for
+  /// them (any case, spaces and full stops left out): their words.
+  static const jumps = {
+    'segno': 'Segno', 'coda': 'Coda', //
+    'dc': 'D.C.', 'dcalfine': 'D.C. al Fine', 'dcalcoda': 'D.C. al Coda',
+    'ds': 'D.S.', 'dsalfine': 'D.S. al Fine', 'dsalcoda': 'D.S. al Coda',
+    'fine': 'Fine', 'tocoda': 'To Coda',
+  };
+
+  /// Which of [jumps] [text] names, or null.
+  static String? jumpNamed(String text) {
+    final key = text.toLowerCase().replaceAll(RegExp(r'[\s.]'), '');
+    return jumps.containsKey(key) ? key : null;
+  }
+
+  /// [kind] (one of [jumps]) in bar [m] over the first part's top staff, with the `<sound>` that
+  /// plays it so (ScoreForm's): a segno or a coda as its sign where the bar starts, the others
+  /// as words that end where it ends.
+  void addJump(int m, String kind) {
+    final words = jumps[kind];
+    if (words == null || m < 0 || m >= measureCount) return;
+    final sound = _el('sound', const [], switch (kind) {
+      'segno' => {'segno': 'segno'},
+      'coda' => {'coda': 'coda'},
+      'dc' || 'dcalfine' || 'dcalcoda' => {'dacapo': 'yes'},
+      'ds' || 'dsalfine' || 'dsalcoda' => {'dalsegno': 'segno'},
+      'fine' => {'fine': 'yes'},
+      _ => {'tocoda': 'coda'},
+    });
+    final start = ScorePosition(0, defaultVoice(0, 1, m), m, Frac.zero);
+    if (kind == 'segno' || kind == 'coda') {
+      addDirection(start, [_el(kind)], sound: sound);
+    } else {
+      addDirection(start.at(m, barLength(m)), [_text('words', words, {'font-style': 'italic', 'justify': 'right'})], sound: sound);
+    }
   }
 
   // MARK: Copy and paste

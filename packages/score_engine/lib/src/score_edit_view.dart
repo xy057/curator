@@ -61,11 +61,26 @@ class EditChunk {
   MeasureLayout? measure(int m) => m < from || m >= to || m - from + lead >= data.measures.length ? null : data.measures[m - from + lead];
 
   /// Whether [item] is its own to draw: one that starts in its bars. A barline between two
-  /// chunks is the later one's (its left edge is before the bar by half its width).
-  bool owns(DisplayItem item) {
+  /// chunks is the later one's (its left edge is before the bar by half its width). What is
+  /// drawn in pieces (an ending) is the chunk's its first piece is, whole: an ending's closing
+  /// hook lies on its last barline as that barline does.
+  bool owns(DisplayItem item) => _wholes[item] ?? _startsHere(item);
+
+  bool _startsHere(DisplayItem item) {
     final x = item.bounds.left + data.staffSpace * _seam;
     return (lead == 0 || x >= left) && (trail == 0 || x < right);
   }
+
+  late final Map<DisplayItem, bool> _wholes = () {
+    final out = Map<DisplayItem, bool>.identity();
+    for (final items in list.wholes.values) {
+      final own = _startsHere(items.reduce((a, b) => a.bounds.left <= b.bounds.left ? a : b));
+      for (final item in items) {
+        out[item] = own;
+      }
+    }
+    return out;
+  }();
 
   /// How far before a bar's left barline what is drawn there is still the bar's, staff spaces.
   static const _seam = 0.5;

@@ -208,14 +208,15 @@ class RenderStyle {
 
 /// The engraving converted to drawable items, one layer per staff.
 class ScoreDisplayList {
-  ScoreDisplayList._(this.data, this.staves, this.barlines, this.apart, [this.sourced = const {}]) : strokes = null;
+  ScoreDisplayList._(this.data, this.staves, this.barlines, this.apart, [this.sourced = const {}, this.wholes = const {}]) : strokes = null;
 
   /// Staves drawn from what isn't an engraving (a PDF score's parts): [strokes], the barlines
   /// that run on between the staves of a section, as each barline's centre and width.
   /// [apart]: marks of texts that aren't drawn here, for where they are.
   ScoreDisplayList.of(this.data, this.staves, {List<({double x, double width})> this.strokes = const [], this.apart = const []})
       : barlines = StaffLayer(const StaffInfo(n: 0, top: 0, height: 0, lines: 0), const [], binWidth: data.staffSpace * 16),
-        sourced = const {};
+        sourced = const {},
+        wholes = const {};
 
   /// The barlines between staves when they aren't [barlines]' (see [ScoreDisplayList.of]).
   final List<({double x, double width})>? strokes;
@@ -234,6 +235,11 @@ class ScoreDisplayList {
   /// With [build]'s `indexSources`: the items drawn for each element the score editor tagged (by
   /// id, `cxe…`), each with its staff. They are in the staves' layers too.
   final Map<String, List<({int staff, DisplayItem item})>> sourced;
+
+  /// With [build]'s `indexSources`: the items drawn for each element the editor has no id for but
+  /// that is drawn in pieces (an ending: its hooks, line and number), by Verovio's id: a chunk of
+  /// the editor draws them all or none. They are in the staves' layers too.
+  final Map<String, List<DisplayItem>> wholes;
 
   /// Releases the laid-out text and glyphs (glyphs are shared between items).
   void dispose() {
@@ -263,6 +269,7 @@ class ScoreDisplayList {
       bool indexSources = false}) {
     final builder = _ItemBuilder(data, style);
     final sourced = <String, List<({int staff, DisplayItem item})>>{};
+    final wholes = <String, List<DisplayItem>>{};
     final byStaff = <int, List<DisplayItem>>{};
     final barlineItems = <DisplayItem>[];
     final lines = <int, List<StaffLine>>{};
@@ -305,8 +312,13 @@ class ScoreDisplayList {
       final item = builder.item(i);
       if (item == null) continue;
       (staff == 0 ? barlineItems : byStaff.putIfAbsent(staff, () => [])).add(item);
-      if (indexSources && source >= 0 && source < data.sourceIds.length && data.sourceIds[source].startsWith('cxe')) {
-        sourced.putIfAbsent(data.sourceIds[source], () => []).add((staff: staff, item: item));
+      if (indexSources && source >= 0 && source < data.sourceIds.length) {
+        final id = data.sourceIds[source];
+        if (id.startsWith('cxe')) {
+          sourced.putIfAbsent(id, () => []).add((staff: staff, item: item));
+        } else {
+          wholes.putIfAbsent(id, () => []).add(item);
+        }
       }
     }
     final binWidth = data.staffSpace * 16;
@@ -345,6 +357,7 @@ class ScoreDisplayList {
             ),
       ]..sort((a, b) => a.bounds.left.compareTo(b.bounds.left)),
       sourced,
+      wholes,
     );
   }
 

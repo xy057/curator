@@ -2868,6 +2868,9 @@ msgstr ""
 msgid "Bars and Barlines"
 msgstr ""
 
+msgid "Repeats"
+msgstr ""
+
 #: lib/score_editor.dart
 msgid "Breve"
 msgstr ""
