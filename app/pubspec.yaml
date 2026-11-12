@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.8.0+343
+version: 0.8.0+344
 
 environment:
   sdk: ^3.13.4
@@ -9,8 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations: # Material's own text (menus, the licence page) in the interface's language
-    sdk: flutter
+  # Material, the framework's own until Flutter 3.50 (package:flutter/material.dart, deprecated), and
+  # its text (menus, the licence page) in the interface's language (GlobalMaterialLocalizations)
+  material_ui: ^1.11.0
   score_engine:
     path: ../packages/score_engine
   archive: ^4.6.0 # .ccs projects are zip archives

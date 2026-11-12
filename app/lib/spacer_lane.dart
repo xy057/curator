@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart' show ScoreTimeline;
 
 import 'app_colors.dart';

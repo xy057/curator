@@ -9,10 +9,9 @@ import 'dart:ui' show AppExitResponse;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart' show LicenseEntry, LicenseEntryWithLineBreaks, LicenseRegistry, ValueListenable;
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'ai_providers.dart' show AiModel;
@@ -228,7 +227,10 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
                 data: MediaQuery.of(context).copyWith(
                     textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1) * settings.textSize.scale),
                     disableAnimations: settings.reduceMotion || MediaQuery.disableAnimationsOf(context)),
-                child: child!,
+                // The LilyPond editor's code view (re_editor) is still built on package:flutter/material.dart,
+                // whose Theme and MaterialLocalizations aren't material_ui's: this gives it ours. Until it moves.
+                // ignore: deprecated_member_use
+                child: MaterialUiCompatibilityBridge(child: child!),
               ),
               ValueListenableBuilder(
                 valueListenable: _before,

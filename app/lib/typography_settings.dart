@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart' show ScoreTypography, TextFace, TextKind, TextLook;
 
 import 'app_colors.dart';

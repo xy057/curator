@@ -12,9 +12,9 @@ import 'package:curated_score/lilypond.dart';
 import 'package:curated_score/lilypond_dialog.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart' show ScoreFonts, TextFonts;
 
 import 'demo_project.dart';
