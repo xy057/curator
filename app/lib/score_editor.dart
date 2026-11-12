@@ -4,21 +4,26 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:re_editor/re_editor.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'app_icons.dart';
+import 'code_view.dart';
 import 'dialog_kit.dart';
+import 'error_text.dart';
 import 'l10n/l10n.dart';
+import 'musicxml_language.dart';
 import 'ui_kit.dart';
 
 /// Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score's MusicXML in an editor of its own,
 /// over the window, laid out as Dorico's Write mode in galley view: the notes panel at the left,
 /// the score as one endless system in the middle (Verovio engraves it, a few bars at a time), the
-/// notations at the right, and Dorico's keys. Returns the score as edited (null: nothing changed,
-/// or the changes were discarded).
+/// notations at the right, and Dorico's keys; or, toggled, its MusicXML as text (the MusicXML
+/// view). Returns the score as edited (null: nothing changed, or the changes were discarded).
 Future<String?> showScoreEditor(BuildContext context, EditableScore score, {required String name}) =>
     Navigator.of(context, rootNavigator: true).push<String>(PageRouteBuilder(
       opaque: true,
@@ -64,7 +69,17 @@ class ScoreEditor extends StatefulWidget {
 }
 
 class _ScoreEditorState extends State<ScoreEditor> {
-  EditableScore get score => widget.score;
+  /// The score being edited: another once its MusicXML is edited as text and read ([_applyXml]).
+  late EditableScore score = widget.score;
+
+  /// The scores the MusicXML view's edits replaced, the last the one before this: Undo goes back
+  /// to it once this one has nothing left to undo. And those Undo went back from, the last the
+  /// next: Redo goes on to it once this one has nothing left to redo.
+  final _earlier = <EditableScore>[], _later = <EditableScore>[];
+
+  /// Counts the score's changes (edits, Undo, Redo, another score), for telling whether the
+  /// MusicXML view's text is still the score's.
+  int _version = 0;
 
   final _focus = FocusNode(debugLabel: 'Score editor');
 
@@ -128,6 +143,44 @@ class _ScoreEditorState extends State<ScoreEditor> {
   bool _popoverError = false;
   bool _edited = false;
 
+  // The MusicXML view: the score as text, kept while the score is as it was made from (its
+  // Undo, its caret).
+  bool _xmlShown = false;
+  CodeLineEditingController? _xml;
+  CodeFindController? _xmlFind;
+  final _xmlFocus = FocusNode(debugLabel: 'MusicXML');
+
+  /// The text as it is the score's, and which score (at which [_version]) that is.
+  String _xmlOpened = '';
+  EditableScore? _xmlOf;
+  int _xmlVersion = -1;
+
+  /// The line the caret was put on as the view opened (nothing selected in the score then: -1).
+  int _xmlPlaced = -1;
+
+  /// What is wrong with the text, as reading it into a score found.
+  CodeProblem? _xmlProblem;
+
+  /// Counts the text's changes and its caret's moves, for what shows them (Undo, Redo, the
+  /// status line): told after the frame when the editor tells them as it is built.
+  final _xmlTicks = ValueNotifier(0);
+  bool _xmlTickPending = false;
+
+  void _xmlMoved() {
+    if (SchedulerBinding.instance.schedulerPhase != SchedulerPhase.persistentCallbacks) {
+      _xmlTicks.value++;
+      return;
+    }
+    if (_xmlTickPending) return;
+    _xmlTickPending = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _xmlTickPending = false;
+      if (mounted) _xmlTicks.value++;
+    });
+  }
+
+  late final _xmlPrompts = MusicXmlPrompts((i) => _xml!.codeLines[i].text);
+
   @override
   void initState() {
     super.initState();
@@ -151,13 +204,21 @@ class _ScoreEditorState extends State<ScoreEditor> {
     }
     _popoverText.dispose();
     _popoverFocus.dispose();
+    _xmlFind?.dispose();
+    _xml
+      ?..removeListener(_xmlMoved)
+      ..dispose();
+    _xmlFocus.dispose();
+    _xmlTicks.dispose();
     super.dispose();
   }
 
   // MARK: Engraving
 
   /// How many bars a chunk holds: fewer the more staves the score has.
-  late final int _bars = EditChunk.barsFor(score.parts.fold(0, (a, p) => a + p.staves));
+  late int _bars = _barsOf(score);
+
+  static int _barsOf(EditableScore score) => EditChunk.barsFor(score.parts.fold(0, (a, p) => a + p.staves));
 
   /// How many chunks are engraved at a time.
   static final _engravers = (Platform.numberOfProcessors - 2).clamp(2, 6);
@@ -327,13 +388,17 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   // MARK: Editing
 
-  /// Runs [change] on the score, then engraves what it changed.
-  void _edit(void Function() change) {
+  /// Runs [change] on the score, then engraves what it changed. A change that made an Undo step
+  /// (not Undo or Redo themselves: [history]) leaves the scores Undo went back from behind.
+  void _edit(void Function() change, {bool history = false}) {
+    final step = score.undoStep;
     try {
       change();
     } on Object catch (e) {
       setState(() => _engraveError = '$e');
     }
+    _version++;
+    if (!history && !identical(score.undoStep, step)) _later.clear();
     _edited = _edited || score.canUndo;
     _selected = {
       for (final id in _selected)
@@ -1112,6 +1177,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   KeyEventResult _key(FocusNode _, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+    // The MusicXML view's keys are its code's: a key taken here never reaches it.
+    if (_xmlShown) return KeyEventResult.ignored;
     // A popover's field keeps what is typed in it: this is asked before the field is, and a key
     // taken here never reaches it (an F typed for forte would be the note's new pitch).
     if (FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null) {
@@ -1241,14 +1308,43 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (ids.isNotEmpty) _edit(() => score.toggleMark(ids, name, attributes: attributes));
   }
 
+  bool get _canUndo => score.canUndo || _earlier.isNotEmpty;
+  bool get _canRedo => score.canRedo || _later.isNotEmpty;
+
   void _undo() {
-    if (!score.canUndo) return;
-    _edit(score.undo);
+    if (score.canUndo) return _edit(score.undo, history: true);
+    if (_earlier.isEmpty) return;
+    _later.add(score);
+    _swapTo(_earlier.removeLast());
   }
 
   void _redo() {
-    if (!score.canRedo) return;
-    _edit(score.redo);
+    if (score.canRedo) return _edit(score.redo, history: true);
+    if (_later.isEmpty) return;
+    _earlier.add(score);
+    _swapTo(_later.removeLast());
+  }
+
+  /// [next] edited in place of the score: nothing selected, every bar engraved again.
+  void _swapTo(EditableScore next) {
+    if (_held != null) _dragDone(cancelled: true);
+    _retire(_chunks);
+    setState(() {
+      score = next;
+      _version++;
+      _edited = true;
+      _bars = _barsOf(next);
+      _chunks = [];
+      _queue.clear();
+      _engraveError = null;
+      _selected = {};
+      _caret = _anchor = _chordAt = null;
+      _tuplet = null;
+      _popover = null;
+      _shadow.value = null;
+      _marquee.value = null;
+      _refresh(all: true);
+    });
   }
 
   /// Zooms by [factor], what is at [about] in the view (its middle, if not said) staying there.
@@ -1264,12 +1360,143 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (_popover != null) setState(() {});
   }
 
+  // MARK: The MusicXML view
+
+  /// Whether the MusicXML view's text differs from the score's.
+  bool get _xmlEdited => _xml != null && _xml!.text != _xmlOpened;
+
+  void _toggleXml() => _xmlShown ? _closeXml() : _openXml();
+
+  /// The score shown as MusicXML text: what is selected (or the caret's bar) at the caret. The
+  /// text is made again when the score changed since it was made; else it is as it was left.
+  void _openXml() {
+    if (_held != null) _dragDone(cancelled: true);
+    final target = _target;
+    int? line;
+    final fresh = _xml == null || !identical(_xmlOf, score) || _xmlVersion != _version;
+    if (fresh) {
+      final made = score.toMusicXMLText(_selected);
+      _xmlFind?.dispose();
+      _xml
+        ?..removeListener(_xmlMoved)
+        ..dispose();
+      final code = _xml = musicXmlCode(made.text)..addListener(_xmlMoved);
+      _xmlFind = CodeFindController(code);
+      _xmlOpened = made.text;
+      _xmlOf = score;
+      _xmlVersion = _version;
+      _xmlProblem = null;
+      line = made.lines.values.fold<int?>(null, (a, b) => a == null || b < a ? b : a);
+    }
+    final code = _xml!;
+    if (target != null && (_selected.isNotEmpty || _caret != null)) {
+      line ??= MusicXmlLines.lineOfBar((i) => code.codeLines[i].text, code.codeLines.length, target.part, target.measure);
+    }
+    _xmlPlaced = line ?? -1;
+    if (line != null) {
+      final text = code.codeLines[line].text;
+      code.selection = CodeLineSelection.collapsed(index: line, offset: text.length - text.trimLeft().length);
+    }
+    if (fresh) code.clearHistory(); // the caret put there is nothing to undo
+    setState(() {
+      _xmlShown = true;
+      _popover = null;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_xmlShown) return;
+      code.makeCursorCenterIfInvisible();
+      _xmlFocus.requestFocus();
+    });
+  }
+
+  /// Back to the score, the MusicXML as edited read into it (where it can't be, the view stays,
+  /// saying why: false). Where the caret was moved to, its bar is gone to.
+  bool _closeXml() {
+    final code = _xml!;
+    final text = code.text;
+    final edited = text != _xmlOpened;
+    if (edited && !_applyXml(text)) return false;
+    final line = code.selection.extentIndex;
+    final moved = edited || line != _xmlPlaced;
+    final at = moved ? MusicXmlLines.barAt((i) => code.codeLines[i].text, line) : null;
+    setState(() {
+      _xmlShown = false;
+      _xmlProblem = null;
+    });
+    _focus.requestFocus();
+    if (at != null && at.part < score.parts.length && at.measure < score.measureCount) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _xmlShown) return;
+        _anchor = ScorePosition(at.part, score.defaultVoice(at.part, 1, at.measure), at.measure, Frac.zero);
+        _selected = {};
+        _caret = null;
+        _goToBar(at.measure);
+        _reveal(_selectionRect());
+      });
+    }
+    return true;
+  }
+
+  /// [text] read as the score, in place of the one before it (which Undo goes back to); false,
+  /// and what is wrong with it shown, if it can't be.
+  bool _applyXml(String text) {
+    final EditableScore next;
+    try {
+      next = EditableScore.parse(text);
+    } on FormatException catch (e) {
+      // Where it is, when it says so of the text (not of a number in it, as int.parse would).
+      final offset = e.offset;
+      var line = -1, column = 0;
+      if (identical(e.source, text) && offset != null && offset <= text.length) {
+        final before = text.substring(0, offset);
+        line = '\n'.allMatches(before).length;
+        column = offset - (before.lastIndexOf('\n') + 1);
+      }
+      _showXmlProblem(e.message, line, column);
+      return false;
+    } on Object catch (e) {
+      _showXmlProblem(describeError(e), -1, 0);
+      return false;
+    }
+    score.forgetRedo(); // the score goes on as the text says
+    _earlier.add(score);
+    _later.clear();
+    _swapTo(next);
+    _xmlOpened = text;
+    _xmlOf = next;
+    _xmlVersion = _version;
+    return true;
+  }
+
+  /// What is wrong with the text, at [line] (from 0; -1: nowhere) and [column]: listed under it,
+  /// a click going there; the caret is put there.
+  void _showXmlProblem(String message, int line, int column) {
+    final code = _xml!;
+    void goTo() {
+      if (line < 0 || line >= code.codeLines.length) return;
+      code.selection = CodeLineSelection.collapsed(index: line, offset: column.clamp(0, code.codeLines[line].length));
+      code.makeCursorCenterIfInvisible();
+      _xmlFocus.requestFocus();
+    }
+
+    setState(() => _xmlProblem = (text: line < 0 ? message : '${line + 1}:${column + 1}: $message', error: true, onTap: line < 0 ? null : goTo));
+    goTo();
+  }
+
+  void _findInXml() {
+    _xmlFind?.findMode();
+    _xmlFind?.focusOnFindInput();
+  }
+
   // MARK: Leaving
 
-  void _done() => Navigator.of(context).pop(_edited ? score.toMusicXML() : null);
+  void _done() {
+    if (_xmlShown && !_closeXml()) return; // what is wrong with it shown
+    Navigator.of(context).pop(_edited ? score.toMusicXML() : null);
+  }
 
   Future<void> _cancel() async {
-    if (!_edited) return Navigator.of(context).pop();
+    if (!_edited && !_xmlEdited) return Navigator.of(context).pop();
     final discard = await showAppDialog<bool>(
       context: context,
       builder: (context) => AppDialog(
@@ -1283,7 +1510,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
       ),
     );
     if (discard == true && mounted) Navigator.of(context).pop();
-    if (mounted) _focus.requestFocus();
+    if (mounted) (_xmlShown ? _xmlFocus : _focus).requestFocus();
   }
 
   // MARK: Building
@@ -1306,13 +1533,15 @@ class _ScoreEditorState extends State<ScoreEditor> {
             _toolbar(context),
             Divider(height: 1, color: colors.line),
             Expanded(
-              child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                _notesPanel(context),
-                VerticalDivider(width: 1, color: colors.line),
-                Expanded(child: _view(context)),
-                VerticalDivider(width: 1, color: colors.line),
-                _notationsPanel(context),
-              ]),
+              child: _xmlShown
+                  ? _xmlView(context)
+                  : Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      _notesPanel(context),
+                      VerticalDivider(width: 1, color: colors.line),
+                      Expanded(child: _view(context)),
+                      VerticalDivider(width: 1, color: colors.line),
+                      _notationsPanel(context),
+                    ]),
             ),
             Divider(height: 1, color: colors.line),
             _statusBar(context),
@@ -1338,11 +1567,24 @@ class _ScoreEditorState extends State<ScoreEditor> {
             if (_running > 0 || _queue.isNotEmpty) PulsingDot(color: colors.accent, size: 8),
           ]),
         ),
-        ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: score.canUndo ? _undo : null),
-        ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: score.canRedo ? _redo : null),
-        const ToolbarDivider(),
-        ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom Out'.tr, onPressed: () => _zoomBy(1 / 1.2)),
-        ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom In'.tr, onPressed: () => _zoomBy(1.2)),
+        if (_xml case final code? when _xmlShown)
+          // The text's own Undo, and Find.
+          ListenableBuilder(
+            listenable: _xmlTicks,
+            builder: (context, _) => Row(mainAxisSize: MainAxisSize.min, children: [
+              ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: code.canUndo ? code.undo : null),
+              ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: code.canRedo ? code.redo : null),
+              ToolbarButton(icon: AppIcon.search.of(context), tooltip: 'Find ({key})'.fill({'key': shortcut('⌘F')}), onPressed: _findInXml),
+            ]),
+          )
+        else ...[
+          ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: _canUndo ? _undo : null),
+          ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: _canRedo ? _redo : null),
+          const ToolbarDivider(),
+          ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom Out'.tr, onPressed: () => _zoomBy(1 / 1.2)),
+          ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom In'.tr, onPressed: () => _zoomBy(1.2)),
+        ],
+        ToolbarButton(icon: AppIcon.code.of(context), tooltip: 'MusicXML'.tr, onPressed: _toggleXml, selected: _xmlShown),
         const ToolbarDivider(),
         OutlinedButton(onPressed: _cancel, child: Text('Cancel'.tr)),
         const SizedBox(width: 8),
@@ -1409,6 +1651,22 @@ class _ScoreEditorState extends State<ScoreEditor> {
   Widget _statusBar(BuildContext context) {
     final colors = context.colors, style = AppStyle.of(context);
     final muted = TextStyle(fontSize: 12, color: colors.textMuted);
+    if (_xml case final code? when _xmlShown) {
+      return ListenableBuilder(
+        listenable: _xmlTicks,
+        builder: (context, _) {
+          final at = MusicXmlLines.barAt((i) => code.codeLines[i].text, code.selection.extentIndex, count: false);
+          final part = at == null ? null : score.parts.where((p) => p.id == at.id).firstOrNull?.name ?? at.id;
+          return Container(
+            height: style.panelBar,
+            color: colors.chrome,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            alignment: Alignment.centerLeft,
+            child: Text(at == null ? '' : '$part · ${'Bar {n}'.fill({'n': at.number})}', maxLines: 1, overflow: TextOverflow.ellipsis, style: muted),
+          );
+        },
+      );
+    }
     String where(ScorePosition p) => '${score.parts[p.part].name}${score.parts[p.part].staves > 1 ? ' ${p.staff}' : ''} · ${score.describe(p.measure, p.time)}';
     final String text;
     if (_engraveError case final error?) {
@@ -1565,6 +1823,36 @@ class _ScoreEditorState extends State<ScoreEditor> {
       );
     });
   }
+
+  /// The MusicXML view: the score as text, what reading it found wrong under it.
+  Widget _xmlView(BuildContext context) {
+    final code = _xml!;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Expanded(
+        child: CodeView(
+          controller: code,
+          findController: _xmlFind!,
+          focusNode: _xmlFocus,
+          language: null, // the text colours its own lines (musicXmlCode)
+          folds: const MusicXmlFolds(),
+          prompts: _xmlPrompts,
+          kindOf: _xmlKind,
+        ),
+      ),
+      if (_xmlProblem case final problem?) ...[Divider(height: 1, color: context.colors.line), CodeProblemList(problems: [problem])],
+    ]);
+  }
+
+  /// What a word offered is, as shown beside it: XML's own terms.
+  static String? _xmlKind(CodePrompt prompt) => prompt is! MusicXmlPrompt
+      ? null
+      : switch (prompt.kind) {
+          MusicXmlKind.element => 'element'.trIn('musicxml'),
+          MusicXmlKind.endTag => 'end tag'.trIn('musicxml'),
+          MusicXmlKind.attribute => 'attribute'.trIn('musicxml'),
+          MusicXmlKind.value => 'value'.trIn('musicxml'),
+          MusicXmlKind.entity => 'entity'.trIn('musicxml'),
+        };
 
   static int _noteGlyph(NoteType v) => switch (v) {
         NoteType.breve => 0xE1D0,

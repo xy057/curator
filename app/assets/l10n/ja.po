@@ -617,7 +617,7 @@ msgstr "音部記号"
 msgid "Clefs"
 msgstr "音部記号"
 
-#: lib/app_menus.dart lib/export_dialog.dart lib/lilypond_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "閉じる"
 
@@ -1446,7 +1446,7 @@ msgstr "名前"
 msgid "Natural (0)"
 msgstr "ナチュラル（0）"
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "Next ({key})"
 msgstr "次へ（{key}）"
 
@@ -1465,7 +1465,7 @@ msgstr "ペーストする画像がありません。"
 msgid "No images"
 msgstr "画像なし"
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "No matches"
 msgstr "一致なし"
 
@@ -1688,7 +1688,7 @@ msgstr "奏者"
 msgid "PNG Sequence"
 msgstr "PNG シーケンス"
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "Previous ({key})"
 msgstr "前へ（{key}）"
 
@@ -1840,7 +1840,7 @@ msgstr "反復記号の点の間隔"
 msgid "Repeat dots"
 msgstr "反復記号の点"
 
-#: lib/captions_dialog.dart lib/edit_dialogs.dart lib/lilypond_editor.dart
+#: lib/captions_dialog.dart lib/code_view.dart lib/edit_dialogs.dart
 msgid "Replace"
 msgstr "置き換える"
 
@@ -3011,7 +3011,7 @@ msgstr "略称"
 msgid "Add Instrument"
 msgstr "楽器を追加"
 
-#: lib/pdf_import.dart
+#: lib/pdf_import.dart lib/score_editor.dart
 msgid "Bar {n}"
 msgstr "{n} 小節目"
 
@@ -3712,7 +3712,7 @@ msgstr "このプロバイダーにはモデルがありません。"
 msgid "All matching"
 msgstr "一致するすべて"
 
-#: lib/ai_settings.dart lib/lilypond_editor.dart
+#: lib/ai_settings.dart lib/code_view.dart
 msgid "{n} of {all}"
 msgstr "{n} / {all}"
 
@@ -3967,7 +3967,7 @@ msgstr "浄書するものがありません。"
 msgid "Couldn’t Import LilyPond Score"
 msgstr "LilyPond の楽譜を読み込めませんでした"
 
-#: lib/lilypond_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Find ({key})"
 msgstr "検索（{key}）"
 
@@ -3987,11 +3987,11 @@ msgstr "浄書すると楽譜が表示されます。"
 msgid "Nothing to show yet."
 msgstr "まだ表示するものがありません。"
 
-#: lib/lilypond_editor.dart
+#: lib/code_view.dart
 msgid "Find"
 msgstr "検索"
 
-#: lib/lilypond_editor.dart
+#: lib/code_view.dart
 msgid "Replace All"
 msgstr "すべて置き換える"
 
@@ -4125,3 +4125,32 @@ msgstr "名前: 値"
 #: lib/ai_settings.dart
 msgid "Custom body"
 msgstr "カスタムボディ"
+
+#: lib/score_editor.dart
+msgid "MusicXML"
+msgstr "MusicXML"
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "element"
+msgstr "要素"
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "end tag"
+msgstr "終了タグ"
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "attribute"
+msgstr "属性"
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "value"
+msgstr "値"
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "entity"
+msgstr "実体参照"

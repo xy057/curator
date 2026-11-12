@@ -11,6 +11,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_colors.dart';
 import 'app_icons.dart';
+import 'code_view.dart';
 import 'dialog_kit.dart';
 import 'downloader.dart';
 import 'error_text.dart';
@@ -90,8 +91,7 @@ class _LilyPondEditorState extends State<LilyPondEditor> {
 
   late final _prompts = LilyPondPrompts(() => [for (final c in _code.values) c.text].join('\n'));
 
-  static final _mode = lilyPondMode();
-  static final _themes = <Brightness, CodeHighlightTheme>{};
+  static final _language = CodeLanguage('lilypond', lilyPondMode(), lilyPondTheme);
 
   @override
   void initState() {
@@ -408,48 +408,34 @@ class _LilyPondEditorState extends State<LilyPondEditor> {
   }
 
   Widget _editor(BuildContext context) {
-    final colors = context.colors, theme = Theme.of(context);
     final code = _code[_shown]!;
-    final find = _findControllers[_shown] ??= CodeFindController(code);
-    final highlight = _themes[theme.brightness] ??= CodeHighlightTheme(
-      languages: {'lilypond': CodeHighlightThemeMode(mode: _mode)},
-      theme: lilyPondTheme(theme.brightness),
-    );
-    final gutter = TextStyle(fontSize: 12, color: colors.textMuted.withValues(alpha: 0.7), fontFamily: monospace.fontFamily,
-        fontFamilyFallback: monospace.fontFamilyFallback);
     return KeyedSubtree(
       key: ValueKey(_shown),
-      child: CodeAutocomplete(
-        viewBuilder: (context, notifier, onSelected) => _PromptList(notifier: notifier, onSelected: onSelected),
-        promptsBuilder: _prompts,
-        child: CodeEditor(
-          controller: code,
-          findController: find,
-          focusNode: _editorFocus,
-          wordWrap: false,
-          padding: const EdgeInsets.fromLTRB(4, 8, 12, 8),
-          style: CodeEditorStyle(
-            fontSize: 13,
-            fontFamily: monospace.fontFamily,
-            fontFamilyFallback: monospace.fontFamilyFallback,
-            fontHeight: 1.45,
-            textColor: colors.text,
-            backgroundColor: colors.surface,
-            selectionColor: colors.accent.withValues(alpha: 0.25),
-            highlightColor: colors.accent.withValues(alpha: 0.3),
-            cursorColor: colors.accent,
-            cursorLineColor: colors.accentWash.withValues(alpha: 0.5),
-            codeTheme: highlight,
-          ),
-          indicatorBuilder: (context, editing, chunks, notifier) => Row(children: [
-            DefaultCodeLineNumber(controller: editing, notifier: notifier, textStyle: gutter, focusedTextStyle: gutter.copyWith(color: colors.text)),
-            DefaultCodeChunkIndicator(width: 18, controller: chunks, notifier: notifier),
-          ]),
-          findBuilder: (context, controller, readOnly) => _FindBar(controller: controller, readOnly: readOnly),
-        ),
+      child: CodeView(
+        controller: code,
+        findController: _findControllers[_shown] ??= CodeFindController(code),
+        focusNode: _editorFocus,
+        language: _language,
+        prompts: _prompts,
+        kindOf: _kind,
       ),
     );
   }
+
+  /// What a word offered is, as shown beside it: LilyPond's own terms.
+  static String? _kind(CodePrompt prompt) => prompt is! LilyPondPrompt
+      ? null
+      : switch (prompt.kind) {
+          LilyPondKind.context => 'context'.trIn('lilypond'),
+          LilyPondKind.clef => 'clef'.trIn('lilypond'),
+          LilyPondKind.repeat => 'repeat'.trIn('lilypond'),
+          LilyPondKind.barline => 'barline'.trIn('lilypond'),
+          LilyPondKind.language => 'language'.trIn('lilypond'),
+          LilyPondKind.property => 'property'.trIn('lilypond'),
+          LilyPondKind.grob => 'grob'.trIn('lilypond'),
+          LilyPondKind.variable => 'variable'.trIn('lilypond'),
+          LilyPondKind.command => 'command'.trIn('lilypond'),
+        };
 
   /// The preview's top edge: dragged, the preview is taller or shorter.
   Widget _divider(BuildContext context, double height) {
@@ -538,32 +524,10 @@ class _LilyPondEditorState extends State<LilyPondEditor> {
         ...?_run?.problems.where((p) => !p.error),
       ];
 
-  Widget _problemList(BuildContext context) {
-    final colors = context.colors, problems = _problems;
-    const row = 26.0;
-    return Container(
-      height: math.min(problems.length, 5) * row + 8,
-      color: colors.chrome,
-      child: ListView(padding: const EdgeInsets.symmetric(vertical: 4), itemExtent: row, children: [
-        for (final p in problems)
-          InkWell(
-            onTap: p.line == null ? null : () => _goTo(p.file, p.line!, (p.column ?? 1) - 1),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(children: [
-                Icon((p.error ? AppIcon.failed : AppIcon.warning).of(context),
-                    size: 15, color: p.error ? Theme.of(context).colorScheme.error : const Color(0xFFD08A1E)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(describeLilyProblem(p),
-                      overflow: TextOverflow.ellipsis, style: monospace.copyWith(fontSize: 12.5, color: colors.text)),
-                ),
-              ]),
-            ),
-          ),
-      ]),
-    );
-  }
+  Widget _problemList(BuildContext context) => CodeProblemList(problems: [
+        for (final p in _problems)
+          (text: describeLilyProblem(p), error: p.error, onTap: p.line == null ? null : () => _goTo(p.file, p.line!, (p.column ?? 1) - 1)),
+      ]);
 }
 
 /// Draws the score LilyPond engraved, of it what the preview shows (scrolled to [horizontal] and
@@ -609,197 +573,4 @@ class _PreviewPainter extends CustomPainter {
   @override
   bool shouldRepaint(_PreviewPainter old) =>
       old.drawing != drawing || old.ink != ink || old.mark != mark || old.viewport != viewport || old.extent != extent;
-}
-
-/// What can be typed where the caret is ([LilyPondPrompts]), the chosen one marked: ↑ and ↓
-/// choose, Return or a click puts it in.
-class _PromptList extends StatefulWidget implements PreferredSizeWidget {
-  const _PromptList({required this.notifier, required this.onSelected});
-  final ValueNotifier<CodeAutocompleteEditingValue> notifier;
-  final ValueChanged<CodeAutocompleteResult> onSelected;
-
-  static const _row = 24.0, _rows = 8;
-
-  @override
-  /// Its rows, the list's padding (4 above and below) and its border's (1).
-  Size get preferredSize => Size(300, math.min(notifier.value.prompts.length, _rows) * _row + 10);
-
-  @override
-  State<_PromptList> createState() => _PromptListState();
-}
-
-class _PromptListState extends State<_PromptList> {
-  /// What [kind] of word one offered is, as shown beside it: LilyPond's own terms.
-  static String _kind(LilyPondKind kind) => switch (kind) {
-        LilyPondKind.context => 'context'.trIn('lilypond'),
-        LilyPondKind.clef => 'clef'.trIn('lilypond'),
-        LilyPondKind.repeat => 'repeat'.trIn('lilypond'),
-        LilyPondKind.barline => 'barline'.trIn('lilypond'),
-        LilyPondKind.language => 'language'.trIn('lilypond'),
-        LilyPondKind.property => 'property'.trIn('lilypond'),
-        LilyPondKind.grob => 'grob'.trIn('lilypond'),
-        LilyPondKind.variable => 'variable'.trIn('lilypond'),
-        LilyPondKind.command => 'command'.trIn('lilypond'),
-      };
-
-  final _scroll = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    widget.notifier.addListener(_moved);
-  }
-
-  @override
-  void dispose() {
-    widget.notifier.removeListener(_moved);
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  void _moved() {
-    if (!mounted) return;
-    setState(() {});
-    if (!_scroll.hasClients) return;
-    final top = widget.notifier.value.index * _PromptList._row, view = _scroll.position.viewportDimension;
-    if (top < _scroll.offset) {
-      _scroll.jumpTo(top);
-    } else if (top + _PromptList._row > _scroll.offset + view) {
-      _scroll.jumpTo(top + _PromptList._row - view);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors, value = widget.notifier.value, dark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: widget.preferredSize.width,
-      height: widget.preferredSize.height,
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border.all(color: colors.line),
-        borderRadius: AppStyle.of(context).radius(6),
-        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 12, offset: Offset(0, 4))],
-      ),
-      child: ListView.builder(
-        controller: _scroll,
-        padding: const EdgeInsets.all(4),
-        itemExtent: _PromptList._row,
-        itemCount: value.prompts.length,
-        itemBuilder: (context, i) {
-          final prompt = value.prompts[i], chosen = i == value.index;
-          // The chosen one in the accent's light tint, as a sidebar's chosen row.
-          final ink = chosen ? colors.accentOn(colors.accentSoft, dark: dark) : colors.text;
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => widget.onSelected(value.copyWith(index: i).autocomplete),
-            child: Container(
-              decoration: BoxDecoration(color: chosen ? colors.accentSoft : null, borderRadius: BorderRadius.circular(4)),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(children: [
-                Expanded(child: Text(prompt.word, overflow: TextOverflow.ellipsis, style: monospace.copyWith(fontSize: 13, color: ink))),
-                if (prompt is LilyPondPrompt)
-                  Text(_kind(prompt.kind), style: TextStyle(fontSize: 11.5, color: chosen ? ink.withValues(alpha: 0.75) : colors.textMuted)),
-              ]),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Find (⌘F), and Replace (⌥⌘F): over the code at its top right; Return finds the next, Esc
-/// closes it.
-class _FindBar extends StatelessWidget implements PreferredSizeWidget {
-  const _FindBar({required this.controller, required this.readOnly});
-  final CodeFindController controller;
-  final bool readOnly;
-
-  static const _row = 38.0;
-
-  @override
-  Size get preferredSize => Size(double.infinity, switch (controller.value) {
-        null => 0,
-        final v when v.replaceMode && !readOnly => _row * 2,
-        _ => _row,
-      });
-
-  @override
-  Widget build(BuildContext context) {
-    final value = controller.value;
-    if (value == null) return const SizedBox.shrink();
-    final colors = context.colors;
-    final result = value.result;
-    final count = value.option.pattern.isEmpty
-        ? ''
-        : result == null || result.matches.isEmpty
-            ? 'No matches'.tr
-            : '{n} of {all}'.fill({'n': result.index + 1, 'all': result.matches.length});
-    // Return the next match (or, replacing, replaces it), ⇧Return the one before; Esc closes.
-    Widget field(TextEditingController text, FocusNode focus, String hint, VoidCallback onSubmitted, {VoidCallback? back}) => SizedBox(
-          width: 240,
-          height: 28,
-          child: CallbackShortcuts(
-            bindings: {
-              const SingleActivator(LogicalKeyboardKey.escape): controller.close,
-              if (back != null) ...{
-                const SingleActivator(LogicalKeyboardKey.enter, shift: true): back,
-                const SingleActivator(LogicalKeyboardKey.numpadEnter, shift: true): back,
-              },
-            },
-            child: TextField(
-              controller: text,
-              focusNode: focus,
-              style: monospace.copyWith(fontSize: 13, color: colors.text),
-              onSubmitted: (_) => onSubmitted(),
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: hint,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-                border: OutlineInputBorder(borderRadius: AppStyle.of(context).radius(4)),
-              ),
-            ),
-          ),
-        );
-    return Container(
-      height: preferredSize.height,
-      decoration: BoxDecoration(color: colors.chrome, border: Border(bottom: BorderSide(color: colors.line))),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(children: [
-        SizedBox(
-          height: _row,
-          child: Row(children: [
-            field(controller.findInputController, controller.findInputFocusNode, 'Find'.tr, () {
-              controller.nextMatch();
-              controller.findInputFocusNode.requestFocus();
-            }, back: controller.previousMatch),
-            const SizedBox(width: 8),
-            Text(count, style: TextStyle(fontSize: 12, color: colors.textMuted)),
-            const Spacer(),
-            ToolbarButton(
-                icon: AppIcon.previous.of(context),
-                tooltip: 'Previous ({key})'.fill({'key': shortcut('⇧↩', 'Shift+Enter')}),
-                onPressed: result == null ? null : controller.previousMatch),
-            ToolbarButton(
-                icon: AppIcon.next.of(context),
-                tooltip: 'Next ({key})'.fill({'key': shortcut('↩', 'Enter')}),
-                onPressed: result == null ? null : controller.nextMatch),
-            if (!readOnly) ToolbarButton(icon: AppIcon.more.of(context), tooltip: 'Replace'.tr, onPressed: controller.toggleMode),
-            ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Close'.tr, onPressed: controller.close),
-          ]),
-        ),
-        if (value.replaceMode && !readOnly)
-          SizedBox(
-            height: _row,
-            child: Row(children: [
-              field(controller.replaceInputController, controller.replaceInputFocusNode, 'Replace'.tr, controller.replaceMatch),
-              const SizedBox(width: 8),
-              TextButton(onPressed: result == null ? null : controller.replaceMatch, child: Text('Replace'.tr)),
-              TextButton(onPressed: result == null ? null : controller.replaceAllMatches, child: Text('Replace All'.tr)),
-            ]),
-          ),
-      ]),
-    );
-  }
 }
