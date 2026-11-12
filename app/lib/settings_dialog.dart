@@ -369,7 +369,8 @@ final _categories = <_Category>[
       keywords: 'animation animations fade slide still accessibility',
     ),
   ]),
-  // What the app can download and keep on this computer, beside it.
+  // What the app can download and keep on this computer, beside it: tools, and AI run here
+  // (local AI), which Hide AI features leaves shown.
   _Category('Download Hub', AppIcon.downloads, [
     _Item(
       'LilyPond',
@@ -379,8 +380,6 @@ final _categories = <_Category>[
       keywords: 'lilypond download install remove engraver engrave ly notation text source',
     ),
   ]),
-  // AI run on this computer: nothing yet.
-  _Category('Local AI', AppIcon.localAi, []),
   // AI services reached over the internet. The page is AiSettingsPage; this row is what the
   // search finds.
   _Category('Remote AI Provider', AppIcon.ai, page: (c) => AiSettingsPage(settings: c.settings, groupColor: _groupColor), [

@@ -3715,9 +3715,6 @@ msgstr "全部符合項目"
 msgid "{n} of {all}"
 msgstr "{n} / {all}"
 
-msgid "Local AI"
-msgstr "本機 AI"
-
 msgid "Remote AI Provider"
 msgstr "遠端 AI 供應商"
 
