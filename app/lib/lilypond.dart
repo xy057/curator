@@ -327,7 +327,7 @@ abstract final class LilyPond {
   static String relativeLinks(String svg, String workPath) {
     final prefix = workPath.replaceAll(r'\', '/');
     final forms = {
-      for (final p in [prefix, '/$prefix']) ...{p, _percentEncoded(p)},
+      for (final p in [prefix, '/$prefix']) ...{p, _percentEncoded(p), _percentEncoded(p, capitals: true)},
     }.where((p) => !p.startsWith('//')).toList()
       ..sort((a, b) => b.length.compareTo(a.length));
     var out = svg;
@@ -353,13 +353,13 @@ abstract final class LilyPond {
     return '${path.startsWith('/') ? '/' : ''}${out.join('/')}';
   }
 
-  /// [path] as LilyPond writes it in a link: every byte but letters, digits, `-._~` and `/`
-  /// as `%XX`.
-  static String _percentEncoded(String path) {
+  /// [path] as LilyPond (2.26) writes it in a link: every byte but letters, digits and `-._/`
+  /// as `%xx`, in lowercase (or, [capitals], `%XX`).
+  static String _percentEncoded(String path, {bool capitals = false}) {
     final out = StringBuffer();
     for (final b in utf8.encode(path)) {
-      final c = String.fromCharCode(b);
-      out.write(RegExp(r'[A-Za-z0-9\-._~/]').hasMatch(c) ? c : '%${b.toRadixString(16).toUpperCase().padLeft(2, '0')}');
+      final c = String.fromCharCode(b), hex = b.toRadixString(16).padLeft(2, '0');
+      out.write(RegExp(r'[A-Za-z0-9\-._/]').hasMatch(c) ? c : '%${capitals ? hex.toUpperCase() : hex}');
     }
     return out.toString();
   }

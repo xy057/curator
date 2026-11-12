@@ -31,6 +31,15 @@ void main() {
         '<a xlink:href="textedit:///usr/share/lilypond/ly/init.ly:1:0:1">');
   });
 
+  test('links are made relative in a folder whose name LilyPond escapes: each byte but letters, digits and -._/, in lowercase', () {
+    // As LilyPond 2.26.0 writes them, engraving in such a folder (a user's folder in Japanese, as on Windows).
+    const svg = '<a xlink:href="textedit:///Users/%e5%b1%b1%e7%94%b0/Temp/a%2bb%7ec_d/s%20q.ly:2:2:3">';
+    expect(LilyPond.relativeLinks(svg, '/Users/山田/Temp/a+b~c_d'), '<a xlink:href="textedit://s%20q.ly:2:2:3">');
+    const capitals = '<a xlink:href="textedit:///Users/%E5%B1%B1%E7%94%B0/Temp/a%2Bb%7Ec_d/s%20q.ly:2:2:3">';
+    expect(LilyPond.relativeLinks(capitals, '/Users/山田/Temp/a+b~c_d'), '<a xlink:href="textedit://s%20q.ly:2:2:3">',
+        reason: 'escaped in capitals, as another writer may');
+  });
+
   test("a score is read with the files it includes, as far as they go, and LilyPond's own left out", () {
     final dir = Directory.systemTemp.createTempSync('lilysource');
     addTearDown(() => dir.deleteSync(recursive: true));
