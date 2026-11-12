@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2026-11-12 11:44\n"
+"PO-Revision-Date: 2026-11-12 18:52\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -623,7 +623,7 @@ msgstr "Clave"
 msgid "Clefs"
 msgstr "Claves"
 
-#: lib/app_menus.dart lib/export_dialog.dart lib/lilypond_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "Cerrar"
 
@@ -1452,7 +1452,7 @@ msgstr "Nombres"
 msgid "Natural (0)"
 msgstr "Becuadro (0)"
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "Next ({key})"
 msgstr "Siguiente ({key})"
 
@@ -1471,7 +1471,7 @@ msgstr "No hay ninguna imagen que pegar."
 msgid "No images"
 msgstr "Sin imágenes"
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "No matches"
 msgstr "Sin coincidencias"
 
@@ -1694,7 +1694,7 @@ msgstr "Intérprete"
 msgid "PNG Sequence"
 msgstr "Secuencia PNG"
 
-#: lib/lilypond_editor.dart lib/phrase_search_window.dart
+#: lib/code_view.dart lib/phrase_search_window.dart
 msgid "Previous ({key})"
 msgstr "Anterior ({key})"
 
@@ -1846,7 +1846,7 @@ msgstr "Separación entre puntos de repetición"
 msgid "Repeat dots"
 msgstr "Puntos de repetición"
 
-#: lib/captions_dialog.dart lib/edit_dialogs.dart lib/lilypond_editor.dart
+#: lib/captions_dialog.dart lib/code_view.dart lib/edit_dialogs.dart
 msgid "Replace"
 msgstr "Sustituir"
 
@@ -3013,7 +3013,7 @@ msgstr "Abreviatura"
 msgid "Add Instrument"
 msgstr "Añadir instrumento"
 
-#: lib/pdf_import.dart
+#: lib/pdf_import.dart lib/score_editor.dart
 msgid "Bar {n}"
 msgstr "Compás {n}"
 
@@ -3702,7 +3702,7 @@ msgstr ""
 msgid "All matching"
 msgstr ""
 
-#: lib/ai_settings.dart lib/lilypond_editor.dart
+#: lib/ai_settings.dart lib/code_view.dart
 msgid "{n} of {all}"
 msgstr ""
 
@@ -3957,7 +3957,7 @@ msgstr ""
 msgid "Couldn’t Import LilyPond Score"
 msgstr ""
 
-#: lib/lilypond_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Find ({key})"
 msgstr ""
 
@@ -3977,11 +3977,11 @@ msgstr ""
 msgid "Nothing to show yet."
 msgstr ""
 
-#: lib/lilypond_editor.dart
+#: lib/code_view.dart
 msgid "Find"
 msgstr ""
 
-#: lib/lilypond_editor.dart
+#: lib/code_view.dart
 msgid "Replace All"
 msgstr ""
 
@@ -4114,5 +4114,34 @@ msgstr ""
 
 #: lib/ai_settings.dart
 msgid "Custom body"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "MusicXML"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "element"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "end tag"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "attribute"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "value"
+msgstr ""
+
+#: lib/score_editor.dart
+msgctxt "musicxml"
+msgid "entity"
 msgstr ""
 
