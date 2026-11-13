@@ -639,7 +639,7 @@ class EditorController extends ChangeNotifier {
   double anchorNudge = 0.01;
 
   /// The staff transition a newly imported score starts with (the one saved by Project
-  /// Settings ▸ Animation ▸ Save as default).
+  /// Settings ▸ Display ▸ Save as default).
   double defaultTransition = 0.3;
 
   /// How closely the scroll follows the notes in a project that hasn't set its own (the one
@@ -652,7 +652,7 @@ class EditorController extends ChangeNotifier {
     if (_doc.scrollFollow == null) _scrollChanged();
   }
 
-  /// How closely the scroll follows the notes, 0–1 (Project Settings ▸ Animation; see
+  /// How closely the scroll follows the notes, 0–1 (Project Settings ▸ Display; see
   /// [ScrollMap.follow]).
   double get scrollFollow => _doc.scrollFollow ?? _defaultScrollFollow;
 
@@ -665,7 +665,7 @@ class EditorController extends ChangeNotifier {
   }
 
   /// How the score moves in a project that hasn't set its own (the one saved by Project
-  /// Settings ▸ Advanced ▸ Save as default).
+  /// Settings ▸ Animation ▸ Save as default).
   ScoreMotion get defaultMotion => _defaultMotion;
   ScoreMotion _defaultMotion = ScoreMotion.standard;
   set defaultMotion(ScoreMotion value) {
@@ -674,7 +674,7 @@ class EditorController extends ChangeNotifier {
     if (_doc.motion == null) _scrollChanged();
   }
 
-  /// How the score moves (Project Settings ▸ Advanced; see [CuratedScene.motion]).
+  /// How the score moves (Project Settings ▸ Animation; see [CuratedScene.motion]).
   ScoreMotion get motion => _doc.motion ?? _defaultMotion;
 
   /// Sets [motion]: an Undo step.

@@ -190,11 +190,18 @@ class _Category {
 /// Save as Default on a project page: [isDefault] while the app's already match the project's;
 /// [save] makes them so, and [reset] the project's the app's (one Undo step). Offered while
 /// [shown] (null: always).
+///
+/// The system's defaults are the app's own, as it comes (the house style), whatever was saved:
+/// [isSystem] while the project's are those, [savedIsSystem] while the app's are (nothing saved
+/// over them), and [resetToSystem] the project's those (one Undo step), the app's left as they are.
 typedef _SaveDefault = ({
   bool Function(_Context)? shown,
   bool Function(_Context) isDefault,
   void Function(_Context) save,
   FutureOr<void> Function(_Context) reset,
+  bool Function(_Context) isSystem,
+  bool Function(_Context) savedIsSystem,
+  FutureOr<void> Function(_Context) resetToSystem,
 });
 
 typedef _Context = ({
@@ -462,7 +469,8 @@ final _projectCategories = <_Category>[
       keywords: 'add remove delete recording audio file video sound',
     ),
   ]),
-  _Category('Animation', AppIcon.transition, [
+  // How the score shows as it plays; how each of those moves is Animation's.
+  _Category('Display', AppIcon.show, [
     _Item(
       'Staff transition',
       (_) => 'Regions can have their own.',
@@ -488,13 +496,19 @@ final _projectCategories = <_Category>[
     ),
   ], saveDefault: (
     shown: null,
-    isDefault: _animationIsDefault,
+    isDefault: _displayIsDefault,
     save: (c) => c.settings
       ..transition = c.controller!.curation!.transition
       ..scrollFollow = c.controller!.scrollFollow,
     reset: (c) => c.controller!
       ..setTransition(c.settings.transition)
       ..setScrollFollow(c.settings.scrollFollow),
+    isSystem: (c) =>
+        c.controller!.curation!.transition == AppSettings.defaultTransition && c.controller!.scrollFollow == AppSettings.defaultScrollFollow,
+    savedIsSystem: (c) => c.settings.transition == AppSettings.defaultTransition && c.settings.scrollFollow == AppSettings.defaultScrollFollow,
+    resetToSystem: (c) => c.controller!
+      ..setTransition(AppSettings.defaultTransition)
+      ..setScrollFollow(AppSettings.defaultScrollFollow),
   )),
   _Category.tabbed('Engraving', AppIcon.music, [_engravingCategory(), _typographyCategory(), _advancedEngravingCategory()]),
   _Category('Instruments', AppIcon.score, page: (c) => _InstrumentsPage(c), [
@@ -579,22 +593,37 @@ final _projectCategories = <_Category>[
         textDynamics: c.settings.textDynamics,
         rehearsalInRow: c.settings.rehearsalInRow,
         centeredLyrics: c.settings.centeredLyrics),
+    isSystem: (c) =>
+        c.controller!.textDynamics == AppSettings.defaultTextDynamics &&
+        c.controller!.rehearsalInRow == AppSettings.defaultRehearsalInRow &&
+        c.controller!.centeredLyrics == AppSettings.defaultCenteredLyrics,
+    savedIsSystem: (c) =>
+        c.settings.textDynamics == AppSettings.defaultTextDynamics &&
+        c.settings.rehearsalInRow == AppSettings.defaultRehearsalInRow &&
+        c.settings.centeredLyrics == AppSettings.defaultCenteredLyrics,
+    resetToSystem: (c) => c.controller!.setFlags(
+        textDynamics: AppSettings.defaultTextDynamics,
+        rehearsalInRow: AppSettings.defaultRehearsalInRow,
+        centeredLyrics: AppSettings.defaultCenteredLyrics),
   )),
-  _advancedCategory(),
+  _animationCategory(),
 ];
 
-/// Project Settings ▸ Advanced: how the staves are spaced and how the score moves, every curve
+/// Project Settings ▸ Animation: how the staves are spaced and how the score moves, every curve
 /// and length of time in it ([MotionSetting.all]), each over the app's default (Save as default).
-_Category _advancedCategory() {
+_Category _animationCategory() {
   MotionTarget target(_Context c) => MotionTarget(c.settings, c.controller!);
   return _Category(
-    'Advanced',
-    AppIcon.settings,
+    'Animation',
+    AppIcon.transition,
     saveDefault: (
       shown: null,
       isDefault: (c) => target(c).isDefault,
       save: (c) => target(c).saveAsDefault(),
       reset: (c) => target(c).resetToDefault(),
+      isSystem: (c) => target(c).isSystem,
+      savedIsSystem: (c) => target(c).savedIsSystem,
+      resetToSystem: (c) => target(c).resetToSystem(),
     ),
     [
       for (final s in MotionSetting.all)
@@ -627,6 +656,9 @@ _Category _typographyCategory() {
       isDefault: (c) => target(c).isDefault,
       save: (c) => target(c).saveAsDefault(),
       reset: (c) => target(c).resetToDefault(),
+      isSystem: (c) => target(c).isSystem,
+      savedIsSystem: (c) => target(c).savedIsSystem,
+      resetToSystem: (c) => target(c).resetToSystem(),
     ),
     [
       for (final s in TypographySetting.all)
@@ -661,6 +693,9 @@ _Category _advancedEngravingCategory() {
       isDefault: (c) => target(c).isDefault,
       save: (c) => target(c).saveAsDefault(),
       reset: (c) => target(c).resetToDefault(),
+      isSystem: (c) => target(c).isSystem,
+      savedIsSystem: (c) => target(c).savedIsSystem,
+      resetToSystem: (c) => target(c).resetToSystem(),
     ),
     [
       for (final s in EngravingSetting.advanced)
@@ -681,8 +716,8 @@ bool _flagsAreDefault(_Context c) =>
     c.controller!.rehearsalInRow == c.settings.rehearsalInRow &&
     c.controller!.centeredLyrics == c.settings.centeredLyrics;
 
-/// Whether the project's animation is the app's default (Save as default).
-bool _animationIsDefault(_Context c) =>
+/// Whether the project's display is the app's default (Save as default).
+bool _displayIsDefault(_Context c) =>
     c.settings.transition == c.controller!.curation!.transition && c.settings.scrollFollow == c.controller!.scrollFollow;
 
 /// How many of the score's pairs share a staff.
@@ -794,6 +829,9 @@ _Category _engravingCategory() {
       isDefault: (c) => target(c).isDefault,
       save: (c) => target(c).saveAsDefault(),
       reset: (c) => target(c).resetToDefault(),
+      isSystem: (c) => target(c).isSystem,
+      savedIsSystem: (c) => target(c).savedIsSystem,
+      resetToSystem: (c) => target(c).resetToSystem(),
     ),
     [
       _Item('Music font', null, (c) => MusicFontPicker(controller: c.controller!),
@@ -1278,18 +1316,23 @@ List<Widget> _pageButtons(BuildContext context, _Category cat, _Context ctx) {
     if (save != null && (save.shown?.call(ctx) ?? true))
       _SaveDefaultButton(
         isDefault: save.isDefault(ctx),
+        isSystem: save.isSystem(ctx),
+        savedIsSystem: save.savedIsSystem(ctx),
         onPressed: () => save.save(ctx),
-        // The page's settings back to the app's defaults: one Undo step however many it changes.
-        onReset: () async {
-          final controller = ctx.controller!..beginEdit();
-          try {
-            await save.reset(ctx);
-          } finally {
-            controller.endEdit();
-          }
-        },
+        onReset: () => _oneStep(ctx, save.reset),
+        onSystem: () => _oneStep(ctx, save.resetToSystem),
       ),
   ];
+}
+
+/// A page's settings set back by [reset]: one Undo step however many it changes.
+Future<void> _oneStep(_Context ctx, FutureOr<void> Function(_Context) reset) async {
+  final controller = ctx.controller!..beginEdit();
+  try {
+    await reset(ctx);
+  } finally {
+    controller.endEdit();
+  }
 }
 
 /// A page's title, and its buttons at the right: made smaller, not overflowing, when the line
@@ -1534,12 +1577,46 @@ Color _groupColor(BuildContext context) {
 /// Save as Default, slim beside a page's title: once saved (or already the same), a muted
 /// check and "Default" in its place.
 class _SaveDefaultButton extends StatelessWidget {
-  const _SaveDefaultButton({required this.isDefault, required this.onPressed, required this.onReset});
+  const _SaveDefaultButton({
+    required this.isDefault,
+    required this.isSystem,
+    required this.savedIsSystem,
+    required this.onPressed,
+    required this.onReset,
+    required this.onSystem,
+  });
   final bool isDefault;
   final VoidCallback onPressed;
 
-  /// Reset to Default: the page as the app's defaults (shown only while it differs).
+  /// Whether the page is as the system's defaults (the app's own), and whether the saved ones are.
+  final bool isSystem, savedIsSystem;
+
+  /// Reset to Default: the page as the saved defaults (shown only while it differs). Once those
+  /// are other than the system's, it is a menu of both, each greyed out while the page is so.
   final VoidCallback onReset;
+
+  /// The page as the system's defaults, whatever was saved.
+  final VoidCallback onSystem;
+
+  /// Reset to Default's menu, under it: Saved Default, System Default.
+  Future<void> _choose(BuildContext context) async {
+    final box = context.findRenderObject()! as RenderBox;
+    final overlay = Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final under = Rect.fromPoints(box.localToGlobal(box.size.bottomLeft(const Offset(0, 4)), ancestor: overlay),
+        box.localToGlobal(box.size.bottomRight(const Offset(0, 4)), ancestor: overlay));
+    final style = AppStyle.of(context);
+    final picked = await showMenu<VoidCallback>(
+      context: context,
+      position: RelativeRect.fromRect(under, Offset.zero & overlay.size),
+      popUpAnimationStyle: AnimationStyle(
+          duration: style.menuOpen, reverseDuration: style.menuClose, curve: style.enterCurve, reverseCurve: style.exitCurve),
+      items: [
+        menuItem(context, value: onReset, enabled: !isDefault, child: Text('Saved Default'.tr)),
+        menuItem(context, value: onSystem, enabled: !isSystem, child: Text('System Default'.tr)),
+      ],
+    );
+    picked?.call();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1556,10 +1633,24 @@ class _SaveDefaultButton extends StatelessWidget {
       textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12, fontWeight: FontWeight.w500),
       disabledForegroundColor: colors.textMuted,
     );
+    // Saved defaults other than the system's: two to go back to.
+    final both = !savedIsSystem;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (!isDefault) ...[
+        if (both && (!isDefault || !isSystem)) ...[
+          Builder(
+            builder: (context) => OutlinedButton(
+              style: style.copyWith(padding: const WidgetStatePropertyAll(EdgeInsets.only(left: 10, right: 5))),
+              onPressed: () => _choose(context),
+              child: Row(mainAxisSize: MainAxisSize.min, spacing: 1, children: [
+                Text('Reset to Default'.tr),
+                Icon(AppIcon.dropDown.of(context), size: 16),
+              ]),
+            ),
+          ),
+          const SizedBox(width: 6),
+        ] else if (!both && !isDefault) ...[
           Tip(
             message: 'Use the saved defaults here'.tr,
             child: OutlinedButton(style: style, onPressed: onReset, child: Text('Reset to Default'.tr)),

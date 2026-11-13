@@ -82,7 +82,7 @@ class EditState {
   /// default (Save as default).
   final double? scrollFollow;
 
-  /// How the score moves (Project Settings ▸ Advanced, [CuratedScene.motion]); null: the app's
+  /// How the score moves (Project Settings ▸ Animation, [CuratedScene.motion]); null: the app's
   /// default (Save as default).
   final ScoreMotion? motion;
 

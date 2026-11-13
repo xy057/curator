@@ -70,7 +70,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Edit ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
-| `motion_settings.dart` | Project Settings ▸ Advanced: the motion's rows (`MotionSetting.all`), a slider or a curve each, and the Custom Curve dialog; `SettingSlider`, a setting's slider set when let go, its number typed over in a `SliderValueField` (also Scroll follow's and Export's Score size) |
+| `motion_settings.dart` | Project Settings ▸ Animation: the motion's rows (`MotionSetting.all`), a slider or a curve each, and the Custom Curve dialog; `SettingSlider`, a setting's slider set when let go, its number typed over in a `SliderValueField` (also Scroll follow's and Export's Score size) |
 | `typography_settings.dart` | Project Settings ▸ Engraving ▸ Typography: a row per property of each kind of text (`TypographySetting.all`), a slider or a style each |
 | `ai_providers.dart`, `ai_settings.dart` | Settings ▸ Remote AI Provider: AI services reached over the internet and their credentials (`AiProvider`, kept as JSON in `AppSettings.aiProviders`; five built in: OpenAI, Anthropic, OpenRouter, Gemini, DeepSeek), `AiClient` (model lists and a one-word Test in the OpenAI, Anthropic and Gemini formats; redirects not followed, so a key stays with its server; what goes wrong is an `AiError` that never repeats the key; a server is reached within half a minute and its answer ended past 32 MB), and the page: providers at the left (by name, each On or Off), the chosen one's key, base URL, path and models at the right. What is known of a model (`AiModelInfo`: whether it reads images, whether it reasons, its context size, each null while nothing says) is kept with it (`AiProvider.details`, only for models it has) and shown by its ID (icons, 128K); Fetch fills it in from what the provider's list says (`AiClient.infoIn`: Anthropic's capabilities and max_input_tokens, Gemini's inputTokenLimit and thinking, OpenRouter's architecture, reasoning and context_length, and the context fields of other servers of OpenAI's format; OpenAI's and DeepSeek's lists say nothing but IDs, Gemini's nothing of images), and Edit Model (the model's gear, or a click on it) sets it by hand (`byHand`, which a later Fetch leaves) or fetches it for that model alone. Nothing yet asks what a model can do: it is kept for what comes. Advanced (under the path, and in Edit Model) holds custom headers ("Name: value" lines, `AiClient.headersIn`) and a custom body (a JSON object, `AiClient.bodyIn`), kept as typed and each saying under it what of it isn't right: a provider's go with every request to it (the model list and Test too: a gateway's own key), a model's with the requests asking it, after the provider's; a header named again replaces the one before (a custom Authorization, the key's), and a body is merged into the one the app makes (an object in both merged, a null taking its name out, anything else in place of what was there), so `max_tokens`, `temperature` or a provider's routing can be set. A model of one turned on is asked about pictures (`AiClient.ask`, ended by `close`) by the PDF import's Read with AI, the one picked in Settings ▸ General ▸ AI for PDF import (`AppSettings.pdfAiModel`, `AiModels`). Settings ▸ General ▸ Hide AI features (`AppSettings.hideAi`) is read once, at launch (`aiHidden`): hidden, the import is opened with no model and no way to choose one (no Read with AI), General drops AI for PDF import, and this page lies dimmed and out of reach under a cover holding the same switch; a change says Restart to apply (`aiRestartPending`). It hides remote AI only: AI run on this computer (local AI: Align's Basic Pitch, bundled, and what Settings ▸ Download Hub downloads, local AI having no page of its own) is never hidden |
 | `condensing_editor.dart` | Project Settings ▸ Condensing ▸ Add a pair (the page itself, a switch per pair, is in `settings_dialog.dart`) |
@@ -237,7 +237,7 @@ dying away, worst 250 → 66 and 46 ms; a 36-minute run of 25 repeats, median 20
 by hand or played, above: where a held last chord ends is a matter of ear).
 
 **The scroll follows the beats, the notes, or a blend.** `ScrollMap.follow` (Project
-Settings ▸ Animation ▸ Scrolling, `EditState.scrollFollow`, an Undo step saved with the project; a project
+Settings ▸ Display ▸ Scrolling, `EditState.scrollFollow`, an Undo step saved with the project; a project
 without its own takes `AppSettings.scrollFollow`, 0.4 until Save as default; copied into video export) runs
 from 0, beats, to 1, notes. At 0 (as before 0.2) every beat of the time signature is under the
 pointer as it sounds and a monotone cubic (Fritsch–Carlson) glides between them. At 1 every
@@ -251,7 +251,7 @@ between, x is the weighted mean of the two curves: both put every beat on time a
 back, so the blend does too. The anchors are read when the map is built; changing `follow`
 (`withFollow`) reuses them, and each curve is solved once, when first used.
 
-**How the score moves is the project's** (Project Settings ▸ Advanced, `EditState.motion`, an Undo
+**How the score moves is the project's** (Project Settings ▸ Animation, `EditState.motion`, an Undo
 step saved as `state.motion` from format 20; a project without its own takes `AppSettings.motion`,
 the house style until Save as default; `CuratedScene.motion`, in `SceneSettings`). A `ScoreMotion`
 holds every curve and length the scene animates with, and where the staves stand: the paper above the
@@ -273,7 +273,7 @@ goes past and back), while opacities are held inside. It is checked at 1024 poin
 further out: refused, saying where); between them a value undefined is the straight line's, and one
 further out is held at the limit, so no frame can be NaN. The settle leaves at the speed it arrived
 when its curve starts at a slope of 1 or more (`startSlope`). The staff transition's length stays a
-region's property (Animation), and the interface's own motion stays the app's (Reduce motion).
+region's property (Display), and the interface's own motion stays the app's (Reduce motion).
 
 **How the score's texts look is the project's** (Project Settings ▸ Engraving ▸ Typography, `EditState.typography`,
 an Undo step saved as `state.typography` from format 21; a project without its own takes
@@ -900,7 +900,7 @@ color, above Color names; `EditState.playheadColor`, an edit saved from format 2
 `RenderStyle.pointer`'s blue; `CuratedScene.pointerColor`, in `SceneSettings`). It is the score's fixed
 pointer, so the preview and the video draw it alike. The lanes' playhead keeps the accent.
 
-**Bar numbers are drawn, not engraved** (Project Settings ▸ Animation ▸ Bar numbers,
+**Bar numbers are drawn, not engraved** (Project Settings ▸ Display ▸ Bar numbers,
 `EditState.barNumbers`, an edit saved from format 18, on for a new project, off for one saved before; `CuratedScene.barNumbers`,
 in `SceneSettings`). Every bar's number as the score prints it (`ScoreMetadata.barNumbers`: MusicXML's `text`, else `number`;
 none on an upbeat, a split bar's second half or a bar numbered as the one before; the ruler and Go to
@@ -1786,7 +1786,12 @@ on Windows wherever the registry says that folder now is): it never replaces the
   project saves*), so Settings holds only what is the same for every project. A project page whose settings
   can become the app's defaults gives its `_Category` a `saveDefault`: a slim Save as Default
   button beside the page's title (a check and "Default" once they match), never a row; while they
-  differ, Reset to Default before it puts the app's back on the page (`reset`, one Undo step). Settings of first-party components that are not part of the main work
+  differ, Reset to Default before it puts the app's back on the page (`reset`, one Undo step). Once
+  the saved defaults are other than the system's (the app's own as it comes, the house style:
+  `savedIsSystem`), Reset to Default is a menu: Saved Default, and System Default
+  (`resetToSystem`, the house style written into the project so it stays over the saved, the
+  app's left as they are, one Undo step), each greyed out while the page is so (`isDefault`,
+  `isSystem`). Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extensions**.
 - **Something downloaded** (a tool such as LilyPond, or a model run on this computer: local AI):
   an `_Item` on Settings ▸ Download Hub, the one place it is downloaded; what takes it is offered

@@ -76,6 +76,14 @@ class TypographyTarget {
 
   /// The project's typography back to the app's default.
   Future<void> resetToDefault() => controller.setTypography(settings.typography);
+
+  /// Whether the project's typography, and the app's default, are the house style's (System
+  /// Default).
+  bool get isSystem => controller.typography == ScoreTypography.standard;
+  bool get savedIsSystem => settings.typography == ScoreTypography.standard;
+
+  /// The project's typography back to the house style's, whatever the app's default.
+  Future<void> resetToSystem() => controller.setTypography(ScoreTypography.standard);
 }
 
 /// A row's control: a slider (set when let go, one Undo step) or a style, and Reset once changed.

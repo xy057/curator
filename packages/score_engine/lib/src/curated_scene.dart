@@ -782,7 +782,7 @@ class CuratedScene {
       (Spacers.isSpacer(partId) && !(_spacers.where((s) => s.id == partId).firstOrNull?.frozen ?? false)) ||
       (score.pdf?.layout.playerOf(partId)?.$1.blank ?? false);
 
-  /// How the score moves (Project Settings ▸ Advanced): the staves' spacing, glides and fades, the scroll's
+  /// How the score moves (Project Settings ▸ Animation): the staves' spacing, glides and fades, the scroll's
   /// coming to rest, the ending's fade, captions, the bar numbers' row and the tempo at the left.
   ScoreMotion get motion => _motion;
   ScoreMotion _motion = ScoreMotion.standard;

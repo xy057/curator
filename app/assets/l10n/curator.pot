@@ -4272,3 +4272,15 @@ msgstr ""
 msgctxt "tonality"
 msgid "Key"
 msgstr ""
+
+msgctxt "page"
+msgid "Display"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Saved Default"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "System Default"
+msgstr ""

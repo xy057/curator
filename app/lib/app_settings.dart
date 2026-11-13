@@ -33,7 +33,7 @@ class AppSettings extends ChangeNotifier {
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
         _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,
-        _embedFont = _prefs?.getBool(_embedFontKey) ?? true,
+        _embedFont = _prefs?.getBool(_embedFontKey) ?? defaultEmbedFont,
         _mascotIcon = _prefs?.getBool(_mascotIconKey) ?? false,
         _scrollFollow = (_prefs?.getDouble(_scrollFollowKey) ?? defaultScrollFollow).clamp(0.0, 1.0),
         _motion = _readMotion(_prefs?.getString(_motionKey)),
@@ -49,9 +49,9 @@ class AppSettings extends ChangeNotifier {
         _videoTransparent = _prefs?.getBool(_videoTransparentKey) ?? false,
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
-        _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? true,
-        _rehearsalInRow = _prefs?.getBool(_rehearsalInRowKey) ?? true,
-        _centeredLyrics = _prefs?.getBool(_centeredLyricsKey) ?? false,
+        _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? defaultTextDynamics,
+        _rehearsalInRow = _prefs?.getBool(_rehearsalInRowKey) ?? defaultRehearsalInRow,
+        _centeredLyrics = _prefs?.getBool(_centeredLyricsKey) ?? defaultCenteredLyrics,
         legacyExtensions = _readLegacyExtensions(_prefs),
         _captionFont = _prefs?.getString(_captionFontKey) ?? '',
         _captionCountdown =
@@ -330,7 +330,7 @@ class AppSettings extends ChangeNotifier {
   static const transitionChoices = [0.15, 0.3, 0.5, 0.8, 1.2];
 
   /// The staff transition new projects start with (each project saves its own; Project
-  /// Settings ▸ Animation ▸ Save as default).
+  /// Settings ▸ Display ▸ Save as default).
   double get transition => _transition;
   double _transition;
   set transition(double value) {
@@ -362,6 +362,8 @@ class AppSettings extends ChangeNotifier {
     _prefs?.setString(_textFontKey, value);
     notifyListeners();
   }
+
+  static const defaultEmbedFont = true;
 
   /// Whether new projects embed their music font (Project Settings ▸ Engraving ▸ Embed font).
   bool get embedFont => _embedFont;
@@ -400,7 +402,7 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// How the score moves in a project without its own (Project Settings ▸ Advanced ▸ Save as
+  /// How the score moves in a project without its own (Project Settings ▸ Animation ▸ Save as
   /// default): the house style until then.
   ScoreMotion get motion => _motion;
   ScoreMotion _motion;
@@ -761,6 +763,8 @@ class AppSettings extends ChangeNotifier {
   }
 
   // MARK: Flags
+
+  static const defaultTextDynamics = true, defaultRehearsalInRow = true, defaultCenteredLyrics = false;
 
   /// Dynamics a notation program wrote as text ("f" in a music font) are engraved as dynamics
   /// ([TextDynamics]) in a project that hasn't chosen (Project Settings ▸ Flags ▸ Save as

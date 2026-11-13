@@ -14,7 +14,7 @@ import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
 
-/// One of Project Settings ▸ Advanced's rows: a [ScoreMotion] setting by its JSON [key],
+/// One of Project Settings ▸ Animation's rows: a [ScoreMotion] setting by its JSON [key],
 /// under [group]. A number has a [unit] and a slider [step]; a curve has neither.
 class MotionSetting {
   const MotionSetting(this.key, this.title, this.group, {this.unit, this.step, this.percent = false, this.keywords = ''});
@@ -74,6 +74,13 @@ class MotionTarget {
 
   /// The project's motion back to the app's default.
   void resetToDefault() => controller.setMotion(settings.motion);
+
+  /// Whether the project's motion, and the app's default, are the house style's (System Default).
+  bool get isSystem => controller.motion == ScoreMotion.standard;
+  bool get savedIsSystem => settings.motion == ScoreMotion.standard;
+
+  /// The project's motion back to the house style's, whatever the app's default.
+  void resetToSystem() => controller.setMotion(ScoreMotion.standard);
 }
 
 /// A row's control: a slider (set when let go, one Undo step) or a curve, and Reset once changed.
