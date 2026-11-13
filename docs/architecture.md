@@ -1582,12 +1582,25 @@ Carbon follows IBM's Carbon Design System (v11) as specified: the White theme or
 named tokens in a `CarbonColors` extension (only in a Carbon theme: `CarbonColors.maybeOf`), IBM
 Plex Sans on the productive type set (12 / 14 / 16 / 20 px, Carbon's tracking), square corners,
 sm (32 px) buttons at the condensed density (label at the left, 7 / 39 px), primary / tertiary
-(outlined) / ghost (text) buttons in their state colours, fields filled with `$field` and a line
-under them (`CarbonFieldBorder`), a 2 px `$focus` ring (`CarbonFocusBorder` on a button),
-checkboxes in `$icon-primary`, monochrome 2 px sliders, the small toggle in `$support-success`
+(outlined) / ghost (text) buttons in their state colours, an icon at the right (a filled or outlined
+button's at its right end, 8 px in, with `withIconStyle`, so it is as wide as without one; a ghost
+one's after its label), fields filled with `$field` and a line
+under them (`CarbonFieldBorder`), a 2 px `$focus` ring (`CarbonFocusBorder` on a button; a symbol chip's edge),
+checkboxes in `$icon-primary`, monochrome 2 px sliders (the thumb grows from 14 to 20 px, ringed in
+`$interactive`, under the pointer, dragged or focused), the small toggle in `$support-success`
 with its check, the content switcher (edged in `$border-inverse`, the chosen segment inverse),
-24 px menus on `$layer-01`, the side nav (a 3 px bar of the accent) in Settings, and the modal
-(`$layer-01`, heading-03, footer buttons edge to edge at the right, slimmed to 40 px from the spec's 64). An accent is an IBM hue
+24 px menus on `$layer-01`, the side nav (a 3 px bar of the accent) in Settings, the project tabs
+as contained tabs (the one showing topped with 2 px of `$border-interactive`), and the modal
+(`$layer-01` on `$overlay`, heading-03, footer buttons edge to edge at the right, slimmed to 40 px from the spec's 64; the
+Settings windows on `$overlay` too, drawn in their transition from the theme as it is now, since
+Settings ▸ Appearance changes it under them).
+A button lays its `side` over the shape it is given (`shape.copyWith(side:)`), so a style sets a
+button's edge as its `side` (an outlined button's own is the theme's outline, which would win over
+the shape's), and `CarbonFocusBorder.copyWith` returns itself, or the ring would be a plain square.
+Carbon's layering: what is on a layer takes the one above it. `CarbonColors` are the first layer's
+(a toolbar, a dialog, a menu: fields `$field-02`); Settings' groups are `$layer-02`, and
+`CarbonLayer` puts their content on `CarbonColors.raised` (`$field-03`, that layer's hover,
+selection and `$border-subtle`), so a field stands out from its group. An accent is an IBM hue
 (`CarbonHue`, a field of the `AccentColor`): Sky is Carbon's own Blue 60, the others Purple, Cyan,
 Teal, Green, Magenta, Orange, Warm Gray (Sand) and Cool Gray at their 60 (light) or 50 / 40
 (Gray 100) grades; `$button-primary` stays the 60 in both. An `AccentColor` is a swatch
