@@ -4295,3 +4295,11 @@ msgstr "调性"
 msgctxt "page"
 msgid "Display"
 msgstr "显示"
+
+#: lib/settings_dialog.dart
+msgid "Saved Default"
+msgstr "已存的默认值"
+
+#: lib/settings_dialog.dart
+msgid "System Default"
+msgstr "系统默认值"

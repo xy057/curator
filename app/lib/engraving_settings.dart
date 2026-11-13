@@ -225,6 +225,33 @@ class EngravingTarget {
     await controller.setFonts(fonts, embed: embed);
     await controller.setProjectEngraving(const EngravingOptions());
   }
+
+  /// Whether this project's fonts and engraving are the house style's (System Default): Bravura,
+  /// Academico, embedded, and no option engraved other than the house style.
+  bool get isSystem =>
+      controller.fonts.music.name == ScoreFonts.standard.music.name &&
+      controller.fonts.text == ScoreFonts.standard.text &&
+      controller.embedFont == AppSettings.defaultEmbedFont &&
+      !EngraveOption.all.any(isChanged);
+
+  /// Whether the app's defaults are the house style's: nothing saved over it.
+  bool get savedIsSystem =>
+      settings.engravingOptions.isEmpty &&
+      settings.musicFont == ScoreFonts.standard.music.name &&
+      settings.textFont == ScoreFonts.standard.text &&
+      settings.embedFont == AppSettings.defaultEmbedFont;
+
+  /// This project's fonts and engraving back to the house style's, whatever the app's defaults:
+  /// each option those change set here to the house style's (in Bravura, so after the fonts),
+  /// kept over them. Call inside one edit.
+  Future<void> resetToSystem() async {
+    await controller.setFonts(ScoreFonts.standard, embed: AppSettings.defaultEmbedFont);
+    var options = const EngravingOptions();
+    for (final option in EngraveOption.all) {
+      if (settings.engravingOptions.isChanged(option)) options = options.withValue(option, baseOf(option), keepDefault: true);
+    }
+    await controller.setProjectEngraving(options);
+  }
 }
 
 /// One option as a slider (with its value), a switch or a menu, and a reset once changed: as

@@ -1786,7 +1786,12 @@ on Windows wherever the registry says that folder now is): it never replaces the
   project saves*), so Settings holds only what is the same for every project. A project page whose settings
   can become the app's defaults gives its `_Category` a `saveDefault`: a slim Save as Default
   button beside the page's title (a check and "Default" once they match), never a row; while they
-  differ, Reset to Default before it puts the app's back on the page (`reset`, one Undo step). Settings of first-party components that are not part of the main work
+  differ, Reset to Default before it puts the app's back on the page (`reset`, one Undo step). Once
+  the saved defaults are other than the system's (the app's own as it comes, the house style:
+  `savedIsSystem`), Reset to Default is a menu: Saved Default, and System Default
+  (`resetToSystem`, the house style written into the project so it stays over the saved, the
+  app's left as they are, one Undo step), each greyed out while the page is so (`isDefault`,
+  `isSystem`). Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extensions**.
 - **Something downloaded** (a tool such as LilyPond, or a model run on this computer: local AI):
   an `_Item` on Settings ▸ Download Hub, the one place it is downloaded; what takes it is offered

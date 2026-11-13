@@ -4295,3 +4295,11 @@ msgstr "調"
 msgctxt "page"
 msgid "Display"
 msgstr "表示"
+
+#: lib/settings_dialog.dart
+msgid "Saved Default"
+msgstr "保存したデフォルト"
+
+#: lib/settings_dialog.dart
+msgid "System Default"
+msgstr "システムのデフォルト"

@@ -74,6 +74,13 @@ class MotionTarget {
 
   /// The project's motion back to the app's default.
   void resetToDefault() => controller.setMotion(settings.motion);
+
+  /// Whether the project's motion, and the app's default, are the house style's (System Default).
+  bool get isSystem => controller.motion == ScoreMotion.standard;
+  bool get savedIsSystem => settings.motion == ScoreMotion.standard;
+
+  /// The project's motion back to the house style's, whatever the app's default.
+  void resetToSystem() => controller.setMotion(ScoreMotion.standard);
 }
 
 /// A row's control: a slider (set when let go, one Undo step) or a curve, and Reset once changed.
