@@ -447,6 +447,12 @@ class CarbonFocusBorder extends RoundedRectangleBorder {
   const CarbonFocusBorder({required this.focus, required this.inset});
   final Color focus, inset;
 
+  /// Itself: a button lays its side over the shape it is given (`copyWith(side:)`), which as a
+  /// [RoundedRectangleBorder] would be a plain square, the ring gone. Focused, an outlined button's
+  /// edge is the ring.
+  @override
+  CarbonFocusBorder copyWith({BorderSide? side, BorderRadiusGeometry? borderRadius}) => this;
+
   @override
   ShapeBorder? lerpFrom(ShapeBorder? a, double t) => this;
 
