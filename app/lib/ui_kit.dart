@@ -201,6 +201,13 @@ class FieldLabel extends StatelessWidget {
   }
 }
 
+/// What a filled or outlined button with an icon (its `.icon`) takes over its own style: in
+/// Carbon the icon at the right end, 8 px in, in the room Carbon's buttons keep there (so it is as
+/// wide as it would be without one), the label at the left; nothing in Refined, whose icon goes
+/// before the label. A ghost (text) button needs none: its icon follows the label.
+ButtonStyle? withIconStyle(BuildContext context) =>
+    AppStyle.of(context).isCarbon ? const ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.fromLTRB(7, 0, 8, 0))) : null;
+
 /// The compact icon button used in every toolbar: [AppStyle.control] square, its label in the
 /// tooltip; when selected a neutral fill (Carbon's $background-selected) under an accent icon
 /// (Carbon's $icon-primary).
@@ -1003,6 +1010,30 @@ class _SegmentState extends State<_Segment> {
 
 /// A field's fill: Carbon's $field (a field on a layer), none in Refined.
 Color? fieldFill(BuildContext context) => CarbonColors.maybeOf(context)?.field;
+
+/// [child] on Carbon's second layer ($layer-02: a group on a page that is a layer itself, as
+/// Settings' groups are): its fields a layer up again ($field-03), its hovers and selection that
+/// layer's ([CarbonColors.raised]), as Carbon's layering has them, so a field stands out from the
+/// group it is in. Outside Carbon, or there already, [child] as it is.
+class CarbonLayer extends StatelessWidget {
+  const CarbonLayer({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final k = theme.extension<CarbonColors>();
+    if (k == null || k.isRaised) return child;
+    final up = k.raised;
+    return Theme(
+      data: theme.copyWith(
+        extensions: [for (final e in theme.extensions.values) if (e is! CarbonColors) e, up],
+        inputDecorationTheme: theme.inputDecorationTheme.copyWith(fillColor: up.field, hoverColor: up.fieldHover),
+      ),
+      child: child,
+    );
+  }
+}
 
 /// Carbon's field border: a line along the bottom of a filled field, or ([ring]) a square ring
 /// all round it (focused, or invalid). An outline to the [InputDecorator] in both, so the text

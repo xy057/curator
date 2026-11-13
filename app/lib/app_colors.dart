@@ -281,15 +281,21 @@ class CarbonHue {
 /// [UiStyle.carbon]'s tokens beyond the shared [AppColors], named as Carbon names them: the
 /// White theme's, or in the dark Gray 100's taken a step darker (a black background). Read it
 /// with [CarbonColors.of] in a Carbon theme.
+///
+/// They are the first layer's ($layer-01: a toolbar, a dialog, a menu), where the fields are
+/// $field-02; a group on that layer ($layer-02, Settings' groups) takes [raised], whose fields,
+/// hovers and selection are a layer up again, as Carbon's layering has them (CarbonLayer).
 @immutable
 class CarbonColors extends ThemeExtension<CarbonColors> {
   const CarbonColors._({
+    this._raised,
     required this.layer01,
     required this.layer02,
     required this.layerHover,
     required this.layerSelected,
     required this.layerAccent,
     required this.field,
+    required this.fieldHover,
     required this.borderSubtle,
     required this.borderStrong,
     required this.borderInverse,
@@ -326,17 +332,22 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
     required this.overlay,
   });
 
-  factory CarbonColors.of(AccentColor accent, Brightness brightness) {
+  /// [raised]: the second layer's ($layer-02's), its fields $field-03.
+  factory CarbonColors.of(AccentColor accent, Brightness brightness, {bool raised = false}) {
     final h = accent.carbon;
+    final up = raised ? null : CarbonColors.of(accent, brightness, raised: true);
     if (brightness == Brightness.light) {
       return CarbonColors._(
+        raised: up,
         layer01: const Color(0xFFF4F4F4),
         layer02: const Color(0xFFFFFFFF),
         layerHover: const Color(0xFFE8E8E8),
         layerSelected: const Color(0xFFE0E0E0),
         layerAccent: const Color(0xFFE0E0E0),
-        field: const Color(0xFFFFFFFF), // $field-02: fields sit on a layer (a dialog, a toolbar)
-        borderSubtle: const Color(0xFFC6C6C6),
+        // $field-02: fields sit on a layer (a dialog, a toolbar); raised, $field-03.
+        field: raised ? const Color(0xFFF4F4F4) : const Color(0xFFFFFFFF),
+        fieldHover: const Color(0xFFE8E8E8),
+        borderSubtle: raised ? const Color(0xFFE0E0E0) : const Color(0xFFC6C6C6),
         borderStrong: const Color(0xFF8D8D8D),
         borderInverse: const Color(0xFF161616),
         textPrimary: const Color(0xFF161616),
@@ -373,13 +384,16 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
       );
     }
     return CarbonColors._(
+      raised: up,
       layer01: const Color(0xFF161616),
       layer02: const Color(0xFF262626),
-      layerHover: const Color(0xFF212121),
-      layerSelected: const Color(0xFF262626),
+      layerHover: raised ? const Color(0xFF333333) : const Color(0xFF212121),
+      layerSelected: raised ? const Color(0xFF393939) : const Color(0xFF262626),
       layerAccent: const Color(0xFF262626),
-      field: const Color(0xFF262626),
-      borderSubtle: const Color(0xFF393939),
+      // A step lighter than the layer, and lighter again under the pointer.
+      field: raised ? const Color(0xFF393939) : const Color(0xFF262626),
+      fieldHover: raised ? const Color(0xFF474747) : const Color(0xFF333333),
+      borderSubtle: raised ? const Color(0xFF525252) : const Color(0xFF393939),
       borderStrong: const Color(0xFF6F6F6F),
       borderInverse: const Color(0xFFF4F4F4),
       textPrimary: const Color(0xFFF4F4F4),
@@ -419,7 +433,14 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
   /// The theme's; null outside a Carbon theme.
   static CarbonColors? maybeOf(BuildContext context) => Theme.of(context).extension<CarbonColors>();
 
-  final Color layer01, layer02, layerHover, layerSelected, layerAccent, field;
+  final Color layer01, layer02, layerHover, layerSelected, layerAccent, field, fieldHover;
+
+  /// These a layer up: for what sits on a group on $layer-02 (itself, when it is that).
+  CarbonColors get raised => _raised ?? this;
+  final CarbonColors? _raised;
+
+  /// Whether these are the second layer's.
+  bool get isRaised => _raised == null;
   final Color borderSubtle, borderStrong, borderInverse;
   final Color textPrimary, textSecondary, textHelper, textPlaceholder, textDisabled, textInverse;
 
@@ -446,6 +467,12 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
 class CarbonFocusBorder extends RoundedRectangleBorder {
   const CarbonFocusBorder({required this.focus, required this.inset});
   final Color focus, inset;
+
+  /// Itself: a button lays its side over the shape it is given (`copyWith(side:)`), which as a
+  /// [RoundedRectangleBorder] would be a plain square, the ring gone. Focused, an outlined button's
+  /// edge is the ring.
+  @override
+  CarbonFocusBorder copyWith({BorderSide? side, BorderRadiusGeometry? borderRadius}) => this;
 
   @override
   ShapeBorder? lerpFrom(ShapeBorder? a, double t) => this;
@@ -992,9 +1019,11 @@ class AppColors extends ThemeExtension<AppColors> {
       shape: shape(),
       textStyle: WidgetStatePropertyAll(label),
       minimumSize: WidgetStatePropertyAll(Size(0, m.control)),
-      // The condensed density's inline padding: the label at the left, room for an icon at the right.
+      // The condensed density's inline padding: the label at the left, room for an icon at the right,
+      // where Carbon carries a button's icon (withIconStyle puts it there).
       padding: const WidgetStatePropertyAll(EdgeInsets.fromLTRB(7, 0, 39, 0)),
       alignment: Alignment.centerLeft,
+      iconAlignment: IconAlignment.end,
       animationDuration: const Duration(milliseconds: 70),
       visualDensity: VisualDensity.standard,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1006,13 +1035,27 @@ class AppColors extends ThemeExtension<AppColors> {
       backgroundColor: states(k.primary, hover: k.primaryHover, press: k.primaryActive, disabled: k.buttonDisabled),
       foregroundColor: states(Colors.white, disabled: k.onColorDisabled),
     );
-    // Tertiary: an outline in the accent, filled while hovered.
+    // Tertiary: an edge in $button-tertiary, filled with it while hovered, pressed or focused (the
+    // edge then the fill's, or the focus ring). The edge is the button's side, not its shape's: a
+    // button lays its side over its shape's, and an outlined one's own is the theme's outline.
+    WidgetStateProperty<Color> tertiaryFill(Color rest) => WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
+        ? rest
+        : s.contains(WidgetState.pressed)
+            ? k.tertiaryActive
+            : s.contains(WidgetState.hovered)
+                ? k.tertiaryHover
+                : s.contains(WidgetState.focused)
+                    ? k.tertiary
+                    : rest);
+    final edge = tertiaryFill(k.tertiary);
     final tertiary = button.copyWith(
-      backgroundColor: states(Colors.transparent, hover: k.tertiaryHover, press: k.tertiaryActive, disabled: Colors.transparent),
-      foregroundColor: states(k.tertiary, hover: k.onTertiaryHover, press: k.onTertiaryHover, disabled: k.textDisabled),
-      shape: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.focused) && !s.contains(WidgetState.pressed)
-          ? focusRing
-          : RoundedRectangleBorder(side: BorderSide(color: s.contains(WidgetState.disabled) ? k.buttonDisabled : k.tertiary))),
+      backgroundColor: tertiaryFill(Colors.transparent),
+      foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
+          ? k.textDisabled
+          : s.contains(WidgetState.pressed) || s.contains(WidgetState.hovered) || s.contains(WidgetState.focused)
+              ? k.onTertiaryHover
+              : k.tertiary),
+      side: WidgetStateProperty.resolveWith((s) => BorderSide(color: s.contains(WidgetState.disabled) ? k.buttonDisabled : edge.resolve(s))),
     );
     // Ghost: the accent's link colour on nothing, a hover's fill under it.
     final ghost = button.copyWith(
@@ -1033,7 +1076,7 @@ class AppColors extends ThemeExtension<AppColors> {
       isDense: true,
       filled: true,
       fillColor: k.field,
-      hoverColor: k.layerHover,
+      hoverColor: k.fieldHover,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
       hintStyle: TextStyle(color: k.textPlaceholder),
       // Only the shape: a state's border here would win over a field's own `border`.
@@ -1094,7 +1137,7 @@ class AppColors extends ThemeExtension<AppColors> {
         inactiveTrackColor: k.borderSubtle,
         thumbColor: k.selectedInverse,
         trackHeight: 2,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7, elevation: 0, pressedElevation: 0),
+        thumbShape: _CarbonThumbShape(ring: c.accent, disabled: k.buttonDisabled),
         trackShape: const RectangularSliderTrackShape(),
         tickMarkShape: SliderTickMarkShape.noTickMark,
         overlayColor: Colors.transparent,
@@ -1242,6 +1285,47 @@ class _KnobThumbShape extends SliderComponentShape {
         Paint()..color = Color.fromRGBO(0, 0, 0, 0.22 * enabled)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5));
     canvas.drawCircle(center, _radius, Paint()..color = Color.lerp(outline, Colors.white, 0.4 + 0.6 * enabled)!);
     canvas.drawCircle(center, _radius - 0.5, Paint()..color = outline..style = PaintingStyle.stroke..strokeWidth = 1);
+  }
+}
+
+/// [UiStyle.carbon]'s slider thumb: a 14 px disc of $layer-selected-inverse, grown to 20 px and
+/// ringed inside in $interactive while it is under the pointer, dragged or focused (as the
+/// slider's overlay would show; Carbon rings only the last two); $border-disabled's grey while the
+/// slider is.
+class _CarbonThumbShape extends SliderComponentShape {
+  const _CarbonThumbShape({required this.ring, required this.disabled});
+  final Color ring, disabled;
+  static const _radius = 7.0, _held = 10.0;
+
+  // Laid out at rest: the track keeps its length, the held thumb grows over it.
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => const Size.fromRadius(_radius);
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final canvas = context.canvas;
+    final held = activationAnimation.value;
+    final radius = _radius + (_held - _radius) * held;
+    final thumb = sliderTheme.thumbColor ?? ring, enabled = enableAnimation.value;
+    final fill = enabled == 1 ? thumb : Color.lerp(disabled, thumb, enabled)!;
+    canvas.drawCircle(center, radius, Paint()..color = fill);
+    if (held > 0) {
+      canvas.drawCircle(center, radius - 1,
+          Paint()..color = ring.withValues(alpha: held)..style = PaintingStyle.stroke..strokeWidth = 2);
+    }
   }
 }
 

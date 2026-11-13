@@ -78,6 +78,7 @@ class HomeScreen extends StatelessWidget {
                     Tip(
                       message: 'Project or MusicXML ({key})'.fill({'key': shortcut('⌘O')}),
                       child: FilledButton.icon(
+                        style: withIconStyle(context),
                         onPressed: onOpen,
                         icon: Icon(AppIcon.open.of(context), size: 18),
                         label: Text('Open…'.tr),
@@ -86,12 +87,14 @@ class HomeScreen extends StatelessWidget {
                     Tip(
                       message: 'PDF or LilyPond score ({key})'.fill({'key': shortcut('⌘I')}),
                       child: OutlinedButton.icon(
+                        style: withIconStyle(context),
                         onPressed: onImport,
                         icon: Icon(AppIcon.drop.of(context), size: 18),
                         label: Text('Import…'.tr),
                       ),
                     ),
                     OutlinedButton.icon(
+                      style: withIconStyle(context),
                       onPressed: onOpenSample,
                       icon: Icon(AppIcon.demo.of(context), size: 18),
                       label: Text('Open Sample'.tr),

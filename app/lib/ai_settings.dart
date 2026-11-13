@@ -621,7 +621,7 @@ class _ProviderPaneState extends State<_ProviderPane> {
             decoration: BoxDecoration(color: widget.groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
             child: Column(children: [
               for (final (i, m) in models.indexed) ...[
-                if (i > 0) Divider(height: 1, indent: 12, endIndent: 12, color: colors.line),
+                if (i > 0) Divider(height: 1, indent: 12, endIndent: 12, color: CarbonColors.maybeOf(context)?.raised.borderSubtle ?? colors.line),
                 _ModelRow(
                   id: m,
                   info: p.infoOf(m),
