@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2026-11-13 09:57\n"
+"PO-Revision-Date: 2026-11-13 15:57\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -576,6 +576,7 @@ msgstr "Letra centrada"
 msgid "Centers syllables under their notes."
 msgstr "Centra cada sílaba bajo la nota correspondiente."
 
+#: lib/settings_dialog.dart
 msgid "Changelog"
 msgstr "Historial de cambios"
 
@@ -862,7 +863,7 @@ msgstr "Anular selección (Esc)"
 msgid "Save your changes to “{name}” first?"
 msgstr "¿Quieres guardar primero los cambios en «{name}»?"
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "Listo"
 
@@ -1326,9 +1327,6 @@ msgstr "Izquierda"
 
 msgid "Letter spacing"
 msgstr "Espaciado entre letras"
-
-msgid "License"
-msgstr "Licencia"
 
 #: lib/settings_dialog.dart
 msgid "Light"
@@ -2147,6 +2145,7 @@ msgstr "Haz clic en una grabación para editar su sincronización"
 msgid "Some of “{name}” got left out"
 msgstr "Se ha omitido parte de «{name}»"
 
+#: lib/settings_dialog.dart
 msgid "Source code"
 msgstr "Código fuente"
 
@@ -2682,6 +2681,7 @@ msgstr "Cuando aún no hay puntos de sincronización."
 msgid "WebM video"
 msgstr "Vídeo WebM"
 
+#: lib/settings_dialog.dart
 msgid "Website"
 msgstr "Sitio web"
 
@@ -4292,5 +4292,17 @@ msgstr ""
 
 #: lib/settings_dialog.dart
 msgid "System Default"
+msgstr ""
+
+#: lib/licenses_dialog.dart lib/settings_dialog.dart
+msgid "Licenses"
+msgstr ""
+
+#: lib/licenses_dialog.dart
+msgid "Couldn’t read the licenses."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Show Licenses"
 msgstr ""
 
