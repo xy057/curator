@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-13 01:09\n"
+"PO-Revision-Date: 2026-11-13 09:57\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -4271,5 +4271,17 @@ msgstr ""
 #: lib/edit_dialogs.dart
 msgctxt "tonality"
 msgid "Key"
+msgstr ""
+
+msgctxt "page"
+msgid "Display"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Saved Default"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "System Default"
 msgstr ""
 
