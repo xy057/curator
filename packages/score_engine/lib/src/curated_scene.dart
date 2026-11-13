@@ -1256,12 +1256,13 @@ class CuratedScene {
 
   /// The key areas (the Tonality extension), in a band along the frame's top that the staves
   /// leave room for while there are any. Each is drawn in its key's colour ([MusicKey.color])
-  /// from where it starts to where the next does (the last to the final barline), named at its
-  /// start by its [KeyArea.label] (the app gives the key's name, in the user's language, to one
-  /// without a marking of the user's). Over the names and the frozen zone the band shows the
-  /// key the music at their right is in, named at the frame's left, as the zone shows that
-  /// music's key signature; one gives way to the next over [ScoreMotion.tempoFade] staff spaces
-  /// of scroll, as the tempo at the left does.
+  /// from its start to its end (a sliver of paper between two that meet; none where none is),
+  /// named at its start by its [KeyArea.label]
+  /// (the app gives the key's name, in the user's language, to one without a marking of the
+  /// user's). Over the names and the frozen zone the band shows the key the music at their right
+  /// is in, named at the frame's left, as the zone shows that music's key signature; one gives
+  /// way to the next (or to none) over [ScoreMotion.tempoFade] staff spaces of scroll, as the
+  /// tempo at the left does.
   List<KeyArea> get keyAreas => _keyAreas;
   List<KeyArea> _keyAreas = const [];
   set keyAreas(List<KeyArea> value) {
@@ -1270,9 +1271,9 @@ class CuratedScene {
     _keyXs = null;
   }
 
-  /// Where each key area starts, engraving x: at a bar's start its barline (the bar's left is
-  /// past a key signature it starts with), else the score x of its place.
-  List<double>? _keyXs;
+  /// Where each key area starts and ends, engraving x: at a bar's start its barline (the bar's
+  /// left is past a key signature it starts with), else the score x of its place.
+  List<({double start, double end})>? _keyXs;
 
   /// The band's text size, points: as the bar numbers', [TextKind.tonality]'s size times.
   double get _bandFont => _style.staffSpace * 1.25 * _typography[TextKind.tonality].size;
@@ -1316,10 +1317,9 @@ class CuratedScene {
   }
 
   void _paintTonality(ui.Canvas canvas, ui.Size size, double scrollX, double musicLeft) {
-    final areas = _keyAreas, xs = _keyXs ??= [for (final a in areas) _xOfPlace(a.at)];
-    final measures = score.engraving.measures;
-    if (measures.isEmpty) return;
-    final endX = measures.last.right, scale = renderer.scale, sp = _style.staffSpace;
+    final areas = _keyAreas, xs = _keyXs ??= [for (final a in areas) (start: _xOfPlace(a.start), end: _xOfPlace(a.end))];
+    if (score.engraving.measures.isEmpty) return;
+    final scale = renderer.scale, sp = _style.staffSpace;
     final height = _bandHeight, gap = math.max(1.0, sp * 0.12), pad = sp * 0.6;
     final pointerX = renderer.pointerX(size.width), originX = pointerX - scrollX * scale;
 
@@ -1339,8 +1339,9 @@ class CuratedScene {
       ..save()
       ..clipRect(ui.Rect.fromLTRB(musicLeft, 0, size.width, height));
     for (var i = 0; i < areas.length; i++) {
-      final left = originX + xs[i] * scale, last = i + 1 == areas.length;
-      final right = originX + (last ? endX : xs[i + 1]) * scale - (last ? 0 : gap);
+      // Paper between two that meet, so two areas of one key are two.
+      final meets = i + 1 < areas.length && (areas[i + 1].start - areas[i].end).abs() < 1e-6;
+      final left = originX + xs[i].start * scale, right = originX + xs[i].end * scale - (meets ? gap : 0);
       if (right <= math.max(left, musicLeft) || left >= size.width) continue;
       area(i, ui.Rect.fromLTRB(left, 0, right, height), left + pad);
     }
@@ -1355,7 +1356,7 @@ class CuratedScene {
     }
 
     for (var i = 0; i < areas.length; i++) {
-      final opacity = arrived(xs[i]) * (1 - arrived(i + 1 < areas.length ? xs[i + 1] : endX));
+      final opacity = arrived(xs[i].start) * (1 - arrived(xs[i].end));
       if (opacity <= 0.001) continue;
       if (opacity < 0.999) canvas.saveLayer(null, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, opacity));
       area(i, ui.Rect.fromLTRB(0, 0, musicLeft, height), pad + 2);

@@ -236,7 +236,7 @@ class ScoreSwap {
 
     final keyAreas = [
       for (final a in edits.keyAreas)
-        if (at(a.at) case final q?) a.copyWith(at: q),
+        if (span(a.start, a.end) case (final s, final e)) a.copyWith(start: s, end: e),
     ];
 
     String? condensedId(String id) {

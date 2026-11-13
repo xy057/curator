@@ -75,8 +75,8 @@ class EditCommands {
   void space() => _syncing && _anchors.tapArmed ? _anchors.tap() : _editor.playback.togglePlay();
 
   /// ←/→ nudge the selected anchors ([EditorController.anchorNudge], [fine] 1 ms), the
-  /// selected change of a tempo map (a beat, [fine] a sixteenth) or regions (a bar, [fine] a
-  /// beat); with nothing selected, skip 5 s ([fine] 1 s). [nudge] (⌥) always moves the
+  /// selected change of a tempo map (a beat, [fine] a sixteenth), regions or key area (a bar,
+  /// [fine] a beat); with nothing selected, skip 5 s ([fine] 1 s). [nudge] (⌥) always moves the
   /// playhead [EditorController.fineSeek].
   void arrow(int direction, {required bool fine, bool nudge = false}) {
     if (nudge) {
@@ -85,6 +85,8 @@ class EditCommands {
       _anchors.nudge(direction * (fine ? 0.001 : _editor.anchorNudge));
     } else if (_syncing && _anchors.selectedTempo != null) {
       _anchors.moveTempo(direction, fine: fine);
+    } else if (_open && _editor.tonality._selected != null) {
+      _editor.tonality.nudge(direction, beat: fine); // its lane is in both tabs
     } else if (_curating && _lanes.selected.isNotEmpty) {
       _lanes.nudge(direction, beat: fine);
     } else {
@@ -122,8 +124,10 @@ class EditCommands {
     if (_open) _lanes.tool = tool;
   }
 
-  /// [ / ]: the selected regions start (end) at the playhead's beat.
+  /// [ / ]: the selected regions, or the selected key area (in either tab, as its lane is),
+  /// start (end) at the playhead's beat.
   void trim({required bool start}) {
+    if (_open && _editor.tonality._selected != null) return _editor.tonality.trimToPlayhead(start: start);
     if (_curating) _lanes.trimToPlayhead(start: start);
   }
 }

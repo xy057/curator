@@ -277,8 +277,9 @@ void main() {
   test('tonality: a key named and coloured by its tonic, Find Keys hearing where the music goes, the scene drawing a band along the top', () async {
     expect([for (final k in MusicKey.all.take(4)) k.name], ['C♭ major', 'A♭ minor', 'G♭ major', 'E♭ minor']);
     expect(const MusicKey.of(6).color, const MusicKey.of(-6).color, reason: 'F♯ and G♭ major: one key spelled twice');
-    expect(tidyKeyAreas(const [KeyArea(8, MusicKey(1), ' (G) '), KeyArea(0, MusicKey(0), ' '), KeyArea(8, MusicKey(2)), KeyArea(4, MusicKey(20))]),
-        const [KeyArea(0, MusicKey(0)), KeyArea(8, MusicKey(2))]);
+    // One over another cuts it back or in two, as a region drawn over a lane's; empty and unknown keys go.
+    expect(tidyKeyAreas(const [KeyArea(0, 16, MusicKey(0), ' '), KeyArea(4, 8, MusicKey(1), ' (G) '), KeyArea(2, 2, MusicKey(2)), KeyArea(4, 6, MusicKey(20))]),
+        const [KeyArea(0, 4, MusicKey(0)), KeyArea(4, 8, MusicKey(1), '(G)'), KeyArea(8, 16, MusicKey(0))]);
 
     // Twice I IV V I in C, then twice in G with no new key signature, each bar a chord broken in quarters.
     String piece({int shift = 0, int fifths = 0}) {
@@ -299,10 +300,10 @@ void main() {
     }
 
     final starts = [for (var b = 0; b <= 16; b++) b * 4.0];
-    expect(findKeys(piece(), starts), const [KeyArea(0, MusicKey.of(0)), KeyArea(32, MusicKey.of(1))]);
+    expect(findKeys(piece(), starts), const [KeyArea(0, 32, MusicKey.of(0)), KeyArea(32, 64, MusicKey.of(1))]);
     // A tritone higher, spelled with the key signature: among six flats G♭ to D♭, among six sharps F♯ to C♯.
-    expect(findKeys(piece(shift: 6, fifths: -6), starts), const [KeyArea(0, MusicKey.of(-6)), KeyArea(32, MusicKey.of(-5))]);
-    expect(findKeys(piece(shift: 6, fifths: 6), starts), const [KeyArea(0, MusicKey.of(6)), KeyArea(32, MusicKey.of(7))]);
+    expect(findKeys(piece(shift: 6, fifths: -6), starts), const [KeyArea(0, 32, MusicKey.of(-6)), KeyArea(32, 64, MusicKey.of(-5))]);
+    expect(findKeys(piece(shift: 6, fifths: 6), starts), const [KeyArea(0, 32, MusicKey.of(6)), KeyArea(32, 64, MusicKey.of(7))]);
     // Key signatures at concert pitch: B♭ instruments and horns written sharper, the most parts winning.
     expect(concertKeySignatures(demoScoreWithKeyChange(bar: 20, concertFifths: -3)),
         [(measure: 0, fifths: 0, minor: true), (measure: 19, fifths: -3, minor: null)]);
@@ -314,7 +315,7 @@ void main() {
     }
     const size = ui.Size(800, 450);
     final top = scene.layoutAt(30, curation, size).placements.first.y;
-    scene.keyAreas = const [KeyArea(0, MusicKey.of(0, minor: true), '(A minor)')];
+    scene.keyAreas = [KeyArea(0, score.timeline.measureStarts.last, const MusicKey.of(0, minor: true), '(A minor)')];
     expect(scene.layoutAt(30, curation, size).placements.first.y, greaterThan(top), reason: 'the staves leave it room');
     final frame = scene.renderFrame(800, 450, time: 30, curation: curation, devicePixelRatio: 1);
     final pixels = (await frame.toByteData())!;

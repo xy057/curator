@@ -13,8 +13,8 @@ import 'lanes_common.dart';
 typedef Span = ({double start, double end});
 
 /// What a [SpanLane] edits: stretches of the score that never overlap (captions, horizontal
-/// spacers), each its own Undo step or part of a gesture's.
-abstract interface class SpanLaneModel {
+/// spacers, key areas), each its own Undo step or part of a gesture's.
+abstract class SpanLaneModel {
   /// The stretches, in the order the lane keeps them.
   List<Span> get spans;
 
@@ -48,6 +48,15 @@ abstract interface class SpanLaneModel {
 
   /// [label] as drawn (its markup's faces, say).
   InlineSpan labelSpan(String label, TextStyle style);
+
+  /// Whether a stretch goes over the others as an instrument's region goes over its lane's
+  /// (key areas): Draw takes the whole stretch dragged across, [drawn] painting it over what it
+  /// covers; a move or a trim goes on into the stretches either side, [update] cutting them back
+  /// (from the stretches as they were at [begin]). Else they stop at the stretches either side.
+  bool get paints => false;
+
+  /// Stretch [index]'s own colour (a key's), its label then white; null: a region's colours.
+  Color? color(int index) => null;
 }
 
 /// A lane pinned under the bar ruler in both tabs, never scrolled, moved or unpinned, whose
@@ -58,7 +67,8 @@ abstract interface class SpanLaneModel {
 /// to trim it, double-click it to open it; a click on empty space moves the playhead. Draw:
 /// drag across bars (a click: one beat, or one bar zoomed out) for a new one. Erase: drag
 /// across stretches to cut them back. ⌥ swaps the tools, as in the lanes; edges snap to beats
-/// (bars zoomed out), ⌘ places freely. [header] is its name.
+/// (bars zoomed out), ⌘ places freely. A model that [SpanLaneModel.paints] has its stretches go
+/// over each other as regions do; else each stops at those either side. [header] is its name.
 class SpanLane extends StatefulWidget {
   const SpanLane({super.key, required this.controller, required this.model, required this.header, this.tools = false});
   final EditorController controller;
@@ -245,8 +255,9 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
       case _Kind.scrub:
         c.playback.scrub(c.viewport.seconds(p.dx));
       case _Kind.draw:
-        // Up to the stretches either side: they never overlap.
-        final edge = _snap(q, drag.pass), room = _room(drag.from, drag.downQ + (edge < drag.downQ ? -1e-6 : 1e-6));
+        // Up to the stretches either side, which it never overlaps, or over them when it paints.
+        final edge = _snap(q, drag.pass);
+        final room = model.paints ? (from: 0.0, to: _total) : _room(drag.from, drag.downQ + (edge < drag.downQ ? -1e-6 : 1e-6));
         _band.value = room == null
             ? null
             : (q0: math.max(math.min(drag.downQ, edge), room.from), q1: math.min(math.max(drag.downQ, edge), room.to), draw: true);
@@ -257,8 +268,9 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
         _erase(drag.from, band.q0, band.q1);
       case _Kind.move || _Kind.start || _Kind.end:
         if (!drag.moved) return;
-        // Never into the stretches either side.
-        final was = drag.from[drag.index!], room = _room(drag.from, was.start, except: drag.index)!;
+        // Never into the stretches either side, unless it paints over them.
+        final was = drag.from[drag.index!];
+        final room = model.paints ? (from: 0.0, to: _total) : _room(drag.from, was.start, except: drag.index)!;
         final Span next = switch (drag.kind) {
           _Kind.start => (
               start: _snap(was.start + q - drag.downQ, drag.pass).clamp(room.from, math.max(room.from, was.end - _minLength)).toDouble(),
@@ -293,7 +305,7 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
       case _Kind.draw:
         // A click draws one beat (one bar zoomed out), from the beat clicked, as far as there's room.
         var (q0, q1) = band != null && band.q1 - band.q0 > 1e-9 ? (band.q0, band.q1) : _beatAt(drag.downQ, drag.pass);
-        if (band == null || band.q1 - band.q0 <= 1e-9) {
+        if ((band == null || band.q1 - band.q0 <= 1e-9) && !model.paints) {
           final room = _room(drag.from, _q(drag.downAt.dx, pass: drag.pass));
           if (room == null) return;
           (q0, q1) = (math.max(q0, room.from), math.min(q1, room.to));
@@ -438,7 +450,7 @@ class _SpanLanePainter extends CustomPainter {
     final selected = s.model.selected;
     final working = s._working != null;
     for (final (i, span) in s.spans.indexed) {
-      final on = i == selected;
+      final on = i == selected, own = working ? null : s.model.color(i);
       for (final (:x0, :x1, :ownStart, :ownEnd) in s._xs(span.start, span.end)) {
         if (x1 < 0 || x0 > size.width) continue;
         final round = Radius.circular(rounded ? 4 : 0);
@@ -447,19 +459,22 @@ class _SpanLanePainter extends CustomPainter {
             bottomLeft: ownStart ? round : Radius.zero,
             topRight: ownEnd ? round : Radius.zero,
             bottomRight: ownEnd ? round : Radius.zero);
-        canvas.drawRRect(rect, Paint()..color = on ? colors.accent : colors.surface);
-        canvas.drawRRect(
-          rect,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = on ? 1.5 : 1
-            ..color = on ? colors.accentStrong : colors.textMuted.withValues(alpha: 0.5),
-        );
+        // In its own colour (a key's) the selected one is outlined, not filled.
+        canvas.drawRRect(rect, Paint()..color = own ?? (on ? colors.accent : colors.surface));
+        if (own == null || on) {
+          canvas.drawRRect(
+            own == null ? rect : rect.deflate(0.75),
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = on ? 1.5 : 1
+              ..color = on ? colors.accentStrong : colors.textMuted.withValues(alpha: 0.5),
+          );
+        }
         // A drag not yet put in shows the stretches only: which is which is the model's.
         final label = working ? null : s.model.label(i);
         if (label == null || x1 - x0 < 16) continue;
         // Whole points, so a scroll (which moves both ends) finds the same one.
-        final text = s._label(label, (x1 - x0 - 12).floorToDouble(), on ? colors.surface : colors.text);
+        final text = s._label(label, (x1 - x0 - 12).floorToDouble(), own != null ? const Color(0xFFFFFFFF) : (on ? colors.surface : colors.text));
         text.paint(canvas, Offset(x0 + 6, rect.center.dy - text.height / 2));
       }
     }

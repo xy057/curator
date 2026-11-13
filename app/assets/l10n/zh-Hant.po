@@ -4188,9 +4188,6 @@ msgstr "調性"
 msgid "Marking"
 msgstr "標記"
 
-msgid "Another key starts here"
-msgstr "此處已有調性"
-
 msgid "The music’s key, in color over the score."
 msgstr "以顏色在樂譜上方標示音樂的調性。"
 

@@ -4169,9 +4169,6 @@ msgstr ""
 msgid "Marking"
 msgstr ""
 
-msgid "Another key starts here"
-msgstr ""
-
 msgid "The music’s key, in color over the score."
 msgstr ""
 

@@ -37,8 +37,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
 | `spacers.dart` | Spacers (Attach Image): `VerticalSpacer`, an empty part of its own (`Spacers.write`), and `HorizontalSpacer`, a stretch of the score made wider (`Spacers.verovioOption`) |
 | `score_caption.dart` | Captions (`Caption`), their markup (`captionRuns`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
-| `score_chapter.dart` | Chapters (`Chapter`), when each sounds (`chapterSpans`; anything starting at places and running to the next, `placeSpans`), a video's (`chapterCues`) as the times its description takes (`chapterTimestamps`) and as FFmpeg reads them (`chapterMetadata`) |
-| `score_tonality.dart` | Tonality: a key (`MusicKey`: its tonic on the line of fifths, major or minor; its name and its colour), key areas (`KeyArea`, `tidyKeyAreas`), a score's key signatures at concert pitch (`concertKeySignatures`) and Find Keys (`findKeys`) |
+| `score_chapter.dart` | Chapters (`Chapter`), when each sounds (`chapterSpans`), a video's (`chapterCues`) as the times its description takes (`chapterTimestamps`) and as FFmpeg reads them (`chapterMetadata`) |
+| `score_tonality.dart` | Tonality: a key (`MusicKey`: its tonic on the line of fifths, major or minor; its name and its colour), key areas (`KeyArea`: a stretch of the score in a key; `tidyKeyAreas`, one over others cutting them back), a score's key signatures at concert pitch (`concertKeySignatures`) and Find Keys (`findKeys`) |
 | `subtitles.dart` | Captions as subtitles: SRT and WebVTT read (`parseSubtitles`) and written (`writeSubtitles`), placed in the score (`captionsFromCues`) and timed from it (`captionCues`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
@@ -57,7 +57,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG and raster drawing (animated too), the clipboard |
-| `span_lane.dart` | `SpanLane`: a lane pinned under the ruler whose stretches (`SpanLaneModel`) are drawn, moved, trimmed and erased the way regions are; the Captions, Spacers and recordings' lanes (`take_lanes.dart`) are three |
+| `span_lane.dart` | `SpanLane`: a lane pinned under the ruler whose stretches (`SpanLaneModel`) are drawn, moved, trimmed and erased the way regions are; the Captions, Spacers, Tonality and recordings' lanes (`take_lanes.dart`) are four. One whose model `paints` (key areas) has its stretches go over each other as regions do, each in its own `color` |
 | `spacer_dialogs.dart`, `spacer_lane.dart`, `score_view/spacer_handles.dart` | Attach Image's spacers: their dialogs; the Spacers lane (a `SpanLane` of the horizontal ones, with add and remove buttons); selecting, moving and resizing them in the score view |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
 | `caption_settings.dart` | Project Settings ▸ Extensions ▸ Captions' own settings (the app's): font, countdown, size, alignment, backing, with a preview |
@@ -66,7 +66,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `extensions/extensions_dialog.dart` | On opening a project that uses extensions that are off: a switch for each |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `chapter_lane.dart` | Chapters: the lane pinned under the bar ruler, a chapter drawn wherever its music sounds |
-| `tonality_lane.dart` | Tonality: the lane pinned under the bar ruler, a key area drawn in its key's colour wherever its music sounds |
+| `tonality_lane.dart` | Tonality: the lane pinned under the bar ruler, a `SpanLane` of the key areas, each in its key's colour, with add, Find Keys and remove buttons |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Edit ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
@@ -590,34 +590,45 @@ music before the first chapter is one named Start. A page carries them in its pr
 panel, in the times of the recording heard, the one sounding marked, a tap jumping there.
 Replace Score carries each to its place (`ScoreSwap.carry`), counting those past the end as lost.
 
-**A key area colours the top of the score** (the Tonality extension). A `KeyArea` is a place in
-the score (quarters), a key (`MusicKey`: its tonic as fifths from C, so F♯ and G♭ are two keys,
-major or minor; the thirty with a key signature of seven sharps or flats at most) and the user's
-own marking, if any (`label`, 40 characters; "(F major)", "Development"); it runs to the next one.
-The scene draws them in a band along the frame's top (`CuratedScene.keyAreas`, through
-`SceneSettings`), which the staves leave room for while there are any (`_bandReserve`, under the
-top margin's `_top`; the bar numbers' row moves down with them): each area in its key's colour from
-its start (at a bar's start, that barline) to the next, the last to the final barline, named at its
-start by its marking or the key's name, in white, as `TextKind.tonality` looks (Typography, shown
-while the switch is on; bold at 1.25 staff spaces by default). Over the names and the frozen zone
-the band shows the area the music at their right is in, named at the frame's left, as the zone
-shows that music's key signature; one gives way to the next over the tempo at the left's fade. The
-playhead runs on through it. A key's colour is its tonic's place on the circle of fifths as an
-OKLCH hue (C yellow-green, the sharp keys cooling through green and blue, the flat ones warming
-through orange and red, F olive), every major as light as the others and every minor darker, so
-two spellings of one key are one colour. The scene is given each area named (`_sceneAreas`): the
-marking, else the key's name in the interface's language (`TonalityEditing.nameOf`, `.tr` of
-"F major": the thirty names are in curator.pot by hand), named again when the language changes
-(`followLanguage`, from `takeSettings`); the web player names them in the viewer's. They are kept
-in the score's order, one to a place (`tidyKeyAreas`), as `keyAreas` in `EditState` (the
-controller's `_doc`) and saved in the `tonality` module (`[at, tonic, mode]` and the marking after
-them), which is optional. While the switch is on, the Tonality lane (`TonalityLane`) is pinned
-under the bar ruler in both tabs, above the other pinned lanes, each area drawn where it sounds
-(`placeSpans`) in its key's colour and edited as chapters are: Select (Delete removes; drag where
-it starts; double-click for its dialog, `showKeyDialog`: the key from a list of the thirty, the
-marking, empty for the key's name, and From), Draw (a new one from the beat there, in the key in
-force there, `keyAt`), Erase. The lane's name has three buttons: a key at the playhead's beat,
-Find Keys, and remove. **Find Keys** (`findKeys`, on an isolate) reads the score's notes
+**A key area colours the top of the score** (the Tonality extension). A `KeyArea` is a stretch of
+the score (`start`–`end`, quarters), a key (`MusicKey`: its tonic as fifths from C, so F♯ and G♭
+are two keys, major or minor; the thirty with a key signature of seven sharps or flats at most) and
+the user's own marking, if any (`label`, 40 characters; "(F major)", "Development"). The scene
+draws them in a band along the frame's top (`CuratedScene.keyAreas`, through `SceneSettings`),
+which the staves leave room for while there are any (`_bandReserve`, under the top margin's `_top`;
+the bar numbers' row moves down with them): each area in its key's colour from its start to its
+end (at a bar's start or the score's end, that barline: `_xOfPlace`), a sliver of paper between
+two that meet so two of one key are two, nothing where none is, named at its start by its marking
+or the key's name, in white, as `TextKind.tonality` looks (Typography, shown while the switch is on;
+bold at 1.25 staff spaces by default). Over the names and the frozen zone the band shows the area
+the music at their right is in (none in a gap), named at the frame's left, as the zone shows that
+music's key signature; one gives way to the next over the tempo at the left's fade. The playhead
+runs on through it. A key's colour is its tonic's place on the circle of fifths as an OKLCH hue (C
+yellow-green, the sharp keys cooling through green and blue, the flat ones warming through orange
+and red, F olive), every major as light as the others and every minor darker, so two spellings of
+one key are one colour. The scene is given each area named (`_sceneAreas`): the marking, else the
+key's name in the interface's language (`TonalityEditing.nameOf`, `.tr` of "F major": the thirty
+names are in curator.pot by hand), named again when the language changes (`followLanguage`, from
+`takeSettings`); the web player names them in the viewer's. They are kept in the score's order,
+never overlapping (`tidyKeyAreas`: each, in turn, over those before it, which it cuts back or in
+two), as `keyAreas` in `EditState` (the controller's `_doc`) and saved in the `tonality` module
+(`[start, end, tonic, mode]` and the marking after them), which is optional. While the switch is
+on, the Tonality lane (`TonalityLane`) is pinned under the bar ruler in both tabs, above the other
+pinned lanes: a `SpanLane` whose model `paints`, each area drawn where it sounds in its key's
+colour (outlined when selected), edited as an instrument's regions are, with the Instruments tab's
+tool. Select: click to select (Delete removes), drag to move, drag an edge to trim, double-click
+for its dialog (`showKeyDialog`, laid out as the region dialog: From and Until, the key from a list
+of the thirty, the marking, empty for the key's name, Remove); a click on empty space moves the
+playhead. Draw: drag across bars (a click, one beat) and the dialog asks for the key, the one in
+force there first (`keyAt`). Erase: cuts areas back or in two. ←/→ move the selected area a bar
+(⇧ a beat) and [ / ] trim it to the playhead's beat, in either tab (`nudge`, `trimToPlayhead`,
+before the lanes' in `EditCommands`), as they do regions. An area drawn, moved, trimmed or changed
+in its dialog goes over the others, as a region goes over its lane's: what it covers is cut back
+(`reshape`), from the areas as the drag found them (`SpanLaneModel.begin`, `from`), so what a drag
+covered it gives back as it goes on, and the gesture is one Undo step; what an area leaves is left
+without a key. The lane's name has three buttons: a key from the playhead's beat to where the next
+starts (`nextStart`), Find Keys, and remove.
+**Find Keys** (`findKeys`, on an isolate) reads the score's notes
 (`soundingNotes`, concert pitch): each bar is how long each pitch class sounds in it and the bars
 either side (weights ¼ ½ 1 ½ ¼), the lowest note at each onset counted twice, correlated with
 Krumhansl and Kessler's major and minor profiles on all twelve tonics; the likeliest keys through
@@ -628,9 +639,10 @@ twice, unpitched percussion none) leaning 0.08 a quarter toward its own major an
 toward the one its `<mode>` names. A change heard within two bars of a change of key signature
 moves to it, and each key is spelled as near the key signature in force as it can be (G♭ major
 among flats, F♯ among sharps). A score with no notes (a PDF's skeleton) gets its key signatures'
-keys, major unless they say minor. What it finds replaces the areas there are, one Undo step, an
-area found where one was in the same key keeping its marking. Replace Score carries each area to
-its place, counting those past the end as lost.
+keys, major unless they say minor. What it finds replaces the areas there are, an area from each
+change to the next, one Undo step, an area found where one was (the same start, end and key)
+keeping its marking. Replace Score carries each area's start and end to their places, counting
+those past the end as lost.
 
 **A drop goes by where it lands** (`_ProjectPageState._areaAt`; the hint covers only that
 area and says what it takes). On Home, or before a project's score has opened, anything opens (as File ▸ Open, in a tab of its own). Above

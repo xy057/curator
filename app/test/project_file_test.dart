@@ -336,8 +336,8 @@ void main() {
       c.chapters.add(Chapter(starts[4], 'Second theme'));
       c.chapters.add(Chapter(starts[0], 'Opening'));
       c.tonality.enabled = true;
-      c.tonality.add(KeyArea(starts[8], const MusicKey.of(-1), '(F major)'));
-      c.tonality.add(KeyArea(starts[0], const MusicKey.of(0, minor: true)));
+      c.tonality.add(KeyArea(starts[0], starts[16], const MusicKey.of(0, minor: true)));
+      c.tonality.add(KeyArea(starts[8], starts[12], const MusicKey.of(-1), '(F major)')); // over it: cut in two
       final typography = ScoreTypography.standard.withValue('names.size', 1.2).withValue('lyrics.face', TextFace.bold);
       await c.setTypography(typography);
       final saved = c.projectState;
@@ -378,7 +378,11 @@ void main() {
       expect(c2.captions.captions, [Caption(starts[1], starts[5], 'The horns answer')]);
       expect(c2.captions.font, TextFonts.academico);
       expect(c2.chapters.chapters, [Chapter(starts[0], 'Opening'), Chapter(starts[4], 'Second theme')]);
-      expect(c2.tonality.areas, [KeyArea(starts[0], const MusicKey.of(0, minor: true)), KeyArea(starts[8], const MusicKey.of(-1), '(F major)')]);
+      expect(c2.tonality.areas, [
+        KeyArea(starts[0], starts[8], const MusicKey.of(0, minor: true)),
+        KeyArea(starts[8], starts[12], const MusicKey.of(-1), '(F major)'),
+        KeyArea(starts[12], starts[16], const MusicKey.of(0, minor: true)),
+      ]);
       expect((c2.typography, c2.scene!.typography, c2.score!.typography), (typography, typography, typography));
       expect(c2.source!.bytes, demoScore.readAsBytesSync());
       expect(doc2.isDirty, isFalse);

@@ -799,9 +799,10 @@ class _ChapterDialogState extends State<_ChapterDialog> {
   }
 }
 
-/// A key area's dialog (the Tonality lane): its key, the marking the band shows instead of the
-/// key's name (empty: the name) and where it starts. [index] changes that area (with Remove);
-/// [draft] adds one.
+/// A key area's dialog (the Tonality lane), as the region dialog is an instrument region's: its
+/// key, the marking the band shows instead of the key's name (empty: the name) and its bars. An
+/// area put over others goes over them, as one drawn there does. [index] changes that area (with
+/// Remove); [draft] adds one.
 Future<void> showKeyDialog(BuildContext context, EditorController c, {int? index, KeyArea? draft}) async {
   final area = index != null ? c.tonality.areas[index] : draft!;
   final result = await showAppDialog<KeyArea?>(context: context, builder: (context) => _KeyDialog(controller: c, area: area, index: index));
@@ -825,7 +826,7 @@ class _KeyDialog extends StatefulWidget {
   bool get isNew => index == null;
 
   /// What the dialog ends with to remove the area.
-  static const removed = KeyArea(-1, MusicKey(0));
+  static const removed = KeyArea(-1, -1, MusicKey(0));
 
   @override
   State<_KeyDialog> createState() => _KeyDialogState();
@@ -835,74 +836,81 @@ class _KeyDialogState extends State<_KeyDialog> {
   BeatGrid get _beats => widget.controller.beats;
   late var _key = widget.area.key;
   late final _marking = TextEditingController(text: widget.area.label ?? '');
-  late final _from = TextEditingController(text: _beats.format(widget.area.at, compact: true));
+  late final _from = TextEditingController(text: _beats.format(widget.area.start));
+  late final _to = TextEditingController(text: _beats.format(widget.area.end));
 
   @override
   void dispose() {
     _marking.dispose();
     _from.dispose();
+    _to.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // As in the chapter dialog: the field as shown is the area's own start, not its rounding.
-    final at = _from.text == _beats.format(widget.area.at, compact: true) ? widget.area.at : _beats.parse(_from.text);
-    final error = at == null
+    // As in the region dialog: a field as shown is the area's own edge, not its rounding.
+    double? read(TextEditingController field, double edge) => field.text == _beats.format(edge) ? edge : _beats.parse(field.text);
+    final a = read(_from, widget.area.start), b = read(_to, widget.area.end);
+    final error = a == null || b == null
         ? 'Enter a bar or bar.beat, like 12 or 12.3'
-        : at >= _beats.totalQuarters
-            ? 'Set From before the end'
-            : widget.controller.tonality.startingAt(at, except: widget.index) != null
-                ? 'Another key starts here'
-                : null;
+        : b <= a
+            ? 'Set Until after From'
+            : null;
     void save() {
-      if (error == null) Navigator.pop(context, KeyArea(at!, _key, _marking.text));
+      if (error == null) Navigator.pop(context, KeyArea(a!, b!, _key, _marking.text));
     }
+
+    Widget field(TextEditingController controller, String label, {bool autofocus = false}) => AppTextField(
+          controller: controller,
+          label: label,
+          autofocus: autofocus,
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) => save(),
+        );
 
     return AppDialog(
       title: Text(widget.isNew ? 'Add Key'.tr : 'Key'.trIn('tonality')),
       content: SizedBox(
         width: dialogWidth(context, 400),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          AppDropdown<MusicKey>(
-            label: 'Key'.trIn('tonality'), // the music's: the score editor's "Key" is a key signature
-            value: _key,
-            isExpanded: true,
-            onChanged: (key) => setState(() => _key = key ?? _key),
-            items: [
-              for (final key in MusicKey.all)
-                DropdownMenuItem(
-                  value: key,
-                  child: Row(children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      margin: const EdgeInsetsDirectional.only(end: 8),
-                      decoration: BoxDecoration(color: key.color, borderRadius: BorderRadius.circular(3)),
-                    ),
-                    Expanded(child: Text(TonalityEditing.nameOf(key), overflow: TextOverflow.ellipsis)),
-                  ]),
-                ),
-            ],
-          ),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: field(_from, 'From', autofocus: true)),
+            const SizedBox(width: 16),
+            Expanded(child: field(_to, 'Until')),
+          ]),
           const SizedBox(height: 16),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
-              flex: 3,
-              child: AppTextField(
-                controller: _marking,
-                label: 'Marking',
-                hint: TonalityEditing.nameOf(_key),
-                maxLength: maxKeyLabel,
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => save(),
+              child: AppDropdown<MusicKey>(
+                label: 'Key'.trIn('tonality'), // the music's: the score editor's "Key" is a key signature
+                value: _key,
+                isExpanded: true,
+                onChanged: (key) => setState(() => _key = key ?? _key),
+                items: [
+                  for (final key in MusicKey.all)
+                    DropdownMenuItem(
+                      value: key,
+                      child: Row(children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          margin: const EdgeInsetsDirectional.only(end: 8),
+                          decoration: BoxDecoration(color: key.color, borderRadius: BorderRadius.circular(3)),
+                        ),
+                        Expanded(child: Text(TonalityEditing.nameOf(key), overflow: TextOverflow.ellipsis)),
+                      ]),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: AppTextField(
-                controller: _from,
-                label: 'From',
+                controller: _marking,
+                label: 'Marking',
+                hint: TonalityEditing.nameOf(_key),
+                maxLength: maxKeyLabel,
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => save(),
               ),

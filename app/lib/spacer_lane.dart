@@ -81,7 +81,7 @@ class SpacerLane extends StatelessWidget {
   }
 }
 
-class _HorizontalSpacers implements SpanLaneModel {
+class _HorizontalSpacers extends SpanLaneModel {
   _HorizontalSpacers(this.c, this.context);
   final EditorController c;
   final BuildContext context;

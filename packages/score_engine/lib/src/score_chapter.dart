@@ -48,26 +48,19 @@ typedef ChapterSpan = ({int chapter, double start, double end});
 /// chapter again, and one inside a single chapter doesn't split it. They cover the whole
 /// performance: the first from 0 (the silence before the music is its), the last to [end]
 /// seconds (the end of the music by default). Empty without chapters.
-List<ChapterSpan> chapterSpans(List<Chapter> chapters, ScoreTimeline timeline, {double? end}) => [
-      for (final s in placeSpans([for (final c in chapters) c.at], timeline, end: end)) (chapter: s.index, start: s.start, end: s.end),
-    ];
-
-/// What sounds when, of things that each start at a place in the score ([starts], score
-/// quarters) and run on to the next (chapters, key areas): [index] into [starts] (-1: the music
-/// before the first) from [start] to [end] seconds, in order. See [chapterSpans].
-List<({int index, double start, double end})> placeSpans(List<double> starts, ScoreTimeline timeline, {double? end}) {
-  if (starts.isEmpty) return const [];
-  final order = [for (var i = 0; i < starts.length; i++) i]..sort((a, b) {
-      final by = starts[a].compareTo(starts[b]);
+List<ChapterSpan> chapterSpans(List<Chapter> chapters, ScoreTimeline timeline, {double? end}) {
+  if (chapters.isEmpty) return const [];
+  final order = [for (var i = 0; i < chapters.length; i++) i]..sort((a, b) {
+      final by = chapters[a].at.compareTo(chapters[b].at);
       return by != 0 ? by : a.compareTo(b);
     });
-  final out = <({int index, double start, double end})>[];
-  void add(int index, double start, double end) {
+  final out = <ChapterSpan>[];
+  void add(int chapter, double start, double end) {
     if (end - start <= 1e-6) return;
-    if (out.lastOrNull case final last? when last.index == index) {
-      out[out.length - 1] = (index: index, start: last.start, end: end);
+    if (out.lastOrNull case final last? when last.chapter == chapter) {
+      out[out.length - 1] = (chapter: chapter, start: last.start, end: end);
     } else {
-      out.add((index: index, start: start, end: end));
+      out.add((chapter: chapter, start: start, end: end));
     }
   }
 
@@ -75,7 +68,7 @@ List<({int index, double start, double end})> placeSpans(List<double> starts, Sc
     double seconds(double q) => timeline.secondsAtQuarter(q, pass: k);
     var from = p.start, current = -1;
     for (final i in order) {
-      final at = starts[i];
+      final at = chapters[i].at;
       if (at >= p.end - 1e-9) break;
       if (at > p.start + 1e-9) {
         add(current, seconds(from), seconds(at));
@@ -86,9 +79,9 @@ List<({int index, double start, double end})> placeSpans(List<double> starts, Sc
     add(current, seconds(from), seconds(p.end));
   }
   if (out.isEmpty) return out;
-  if (out.first.start > 0) out[0] = (index: out.first.index, start: 0, end: out.first.end);
+  if (out.first.start > 0) out[0] = (chapter: out.first.chapter, start: 0, end: out.first.end);
   end ??= timeline.endSeconds;
-  if (end > out.last.end) out[out.length - 1] = (index: out.last.index, start: out.last.start, end: end);
+  if (end > out.last.end) out[out.length - 1] = (chapter: out.last.chapter, start: out.last.start, end: end);
   return out;
 }
 

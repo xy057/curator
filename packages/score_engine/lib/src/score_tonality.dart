@@ -81,44 +81,50 @@ ui.Color _oklch(double l, double c, double hue) {
   );
 }
 
-/// A key area (the Tonality extension): the music from score quarter [at] on, up to the next
-/// area, in [key]; named in the tonality bar by [label], the user's own marking (null: the
-/// key's name).
+/// A key area (the Tonality extension): the music from score quarter [start] to [end], in
+/// [key]; named in the tonality bar by [label], the user's own marking (null: the key's name).
+/// A stretch, as an instrument's region is: where there is none, the bar shows no key.
 @immutable
 class KeyArea {
-  const KeyArea(this.at, this.key, [this.label]);
-  final double at;
+  const KeyArea(this.start, this.end, this.key, [this.label]);
+  final double start, end;
   final MusicKey key;
   final String? label;
 
-  KeyArea copyWith({double? at, MusicKey? key, Object? label = _kept}) =>
-      KeyArea(at ?? this.at, key ?? this.key, identical(label, _kept) ? this.label : label as String?);
+  KeyArea copyWith({double? start, double? end, MusicKey? key, Object? label = _kept}) =>
+      KeyArea(start ?? this.start, end ?? this.end, key ?? this.key, identical(label, _kept) ? this.label : label as String?);
   static const _kept = Object();
 
   @override
-  bool operator ==(Object other) => other is KeyArea && other.at == at && other.key == key && other.label == label;
+  bool operator ==(Object other) =>
+      other is KeyArea && other.start == start && other.end == end && other.key == key && other.label == label;
   @override
-  int get hashCode => Object.hash(at, key, label);
+  int get hashCode => Object.hash(start, end, key, label);
   @override
-  String toString() => 'KeyArea($at, ${key.name}${label == null ? '' : ', "$label"'})';
+  String toString() => 'KeyArea($start–$end, ${key.name}${label == null ? '' : ', "$label"'})';
 }
 
 /// The longest marking a key area keeps.
 const maxKeyLabel = 40;
 
-/// [areas] as they are kept: in the score's order, one to a place (of two at one place, the
-/// later in the list stays), keys there are only ([MusicKey.isValid]), markings trimmed (an
-/// empty one is none).
+/// [areas] as they are kept: in the score's order, never overlapping, each a later one in the
+/// list covers taken out of it (cut back, or cut in two), as a key drawn over others paints
+/// them; keys there are only ([MusicKey.isValid]), markings trimmed (an empty one is none).
 List<KeyArea> tidyKeyAreas(List<KeyArea> areas) {
-  final byPlace = <int, KeyArea>{};
+  var kept = <KeyArea>[];
   for (final a in areas) {
-    if (!a.at.isFinite || a.at < 0 || !a.key.isValid) continue;
+    if (!a.start.isFinite || !a.end.isFinite || a.start < 0 || a.end - a.start < 1e-6 || !a.key.isValid) continue;
     var label = a.label?.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (label != null && label.length > maxKeyLabel) label = label.substring(0, maxKeyLabel);
-    // To the millionth of a quarter, as chapters are placed.
-    byPlace[(a.at * 1e6).round()] = KeyArea(a.at, a.key, label == null || label.isEmpty ? null : label);
+    kept = [
+      for (final k in kept) ...[
+        if (k.start < a.start - 1e-6) k.copyWith(end: math.min(k.end, a.start)),
+        if (k.end > a.end + 1e-6) k.copyWith(start: math.max(k.start, a.end)),
+      ],
+      KeyArea(a.start, a.end, a.key, label == null || label.isEmpty ? null : label),
+    ];
   }
-  return [for (final key in byPlace.keys.toList()..sort()) byPlace[key]!];
+  return kept..sort((a, b) => a.start.compareTo(b.start));
 }
 
 /// A key signature of a score at concert pitch: from bar [measure] (an index) on, [fifths];
@@ -182,10 +188,10 @@ List<ConcertKeySignature> _concertKeySignatures(XmlElement root) {
 const _majorProfile = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
 const _minorProfile = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
 
-/// Find Keys: where the music of [musicXML] is in which key, as key areas starting at bars
-/// ([measureStarts], score quarters). Each bar is heard as how long each pitch class sounds in
-/// it and the bars either side (the lowest note of each chord counting twice), and is most like
-/// one key's profile ([_majorProfile], [_minorProfile]); a key is held until the music has been
+/// Find Keys: where the music of [musicXML] is in which key, as key areas from bar to bar
+/// ([measureStarts], score quarters), each up to the next, the last to the end. Each bar is
+/// heard as how long each pitch class sounds in it and the bars either side (the lowest note of
+/// each chord counting twice), and is most like one key's profile ([_majorProfile], [_minorProfile]); a key is held until the music has been
 /// in another for long enough to outweigh changing twice ([_changeCost]), and the key
 /// signature in force leans toward its own major and minor, toward the one its `<mode>` says
 /// most. A change heard a bar or two from a change of key signature is moved to it, and a key is
@@ -200,9 +206,11 @@ List<KeyArea> findKeys(String musicXML, List<double> measureStarts) {
   final notes = soundingNotes(musicXML, measureStarts).toList();
   if (notes.isEmpty) {
     // Nothing to hear (a PDF score's): the key signatures alone, major unless they say minor.
+    final inScore = [for (final s in signatures) if (s.measure < bars) s];
     return [
-      for (final s in signatures)
-        if (s.measure < bars) KeyArea(measureStarts[math.max(0, s.measure)], MusicKey.of(s.fifths, minor: s.minor ?? false)),
+      for (final (i, s) in inScore.indexed)
+        KeyArea(measureStarts[i == 0 ? 0 : s.measure], measureStarts[i + 1 < inScore.length ? inScore[i + 1].measure : bars],
+            MusicKey.of(s.fifths, minor: s.minor ?? false)),
     ];
   }
 
@@ -311,7 +319,9 @@ List<KeyArea> findKeys(String musicXML, List<double> measureStarts) {
     if (near != null) changes[i] = (near, key);
   }
   return [
-    for (final (b, key) in changes) KeyArea(measureStarts[b], _spelled(key % 12, minor: key >= 12, near: signatureAt[b]?.fifths ?? 0)),
+    for (final (i, (b, key)) in changes.indexed)
+      KeyArea(measureStarts[b], measureStarts[i + 1 < changes.length ? changes[i + 1].$1 : bars],
+          _spelled(key % 12, minor: key >= 12, near: signatureAt[b]?.fifths ?? 0)),
   ];
 }
 

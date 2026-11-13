@@ -684,8 +684,9 @@ final class _Chapters extends ProjectModule {
       );
 }
 
-/// Key areas (Tonality), `[at, tonic, mode]` and the user's marking after them if there is one,
-/// in the score's order: a tonic as fifths from C (`-1` F, `6` F♯), a mode `major` or `minor`.
+/// Key areas (Tonality), `[start, end, tonic, mode]` and the user's marking after them if there
+/// is one, in the score's order: a tonic as fifths from C (`-1` F, `6` F♯), a mode `major` or
+/// `minor`.
 /// Optional: an older build, which shows nothing of them, opens the project and keeps them.
 final class _Tonality extends ProjectModule {
   const _Tonality() : super('tonality', optional: true);
@@ -693,28 +694,32 @@ final class _Tonality extends ProjectModule {
   @override
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {
         'areas': [
-          for (final a in state.edits.keyAreas) [a.at, a.key.tonic, a.key.minor ? 'minor' : 'major', ?a.label],
+          for (final a in state.edits.keyAreas) [a.start, a.end, a.key.tonic, a.key.minor ? 'minor' : 'major', ?a.label],
         ],
       };
 
   @override
   ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
-    KeyArea area(int i, num at, int tonic, String mode, String? label) {
+    KeyArea area(int i, num start, num end, int tonic, String mode, String? label) {
       final key = MusicKey(tonic, minor: mode == 'minor');
-      if (at < 0) throw _damaged('${r.where}.areas[$i] starts before the score.');
+      if (start < 0) throw _damaged('${r.where}.areas[$i] starts before the score.');
+      if (end <= start) throw _damaged('${r.where}.areas[$i] ends before it starts.');
       if ((mode != 'major' && mode != 'minor') || !key.isValid) throw _damaged('${r.where}.areas[$i] is not a key there is.');
-      return KeyArea(at.toDouble(), key, label);
+      return KeyArea(start.toDouble(), end.toDouble(), key, label);
     }
+
+    bool inRange(num start, num end) => start.abs() <= JsonReader.maxNumber && end.abs() <= JsonReader.maxNumber;
 
     return state.copyWith(
       edits: state.edits.copyWith(
         keyAreas: tidyKeyAreas([
           for (final (i, a) in r.list('areas').indexed)
             switch (a) {
-              [final num at, final int tonic, final String mode] when at.abs() <= JsonReader.maxNumber => area(i, at, tonic, mode, null),
-              [final num at, final int tonic, final String mode, final String label] when at.abs() <= JsonReader.maxNumber =>
-                area(i, at, tonic, mode, label),
-              _ => throw _damaged('${r.where}.areas[$i] is not a place and a key.'),
+              [final num start, final num end, final int tonic, final String mode] when inRange(start, end) =>
+                area(i, start, end, tonic, mode, null),
+              [final num start, final num end, final int tonic, final String mode, final String label] when inRange(start, end) =>
+                area(i, start, end, tonic, mode, label),
+              _ => throw _damaged('${r.where}.areas[$i] is not a stretch and a key.'),
             },
         ]),
       ),

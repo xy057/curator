@@ -4188,9 +4188,6 @@ msgstr "調性"
 msgid "Marking"
 msgstr "表記"
 
-msgid "Another key starts here"
-msgstr "ここから始まる調があります"
-
 msgid "The music’s key, in color over the score."
 msgstr "楽譜の上に色で示す、音楽の調。"
 

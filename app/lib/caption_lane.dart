@@ -55,7 +55,7 @@ class _CaptionLaneState extends State<CaptionLane> {
   }
 }
 
-class _Captions implements SpanLaneModel {
+class _Captions extends SpanLaneModel {
   _Captions(this.c, this.context);
   final EditorController c;
   final BuildContext context;
