@@ -68,6 +68,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `chapter_lane.dart` | Chapters: the lane pinned under the bar ruler, a chapter drawn wherever its music sounds |
 | `tonality_lane.dart` | Tonality: the lane pinned under the bar ruler, a `SpanLane` of the key areas, each in its key's colour, with add, Find Keys and remove buttons |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Edit ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
+| `key_bindings.dart`, `shortcut_settings.dart` | Settings ▸ Shortcuts (see *Every key is a KeyCommand*): every command a key gives (`KeyCommand`), its keys (`KeyChord`), those the user gave the menus' and the editor's commands (`KeyMap`, `AppSettings.keys`, over the window as `KeyMapScope`), tooltips naming a command's key as set (`keyed`); the page's control: a field taking the keys typed next (`ShortcutKeys`), or keycaps (`KeyCaps`) |
 | `licenses_dialog.dart` | Settings ▸ About ▸ Licenses (`showLicensesDialog`): every package's licences from the `LicenseRegistry` (`packageLicenses`, read once), Curator's first, the chosen one's text selectable |
 | `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
@@ -1677,6 +1678,25 @@ the dialog's widgets, which would not hear the key. A dialog a click outside mus
 (`barrierDismissible: false`: Export Video, Export to Web, the Captions sheet) doesn't close on
 Esc by itself either: it gives `onEscape` (Cancel's own action; the Captions sheet's asks first
 once something was changed, and nothing while an export writes).
+
+**Every key is a `KeyCommand`** (key_bindings.dart), listed in Settings ▸ Shortcuts under its
+menu, its window or the editor's tab: its name as the menu or tooltip says it, where it works
+(`KeyPlace`), its keys as the app comes (`KeyChord`s, written once for every system: `command` is
+⌘ on macOS and Ctrl elsewhere, `control` ⌃ there and Ctrl elsewhere too). The menus' commands and
+the editor's that are one action on one key are `editable`: the user gives them another key, or
+none (`KeyMap`, saved as `AppSettings.keys` by command name, only those changed). The window takes
+them from `KeyMapScope` (over everything, in `CuratedScoreApp`'s builder): the menus
+(`AppMenus.keys`), the editor's bindings after its fixed ones (`_bindings`), and every tooltip that
+names such a key, through `keyed`, which says the command's name alone while it has none (so each
+has a "Name ({key})" text and a "Name" one). A key can't be given where another command has it
+(`KeyMap.takenBy`: the menus and the editor share their keys, and the editor's ⌃ on macOS beside
+⌘ is in `also`), and a menu's key holds ⌘ or ⌃ (Ctrl), or is a function key, so a letter typed
+in a field still types, and is one a menu shows (a letter, digit, sign or Tab:
+`KeyCommand.refuses`). The rest are listed only: the editor's contextual keys (Space, the arrows,
+Esc), Edit's, the system's on macOS, and those of the score editor, the PDF import, Find Phrase
+and the code editors, whose handlers are their own. So a key added to any handler is added there
+too, where the page shows it and no command is given it. The names, help lines and headings are
+enum data, put into curator.pot by hand (a test checks they are there).
 
 **Overlays keep their parent in the accessibility tree.** Tooltips and sliders draw their
 overlay (the tip, the slider's value) through an `OverlayPortal`, and for accessibility that

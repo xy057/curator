@@ -10,6 +10,7 @@ import 'lanes_common.dart';
 import 'spacer_lane.dart';
 import 'tonality_lane.dart';
 import 'instruments_toolbar.dart';
+import 'key_bindings.dart';
 import 'timeline_panel.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
@@ -82,7 +83,8 @@ class BottomPanel extends StatelessWidget {
             const ToolbarDivider(),
             ToolbarButton(
               icon: AppIcon.settings.of(context),
-              tooltip: 'Project Settings ({key})'.fill({'key': shortcut('⇧⌘,')}),
+              tooltip: keyed(context, KeyCommand.projectSettings, (key) => 'Project Settings ({key})'.fill({'key': key}),
+                  'Project Settings'.tr),
               onPressed: onProjectSettings,
             ),
           ]),

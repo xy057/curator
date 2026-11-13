@@ -16,6 +16,7 @@ import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
 import 'instruments_toolbar.dart' show InstrumentsToolbar;
+import 'key_bindings.dart';
 import 'lanes_common.dart';
 import 'media_converter.dart';
 import 'menu_kit.dart';
@@ -650,7 +651,7 @@ class AudioToolbar extends StatelessWidget {
         if (c.takes.length > 1) ...[
           const SizedBox(width: 4),
           ToolGroup(children: [
-            for (final MapEntry(key: tool, value: (icon, tip)) in InstrumentsToolbar.tools.entries)
+            for (final MapEntry(key: tool, value: (icon, tip)) in InstrumentsToolbar.toolsIn(context).entries)
               ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
           ]),
           const SizedBox(width: 4),
@@ -668,9 +669,8 @@ class AudioToolbar extends StatelessWidget {
           ],
           ToolbarButton(
             icon: AppIcon.warp.of(context),
-            tooltip: c.anchors.selected.length == 1 && !c.usesMidiTempo
-                ? 'Warp (W)\nMake this anchor jump to another bar'.tr
-                : 'Warp (W)\nJump to another bar here'.tr,
+            tooltip: '${keyed(context, KeyCommand.warp, (key) => 'Warp ({key})'.fill({'key': key}), 'Warp'.tr)}\n'
+                '${c.anchors.selected.length == 1 && !c.usesMidiTempo ? 'Make this anchor jump to another bar'.tr : 'Jump to another bar here'.tr}',
             onPressed: () => editWarp(context, c),
           ),
           if (!c.usesMidiTempo) ...[
@@ -912,9 +912,12 @@ class _TapButton extends StatelessWidget {
     final colors = context.colors;
     final size = AppStyle.of(context).control, radius = AppStyle.of(context).radius(5);
     return Tip(
-      message: c.anchors.tapArmed
-          ? 'Space marks · T or Esc stops'
-          : 'Tap anchors (T)',
+      message: switch (KeyMap.of(context)[KeyCommand.tapAnchors]?.label) {
+        final key? when c.anchors.tapArmed => 'Space marks · {key} or Esc stops'.fill({'key': key}),
+        null when c.anchors.tapArmed => 'Space marks · Esc stops'.tr,
+        final key? => 'Tap anchors ({key})'.fill({'key': key}),
+        null => 'Tap anchors'.tr,
+      },
       child: AnimatedContainer(
         duration: stateDuration(motion(context, 200)),
         curve: Curves.easeOut,

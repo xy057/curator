@@ -883,10 +883,6 @@ msgstr "{version} をダウンロード"
 msgid "Downloading {version}…"
 msgstr "{version} をダウンロード中…"
 
-#: lib/instruments_toolbar.dart
-msgid "Draw (D)"
-msgstr "描画（D）"
-
 msgid "Try a MIDI file or a recording."
 msgstr "MIDI ファイルか録音をお試しください。"
 
@@ -959,10 +955,6 @@ msgstr "フォントを埋め込む"
 msgid "end ({at})"
 msgstr "終点（{at}）"
 
-#: lib/instruments_toolbar.dart
-msgid "End at the playhead (])"
-msgstr "再生ヘッドで終える（]）"
-
 msgid "Ending"
 msgstr "終わり"
 
@@ -985,10 +977,6 @@ msgstr "小節または 小節.拍 を入力（例：12 や 12.3）"
 #: lib/spacer_dialogs.dart
 msgid "Enter {min} to {max} staff spaces"
 msgstr "{min}〜{max} 譜線間隔を入力してください"
-
-#: lib/instruments_toolbar.dart
-msgid "Erase (E)"
-msgstr "消去（E）"
 
 msgid "Even spacing"
 msgstr "均等な間隔"
@@ -1169,10 +1157,6 @@ msgstr "小節へ移動"
 #: lib/editor_toolbar.dart
 msgid "Go to bar ({key})"
 msgstr "小節へ移動（{key}）"
-
-#: lib/editor_toolbar.dart
-msgid "Go to start (Home)"
-msgstr "先頭へ（Home）"
 
 #: lib/editor_toolbar.dart
 msgid "Go to time ({key})"
@@ -1382,10 +1366,6 @@ msgstr "中"
 msgid "Mensuration signs"
 msgstr "メンスーラ記号"
 
-#: lib/editor_toolbar.dart
-msgid "Metronome (C)"
-msgstr "メトロノーム（C）"
-
 #: lib/audio_panel.dart
 msgid "MIDI tempo"
 msgstr "MIDI テンポ"
@@ -1491,7 +1471,7 @@ msgstr "これらの字幕はどれも音楽の範囲内にありません。"
 msgid "No subtitles found in this file."
 msgstr "このファイルに字幕が見つかりませんでした。"
 
-#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart
 msgid "None"
 msgstr "なし"
 
@@ -1977,7 +1957,7 @@ msgstr "セクション"
 msgid "Segno and coda"
 msgstr "セーニョとコーダ"
 
-#: lib/instruments_toolbar.dart lib/pdf_import.dart
+#: lib/pdf_import.dart
 msgid "Select (V)"
 msgstr "選択（V）"
 
@@ -2159,9 +2139,6 @@ msgstr "前の間隔"
 msgid "Space below"
 msgstr "下の間隔"
 
-msgid "Space marks · T or Esc stops"
-msgstr "スペースで記録 · T か Esc で停止"
-
 #: lib/instrument_lanes/lane_header.dart
 msgid "Spacer"
 msgstr "スペーサー"
@@ -2195,10 +2172,6 @@ msgstr "標準"
 #: lib/instruments_toolbar.dart
 msgid "start ({at})"
 msgstr "始点（{at}）"
-
-#: lib/instruments_toolbar.dart
-msgid "Start at the playhead ([)"
-msgstr "再生ヘッドから始める（[）"
 
 #: lib/export_dialog.dart
 msgid "Starting…"
@@ -2247,9 +2220,6 @@ msgstr "タブ譜"
 
 msgid "Tablature rhythms"
 msgstr "タブ譜のリズム"
-
-msgid "Tap anchors (T)"
-msgstr "アンカーをタップ（T）"
 
 msgid "Teal"
 msgstr "ティール"
@@ -2650,24 +2620,9 @@ msgstr "バイオレット"
 msgid "Voices"
 msgstr "声楽"
 
+#: lib/audio_panel.dart
 msgid "Warp"
 msgstr "ワープ"
-
-#: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
-"Jump to another bar here"
-msgstr ""
-"ワープ（W）\n"
-"ここから別の小節へジャンプ"
-
-#: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
-"Make this anchor jump to another bar"
-msgstr ""
-"ワープ（W）\n"
-"このアンカーを別の小節へジャンプさせる"
 
 #: lib/audio_panel.dart
 msgid "Warps from Score"
@@ -4315,3 +4270,378 @@ msgstr "ライセンスを読み込めませんでした。"
 #: lib/settings_dialog.dart
 msgid "Show Licenses"
 msgstr "ライセンスを表示"
+
+#: lib/audio_panel.dart
+msgid "Warp ({key})"
+msgstr "ワープ（{key}）"
+
+#: lib/audio_panel.dart
+msgid "Make this anchor jump to another bar"
+msgstr "このアンカーを別の小節へジャンプさせる"
+
+#: lib/audio_panel.dart
+msgid "Jump to another bar here"
+msgstr "ここから別の小節へジャンプ"
+
+#: lib/audio_panel.dart
+msgid "Space marks · {key} or Esc stops"
+msgstr "スペースで記録 · {key} か Esc で停止"
+
+#: lib/audio_panel.dart
+msgid "Space marks · Esc stops"
+msgstr "スペースで記録 · Esc で停止"
+
+#: lib/audio_panel.dart
+msgid "Tap anchors ({key})"
+msgstr "アンカーをタップ（{key}）"
+
+#: lib/audio_panel.dart
+msgid "Tap anchors"
+msgstr "アンカーをタップ"
+
+#: lib/bottom_panel.dart
+msgid "Project Settings"
+msgstr "プロジェクト設定"
+
+#: lib/editor_toolbar.dart
+msgid "Show tab bar"
+msgstr "タブバーを表示"
+
+#: lib/editor_toolbar.dart
+msgid "Go to start ({key})"
+msgstr "先頭へ（{key}）"
+
+#: lib/editor_toolbar.dart
+msgid "Go to start"
+msgstr "先頭へ"
+
+#: lib/editor_toolbar.dart
+msgid "Metronome ({key})"
+msgstr "メトロノーム（{key}）"
+
+#: lib/editor_toolbar.dart
+msgid "Metronome"
+msgstr "メトロノーム"
+
+#: lib/editor_toolbar.dart
+msgid "Find phrase"
+msgstr "フレーズを検索"
+
+#: lib/editor_toolbar.dart
+msgid "Go to time"
+msgstr "時間へ移動"
+
+#: lib/editor_toolbar.dart
+msgid "Go to bar"
+msgstr "小節へ移動"
+
+#: lib/home_screen.dart
+msgid "Project or MusicXML"
+msgstr "プロジェクトまたは MusicXML"
+
+#: lib/home_screen.dart
+msgid "PDF or LilyPond score"
+msgstr "PDF または LilyPond の楽譜"
+
+#: lib/instruments_toolbar.dart
+msgid "Select ({key})"
+msgstr "選択（{key}）"
+
+#: lib/instruments_toolbar.dart
+msgid "Select"
+msgstr "選択"
+
+#: lib/instruments_toolbar.dart
+msgid "Draw ({key})"
+msgstr "描画（{key}）"
+
+#: lib/instruments_toolbar.dart
+msgid "Draw"
+msgstr "描画"
+
+#: lib/instruments_toolbar.dart
+msgid "Erase ({key})"
+msgstr "消去（{key}）"
+
+#: lib/instruments_toolbar.dart
+msgid "Erase"
+msgstr "消去"
+
+#: lib/instruments_toolbar.dart
+msgid "Start at the playhead ({key})"
+msgstr "再生ヘッドから始める（{key}）"
+
+#: lib/instruments_toolbar.dart
+msgid "Start at the playhead"
+msgstr "再生ヘッドから始める"
+
+#: lib/instruments_toolbar.dart
+msgid "End at the playhead ({key})"
+msgstr "再生ヘッドで終える（{key}）"
+
+#: lib/instruments_toolbar.dart
+msgid "End at the playhead"
+msgstr "再生ヘッドで終える"
+
+#: lib/key_bindings.dart
+msgctxt "key"
+msgid "Space"
+msgstr "スペース"
+
+#: lib/key_bindings.dart
+msgid "Add ⌘ or ⌃"
+msgstr "⌘ か ⌃ を加える"
+
+#: lib/key_bindings.dart
+msgid "Add Ctrl"
+msgstr "Ctrl を加える"
+
+#: lib/key_bindings.dart
+msgid "Menus can’t show this key"
+msgstr "メニューに出せないキーです"
+
+#: lib/project_tabs.dart
+msgid "Close tab"
+msgstr "タブを閉じる"
+
+#: lib/shortcut_settings.dart
+msgid "Used by {command}"
+msgstr "「{command}」で使用中"
+
+#: lib/shortcut_settings.dart
+msgid "Type Shortcut"
+msgstr "キーを押す"
+
+msgid "Hide Curator"
+msgstr "Curator を隠す"
+
+msgid "Hide Others"
+msgstr "ほかを隠す"
+
+msgid "Quit Curator"
+msgstr "Curator を終了"
+
+msgid "Deselect"
+msgstr "選択解除"
+
+msgid "Hide / Show Preview"
+msgstr "プレビューを隠す / 表示"
+
+msgid "Hide / Show Timeline"
+msgstr "タイムラインを隠す / 表示"
+
+msgid "Hide / Show Tab Bar"
+msgstr "タブバーを隠す / 表示"
+
+msgid "Minimize"
+msgstr "しまう"
+
+msgid "Enter Full Screen"
+msgstr "フルスクリーンにする"
+
+msgid "Play / Pause"
+msgstr "再生 / 一時停止"
+
+msgid "Go to end"
+msgstr "末尾へ"
+
+msgid "Go to bar or time"
+msgstr "小節または時間へ移動"
+
+msgid "Skip 5 s"
+msgstr "5 秒戻る / 進む"
+
+msgid "Skip 1 s"
+msgstr "1 秒戻る / 進む"
+
+msgid "Tap an anchor"
+msgstr "アンカーを 1 つタップ"
+
+msgid "Nudge anchors"
+msgstr "アンカーを微調整"
+
+msgid "Re-point anchors"
+msgstr "アンカーの指す位置を変更"
+
+msgid "Move a tempo change"
+msgstr "テンポ変化を移動"
+
+msgid "Tempo up / down"
+msgstr "テンポを上げる / 下げる"
+
+msgid "Move regions or a key area"
+msgstr "リージョンまたは調を移動"
+
+msgid "Select in the lane above / below"
+msgstr "上 / 下のレーンを選択"
+
+msgid "Note Input"
+msgstr "音符入力"
+
+msgid "Show the first / last bar"
+msgstr "最初 / 最後の小節を表示"
+
+msgid "Go to the first / last bar"
+msgstr "最初 / 最後の小節へ移動"
+
+msgid "Actual Size"
+msgstr "実際のサイズ"
+
+msgid "Previous / next note"
+msgstr "前 / 次の音符"
+
+msgid "Previous / next bar"
+msgstr "前 / 次の小節"
+
+msgid "Staff above / below"
+msgstr "上 / 下の譜表"
+
+msgid "Up / down a step"
+msgstr "1 度上げる / 下げる"
+
+msgid "Up / down an octave"
+msgstr "1 オクターブ上げる / 下げる"
+
+msgid "Respell"
+msgstr "異名同音で書き換え"
+
+msgid "Move markings"
+msgstr "記号を移動"
+
+msgid "Repeat the selection"
+msgstr "選択範囲を繰り返す"
+
+msgid "Add to the chord"
+msgstr "和音に加える"
+
+msgid "Note values"
+msgstr "音価"
+
+msgid "Dot"
+msgstr "付点"
+
+msgid "Flat"
+msgstr "フラット"
+
+msgid "Natural"
+msgstr "ナチュラル"
+
+msgid "Sharp"
+msgstr "シャープ"
+
+msgid "Grace Note"
+msgstr "装飾音"
+
+msgid "Appoggiatura"
+msgstr "アッポッジャトゥーラ"
+
+msgid "Tie"
+msgstr "タイ"
+
+msgid "Slur"
+msgstr "スラー"
+
+msgid "End the tuplet"
+msgstr "連符を終える"
+
+msgid "Next voice"
+msgstr "次の声部"
+
+msgid "Move the caret on"
+msgstr "キャレットを進める"
+
+msgid "Accent"
+msgstr "アクセント"
+
+msgid "Staccato"
+msgstr "スタッカート"
+
+msgid "Marcato"
+msgstr "マルカート"
+
+msgid "Tenuto"
+msgstr "テヌート"
+
+msgid "Staccatissimo"
+msgstr "スタッカーティッシモ"
+
+msgid "Previous / next page"
+msgstr "前 / 次のページ"
+
+msgid "Add Barline"
+msgstr "小節線を追加"
+
+msgid "Draw Region"
+msgstr "領域を描く"
+
+msgid "Mask Lane"
+msgstr "レーンをマスク"
+
+msgid "Mask All Lanes"
+msgstr "すべてのレーンをマスク"
+
+msgid "Next / previous match"
+msgstr "次 / 前の一致"
+
+msgid "Close Find"
+msgstr "検索を閉じる"
+
+msgid "Stops tapping, or goes back to Select, first."
+msgstr "まずタップを止めるか、選択ツールに戻ります。"
+
+msgid "With nothing selected."
+msgstr "何も選択していないとき。"
+
+msgid "While tapping."
+msgstr "タップ中。"
+
+msgid "⇧ 1 ms"
+msgstr "⇧ 1 ミリ秒"
+
+msgid "A beat · ⇧ a sixteenth"
+msgstr "1 拍 · ⇧ 16 分音符"
+
+msgid "1 BPM · ⇧ 0.1"
+msgstr "1 BPM · ⇧ 0.1"
+
+msgid "A bar · ⇧ a beat"
+msgstr "1 小節 · ⇧ 1 拍"
+
+msgid "⇧ adds to the selection."
+msgstr "⇧ で選択に追加。"
+
+msgid "With no note selected, the markings."
+msgstr "音符を選択していないときは記号。"
+
+msgid "As the note above / below."
+msgstr "上 / 下の音として。"
+
+msgid "⇧ hairpins’ ends"
+msgstr "⇧ ヘアピンの終端"
+
+msgid "Stops note input first."
+msgstr "まず音符入力を止めます。"
+
+msgid "With no caret, the selected notes’ pitch."
+msgstr "キャレットがないときは選択した音符の音高。"
+
+msgid "⇧ an octave"
+msgstr "⇧ 1 オクターブ"
+
+msgid "Playback"
+msgstr "再生"
+
+msgid "Score Editor"
+msgstr "楽譜エディタ"
+
+msgid "Notations"
+msgstr "記号"
+
+msgid "PDF Import"
+msgstr "PDF の読み込み"
+
+msgid "LilyPond and MusicXML"
+msgstr "LilyPond と MusicXML"
+
+msgid "Shortcuts"
+msgstr "ショートカット"

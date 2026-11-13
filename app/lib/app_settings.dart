@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ai_providers.dart';
 import 'app_colors.dart';
+import 'key_bindings.dart';
 import 'l10n/l10n.dart';
 import 'video_export.dart';
 import 'window_chrome.dart' show WindowFrame;
@@ -70,7 +71,8 @@ class AppSettings extends ChangeNotifier {
         _pdfAiExams = _readPdfAiExams(_prefs?.getString(_pdfAiExamsKey)),
         _hideAi = _prefs?.getBool(_hideAiKey) ?? false,
         aiHidden = _prefs?.getBool(_hideAiKey) ?? false,
-        _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true {
+        _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true,
+        _keys = KeyMap.read(_prefs?.getString(_keysKey)) {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
     final custom = _customAccent;
@@ -107,7 +109,7 @@ class AppSettings extends ChangeNotifier {
   // macOS reads the flag itself, before Dart runs (MainFlutterWindow.swift: "flutter." + this).
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
   static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel', _pdfAiExamsKey = 'pdfAiExams';
-  static const _hideAiKey = 'hideAi';
+  static const _hideAiKey = 'hideAi', _keysKey = 'keyBindings';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
 
@@ -751,6 +753,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _engravingPreview) return;
     _engravingPreview = value;
     _prefs?.setBool(_engravingPreviewKey, value);
+    notifyListeners();
+  }
+
+  /// The keys the user gave the menus' and the editor's commands (Settings ▸ Shortcuts), the
+  /// rest as they come.
+  KeyMap get keys => _keys;
+  KeyMap _keys;
+  set keys(KeyMap value) {
+    if (value == _keys) return;
+    _keys = value;
+    value.isStandard ? _prefs?.remove(_keysKey) : _prefs?.setString(_keysKey, value.write());
     notifyListeners();
   }
 

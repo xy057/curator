@@ -5,6 +5,7 @@ import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_settings.dart';
 import 'editor_controller.dart';
+import 'key_bindings.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
@@ -14,11 +15,22 @@ class InstrumentsToolbar extends StatelessWidget {
   const InstrumentsToolbar({super.key, required this.controller});
   final EditorController controller;
 
-  /// Each tool's icon and hover text: its name, then what each key changes.
-  static Map<LaneTool, (AppIcon, String)> get tools => {
-        LaneTool.select: (AppIcon.pointer, '${'Select (V)'.tr}\n${shortcut('⇧ add · ⌘ toggle, no snap · ⌥ draw'.tr)}'),
-        LaneTool.draw: (AppIcon.draw, '${'Draw (D)'.tr}\n${shortcut('⌘ no snap · ⌥ erase'.tr)}'),
-        LaneTool.erase: (AppIcon.erase, '${'Erase (E)'.tr}\n${shortcut('⌘ no snap · ⌥ draw'.tr)}'),
+  /// Each tool's icon and hover text: its name and key (as set where [context] is), then what
+  /// each key held changes.
+  static Map<LaneTool, (AppIcon, String)> toolsIn(BuildContext context) => {
+        LaneTool.select: (
+          AppIcon.pointer,
+          '${keyed(context, KeyCommand.selectTool, (key) => 'Select ({key})'.fill({'key': key}), 'Select'.tr)}\n'
+              '${shortcut('⇧ add · ⌘ toggle, no snap · ⌥ draw'.tr)}'
+        ),
+        LaneTool.draw: (
+          AppIcon.draw,
+          '${keyed(context, KeyCommand.drawTool, (key) => 'Draw ({key})'.fill({'key': key}), 'Draw'.tr)}\n${shortcut('⌘ no snap · ⌥ erase'.tr)}'
+        ),
+        LaneTool.erase: (
+          AppIcon.erase,
+          '${keyed(context, KeyCommand.eraseTool, (key) => 'Erase ({key})'.fill({'key': key}), 'Erase'.tr)}\n${shortcut('⌘ no snap · ⌥ draw'.tr)}'
+        ),
       };
 
   @override
@@ -35,7 +47,7 @@ class InstrumentsToolbar extends StatelessWidget {
         return Row(
           children: [
             ToolGroup(children: [
-              for (final MapEntry(key: tool, value: (icon, tip)) in tools.entries)
+              for (final MapEntry(key: tool, value: (icon, tip)) in toolsIn(context).entries)
                 ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
             ]),
             const SizedBox(width: 10),
@@ -47,12 +59,14 @@ class InstrumentsToolbar extends StatelessWidget {
                   : Row(key: const ValueKey('selection'), mainAxisSize: MainAxisSize.min, children: [
                       ToolbarButton(
                         icon: AppIcon.trimStart.of(context),
-                        tooltip: 'Start at the playhead ([)'.tr,
+                        tooltip: keyed(context, KeyCommand.trimStart, (key) => 'Start at the playhead ({key})'.fill({'key': key}),
+                            'Start at the playhead'.tr),
                         onPressed: () => c.lanes.trimToPlayhead(start: true),
                       ),
                       ToolbarButton(
                         icon: AppIcon.trimEnd.of(context),
-                        tooltip: 'End at the playhead (])'.tr,
+                        tooltip: keyed(context, KeyCommand.trimEnd, (key) => 'End at the playhead ({key})'.fill({'key': key}),
+                            'End at the playhead'.tr),
                         onPressed: () => c.lanes.trimToPlayhead(start: false),
                       ),
                       ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove (Delete)'.tr, onPressed: c.commands.delete),

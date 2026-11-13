@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'app_colors.dart';
 import 'file_names.dart';
+import 'key_bindings.dart';
 import 'l10n/l10n.dart';
 
 /// The menu bar: native on macOS, a Material menu bar at the top of the window elsewhere.
@@ -11,6 +12,7 @@ import 'l10n/l10n.dart';
 class AppMenus extends StatelessWidget {
   const AppMenus({
     super.key,
+    this.keys = KeyMap.standard,
     required this.onOpen,
     required this.onImport,
     this.onNewLilyPond,
@@ -45,6 +47,9 @@ class AppMenus extends StatelessWidget {
     this.tabBarShown = true,
     this.onShowTabBar,
   });
+
+  /// The keys of the items the user can give others (Settings ▸ Shortcuts).
+  final KeyMap keys;
 
   /// Open…: a project, or a score to start one from.
   final VoidCallback? onOpen;
@@ -114,17 +119,12 @@ class AppMenus extends StatelessWidget {
   static SingleActivator _key(LogicalKeyboardKey key, {bool shift = false}) =>
       SingleActivator(key, meta: _mac, control: !_mac, shift: shift);
 
+  /// [command]'s key as set, if it has one.
+  SingleActivator? _keyOf(KeyCommand command) => keys[command]?.activator;
+
   PlatformMenuItemGroup get _tabs => PlatformMenuItemGroup(members: [
-        PlatformMenuItem(
-          label: 'Show Previous Tab'.tr,
-          shortcut: const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true),
-          onSelected: onPreviousTab,
-        ),
-        PlatformMenuItem(
-          label: 'Show Next Tab'.tr,
-          shortcut: const SingleActivator(LogicalKeyboardKey.tab, control: true),
-          onSelected: onNextTab,
-        ),
+        PlatformMenuItem(label: 'Show Previous Tab'.tr, shortcut: _keyOf(KeyCommand.previousTab), onSelected: onPreviousTab),
+        PlatformMenuItem(label: 'Show Next Tab'.tr, shortcut: _keyOf(KeyCommand.nextTab), onSelected: onNextTab),
       ]);
 
   List<PlatformMenuItem> get _menus => [
@@ -148,9 +148,9 @@ class AppMenus extends StatelessWidget {
           ]),
         PlatformMenu(label: 'File'.tr, menus: [
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'New LilyPond Score…'.tr, onSelected: onNewLilyPond),
-            PlatformMenuItem(label: 'Open…'.tr, shortcut: _key(LogicalKeyboardKey.keyO), onSelected: onOpen),
-            PlatformMenuItem(label: 'Import…'.tr, shortcut: _key(LogicalKeyboardKey.keyI), onSelected: onImport),
+            PlatformMenuItem(label: 'New LilyPond Score…'.tr, shortcut: _keyOf(KeyCommand.newLilyPond), onSelected: onNewLilyPond),
+            PlatformMenuItem(label: 'Open…'.tr, shortcut: _keyOf(KeyCommand.open), onSelected: onOpen),
+            PlatformMenuItem(label: 'Import…'.tr, shortcut: _keyOf(KeyCommand.importScore), onSelected: onImport),
             PlatformMenu(label: 'Open Recent'.tr, menus: [
               if (recentFiles.isEmpty)
                 PlatformMenuItem(label: 'No Recent Files'.tr) // no handler: greyed out
@@ -163,13 +163,13 @@ class AppMenus extends StatelessWidget {
             ]),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Close'.tr, shortcut: _key(LogicalKeyboardKey.keyW), onSelected: onClose),
-            PlatformMenuItem(label: 'Save'.tr, shortcut: _key(LogicalKeyboardKey.keyS), onSelected: onSave),
-            PlatformMenuItem(label: 'Save As…'.tr, shortcut: _key(LogicalKeyboardKey.keyS, shift: true), onSelected: onSaveAs),
+            PlatformMenuItem(label: 'Close'.tr, shortcut: _keyOf(KeyCommand.close), onSelected: onClose),
+            PlatformMenuItem(label: 'Save'.tr, shortcut: _keyOf(KeyCommand.save), onSelected: onSave),
+            PlatformMenuItem(label: 'Save As…'.tr, shortcut: _keyOf(KeyCommand.saveAs), onSelected: onSaveAs),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Export Video…'.tr, shortcut: _key(LogicalKeyboardKey.keyE), onSelected: onExportVideo),
-            PlatformMenuItem(label: 'Export to Web…'.tr, onSelected: onExportWeb),
+            PlatformMenuItem(label: 'Export Video…'.tr, shortcut: _keyOf(KeyCommand.exportVideo), onSelected: onExportVideo),
+            PlatformMenuItem(label: 'Export to Web…'.tr, shortcut: _keyOf(KeyCommand.exportWeb), onSelected: onExportWeb),
           ]),
         ]),
         PlatformMenu(label: 'Edit'.tr, menus: [
@@ -195,14 +195,14 @@ class AppMenus extends StatelessWidget {
             PlatformMenuItem(label: 'Select All'.tr, shortcut: _key(LogicalKeyboardKey.keyA), onSelected: onSelectAll),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Find Phrase…'.tr, shortcut: _key(LogicalKeyboardKey.keyF), onSelected: onFindPhrase),
+            PlatformMenuItem(label: 'Find Phrase…'.tr, shortcut: _keyOf(KeyCommand.findPhrase), onSelected: onFindPhrase),
           ]),
           // The open project's settings, then the app's; on macOS the Curator menu has the
           // app's too, with the shortcut.
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(
                 label: 'Project Settings…'.tr,
-                shortcut: _key(LogicalKeyboardKey.comma, shift: true),
+                shortcut: _keyOf(KeyCommand.projectSettings),
                 onSelected: onProjectSettings),
             PlatformMenuItem(label: 'Settings…'.tr, shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
           ]),
@@ -211,26 +211,28 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(
               label: previewShown ? 'Hide Preview'.tr : 'Show Preview'.tr,
+              shortcut: _keyOf(KeyCommand.showPreview),
               onSelected: onShowPreview == null ? null : () => onShowPreview!(!previewShown),
             ),
             PlatformMenuItem(
               label: timelineShown ? 'Hide Timeline'.tr : 'Show Timeline'.tr,
+              shortcut: _keyOf(KeyCommand.showTimeline),
               onSelected: onShowTimeline == null ? null : () => onShowTimeline!(!timelineShown),
             ),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Maximize Preview'.tr, onSelected: onMaximizePreview),
-            PlatformMenuItem(label: 'Maximize Timeline'.tr, onSelected: onMaximizeTimeline),
+            PlatformMenuItem(label: 'Maximize Preview'.tr, shortcut: _keyOf(KeyCommand.maximizePreview), onSelected: onMaximizePreview),
+            PlatformMenuItem(label: 'Maximize Timeline'.tr, shortcut: _keyOf(KeyCommand.maximizeTimeline), onSelected: onMaximizeTimeline),
           ]),
           PlatformMenuItemGroup(members: [
             PlatformMenuItem(
               label: tabBarShown ? 'Hide Tab Bar'.tr : 'Show Tab Bar'.tr,
-              shortcut: _key(LogicalKeyboardKey.keyT, shift: true),
+              shortcut: _keyOf(KeyCommand.showTabBar),
               onSelected: onShowTabBar == null ? null : () => onShowTabBar!(!tabBarShown),
             ),
             PlatformMenuItem(
               label: 'Show All Tabs'.tr,
-              shortcut: _key(LogicalKeyboardKey.backslash, shift: true),
+              shortcut: _keyOf(KeyCommand.showAllTabs),
               onSelected: onShowTabBar == null || tabBarShown ? null : () => onShowTabBar!(true),
             ),
           ]),

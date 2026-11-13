@@ -7,6 +7,7 @@ import 'app_icons.dart';
 import 'app_logo.dart';
 import 'app_settings.dart';
 import 'file_names.dart';
+import 'key_bindings.dart';
 import 'project_file.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
@@ -76,7 +77,8 @@ class HomeScreen extends StatelessWidget {
                   alignment: WrapAlignment.center,
                   children: [
                     Tip(
-                      message: 'Project or MusicXML ({key})'.fill({'key': shortcut('⌘O')}),
+                      message: keyed(context, KeyCommand.open, (key) => 'Project or MusicXML ({key})'.fill({'key': key}),
+                          'Project or MusicXML'.tr),
                       child: FilledButton.icon(
                         style: withIconStyle(context),
                         onPressed: onOpen,
@@ -85,7 +87,8 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     Tip(
-                      message: 'PDF or LilyPond score ({key})'.fill({'key': shortcut('⌘I')}),
+                      message: keyed(context, KeyCommand.importScore, (key) => 'PDF or LilyPond score ({key})'.fill({'key': key}),
+                          'PDF or LilyPond score'.tr),
                       child: OutlinedButton.icon(
                         style: withIconStyle(context),
                         onPressed: onImport,

@@ -8,6 +8,7 @@ import 'app_icons.dart';
 import 'assets_dialog.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
+import 'key_bindings.dart';
 import 'menu_kit.dart';
 import 'phrase_search_window.dart';
 import 'project_document.dart';
@@ -79,14 +80,14 @@ class EditorToolbar extends StatelessWidget {
         if (onShowTabBar case final onShowTabBar?) ...[
           ToolbarButton(
             icon: AppIcon.tabBar.of(context),
-            tooltip: 'Show tab bar ({key})'.fill({'key': shortcut('⇧⌘T')}),
+            tooltip: keyed(context, KeyCommand.showTabBar, (key) => 'Show tab bar ({key})'.fill({'key': key}), 'Show tab bar'.tr),
             onPressed: onShowTabBar,
           ),
           const ToolbarDivider(),
         ],
         ToolbarButton(
           icon: AppIcon.toStart.of(context),
-          tooltip: 'Go to start (Home)'.tr,
+          tooltip: keyed(context, KeyCommand.goToStart, (key) => 'Go to start ({key})'.fill({'key': key}), 'Go to start'.tr),
           onPressed: () => c.playback.seek(0),
         ),
         const SizedBox(width: 2),
@@ -94,7 +95,7 @@ class EditorToolbar extends StatelessWidget {
         const SizedBox(width: 2),
         ToolbarButton(
           glyph: const _MetronomeGlyph(),
-          tooltip: 'Metronome (C)'.tr,
+          tooltip: keyed(context, KeyCommand.metronome, (key) => 'Metronome ({key})'.fill({'key': key}), 'Metronome'.tr),
           selected: c.playback.metronome,
           onPressed: () => c.playback.metronome = !c.playback.metronome,
         ),
@@ -105,7 +106,7 @@ class EditorToolbar extends StatelessWidget {
           valueListenable: PhraseSearchWindow.shown,
           builder: (context, shown, _) => ToolbarButton(
             icon: AppIcon.search.of(context),
-            tooltip: 'Find phrase ({key})'.fill({'key': shortcut('⌘F')}),
+            tooltip: keyed(context, KeyCommand.findPhrase, (key) => 'Find phrase ({key})'.fill({'key': key}), 'Find phrase'.tr),
             selected: shown,
             onPressed: c.isPdf ? null : () => PhraseSearchWindow.toggle(Overlay.of(context), c),
           ),
@@ -440,7 +441,7 @@ class TimeReadoutState extends State<TimeReadout> {
       valueListenable: playback.time,
       builder: (context, time, _) => Row(mainAxisSize: MainAxisSize.min, children: [
         _Clickable(
-          tip: 'Go to time ({key})'.fill({'key': shortcut('⌘G')}),
+          tip: keyed(context, KeyCommand.goTo, (key) => 'Go to time ({key})'.fill({'key': key}), 'Go to time'.tr),
           onTap: () => edit(time: true),
           child: Text.rich(TextSpan(children: [
             TextSpan(text: _clock(time), style: mono.copyWith(fontWeight: FontWeight.w500)),
@@ -449,7 +450,7 @@ class TimeReadoutState extends State<TimeReadout> {
         ),
         const SizedBox(width: 10),
         _Clickable(
-          tip: 'Go to bar ({key})'.fill({'key': shortcut('⌘G')}),
+          tip: keyed(context, KeyCommand.goTo, (key) => 'Go to bar ({key})'.fill({'key': key}), 'Go to bar'.tr),
           onTap: edit,
           child: Container(
             height: 24,
