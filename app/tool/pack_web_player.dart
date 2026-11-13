@@ -2,7 +2,7 @@
 // into assets/web_player/player.zip, which File ▸ Export to Web… copies beside a page. What a
 // page never loads stays out: the renderers a JavaScript build doesn't use, debug symbols, and
 // the app's own assets (the sample project, the player itself, the translations, Align's model,
-// the desktop's sound engine, the licences of the desktop's libraries).
+// the desktop's sound engine, the licences of the desktop's libraries, Curator's own a second time).
 // Run from app/: `dart run tool/pack_web_player.dart` (`make web-player` does).
 import 'dart:io';
 
@@ -15,6 +15,7 @@ const _left = [
   r'^assets/assets/(demo|web_player|l10n|basic_pitch)/', // (the player is in English)
   r'^assets/packages/flutter_soloud/',
   r'^assets/packages/score_engine/assets/licenses/', // Verovio's and PDFium's: neither is in a page
+  r'^assets/assets/LICENSE\.txt$', // Curator's: a page has it once, as LICENSE.txt (below)
   r'^\.last_build_id$',
 ];
 

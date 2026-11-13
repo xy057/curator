@@ -12,7 +12,7 @@ import 'l10n/l10n.dart';
 const appVersion = '0.8.0';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
-const appBuild = 354;
+const appBuild = 355;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
@@ -23,9 +23,6 @@ const websiteUrl = 'https://curator.0x57.cc/';
 
 /// Where the source and the releases live.
 const repositoryUrl = 'https://github.com/xy057/curator';
-
-/// The license (GPL-3.0).
-const licenseUrl = '$repositoryUrl/blob/main/LICENSE';
 
 /// What changed in each version.
 const changelogUrl = 'https://0x57.cc/xylabs-changelog#curator';

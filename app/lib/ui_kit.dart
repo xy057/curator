@@ -1052,7 +1052,9 @@ class CarbonFieldBorder extends OutlineInputBorder {
 /// given: translated, or a name.
 class SidebarTile extends StatefulWidget {
   const SidebarTile({super.key, required this.icon, required this.label, required this.selected, required this.onTap, this.trailing});
-  final IconData icon;
+
+  /// Before the label; null: the label alone (a list of names, Licenses').
+  final IconData? icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -1127,8 +1129,10 @@ class _SidebarTileState extends State<SidebarTile> {
                     : Border(left: BorderSide(color: selected ? colors.accent : Colors.transparent, width: 3)),
               ),
               child: Row(children: [
-                Icon(widget.icon, size: 16, color: k != null || tinted ? ink : colors.textMuted),
-                SizedBox(width: k != null ? 8 : 10),
+                if (widget.icon case final icon?) ...[
+                  Icon(icon, size: 16, color: k != null || tinted ? ink : colors.textMuted),
+                  SizedBox(width: k != null ? 8 : 10),
+                ],
                 if (widget.trailing case final trailing?) ...[
                   Expanded(child: label),
                   const SizedBox(width: 6),

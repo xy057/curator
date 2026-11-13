@@ -570,6 +570,7 @@ msgstr "歌词居中"
 msgid "Centers syllables under their notes."
 msgstr "将音节居中对齐到音符下方。"
 
+#: lib/settings_dialog.dart
 msgid "Changelog"
 msgstr "更新日志"
 
@@ -856,7 +857,7 @@ msgstr "取消选择（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先保存对“{name}”的更改吗？"
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完成"
 
@@ -1320,9 +1321,6 @@ msgstr "左"
 
 msgid "Letter spacing"
 msgstr "字距"
-
-msgid "License"
-msgstr "许可证"
 
 #: lib/settings_dialog.dart
 msgid "Light"
@@ -2141,6 +2139,7 @@ msgstr "点按一条录音以编辑它的同步"
 msgid "Some of “{name}” got left out"
 msgstr "“{name}”有些内容没能显示"
 
+#: lib/settings_dialog.dart
 msgid "Source code"
 msgstr "源代码"
 
@@ -2680,6 +2679,7 @@ msgstr "仅在还没有锚点时。"
 msgid "WebM video"
 msgstr "WebM 视频"
 
+#: lib/settings_dialog.dart
 msgid "Website"
 msgstr "网站"
 
@@ -4303,3 +4303,15 @@ msgstr "已存的默认值"
 #: lib/settings_dialog.dart
 msgid "System Default"
 msgstr "系统默认值"
+
+#: lib/licenses_dialog.dart lib/settings_dialog.dart
+msgid "Licenses"
+msgstr "许可证"
+
+#: lib/licenses_dialog.dart
+msgid "Couldn’t read the licenses."
+msgstr "无法读取许可证。"
+
+#: lib/settings_dialog.dart
+msgid "Show Licenses"
+msgstr "显示许可证"

@@ -23,6 +23,7 @@ import 'extensions/extension.dart';
 import 'export_dialog.dart' show revealInFileManager;
 import 'file_names.dart';
 import 'font_settings.dart';
+import 'licenses_dialog.dart';
 import 'lilypond.dart';
 import 'menu_kit.dart';
 import 'motion_settings.dart';
@@ -416,7 +417,13 @@ final _categories = <_Category>[
     _Item('Website', null, (_) => const _Link(websiteUrl), keywords: 'website home page official site web open'),
     _Item('Changelog', null, (_) => const _Link(changelogUrl), keywords: 'changelog changes release notes what\'s new history website open'),
     _Item('Source code', null, (_) => const _Link(repositoryUrl), keywords: 'github repository repo source code website open'),
-    _Item('License', null, (_) => const _Link(licenseUrl, label: 'GPL-3.0'), keywords: 'license gpl copyright about'),
+    _Item(
+      'Licenses',
+      null,
+      (_) => const _LicensesButton(),
+      note: 'GPL-3.0',
+      keywords: 'license licenses gpl copyright notices open source third party credits acknowledgements fonts libraries about',
+    ),
     _Item('Verovio', null, (_) => _Value(verovioVersion), keywords: 'engraver engine library about'),
     _Item('System', null, (_) => _Value(_systemText), keywords: 'os macos windows linux architecture about'),
   ]),
@@ -1718,8 +1725,11 @@ class _Page extends StatelessWidget {
 
 class _SettingRow extends StatelessWidget {
   const _SettingRow(
-      {super.key, required this.title, this.named = false, this.note, required this.help, required this.control, this.below});
+      {super.key, required this.title, this.named = false, this.note, required this.help, required this.control, this.below, this.leading});
   final String title;
+
+  /// Before the title (About's update badge, or room as wide as it so titles line up).
+  final Widget? leading;
 
   /// The title is a name the score or the user gave (an instrument's, a group's): shown as it
   /// is. One that reads as a word of the interface ("Alto", "Bass": clefs) is not that word.
@@ -1737,6 +1747,7 @@ class _SettingRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
         child: Row(children: [
+          if (leading case final leading?) ...[leading, const SizedBox(width: 12)],
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text.rich(TextSpan(children: [
@@ -2261,29 +2272,15 @@ class _ExtensionSettingsButton extends StatelessWidget {
   }
 }
 
-/// An address that opens in the browser, shown without its scheme or `#` part.
+/// An address that opens in the browser, shown as a person reads it ([_address]).
 class _Link extends StatelessWidget {
-  const _Link(this.url, {this.label, this.accent = false});
+  const _Link(this.url);
   final String url;
-  final String? label;
-
-  /// In the accent and a little larger: the website under About's title.
-  final bool accent;
 
   @override
   Widget build(BuildContext context) => Tip(
         message: 'Open in the browser'.tr,
-        child: TextButton(
-          onPressed: () => openInBrowser(url),
-          // The website's lines up with the text above it.
-          style: accent
-              ? TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 28), tapTargetSize: MaterialTapTargetSize.shrinkWrap)
-              : null,
-          child: Text(
-            label ?? url.replaceFirst('https://', '').split('#').first.replaceFirst(RegExp(r'/$'), ''),
-            style: TextStyle(fontSize: accent ? 14 : 13, color: accent ? _linkColor(context) : null),
-          ),
-        ),
+        child: TextButton(onPressed: () => openInBrowser(url), child: Text(_address(url), style: const TextStyle(fontSize: 13))),
       );
 }
 
@@ -2305,6 +2302,9 @@ class _Value extends StatelessWidget {
 class _CopyButton extends StatefulWidget {
   const _CopyButton();
 
+  /// How wide (and tall) it is.
+  static const size = 32.0;
+
   @override
   State<_CopyButton> createState() => _CopyButtonState();
 }
@@ -2317,7 +2317,8 @@ class _CopyButtonState extends State<_CopyButton> {
         message: 'Copy'.tr,
         child: IconButton(
           iconSize: 16,
-          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: _CopyButton.size, height: _CopyButton.size),
           color: context.colors.textMuted,
           onPressed: () async {
             await Clipboard.setData(ClipboardData(text: aboutText));
@@ -2340,65 +2341,63 @@ class _AboutIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: () => settings.mascotIcon = !settings.mascotIcon,
-        child: AppLogo(settings: settings, size: 84),
+        child: AppLogo(settings: settings, size: 76),
       );
 }
 
-/// Settings ▸ About: the icon, and beside it the name, version and website; the updates, then
-/// the other links, each a group; Verovio and the system at the foot (with the mascot's credit
-/// while it shows).
+/// Settings ▸ About, laid out as a score's title page: the icon over the name and the version,
+/// in the middle; the updates as a card whose badge says where they stand; Website, Changelog,
+/// Source code and Licenses as four tiles; Verovio and the system at the foot (with the
+/// mascot's credit while it shows).
 class _AboutPage extends StatelessWidget {
   const _AboutPage(this.c);
   final _Context c;
+
+  /// The update badge's size; the card's titles start past it.
+  static const badge = 32.0;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final muted = TextStyle(fontSize: 12, color: colors.textMuted);
-    Widget group(List<Widget> rows) => DecoratedBox(
-          decoration: BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
-          child: Column(children: [
-            for (final (i, row) in rows.indexed) ...[
-              if (i > 0) Divider(height: 1, indent: 14, endIndent: 14, color: colors.line),
-              row,
-            ],
-          ]),
-        );
+    final status = c.updater.status;
     return LayoutBuilder(
       builder: (context, box) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 14),
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 14),
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: box.maxHeight - 38),
+          constraints: BoxConstraints(minHeight: box.maxHeight - 34),
           child: IntrinsicHeight(
-            child: Column(children: [
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                _AboutIcon(c.settings),
-                const SizedBox(width: 20),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Curator', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, height: 1.15, letterSpacing: -0.3, color: colors.text)),
-                  const SizedBox(height: 2),
-                  Row(spacing: 6, children: [
-                    SelectableText('Version {version}'.fill({'version': '$appVersion ($appBuild)'}), style: TextStyle(fontSize: 13, color: colors.textMuted)),
-                    if (appCommit.isNotEmpty) _Pill(appCommit, mono: true),
-                    const _CopyButton(),
-                  ]),
-                  const _Link(websiteUrl, accent: true),
-                ]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Center(child: _AboutIcon(c.settings)),
+              const SizedBox(height: 10),
+              Text(
+                'Curator',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, height: 1.15, letterSpacing: -0.3, color: colors.text),
+              ),
+              Row(mainAxisAlignment: MainAxisAlignment.center, spacing: 6, children: [
+                // As wide as Copy, so the version sits under the name's middle.
+                const SizedBox(width: _CopyButton.size),
+                SelectableText('Version {version}'.fill({'version': '$appVersion ($appBuild)'}), style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                if (appCommit.isNotEmpty) _Pill(appCommit, mono: true),
+                const _CopyButton(),
               ]),
-              const SizedBox(height: 16),
-              group([
+              const SizedBox(height: 14),
+              _AboutGroup(indent: 14 + badge + 12, rows: [
                 _SettingRow(
+                  leading: _UpdateBadge(status),
                   title: 'Updates',
-                  help: _updateHelp(c.updater.status),
+                  help: _updateHelp(status),
                   control: _UpdateControl(updater: c.updater),
                 ),
-                _SettingRow(title: 'Check at launch', help: null, control: _launchSwitch(c)),
+                _SettingRow(leading: const SizedBox(width: badge), title: 'Check at launch', help: null, control: _launchSwitch(c)),
               ]),
               const SizedBox(height: 12),
-              group(const [
-                _LinkRow('Changelog', changelogUrl),
-                _LinkRow('Source code', repositoryUrl, value: 'GitHub'),
-                _LinkRow('License', licenseUrl, value: 'GPL-3.0'),
+              Row(spacing: 10, children: [
+                Expanded(child: _LinkTile(AppIcon.website, 'Website'.tr, url: websiteUrl)),
+                Expanded(child: _LinkTile(AppIcon.changelog, 'Changelog'.tr, url: changelogUrl)),
+                Expanded(child: _LinkTile(AppIcon.code, 'Source code'.tr, url: repositoryUrl)),
+                Expanded(child: _LinkTile(AppIcon.license, 'Licenses'.tr, onTap: () => showLicensesDialog(context, groupColor: _groupColor))),
               ]),
               const Spacer(),
               const SizedBox(height: 14),
@@ -2432,56 +2431,146 @@ class _AboutPage extends StatelessWidget {
   }
 }
 
-/// A row of an About group that opens [url] in the browser: [title], then [value] (or nothing)
-/// and an arrow out at the right; shaded under the pointer.
-class _LinkRow extends StatefulWidget {
-  const _LinkRow(this.title, this.url, {this.value});
-  final String title, url;
-  final String? value;
+/// A group of About's rows on Settings' group fill, a line between each from [indent].
+class _AboutGroup extends StatelessWidget {
+  const _AboutGroup({required this.rows, this.indent = 14});
+  final List<Widget> rows;
+  final double indent;
 
   @override
-  State<_LinkRow> createState() => _LinkRowState();
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
+        child: Column(children: [
+          for (final (i, row) in rows.indexed) ...[
+            if (i > 0) Divider(height: 1, indent: indent, endIndent: 14, color: context.colors.line),
+            row,
+          ],
+        ]),
+      );
 }
 
-class _LinkRowState extends State<_LinkRow> {
-  bool _hover = false;
+/// About's update badge: what the updates are doing, in the accent once there is news, in red
+/// when they failed.
+class _UpdateBadge extends StatelessWidget {
+  const _UpdateBadge(this.status);
+  final UpdateStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AppStyle.of(context);
+    final news = _linkColor(context);
+    final (icon, color) = switch (status) {
+      UpdateIdle() || UpdateChecking() => (AppIcon.update, context.colors.textMuted),
+      UpToDate() => (AppIcon.check, news),
+      UpdateAvailable() || UpdateDownloading() => (AppIcon.downloads, news),
+      UpdateDownloaded() => (AppIcon.done, news),
+      UpdateFailed() => (AppIcon.warning, Theme.of(context).colorScheme.error),
+    };
+    return AnimatedContainer(
+      duration: stateDuration(motion(context, 120)),
+      curve: style.curve,
+      width: _AboutPage.badge,
+      height: _AboutPage.badge,
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: style.radius(8)),
+      child: AnimatedSwitcher(
+        duration: motion(context, 120),
+        child: Icon(icon.of(context), key: ValueKey(icon), size: 18, color: color),
+      ),
+    );
+  }
+}
+
+/// One of About's tiles: an icon over its name, shaded under the pointer, ringed when focused
+/// (Return or Space opens it too). With [url], it opens that in the browser, its address the
+/// tooltip and an arrow out in its corner; without, it calls [onTap].
+class _LinkTile extends StatefulWidget {
+  const _LinkTile(this.icon, this.label, {this.url, this.onTap});
+  final AppIcon icon;
+  final String label;
+  final String? url;
+  final VoidCallback? onTap;
+
+  @override
+  State<_LinkTile> createState() => _LinkTileState();
+}
+
+class _LinkTileState extends State<_LinkTile> {
+  bool _hover = false, _focus = false;
+
+  void _open() {
+    if (widget.url case final url?) {
+      openInBrowser(url);
+    } else {
+      widget.onTap?.call();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final style = AppStyle.of(context);
     final k = CarbonColors.maybeOf(context);
+    final fill = _groupColor(context);
     final shade = k?.layerHover ?? colors.line.withValues(alpha: 0.45);
-    return Semantics(
-      link: true,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => openInBrowser(widget.url),
-          child: AnimatedContainer(
-            duration: stateDuration(motion(context, 120)),
-            curve: style.curve,
-            height: 38,
-            padding: const EdgeInsets.fromLTRB(14, 0, 12, 0),
-            decoration: BoxDecoration(color: _hover ? shade : shade.withValues(alpha: 0), borderRadius: style.radius(10)),
-            child: Row(children: [
-              Expanded(
-                child: Text(widget.title.tr, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
-              ),
-              if (widget.value case final value?) ...[
-                Text(value, style: TextStyle(fontSize: 13, color: colors.textMuted)),
-                const SizedBox(width: 8),
-              ],
-              Icon(AppIcon.popOut.of(context), size: 14, color: colors.textMuted),
-            ]),
+    final url = widget.url;
+    final tile = FocusableActionDetector(
+      mouseCursor: SystemMouseCursors.click,
+      onShowHoverHighlight: (on) => setState(() => _hover = on),
+      onShowFocusHighlight: (on) => setState(() => _focus = on),
+      actions: {ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _open())},
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _open,
+        child: AnimatedContainer(
+          duration: stateDuration(motion(context, 120)),
+          curve: style.curve,
+          height: 68,
+          decoration: BoxDecoration(
+            color: _hover ? Color.alphaBlend(shade, fill) : fill,
+            borderRadius: style.radius(10),
+            border: Border.all(color: _focus ? k?.focus ?? colors.accent : Colors.transparent, width: 2),
           ),
+          child: Stack(children: [
+            Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(widget.icon.of(context), size: 20, color: _linkColor(context)),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: colors.text),
+                  ),
+                ),
+              ]),
+            ),
+            if (url != null)
+              Positioned(top: 6, right: 6, child: Icon(AppIcon.popOut.of(context), size: 12, color: colors.textMuted)),
+          ]),
         ),
       ),
     );
+    return Semantics(
+      link: url != null,
+      button: url == null,
+      child: url == null ? tile : Tip(message: _address(url), child: tile),
+    );
   }
+}
+
+/// [url] as a person reads it: without its scheme, `#` part or last slash.
+String _address(String url) => url.replaceFirst('https://', '').split('#').first.replaceFirst(RegExp(r'/$'), '');
+
+/// Settings ▸ About ▸ Licenses, found by the search.
+class _LicensesButton extends StatelessWidget {
+  const _LicensesButton();
+
+  @override
+  Widget build(BuildContext context) =>
+      OutlinedButton(onPressed: () => showLicensesDialog(context, groupColor: _groupColor), child: Text('Show Licenses'.tr));
 }
 
 /// A small rounded label: the build, the commit.

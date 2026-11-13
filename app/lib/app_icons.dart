@@ -313,7 +313,19 @@ enum AppIcon {
   reasoning(IconData(0xE065, fontFamily: _refined), IconData(0xE065, fontFamily: _carbon)),
 
   /// Tonality: the key, in color. Refined: palette; Carbon: color-palette.
-  tonality(IconData(0xE066, fontFamily: _refined), IconData(0xE066, fontFamily: _carbon));
+  tonality(IconData(0xE066, fontFamily: _refined), IconData(0xE066, fontFamily: _carbon)),
+
+  /// The app's website. Refined: language; Carbon: earth.
+  website(IconData(0xE067, fontFamily: _refined), IconData(0xE067, fontFamily: _carbon)),
+
+  /// What changed in each version. Refined: history; Carbon: recently-viewed.
+  changelog(IconData(0xE068, fontFamily: _refined), IconData(0xE068, fontFamily: _carbon)),
+
+  /// Licenses. Refined: contract; Carbon: license.
+  license(IconData(0xE069, fontFamily: _refined), IconData(0xE069, fontFamily: _carbon)),
+
+  /// Updates to the app. Refined: update; Carbon: update-now.
+  update(IconData(0xE06A, fontFamily: _refined), IconData(0xE06A, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

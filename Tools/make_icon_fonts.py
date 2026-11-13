@@ -158,6 +158,11 @@ ICONS = [
     ('reasoning', 'A model that reasons before it answers.', 'lightbulb', 'idea'),
     # Tonality
     ('tonality', 'Tonality: the key, in color.', 'palette', 'color-palette'),
+    # Settings ▸ About
+    ('website', "The app's website.", 'language', 'earth'),
+    ('changelog', 'What changed in each version.', 'history', 'recently-viewed'),
+    ('license', 'Licenses.', 'contract', 'license'),
+    ('update', 'Updates to the app.', 'update', 'update-now'),
 ]
 
 
