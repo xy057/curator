@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-13 09:57\n"
+"PO-Revision-Date: 2026-11-13 15:57\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -575,6 +575,7 @@ msgstr ""
 msgid "Centers syllables under their notes."
 msgstr ""
 
+#: lib/settings_dialog.dart
 msgid "Changelog"
 msgstr ""
 
@@ -861,7 +862,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -1324,9 +1325,6 @@ msgid "Left"
 msgstr ""
 
 msgid "Letter spacing"
-msgstr ""
-
-msgid "License"
 msgstr ""
 
 #: lib/settings_dialog.dart
@@ -2146,6 +2144,7 @@ msgstr ""
 msgid "Some of “{name}” got left out"
 msgstr ""
 
+#: lib/settings_dialog.dart
 msgid "Source code"
 msgstr ""
 
@@ -2679,6 +2678,7 @@ msgstr ""
 msgid "WebM video"
 msgstr ""
 
+#: lib/settings_dialog.dart
 msgid "Website"
 msgstr ""
 
@@ -4283,5 +4283,17 @@ msgstr ""
 
 #: lib/settings_dialog.dart
 msgid "System Default"
+msgstr ""
+
+#: lib/licenses_dialog.dart lib/settings_dialog.dart
+msgid "Licenses"
+msgstr ""
+
+#: lib/licenses_dialog.dart
+msgid "Couldn’t read the licenses."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Show Licenses"
 msgstr ""
 
