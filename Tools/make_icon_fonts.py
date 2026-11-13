@@ -163,6 +163,8 @@ ICONS = [
     ('changelog', 'What changed in each version.', 'history', 'recently-viewed'),
     ('license', 'Licenses.', 'contract', 'license'),
     ('update', 'Updates to the app.', 'update', 'update-now'),
+    # Settings ▸ Shortcuts
+    ('keyboard', 'Keyboard shortcuts.', 'keyboard', 'keyboard'),
 ]
 
 

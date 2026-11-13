@@ -31,6 +31,7 @@ import 'extensions/extensions_dialog.dart';
 import 'export_dialog.dart';
 import 'file_names.dart';
 import 'home_screen.dart';
+import 'key_bindings.dart';
 import 'l10n/l10n.dart';
 import 'lilypond.dart';
 import 'lilypond_dialog.dart';
@@ -221,31 +222,35 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
           supportedLocales: AppLanguage.locales,
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           // The still fades over everything, open menus and dialogs too, and is part of the next still.
-          builder: (context, child) => _StillBoundary(
-            key: _windowKey,
-            child: Stack(fit: StackFit.expand, children: [
-              MediaQuery(
-                // Over the system's own text size (Windows has one).
-                data: MediaQuery.of(context).copyWith(
-                    textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1) * settings.textSize.scale),
-                    disableAnimations: settings.reduceMotion || MediaQuery.disableAnimationsOf(context)),
-                // The LilyPond editor's code view (re_editor) is still built on package:flutter/material.dart,
-                // whose Theme and MaterialLocalizations aren't material_ui's: this gives it ours. Until it moves.
-                // ignore: deprecated_member_use
-                child: MaterialUiCompatibilityBridge(child: child!),
-              ),
-              ValueListenableBuilder(
-                valueListenable: _before,
-                builder: (context, before, _) => before == null
-                    ? const SizedBox.shrink()
-                    : IgnorePointer(
-                        child: FadeTransition(
-                          opacity: ReverseAnimation(CurvedAnimation(parent: _fade, curve: Curves.easeInOut)),
-                          child: RawImage(image: before, fit: BoxFit.fill),
+          // The keys as set (Settings ▸ Shortcuts) reach every window: tooltips name them.
+          builder: (context, child) => KeyMapScope(
+            keys: settings.keys,
+            child: _StillBoundary(
+              key: _windowKey,
+              child: Stack(fit: StackFit.expand, children: [
+                MediaQuery(
+                  // Over the system's own text size (Windows has one).
+                  data: MediaQuery.of(context).copyWith(
+                      textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1) * settings.textSize.scale),
+                      disableAnimations: settings.reduceMotion || MediaQuery.disableAnimationsOf(context)),
+                  // The LilyPond editor's code view (re_editor) is still built on package:flutter/material.dart,
+                  // whose Theme and MaterialLocalizations aren't material_ui's: this gives it ours. Until it moves.
+                  // ignore: deprecated_member_use
+                  child: MaterialUiCompatibilityBridge(child: child!),
+                ),
+                ValueListenableBuilder(
+                  valueListenable: _before,
+                  builder: (context, before, _) => before == null
+                      ? const SizedBox.shrink()
+                      : IgnorePointer(
+                          child: FadeTransition(
+                            opacity: ReverseAnimation(CurvedAnimation(parent: _fade, curve: Curves.easeInOut)),
+                            child: RawImage(image: before, fit: BoxFit.fill),
+                          ),
                         ),
-                      ),
-              ),
-            ]),
+                ),
+              ]),
+            ),
           ),
           home: _home,
         );
@@ -607,6 +612,7 @@ class _AppWindowState extends State<AppWindow> {
         final edit = page != null && !_typing.value && free ? page._edit.value : null;
         final commands = page?._commands;
         return AppMenus(
+          keys: KeyMap.of(context),
           onOpen: free ? _open : null,
           onImport: free ? _import : null,
           onNewLilyPond: free ? _newLilyPond : null,
@@ -1454,7 +1460,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     // Closed: the editor goes before the document it shows does.
     if (widget.closing) return const SizedBox.shrink();
     return CallbackShortcuts(
-      bindings: _typing ? const {} : _bindings,
+      bindings: _typing ? const {} : _bindings(KeyMap.of(context)),
       child: Focus(
         focusNode: _keys,
         autofocus: true,
@@ -1518,16 +1524,16 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     );
   }
 
-  Map<ShortcutActivator, VoidCallback> get _bindings => {
+  /// The window's keys: those the user can change as [keys] has them (Settings ▸ Shortcuts), after
+  /// the rest, which are listed as [KeyCommand]s too (a key here is added there, where it keeps
+  /// the user from giving it to another command).
+  Map<ShortcutActivator, VoidCallback> _bindings(KeyMap keys) => {
         // Space plays / pauses — or, in tap mode, marks the bar or beat sounding now.
         const SingleActivator(LogicalKeyboardKey.space): _commands.space,
         const SingleActivator(LogicalKeyboardKey.enter): controller.playback.togglePlay,
         const SingleActivator(LogicalKeyboardKey.numpadEnter): controller.playback.togglePlay,
         // P too: tap mode takes Space.
         const SingleActivator(LogicalKeyboardKey.keyP): controller.playback.togglePlay,
-        const SingleActivator(LogicalKeyboardKey.keyT): _toggleTapMode,
-        const SingleActivator(LogicalKeyboardKey.keyW): _warp,
-        const SingleActivator(LogicalKeyboardKey.keyC): _toggleMetronome,
         const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _commands.arrow(-1, fine: false),
         const SingleActivator(LogicalKeyboardKey.arrowRight): () => _commands.arrow(1, fine: false),
         const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () => _commands.arrow(-1, fine: true),
@@ -1540,11 +1546,6 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         const SingleActivator(LogicalKeyboardKey.arrowDown, shift: true): () => _commands.vertical(1, fine: true),
         const SingleActivator(LogicalKeyboardKey.keyA, meta: true): _commands.selectAll,
         const SingleActivator(LogicalKeyboardKey.keyA, control: true): _commands.selectAll,
-        const SingleActivator(LogicalKeyboardKey.home): () => controller.playback.seek(0),
-        const SingleActivator(LogicalKeyboardKey.end): () => controller.playback.seek(controller.playback.duration),
-        // Go to a bar or a time: the toolbar's readout, typed.
-        const SingleActivator(LogicalKeyboardKey.keyG, meta: true): _goTo,
-        const SingleActivator(LogicalKeyboardKey.keyG, control: true): _goTo,
         const SingleActivator(LogicalKeyboardKey.delete): _commands.delete,
         const SingleActivator(LogicalKeyboardKey.backspace): _commands.delete,
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): controller.undo,
@@ -1561,12 +1562,21 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         const SingleActivator(LogicalKeyboardKey.keyX, control: true): _commands.cut,
         const SingleActivator(LogicalKeyboardKey.keyV, meta: true): _paste,
         const SingleActivator(LogicalKeyboardKey.keyV, control: true): _paste,
-        // Instruments tab: tools, and trimming the selected regions to the playhead.
-        const SingleActivator(LogicalKeyboardKey.keyV): () => _commands.tool(LaneTool.select),
-        const SingleActivator(LogicalKeyboardKey.keyD): () => _commands.tool(LaneTool.draw),
-        const SingleActivator(LogicalKeyboardKey.keyE): () => _commands.tool(LaneTool.erase),
-        const SingleActivator(LogicalKeyboardKey.bracketLeft): () => _commands.trim(start: true),
-        const SingleActivator(LogicalKeyboardKey.bracketRight): () => _commands.trim(start: false),
+        for (final (command, action) in <(KeyCommand, VoidCallback)>[
+          (KeyCommand.goToStart, () => controller.playback.seek(0)),
+          (KeyCommand.goToEnd, () => controller.playback.seek(controller.playback.duration)),
+          (KeyCommand.goTo, _goTo), // a bar or a time: the toolbar's readout, typed
+          (KeyCommand.metronome, _toggleMetronome),
+          (KeyCommand.tapAnchors, _toggleTapMode),
+          (KeyCommand.warp, _warp),
+          // Instruments tab: tools, and trimming the selected regions to the playhead.
+          (KeyCommand.selectTool, () => _commands.tool(LaneTool.select)),
+          (KeyCommand.drawTool, () => _commands.tool(LaneTool.draw)),
+          (KeyCommand.eraseTool, () => _commands.tool(LaneTool.erase)),
+          (KeyCommand.trimStart, () => _commands.trim(start: true)),
+          (KeyCommand.trimEnd, () => _commands.trim(start: false)),
+        ])
+          if (keys[command] case final key?) key.activator: action,
       };
 
   static const _minTimeline = 150.0, _minScore = 180.0;

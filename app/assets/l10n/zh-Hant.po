@@ -883,10 +883,6 @@ msgstr "下載 {version}"
 msgid "Downloading {version}…"
 msgstr "正在下載 {version}…"
 
-#: lib/instruments_toolbar.dart
-msgid "Draw (D)"
-msgstr "繪製（D）"
-
 msgid "Try a MIDI file or a recording."
 msgstr "試試 MIDI 檔案或錄音吧。"
 
@@ -959,10 +955,6 @@ msgstr "嵌入字型"
 msgid "end ({at})"
 msgstr "終點（{at}）"
 
-#: lib/instruments_toolbar.dart
-msgid "End at the playhead (])"
-msgstr "在播放磁頭處結束（]）"
-
 msgid "Ending"
 msgstr "結尾"
 
@@ -985,10 +977,6 @@ msgstr "請輸入小節或「小節.拍」，如 12 或 12.3"
 #: lib/spacer_dialogs.dart
 msgid "Enter {min} to {max} staff spaces"
 msgstr "請輸入 {min} 到 {max} 個譜間距"
-
-#: lib/instruments_toolbar.dart
-msgid "Erase (E)"
-msgstr "擦除（E）"
 
 msgid "Even spacing"
 msgstr "等距排列"
@@ -1169,10 +1157,6 @@ msgstr "跳到小節"
 #: lib/editor_toolbar.dart
 msgid "Go to bar ({key})"
 msgstr "跳到小節（{key}）"
-
-#: lib/editor_toolbar.dart
-msgid "Go to start (Home)"
-msgstr "回到開頭（Home）"
 
 #: lib/editor_toolbar.dart
 msgid "Go to time ({key})"
@@ -1382,10 +1366,6 @@ msgstr "中"
 msgid "Mensuration signs"
 msgstr "定量記號"
 
-#: lib/editor_toolbar.dart
-msgid "Metronome (C)"
-msgstr "節拍器（C）"
-
 #: lib/audio_panel.dart
 msgid "MIDI tempo"
 msgstr "MIDI 速度"
@@ -1491,7 +1471,7 @@ msgstr "這些字幕都不在音樂範圍內。"
 msgid "No subtitles found in this file."
 msgstr "這個檔案中沒有字幕。"
 
-#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart
 msgid "None"
 msgstr "無"
 
@@ -1977,7 +1957,7 @@ msgstr "聲部組"
 msgid "Segno and coda"
 msgstr "記號與尾聲"
 
-#: lib/instruments_toolbar.dart lib/pdf_import.dart
+#: lib/pdf_import.dart
 msgid "Select (V)"
 msgstr "選擇（V）"
 
@@ -2159,9 +2139,6 @@ msgstr "前方間距"
 msgid "Space below"
 msgstr "下方間距"
 
-msgid "Space marks · T or Esc stops"
-msgstr "空白鍵標記 · T 或 Esc 停止"
-
 #: lib/instrument_lanes/lane_header.dart
 msgid "Spacer"
 msgstr "間隔"
@@ -2195,10 +2172,6 @@ msgstr "標準"
 #: lib/instruments_toolbar.dart
 msgid "start ({at})"
 msgstr "起點（{at}）"
-
-#: lib/instruments_toolbar.dart
-msgid "Start at the playhead ([)"
-msgstr "從播放磁頭處開始（[）"
 
 #: lib/export_dialog.dart
 msgid "Starting…"
@@ -2247,9 +2220,6 @@ msgstr "六線譜"
 
 msgid "Tablature rhythms"
 msgstr "六線譜節奏"
-
-msgid "Tap anchors (T)"
-msgstr "敲擊錨點（T）"
 
 msgid "Teal"
 msgstr "藍綠"
@@ -2650,24 +2620,9 @@ msgstr "紫羅蘭"
 msgid "Voices"
 msgstr "人聲"
 
+#: lib/audio_panel.dart
 msgid "Warp"
 msgstr "跳轉"
-
-#: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
-"Jump to another bar here"
-msgstr ""
-"跳轉（W）\n"
-"在此跳到另一小節"
-
-#: lib/audio_panel.dart
-msgid ""
-"Warp (W)\n"
-"Make this anchor jump to another bar"
-msgstr ""
-"跳轉（W）\n"
-"讓此錨點跳到另一小節"
 
 #: lib/audio_panel.dart
 msgid "Warps from Score"
@@ -4315,3 +4270,378 @@ msgstr "無法讀取授權條款。"
 #: lib/settings_dialog.dart
 msgid "Show Licenses"
 msgstr "顯示授權條款"
+
+#: lib/audio_panel.dart
+msgid "Warp ({key})"
+msgstr "跳轉（{key}）"
+
+#: lib/audio_panel.dart
+msgid "Make this anchor jump to another bar"
+msgstr "讓此錨點跳到另一小節"
+
+#: lib/audio_panel.dart
+msgid "Jump to another bar here"
+msgstr "在此跳到另一小節"
+
+#: lib/audio_panel.dart
+msgid "Space marks · {key} or Esc stops"
+msgstr "空白鍵標記 · {key} 或 Esc 停止"
+
+#: lib/audio_panel.dart
+msgid "Space marks · Esc stops"
+msgstr "空白鍵標記 · Esc 停止"
+
+#: lib/audio_panel.dart
+msgid "Tap anchors ({key})"
+msgstr "敲擊錨點（{key}）"
+
+#: lib/audio_panel.dart
+msgid "Tap anchors"
+msgstr "敲擊錨點"
+
+#: lib/bottom_panel.dart
+msgid "Project Settings"
+msgstr "專案設定"
+
+#: lib/editor_toolbar.dart
+msgid "Show tab bar"
+msgstr "顯示分頁列"
+
+#: lib/editor_toolbar.dart
+msgid "Go to start ({key})"
+msgstr "回到開頭（{key}）"
+
+#: lib/editor_toolbar.dart
+msgid "Go to start"
+msgstr "回到開頭"
+
+#: lib/editor_toolbar.dart
+msgid "Metronome ({key})"
+msgstr "節拍器（{key}）"
+
+#: lib/editor_toolbar.dart
+msgid "Metronome"
+msgstr "節拍器"
+
+#: lib/editor_toolbar.dart
+msgid "Find phrase"
+msgstr "尋找樂句"
+
+#: lib/editor_toolbar.dart
+msgid "Go to time"
+msgstr "跳到時間"
+
+#: lib/editor_toolbar.dart
+msgid "Go to bar"
+msgstr "跳到小節"
+
+#: lib/home_screen.dart
+msgid "Project or MusicXML"
+msgstr "專案或 MusicXML"
+
+#: lib/home_screen.dart
+msgid "PDF or LilyPond score"
+msgstr "PDF 或 LilyPond 樂譜"
+
+#: lib/instruments_toolbar.dart
+msgid "Select ({key})"
+msgstr "選擇（{key}）"
+
+#: lib/instruments_toolbar.dart
+msgid "Select"
+msgstr "選擇"
+
+#: lib/instruments_toolbar.dart
+msgid "Draw ({key})"
+msgstr "繪製（{key}）"
+
+#: lib/instruments_toolbar.dart
+msgid "Draw"
+msgstr "繪製"
+
+#: lib/instruments_toolbar.dart
+msgid "Erase ({key})"
+msgstr "擦除（{key}）"
+
+#: lib/instruments_toolbar.dart
+msgid "Erase"
+msgstr "擦除"
+
+#: lib/instruments_toolbar.dart
+msgid "Start at the playhead ({key})"
+msgstr "從播放磁頭處開始（{key}）"
+
+#: lib/instruments_toolbar.dart
+msgid "Start at the playhead"
+msgstr "從播放磁頭處開始"
+
+#: lib/instruments_toolbar.dart
+msgid "End at the playhead ({key})"
+msgstr "在播放磁頭處結束（{key}）"
+
+#: lib/instruments_toolbar.dart
+msgid "End at the playhead"
+msgstr "在播放磁頭處結束"
+
+#: lib/key_bindings.dart
+msgctxt "key"
+msgid "Space"
+msgstr "空白鍵"
+
+#: lib/key_bindings.dart
+msgid "Add ⌘ or ⌃"
+msgstr "加上 ⌘ 或 ⌃"
+
+#: lib/key_bindings.dart
+msgid "Add Ctrl"
+msgstr "加上 Ctrl"
+
+#: lib/key_bindings.dart
+msgid "Menus can’t show this key"
+msgstr "選單無法顯示此按鍵"
+
+#: lib/project_tabs.dart
+msgid "Close tab"
+msgstr "關閉分頁"
+
+#: lib/shortcut_settings.dart
+msgid "Used by {command}"
+msgstr "已用於「{command}」"
+
+#: lib/shortcut_settings.dart
+msgid "Type Shortcut"
+msgstr "按下快速鍵"
+
+msgid "Hide Curator"
+msgstr "隱藏 Curator"
+
+msgid "Hide Others"
+msgstr "隱藏其他"
+
+msgid "Quit Curator"
+msgstr "結束 Curator"
+
+msgid "Deselect"
+msgstr "取消選取"
+
+msgid "Hide / Show Preview"
+msgstr "隱藏 / 顯示預覽"
+
+msgid "Hide / Show Timeline"
+msgstr "隱藏 / 顯示時間軸"
+
+msgid "Hide / Show Tab Bar"
+msgstr "隱藏 / 顯示分頁列"
+
+msgid "Minimize"
+msgstr "縮到最小"
+
+msgid "Enter Full Screen"
+msgstr "進入全螢幕"
+
+msgid "Play / Pause"
+msgstr "播放 / 暫停"
+
+msgid "Go to end"
+msgstr "跳到結尾"
+
+msgid "Go to bar or time"
+msgstr "跳到小節或時間"
+
+msgid "Skip 5 s"
+msgstr "後退 / 前進 5 秒"
+
+msgid "Skip 1 s"
+msgstr "後退 / 前進 1 秒"
+
+msgid "Tap an anchor"
+msgstr "敲擊一個錨點"
+
+msgid "Nudge anchors"
+msgstr "微移錨點"
+
+msgid "Re-point anchors"
+msgstr "重新對位錨點"
+
+msgid "Move a tempo change"
+msgstr "移動速度變化"
+
+msgid "Tempo up / down"
+msgstr "速度加快 / 減慢"
+
+msgid "Move regions or a key area"
+msgstr "移動區域或調性"
+
+msgid "Select in the lane above / below"
+msgstr "選取上方 / 下方軌道"
+
+msgid "Note Input"
+msgstr "音符輸入"
+
+msgid "Show the first / last bar"
+msgstr "顯示第一個 / 最後一個小節"
+
+msgid "Go to the first / last bar"
+msgstr "跳到第一個 / 最後一個小節"
+
+msgid "Actual Size"
+msgstr "實際大小"
+
+msgid "Previous / next note"
+msgstr "上一個 / 下一個音符"
+
+msgid "Previous / next bar"
+msgstr "上一個 / 下一個小節"
+
+msgid "Staff above / below"
+msgstr "上方 / 下方譜表"
+
+msgid "Up / down a step"
+msgstr "升高 / 降低一級"
+
+msgid "Up / down an octave"
+msgstr "升高 / 降低八度"
+
+msgid "Respell"
+msgstr "等音改寫"
+
+msgid "Move markings"
+msgstr "移動記號"
+
+msgid "Repeat the selection"
+msgstr "重複所選內容"
+
+msgid "Add to the chord"
+msgstr "加入和弦"
+
+msgid "Note values"
+msgstr "時值"
+
+msgid "Dot"
+msgstr "附點"
+
+msgid "Flat"
+msgstr "降記號"
+
+msgid "Natural"
+msgstr "還原記號"
+
+msgid "Sharp"
+msgstr "升記號"
+
+msgid "Grace Note"
+msgstr "裝飾音"
+
+msgid "Appoggiatura"
+msgstr "倚音"
+
+msgid "Tie"
+msgstr "延音線"
+
+msgid "Slur"
+msgstr "圓滑線"
+
+msgid "End the tuplet"
+msgstr "結束連音"
+
+msgid "Next voice"
+msgstr "下一聲部"
+
+msgid "Move the caret on"
+msgstr "游標後移"
+
+msgid "Accent"
+msgstr "重音"
+
+msgid "Staccato"
+msgstr "斷奏"
+
+msgid "Marcato"
+msgstr "強音"
+
+msgid "Tenuto"
+msgstr "保持音"
+
+msgid "Staccatissimo"
+msgstr "短促斷奏"
+
+msgid "Previous / next page"
+msgstr "上一頁 / 下一頁"
+
+msgid "Add Barline"
+msgstr "新增小節線"
+
+msgid "Draw Region"
+msgstr "繪製區域"
+
+msgid "Mask Lane"
+msgstr "遮蔽軌道"
+
+msgid "Mask All Lanes"
+msgstr "遮蔽所有軌道"
+
+msgid "Next / previous match"
+msgstr "下一個 / 上一個相符項目"
+
+msgid "Close Find"
+msgstr "關閉尋找"
+
+msgid "Stops tapping, or goes back to Select, first."
+msgstr "先停止敲擊，或回到選擇工具。"
+
+msgid "With nothing selected."
+msgstr "未選取任何內容時。"
+
+msgid "While tapping."
+msgstr "敲擊時。"
+
+msgid "⇧ 1 ms"
+msgstr "⇧ 1 毫秒"
+
+msgid "A beat · ⇧ a sixteenth"
+msgstr "一拍 · ⇧ 十六分音符"
+
+msgid "1 BPM · ⇧ 0.1"
+msgstr "1 BPM · ⇧ 0.1"
+
+msgid "A bar · ⇧ a beat"
+msgstr "一小節 · ⇧ 一拍"
+
+msgid "⇧ adds to the selection."
+msgstr "⇧ 加入所選。"
+
+msgid "With no note selected, the markings."
+msgstr "未選取音符時，移動記號。"
+
+msgid "As the note above / below."
+msgstr "改寫為上方 / 下方的音。"
+
+msgid "⇧ hairpins’ ends"
+msgstr "⇧ 漸強漸弱記號的末端"
+
+msgid "Stops note input first."
+msgstr "先停止音符輸入。"
+
+msgid "With no caret, the selected notes’ pitch."
+msgstr "沒有游標時，改變所選音符的音高。"
+
+msgid "⇧ an octave"
+msgstr "⇧ 一個八度"
+
+msgid "Playback"
+msgstr "播放"
+
+msgid "Score Editor"
+msgstr "樂譜編輯器"
+
+msgid "Notations"
+msgstr "記號"
+
+msgid "PDF Import"
+msgstr "PDF 匯入"
+
+msgid "LilyPond and MusicXML"
+msgstr "LilyPond 與 MusicXML"
+
+msgid "Shortcuts"
+msgstr "快速鍵"

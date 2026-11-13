@@ -23,6 +23,7 @@ import 'extensions/extension.dart';
 import 'export_dialog.dart' show revealInFileManager;
 import 'file_names.dart';
 import 'font_settings.dart';
+import 'key_bindings.dart';
 import 'licenses_dialog.dart';
 import 'lilypond.dart';
 import 'menu_kit.dart';
@@ -34,6 +35,7 @@ import 'edit_dialogs.dart' show confirmSavePath, showNameGroupDialog;
 import 'error_text.dart';
 import 'settings_file.dart';
 import 'sections_editor.dart';
+import 'shortcut_settings.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
 import 'l10n/l10n.dart';
@@ -159,7 +161,7 @@ class _Item {
 
 class _Category {
   const _Category(this.label, this.icon, this.items,
-      {this.empty, this.page, this.preview = false, this.saveDefault, this.title})
+      {this.empty, this.page, this.preview = false, this.saveDefault, this.title, this.dense = false, this.buttons})
       : tabs = null;
 
   /// One sidebar entry for several pages, chosen by a switch under its title; each can open in a
@@ -170,7 +172,9 @@ class _Category {
         page = null,
         preview = false,
         saveDefault = null,
-        title = null;
+        title = null,
+        dense = false,
+        buttons = null;
 
   final String label;
   final AppIcon icon;
@@ -189,6 +193,12 @@ class _Category {
 
   /// Shown in place of the items while there are none.
   final String? empty;
+
+  /// Its rows slimmer: many, each of a name and its control (Shortcuts).
+  final bool dense;
+
+  /// Beside the page's title, before Close.
+  final List<Widget> Function(_Context)? buttons;
 
   /// A project page whose settings can become the app's, for other projects: a slim Save as
   /// Default button beside the page's title, and Reset to Default before it.
@@ -383,6 +393,24 @@ final _categories = <_Category>[
       keywords: 'animation animations fade slide still accessibility',
     ),
   ]),
+  // Every command's keys, those of the menus' and the editor's the user's to change.
+  _Category(
+    'Shortcuts',
+    AppIcon.keyboard,
+    dense: true,
+    buttons: (c) => [if (!c.settings.keys.isStandard) _ResetShortcuts(c.settings)],
+    [
+      for (final command in KeyCommand.values)
+        _Item(
+          command.label,
+          (_) => switch (command.help) { final help? => keysText(help.tr), null => null },
+          (c) => ShortcutKeys(command: command, settings: c.settings),
+          group: command.group,
+          shown: (_) => command.shown,
+          keywords: 'shortcut shortcuts key keys keyboard hotkey ${KeyMap.standard.labelsOf(command).join(' ')}',
+        ),
+    ],
+  ),
   // What the app can download and keep on this computer, beside it: tools, and AI run here
   // (local AI), which Hide AI features leaves shown.
   _Category('Download Hub', AppIcon.downloads, [
@@ -1227,7 +1255,8 @@ class _SettingsWindowState extends State<_SettingsWindow> {
           for (final c in _categories)
             if (matches.where((m) => m.$1 == c).toList() case final inCat when inCat.isNotEmpty)
               (c.label.trIn('page'), [
-                for (final (_, item) in inCat) _row(item, withGroup: c.items.where((i) => i.title == item.title).length > 1),
+                for (final (_, item) in inCat)
+                  _row(item, withGroup: c.items.where((i) => i.title == item.title).length > 1, dense: c.dense),
               ]),
         ],
       );
@@ -1278,7 +1307,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     ]);
   }
 
-  Widget _row(_Item item, {bool withGroup = false}) => _rowOf(item, _ctx, withGroup: withGroup);
+  Widget _row(_Item item, {bool withGroup = false, bool dense = false}) => _rowOf(item, _ctx, withGroup: withGroup, dense: dense);
 }
 
 Iterable<_Item> _shown(_Category cat, _Context ctx) => cat.items.where((item) => item.shown?.call(ctx) ?? true);
@@ -1286,8 +1315,9 @@ Iterable<_Item> _shown(_Category cat, _Context ctx) => cat.items.where((item) =>
 // Keyed, so a control keeps its state when a row above it comes or goes (`shown`). Found by a
 // search, away from its heading, a row whose title its page repeats names its group
 // ("Size · Lyrics").
-Widget _rowOf(_Item item, _Context ctx, {bool withGroup = false}) => _SettingRow(
+Widget _rowOf(_Item item, _Context ctx, {bool withGroup = false, bool dense = false}) => _SettingRow(
     key: ObjectKey(item),
+    dense: dense,
     title: withGroup && item.group != null ? '${item.title.tr} · ${item.group!.trIn('heading')}' : item.title,
     note: item.note,
     help: item.help?.call(ctx),
@@ -1302,7 +1332,7 @@ Widget _pageBody(BuildContext context, _Category cat, _Context ctx,
   final groups = <(String?, List<Widget>)>[];
   for (final item in _shown(cat, ctx)) {
     if (groups.isEmpty || groups.last.$1 != item.group) groups.add((item.group, []));
-    groups.last.$2.add(_rowOf(item, ctx));
+    groups.last.$2.add(_rowOf(item, ctx, dense: cat.dense));
   }
   final rows = _Page(key: rowsKey, empty: cat.empty, groups: groups);
   if (!cat.preview && above == null) return KeyedSubtree(key: key, child: rows);
@@ -1339,6 +1369,7 @@ List<Widget> _pageButtons(BuildContext context, _Category cat, _Context ctx) {
         onReset: () => _oneStep(ctx, save.reset),
         onSystem: () => _oneStep(ctx, save.resetToSystem),
       ),
+    ...?cat.buttons?.call(ctx),
   ];
 }
 
@@ -1641,19 +1672,7 @@ class _SaveDefaultButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    // Slimmer than the rows' buttons: it belongs to the page, not to a setting.
-    final style = OutlinedButton.styleFrom(
-      minimumSize: const Size(0, 26),
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
-      shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(13)),
-      side: BorderSide(color: colors.line),
-      // The theme's, so it keeps the app's font.
-      textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12, fontWeight: FontWeight.w500),
-      disabledForegroundColor: colors.textMuted,
-    );
+    final style = _pageButtonStyle(context);
     // Saved defaults other than the system's: two to go back to.
     final both = !savedIsSystem;
     return Padding(
@@ -1692,6 +1711,40 @@ class _SaveDefaultButton extends StatelessWidget {
       ]),
     );
   }
+}
+
+/// A button beside a page's title: slimmer than the rows' buttons, as it belongs to the page, not
+/// to a setting.
+ButtonStyle _pageButtonStyle(BuildContext context) {
+  final colors = context.colors;
+  return OutlinedButton.styleFrom(
+    minimumSize: const Size(0, 26),
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    visualDensity: VisualDensity.compact,
+    shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(13)),
+    side: BorderSide(color: colors.line),
+    // The theme's, so it keeps the app's font.
+    textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12, fontWeight: FontWeight.w500),
+    disabledForegroundColor: colors.textMuted,
+  );
+}
+
+/// Shortcuts' Reset to Default, beside its title while a command's keys are the user's: every
+/// command's own again.
+class _ResetShortcuts extends StatelessWidget {
+  const _ResetShortcuts(this.settings);
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: OutlinedButton(
+          style: _pageButtonStyle(context),
+          onPressed: () => settings.keys = KeyMap.standard,
+          child: Text('Reset to Default'.tr),
+        ),
+      );
 }
 
 /// A page: groups of rows, each group optionally under a small heading; [empty] when there are none.
@@ -1741,8 +1794,19 @@ class _Page extends StatelessWidget {
 
 class _SettingRow extends StatelessWidget {
   const _SettingRow(
-      {super.key, required this.title, this.named = false, this.note, required this.help, required this.control, this.below, this.leading});
+      {super.key,
+      required this.title,
+      this.named = false,
+      this.note,
+      required this.help,
+      required this.control,
+      this.below,
+      this.leading,
+      this.dense = false});
   final String title;
+
+  /// Slimmer, as a page of many short rows has them ([_Category.dense]).
+  final bool dense;
 
   /// Before the title (About's update badge, or room as wide as it so titles line up).
   final Widget? leading;
@@ -1759,9 +1823,9 @@ class _SettingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final row = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 52),
+      constraints: BoxConstraints(minHeight: dense ? 42 : 52),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+        padding: EdgeInsets.fromLTRB(14, dense ? 6 : 10, 12, dense ? 6 : 10),
         child: Row(children: [
           if (leading case final leading?) ...[leading, const SizedBox(width: 12)],
           Expanded(

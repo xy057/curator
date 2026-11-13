@@ -325,7 +325,10 @@ enum AppIcon {
   license(IconData(0xE069, fontFamily: _refined), IconData(0xE069, fontFamily: _carbon)),
 
   /// Updates to the app. Refined: update; Carbon: update-now.
-  update(IconData(0xE06A, fontFamily: _refined), IconData(0xE06A, fontFamily: _carbon));
+  update(IconData(0xE06A, fontFamily: _refined), IconData(0xE06A, fontFamily: _carbon)),
+
+  /// Keyboard shortcuts. Refined: keyboard; Carbon: keyboard.
+  keyboard(IconData(0xE06B, fontFamily: _refined), IconData(0xE06B, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

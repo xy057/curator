@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'app_colors.dart';
 import 'app_icons.dart';
+import 'key_bindings.dart';
 import 'l10n/l10n.dart';
 import 'ui_kit.dart';
 
@@ -315,7 +316,7 @@ class _TabState extends State<_Tab> {
                     child: _hover || selected && !widget.edited
                         // Its tooltip apart from the tab's (see OverlaySemantics).
                         ? OverlaySemantics(child: IconButton(
-                            tooltip: 'Close tab ({key})'.fill({'key': shortcut('⌘W')}),
+                            tooltip: keyed(context, KeyCommand.close, (key) => 'Close tab ({key})'.fill({'key': key}), 'Close tab'.tr),
                             onPressed: onClose,
                             iconSize: 12,
                             padding: EdgeInsets.zero,
