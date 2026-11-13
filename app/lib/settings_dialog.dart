@@ -462,7 +462,8 @@ final _projectCategories = <_Category>[
       keywords: 'add remove delete recording audio file video sound',
     ),
   ]),
-  _Category('Animation', AppIcon.transition, [
+  // How the score shows as it plays; how each of those moves is Animation's.
+  _Category('Display', AppIcon.show, [
     _Item(
       'Staff transition',
       (_) => 'Regions can have their own.',
@@ -488,7 +489,7 @@ final _projectCategories = <_Category>[
     ),
   ], saveDefault: (
     shown: null,
-    isDefault: _animationIsDefault,
+    isDefault: _displayIsDefault,
     save: (c) => c.settings
       ..transition = c.controller!.curation!.transition
       ..scrollFollow = c.controller!.scrollFollow,
@@ -580,16 +581,16 @@ final _projectCategories = <_Category>[
         rehearsalInRow: c.settings.rehearsalInRow,
         centeredLyrics: c.settings.centeredLyrics),
   )),
-  _advancedCategory(),
+  _animationCategory(),
 ];
 
-/// Project Settings ▸ Advanced: how the staves are spaced and how the score moves, every curve
+/// Project Settings ▸ Animation: how the staves are spaced and how the score moves, every curve
 /// and length of time in it ([MotionSetting.all]), each over the app's default (Save as default).
-_Category _advancedCategory() {
+_Category _animationCategory() {
   MotionTarget target(_Context c) => MotionTarget(c.settings, c.controller!);
   return _Category(
-    'Advanced',
-    AppIcon.settings,
+    'Animation',
+    AppIcon.transition,
     saveDefault: (
       shown: null,
       isDefault: (c) => target(c).isDefault,
@@ -681,8 +682,8 @@ bool _flagsAreDefault(_Context c) =>
     c.controller!.rehearsalInRow == c.settings.rehearsalInRow &&
     c.controller!.centeredLyrics == c.settings.centeredLyrics;
 
-/// Whether the project's animation is the app's default (Save as default).
-bool _animationIsDefault(_Context c) =>
+/// Whether the project's display is the app's default (Save as default).
+bool _displayIsDefault(_Context c) =>
     c.settings.transition == c.controller!.curation!.transition && c.settings.scrollFollow == c.controller!.scrollFollow;
 
 /// How many of the score's pairs share a staff.

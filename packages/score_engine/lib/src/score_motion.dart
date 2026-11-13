@@ -131,7 +131,7 @@ class MotionCurve {
   static final _house = {for (final (_, e) in presets) e.expression};
 }
 
-/// Everything about how the score moves that isn't a region's own (Project Settings ▸ Advanced):
+/// Everything about how the score moves that isn't a region's own (Project Settings ▸ Animation):
 /// how far apart the staves stand, how they glide and fade, how the scroll comes to rest, how the frame fades out at the end,
 /// how a caption comes in, how the bar numbers' row rises and the tempo at the left gives way.
 /// The default is the house style.

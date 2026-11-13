@@ -4291,3 +4291,7 @@ msgstr "升a小調"
 msgctxt "tonality"
 msgid "Key"
 msgstr "調性"
+
+msgctxt "page"
+msgid "Display"
+msgstr "顯示"

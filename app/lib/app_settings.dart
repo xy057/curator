@@ -330,7 +330,7 @@ class AppSettings extends ChangeNotifier {
   static const transitionChoices = [0.15, 0.3, 0.5, 0.8, 1.2];
 
   /// The staff transition new projects start with (each project saves its own; Project
-  /// Settings ▸ Animation ▸ Save as default).
+  /// Settings ▸ Display ▸ Save as default).
   double get transition => _transition;
   double _transition;
   set transition(double value) {
@@ -400,7 +400,7 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// How the score moves in a project without its own (Project Settings ▸ Advanced ▸ Save as
+  /// How the score moves in a project without its own (Project Settings ▸ Animation ▸ Save as
   /// default): the house style until then.
   ScoreMotion get motion => _motion;
   ScoreMotion _motion;

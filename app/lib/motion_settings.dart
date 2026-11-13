@@ -14,7 +14,7 @@ import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
 
-/// One of Project Settings ▸ Advanced's rows: a [ScoreMotion] setting by its JSON [key],
+/// One of Project Settings ▸ Animation's rows: a [ScoreMotion] setting by its JSON [key],
 /// under [group]. A number has a [unit] and a slider [step]; a curve has neither.
 class MotionSetting {
   const MotionSetting(this.key, this.title, this.group, {this.unit, this.step, this.percent = false, this.keywords = ''});

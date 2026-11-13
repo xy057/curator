@@ -4291,3 +4291,7 @@ msgstr "嬰イ短調"
 msgctxt "tonality"
 msgid "Key"
 msgstr "調"
+
+msgctxt "page"
+msgid "Display"
+msgstr "表示"

@@ -68,7 +68,7 @@ void main() {
     for (final p in ['General', 'Appearance', 'Advanced', 'Download Hub', 'Remote AI Provider', 'About']) {
       await page(p, () => showSettingsDialog(context(), settings, controller: c, page: p));
     }
-    for (final p in ['Project Info', 'Animation', 'Instruments', 'Sections', 'Condensing', 'Extensions', 'Flags', 'Engraving']) {
+    for (final p in ['Project Info', 'Display', 'Instruments', 'Sections', 'Condensing', 'Extensions', 'Flags', 'Engraving', 'Animation']) {
       await page('Project $p', () => showProjectSettingsDialog(context(), settings, c, page: p));
     }
     for (final t in ['Typography', 'Advanced']) {

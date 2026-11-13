@@ -4272,3 +4272,7 @@ msgstr ""
 msgctxt "tonality"
 msgid "Key"
 msgstr ""
+
+msgctxt "page"
+msgid "Display"
+msgstr ""
