@@ -1012,13 +1012,27 @@ class AppColors extends ThemeExtension<AppColors> {
       backgroundColor: states(k.primary, hover: k.primaryHover, press: k.primaryActive, disabled: k.buttonDisabled),
       foregroundColor: states(Colors.white, disabled: k.onColorDisabled),
     );
-    // Tertiary: an outline in the accent, filled while hovered.
+    // Tertiary: an edge in $button-tertiary, filled with it while hovered, pressed or focused (the
+    // edge then the fill's, or the focus ring). The edge is the button's side, not its shape's: a
+    // button lays its side over its shape's, and an outlined one's own is the theme's outline.
+    WidgetStateProperty<Color> tertiaryFill(Color rest) => WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
+        ? rest
+        : s.contains(WidgetState.pressed)
+            ? k.tertiaryActive
+            : s.contains(WidgetState.hovered)
+                ? k.tertiaryHover
+                : s.contains(WidgetState.focused)
+                    ? k.tertiary
+                    : rest);
+    final edge = tertiaryFill(k.tertiary);
     final tertiary = button.copyWith(
-      backgroundColor: states(Colors.transparent, hover: k.tertiaryHover, press: k.tertiaryActive, disabled: Colors.transparent),
-      foregroundColor: states(k.tertiary, hover: k.onTertiaryHover, press: k.onTertiaryHover, disabled: k.textDisabled),
-      shape: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.focused) && !s.contains(WidgetState.pressed)
-          ? focusRing
-          : RoundedRectangleBorder(side: BorderSide(color: s.contains(WidgetState.disabled) ? k.buttonDisabled : k.tertiary))),
+      backgroundColor: tertiaryFill(Colors.transparent),
+      foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
+          ? k.textDisabled
+          : s.contains(WidgetState.pressed) || s.contains(WidgetState.hovered) || s.contains(WidgetState.focused)
+              ? k.onTertiaryHover
+              : k.tertiary),
+      side: WidgetStateProperty.resolveWith((s) => BorderSide(color: s.contains(WidgetState.disabled) ? k.buttonDisabled : edge.resolve(s))),
     );
     // Ghost: the accent's link colour on nothing, a hover's fill under it.
     final ghost = button.copyWith(
