@@ -1019,9 +1019,11 @@ class AppColors extends ThemeExtension<AppColors> {
       shape: shape(),
       textStyle: WidgetStatePropertyAll(label),
       minimumSize: WidgetStatePropertyAll(Size(0, m.control)),
-      // The condensed density's inline padding: the label at the left, room for an icon at the right.
+      // The condensed density's inline padding: the label at the left, room for an icon at the right,
+      // where Carbon carries a button's icon (withIconStyle puts it there).
       padding: const WidgetStatePropertyAll(EdgeInsets.fromLTRB(7, 0, 39, 0)),
       alignment: Alignment.centerLeft,
+      iconAlignment: IconAlignment.end,
       animationDuration: const Duration(milliseconds: 70),
       visualDensity: VisualDensity.standard,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,

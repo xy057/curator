@@ -288,7 +288,8 @@ class _PdfAiModelDialogState extends State<_PdfAiModelDialog> {
     if (result == null) {
       return Row(children: [
         Expanded(child: Text('Not tested yet.'.tr, style: muted)),
-        OutlinedButton.icon(onPressed: _start, icon: Icon(AppIcon.test.of(context), size: 16), label: Text('Run Exam'.tr)),
+        OutlinedButton.icon(
+            style: withIconStyle(context), onPressed: _start, icon: Icon(AppIcon.test.of(context), size: 16), label: Text('Run Exam'.tr)),
       ]);
     }
     final percent = pdfAiPercent(result), verdict = PdfAiVerdict.of(percent), color = verdict.color(context);

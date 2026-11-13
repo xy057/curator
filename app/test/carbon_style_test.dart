@@ -104,4 +104,20 @@ void main() {
       expect(DefaultTextStyle.of(tester.element(find.text('Prelude'))).style.fontWeight, FontWeight.w400);
     }
   });
+
+  testWidgets('a button carries its icon at the right: a filled or outlined one at its right end, a ghost one after its label',
+      (tester) async {
+    for (final (kind, make) in <(String, Widget Function(BuildContext))>[
+      ('filled', (c) => FilledButton.icon(style: withIconStyle(c), onPressed: () {}, icon: const Icon(Icons.add, size: 16), label: const Text('Open'))),
+      ('outlined', (c) => OutlinedButton.icon(style: withIconStyle(c), onPressed: () {}, icon: const Icon(Icons.add, size: 16), label: const Text('Open'))),
+      ('ghost', (c) => TextButton.icon(onPressed: () {}, icon: const Icon(Icons.add, size: 16), label: const Text('Open'))),
+    ]) {
+      await _carbon(tester, Builder(builder: make));
+      final button = find.byWidgetPredicate((w) => w is ButtonStyleButton);
+      final icon = tester.getRect(find.byType(Icon)), label = tester.getRect(find.text('Open'));
+      expect(icon.left, greaterThan(label.right), reason: kind);
+      expect(label.left - tester.getRect(button).left, 7, reason: '$kind: the label where a button\'s is');
+      if (kind != 'ghost') expect(tester.getRect(button).right - icon.right, 8, reason: '$kind: 8 px in from the right end');
+    }
+  });
 }
