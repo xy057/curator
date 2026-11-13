@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-13 15:57\n"
+"PO-Revision-Date: 2026-11-13 22:41\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -888,10 +888,6 @@ msgstr ""
 msgid "Downloading {version}…"
 msgstr ""
 
-#: lib/instruments_toolbar.dart
-msgid "Draw (D)"
-msgstr ""
-
 msgid "Try a MIDI file or a recording."
 msgstr ""
 
@@ -964,10 +960,6 @@ msgstr ""
 msgid "end ({at})"
 msgstr ""
 
-#: lib/instruments_toolbar.dart
-msgid "End at the playhead (])"
-msgstr ""
-
 msgid "Ending"
 msgstr ""
 
@@ -989,10 +981,6 @@ msgstr ""
 
 #: lib/spacer_dialogs.dart
 msgid "Enter {min} to {max} staff spaces"
-msgstr ""
-
-#: lib/instruments_toolbar.dart
-msgid "Erase (E)"
 msgstr ""
 
 msgid "Even spacing"
@@ -1173,10 +1161,6 @@ msgstr ""
 
 #: lib/editor_toolbar.dart
 msgid "Go to bar ({key})"
-msgstr ""
-
-#: lib/editor_toolbar.dart
-msgid "Go to start (Home)"
 msgstr ""
 
 #: lib/editor_toolbar.dart
@@ -1387,10 +1371,6 @@ msgstr ""
 msgid "Mensuration signs"
 msgstr ""
 
-#: lib/editor_toolbar.dart
-msgid "Metronome (C)"
-msgstr ""
-
 #: lib/audio_panel.dart
 msgid "MIDI tempo"
 msgstr ""
@@ -1496,7 +1476,7 @@ msgstr ""
 msgid "No subtitles found in this file."
 msgstr ""
 
-#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart
 msgid "None"
 msgstr ""
 
@@ -1982,7 +1962,7 @@ msgstr ""
 msgid "Segno and coda"
 msgstr ""
 
-#: lib/instruments_toolbar.dart lib/pdf_import.dart
+#: lib/pdf_import.dart
 msgid "Select (V)"
 msgstr ""
 
@@ -2164,9 +2144,6 @@ msgstr ""
 msgid "Space below"
 msgstr ""
 
-msgid "Space marks · T or Esc stops"
-msgstr ""
-
 #: lib/instrument_lanes/lane_header.dart
 msgid "Spacer"
 msgstr ""
@@ -2199,10 +2176,6 @@ msgstr ""
 
 #: lib/instruments_toolbar.dart
 msgid "start ({at})"
-msgstr ""
-
-#: lib/instruments_toolbar.dart
-msgid "Start at the playhead ([)"
 msgstr ""
 
 #: lib/export_dialog.dart
@@ -2251,9 +2224,6 @@ msgid "Tablature"
 msgstr ""
 
 msgid "Tablature rhythms"
-msgstr ""
-
-msgid "Tap anchors (T)"
 msgstr ""
 
 msgid "Teal"
@@ -2655,17 +2625,8 @@ msgstr ""
 msgid "Voices"
 msgstr ""
 
+#: lib/audio_panel.dart
 msgid "Warp"
-msgstr ""
-
-#: lib/audio_panel.dart
-msgid "Warp (W)\n"
-"Jump to another bar here"
-msgstr ""
-
-#: lib/audio_panel.dart
-msgid "Warp (W)\n"
-"Make this anchor jump to another bar"
 msgstr ""
 
 #: lib/audio_panel.dart
@@ -4295,5 +4256,380 @@ msgstr ""
 
 #: lib/settings_dialog.dart
 msgid "Show Licenses"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Warp ({key})"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Make this anchor jump to another bar"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Jump to another bar here"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Space marks · {key} or Esc stops"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Space marks · Esc stops"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Tap anchors ({key})"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Tap anchors"
+msgstr ""
+
+#: lib/bottom_panel.dart
+msgid "Project Settings"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Show tab bar"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Go to start ({key})"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Go to start"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Metronome ({key})"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Metronome"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Find phrase"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Go to time"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Go to bar"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "Project or MusicXML"
+msgstr ""
+
+#: lib/home_screen.dart
+msgid "PDF or LilyPond score"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Select ({key})"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Select"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Draw ({key})"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Draw"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Erase ({key})"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Erase"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Start at the playhead ({key})"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "Start at the playhead"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "End at the playhead ({key})"
+msgstr ""
+
+#: lib/instruments_toolbar.dart
+msgid "End at the playhead"
+msgstr ""
+
+#: lib/key_bindings.dart
+msgctxt "key"
+msgid "Space"
+msgstr ""
+
+#: lib/key_bindings.dart
+msgid "Add ⌘ or ⌃"
+msgstr ""
+
+#: lib/key_bindings.dart
+msgid "Add Ctrl"
+msgstr ""
+
+#: lib/key_bindings.dart
+msgid "Menus can’t show this key"
+msgstr ""
+
+#: lib/project_tabs.dart
+msgid "Close tab"
+msgstr ""
+
+#: lib/shortcut_settings.dart
+msgid "Used by {command}"
+msgstr ""
+
+#: lib/shortcut_settings.dart
+msgid "Type Shortcut"
+msgstr ""
+
+msgid "Hide Curator"
+msgstr ""
+
+msgid "Hide Others"
+msgstr ""
+
+msgid "Quit Curator"
+msgstr ""
+
+msgid "Deselect"
+msgstr ""
+
+msgid "Hide / Show Preview"
+msgstr ""
+
+msgid "Hide / Show Timeline"
+msgstr ""
+
+msgid "Hide / Show Tab Bar"
+msgstr ""
+
+msgid "Minimize"
+msgstr ""
+
+msgid "Enter Full Screen"
+msgstr ""
+
+msgid "Play / Pause"
+msgstr ""
+
+msgid "Go to end"
+msgstr ""
+
+msgid "Go to bar or time"
+msgstr ""
+
+msgid "Skip 5 s"
+msgstr ""
+
+msgid "Skip 1 s"
+msgstr ""
+
+msgid "Tap an anchor"
+msgstr ""
+
+msgid "Nudge anchors"
+msgstr ""
+
+msgid "Re-point anchors"
+msgstr ""
+
+msgid "Move a tempo change"
+msgstr ""
+
+msgid "Tempo up / down"
+msgstr ""
+
+msgid "Move regions or a key area"
+msgstr ""
+
+msgid "Select in the lane above / below"
+msgstr ""
+
+msgid "Note Input"
+msgstr ""
+
+msgid "Show the first / last bar"
+msgstr ""
+
+msgid "Go to the first / last bar"
+msgstr ""
+
+msgid "Actual Size"
+msgstr ""
+
+msgid "Previous / next note"
+msgstr ""
+
+msgid "Previous / next bar"
+msgstr ""
+
+msgid "Staff above / below"
+msgstr ""
+
+msgid "Up / down a step"
+msgstr ""
+
+msgid "Up / down an octave"
+msgstr ""
+
+msgid "Respell"
+msgstr ""
+
+msgid "Move markings"
+msgstr ""
+
+msgid "Repeat the selection"
+msgstr ""
+
+msgid "Add to the chord"
+msgstr ""
+
+msgid "Note values"
+msgstr ""
+
+msgid "Dot"
+msgstr ""
+
+msgid "Flat"
+msgstr ""
+
+msgid "Natural"
+msgstr ""
+
+msgid "Sharp"
+msgstr ""
+
+msgid "Grace Note"
+msgstr ""
+
+msgid "Appoggiatura"
+msgstr ""
+
+msgid "Tie"
+msgstr ""
+
+msgid "Slur"
+msgstr ""
+
+msgid "End the tuplet"
+msgstr ""
+
+msgid "Next voice"
+msgstr ""
+
+msgid "Move the caret on"
+msgstr ""
+
+msgid "Accent"
+msgstr ""
+
+msgid "Staccato"
+msgstr ""
+
+msgid "Marcato"
+msgstr ""
+
+msgid "Tenuto"
+msgstr ""
+
+msgid "Staccatissimo"
+msgstr ""
+
+msgid "Previous / next page"
+msgstr ""
+
+msgid "Add Barline"
+msgstr ""
+
+msgid "Draw Region"
+msgstr ""
+
+msgid "Mask Lane"
+msgstr ""
+
+msgid "Mask All Lanes"
+msgstr ""
+
+msgid "Next / previous match"
+msgstr ""
+
+msgid "Close Find"
+msgstr ""
+
+msgid "Stops tapping, or goes back to Select, first."
+msgstr ""
+
+msgid "With nothing selected."
+msgstr ""
+
+msgid "While tapping."
+msgstr ""
+
+msgid "⇧ 1 ms"
+msgstr ""
+
+msgid "A beat · ⇧ a sixteenth"
+msgstr ""
+
+msgid "1 BPM · ⇧ 0.1"
+msgstr ""
+
+msgid "A bar · ⇧ a beat"
+msgstr ""
+
+msgid "⇧ adds to the selection."
+msgstr ""
+
+msgid "With no note selected, the markings."
+msgstr ""
+
+msgid "As the note above / below."
+msgstr ""
+
+msgid "⇧ hairpins’ ends"
+msgstr ""
+
+msgid "Stops note input first."
+msgstr ""
+
+msgid "With no caret, the selected notes’ pitch."
+msgstr ""
+
+msgid "⇧ an octave"
+msgstr ""
+
+msgid "Playback"
+msgstr ""
+
+msgid "Score Editor"
+msgstr ""
+
+msgid "Notations"
+msgstr ""
+
+msgid "PDF Import"
+msgstr ""
+
+msgid "LilyPond and MusicXML"
+msgstr ""
+
+msgid "Shortcuts"
 msgstr ""
 
