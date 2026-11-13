@@ -172,22 +172,22 @@ void main() {
       List<int> listing(Map<String, Object?> extra) => utf8.encode(jsonEncode({...manifest, 'modules': {...modules, ...extra}}));
 
       rewrite(path, {
-        'manifest.json': listing({'tonality': {'version': 3, 'optional': true}}),
-        'modules/tonality.json': utf8.encode('{"keys":[1,2]}'),
-        'tonality/bar-1.bin': [1, 2, 3],
+        'manifest.json': listing({'harmony': {'version': 3, 'optional': true}}),
+        'modules/harmony.json': utf8.encode('{"keys":[1,2]}'),
+        'harmony/bar-1.bin': [1, 2, 3],
       });
       final opened = await open(path);
       expect(opened.state.edits.textEdits, {'d1': 'hello'});
-      expect(opened.state.foreign.keys, ['tonality']);
+      expect(opened.state.foreign.keys, ['harmony']);
       // Saved here: still there, as it came.
       final again = '${dir.path}/again.ccs';
       await ProjectFile.write(again, ProjectContents(scoreName: 'Score.musicxml', scoreBytes: Uint8List(1), state: opened.state));
-      expect(json(again, 'manifest.json')['modules'], containsPair('tonality', {'version': 3, 'optional': true}));
-      expect(json(again, 'modules/tonality.json'), {'keys': [1, 2]});
-      expect(ZipDecoder().decodeBytes(File(again).readAsBytesSync()).findFile('tonality/bar-1.bin')!.content, [1, 2, 3]);
+      expect(json(again, 'manifest.json')['modules'], containsPair('harmony', {'version': 3, 'optional': true}));
+      expect(json(again, 'modules/harmony.json'), {'keys': [1, 2]});
+      expect(ZipDecoder().decodeBytes(File(again).readAsBytesSync()).findFile('harmony/bar-1.bin')!.content, [1, 2, 3]);
 
       for (final extra in [
-        {'tonality': {'version': 1}}, // a module of a newer version, needed
+        {'harmony': {'version': 1}}, // a module of a newer version, needed
         {'sync': {'version': 99}}, // a newer version of one known here
       ]) {
         rewrite(path, {'manifest.json': listing(extra)});
@@ -335,6 +335,9 @@ void main() {
       c.chapters.enabled = true;
       c.chapters.add(Chapter(starts[4], 'Second theme'));
       c.chapters.add(Chapter(starts[0], 'Opening'));
+      c.tonality.enabled = true;
+      c.tonality.add(KeyArea(starts[0], starts[16], const MusicKey.of(0, minor: true)));
+      c.tonality.add(KeyArea(starts[8], starts[12], const MusicKey.of(-1), '(F major)')); // over it: cut in two
       final typography = ScoreTypography.standard.withValue('names.size', 1.2).withValue('lyrics.face', TextFace.bold);
       await c.setTypography(typography);
       final saved = c.projectState;
@@ -375,6 +378,11 @@ void main() {
       expect(c2.captions.captions, [Caption(starts[1], starts[5], 'The horns answer')]);
       expect(c2.captions.font, TextFonts.academico);
       expect(c2.chapters.chapters, [Chapter(starts[0], 'Opening'), Chapter(starts[4], 'Second theme')]);
+      expect(c2.tonality.areas, [
+        KeyArea(starts[0], starts[8], const MusicKey.of(0, minor: true)),
+        KeyArea(starts[8], starts[12], const MusicKey.of(-1), '(F major)'),
+        KeyArea(starts[12], starts[16], const MusicKey.of(0, minor: true)),
+      ]);
       expect((c2.typography, c2.scene!.typography, c2.score!.typography), (typography, typography, typography));
       expect(c2.source!.bytes, demoScore.readAsBytesSync());
       expect(doc2.isDirty, isFalse);

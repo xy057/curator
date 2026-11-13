@@ -104,7 +104,7 @@ class _TakeHeader extends StatelessWidget {
 
 /// A take's lane as a [SpanLane] edits it: each change once a drag ends (it carves the other
 /// lanes, and restarts the sound).
-class _TakeRegions implements SpanLaneModel {
+class _TakeRegions extends SpanLaneModel {
   _TakeRegions(this.c, this.id);
   final EditorController c;
   final String id;

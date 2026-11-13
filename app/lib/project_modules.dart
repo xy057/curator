@@ -61,6 +61,7 @@ abstract final class ProjectModules {
   static const images = _Images();
   static const captions = _Captions();
   static const chapters = _Chapters();
+  static const tonality = _Tonality();
   static const spacers = _Spacers();
   static const view = _View();
   static const pdf = _Pdf();
@@ -69,7 +70,7 @@ abstract final class ProjectModules {
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
     pdf, lilypond, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, chapters, //
-    spacers, view,
+    tonality, spacers, view,
   ];
 
   /// The score-wide settings, what a page of Project Settings sets for the whole score: a
@@ -681,6 +682,49 @@ final class _Chapters extends ProjectModule {
           ]),
         ),
       );
+}
+
+/// Key areas (Tonality), `[start, end, tonic, mode]` and the user's marking after them if there
+/// is one, in the score's order: a tonic as fifths from C (`-1` F, `6` F♯), a mode `major` or
+/// `minor`.
+/// Optional: an older build, which shows nothing of them, opens the project and keeps them.
+final class _Tonality extends ProjectModule {
+  const _Tonality() : super('tonality', optional: true);
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {
+        'areas': [
+          for (final a in state.edits.keyAreas) [a.start, a.end, a.key.tonic, a.key.minor ? 'minor' : 'major', ?a.label],
+        ],
+      };
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    KeyArea area(int i, num start, num end, int tonic, String mode, String? label) {
+      final key = MusicKey(tonic, minor: mode == 'minor');
+      if (start < 0) throw _damaged('${r.where}.areas[$i] starts before the score.');
+      if (end <= start) throw _damaged('${r.where}.areas[$i] ends before it starts.');
+      if ((mode != 'major' && mode != 'minor') || !key.isValid) throw _damaged('${r.where}.areas[$i] is not a key there is.');
+      return KeyArea(start.toDouble(), end.toDouble(), key, label);
+    }
+
+    bool inRange(num start, num end) => start.abs() <= JsonReader.maxNumber && end.abs() <= JsonReader.maxNumber;
+
+    return state.copyWith(
+      edits: state.edits.copyWith(
+        keyAreas: tidyKeyAreas([
+          for (final (i, a) in r.list('areas').indexed)
+            switch (a) {
+              [final num start, final num end, final int tonic, final String mode] when inRange(start, end) =>
+                area(i, start, end, tonic, mode, null),
+              [final num start, final num end, final int tonic, final String mode, final String label] when inRange(start, end) =>
+                area(i, start, end, tonic, mode, label),
+              _ => throw _damaged('${r.where}.areas[$i] is not a stretch and a key.'),
+            },
+        ]),
+      ),
+    );
+  }
 }
 
 /// Spacers (Attach Image): vertical ones, staves of nothing, in the order they were added;

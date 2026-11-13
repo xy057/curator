@@ -22,8 +22,10 @@ import 'score_motion.dart';
 import 'score_patch.dart';
 import 'score_renderer.dart';
 import 'score_text.dart';
+import 'score_tonality.dart';
 import 'score_typography.dart';
 import 'scroll_map.dart';
+import 'search.dart';
 import 'spacers.dart';
 import 'spacing_plan.dart';
 import 'staff_stack.dart';
@@ -558,6 +560,7 @@ class SceneSettings {
     this.motion = ScoreMotion.standard,
     this.typography = ScoreTypography.standard,
     this.spacers = const [],
+    this.keyAreas = const [],
   });
 
   /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
@@ -578,6 +581,7 @@ class SceneSettings {
   final ScoreMotion motion;
   final ScoreTypography typography;
   final List<VerticalSpacer> spacers;
+  final List<KeyArea> keyAreas;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -625,6 +629,7 @@ class CuratedScene {
     _fitPlan = null;
     _liftKey = Object(); // the row's rises were for the old size: never a plan's key
     _disposeBarNumbers(); // laid out for the old size
+    _disposeKeyNames();
   }
 
   /// How the score lines up with the recording (the tempo track). Defaults to the score's
@@ -693,7 +698,7 @@ class CuratedScene {
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
   /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [instrumentSpacing], [barNumbers],
-  /// [rehearsalInRow], [nameColors], [pointerColor], [motion]);
+  /// [rehearsalInRow], [nameColors], [pointerColor], [motion], [typography], [spacers], [keyAreas]);
   /// setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
@@ -712,7 +717,8 @@ class CuratedScene {
       pointerColor: pointerColor,
       motion: motion,
       typography: typography,
-      spacers: spacers);
+      spacers: spacers,
+      keyAreas: keyAreas);
   set settings(SceneSettings value) {
     names = value.names;
     condensed = value.condensed;
@@ -731,6 +737,7 @@ class CuratedScene {
     motion = value.motion;
     typography = value.typography;
     spacers = value.spacers;
+    keyAreas = value.keyAreas;
   }
 
   /// How the vertical spacers look (their height, lines and frozen zone; their key is the
@@ -803,6 +810,7 @@ class CuratedScene {
       _disposeBarNumbers();
     }
     if (value[TextKind.tempoRow] != old[TextKind.tempoRow]) _disposeTempoTexts();
+    if (value[TextKind.tonality] != old[TextKind.tonality]) _disposeKeyNames();
     if (value[TextKind.captions] != old[TextKind.captions]) {
       _captionBar.dispose();
       _captionBar = CaptionBar(_style.textFontFamily, _captionBar.style, value[TextKind.captions]);
@@ -878,6 +886,10 @@ class CuratedScene {
 
   /// Free space above the first and below the last staff ([ScoreMotion.margin]).
   double get verticalMargin => _motion.margin;
+
+  /// Where the staves' room starts in a frame: under the top margin, and under the tonality
+  /// band while there is one.
+  double get _top => verticalMargin + _bandReserve;
 
   SpacingPlan? _plan;
   KeyColumnPlan? _keyPlan;
@@ -1017,18 +1029,18 @@ class CuratedScene {
   }
 
   StackMetrics _metrics(ui.Size size) => StackMetrics(
-        availableHeight: (size.height - 2 * verticalMargin - _captionReserve).clamp(0, double.infinity),
+        availableHeight: (size.height - 2 * verticalMargin - _captionReserve - _bandReserve).clamp(0, double.infinity),
         minGap: _motion.minGap,
         maxGap: math.max(_motion.minGap, _motion.maxGap),
       );
 
   /// What a plan for this curation and frame size is made from: a new key, a new plan.
   Object _planKeyFor(Curation curation, ui.Size size) =>
-      (curation, curation.revision, curation.transition, size, verticalMargin, _motion.minGap, _motion.maxGap, _timelineVersion, _condensedVersion, _orderVersion, _spacingVersion, _captionReserve, _displayVersion, _motion.glide);
+      (curation, curation.revision, curation.transition, size, verticalMargin, _motion.minGap, _motion.maxGap, _timelineVersion, _condensedVersion, _orderVersion, _spacingVersion, _captionReserve, _bandReserve, _displayVersion, _motion.glide);
 
   SpacingPlan _buildPlan(Curation curation, ui.Size size) {
     final pointerX = renderer.pointerX(size.width);
-    final top = verticalMargin; // the plan's 0 in the frame
+    final top = _top; // the plan's 0 in the frame
     return SpacingPlan.build(
       staves: display.staves,
       order: _order,
@@ -1152,6 +1164,7 @@ class CuratedScene {
     // Paper painted over see-through paper would show nothing: the whole frame fades instead.
     final fadeLayer = fade > 0 && paperColor.a < 1;
     if (fadeLayer) canvas.saveLayer(ui.Offset.zero & size, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, 1 - fade));
+    final keyColumn = keyColumnAt(time, curation, size);
     renderer.paint(canvas, size,
         scrollX: scrollX,
         placements: frame.placements,
@@ -1161,7 +1174,7 @@ class CuratedScene {
         joins: frame.joins,
         outsetBrackets: sections && _sectionRuns.any((r) => r.outset),
         devicePixelRatio: devicePixelRatio,
-        keyColumn: keyColumnAt(time, curation, size),
+        keyColumn: keyColumn,
         paper: paper,
         ink: ink,
         pointer: pointerColor,
@@ -1183,6 +1196,7 @@ class CuratedScene {
     if (captions.isNotEmpty) {
       _captionBar.paint(canvas, size, time, _captionSpans, captions, ink ?? style.ink, motion: _motion, paper: paperColor);
     }
+    if (_keyAreas.isNotEmpty) _paintTonality(canvas, size, scrollX, renderer.musicLeftFor(keyColumn));
     if (fadeLayer) {
       canvas.restore();
     } else if (fade > 0) {
@@ -1237,6 +1251,122 @@ class CuratedScene {
 
   /// Where caption [index]'s text is drawn in a frame of [size] (points).
   ui.Rect captionRect(int index, ui.Size size) => _captionBar.rectOf(_captions[index].text, size);
+
+  // MARK: Tonality
+
+  /// The key areas (the Tonality extension), in a band along the frame's top that the staves
+  /// leave room for while there are any. Each is drawn in its key's colour ([MusicKey.color])
+  /// from its start to its end (a sliver of paper between two that meet; none where none is),
+  /// named at its start by its [KeyArea.label]
+  /// (the app gives the key's name, in the user's language, to one without a marking of the
+  /// user's). Over the names and the frozen zone the band shows the key the music at their right
+  /// is in, named at the frame's left, as the zone shows that music's key signature; one gives
+  /// way to the next (or to none) over [ScoreMotion.tempoFade] staff spaces of scroll, as the
+  /// tempo at the left does.
+  List<KeyArea> get keyAreas => _keyAreas;
+  List<KeyArea> _keyAreas = const [];
+  set keyAreas(List<KeyArea> value) {
+    if (listEquals(value, _keyAreas)) return;
+    _keyAreas = List.unmodifiable(value);
+    _keyXs = null;
+  }
+
+  /// Where each key area starts and ends, engraving x: at a bar's start its barline (the bar's
+  /// left is past a key signature it starts with), else the score x of its place.
+  List<({double start, double end})>? _keyXs;
+
+  /// The band's text size, points: as the bar numbers', [TextKind.tonality]'s size times.
+  double get _bandFont => _style.staffSpace * 1.25 * _typography[TextKind.tonality].size;
+
+  /// The band's height, points.
+  double get _bandHeight => (_bandFont * 1.9).roundToDouble();
+
+  /// Room the staves leave for the band: none without key areas.
+  double get _bandReserve => _keyAreas.isEmpty ? 0 : _bandHeight;
+
+  double _xOfPlace(double at) {
+    final starts = score.timeline.measureStarts, measures = score.engraving.measures;
+    final m = segmentAt(starts.length, at + 1e-9, (i) => starts[i]);
+    if (m < measures.length && (starts[m] - at).abs() < 1e-6) return m > 0 ? measures[m - 1].right : measures[0].left;
+    return axis.xAt(at);
+  }
+
+  final _keyNames = <String, ui.Paragraph>{};
+
+  /// [text] laid out as [TextKind.tonality] looks, in the paper's white.
+  ui.Paragraph _keyName(String text) {
+    if (_keyNames[text] case final name?) return name;
+    if (_keyNames.length >= 64) _disposeKeyNames(); // markings of the user's, typed one by one
+    final look = _typography[TextKind.tonality], fontSize = _bandFont;
+    final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
+        fontFamily: _style.textFontFamily,
+        fontSize: fontSize,
+        fontStyle: look.face.fontStyle,
+        fontWeight: look.face.fontWeight,
+        maxLines: 1))
+      ..pushStyle(ui.TextStyle(color: ui.Color.fromRGBO(255, 255, 255, look.opacity), letterSpacing: look.spacingAt(fontSize)))
+      ..addText(text);
+    return _keyNames[text] = builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
+  }
+
+  void _disposeKeyNames() {
+    for (final p in _keyNames.values) {
+      p.dispose();
+    }
+    _keyNames.clear();
+  }
+
+  void _paintTonality(ui.Canvas canvas, ui.Size size, double scrollX, double musicLeft) {
+    final areas = _keyAreas, xs = _keyXs ??= [for (final a in areas) (start: _xOfPlace(a.start), end: _xOfPlace(a.end))];
+    if (score.engraving.measures.isEmpty) return;
+    final scale = renderer.scale, sp = _style.staffSpace;
+    final height = _bandHeight, gap = math.max(1.0, sp * 0.12), pad = sp * 0.6;
+    final pointerX = renderer.pointerX(size.width), originX = pointerX - scrollX * scale;
+
+    void area(int i, ui.Rect rect, double nameX) {
+      canvas
+        ..save()
+        ..clipRect(rect)
+        ..drawRect(rect, ui.Paint()..color = areas[i].key.color);
+      final name = _keyName(areas[i].label ?? areas[i].key.name);
+      canvas
+        ..drawParagraph(name, ui.Offset(nameX, (height - name.height) / 2))
+        ..restore();
+    }
+
+    // The music's part, scrolling with it: each area named at its start.
+    canvas
+      ..save()
+      ..clipRect(ui.Rect.fromLTRB(musicLeft, 0, size.width, height));
+    for (var i = 0; i < areas.length; i++) {
+      // Paper between two that meet, so two areas of one key are two.
+      final meets = i + 1 < areas.length && (areas[i + 1].start - areas[i].end).abs() < 1e-6;
+      final left = originX + xs[i].start * scale, right = originX + xs[i].end * scale - (meets ? gap : 0);
+      if (right <= math.max(left, musicLeft) || left >= size.width) continue;
+      area(i, ui.Rect.fromLTRB(left, 0, right, height), left + pad);
+    }
+    canvas.restore();
+
+    // Over the names and the frozen zone: the key the music is in where it starts.
+    final edgeX = scrollX - (pointerX - musicLeft) / scale;
+    final fade = _motion.tempoFade * display.data.staffSpace, curve = _motion.tempoCurve;
+    double arrived(double x) {
+      final past = edgeX - x;
+      return fade > 0 ? curve.inside(past / fade + 0.5) : (past >= 0 ? 1.0 : 0.0);
+    }
+
+    for (var i = 0; i < areas.length; i++) {
+      final opacity = arrived(xs[i].start) * (1 - arrived(xs[i].end));
+      if (opacity <= 0.001) continue;
+      if (opacity < 0.999) canvas.saveLayer(null, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, opacity));
+      area(i, ui.Rect.fromLTRB(0, 0, musicLeft, height), pad + 2);
+      if (opacity < 0.999) canvas.restore();
+    }
+
+    // The playhead runs on through the band.
+    canvas.drawRect(ui.Rect.fromLTWH(pointerX - _style.pointerWidth / 2, 0, _style.pointerWidth, height),
+        ui.Paint()..color = pointerColor ?? _style.pointer);
+  }
 
   // MARK: Bar numbers
 
@@ -1354,10 +1484,10 @@ class CuratedScene {
   }
 
   /// The row's bottom in a frame, before any move: just above the room the staves have.
-  double get _rowBottom => verticalMargin - 6;
+  double get _rowBottom => _top - 6;
 
-  /// The highest the row's top may go: near the top.
-  static const _rowTopLimit = 4.0;
+  /// The highest the row's top may go: near the top, under the tonality band.
+  double get _rowTopLimit => _bandReserve + 4.0;
 
   /// How far the row is lifted at [time]: none, unless staves squeezed into a full frame reach
   /// up into it. It only ever rises, to the most needed so far, never settling back, and each
@@ -1415,7 +1545,7 @@ class CuratedScene {
   /// How far the row would have to rise at [time] to stay clear of the top staves' ink.
   double _rowNeedAt(double time, Curation curation, ui.Size size) {
     final tops = _planFor(curation, size).topsAt(time);
-    final scale = renderer.scale, clear = _rowBottom + 3 - verticalMargin;
+    final scale = renderer.scale, clear = _rowBottom + 3 - _top;
     double? left, right;
     var need = 0.0, checked = 0;
     for (var i = 0; i < _order.length && checked < 2; i++) {
@@ -1638,7 +1768,7 @@ class CuratedScene {
         if (gap.bar >= 0 && gap.bar < starts.length - 1)
           (
             index: i,
-            rect: ui.Rect.fromLTRB(frameXAtQuarter(starts[gap.bar] + gap.offset, time, size), verticalMargin,
+            rect: ui.Rect.fromLTRB(frameXAtQuarter(starts[gap.bar] + gap.offset, time, size), _top,
                 frameXAtQuarter(starts[gap.bar] + gap.offset + gap.length, time, size), size.height - verticalMargin),
           ),
     ];
@@ -1700,7 +1830,7 @@ class CuratedScene {
     List<StaffJoin> joins,
   }) layoutAt(double time, Curation curation, ui.Size size) {
     final visibility = _visibilityAt(time, curation);
-    final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + verticalMargin];
+    final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + _top];
     final parts = {for (final p in score.metadata.parts) p.id: p};
 
     final placements = <StaffPlacement>[];
@@ -1836,5 +1966,6 @@ class CuratedScene {
     _captionBar.dispose();
     _disposeBarNumbers();
     _disposeTempoTexts();
+    _disposeKeyNames();
   }
 }

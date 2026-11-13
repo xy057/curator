@@ -4149,3 +4149,126 @@ msgstr ""
 #: lib/score_editor.dart
 msgid "Grace notes"
 msgstr ""
+
+#: lib/edit_dialogs.dart lib/tonality_lane.dart
+msgid "Add Key"
+msgstr ""
+
+#: lib/tonality_lane.dart
+msgid "Find Keys"
+msgstr ""
+
+#: lib/tonality_lane.dart
+msgid "Remove Key"
+msgstr ""
+
+#: lib/tonality_lane.dart
+msgid "Tonality"
+msgstr ""
+
+msgid "Marking"
+msgstr ""
+
+msgid "The music’s key, in color over the score."
+msgstr ""
+
+msgid "1 key"
+msgstr ""
+
+msgid "{n} keys"
+msgstr ""
+
+msgid "C♭ major"
+msgstr ""
+
+msgid "A♭ minor"
+msgstr ""
+
+msgid "G♭ major"
+msgstr ""
+
+msgid "E♭ minor"
+msgstr ""
+
+msgid "D♭ major"
+msgstr ""
+
+msgid "B♭ minor"
+msgstr ""
+
+msgid "A♭ major"
+msgstr ""
+
+msgid "F minor"
+msgstr ""
+
+msgid "E♭ major"
+msgstr ""
+
+msgid "C minor"
+msgstr ""
+
+msgid "B♭ major"
+msgstr ""
+
+msgid "G minor"
+msgstr ""
+
+msgid "F major"
+msgstr ""
+
+msgid "D minor"
+msgstr ""
+
+msgid "C major"
+msgstr ""
+
+msgid "A minor"
+msgstr ""
+
+msgid "G major"
+msgstr ""
+
+msgid "E minor"
+msgstr ""
+
+msgid "D major"
+msgstr ""
+
+msgid "B minor"
+msgstr ""
+
+msgid "A major"
+msgstr ""
+
+msgid "F♯ minor"
+msgstr ""
+
+msgid "E major"
+msgstr ""
+
+msgid "C♯ minor"
+msgstr ""
+
+msgid "B major"
+msgstr ""
+
+msgid "G♯ minor"
+msgstr ""
+
+msgid "F♯ major"
+msgstr ""
+
+msgid "D♯ minor"
+msgstr ""
+
+msgid "C♯ major"
+msgstr ""
+
+msgid "A♯ minor"
+msgstr ""
+
+#: lib/edit_dialogs.dart
+msgctxt "tonality"
+msgid "Key"
+msgstr ""

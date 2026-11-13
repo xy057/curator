@@ -310,7 +310,10 @@ enum AppIcon {
   vision(IconData(0xE064, fontFamily: _refined), IconData(0xE064, fontFamily: _carbon)),
 
   /// A model that reasons before it answers. Refined: lightbulb; Carbon: idea.
-  reasoning(IconData(0xE065, fontFamily: _refined), IconData(0xE065, fontFamily: _carbon));
+  reasoning(IconData(0xE065, fontFamily: _refined), IconData(0xE065, fontFamily: _carbon)),
+
+  /// Tonality: the key, in color. Refined: palette; Carbon: color-palette.
+  tonality(IconData(0xE066, fontFamily: _refined), IconData(0xE066, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;
