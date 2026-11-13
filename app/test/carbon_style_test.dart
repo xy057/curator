@@ -1,5 +1,10 @@
 // Carbon's controls as its guidelines draw them, where the theme alone can't be trusted to.
+import 'dart:async';
+
 import 'package:curated_score/app_colors.dart';
+import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/main.dart';
+import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/project_tabs.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -119,5 +124,32 @@ void main() {
       expect(label.left - tester.getRect(button).left, 7, reason: '$kind: the label where a button\'s is');
       if (kind != 'ghost') expect(tester.getRect(button).right - icon.right, 8, reason: '$kind: 8 px in from the right end');
     }
+  });
+
+  testWidgets('Settings sits on Carbon\'s \$overlay, which follows the style changed under it; a click on it closes it', (tester) async {
+    final settings = AppSettings.memory()
+      ..uiStyle = UiStyle.carbon
+      ..themeMode = ThemeMode.light;
+    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    await tester.pump(const Duration(seconds: 1));
+    Future<void> open() async {
+      unawaited(showSettingsDialog(tester.element(find.byType(Scaffold).first), settings, page: 'Appearance'));
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    await open();
+    await tester.tapAt(const Offset(400, 590)); // under the window
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Density'), findsNothing, reason: 'closed');
+
+    await open();
+    Finder shade(Color color) => find.byWidgetPredicate((w) => w is ColoredBox && w.color == color);
+    expect(shade(CarbonColors.of(AccentColor.sky, Brightness.light).overlay), findsOneWidget);
+    settings.themeMode = ThemeMode.dark;
+    await tester.pump(const Duration(seconds: 1));
+    expect(shade(CarbonColors.of(AccentColor.sky, Brightness.dark).overlay), findsOneWidget);
+    settings.uiStyle = UiStyle.refined;
+    await tester.pump(const Duration(seconds: 1));
+    expect(shade(Colors.black.withValues(alpha: 0.2)), findsOneWidget);
   });
 }

@@ -104,15 +104,22 @@ Future<void> _presentWindow(BuildContext context, _SettingsWindow window) => sho
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Close settings'.tr,
-      barrierColor: Colors.black.withValues(alpha: 0.2),
+      // The shade over the window is drawn below, in the style as it is now: Settings ▸ Appearance
+      // changes it under the window, and a route's barrier keeps the colour it opened with.
+      barrierColor: Colors.transparent,
       transitionDuration: motion(context, 160),
       pageBuilder: (context, _, _) => window,
       transitionBuilder: (context, animation, _, child) {
         final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeOutCubic.flipped);
+        // Carbon's $overlay, as under its modals; a light shade in Refined.
+        final shade = CarbonColors.maybeOf(context)?.overlay ?? Colors.black.withValues(alpha: 0.2);
         return FadeTransition(
           opacity: curved,
           alwaysIncludeSemantics: true, // see showAppDialog
-          child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(curved), child: child),
+          child: Stack(fit: StackFit.expand, children: [
+            IgnorePointer(child: ColoredBox(color: shade)), // a click on it reaches the barrier, which closes the window
+            ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(curved), child: child),
+          ]),
         );
       },
     );
