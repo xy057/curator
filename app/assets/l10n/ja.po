@@ -4168,3 +4168,129 @@ msgstr "装飾音（/）"
 #: lib/score_editor.dart
 msgid "Grace notes"
 msgstr "装飾音"
+
+#: lib/edit_dialogs.dart lib/tonality_lane.dart
+msgid "Add Key"
+msgstr "調を追加"
+
+#: lib/tonality_lane.dart
+msgid "Find Keys"
+msgstr "調を検出"
+
+#: lib/tonality_lane.dart
+msgid "Remove Key"
+msgstr "調を削除"
+
+#: lib/tonality_lane.dart
+msgid "Tonality"
+msgstr "調性"
+
+msgid "Marking"
+msgstr "表記"
+
+msgid "Another key starts here"
+msgstr "ここから始まる調があります"
+
+msgid "The music’s key, in color over the score."
+msgstr "楽譜の上に色で示す、音楽の調。"
+
+msgid "1 key"
+msgstr "調 1 件"
+
+msgid "{n} keys"
+msgstr "調 {n} 件"
+
+msgid "C♭ major"
+msgstr "変ハ長調"
+
+msgid "A♭ minor"
+msgstr "変イ短調"
+
+msgid "G♭ major"
+msgstr "変ト長調"
+
+msgid "E♭ minor"
+msgstr "変ホ短調"
+
+msgid "D♭ major"
+msgstr "変ニ長調"
+
+msgid "B♭ minor"
+msgstr "変ロ短調"
+
+msgid "A♭ major"
+msgstr "変イ長調"
+
+msgid "F minor"
+msgstr "ヘ短調"
+
+msgid "E♭ major"
+msgstr "変ホ長調"
+
+msgid "C minor"
+msgstr "ハ短調"
+
+msgid "B♭ major"
+msgstr "変ロ長調"
+
+msgid "G minor"
+msgstr "ト短調"
+
+msgid "F major"
+msgstr "ヘ長調"
+
+msgid "D minor"
+msgstr "ニ短調"
+
+msgid "C major"
+msgstr "ハ長調"
+
+msgid "A minor"
+msgstr "イ短調"
+
+msgid "G major"
+msgstr "ト長調"
+
+msgid "E minor"
+msgstr "ホ短調"
+
+msgid "D major"
+msgstr "ニ長調"
+
+msgid "B minor"
+msgstr "ロ短調"
+
+msgid "A major"
+msgstr "イ長調"
+
+msgid "F♯ minor"
+msgstr "嬰ヘ短調"
+
+msgid "E major"
+msgstr "ホ長調"
+
+msgid "C♯ minor"
+msgstr "嬰ハ短調"
+
+msgid "B major"
+msgstr "ロ長調"
+
+msgid "G♯ minor"
+msgstr "嬰ト短調"
+
+msgid "F♯ major"
+msgstr "嬰ヘ長調"
+
+msgid "D♯ minor"
+msgstr "嬰ニ短調"
+
+msgid "C♯ major"
+msgstr "嬰ハ長調"
+
+msgid "A♯ minor"
+msgstr "嬰イ短調"
+
+#: lib/edit_dialogs.dart
+msgctxt "tonality"
+msgid "Key"
+msgstr "調"

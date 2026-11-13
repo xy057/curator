@@ -273,4 +273,55 @@ void main() {
     }
     scene.dispose();
   });
+
+  test('tonality: a key named and coloured by its tonic, Find Keys hearing where the music goes, the scene drawing a band along the top', () async {
+    expect([for (final k in MusicKey.all.take(4)) k.name], ['C♭ major', 'A♭ minor', 'G♭ major', 'E♭ minor']);
+    expect(const MusicKey.of(6).color, const MusicKey.of(-6).color, reason: 'F♯ and G♭ major: one key spelled twice');
+    expect(tidyKeyAreas(const [KeyArea(8, MusicKey(1), ' (G) '), KeyArea(0, MusicKey(0), ' '), KeyArea(8, MusicKey(2)), KeyArea(4, MusicKey(20))]),
+        const [KeyArea(0, MusicKey(0)), KeyArea(8, MusicKey(2))]);
+
+    // Twice I IV V I in C, then twice in G with no new key signature, each bar a chord broken in quarters.
+    String piece({int shift = 0, int fifths = 0}) {
+      const spell = [('C', 0), ('C', 1), ('D', 0), ('D', 1), ('E', 0), ('F', 0), ('F', 1), ('G', 0), ('G', 1), ('A', 0), ('A', 1), ('B', 0)];
+      const c = [[60, 64, 67, 72], [65, 69, 72, 77], [67, 71, 74, 79], [60, 64, 67, 72]];
+      final bars = [...c, ...c, for (var i = 0; i < 8; i++) [for (final n in c[i % 4]) n + 7]];
+      final out = StringBuffer('<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1">');
+      for (final (b, chord) in bars.indexed) {
+        out.write('<measure number="${b + 1}">');
+        if (b == 0) out.write('<attributes><divisions>1</divisions><key><fifths>$fifths</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time></attributes>');
+        for (final n in chord) {
+          final (step, alter) = spell[(n + shift) % 12];
+          out.write('<note><pitch><step>$step</step><alter>$alter</alter><octave>${(n + shift) ~/ 12 - 1}</octave></pitch><duration>1</duration></note>');
+        }
+        out.write('</measure>');
+      }
+      return '$out</part></score-partwise>';
+    }
+
+    final starts = [for (var b = 0; b <= 16; b++) b * 4.0];
+    expect(findKeys(piece(), starts), const [KeyArea(0, MusicKey.of(0)), KeyArea(32, MusicKey.of(1))]);
+    // A tritone higher, spelled with the key signature: among six flats G♭ to D♭, among six sharps F♯ to C♯.
+    expect(findKeys(piece(shift: 6, fifths: -6), starts), const [KeyArea(0, MusicKey.of(-6)), KeyArea(32, MusicKey.of(-5))]);
+    expect(findKeys(piece(shift: 6, fifths: 6), starts), const [KeyArea(0, MusicKey.of(6)), KeyArea(32, MusicKey.of(7))]);
+    // Key signatures at concert pitch: B♭ instruments and horns written sharper, the most parts winning.
+    expect(concertKeySignatures(demoScoreWithKeyChange(bar: 20, concertFifths: -3)),
+        [(measure: 0, fifths: 0, minor: true), (measure: 19, fifths: -3, minor: null)]);
+
+    final scene = CuratedScene(score);
+    final curation = Curation(score.metadata.parts.map((p) => p.id));
+    for (final p in score.metadata.parts.skip(16)) {
+      curation.setLane(p.id, [Region(0, score.timeline.measureStarts.last)]);
+    }
+    const size = ui.Size(800, 450);
+    final top = scene.layoutAt(30, curation, size).placements.first.y;
+    scene.keyAreas = const [KeyArea(0, MusicKey.of(0, minor: true), '(A minor)')];
+    expect(scene.layoutAt(30, curation, size).placements.first.y, greaterThan(top), reason: 'the staves leave it room');
+    final frame = scene.renderFrame(800, 450, time: 30, curation: curation, devicePixelRatio: 1);
+    final pixels = (await frame.toByteData())!;
+    int at(int x, int y) => pixels.getUint32((y * 800 + x) * 4);
+    final colour = const MusicKey.of(0, minor: true).color.toARGB32();
+    expect(at(790, 2), (colour << 8 | colour >> 24) & 0xFFFFFFFF, reason: 'in A minor’s colour (RGBA)');
+    frame.dispose();
+    scene.dispose();
+  });
 }

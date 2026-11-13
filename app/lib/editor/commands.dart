@@ -44,16 +44,18 @@ class EditCommands {
       (_editor.images._selected != null ||
           _editor.captions._selected != null ||
           _editor.chapters._selected != null ||
+          _editor.tonality._selected != null ||
           _editor.spacers.hasSelection ||
           (_syncing ? !_anchors._isEmpty || _editor.takeSelection != null : _lanes.selected.isNotEmpty));
 
-  /// Delete: a selected image goes first, then a selected caption, a selected chapter, a selected spacer, then what is selected in
-  /// the tab showing.
+  /// Delete: a selected image goes first, then a selected caption, a selected chapter, a selected key area, a selected
+  /// spacer, then what is selected in the tab showing.
   void delete() {
     if (!_open) return;
     if (_editor.images._selected != null) return _editor.images.remove();
     if (_editor.captions._selected != null) return _editor.captions.remove();
     if (_editor.chapters._selected != null) return _editor.chapters.remove();
+    if (_editor.tonality._selected != null) return _editor.tonality.remove();
     if (_editor.spacers.hasSelection) {
       _editor.spacers.removeSelected();
       return;

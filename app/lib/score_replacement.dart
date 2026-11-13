@@ -234,6 +234,11 @@ class ScoreSwap {
         if (at(c.at) case final q?) c.copyWith(at: q),
     ];
 
+    final keyAreas = [
+      for (final a in edits.keyAreas)
+        if (at(a.at) case final q?) a.copyWith(at: q),
+    ];
+
     String? condensedId(String id) {
       final pair = condensable.where((p) => p.id == id).firstOrNull;
       if (pair == null) return null;
@@ -266,6 +271,7 @@ class ScoreSwap {
           patches: patches,
           captions: separateCaptions(captions),
           chapters: tidyChapters(chapters),
+          keyAreas: tidyKeyAreas(keyAreas),
           // A blank keeps its bar and beat while they are there, and never runs into the next.
           gaps: Spacers.fitted(edits.gaps, measuresAfter),
         ),
@@ -277,6 +283,7 @@ class ScoreSwap {
         warps: lostWarps,
         captions: edits.captions.length - captions.length,
         chapters: edits.chapters.length - chapters.length,
+        keys: edits.keyAreas.length - keyAreas.length,
         images: edits.patches.length - patches.length,
       ),
     );
@@ -290,7 +297,7 @@ class ScoreSwap {
     required List<double> measuresBefore,
     required List<double> measuresAfter,
     required Map<String, String> edits,
-    Lost lost = const (regions: 0, anchors: 0, warps: 0, captions: 0, chapters: 0, images: 0),
+    Lost lost = const (regions: 0, anchors: 0, warps: 0, captions: 0, chapters: 0, keys: 0, images: 0),
   }) {
     String names(Iterable<ScorePart> parts) => parts.map((p) => p.name).join(', ');
     final barsBefore = measuresBefore.length - 1, barsAfter = measuresAfter.length - 1;
@@ -308,6 +315,7 @@ class ScoreSwap {
       if (lost.warps > 0) _count(lost.warps, '1 warp', '{n} warps'),
       if (lost.captions > 0) _count(lost.captions, '1 caption', '{n} captions'),
       if (lost.chapters > 0) _count(lost.chapters, '1 chapter', '{n} chapters'),
+      if (lost.keys > 0) _count(lost.keys, '1 key', '{n} keys'),
       if (lost.images > 0) _count(lost.images, '1 image', '{n} images'),
     ];
     return [
@@ -342,7 +350,7 @@ class ScoreSwap {
 }
 
 /// What [ScoreSwap.carry] left out: past the new file's end.
-typedef Lost = ({int regions, int anchors, int warps, int captions, int chapters, int images});
+typedef Lost = ({int regions, int anchors, int warps, int captions, int chapters, int keys, int images});
 
 /// A score engraved to stand in for the open one ([EditorController.prepareReplacementWith]):
 /// nothing has changed yet.

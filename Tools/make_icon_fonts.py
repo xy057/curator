@@ -156,6 +156,8 @@ ICONS = [
     # A model's abilities (Settings ▸ Remote AI Provider)
     ('vision', 'A model that reads images.', 'visibility', 'view'),
     ('reasoning', 'A model that reasons before it answers.', 'lightbulb', 'idea'),
+    # Tonality
+    ('tonality', 'Tonality: the key, in color.', 'palette', 'color-palette'),
 ]
 
 

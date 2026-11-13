@@ -24,7 +24,7 @@ enum TextFace {
 }
 
 /// The kinds of text in the score, each set on its own (Project Settings ▸ Typography). The
-/// first four are drawn by the scene and change nothing but the drawing; the rest Verovio
+/// first five are drawn by the scene and change nothing but the drawing; the rest Verovio
 /// engraves, so changing them engraves again, and the music makes room for them. The last are
 /// the music font's (SMuFL) symbols, with fingering and chord symbols (the text font's, their
 /// accidentals the music font's): only their size is theirs.
@@ -33,6 +33,7 @@ enum TextKind {
   barNumbers('Bar numbers', TextLook(face: TextFace.italic, opacity: 0.5)),
   tempoRow('Tempo at left', TextLook(face: TextFace.italic)),
   captions('Captions', captionsHouse),
+  tonality('Tonality', TextLook(face: TextFace.bold)),
   tempo('Tempo marks', TextLook(face: TextFace.asWritten), engraved: true),
   expressions('Expressions', TextLook(face: TextFace.asWritten), engraved: true),
   rehearsal('Rehearsal marks', TextLook(face: TextFace.asWritten), engraved: true),
@@ -104,8 +105,9 @@ enum TextKind {
 }
 
 /// How one kind of text looks: its [size] as a share of the house size (the names' 13 points,
-/// the bar numbers' 1.3 staff spaces, a caption's Small / Medium / Large, the engraving's text
-/// size for the rest), its [face], [tracking] (letter spacing, ems) and [opacity].
+/// the bar numbers' 1.3 staff spaces, a caption's Small / Medium / Large, the tonality band's
+/// 1.25 staff spaces, the engraving's text size for the rest), its [face], [tracking] (letter
+/// spacing, ems) and [opacity].
 @immutable
 class TextLook {
   const TextLook({this.size = 1, this.face = TextFace.regular, this.tracking = 0, this.opacity = 1});

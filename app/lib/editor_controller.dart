@@ -29,6 +29,7 @@ part 'editor/image_editing.dart';
 part 'editor/lane_editing.dart';
 part 'editor/playback.dart';
 part 'editor/spacer_editing.dart';
+part 'editor/tonality_editing.dart';
 part 'editor/sync_editing.dart';
 
 enum BottomTab { instruments, audio }
@@ -66,6 +67,7 @@ class EditorController extends ChangeNotifier {
   late final images = ImageEditing._(this);
   late final captions = CaptionEditing._(this);
   late final chapters = ChapterEditing._(this);
+  late final tonality = TonalityEditing._(this);
   late final spacers = SpacerEditing._(this);
   late final commands = EditCommands._(this);
 
@@ -595,6 +597,7 @@ class EditorController extends ChangeNotifier {
     images._reset();
     captions._reset();
     chapters._selected = null;
+    tonality._selected = null;
     _scene?.dispose();
     _scene = null;
     _curation?.removeListener(_curationEdited);
@@ -727,7 +730,7 @@ class EditorController extends ChangeNotifier {
 
   /// What the scene shows besides the score, the time, the curation and the sync: the names,
   /// condensing, order, scroll, motion, typography, sections, bar numbers, the names' colours, and the extensions'
-  /// images and captions (none while off).
+  /// images, captions and key areas (none while off).
   SceneSettings get sceneSettings => SceneSettings(
       names: _doc.partNames,
       condensed: _doc.condensed,
@@ -745,7 +748,8 @@ class EditorController extends ChangeNotifier {
       rehearsalInRow: rehearsalInRow,
       nameColors: _nameColors,
       pointerColor: _doc.playheadColor,
-      spacers: images.enabled ? _doc.spacers : const []);
+      spacers: images.enabled ? _doc.spacers : const [],
+      keyAreas: tonality._sceneAreas);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
@@ -2229,6 +2233,7 @@ class EditorController extends ChangeNotifier {
         images._selected == null &&
         captions._selected == null &&
         chapters._selected == null &&
+        tonality._selected == null &&
         spacers._selected == null &&
         _takeSelected == null) {
       return;
@@ -2237,6 +2242,7 @@ class EditorController extends ChangeNotifier {
     images._deselect();
     captions._selected = null;
     chapters._selected = null;
+    tonality._selected = null;
     spacers._selected = null;
     lanes._clear();
     anchors._deselect();
@@ -2334,6 +2340,7 @@ class EditorController extends ChangeNotifier {
       images._restore(state.patches);
       captions._restore(state.captions, state.captionFont);
       chapters._selected = null;
+      tonality._selected = null;
       _applyExtensions();
       _previewSections = null; // a bracket's drag ends with an edit or none: not under Undo
       _showSettings();

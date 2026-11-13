@@ -4168,3 +4168,129 @@ msgstr "裝飾音（/）"
 #: lib/score_editor.dart
 msgid "Grace notes"
 msgstr "裝飾音"
+
+#: lib/edit_dialogs.dart lib/tonality_lane.dart
+msgid "Add Key"
+msgstr "加入調性"
+
+#: lib/tonality_lane.dart
+msgid "Find Keys"
+msgstr "尋找調性"
+
+#: lib/tonality_lane.dart
+msgid "Remove Key"
+msgstr "移除調性"
+
+#: lib/tonality_lane.dart
+msgid "Tonality"
+msgstr "調性"
+
+msgid "Marking"
+msgstr "標記"
+
+msgid "Another key starts here"
+msgstr "此處已有調性"
+
+msgid "The music’s key, in color over the score."
+msgstr "以顏色在樂譜上方標示音樂的調性。"
+
+msgid "1 key"
+msgstr "1 個調性"
+
+msgid "{n} keys"
+msgstr "{n} 個調性"
+
+msgid "C♭ major"
+msgstr "降C大調"
+
+msgid "A♭ minor"
+msgstr "降a小調"
+
+msgid "G♭ major"
+msgstr "降G大調"
+
+msgid "E♭ minor"
+msgstr "降e小調"
+
+msgid "D♭ major"
+msgstr "降D大調"
+
+msgid "B♭ minor"
+msgstr "降b小調"
+
+msgid "A♭ major"
+msgstr "降A大調"
+
+msgid "F minor"
+msgstr "f小調"
+
+msgid "E♭ major"
+msgstr "降E大調"
+
+msgid "C minor"
+msgstr "c小調"
+
+msgid "B♭ major"
+msgstr "降B大調"
+
+msgid "G minor"
+msgstr "g小調"
+
+msgid "F major"
+msgstr "F大調"
+
+msgid "D minor"
+msgstr "d小調"
+
+msgid "C major"
+msgstr "C大調"
+
+msgid "A minor"
+msgstr "a小調"
+
+msgid "G major"
+msgstr "G大調"
+
+msgid "E minor"
+msgstr "e小調"
+
+msgid "D major"
+msgstr "D大調"
+
+msgid "B minor"
+msgstr "b小調"
+
+msgid "A major"
+msgstr "A大調"
+
+msgid "F♯ minor"
+msgstr "升f小調"
+
+msgid "E major"
+msgstr "E大調"
+
+msgid "C♯ minor"
+msgstr "升c小調"
+
+msgid "B major"
+msgstr "B大調"
+
+msgid "G♯ minor"
+msgstr "升g小調"
+
+msgid "F♯ major"
+msgstr "升F大調"
+
+msgid "D♯ minor"
+msgstr "升d小調"
+
+msgid "C♯ major"
+msgstr "升C大調"
+
+msgid "A♯ minor"
+msgstr "升a小調"
+
+#: lib/edit_dialogs.dart
+msgctxt "tonality"
+msgid "Key"
+msgstr "調性"
