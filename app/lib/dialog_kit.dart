@@ -456,27 +456,43 @@ class AppCheckRow extends StatelessWidget {
   }
 }
 
-/// A small button that puts something in a field (a symbol): a [dialogRowHeight] outlined button.
-class AppChip extends StatelessWidget {
+/// A small button that puts something in a field (a symbol): a [dialogRowHeight] outlined button;
+/// focused, in Carbon, its edge is the focus ring (2 px of $focus), as a button's is.
+class AppChip extends StatefulWidget {
   const AppChip({super.key, required this.label, required this.tooltip, required this.onPressed});
   final String label, tooltip;
   final VoidCallback onPressed;
 
   @override
+  State<AppChip> createState() => _AppChipState();
+}
+
+class _AppChipState extends State<AppChip> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
     final style = AppStyle.of(context);
-    final edge = CarbonColors.maybeOf(context)?.borderSubtle ?? context.colors.line;
+    final k = CarbonColors.maybeOf(context);
+    // Ringed as the keyboard moves the focus to it, not as a click does.
+    final ringed = _focused && FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+    final edge = k == null
+        ? BorderSide(color: context.colors.line)
+        : ringed
+            ? BorderSide(color: k.focus, width: 2)
+            : BorderSide(color: k.borderSubtle);
     return Tip(
-      message: tooltip,
+      message: widget.tooltip,
       child: InkWell(
         borderRadius: style.radius(8),
-        onTap: onPressed,
+        onTap: widget.onPressed,
+        onFocusChange: (focused) => setState(() => _focused = focused),
         child: Container(
           width: 40,
           height: dialogRowHeight(context),
           alignment: Alignment.center,
-          decoration: BoxDecoration(border: Border.all(color: edge), borderRadius: style.radius(8)),
-          child: Text(label, style: const TextStyle(fontSize: 16)),
+          decoration: BoxDecoration(border: Border.fromBorderSide(edge), borderRadius: style.radius(8)),
+          child: Text(widget.label, style: const TextStyle(fontSize: 16)),
         ),
       ),
     );

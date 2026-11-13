@@ -3,10 +3,12 @@ import 'dart:async';
 
 import 'package:curated_score/app_colors.dart';
 import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/dialog_kit.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/project_tabs.dart';
 import 'package:curated_score/ui_kit.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -176,5 +178,19 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(circles(), containsAll([(10.0, thumb, PaintingStyle.fill), (9.0, accent, PaintingStyle.stroke)]));
     await hold.up();
+  });
+
+  testWidgets('a symbol chip, focused from the keyboard, is edged with the focus ring', (tester) async {
+    final k = CarbonColors.of(AccentColor.sky, Brightness.light);
+    await _carbon(tester, AppChip(label: '♭', tooltip: 'Flat', onPressed: () {}));
+    Border edge() => tester
+        .widgetList<Container>(find.ancestor(of: find.text('♭'), matching: find.byType(Container)))
+        .map((c) => (c.decoration as BoxDecoration?)?.border)
+        .whereType<Border>()
+        .first;
+    expect(edge().top.color, k.borderSubtle);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(edge().top, BorderSide(color: k.focus, width: 2));
   });
 }
