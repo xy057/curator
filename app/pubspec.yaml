@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.8.0+354
+version: 0.8.0+355
 
 environment:
   sdk: ^3.13.4
@@ -44,6 +44,7 @@ flutter:
     - assets/basic_pitch/ # Spotify's Basic Pitch, which Align hears a recording with (Apache 2.0, with its licence; Tools/make_basic_pitch_weights.py)
     - assets/lilypond/ # Curator's settings for LilyPond: the piece on one line, what it is written beside it (lilypond.dart)
     - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one), and the mascot a click on it shows (on the same tile)
+    - assets/LICENSE.txt # Curator's own licence (the GPL asks that a copy go with every copy), first in Settings ▸ About ▸ Licenses; the repository's LICENSE, kept the same by about_page_test
     # The fonts' licences (Apache 2.0 and the OFL ask that a copy go with them; not every font
     # file holds its whole): shipped, and in the app's LicenseRegistry. The score's are the
     # engine's (packages/score_engine/assets/fonts).

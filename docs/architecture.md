@@ -68,6 +68,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `chapter_lane.dart` | Chapters: the lane pinned under the bar ruler, a chapter drawn wherever its music sounds |
 | `tonality_lane.dart` | Tonality: the lane pinned under the bar ruler, a `SpanLane` of the key areas, each in its key's colour, with add, Find Keys and remove buttons |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Edit ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
+| `licenses_dialog.dart` | Settings ▸ About ▸ Licenses (`showLicensesDialog`): every package's licences from the `LicenseRegistry` (`packageLicenses`, read once), Curator's first, the chosen one's text selectable |
 | `font_settings.dart` | Project Settings ▸ Engraving: the music and text font a project is engraved in, and its caption font |
 | `sections_editor.dart` | Project Settings ▸ Sections: the instruments as staves, their brackets dragged, drawn or set on a selection |
 | `motion_settings.dart` | Project Settings ▸ Animation: the motion's rows (`MotionSetting.all`), a slider or a curve each, and the Custom Curve dialog; `SettingSlider`, a setting's slider set when let go, its number typed over in a `SliderValueField` (also Scroll follow's and Export's Score size) |
@@ -186,10 +187,12 @@ A page is the GPL'd player passed on, so it carries Curator's licence (`LICENSE.
 player) and where the source of the build that wrote it is (`SOURCE.txt`, `WebExport.source`: the
 commit, or the version's tag), beside Flutter's `assets/NOTICES` and the fonts' licences; installed
 fonts it carries (`WebExport.installedFonts`) are named in the dialog, theirs to allow publishing.
-The app's own licence page (Settings ▸ About) also has what pub can't list: the bundled fonts'
-licences and those of the libraries shipped compiled, Verovio and PDFium, each with the libraries
-built into it (`_bundledLicenses` in main.dart; `packages/score_engine/assets/licenses/`, written by
-Tools/make_licenses.py, to run again when either is updated), and Basic Pitch's, Align's model
+The app's own licence window (Settings ▸ About ▸ Licenses) also has what pub can't list: Curator's
+own, the GPL every copy must carry (`app/assets/LICENSE.txt`, the repository's LICENSE, which
+about_page_test keeps the same), the bundled fonts' licences and those of the libraries shipped
+compiled, Verovio and PDFium, each with the libraries built into it (`bundledLicenses` in
+main.dart; `packages/score_engine/assets/licenses/`, written by Tools/make_licenses.py, to run
+again when either is updated), and Basic Pitch's, Align's model
 (`app/assets/basic_pitch/LICENSE.txt`, its NOTICE and licence as the release has them). A page has
 none of them, so the player is packed without them.
 

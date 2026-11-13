@@ -60,7 +60,7 @@ Future<void> main() async {
   final keep = ScratchSpace.session.path;
   unawaited(Isolate.run(() => ScratchSpace.sweep(keep: keep)).catchError((_) {}));
   FontResources.workDirectory = ScratchSpace.folder('fonts').path; // metrics of fonts not bundled
-  LicenseRegistry.addLicense(_bundledLicenses);
+  LicenseRegistry.addLicense(bundledLicenses);
   final (settings, _) = await (AppSettings.load(), Strings.load(rootBundle.loadString)).wait;
   if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
   final updater = Updater();
@@ -68,11 +68,13 @@ Future<void> main() async {
   runApp(CuratedScoreApp(settings: settings, updater: updater));
 }
 
-/// The licences of what is bundled and pub doesn't list, which go with it: the fonts', those of
-/// the libraries shipped compiled (Verovio and PDFium, each with what is built into it), and
-/// Basic Pitch's (Align's model). Read only when asked for.
-Stream<LicenseEntry> _bundledLicenses() async* {
+/// The licences of what is bundled and pub doesn't list, which go with it: Curator's own (the
+/// GPL), the fonts', those of the libraries shipped compiled (Verovio and PDFium, each with what
+/// is built into it), and Basic Pitch's (Align's model). Read only when asked for (Settings ▸
+/// About ▸ Licenses).
+Stream<LicenseEntry> bundledLicenses() async* {
   for (final (package, file) in [
+    ('Curator', 'assets/LICENSE.txt'),
     ('Carbon Icons', 'assets/fonts/CarbonIcons-LICENSE.txt'),
     ('Material Symbols', 'assets/fonts/MaterialSymbols-LICENSE.txt'),
     ('IBM Plex Sans', 'assets/fonts/IBMPlexSans-OFL.txt'),
