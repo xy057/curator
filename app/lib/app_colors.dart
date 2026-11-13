@@ -1137,7 +1137,7 @@ class AppColors extends ThemeExtension<AppColors> {
         inactiveTrackColor: k.borderSubtle,
         thumbColor: k.selectedInverse,
         trackHeight: 2,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7, elevation: 0, pressedElevation: 0),
+        thumbShape: _CarbonThumbShape(ring: c.accent, disabled: k.buttonDisabled),
         trackShape: const RectangularSliderTrackShape(),
         tickMarkShape: SliderTickMarkShape.noTickMark,
         overlayColor: Colors.transparent,
@@ -1285,6 +1285,47 @@ class _KnobThumbShape extends SliderComponentShape {
         Paint()..color = Color.fromRGBO(0, 0, 0, 0.22 * enabled)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5));
     canvas.drawCircle(center, _radius, Paint()..color = Color.lerp(outline, Colors.white, 0.4 + 0.6 * enabled)!);
     canvas.drawCircle(center, _radius - 0.5, Paint()..color = outline..style = PaintingStyle.stroke..strokeWidth = 1);
+  }
+}
+
+/// [UiStyle.carbon]'s slider thumb: a 14 px disc of $layer-selected-inverse, grown to 20 px and
+/// ringed inside in $interactive while it is under the pointer, dragged or focused (as the
+/// slider's overlay would show; Carbon rings only the last two); $border-disabled's grey while the
+/// slider is.
+class _CarbonThumbShape extends SliderComponentShape {
+  const _CarbonThumbShape({required this.ring, required this.disabled});
+  final Color ring, disabled;
+  static const _radius = 7.0, _held = 10.0;
+
+  // Laid out at rest: the track keeps its length, the held thumb grows over it.
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => const Size.fromRadius(_radius);
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final canvas = context.canvas;
+    final held = activationAnimation.value;
+    final radius = _radius + (_held - _radius) * held;
+    final thumb = sliderTheme.thumbColor ?? ring, enabled = enableAnimation.value;
+    final fill = enabled == 1 ? thumb : Color.lerp(disabled, thumb, enabled)!;
+    canvas.drawCircle(center, radius, Paint()..color = fill);
+    if (held > 0) {
+      canvas.drawCircle(center, radius - 1,
+          Paint()..color = ring.withValues(alpha: held)..style = PaintingStyle.stroke..strokeWidth = 2);
+    }
   }
 }
 

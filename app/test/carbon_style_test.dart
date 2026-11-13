@@ -152,4 +152,29 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(shade(Colors.black.withValues(alpha: 0.2)), findsOneWidget);
   });
+
+  testWidgets('a slider\'s thumb is 14 px, grown to 20 px and ringed in \$interactive while dragged', (tester) async {
+    var value = 0.5;
+    await _carbon(tester, SizedBox(width: 200, child: StatefulBuilder(
+        builder: (context, setState) => Slider(value: value, onChanged: (v) => setState(() => value = v)))));
+    final accent = AppColors.of(AccentColor.sky, Brightness.light, UiStyle.carbon).accent.toARGB32();
+    final thumb = CarbonColors.of(AccentColor.sky, Brightness.light).selectedInverse.toARGB32();
+    // The circles the slider draws: radius, colour (to 8 bits a channel), filled or stroked.
+    List<(double, int, PaintingStyle)> circles() {
+      final drawn = <(double, int, PaintingStyle)>[];
+      expect(find.byType(Slider), paints..everything((method, args) {
+        if (method == #drawCircle) drawn.add((args[1] as double, (args[2] as Paint).color.toARGB32(), (args[2] as Paint).style));
+        return true;
+      }));
+      return drawn;
+    }
+
+    expect(circles(), contains((7.0, thumb, PaintingStyle.fill)));
+    final hold = await tester.startGesture(tester.getCenter(find.byType(Slider)));
+    await hold.moveBy(const Offset(20, 0)); // dragged
+    await tester.pump(); // the thumb's animation starts, and runs to its end
+    await tester.pump(const Duration(seconds: 1));
+    expect(circles(), containsAll([(10.0, thumb, PaintingStyle.fill), (9.0, accent, PaintingStyle.stroke)]));
+    await hold.up();
+  });
 }
