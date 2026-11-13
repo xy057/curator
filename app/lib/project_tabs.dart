@@ -275,10 +275,16 @@ class _TabState extends State<_Tab> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final carbon = AppStyle.of(context).isCarbon;
     final selected = widget.selected;
     final height = ProjectTabs.heightOf(context);
     final onClose = widget.onClose;
     final side = BorderSide(color: selected ? colors.line : Colors.transparent);
+    // Carbon's contained tabs: body-compact-01, the chosen one heading-compact-01 and topped with
+    // 2 px of $border-interactive.
+    final label = carbon
+        ? TextStyle(fontSize: 14, letterSpacing: 0.16, fontWeight: selected ? FontWeight.w600 : FontWeight.w400)
+        : const TextStyle(fontSize: 12.5);
     final dark = Theme.of(context).brightness == Brightness.dark;
     // On the label, not around the × with its own too. Not a [Tip]: a file's path isn't translated.
     Widget tip(Widget child) => OverlaySemantics(
@@ -296,7 +302,7 @@ class _TabState extends State<_Tab> {
       color: _hover && !selected ? wash : wash.withValues(alpha: 0),
       alignment: Alignment.center,
       child: DefaultTextStyle.merge(
-        style: TextStyle(fontSize: 12.5, color: selected || _hover ? colors.text : colors.textMuted),
+        style: label.copyWith(color: selected || _hover ? colors.text : colors.textMuted),
         child: IconTheme.merge(
           data: IconThemeData(color: selected || _hover ? colors.text : colors.textMuted),
           child: onClose == null
@@ -356,7 +362,10 @@ class _TabState extends State<_Tab> {
                 child: DecoratedBox(
               decoration: BoxDecoration(
                 color: selected ? widget.fill : null,
-                border: Border(left: side, right: side),
+                border: Border(
+                    top: carbon && selected ? BorderSide(color: colors.accent, width: 2) : BorderSide.none,
+                    left: side,
+                    right: side),
               ),
               child: tab,
             ),

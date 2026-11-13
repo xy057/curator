@@ -1,5 +1,6 @@
 // Carbon's controls as its guidelines draw them, where the theme alone can't be trusted to.
 import 'package:curated_score/app_colors.dart';
+import 'package:curated_score/project_tabs.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -74,6 +75,33 @@ void main() {
           expect(c.fieldHover.computeLuminance(), greaterThan(c.field.computeLuminance()));
         }
       }
+    }
+  });
+
+  testWidgets('the tab showing is topped with \$border-interactive, as Carbon\'s contained tabs are', (tester) async {
+    for (final brightness in Brightness.values) {
+      await _carbon(
+          tester,
+          ProjectTabs(
+            labels: [for (final name in ['Prelude', 'Fugue']) ValueNotifier<ProjectTabLabel>((name: name, edited: false, path: null))],
+            shown: 1,
+            onShow: (_) {},
+            onClose: (_) {},
+          ),
+          brightness: brightness);
+      final accent = AppColors.of(AccentColor.sky, brightness, UiStyle.carbon).accent;
+      // The tab's own box, the one with its edges.
+      BorderSide topOf(String name) => tester
+          .widgetList<DecoratedBox>(find.ancestor(of: find.text(name), matching: find.byType(DecoratedBox)))
+          .map((box) => (box.decoration as BoxDecoration).border)
+          .whereType<Border>()
+          .first
+          .top;
+      expect(topOf('Fugue'), BorderSide(color: accent, width: 2), reason: '$brightness');
+      expect(topOf('Prelude'), BorderSide.none, reason: '$brightness');
+      expect(tester.widget<Text>(find.text('Fugue')).style, isNull); // set by the tab, on the strip's type:
+      expect(DefaultTextStyle.of(tester.element(find.text('Fugue'))).style.fontWeight, FontWeight.w600);
+      expect(DefaultTextStyle.of(tester.element(find.text('Prelude'))).style.fontWeight, FontWeight.w400);
     }
   });
 }
