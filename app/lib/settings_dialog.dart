@@ -804,17 +804,20 @@ class _SectionsPage extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         DecoratedBox(
           decoration: decoration,
-          child: _SettingRow(
-              title: 'Group sections',
-              help: null,
-              control: AppSwitch(value: c.controller!.groupSections, onChanged: c.controller!.setGroupSections)),
+          child: CarbonLayer(
+            child: _SettingRow(
+                title: 'Group sections',
+                help: null,
+                control: AppSwitch(value: c.controller!.groupSections, onChanged: c.controller!.setGroupSections)),
+          ),
         ),
         const SizedBox(height: 18),
         Expanded(
           child: DecoratedBox(
             decoration: decoration,
             child: ClipRRect(
-                borderRadius: AppStyle.of(context).radius(10), child: SectionsEditor(controller: c.controller!)),
+                borderRadius: AppStyle.of(context).radius(10),
+                child: CarbonLayer(child: SectionsEditor(controller: c.controller!))),
           ),
         ),
       ]),
@@ -1581,6 +1584,10 @@ Color _groupColor(BuildContext context) {
   return _lightChrome(colors) ? colors.chrome : Color.lerp(colors.surface, colors.line, 0.22)!;
 }
 
+/// The line between a group's rows: in Carbon $border-subtle as it is on $layer-02 (the window's
+/// own line, in the dark, is the group's grey and would not show).
+Color _groupLine(BuildContext context) => CarbonColors.maybeOf(context)?.raised.borderSubtle ?? context.colors.line;
+
 /// Save as Default, slim beside a page's title: once saved (or already the same), a muted
 /// check and "Default" in its place.
 class _SaveDefaultButton extends StatelessWidget {
@@ -1705,12 +1712,14 @@ class _Page extends StatelessWidget {
             ),
           DecoratedBox(
             decoration: BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
-            child: Column(children: [
-              for (final (j, row) in rows.indexed) ...[
-                if (j > 0) Divider(height: 1, indent: 14, endIndent: 14, color: colors.line),
-                row,
-              ],
-            ]),
+            child: CarbonLayer(
+              child: Column(children: [
+                for (final (j, row) in rows.indexed) ...[
+                  if (j > 0) Divider(height: 1, indent: 14, endIndent: 14, color: _groupLine(context)),
+                  row,
+                ],
+              ]),
+            ),
           ),
         ],
         if (groups.isEmpty && empty != null)
@@ -2440,12 +2449,14 @@ class _AboutGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(color: _groupColor(context), borderRadius: AppStyle.of(context).radius(10)),
-        child: Column(children: [
-          for (final (i, row) in rows.indexed) ...[
-            if (i > 0) Divider(height: 1, indent: indent, endIndent: 14, color: context.colors.line),
-            row,
-          ],
-        ]),
+        child: CarbonLayer(
+          child: Column(children: [
+            for (final (i, row) in rows.indexed) ...[
+              if (i > 0) Divider(height: 1, indent: indent, endIndent: 14, color: _groupLine(context)),
+              row,
+            ],
+          ]),
+        ),
       );
 }
 
@@ -2511,7 +2522,7 @@ class _LinkTileState extends State<_LinkTile> {
     final style = AppStyle.of(context);
     final k = CarbonColors.maybeOf(context);
     final fill = _groupColor(context);
-    final shade = k?.layerHover ?? colors.line.withValues(alpha: 0.45);
+    final shade = k?.raised.layerHover ?? colors.line.withValues(alpha: 0.45); // a tile on the page: $layer-hover-02
     final url = widget.url;
     final tile = FocusableActionDetector(
       mouseCursor: SystemMouseCursors.click,

@@ -1,5 +1,6 @@
 // Carbon's controls as its guidelines draw them, where the theme alone can't be trusted to.
 import 'package:curated_score/app_colors.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -40,6 +41,38 @@ void main() {
         await _carbon(tester, button, brightness: brightness);
         final shape = _shapeOf(tester, find.byWidget(button)) as RoundedRectangleBorder;
         expect(shape.side.color, edge, reason: '$brightness, ${onPressed == null ? 'disabled' : 'enabled'}');
+      }
+    }
+  });
+
+  testWidgets('a field takes the layer above the one it is on: on a group on \$layer-02, \$field-03', (tester) async {
+    for (final brightness in Brightness.values) {
+      final k = CarbonColors.of(AccentColor.sky, brightness);
+      Color? onLayer, onGroup, decorated;
+      await _carbon(
+          tester,
+          Column(children: [
+            Builder(builder: (context) => Text('${onLayer = fieldFill(context)}')),
+            CarbonLayer(
+              child: Builder(builder: (context) {
+                onGroup = fieldFill(context);
+                decorated = Theme.of(context).inputDecorationTheme.fillColor;
+                return CarbonLayer(child: Text('$onGroup')); // there already: as it is
+              }),
+            ),
+          ]),
+          brightness: brightness);
+      expect(onLayer, k.field, reason: '$brightness');
+      expect(onGroup, k.raised.field, reason: '$brightness');
+      expect(decorated, k.raised.field, reason: '$brightness');
+      // Each field stands out from what it is on, and lighter still under the pointer in the dark.
+      expect(k.field, isNot(k.layer01), reason: '$brightness');
+      expect(k.raised.field, isNot(k.layer02), reason: '$brightness');
+      expect(k.raised.borderSubtle, isNot(k.layer02), reason: '$brightness: a line between a group\'s rows');
+      if (brightness == Brightness.dark) {
+        for (final c in [k, k.raised]) {
+          expect(c.fieldHover.computeLuminance(), greaterThan(c.field.computeLuminance()));
+        }
       }
     }
   });

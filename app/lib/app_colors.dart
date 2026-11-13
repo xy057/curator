@@ -281,15 +281,21 @@ class CarbonHue {
 /// [UiStyle.carbon]'s tokens beyond the shared [AppColors], named as Carbon names them: the
 /// White theme's, or in the dark Gray 100's taken a step darker (a black background). Read it
 /// with [CarbonColors.of] in a Carbon theme.
+///
+/// They are the first layer's ($layer-01: a toolbar, a dialog, a menu), where the fields are
+/// $field-02; a group on that layer ($layer-02, Settings' groups) takes [raised], whose fields,
+/// hovers and selection are a layer up again, as Carbon's layering has them (CarbonLayer).
 @immutable
 class CarbonColors extends ThemeExtension<CarbonColors> {
   const CarbonColors._({
+    this._raised,
     required this.layer01,
     required this.layer02,
     required this.layerHover,
     required this.layerSelected,
     required this.layerAccent,
     required this.field,
+    required this.fieldHover,
     required this.borderSubtle,
     required this.borderStrong,
     required this.borderInverse,
@@ -326,17 +332,22 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
     required this.overlay,
   });
 
-  factory CarbonColors.of(AccentColor accent, Brightness brightness) {
+  /// [raised]: the second layer's ($layer-02's), its fields $field-03.
+  factory CarbonColors.of(AccentColor accent, Brightness brightness, {bool raised = false}) {
     final h = accent.carbon;
+    final up = raised ? null : CarbonColors.of(accent, brightness, raised: true);
     if (brightness == Brightness.light) {
       return CarbonColors._(
+        raised: up,
         layer01: const Color(0xFFF4F4F4),
         layer02: const Color(0xFFFFFFFF),
         layerHover: const Color(0xFFE8E8E8),
         layerSelected: const Color(0xFFE0E0E0),
         layerAccent: const Color(0xFFE0E0E0),
-        field: const Color(0xFFFFFFFF), // $field-02: fields sit on a layer (a dialog, a toolbar)
-        borderSubtle: const Color(0xFFC6C6C6),
+        // $field-02: fields sit on a layer (a dialog, a toolbar); raised, $field-03.
+        field: raised ? const Color(0xFFF4F4F4) : const Color(0xFFFFFFFF),
+        fieldHover: const Color(0xFFE8E8E8),
+        borderSubtle: raised ? const Color(0xFFE0E0E0) : const Color(0xFFC6C6C6),
         borderStrong: const Color(0xFF8D8D8D),
         borderInverse: const Color(0xFF161616),
         textPrimary: const Color(0xFF161616),
@@ -373,13 +384,16 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
       );
     }
     return CarbonColors._(
+      raised: up,
       layer01: const Color(0xFF161616),
       layer02: const Color(0xFF262626),
-      layerHover: const Color(0xFF212121),
-      layerSelected: const Color(0xFF262626),
+      layerHover: raised ? const Color(0xFF333333) : const Color(0xFF212121),
+      layerSelected: raised ? const Color(0xFF393939) : const Color(0xFF262626),
       layerAccent: const Color(0xFF262626),
-      field: const Color(0xFF262626),
-      borderSubtle: const Color(0xFF393939),
+      // A step lighter than the layer, and lighter again under the pointer.
+      field: raised ? const Color(0xFF393939) : const Color(0xFF262626),
+      fieldHover: raised ? const Color(0xFF474747) : const Color(0xFF333333),
+      borderSubtle: raised ? const Color(0xFF525252) : const Color(0xFF393939),
       borderStrong: const Color(0xFF6F6F6F),
       borderInverse: const Color(0xFFF4F4F4),
       textPrimary: const Color(0xFFF4F4F4),
@@ -419,7 +433,14 @@ class CarbonColors extends ThemeExtension<CarbonColors> {
   /// The theme's; null outside a Carbon theme.
   static CarbonColors? maybeOf(BuildContext context) => Theme.of(context).extension<CarbonColors>();
 
-  final Color layer01, layer02, layerHover, layerSelected, layerAccent, field;
+  final Color layer01, layer02, layerHover, layerSelected, layerAccent, field, fieldHover;
+
+  /// These a layer up: for what sits on a group on $layer-02 (itself, when it is that).
+  CarbonColors get raised => _raised ?? this;
+  final CarbonColors? _raised;
+
+  /// Whether these are the second layer's.
+  bool get isRaised => _raised == null;
   final Color borderSubtle, borderStrong, borderInverse;
   final Color textPrimary, textSecondary, textHelper, textPlaceholder, textDisabled, textInverse;
 
@@ -1053,7 +1074,7 @@ class AppColors extends ThemeExtension<AppColors> {
       isDense: true,
       filled: true,
       fillColor: k.field,
-      hoverColor: k.layerHover,
+      hoverColor: k.fieldHover,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
       hintStyle: TextStyle(color: k.textPlaceholder),
       // Only the shape: a state's border here would win over a field's own `border`.

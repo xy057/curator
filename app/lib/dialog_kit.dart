@@ -329,7 +329,7 @@ class AppTextField extends StatelessWidget {
             isDense: true,
             filled: fill != null,
             fillColor: fill,
-            hoverColor: k?.layerHover,
+            hoverColor: k?.fieldHover,
             hintText: hint?.tr,
             hintStyle: text.copyWith(color: k?.textPlaceholder ?? colors.textMuted.withValues(alpha: 0.6)),
             counterText: '',

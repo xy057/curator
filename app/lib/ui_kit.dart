@@ -1004,6 +1004,30 @@ class _SegmentState extends State<_Segment> {
 /// A field's fill: Carbon's $field (a field on a layer), none in Refined.
 Color? fieldFill(BuildContext context) => CarbonColors.maybeOf(context)?.field;
 
+/// [child] on Carbon's second layer ($layer-02: a group on a page that is a layer itself, as
+/// Settings' groups are): its fields a layer up again ($field-03), its hovers and selection that
+/// layer's ([CarbonColors.raised]), as Carbon's layering has them, so a field stands out from the
+/// group it is in. Outside Carbon, or there already, [child] as it is.
+class CarbonLayer extends StatelessWidget {
+  const CarbonLayer({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final k = theme.extension<CarbonColors>();
+    if (k == null || k.isRaised) return child;
+    final up = k.raised;
+    return Theme(
+      data: theme.copyWith(
+        extensions: [for (final e in theme.extensions.values) if (e is! CarbonColors) e, up],
+        inputDecorationTheme: theme.inputDecorationTheme.copyWith(fillColor: up.field, hoverColor: up.fieldHover),
+      ),
+      child: child,
+    );
+  }
+}
+
 /// Carbon's field border: a line along the bottom of a filled field, or ([ring]) a square ring
 /// all round it (focused, or invalid). An outline to the [InputDecorator] in both, so the text
 /// sits at one place whichever it is.
