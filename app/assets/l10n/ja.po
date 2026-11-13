@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Japanese\n"
 "Language: ja_JP\n"
-"PO-Revision-Date: 2026-11-13 09:57\n"
+"PO-Revision-Date: 2026-11-13 15:57\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -576,6 +576,7 @@ msgstr "歌詞を中央揃え"
 msgid "Centers syllables under their notes."
 msgstr "音節を音符の下の中央に揃えます。"
 
+#: lib/settings_dialog.dart
 msgid "Changelog"
 msgstr "変更履歴"
 
@@ -862,7 +863,7 @@ msgstr "選択解除（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先に「{name}」への変更を保存しますか？"
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完了"
 
@@ -1326,9 +1327,6 @@ msgstr "左"
 
 msgid "Letter spacing"
 msgstr "字間"
-
-msgid "License"
-msgstr "ライセンス"
 
 #: lib/settings_dialog.dart
 msgid "Light"
@@ -2147,6 +2145,7 @@ msgstr "録音をクリックして同期を編集"
 msgid "Some of “{name}” got left out"
 msgstr "「{name}」の一部が省かれました"
 
+#: lib/settings_dialog.dart
 msgid "Source code"
 msgstr "ソースコード"
 
@@ -2682,6 +2681,7 @@ msgstr "アンカーがまだないときのみ。"
 msgid "WebM video"
 msgstr "WebM ビデオ"
 
+#: lib/settings_dialog.dart
 msgid "Website"
 msgstr "Web サイト"
 
@@ -4292,5 +4292,17 @@ msgstr ""
 
 #: lib/settings_dialog.dart
 msgid "System Default"
+msgstr ""
+
+#: lib/licenses_dialog.dart lib/settings_dialog.dart
+msgid "Licenses"
+msgstr ""
+
+#: lib/licenses_dialog.dart
+msgid "Couldn’t read the licenses."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Show Licenses"
 msgstr ""
 
