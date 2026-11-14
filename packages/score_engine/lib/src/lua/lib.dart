@@ -311,22 +311,24 @@ void _openMath(Lua lua) {
     return seed = x;
   }
 
-  Object? whole(num x) => x is int ? x : (x.isFinite ? x.toInt() : x);
+  // A whole number as an int, where an int holds it: past that it stays the float it is (an
+  // int made of it would be the largest there is, not the number).
+  Object? whole(num x) => x is int ? x : (x.isFinite && x.abs() < 9223372036854775808.0 ? x.toInt() : x);
 
   final m = Lua.library('math', {
     'abs': (a) => [a.number(0, 'abs').abs()],
     'ceil': (a) {
       final x = a.number(0, 'ceil');
-      return [x is int || !x.isFinite ? x : x.ceil()];
+      return [x is int ? x : whole(x.ceilToDouble())];
     },
     'floor': (a) {
       final x = a.number(0, 'floor');
-      return [x is int || !x.isFinite ? x : x.floor()];
+      return [x is int ? x : whole(x.floorToDouble())];
     },
     // Not Lua's: to the nearest whole number, a half away from zero (as Dart rounds).
     'round': (a) {
       final x = a.number(0, 'round');
-      return [x is int || !x.isFinite ? x : x.round()];
+      return [x is int ? x : whole(x.roundToDouble())];
     },
     // Not Lua's: x no lower than low and no higher than high (as Dart clamps).
     'clamp': (a) {
@@ -395,7 +397,7 @@ void _openMath(Lua lua) {
     },
     'tointeger': (a) {
       final x = a.at(0);
-      return [x is num && x.isFinite && x == x.truncateToDouble() ? whole(x) : null];
+      return [x is num && x.isFinite && x == x.truncateToDouble() && x.abs() < 9223372036854775808.0 ? whole(x) : null];
     },
     'type': (a) {
       if (a.isEmpty) a.bad(0, 'type', 'value expected');

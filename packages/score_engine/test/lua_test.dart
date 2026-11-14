@@ -165,6 +165,9 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
     {
       expect(run('return math.floor(2.7), math.ceil(2.1), math.floor(-2.5), math.max(1, 9, 3), math.min(4, 2), math.abs(-3), math.fmod(7, 3), math.fmod(-7, 3), math.tointeger(3.0), math.tointeger(3.5), math.type(1), math.type(1.5), math.type("1")'),
           ['2', '3', '-3', '9', '2', '3', '1', '-1', '3', 'nil', 'integer', 'float', 'nil']);
+      // A number too great for an int is floored to itself, not to the greatest int there is.
+      expect(run('return math.floor(1e20) == 1e20, math.ceil(-1e20) == -1e20, math.round(1e20) == 1e20, math.tointeger(1e20), math.floor(2^62), math.floor(1/0)'),
+          ['true', 'true', 'true', 'nil', '4611686018427387904', 'inf']);
       expect(run('return math.sqrt(16), math.pi > 3.14, math.huge > 1e308, math.sin(0), math.cos(0), math.atan(1, 1) * 4 == math.pi, math.log(8, 2), math.exp(0), math.modf(3.7)'),
           ['4', 'true', 'true', '0', '1', 'true', '3', '1', '3', '0.7000000000000002']);
       final first = run('math.randomseed(7) return math.random(100), math.random(100), math.random(5, 6), math.random() < 1');
