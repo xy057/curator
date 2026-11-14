@@ -230,7 +230,7 @@ msgstr "アクセントカラー"
 msgid "Accidentals"
 msgstr "臨時記号"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua
 msgid "Add"
 msgstr "追加"
 
@@ -372,7 +372,7 @@ msgstr "すべての要素"
 msgid "Appearance"
 msgstr "外観"
 
-#: lib/edit_dialogs.dart lib/spacer_dialogs.dart
+#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/chapters/src/lane.lua
 msgid "Apply"
 msgstr "適用"
 
@@ -528,7 +528,7 @@ msgstr "{bars}までの休符をつなぐ"
 msgid "c if a < b, else d"
 msgstr "a < b なら c、そうでなければ d"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_form.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "キャンセル"
 
@@ -974,6 +974,7 @@ msgstr "浄書"
 msgid "Engraving…"
 msgstr "浄書中…"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr "小節または 小節.拍 を入力（例：12 や 12.3）"
 
@@ -1122,7 +1123,7 @@ msgstr "フレームレート"
 msgid "Frame {n} of {all}"
 msgstr "フレーム {n} / {all}"
 
-#: lib/captions_dialog.dart
+#: lib/captions_dialog.dart assets/extensions/chapters/src/lane.lua
 msgid "From"
 msgstr "開始"
 
@@ -1413,7 +1414,7 @@ msgstr "音楽フォント"
 msgid "Music symbols"
 msgstr "音楽記号"
 
-#: lib/ai_settings.dart
+#: lib/ai_settings.dart assets/extensions/chapters/src/lane.lua
 msgid "Name"
 msgstr "名前"
 
@@ -1745,7 +1746,7 @@ msgstr "リハーサルマーク"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小節番号の行にリハーサルマーク"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua
 msgid "Remove"
 msgstr "削除"
 
@@ -3465,44 +3466,50 @@ msgstr "読み込み"
 msgid "Keyboard"
 msgstr "キーボード"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Chapter"
 msgstr "チャプター"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Set From before the end"
 msgstr "「開始」を終わりより前にしてください"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Another chapter starts here"
 msgstr "ここから始まるチャプターがあります"
 
 msgid "In the video, and as times beside it"
 msgstr "ビデオに入れ、横に時刻のリストも"
 
+#: assets/extensions/chapters/extension.json
 msgid "Named places to jump to in a video or web page."
 msgstr "ビデオや Web ページで移動できる、名前付きの位置。"
 
+#: assets/extensions/chapters/src/chapters.lua
 msgid "1 chapter"
 msgstr "チャプター 1 件"
 
+#: assets/extensions/chapters/src/chapters.lua
 msgid "{n} chapters"
 msgstr "チャプター {n} 件"
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json assets/extensions/chapters/src/lane.lua
 msgid "Add Chapter"
 msgstr "チャプターを追加"
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json
 msgid "Add from Rehearsal Marks"
 msgstr "リハーサルマークから追加"
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json
 msgid "Remove Chapter"
 msgstr "チャプターを削除"
 
-#: lib/chapter_lane.dart lib/web_player/player.dart
+#: lib/web_player/player.dart assets/extensions/chapters/connect.json assets/extensions/chapters/extension.json
 msgid "Chapters"
 msgstr "チャプター"
 
-#: lib/video_export.dart lib/web_player/player.dart
+#: assets/extensions/chapters/src/export.lua
 msgid "Start"
 msgstr "冒頭"
 
@@ -4665,3 +4672,7 @@ msgstr "現在のバージョン: {version}"
 #: lib/update_dialog.dart
 msgid "No release notes."
 msgstr "リリースノートはありません。"
+
+#: lib/editor/extension_editing.dart
+msgid "{name} needs a newer Curator."
+msgstr "{name} には新しいバージョンの Curator が必要です。"

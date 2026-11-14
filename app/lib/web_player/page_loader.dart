@@ -2,9 +2,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:archive/archive.dart';
 import 'package:score_engine/score_engine.dart';
 
+import '../extensions/bundled.dart';
+import '../extensions/extension_reader.dart';
 import '../image_patch.dart';
 import '../project_archive.dart';
 import '../project_file.dart' show ProjectFile;
@@ -15,7 +18,7 @@ import '../l10n/l10n.dart';
 
 /// A page as the player shows it: what [WebPage] describes, read and made ready to draw.
 class LoadedPage {
-  LoadedPage._(this.page, this.score, this.edits, this.arts);
+  LoadedPage._(this.page, this.score, this.edits, this.arts, this._packages);
 
   final WebPage page;
   final LoadedScore score;
@@ -25,6 +28,12 @@ class LoadedPage {
 
   /// Each image's drawing, by [PatchImage.id].
   final Map<String, PatchArt> arts;
+
+  /// The extensions the project carries.
+  final Map<String, ExtensionPackage> _packages;
+
+  /// The project's extensions that are on, run to read it, the performance being [timeline]'s.
+  ExtensionReaders extensions(ScoreTimeline Function() timeline) => ExtensionReaders(edits, _packages, score: () => score, timeline: timeline);
 
   /// Reads the page in [WebPage.folder]: [fetch] gets a file by its path there. Throws a
   /// [FormatException] when something isn't what the export writes.
@@ -36,7 +45,8 @@ class LoadedPage {
     const damaged = 'The page’s project is damaged.';
     final archive = ZipDecoder().decodeBytes(projectBytes);
     final manifest = ProjectArchive.manifestOf(archive, mimeType: ProjectFile.mimeType, notOurs: damaged, newer: damaged);
-    final state = ProjectArchive.read(archive, manifest, ProjectModules.all, newer: damaged, keepForeign: false);
+    if (BundledExtensions.packages.isEmpty) await BundledExtensions.load(rootBundle); // Curator's own extensions, with the player
+    final state = checkedExtensionData(ProjectArchive.read(archive, manifest, ProjectModules.all, newer: damaged, keepForeign: false));
     final scoreFile = archive.findFile(WebPage.scoreEntry) ?? (throw const FormatException(damaged));
     final musicXML = utf8.decode(scoreFile.content);
     final edits = state.edits;
@@ -63,7 +73,7 @@ class LoadedPage {
         // Not drawn: the rest of the page still is.
       }
     }
-    return LoadedPage._(page, score, edits, arts);
+    return LoadedPage._(page, score, edits, arts, state.packages);
   }
 
   /// The scene's settings, with captions and bar numbers on or off as the viewer has them, and

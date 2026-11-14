@@ -12,6 +12,7 @@ import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'file_names.dart';
 import 'media_converter.dart';
+import 'extensions/extension_reader.dart';
 import 'l10n/l10n.dart';
 import 'video_frame.dart';
 
@@ -427,7 +428,7 @@ typedef ExportSound = ({String path, double from, double at, double end, double 
 /// nothing done in the editor meanwhile can change a video half written. Make one per export
 /// dialog; [dispose] it when done.
 class VideoExport {
-  VideoExport._(this._scene, this._curation, this._sync, this._releaseImages, this._chapters, {required this.duration, required this.sounds});
+  VideoExport._(this._scene, this._curation, this._sync, this._releaseImages, this._extensions, {required this.duration, required this.sounds});
 
   /// Takes what [editor] has open now; with [take], that recording heard whole in its own time
   /// ([EditorController.performedCopy]). The editor must have a score.
@@ -442,7 +443,9 @@ class VideoExport {
       ..setTimeline(timeline);
     // As playback's: the whole of what is heard, or the whole piece, whichever is longer.
     final duration = math.max(CuratedScene.endOf(timeline, editor.motion), chunks.fold(0.0, (end, c) => math.max(end, c.end)));
-    return VideoExport._(scene, copy, timeline, editor.images.hold(), editor.chapters.exported, duration: duration, sounds: [
+    // The extensions as they are now, reading the scene's own timeline.
+    final extensions = ExtensionReaders(editor.projectState.edits, editor.extensions.carried, score: () => score, timeline: () => scene.timeline);
+    return VideoExport._(scene, copy, timeline, editor.images.hold(), extensions, duration: duration, sounds: [
       for (final c in chunks)
         if (files[c.take] case final path?) (path: path, from: c.from, at: c.at, end: c.end, fadeIn: c.fadeIn, fadeOut: c.fadeOut),
     ]);
@@ -508,15 +511,18 @@ class VideoExport {
     return path;
   }
 
-  /// The project's chapters (the Chapters extension; none while it is off).
-  final List<Chapter> _chapters;
+  /// The project's extensions that are on, run over the project as it was when this was made.
+  final ExtensionReaders _extensions;
 
-  /// The chapters of the video showing [span], timed from its start ([chapterCues]): what
-  /// comes before the first is one named Start. Empty when none sounds in it.
+  /// Whether an extension gives the video chapters (Chapters on, with some).
+  late final bool hasChapters = _extensions.chapters(0, math.max(duration, _scene.timeline.endSeconds)).isNotEmpty;
+
+  /// The chapters of the video showing [span], timed from its start (an extension's
+  /// `export.chapters`): what comes before the first is one named Start. Empty when none
+  /// sounds in it.
   List<ChapterCue> get chapters => _chaptersIn(span.start, span.end);
 
-  List<ChapterCue> _chaptersIn(double start, double end) =>
-      chapterCues(_chapters, _scene.timeline, from: start, to: end, opening: 'Start'.tr);
+  List<ChapterCue> _chaptersIn(double start, double end) => _extensions.chapters(start, end);
 
   /// Writes [chapters] as a list of times beside [video] (its name, ending " chapters.txt"),
   /// replacing one there: what a video's description takes. Returns its path.

@@ -5,6 +5,7 @@ import '../score_text.dart';
 import '../scroll_map.dart';
 import 'api.dart';
 import 'lua_json.dart';
+import 'markers.dart';
 import 'package.dart';
 
 /// Something wrong with an extension: its code doesn't read, a function raised an error, a wire
@@ -68,6 +69,7 @@ class ExtensionRuntime {
   ExtensionRuntime(this.package, this.host) {
     lua = Lua(print: (line) => host.print(package.id, line));
     _installCore();
+    _installText();
     _installScore();
     host.install(this);
     _loadWired();
@@ -169,6 +171,13 @@ class ExtensionRuntime {
     }
   }
 
+  /// Calls the function wired to [port] of [node] as [fire] does, but what it raises is thrown
+  /// (a [LuaError]): for a caller that must stop on it. Nothing wired gives nothing.
+  List<Object?> invoke(String node, String port, [List<Object?> args = const []]) {
+    final fn = _target(node, port);
+    return fn == null ? const [] : lua.call(fn, args, eventSteps);
+  }
+
   /// The first value [fire] gives; null too when there is none.
   Object? ask(String node, String port, {List<Object?> args = const [], int steps = eventSteps, bool quiet = false}) =>
       fire(node, port, args: args, steps: steps, quiet: quiet)?.firstOrNull;
@@ -182,6 +191,11 @@ class ExtensionRuntime {
       return null;
     }
   }
+
+  /// Runs [code] in the extension's world (its libraries, `require` for its files) and gives
+  /// what it returns; what goes wrong is thrown (a [LuaError]). For a console, and tests.
+  List<Object?> run(String code, {String chunk = 'console'}) =>
+      lua.call(lua.load(code, chunk: chunk, env: LuaTable()..shape = LuaShape.map), const [], eventSteps);
 
   /// Lets the ports [fire] stopped calling be called again: after the data changed.
   void revive() => _muted.clear();
@@ -233,7 +247,17 @@ class ExtensionRuntime {
       return [module(path)];
     });
     final curator = library('curator', {
-      'has': (a) => [ExtensionApi.has(a.string(0, 'has'))],
+      'has': (a) {
+        final name = a.string(0, 'has');
+        if (!ExtensionApi.has(name)) return const [false];
+        if (name.startsWith('socket:')) return const [true];
+        // A library the list has but this host doesn't give (a page has no `ui`) isn't here.
+        Object? at = lua.globals;
+        for (final part in name.split('.')) {
+          at = at is LuaTable ? at[part] : null;
+        }
+        return [at != null];
+      },
       'log': (a) {
         host.print(id, a.map(lua.tostring).join('\t'));
         return const [];
@@ -269,6 +293,20 @@ class ExtensionRuntime {
     curator['version'] = package.version;
     curator['language'] = host.language;
     curator['null'] = LuaJson.nil;
+  }
+
+  // MARK: The text library
+
+  static final _spaces = RegExp(r'\s+');
+
+  void _installText() {
+    library('text', {
+      'trim': (a) => [a.string(0, 'text.trim').trim()],
+      'squeeze': (a) => [a.string(0, 'text.squeeze').replaceAll(_spaces, ' ').trim()],
+      'lower': (a) => [a.string(0, 'text.lower').toLowerCase()],
+      'upper': (a) => [a.string(0, 'text.upper').toUpperCase()],
+      'lines': (a) => [LuaTable.list(a.string(0, 'text.lines').split(RegExp(r'\r\n|\r|\n')))],
+    });
   }
 
   // MARK: The score library
@@ -310,11 +348,22 @@ class ExtensionRuntime {
         return [
           LuaTable.list([
             for (final (k, p) in t.passes.indexed)
-              LuaTable.map({'start': p.start, 'end': p.end, 'from': t.secondsAtQuarter(p.start, pass: k), 'to': t.secondsAtQuarter(p.end, pass: k)}),
+              LuaTable.map({'from': p.start, 'to': p.end, 'starts': t.secondsAtQuarter(p.start, pass: k), 'ends': t.secondsAtQuarter(p.end, pass: k)}),
           ]),
         ];
       },
       'end_seconds': (a) => [timeline('score.end_seconds').endSeconds],
+      'spans': (a) {
+        final t = timeline('score.spans'), places = a.table(0, 'score.spans');
+        final spans = markerSpans(
+          [for (final (i, v) in places.array.indexed) v is num ? v.toDouble() : throw LuaError("bad argument #1 to 'score.spans' (place ${i + 1} is not a number)")],
+          t,
+          end: a.numberOr(1, 'score.spans')?.toDouble(),
+        );
+        return [
+          LuaTable.list([for (final s in spans) LuaTable.map({'index': s.marker + 1, 'from': s.start, 'to': s.end})]),
+        ];
+      },
       'rehearsal_marks': (a) {
         final s = score('score.rehearsal_marks'), starts = s.timeline.measureStarts;
         return [

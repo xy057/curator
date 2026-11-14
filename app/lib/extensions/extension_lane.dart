@@ -5,60 +5,66 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart';
 
-import 'app_colors.dart';
-import 'app_icons.dart';
-import 'edit_dialogs.dart';
-import 'editor_controller.dart';
-import 'lanes_common.dart';
-import 'span_lane.dart';
-import 'l10n/l10n.dart';
+import '../app_colors.dart';
+import '../app_icons.dart';
+import '../editor_controller.dart';
+import '../lanes_common.dart';
+import '../span_lane.dart';
 
-/// The Chapters lane (the Chapters extension), pinned under the bar ruler in both tabs: each
-/// chapter wherever its music sounds ([chapterSpans]), from where it starts to where the next does. Its
-/// name's buttons add one where the playhead is, add one at every rehearsal mark, and remove
-/// the one selected.
+/// A lane of an extension's (a `lane` node of its connector), pinned under the bar ruler in
+/// both tabs. The app draws it and takes the mouse, as it does for its own lanes; the
+/// extension says what is in it (`items`) and what a gesture does (`add`, `move`, `erase`,
+/// `open`, `remove`). Its name carries the extension's commands for it as buttons.
 ///
-/// Edited with the Instruments tab's tool (the Audio tab selects). Select: click a chapter to
-/// select it (Delete removes it), drag it to move where it starts, never past the chapters
-/// either side, double-click it for its name; a click before the first moves the playhead.
-/// Draw: click for a new one from the beat there. Erase: click one to remove it. ⌥ swaps the
+/// Markers: each item wherever its music sounds ([markerSpans]), from where it starts to
+/// where the next does. Edited with the Instruments tab's tool (the Audio tab selects).
+/// Select: click one to select it (Delete removes it), drag it to move where it starts, never
+/// past those either side, double-click it to open it; a click before the first moves the
+/// playhead. Draw: click for a new one from the beat there. Erase: click one. ⌥ swaps the
 /// tools, as in the lanes; a start snaps to beats (bars zoomed out), ⌘ places freely.
-class ChapterLane extends StatefulWidget {
-  const ChapterLane({super.key, required this.controller});
+class ExtensionLane extends StatefulWidget {
+  ExtensionLane({required this.controller, required this.runtime, required this.node}) : super(key: ValueKey('lane ${runtime.id} ${node.id}'));
   final EditorController controller;
+  final ExtensionRuntime runtime;
+  final GraphNode node;
 
   static const height = SpanLane.height;
 
   @override
-  State<ChapterLane> createState() => _ChapterLaneState();
+  State<ExtensionLane> createState() => _ExtensionLaneState();
 }
 
 class _Drag {
   _Drag({required this.index, required this.downAt, required this.downQ, required this.pass, required this.from});
 
-  /// The chapter held; null: the playhead (a press where no chapter is).
+  /// The item held; null: the playhead (a press where no item is).
   final int? index;
   final Offset downAt;
   final double downQ;
   final int pass;
 
-  /// Where the chapter started.
+  /// Where the item started.
   final double from;
   bool moved = false;
 }
 
-class _ChapterLaneState extends State<ChapterLane> with LaneCursor<ChapterLane> {
+class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<ExtensionLane> {
   EditorController get c => widget.controller;
+  ExtensionRuntime get runtime => widget.runtime;
+  String get lane => widget.node.id;
   ScoreTimeline get tl => c.timeline;
-  List<Chapter> get chapters => c.chapters.chapters;
+  List<LaneItem> get items => c.extensions.items(runtime, widget.node);
+
+  /// The least two items are apart, in score quarters.
+  double get _gap => switch (widget.node.props['gap']) { final num n when n > 0 => n.toDouble(), _ => 0.25 };
 
   _Drag? _drag;
 
-  /// Where the Draw tool was pressed: a new chapter's start, asked for its name once let go.
+  /// Where the Draw tool was pressed: a new item's start, the extension's once let go.
   double? _drawAt;
   final _clicks = DoubleClicks();
 
-  /// Names as laid out in the lane, kept: playback repaints it every frame.
+  /// Labels as laid out in the lane, kept: playback repaints it every frame.
   final _labels = <(String, double, Color), TextPainter>{};
 
   TextPainter _label(String text, double maxWidth, Color color) {
@@ -86,8 +92,8 @@ class _ChapterLaneState extends State<ChapterLane> with LaneCursor<ChapterLane> 
     super.dispose();
   }
 
-  /// The chapters in time, the last to the end of what plays.
-  List<ChapterSpan> get _spans => chapterSpans(chapters, tl, end: math.max(tl.endSeconds, c.playback.duration));
+  /// The items in time, the last to the end of what plays.
+  List<MarkerSpan> get _spans => c.extensions.spans(runtime, widget.node, end: math.max(tl.endSeconds, c.playback.duration));
 
   /// The tool a press uses: the Instruments tab's, ⌥ swapping as in the lanes; the Audio tab selects.
   LaneTool get _tool {
@@ -107,11 +113,11 @@ class _ChapterLaneState extends State<ChapterLane> with LaneCursor<ChapterLane> 
     return here < pass ? tl.passes[pass].start : tl.passes[pass].end;
   }
 
-  /// The chapter sounding under [x] (an index into the chapters).
+  /// The item sounding under [x] (an index into the items).
   int? _hit(double x) {
     final seconds = c.viewport.seconds(x);
     for (final s in _spans) {
-      if (seconds >= s.start && seconds < s.end) return s.chapter < 0 ? null : s.chapter;
+      if (seconds >= s.start && seconds < s.end) return s.marker < 0 ? null : s.marker;
     }
     return null;
   }
@@ -136,20 +142,20 @@ class _ChapterLaneState extends State<ChapterLane> with LaneCursor<ChapterLane> 
         // From the beat pressed in: the one it is under way in.
         _drawAt = isCommandPressed ? q : beatInLanes(c, q, pass: pass).start;
       case LaneTool.erase:
-        if (hit != null) c.chapters.remove(hit);
+        if (hit != null) runtime.fire(lane, 'erase', args: [hit + 1]);
       case LaneTool.select:
         if (hit == null) {
           _drag = _Drag(index: null, downAt: p, downQ: q, pass: pass, from: 0);
           c.playback.scrub(c.viewport.seconds(p.dx));
           return;
         }
-        c.chapters.select(hit);
+        c.extensions.select(runtime.id, lane, hit);
         if (doubleClick) {
-          showChapterDialog(context, c, index: hit);
+          runtime.fire(lane, 'open', args: [hit + 1]);
           return;
         }
         c.beginEdit();
-        _drag = _Drag(index: hit, downAt: p, downQ: q, pass: pass, from: chapters[hit].at);
+        _drag = _Drag(index: hit, downAt: p, downQ: q, pass: pass, from: items[hit].at);
         showCursor(SystemMouseCursors.grabbing);
     }
   }
@@ -161,64 +167,53 @@ class _ChapterLaneState extends State<ChapterLane> with LaneCursor<ChapterLane> 
     final i = drag.index;
     if (i == null) return c.playback.scrub(c.viewport.seconds(p.dx));
     drag.moved |= (p - drag.downAt).distance >= 3;
-    if (!drag.moved || i >= chapters.length) return;
-    // Never past the chapters either side: which is which stays.
-    const apart = ChapterEditing.apart;
-    final lo = i == 0 ? 0.0 : chapters[i - 1].at + apart;
-    final hi = (i + 1 < chapters.length ? chapters[i + 1].at : tl.measureStarts.last) - apart;
+    final items = this.items;
+    if (!drag.moved || i >= items.length) return;
+    // Never past the items either side: which is which stays.
+    final apart = _gap;
+    final lo = i == 0 ? 0.0 : items[i - 1].at + apart;
+    final hi = (i + 1 < items.length ? items[i + 1].at : tl.measureStarts.last) - apart;
     if (hi < lo) return;
     final at = snapInLanes(c, drag.from + _q(p.dx, pass: drag.pass) - drag.downQ, pass: drag.pass).clamp(lo, hi).toDouble();
-    c.chapters.update(i, chapters[i].copyWith(at: at));
+    if (at != items[i].at) runtime.fire(lane, 'move', args: [i + 1, at]);
   }
 
   void _onUp(PointerEvent e) {
     final drag = _drag, drawAt = _drawAt;
     _drag = null;
     _drawAt = null;
-    if (drawAt != null && e is PointerUpEvent) showChapterDialog(context, c, draft: Chapter(drawAt, ''));
+    if (drawAt != null && e is PointerUpEvent) runtime.fire(lane, 'add', args: [drawAt]);
     if (drag == null) return;
     if (drag.index == null) return c.playback.endScrub();
     c.endEdit();
     showCursor(e is PointerCancelEvent ? SystemMouseCursors.basic : cursorAt(e.localPosition));
   }
 
-  /// A chapter from the beat the playhead is in.
-  void _add() {
-    final seconds = c.playback.time.value;
-    final q = tl.quarterAtSeconds(seconds).clamp(0.0, tl.measureStarts.last - 1e-6);
-    showChapterDialog(context, c, draft: Chapter(beatInLanes(c, q, pass: tl.passAt(seconds)).start, ''));
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return SizedBox(
-      height: ChapterLane.height,
+      height: ExtensionLane.height,
       child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         SizedBox(
           width: kLaneHeaderWidth,
           child: ListenableBuilder(
             listenable: c,
             builder: (context, _) => LaneLabel(
-              height: ChapterLane.height,
+              height: ExtensionLane.height,
               color: colors.accentWash,
               trailing: Padding(
                 padding: const EdgeInsets.only(right: 4),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  LaneButton(icon: AppIcon.add, tooltip: 'Add Chapter'.tr, onPressed: _add),
-                  LaneButton(
-                    icon: AppIcon.score,
-                    tooltip: 'Add from Rehearsal Marks'.tr,
-                    onPressed: c.chapters.canAddMarks ? c.chapters.addMarks : null,
-                  ),
-                  LaneButton(
-                    icon: AppIcon.delete,
-                    tooltip: 'Remove Chapter'.tr,
-                    onPressed: c.chapters.selected == null ? null : c.chapters.remove,
-                  ),
+                  for (final command in c.extensions.commands(runtime, lane: lane))
+                    LaneButton(
+                      icon: extensionIcon(command.props['icon']),
+                      tooltip: runtime.translate(_text(command.props['title'])),
+                      onPressed: c.extensions.canRun(runtime, command) ? () => runtime.fire(command.id, 'run') : null,
+                    ),
                 ]),
               ),
-              child: Text('Chapters'.tr, style: TextStyle(fontWeight: FontWeight.w500)),
+              child: Text(runtime.translate(_text(widget.node.props['title'])), style: TextStyle(fontWeight: FontWeight.w500)),
             ),
           ),
         ),
@@ -239,7 +234,7 @@ class _ChapterLaneState extends State<ChapterLane> with LaneCursor<ChapterLane> 
                   controller: c,
                   child: CustomPaint(
                     size: Size.infinite,
-                    painter: _ChapterLanePainter(this, colors, AppStyle.of(context).rounded, Listenable.merge([c, c.viewport])),
+                    painter: _MarkersPainter(this, colors, AppStyle.of(context).rounded, Listenable.merge([c, c.viewport])),
                   ),
                 ),
               ),
@@ -251,11 +246,17 @@ class _ChapterLaneState extends State<ChapterLane> with LaneCursor<ChapterLane> 
   }
 }
 
-/// The chapters as the lanes' regions are drawn, each rounded where it starts and square
-/// where the next takes over; the selected one filled.
-class _ChapterLanePainter extends CustomPainter {
-  _ChapterLanePainter(this.s, this.colors, this.rounded, Listenable repaint) : super(repaint: repaint);
-  final _ChapterLaneState s;
+String _text(Object? value) => value is String ? value : '';
+
+/// The icon a connector names ([ExtensionApi.icons]); one it doesn't know is the extensions'.
+AppIcon extensionIcon(Object? name) => _icons[name] ?? AppIcon.extensions;
+final _icons = AppIcon.values.asNameMap();
+
+/// The items as the lanes' regions are drawn, each rounded where it starts and square where
+/// the next takes over; the selected one filled.
+class _MarkersPainter extends CustomPainter {
+  _MarkersPainter(this.s, this.colors, this.rounded, Listenable repaint) : super(repaint: repaint);
+  final _ExtensionLaneState s;
   final AppColors colors;
   final bool rounded;
 
@@ -265,12 +266,12 @@ class _ChapterLanePainter extends CustomPainter {
     final c = s.c;
     canvas.drawRect(Offset.zero & size, Paint()..color = colors.accentWash);
     paintBarGrid(canvas, size, c, colors);
-    final selected = c.chapters.selected, chapters = s.chapters;
+    final selected = c.extensions.selectedIn(s.runtime.id, s.lane), items = s.items;
     final round = Radius.circular(rounded ? 4 : 0);
     for (final span in s._spans) {
       final x0 = c.viewport.x(span.start), x1 = c.viewport.x(span.end) - 1;
-      if (x1 < 0 || x0 > size.width || span.chapter < 0 || span.chapter >= chapters.length) continue;
-      final on = span.chapter == selected;
+      if (x1 < 0 || x0 > size.width || span.marker < 0 || span.marker >= items.length) continue;
+      final on = span.marker == selected;
       final rect = RRect.fromLTRBAndCorners(x0, 4, math.max(x0 + 2, x1), size.height - 5, topLeft: round, bottomLeft: round);
       canvas.drawRRect(rect, Paint()..color = on ? colors.accent : colors.surface);
       canvas.drawRRect(
@@ -281,16 +282,16 @@ class _ChapterLanePainter extends CustomPainter {
           ..color = on ? colors.accentStrong : colors.textMuted.withValues(alpha: 0.5),
       );
       if (x1 - x0 < 16) continue;
-      // Kept in view while its chapter is: the name stays readable scrolled past its start.
+      // Kept in view while its item is: the name stays readable scrolled past its start.
       // Its width in whole steps then, so a scroll finds the same one laid out.
       final left = math.max(x0, 0.0), room = x1 - left - 12;
       final width = (x0 < 0 ? (room / 16).floorToDouble() * 16 : room.floorToDouble()).clamp(0.0, 400.0).toDouble();
       if (width < 8) continue;
-      final text = s._label(chapters[span.chapter].name, width, on ? colors.surface : colors.text);
+      final text = s._label(items[span.marker].label, width, on ? colors.surface : colors.text);
       text.paint(canvas, Offset(left + 6, rect.center.dy - text.height / 2));
     }
   }
 
   @override
-  bool shouldRepaint(_ChapterLanePainter old) => true;
+  bool shouldRepaint(_MarkersPainter old) => true;
 }

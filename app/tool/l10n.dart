@@ -1,5 +1,6 @@
 // Keeps the interface's translations in step with the code: every `'…'.tr`, `'…'.fill(…)` and
-// `'…'.trIn('…')` text in lib/ goes into the template, assets/l10n/curator.pot (the English
+// `'…'.trIn('…')` text in lib/, and every text of Curator's own extensions (assets/extensions:
+// `tr("…")` in their Lua, their connectors' titles, their names), goes into the template, assets/l10n/curator.pot (the English
 // Crowdin translates from), with the files using it; then every language's .po gets the
 // template's entries in its order, untranslated where it has none, and loses those the
 // template no longer has. Text translated other than as a literal (an enum's label) is added
@@ -17,6 +18,15 @@ void main() {
     if (file.path.contains('${Platform.pathSeparator}l10n${Platform.pathSeparator}')) continue;
     for (final key in translatedLiterals(file.readAsStringSync())) {
       (used[key] ??= {}).add(file.path.replaceAll(r'\', '/'));
+    }
+  }
+  // Curator's own extensions: their Lua and their connectors' titles.
+  final extensions = Directory('assets/extensions').listSync(recursive: true).whereType<File>().toList()..sort((a, b) => a.path.compareTo(b.path));
+  for (final file in extensions) {
+    final path = file.path.replaceAll(r'\', '/');
+    if (!path.endsWith('.lua') && !path.endsWith('.json')) continue;
+    for (final key in extensionTexts(path, file.readAsStringSync())) {
+      (used[key] ??= {}).add(path);
     }
   }
 

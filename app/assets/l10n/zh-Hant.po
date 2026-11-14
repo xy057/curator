@@ -230,7 +230,7 @@ msgstr "強調色"
 msgid "Accidentals"
 msgstr "變音記號"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua
 msgid "Add"
 msgstr "加入"
 
@@ -372,7 +372,7 @@ msgstr "任意元素"
 msgid "Appearance"
 msgstr "外觀"
 
-#: lib/edit_dialogs.dart lib/spacer_dialogs.dart
+#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/chapters/src/lane.lua
 msgid "Apply"
 msgstr "套用"
 
@@ -528,7 +528,7 @@ msgstr "填補不超過 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 則為 c，否則為 d"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_form.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -974,6 +974,7 @@ msgstr "刻譜"
 msgid "Engraving…"
 msgstr "正在刻譜…"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr "請輸入小節或「小節.拍」，如 12 或 12.3"
 
@@ -1122,7 +1123,7 @@ msgstr "影格速率"
 msgid "Frame {n} of {all}"
 msgstr "第 {n} 格，共 {all} 格"
 
-#: lib/captions_dialog.dart
+#: lib/captions_dialog.dart assets/extensions/chapters/src/lane.lua
 msgid "From"
 msgstr "起始"
 
@@ -1413,7 +1414,7 @@ msgstr "音樂字型"
 msgid "Music symbols"
 msgstr "音樂符號"
 
-#: lib/ai_settings.dart
+#: lib/ai_settings.dart assets/extensions/chapters/src/lane.lua
 msgid "Name"
 msgstr "名稱"
 
@@ -1745,7 +1746,7 @@ msgstr "排練記號"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小節號行中的排練記號"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua
 msgid "Remove"
 msgstr "移除"
 
@@ -3465,44 +3466,50 @@ msgstr "匯入"
 msgid "Keyboard"
 msgstr "鍵盤"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Chapter"
 msgstr "章節"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Set From before the end"
 msgstr "「起始」須在結尾之前"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Another chapter starts here"
 msgstr "此處已有章節"
 
 msgid "In the video, and as times beside it"
 msgstr "寫入影片，並在旁生成時間列表"
 
+#: assets/extensions/chapters/extension.json
 msgid "Named places to jump to in a video or web page."
 msgstr "影片或網頁中可跳轉的命名位置。"
 
+#: assets/extensions/chapters/src/chapters.lua
 msgid "1 chapter"
 msgstr "1 個章節"
 
+#: assets/extensions/chapters/src/chapters.lua
 msgid "{n} chapters"
 msgstr "{n} 個章節"
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json assets/extensions/chapters/src/lane.lua
 msgid "Add Chapter"
 msgstr "加入章節"
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json
 msgid "Add from Rehearsal Marks"
 msgstr "從排練記號加入"
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json
 msgid "Remove Chapter"
 msgstr "移除章節"
 
-#: lib/chapter_lane.dart lib/web_player/player.dart
+#: lib/web_player/player.dart assets/extensions/chapters/connect.json assets/extensions/chapters/extension.json
 msgid "Chapters"
 msgstr "章節"
 
-#: lib/video_export.dart lib/web_player/player.dart
+#: assets/extensions/chapters/src/export.lua
 msgid "Start"
 msgstr "開頭"
 
@@ -4665,3 +4672,7 @@ msgstr "目前版本 {version}"
 #: lib/update_dialog.dart
 msgid "No release notes."
 msgstr "沒有發布說明。"
+
+#: lib/editor/extension_editing.dart
+msgid "{name} needs a newer Curator."
+msgstr "{name} 需要較新版本的 Curator。"

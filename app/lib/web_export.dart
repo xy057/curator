@@ -113,13 +113,23 @@ abstract final class WebExport {
       // What the page shows: the project with every setting its own, and the score engraved.
       var edits = editor.pageState;
       if (!captions) edits = edits.copyWith(captions: const [], extensions: {...edits.extensions, Extensions.captions.id: false});
-      if (!chapters) edits = edits.copyWith(chapters: const [], extensions: {...edits.extensions, Extensions.chapters.id: false});
+      if (!chapters) {
+        // Without the extensions that give chapters, or what they keep.
+        final sources = editor.extensions.readers().chapterSources.toSet();
+        edits = edits.copyWith(
+          extensions: {...edits.extensions, for (final id in sources) id: false},
+          extensionData: {
+            for (final MapEntry(key: id, :value) in edits.extensionData.entries)
+              if (!sources.contains(id)) id: value,
+          },
+        );
+      }
       if (!images) edits = edits.copyWith(patches: const []);
       if (WebPage.requestOf(edits) != score.request) {
         throw VideoExportException('The score is still being engraved. Try again in a moment.'.tr);
       }
       final kept = {for (final p in edits.patches) p.image};
-      final state = ProjectState(pdf: editor.projectState.pdf, edits: edits, images: {
+      final state = ProjectState(pdf: editor.projectState.pdf, edits: edits, packages: editor.extensions.carried, dataVersions: editor.projectState.dataVersions, images: {
         for (final MapEntry(key: id, value: image) in editor.projectState.images.entries)
           if (kept.contains(id))
             // Sized here: the page can't measure an SVG with no size of its own.

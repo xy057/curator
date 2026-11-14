@@ -4,7 +4,7 @@ import 'app_colors.dart';
 import 'app_icons.dart';
 import 'audio_panel.dart';
 import 'caption_lane.dart';
-import 'chapter_lane.dart';
+import 'extensions/extension_lane.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
 import 'spacer_lane.dart';
@@ -18,7 +18,7 @@ import 'l10n/l10n.dart';
 /// The DAW-like panel under the preview. The switch at its top-left changes between the
 /// Instruments tab (when each staff is shown) and the Audio tab (syncing to the recording).
 /// Both share one time axis, so zoom and scroll carry over. With Captions on, its lane is
-/// pinned under the ruler in both; with Chapters on, its lane; with Tonality on, its lane above them; with Attach Image on, the Spacers lane too. Project Settings… sits at its right end.
+/// pinned under the ruler in both; an extension's lanes (Chapters') under it; with Tonality on, its lane above them; with Attach Image on, the Spacers lane too. Project Settings… sits at its right end.
 class BottomPanel extends StatelessWidget {
   const BottomPanel({super.key, required this.controller, this.onProjectSettings});
   final EditorController controller;
@@ -27,6 +27,9 @@ class BottomPanel extends StatelessWidget {
   final VoidCallback? onProjectSettings;
 
   static const _switch = Duration(milliseconds: 220);
+
+  /// Where the Spacers lane sits among the pinned lanes (a lane's `order` in a connector).
+  static const _spacersOrder = 40;
 
   @override
   Widget build(BuildContext context) => Select(
@@ -37,9 +40,9 @@ class BottomPanel extends StatelessWidget {
           sync: controller.sync,
           tab: controller.tab,
           captions: controller.captions.enabled,
-          chapters: controller.chapters.enabled,
           tonality: controller.tonality.enabled,
           spacers: controller.spacers.enabled,
+          extensions: [for (final lane in controller.extensions.lanes) '${lane.runtime.id} ${lane.node.id}'].join('\n'),
           duration: controller.playback.duration,
         ),
         builder: (context, _) => _panel(context),
@@ -102,8 +105,12 @@ class BottomPanel extends StatelessWidget {
                 // its band tops the score.
                 if (c.tonality.enabled) TonalityLane(controller: c),
                 if (c.captions.enabled) CaptionLane(controller: c),
-                if (c.chapters.enabled) ChapterLane(controller: c),
+                // Extensions' lanes, by their order: Curator's own sit above the spacers.
+                for (final lane in c.extensions.lanes)
+                  if (lane.order < _spacersOrder) ExtensionLane(controller: c, runtime: lane.runtime, node: lane.node),
                 if (c.spacers.enabled) SpacerLane(controller: c),
+                for (final lane in c.extensions.lanes)
+                  if (lane.order >= _spacersOrder) ExtensionLane(controller: c, runtime: lane.runtime, node: lane.node),
                 Expanded(
                   child: AnimatedSwitcher(
                     duration: AppStyle.of(context).moving(_switch),

@@ -302,6 +302,11 @@ void _openMath(Lua lua) {
       final x = a.number(0, 'floor');
       return [x is int || !x.isFinite ? x : x.floor()];
     },
+    // Not Lua's: to the nearest whole number, a half away from zero (as Dart rounds).
+    'round': (a) {
+      final x = a.number(0, 'round');
+      return [x is int || !x.isFinite ? x : x.round()];
+    },
     'sqrt': (a) => [math.sqrt(a.number(0, 'sqrt'))],
     'sin': (a) => [math.sin(a.number(0, 'sin'))],
     'cos': (a) => [math.cos(a.number(0, 'cos'))],

@@ -25,9 +25,12 @@ class ApiFunction {
 
 /// A table of functions: `score`.
 class ApiLibrary {
-  const ApiLibrary(this.name, this.summary, this.functions, {this.values = const []});
+  const ApiLibrary(this.name, this.summary, this.functions, {this.values = const [], this.addsTo = false});
   final String name, summary;
   final List<ApiFunction> functions;
+
+  /// Whether it is one of Lua's own libraries, [functions] being what Curator adds to it.
+  final bool addsTo;
 
   /// Its fields that aren't functions: (`curator.api`, what it is).
   final List<(String, String)> values;
@@ -91,10 +94,12 @@ abstract final class ExtensionApi {
     return libraries.any((l) => l.name == name || l.functions.any((f) => f.name == name) || l.values.any((v) => '${l.name}.${v.$1}' == name));
   }
 
-  /// The icons a socket's `icon` may name.
+  /// The icons a socket's `icon` may name (the app's own, by name).
   static const icons = [
-    'add', 'delete', 'edit', 'score', 'image', 'captions', 'chapters', 'tonality', 'find', 'settings', 'export', 'import', 'play', 'pin', //
-    'show', 'hide', 'code', 'fetch', 'test', 'done', 'extension',
+    'add', 'close', 'delete', 'reset', 'copy', 'check', 'search', 'more', 'open', 'project', 'score', 'export', 'assets', 'play', 'pause', //
+    'music', 'draw', 'erase', 'tidy', 'audio', 'repeat', 'snap', 'frame', 'lanes', 'image', 'pin', 'link', 'captions', 'settings', 'fonts', //
+    'extensions', 'done', 'failed', 'warning', 'previous', 'next', 'align', 'moveUp', 'moveDown', 'chapters', 'ai', 'show', 'hide', 'test', //
+    'fetch', 'code', 'tonality', 'website', 'keyboard',
   ];
 
   static const sockets = <ApiSocket>[
@@ -105,8 +110,8 @@ abstract final class ExtensionApi {
           'Whether the project uses the extension, so opening it offers to turn it on. Unwired: whether it has saved anything.'),
       ApiPort('load', 'load(data, version) → data',
           'A project is being opened: check its saved data (written by the extension’s version of the data, "data.version" in extension.json) and return it as this version wants it. An error here says the project is damaged.'),
-      ApiPort('replaced', 'replaced(carry) → lost',
-          'The score was replaced. carry(quarter) gives where a place of the old score is in the new one, or nil when it is gone. Move the saved data and return how many things were lost.'),
+      ApiPort('replaced', 'replaced(data, carry) → data, lost',
+          'The score is being replaced by another. carry(quarter) gives where a place of the old score is in the new one, or nil when it is gone. Return the saved data moved there, and what was lost as a text ("2 chapters"), or nil.'),
     ]),
     ApiSocket('command', 'Command', 'Something the user can do: a button on a lane’s name, or an item of the preview’s menu.', ports: [
       ApiPort('run', 'run()', 'The user chose it.'),
@@ -117,22 +122,28 @@ abstract final class ExtensionApi {
       ApiProp('where', ApiPropType.choice, 'Where it is offered.', choices: ['lane', 'preview'], fallback: 'lane'),
       ApiProp('lane', ApiPropType.node, 'The lane whose name carries the button (where: lane).', choices: ['lane']),
     ]),
+    ApiSocket('export', 'Export', 'What the extension gives a video and a web page made of the project.', single: true, ports: [
+      ApiPort('chapters', 'chapters(from, to) → list',
+          'The chapters of a video or page showing from–to seconds of the performance: {from, to, name}, in seconds from its start, in order and without gaps. A movie carries them for its player, with a list of their times beside it; a page lists them to jump to.'),
+    ]),
     ApiSocket('lane', 'Lane', 'A lane pinned under the bar ruler, drawn and edited as the app’s own are.', ports: [
       ApiPort('items', 'items() → list',
-          'What the lane shows, in score order. Markers: {at = quarter, label = text}, each running to the next. Spans: {from = quarter, to = quarter, label = text, color = "#RRGGBB"}.'),
-      ApiPort('add', 'add(at, to)', 'The Draw tool was used: a click at a place (markers), or a stretch dragged out (spans).'),
-      ApiPort('move', 'move(index, at, to)', 'Item index is being dragged to start at a place (and, a span, end at one). Called as it moves; the whole drag is one Undo step.'),
-      ApiPort('erase', 'erase(index, from, to)', 'The Erase tool was used on item index (a span: over the stretch from–to).'),
+          'What the lane shows, in score order: {at = quarter, label = text}, each running to the next. Asked again when the extension’s data changes.'),
+      ApiPort('add', 'add(at)', 'The Draw tool was clicked at a place (snapped to the beat it is in).'),
+      ApiPort('move', 'move(index, at)', 'Item index is being dragged to start at a place. Called as it moves; the whole drag is one Undo step.'),
+      ApiPort('erase', 'erase(index)', 'The Erase tool was clicked on item index.'),
       ApiPort('open', 'open(index)', 'Item index was double-clicked.'),
       ApiPort('remove', 'remove(index)', 'Delete was pressed with item index selected.'),
     ], props: [
       ApiProp('title', ApiPropType.text, 'The lane’s name.'),
-      ApiProp('kind', ApiPropType.choice, 'Markers are places that each run to the next; spans are stretches with a start and an end.',
-          choices: ['markers', 'spans'], fallback: 'markers'),
-      ApiProp('gap', ApiPropType.number, 'The least two markers are apart, in quarters.', fallback: 0.25),
+      ApiProp('kind', ApiPropType.choice, 'Markers are places that each run to the next.', choices: ['markers'], fallback: 'markers'),
+      ApiProp('gap', ApiPropType.number, 'The least two markers are apart, in quarters: a drag stops there.', fallback: 0.25),
+      ApiProp('order', ApiPropType.number, 'Where it sits among the pinned lanes: a lower number is higher up.', fallback: 100),
     ]),
   ];
 
+  /// What Curator's Lua has beyond Lua 5.4's own libraries (string, table, math, utf8, os.time,
+  /// os.clock and os.date).
   static const libraries = <ApiLibrary>[
     ApiLibrary('curator', 'The extension itself: its saved data, its texts.', [
       ApiFunction('curator.data', 'curator.data() → table',
@@ -169,10 +180,40 @@ abstract final class ExtensionApi {
       ApiFunction('score.seconds', 'score.seconds(quarter, pass) → seconds', 'When a place sounds, in the pass-th time through it (1 by default).'),
       ApiFunction('score.quarter', 'score.quarter(seconds) → quarter', 'The place sounding at a time.'),
       ApiFunction('score.pass_at', 'score.pass_at(seconds) → number', 'Which pass through the score sounds at a time: a repeat is a pass more.'),
-      ApiFunction('score.passes', 'score.passes() → list', 'Every pass: {start, end} in quarters, {from, to} in seconds.'),
+      ApiFunction('score.passes', 'score.passes() → list', 'Every pass through the score, a repeat being one more: {from, to} in quarters, {starts, ends} in seconds.'),
       ApiFunction('score.end_seconds', 'score.end_seconds() → seconds', 'When the music ends.'),
+      ApiFunction('score.spans', 'score.spans(places, end) → list',
+          'Markers (places in quarters, each running to the next) as they sound, in order: {index, from, to} in seconds, index 0 for the music before the first. A repeat back into an earlier one is that one again. They cover the performance from 0 to end seconds (the end of the music by default).',
+          example: 'for _, span in ipairs(score.spans({0, 16, 48})) do\n  print(span.index, span.from, span.to)\nend'),
       ApiFunction('score.rehearsal_marks', 'score.rehearsal_marks() → list', 'The score’s rehearsal marks, in the order written: {at, bar, text}.'),
       ApiFunction('score.parts', 'score.parts() → list', 'The instruments: {id, name, staves}.'),
+    ]),
+    ApiLibrary('text', 'Text as people write it: every kind of space counts, in any script.', [
+      ApiFunction('text.trim', 'text.trim(text) → text', 'text without the spaces at its ends.'),
+      ApiFunction('text.squeeze', 'text.squeeze(text) → text', 'text with every run of spaces and line breaks made one space, and none at its ends: a name as it is kept.'),
+      ApiFunction('text.lower', 'text.lower(text) → text', 'text in lower case, in any script.'),
+      ApiFunction('text.upper', 'text.upper(text) → text', 'text in upper case, in any script.'),
+      ApiFunction('text.lines', 'text.lines(text) → list', 'The lines of text.'),
+    ]),
+    ApiLibrary('math', 'Lua’s math library, and:', [
+      ApiFunction('math.round', 'math.round(x) → number', 'x to the nearest whole number, a half away from zero.'),
+    ], addsTo: true),
+    ApiLibrary('lanes', 'What is selected in the extension’s lanes. In the editor only.', [
+      ApiFunction('lanes.selected', 'lanes.selected(lane) → index', 'The item selected in a lane (the lane’s id in the connector); nil when none is.'),
+      ApiFunction('lanes.select', 'lanes.select(lane, index)', 'Selects item index of a lane; nil selects nothing.'),
+    ]),
+    ApiLibrary('editor', 'The editor’s playhead and grid. In the editor only.', [
+      ApiFunction('editor.playhead', 'editor.playhead() → seconds', 'Where the playhead is.'),
+      ApiFunction('editor.seek', 'editor.seek(seconds)', 'Moves the playhead.'),
+      ApiFunction('editor.beat', 'editor.beat(quarter, pass) → start, end', 'The beat of the lanes’ grid a place is in (bars when zoomed far out).'),
+      ApiFunction('editor.snap', 'editor.snap(quarter, pass) → quarter', 'The nearest line of the lanes’ grid, as a drag snaps to it.'),
+    ]),
+    ApiLibrary('ui', 'Dialogs, laid out as the app’s own. In the editor only.', [
+      ApiFunction('ui.form', 'ui.form(spec)',
+          'Opens a dialog. spec: title, confirm (its button’s title), width, rows (each a list of fields: {id, label, value, type = "text" or "switch", max, flex, focus, hint, lines}), leading (buttons at the left: {id, title}), check(values) → nil when it can be confirmed, a text saying why not, or "" to say nothing, and done(values, button), called with the fields’ values by id and "confirm" or a leading button’s id. Cancel calls nothing.',
+          example:
+              'ui.form{\n  title = "Add Note", confirm = "Add",\n  rows = { { {id = "text", label = "Note", focus = true} } },\n  check = function(values) return values.text == "" and "" or nil end,\n  done = function(values) add(values.text) end,\n}'),
+      ApiFunction('ui.message', 'ui.message(text)', 'Shows a line at the window’s foot for a moment.'),
     ]),
   ];
 }

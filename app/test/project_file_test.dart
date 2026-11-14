@@ -332,9 +332,8 @@ void main() {
       c.images.update(0, c.images.patches[0].copyWith(ink: true));
       c.captions.add(Caption(starts[1], starts[5], 'The horns answer'));
       c.captions.setFont(TextFonts.academico);
-      c.chapters.enabled = true;
-      c.chapters.add(Chapter(starts[4], 'Second theme'));
-      c.chapters.add(Chapter(starts[0], 'Opening'));
+      c.setExtension('chapters', true);
+      c.extensions.runtime('chapters')!.run('local lane = require("lane")\nlane.create(${starts[4]}, "Second theme")\nlane.create(${starts[0]}, "Opening")');
       c.tonality.enabled = true;
       c.tonality.add(KeyArea(starts[0], starts[16], const MusicKey.of(0, minor: true)));
       c.tonality.add(KeyArea(starts[8], starts[12], const MusicKey.of(-1), '(F major)')); // over it: cut in two
@@ -377,7 +376,12 @@ void main() {
       expect(c2.images.stored, hasLength(1), reason: 'the image file travels in the project');
       expect(c2.captions.captions, [Caption(starts[1], starts[5], 'The horns answer')]);
       expect(c2.captions.font, TextFonts.academico);
-      expect(c2.chapters.chapters, [Chapter(starts[0], 'Opening'), Chapter(starts[4], 'Second theme')]);
+      expect(c2.extensions.data('chapters'), {
+        'chapters': [
+          [starts[0], 'Opening'],
+          [starts[4], 'Second theme'],
+        ],
+      });
       expect(c2.tonality.areas, [
         KeyArea(starts[0], starts[8], const MusicKey.of(0, minor: true)),
         KeyArea(starts[8], starts[12], const MusicKey.of(-1), '(F major)'),

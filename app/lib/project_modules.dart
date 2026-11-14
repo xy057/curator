@@ -63,6 +63,8 @@ abstract final class ProjectModules {
   static const chapters = _Chapters();
   static const tonality = _Tonality();
   static const spacers = _Spacers();
+  static const packages = _Packages();
+  static const extensionData = _ExtensionData();
   static const view = _View();
   static const pdf = _Pdf();
   static const lilypond = _LilyPond();
@@ -70,12 +72,16 @@ abstract final class ProjectModules {
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
     pdf, lilypond, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, chapters, //
-    tonality, spacers, view,
+    tonality, spacers, packages, extensionData, view,
   ];
 
   /// The score-wide settings, what a page of Project Settings sets for the whole score: a
   /// settings file (.ccf).
   static const List<ProjectModule> settings = [fonts, engraving, display, extensions];
+
+  /// The extensions of Curator's own that keep their data in a module of their own, as they did
+  /// before they were packages: the extension's id → that module.
+  static const Map<String, ProjectModule> ownData = {'chapters': chapters};
 
   /// Whether [id] can be a take's ([Take.id]): `take-1`, `take-2`…, safe as a folder's name.
   static bool isTakeId(String id) => _Takes.isTakeId(id);
@@ -87,6 +93,79 @@ abstract final class ProjectModules {
   static Map<String, Object?> toJson(ProjectState state, [List<ProjectModule> modules = all]) => {
         for (final m in modules) m.id: m.write(state, (entry, bytes, {compress = true}) {}),
       };
+}
+
+/// The extensions a project carries (`packages/<id>.cpe`, each as it is shared), in the order
+/// added. Optional: a build that knows nothing of them opens the project and keeps them.
+final class _Packages extends ProjectModule {
+  const _Packages() : super('packages', optional: true);
+
+  static String _entry(String id) => 'packages/$id.${ExtensionPackage.fileExtension}';
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) {
+    for (final p in state.packages.values) {
+      files(_entry(p.id), p.write(), compress: false);
+    }
+    return {
+      'packages': [
+        for (final p in state.packages.values) {'id': p.id, 'name': p.name, 'version': ?p.version, 'entry': _entry(p.id)},
+      ],
+    };
+  }
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    final packages = <String, ExtensionPackage>{};
+    for (final (i, entry) in r.list('packages').indexed) {
+      final e = JsonReader(entry, '${r.where}.packages[$i]');
+      final id = e.string('id', required: true)!;
+      if (!ExtensionPackage.isThirdPartyId(id)) throw _damaged('${e.where}.id is not an extension’s id.');
+      final bytes = files(_entry(id), limit: ExtensionPackage.maxBytes);
+      if (bytes == null) throw _damaged('${_entry(id)} is missing.');
+      final ExtensionPackage package;
+      try {
+        package = ExtensionPackage.read(bytes);
+      } on FormatException catch (error) {
+        throw _damaged('${_entry(id)}: ${error.message}');
+      }
+      if (package.id != id) throw _damaged('${_entry(id)} holds another extension, ${package.id}.');
+      packages[id] = package;
+    }
+    return state.copyWith(packages: Map.unmodifiable(packages));
+  }
+}
+
+/// What the extensions from packages keep ([EditState.extensionData]), `{id: {version, value}}`:
+/// each one's data as it saved it, and the version of that data it said it writes. Optional: a
+/// build that can't run them opens the project and keeps it. (A Curator's own extension that
+/// once had a module of its own keeps it: [ProjectModules.ownData].)
+final class _ExtensionData extends ProjectModule {
+  const _ExtensionData() : super('extensiondata', optional: true);
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {
+        'data': {
+          for (final MapEntry(key: id, :value) in state.edits.extensionData.entries)
+            if (!ProjectModules.ownData.containsKey(id) && value != null) id: {'version': state.dataVersions[id] ?? 1, 'value': value},
+        },
+      };
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    final data = <String, Object?>{...state.edits.extensionData}, versions = <String, int>{...state.dataVersions};
+    final all = r.child('data');
+    for (final id in r.map('data').keys) {
+      final entry = all.child(id);
+      if (ProjectModules.ownData.containsKey(id)) continue;
+      data[id] = _json(r.map('data')[id], '${all.where}.$id');
+      versions[id] = entry.number('version')?.toInt() ?? 1;
+    }
+    return state.copyWith(edits: state.edits.copyWith(extensionData: Map.unmodifiable(data)), dataVersions: Map.unmodifiable(versions));
+  }
+
+  /// An entry's value, whatever JSON it is.
+  static Object? _json(Object? entry, String where) => entry is Map ? entry['value'] : throw _damaged('$where is not an extension’s data.');
 }
 
 FormatException _damaged(String what) => FormatException('The project is damaged: $what');
@@ -657,31 +736,39 @@ final class _Captions extends ProjectModule {
       );
 }
 
-/// Chapters (Chapters), `[at, name]`, in the score's order. Optional: an older build, which
+/// Chapters (the Chapters extension's data, as it keeps it: [EditState.extensionData]),
+/// `{"chapters": [[at, name]]}` in the score's order. The module is older than extensions as
+/// packages, and stays the extension's place in a project ([ProjectModules.ownData]); what is
+/// in it is the extension's to check (its `project.load`). Optional: an older build, which
 /// shows nothing of them, opens the project and keeps them.
-final class _Chapters extends ProjectModule {
-  const _Chapters() : super('chapters', optional: true);
+final class _Chapters extends _OwnData {
+  const _Chapters() : super('chapters', 'chapters', const {'chapters': <Object?>[]});
 
   @override
-  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {
-        'chapters': [
-          for (final c in state.edits.chapters) [c.at, c.name],
-        ],
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    r.list('chapters'); // a list, or the project is damaged
+    return super.read(r, state, files);
+  }
+}
+
+/// The data of one of Curator's own extensions that had a module to itself before extensions
+/// were packages, and keeps it: the module's JSON is what the extension saves
+/// ([EditState.extensionData] under [extension]), [empty] while it has saved nothing.
+abstract base class _OwnData extends ProjectModule {
+  const _OwnData(super.id, this.extension, this.empty) : super(optional: true);
+  final String extension;
+  final Map<String, Object?> empty;
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => switch (state.edits.extensionData[extension]) {
+        final Map<Object?, Object?> data => data.cast<String, Object?>(),
+        _ => empty,
       };
 
   @override
-  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) => state.copyWith(
-        edits: state.edits.copyWith(
-          chapters: tidyChapters([
-            for (final (i, chapter) in r.list('chapters').indexed)
-              switch (chapter) {
-                [final num at, final String name] when at.abs() <= JsonReader.maxNumber =>
-                  at < 0 ? throw _damaged('${r.where}.chapters[$i] starts before the score.') : Chapter(at.toDouble(), name),
-                _ => throw _damaged('${r.where}.chapters[$i] is not a place and a name.'),
-              },
-          ]),
-        ),
-      );
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) => r.json.isEmpty
+      ? state
+      : state.copyWith(edits: state.edits.copyWith(extensionData: Map.unmodifiable({...state.edits.extensionData, extension: r.json})));
 }
 
 /// Key areas (Tonality), `[start, end, tonic, mode]` and the user's marking after them if there

@@ -169,6 +169,23 @@ void main() {
     ], ['draw(g, frame) at 2', 'opened() at 3', 'items(...) at 4']);
   });
 
+  test('What Curator adds to Lua: text as people write it, rounding, a snippet run, what a host lacks', () {
+    final runtime = ExtensionRuntime(package(), TestHost());
+    Object? value(String code) => runtime.run('return $code').firstOrNull;
+    // Every kind of space, as Dart's \\s and trim() take them: a no-break space, an ideographic one.
+    expect(value(r'text.squeeze("  A\u{A0}\u{3000} B\n\tC  ")'), 'A B C');
+    expect(value(r'text.trim("\u{85} x \u{85}")'), 'x');
+    expect(value('text.upper("où é")'), 'OÙ É');
+    expect(value('#text.lines("a\\r\\nb\\nc")'), 3);
+    expect([value('math.round(2.5)'), value('math.round(-2.5)'), value('math.round(0.49999999999999994)'), value('math.round(7)')], [3, -3, 0, 7]);
+    // A place stays a fraction once it is one: saved as 4.0, not 4.
+    expect(LuaJson.fromLua(runtime.run('return {4 + 0.0, 4}').first, where: 'data').toString(), '[4.0, 4]');
+    // The list has `ui`, but this host gives none: an extension can ask before using it.
+    expect([value('curator.has("ui.form")'), value('curator.has("text.squeeze")'), value('curator.has("socket:lane.items")'), value('curator.has("nothing.here")')],
+        [false, true, true, false]);
+    expect(() => runtime.run('error("no", 0)'), throwsA(isA<LuaError>().having((e) => e.message, 'message', 'no')));
+  });
+
   test('Every socket and function of the API says what it is', () {
     for (final s in ExtensionApi.sockets) {
       expect(s.summary, isNotEmpty, reason: s.type);
@@ -192,6 +209,7 @@ void main() {
       for (final f in l.functions) {
         expect(table[f.name.substring(l.name.length + 1)], isA<LuaFunction>(), reason: '${f.name} is listed but missing');
       }
+      if (l.addsTo) continue; // Lua's own library: only what Curator adds is listed
       for (final key in table.hashKeys) {
         if (table[key] is LuaFunction) expect(ExtensionApi.has('${l.name}.$key'), isTrue, reason: '${l.name}.$key is there but not listed');
       }

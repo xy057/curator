@@ -16,6 +16,7 @@ export 'src/engraving_file.dart';
 export 'src/engraving_options.dart';
 export 'src/extension/api.dart';
 export 'src/extension/lua_json.dart';
+export 'src/extension/markers.dart';
 export 'src/extension/package.dart';
 export 'src/extension/runtime.dart';
 export 'src/font_files.dart';

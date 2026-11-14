@@ -229,7 +229,7 @@ msgstr ""
 msgid "Accidentals"
 msgstr ""
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua
 msgid "Add"
 msgstr ""
 
@@ -369,7 +369,7 @@ msgstr ""
 msgid "Appearance"
 msgstr ""
 
-#: lib/edit_dialogs.dart lib/spacer_dialogs.dart
+#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/chapters/src/lane.lua
 msgid "Apply"
 msgstr ""
 
@@ -525,7 +525,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_form.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -971,6 +971,7 @@ msgstr ""
 msgid "Engraving…"
 msgstr ""
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr ""
 
@@ -1119,7 +1120,7 @@ msgstr ""
 msgid "Frame {n} of {all}"
 msgstr ""
 
-#: lib/captions_dialog.dart
+#: lib/captions_dialog.dart assets/extensions/chapters/src/lane.lua
 msgid "From"
 msgstr ""
 
@@ -1410,7 +1411,7 @@ msgstr ""
 msgid "Music symbols"
 msgstr ""
 
-#: lib/ai_settings.dart
+#: lib/ai_settings.dart assets/extensions/chapters/src/lane.lua
 msgid "Name"
 msgstr ""
 
@@ -1742,7 +1743,7 @@ msgstr ""
 msgid "Rehearsal marks in bar numbers"
 msgstr ""
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua
 msgid "Remove"
 msgstr ""
 
@@ -3450,44 +3451,50 @@ msgstr ""
 msgid "Keyboard"
 msgstr ""
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Chapter"
 msgstr ""
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Set From before the end"
 msgstr ""
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Another chapter starts here"
 msgstr ""
 
 msgid "In the video, and as times beside it"
 msgstr ""
 
+#: assets/extensions/chapters/extension.json
 msgid "Named places to jump to in a video or web page."
 msgstr ""
 
+#: assets/extensions/chapters/src/chapters.lua
 msgid "1 chapter"
 msgstr ""
 
+#: assets/extensions/chapters/src/chapters.lua
 msgid "{n} chapters"
 msgstr ""
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json assets/extensions/chapters/src/lane.lua
 msgid "Add Chapter"
 msgstr ""
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json
 msgid "Add from Rehearsal Marks"
 msgstr ""
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json
 msgid "Remove Chapter"
 msgstr ""
 
-#: lib/chapter_lane.dart lib/web_player/player.dart
+#: lib/web_player/player.dart assets/extensions/chapters/connect.json assets/extensions/chapters/extension.json
 msgid "Chapters"
 msgstr ""
 
-#: lib/video_export.dart lib/web_player/player.dart
+#: assets/extensions/chapters/src/export.lua
 msgid "Start"
 msgstr ""
 
@@ -4649,4 +4656,8 @@ msgstr ""
 
 #: lib/update_dialog.dart
 msgid "No release notes."
+msgstr ""
+
+#: lib/editor/extension_editing.dart
+msgid "{name} needs a newer Curator."
 msgstr ""

@@ -725,6 +725,26 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// What extension [id] keeps for every project (`curator.settings` in its Lua), as JSON;
+  /// null: nothing yet.
+  Object? extensionSettings(String id) {
+    final saved = _prefs?.getString('extension.$id');
+    if (saved == null) return null;
+    try {
+      return jsonDecode(saved);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  void setExtensionSettings(String id, Object? json) {
+    if (json == null) {
+      _prefs?.remove('extension.$id');
+    } else {
+      _prefs?.setString('extension.$id', jsonEncode(json));
+    }
+  }
+
   /// Whether Export puts the chapters in a movie, and their times beside it (Chapters on, with
   /// chapters). On by default.
   bool get videoChapters => _videoChapters;

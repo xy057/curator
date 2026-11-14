@@ -228,13 +228,15 @@ class ExtensionPackage {
   }
 
   /// It as a `.cpe` file: the same bytes for the same package, whenever it is written.
-  Uint8List write() {
+  Uint8List write() => _written;
+
+  late final Uint8List _written = () {
     final at = DateTime.utc(2000).millisecondsSinceEpoch ~/ 1000;
     final archive = Archive()
       ..add(ArchiveFile.noCompress('mimetype', mimeType.length, ascii.encode(mimeType))..lastModTime = at);
     files.forEach((path, bytes) => archive.add(ArchiveFile.bytes(path, bytes)..lastModTime = at));
     return ZipEncoder().encodeBytes(archive);
-  }
+  }();
 }
 
 /// A socket of Curator's an extension uses: one node of its [ConnectorGraph]. What kind

@@ -57,12 +57,12 @@ class EditState {
     this.patches = const [],
     this.captions = const [],
     this.captionFont,
-    this.chapters = const [],
     this.keyAreas = const [],
     this.fonts = ScoreFonts.standard,
     this.embedFont = true,
     this.engraving = const EngravingOptions(),
     this.extensions = const {},
+    this.extensionData = const {},
     this.textDynamics,
     this.rehearsalInRow,
     this.centeredLyrics,
@@ -180,8 +180,6 @@ class EditState {
   /// Captions under the score (Captions), in the order they were added.
   final List<Caption> captions;
 
-  /// Chapters (Chapters), in the score's order, one to a place ([tidyChapters]).
-  final List<Chapter> chapters;
 
   /// Key areas (Tonality), in the score's order, one to a place ([tidyKeyAreas]).
   final List<KeyArea> keyAreas;
@@ -210,6 +208,11 @@ class EditState {
   /// The extensions this project turned on or off (Project Settings ▸ Extensions), by
   /// [CuratorExtension.id]; one left out follows the app's.
   final Map<String, bool> extensions;
+
+  /// What each extension run from a package ([ExtensionPackage]) keeps in the project, by its
+  /// id: JSON (maps, lists, text, numbers), never changed in place. One whose extension is
+  /// off, or isn't here, stays as it is.
+  final Map<String, Object?> extensionData;
 
   /// Whether dynamics written as text are engraved as dynamics (Project Settings ▸ Flags,
   /// [TextDynamics]); null: the app's (Save as default).
@@ -258,12 +261,12 @@ class EditState {
       listEquals(patches, other.patches) &&
       listEquals(captions, other.captions) &&
       captionFont == other.captionFont &&
-      listEquals(chapters, other.chapters) &&
       listEquals(keyAreas, other.keyAreas) &&
       fonts == other.fonts &&
       embedFont == other.embedFont &&
       engraving == other.engraving &&
       mapEquals(extensions, other.extensions) &&
+      (identical(extensionData, other.extensionData) || LuaJson.same(extensionData, other.extensionData)) &&
       textDynamics == other.textDynamics &&
       rehearsalInRow == other.rehearsalInRow &&
       centeredLyrics == other.centeredLyrics &&
@@ -307,12 +310,12 @@ class EditState {
     List<ImagePatch>? patches,
     List<Caption>? captions,
     Object? captionFont = _kept,
-    List<Chapter>? chapters,
     List<KeyArea>? keyAreas,
     ScoreFonts? fonts,
     bool? embedFont,
     EngravingOptions? engraving,
     Map<String, bool>? extensions,
+    Map<String, Object?>? extensionData,
     Object? textDynamics = _kept,
     Object? rehearsalInRow = _kept,
     Object? centeredLyrics = _kept,
@@ -349,12 +352,12 @@ class EditState {
         patches: patches ?? this.patches,
         captions: captions ?? this.captions,
         captionFont: identical(captionFont, _kept) ? this.captionFont : captionFont as String?,
-        chapters: chapters ?? this.chapters,
         keyAreas: keyAreas ?? this.keyAreas,
         fonts: fonts ?? this.fonts,
         embedFont: embedFont ?? this.embedFont,
         engraving: engraving ?? this.engraving,
         extensions: extensions ?? this.extensions,
+        extensionData: extensionData ?? this.extensionData,
         textDynamics: identical(textDynamics, _kept) ? this.textDynamics : textDynamics as bool?,
         rehearsalInRow: identical(rehearsalInRow, _kept) ? this.rehearsalInRow : rehearsalInRow as bool?,
         centeredLyrics: identical(centeredLyrics, _kept) ? this.centeredLyrics : centeredLyrics as bool?,
@@ -553,6 +556,8 @@ class ProjectState {
       this.images = const {},
       this.view = const ViewState(),
       this.foreign = const {},
+      this.packages = const {},
+      this.dataVersions = const {},
       this.pdf,
       this.lilypond,
       ProjectKind? kind})
@@ -581,11 +586,21 @@ class ProjectState {
   /// by id: kept as they came, so saving here doesn't lose them.
   final Map<String, ForeignModule> foreign;
 
+  /// The extensions the project carries (those that aren't Curator's own), by id: each a
+  /// `.cpe` kept in the file, so the project opens the same anywhere.
+  final Map<String, ExtensionPackage> packages;
+
+  /// The version of its data ([ExtensionPackage.dataVersion]) each extension's entry of
+  /// [EditState.extensionData] was saved with, by id.
+  final Map<String, int> dataVersions;
+
   ProjectState copyWith(
           {EditState? edits,
           Map<String, PatchImage>? images,
           ViewState? view,
           Map<String, ForeignModule>? foreign,
+          Map<String, ExtensionPackage>? packages,
+          Map<String, int>? dataVersions,
           PdfScoreLayout? Function()? pdf,
           LilyPondProject? Function()? lilypond,
           ProjectKind? kind}) =>
@@ -594,6 +609,8 @@ class ProjectState {
           images: images ?? this.images,
           view: view ?? this.view,
           foreign: foreign ?? this.foreign,
+          packages: packages ?? this.packages,
+          dataVersions: dataVersions ?? this.dataVersions,
           pdf: pdf == null ? this.pdf : pdf(),
           lilypond: lilypond == null ? this.lilypond : lilypond(),
           kind: kind ?? this.kind);
@@ -625,6 +642,9 @@ class JsonReader {
 
   static List<Object?> listAt(Object? value, String where) =>
       value is List ? value : throw FormatException('The project is damaged: $where is not a list.');
+
+  /// The object as it was read.
+  Map<String, Object?> get json => _map;
 
   bool isAbsent(String key) => _map[key] == null;
 

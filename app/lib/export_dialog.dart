@@ -128,7 +128,7 @@ class _ExportDialogState extends State<_ExportDialog> {
 
   /// Whether the video carries the project's chapters, and their times go beside it: the
   /// extension on, with some sounding in the bars chosen.
-  bool get _hasChapters => widget.controller.chapters.exported.isNotEmpty;
+  bool get _hasChapters => _export.hasChapters;
   bool get _chapters => _hasChapters && _settings.videoChapters && !_format.codec.isSequence;
 
   /// Whether the video as chosen can be written.

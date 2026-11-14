@@ -53,7 +53,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
 
   late final _takes = _c.pageState.takes;
   late final _hasCaptions = _c.extensionOn(Extensions.captions.id) && _c.captions.captions.isNotEmpty;
-  late final _hasChapters = _c.chapters.exported.isNotEmpty;
+  late final _hasChapters = _c.extensions.exportsChapters;
   late final _hasImages = _c.extensionOn(Extensions.attachImage.id) && _c.images.patches.isNotEmpty;
   late final _hasBarNumbers = _c.pageState.barNumbers;
 

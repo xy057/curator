@@ -1,0 +1,28 @@
+{
+  "nodes": [
+    {"id": "project", "type": "project", "at": [40, 40]},
+    {"id": "lane", "type": "lane", "at": [40, 200], "title": "Chapters", "kind": "markers", "gap": 0.25, "order": 30},
+    {"id": "add", "type": "command", "at": [40, 440], "title": "Add Chapter", "icon": "add", "where": "lane", "lane": "lane"},
+    {"id": "marks", "type": "command", "at": [40, 560], "title": "Add from Rehearsal Marks", "icon": "score", "where": "lane", "lane": "lane"},
+    {"id": "remove", "type": "command", "at": [40, 680], "title": "Remove Chapter", "icon": "delete", "where": "lane", "lane": "lane"},
+    {"id": "export", "type": "export", "at": [40, 800]}
+  ],
+  "wires": [
+    ["project.load", "chapters.lua#load"],
+    ["project.used", "chapters.lua#used"],
+    ["project.replaced", "chapters.lua#replaced"],
+    ["lane.items", "lane.lua#items"],
+    ["lane.add", "lane.lua#add"],
+    ["lane.move", "lane.lua#move"],
+    ["lane.erase", "lane.lua#erase"],
+    ["lane.open", "lane.lua#open"],
+    ["lane.remove", "lane.lua#remove"],
+    ["add.run", "lane.lua#add_at_playhead"],
+    ["marks.run", "lane.lua#add_marks"],
+    ["marks.enabled", "lane.lua#can_add_marks"],
+    ["remove.run", "lane.lua#remove_selected"],
+    ["remove.enabled", "lane.lua#has_selection"],
+    ["export.chapters", "export.lua#chapters"]
+  ],
+  "files": {"chapters.lua": [420, 40], "lane.lua": [420, 300], "export.lua": [420, 800]}
+}

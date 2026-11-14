@@ -1,3 +1,4 @@
+import '../extensions/extension_reader.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart';
@@ -243,10 +244,11 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
   }
 
   /// The page's chapters as the recording heard has them, timed from its start: none while
-  /// the project's Chapters extension is off.
-  List<ChapterCue> get _chapters => (_loaded.edits.extensions['chapters'] ?? false)
-      ? chapterCues(_loaded.edits.chapters, _scene.timeline, from: _heard.start, to: _heard.end, opening: 'Start'.tr)
-      : const [];
+  /// no extension that is on gives any (Chapters).
+  List<ChapterCue> get _chapters => _extensions.chapters(_heard.start, _heard.end);
+
+  /// The page's extensions (those on in its project), reading the recording heard.
+  late final ExtensionReaders _extensions = _loaded.extensions(() => _scene.timeline);
 
   /// What the export left the viewer to choose, under the chapters to jump to.
   List<Widget> _choices(BuildContext context) {

@@ -54,6 +54,7 @@ import 'updater.dart';
 import 'video_export.dart';
 import 'web_export_dialog.dart';
 import 'window_chrome.dart';
+import 'extensions/bundled.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,7 +63,7 @@ Future<void> main() async {
   unawaited(Isolate.run(() => ScratchSpace.sweep(keep: keep)).catchError((_) {}));
   FontResources.workDirectory = ScratchSpace.folder('fonts').path; // metrics of fonts not bundled
   LicenseRegistry.addLicense(bundledLicenses);
-  final (settings, _) = await (AppSettings.load(), Strings.load(rootBundle.loadString)).wait;
+  final (settings, _, _) = await (AppSettings.load(), Strings.load(rootBundle.loadString), BundledExtensions.load(rootBundle)).wait;
   if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
   final updater = Updater(channel: settings.updateChannel);
   if (settings.checkForUpdates) unawaited(updater.check());
@@ -868,6 +869,9 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+    controller.extensions.window = () => mounted ? context : null;
+    controller.extensionSettings = settings.extensionSettings;
+    controller.saveExtensionSettings = settings.setExtensionSettings;
     FocusManager.instance.addListener(_focusChanged);
     document.addListener(_updateWindowTitle);
     document.addListener(_sampleChanged);

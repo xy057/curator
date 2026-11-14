@@ -37,7 +37,12 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_patch.dart` | Images on the score (`ScenePatch`, drawn by a `PatchArt` the app supplies) and `ScoreAxis`: score quarters ↔ engraving x |
 | `spacers.dart` | Spacers (Attach Image): `VerticalSpacer`, an empty part of its own (`Spacers.write`), and `HorizontalSpacer`, a stretch of the score made wider (`Spacers.verovioOption`) |
 | `score_caption.dart` | Captions (`Caption`), their markup (`captionRuns`), when each shows (`captionSpans`) and the bar they show in (`CaptionBar`) |
-| `score_chapter.dart` | Chapters (`Chapter`), when each sounds (`chapterSpans`), a video's (`chapterCues`) as the times its description takes (`chapterTimestamps`) and as FFmpeg reads them (`chapterMetadata`) |
+| `score_chapter.dart` | A video's or page's chapters (`ChapterCue`, which an extension gives) as the times a description takes (`chapterTimestamps`) and as FFmpeg reads them (`chapterMetadata`) |
+| `lua.dart`, `lua/` | Lua, run in Dart (`Lua`): the language extensions are written in. Lua 5.4 as written, read into a tree and turned into Dart closures; no io, os.execute or debug; a script is stopped past a number of steps (`LuaLimit`). One kind of number, strings as text, no coroutines |
+| `extension/package.dart` | `ExtensionPackage`: a `.cpe` (a zip: extension.json, connect.json, src/*.lua, locales/, assets/), read as it is and written back as it was, and its connector (`ConnectorGraph`: Curator's sockets as nodes, wired to functions of its files) |
+| `extension/runtime.dart` | `ExtensionRuntime`: one extension running over an `ExtensionHost` (the project and app it stands on): its files as modules, its wires called (`fire`, `ask`, `invoke`), what goes wrong listed, and the `curator`, `score` and `text` libraries its Lua gets |
+| `extension/api.dart` | `ExtensionApi`: every socket and function of the extension API with what it does and the level it came with; it only grows. `curator.has`, the extension editor's reference and docs are made from it |
+| `extension/lua_json.dart`, `extension/markers.dart` | Lua values to JSON and back (`LuaJson`); markers in time (`markerSpans`: what a markers lane draws, `score.spans`) |
 | `score_tonality.dart` | Tonality: a key (`MusicKey`: its tonic on the line of fifths, major or minor; its name and its colour), key areas (`KeyArea`: a stretch of the score in a key; `tidyKeyAreas`, one over others cutting them back), a score's key signatures at concert pitch (`concertKeySignatures`) and Find Keys (`findKeys`) |
 | `subtitles.dart` | Captions as subtitles: SRT and WebVTT read (`parseSubtitles`) and written (`writeSubtitles`), placed in the score (`captionsFromCues`) and timed from it (`captionCues`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
@@ -53,7 +58,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
-| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_editing.dart`, `editor/chapter_editing.dart`, `editor/tonality_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); chapters (Chapters); key areas (Tonality); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
+| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_editing.dart`, `editor/tonality_editing.dart`, `editor/extension_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); key areas (Tonality); extensions that are packages (`ExtensionEditing`: their runtimes, data, lanes and selection); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
 | `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG and raster drawing (animated too), the clipboard |
@@ -62,10 +67,12 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
 | `caption_settings.dart` | Project Settings ▸ Extensions ▸ Captions' own settings (the app's): font, countdown, size, alignment, backing, with a preview |
 | `extensions/extension.dart` | `CuratorExtension`, what the app knows of an extension (by id), and `Extensions`, every one there is |
-| `extensions/built_in.dart` | Attach Image and Captions as `CuratorExtension`s |
+| `extensions/built_in.dart` | Attach Image, Captions and Tonality as `CuratorExtension`s (those still written in the app) |
+| `extensions/bundled.dart` | `BundledExtensions`: Curator's own extensions that are packages, folders under `assets/extensions/<id>/` read as the app starts |
+| `extensions/extension_reader.dart` | Extensions run to read: `ReadingHost`, `ExtensionReaders` (what a video and a page get: chapters), a project's data checked as it opens (`checkedExtensionData`) and carried to a replacing score (`carriedExtensionData`) |
+| `extensions/extension_lane.dart`, `extensions/extension_form.dart` | What the app draws for an extension: its lane (`ExtensionLane`, markers each running to the next, with its commands as buttons) and the dialog `ui.form` asks for |
 | `extensions/extensions_dialog.dart` | On opening a project that uses extensions that are off: a switch for each |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
-| `chapter_lane.dart` | Chapters: the lane pinned under the bar ruler, a chapter drawn wherever its music sounds |
 | `tonality_lane.dart` | Tonality: the lane pinned under the bar ruler, a `SpanLane` of the key areas, each in its key's colour, with add, Find Keys and remove buttons |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Edit ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `key_bindings.dart`, `shortcut_settings.dart` | Settings ▸ Shortcuts (see *Every key is a KeyCommand*): every command a key gives (`KeyCommand`), its keys (`KeyChord`), those the user gave the menus' and the editor's commands (`KeyMap`, `AppSettings.keys`, over the window as `KeyMapScope`), tooltips naming a command's key as set (`keyed`); the page's control: a field taking the keys typed next (`ShortcutKeys`), or keycaps (`KeyCaps`) |
@@ -570,31 +577,36 @@ row's problem shows by the buttons, not around the row), or the cell would lose 
 (`captions` in `EditState`); a project keeps them in `state.captions` (format 11). While the
 switch is off they stay in the project but are not drawn, exported or editable.
 
-**A chapter names a stretch of the piece** (the Chapters extension). A `Chapter` is a place in
-the score (quarters) and a name; it runs to the next one. Nothing of it is drawn on the score.
-At any moment the chapter is the last one starting at or before the place that sounds
-(`chapterSpans`), so a repeat back into an earlier chapter is that chapter again and a repeat
-inside one doesn't split it; music before the first is no chapter's. They are kept in the
-score's order, one to a place (`tidyChapters`), as `chapters` in `EditState` (the controller's
-own `_doc`, so opening, Undo and closing take them) and saved in the `chapters` module, which is
-optional: an older build opens the project and keeps them. While the switch is on, the Chapters
-lane (`ChapterLane`) is pinned under the Captions lane in both tabs, each chapter drawn where it
-sounds, with the Instruments tab's tool (the Audio tab selects): Select clicks one (Delete
-removes it), drags where it starts (never past its neighbours, one Undo step) and double-clicks
-it for its dialog (name and From, `showChapterDialog`; an empty name removes it); Draw clicks
-for a new one from the beat there; Erase clicks one away. The lane's name has three buttons: a
-chapter at the playhead's beat, one at every rehearsal mark where none starts
-(`ChapterEditing.addMarks`, the marks as the bar numbers' row shows them), and remove. Export
-Video's Chapters switch (shown while there are any; not for a PNG sequence;
-`AppSettings.videoChapters`, on by default) puts them in the movie (`VideoExport.write`'s
-`chapters`: an FFmpeg metadata file read as the last input, `-map_chapters`; MP4, MOV and WebM
-all carry them) and writes their times beside it as `<name> chapters.txt`
-(`writeChaptersBeside`: "0:00 Opening" a line, what a video's description takes). A video's
-chapters cover it whole (`chapterCues`): the one under way at its first bar starts with it, and
-music before the first chapter is one named Start. A page carries them in its project
-(Export to Web's Chapters switch leaves them out): the player lists them at the top of its side
-panel, in the times of the recording heard, the one sounding marked, a tap jumping there.
-Replace Score carries each to its place (`ScoreSwap.carry`), counting those past the end as lost.
+**A chapter names a stretch of the piece** (the Chapters extension, a package:
+`assets/extensions/chapters`). A chapter is a place in the score (quarters) and a name; it runs
+to the next one. Nothing of it is drawn on the score. At any moment the chapter is the last one
+starting at or before the place that sounds (`markerSpans`), so a repeat back into an earlier
+chapter is that chapter again and a repeat inside one doesn't split it; music before the first
+is no chapter's. They are kept in the score's order, one to a place (`chapters.lua`'s `tidy`),
+as the extension's data (`EditState.extensionData['chapters']`, `{"chapters": [[at, name]]}`: an
+edit, so opening, Undo and closing take them) and saved in the `chapters` module as they always
+were (`ProjectModules.ownData`), which is optional: an older build opens the project and keeps
+them. Its `project.load` checks them as a project opens. While the switch is on, the Chapters
+lane (an `ExtensionLane` of markers, `lane.lua`) is pinned under the Captions lane in both tabs,
+each chapter drawn where it sounds, with the Instruments tab's tool (the Audio tab selects):
+Select clicks one (Delete removes it), drags where it starts (never past its neighbours, one
+Undo step) and double-clicks it for its dialog (name and From, a `ui.form`; an empty name
+removes it); Draw clicks for a new one from the beat there; Erase clicks one away. The lane's
+name has three buttons (the connector's `command` nodes): a chapter at the playhead's beat, one
+at every rehearsal mark where none starts (the marks as the bar numbers' row shows them), and
+remove. Export Video's Chapters switch (shown while an extension gives any; not for a PNG
+sequence; `AppSettings.videoChapters`, on by default) puts them in the movie
+(`VideoExport.write`'s `chapters`: an FFmpeg metadata file read as the last input,
+`-map_chapters`; MP4, MOV and WebM all carry them) and writes their times beside it as
+`<name> chapters.txt` (`writeChaptersBeside`: "0:00 Opening" a line, what a video's description
+takes). A video's chapters cover it whole (`export.lua`'s `chapters`, the `export.chapters`
+port): the one under way at its first bar starts with it, and music before the first chapter is
+one named Start. A page carries them in its project (Export to Web's Chapters switch leaves out
+the extensions that give any, and their data): the player, which runs the same Lua, lists them
+at the top of its side panel, in the times of the recording heard, the one sounding marked, a
+tap jumping there. Replace Score carries each to its place (`project.replaced`), saying those
+past the end as lost. `test/chapters_extension_test.dart` holds the package to what the
+chapters written in the app did, edit for edit.
 
 **A key area colours the top of the score** (the Tonality extension). A `KeyArea` is a stretch of
 the score (`start`–`end`, quarters), a key (`MusicKey`: its tonic as fifths from C, so F♯ and G♭
@@ -1854,12 +1866,11 @@ on Windows wherever the registry says that folder now is): it never replaces the
   house style, is off), as an `_Item` on
   Project Settings ▸ Flags with a switch to turn it off: the project's (`EditState`, an edit),
   else the app's default (`AppSettings`), which that page's Save as default sets.
-- **An extension**: a `CuratorExtension` (`extensions/extension.dart`), listed in
-  `Extensions.all`; the built-in ones are in `extensions/built_in.dart`. Each gives a stable
+- **An extension**: a `CuratorExtension` (`extensions/extension.dart`). Each gives a stable
   `id`, its name, icon, one-line summary, search words, its own settings (`settings`,
   a dialog's content, or null; the app's), `isUsedBy` (whether an open project uses it) and
   `apply` (turns its part of the editor on or off). Project Settings ▸ Extensions lists each:
-  name (and a version, which only an extension from elsewhere would have: a built-in one changes
+  name (and a version, which only an extension from elsewhere has: Curator's own change
   with the app), the summary under it, a settings button (greyed out without settings)
   and the switch. The switch is the project's only (`EditState.extensions` by id, an Undo step,
   `EditorController.extensionOn`); there is no app-wide default, and one the project never chose
@@ -1869,18 +1880,37 @@ on Windows wherever the registry says that folder now is): it never replaces the
   extensions it never chose shows them in a dialog (`extensions_dialog.dart`), each with its
   switch (and "All" when there are several); what the dialog ends with is the project's
   (`EditorController.keepExtensions`: one left off is stored off, no Undo step but saved), so
-  it asks once. Everything the extension adds (menu
-  items, toolbar buttons, drop targets, shortcuts, what it draws or exports) works only while
-  its switch is on, and is hidden or inert otherwise. **Attach Image** is the first one,
-  **Captions** the second, **Chapters** the third, **Tonality** the fourth.
+  it asks once. Everything the extension adds works only while its switch is on, and is hidden
+  or inert otherwise. Project files keep switches for ids this version doesn't know, so a newer
+  version's choices survive.
 
-  Nothing in the app names an extension but its own code: the switches, the project
-  file and dialogs go by id, so one more needs only its class and a place in `Extensions.all`.
-  This is ready for extensions from elsewhere (`ExtensionOrigin.thirdParty`, reverse-domain
-  ids), but none can be added yet: there is no loading, no sandbox and no API for adding to
-  the editor's menus, toolbars or drawing. A built-in extension still adds those by hand,
-  behind `images.enabled` / `captions.enabled` / `chapters.enabled` / `tonality.enabled`. Project files keep switches for ids this
-  version doesn't know, so a newer version's choices survive.
+  **An extension is a package** (`ExtensionPackage`, a `.cpe`): Lua files, and a connector that
+  wires Curator's sockets (`ExtensionApi.sockets`: `project`, `lane`, `command`, `export`) to
+  their functions. Curator's own are folders under `app/assets/extensions/<id>/`
+  (`BundledExtensions`, one-word ids, never saved in a project); one from elsewhere has a
+  reverse-domain id and is carried by the project that uses it (`ProjectState.packages`, the
+  `packages` module: `packages/<id>.cpe` as it is shared). A package adds nothing by hand:
+  while its switch is on, `EditorController.extensions` (`ExtensionEditing`) runs it (an
+  `ExtensionRuntime`), and the app draws what its connector declares (a lane, the buttons on
+  its name, a dialog it asks for) and calls its Lua for the rest. What it keeps is JSON in
+  `EditState.extensionData` by id (an edit: `curator.data()` then `curator.save()` is one Undo
+  step), saved in the `extensiondata` module with the version of the data it writes, or, for one
+  of Curator's own that had a module before it was a package, in that module as it always was
+  (`ProjectModules.ownData`), so files stay the same byte for byte. Where nothing is edited (a
+  project opening, a video's export, a web page) an extension runs over a `ReadingHost`. Rules:
+  - The API only grows (`ExtensionApi.level`): nothing listed is taken away or changes meaning.
+    What is added says its level; a package says the level it needs and may ask
+    `curator.has`. What a build doesn't know in a package (a later key, a later socket) is kept.
+  - The app draws its own chrome and the extension describes it; Lua never builds widgets.
+    Text an extension shows goes through `curator.tr` (Curator's own: the app's translations,
+    which `tool/l10n.dart` reads from their Lua and connectors).
+  - Lua's `at + 0.0` keeps a place a fraction (saved `4.0`); `text.squeeze`, `text.trim` and
+    `math.round` are Dart's own, so a port from Dart stays exact.
+  - A port (an extension once written in the app) is held to the old code by a test before
+    the old code goes: every edit compared, then kept as a digest.
+  **Chapters** is the first package; **Attach Image**, **Captions** and **Tonality** are still
+  written in the app (`extensions/built_in.dart`), behind `images.enabled` /
+  `captions.enabled` / `tonality.enabled`.
 - **Interface text** follows Apple's HIG *Writing*, in US English: Title Case for menu items,
   buttons and dialog titles that are fragments ("Copy Lane To…", "Couldn’t Export Video"),
   sentence case for tooltips, labels, help lines and messages; an ellipsis only where more

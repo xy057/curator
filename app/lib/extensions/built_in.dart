@@ -56,28 +56,6 @@ class CaptionsExtension extends CuratorExtension {
   void apply(EditorController controller, bool on) => controller.captions.enabled = on;
 }
 
-/// Named stretches of the piece, for a video's player and a web page ([EditorController.chapters]).
-class ChaptersExtension extends CuratorExtension {
-  const ChaptersExtension();
-
-  @override
-  String get id => 'chapters';
-  @override
-  String get label => 'Chapters';
-  @override
-  IconData icon(BuildContext context) => AppIcon.chapters.of(context);
-  @override
-  String get summary => 'Named places to jump to in a video or web page.';
-  @override
-  String get keywords => 'chapter marker bookmark section movement rehearsal mark youtube timestamp jump navigation';
-
-  @override
-  bool isUsedBy(EditorController controller) => controller.chapters.chapters.isNotEmpty;
-
-  @override
-  void apply(EditorController controller, bool on) => controller.chapters.enabled = on;
-}
-
 /// The key the music is in, a band of colours along the score's top ([EditorController.tonality]).
 class TonalityExtension extends CuratorExtension {
   const TonalityExtension();
