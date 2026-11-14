@@ -16,6 +16,14 @@ A project carries the extensions it uses, so it opens the same on any computer.
 
 ## How it runs
 
+In the editor the connector is a board. Drag a card to move it; Tidy Up sets them in
+columns. Pull a wire from a port's pin to a function (or from a function's pin to a port);
+let it go on a file, or on nothing, and a function is written for the port. Double-click a
+port to see its function, written first if it has none; double-click a function or a file's
+name for its code. Click a wire, or a wired port, and press Delete to take the wire out.
+While the extension runs, each port shows how often Curator has called it, and turns red
+when its function failed.
+
 Curator never calls a function by its name. It calls what the connector wires: the `items`
 port of a lane to `lane.lua#items`, say. So the connector is the whole list of what the
 extension does, and the Lua can be laid out as you like.

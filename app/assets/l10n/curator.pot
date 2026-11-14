@@ -4842,3 +4842,7 @@ msgstr ""
 msgctxt "heading"
 msgid "In This Project"
 msgstr ""
+
+#: lib/extensions/connector_view.dart
+msgid "Tidy Up"
+msgstr ""

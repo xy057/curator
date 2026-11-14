@@ -28,6 +28,7 @@ Future<ExtensionPackage?> showExtensionEditor(
   ExtensionPackage package, {
   bool readOnly = false,
   void Function(ExtensionPackage package)? onRun,
+  Map<String, int>? Function()? calls,
   ValueListenable<List<ExtensionProblem>>? problems,
   ValueListenable<List<String>>? log,
 }) =>
@@ -35,7 +36,7 @@ Future<ExtensionPackage?> showExtensionEditor(
       fullscreenDialog: true,
       transitionDuration: motion(context, 200),
       reverseTransitionDuration: motion(context, 160),
-      pageBuilder: (_, _, _) => ExtensionEditor(package: package, readOnly: readOnly, onRun: onRun, problems: problems, log: log),
+      pageBuilder: (_, _, _) => ExtensionEditor(package: package, readOnly: readOnly, onRun: onRun, calls: calls, problems: problems, log: log),
       transitionsBuilder: (_, animation, _, child) => FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic), child: child),
     ));
 
@@ -51,10 +52,13 @@ enum _Side { none, reference, help }
 /// function in the code) and a guide; under them what is wrong with it as it is written
 /// ([checkExtension], as it is typed) and, once run, what it printed and what went wrong.
 class ExtensionEditor extends StatefulWidget {
-  const ExtensionEditor({super.key, required this.package, this.readOnly = false, this.onRun, this.problems, this.log});
+  const ExtensionEditor({super.key, required this.package, this.readOnly = false, this.onRun, this.calls, this.problems, this.log});
   final ExtensionPackage package;
   final bool readOnly;
   final void Function(ExtensionPackage package)? onRun;
+
+  /// How often each of its ports has been called as it runs in the project; null: it isn't running.
+  final Map<String, int>? Function()? calls;
   final ValueListenable<List<ExtensionProblem>>? problems;
   final ValueListenable<List<String>>? log;
 
@@ -513,6 +517,11 @@ class _ExtensionEditorState extends State<ExtensionEditor> {
         },
         onOpen: (file, function) => _goTo(file, null, function),
         onCreate: _createFunction,
+        problems: {
+          for (final p in [...?widget.problems?.value])
+            if (p.extension == '${_manifest['id']}') ?p.where: p.message,
+        },
+        calls: widget.calls,
       );
     }
     if (_shown == _about) return _aboutPage(context);

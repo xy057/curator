@@ -1,13 +1,13 @@
 {
   "nodes": [
     {"id": "project", "type": "project", "at": [40, 40]},
-    {"id": "lane", "type": "lane", "at": [40, 200], "title": "Captions", "kind": "spans", "live": true, "markup": true, "order": 20},
-    {"id": "captions", "type": "captions", "at": [40, 520]},
-    {"id": "add", "type": "command", "at": [40, 660], "title": "Add Caption…", "where": "preview"},
-    {"id": "edit", "type": "command", "at": [40, 780], "title": "Edit Caption…", "where": "caption"},
-    {"id": "remove", "type": "command", "at": [40, 900], "title": "Remove Caption", "where": "caption"},
-    {"id": "export", "type": "export", "at": [40, 1020]},
-    {"id": "settings", "type": "settings", "at": [40, 1140]}
+    {"id": "lane", "type": "lane", "at": [40, 220], "title": "Captions", "kind": "spans", "live": true, "markup": true, "order": 20},
+    {"id": "captions", "type": "captions", "at": [40, 592]},
+    {"id": "add", "type": "command", "at": [40, 724], "title": "Add Caption…", "where": "preview"},
+    {"id": "edit", "type": "command", "at": [40, 832], "title": "Edit Caption…", "where": "caption"},
+    {"id": "remove", "type": "command", "at": [40, 940], "title": "Remove Caption", "where": "caption"},
+    {"id": "export", "type": "export", "at": [40, 1048]},
+    {"id": "settings", "type": "settings", "at": [40, 1156]}
   ],
   "wires": [
     ["project.load", "captions.lua#load"],
@@ -31,5 +31,5 @@
     ["export.subtitles", "subtitles.lua#export"],
     ["settings.form", "settings.lua#form"]
   ],
-  "files": {"captions.lua": [420, 40], "lane.lua": [420, 300], "sheet.lua": [420, 560], "subtitles.lua": [420, 800], "settings.lua": [420, 1060]}
+  "files": {"captions.lua": [430, 40], "sheet.lua": [430, 412], "lane.lua": [430, 496], "settings.lua": [430, 772], "subtitles.lua": [430, 904]}
 }

@@ -1,8 +1,8 @@
 {
   "nodes": [
     {"id": "project", "type": "project", "at": [40, 40]},
-    {"id": "images", "type": "images", "at": [40, 200]},
-    {"id": "spacers", "type": "spacers", "at": [40, 420]}
+    {"id": "images", "type": "images", "at": [40, 220]},
+    {"id": "spacers", "type": "spacers", "at": [40, 400]}
   ],
   "wires": [
     ["project.load", "images.lua#load"],
@@ -14,5 +14,5 @@
     ["images.remove", "images.lua#remove"],
     ["images.without", "images.lua#without"]
   ],
-  "files": {"images.lua": [420, 120]}
+  "files": {"images.lua": [430, 40]}
 }

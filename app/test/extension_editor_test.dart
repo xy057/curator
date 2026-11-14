@@ -8,6 +8,8 @@ import 'package:curated_score/extensions/connector_view.dart';
 import 'package:curated_score/extensions/extension_actions.dart';
 import 'package:curated_score/extensions/extension_editor.dart';
 import 'package:curated_score/lua_language.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:re_editor/re_editor.dart';
@@ -55,6 +57,136 @@ void main() {
     expect(spans.function!.signature, 'score.spans(places, end) → list');
   });
 
+  testWidgets('the connector: no card over another, cards dragged, wires pulled either way, marked and deleted, a port double-clicked, Tidy Up', (tester) async {
+    await tester.runAsync(loadTestFonts);
+    desktopWindow(tester);
+    // Two sockets in the same place, and two files with no place at all.
+    var graph = ConnectorGraph(
+      nodes: [GraphNode(id: 'project', type: 'project', x: 40, y: 40), GraphNode(id: 'lane', type: 'lane', x: 40, y: 60, props: const {'title': 'Notes'})],
+      wires: const [GraphWire('lane.items', 'b.lua#items')],
+    );
+    final functions = <String, List<FileFunction>?>{
+      'a.lua': [(name: 'opened', parameters: const [], line: 1)],
+      'b.lua': [(name: 'items', parameters: const [], line: 1), (name: 'add', parameters: const ['at'], line: 3)],
+    };
+    final opened = <String>[], calls = <String, int>{};
+    var changes = 0, readOnly = false;
+    late StateSetter rebuild;
+    await tester.pumpWidget(MaterialApp(
+      theme: AppColors.theme(style: UiStyle.refined, brightness: Brightness.light),
+      home: Scaffold(
+        body: StatefulBuilder(builder: (context, setState) {
+          rebuild = setState;
+          return ConnectorView(
+            graph: graph,
+            functions: functions,
+            readOnly: readOnly,
+            calls: () => calls,
+            problems: const {'lane.items': 'attempt to index a nil value'},
+            onChanged: (g) => setState(() {
+              graph = g;
+              changes++;
+            }),
+            onOpen: (file, function) => opened.add('$file#$function'),
+            onCreate: (file, node, port) {
+              functions[file] = [...functions[file]!, (name: '${node.id}_${port.name}', parameters: const [], line: 9)];
+              return '${node.id}_${port.name}';
+            },
+          );
+        }),
+      ),
+    ));
+    Rect card(String title) => tester.getRect(find.ancestor(of: find.text(title), matching: find.byType(DecoratedBox)).first);
+    Offset pin(String of) => tester.getCenter(find.byKey(ValueKey('pin:$of')));
+    Future<void> drag(Offset from, Offset to, {int steps = 8}) async {
+      final gesture = await tester.startGesture(from, kind: PointerDeviceKind.mouse);
+      for (var i = 1; i <= steps; i++) {
+        await gesture.moveTo(Offset.lerp(from, to, i / steps)!);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    // As it comes: nothing lies over anything.
+    final cards = [card('Project'), card('Notes'), card('a.lua'), card('b.lua')];
+    for (final (i, a) in cards.indexed) {
+      for (final b in cards.skip(i + 1)) {
+        expect(a.overlaps(b), isFalse, reason: '$a and $b');
+      }
+    }
+    expect(card('Notes').top, greaterThan(card('Project').bottom));
+    await screenshot(tester, 'connector-cards');
+
+    // A card dragged by a row of it, a hair at a time: it follows the pointer, on the grid.
+    final from = tester.getCenter(find.text('changed')), before = card('Project');
+    await drag(from, from + const Offset(300.2, 0), steps: 600);
+    expect(card('Project').left - before.left, 300);
+    expect(changes, 1, reason: 'kept once, when let go');
+    // Let go on another card, it goes below it.
+    await drag(tester.getCenter(find.text('Notes')), tester.getCenter(find.text('b.lua')) + const Offset(60, 10));
+    expect(card('Notes').overlaps(card('b.lua')), isFalse);
+    expect(card('Notes').overlaps(card('a.lua')), isFalse);
+
+    // Tidy Up: the sockets in one column, the files in the other, the wired file by its port.
+    await tester.tap(find.text('Tidy Up'));
+    await tester.pump();
+    expect((card('Project').left, card('Notes').left), (card('Project').left, card('Project').left));
+    expect(card('b.lua').top, lessThan(card('a.lua').top), reason: 'b.lua is wired, a.lua not');
+    expect(graph.nodes.map((n) => n.x).toSet(), {40.0});
+
+    // A wire pulled from a port's pin to a function, and from a function's pin to a port.
+    await drag(pin('project.opened'), tester.getCenter(find.textContaining('opened', findRichText: true).last));
+    expect(graph.wire('project', 'opened')!.to, 'a.lua#opened');
+    await drag(pin('b.lua#add'), tester.getCenter(find.text('add')));
+    expect(graph.wire('lane', 'add')!.to, 'b.lua#add');
+    // Let go on nothing: a function is written for it, in the file its socket uses most.
+    await drag(pin('lane.move'), pin('lane.move') + const Offset(60, 500));
+    expect(graph.wire('lane', 'move')!.to, 'b.lua#lane_move');
+
+    // A click on a wire marks it; Delete takes it out.
+    final a = pin('project.opened'), b = pin('a.lua#opened');
+    await tester.tapAt(Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    expect(graph.wire('project', 'opened'), isNull);
+
+    // A port double-clicked: its function's code; with none, one is written first.
+    await tester.tap(find.text('items'));
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tap(find.text('items'));
+    await tester.pump();
+    expect(opened, ['b.lua#items']);
+    await tester.tap(find.text('erase'));
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tap(find.text('erase'));
+    await tester.pump();
+    await tester.pump();
+    expect(graph.wire('lane', 'erase')!.to, 'b.lua#lane_erase');
+    expect(opened.last, 'b.lua#lane_erase');
+    await tester.tap(find.text('b.lua'));
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tap(find.text('b.lua'));
+    expect(opened.last, 'b.lua#null', reason: 'a file’s name: the file');
+
+    // Running, each port says how often it was called.
+    calls['lane.items'] = 12;
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('12'), findsOneWidget);
+    await screenshot(tester, 'connector-wired');
+
+    // Read only, a card still moves, and nothing is changed.
+    rebuild(() => readOnly = true);
+    await tester.pump();
+    final kept = changes, was = card('Project');
+    await drag(tester.getCenter(find.text('changed')), tester.getCenter(find.text('changed')) + const Offset(0, 700));
+    expect(card('Project').top, greaterThan(was.top));
+    await drag(pin('project.changed'), tester.getCenter(find.text('a.lua')));
+    expect((changes, graph.wire('project', 'changed')), (kept, null));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the editor: the connector as a picture, a wire pulled onto a file, the reference, Done', (tester) async {
     await tester.runAsync(loadTestFonts);
     desktopWindow(tester);
@@ -91,7 +223,7 @@ void main() {
 
     // A port pulled onto the file's name: a function is written for it, and wired.
     final connector = find.byType(ConnectorView);
-    final move = find.descendant(of: connector, matching: find.text('move'));
+    final move = find.descendant(of: connector, matching: find.byKey(const ValueKey('pin:notes.move')));
     final file = find.descendant(of: connector, matching: find.text('main.lua'));
     final gesture = await tester.startGesture(tester.getCenter(move));
     await tester.pump(const Duration(milliseconds: 50));

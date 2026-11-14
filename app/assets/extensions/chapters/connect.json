@@ -1,11 +1,11 @@
 {
   "nodes": [
     {"id": "project", "type": "project", "at": [40, 40]},
-    {"id": "lane", "type": "lane", "at": [40, 200], "title": "Chapters", "kind": "markers", "gap": 0.25, "order": 30},
-    {"id": "add", "type": "command", "at": [40, 440], "title": "Add Chapter", "icon": "add", "where": "lane", "lane": "lane"},
-    {"id": "marks", "type": "command", "at": [40, 560], "title": "Add from Rehearsal Marks", "icon": "score", "where": "lane", "lane": "lane"},
-    {"id": "remove", "type": "command", "at": [40, 680], "title": "Remove Chapter", "icon": "delete", "where": "lane", "lane": "lane"},
-    {"id": "export", "type": "export", "at": [40, 800]}
+    {"id": "lane", "type": "lane", "at": [40, 220], "title": "Chapters", "kind": "markers", "gap": 0.25, "order": 30},
+    {"id": "add", "type": "command", "at": [40, 592], "title": "Add Chapter", "icon": "add", "where": "lane", "lane": "lane"},
+    {"id": "marks", "type": "command", "at": [40, 700], "title": "Add from Rehearsal Marks", "icon": "score", "where": "lane", "lane": "lane"},
+    {"id": "remove", "type": "command", "at": [40, 808], "title": "Remove Chapter", "icon": "delete", "where": "lane", "lane": "lane"},
+    {"id": "export", "type": "export", "at": [40, 916]}
   ],
   "wires": [
     ["project.load", "chapters.lua#load"],
@@ -24,5 +24,5 @@
     ["remove.enabled", "lane.lua#has_selection"],
     ["export.chapters", "export.lua#chapters"]
   ],
-  "files": {"chapters.lua": [420, 40], "lane.lua": [420, 300], "export.lua": [420, 800]}
+  "files": {"chapters.lua": [430, 40], "lane.lua": [430, 388], "export.lua": [430, 784]}
 }

@@ -4857,3 +4857,7 @@ msgstr "ファイルから拡張機能を追加"
 msgctxt "heading"
 msgid "In This Project"
 msgstr "このプロジェクト内"
+
+#: lib/extensions/connector_view.dart
+msgid "Tidy Up"
+msgstr "整理"

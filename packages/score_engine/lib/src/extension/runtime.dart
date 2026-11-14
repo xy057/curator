@@ -166,6 +166,7 @@ class ExtensionRuntime {
     if (fn == null) return null;
     final key = '$node.$port';
     if (quiet && _muted.contains(key)) return null;
+    calls[key] = (calls[key] ?? 0) + 1;
     try {
       return lua.call(fn, args, steps);
     } on LuaError catch (e) {
@@ -179,8 +180,14 @@ class ExtensionRuntime {
   /// (a [LuaError]): for a caller that must stop on it. Nothing wired gives nothing.
   List<Object?> invoke(String node, String port, [List<Object?> args = const []]) {
     final fn = _target(node, port);
-    return fn == null ? const [] : lua.call(fn, args, eventSteps);
+    if (fn == null) return const [];
+    calls['$node.$port'] = (calls['$node.$port'] ?? 0) + 1;
+    return lua.call(fn, args, eventSteps);
   }
+
+  /// How many times each port ("lane.items") has been called since it started: what the
+  /// connector's picture shows beside a port while the extension runs.
+  final calls = <String, int>{};
 
   /// The first value [fire] gives; null too when there is none.
   Object? ask(String node, String port, {List<Object?> args = const [], int steps = eventSteps, bool quiet = false}) =>

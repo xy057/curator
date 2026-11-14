@@ -105,6 +105,7 @@ abstract final class ExtensionActions {
               controller.extensions.add(p);
               controller.extensions.restart(p.id);
             },
+      calls: () => controller.extensions.runtime(package.id)?.calls,
       problems: controller.extensions.problems,
       log: controller.extensions.log,
     );
