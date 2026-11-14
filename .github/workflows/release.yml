@@ -8,6 +8,17 @@
 # and so does this) and run this again.
 # A version that is already released stops the run before anything is built.
 #
+# A pre-release (the "Pre-release" box) is versioned as any other (0.9.1): only GitHub's mark on
+# the release says it is one. The app offers it to those who chose Settings ▸ About ▸ Update
+# channel ▸ Pre-release, and to nobody else. Unticking "Set as a pre-release" on the release's
+# page makes it the release, for everyone, without building again.
+#
+# The description is what "What's new" was given: the changelog, as Markdown. The app shows it
+# in its update window, up to the `<!-- install -->` line this adds under it (how to install
+# follows, for GitHub's readers). The form's field keeps one line, so for a changelog of several:
+#   gh workflow run release.yml -f notes="$(pbpaste)"        (add -f prerelease=true for one)
+# or tick "Draft" and paste it on the release's page, above `<!-- install -->`, before
+# publishing. Left empty, the description is GitHub's own list of what changed.
 #
 # Both systems build side by side; the release is published only when both have built (and
 # Windows has run the smoke test), so a release always has both downloads.
@@ -20,8 +31,16 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      notes:
+        description: "What's new: the changelog, as Markdown (empty: GitHub's list of changes)"
+        type: string
+        default: ''
+      prerelease:
+        description: Pre-release (offered only on the app's Pre-release channel)
+        type: boolean
+        default: false
       draft:
-        description: Publish as a draft (only you see it until you publish it on GitHub)
+        description: Draft (only you see it, and can edit its description, until you publish it on GitHub)
         type: boolean
         default: false
 
@@ -179,8 +198,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
+          # Read from the environment, never written into the script: what is pasted is text,
+          # whatever it says.
+          NOTES: ${{ inputs.notes }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          DRAFT: ${{ inputs.draft }}
         run: |
-          cat > notes.md <<'EOF'
+          # What's new: as pasted, else GitHub's list of what changed since the last release.
+          if [ -n "${NOTES//[[:space:]]/}" ]; then
+            printf '%s\n' "$NOTES" > notes.md
+          else
+            gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+              -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" --jq .body > notes.md
+          fi
+          # The app's update window shows the description up to this line (Release.installMarker
+          # in app/lib/updater.dart): keep it as it is.
+          cat >> notes.md <<'EOF'
+
+          <!-- install -->
           ## Install
 
           **macOS:** unzip and move the app to Applications. The app isn't notarized by Apple, so
@@ -194,10 +229,12 @@ jobs:
           Later updates can be downloaded from inside the app: **Settings ▸ About**.
           Find full changelog at: https://0x57.cc/xylabs-changelog#curator
           EOF
+          flags=()
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          if [ "$DRAFT" = true ]; then flags+=(--draft); fi
           gh release create "v$VERSION" Curator-*.zip \
             --repo "$GITHUB_REPOSITORY" \
             --title "Curator $VERSION" \
             --notes-file notes.md \
-            --generate-notes \
             --target "$GITHUB_SHA" \
-            ${{ inputs.draft && '--draft' || '' }}
+            "${flags[@]}"
