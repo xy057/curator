@@ -108,6 +108,17 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
         return p:len(), tostring(p), p == Point.new(3, 4), p ~= p, Point.new(1, 1) < p, #p, p("x"), p .. p, defaults.missing, defaults.n,
           getmetatable(p) == Point, rawequal(p, Point.new(3, 4)), getmetatable("s").__index == string
       '''), ['5', '(3,4)', 'true', 'false', 'true', '2', '3', '(3,4)(3,4)', 'missing!', '8', 'true', 'false', 'true']);
+      // What stands in for a call may be a table called the same way; one that is its own isn't
+      // called without end.
+      expect(run('''
+        local inner = setmetatable({}, {__call = function(self, outer, a) return "inner", a end})
+        local outer = setmetatable({}, {__call = inner})
+        local own = {}
+        setmetatable(own, {__call = own})
+        local name, a = outer(1)
+        local ok, _, b = pcall(outer, 2)
+        return name, a, ok, b, pcall(own)
+      '''), ['inner', '1', 'true', '2', 'false', 'attempt to call a table value']);
       expect(run('''
         local t = {}
         t[1] = "a" t[3] = "c" t[2] = "b"          -- 3 joins the list once 2 is there
@@ -128,6 +139,8 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
         return s:len(), s:sub(1, 5), s:sub(-5), s:upper(), s:lower(), s:rep(2, "|"), s:reverse(), s:byte(1), string.char(72, 105),
           s:find("World"), s:find("o", 6), s:find("l+"), s:find(".", 1, true), s:match("(%a+), (%a+)"), s:match("^%s*$"), ("  trim  "):match("^%s*(.-)%s*$")
       '''), ['12', 'Hello', 'World', 'HELLO, WORLD', 'hello, world', 'Hello, World|Hello, World', 'dlroW ,olleH', '72', 'Hi', '8', '9', '3', 'nil', 'Hello', 'nil', 'trim']);
+      // The character at a place before the string is none (not its first), as Lua has it.
+      expect(run('local s = "Hello" return select("#", s:byte(0)), select("#", s:byte(-9)), (s:byte(-9, 2)), s:byte(-1)'), ['0', '0', '72', '111']);
       expect(run(r'''
         local words = {}
         for w in ("one two  three"):gmatch("%a+") do words[#words + 1] = w end
@@ -152,6 +165,9 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
     {
       expect(run('return math.floor(2.7), math.ceil(2.1), math.floor(-2.5), math.max(1, 9, 3), math.min(4, 2), math.abs(-3), math.fmod(7, 3), math.fmod(-7, 3), math.tointeger(3.0), math.tointeger(3.5), math.type(1), math.type(1.5), math.type("1")'),
           ['2', '3', '-3', '9', '2', '3', '1', '-1', '3', 'nil', 'integer', 'float', 'nil']);
+      // A number too great for an int is floored to itself, not to the greatest int there is.
+      expect(run('return math.floor(1e20) == 1e20, math.ceil(-1e20) == -1e20, math.round(1e20) == 1e20, math.tointeger(1e20), math.floor(2^62), math.floor(1/0)'),
+          ['true', 'true', 'true', 'nil', '4611686018427387904', 'inf']);
       expect(run('return math.sqrt(16), math.pi > 3.14, math.huge > 1e308, math.sin(0), math.cos(0), math.atan(1, 1) * 4 == math.pi, math.log(8, 2), math.exp(0), math.modf(3.7)'),
           ['4', 'true', 'true', '0', '1', 'true', '3', '1', '3', '0.7000000000000002']);
       final first = run('math.randomseed(7) return math.random(100), math.random(100), math.random(5, 6), math.random() < 1');
@@ -193,6 +209,8 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
         local ok4, e4 = xpcall(function() error("x", 0) end, function(m) return "handled " .. m end)
         return ok, e, ok2, e2.code, ok3, a, b, ok4, e4, select("#", pcall(error))
       '''), ['false', "test.lua:1: attempt to index a nil value (local 't')", 'false', '7', 'true', '1', '2', 'false', 'handled x', '2']);
+      // A handler that fails itself is the call's failing: xpcall still answers, as Lua's does.
+      expect(run('return xpcall(function() error("a", 0) end, function(m) error("b", 0) end)'), ['false', 'error in error handling']);
       // An error knows its file and line, and the calls it came through.
       try {
         run('local function inner()\n  error("bad")\nend\nlocal function outer()\n  inner()\nend\nouter()');

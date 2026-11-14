@@ -12,8 +12,7 @@ void _openBase(Lua lua) {
 
   List<Object?> callValue(Object? fn, List<Object?> args) {
     if (fn is LuaFunction) return fn.call(args);
-    final h = lua._meta(fn, '__call');
-    if (h is LuaFunction) return h.call([fn, ...args]);
+    if (lua._called(fn, args) case (final h, final all)?) return h.call(all);
     throw LuaError('attempt to call a ${Lua.typeOf(fn)} value');
   }
 
@@ -67,18 +66,30 @@ void _openBase(Lua lua) {
   });
   def('xpcall', (a) {
     final handler = a.function(1, 'xpcall'), depth = lua._depth;
+    // What the handler makes of the error; an error of its own is the call's failing, as Lua
+    // has it, not one that goes on past the call.
+    List<Object?> handled(Object? error) {
+      lua._depth = depth;
+      try {
+        return [false, ...handler.call([error])];
+      } on LuaLimit {
+        rethrow;
+      } on LuaError {
+        lua._depth = depth;
+        return [false, 'error in error handling'];
+      }
+    }
+
     try {
       return [true, ...callValue(a[0], a.sublist(2))];
     } on LuaLimit {
       rethrow;
     } on LuaError catch (e) {
-      lua._depth = depth;
-      return [false, ...handler.call([e.value])];
+      return handled(e.value);
     } on StackOverflowError {
       throw LuaLimit('stack overflow (a function calls itself without end?)');
     } catch (e) {
-      lua._depth = depth;
-      return [false, ...handler.call(['$e'])];
+      return handled('$e');
     }
   });
   def('select', (a) {
@@ -300,22 +311,24 @@ void _openMath(Lua lua) {
     return seed = x;
   }
 
-  Object? whole(num x) => x is int ? x : (x.isFinite ? x.toInt() : x);
+  // A whole number as an int, where an int holds it: past that it stays the float it is (an
+  // int made of it would be the largest there is, not the number).
+  Object? whole(num x) => x is int ? x : (x.isFinite && x.abs() < 9223372036854775808.0 ? x.toInt() : x);
 
   final m = Lua.library('math', {
     'abs': (a) => [a.number(0, 'abs').abs()],
     'ceil': (a) {
       final x = a.number(0, 'ceil');
-      return [x is int || !x.isFinite ? x : x.ceil()];
+      return [x is int ? x : whole(x.ceilToDouble())];
     },
     'floor': (a) {
       final x = a.number(0, 'floor');
-      return [x is int || !x.isFinite ? x : x.floor()];
+      return [x is int ? x : whole(x.floorToDouble())];
     },
     // Not Lua's: to the nearest whole number, a half away from zero (as Dart rounds).
     'round': (a) {
       final x = a.number(0, 'round');
-      return [x is int || !x.isFinite ? x : x.round()];
+      return [x is int ? x : whole(x.roundToDouble())];
     },
     // Not Lua's: x no lower than low and no higher than high (as Dart clamps).
     'clamp': (a) {
@@ -384,7 +397,7 @@ void _openMath(Lua lua) {
     },
     'tointeger': (a) {
       final x = a.at(0);
-      return [x is num && x.isFinite && x == x.truncateToDouble() ? whole(x) : null];
+      return [x is num && x.isFinite && x == x.truncateToDouble() && x.abs() < 9223372036854775808.0 ? whole(x) : null];
     },
     'type': (a) {
       if (a.isEmpty) a.bad(0, 'type', 'value expected');

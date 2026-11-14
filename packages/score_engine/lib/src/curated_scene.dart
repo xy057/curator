@@ -988,9 +988,33 @@ class CuratedScene {
     return twins;
   }
 
+  /// When each lane of a curation is shown ([Curation.shownSpans]), kept while that curation
+  /// and the timeline stay as they are: a layout plan asks whether each staff is shown in every
+  /// segment, and a frame how much of every lane is, and the curation makes a lane's spans from
+  /// its regions each time it is asked.
+  final _shownSpans = <String, List<ShownSpan>>{};
+  Curation? _spansCuration;
+  ScoreTimeline? _spansTimeline;
+  int _spansRevision = -1, _spansVersion = -1;
+
+  List<ShownSpan> _spansOf(Curation curation, String partId) {
+    final timeline = this.timeline;
+    if (!identical(curation, _spansCuration) ||
+        curation.revision != _spansRevision ||
+        _timelineVersion != _spansVersion ||
+        !identical(timeline, _spansTimeline)) {
+      _shownSpans.clear();
+      _spansCuration = curation;
+      _spansTimeline = timeline;
+      _spansRevision = curation.revision;
+      _spansVersion = _timelineVersion;
+    }
+    return _shownSpans[partId] ??= curation.shownSpans(partId, timeline);
+  }
+
   /// Whether the staff planned for [id] (a part, or a pair's shared staff) is shown.
   bool _isShown(Curation curation, String id, double seconds) {
-    bool shown(String partId) => curation.isShownAt(partId, seconds, timeline);
+    bool shown(String partId) => Curation.shownIn(_spansOf(curation, partId), seconds);
     final group = _groups[id];
     if (group != null) return _condensed.contains(id) && group.partIds.every(shown);
     final active = _activeGroupOf(id);
@@ -1017,7 +1041,7 @@ class CuratedScene {
   /// 0…1 for every planned staff: a pair's shared staff is as visible as its less visible
   /// player, and each player's own staff has what is left, so one fades as the other comes.
   Map<String, double> _visibilityAt(double time, Curation curation) {
-    final v = {...curation.visibilityAt(time, timeline, curve: _motion.fade)};
+    final v = {for (final id in curation.partIds) id: Curation.visibilityIn(_spansOf(curation, id), time, curve: _motion.fade)};
     for (final g in score.condensed) {
       if (!_condensed.contains(g.id)) continue;
       final a = v[g.partIds[0]] ?? 0, b = v[g.partIds[1]] ?? 0;

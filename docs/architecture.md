@@ -774,6 +774,11 @@ ticked for those bars only, so bars that change (another ratio, score size or ra
 another size never plans again for it. It plans every segment (about 20 ms for 350 bars), so
 while a gesture lasts (a region or anchor dragged, the score size slid) the controller keeps the
 answer from before and works it out once as the gesture ends; Export's dialog rebuilds then too.
+When each lane is shown, in playback time, is made from its regions once for a curation and a
+timeline and kept by the scene (`CuratedScene._spansOf`, from `Curation.shownSpans`; searched by
+`Curation.shownIn`, ramped by `Curation.visibilityIn`): a plan asks whether each staff is shown in
+every segment and a frame how much of every lane is, and Auto-curate plans again for each staff it
+tries hiding (770 bars of 21 instruments fit in 0.7 s; made each time asked, 13 s).
 
 **A trackpad's swipe scrolls; it never drags.** A two-finger swipe comes as pan-zoom events, which
 a drag recognizer takes as a drag unless told not to: every drag in the app is given
@@ -1088,7 +1093,9 @@ replacement: its steps were of the old file.
 Edit… opens the score's MusicXML (`LoadedScore.musicXML`) in an editor over the window
 (`score_editor.dart`); Done hands back the file as edited, which replaces the score (above)
 (`ProjectDocument.prepareReplacementWith`, the same carrying over, dialog and fresh Undo); nothing
-edited, or Cancel, changes nothing. `EditableScore` (`score_editing.dart`) keeps the document's
+edited, or Cancel, changes nothing. The score is read for it on another isolate and handed back
+whole (`EditableScore.parseApart`: a fifth of a second for an orchestral movement, which the window
+would stand still for). `EditableScore` (`score_editing.dart`) keeps the document's
 elements and edits them in place, never a model of its own written back out, so what it doesn't
 know (sounds, layout hints, other notations) is kept as it was. It gives every note, rest, bar,
 direction and slur an id `cxeN` (an id it had is kept aside and restored on export); Verovio
@@ -1116,7 +1123,11 @@ its chunk, the one after its last bar and the ones before whose slurs reach it, 
 view first, up to six at a time, and they are laid end to end with staves aligned to the widest
 gap any chunk needs. A bar's text is written once (`_xml`: a bar is never changed), what is in
 force at each bar is kept up to the bar that changed (`_contextBefore`), and an Undo step is the
-bars that differ, by their place. Scrolling and zooming (a pinch, ⌘ and the wheel, about the
+bars that differ, by their place: whatever one key does (a letter over every note selected, a
+popover's mark, text and hairpin) is one step, the editor running it inside `EditableScore.edit`.
+What is selected is drawn over the score each frame (`EditGalley.paintOnly`), found from what is
+selected, or, when that is more than a chunk in view draws, from what the chunk draws: the cost is
+what is on screen, not how much is selected. Scrolling and zooming (a pinch, ⌘ and the wheel, about the
 pointer) draw the score again and build nothing: the painter listens to them. A strip along the
 top numbers the bars (a click on a number selects the bar); a rectangle dragged out from where
 nothing is selects what it touches, ⌘A everything; ⌘G goes to a bar. In note input a faint note

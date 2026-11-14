@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 import 'package:xml/xml.dart';
@@ -23,6 +25,10 @@ String _fluteOf(int bars) => _flute.replaceFirst(
 void main() {
   test('the score editor: notes typed over rests and tied, MusicXML written, Undo and Redo putting back the bars changed, chunks drawing each thing once', () async {
     {
+      // Read on another isolate, it is the score read here.
+      expect((await EditableScore.parseApart(_flute)).toMusicXML(), EditableScore.parse(_flute).toMusicXML());
+      await expectLater(EditableScore.parseApart('<score-timewise/>'), throwsFormatException);
+
       final score = EditableScore.parse(_flute);
       const voice = VoiceKey(1, '1');
       final start = ScorePosition(0, voice, 0, Frac.zero);
@@ -227,12 +233,92 @@ void main() {
           expect(galley.barOf(m)!.left, closeTo(one.barOf(m)!.left, 20), reason: 'bar $m, chunks of $bars');
         }
         expect(galley.timeAtX(galley.xOf(5, Frac(2))!), (measure: 5, time: Frac(2)));
+        // Everything selected is drawn as each thing selected is in turn: found from what a
+        // chunk draws when more is selected than that, from what is selected otherwise.
+        List<String> draws(Iterable<Set<String>> selections) {
+          final canvas = TestRecordingCanvas();
+          for (final ids in selections) {
+            galley.paintOnly(canvas, Rect.fromLTWH(0, 0, galley.width, galley.height), ids, const Color(0xFF3366FF));
+          }
+          return [
+            for (final i in canvas.invocations)
+              if ('${i.invocation.memberName}'.contains('draw')) '${i.invocation.memberName} ${i.invocation.positionalArguments}',
+          ]..sort();
+        }
+
+        final all = {...score.ids};
+        expect(all.length, greaterThan(chunks.first.list.sourced.length));
+        expect(draws([all]), draws([for (final id in all) {id}]));
+        expect(draws([all]), isNotEmpty);
         for (final c in chunks) {
           c.dispose();
         }
       }
       whole.dispose();
       expect([for (final staves in [1, 2, 4, 5, 8, 12, 21, 60]) EditChunk.barsFor(staves)], [6, 6, 6, 4, 3, 2, 2, 2]);
+    }
+
+    // Bars deleted from two instruments: each keeps what they set (the piano its staves, clefs and divisions, not
+    // only the first instrument), and only the last bars' going moves the final barline.
+    {
+      final score = EditableScore.parse(flutePianoScore);
+      score.addBars(2, 2);
+      score.setBarline(3, '|]');
+      score.deleteBars(2, 1); // not the last bar: the final barline stays where it is
+      expect('light-heavy'.allMatches(score.toMusicXML()).length, 2, reason: 'one final barline an instrument');
+      score.deleteBars(0, 2);
+      final again = EditableScore.parse(score.toMusicXML());
+      expect(again.measureCount, 1);
+      expect(again.parts[1].staves, 2);
+      expect((again.clefAt(1, 2, 0, Frac.zero).sign, again.barLength(0)), ('F', Frac(4)));
+      expect([for (final e in again.eventsIn(1, 0, again.voicesIn(1, 0).first)) e.length], [Frac(4)], reason: 'its divisions are still said');
+      expect('light-heavy'.allMatches(score.toMusicXML()).length, 2);
+    }
+
+    // A slur taken off again (S on its first note) leaves the notes as they were, a lyric too.
+    {
+      final score = EditableScore.parse(_fluteOf(2));
+      const voice = VoiceKey(1, '1');
+      score.input(ScorePosition(0, voice, 0, Frac.zero), [for (var i = 0; i < 4; i++) InputItem(const Rhythm(NoteType.quarter), [Pitch(i, 4)])]);
+      score.setLyric(score.eventsIn(0, 0, voice).first.ids.first, 'la');
+      final plain = score.toMusicXML();
+      final ids = [for (final e in score.eventsIn(0, 0, voice)) e.ids.first];
+      score.toggleSlur([ids[0], ids[2]]);
+      expect('<slur'.allMatches(score.toMusicXML()).length, 2);
+      score.toggleSlur([ids[0]]);
+      expect(score.toMusicXML(), plain);
+    }
+
+    // Notes pasted are notes of their own: each has its id, so one found by it is the copy, not what it was copied from.
+    {
+      final score = EditableScore.parse(_fluteOf(2));
+      const voice = VoiceKey(1, '1');
+      score.input(ScorePosition(0, voice, 0, Frac.zero), [for (var i = 0; i < 4; i++) InputItem(const Rhythm(NoteType.quarter), [Pitch(i, 4)])]);
+      List<String> idsIn(int m) => [for (final e in score.eventsIn(0, m, voice)) ...e.ids];
+      final copied = idsIn(0);
+      score.toggleSlur([copied[0], copied[2]]);
+      score.paste(ScorePosition(0, voice, 1, Frac.zero), score.copy(copied));
+      expect({...idsIn(0), ...idsIn(1)}.length, 8);
+      expect(idsIn(0), copied);
+      expect([for (final id in idsIn(1)) score.locate(id)!.position.measure], everyElement(1));
+      expect([for (final id in copied) score.locate(id)!.position.measure], everyElement(0));
+      expect(RegExp(r'id="(cxe\d+)"').allMatches(score.chunk(0, 2).xml).map((m) => m[1]).toSet().length, RegExp(r'id="cxe').allMatches(score.chunk(0, 2).xml).length,
+          reason: 'the slur copied with them has its own too');
+      score.transpose([idsIn(1).first], octaves: 1);
+      expect((score.eventsIn(0, 0, voice).first.pitches.single.octave, score.eventsIn(0, 1, voice).first.pitches.single.octave), (4, 5));
+    }
+
+    // Bars added before a bar that changes the time signature are as long as the one before them says.
+    {
+      final score = EditableScore.parse(_fluteOf(4));
+      score.setTime(2, TimeSig.parse('6/8')!);
+      score.addBars(2, 1); // between the 4/4 bars and the 6/8
+      expect([for (var m = 0; m < 5; m++) score.barLength(m)], [Frac(4), Frac(4), Frac(4), Frac(3), Frac(3)]);
+      expect([for (var m = 0; m < 5; m++) score.eventsIn(0, m, const VoiceKey(1, '1')).single.length], [Frac(4), Frac(4), Frac(4), Frac(3), Frac(3)]);
+      score.addBars(0, 1); // before the first: the score's own
+      score.addBars(6, 1); // at the end: the last one's
+      expect((score.barLength(0), score.eventsIn(0, 0, const VoiceKey(1, '1')).single.length), (Frac(4), Frac(4)));
+      expect((score.barLength(6), score.eventsIn(0, 6, const VoiceKey(1, '1')).single.length), (Frac(3), Frac(3)));
     }
   });
 }

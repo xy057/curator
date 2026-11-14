@@ -4,6 +4,7 @@
 /// signatures, bars, barlines, lyrics, tuplets), each an Undo step.
 library;
 
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:xml/xml.dart';
@@ -915,6 +916,11 @@ class EditableScore {
     score._indexAll();
     return score;
   }
+
+  /// [parse] on another isolate, the score handed back whole: an orchestral movement takes a
+  /// fifth of a second to read, a long one seconds, which the window would stand still for.
+  /// (A static function: a closure made in a widget's method would take the widget along.)
+  static Future<EditableScore> parseApart(String musicXML) => Isolate.run(() => EditableScore.parse(musicXML));
 
   final XmlDocument _document;
   final List<EditPart> parts;
@@ -2220,9 +2226,7 @@ class EditableScore {
         final number = found.getAttribute('number') ?? '1';
         final note = found.ancestors.whereType<XmlElement>().firstWhere((a) => a.name.local == 'note');
         found.remove();
-        for (final n in note.findElements('notations')) {
-          if (n.childElements.isEmpty) n.remove();
-        }
+        _dropEmptyNotations(note);
         _commit(where.part, where.measure, content);
         _removeStop(where.part, where.measure, (e) => e.name.local == 'slur' && e.getAttribute('type') == 'stop' && (e.getAttribute('number') ?? '1') == number,
             after: _timeOfNote(content, note));
@@ -3059,7 +3063,10 @@ class EditableScore {
         final index = at.clamp(0, measureCount);
         final atEnd = index == measureCount;
         final reference = index == 0 ? 0 : index - 1;
-        final length = index < measureCount ? (meterAt(index)?.length ?? barLength(index)) : (meterAt(reference)?.length ?? barLength(reference));
+        // As long as the time signature they are under says: the one before them, since a bar
+        // that changes it keeps the change (before the first bar, the score's own, which moves
+        // to them).
+        final length = meterAt(reference)?.length ?? barLength(reference);
         for (final (i, p) in parts.indexed) {
           _ensureDivisions(p, [length]);
           final made = <XmlElement>[];
@@ -3122,8 +3129,9 @@ class EditableScore {
   /// Bars [from] to [from] + [count] taken out of every part (never all of them): the clefs,
   /// key, time and divisions they set carry on to the bar after, unless it sets its own.
   void deleteBars(int from, int count) => edit(() {
-        final to = math.min(measureCount, from + count);
-        if (from < 0 || from >= to || to - from >= measureCount) return;
+        // (How many bars there are, asked once: the first part's are gone by the second's turn.)
+        final bars = measureCount, to = math.min(bars, from + count);
+        if (from < 0 || from >= to || to - from >= bars) return;
         for (final p in parts) {
           // What the deleted bars set, the last of each (a clef by its staff).
           final carried = <String, XmlElement>{};
@@ -3132,7 +3140,7 @@ class EditableScore {
               carried['${child.name.local}#${child.getAttribute('number') ?? ''}'] = child;
             }
           }
-          if (to < measureCount && carried.isNotEmpty) {
+          if (to < bars && carried.isNotEmpty) {
             final copy = p._measures[to].copy();
             final a = _attributesAtStart(copy);
             for (final MapEntry(key: key, value: child) in carried.entries) {
@@ -3142,7 +3150,7 @@ class EditableScore {
             p._measures[to].replace(copy);
             p._measures[to] = copy;
           }
-          if (to >= measureCount && from > 0) {
+          if (to >= bars && from > 0) {
             // The last bars go: their final barline moves to the bar that is last now.
             bool isEnd(XmlElement b) => (b.getAttribute('location') ?? 'right') == 'right';
             final ending = p._measures.last.findElements('barline').where(isEnd).firstOrNull;
@@ -3536,7 +3544,7 @@ class EditableScore {
     var offset = Frac.zero;
     while (true) {
       final view = _view(e.position.part, e.position.measure).voices[e.position.voice]!.firstWhere((x) => x.start == e.position.time);
-      out.add((offset: offset, length: e.length, rhythm: e.rhythm, notes: e.isRest ? const [] : [for (final n in view.notes) n.copy()]));
+      out.add((offset: offset, length: e.length, rhythm: e.rhythm, notes: e.isRest ? const [] : [for (final n in view.notes) _copied(n)]));
       offset = offset + e.length;
       if (identical(e, last) || e.ids.first == last.ids.first) break;
       final after = next(e);
@@ -3544,6 +3552,20 @@ class EditableScore {
       e = after;
     }
     return CopiedMusic(out);
+  }
+
+  /// A copy of [note] without ids, the editor's or its file's: what is pasted from it is a note
+  /// of its own, given an id as it is put in (with the one it was copied from, a click on either
+  /// would find one of them, and an edit of the copy change the other).
+  static XmlElement _copied(XmlElement note) {
+    final copy = note.copy();
+    for (final e in [copy, ...copy.descendantElements]) {
+      if (e.getAttribute('id')?.startsWith('cxe') ?? false) {
+        e.removeAttribute('id');
+        e.removeAttribute('cxe-orig');
+      }
+    }
+    return copy;
   }
 
   /// [music] put in from [at] over what was there; returns where it ends.

@@ -82,7 +82,7 @@ class Region {
 }
 
 /// A stretch of playback time a lane is shown, with the seconds it takes to fade in and out.
-typedef _Span = ({double start, double end, double fadeIn, double fadeOut});
+typedef ShownSpan = ({double start, double end, double fadeIn, double fadeOut});
 
 /// A region edge in playback time, with how long the staves take to glide there.
 typedef RegionEdge = ({double seconds, double transition});
@@ -159,7 +159,7 @@ class Curation extends ChangeNotifier {
   /// nothing fades out and in again across the jump. Open-ended where the performance starts
   /// or ends, so nothing fades in on the first bar or out after the last. Each span fades in
   /// and out over the transitions of the regions it starts and ends with.
-  List<_Span> _spans(List<Region> lane, ScoreTimeline timeline) {
+  List<ShownSpan> _spans(List<Region> lane, ScoreTimeline timeline) {
     final passes = timeline.passes;
     final spans = [
       for (final r in lane)
@@ -173,7 +173,7 @@ class Curation extends ChangeNotifier {
     ];
     // Regions meet only where they leave out different staves ([_normalize]): shown on through.
     spans.sort((a, b) => a.start.compareTo(b.start));
-    final joined = <_Span>[];
+    final joined = <ShownSpan>[];
     for (final s in spans) {
       if (joined.isNotEmpty && s.start <= joined.last.end + 1e-6) {
         final last = joined.last;
@@ -476,23 +476,46 @@ class Curation extends ChangeNotifier {
 
   // MARK: Visibility at playback time
 
+  /// When [partId]'s lane is shown, in playback time ([_spans]): in order, and apart. Made from
+  /// its regions each time it is asked for, so one that asks about many moments of one curation
+  /// and timeline keeps it (the scene: a layout plan asks for every staff of every segment, a
+  /// frame for every lane) and reads it with [shownIn] and [visibilityIn].
+  List<ShownSpan> shownSpans(String partId, ScoreTimeline timeline) => _spans(lane(partId), timeline);
+
+  /// Whether [seconds] is inside one of [spans] ([shownSpans]), ignoring the fades.
+  static bool shownIn(List<ShownSpan> spans, double seconds) {
+    // The last that starts at or before it: they are in order, and none reaches the next.
+    var lo = 0, hi = spans.length;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (spans[mid].start <= seconds) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo > 0 && seconds < spans[lo - 1].end;
+  }
+
+  /// 0…1 at [seconds] for a lane shown over [spans] ([shownSpans]): each edge a ramp of its
+  /// transition centred on it, shaped by [curve].
+  static double visibilityIn(List<ShownSpan> spans, double seconds, {MotionCurve curve = MotionCurve.smooth}) {
+    var v = 0.0;
+    for (final (:start, :end, :fadeIn, :fadeOut) in spans) {
+      if (seconds < start - fadeIn / 2 || seconds > end + fadeOut / 2) continue;
+      v = math.max(v, curve.inside(math.min(_ramp(seconds - start, fadeIn), _ramp(end - seconds, fadeOut))));
+    }
+    return v;
+  }
+
   /// Whether [partId] is inside one of its regions at [seconds] (ignoring the fades).
-  bool isShownAt(String partId, double seconds, ScoreTimeline timeline) =>
-      _spans(lane(partId), timeline).any((s) => seconds >= s.start && seconds < s.end);
+  bool isShownAt(String partId, double seconds, ScoreTimeline timeline) => shownIn(shownSpans(partId, timeline), seconds);
 
   /// 0…1 for every part at [seconds]. Each region edge is a smooth ramp of that edge's
   /// transition ([transitionInOf], [transitionOutOf]) centred on the edge, so the result is continuous in time.
   /// Regions reaching the start or end of the piece don't fade there. [curve] shapes each ramp.
   Map<String, double> visibilityAt(double seconds, ScoreTimeline timeline, {MotionCurve curve = MotionCurve.smooth}) => {
-        for (final entry in _lanes.entries)
-          entry.key: () {
-            var v = 0.0;
-            for (final (:start, :end, :fadeIn, :fadeOut) in _spans(entry.value, timeline)) {
-              if (seconds < start - fadeIn / 2 || seconds > end + fadeOut / 2) continue;
-              v = math.max(v, curve.inside(math.min(_ramp(seconds - start, fadeIn), _ramp(end - seconds, fadeOut))));
-            }
-            return v;
-          }(),
+        for (final entry in _lanes.entries) entry.key: visibilityIn(_spans(entry.value, timeline), seconds, curve: curve),
       };
 
   /// The staves of [partId] the region shown at [seconds] leaves out ([Region.hiddenStaves]):

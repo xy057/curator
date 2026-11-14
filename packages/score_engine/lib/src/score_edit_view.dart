@@ -271,8 +271,8 @@ class EditGalley {
     for (var k = 0; k < chunks.length; k++) {
       if (!_inView(k, left, right)) continue;
       final c = chunks[k]!;
-      for (final id in ids) {
-        for (final (:staff, :item) in c._drawnFor(id)) {
+      void paint(Iterable<({int staff, DisplayItem item})> drawn) {
+        for (final (:staff, :item) in drawn) {
           if (!c.owns(item)) continue;
           final shift = _shift(k, staff);
           canvas
@@ -280,6 +280,18 @@ class EditGalley {
             ..translate(shift.dx, shift.dy);
           item.paint(canvas);
           canvas.restore();
+        }
+      }
+
+      // The fewer asked: each of [ids] in the chunk, or (every note of a symphony selected)
+      // each thing the chunk draws in [ids]. One colour, so the order doesn't show.
+      if (ids.length <= c.list.sourced.length) {
+        for (final id in ids) {
+          paint(c._drawnFor(id));
+        }
+      } else {
+        for (final MapEntry(key: source, value: drawn) in c.list.sourced.entries) {
+          if (ids.contains(EditChunk._elementOf(source))) paint(drawn);
         }
       }
     }

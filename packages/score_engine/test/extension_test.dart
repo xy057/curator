@@ -27,7 +27,7 @@ class TestHost extends ExtensionHost {
   @override
   BeatGrid? get beats => BeatGrid([0, 4, 8, 12], meters: [Meter.quarters, Meter.quarters, Meter.quarters]);
   @override
-  String get language => 'zh-Hans';
+  String language = 'zh-Hans';
   @override
   void report(ExtensionProblem problem) => problems.add(problem);
   @override
@@ -176,7 +176,8 @@ void main() {
 
     // What Curator adds to Lua: text as people write it, rounding, a snippet run, what a host lacks.
     {
-      final runtime = ExtensionRuntime(package(), TestHost());
+      final host = TestHost();
+      final runtime = ExtensionRuntime(package(), host);
       Object? value(String code) => runtime.run('return $code').firstOrNull;
       // Every kind of space, as Dart's \\s and trim() take them: a no-break space, an ideographic one.
       expect(value(r'text.squeeze("  A\u{A0}\u{3000} B\n\tC  ")'), 'A B C');
@@ -201,6 +202,12 @@ void main() {
       // A text that means two things, by its context; without one for it, as tr gives it.
       expect([value('curator.tr("Key")'), value('curator.tr_in("music", "Key")'), value('curator.tr_in("door", "Key")'), value('curator.tr_in("music", "{n} notes", {n = 2})')],
           ['键', '调', '键', '2 条笔记']);
+      // The language is the interface's as it is now: changed while the extension runs, it is
+      // the new one, as what curator.tr gives is.
+      expect(value('curator.language'), 'zh-Hans');
+      host.language = 'ja';
+      expect([value('curator.language'), value('curator.tr("Key")')], ['ja', 'Key']);
+      host.language = 'zh-Hans';
     }
 
     // What Lua gives the app: a colour, the music of a score.

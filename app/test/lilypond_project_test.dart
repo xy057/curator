@@ -1,5 +1,6 @@
 // A LilyPond project: opened as LilyPond engraved it (the engine's fixture), saved and opened
-// again without LilyPond; one whose files are not where they should be is damaged.
+// again without LilyPond; one whose files are not where they should be is damaged; what LilyPond
+// says in another encoding.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -92,6 +93,20 @@ void main() {
             throwsA(isA<FormatException>().having((e) => e.message, 'message', startsWith('The project is damaged'))),
             reason: '$files');
       }
+    }
+
+    // What LilyPond says of a file that isn't UTF-8 (it quotes the line) is read, not thrown: the
+    // problem comes with its file and line.
+    if (!Platform.isWindows) {
+      final script = File('${dir.path}/lilypond')
+        ..writeAsStringSync("#!/bin/sh\nprintf 'parts/a.ily:3:5: error: syntax error\\n  caf\\351 = 4\\n' >&2\nexit 1\n");
+      Process.runSync('chmod', ['+x', script.path]);
+      LilyPond.debugExecutable = script;
+      addTearDown(() => LilyPond.debugExecutable = null);
+      final run = await LilyPond.engrave(LilySource(name: 'a.ly', text: 'c', files: {'parts/a.ily': Uint8List.fromList([99, 0xe9])}));
+      expect(run.engraved, isFalse);
+      expect([for (final p in run.problems) (p.file, p.line, p.column, p.message, p.error)], [('parts/a.ily', 3, 5, 'syntax error', true)]);
+      expect(run.log, contains('caf\u{fffd} = 4'));
     }
   });
 }
