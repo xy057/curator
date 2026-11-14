@@ -45,7 +45,6 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `extension/check.dart` | `checkExtension`: what is wrong with a package as written, found without running it (a file that doesn't read, a wire to nothing; what a later Curator may know is a warning) |
 | `extension/lua_json.dart`, `extension/markers.dart`, `extension/values.dart` | Lua values to JSON and back (`LuaJson`); markers in time (`markerSpans`: what a markers lane draws, `score.spans`); a colour as Lua gives one (`luaColor`: "#rrggbb" or {r, g, b}) and a score's music as Lua takes it (`readScoreMusic`, `scoreMusicTable`: `score.music`) |
 | `score_band.dart`, `key_signatures.dart` | A stretch of the band along a frame's top (`ScoreBand`: what a `band` socket gives the scene); a score's key signatures at concert pitch (`concertKeySignatures`) |
-| `subtitles.dart` | Captions as subtitles: SRT and WebVTT read (`parseSubtitles`) and written (`writeSubtitles`), placed in the score (`captionsFromCues`) and timed from it (`captionCues`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
 | `sounding_notes.dart` | `soundingNotes`: every pitched note of the MusicXML as it sounds (concert pitch, in score quarters), which Find Phrase and Align read |
@@ -59,23 +58,22 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | File | Job |
 |---|---|
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
-| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_editing.dart`, `editor/extension_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); extensions that are packages (`ExtensionEditing`: their runtimes, data, lanes and selection, the band they give the scene, the score's music read for them); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
+| `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_look.dart`, `editor/extension_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); extensions that are packages (`ExtensionEditing`: their runtimes, data, lanes and selection, the band they give the scene, the score's music read for them); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
 | `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG and raster drawing (animated too), the clipboard |
 | `span_lane.dart` | `SpanLane`: a lane pinned under the ruler whose stretches (`SpanLaneModel`) are drawn, moved, trimmed and erased the way regions are; the Captions, Spacers, Tonality and recordings' lanes (`take_lanes.dart`) are four. One whose model `paints` (key areas) has its stretches go over each other as regions do, each in its own `color` |
 | `spacer_dialogs.dart`, `spacer_lane.dart`, `score_view/spacer_handles.dart` | Attach Image's spacers: their dialogs; the Spacers lane (a `SpanLane` of the horizontal ones, with add and remove buttons); selecting, moving and resizing them in the score view |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
-| `caption_settings.dart` | Project Settings ▸ Extensions ▸ Captions' own settings (the app's): font, countdown, size, alignment, backing, with a preview |
 | `extensions/extension.dart` | `CuratorExtension`, what the app knows of an extension (by id), and `Extensions`, every one there is |
-| `extensions/built_in.dart` | Attach Image and Captions as `CuratorExtension`s (those still written in the app) |
+| `extensions/built_in.dart` | Attach Image as a `CuratorExtension` (the one still written in the app) |
+| `extensions/extension_sheet.dart`, `extensions/extension_files.dart`, `extensions/extension_settings.dart` | What an extension asks the app to show: a table to edit (`ui.sheet`, `SheetHandle`) and a question (`ui.ask`); a file read or written (`ui.open_file`, `ui.save_file`, `decodeText`); its own settings (`ExtensionSettingsForm`, from its `settings` socket) |
 | `extensions/bundled.dart` | `BundledExtensions`: Curator's own extensions that are packages, folders under `assets/extensions/<id>/` read as the app starts |
 | `extensions/extension_reader.dart` | Extensions run to read: `ReadingHost`, `ExtensionReaders` (what a video and a page get: chapters, the band), the band as `band` sockets give it (`bandsOf`), a project's data checked as it opens (`checkedExtensionData`) and carried to a replacing score (`carriedExtensionData`) |
 | `extensions/extension_lane.dart`, `extensions/extension_form.dart` | What the app draws for an extension: its lane, by its kind (`ExtensionLane`: markers each running to the next; `ExtensionSpanLane`: a `SpanLane` of stretches, `ExtensionSpans` its model), its name with its commands as buttons (`ExtensionLaneName`), and the dialog `ui.form` asks for (texts, switches, choices) |
 | `extensions/extension_editor.dart`, `extensions/connector_view.dart`, `lua_language.dart` | The extension editor (`showExtensionEditor`: Project Settings ▸ Extensions ▸ New Extension, or an extension's menu ▸ Edit…; Curator's own open to read): a package's files beside its connector as a picture (`ConnectorView`: sockets as nodes, files with their functions, a port dragged onto a function wires it, onto a file writes the function), its Lua in a `CodeView` (coloured a line at a time, `luaCode`, `luaTokens`; the API offered as it is typed, `LuaPrompts`), About and README, the reference beside it (`ExtensionReference`, from `ExtensionApi`; a click writes it in) and the guide (`assets/help/extensions.md`), what is wrong listed under it (`checkExtension`, then what running it said), Run (⌘R) |
 | `extensions/extension_actions.dart` | What Project Settings ▸ Extensions does with a package (`ExtensionActions`: new, from a `.cpe`, edit, duplicate, export; `ExtensionMenu`) |
 | `extensions/extensions_dialog.dart` | On opening a project that uses extensions that are off: a switch for each |
-| `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Edit ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `key_bindings.dart`, `shortcut_settings.dart` | Settings ▸ Shortcuts (see *Every key is a KeyCommand*): every command a key gives (`KeyCommand`), its keys (`KeyChord`), those the user gave the menus' and the editor's commands (`KeyMap`, `AppSettings.keys`, over the window as `KeyMapScope`), tooltips naming a command's key as set (`keyed`); the page's control: a field taking the keys typed next (`ShortcutKeys`), or keycaps (`KeyCaps`) |
 | `licenses_dialog.dart` | Settings ▸ About ▸ Licenses (`showLicensesDialog`): every package's licences from the `LicenseRegistry` (`packageLicenses`, read once), Curator's first, the chosen one's text selectable |
@@ -528,56 +526,74 @@ one re-engrave (`EngraveRequest`), the rest only redraws. While Attach Image is 
 in the project, unengraved; Replace Score keeps vertical ones and the horizontal ones whose first bar
 is still there.
 
-**A caption shows under the score** (the Captions extension). A `Caption` is a text and
-the score quarters it runs between, so it stays with its bars when the sync changes and shows
-once for every pass that plays them (`captionSpans`). Captions never overlap, so one shows at
-a time: every edit keeps them apart (`separateCaptions` in `CaptionEditing._set`, and on
-reading a project, an earlier one ending where the next starts), and the editors stop at the
-free stretch around a caption (`captionRoom`; the dialogs flag one running into another,
-`captionOverlapping`). The scene draws it in `CaptionBar` under the staves, which leave
+**A caption shows under the score** (the Captions extension, a package:
+`app/assets/extensions/captions`). A `Caption` is a text and the score quarters it runs
+between, so it stays with its bars when the sync changes and shows once for every pass that
+plays them (`captionSpans`). The scene draws them; what they are is the extension's. Its
+`captions` socket gives the scene its list (`captions.list`: `ExtensionEditing.captions` in the
+editor, `ExtensionReaders.captions` in a video and a page, both `captionsOf`; the first
+extension's that has the socket) and says how they look (`captions.style`), so Lua describes
+captions and never paints one. The scene draws each in `CaptionBar` under the staves, which leave
 `CaptionBar.reserve` for it while there are any: the text (centred by default) in the score's text font,
 and under it a hairline as wide as the text that draws in to its middle (or, set left or right, to
 that side) as the caption's time runs out; it rises `ScoreMotion.captionRise` points into place as it fades in over `ScoreMotion.captionFade`, and fades out
 as its time ends. It is part of `paint`, so the preview and a video show the same.
-How it looks is a `CaptionStyle` (`CuratedScene.captionStyle`, copied into video export): its
+How it looks is a `CaptionStyle` (`CuratedScene.captionStyle`, copied into video export and
+written into a web page): its
 font, countdown (`CaptionCountdown`: the hairline, a ring left of the text that
 empties clockwise, or none), size (`CaptionSize`; the room grows with it), alignment
 (`CaptionAlign`) and backing (`plate`: a rounded plate in the paper's colour, a touch of ink in it,
-always solid, so it reads over staves, images and see-through paper). All but the font are the app's (the extension's settings button; `AppSettings.caption*`,
-not edits). A caption's text may mark `*italic*` and `**bold**` (`captionRuns`, Markdown's
+always solid, so it reads over staves, images and see-through paper). All but the font are the
+extension's settings, kept for every project (`settings.lua`: its `settings` socket's form,
+Settings… in its menu, `ExtensionSettingsForm`; `curator.save_settings`, so
+`AppSettings.extensionSettings`, which tells its listeners and the editor asks the style again,
+`ExtensionEditing.followSettings`; what `AppSettings` kept as `caption*` before Captions was a
+package is taken as these until they are saved). A caption's text may mark `*italic*` and `**bold**` (`captionRuns`, Markdown's
 rule: a marker opens before a letter and closes after one, `\*` is a star, one never closed is
-typed text); emphasis in an italic face is upright. The bar, the lane and subtitle files draw it;
+typed text; `text.runs` in Lua); emphasis in an italic face is upright. The bar, the lane (a lane's `markup`) and subtitle files draw it;
 the dialogs keep it as typed. The font is the project's when it has one (Project Settings ▸ Engraving ▸ Caption, shown while
-the switch is on: an edit, saved as `fonts.caption` from format 12), else the app's ('' is the
+an extension gives captions: an edit, saved as `fonts.caption` from format 12, and a use of the extension), else the extension's ('' is the
 score's text font); an installed family is read and registered before it is drawn
-(`CaptionEditing._applyStyle`, the latest call winning), and one not installed here falls back
+(`CaptionLook._applyStyle` in `editor/caption_look.dart`, `captionFamily`, the latest call winning), and one not installed here falls back
 to the score's text font, the choice kept. A style change repaints by marking playback dirty:
 the preview repaints only when asked.
+Captions never overlap, so one shows at a time: every edit keeps them apart (`separate` in
+`captions.lua`, in `set` and on reading a project, an earlier one ending where the next starts),
+and the editors stop at the free stretch around a caption (`room`; the dialogs flag one running
+into another, `overlapping`).
 Right-click the preview ▸ Add Caption… starts one on the beat where it was clicked (or
-where the caption there ends), four bars long or up to the next caption (`CaptionEditing.draft`;
-greyed out without room); double-click the caption showing (or
-right-click it) to change it; an empty text removes it.
-While the switch is on, the Captions lane (`CaptionLane`) is pinned under the bar ruler in
-both tabs: never scrolled with the instruments, moved or unpinned, so it has no ⋯ menu. Its
+where the caption there ends), four bars long or up to the next caption (`captions.draft`;
+greyed out without room): a command whose `where` is `preview`, told the place clicked.
+Double-click the caption showing (`captions.open`) or right-click it (commands whose `where` is
+`caption`, told its index: `ExtensionEditing.menu`, `ScoreView._command`) to change it; an empty text removes it.
+While the switch is on, the Captions lane (a spans lane, `ExtensionSpanLane`, with `markup`; `lane.lua`) is pinned under the bar ruler in
+both tabs: never scrolled with the instruments, moved or unpinned (a lane without buttons shows the pin). Its
 captions are regions, edited as the instruments' are with the Instruments tab's tool (the
-Audio tab only selects): Draw drags out a stretch and asks for its text (nothing is added
+Audio tab only selects): Draw drags out a stretch and asks for its text (`ui.form`; nothing is added
 until it has one), Select moves one, trims an edge, selects it for Delete
-(`CaptionEditing.selected`, cleared by a click in any other lane) and double-clicked opens
+(the extension's selection, cleared by a click in any other lane: `ExtensionEditing.deselect`) and double-clicked opens
 its dialog, Erase cuts captions back or in two; edges snap as the lanes' do, and a drag is
-one Undo step. A double-click on the lane's name opens the Captions sheet (`CaptionsDialog`): a row per caption, From / Until /
+one Undo step. A double-click on the lane's name (the lane's `details` port) opens the Captions sheet (`sheet.lua`, `ui.sheet`: `extensions/extension_sheet.dart`): a row per caption, From / Until /
 Text cells, Tab across and ↑ / ↓ / Enter down the column, Add, ×; Done applies it all as one
-Undo step (`CaptionEditing.replaceAll`). The sheet's Import… reads an SRT or WebVTT file
-(`decodeSubtitles`: UTF-8, UTF-16 by its mark, else Latin-1; 8 MB at most) into rows, in place of
-them or around them (a subtitle running into a row is left out): each cue goes where the sync
-has its music (`captionsFromCues`, `quarterAtSeconds`), so a cue heard again on a repeat makes one
-caption, and cues past the music go. `<i>` / `<b>` become markup; other tags go. Export… writes
-the rows (SRT or WebVTT by the name chosen) timed as the recording plays them, once per pass
-(`captionCues`). Export's Subtitles switch (shown while Captions is on with captions; not for a
+Undo step (`captions.replace_all`). The sheet's Import… reads an SRT or WebVTT file
+(`ui.open_file`, `decodeText`: UTF-8, UTF-16 by its mark, else Latin-1; 8 MB at most) into rows, in place of
+them or around them (`ui.ask`; a subtitle running into a row is left out): each cue goes where the sync
+has its music (`subtitles.to_captions`, `score.quarter`), so a cue heard again on a repeat makes one
+caption, and cues past the music go. `<i>` / `<b>` become markup; other tags go (`subtitles.parse`). Export… writes
+the rows (`ui.save_file`; SRT or WebVTT by the name chosen, `subtitles.write`) timed as the recording plays them, once per pass
+(`subtitles.cues`). Export's Subtitles switch (shown while an extension gives captions as subtitles, with captions: `ExtensionEditing.exportsSubtitles`; not for a
 PNG sequence; `AppSettings.videoSubtitles`) writes an .srt beside the movie, replacing one of that
-name, timed from the video's start and cut to its bars (`VideoExport.subtitles`, the clipped timeline). A cell's widgets never change while typing (a
-row's problem shows by the buttons, not around the row), or the cell would lose the keyboard. Every change is an Undo step
-(`captions` in `EditState`); a project keeps them in `state.captions` (format 11). While the
+name, timed from the video's start and cut to its bars (`VideoExport.subtitles`: the `export` socket's `subtitles(from, to)`). A cell's widgets never change while typing (a
+row's problem shows by the buttons, not around the row), or the cell would lose the keyboard. Every change is an Undo step;
+a project keeps them in the `captions` module it always had (`ProjectModules.ownData`, `{"captions": [[start, end, text]]}`; in every project, not optional), the same byte for byte. While the
 switch is off they stay in the project but are not drawn, exported or editable.
+Before the app's own captions were taken out (`CaptionEditing`, `CaptionLane`, `CaptionsDialog`,
+the caption dialog, `CaptionSettings`, and in the engine `parseSubtitles`, `writeSubtitles`,
+`captionCues`, `captionsFromCues`, `separateCaptions`), they were put through 700 edits made at
+random, 300 subtitle files made at random, damaged projects and replaced scores, and what they
+gave was written down; the package gives the same to the letter (`test/captions_cases.dart`,
+the digests in `test/captions_extension_test.dart`), and the lane, the dialogs, the sheet and
+the settings were the same pixel for pixel.
 
 **A chapter names a stretch of the piece** (the Chapters extension, a package:
 `assets/extensions/chapters`). A chapter is a place in the score (quarters) and a name; it runs
@@ -1934,9 +1950,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
     written.
   - A package made in the app has a `user.<name>` id (`ExtensionActions.idFor`); editing one
     replaces it in the project (`ProjectState.packages`) and starts it again, its data kept.
-  **Chapters** and **Tonality** are packages; **Attach Image** and **Captions** are still
-  written in the app (`extensions/built_in.dart`), behind `images.enabled` /
-  `captions.enabled`.
+  **Captions**, **Chapters** and **Tonality** are packages; **Attach Image** is still
+  written in the app (`extensions/built_in.dart`), behind `images.enabled`.
 - **Interface text** follows Apple's HIG *Writing*, in US English: Title Case for menu items,
   buttons and dialog titles that are fragments ("Copy Lane To…", "Couldn’t Export Video"),
   sentence case for tooltips, labels, help lines and messages; an ellipsis only where more

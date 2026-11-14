@@ -38,6 +38,7 @@ msgstr "从录音得到 1 个锚点"
 msgid "1 Bar"
 msgstr "1 小节"
 
+#: assets/extensions/captions/src/captions.lua
 msgid "1 caption"
 msgstr "1 条字幕"
 
@@ -231,17 +232,18 @@ msgstr "强调色"
 msgid "Accidentals"
 msgstr "变音记号"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Add"
 msgstr "添加"
 
 msgid "Add a pair"
 msgstr "添加声部对"
 
+#: assets/extensions/captions/src/lane.lua
 msgid "Add Caption"
 msgstr "添加字幕"
 
-#: lib/score_view.dart
+#: assets/extensions/captions/connect.json
 msgid "Add Caption…"
 msgstr "添加字幕…"
 
@@ -290,7 +292,7 @@ msgstr "高级"
 msgid "Advanced Engraving"
 msgstr "高级刻谱"
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart assets/extensions/captions/src/settings.lua
 msgid "Align"
 msgstr "对齐"
 
@@ -373,7 +375,7 @@ msgstr "任意元素"
 msgid "Appearance"
 msgstr "外观"
 
-#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Apply"
 msgstr "应用"
 
@@ -433,6 +435,7 @@ msgstr "自动保存"
 msgid "Back"
 msgstr "返回"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Backing"
 msgstr "衬底"
 
@@ -529,7 +532,7 @@ msgstr "填补不超过 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 则为 c，否则为 d"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -540,6 +543,7 @@ msgstr "连不上 GitHub。网络连接了吗？"
 msgid "Can’t find the recording to embed"
 msgstr "找不到要嵌入的录音"
 
+#: assets/extensions/captions/src/lane.lua
 msgid "Caption"
 msgstr "字幕"
 
@@ -555,13 +559,14 @@ msgstr "字幕字体"
 msgid "Caption rise"
 msgstr "字幕上升"
 
-#: lib/caption_lane.dart lib/captions_dialog.dart lib/web_player/player.dart
+#: lib/web_player/player.dart assets/extensions/captions/connect.json assets/extensions/captions/extension.json assets/extensions/captions/src/sheet.lua
 msgid "Captions"
 msgstr "字幕"
 
 msgid "Carbon"
 msgstr "Carbon"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Center"
 msgstr "居中"
 
@@ -762,6 +767,7 @@ msgstr "无法使用该文件"
 msgid "Couldn’t use the MIDI file. {error}"
 msgstr "无法使用该 MIDI 文件。{error}"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Countdown"
 msgstr "倒计时"
 
@@ -861,7 +867,7 @@ msgstr "取消选择（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先保存对“{name}”的更改吗？"
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完成"
 
@@ -936,7 +942,7 @@ msgstr "缓出"
 msgid "Edit"
 msgstr "编辑"
 
-#: lib/score_view.dart
+#: assets/extensions/captions/connect.json
 msgid "Edit Caption…"
 msgstr "编辑字幕…"
 
@@ -975,7 +981,7 @@ msgstr "刻谱"
 msgid "Engraving…"
 msgstr "正在刻谱…"
 
-#: assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr "请输入小节或“小节.拍”，如 12 或 12.3"
 
@@ -1024,14 +1030,14 @@ msgstr "导出视频"
 msgid "Export Video…"
 msgstr "导出视频…"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Exported “{name}”"
 msgstr "已导出“{name}”"
 
 msgid "Exporting Video…"
 msgstr "正在导出视频…"
 
-#: lib/captions_dialog.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua
 msgid "Export…"
 msgstr "导出…"
 
@@ -1099,6 +1105,7 @@ msgstr "降号（-）"
 msgid "Folder"
 msgstr "文件夹"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Font"
 msgstr "字体"
 
@@ -1124,7 +1131,7 @@ msgstr "帧率"
 msgid "Frame {n} of {all}"
 msgstr "第 {n} 帧，共 {all} 帧"
 
-#: lib/captions_dialog.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "From"
 msgstr "起始"
 
@@ -1235,7 +1242,7 @@ msgstr "图像"
 msgid "Images and spacers that scroll with the score."
 msgstr "随乐谱滚动的图像和间隔。"
 
-#: lib/app_menus.dart lib/captions_dialog.dart lib/home_screen.dart lib/settings_dialog.dart
+#: lib/app_menus.dart lib/home_screen.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua
 msgid "Import…"
 msgstr "导入…"
 
@@ -1295,7 +1302,7 @@ msgstr "语言"
 msgid "Large"
 msgstr "大"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Leave empty to remove"
 msgstr "留空即可移除"
 
@@ -1305,6 +1312,7 @@ msgstr "加线长度"
 msgid "Ledger lines"
 msgstr "加线"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Left"
 msgstr "左"
 
@@ -1318,6 +1326,7 @@ msgstr "浅色"
 msgid "Lightness"
 msgstr "亮度"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Line"
 msgstr "线条"
 
@@ -1433,7 +1442,7 @@ msgstr "还原号（0）"
 msgid "Next ({key})"
 msgstr "下一个（{key}）"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "No captions"
 msgstr "没有字幕"
 
@@ -1469,14 +1478,15 @@ msgstr ".mxl 压缩包中没有找到乐谱。"
 msgid "No settings"
 msgstr "没有设置项"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "None of these subtitles land inside the music."
 msgstr "这些字幕都不在音乐范围内。"
 
+#: assets/extensions/captions/src/subtitles.lua
 msgid "No subtitles found in this file."
 msgstr "这个文件中没有字幕。"
 
-#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua
 msgid "None"
 msgstr "无"
 
@@ -1604,10 +1614,11 @@ msgstr "其他"
 msgid "Other projects start with these"
 msgstr "其他项目以此为起点"
 
+#: assets/extensions/captions/src/lane.lua
 msgid "Overlaps another caption"
 msgstr "与另一条字幕重叠"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Overlaps the caption in row {n}"
 msgstr "与第 {n} 行的字幕重叠"
 
@@ -1646,7 +1657,7 @@ msgstr "打击乐"
 msgid "Picture"
 msgstr "画面"
 
-#: lib/caption_lane.dart
+#: lib/extensions/extension_lane.dart
 msgid "Pinned"
 msgstr "已固定"
 
@@ -1747,7 +1758,7 @@ msgstr "排练记号"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小节号行中的排练记号"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr "移除"
 
@@ -1759,7 +1770,7 @@ msgstr "移除（Delete）"
 msgid "Remove All Anchors"
 msgstr "移除所有锚点"
 
-#: lib/score_view.dart
+#: assets/extensions/captions/connect.json
 msgid "Remove Caption"
 msgstr "移除字幕"
 
@@ -1823,7 +1834,7 @@ msgstr "反复点间隙"
 msgid "Repeat dots"
 msgstr "反复点"
 
-#: lib/captions_dialog.dart lib/code_view.dart lib/edit_dialogs.dart
+#: lib/code_view.dart lib/edit_dialogs.dart assets/extensions/captions/src/sheet.lua
 msgid "Replace"
 msgstr "替换"
 
@@ -1831,7 +1842,7 @@ msgstr "替换"
 msgid "Replace Recording…"
 msgstr "替换录音…"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Replace the old captions?"
 msgstr "替换旧字幕吗？"
 
@@ -1872,9 +1883,11 @@ msgstr "休止符"
 msgid "Rhythm"
 msgstr "节奏"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Right"
 msgstr "右"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Ring"
 msgstr "圆环"
 
@@ -1937,7 +1950,7 @@ msgstr "乐谱墨色"
 msgid "Score size"
 msgstr "乐谱大小"
 
-#: lib/caption_settings.dart
+#: assets/extensions/captions/src/settings.lua
 msgid "Score text"
 msgstr "乐谱文字"
 
@@ -1977,7 +1990,7 @@ msgstr "全选此轨道"
 msgid "Set"
 msgstr "设定"
 
-#: assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/tonality/src/lane.lua
 msgid "Set Until after From"
 msgstr "“结束”须在“起始”之后"
 
@@ -1989,7 +2002,7 @@ msgstr "设置"
 msgid "Settings Imported"
 msgstr "已导入设置"
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/extensions/extension_actions.dart
 msgid "Settings…"
 msgstr "设置…"
 
@@ -2069,6 +2082,7 @@ msgstr "相似"
 msgid "Sine"
 msgstr "正弦"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Size"
 msgstr "大小"
 
@@ -2254,7 +2268,7 @@ msgstr "速度：{from} → {to}"
 msgid "Tenor"
 msgstr "次中音谱号"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua
 msgid "Text"
 msgstr "文本"
 
@@ -2271,7 +2285,7 @@ msgstr "文字字体"
 msgid "Text size"
 msgstr "文字大小"
 
-#: lib/caption_settings.dart
+#: assets/extensions/captions/src/settings.lua
 msgid "The *horns* answer, softly"
 msgstr "*圆号*轻声应答"
 
@@ -2373,6 +2387,7 @@ msgstr "这个项目来自较新的 Curator，更新后就能打开！"
 msgid "This RIFF file has no MIDI data."
 msgstr "这个 RIFF 文件中没有 MIDI 数据。"
 
+#: assets/extensions/captions/src/sheet.lua
 msgid "This subtitle file is a bit too big."
 msgstr "这个字幕文件有点太大了。"
 
@@ -2416,6 +2431,7 @@ msgstr "从第 {n} 小节起拍号不同"
 msgid "Time signatures"
 msgstr "拍号"
 
+#: assets/extensions/captions/extension.json
 msgid "Timed text under the score."
 msgstr "乐谱下方的定时文字。"
 
@@ -2539,7 +2555,7 @@ msgstr "⌥←/→"
 msgid "Undo history"
 msgstr "撤销历史"
 
-#: lib/captions_dialog.dart assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/tonality/src/lane.lua
 msgid "Until"
 msgstr "结束"
 
@@ -2711,6 +2727,7 @@ msgstr "从录音得到 {n} 个锚点"
 msgid "{n} Bars"
 msgstr "{n} 小节"
 
+#: assets/extensions/captions/src/captions.lua
 msgid "{n} captions"
 msgstr "{n} 条字幕"
 
@@ -2724,9 +2741,11 @@ msgstr "{n} 帧"
 msgid "{n} images"
 msgstr "{n} 张图像"
 
+#: assets/extensions/captions/src/sheet.lua
 msgid "{n} imported"
 msgstr "已导入 {n} 条"
 
+#: assets/extensions/captions/src/sheet.lua
 msgid "{n} imported, {left} overlapping left out"
 msgstr "已导入 {n} 条，{left} 条重叠的未导入"
 
@@ -2859,11 +2878,11 @@ msgstr "和弦（Q）"
 msgid "Couldn’t Edit Score"
 msgstr "无法编辑乐谱"
 
-#: lib/captions_dialog.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr "放弃"
 
-#: lib/captions_dialog.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr "放弃更改？"
 
@@ -2886,7 +2905,7 @@ msgstr "二分音符"
 msgid "Holds"
 msgstr "延长与停顿"
 
-#: lib/captions_dialog.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr "继续编辑"
 
@@ -3449,7 +3468,7 @@ msgstr "还没有谱表指定乐器。"
 msgid "“{name}” is open in another tab. Close it there first."
 msgstr "“{name}”已在另一个标签页中打开，请先在那里关闭它。"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "No room for another caption"
 msgstr "没有空间再添加字幕"
 

@@ -46,11 +46,18 @@ that runs too long is stopped.
 - **Lane**: a lane pinned under the bar ruler. `items` says what is in it; the other ports
   are what the tools and keys do. Its `kind` is `markers` (places that each run to the next:
   `add`, `move`, `erase`) or `spans` (stretches with a start and an end, edited as an
-  instrument's regions are: `draw`, `begin`, `change`, `cut`).
-- **Command**: a button on a lane's name. `run` does it; `enabled` says whether it can be
-  chosen.
+  instrument's regions are: `draw`, `begin`, `change`, `cut`). A double-click on its name
+  calls `details`.
+- **Command**: a button on a lane's name, or an item of the menu a right-click on the preview
+  opens (`where`: `lane`, `preview`, or `caption` for the caption showing). `run` does it;
+  `enabled` says whether it can be chosen. In a menu both are told what was clicked: the place,
+  or the caption's index.
 - **Band**: a band of colours along the top of the score. `areas` says what is in it.
-- **Export**: what a video and a web page get: their chapters.
+- **Captions**: text under the score, one caption at a time. `list` says what they are,
+  `style` how they look; `open` is a double-click on the one showing.
+- **Export**: what a video and a web page get: their chapters, a video's subtitles.
+- **Settings**: the extension's own settings, for every project. `form` describes them, and
+  Curator shows them from the extension's menu in Project Settings ▸ Extensions.
 
 Every port's function is given in the Reference, as it would be written.
 
@@ -98,6 +105,15 @@ A colour is `"#rrggbb"`, or a table of its red, green and blue from 0 to 1:
 `ui.form` opens a dialog laid out as Curator's own: rows of fields (a text, a `"switch"`, or
 a `"choice"` among options), a `check` that says what is wrong as it is typed, and `done`,
 called with the values. Lua never draws: it says what it wants, and Curator shows it.
+
+`ui.sheet` opens a table to edit, a row for each thing: its columns, its rows, buttons at its
+foot, a `check` that says what is wrong with each row, and `done`, called with the rows. A row
+is your own table: a text for each column, and whatever else you keep in it. The functions
+you give it get the `sheet`, to read its rows and change them.
+
+`ui.ask` asks a question with buttons of yours. `ui.open_file` asks for a file and hands it
+over as text; `ui.save_file` asks where a file goes, then writes what `write` returns. None
+of them waits: each calls `done` when the user has answered.
 
 ## Staying compatible
 
@@ -197,18 +213,18 @@ Ports:
 
 ### Command (`command`)
 
-Something the user can do: a button on a lane’s name, or an item of the preview’s menu.
+Something the user can do: a button on a lane’s name, or an item of the menu a right-click on the preview opens.
 
 Ports:
 
-- `run()`: The user chose it.
-- `enabled() → boolean`: Whether it can be chosen now. Unwired: always.
+- `run(at)`: The user chose it. In the preview’s menu, at is the place clicked, in quarters; in the menu of the caption showing, that caption’s index.
+- `enabled(at) → boolean`: Whether it can be chosen now (at as run gets it). Unwired: always.
 
 Properties (set on the node in connect.json):
 
 - `title` (text): Its name: a menu item’s text, a button’s hover text.
 - `icon` (an icon’s name): Its icon, on a button.
-- `where` (`"lane"` or `"preview"`, default `lane`): Where it is offered.
+- `where` (`"lane"` or `"preview"` or `"caption"`, default `lane`): Where it is offered: on a lane’s name, in the menu of the preview (a right-click on the score), or in the menu of the caption showing there (a right-click on it).
 - `lane` (the id of a lane node): The lane whose name carries the button (where: lane).
 
 ### Export (`export`)
@@ -218,6 +234,7 @@ What the extension gives a video and a web page made of the project. An extensio
 Ports:
 
 - `chapters(from, to) → list`: The chapters of a video or page showing from–to seconds of the performance: {from, to, name}, in seconds from its start, in order and without gaps. A movie carries them for its player, with a list of their times beside it; a page lists them to jump to.
+- `subtitles(from, to) → text`: The subtitles of a video showing from–to seconds of the performance, as the text of a SubRip (.srt) file timed from its start: written beside the movie when Export’s Subtitles switch is on. nil while there are none.
 
 ### Lane (`lane`)
 
@@ -237,6 +254,7 @@ Ports:
 - `begin()`: Spans: a drag that may change the stretches begins. Until the next, change and cut are of the stretches as they are now: keep them.
 - `change(index, from, to)`: Spans: stretch index (as begin found them) was moved or trimmed to from–to. Called as the drag goes, the whole drag one Undo step; with live off, once as it ends.
 - `cut(pieces)`: Spans: the Erase tool went over stretches. pieces is every stretch as it is left, {of, from, to}: a piece of stretch of (as begin found them). One erased whole has none.
+- `details()`: The lane’s name was double-clicked: show everything in it (ui.sheet).
 
 Properties (set on the node in connect.json):
 
@@ -245,6 +263,7 @@ Properties (set on the node in connect.json):
 - `gap` (number, default `0.25`): Markers: the least two are apart, in quarters: a drag stops there.
 - `paint` (toggle, default `false`): Spans: a stretch drawn, moved or trimmed goes over the others, as an instrument’s region does (cut them back in change and draw), instead of stopping at them.
 - `live` (toggle, default `true`): Spans: a drag changes the stretch as it goes. Off: once, when it ends.
+- `markup` (toggle, default `false`): Spans: a label’s *italic* and **bold** are drawn so, as a caption’s are.
 - `order` (number, default `100`): Where it sits among the pinned lanes: a lower number is higher up.
 
 ### Band (`band`)
@@ -254,6 +273,24 @@ A band of colours along the top of the score, in the preview, a video and a web 
 Ports:
 
 - `areas() → list`: The band’s stretches, in score order: {from = quarter, to = quarter, color = colour, label = text}, each named at its start. Asked again when the extension’s data or the language changes.
+
+### Captions (`captions`)
+
+Text under the score, one caption at a time, in the preview, a video and a web page: each shows while its music sounds, its time running out. An extension has one.
+
+Ports:
+
+- `list() → list`: The captions: {from = quarter, to = quarter, text = text}, none overlapping. *italic* and **bold** in a text are drawn so. Asked again when the extension’s data changes.
+- `style() → table`: How they look: font (a text font’s family; nil: the score’s text font), countdown ("line", "ring" or "none"), size ("small", "medium" or "large"), align ("left", "center" or "right"), plate (true: a soft backing behind the text). Unwired, or a key left out: a line, medium, centred, no plate. Asked again when the extension’s settings change.
+- `open(index)`: The caption showing was double-clicked in the preview.
+
+### Settings (`settings`)
+
+The extension’s own settings, for every project: Settings… in its menu in Project Settings ▸ Extensions opens them. An extension has one.
+
+Ports:
+
+- `form() → spec`: The settings as a form. spec: rows (each {id, label, value, type}: a "switch", "segments" (one of options, each {value, label}), or a "font" (a text font’s family, "" for none, named none)), preview(values) → what is drawn under them ({caption = text, style = a captions style}), changed(values) called as one is changed: keep them with curator.save_settings.
 
 Icons: `add`, `close`, `delete`, `reset`, `copy`, `check`, `search`, `more`, `open`, `project`, `score`, `export`, `assets`, `play`, `pause`, `music`, `draw`, `erase`, `tidy`, `audio`, `repeat`, `snap`, `frame`, `lanes`, `image`, `pin`, `link`, `captions`, `settings`, `fonts`, `extensions`, `done`, `failed`, `warning`, `previous`, `next`, `align`, `moveUp`, `moveDown`, `chapters`, `ai`, `show`, `hide`, `test`, `fetch`, `code`, `tonality`, `website`, `keyboard`.
 
@@ -327,6 +364,7 @@ The score and the performance it is synced to. Places are in quarter notes from 
 
 - `score.rehearsal_marks() → list`: The score’s rehearsal marks, in the order written: {at, bar, text}.
 - `score.parts() → list`: The instruments: {id, name, staves}.
+- `score.title() → text`: The score’s title; "" when it has none.
 - `score.music(done)`: Reads the music off to the side, so a long score doesn’t stop the editor, then calls done(music): music.notes is every pitched note as it sounds, part by part ({from, to} in quarters, pitch as a MIDI number at concert pitch, tied when a tie carries it on from the note before, chord for a chord’s notes after its first, part, staff, voice); music.keys the key signatures at concert pitch ({bar, fifths, minor}, each from its bar on; minor only when the score says which); music.bars where each bar starts, then the score’s end. done(nil) when the score changed meanwhile. In the editor only.
 
   ```lua
@@ -342,6 +380,10 @@ The score and the performance it is synced to. Places are in quarter notes from 
 Text as people write it: every kind of space counts, in any script.
 
 - `text.trim(text) → text`: text without the spaces at its ends.
+- `text.trim_start(text) → text`: text without the spaces at its start.
+- `text.trim_end(text) → text`: text without the spaces at its end.
+- `text.flatten(text) → text`: text with every run of spaces and line breaks made one space; those at its ends stay, as one.
+- `text.runs(text) → list`: A caption’s text as it is drawn: its stretches in one face, {text, italic, bold}, the markers of *italic* and **bold** taken out. A star that marks nothing stays, and so does one written \*.
 - `text.squeeze(text) → text`: text with every run of spaces and line breaks made one space, and none at its ends: a name as it is kept.
 - `text.lower(text) → text`: text in lower case, in any script.
 - `text.upper(text) → text`: text in upper case, in any script.
@@ -389,3 +431,16 @@ Dialogs, laid out as the app’s own. In the editor only.
   ```
 
 - `ui.message(text)`: Shows a line at the window’s foot for a moment.
+- `ui.ask(spec)`: Asks a question. spec: title, text, buttons (each {id, title}; the last is the one Return presses), done(id) called with the button pressed. Cancel, which the app adds, calls nothing.
+
+  ```lua
+  ui.ask{
+    title = "Replace the old notes?",
+    buttons = { {id = "add", title = "Add"}, {id = "replace", title = "Replace"} },
+    done = function(id) print(id) end,
+  }
+  ```
+
+- `ui.sheet(spec) → sheet`: Opens a table to edit, a row for each thing. spec: title, width, columns (each {id, label, width, max, hint}; one without a width takes the room left), rows (each a table with a text for every column’s id; what else it holds stays with it), focus ({row, column id}), empty (what it says without rows), buttons (at its foot: {id, title, icon, enabled(sheet)}), press(id, sheet), more (the id of the button Return presses on the last row), check(rows) → a list with what is wrong with each row (nil, a text, or {text, column ids at fault}), done(rows) when Done is pressed. Done is off while a row has something wrong; Cancel asks first once something was changed. sheet: rows() (as they are now), set(rows), add(row, column id) (and types there), notice(text) (a line at its foot), valid() (no row has anything wrong).
+- `ui.open_file(spec)`: Asks for a file to read. spec: types (each {label, extensions}), max (the most bytes read), done(file) called with what was chosen: {name, text} (the file as text: UTF-8, UTF-16 by its mark, else Latin-1), or {name, error} when it can’t be read ({name, too_big = true} past max). Nothing chosen calls nothing.
+- `ui.save_file(spec)`: Asks where to save a file, then writes it. spec: name (as offered), types (each {label, extensions}), write(file) → the text to write, called once the place is chosen (file.name, and file.extension: the name’s, else the chosen type’s first), done(file) once it is written (file.error says why it couldn’t be).

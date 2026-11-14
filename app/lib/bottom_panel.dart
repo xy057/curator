@@ -4,7 +4,6 @@ import 'package:score_engine/score_engine.dart' show ExtensionRuntime, GraphNode
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'audio_panel.dart';
-import 'caption_lane.dart';
 import 'extensions/extension_lane.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
@@ -44,7 +43,6 @@ class BottomPanel extends StatelessWidget {
           curation: controller.curation,
           sync: controller.sync,
           tab: controller.tab,
-          captions: controller.captions.enabled,
           spacers: controller.spacers.enabled,
           // (Which runtime too: one run again from its files is another.)
           extensions: [for (final lane in controller.extensions.lanes) '${lane.runtime.id} ${lane.node.id} ${identityHashCode(lane.runtime)}'].join('\n'),
@@ -108,10 +106,9 @@ class BottomPanel extends StatelessWidget {
                 BarRuler(controller: c),
                 // Pinned: under the ruler in both tabs, never scrolled away. Extensions' lanes go
                 // by their order, around the app's own: Tonality's first (its band tops the
-                // score), above the captions; Chapters' above the spacers; any other under them.
+                // score), above Captions'; Chapters' above the spacers; any other under them.
                 for (final lane in c.extensions.lanes)
                   if (lane.order < _captionsOrder) _lane(lane.runtime, lane.node),
-                if (c.captions.enabled) CaptionLane(controller: c),
                 for (final lane in c.extensions.lanes)
                   if (lane.order >= _captionsOrder && lane.order < _spacersOrder) _lane(lane.runtime, lane.node),
                 if (c.spacers.enabled) SpacerLane(controller: c),

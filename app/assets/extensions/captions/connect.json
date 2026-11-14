@@ -1,0 +1,35 @@
+{
+  "nodes": [
+    {"id": "project", "type": "project", "at": [40, 40]},
+    {"id": "lane", "type": "lane", "at": [40, 200], "title": "Captions", "kind": "spans", "live": true, "markup": true, "order": 20},
+    {"id": "captions", "type": "captions", "at": [40, 520]},
+    {"id": "add", "type": "command", "at": [40, 660], "title": "Add Caption…", "where": "preview"},
+    {"id": "edit", "type": "command", "at": [40, 780], "title": "Edit Caption…", "where": "caption"},
+    {"id": "remove", "type": "command", "at": [40, 900], "title": "Remove Caption", "where": "caption"},
+    {"id": "export", "type": "export", "at": [40, 1020]},
+    {"id": "settings", "type": "settings", "at": [40, 1140]}
+  ],
+  "wires": [
+    ["project.load", "captions.lua#load"],
+    ["project.used", "captions.lua#used"],
+    ["project.replaced", "captions.lua#replaced"],
+    ["lane.items", "lane.lua#items"],
+    ["lane.draw", "lane.lua#draw"],
+    ["lane.begin", "lane.lua#begin"],
+    ["lane.change", "lane.lua#change"],
+    ["lane.cut", "lane.lua#cut"],
+    ["lane.open", "lane.lua#open"],
+    ["lane.details", "sheet.lua#open"],
+    ["lane.remove", "lane.lua#remove"],
+    ["captions.list", "captions.lua#list"],
+    ["captions.style", "settings.lua#style"],
+    ["captions.open", "lane.lua#open"],
+    ["add.run", "lane.lua#add_at"],
+    ["add.enabled", "lane.lua#can_add_at"],
+    ["edit.run", "lane.lua#open"],
+    ["remove.run", "lane.lua#remove"],
+    ["export.subtitles", "subtitles.lua#export"],
+    ["settings.form", "settings.lua#form"]
+  ],
+  "files": {"captions.lua": [420, 40], "lane.lua": [420, 300], "sheet.lua": [420, 560], "subtitles.lua": [420, 800], "settings.lua": [420, 1060]}
+}

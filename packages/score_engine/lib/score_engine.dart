@@ -41,7 +41,7 @@ export 'src/score_motion.dart';
 export 'src/score_edit_view.dart';
 export 'src/score_editing.dart';
 export 'src/score_caption.dart'
-    show Caption, CaptionAlign, CaptionBar, CaptionCountdown, CaptionRun, CaptionSize, CaptionSpan, CaptionStyle, captionOverlapping, captionPlain, captionRoom, captionRuns, captionSpans, separateCaptions;
+    show Caption, CaptionAlign, CaptionBar, CaptionCountdown, CaptionRun, CaptionSize, CaptionSpan, CaptionStyle, captionRuns, captionSpans;
 export 'src/score_chapter.dart';
 export 'src/score_fonts.dart';
 export 'src/score_form.dart';
@@ -54,7 +54,6 @@ export 'src/scroll_map.dart';
 export 'src/spacers.dart';
 export 'src/spacing_plan.dart';
 export 'src/staff_stack.dart';
-export 'src/subtitles.dart';
 export 'src/sync_map.dart';
 export 'src/take_splice.dart';
 export 'src/text_dynamics.dart';

@@ -76,9 +76,11 @@ class LoadedPage {
   }
 
   /// The scene's settings, with captions and bar numbers on or off as the viewer has them, and
-  /// the band along the score's top as the project's extensions give it ([bands]: those run
-  /// to read it; made anew when none is given), named in the viewer's language.
-  SceneSettings settings({required bool captions, required bool barNumbers, ExtensionReaders? bands}) => SceneSettings(
+  /// the captions and the band along the score's top as the project's extensions give them
+  /// ([bands]: those run to read it; made anew when none is given), in the viewer's language.
+  SceneSettings settings({required bool captions, required bool barNumbers, ExtensionReaders? bands}) {
+    final readers = bands ?? extensions(() => score.timeline);
+    return SceneSettings(
         names: edits.partNames,
         condensed: edits.condensed,
         partOrder: edits.partOrder,
@@ -89,7 +91,7 @@ class LoadedPage {
           for (final p in edits.patches)
             if (arts[p.image] case final art?) p.scene(art),
         ],
-        captions: captions && (edits.extensions['captions'] ?? false) ? edits.captions : const [],
+        captions: captions ? readers.captions : const [],
         captionStyle: page.captionStyle,
         sections: edits.groupSections,
         sectionOverrides: edits.sections,
@@ -99,8 +101,9 @@ class LoadedPage {
         nameColors: page.nameColors,
         pointerColor: edits.playheadColor,
         spacers: edits.spacers,
-        bands: (bands ?? extensions(() => score.timeline)).bands,
+        bands: readers.bands,
       );
+  }
 
   /// The lanes as exported, each instrument in [shown] always or never shown instead.
   Curation curation(Map<String, PartShown> shown) {

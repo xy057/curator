@@ -153,7 +153,11 @@ void main() {
       expect((e.transition, e.leadIn), (0.5, 1));
       expect(e.lanes, {'P1': [const Region(1, 2, transitionIn: 0.3)]});
       expect(e.anchors, [const SyncAnchor(4, 2), const SyncAnchor(8, 4, jumpTo: 0)]);
-      expect(e.captions, [const Caption(1, 2, 'Hi')]);
+      expect(e.extensionData['captions'], {
+        'captions': [
+          [1, 2, 'Hi'],
+        ],
+      });
       expect(state.view.time, 3);
 
       // Saved again: in modules, the same.
@@ -326,11 +330,11 @@ void main() {
       c.sync!.addAnchor(SyncAnchor(starts[8], 20, jumpTo: starts[4])); // a warp: back to bar 5
       c.useMidiTempo(MidiTempoMap('tempo.mid', const [(quarter: 0, quartersPerMinute: 96), (quarter: 24, quartersPerMinute: 80)]));
       await c.setFonts(const ScoreFonts(music: MusicFont.leland));
+      c.setExtension('captions', true);
       c.images.enabled = true;
-      c.captions.enabled = true;
       await c.images.add(ImageKind.raster, png, quarter: starts[2], top: 2);
       c.images.update(0, c.images.patches[0].copyWith(ink: true));
-      c.captions.add(Caption(starts[1], starts[5], 'The horns answer'));
+      c.extensions.runtime('captions')!.run('require("captions").add({from = ${starts[1]}, to = ${starts[5]}, text = "The horns answer"})');
       c.captions.setFont(TextFonts.academico);
       c.setExtension('chapters', true);
       c.extensions.runtime('chapters')!.run('local lane = require("lane")\nlane.create(${starts[4]}, "Second theme")\nlane.create(${starts[0]}, "Opening")');
@@ -375,7 +379,12 @@ void main() {
       expect(c2.score!.fonts.music, MusicFont.leland);
       expect(c2.images.patches.single.ink, isTrue);
       expect(c2.images.stored, hasLength(1), reason: 'the image file travels in the project');
-      expect(c2.captions.captions, [Caption(starts[1], starts[5], 'The horns answer')]);
+      expect(c2.extensions.data('captions'), {
+        'captions': [
+          [starts[1], starts[5], 'The horns answer'],
+        ],
+      });
+      expect(c2.scene!.captions, [Caption(starts[1], starts[5], 'The horns answer')]);
       expect(c2.captions.font, TextFonts.academico);
       expect(c2.extensions.data('chapters'), {
         'chapters': [

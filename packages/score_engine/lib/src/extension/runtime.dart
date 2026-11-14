@@ -1,6 +1,7 @@
 import '../beat_grid.dart';
 import '../curated_scene.dart';
 import '../lua.dart';
+import '../score_caption.dart';
 import '../score_text.dart';
 import '../scroll_map.dart';
 import 'api.dart';
@@ -309,6 +310,12 @@ class ExtensionRuntime {
   void _installText() {
     library('text', {
       'trim': (a) => [a.string(0, 'text.trim').trim()],
+      'trim_start': (a) => [a.string(0, 'text.trim_start').trimLeft()],
+      'trim_end': (a) => [a.string(0, 'text.trim_end').trimRight()],
+      'flatten': (a) => [a.string(0, 'text.flatten').replaceAll(_spaces, ' ')],
+      'runs': (a) => [
+            LuaTable.list([for (final run in captionRuns(a.string(0, 'text.runs'))) LuaTable.map({'text': run.text, 'italic': run.italic, 'bold': run.bold})]),
+          ],
       'squeeze': (a) => [a.string(0, 'text.squeeze').replaceAll(_spaces, ' ').trim()],
       'lower': (a) => [a.string(0, 'text.lower').toLowerCase()],
       'upper': (a) => [a.string(0, 'text.upper').toUpperCase()],
@@ -381,6 +388,7 @@ class ExtensionRuntime {
           ]),
         ];
       },
+      'title': (a) => [score('score.title').metadata.title],
       'parts': (a) => [
             LuaTable.list([
               for (final p in score('score.parts').metadata.parts) LuaTable.map({'id': p.id, 'name': p.name, 'staves': p.staffNumbers.length}),

@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.8.0+370
+version: 0.8.0+371
 
 environment:
   sdk: ^3.13.4
@@ -46,6 +46,8 @@ flutter:
     # Curator's own extensions, each a folder holding what a .cpe does (extension.json, connect.json, src/…; BundledExtensions).
     - assets/extensions/chapters/
     - assets/extensions/chapters/src/
+    - assets/extensions/captions/
+    - assets/extensions/captions/src/
     - assets/extensions/tonality/
     - assets/extensions/tonality/src/
     - assets/help/ # the guide the extension editor's Help shows (extensions.md)

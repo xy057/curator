@@ -16,6 +16,8 @@ import 'error_text.dart';
 import 'extensions/bundled.dart';
 import 'extensions/extension.dart';
 import 'extensions/extension_form.dart';
+import 'extensions/extension_files.dart';
+import 'extensions/extension_sheet.dart';
 import 'extensions/extension_reader.dart';
 import 'file_names.dart';
 import 'image_patch.dart';
@@ -27,7 +29,7 @@ import 'score_replacement.dart';
 import 'time_viewport.dart';
 import 'l10n/l10n.dart';
 
-part 'editor/caption_editing.dart';
+part 'editor/caption_look.dart';
 part 'editor/commands.dart';
 part 'editor/extension_editing.dart';
 part 'editor/image_editing.dart';
@@ -55,7 +57,7 @@ typedef MidiWarpsTaken = ({MidiWarpsFrom from, int count, String? file});
 ///  * [lanes]: editing in the Instruments tab (tools, the region selection, tidying);
 ///  * [anchors]: editing in the Audio tab (tapping, the anchor selection);
 ///  * [images]: images on the score (the Attach Image extension);
-///  * [captions]: captions under the score (the Captions extension);
+///  * [captions]: how the captions under the score look (what they say is an extension's);
 ///  * [spacers]: room for images (the Attach Image extension): spacer staves, blanks between beats;
 ///  * [commands]: what the Edit menu and the keys do in the tab showing.
 ///
@@ -69,7 +71,7 @@ class EditorController extends ChangeNotifier {
   late final lanes = LaneEditing._(this);
   late final anchors = SyncEditing._(this);
   late final images = ImageEditing._(this);
-  late final captions = CaptionEditing._(this);
+  late final captions = CaptionLook._(this);
   late final spacers = SpacerEditing._(this);
   late final extensions = ExtensionEditing._(this);
   late final commands = EditCommands._(this);
@@ -140,7 +142,7 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// For the parts ([Playback], [LaneEditing], [SyncEditing], [ImageEditing], [CaptionEditing]), which can't
+  /// For the parts ([Playback], [LaneEditing], [SyncEditing], [ImageEditing], [CaptionLook]), which can't
   /// call the protected [notifyListeners] themselves.
   void _changed() => notifyListeners();
 
@@ -416,7 +418,7 @@ class EditorController extends ChangeNotifier {
     // What the extensions keep goes with it: each moves its own (`project.replaced`).
     final (state: carried, lost: lostByExtensions) =
         carriedExtensionData(placed, (q) => ScoreSwap.quarterAt(q, measures.before, measures.after), end: measures.after.last);
-    final Lost lost = (regions: gone.regions, anchors: gone.anchors, warps: gone.warps, captions: gone.captions, extensions: lostByExtensions, images: gone.images);
+    final Lost lost = (regions: gone.regions, anchors: gone.anchors, warps: gone.warps, extensions: lostByExtensions, images: gone.images);
     return ScoreReplacement(
       name: name,
       bytes: bytes,
@@ -567,7 +569,7 @@ class EditorController extends ChangeNotifier {
     }
     _curation!.addListener(_curationEdited);
     // Last: working out their style can notify at once, and listeners must find all of it open.
-    captions._load(edits.captions, edits.captionFont);
+    captions._load(edits.captionFont);
     // Saved before each project kept its own: one it uses that the app had on stays on.
     _doc = _doc.copyWith(extensions: Map.unmodifiable({
       ..._doc.extensions,
@@ -753,7 +755,7 @@ class EditorController extends ChangeNotifier {
       motion: motion,
       typography: typography,
       patches: images._scenePatches,
-      captions: captions._sceneCaptions,
+      captions: extensions.captions,
       captionStyle: captions._style,
       sections: _doc.groupSections,
       sectionOverrides: {..._doc.sections, ...?_previewSections},
@@ -1378,7 +1380,6 @@ class EditorController extends ChangeNotifier {
       takes: synced.takes,
       crossfade: crossfade,
       patches: this.images._patches,
-      captions: captions._captions,
       embedFont: true,
       textEdits: score.textEdits,
       pairs: score.pairs,
@@ -2246,7 +2247,6 @@ class EditorController extends ChangeNotifier {
         lanes._lanes.isEmpty &&
         anchors._isEmpty &&
         images._selected == null &&
-        captions._selected == null &&
         spacers._selected == null &&
         extensions._selection.isEmpty &&
         _takeSelected == null) {
@@ -2254,7 +2254,6 @@ class EditorController extends ChangeNotifier {
     }
     _takeSelected = null;
     images._deselect();
-    captions._selected = null;
     spacers._selected = null;
     extensions._selection.clear();
     lanes._clear();
@@ -2279,7 +2278,6 @@ class EditorController extends ChangeNotifier {
         anchors: _ownAnchors,
         leadIn: _sync!.leadIn,
         patches: images._patches,
-        captions: captions._captions,
         captionFont: captions._font,
       );
 
@@ -2351,7 +2349,7 @@ class EditorController extends ChangeNotifier {
       _loadSync(state);
       _performanceChanged(); // the lanes too
       images._restore(state.patches);
-      captions._restore(state.captions, state.captionFont);
+      captions._restore(state.captionFont);
       _applyExtensions();
       extensions._restored(before, state);
       _previewSections = null; // a bracket's drag ends with an edit or none: not under Undo

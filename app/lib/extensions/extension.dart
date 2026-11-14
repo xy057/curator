@@ -97,10 +97,9 @@ class PackageExtension extends CuratorExtension {
 /// Every extension there is, in the order Project Settings lists them.
 abstract final class Extensions {
   static const attachImage = AttachImageExtension();
-  static const captions = CaptionsExtension();
 
   /// Written in the app.
-  static const builtIn = <CuratorExtension>[attachImage, captions];
+  static const builtIn = <CuratorExtension>[attachImage];
 
   /// The order Curator's own are listed in; one not named here follows, by id.
   static const _order = ['attachImage', 'captions', 'chapters', 'tonality'];

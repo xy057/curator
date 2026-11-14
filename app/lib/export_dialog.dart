@@ -121,7 +121,7 @@ class _ExportDialogState extends State<_ExportDialog> {
   bool get _overflowCleared => switch (_overflow) { null => true, final bars => listEquals(bars, _overflowTaken) };
 
   /// Captions to write as subtitles: the extension on, with some.
-  bool get _hasCaptions => widget.controller.captions.enabled && widget.controller.captions.captions.isNotEmpty;
+  bool get _hasCaptions => widget.controller.extensions.exportsSubtitles;
 
   /// Whether an .srt is written beside the video.
   bool get _subtitles => _hasCaptions && _settings.videoSubtitles && !_format.codec.isSequence;

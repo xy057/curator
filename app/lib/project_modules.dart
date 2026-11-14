@@ -81,7 +81,7 @@ abstract final class ProjectModules {
 
   /// The extensions of Curator's own that keep their data in a module of their own, as they did
   /// before they were packages: the extension's id → that module.
-  static const Map<String, ProjectModule> ownData = {'chapters': chapters, 'tonality': tonality};
+  static const Map<String, ProjectModule> ownData = {'captions': captions, 'chapters': chapters, 'tonality': tonality};
 
   /// Whether [id] can be a take's ([Take.id]): `take-1`, `take-2`…, safe as a folder's name.
   static bool isTakeId(String id) => _Takes.isTakeId(id);
@@ -705,35 +705,19 @@ final class _Images extends ProjectModule {
   }
 }
 
-/// Captions under the score (Captions), `[start, end, text]`, in the order they were added.
-final class _Captions extends ProjectModule {
-  const _Captions() : super('captions');
+/// Captions under the score (Captions), `[start, end, text]`, in the order they were added:
+/// the Captions extension's data, as it keeps it ([EditState.extensionData]). The module the
+/// captions had while Captions was written in the app, and still the extension's place in a
+/// project ([ProjectModules.ownData]); what is in it is the extension's to check (its
+/// `project.load`). Every project has it, as it always did.
+final class _Captions extends _OwnData {
+  const _Captions() : super('captions', 'captions', const {'captions': <Object?>[]}, optional: false);
 
   @override
-  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {
-        'captions': [
-          for (final c in state.edits.captions) [c.start, c.end, c.text],
-        ],
-      };
-
-  @override
-  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) => state.copyWith(
-        edits: state.edits.copyWith(
-          // Kept apart (those saved before captions couldn't overlap show as they did).
-          captions: separateCaptions([
-            for (final (i, caption) in r.list('captions').indexed)
-              switch (caption) {
-                [final num start, final num end, final String text] when start.abs() <= JsonReader.maxNumber && end.abs() <= JsonReader.maxNumber =>
-                  start < 0
-                      ? throw _damaged('${r.where}.captions[$i] starts before the score.')
-                      : end <= start
-                          ? throw _damaged('${r.where}.captions[$i] ends before it starts.')
-                          : Caption(start.toDouble(), end.toDouble(), text),
-                _ => throw _damaged('${r.where}.captions[$i] is not a start, an end and a text.'),
-              },
-          ]),
-        ),
-      );
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    r.list('captions'); // a list, or the project is damaged
+    return super.read(r, state, files);
+  }
 }
 
 /// Chapters (the Chapters extension's data, as it keeps it: [EditState.extensionData]),
@@ -755,7 +739,7 @@ final class _Chapters extends _OwnData {
 /// were packages, and keeps it: the module's JSON is what the extension saves
 /// ([EditState.extensionData] under [extension]), [empty] while it has saved nothing.
 abstract base class _OwnData extends ProjectModule {
-  const _OwnData(super.id, this.extension, this.empty) : super(optional: true);
+  const _OwnData(super.id, this.extension, this.empty, {super.optional = true});
   final String extension;
   final Map<String, Object?> empty;
 

@@ -10,7 +10,6 @@ import 'package:score_engine/score_engine.dart';
 
 import 'editor_controller.dart';
 import 'error_text.dart';
-import 'extensions/extension.dart';
 import 'file_names.dart';
 import 'image_patch.dart';
 import 'l10n/l10n.dart';
@@ -112,7 +111,17 @@ abstract final class WebExport {
 
       // What the page shows: the project with every setting its own, and the score engraved.
       var edits = editor.pageState;
-      if (!captions) edits = edits.copyWith(captions: const [], extensions: {...edits.extensions, Extensions.captions.id: false});
+      if (!captions) {
+        // Without the extensions that give captions, or what they keep.
+        final sources = editor.extensions.captionSources.toSet();
+        edits = edits.copyWith(
+          extensions: {...edits.extensions, for (final id in sources) id: false},
+          extensionData: {
+            for (final MapEntry(key: id, :value) in edits.extensionData.entries)
+              if (!sources.contains(id)) id: value,
+          },
+        );
+      }
       if (!chapters) {
         // Without the extensions that give chapters, or what they keep.
         final sources = editor.extensions.readers().chapterSources.toSet();
@@ -250,7 +259,7 @@ abstract final class WebExport {
     if (score == null) return const {};
     return {
       if (score.textFontFound) score.fonts.text,
-      if (captions && editor.extensionOn(Extensions.captions.id)) editor.captions.font ?? editor.captions.defaultFont,
+      if (captions && editor.captions.enabled) editor.captions.effectiveFont,
     }..removeWhere((name) => name.isEmpty || name == TextFonts.academico);
   }
 

@@ -10,6 +10,8 @@ import '../app_icons.dart';
 import '../editor_controller.dart';
 import '../lanes_common.dart';
 import '../span_lane.dart';
+import '../ui_kit.dart';
+import '../l10n/l10n.dart';
 
 /// A lane of an extension's (a `lane` node of its connector), pinned under the bar ruler in
 /// both tabs. The app draws it and takes the mouse, as it does for its own lanes; the
@@ -228,33 +230,57 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
 String _text(Object? value) => value is String ? value : '';
 
 /// An extension's lane's name, with the extension's commands for the lane as buttons.
-class ExtensionLaneName extends StatelessWidget {
+class ExtensionLaneName extends StatefulWidget {
   const ExtensionLaneName({super.key, required this.controller, required this.runtime, required this.node});
   final EditorController controller;
   final ExtensionRuntime runtime;
   final GraphNode node;
 
   @override
+  State<ExtensionLaneName> createState() => _ExtensionLaneNameState();
+}
+
+class _ExtensionLaneNameState extends State<ExtensionLaneName> {
+  final _clicks = DoubleClicks();
+
+  @override
   Widget build(BuildContext context) {
-    final c = controller;
+    final c = widget.controller, runtime = widget.runtime, node = widget.node;
     return ListenableBuilder(
       listenable: c,
-      builder: (context, _) => LaneLabel(
-        height: ExtensionLane.height,
-        color: context.colors.accentWash,
-        trailing: Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            for (final command in c.extensions.commands(runtime, lane: node.id))
-              LaneButton(
-                icon: extensionIcon(command.props['icon']),
-                tooltip: runtime.translate(_text(command.props['title'])),
-                onPressed: c.extensions.canRun(runtime, command) ? () => runtime.fire(command.id, 'run') : null,
-              ),
-          ]),
-        ),
-        child: Text(runtime.translate(_text(node.props['title'])), style: TextStyle(fontWeight: FontWeight.w500)),
-      ),
+      builder: (context, _) {
+        final commands = c.extensions.commands(runtime, lane: node.id).toList();
+        final name = LaneLabel(
+          height: ExtensionLane.height,
+          color: context.colors.accentWash,
+          // Its buttons; a lane without any shows that it is pinned, as the app's own do.
+          trailing: commands.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Tip(message: 'Pinned'.tr, child: Icon(AppIcon.pin.of(context), size: 13, color: context.colors.textMuted)),
+                )
+              : Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    for (final command in commands)
+                      LaneButton(
+                        icon: extensionIcon(command.props['icon']),
+                        tooltip: runtime.translate(_text(command.props['title'])),
+                        onPressed: c.extensions.canRun(runtime, command) ? () => runtime.fire(command.id, 'run') : null,
+                      ),
+                  ]),
+                ),
+          child: Text(runtime.translate(_text(node.props['title'])), style: TextStyle(fontWeight: FontWeight.w500)),
+        );
+        // Double-click the name for everything in the lane (`details`).
+        if (!runtime.wired(node.id, 'details')) return name;
+        return Listener(
+          onPointerUp: (e) {
+            if (_clicks.press(e.timeStamp, e.position)) runtime.fire(node.id, 'details');
+          },
+          child: name,
+        );
+      },
     );
   }
 }
@@ -346,7 +372,16 @@ class ExtensionSpans extends SpanLaneModel {
   String? label(int index) => _items[index].label;
 
   @override
-  InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);
+  InlineSpan labelSpan(String label, TextStyle style) => node.props['markup'] != true
+      ? TextSpan(text: label, style: style)
+      // Its *italic* and **bold** as a caption's are drawn.
+      : TextSpan(style: style, children: [
+          for (final run in captionRuns(label))
+            TextSpan(
+              text: run.text,
+              style: TextStyle(fontStyle: run.italic ? FontStyle.italic : null, fontWeight: run.bold ? FontWeight.bold : null),
+            ),
+        ]);
 
   @override
   Color? color(int index) => _items[index].color;
@@ -354,6 +389,9 @@ class ExtensionSpans extends SpanLaneModel {
 
 /// The icon a connector names ([ExtensionApi.icons]); one it doesn't know is the extensions'.
 AppIcon extensionIcon(Object? name) => _icons[name] ?? AppIcon.extensions;
+
+/// The app's icon an extension names; null when it names none.
+AppIcon? extensionIconOrNull(Object? name) => _icons[name];
 final _icons = AppIcon.values.asNameMap();
 
 /// The items as the lanes' regions are drawn, each rounded where it starts and square where

@@ -255,7 +255,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     final theme = Theme.of(context), edits = _loaded.edits;
     Widget heading(String text) =>
         Padding(padding: const EdgeInsets.only(top: 16, bottom: 6), child: Text(text, style: theme.textTheme.titleSmall));
-    final hasCaptions = (edits.extensions['captions'] ?? false) && edits.captions.isNotEmpty;
+    final hasCaptions = _extensions.captions.isNotEmpty;
     final chapters = _chapters;
     return [
       if (chapters.isNotEmpty) ...[

@@ -55,7 +55,6 @@ class EditState {
     this.nameGroups = const [],
     this.nameGroupOf = const {},
     this.patches = const [],
-    this.captions = const [],
     this.captionFont,
     this.fonts = ScoreFonts.standard,
     this.embedFont = true,
@@ -176,8 +175,6 @@ class EditState {
   /// Images on the score (Attach Image), bottom to top.
   final List<ImagePatch> patches;
 
-  /// Captions under the score (Captions), in the order they were added.
-  final List<Caption> captions;
 
 
 
@@ -256,7 +253,6 @@ class EditState {
       listEquals(nameGroups, other.nameGroups) &&
       mapEquals(nameGroupOf, other.nameGroupOf) &&
       listEquals(patches, other.patches) &&
-      listEquals(captions, other.captions) &&
       captionFont == other.captionFont &&
       fonts == other.fonts &&
       embedFont == other.embedFont &&
@@ -304,7 +300,6 @@ class EditState {
     List<NameGroup>? nameGroups,
     Map<String, String?>? nameGroupOf,
     List<ImagePatch>? patches,
-    List<Caption>? captions,
     Object? captionFont = _kept,
     ScoreFonts? fonts,
     bool? embedFont,
@@ -345,7 +340,6 @@ class EditState {
         nameGroups: nameGroups ?? this.nameGroups,
         nameGroupOf: nameGroupOf ?? this.nameGroupOf,
         patches: patches ?? this.patches,
-        captions: captions ?? this.captions,
         captionFont: identical(captionFont, _kept) ? this.captionFont : captionFont as String?,
         fonts: fonts ?? this.fonts,
         embedFont: embedFont ?? this.embedFont,

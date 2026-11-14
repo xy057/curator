@@ -37,6 +37,7 @@ msgstr ""
 msgid "1 Bar"
 msgstr ""
 
+#: assets/extensions/captions/src/captions.lua
 msgid "1 caption"
 msgstr ""
 
@@ -230,17 +231,18 @@ msgstr ""
 msgid "Accidentals"
 msgstr ""
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Add"
 msgstr ""
 
 msgid "Add a pair"
 msgstr ""
 
+#: assets/extensions/captions/src/lane.lua
 msgid "Add Caption"
 msgstr ""
 
-#: lib/score_view.dart
+#: assets/extensions/captions/connect.json
 msgid "Add Caption…"
 msgstr ""
 
@@ -289,7 +291,7 @@ msgstr ""
 msgid "Advanced Engraving"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart assets/extensions/captions/src/settings.lua
 msgid "Align"
 msgstr ""
 
@@ -370,7 +372,7 @@ msgstr ""
 msgid "Appearance"
 msgstr ""
 
-#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Apply"
 msgstr ""
 
@@ -430,6 +432,7 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Backing"
 msgstr ""
 
@@ -526,7 +529,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -537,6 +540,7 @@ msgstr ""
 msgid "Can’t find the recording to embed"
 msgstr ""
 
+#: assets/extensions/captions/src/lane.lua
 msgid "Caption"
 msgstr ""
 
@@ -552,13 +556,14 @@ msgstr ""
 msgid "Caption rise"
 msgstr ""
 
-#: lib/caption_lane.dart lib/captions_dialog.dart lib/web_player/player.dart
+#: lib/web_player/player.dart assets/extensions/captions/connect.json assets/extensions/captions/extension.json assets/extensions/captions/src/sheet.lua
 msgid "Captions"
 msgstr ""
 
 msgid "Carbon"
 msgstr ""
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Center"
 msgstr ""
 
@@ -759,6 +764,7 @@ msgstr ""
 msgid "Couldn’t use the MIDI file. {error}"
 msgstr ""
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Countdown"
 msgstr ""
 
@@ -858,7 +864,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -933,7 +939,7 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
-#: lib/score_view.dart
+#: assets/extensions/captions/connect.json
 msgid "Edit Caption…"
 msgstr ""
 
@@ -972,7 +978,7 @@ msgstr ""
 msgid "Engraving…"
 msgstr ""
 
-#: assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr ""
 
@@ -1021,14 +1027,14 @@ msgstr ""
 msgid "Export Video…"
 msgstr ""
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Exported “{name}”"
 msgstr ""
 
 msgid "Exporting Video…"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua
 msgid "Export…"
 msgstr ""
 
@@ -1096,6 +1102,7 @@ msgstr ""
 msgid "Folder"
 msgstr ""
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Font"
 msgstr ""
 
@@ -1121,7 +1128,7 @@ msgstr ""
 msgid "Frame {n} of {all}"
 msgstr ""
 
-#: lib/captions_dialog.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "From"
 msgstr ""
 
@@ -1232,7 +1239,7 @@ msgstr ""
 msgid "Images and spacers that scroll with the score."
 msgstr ""
 
-#: lib/app_menus.dart lib/captions_dialog.dart lib/home_screen.dart lib/settings_dialog.dart
+#: lib/app_menus.dart lib/home_screen.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua
 msgid "Import…"
 msgstr ""
 
@@ -1292,7 +1299,7 @@ msgstr ""
 msgid "Large"
 msgstr ""
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Leave empty to remove"
 msgstr ""
 
@@ -1302,6 +1309,7 @@ msgstr ""
 msgid "Ledger lines"
 msgstr ""
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Left"
 msgstr ""
 
@@ -1315,6 +1323,7 @@ msgstr ""
 msgid "Lightness"
 msgstr ""
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Line"
 msgstr ""
 
@@ -1430,7 +1439,7 @@ msgstr ""
 msgid "Next ({key})"
 msgstr ""
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "No captions"
 msgstr ""
 
@@ -1466,14 +1475,15 @@ msgstr ""
 msgid "No settings"
 msgstr ""
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "None of these subtitles land inside the music."
 msgstr ""
 
+#: assets/extensions/captions/src/subtitles.lua
 msgid "No subtitles found in this file."
 msgstr ""
 
-#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua
 msgid "None"
 msgstr ""
 
@@ -1601,10 +1611,11 @@ msgstr ""
 msgid "Other projects start with these"
 msgstr ""
 
+#: assets/extensions/captions/src/lane.lua
 msgid "Overlaps another caption"
 msgstr ""
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Overlaps the caption in row {n}"
 msgstr ""
 
@@ -1643,7 +1654,7 @@ msgstr ""
 msgid "Picture"
 msgstr ""
 
-#: lib/caption_lane.dart
+#: lib/extensions/extension_lane.dart
 msgid "Pinned"
 msgstr ""
 
@@ -1744,7 +1755,7 @@ msgstr ""
 msgid "Rehearsal marks in bar numbers"
 msgstr ""
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr ""
 
@@ -1756,7 +1767,7 @@ msgstr ""
 msgid "Remove All Anchors"
 msgstr ""
 
-#: lib/score_view.dart
+#: assets/extensions/captions/connect.json
 msgid "Remove Caption"
 msgstr ""
 
@@ -1820,7 +1831,7 @@ msgstr ""
 msgid "Repeat dots"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/code_view.dart lib/edit_dialogs.dart
+#: lib/code_view.dart lib/edit_dialogs.dart assets/extensions/captions/src/sheet.lua
 msgid "Replace"
 msgstr ""
 
@@ -1828,7 +1839,7 @@ msgstr ""
 msgid "Replace Recording…"
 msgstr ""
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Replace the old captions?"
 msgstr ""
 
@@ -1869,9 +1880,11 @@ msgstr ""
 msgid "Rhythm"
 msgstr ""
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Right"
 msgstr ""
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Ring"
 msgstr ""
 
@@ -1934,7 +1947,7 @@ msgstr ""
 msgid "Score size"
 msgstr ""
 
-#: lib/caption_settings.dart
+#: assets/extensions/captions/src/settings.lua
 msgid "Score text"
 msgstr ""
 
@@ -1974,7 +1987,7 @@ msgstr ""
 msgid "Set"
 msgstr ""
 
-#: assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/tonality/src/lane.lua
 msgid "Set Until after From"
 msgstr ""
 
@@ -1986,7 +1999,7 @@ msgstr ""
 msgid "Settings Imported"
 msgstr ""
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/extensions/extension_actions.dart
 msgid "Settings…"
 msgstr ""
 
@@ -2066,6 +2079,7 @@ msgstr ""
 msgid "Sine"
 msgstr ""
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Size"
 msgstr ""
 
@@ -2251,7 +2265,7 @@ msgstr ""
 msgid "Tenor"
 msgstr ""
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua
 msgid "Text"
 msgstr ""
 
@@ -2268,7 +2282,7 @@ msgstr ""
 msgid "Text size"
 msgstr ""
 
-#: lib/caption_settings.dart
+#: assets/extensions/captions/src/settings.lua
 msgid "The *horns* answer, softly"
 msgstr ""
 
@@ -2370,6 +2384,7 @@ msgstr ""
 msgid "This RIFF file has no MIDI data."
 msgstr ""
 
+#: assets/extensions/captions/src/sheet.lua
 msgid "This subtitle file is a bit too big."
 msgstr ""
 
@@ -2413,6 +2428,7 @@ msgstr ""
 msgid "Time signatures"
 msgstr ""
 
+#: assets/extensions/captions/extension.json
 msgid "Timed text under the score."
 msgstr ""
 
@@ -2536,7 +2552,7 @@ msgstr ""
 msgid "Undo history"
 msgstr ""
 
-#: lib/captions_dialog.dart assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/tonality/src/lane.lua
 msgid "Until"
 msgstr ""
 
@@ -2708,6 +2724,7 @@ msgstr ""
 msgid "{n} Bars"
 msgstr ""
 
+#: assets/extensions/captions/src/captions.lua
 msgid "{n} captions"
 msgstr ""
 
@@ -2721,9 +2738,11 @@ msgstr ""
 msgid "{n} images"
 msgstr ""
 
+#: assets/extensions/captions/src/sheet.lua
 msgid "{n} imported"
 msgstr ""
 
+#: assets/extensions/captions/src/sheet.lua
 msgid "{n} imported, {left} overlapping left out"
 msgstr ""
 
@@ -2856,11 +2875,11 @@ msgstr ""
 msgid "Couldn’t Edit Score"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr ""
 
@@ -2883,7 +2902,7 @@ msgstr ""
 msgid "Holds"
 msgstr ""
 
-#: lib/captions_dialog.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr ""
 
@@ -3434,7 +3453,7 @@ msgstr ""
 msgid "“{name}” is open in another tab. Close it there first."
 msgstr ""
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "No room for another caption"
 msgstr ""
 

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:score_engine/score_engine.dart';
 
 import '../l10n/l10n.dart';
@@ -7,8 +10,13 @@ import 'bundled.dart';
 /// What an extension stands on where nothing is edited: a project being opened, a video's
 /// export, a web page. It reads the data it saved and the score, and can change neither.
 class ReadingHost extends ExtensionHost {
-  ReadingHost(this.package, this.data, {this.scoreNow, this.timelineNow, this.onProblem});
+  ReadingHost(this.package, this.data, {this.scoreNow, this.timelineNow, this.onProblem, this.settingsNow, this.onSaveSettings});
   final ExtensionPackage package;
+
+  /// What the extension keeps for every project, and what keeps it; null: nothing, and it
+  /// can't be changed here.
+  final Object? Function()? settingsNow;
+  final void Function(Object? json)? onSaveSettings;
 
   /// The score and the performance as they are when asked; null: there is none.
   final LoadedScore? Function()? scoreNow;
@@ -23,6 +31,10 @@ class ReadingHost extends ExtensionHost {
   int get revision => 0;
   @override
   void save(Object? json, {String? label}) => throw StateError('Nothing can be changed here.');
+  @override
+  Object? get settings => settingsNow?.call();
+  @override
+  void saveSettings(Object? json) => onSaveSettings == null ? super.saveSettings(json) : onSaveSettings!(json);
   @override
   LoadedScore? get score => scoreNow?.call();
   @override
@@ -81,6 +93,88 @@ class ExtensionReaders {
 
   /// The band along the score's top ([bandsOf]), in the interface's language as it is now.
   List<ScoreBand> get bands => bandsOf(_runtimes);
+
+  /// The captions under the score ([captionsOf]).
+  List<Caption> get captions => captionsOf(_runtimes);
+
+  /// The subtitles of a video showing [from]–[to] seconds of the performance, as a SubRip
+  /// file's text (`export.subtitles`): the first extension's that gives any; null: none.
+  String? subtitles(double from, double to) {
+    for (final r in _runtimes) {
+      if (r.ask('export', 'subtitles', args: [from, to]) case final String text) return text;
+    }
+    return null;
+  }
+}
+
+/// The captions under the score as [runtimes]' `captions` sockets give them ({from, to, text}):
+/// the first extension's that has the socket. Each stands where it does in the extension's own
+/// list (`captions.open` is told its place there): one that doesn't read shows nothing.
+List<Caption> captionsOf(Iterable<ExtensionRuntime> runtimes) {
+  for (final r in runtimes) {
+    for (final node in r.nodes('captions')) {
+      final list = r.ask(node.id, 'list', quiet: true);
+      return List.unmodifiable([
+        if (list is LuaTable)
+          for (final c in list.array)
+            switch (c) {
+              final LuaTable c => switch ((c['from'], c['to'], c['text'])) {
+                  (final num from, final num to, final String text) when from.isFinite && to.isFinite => Caption(from.toDouble(), to.toDouble(), text),
+                  _ => const Caption(0, 0, ''),
+                },
+              _ => const Caption(0, 0, ''),
+            },
+      ]);
+    }
+  }
+  return const [];
+}
+
+/// How an extension asks its captions to look (`captions.style`): the font (a text font's
+/// family; '': the score's text font), the countdown, the size, the side and the backing.
+typedef CaptionAsk = ({String font, CaptionCountdown countdown, CaptionSize size, CaptionAlign align, bool plate});
+
+/// A `captions.style` as it is read: what is left out or isn't known is as captions are at
+/// first (a line, medium, centred, no backing).
+CaptionAsk captionAsk(Object? style) {
+  T named<T extends Enum>(List<T> values, Object? name, T otherwise) => values.where((v) => v.name == name).firstOrNull ?? otherwise;
+  final t = style is LuaTable ? style : LuaTable();
+  return (
+    font: switch (t['font']) { final String s => s, _ => '' },
+    countdown: named(CaptionCountdown.values, t['countdown'], CaptionCountdown.line),
+    size: named(CaptionSize.values, t['size'], CaptionSize.medium),
+    align: named(CaptionAlign.values, t['align'], CaptionAlign.center),
+    plate: t['plate'] == true,
+  );
+}
+
+/// What the first of [runtimes] with a `captions` socket asks its captions to look like.
+CaptionAsk captionAskOf(Iterable<ExtensionRuntime> runtimes) {
+  for (final r in runtimes) {
+    for (final node in r.nodes('captions')) {
+      return captionAsk(r.wired(node.id, 'style') ? r.ask(node.id, 'style', quiet: true) : null);
+    }
+  }
+  return captionAsk(null);
+}
+
+/// The family the scene draws captions in for the text font named [name] ('' : the score's
+/// own, null), read and registered first when it is an installed one; `found` is false when
+/// it isn't installed here or can't be read (the score's text font stands in). At once when
+/// there is nothing to read.
+FutureOr<({String? family, bool found})> captionFamily(String name) {
+  if (name.isEmpty) return (family: null, found: true);
+  if (name == TextFonts.academico) return (family: TextFonts.familyOf(name), found: true);
+  return () async {
+    try {
+      final faces = await TextFonts.faces(name);
+      if (faces == null) return (family: null, found: false);
+      await TextFonts.load(name, faces);
+      return (family: TextFonts.familyOf(name), found: true);
+    } catch (_) {
+      return (family: null, found: false); // its files can't be read: as if not installed
+    }
+  }();
 }
 
 /// The band along the score's top as [runtimes]' `band` sockets give it ({from, to, color,
@@ -120,7 +214,8 @@ ProjectState checkedExtensionData(ProjectState state) {
       final where = switch (p.data['module']) { final String module => module, _ => 'extensiondata.${p.id}' };
       throw FormatException('The project is damaged: $where.${e.message}');
     }
-    if (!LuaJson.same(loaded, value)) data = {...data, p.id: loaded};
+    // As it is written, to the letter: a place read as 7 is kept as 7.0, as the extension has it.
+    if (jsonEncode(loaded) != jsonEncode(value)) data = {...data, p.id: loaded};
   }
   return identical(data, state.edits.extensionData) ? state : state.copyWith(edits: state.edits.copyWith(extensionData: Map.unmodifiable(data)));
 }

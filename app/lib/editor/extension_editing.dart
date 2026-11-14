@@ -93,19 +93,22 @@ class ExtensionEditing {
   /// Starts and stops runtimes as the project's switches say.
   void _sync() {
     final e = _editor;
-    final band = _hasBand;
+    final shown = _inScene;
     try {
       _startAndStop();
     } finally {
-      // A band came or went with its extension: the scene shows what there is now.
-      if (band || _hasBand) {
+      // A band or captions came or went with their extension: the scene shows what there is now.
+      if (shown || _inScene) {
+        e.captions._follow();
         e._showSettings();
         e.playback._markDirty(); // the preview repaints only when asked
       }
     }
   }
 
-  bool get _hasBand => _runtimes.values.any((r) => r.nodes('band').isNotEmpty);
+  /// Whether an extension that is on puts something in the scene: a band, captions.
+  bool get _inScene => _runtimes.values.any(_showsInScene);
+  static bool _showsInScene(ExtensionRuntime r) => r.nodes('band').isNotEmpty || r.nodes('captions').isNotEmpty;
 
   void _startAndStop() {
     final e = _editor;
@@ -130,6 +133,7 @@ class ExtensionEditing {
     }
     final runtime = _runtimes[p.id] = ExtensionRuntime(p, _Host(this, p));
     _bands = null;
+    _captions = null;
     runtime.fire('project', 'opened');
   }
 
@@ -139,6 +143,7 @@ class ExtensionEditing {
     _selection.remove(id);
     _reading.remove(id);
     _bands = null; // its band goes with it
+    _captions = null;
     _items.removeWhere((key, _) => key.$1 == id);
     _stretches.removeWhere((key, _) => key.$1 == id);
     _spans.removeWhere((key, _) => key.$1 == id);
@@ -157,6 +162,8 @@ class ExtensionEditing {
   bool uses(String id) {
     final p = package(id);
     if (p == null) return false;
+    // A font chosen for its captions is a use of them.
+    if (_editor.captions._font != null && p.graph.nodes.any((n) => n.type == 'captions')) return true;
     final value = data(id);
     final saved = switch (value) { null => false, final Map<Object?, Object?> m => m.isNotEmpty, final List<Object?> l => l.isNotEmpty, _ => true };
     if (p.graph.wire('project', 'used') == null || _editor._score == null) return saved;
@@ -187,7 +194,7 @@ class ExtensionEditing {
     e._doc = e._doc.copyWith(extensionData: Map.unmodifiable({...e._doc.extensionData, id: json}));
     _revision++;
     e._showSettings();
-    if (_runtimes[id]?.nodes('band').isNotEmpty ?? false) e.playback._markDirty(); // the preview repaints only when asked
+    if (_runtimes[id] case final r? when _showsInScene(r)) e.playback._markDirty(); // the preview repaints only when asked
     e._edited();
     _runtimes[id]?.fire('project', 'changed');
   }
@@ -237,6 +244,14 @@ class ExtensionEditing {
     final next = index == null || index < 0 || !_runtimes.containsKey(id) ? null : (lane: lane, index: index);
     if (next == _selection[id]) return;
     next == null ? _selection.remove(id) : _selection[id] = next;
+    _editor._changed();
+  }
+
+  /// Selects nothing in any extension's lane: something else was clicked, and the Delete key
+  /// goes to that.
+  void deselect() {
+    if (_selection.isEmpty) return;
+    _selection.clear();
     _editor._changed();
   }
 
@@ -324,13 +339,68 @@ class ExtensionEditing {
     return spans;
   }
 
-  /// The commands [runtime] offers: with [lane], the buttons on that lane's name.
-  Iterable<GraphNode> commands(ExtensionRuntime runtime, {String? lane}) => runtime.nodes('command').where((n) =>
-      lane == null ? n.props['where'] == 'preview' : (n.props['where'] ?? 'lane') == 'lane' && n.props['lane'] == lane);
+  /// The commands [runtime] offers as buttons on the name of [lane].
+  Iterable<GraphNode> commands(ExtensionRuntime runtime, {required String lane}) =>
+      runtime.nodes('command').where((n) => (n.props['where'] ?? 'lane') == 'lane' && n.props['lane'] == lane);
 
-  /// Whether [command] can be chosen now: what its `enabled` says; always, with none wired.
-  bool canRun(ExtensionRuntime runtime, GraphNode command) =>
-      !runtime.wired(command.id, 'enabled') || runtime.ask(command.id, 'enabled', quiet: true) == true;
+  /// The commands the running extensions offer in a menu of the preview: [where] is "preview"
+  /// (a right-click on the score) or "caption" (on the caption showing: its extension's only).
+  List<({ExtensionRuntime runtime, GraphNode command})> menu(String where) => [
+        for (final r in where == 'caption' ? [?_captioner?.runtime] : _runtimes.values)
+          for (final n in r.nodes('command'))
+            if (n.props['where'] == where) (runtime: r, command: n),
+      ];
+
+  /// Whether [command] can be chosen now: what its `enabled` says ([at]: the place clicked in
+  /// the preview, or the caption's index); always, with none wired.
+  bool canRun(ExtensionRuntime runtime, GraphNode command, [Object? at]) =>
+      !runtime.wired(command.id, 'enabled') || runtime.ask(command.id, 'enabled', args: [?at], quiet: true) == true;
+
+  // MARK: Captions
+
+  /// The extension whose captions show: the first that is on with a `captions` socket.
+  ({ExtensionRuntime runtime, GraphNode node})? get _captioner {
+    for (final r in _runtimes.values) {
+      for (final node in r.nodes('captions')) {
+        return (runtime: r, node: node);
+      }
+    }
+    return null;
+  }
+
+  /// Whether an extension that is on gives captions.
+  bool get hasCaptions => _captioner != null;
+
+  ({int revision, LoadedScore? score, List<Caption> captions})? _captions;
+
+  /// The captions under the score ([captionsOf]), asked again once the project's data or the
+  /// score changes.
+  List<Caption> get captions {
+    final kept = _captions, score = _editor._score;
+    if (kept != null && kept.revision == _revision && identical(kept.score, score)) return kept.captions;
+    final captions = captionsOf(_runtimes.values);
+    _captions = (revision: _revision, score: score, captions: captions);
+    return captions;
+  }
+
+  /// The caption showing (an index into [captions]) was double-clicked in the preview.
+  void openCaption(int index) {
+    if (_captioner case (:final runtime, :final node)) runtime.fire(node.id, 'open', args: [index + 1]);
+  }
+
+  /// The extensions (on or off) that give captions: those with a `captions` socket.
+  List<String> get captionSources => [
+        for (final p in packages)
+          if (p.graph.nodes.any((n) => n.type == 'captions')) p.id,
+      ];
+
+  /// Whether a video can have subtitles written beside it: captions, and an extension that
+  /// gives them as subtitles (`export.subtitles`).
+  bool get exportsSubtitles => captions.isNotEmpty && _runtimes.values.any((r) => r.wired('export', 'subtitles'));
+
+  /// The app's settings changed: what an extension keeps for every project may have (its
+  /// captions' look).
+  void followSettings() => _editor.captions._follow();
 
   // MARK: The band
 
@@ -463,6 +533,29 @@ class ExtensionEditing {
         final text = a.string(0, 'ui.message'), context = window?.call();
         if (context == null) throw LuaError('there is no window to show a message in');
         showExtensionMessage(context, text);
+        return const [];
+      },
+      'ask': (a) {
+        final spec = a.table(0, 'ui.ask'), context = window?.call();
+        if (context == null) throw LuaError('there is no window to ask in');
+        showExtensionAsk(context, runtime, spec);
+        return const [];
+      },
+      'sheet': (a) {
+        final spec = a.table(0, 'ui.sheet'), context = window?.call();
+        if (context == null) throw LuaError('there is no window to show a sheet in');
+        final handle = SheetHandle();
+        showExtensionSheet(context, runtime, spec, handle);
+        return [handle.table];
+      },
+      'open_file': (a) {
+        openExtensionFile(runtime, a.table(0, 'ui.open_file'));
+        return const [];
+      },
+      'save_file': (a) {
+        final spec = a.table(0, 'ui.save_file'), context = window?.call();
+        if (context == null) throw LuaError('there is no window to save from');
+        saveExtensionFile(context, runtime, spec);
         return const [];
       },
     });

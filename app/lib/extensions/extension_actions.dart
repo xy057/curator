@@ -15,6 +15,8 @@ import '../ui_kit.dart';
 import '../l10n/l10n.dart';
 import 'extension.dart';
 import 'extension_editor.dart';
+import 'extension_reader.dart';
+import 'extension_settings.dart';
 
 /// What Project Settings ▸ Extensions does with an extension that is a package: make a new
 /// one, add one from a file, edit it (the extension editor), save it as a file, take it out
@@ -112,6 +114,22 @@ abstract final class ExtensionActions {
     }
   }
 
+  /// Whether [package] has settings of its own (a `settings` socket).
+  static bool hasSettings(ExtensionPackage package) => package.graph.nodes.any((n) => n.type == 'settings');
+
+  /// Opens [package]'s own settings, kept for every project: asked of the extension as it
+  /// runs in the project, or run for this alone while it is off.
+  static Future<void> settings(BuildContext context, EditorController controller, ExtensionPackage package) {
+    final id = package.id;
+    final runtime = controller.extensions.runtime(id) ??
+        ExtensionRuntime(
+          package,
+          ReadingHost(package, null,
+              settingsNow: () => controller.extensionSettings?.call(id), onSaveSettings: (json) => controller.saveExtensionSettings?.call(id, json)),
+        );
+    return showExtensionSettings(context, runtime);
+  }
+
   /// Saves [package] as a .cpe file where the user says.
   static Future<void> export(BuildContext context, ExtensionPackage package) async {
     final location = await getSaveLocation(acceptedTypeGroups: const [_types], suggestedName: '${package.name}.${ExtensionPackage.fileExtension}');
@@ -146,7 +164,7 @@ abstract final class ExtensionActions {
   }
 }
 
-/// An extension's row menu in Project Settings ▸ Extensions: Edit… (View… for Curator's own),
+/// An extension's row menu in Project Settings ▸ Extensions: Settings… (when it has its own), Edit… (View… for Curator's own),
 /// Duplicate, Export…, Remove.
 class ExtensionMenu extends StatelessWidget {
   const ExtensionMenu({super.key, required this.controller, required this.extension});
@@ -164,6 +182,7 @@ class ExtensionMenu extends StatelessWidget {
       icon: Icon(AppIcon.more.of(context), color: context.colors.textMuted),
       onSelected: (action) => action(),
       itemBuilder: (_) => [
+        if (ExtensionActions.hasSettings(package)) menuItem(context, value: () => ExtensionActions.settings(context, controller, package), child: Text('Settings…'.tr)),
         menuItem(context, value: () => ExtensionActions.edit(context, controller, package), child: Text(own ? 'View…'.tr : 'Edit…'.tr)),
         menuItem(context, value: () => ExtensionActions.duplicate(context, controller, package), child: Text('Duplicate'.tr)),
         menuItem(context, value: () => ExtensionActions.export(context, package), child: Text('Export…'.tr)),

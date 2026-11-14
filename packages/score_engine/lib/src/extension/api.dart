@@ -116,18 +116,23 @@ abstract final class ExtensionApi {
       ApiPort('replaced', 'replaced(data, carry) → data, lost',
           'The score is being replaced by another. carry(quarter) gives where a place of the old score is in the new one, or nil when it is gone; a third argument is the new score’s length in quarters. Return the saved data moved there, and what was lost as a text ("2 chapters"), or nil.'),
     ]),
-    ApiSocket('command', 'Command', 'Something the user can do: a button on a lane’s name, or an item of the preview’s menu.', ports: [
-      ApiPort('run', 'run()', 'The user chose it.'),
-      ApiPort('enabled', 'enabled() → boolean', 'Whether it can be chosen now. Unwired: always.'),
+    ApiSocket('command', 'Command', 'Something the user can do: a button on a lane’s name, or an item of the menu a right-click on the preview opens.', ports: [
+      ApiPort('run', 'run(at)',
+          'The user chose it. In the preview’s menu, at is the place clicked, in quarters; in the menu of the caption showing, that caption’s index.'),
+      ApiPort('enabled', 'enabled(at) → boolean', 'Whether it can be chosen now (at as run gets it). Unwired: always.'),
     ], props: [
       ApiProp('title', ApiPropType.text, 'Its name: a menu item’s text, a button’s hover text.'),
       ApiProp('icon', ApiPropType.icon, 'Its icon, on a button.'),
-      ApiProp('where', ApiPropType.choice, 'Where it is offered.', choices: ['lane', 'preview'], fallback: 'lane'),
+      ApiProp('where', ApiPropType.choice,
+          'Where it is offered: on a lane’s name, in the menu of the preview (a right-click on the score), or in the menu of the caption showing there (a right-click on it).',
+          choices: ['lane', 'preview', 'caption'], fallback: 'lane'),
       ApiProp('lane', ApiPropType.node, 'The lane whose name carries the button (where: lane).', choices: ['lane']),
     ]),
     ApiSocket('export', 'Export', 'What the extension gives a video and a web page made of the project.', single: true, ports: [
       ApiPort('chapters', 'chapters(from, to) → list',
           'The chapters of a video or page showing from–to seconds of the performance: {from, to, name}, in seconds from its start, in order and without gaps. A movie carries them for its player, with a list of their times beside it; a page lists them to jump to.'),
+      ApiPort('subtitles', 'subtitles(from, to) → text',
+          'The subtitles of a video showing from–to seconds of the performance, as the text of a SubRip (.srt) file timed from its start: written beside the movie when Export’s Subtitles switch is on. nil while there are none.'),
     ]),
     ApiSocket('lane', 'Lane', 'A lane pinned under the bar ruler, drawn and edited as the app’s own are. Its kind says what it holds: markers (places, each running to the next) or spans (stretches that never overlap).', ports: [
       ApiPort('items', 'items() → list',
@@ -145,17 +150,30 @@ abstract final class ExtensionApi {
           'Spans: stretch index (as begin found them) was moved or trimmed to from–to. Called as the drag goes, the whole drag one Undo step; with live off, once as it ends.'),
       ApiPort('cut', 'cut(pieces)',
           'Spans: the Erase tool went over stretches. pieces is every stretch as it is left, {of, from, to}: a piece of stretch of (as begin found them). One erased whole has none.'),
+      ApiPort('details', 'details()', 'The lane’s name was double-clicked: show everything in it (ui.sheet).'),
     ], props: [
       ApiProp('title', ApiPropType.text, 'The lane’s name.'),
       ApiProp('kind', ApiPropType.choice, 'What it holds: markers are places that each run to the next, spans are stretches with a start and an end.', choices: ['markers', 'spans'], fallback: 'markers'),
       ApiProp('gap', ApiPropType.number, 'Markers: the least two are apart, in quarters: a drag stops there.', fallback: 0.25),
       ApiProp('paint', ApiPropType.toggle, 'Spans: a stretch drawn, moved or trimmed goes over the others, as an instrument’s region does (cut them back in change and draw), instead of stopping at them.', fallback: false),
       ApiProp('live', ApiPropType.toggle, 'Spans: a drag changes the stretch as it goes. Off: once, when it ends.', fallback: true),
+      ApiProp('markup', ApiPropType.toggle, 'Spans: a label’s *italic* and **bold** are drawn so, as a caption’s are.', fallback: false),
       ApiProp('order', ApiPropType.number, 'Where it sits among the pinned lanes: a lower number is higher up.', fallback: 100),
     ]),
     ApiSocket('band', 'Band', 'A band of colours along the top of the score, in the preview, a video and a web page: the staves leave it room while it has anything.', single: true, ports: [
       ApiPort('areas', 'areas() → list',
           'The band’s stretches, in score order: {from = quarter, to = quarter, color = colour, label = text}, each named at its start. Asked again when the extension’s data or the language changes.'),
+    ]),
+    ApiSocket('captions', 'Captions', 'Text under the score, one caption at a time, in the preview, a video and a web page: each shows while its music sounds, its time running out.', single: true, ports: [
+      ApiPort('list', 'list() → list',
+          'The captions: {from = quarter, to = quarter, text = text}, none overlapping. *italic* and **bold** in a text are drawn so. Asked again when the extension’s data changes.'),
+      ApiPort('style', 'style() → table',
+          'How they look: font (a text font’s family; nil: the score’s text font), countdown ("line", "ring" or "none"), size ("small", "medium" or "large"), align ("left", "center" or "right"), plate (true: a soft backing behind the text). Unwired, or a key left out: a line, medium, centred, no plate. Asked again when the extension’s settings change.'),
+      ApiPort('open', 'open(index)', 'The caption showing was double-clicked in the preview.'),
+    ]),
+    ApiSocket('settings', 'Settings', 'The extension’s own settings, for every project: Settings… in its menu in Project Settings ▸ Extensions opens them.', single: true, ports: [
+      ApiPort('form', 'form() → spec',
+          'The settings as a form. spec: rows (each {id, label, value, type}: a "switch", "segments" (one of options, each {value, label}), or a "font" (a text font’s family, "" for none, named none)), preview(values) → what is drawn under them ({caption = text, style = a captions style}), changed(values) called as one is changed: keep them with curator.save_settings.'),
     ]),
   ];
 
@@ -245,12 +263,18 @@ abstract final class ExtensionApi {
           example: 'for _, span in ipairs(score.spans({0, 16, 48})) do\n  print(span.index, span.from, span.to)\nend'),
       ApiFunction('score.rehearsal_marks', 'score.rehearsal_marks() → list', 'The score’s rehearsal marks, in the order written: {at, bar, text}.'),
       ApiFunction('score.parts', 'score.parts() → list', 'The instruments: {id, name, staves}.'),
+      ApiFunction('score.title', 'score.title() → text', 'The score’s title; "" when it has none.'),
       ApiFunction('score.music', 'score.music(done)',
           'Reads the music off to the side, so a long score doesn’t stop the editor, then calls done(music): music.notes is every pitched note as it sounds, part by part ({from, to} in quarters, pitch as a MIDI number at concert pitch, tied when a tie carries it on from the note before, chord for a chord’s notes after its first, part, staff, voice); music.keys the key signatures at concert pitch ({bar, fifths, minor}, each from its bar on; minor only when the score says which); music.bars where each bar starts, then the score’s end. done(nil) when the score changed meanwhile. In the editor only.',
           example: 'score.music(function(music)\n  if not music then return end\n  print(#music.notes, "notes")\nend)', editor: true),
     ]),
     ApiLibrary('text', 'Text as people write it: every kind of space counts, in any script.', [
       ApiFunction('text.trim', 'text.trim(text) → text', 'text without the spaces at its ends.'),
+      ApiFunction('text.trim_start', 'text.trim_start(text) → text', 'text without the spaces at its start.'),
+      ApiFunction('text.trim_end', 'text.trim_end(text) → text', 'text without the spaces at its end.'),
+      ApiFunction('text.flatten', 'text.flatten(text) → text', 'text with every run of spaces and line breaks made one space; those at its ends stay, as one.'),
+      ApiFunction('text.runs', 'text.runs(text) → list',
+          'A caption’s text as it is drawn: its stretches in one face, {text, italic, bold}, the markers of *italic* and **bold** taken out. A star that marks nothing stays, and so does one written \\*.'),
       ApiFunction('text.squeeze', 'text.squeeze(text) → text', 'text with every run of spaces and line breaks made one space, and none at its ends: a name as it is kept.'),
       ApiFunction('text.lower', 'text.lower(text) → text', 'text in lower case, in any script.'),
       ApiFunction('text.upper', 'text.upper(text) → text', 'text in upper case, in any script.'),
@@ -279,6 +303,15 @@ abstract final class ExtensionApi {
           example:
               'ui.form{\n  title = "Add Note", confirm = "Add",\n  rows = { { {id = "text", label = "Note", focus = true} } },\n  check = function(values) return values.text == "" and "" or nil end,\n  done = function(values) add(values.text) end,\n}'),
       ApiFunction('ui.message', 'ui.message(text)', 'Shows a line at the window’s foot for a moment.'),
+      ApiFunction('ui.ask', 'ui.ask(spec)',
+          'Asks a question. spec: title, text, buttons (each {id, title}; the last is the one Return presses), done(id) called with the button pressed. Cancel, which the app adds, calls nothing.',
+          example: 'ui.ask{\n  title = "Replace the old notes?",\n  buttons = { {id = "add", title = "Add"}, {id = "replace", title = "Replace"} },\n  done = function(id) print(id) end,\n}'),
+      ApiFunction('ui.sheet', 'ui.sheet(spec) → sheet',
+          'Opens a table to edit, a row for each thing. spec: title, width, columns (each {id, label, width, max, hint}; one without a width takes the room left), rows (each a table with a text for every column’s id; what else it holds stays with it), focus ({row, column id}), empty (what it says without rows), buttons (at its foot: {id, title, icon, enabled(sheet)}), press(id, sheet), more (the id of the button Return presses on the last row), check(rows) → a list with what is wrong with each row (nil, a text, or {text, column ids at fault}), done(rows) when Done is pressed. Done is off while a row has something wrong; Cancel asks first once something was changed. sheet: rows() (as they are now), set(rows), add(row, column id) (and types there), notice(text) (a line at its foot), valid() (no row has anything wrong).'),
+      ApiFunction('ui.open_file', 'ui.open_file(spec)',
+          'Asks for a file to read. spec: types (each {label, extensions}), max (the most bytes read), done(file) called with what was chosen: {name, text} (the file as text: UTF-8, UTF-16 by its mark, else Latin-1), or {name, error} when it can’t be read ({name, too_big = true} past max). Nothing chosen calls nothing.'),
+      ApiFunction('ui.save_file', 'ui.save_file(spec)',
+          'Asks where to save a file, then writes it. spec: name (as offered), types (each {label, extensions}), write(file) → the text to write, called once the place is chosen (file.name, and file.extension: the name’s, else the chosen type’s first), done(file) once it is written (file.error says why it couldn’t be).'),
     ]),
   ];
 }

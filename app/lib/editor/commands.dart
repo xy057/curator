@@ -42,17 +42,15 @@ class EditCommands {
   bool get canDelete =>
       _open &&
       (_editor.images._selected != null ||
-          _editor.captions._selected != null ||
           _editor.extensions.hasSelection ||
           _editor.spacers.hasSelection ||
           (_syncing ? !_anchors._isEmpty || _editor.takeSelection != null : _lanes.selected.isNotEmpty));
 
-  /// Delete: a selected image goes first, then a selected caption, a selected key area, a selected
+  /// Delete: a selected image goes first, then what is selected in an extension's lane (a caption, a key area), a selected
   /// spacer, then what is selected in the tab showing.
   void delete() {
     if (!_open) return;
     if (_editor.images._selected != null) return _editor.images.remove();
-    if (_editor.captions._selected != null) return _editor.captions.remove();
     if (_editor.extensions.hasSelection) return _editor.extensions.removeSelected();
     if (_editor.spacers.hasSelection) {
       _editor.spacers.removeSelected();

@@ -98,7 +98,7 @@ class _AudioLanesState extends State<AudioLanes> with LaneCursor<AudioLanes> {
   }
 
   void _onDown(PointerDownEvent e) {
-    c.captions.select(null); // the Delete key goes to what was clicked here
+    c.extensions.deselect(); // the Delete key goes to what was clicked here
     if (e.buttons != kPrimaryButton) return;
     final keys = HardwareKeyboard.instance;
     final x = e.localPosition.dx;
@@ -386,7 +386,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> with LaneCursor<_MidiTem
   final _clicks = DoubleClicks();
 
   void _onDown(PointerDownEvent e) {
-    c.captions.select(null); // the Delete key goes to what was clicked here
+    c.extensions.deselect(); // the Delete key goes to what was clicked here
     final midi = c.midiTempo;
     if (e.buttons != kPrimaryButton || midi == null) return;
     final doubleClick = _clicks.press(e.timeStamp, e.localPosition);

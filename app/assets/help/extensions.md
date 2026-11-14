@@ -45,11 +45,18 @@ that runs too long is stopped.
 - **Lane**: a lane pinned under the bar ruler. `items` says what is in it; the other ports
   are what the tools and keys do. Its `kind` is `markers` (places that each run to the next:
   `add`, `move`, `erase`) or `spans` (stretches with a start and an end, edited as an
-  instrument's regions are: `draw`, `begin`, `change`, `cut`).
-- **Command**: a button on a lane's name. `run` does it; `enabled` says whether it can be
-  chosen.
+  instrument's regions are: `draw`, `begin`, `change`, `cut`). A double-click on its name
+  calls `details`.
+- **Command**: a button on a lane's name, or an item of the menu a right-click on the preview
+  opens (`where`: `lane`, `preview`, or `caption` for the caption showing). `run` does it;
+  `enabled` says whether it can be chosen. In a menu both are told what was clicked: the place,
+  or the caption's index.
 - **Band**: a band of colours along the top of the score. `areas` says what is in it.
-- **Export**: what a video and a web page get: their chapters.
+- **Captions**: text under the score, one caption at a time. `list` says what they are,
+  `style` how they look; `open` is a double-click on the one showing.
+- **Export**: what a video and a web page get: their chapters, a video's subtitles.
+- **Settings**: the extension's own settings, for every project. `form` describes them, and
+  Curator shows them from the extension's menu in Project Settings ▸ Extensions.
 
 Every port's function is given in the Reference, as it would be written.
 
@@ -97,6 +104,15 @@ A colour is `"#rrggbb"`, or a table of its red, green and blue from 0 to 1:
 `ui.form` opens a dialog laid out as Curator's own: rows of fields (a text, a `"switch"`, or
 a `"choice"` among options), a `check` that says what is wrong as it is typed, and `done`,
 called with the values. Lua never draws: it says what it wants, and Curator shows it.
+
+`ui.sheet` opens a table to edit, a row for each thing: its columns, its rows, buttons at its
+foot, a `check` that says what is wrong with each row, and `done`, called with the rows. A row
+is your own table: a text for each column, and whatever else you keep in it. The functions
+you give it get the `sheet`, to read its rows and change them.
+
+`ui.ask` asks a question with buttons of yours. `ui.open_file` asks for a file and hands it
+over as text; `ui.save_file` asks where a file goes, then writes what `write` returns. None
+of them waits: each calls `done` when the user has answered.
 
 ## Staying compatible
 
