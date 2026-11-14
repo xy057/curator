@@ -72,7 +72,8 @@ make l10n
 This adds new texts to `curator.pot` and to each `.po` file (empty), refreshes the `#:`
 references, and drops texts no longer in the template. Text translated other than as a literal
 (an enum's label: `label.tr`) is added to `curator.pot` by hand. `make check` fails while a text
-is missing, or while Simplified Chinese, Traditional Chinese or Japanese has an untranslated text.
+is missing, or while Simplified Chinese, Traditional Chinese or Japanese has an untranslated text
+(one of a word at most may be empty: Crowdin writes a translation that is the English so).
 
 ## Adding a language
 

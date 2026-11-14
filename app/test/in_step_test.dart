@@ -55,8 +55,11 @@ void main() {
         if (e.text.isNotEmpty) expect(placeholders(e.text), placeholders(e.id), reason: '$file: ${e.id}');
       }
       // The languages translated here are kept whole; one Crowdin adds may be partly translated.
+      // Crowdin writes a translation that is the English as none, so a text of one word at most
+      // (a name, a unit, a key: Carbon, ms, OK) may be empty; a phrase never is.
       if (const {'zh-Hans', 'zh-Hant', 'ja'}.contains(language.tag)) {
-        expect([for (final e in po.entries) if (e.text.isEmpty || e.fuzzy) e.key], isEmpty, reason: '$file: untranslated');
+        bool asEnglish(PoEntry e) => e.text.isEmpty && RegExp('[A-Za-z]+').allMatches(e.id.replaceAll(placeholder, '')).length <= 1;
+        expect([for (final e in po.entries) if ((e.text.isEmpty && !asEnglish(e)) || e.fuzzy) e.key], isEmpty, reason: '$file: untranslated');
       }
       // Each file with anything translated is a language of the menu's, found as the app starts.
       expect(listed.contains(file), po.table.isNotEmpty, reason: '$file: listed');
