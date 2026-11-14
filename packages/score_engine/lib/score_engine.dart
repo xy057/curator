@@ -14,6 +14,10 @@ export 'src/engraving.dart'
     show ClefShape, ClefSignature, EngraveException, EngravingData, KeySignature, MeasureLayout, Signature, StaffInfo, TimeSignature, verovioVersion;
 export 'src/engraving_file.dart';
 export 'src/engraving_options.dart';
+export 'src/extension/api.dart';
+export 'src/extension/lua_json.dart';
+export 'src/extension/package.dart';
+export 'src/extension/runtime.dart';
 export 'src/font_files.dart';
 export 'src/frozen_zone.dart';
 export 'src/lilypond_score.dart';

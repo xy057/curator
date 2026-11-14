@@ -57,11 +57,12 @@ final class Lua {
   final LuaTable _loaded = LuaTable();
 
   /// [source] as a function that runs it: nothing has run yet. A syntax error is a [LuaError]
-  /// naming [chunk] and the line.
-  LuaFunction load(String source, {String chunk = 'chunk'}) {
+  /// naming [chunk] and the line. With [env], the globals the code sets are kept there (a file's
+  /// own), and it reads the world's where [env] has none.
+  LuaFunction load(String source, {String chunk = 'chunk', LuaTable? env}) {
     try {
       final proto = _Parser(source, chunk).parseChunk();
-      return LuaClosure._(this, _Compiler(this, chunk).code(proto), const []);
+      return LuaClosure._(this, _Compiler(this, chunk, env).code(proto), const []);
     } on StackOverflowError {
       throw _syntax(chunk, 1, 'the code is nested too deeply');
     }
@@ -83,6 +84,41 @@ final class Lua {
     } finally {
       if (outer) _depth = 0;
     }
+  }
+
+  /// The functions [source] defines by name at its top (`function draw(g, frame)`,
+  /// `function M.draw(…)`, `M.draw = function(…)`), each with its parameters and line, in the
+  /// order written: what a file offers to be called, read without running it. A syntax error
+  /// is a [LuaError].
+  static List<({String name, List<String> parameters, int line})> functionsIn(String source, {String chunk = 'chunk'}) {
+    final _Proto proto;
+    try {
+      proto = _Parser(source, chunk).parseChunk();
+    } on StackOverflowError {
+      throw _syntax(chunk, 1, 'the code is nested too deeply');
+    }
+    final out = <({String name, List<String> parameters, int line})>[];
+    void add(String name, _Proto f, int line) {
+      final parameters = [for (final p in f.params) p.name, if (f.isVararg) '...'];
+      out
+        ..removeWhere((e) => e.name == name)
+        ..add((name: name, parameters: parameters, line: line));
+    }
+
+    for (final s in proto.body.stats) {
+      if (s is! _SAssign || s.targets.length != 1 || s.exprs.length != 1) continue;
+      final value = s.exprs[0], target = s.targets[0];
+      if (value is! _EFunction) continue;
+      if (target is _EGlobal) {
+        add(target.name, value.proto, s.line);
+      } else if (target is _EIndex && target.key is _EString && (target.obj is _ELocal || target.obj is _EGlobal)) {
+        final name = (target.key as _EString).v;
+        // A method's `self` is the table's own: not something the caller gives.
+        if (value.proto.params.isNotEmpty && value.proto.params.first.name == 'self') continue;
+        add(name, value.proto, s.line);
+      }
+    }
+    return out;
   }
 
   /// Loads [source] and runs it: what it returns.

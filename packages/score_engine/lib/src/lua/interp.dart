@@ -128,9 +128,13 @@ bool _truthy(Object? v) => v != null && !identical(v, false);
 
 /// Turns a tree into closures: each node once, so running it reads no tree.
 final class _Compiler {
-  _Compiler(this.lua, this.chunk);
+  _Compiler(this.lua, this.chunk, this.env);
   final Lua lua;
   final String chunk;
+
+  /// Where the code's own globals are kept, the world's read where it has none; null: they are
+  /// the world's.
+  final LuaTable? env;
 
   _Code code(_Proto proto) {
     final c = _Code(proto);
@@ -337,7 +341,7 @@ final class _Compiler {
       case _EUpval(:final index):
         return (f, value) => f.upvals[index].value = value;
       case _EGlobal(:final name):
-        final globals = lua.globals;
+        final globals = env ?? lua.globals;
         return (f, value) => globals[name] = value;
       default:
         throw StateError('not assignable');
@@ -642,7 +646,8 @@ final class _Compiler {
       case _EUpval(:final index):
         return (f) => f.upvals[index].value;
       case _EGlobal(:final name):
-        final globals = lua.globals;
+        final globals = lua.globals, own = env;
+        if (own != null) return (_) => own.field(name) ?? globals.field(name);
         return (_) => globals.field(name);
       case _EVararg():
         return (f) => f.varargs.isEmpty ? null : f.varargs[0];
