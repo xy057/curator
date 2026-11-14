@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// elsewhere with a warning.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   WidgetController.hitTestWarningShouldBeFatal = true;
-  await Strings.load((path) => File(path).readAsString()); // as the app does as it starts
+  await Strings.load([for (final f in Directory('assets/l10n').listSync()) f.path], (path) => File(path).readAsString()); // as the app does as it starts
   loadBundledExtensions();
   await testMain();
   tearDownAll(ScratchSpace.close);

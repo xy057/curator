@@ -63,12 +63,27 @@ Future<void> main() async {
   unawaited(Isolate.run(() => ScratchSpace.sweep(keep: keep)).catchError((_) {}));
   FontResources.workDirectory = ScratchSpace.folder('fonts').path; // metrics of fonts not bundled
   LicenseRegistry.addLicense(bundledLicenses);
-  final (settings, _, _) = await (AppSettings.load(), Strings.load(rootBundle.loadString), BundledExtensions.load(rootBundle)).wait;
+  final (settings, _, _) = await (AppSettings.load(), _loadStrings(), BundledExtensions.load(rootBundle)).wait;
   if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
   final updater = Updater(channel: settings.updateChannel);
   if (settings.checkForUpdates) unawaited(updater.check());
   runApp(CuratedScoreApp(settings: settings, updater: updater));
 }
+
+/// The interface's languages: each translations file the bundle has.
+Future<void> _loadStrings() async {
+  var assets = const <String>[];
+  try {
+    assets = (await AssetManifest.loadFromAssetBundle(rootBundle)).listAssets();
+  } on Object catch (e) {
+    debugPrint('Couldn’t list the translations: $e');
+  }
+  await Strings.load(assets, rootBundle.loadString);
+}
+
+/// [locale] where Flutter's own text (menus, the licence page) has it, else English.
+Locale _materialLocale(Locale locale) =>
+    GlobalMaterialLocalizations.delegates.every((d) => d.isSupported(locale)) ? locale : const Locale('en');
 
 /// The licences of what is bundled and pub doesn't list, which go with it: Curator's own (the
 /// GPL), the fonts', those of the libraries shipped compiled (Verovio and PDFium, each with what
@@ -219,8 +234,8 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
           darkTheme: _dark,
           themeMode: settings.themeMode,
           themeAnimationDuration: Duration.zero,
-          locale: settings.language.locale,
-          supportedLocales: AppLanguage.locales,
+          locale: _materialLocale(settings.language.locale),
+          supportedLocales: {for (final l in AppLanguage.locales) _materialLocale(l)}.toList(),
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           // The still fades over everything, open menus and dialogs too, and is part of the next still.
           // The keys as set (Settings ▸ Shortcuts) reach every window: tooltips name them.

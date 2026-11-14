@@ -47,22 +47,25 @@ void main() {
     // Each language has the template's texts, with the same placeholders.
     final placeholder = RegExp(r'\{\w+\}');
     Set<String> placeholders(String text) => {for (final m in placeholder.allMatches(text)) m[0]!};
-    for (final language in AppLanguage.values) {
-      final file = language.file;
-      if (file == null) continue;
-      final po = read(file);
+    final listed = {for (final l in AppLanguage.values) ?l.file};
+    for (final file in Directory('assets/l10n').listSync().map((f) => f.path).where((p) => p.endsWith('.po'))) {
+      final po = read(file), language = AppLanguage.of(file.split('/').last.replaceAll('.po', ''));
       expect({for (final e in po.entries) e.key}, keys, reason: '$file: run `make l10n`');
       for (final e in po.entries) {
         if (e.text.isNotEmpty) expect(placeholders(e.text), placeholders(e.id), reason: '$file: ${e.id}');
       }
       // The languages translated here are kept whole; one Crowdin adds may be partly translated.
-      if (const {AppLanguage.chineseSimplified, AppLanguage.chineseTraditional, AppLanguage.japanese}.contains(language)) {
+      if (const {'zh-Hans', 'zh-Hant', 'ja'}.contains(language.tag)) {
         expect([for (final e in po.entries) if (e.text.isEmpty || e.fuzzy) e.key], isEmpty, reason: '$file: untranslated');
       }
-      expect(Strings.tableOf(language), po.table, reason: '$file: loaded');
+      // Each file with anything translated is a language of the menu's, found as the app starts.
+      expect(listed.contains(file), po.table.isNotEmpty, reason: '$file: listed');
+      expect(Strings.tableOf(language), po.table.isEmpty ? isEmpty : po.table, reason: '$file: loaded');
     }
+    expect(AppLanguage.of('ko_KR').tag, 'ko-KR');
+    expect(AppLanguage.named('chineseTraditional'), AppLanguage.of('zh-Hant')); // as kept before
     // A catalog reads back as it was written.
-    final po = read(AppLanguage.chineseTraditional.file!);
+    final po = read(AppLanguage.of('zh-Hant').file!);
     expect(PoFile.parse(po.toString()).toString(), po.toString());
     expect(po.table['Align\nSet the anchors from the recording'], contains('\n'));
 

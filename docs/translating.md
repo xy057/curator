@@ -76,10 +76,11 @@ is missing, or while Simplified Chinese, Traditional Chinese or Japanese has an 
 
 ## Adding a language
 
-1. Add the language in Crowdin. When its translations arrive, its file is
-   `app/assets/l10n/<code>.po` (a mapping in `crowdin.yml` if its code needs a variant).
-2. Add it to `AppLanguage` (`app/lib/l10n/l10n.dart`) with its name in its own language and its
-   locale, whose tag is the file's name: `french('Français', Locale('fr'))`.
+Add the language in Crowdin. When its translations arrive, its file is
+`app/assets/l10n/<code>.po` (a mapping in `crowdin.yml` if its code needs a variant), and the
+app lists it under Settings ▸ General ▸ Language once anything in it is translated: nothing in
+the code changes. It is named in its own language from a table in `app/lib/l10n/l10n.dart`
+(`_autonyms`), or by its file's `Language-Team` when it isn't there.
 
 The app reads every language's file as it starts. Material's own text (menus, the licence
-page) comes from Flutter in the same locale.
+page) comes from Flutter in the same locale, or in English where Flutter hasn't it.
