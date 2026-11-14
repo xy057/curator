@@ -26,8 +26,8 @@ import '../l10n/l10n.dart';
 /// A field is a text (`max` its longest, `lines`, `hint`: a text, or a function of the values as
 /// they are), a "switch", or a "choice" among `options` ({value, label, color}: its value is the
 /// chosen one's). `spacing` is the room between rows.
-/// Every text of it is translated as the extension's ([ExtensionRuntime.translate]).
-Future<void> showExtensionForm(BuildContext context, ExtensionRuntime runtime, LuaTable spec) async {
+/// Every text of it is translated as the extension's ([ScriptRuntime.translate]).
+Future<void> showExtensionForm(BuildContext context, ScriptRuntime runtime, LuaTable spec) async {
   final result = await showAppDialog<({String button, LuaTable values})>(context: context, builder: (context) => _ExtensionForm(runtime: runtime, spec: spec));
   final done = spec['done'];
   if (result == null || done is! LuaFunction) return;
@@ -59,7 +59,7 @@ class _Field {
 
 class _ExtensionForm extends StatefulWidget {
   const _ExtensionForm({required this.runtime, required this.spec});
-  final ExtensionRuntime runtime;
+  final ScriptRuntime runtime;
   final LuaTable spec;
 
   @override
@@ -69,7 +69,7 @@ class _ExtensionForm extends StatefulWidget {
 class _ExtensionFormState extends State<_ExtensionForm> {
   late final List<List<_Field>> _rows = _read();
 
-  ExtensionRuntime get _runtime => widget.runtime;
+  ScriptRuntime get _runtime => widget.runtime;
   String _tr(Object? text) => text is String ? _runtime.translate(text) : '';
 
   List<List<_Field>> _read() {

@@ -29,7 +29,7 @@ import 'extension_lane.dart' show extensionIconOrNull;
 ///
 /// A row is the extension's own table: a text for each column's id, and whatever else it keeps
 /// there (what the row stands for). [handle] is the `sheet` its functions get.
-Future<void> showExtensionSheet(BuildContext context, ExtensionRuntime runtime, LuaTable spec, SheetHandle handle) async {
+Future<void> showExtensionSheet(BuildContext context, ScriptRuntime runtime, LuaTable spec, SheetHandle handle) async {
   final rows =
       await showAppDialog<LuaTable>(context: context, barrierDismissible: false, builder: (context) => _ExtensionSheet(runtime: runtime, spec: spec, handle: handle));
   handle._state = null;
@@ -88,7 +88,7 @@ class _Row {
 
 class _ExtensionSheet extends StatefulWidget {
   const _ExtensionSheet({required this.runtime, required this.spec, required this.handle});
-  final ExtensionRuntime runtime;
+  final ScriptRuntime runtime;
   final LuaTable spec;
   final SheetHandle handle;
 
@@ -97,7 +97,7 @@ class _ExtensionSheet extends StatefulWidget {
 }
 
 class _ExtensionSheetState extends State<_ExtensionSheet> {
-  ExtensionRuntime get _runtime => widget.runtime;
+  ScriptRuntime get _runtime => widget.runtime;
   LuaTable get _spec => widget.spec;
   String _tr(Object? text) => text is String ? _runtime.translate(text) : '';
 
@@ -407,7 +407,7 @@ class _ExtensionSheetState extends State<_ExtensionSheet> {
 /// A question an extension asks (`ui.ask`): a title, a line under it, and its buttons after
 /// the app's Cancel, the last of them the one Return presses. `done` gets the id of the one
 /// pressed; Cancel calls nothing.
-Future<void> showExtensionAsk(BuildContext context, ExtensionRuntime runtime, LuaTable spec) async {
+Future<void> showExtensionAsk(BuildContext context, ScriptRuntime runtime, LuaTable spec) async {
   String tr(Object? text) => text is String ? runtime.translate(text) : '';
   final buttons = [
     if (spec['buttons'] case final LuaTable buttons)
