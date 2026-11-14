@@ -1123,7 +1123,11 @@ its chunk, the one after its last bar and the ones before whose slurs reach it, 
 view first, up to six at a time, and they are laid end to end with staves aligned to the widest
 gap any chunk needs. A bar's text is written once (`_xml`: a bar is never changed), what is in
 force at each bar is kept up to the bar that changed (`_contextBefore`), and an Undo step is the
-bars that differ, by their place. Scrolling and zooming (a pinch, ⌘ and the wheel, about the
+bars that differ, by their place: whatever one key does (a letter over every note selected, a
+popover's mark, text and hairpin) is one step, the editor running it inside `EditableScore.edit`.
+What is selected is drawn over the score each frame (`EditGalley.paintOnly`), found from what is
+selected, or, when that is more than a chunk in view draws, from what the chunk draws: the cost is
+what is on screen, not how much is selected. Scrolling and zooming (a pinch, ⌘ and the wheel, about the
 pointer) draw the score again and build nothing: the painter listens to them. A strip along the
 top numbers the bars (a click on a number selects the bar); a rectangle dragged out from where
 nothing is selects what it touches, ⌘A everything; ⌘G goes to a bar. In note input a faint note
