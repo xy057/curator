@@ -720,7 +720,10 @@ final class _Compiler {
             ..add(values[i](f));
         }
       }
-      if (tail != null) array.addAll(tail(f));
+      if (tail != null) {
+        array.addAll(tail(f));
+        lua.steps -= array.length >> 6; // as many values as a call gave, in one step
+      }
       if (array.length > Lua.maxLength) throw lua._tooBig();
       t._trim();
       if (keyed && later != null) {
@@ -815,6 +818,7 @@ final class _Compiler {
           final x = a(f), y = b(f);
           if (x is String && y is String) {
             if (x.length + y.length > Lua.maxLength) throw lua._tooBig();
+            lua.steps -= (x.length + y.length) >> 6;
             return x + y;
           }
           return lua._concat(x, y, at);

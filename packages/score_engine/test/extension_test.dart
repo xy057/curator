@@ -194,6 +194,10 @@ void main() {
       expect([value('math.clamp(5, 0, 3)'), value('math.clamp(-1, 0.5, 3)'), value('math.clamp(2, 0, 3)'), value('math.clamp(0/0, 0, 3)'), value('1 / math.clamp(-0.0, 0.0, 1.0)')],
           [3, 0.5, 2, 3, double.infinity]);
       expect(() => runtime.run('return math.clamp(1, 3, 0)'), throwsA(isA<LuaError>()));
+      // What Curator's own functions give is paid for in steps as what Lua's give is: a text
+      // made of a long one a thousand times isn't kept a thousand times.
+      expect(() => runtime.lua.run('kept = {}\nlocal s = ("x"):rep(64000)\nwhile true do kept[#kept + 1] = text.upper(s) end', steps: 4000), throwsA(isA<LuaLimit>()));
+      expect(runtime.lua.run('return #kept').single, lessThan(5));
       // A text that means two things, by its context; without one for it, as tr gives it.
       expect([value('curator.tr("Key")'), value('curator.tr_in("music", "Key")'), value('curator.tr_in("door", "Key")'), value('curator.tr_in("music", "{n} notes", {n = 2})')],
           ['键', '调', '键', '2 条笔记']);

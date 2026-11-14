@@ -218,6 +218,28 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
       expect(lua.run('return 1 + 1'), [2]);
     }
 
+    // What a script makes takes steps by its length, however it makes it: with the steps of two
+    // thousand turns of a loop it keeps a few strings or lists of 64,000, never two thousand.
+    {
+      const made = [
+        's .. "y"', 's .. 1', 's:sub(2)', 's:upper()', 's:lower()', 's:reverse()', 's:gsub("x", "y", 1)', '("%s"):format(s)', 's:match(".*")', //
+        'table.concat({s, "y"})', 's:rep(1)', '{s:byte(1, -1)}', '{table.unpack(list)}', 'table.pack(table.unpack(list))', '{select(2, table.unpack(list))}',
+        'table.move(list, 1, #list, 1, {})', 'load("return " .. s)',
+      ];
+      for (final make in made) {
+        final lua = Lua();
+        const start = 'keep = {}\nlocal s = ("x"):rep(64000)\nlocal list = {}\nfor i = 1, 64000 do list[i] = i end\n';
+        expect(() => lua.run('${start}while true do keep[#keep + 1] = $make end', steps: 68000), throwsA(isA<LuaLimit>()), reason: make);
+        expect(lua.run('return #keep').single, lessThan(10), reason: make);
+      }
+      // What the host makes for a script is paid for the same: a string by its length, a table a
+      // step and what it holds in turn (one held twice, once).
+      final lua = Lua()..steps = 1000;
+      final row = LuaTable.map({'text': 'x' * 640});
+      lua.made(LuaTable.list([row, row, 'y' * 6400, 7]));
+      expect(lua.steps, 1000 - 1 - (1 + 10) - 100);
+    }
+
     // The host gives functions and modules, and reads what print writes.
     {
       final printed = <String>[];

@@ -9,10 +9,10 @@ void _openString(Lua lua) {
     'sub': (a) {
       final s = a.string(0, 'sub');
       final i = _from(a.integerOr(1, 'sub') ?? 1, s.length), j = _to(a.integerOr(2, 'sub') ?? -1, s.length);
-      return [i > j ? '' : s.substring(i - 1, j)];
+      return [i > j ? '' : lua._made(s.substring(i - 1, j))];
     },
-    'upper': (a) => [a.string(0, 'upper').toUpperCase()],
-    'lower': (a) => [a.string(0, 'lower').toLowerCase()],
+    'upper': (a) => [lua._made(a.string(0, 'upper').toUpperCase())],
+    'lower': (a) => [lua._made(a.string(0, 'lower').toLowerCase())],
     'rep': (a) {
       final s = a.string(0, 'rep'), n = a.integer(1, 'rep'), sep = a.stringOr(2, 'rep') ?? '';
       if (n <= 0) return const [''];
@@ -20,14 +20,16 @@ void _openString(Lua lua) {
       lua.steps -= ((s.length + sep.length) * n) >> 6;
       return [sep.isEmpty ? s * n : List.filled(n, s).join(sep)];
     },
-    'reverse': (a) => [String.fromCharCodes(a.string(0, 'reverse').codeUnits.reversed)],
+    'reverse': (a) => [lua._made(String.fromCharCodes(a.string(0, 'reverse').codeUnits.reversed))],
     'byte': (a) {
       final s = a.string(0, 'byte');
       final i = _from(a.integerOr(1, 'byte') ?? 1, s.length), j = _to(a.integerOr(2, 'byte') ?? i, s.length);
-      return i > j ? _none : s.substring(i - 1, j).codeUnits;
+      if (i > j) return _none;
+      lua.spend(j - i + 1);
+      return s.substring(i - 1, j).codeUnits;
     },
-    'char': (a) => [String.fromCharCodes([for (var i = 0; i < a.length; i++) a.integer(i, 'char')])],
-    'format': (a) => [_format(lua, a)],
+    'char': (a) => [lua._made(String.fromCharCodes([for (var i = 0; i < a.length; i++) a.integer(i, 'char')]))],
+    'format': (a) => [lua._made(_format(lua, a))],
     'find': (a) => _find(lua, a, true),
     'match': (a) => _find(lua, a, false),
     'gmatch': (a) {
@@ -112,7 +114,7 @@ void _openString(Lua lua) {
         if (out.length > Lua.maxLength) throw lua._tooBig();
       }
       if (at < s.length) out.write(s.substring(at));
-      return [out.toString(), count];
+      return [lua._made(out.toString()), count];
     },
   });
   lua.globals['string'] = string;
@@ -401,7 +403,11 @@ final class _Matcher {
   /// Every capture; with none, the whole match if [whole].
   List<Object?> captures(int s, int e, bool whole) {
     final n = level == 0 && whole ? 1 : level;
-    return [for (var i = 0; i < n; i++) capture(i, s, e)];
+    final all = [for (var i = 0; i < n; i++) capture(i, s, e)];
+    for (final captured in all) {
+      if (captured is String) lua.spend(captured.length);
+    }
+    return all;
   }
 }
 
