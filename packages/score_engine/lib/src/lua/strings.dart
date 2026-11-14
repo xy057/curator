@@ -23,7 +23,9 @@ void _openString(Lua lua) {
     'reverse': (a) => [lua._made(String.fromCharCodes(a.string(0, 'reverse').codeUnits.reversed))],
     'byte': (a) {
       final s = a.string(0, 'byte');
-      final i = _from(a.integerOr(1, 'byte') ?? 1, s.length), j = _to(a.integerOr(2, 'byte') ?? i, s.length);
+      // (With no end said, it ends where it was asked to start: before the string, at nothing.)
+      final first = a.integerOr(1, 'byte') ?? 1;
+      final i = _from(first, s.length), j = _to(a.integerOr(2, 'byte') ?? first, s.length);
       if (i > j) return _none;
       lua.spend(j - i + 1);
       return s.substring(i - 1, j).codeUnits;

@@ -139,6 +139,8 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
         return s:len(), s:sub(1, 5), s:sub(-5), s:upper(), s:lower(), s:rep(2, "|"), s:reverse(), s:byte(1), string.char(72, 105),
           s:find("World"), s:find("o", 6), s:find("l+"), s:find(".", 1, true), s:match("(%a+), (%a+)"), s:match("^%s*$"), ("  trim  "):match("^%s*(.-)%s*$")
       '''), ['12', 'Hello', 'World', 'HELLO, WORLD', 'hello, world', 'Hello, World|Hello, World', 'dlroW ,olleH', '72', 'Hi', '8', '9', '3', 'nil', 'Hello', 'nil', 'trim']);
+      // The character at a place before the string is none (not its first), as Lua has it.
+      expect(run('local s = "Hello" return select("#", s:byte(0)), select("#", s:byte(-9)), (s:byte(-9, 2)), s:byte(-1)'), ['0', '0', '72', '111']);
       expect(run(r'''
         local words = {}
         for w in ("one two  three"):gmatch("%a+") do words[#words + 1] = w end
