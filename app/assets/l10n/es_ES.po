@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2026-11-13 22:41\n"
+"PO-Revision-Date: 2026-11-14 04:43\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -583,11 +583,14 @@ msgstr "Historial de cambios"
 msgid "Check at launch"
 msgstr "Buscar actualizaciones al iniciar"
 
+msgid "Update channel"
+msgstr ""
+
 #: lib/settings_dialog.dart
 msgid "Check for Updates"
 msgstr "Buscar actualizaciones"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Checking…"
 msgstr "Comprobando…"
 
@@ -624,7 +627,7 @@ msgstr "Clave"
 msgid "Clefs"
 msgstr "Claves"
 
-#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "Cerrar"
 
@@ -780,7 +783,7 @@ msgstr "Fundido cruzado propio"
 msgid "Crossfade (the project’s)"
 msgstr "Fundido cruzado del proyecto"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Curator is up to date! ☆"
 msgstr "¡Curator está actualizado! ☆"
 
@@ -792,11 +795,11 @@ msgstr "Proyecto de Curator"
 msgid "Curator settings"
 msgstr "Ajustes de Curator"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Curator {version} is out, but not for this system yet."
 msgstr "Ya está disponible Curator {version}, pero aún no hay una versión para este sistema."
 
-#: lib/main.dart lib/settings_dialog.dart
+#: lib/main.dart lib/update_dialog.dart
 msgid "Curator {version} is available! ☆"
 msgstr "¡Curator {version} ya está disponible! ☆"
 
@@ -881,11 +884,11 @@ msgstr "Puntillos"
 msgid "Double barline gap"
 msgstr "Separación entre las líneas de la doble barra"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Download {version}"
 msgstr "Descargar {version}"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Downloading {version}…"
 msgstr "Descargando {version}…"
 
@@ -1132,7 +1135,7 @@ msgstr "Desde"
 msgid "From bar"
 msgstr "Desde el compás"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "From GitHub."
 msgstr "Desde GitHub."
 
@@ -1578,7 +1581,7 @@ msgstr "Abrir en una ventana"
 msgid "Open Recent"
 msgstr "Abrir reciente"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Open Release Page"
 msgstr "Abrir la página de la versión"
 
@@ -1916,7 +1919,7 @@ msgstr "Solo para proyectos guardados."
 msgid "Set the anchors from the recording"
 msgstr "Establecer los puntos de sincronización a partir de la grabación"
 
-#: lib/export_dialog.dart lib/settings_dialog.dart
+#: lib/export_dialog.dart lib/update_dialog.dart
 msgid "Saved “{name}”."
 msgstr "Se ha guardado «{name}»."
 
@@ -2467,7 +2470,7 @@ msgstr "Clave de sol con octava baja"
 msgid "Tremolos"
 msgstr "Trémolos"
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart lib/update_dialog.dart
 msgid "Try Again"
 msgstr "Reintentar"
 
@@ -2557,7 +2560,7 @@ msgstr "Descomprime el archivo y sustituye esta aplicación por la versión desc
 msgid "Updates"
 msgstr "Actualizaciones"
 
-#: lib/main.dart
+#: lib/main.dart lib/settings_dialog.dart
 msgid "Update…"
 msgstr "Actualizar…"
 
@@ -4638,5 +4641,22 @@ msgid "LilyPond and MusicXML"
 msgstr ""
 
 msgid "Shortcuts"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgctxt "update channel"
+msgid "Release"
+msgstr ""
+
+#: lib/settings_dialog.dart lib/update_dialog.dart
+msgid "Pre-release"
+msgstr ""
+
+#: lib/update_dialog.dart
+msgid "You have {version}"
+msgstr ""
+
+#: lib/update_dialog.dart
+msgid "No release notes."
 msgstr ""
 
