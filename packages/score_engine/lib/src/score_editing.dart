@@ -3063,7 +3063,10 @@ class EditableScore {
         final index = at.clamp(0, measureCount);
         final atEnd = index == measureCount;
         final reference = index == 0 ? 0 : index - 1;
-        final length = index < measureCount ? (meterAt(index)?.length ?? barLength(index)) : (meterAt(reference)?.length ?? barLength(reference));
+        // As long as the time signature they are under says: the one before them, since a bar
+        // that changes it keeps the change (before the first bar, the score's own, which moves
+        // to them).
+        final length = meterAt(reference)?.length ?? barLength(reference);
         for (final (i, p) in parts.indexed) {
           _ensureDivisions(p, [length]);
           final made = <XmlElement>[];

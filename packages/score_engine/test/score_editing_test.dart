@@ -288,5 +288,18 @@ void main() {
       score.transpose([idsIn(1).first], octaves: 1);
       expect((score.eventsIn(0, 0, voice).first.pitches.single.octave, score.eventsIn(0, 1, voice).first.pitches.single.octave), (4, 5));
     }
+
+    // Bars added before a bar that changes the time signature are as long as the one before them says.
+    {
+      final score = EditableScore.parse(_fluteOf(4));
+      score.setTime(2, TimeSig.parse('6/8')!);
+      score.addBars(2, 1); // between the 4/4 bars and the 6/8
+      expect([for (var m = 0; m < 5; m++) score.barLength(m)], [Frac(4), Frac(4), Frac(4), Frac(3), Frac(3)]);
+      expect([for (var m = 0; m < 5; m++) score.eventsIn(0, m, const VoiceKey(1, '1')).single.length], [Frac(4), Frac(4), Frac(4), Frac(3), Frac(3)]);
+      score.addBars(0, 1); // before the first: the score's own
+      score.addBars(6, 1); // at the end: the last one's
+      expect((score.barLength(0), score.eventsIn(0, 0, const VoiceKey(1, '1')).single.length), (Frac(4), Frac(4)));
+      expect((score.barLength(6), score.eventsIn(0, 6, const VoiceKey(1, '1')).single.length), (Frac(3), Frac(3)));
+    }
   });
 }
