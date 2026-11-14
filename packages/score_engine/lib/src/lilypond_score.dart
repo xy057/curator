@@ -1010,6 +1010,10 @@ class _MusicXmlWriter {
 
   _Q _next(int bar) => bar + 1 < starts.length ? starts[bar + 1] : finish;
 
+  /// What the data file says of the bar that starts at a moment (the first, of several): looked
+  /// up for every bar of every part.
+  late final _measureAt = {for (final m in r.measureRecords.reversed) _Reader._moment(m): m};
+
   int _ticks(_Q q) => (q.value * 4 * divisions).round();
 
   int _divisions() {
@@ -1179,7 +1183,7 @@ class _MusicXmlWriter {
     out.write('<part id="P${index + 1}">\n');
     for (var bar = 0; bar < starts.length; bar++) {
       final start = starts[bar], length = _next(bar) - start;
-      final record = r.measureRecords.where((m) => _Reader._moment(m) == start).firstOrNull;
+      final record = _measureAt[start];
       final pickup = bar == 0 && (_Q.parse(record?['pos']) ?? _Q.zero) < _Q.zero;
       final number = pickup ? '0' : '${record?['bar'] ?? bar + 1}';
       out.write('<measure number="${_x(number)}"${pickup ? ' implicit="yes"' : ''}>\n');
