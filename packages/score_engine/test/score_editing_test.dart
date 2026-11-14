@@ -238,5 +238,22 @@ void main() {
       whole.dispose();
       expect([for (final staves in [1, 2, 4, 5, 8, 12, 21, 60]) EditChunk.barsFor(staves)], [6, 6, 6, 4, 3, 2, 2, 2]);
     }
+
+    // Bars deleted from two instruments: each keeps what they set (the piano its staves, clefs and divisions, not
+    // only the first instrument), and only the last bars' going moves the final barline.
+    {
+      final score = EditableScore.parse(flutePianoScore);
+      score.addBars(2, 2);
+      score.setBarline(3, '|]');
+      score.deleteBars(2, 1); // not the last bar: the final barline stays where it is
+      expect('light-heavy'.allMatches(score.toMusicXML()).length, 2, reason: 'one final barline an instrument');
+      score.deleteBars(0, 2);
+      final again = EditableScore.parse(score.toMusicXML());
+      expect(again.measureCount, 1);
+      expect(again.parts[1].staves, 2);
+      expect((again.clefAt(1, 2, 0, Frac.zero).sign, again.barLength(0)), ('F', Frac(4)));
+      expect([for (final e in again.eventsIn(1, 0, again.voicesIn(1, 0).first)) e.length], [Frac(4)], reason: 'its divisions are still said');
+      expect('light-heavy'.allMatches(score.toMusicXML()).length, 2);
+    }
   });
 }

@@ -3128,8 +3128,9 @@ class EditableScore {
   /// Bars [from] to [from] + [count] taken out of every part (never all of them): the clefs,
   /// key, time and divisions they set carry on to the bar after, unless it sets its own.
   void deleteBars(int from, int count) => edit(() {
-        final to = math.min(measureCount, from + count);
-        if (from < 0 || from >= to || to - from >= measureCount) return;
+        // (How many bars there are, asked once: the first part's are gone by the second's turn.)
+        final bars = measureCount, to = math.min(bars, from + count);
+        if (from < 0 || from >= to || to - from >= bars) return;
         for (final p in parts) {
           // What the deleted bars set, the last of each (a clef by its staff).
           final carried = <String, XmlElement>{};
@@ -3138,7 +3139,7 @@ class EditableScore {
               carried['${child.name.local}#${child.getAttribute('number') ?? ''}'] = child;
             }
           }
-          if (to < measureCount && carried.isNotEmpty) {
+          if (to < bars && carried.isNotEmpty) {
             final copy = p._measures[to].copy();
             final a = _attributesAtStart(copy);
             for (final MapEntry(key: key, value: child) in carried.entries) {
@@ -3148,7 +3149,7 @@ class EditableScore {
             p._measures[to].replace(copy);
             p._measures[to] = copy;
           }
-          if (to >= measureCount && from > 0) {
+          if (to >= bars && from > 0) {
             // The last bars go: their final barline moves to the bar that is last now.
             bool isEnd(XmlElement b) => (b.getAttribute('location') ?? 'right') == 'right';
             final ending = p._measures.last.findElements('barline').where(isEnd).firstOrNull;
