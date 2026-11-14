@@ -91,27 +91,29 @@ abstract final class ExtensionActions {
   }
 
   /// Opens [package] in the extension editor: one the project carries is edited there (Run
-  /// hands it to the project as it stands, Done keeps it); one of Curator's own is read.
+  /// hands it to the project as it stands, Done keeps it). One of Curator's own is edited too,
+  /// as the sample project is: it runs as changed while the project is open
+  /// ([ExtensionEditing.tryOut]) and is never saved; Duplicate keeps a copy.
   static Future<void> edit(BuildContext context, EditorController controller, ExtensionPackage package) async {
     final own = !ExtensionPackage.isThirdPartyId(package.id);
+    package = controller.extensions.package(package.id) ?? package;
     final edited = await showExtensionEditor(
       context,
       package,
-      readOnly: own,
-      onRun: own
-          ? null
-          : (p) {
-              controller.extensions.clearProblems(p.id);
-              controller.extensions.add(p);
-              controller.extensions.restart(p.id);
-            },
+      unsaved: own,
+      onRun: (p) {
+        controller.extensions.clearProblems(p.id);
+        if (own) return controller.extensions.tryOut(p);
+        controller.extensions.add(p);
+        controller.extensions.restart(p.id);
+      },
       calls: () => controller.extensions.runtime(package.id)?.calls,
       problems: controller.extensions.problems,
       log: controller.extensions.log,
     );
-    if (edited != null && !own) {
+    if (edited != null) {
       controller.extensions.clearProblems(edited.id);
-      controller.extensions.add(edited);
+      own ? controller.extensions.tryOut(edited) : controller.extensions.add(edited);
     }
   }
 
@@ -165,7 +167,7 @@ abstract final class ExtensionActions {
   }
 }
 
-/// An extension's row menu in Project Settings ▸ Extensions: Settings… (when it has its own), Edit… (View… for Curator's own),
+/// An extension's row menu in Project Settings ▸ Extensions: Settings… (when it has its own), Edit… (and Revert for one of Curator's own that was changed),
 /// Duplicate, Export…, Remove.
 class ExtensionMenu extends StatelessWidget {
   const ExtensionMenu({super.key, required this.controller, required this.extension});
@@ -174,7 +176,7 @@ class ExtensionMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final package = extension.package, own = extension.bundled;
+    final own = extension.bundled, package = controller.extensions.package(extension.id) ?? extension.package;
     return AppPopupMenuButton<VoidCallback>(
       tooltip: 'More'.tr,
       iconSize: 18,
@@ -184,7 +186,8 @@ class ExtensionMenu extends StatelessWidget {
       onSelected: (action) => action(),
       itemBuilder: (_) => [
         if (ExtensionActions.hasSettings(package)) menuItem(context, value: () => ExtensionActions.settings(context, controller, package), child: Text('Settings…'.tr)),
-        menuItem(context, value: () => ExtensionActions.edit(context, controller, package), child: Text(own ? 'View…'.tr : 'Edit…'.tr)),
+        menuItem(context, value: () => ExtensionActions.edit(context, controller, package), child: Text('Edit…'.tr)),
+        if (controller.extensions.tried(package.id)) menuItem(context, value: () => controller.extensions.revert(package.id), child: Text('Revert'.tr)),
         menuItem(context, value: () => ExtensionActions.duplicate(context, controller, package), child: Text('Duplicate'.tr)),
         menuItem(context, value: () => ExtensionActions.export(context, package), child: Text('Export…'.tr)),
         if (!own) menuItem(context, value: () => controller.extensions.remove(package.id), child: Text('Remove'.tr)),

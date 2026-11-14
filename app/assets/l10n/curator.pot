@@ -4786,10 +4786,6 @@ msgstr ""
 msgid "Another socket has this name"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart
-msgid "View…"
-msgstr ""
-
 #: lib/extensions/extension_editor.dart
 msgid "Use letters, digits and _, ending in .lua"
 msgstr ""
@@ -4845,4 +4841,12 @@ msgstr ""
 
 #: lib/extensions/connector_view.dart
 msgid "Tidy Up"
+msgstr ""
+
+#: lib/extensions/extension_actions.dart
+msgid "Revert"
+msgstr ""
+
+#: lib/extensions/extension_editor.dart
+msgid "Not Saved"
 msgstr ""

@@ -4801,10 +4801,6 @@ msgstr "字母、數字和 _，以字母開頭"
 msgid "Another socket has this name"
 msgstr "已有接口使用此名稱"
 
-#: lib/extensions/extension_actions.dart
-msgid "View…"
-msgstr "檢視⋯"
-
 #: lib/extensions/extension_editor.dart
 msgid "Use letters, digits and _, ending in .lua"
 msgstr "使用字母、數字和 _，以 .lua 結尾"
@@ -4861,3 +4857,11 @@ msgstr "此專案中"
 #: lib/extensions/connector_view.dart
 msgid "Tidy Up"
 msgstr "整理"
+
+#: lib/extensions/extension_actions.dart
+msgid "Revert"
+msgstr "回復"
+
+#: lib/extensions/extension_editor.dart
+msgid "Not Saved"
+msgstr "未儲存"

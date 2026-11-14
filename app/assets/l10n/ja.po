@@ -4801,10 +4801,6 @@ msgstr "英字、数字、_（先頭は英字）"
 msgid "Another socket has this name"
 msgstr "この名前のソケットがすでにあります"
 
-#: lib/extensions/extension_actions.dart
-msgid "View…"
-msgstr "表示…"
-
 #: lib/extensions/extension_editor.dart
 msgid "Use letters, digits and _, ending in .lua"
 msgstr "英字、数字、_ を使い、.lua で終わる名前にします"
@@ -4861,3 +4857,11 @@ msgstr "このプロジェクト内"
 #: lib/extensions/connector_view.dart
 msgid "Tidy Up"
 msgstr "整理"
+
+#: lib/extensions/extension_actions.dart
+msgid "Revert"
+msgstr "元に戻す"
+
+#: lib/extensions/extension_editor.dart
+msgid "Not Saved"
+msgstr "未保存"

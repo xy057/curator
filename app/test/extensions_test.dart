@@ -157,6 +157,35 @@ void main() {
     expect(c2.extensions.data('com.example.notes'), isNotNull);
   });
 
+  test('one of Curator’s own, changed, runs in the project while it is open and is never saved', () async {
+    final c = EditorController(vsync: const TestVSync());
+    final doc = ProjectDocument(c, AppSettings.memory()..autosave = Duration.zero);
+    addTearDown(() {
+      doc.dispose();
+      c.dispose();
+    });
+    await doc.importScore(demoScore.path);
+    c.setExtension('chapters', true);
+    final own = c.extensions.package('chapters')!;
+    // Its lane renamed in the connector.
+    final changed = own.copyWith(
+        graph: own.graph.copyWith(nodes: [for (final n in own.graph.nodes) n.id == 'lane' ? n.copyWith(props: {...n.props, 'title': 'Sections'}) : n]));
+    c.extensions.tryOut(changed);
+    expect(c.extensions.tried('chapters'), isTrue);
+    expect(c.extensions.runtime('chapters')!.package, changed, reason: 'running as changed');
+    expect(c.extensions.lanes.single.node.props['title'], 'Sections');
+    expect(c.projectState.packages, isEmpty, reason: 'not the project’s to keep');
+    expect(Extensions.byId('chapters')!.label, 'Chapters', reason: 'Curator’s own is as it was');
+    c.extensions.revert('chapters');
+    expect((c.extensions.tried('chapters'), c.extensions.runtime('chapters')!.package), (false, own));
+    // As it came is no change; a project closed forgets one.
+    c.extensions.tryOut(own);
+    expect(c.extensions.tried('chapters'), isFalse);
+    c.extensions.tryOut(changed);
+    await doc.importScore(demoScore.path);
+    expect(c.extensions.tried('chapters'), isFalse);
+  });
+
   test('Curator’s own extensions are packages too, listed in their order', () {
     expect(Extensions.all.map((e) => e.id), ['attachImage', 'captions', 'chapters', 'tonality']);
     final chapters = Extensions.byId('chapters')!;

@@ -31,10 +31,33 @@ class ExtensionEditing {
   /// The extensions the project carries, by id.
   Map<String, ExtensionPackage> get carried => _carried;
 
-  /// Every package this project can turn on: Curator's own, then those it carries.
-  List<ExtensionPackage> get packages => [...BundledExtensions.packages, ..._carried.values];
+  /// Every package this project can turn on: Curator's own (each as it is being tried out,
+  /// if it is: [tryOut]), then those it carries.
+  List<ExtensionPackage> get packages => [for (final p in BundledExtensions.packages) _tried[p.id] ?? p, ..._carried.values];
 
-  ExtensionPackage? package(String id) => _carried[id] ?? BundledExtensions.byId(id);
+  ExtensionPackage? package(String id) => _carried[id] ?? _tried[id] ?? BundledExtensions.byId(id);
+
+  /// Curator's own extensions as changed in the editor, by id: run in this project while it
+  /// is open, and never saved, as the sample project is edited and never saved. A video and a
+  /// page are made with Curator's own as they are.
+  final _tried = <String, ExtensionPackage>{};
+
+  /// Whether Curator's own extension [id] runs as changed here.
+  bool tried(String id) => _tried.containsKey(id);
+
+  /// Runs [package] (one of Curator's own, changed) in place of the one with its id, until the
+  /// project closes or it is put back ([revert]).
+  void tryOut(ExtensionPackage package) {
+    final own = BundledExtensions.byId(package.id);
+    if (own == null || _tried[package.id] == package) return;
+    package == own ? _tried.remove(package.id) : _tried[package.id] = package;
+    restart(package.id);
+  }
+
+  /// Curator's own extension [id] as it came.
+  void revert(String id) {
+    if (_tried.remove(id) != null) restart(id);
+  }
 
   /// The extensions running: on in this project, with a score open.
   Iterable<ExtensionRuntime> get running => _runtimes.values;
@@ -86,6 +109,7 @@ class ExtensionEditing {
     }
     _carried = const {};
     _versions = const {};
+    _tried.clear();
     _selection.clear();
     _revision++;
   }

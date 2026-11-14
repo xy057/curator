@@ -27,6 +27,7 @@ Future<ExtensionPackage?> showExtensionEditor(
   BuildContext context,
   ExtensionPackage package, {
   bool readOnly = false,
+  bool unsaved = false,
   void Function(ExtensionPackage package)? onRun,
   Map<String, int>? Function()? calls,
   ValueListenable<List<ExtensionProblem>>? problems,
@@ -36,7 +37,7 @@ Future<ExtensionPackage?> showExtensionEditor(
       fullscreenDialog: true,
       transitionDuration: motion(context, 200),
       reverseTransitionDuration: motion(context, 160),
-      pageBuilder: (_, _, _) => ExtensionEditor(package: package, readOnly: readOnly, onRun: onRun, calls: calls, problems: problems, log: log),
+      pageBuilder: (_, _, _) => ExtensionEditor(package: package, readOnly: readOnly, unsaved: unsaved, onRun: onRun, calls: calls, problems: problems, log: log),
       transitionsBuilder: (_, animation, _, child) => FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic), child: child),
     ));
 
@@ -52,9 +53,12 @@ enum _Side { none, reference, help }
 /// function in the code) and a guide; under them what is wrong with it as it is written
 /// ([checkExtension], as it is typed) and, once run, what it printed and what went wrong.
 class ExtensionEditor extends StatefulWidget {
-  const ExtensionEditor({super.key, required this.package, this.readOnly = false, this.onRun, this.calls, this.problems, this.log});
+  const ExtensionEditor({super.key, required this.package, this.readOnly = false, this.unsaved = false, this.onRun, this.calls, this.problems, this.log});
   final ExtensionPackage package;
   final bool readOnly;
+
+  /// One of Curator's own: edited and run as any, and never saved (it says so by its name).
+  final bool unsaved;
   final void Function(ExtensionPackage package)? onRun;
 
   /// How often each of its ports has been called as it runs in the project; null: it isn't running.
@@ -395,7 +399,7 @@ class _ExtensionEditorState extends State<ExtensionEditor> {
         Text(widget.readOnly ? 'Extension'.tr : 'Edit Extension'.tr, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text)),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(_package.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.textMuted)),
+          child: Text(widget.unsaved ? '${_package.name} · ${'Not Saved'.tr}' : _package.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.textMuted)),
         ),
         if (c != null) ...[
           if (!widget.readOnly) ...[
@@ -572,7 +576,7 @@ class _ExtensionEditorState extends State<ExtensionEditor> {
             child: AppTextField(controller: _fields[key]!, label: label, hint: hint, helper: helper, onChanged: (v) => set(key, v)),
           ),
         );
-    final idOk = ExtensionPackage.isThirdPartyId(_fields['id']!.text.trim()) || widget.readOnly;
+    final idOk = ExtensionPackage.isThirdPartyId(_fields['id']!.text.trim()) || widget.readOnly || widget.unsaved;
     return ListView(padding: const EdgeInsets.fromLTRB(28, 22, 28, 28), children: [
       Align(
         alignment: Alignment.topLeft,

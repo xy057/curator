@@ -2340,7 +2340,7 @@ class _LilyPondControl extends StatelessWidget {
 }
 
 /// Project Settings ▸ Extensions: Curator's own, then the ones the project carries, each with
-/// its switch (this project's) and its menu (Edit…, or View… for Curator's own, Settings…,
+/// its switch (this project's) and its menu (Edit…, Settings…,
 /// Duplicate, Export…, Remove). New and Add from File are by the page's title.
 class _ExtensionsPage extends StatelessWidget {
   const _ExtensionsPage(this.c);
