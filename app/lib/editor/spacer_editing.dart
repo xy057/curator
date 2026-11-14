@@ -3,14 +3,14 @@ part of '../editor_controller.dart';
 /// Spacers (the Attach Image extension): vertical ones, staves of nothing that are instruments
 /// of their own (a lane, a name, a place in the order), and horizontal ones, stretches of the
 /// score made wider (never overlapping). The controller keeps them in its own edits, so opening, Undo and closing take
-/// them. Nothing here works while [ImageEditing.enabled] is off, and none is engraved or drawn
-/// then; they stay in the project.
+/// them. Nothing here works while no extension that is on turns them on ([enabled]: one with a
+/// `spacers` socket, Attach Image), and none is engraved or drawn then; they stay in the project.
 class SpacerEditing {
   SpacerEditing._(this._editor);
   final EditorController _editor;
 
-  /// The extension's switch (Attach Image's).
-  bool get enabled => _editor.images.enabled;
+  /// Whether an extension that turns the spacers on is on (Attach Image).
+  bool get enabled => _editor.extensions.hasSpacers;
 
   /// The vertical spacers, in the order they were added.
   List<VerticalSpacer> get vertical => _editor._doc.spacers;

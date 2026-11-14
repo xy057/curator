@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import 'package:flutter/gestures.dart' show DragStartBehavior, PointerScrollEvent, PointerScrollInertiaCancelEvent, kPrimaryButton;
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:score_engine/score_engine.dart' show HorizontalSpacer, ScenePatch, VerticalSpacer;
+import 'package:score_engine/score_engine.dart' show ExtensionRuntime, GraphNode, HorizontalSpacer, ScenePatch, VerticalSpacer;
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
@@ -118,7 +118,7 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
       return;
     }
     if (_captionAt(p, frame) case final i?) {
-      showCaptionDialog(context, c, index: i);
+      c.extensions.openCaption(i);
       return;
     }
     if (_gapAt(p, frame) case final i?) {
@@ -147,13 +147,14 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
 
   /// The caption under [p] (layout points), when its text shows there.
   int? _captionAt(Offset p, VideoFrame frame) {
-    final scene = c.scene, i = c.captions.at(c.playback.time.value);
+    final scene = c.scene, i = c.captions.enabled ? c.scene?.captionShowingAt(c.playback.time.value) : null;
     if (scene == null || i == null) return null;
     return scene.captionRect(i, frame.layout).inflate(6).contains(p) ? i : null;
   }
   void _openMenu(TapUpDetails d, VideoFrame frame) {
     final scene = c.scene;
-    if (!(c.images.enabled || c.captions.enabled) || scene == null || !frame.rect.contains(d.localPosition)) return;
+    final extensions = c.extensions.menu('preview').isNotEmpty || c.extensions.menu('caption').isNotEmpty;
+    if (!(c.images.enabled || extensions) || scene == null || !frame.rect.contains(d.localPosition)) return;
     final p = frame.toLayout(d.localPosition);
     final hit = _patchAt(p, frame), caption = hit == null ? _captionAt(p, frame) : null;
     final gap = hit == null && caption == null ? _gapAt(p, frame) : null;
@@ -193,10 +194,10 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
       ];
     }
     if (at.caption case final i?) {
-      if (i >= c.captions.captions.length) return const [];
+      if (i >= c.extensions.captions.length) return const [];
+      // What its extension offers for it (Edit Caption…, Remove Caption).
       return [
-        MenuItemButton(onPressed: () => showCaptionDialog(context, c, index: i), child: Text('Edit Caption…'.tr)),
-        MenuItemButton(onPressed: () => c.captions.remove(i), child: Text('Remove Caption'.tr)),
+        for (final (:runtime, :command) in c.extensions.menu('caption')) _command(runtime, command, i + 1),
       ];
     }
     if (at.gap case final i?) {
@@ -223,15 +224,17 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
           child: Text('Paste'.tr),
         ),
       ],
-      if (c.captions.enabled)
-        MenuItemButton(
-            onPressed: switch (c.captions.draft(at.quarter)) {
-              final draft? => () => showCaptionDialog(context, c, draft: draft),
-              null => null, // no room: the captions there run on to the end
-            },
-            child: Text('Add Caption…'.tr)),
+      // What the extensions offer for the place clicked (Add Caption…).
+      for (final (:runtime, :command) in c.extensions.menu('preview')) _command(runtime, command, at.quarter),
     ];
   }
+
+  /// An extension's command as a menu item: greyed out while its `enabled` says no for [at]
+  /// (the place clicked, or the caption's index).
+  Widget _command(ExtensionRuntime runtime, GraphNode command, Object at) => MenuItemButton(
+        onPressed: c.extensions.canRun(runtime, command, at) ? () => runtime.fire(command.id, 'run', args: [at]) : null,
+        child: Text(switch (command.props['title']) { final String title => runtime.translate(title), _ => '' }),
+      );
   @override
   Widget build(BuildContext context) => Select(
         listenable: c,
@@ -242,7 +245,7 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
           cropping: c.images.cropping,
           patches: c.images.patches,
           captions: c.captions.enabled,
-          captionList: c.captions.captions,
+          captionList: c.extensions.captions,
           spacers: c.spacers.vertical,
           gaps: c.spacers.horizontal,
           reengraving: c.isReengraving,

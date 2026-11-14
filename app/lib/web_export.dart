@@ -10,7 +10,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'editor_controller.dart';
 import 'error_text.dart';
-import 'extensions/extension.dart';
+import 'extensions/extension_reader.dart';
 import 'file_names.dart';
 import 'image_patch.dart';
 import 'l10n/l10n.dart';
@@ -112,18 +112,45 @@ abstract final class WebExport {
 
       // What the page shows: the project with every setting its own, and the score engraved.
       var edits = editor.pageState;
-      if (!captions) edits = edits.copyWith(captions: const [], extensions: {...edits.extensions, Extensions.captions.id: false});
-      if (!chapters) edits = edits.copyWith(chapters: const [], extensions: {...edits.extensions, Extensions.chapters.id: false});
-      if (!images) edits = edits.copyWith(patches: const []);
+      if (!captions) {
+        // Without the extensions that give captions, or what they keep.
+        final sources = editor.extensions.captionSources.toSet();
+        edits = edits.copyWith(
+          extensions: {...edits.extensions, for (final id in sources) id: false},
+          extensionData: {
+            for (final MapEntry(key: id, :value) in edits.extensionData.entries)
+              if (!sources.contains(id)) id: value,
+          },
+        );
+      }
+      if (!chapters) {
+        // Without the extensions that give chapters, or what they keep.
+        final sources = editor.extensions.readers().chapterSources.toSet();
+        edits = edits.copyWith(
+          extensions: {...edits.extensions, for (final id in sources) id: false},
+          extensionData: {
+            for (final MapEntry(key: id, :value) in edits.extensionData.entries)
+              if (!sources.contains(id)) id: value,
+          },
+        );
+      }
+      if (!images) {
+        // Without what the extensions that put pictures on the score keep (their switches stay: one may turn the spacers on).
+        final sources = editor.extensions.imageSources.toSet();
+        edits = edits.copyWith(extensionData: {
+          for (final MapEntry(key: id, :value) in edits.extensionData.entries)
+            if (!sources.contains(id)) id: value,
+        });
+      }
       if (WebPage.requestOf(edits) != score.request) {
         throw VideoExportException('The score is still being engraved. Try again in a moment.'.tr);
       }
-      final kept = {for (final p in edits.patches) p.image};
-      final state = ProjectState(pdf: editor.projectState.pdf, edits: edits, images: {
-        for (final MapEntry(key: id, value: image) in editor.projectState.images.entries)
-          if (kept.contains(id))
-            // Sized here: the page can't measure an SVG with no size of its own.
-            id: image.kind == ImageKind.vector ? PatchImage(id, image.kind, await PatchImage.sized(image.bytes)) : image,
+      final project = editor.projectState;
+      final shown = imagesShown(ProjectState(edits: edits, packages: editor.extensions.carried, images: project.images));
+      final state = ProjectState(pdf: project.pdf, edits: edits, packages: editor.extensions.carried, dataVersions: project.dataVersions, images: {
+        for (final MapEntry(key: id, value: image) in shown.entries)
+          // Sized here: the page can't measure an SVG with no size of its own.
+          id: image.kind == ImageKind.vector ? PatchImage(id, image.kind, await PatchImage.sized(image.bytes)) : image,
       });
       final zip = _StoredZip()..startEncode(OutputFileStream('$folder/${WebPage.projectFile}'));
       ProjectArchive.write(zip, state, mimeType: ProjectFile.mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
@@ -240,7 +267,7 @@ abstract final class WebExport {
     if (score == null) return const {};
     return {
       if (score.textFontFound) score.fonts.text,
-      if (captions && editor.extensionOn(Extensions.captions.id)) editor.captions.font ?? editor.captions.defaultFont,
+      if (captions && editor.captions.enabled) editor.captions.effectiveFont,
     }..removeWhere((name) => name.isEmpty || name == TextFonts.academico);
   }
 

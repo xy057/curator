@@ -153,7 +153,11 @@ void main() {
       expect((e.transition, e.leadIn), (0.5, 1));
       expect(e.lanes, {'P1': [const Region(1, 2, transitionIn: 0.3)]});
       expect(e.anchors, [const SyncAnchor(4, 2), const SyncAnchor(8, 4, jumpTo: 0)]);
-      expect(e.captions, [const Caption(1, 2, 'Hi')]);
+      expect(e.extensionData['captions'], {
+        'captions': [
+          [1, 2, 'Hi'],
+        ],
+      });
       expect(state.view.time, 3);
 
       // Saved again: in modules, the same.
@@ -326,18 +330,18 @@ void main() {
       c.sync!.addAnchor(SyncAnchor(starts[8], 20, jumpTo: starts[4])); // a warp: back to bar 5
       c.useMidiTempo(MidiTempoMap('tempo.mid', const [(quarter: 0, quartersPerMinute: 96), (quarter: 24, quartersPerMinute: 80)]));
       await c.setFonts(const ScoreFonts(music: MusicFont.leland));
-      c.images.enabled = true;
-      c.captions.enabled = true;
+      c.setExtension('attachImage', true);
+      c.setExtension('captions', true);
       await c.images.add(ImageKind.raster, png, quarter: starts[2], top: 2);
       c.images.update(0, c.images.patches[0].copyWith(ink: true));
-      c.captions.add(Caption(starts[1], starts[5], 'The horns answer'));
+      c.extensions.runtime('captions')!.run('require("captions").add({from = ${starts[1]}, to = ${starts[5]}, text = "The horns answer"})');
       c.captions.setFont(TextFonts.academico);
-      c.chapters.enabled = true;
-      c.chapters.add(Chapter(starts[4], 'Second theme'));
-      c.chapters.add(Chapter(starts[0], 'Opening'));
-      c.tonality.enabled = true;
-      c.tonality.add(KeyArea(starts[0], starts[16], const MusicKey.of(0, minor: true)));
-      c.tonality.add(KeyArea(starts[8], starts[12], const MusicKey.of(-1), '(F major)')); // over it: cut in two
+      c.setExtension('chapters', true);
+      c.extensions.runtime('chapters')!.run('local lane = require("lane")\nlane.create(${starts[4]}, "Second theme")\nlane.create(${starts[0]}, "Opening")');
+      c.setExtension('tonality', true);
+      c.extensions.runtime('tonality')!.run('local lane = require("lane")\n'
+          'lane.add({from = ${starts[0]}, to = ${starts[16]}, tonic = 3, minor = true})\n' // A minor
+          'lane.add({from = ${starts[8]}, to = ${starts[12]}, tonic = -1, minor = false, label = "(F major)"})'); // over it: cut in two
       final typography = ScoreTypography.standard.withValue('names.size', 1.2).withValue('lyrics.face', TextFace.bold);
       await c.setTypography(typography);
       final saved = c.projectState;
@@ -375,14 +379,26 @@ void main() {
       expect(c2.score!.fonts.music, MusicFont.leland);
       expect(c2.images.patches.single.ink, isTrue);
       expect(c2.images.stored, hasLength(1), reason: 'the image file travels in the project');
-      expect(c2.captions.captions, [Caption(starts[1], starts[5], 'The horns answer')]);
+      expect(c2.extensions.data('captions'), {
+        'captions': [
+          [starts[1], starts[5], 'The horns answer'],
+        ],
+      });
+      expect(c2.scene!.captions, [Caption(starts[1], starts[5], 'The horns answer')]);
       expect(c2.captions.font, TextFonts.academico);
-      expect(c2.chapters.chapters, [Chapter(starts[0], 'Opening'), Chapter(starts[4], 'Second theme')]);
-      expect(c2.tonality.areas, [
-        KeyArea(starts[0], starts[8], const MusicKey.of(0, minor: true)),
-        KeyArea(starts[8], starts[12], const MusicKey.of(-1), '(F major)'),
-        KeyArea(starts[12], starts[16], const MusicKey.of(0, minor: true)),
-      ]);
+      expect(c2.extensions.data('chapters'), {
+        'chapters': [
+          [starts[0], 'Opening'],
+          [starts[4], 'Second theme'],
+        ],
+      });
+      expect(c2.extensions.data('tonality'), {
+        'areas': [
+          [starts[0], starts[8], 3, 'minor'],
+          [starts[8], starts[12], -1, 'major', '(F major)'],
+          [starts[12], starts[16], 3, 'minor'],
+        ],
+      });
       expect((c2.typography, c2.scene!.typography, c2.score!.typography), (typography, typography, typography));
       expect(c2.source!.bytes, demoScore.readAsBytesSync());
       expect(doc2.isDirty, isFalse);

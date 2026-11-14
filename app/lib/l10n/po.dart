@@ -3,6 +3,8 @@
 /// back (tool/l10n.dart). Plain Dart, so the tool and the tests use it too.
 library;
 
+import 'dart:convert';
+
 /// One entry: its English ([id]), the context it is used in, its translation ('' untranslated),
 /// and where the code uses it (`#:` lines).
 class PoEntry {
@@ -140,6 +142,29 @@ Iterable<String> translatedLiterals(String source) sync* {
     yield context == null ? id : '${_dartText(context)}\u0004$id';
   }
 }
+
+/// The texts a bundled extension's file translates (`assets/extensions/<id>/…`): in its Lua, the
+/// literals given to `curator.tr("…")` or `tr("…")`, and to `curator.tr_in("context", "…")` with
+/// their context; in connect.json, every node's `title`; in
+/// extension.json, its `name` and `summary`.
+Iterable<String> extensionTexts(String path, String source) sync* {
+  if (path.endsWith('.lua')) {
+    for (final m in _luaLiteral.allMatches(source)) {
+      yield _dartText((m[1] ?? m[2])!);
+    }
+    for (final m in _luaInContext.allMatches(source)) {
+      yield '${_dartText((m[1] ?? m[2])!)}\u0004${_dartText((m[3] ?? m[4])!)}';
+    }
+  } else if (path.endsWith('connect.json') || path.endsWith('extension.json')) {
+    for (final m in _jsonText.allMatches(source)) {
+      if (jsonDecode(m[1]!) case final String text when text.isNotEmpty) yield text;
+    }
+  }
+}
+
+final _luaLiteral = RegExp(r'\btr\(\s*(?:' '$_quoted' r')');
+final _luaInContext = RegExp(r'\btr_in\(\s*(?:' '$_quoted' r')\s*,\s*(?:' '$_quoted' r')');
+final _jsonText = RegExp(r'"(?:title|name|summary)"\s*:\s*("(?:[^"\\]|\\.)*")');
 
 /// A quoted Dart string (no interpolation), its text captured: single, then double quotes.
 const _quoted = r"""'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)""" '"';

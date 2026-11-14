@@ -38,12 +38,14 @@ msgstr "録音からアンカー 1 個"
 msgid "1 Bar"
 msgstr "1 小節"
 
+#: assets/extensions/captions/src/captions.lua
 msgid "1 caption"
 msgstr "字幕 1 件"
 
 msgid "1 edge"
 msgstr "エッジ 1 本"
 
+#: assets/extensions/attachImage/src/images.lua
 msgid "1 image"
 msgstr "画像 1 枚"
 
@@ -84,6 +86,7 @@ msgstr "プロジェクト、または MusicXML、PDF、LilyPond の楽譜"
 msgid "A tempo map starts at quarter 0."
 msgstr "テンポマップは 4 分音符 0 から始まります。"
 
+#: lib/extensions/extension_editor.dart
 msgid "About"
 msgstr "情報"
 
@@ -230,17 +233,18 @@ msgstr "アクセントカラー"
 msgid "Accidentals"
 msgstr "臨時記号"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart
+#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Add"
 msgstr "追加"
 
 msgid "Add a pair"
 msgstr "ペアを追加"
 
+#: assets/extensions/captions/src/lane.lua
 msgid "Add Caption"
 msgstr "字幕を追加"
 
-#: lib/score_view.dart
+#: assets/extensions/captions/connect.json
 msgid "Add Caption…"
 msgstr "字幕を追加…"
 
@@ -289,7 +293,7 @@ msgstr "詳細"
 msgid "Advanced Engraving"
 msgstr "詳細な浄書"
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart assets/extensions/captions/src/settings.lua
 msgid "Align"
 msgstr "揃える"
 
@@ -372,7 +376,7 @@ msgstr "すべての要素"
 msgid "Appearance"
 msgstr "外観"
 
-#: lib/edit_dialogs.dart lib/spacer_dialogs.dart
+#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Apply"
 msgstr "適用"
 
@@ -395,6 +399,7 @@ msgstr "アセット"
 msgid "At"
 msgstr "位置"
 
+#: assets/extensions/attachImage/extension.json
 msgid "Attach Image"
 msgstr "画像を添付"
 
@@ -432,6 +437,7 @@ msgstr "自動保存"
 msgid "Back"
 msgstr "戻る"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Backing"
 msgstr "背景"
 
@@ -528,7 +534,7 @@ msgstr "{bars}までの休符をつなぐ"
 msgid "c if a < b, else d"
 msgstr "a < b なら c、そうでなければ d"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "キャンセル"
 
@@ -539,6 +545,7 @@ msgstr "GitHub に接続できません。インターネットにつながっ�
 msgid "Can’t find the recording to embed"
 msgstr "埋め込む録音が見つかりません"
 
+#: assets/extensions/captions/src/lane.lua
 msgid "Caption"
 msgstr "字幕"
 
@@ -554,13 +561,14 @@ msgstr "字幕のフォント"
 msgid "Caption rise"
 msgstr "字幕の上昇"
 
-#: lib/caption_lane.dart lib/captions_dialog.dart lib/web_player/player.dart
+#: lib/web_player/player.dart assets/extensions/captions/connect.json assets/extensions/captions/extension.json assets/extensions/captions/src/sheet.lua
 msgid "Captions"
 msgstr "字幕"
 
 msgid "Carbon"
 msgstr "Carbon"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Center"
 msgstr "中央"
 
@@ -621,7 +629,7 @@ msgstr "音部記号"
 msgid "Clefs"
 msgstr "音部記号"
 
-#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "閉じる"
 
@@ -761,6 +769,7 @@ msgstr "ファイルを使えませんでした"
 msgid "Couldn’t use the MIDI file. {error}"
 msgstr "MIDI ファイルを使えませんでした。{error}"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Countdown"
 msgstr "カウントダウン"
 
@@ -841,7 +850,7 @@ msgstr "破線の長さ"
 msgid "Default"
 msgstr "デフォルト"
 
-#: lib/ai_settings.dart lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart lib/extensions/extension_editor.dart
 msgid "Delete"
 msgstr "削除"
 
@@ -860,7 +869,7 @@ msgstr "選択解除（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先に「{name}」への変更を保存しますか？"
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完了"
 
@@ -935,7 +944,7 @@ msgstr "イーズアウト"
 msgid "Edit"
 msgstr "編集"
 
-#: lib/score_view.dart
+#: assets/extensions/captions/connect.json
 msgid "Edit Caption…"
 msgstr "字幕を編集…"
 
@@ -943,7 +952,7 @@ msgstr "字幕を編集…"
 msgid "Edit Spacer…"
 msgstr "スペーサーを編集…"
 
-#: lib/lilypond_dialog.dart lib/settings_dialog.dart
+#: lib/extensions/extension_actions.dart lib/lilypond_dialog.dart lib/settings_dialog.dart
 msgid "Edit…"
 msgstr "編集…"
 
@@ -974,6 +983,7 @@ msgstr "浄書"
 msgid "Engraving…"
 msgstr "浄書中…"
 
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr "小節または 小節.拍 を入力（例：12 や 12.3）"
 
@@ -1022,14 +1032,14 @@ msgstr "ビデオを書き出す"
 msgid "Export Video…"
 msgstr "ビデオを書き出す…"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Exported “{name}”"
 msgstr "「{name}」を書き出しました"
 
 msgid "Exporting Video…"
 msgstr "ビデオを書き出し中…"
 
-#: lib/captions_dialog.dart lib/export_dialog.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua
 msgid "Export…"
 msgstr "書き出す…"
 
@@ -1061,7 +1071,7 @@ msgstr "フェードアウトのカーブ"
 msgid "Fermatas"
 msgstr "フェルマータ"
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/extensions/extension_editor.dart
 msgid "File"
 msgstr "ファイル"
 
@@ -1097,6 +1107,7 @@ msgstr "フラット（-）"
 msgid "Folder"
 msgstr "フォルダ"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Font"
 msgstr "フォント"
 
@@ -1122,7 +1133,7 @@ msgstr "フレームレート"
 msgid "Frame {n} of {all}"
 msgstr "フレーム {n} / {all}"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "From"
 msgstr "開始"
 
@@ -1196,7 +1207,7 @@ msgstr "2 分音符（7）"
 msgid "Height (staff spaces)"
 msgstr "高さ（譜線間隔）"
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/extensions/extension_editor.dart
 msgid "Help"
 msgstr "ヘルプ"
 
@@ -1230,10 +1241,11 @@ msgstr "色相"
 msgid "Image"
 msgstr "画像"
 
+#: assets/extensions/attachImage/extension.json
 msgid "Images and spacers that scroll with the score."
 msgstr "楽譜と一緒にスクロールする画像とスペーサー。"
 
-#: lib/app_menus.dart lib/captions_dialog.dart lib/home_screen.dart lib/settings_dialog.dart
+#: lib/app_menus.dart lib/home_screen.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua
 msgid "Import…"
 msgstr "読み込む…"
 
@@ -1293,7 +1305,7 @@ msgstr "言語"
 msgid "Large"
 msgstr "大"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Leave empty to remove"
 msgstr "空にすると削除"
 
@@ -1303,6 +1315,7 @@ msgstr "加線の長さ"
 msgid "Ledger lines"
 msgstr "加線"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Left"
 msgstr "左"
 
@@ -1316,6 +1329,7 @@ msgstr "ライト"
 msgid "Lightness"
 msgstr "明度"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Line"
 msgstr "線"
 
@@ -1413,7 +1427,7 @@ msgstr "音楽フォント"
 msgid "Music symbols"
 msgstr "音楽記号"
 
-#: lib/ai_settings.dart
+#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart assets/extensions/chapters/src/lane.lua
 msgid "Name"
 msgstr "名前"
 
@@ -1431,7 +1445,7 @@ msgstr "ナチュラル（0）"
 msgid "Next ({key})"
 msgstr "次へ（{key}）"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "No captions"
 msgstr "字幕なし"
 
@@ -1464,17 +1478,15 @@ msgstr "最近使ったファイルはありません"
 msgid "No score was found inside the .mxl archive."
 msgstr ".mxl アーカイブ内に楽譜が見つかりませんでした。"
 
-msgid "No settings"
-msgstr "設定なし"
-
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "None of these subtitles land inside the music."
 msgstr "これらの字幕はどれも音楽の範囲内にありません。"
 
+#: assets/extensions/captions/src/subtitles.lua
 msgid "No subtitles found in this file."
 msgstr "このファイルに字幕が見つかりませんでした。"
 
-#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua
 msgid "None"
 msgstr "なし"
 
@@ -1543,7 +1555,7 @@ msgstr "オクターブ記号"
 msgid "Off"
 msgstr "オフ"
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "OK"
 
@@ -1602,10 +1614,11 @@ msgstr "その他"
 msgid "Other projects start with these"
 msgstr "ほかのプロジェクトはこれで始まります"
 
+#: assets/extensions/captions/src/lane.lua
 msgid "Overlaps another caption"
 msgstr "ほかの字幕と重なっています"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Overlaps the caption in row {n}"
 msgstr "{n} 行目の字幕と重なっています"
 
@@ -1644,7 +1657,7 @@ msgstr "打楽器"
 msgid "Picture"
 msgstr "映像"
 
-#: lib/caption_lane.dart
+#: lib/extensions/extension_lane.dart
 msgid "Pinned"
 msgstr "固定済み"
 
@@ -1720,7 +1733,7 @@ msgstr "録音"
 msgid "Redo"
 msgstr "やり直す"
 
-#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr "やり直す（{key}）"
 
@@ -1745,7 +1758,7 @@ msgstr "リハーサルマーク"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小節番号の行にリハーサルマーク"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr "削除"
 
@@ -1757,7 +1770,7 @@ msgstr "削除（Delete）"
 msgid "Remove All Anchors"
 msgstr "すべてのアンカーを削除"
 
-#: lib/score_view.dart
+#: assets/extensions/captions/connect.json
 msgid "Remove Caption"
 msgstr "字幕を削除"
 
@@ -1789,7 +1802,7 @@ msgstr "未使用を削除"
 msgid "Removed: {names}"
 msgstr "削除：{names}"
 
-#: lib/edit_dialogs.dart
+#: lib/edit_dialogs.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart
 msgid "Rename"
 msgstr "名前を変更"
 
@@ -1811,7 +1824,7 @@ msgstr "{name} の名前を変更…"
 msgid "Renamed: {from} → {to}"
 msgstr "名前を変更：{from} → {to}"
 
-#: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/settings_dialog.dart lib/take_lanes.dart
+#: lib/extensions/extension_editor.dart lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/settings_dialog.dart lib/take_lanes.dart
 msgid "Rename…"
 msgstr "名前を変更…"
 
@@ -1821,7 +1834,7 @@ msgstr "反復記号の点の間隔"
 msgid "Repeat dots"
 msgstr "反復記号の点"
 
-#: lib/captions_dialog.dart lib/code_view.dart lib/edit_dialogs.dart
+#: lib/code_view.dart lib/edit_dialogs.dart assets/extensions/captions/src/sheet.lua
 msgid "Replace"
 msgstr "置き換える"
 
@@ -1829,7 +1842,7 @@ msgstr "置き換える"
 msgid "Replace Recording…"
 msgstr "録音を置き換える…"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "Replace the old captions?"
 msgstr "古い字幕を置き換えますか？"
 
@@ -1870,9 +1883,11 @@ msgstr "休符"
 msgid "Rhythm"
 msgstr "リズム"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Right"
 msgstr "右"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Ring"
 msgstr "リング"
 
@@ -1935,7 +1950,7 @@ msgstr "楽譜のインク色"
 msgid "Score size"
 msgstr "楽譜のサイズ"
 
-#: lib/caption_settings.dart
+#: assets/extensions/captions/src/settings.lua
 msgid "Score text"
 msgstr "楽譜のテキスト"
 
@@ -1946,7 +1961,7 @@ msgstr "音楽についてくる楽譜。"
 msgid "Scrolling"
 msgstr "スクロール"
 
-#: lib/settings_dialog.dart
+#: lib/extensions/extension_editor.dart lib/settings_dialog.dart
 msgid "Search"
 msgstr "検索"
 
@@ -1975,6 +1990,7 @@ msgstr "レーン内をすべて選択"
 msgid "Set"
 msgstr "設定"
 
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/tonality/src/lane.lua
 msgid "Set Until after From"
 msgstr "「終了」を「開始」より後にしてください"
 
@@ -1986,7 +2002,7 @@ msgstr "設定"
 msgid "Settings Imported"
 msgstr "設定を読み込みました"
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/extensions/extension_actions.dart
 msgid "Settings…"
 msgstr "設定…"
 
@@ -2066,6 +2082,7 @@ msgstr "類似"
 msgid "Sine"
 msgstr "サイン"
 
+#: assets/extensions/captions/src/settings.lua
 msgid "Size"
 msgstr "サイズ"
 
@@ -2251,7 +2268,7 @@ msgstr "テンポ：{from} → {to}"
 msgid "Tenor"
 msgstr "テナー記号"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua
 msgid "Text"
 msgstr "テキスト"
 
@@ -2268,7 +2285,7 @@ msgstr "テキストのフォント"
 msgid "Text size"
 msgstr "テキストのサイズ"
 
-#: lib/caption_settings.dart
+#: assets/extensions/captions/src/settings.lua
 msgid "The *horns* answer, softly"
 msgstr "*ホルン*が静かに応える"
 
@@ -2370,6 +2387,7 @@ msgstr "このプロジェクトは新しい Curator のものです。アップ
 msgid "This RIFF file has no MIDI data."
 msgstr "この RIFF ファイルには MIDI データがありません。"
 
+#: assets/extensions/captions/src/sheet.lua
 msgid "This subtitle file is a bit too big."
 msgstr "この字幕ファイルは少し大きすぎます。"
 
@@ -2413,6 +2431,7 @@ msgstr "{n} 小節目から拍子が異なります"
 msgid "Time signatures"
 msgstr "拍子記号"
 
+#: assets/extensions/captions/extension.json
 msgid "Timed text under the score."
 msgstr "楽譜の下に出る、時間に合わせたテキスト。"
 
@@ -2505,7 +2524,7 @@ msgstr "t = 0 または 1 で定義されていません。"
 msgid "Undo"
 msgstr "取り消す"
 
-#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr "取り消す（{key}）"
 
@@ -2536,7 +2555,7 @@ msgstr "⌥←/→"
 msgid "Undo history"
 msgstr "取り消しの履歴"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/tonality/src/lane.lua
 msgid "Until"
 msgstr "終了"
 
@@ -2584,6 +2603,7 @@ msgstr "ほかのプロジェクトにも使う"
 msgid "UTF-16 MusicXML is not supported yet; save the file as UTF-8."
 msgstr "UTF-16 の MusicXML にはまだ対応していません。ファイルを UTF-8 で保存してください。"
 
+#: lib/extensions/extension_editor.dart
 msgid "Version"
 msgstr "バージョン"
 
@@ -2637,7 +2657,7 @@ msgstr "アンカーがまだないときのみ。"
 msgid "WebM video"
 msgstr "WebM ビデオ"
 
-#: lib/settings_dialog.dart
+#: lib/extensions/extension_editor.dart lib/settings_dialog.dart
 msgid "Website"
 msgstr "Web サイト"
 
@@ -2707,6 +2727,7 @@ msgstr "録音からアンカー {n} 個"
 msgid "{n} Bars"
 msgstr "{n} 小節"
 
+#: assets/extensions/captions/src/captions.lua
 msgid "{n} captions"
 msgstr "字幕 {n} 件"
 
@@ -2717,12 +2738,15 @@ msgstr "エッジ {n} 本"
 msgid "{n} frames"
 msgstr "{n} フレーム"
 
+#: assets/extensions/attachImage/src/images.lua
 msgid "{n} images"
 msgstr "画像 {n} 枚"
 
+#: assets/extensions/captions/src/sheet.lua
 msgid "{n} imported"
 msgstr "{n} 件読み込みました"
 
+#: assets/extensions/captions/src/sheet.lua
 msgid "{n} imported, {left} overlapping left out"
 msgstr "{n} 件読み込みました。重なる {left} 件は除外しました"
 
@@ -2855,11 +2879,11 @@ msgstr "和音（Q）"
 msgid "Couldn’t Edit Score"
 msgstr "楽譜を編集できませんでした"
 
-#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr "破棄"
 
-#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr "変更を破棄しますか？"
 
@@ -2882,7 +2906,7 @@ msgstr "2 分音符"
 msgid "Holds"
 msgstr "延長と停止"
 
-#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr "編集を続ける"
 
@@ -3233,6 +3257,7 @@ msgstr "楽器のない譜表が {n} 個"
 msgid "Show Next"
 msgstr "次を表示"
 
+#: lib/extensions/extension_editor.dart
 msgid "Summary"
 msgstr "概要"
 
@@ -3266,7 +3291,7 @@ msgstr "テンポ記号"
 msgid "Staves without an instrument"
 msgstr "楽器のない譜表"
 
-#: lib/pdf_import.dart
+#: lib/extensions/extension_actions.dart lib/pdf_import.dart
 msgid "More"
 msgstr "その他"
 
@@ -3444,7 +3469,7 @@ msgstr "楽器のある譜表がまだありません。"
 msgid "“{name}” is open in another tab. Close it there first."
 msgstr "「{name}」は別のタブで開いています。先にそちらで閉じてください。"
 
-#: lib/captions_dialog.dart
+#: assets/extensions/captions/src/sheet.lua
 msgid "No room for another caption"
 msgstr "字幕を追加する余地がありません"
 
@@ -3465,44 +3490,50 @@ msgstr "読み込み"
 msgid "Keyboard"
 msgstr "キーボード"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Chapter"
 msgstr "チャプター"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Set From before the end"
 msgstr "「開始」を終わりより前にしてください"
 
+#: assets/extensions/chapters/src/lane.lua
 msgid "Another chapter starts here"
 msgstr "ここから始まるチャプターがあります"
 
 msgid "In the video, and as times beside it"
 msgstr "ビデオに入れ、横に時刻のリストも"
 
+#: assets/extensions/chapters/extension.json
 msgid "Named places to jump to in a video or web page."
 msgstr "ビデオや Web ページで移動できる、名前付きの位置。"
 
+#: assets/extensions/chapters/src/chapters.lua
 msgid "1 chapter"
 msgstr "チャプター 1 件"
 
+#: assets/extensions/chapters/src/chapters.lua
 msgid "{n} chapters"
 msgstr "チャプター {n} 件"
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json assets/extensions/chapters/src/lane.lua
 msgid "Add Chapter"
 msgstr "チャプターを追加"
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json
 msgid "Add from Rehearsal Marks"
 msgstr "リハーサルマークから追加"
 
-#: lib/chapter_lane.dart
+#: assets/extensions/chapters/connect.json
 msgid "Remove Chapter"
 msgstr "チャプターを削除"
 
-#: lib/chapter_lane.dart lib/web_player/player.dart
+#: lib/web_player/player.dart assets/extensions/chapters/connect.json assets/extensions/chapters/extension.json
 msgid "Chapters"
 msgstr "チャプター"
 
-#: lib/video_export.dart lib/web_player/player.dart
+#: assets/extensions/chapters/src/export.lua
 msgid "Start"
 msgstr "冒頭"
 
@@ -3931,7 +3962,7 @@ msgstr "浄書するものがありません。"
 msgid "Couldn’t Import LilyPond Score"
 msgstr "LilyPond の楽譜を読み込めませんでした"
 
-#: lib/lilypond_editor.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Find ({key})"
 msgstr "検索（{key}）"
 
@@ -4127,31 +4158,35 @@ msgstr "装飾音（/）"
 msgid "Grace notes"
 msgstr "装飾音"
 
-#: lib/edit_dialogs.dart lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json assets/extensions/tonality/src/lane.lua
 msgid "Add Key"
 msgstr "調を追加"
 
-#: lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json
 msgid "Find Keys"
 msgstr "調を検出"
 
-#: lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json
 msgid "Remove Key"
 msgstr "調を削除"
 
-#: lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json assets/extensions/tonality/extension.json
 msgid "Tonality"
 msgstr "調性"
 
+#: assets/extensions/tonality/src/lane.lua
 msgid "Marking"
 msgstr "表記"
 
+#: assets/extensions/tonality/extension.json
 msgid "The music’s key, in color over the score."
 msgstr "楽譜の上に色で示す、音楽の調。"
 
+#: assets/extensions/tonality/src/areas.lua
 msgid "1 key"
 msgstr "調 1 件"
 
+#: assets/extensions/tonality/src/areas.lua
 msgid "{n} keys"
 msgstr "調 {n} 件"
 
@@ -4245,7 +4280,7 @@ msgstr "嬰ハ長調"
 msgid "A♯ minor"
 msgstr "嬰イ短調"
 
-#: lib/edit_dialogs.dart
+#: assets/extensions/tonality/src/lane.lua
 msgctxt "tonality"
 msgid "Key"
 msgstr "調"
@@ -4665,3 +4700,180 @@ msgstr "現在のバージョン: {version}"
 #: lib/update_dialog.dart
 msgid "No release notes."
 msgstr "リリースノートはありません。"
+
+#: lib/editor/extension_editing.dart
+msgid "{name} needs a newer Curator."
+msgstr "{name} には新しいバージョンの Curator が必要です。"
+
+#: lib/extensions/connector_view.dart
+msgid "Add Socket"
+msgstr "ソケットを追加"
+
+#: lib/extensions/connector_view.dart
+msgid "Remove Socket"
+msgstr "ソケットを削除"
+
+#: lib/extensions/extension_actions.dart lib/settings_dialog.dart
+msgid "New Extension"
+msgstr "新規拡張機能"
+
+#: lib/extensions/extension_actions.dart
+msgid "Create"
+msgstr "作成"
+
+#: lib/extensions/extension_actions.dart
+msgid "Couldn’t Add the Extension"
+msgstr "拡張機能を追加できませんでした"
+
+#: lib/extensions/extension_actions.dart
+msgid "Couldn’t Save the Extension"
+msgstr "拡張機能を保存できませんでした"
+
+#: lib/extensions/extension_actions.dart
+msgid "{name} Copy"
+msgstr "{name} のコピー"
+
+#: lib/extensions/extension_actions.dart
+msgid "Duplicate"
+msgstr "複製"
+
+#: lib/extensions/extension_editor.dart
+msgid "The extension stays as it was."
+msgstr "拡張機能は元のままです。"
+
+#: lib/extensions/extension_editor.dart
+msgid "Reference"
+msgstr "リファレンス"
+
+#: lib/extensions/extension_editor.dart
+msgid "Run ({key})"
+msgstr "実行（{key}）"
+
+#: lib/extensions/extension_editor.dart
+msgid "Run"
+msgstr "実行"
+
+#: lib/extensions/extension_editor.dart
+msgid "Connector"
+msgstr "コネクタ"
+
+#: lib/extensions/extension_editor.dart
+msgctxt "lua"
+msgid "keyword"
+msgstr "キーワード"
+
+#: lib/extensions/extension_editor.dart
+msgctxt "lua"
+msgid "function"
+msgstr "関数"
+
+#: lib/extensions/extension_editor.dart
+msgctxt "lua"
+msgid "library"
+msgstr "ライブラリ"
+
+#: lib/extensions/extension_editor.dart
+msgctxt "lua"
+msgid "value"
+msgstr "値"
+
+#: lib/extensions/extension_editor.dart
+msgid "API level"
+msgstr "API レベル"
+
+#: lib/extensions/extension_editor.dart
+msgid "Data version"
+msgstr "データバージョン"
+
+#: lib/extensions/extension_editor.dart
+msgid "No results"
+msgstr "結果なし"
+
+#: lib/extensions/connector_view.dart
+msgid "Unwire"
+msgstr "接続を解除"
+
+#: lib/extensions/connector_view.dart
+msgid "Letters, digits and _, starting with a letter"
+msgstr "英字、数字、_（先頭は英字）"
+
+#: lib/extensions/connector_view.dart
+msgid "Another socket has this name"
+msgstr "この名前のソケットがすでにあります"
+
+#: lib/extensions/extension_editor.dart
+msgid "Use letters, digits and _, ending in .lua"
+msgstr "英字、数字、_ を使い、.lua で終わる名前にします"
+
+#: lib/extensions/extension_editor.dart
+msgid "Another file has this name"
+msgstr "この名前のファイルがすでにあります"
+
+#: lib/extensions/extension_editor.dart
+msgid "New File"
+msgstr "新規ファイル"
+
+#: lib/extensions/extension_editor.dart
+msgid "Rename File"
+msgstr "ファイル名を変更"
+
+#: lib/extensions/extension_editor.dart
+msgid "Extension"
+msgstr "拡張機能"
+
+#: lib/extensions/extension_editor.dart
+msgid "Edit Extension"
+msgstr "拡張機能を編集"
+
+#: lib/extensions/extension_editor.dart
+msgctxt "heading"
+msgid "Files"
+msgstr "ファイル"
+
+#: lib/extensions/extension_editor.dart
+msgid "ID"
+msgstr "ID"
+
+#: lib/extensions/extension_editor.dart
+msgid "Like com.example.notes: lower-case, with a dot"
+msgstr "com.example.notes のように、小文字でドットを含めます"
+
+#: lib/extensions/extension_editor.dart
+msgid "Author"
+msgstr "作者"
+
+#: lib/extensions/extension_editor.dart
+msgid "Search Words"
+msgstr "検索キーワード"
+
+#: lib/settings_dialog.dart
+msgid "Add Extension from File"
+msgstr "ファイルから拡張機能を追加"
+
+msgctxt "heading"
+msgid "In This Project"
+msgstr "このプロジェクト内"
+
+#: lib/extensions/connector_view.dart
+msgid "Tidy Up"
+msgstr "整理"
+
+#: lib/extensions/extension_actions.dart
+msgid "Revert"
+msgstr "元に戻す"
+
+#: lib/extensions/extension_editor.dart
+msgid "Not Saved"
+msgstr "未保存"
+
+#: lib/extensions/extension_docs.dart
+msgid "Couldn’t Save the Docs"
+msgstr "ドキュメントを保存できませんでした"
+
+#: lib/extensions/extension_docs.dart
+msgid "Copy Docs"
+msgstr "ドキュメントをコピー"
+
+#: lib/extensions/extension_docs.dart
+msgid "Download Docs for AI…"
+msgstr "AI 用ドキュメントをダウンロード…"

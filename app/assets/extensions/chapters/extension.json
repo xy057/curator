@@ -1,0 +1,10 @@
+{
+  "format": "application/x-curator-extension",
+  "id": "chapters",
+  "name": "Chapters",
+  "summary": "Named places to jump to in a video or web page.",
+  "keywords": "chapter marker bookmark section movement rehearsal mark youtube timestamp jump navigation",
+  "icon": "chapters",
+  "api": 1,
+  "data": {"module": "chapters", "version": 1}
+}

@@ -26,6 +26,12 @@ void main() {
         if (!keys.contains(key)) missing.add('${file.path}: $key');
       }
     }
+    for (final file in Directory('assets/extensions').listSync(recursive: true).whereType<File>()) {
+      if (!file.path.endsWith('.lua') && !file.path.endsWith('.json')) continue;
+      for (final key in extensionTexts(file.path, file.readAsStringSync())) {
+        if (!keys.contains(key)) missing.add('${file.path}: $key');
+      }
+    }
     expect(missing, isEmpty, reason: 'run `make l10n`');
     expect(keys, hasLength(template.entries.length), reason: 'a text twice in curator.pot');
   });

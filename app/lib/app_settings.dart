@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart' show Color, ThemeMode;
 import 'package:score_engine/score_engine.dart'
-    show CaptionAlign, CaptionCountdown, CaptionSize, EngravingOptions, MusicFont, PdfAiExamResult, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
+    show EngravingOptions, MusicFont, PdfAiExamResult, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ai_providers.dart';
@@ -56,12 +56,6 @@ class AppSettings extends ChangeNotifier {
         _rehearsalInRow = _prefs?.getBool(_rehearsalInRowKey) ?? defaultRehearsalInRow,
         _centeredLyrics = _prefs?.getBool(_centeredLyricsKey) ?? defaultCenteredLyrics,
         legacyExtensions = _readLegacyExtensions(_prefs),
-        _captionFont = _prefs?.getString(_captionFontKey) ?? '',
-        _captionCountdown =
-            CaptionCountdown.values.asNameMap()[_prefs?.getString(_captionCountdownKey)] ?? CaptionCountdown.line,
-        _captionSize = CaptionSize.values.asNameMap()[_prefs?.getString(_captionSizeKey)] ?? CaptionSize.medium,
-        _captionAlign = CaptionAlign.values.asNameMap()[_prefs?.getString(_captionAlignKey)] ?? CaptionAlign.center,
-        _captionPlate = _prefs?.getBool(_captionPlateKey) ?? false,
         _videoSubtitles = _prefs?.getBool(_videoSubtitlesKey) ?? false,
         _videoChapters = _prefs?.getBool(_videoChaptersKey) ?? true,
         _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false,
@@ -666,55 +660,6 @@ class AppSettings extends ChangeNotifier {
     }
   }
 
-  /// The Captions extension's own settings (its settings button), for every project.
-  /// The font captions are drawn in when a project doesn't choose one: a text font family,
-  /// or '' for the score's own text font.
-  String get captionFont => _captionFont;
-  String _captionFont;
-  set captionFont(String value) {
-    if (value == _captionFont) return;
-    _captionFont = value;
-    _prefs?.setString(_captionFontKey, value);
-    notifyListeners();
-  }
-
-  CaptionCountdown get captionCountdown => _captionCountdown;
-  CaptionCountdown _captionCountdown;
-  set captionCountdown(CaptionCountdown value) {
-    if (value == _captionCountdown) return;
-    _captionCountdown = value;
-    _prefs?.setString(_captionCountdownKey, value.name);
-    notifyListeners();
-  }
-
-  CaptionSize get captionSize => _captionSize;
-  CaptionSize _captionSize;
-  set captionSize(CaptionSize value) {
-    if (value == _captionSize) return;
-    _captionSize = value;
-    _prefs?.setString(_captionSizeKey, value.name);
-    notifyListeners();
-  }
-
-  CaptionAlign get captionAlign => _captionAlign;
-  CaptionAlign _captionAlign;
-  set captionAlign(CaptionAlign value) {
-    if (value == _captionAlign) return;
-    _captionAlign = value;
-    _prefs?.setString(_captionAlignKey, value.name);
-    notifyListeners();
-  }
-
-  /// A soft backing behind each caption.
-  bool get captionPlate => _captionPlate;
-  bool _captionPlate;
-  set captionPlate(bool value) {
-    if (value == _captionPlate) return;
-    _captionPlate = value;
-    _prefs?.setBool(_captionPlateKey, value);
-    notifyListeners();
-  }
-
   /// Whether Export writes the captions as an .srt beside a movie (Captions on, with captions).
   bool get videoSubtitles => _videoSubtitles;
   bool _videoSubtitles;
@@ -723,6 +668,44 @@ class AppSettings extends ChangeNotifier {
     _videoSubtitles = value;
     _prefs?.setBool(_videoSubtitlesKey, value);
     notifyListeners();
+  }
+
+  /// What was kept since the app started, by extension (settings kept nowhere, a test's, are
+  /// here alone).
+  final _extensionSettings = <String, Object?>{};
+
+  /// What extension [id] keeps for every project (`curator.settings` in its Lua), as JSON;
+  /// null: nothing yet.
+  Object? extensionSettings(String id) {
+    if (_extensionSettings.containsKey(id)) return _extensionSettings[id];
+    final saved = _prefs?.getString('extension.$id');
+    if (saved == null) return id == 'captions' ? _captionsBefore : null;
+    try {
+      return jsonDecode(saved);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Keeps [json] as extension [id]'s settings (`curator.save_settings`), and tells the
+  /// listeners: what shows of them (its captions' look) follows.
+  void setExtensionSettings(String id, Object? json) {
+    _extensionSettings[id] = json;
+    if (json == null) {
+      _prefs?.remove('extension.$id');
+    } else {
+      _prefs?.setString('extension.$id', jsonEncode(json));
+    }
+    notifyListeners();
+  }
+
+  /// The captions' look as it was kept while Captions was written in the app (a setting each),
+  /// which the extension takes as its own until it keeps them itself; null: none was changed.
+  Object? get _captionsBefore {
+    final font = _prefs?.getString(_captionFontKey), countdown = _prefs?.getString(_captionCountdownKey), size = _prefs?.getString(_captionSizeKey);
+    final align = _prefs?.getString(_captionAlignKey), plate = _prefs?.getBool(_captionPlateKey);
+    if (font == null && countdown == null && size == null && align == null && plate == null) return null;
+    return {'font': ?font, 'countdown': ?countdown, 'size': ?size, 'align': ?align, 'plate': ?plate};
   }
 
   /// Whether Export puts the chapters in a movie, and their times beside it (Chapters on, with

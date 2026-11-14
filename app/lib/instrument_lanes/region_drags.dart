@@ -81,7 +81,7 @@ mixin _RegionDrags on _LaneGeometry, LaneCursor<InstrumentLanes> {
   }
 
   void _onDown(PointerDownEvent e) {
-    c.captions.select(null); // the Delete key goes to what was clicked here
+    c.extensions.deselect(); // the Delete key goes to what was clicked here
     if (e.buttons != kPrimaryButton) return;
     final keys = HardwareKeyboard.instance;
     final curation = c.curation!;

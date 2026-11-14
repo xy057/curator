@@ -10,7 +10,6 @@ import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
 import 'export_dialog.dart';
-import 'extensions/extension.dart';
 import 'l10n/l10n.dart';
 import 'ui_kit.dart';
 import 'updater.dart' show appBuild, appVersion;
@@ -52,9 +51,9 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   late double? _ratio = widget.settings.previewVideoFrame ? widget.settings.videoRatio.value : null;
 
   late final _takes = _c.pageState.takes;
-  late final _hasCaptions = _c.extensionOn(Extensions.captions.id) && _c.captions.captions.isNotEmpty;
-  late final _hasChapters = _c.chapters.exported.isNotEmpty;
-  late final _hasImages = _c.extensionOn(Extensions.attachImage.id) && _c.images.patches.isNotEmpty;
+  late final _hasCaptions = _c.extensions.captions.isNotEmpty;
+  late final _hasChapters = _c.extensions.exportsChapters;
+  late final _hasImages = _c.images.enabled && _c.images.patches.isNotEmpty;
   late final _hasBarNumbers = _c.pageState.barNumbers;
 
   /// Recordings heard whole as well as the performance (with two or more).

@@ -1,14 +1,13 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:score_engine/score_engine.dart' show ExtensionRuntime, GraphNode;
 
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'audio_panel.dart';
-import 'caption_lane.dart';
-import 'chapter_lane.dart';
+import 'extensions/extension_lane.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
 import 'spacer_lane.dart';
-import 'tonality_lane.dart';
 import 'instruments_toolbar.dart';
 import 'key_bindings.dart';
 import 'timeline_panel.dart';
@@ -18,7 +17,7 @@ import 'l10n/l10n.dart';
 /// The DAW-like panel under the preview. The switch at its top-left changes between the
 /// Instruments tab (when each staff is shown) and the Audio tab (syncing to the recording).
 /// Both share one time axis, so zoom and scroll carry over. With Captions on, its lane is
-/// pinned under the ruler in both; with Chapters on, its lane; with Tonality on, its lane above them; with Attach Image on, the Spacers lane too. Project Settings… sits at its right end.
+/// pinned under the ruler in both; an extension's lanes (Chapters') under it; with Tonality on, its lane above them; with Attach Image on, the Spacers lane too. Project Settings… sits at its right end.
 class BottomPanel extends StatelessWidget {
   const BottomPanel({super.key, required this.controller, this.onProjectSettings});
   final EditorController controller;
@@ -28,6 +27,14 @@ class BottomPanel extends StatelessWidget {
 
   static const _switch = Duration(milliseconds: 220);
 
+  /// Where the Spacers lane sits among the pinned lanes (a lane's `order` in a connector).
+  static const _captionsOrder = 20, _spacersOrder = 40;
+
+  /// An extension's lane, as its kind says: markers, or spans.
+  Widget _lane(ExtensionRuntime runtime, GraphNode node) => node.props['kind'] == 'spans'
+      ? ExtensionSpanLane(controller: controller, runtime: runtime, node: node)
+      : ExtensionLane(controller: controller, runtime: runtime, node: node);
+
   @override
   Widget build(BuildContext context) => Select(
         listenable: controller,
@@ -36,10 +43,9 @@ class BottomPanel extends StatelessWidget {
           curation: controller.curation,
           sync: controller.sync,
           tab: controller.tab,
-          captions: controller.captions.enabled,
-          chapters: controller.chapters.enabled,
-          tonality: controller.tonality.enabled,
           spacers: controller.spacers.enabled,
+          // (Which runtime too: one run again from its files is another.)
+          extensions: [for (final lane in controller.extensions.lanes) '${lane.runtime.id} ${lane.node.id} ${identityHashCode(lane.runtime)}'].join('\n'),
           duration: controller.playback.duration,
         ),
         builder: (context, _) => _panel(context),
@@ -98,12 +104,16 @@ class BottomPanel extends StatelessWidget {
               controller: c,
               child: Column(children: [
                 BarRuler(controller: c),
-                // Pinned: under the ruler in both tabs, never scrolled away. Tonality's first, as
-                // its band tops the score.
-                if (c.tonality.enabled) TonalityLane(controller: c),
-                if (c.captions.enabled) CaptionLane(controller: c),
-                if (c.chapters.enabled) ChapterLane(controller: c),
+                // Pinned: under the ruler in both tabs, never scrolled away. Extensions' lanes go
+                // by their order, around the app's own: Tonality's first (its band tops the
+                // score), above Captions'; Chapters' above the spacers; any other under them.
+                for (final lane in c.extensions.lanes)
+                  if (lane.order < _captionsOrder) _lane(lane.runtime, lane.node),
+                for (final lane in c.extensions.lanes)
+                  if (lane.order >= _captionsOrder && lane.order < _spacersOrder) _lane(lane.runtime, lane.node),
                 if (c.spacers.enabled) SpacerLane(controller: c),
+                for (final lane in c.extensions.lanes)
+                  if (lane.order >= _spacersOrder) _lane(lane.runtime, lane.node),
                 Expanded(
                   child: AnimatedSwitcher(
                     duration: AppStyle.of(context).moving(_switch),

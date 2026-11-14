@@ -7,14 +7,21 @@ import 'dart:ui' show Color, Size;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:score_engine/score_engine.dart';
 
 import 'audio_track.dart';
 import 'edit_history.dart';
 import 'error_text.dart';
+import 'extensions/bundled.dart';
 import 'extensions/extension.dart';
+import 'extensions/extension_form.dart';
+import 'extensions/extension_files.dart';
+import 'extensions/extension_sheet.dart';
+import 'extensions/extension_reader.dart';
 import 'file_names.dart';
 import 'image_patch.dart';
+import 'lanes_common.dart' show beatInLanes, snapInLanes;
 import 'latest.dart';
 import 'lilypond.dart' show LilyPond, LilySource;
 import 'project_state.dart';
@@ -22,14 +29,13 @@ import 'score_replacement.dart';
 import 'time_viewport.dart';
 import 'l10n/l10n.dart';
 
-part 'editor/caption_editing.dart';
-part 'editor/chapter_editing.dart';
+part 'editor/caption_look.dart';
 part 'editor/commands.dart';
+part 'editor/extension_editing.dart';
 part 'editor/image_editing.dart';
 part 'editor/lane_editing.dart';
 part 'editor/playback.dart';
 part 'editor/spacer_editing.dart';
-part 'editor/tonality_editing.dart';
 part 'editor/sync_editing.dart';
 
 enum BottomTab { instruments, audio }
@@ -51,7 +57,7 @@ typedef MidiWarpsTaken = ({MidiWarpsFrom from, int count, String? file});
 ///  * [lanes]: editing in the Instruments tab (tools, the region selection, tidying);
 ///  * [anchors]: editing in the Audio tab (tapping, the anchor selection);
 ///  * [images]: images on the score (the Attach Image extension);
-///  * [captions]: captions under the score (the Captions extension);
+///  * [captions]: how the captions under the score look (what they say is an extension's);
 ///  * [spacers]: room for images (the Attach Image extension): spacer staves, blanks between beats;
 ///  * [commands]: what the Edit menu and the keys do in the tab showing.
 ///
@@ -65,11 +71,15 @@ class EditorController extends ChangeNotifier {
   late final lanes = LaneEditing._(this);
   late final anchors = SyncEditing._(this);
   late final images = ImageEditing._(this);
-  late final captions = CaptionEditing._(this);
-  late final chapters = ChapterEditing._(this);
-  late final tonality = TonalityEditing._(this);
+  late final captions = CaptionLook._(this);
   late final spacers = SpacerEditing._(this);
+  late final extensions = ExtensionEditing._(this);
   late final commands = EditCommands._(this);
+
+  /// What an extension keeps for every project (the app's settings hold it), by its id, and
+  /// keeping it; null: nowhere to.
+  Object? Function(String id)? extensionSettings;
+  void Function(String id, Object? json)? saveExtensionSettings;
 
   /// Zoom and scroll shared by both tabs of the bottom panel.
   final viewport = TimeViewport();
@@ -132,7 +142,7 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// For the parts ([Playback], [LaneEditing], [SyncEditing], [ImageEditing], [CaptionEditing]), which can't
+  /// For the parts ([Playback], [LaneEditing], [SyncEditing], [ImageEditing], [CaptionLook]), which can't
   /// call the protected [notifyListeners] themselves.
   void _changed() => notifyListeners();
 
@@ -298,6 +308,8 @@ class EditorController extends ChangeNotifier {
     String? mediaPath,
     Map<String, String> takePaths = const {},
   }) async {
+    // Each extension checks what it saved: one that can't read its data stops the project here.
+    state = checkedExtensionData(state);
     var edits = state.edits;
     // A font the project only names is looked for here; not found, Bravura stands in.
     if (edits.fonts.music.isMissing) {
@@ -397,12 +409,16 @@ class EditorController extends ChangeNotifier {
         lilypond: () => lilypond,
         kind: pdf != null ? ProjectKind.pdf : lilypond != null ? ProjectKind.lilypond : ProjectKind.score);
     final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
-    final (state: carried, :lost) =
+    final (state: placed, lost: gone) =
         swap.carry(state,
             condensable: condensable,
             measuresBefore: measures.before,
             measuresAfter: measures.after,
             curate: pdf == null || autoCuratePdf);
+    // What the extensions keep goes with it: each moves its own (`project.replaced`).
+    final (state: carried, lost: lostByExtensions) =
+        carriedExtensionData(placed, (q) => ScoreSwap.quarterAt(q, measures.before, measures.after), end: measures.after.last);
+    final Lost lost = (regions: gone.regions, anchors: gone.anchors, warps: gone.warps, extensions: lostByExtensions);
     return ScoreReplacement(
       name: name,
       bytes: bytes,
@@ -495,6 +511,7 @@ class EditorController extends ChangeNotifier {
     if (keepRecording) _tab = tab;
     final edits = state.edits, view = state.view;
     _foreign = state.foreign;
+    extensions._load(state);
     _score = score;
     _kind = state.kind;
     _lilypond = state.lilypond;
@@ -522,7 +539,7 @@ class EditorController extends ChangeNotifier {
     // The pairs that can condense follow the score and the pairs just taken on.
     _doc = _doc.copyWith(condensed: Set.unmodifiable({for (final g in condensable) if (edits.condensed.contains(g.id)) g.id}));
     if (_doc.fonts.music case final music when music.isAdded && !_addedFonts.contains(music)) _addedFonts = [..._addedFonts, music];
-    images._load(edits.patches, state.images, arts);
+    images._load(state.images, arts);
     _sync = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
       ..load(_doc.midi?.anchors(start: edits.leadIn, totalQuarters: score.timeline.measureStarts.last) ?? edits.anchors,
           leadIn: edits.leadIn)
@@ -552,11 +569,11 @@ class EditorController extends ChangeNotifier {
     }
     _curation!.addListener(_curationEdited);
     // Last: working out their style can notify at once, and listeners must find all of it open.
-    captions._load(edits.captions, edits.captionFont);
+    captions._load(edits.captionFont);
     // Saved before each project kept its own: one it uses that the app had on stays on.
     _doc = _doc.copyWith(extensions: Map.unmodifiable({
       ..._doc.extensions,
-      for (final e in Extensions.all)
+      for (final e in Extensions.of(this))
         if (!extensionChosen(e.id) && (legacyExtensions[e.id] ?? false) && e.isUsedBy(this)) e.id: true,
     }));
     _applyExtensions();
@@ -596,8 +613,7 @@ class EditorController extends ChangeNotifier {
     lanes._reset();
     images._reset();
     captions._reset();
-    chapters._selected = null;
-    tonality._selected = null;
+    extensions._reset();
     _scene?.dispose();
     _scene = null;
     _curation?.removeListener(_curationEdited);
@@ -739,7 +755,7 @@ class EditorController extends ChangeNotifier {
       motion: motion,
       typography: typography,
       patches: images._scenePatches,
-      captions: captions._sceneCaptions,
+      captions: extensions.captions,
       captionStyle: captions._style,
       sections: _doc.groupSections,
       sectionOverrides: {..._doc.sections, ...?_previewSections},
@@ -748,8 +764,8 @@ class EditorController extends ChangeNotifier {
       rehearsalInRow: rehearsalInRow,
       nameColors: _nameColors,
       pointerColor: _doc.playheadColor,
-      spacers: images.enabled ? _doc.spacers : const [],
-      keyAreas: tonality._sceneAreas);
+      spacers: extensions.hasSpacers ? _doc.spacers : const [],
+      bands: extensions.bands);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
@@ -798,11 +814,7 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Turns each extension's part of the editor on or off as the project says.
-  void _applyExtensions() {
-    for (final e in Extensions.all) {
-      e.apply(this, extensionOn(e.id));
-    }
-  }
+  void _applyExtensions() => extensions._sync();
 
   /// Whether the score groups its instruments in sections, as printed (Project Settings ▸
   /// Sections; see [CuratedScene.sections]).
@@ -1252,9 +1264,9 @@ class EditorController extends ChangeNotifier {
       textDynamics: edits.textDynamics ?? _defaultTextDynamics,
       typography: edits.typography ?? _defaultTypography,
       centeredLyrics: edits.centeredLyrics ?? _defaultCenteredLyrics,
-      // Only while Attach Image is on.
-      spacers: (edits.extensions[Extensions.attachImage.id] ?? false) ? edits.spacers : const [],
-      gaps: (edits.extensions[Extensions.attachImage.id] ?? false) ? edits.gaps : const []);
+      // Only while an extension that turns them on is (Attach Image).
+      spacers: socketOn(edits, extensions._carried, 'spacers') ? edits.spacers : const [],
+      gaps: socketOn(edits, extensions._carried, 'spacers') ? edits.gaps : const []);
 
   /// What the score is to be engraved with now (an engraving may still be catching up).
   EngraveRequest get _wanted =>
@@ -1354,7 +1366,7 @@ class EditorController extends ChangeNotifier {
   /// the lanes, the images and captions, the syncs as anchors ([syncsAsAnchors]), the music font
   /// kept with it, and what the score is engraved with as it was engraved.
   EditState get pageState {
-    final score = _score!, synced = syncsAsAnchors, images = extensionOn(Extensions.attachImage.id);
+    final score = _score!, synced = syncsAsAnchors, spacers = socketOn(_doc, extensions._carried, 'spacers');
     return exportedSettings.copyWith(
       lanes: _curation!.lanes,
       anchors: synced.anchors,
@@ -1362,8 +1374,6 @@ class EditorController extends ChangeNotifier {
       midi: null,
       takes: synced.takes,
       crossfade: crossfade,
-      patches: this.images._patches,
-      captions: captions._captions,
       embedFont: true,
       textEdits: score.textEdits,
       pairs: score.pairs,
@@ -1371,8 +1381,8 @@ class EditorController extends ChangeNotifier {
       engraving: score.options,
       textDynamics: score.textDynamics,
       centeredLyrics: score.centeredLyrics,
-      spacers: images ? _doc.spacers : const [],
-      gaps: images ? _doc.gaps : const [],
+      spacers: spacers ? _doc.spacers : const [],
+      gaps: spacers ? _doc.gaps : const [],
     );
   }
 
@@ -2231,19 +2241,15 @@ class EditorController extends ChangeNotifier {
         lanes._lanes.isEmpty &&
         anchors._isEmpty &&
         images._selected == null &&
-        captions._selected == null &&
-        chapters._selected == null &&
-        tonality._selected == null &&
         spacers._selected == null &&
+        extensions._selection.isEmpty &&
         _takeSelected == null) {
       return;
     }
     _takeSelected = null;
     images._deselect();
-    captions._selected = null;
-    chapters._selected = null;
-    tonality._selected = null;
     spacers._selected = null;
+    extensions._selection.clear();
     lanes._clear();
     anchors._deselect();
     notifyListeners();
@@ -2265,8 +2271,6 @@ class EditorController extends ChangeNotifier {
         transition: _curation!.transition,
         anchors: _ownAnchors,
         leadIn: _sync!.leadIn,
-        patches: images._patches,
-        captions: captions._captions,
         captionFont: captions._font,
       );
 
@@ -2329,7 +2333,7 @@ class EditorController extends ChangeNotifier {
     if (state == null || _score == null) return;
     _restoring = true;
     try {
-      final engraved = _wanted;
+      final engraved = _wanted, before = _doc;
       _doc = state;
       if (_wanted != engraved) unawaited(_reengrave());
       _joinLanes(); // before the lanes, which fit it
@@ -2337,11 +2341,10 @@ class EditorController extends ChangeNotifier {
       _curation!.setSplit(_splitCounts);
       _loadSync(state);
       _performanceChanged(); // the lanes too
-      images._restore(state.patches);
-      captions._restore(state.captions, state.captionFont);
-      chapters._selected = null;
-      tonality._selected = null;
+      images._restore();
+      captions._restore(state.captionFont);
       _applyExtensions();
+      extensions._restored(before, state);
       _previewSections = null; // a bracket's drag ends with an edit or none: not under Undo
       _showSettings();
     } finally {
@@ -2372,7 +2375,7 @@ class EditorController extends ChangeNotifier {
   /// Every edit made in the app, and the view: what a project stores next to the source score.
   ProjectState get projectState => ProjectState(
         edits: isScoreOrder ? _editState.copyWith(partOrder: const []) : _editState,
-        images: images._used,
+        images: images._kept,
         view: ViewState(
           staffSpace: _staffSpace,
           grid: anchors.grid,
@@ -2380,6 +2383,8 @@ class EditorController extends ChangeNotifier {
           time: playback.time.value,
         ),
         foreign: _foreign,
+        packages: extensions._carried,
+        dataVersions: extensions._savedVersions,
         pdf: _score?.pdf?.layout,
         lilypond: _lilypond,
         kind: _kind,

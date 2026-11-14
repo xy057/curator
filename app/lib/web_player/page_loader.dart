@@ -2,20 +2,22 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:archive/archive.dart';
 import 'package:score_engine/score_engine.dart';
 
+import '../extensions/bundled.dart';
+import '../extensions/extension_reader.dart';
 import '../image_patch.dart';
 import '../project_archive.dart';
 import '../project_file.dart' show ProjectFile;
 import '../project_modules.dart';
 import '../project_state.dart';
 import '../web_page.dart';
-import '../l10n/l10n.dart';
 
 /// A page as the player shows it: what [WebPage] describes, read and made ready to draw.
 class LoadedPage {
-  LoadedPage._(this.page, this.score, this.edits, this.arts);
+  LoadedPage._(this.page, this.score, this.edits, this.arts, this._packages);
 
   final WebPage page;
   final LoadedScore score;
@@ -25,6 +27,12 @@ class LoadedPage {
 
   /// Each image's drawing, by [PatchImage.id].
   final Map<String, PatchArt> arts;
+
+  /// The extensions the project carries.
+  final Map<String, ExtensionPackage> _packages;
+
+  /// The project's extensions that are on, run to read it, the performance being [timeline]'s.
+  ExtensionReaders extensions(ScoreTimeline Function() timeline) => ExtensionReaders(edits, _packages, score: () => score, timeline: timeline);
 
   /// Reads the page in [WebPage.folder]: [fetch] gets a file by its path there. Throws a
   /// [FormatException] when something isn't what the export writes.
@@ -36,7 +44,8 @@ class LoadedPage {
     const damaged = 'The page’s project is damaged.';
     final archive = ZipDecoder().decodeBytes(projectBytes);
     final manifest = ProjectArchive.manifestOf(archive, mimeType: ProjectFile.mimeType, notOurs: damaged, newer: damaged);
-    final state = ProjectArchive.read(archive, manifest, ProjectModules.all, newer: damaged, keepForeign: false);
+    if (BundledExtensions.packages.isEmpty) await BundledExtensions.load(rootBundle); // Curator's own extensions, with the player
+    final state = checkedExtensionData(ProjectArchive.read(archive, manifest, ProjectModules.all, newer: damaged, keepForeign: false));
     final scoreFile = archive.findFile(WebPage.scoreEntry) ?? (throw const FormatException(damaged));
     final musicXML = utf8.decode(scoreFile.content);
     final edits = state.edits;
@@ -63,12 +72,15 @@ class LoadedPage {
         // Not drawn: the rest of the page still is.
       }
     }
-    return LoadedPage._(page, score, edits, arts);
+    return LoadedPage._(page, score, edits, arts, state.packages);
   }
 
   /// The scene's settings, with captions and bar numbers on or off as the viewer has them, and
-  /// the key areas (Tonality on) named in the viewer's language where the user named none.
-  SceneSettings settings({required bool captions, required bool barNumbers}) => SceneSettings(
+  /// the captions and the band along the score's top as the project's extensions give them
+  /// ([bands]: those run to read it; made anew when none is given), in the viewer's language.
+  SceneSettings settings({required bool captions, required bool barNumbers, ExtensionReaders? bands}) {
+    final readers = bands ?? extensions(() => score.timeline);
+    return SceneSettings(
         names: edits.partNames,
         condensed: edits.condensed,
         partOrder: edits.partOrder,
@@ -76,10 +88,10 @@ class LoadedPage {
         motion: edits.motion ?? ScoreMotion.standard,
         typography: edits.typography ?? ScoreTypography.standard,
         patches: [
-          for (final p in edits.patches)
+          for (final p in readers.pictures)
             if (arts[p.image] case final art?) p.scene(art),
         ],
-        captions: captions && (edits.extensions['captions'] ?? false) ? edits.captions : const [],
+        captions: captions ? readers.captions : const [],
         captionStyle: page.captionStyle,
         sections: edits.groupSections,
         sectionOverrides: edits.sections,
@@ -89,11 +101,9 @@ class LoadedPage {
         nameColors: page.nameColors,
         pointerColor: edits.playheadColor,
         spacers: edits.spacers,
-        keyAreas: [
-          if (edits.extensions['tonality'] ?? false)
-            for (final a in edits.keyAreas) a.label == null ? a.copyWith(label: a.key.name.tr) : a,
-        ],
+        bands: readers.bands,
       );
+  }
 
   /// The lanes as exported, each instrument in [shown] always or never shown instead.
   Curation curation(Map<String, PartShown> shown) {

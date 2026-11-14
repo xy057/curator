@@ -22,7 +22,7 @@ import 'score_motion.dart';
 import 'score_patch.dart';
 import 'score_renderer.dart';
 import 'score_text.dart';
-import 'score_tonality.dart';
+import 'score_band.dart';
 import 'score_typography.dart';
 import 'scroll_map.dart';
 import 'search.dart';
@@ -560,7 +560,7 @@ class SceneSettings {
     this.motion = ScoreMotion.standard,
     this.typography = ScoreTypography.standard,
     this.spacers = const [],
-    this.keyAreas = const [],
+    this.bands = const [],
   });
 
   /// See [CuratedScene.names], [CuratedScene.condensed] and so on.
@@ -581,7 +581,7 @@ class SceneSettings {
   final ScoreMotion motion;
   final ScoreTypography typography;
   final List<VerticalSpacer> spacers;
-  final List<KeyArea> keyAreas;
+  final List<ScoreBand> bands;
 }
 
 /// Turns "time + the curation" into one frame.
@@ -698,7 +698,7 @@ class CuratedScene {
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
   /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [instrumentSpacing], [barNumbers],
-  /// [rehearsalInRow], [nameColors], [pointerColor], [motion], [typography], [spacers], [keyAreas]);
+  /// [rehearsalInRow], [nameColors], [pointerColor], [motion], [typography], [spacers], [bands]);
   /// setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
@@ -718,7 +718,7 @@ class CuratedScene {
       motion: motion,
       typography: typography,
       spacers: spacers,
-      keyAreas: keyAreas);
+      bands: bands);
   set settings(SceneSettings value) {
     names = value.names;
     condensed = value.condensed;
@@ -737,7 +737,7 @@ class CuratedScene {
     motion = value.motion;
     typography = value.typography;
     spacers = value.spacers;
-    keyAreas = value.keyAreas;
+    bands = value.bands;
   }
 
   /// How the vertical spacers look (their height, lines and frozen zone; their key is the
@@ -1196,7 +1196,7 @@ class CuratedScene {
     if (captions.isNotEmpty) {
       _captionBar.paint(canvas, size, time, _captionSpans, captions, ink ?? style.ink, motion: _motion, paper: paperColor);
     }
-    if (_keyAreas.isNotEmpty) _paintTonality(canvas, size, scrollX, renderer.musicLeftFor(keyColumn));
+    if (_bands.isNotEmpty) _paintBand(canvas, size, scrollX, renderer.musicLeftFor(keyColumn));
     if (fadeLayer) {
       canvas.restore();
     } else if (fade > 0) {
@@ -1254,24 +1254,22 @@ class CuratedScene {
 
   // MARK: Tonality
 
-  /// The key areas (the Tonality extension), in a band along the frame's top that the staves
-  /// leave room for while there are any. Each is drawn in its key's colour ([MusicKey.color])
+  /// The band along the frame's top (an extension's `band` socket; Tonality's key areas), which
+  /// the staves leave room for while it has any stretch. Each is drawn in its [ScoreBand.color]
   /// from its start to its end (a sliver of paper between two that meet; none where none is),
-  /// named at its start by its [KeyArea.label]
-  /// (the app gives the key's name, in the user's language, to one without a marking of the
-  /// user's). Over the names and the frozen zone the band shows the key the music at their right
-  /// is in, named at the frame's left, as the zone shows that music's key signature; one gives
-  /// way to the next (or to none) over [ScoreMotion.tempoFade] staff spaces of scroll, as the
-  /// tempo at the left does.
-  List<KeyArea> get keyAreas => _keyAreas;
-  List<KeyArea> _keyAreas = const [];
-  set keyAreas(List<KeyArea> value) {
-    if (listEquals(value, _keyAreas)) return;
-    _keyAreas = List.unmodifiable(value);
+  /// named at its start by its [ScoreBand.label]. Over the names and the frozen zone the band
+  /// shows the stretch the music at their right is in, named at the frame's left, as the zone
+  /// shows that music's key signature; one gives way to the next (or to none) over
+  /// [ScoreMotion.tempoFade] staff spaces of scroll, as the tempo at the left does.
+  List<ScoreBand> get bands => _bands;
+  List<ScoreBand> _bands = const [];
+  set bands(List<ScoreBand> value) {
+    if (listEquals(value, _bands)) return;
+    _bands = List.unmodifiable(value);
     _keyXs = null;
   }
 
-  /// Where each key area starts and ends, engraving x: at a bar's start its barline (the bar's
+  /// Where each stretch of the band starts and ends, engraving x: at a bar's start its barline (the bar's
   /// left is past a key signature it starts with), else the score x of its place.
   List<({double start, double end})>? _keyXs;
 
@@ -1281,8 +1279,8 @@ class CuratedScene {
   /// The band's height, points.
   double get _bandHeight => (_bandFont * 1.9).roundToDouble();
 
-  /// Room the staves leave for the band: none without key areas.
-  double get _bandReserve => _keyAreas.isEmpty ? 0 : _bandHeight;
+  /// Room the staves leave for the band: none while it is empty.
+  double get _bandReserve => _bands.isEmpty ? 0 : _bandHeight;
 
   double _xOfPlace(double at) {
     final starts = score.timeline.measureStarts, measures = score.engraving.measures;
@@ -1316,8 +1314,8 @@ class CuratedScene {
     _keyNames.clear();
   }
 
-  void _paintTonality(ui.Canvas canvas, ui.Size size, double scrollX, double musicLeft) {
-    final areas = _keyAreas, xs = _keyXs ??= [for (final a in areas) (start: _xOfPlace(a.start), end: _xOfPlace(a.end))];
+  void _paintBand(ui.Canvas canvas, ui.Size size, double scrollX, double musicLeft) {
+    final areas = _bands, xs = _keyXs ??= [for (final a in areas) (start: _xOfPlace(a.start), end: _xOfPlace(a.end))];
     if (score.engraving.measures.isEmpty) return;
     final scale = renderer.scale, sp = _style.staffSpace;
     final height = _bandHeight, gap = math.max(1.0, sp * 0.12), pad = sp * 0.6;
@@ -1327,8 +1325,8 @@ class CuratedScene {
       canvas
         ..save()
         ..clipRect(rect)
-        ..drawRect(rect, ui.Paint()..color = areas[i].key.color);
-      final name = _keyName(areas[i].label ?? areas[i].key.name);
+        ..drawRect(rect, ui.Paint()..color = areas[i].color);
+      final name = _keyName(areas[i].label);
       canvas
         ..drawParagraph(name, ui.Offset(nameX, (height - name.height) / 2))
         ..restore();

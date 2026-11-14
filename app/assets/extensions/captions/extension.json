@@ -1,0 +1,10 @@
+{
+  "format": "application/x-curator-extension",
+  "id": "captions",
+  "name": "Captions",
+  "summary": "Timed text under the score.",
+  "keywords": "caption subtitle commentary note text srt vtt webvtt",
+  "icon": "captions",
+  "api": 1,
+  "data": {"module": "captions", "version": 1}
+}

@@ -1,3 +1,4 @@
+import '../extensions/extension_reader.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart';
@@ -66,7 +67,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  void _showSettings() => _scene.settings = _loaded.settings(captions: _captions, barNumbers: _barNumbers);
+  void _showSettings() => _scene.settings = _loaded.settings(captions: _captions, barNumbers: _barNumbers, bands: _extensions);
 
   /// Plays recording [index] from [at] (seconds of its performance).
   void _hear(int index, {required double at}) {
@@ -243,17 +244,18 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
   }
 
   /// The page's chapters as the recording heard has them, timed from its start: none while
-  /// the project's Chapters extension is off.
-  List<ChapterCue> get _chapters => (_loaded.edits.extensions['chapters'] ?? false)
-      ? chapterCues(_loaded.edits.chapters, _scene.timeline, from: _heard.start, to: _heard.end, opening: 'Start'.tr)
-      : const [];
+  /// no extension that is on gives any (Chapters).
+  List<ChapterCue> get _chapters => _extensions.chapters(_heard.start, _heard.end);
+
+  /// The page's extensions (those on in its project), reading the recording heard.
+  late final ExtensionReaders _extensions = _loaded.extensions(() => _scene.timeline);
 
   /// What the export left the viewer to choose, under the chapters to jump to.
   List<Widget> _choices(BuildContext context) {
     final theme = Theme.of(context), edits = _loaded.edits;
     Widget heading(String text) =>
         Padding(padding: const EdgeInsets.only(top: 16, bottom: 6), child: Text(text, style: theme.textTheme.titleSmall));
-    final hasCaptions = (edits.extensions['captions'] ?? false) && edits.captions.isNotEmpty;
+    final hasCaptions = _extensions.captions.isNotEmpty;
     final chapters = _chapters;
     return [
       if (chapters.isNotEmpty) ...[

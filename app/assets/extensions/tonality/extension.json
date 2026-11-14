@@ -1,0 +1,10 @@
+{
+  "format": "application/x-curator-extension",
+  "id": "tonality",
+  "name": "Tonality",
+  "summary": "The music’s key, in color over the score.",
+  "keywords": "tonality key keys tonic major minor modulation harmony circle of fifths colour color band bar",
+  "icon": "tonality",
+  "api": 1,
+  "data": {"module": "tonality", "version": 1}
+}
