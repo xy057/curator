@@ -97,7 +97,9 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `app_folders.dart`, `downloader.dart` | Where files the app keeps go (see *Kept files and downloads*); fetching one over https, from an address or a Git Xet repository on Hugging Face (`Downloader`, `XetSource`) |
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
-| `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the latest GitHub release, its download into Downloads |
+| `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the newest GitHub release on the update channel (`UpdateChannel`: the releases, or pre-releases too), what its description says is new, its download into Downloads |
+| `update_dialog.dart` | The update window (`showUpdateDialog`; About's Update… and the launch notice's): a release's version, its notes, Download, then how far that has got; `updateHelp`, where the updates stand in a line |
+| `markdown_text.dart` | Markdown as a release's description has it, in the app's text (`MarkdownText`; `parseMarkdown`, `parseInline`): headings, lists, quotes, code, links (http and https only) |
 | `app_menus.dart` | The menu bar (native on macOS): File (New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's toolbar |
@@ -1802,11 +1804,26 @@ Visual C++ runtime DLLs) and publishes release `v<version>` only when both have 
 has run the smoke test (`app/integration_test/app_smoke_test.dart`, `make smoke` on macOS: the app
 as built opens the sample, engraves, draws, and where FFmpeg is installed exports a second of video,
 which the Windows runner hasn't; macOS runs no test there, nor `make check` either), where the version is
-`app/pubspec.yaml`'s. Its actions are pinned to commits, not tags; only the job that publishes
+`app/pubspec.yaml`'s. The run's form asks three things. **What's new** is the release's description,
+the changelog as Markdown, given to the script as an environment variable and never written into
+it; left empty, the description is GitHub's own list of what changed (`releases/generate-notes`).
+The form's field keeps one line, so a changelog of several goes in with
+`gh workflow run release.yml -f notes="$(pbpaste)"`, or onto a draft's page before it is published.
+Under it the workflow writes `<!-- install -->` and how to install: the app shows a description
+up to that line (`Release.installMarker`), so keep it when editing one by hand. **Pre-release**
+marks the release a pre-release on GitHub and nothing else: it is versioned as any other (0.9.1),
+and unticking "Set as a pre-release" on its page later makes it the release without building again.
+**Draft** keeps it to the repository's owner until published. Its actions are pinned to commits, not tags; only the job that publishes
 may write to the repository. To release again, bump that version and `appVersion` / `appBuild`
 in `updater.dart` together (`make versions` checks they match, from `make check` and as the
 workflow's first step: one left behind would offer the app its own release); a version already
-released stops the run before it builds. The app finds its download by that name (the asset whose
+released stops the run before it builds. The app asks on the channel chosen in Settings ▸ About ▸
+Update channel (`AppSettings.updateChannel`, `Updater.channel`): Release asks GitHub's
+`releases/latest`, which is never a pre-release or a draft; Pre-release asks the list of releases
+and takes the highest version that is no draft, a pre-release or not (`Release.newest`). Changing
+the channel forgets what the last check found and drops the answer of one still on its way. A
+newer version opens as the update window (update_dialog.dart): its description as Markdown, then
+Download. The app finds its download by that name (the asset whose
 name ends `-macos.zip` or `-windows.zip`; the launch notice stays quiet when there is none), so
 keep that suffix if the workflow is changed. Neither build is notarized or signed (macOS ad hoc only), so
 macOS Gatekeeper and Windows SmartScreen warn the first time; the release notes say how to open

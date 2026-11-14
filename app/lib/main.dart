@@ -64,7 +64,7 @@ Future<void> main() async {
   LicenseRegistry.addLicense(bundledLicenses);
   final (settings, _) = await (AppSettings.load(), Strings.load(rootBundle.loadString)).wait;
   if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
-  final updater = Updater();
+  final updater = Updater(channel: settings.updateChannel);
   if (settings.checkForUpdates) unawaited(updater.check());
   runApp(CuratedScoreApp(settings: settings, updater: updater));
 }
@@ -326,7 +326,7 @@ class _OpenProject {
 
 class _AppWindowState extends State<AppWindow> {
   late final settings = widget.settings ?? AppSettings.memory();
-  late final updater = widget.updater ?? Updater();
+  late final updater = widget.updater ?? Updater(channel: settings.updateChannel);
   late final _lifecycle = AppLifecycleListener(onExitRequested: _exitRequested);
 
   /// Every project open, those closing too (their pages stay until they have).
@@ -436,8 +436,9 @@ class _AppWindowState extends State<AppWindow> {
       _typing.value = FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
 
   /// The check made at launch (Settings ▸ About ▸ Check at launch) says so when there is a
-  /// newer version for this system, once; failures, and a release without this system's
-  /// download, stay quiet. Later checks are the About page's to show.
+  /// newer version for this system, once (its Update… opens the update window); failures, and
+  /// a release without this system's download, stay quiet. Later checks are the About page's to
+  /// show.
   void _launchCheckAnswered() {
     final status = updater.status;
     if (status is UpdateIdle || status is UpdateChecking) return;
@@ -446,8 +447,13 @@ class _AppWindowState extends State<AppWindow> {
     _messenger?.showSnackBar(SnackBar(
       duration: const Duration(seconds: 10),
       content: Text('Curator {version} is available! ☆'.fill({'version': status.release.version})),
-      action: SnackBarAction(label: 'Update…'.tr, onPressed: () => _settings(page: 'About')),
+      action: SnackBarAction(label: 'Update…'.tr, onPressed: () => _update(status.release)),
     ));
+  }
+
+  /// The update window: what [release] brings, and its download.
+  void _update(Release release) {
+    if (mounted) showUpdate(context, updater, release);
   }
 
   /// The tab showing's messages.

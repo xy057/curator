@@ -574,11 +574,14 @@ msgstr ""
 msgid "Check at launch"
 msgstr ""
 
+msgid "Update channel"
+msgstr ""
+
 #: lib/settings_dialog.dart
 msgid "Check for Updates"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Checking…"
 msgstr ""
 
@@ -615,7 +618,7 @@ msgstr ""
 msgid "Clefs"
 msgstr ""
 
-#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr ""
 
@@ -771,7 +774,7 @@ msgstr ""
 msgid "Crossfade (the project’s)"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Curator is up to date! ☆"
 msgstr ""
 
@@ -783,11 +786,11 @@ msgstr ""
 msgid "Curator settings"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Curator {version} is out, but not for this system yet."
 msgstr ""
 
-#: lib/main.dart lib/settings_dialog.dart
+#: lib/main.dart lib/update_dialog.dart
 msgid "Curator {version} is available! ☆"
 msgstr ""
 
@@ -872,11 +875,11 @@ msgstr ""
 msgid "Double barline gap"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Download {version}"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Downloading {version}…"
 msgstr ""
 
@@ -1123,7 +1126,7 @@ msgstr ""
 msgid "From bar"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "From GitHub."
 msgstr ""
 
@@ -1569,7 +1572,7 @@ msgstr ""
 msgid "Open Recent"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Open Release Page"
 msgstr ""
 
@@ -1907,7 +1910,7 @@ msgstr ""
 msgid "Set the anchors from the recording"
 msgstr ""
 
-#: lib/export_dialog.dart lib/settings_dialog.dart
+#: lib/export_dialog.dart lib/update_dialog.dart
 msgid "Saved “{name}”."
 msgstr ""
 
@@ -2458,7 +2461,7 @@ msgstr ""
 msgid "Tremolos"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart lib/update_dialog.dart
 msgid "Try Again"
 msgstr ""
 
@@ -2548,7 +2551,7 @@ msgstr ""
 msgid "Updates"
 msgstr ""
 
-#: lib/main.dart
+#: lib/main.dart lib/settings_dialog.dart
 msgid "Update…"
 msgstr ""
 
@@ -4629,4 +4632,21 @@ msgid "LilyPond and MusicXML"
 msgstr ""
 
 msgid "Shortcuts"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgctxt "update channel"
+msgid "Release"
+msgstr ""
+
+#: lib/settings_dialog.dart lib/update_dialog.dart
+msgid "Pre-release"
+msgstr ""
+
+#: lib/update_dialog.dart
+msgid "You have {version}"
+msgstr ""
+
+#: lib/update_dialog.dart
+msgid "No release notes."
 msgstr ""
