@@ -54,7 +54,6 @@ class EditState {
     this.nameColors = const {},
     this.nameGroups = const [],
     this.nameGroupOf = const {},
-    this.patches = const [],
     this.captionFont,
     this.fonts = ScoreFonts.standard,
     this.embedFont = true,
@@ -172,9 +171,6 @@ class EditState {
   /// [NameGroup.id]; null: none, named in the ink. Others are in their family's.
   final Map<String, String?> nameGroupOf;
 
-  /// Images on the score (Attach Image), bottom to top.
-  final List<ImagePatch> patches;
-
 
 
 
@@ -252,7 +248,6 @@ class EditState {
       mapEquals(nameColors, other.nameColors) &&
       listEquals(nameGroups, other.nameGroups) &&
       mapEquals(nameGroupOf, other.nameGroupOf) &&
-      listEquals(patches, other.patches) &&
       captionFont == other.captionFont &&
       fonts == other.fonts &&
       embedFont == other.embedFont &&
@@ -299,7 +294,6 @@ class EditState {
     Map<InstrumentFamily, Color>? nameColors,
     List<NameGroup>? nameGroups,
     Map<String, String?>? nameGroupOf,
-    List<ImagePatch>? patches,
     Object? captionFont = _kept,
     ScoreFonts? fonts,
     bool? embedFont,
@@ -339,7 +333,6 @@ class EditState {
         nameColors: nameColors ?? this.nameColors,
         nameGroups: nameGroups ?? this.nameGroups,
         nameGroupOf: nameGroupOf ?? this.nameGroupOf,
-        patches: patches ?? this.patches,
         captionFont: identical(captionFont, _kept) ? this.captionFont : captionFont as String?,
         fonts: fonts ?? this.fonts,
         embedFont: embedFont ?? this.embedFont,
@@ -564,7 +557,7 @@ class ProjectState {
   /// main file; null for any other.
   final LilyPondProject? lilypond;
 
-  /// The image files [EditState.patches] show, by [PatchImage.id]. Not in the JSON: the
+  /// The image files the extensions' pictures show (Attach Image's), by [PatchImage.id]. Not in the JSON: the
   /// project file keeps each as `images/<id>`.
   final Map<String, PatchImage> images;
 

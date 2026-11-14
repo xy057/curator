@@ -45,6 +45,7 @@ msgstr "1 条字幕"
 msgid "1 edge"
 msgstr "1 个边缘"
 
+#: assets/extensions/attachImage/src/images.lua
 msgid "1 image"
 msgstr "1 张图像"
 
@@ -398,6 +399,7 @@ msgstr "素材"
 msgid "At"
 msgstr "位置"
 
+#: assets/extensions/attachImage/extension.json
 msgid "Attach Image"
 msgstr "附加图像"
 
@@ -867,7 +869,7 @@ msgstr "取消选择（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先保存对“{name}”的更改吗？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完成"
 
@@ -1239,6 +1241,7 @@ msgstr "色相"
 msgid "Image"
 msgstr "图像"
 
+#: assets/extensions/attachImage/extension.json
 msgid "Images and spacers that scroll with the score."
 msgstr "随乐谱滚动的图像和间隔。"
 
@@ -1474,9 +1477,6 @@ msgstr "没有最近使用的文件"
 
 msgid "No score was found inside the .mxl archive."
 msgstr ".mxl 压缩包中没有找到乐谱。"
-
-msgid "No settings"
-msgstr "没有设置项"
 
 #: assets/extensions/captions/src/sheet.lua
 msgid "None of these subtitles land inside the music."
@@ -2738,6 +2738,7 @@ msgstr "{n} 个边缘"
 msgid "{n} frames"
 msgstr "{n} 帧"
 
+#: assets/extensions/attachImage/src/images.lua
 msgid "{n} images"
 msgstr "{n} 张图像"
 

@@ -106,9 +106,10 @@ class ExtensionEditing {
     }
   }
 
-  /// Whether an extension that is on puts something in the scene: a band, captions.
+  /// Whether an extension that is on puts something in the scene: a band, captions, pictures,
+  /// spacers.
   bool get _inScene => _runtimes.values.any(_showsInScene);
-  static bool _showsInScene(ExtensionRuntime r) => r.nodes('band').isNotEmpty || r.nodes('captions').isNotEmpty;
+  static bool _showsInScene(ExtensionRuntime r) => r.graph.nodes.any((n) => const {'band', 'captions', 'images', 'spacers'}.contains(n.type));
 
   void _startAndStop() {
     final e = _editor;
@@ -134,6 +135,7 @@ class ExtensionEditing {
     final runtime = _runtimes[p.id] = ExtensionRuntime(p, _Host(this, p));
     _bands = null;
     _captions = null;
+    _sockets();
     runtime.fire('project', 'opened');
   }
 
@@ -144,6 +146,8 @@ class ExtensionEditing {
     _reading.remove(id);
     _bands = null; // its band goes with it
     _captions = null;
+    _sockets();
+    if (runtime.nodes('images').isNotEmpty && _imager == null) _editor.images._deselect(); // nothing to select now
     _items.removeWhere((key, _) => key.$1 == id);
     _stretches.removeWhere((key, _) => key.$1 == id);
     _spans.removeWhere((key, _) => key.$1 == id);
@@ -164,6 +168,8 @@ class ExtensionEditing {
     if (p == null) return false;
     // A font chosen for its captions is a use of them.
     if (_editor.captions._font != null && p.graph.nodes.any((n) => n.type == 'captions')) return true;
+    // So are the spacers there are, of one that turns them on.
+    if ((_editor._doc.spacers.isNotEmpty || _editor._doc.gaps.isNotEmpty) && p.graph.nodes.any((n) => n.type == 'spacers')) return true;
     final value = data(id);
     final saved = switch (value) { null => false, final Map<Object?, Object?> m => m.isNotEmpty, final List<Object?> l => l.isNotEmpty, _ => true };
     if (p.graph.wire('project', 'used') == null || _editor._score == null) return saved;
@@ -401,6 +407,107 @@ class ExtensionEditing {
   /// The app's settings changed: what an extension keeps for every project may have (its
   /// captions' look).
   void followSettings() => _editor.captions._follow();
+
+  // MARK: Images and spacers
+
+  /// The extension whose pictures are on the score, running: the first that is on with an
+  /// `images` socket. And whether one that is on turns the spacers on (a `spacers` socket).
+  ExtensionRuntime? _imager;
+  bool _spacers = false;
+
+  void _sockets() {
+    _imager = _runtimes.values.where((r) => r.nodes('images').isNotEmpty).firstOrNull;
+    _spacers = _runtimes.values.any((r) => r.nodes('spacers').isNotEmpty);
+  }
+
+  /// Whether an extension that is on puts pictures on the score, and whether one turns the
+  /// spacers on.
+  bool get hasImages => _imager != null;
+  bool get hasSpacers => _spacers;
+
+  /// The extensions (on or off) that put pictures on the score: those with an `images` socket.
+  List<ExtensionPackage> get _imagePackages => [
+        for (final p in packages)
+          if (p.graph.nodes.any((n) => n.type == 'images')) p,
+      ];
+
+  List<String> get imageSources => [for (final p in _imagePackages) p.id];
+
+  final _pictures = <String, ({int revision, LoadedScore? score, ExtensionRuntime? runtime, List<ImagePatch> pictures})>{};
+
+  /// What reads the pictures of [p]: it running, or while it is off one run over what it saved
+  /// (the pictures stay in the project); null: it has none.
+  ExtensionRuntime? _pictureReader(ExtensionPackage p) {
+    if (_runtimes[p.id] case final running?) return running;
+    final value = data(p.id);
+    if (value == null || p.api > ExtensionApi.level || _editor._score == null) return null;
+    return ExtensionRuntime(p, ReadingHost(p, value, scoreNow: () => _editor._score, timelineNow: () => _editor.timeline));
+  }
+
+  /// The pictures of [p] ([picturesOf]), asked again once the project's data or the score
+  /// changes, or it is turned on or off.
+  List<ImagePatch> _picturesOf(ExtensionPackage p) {
+    final kept = _pictures[p.id], score = _editor._score, running = _runtimes[p.id];
+    if (kept != null && kept.revision == _revision && identical(kept.score, score) && (running == null || identical(kept.runtime, running))) return kept.pictures;
+    final runtime = _pictureReader(p);
+    final pictures = runtime == null ? const <ImagePatch>[] : picturesOf(runtime);
+    _pictures[p.id] = (revision: _revision, score: score, runtime: runtime, pictures: pictures);
+    return pictures;
+  }
+
+  /// The pictures on the score: those of the extension that is on with an `images` socket,
+  /// else of the first there is (off: none is drawn, and all are kept).
+  List<ImagePatch> get pictures {
+    final running = _imager;
+    final p = running != null ? running.package : _imagePackages.firstOrNull;
+    return p == null ? const [] : _picturesOf(p);
+  }
+
+  /// The names of the image files every extension's pictures show, on or off: what the project
+  /// keeps.
+  Iterable<String> get _imagesShown sync* {
+    for (final p in _imagePackages) {
+      for (final picture in _picturesOf(p)) {
+        yield picture.image;
+      }
+    }
+  }
+
+  /// The image files named [gone] were let go: every state Undo keeps is rewritten without the
+  /// pictures showing them (each extension's `images.without`), so Undo never brings one back
+  /// without its file. No Undo step.
+  void _withoutImages(Set<String> gone) {
+    final e = _editor, names = LuaTable.list(gone.toList());
+    for (final p in _imagePackages) {
+      final node = p.graph.nodes.firstWhere((n) => n.type == 'images');
+      if (p.graph.wire(node.id, 'without') == null) continue;
+      final runtime = _runtimes[p.id] ?? (p.api > ExtensionApi.level ? null : ExtensionRuntime(p, ReadingHost(p, data(p.id), onProblem: _report)));
+      if (runtime == null) continue;
+      // The states share what didn't change between them: each is asked about once.
+      final asked = Map<Object, Object?>.identity();
+      Object? without(Object? saved) {
+        if (saved == null) return null;
+        return asked.putIfAbsent(saved, () {
+          final result = runtime.ask(node.id, 'without', args: [LuaJson.toLua(saved), names]);
+          if (result == null) return saved;
+          try {
+            final json = LuaJson.fromLua(result, where: 'data');
+            return LuaJson.same(json, saved) ? saved : json;
+          } on LuaError {
+            return saved;
+          }
+        });
+      }
+
+      EditState change(EditState state) {
+        final saved = state.extensionData[p.id], next = without(saved);
+        return identical(next, saved) ? state : state.copyWith(extensionData: Map.unmodifiable({...state.extensionData, p.id: next}));
+      }
+
+      e._history.rewrite(e._editState, change);
+      if (e._committed case final committed?) e._committed = change(committed);
+    }
+  }
 
   // MARK: The band
 

@@ -2340,8 +2340,8 @@ class _LilyPondControl extends StatelessWidget {
 }
 
 /// Project Settings ▸ Extensions: Curator's own, then the ones the project carries, each with
-/// its switch (this project's), its settings (one written in the app) or its menu (a package:
-/// Edit…, Duplicate, Export…, Remove). New and Add from File are by the page's title.
+/// its switch (this project's) and its menu (Edit…, or View… for Curator's own, Settings…,
+/// Duplicate, Export…, Remove). New and Add from File are by the page's title.
 class _ExtensionsPage extends StatelessWidget {
   const _ExtensionsPage(this.c);
   final _Context c;
@@ -2357,7 +2357,7 @@ class _ExtensionsPage extends StatelessWidget {
           note: e.version,
           help: e.summary.isEmpty ? null : e.summary,
           control: Row(mainAxisSize: MainAxisSize.min, children: [
-            if (e is PackageExtension) ExtensionMenu(controller: controller, extension: e) else _ExtensionSettingsButton(e, c.settings),
+            if (e is PackageExtension) ExtensionMenu(controller: controller, extension: e),
             const SizedBox(width: 6),
             AppSwitch(value: e.isOn(controller), onChanged: (v) => e.set(controller, v)),
           ]),
@@ -2368,37 +2368,6 @@ class _ExtensionsPage extends StatelessWidget {
       (null, own),
       if (carried.isNotEmpty) ('In This Project', carried),
     ]);
-  }
-}
-
-/// Opens [extension]'s own settings; greyed out when it has none.
-class _ExtensionSettingsButton extends StatelessWidget {
-  const _ExtensionSettingsButton(this.extension, this.settings);
-  final CuratorExtension extension;
-  final AppSettings settings;
-
-  @override
-  Widget build(BuildContext context) {
-    final page = extension.settings;
-    return Tip(
-      message: page == null ? 'No settings' : 'Settings',
-      child: IconButton(
-        iconSize: 18,
-        visualDensity: VisualDensity.compact,
-        color: context.colors.textMuted,
-        onPressed: page == null
-            ? null
-            : () => showAppDialog<void>(
-                  context: context,
-                  builder: (context) => AppDialog(
-                    title: Text(extension.label.tr),
-                    content: Builder(builder: (context) => page(context, settings)),
-                    actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('Done'.tr))],
-                  ),
-                ),
-        icon: Icon(AppIcon.settings.of(context)),
-      ),
-    );
   }
 }
 

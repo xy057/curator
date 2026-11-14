@@ -175,6 +175,18 @@ abstract final class ExtensionApi {
       ApiPort('form', 'form() → spec',
           'The settings as a form. spec: rows (each {id, label, value, type}: a "switch", "segments" (one of options, each {value, label}), or a "font" (a text font’s family, "" for none, named none)), preview(values) → what is drawn under them ({caption = text, style = a captions style}), changed(values) called as one is changed: keep them with curator.save_settings.'),
     ]),
+    ApiSocket('images', 'Images', 'Pictures on the score that scroll with it, in the preview, a video and a web page. The app keeps each one’s file in the project, draws it, and gives it its handles and its menu (move, resize, Crop, Score Ink, Remove), with Add Image… and Paste in the preview’s menu, files dropped on the score and Manage Assets; the extension keeps where each picture is.', single: true, ports: [
+      ApiPort('list', 'list() → list',
+          'The pictures, bottom to top: {image = a file’s name, at = quarter (its left edge), top, width, height (in staff spaces, top from the frame’s), crop = {left, top, right, bottom} (the part of the image shown, each 0–1; nil: all of it), ink = true (drawn in the score’s ink)}. The project keeps the files these name. Asked again when the extension’s data changes.'),
+      ApiPort('add', 'add(image, at, top, aspect) → index',
+          'The user added an image (a file, the clipboard, a drop), kept as the file named image: its top-left corner goes to quarter at, top staff spaces down; aspect is its width over its height. Return the new picture’s index, which is then selected.'),
+      ApiPort('change', 'change(index, picture)',
+          'Picture index was moved, resized, cropped or had its ink switched: picture is as list gives one, as it is now. Called at every move of a drag, which is one Undo step.'),
+      ApiPort('remove', 'remove(indexes)', 'The user removed these pictures: the selected one, or every one showing an image.'),
+      ApiPort('without', 'without(data, images) → data',
+          'The files named images were let go (Manage Assets ▸ Remove Unused): return data, a state Undo keeps, without the pictures that show them.'),
+    ]),
+    ApiSocket('spacers', 'Spacers', 'Room in the score: staves of nothing and stretches made wider, with the Spacers lane and their handles in the preview. It has no ports: an extension with one turns them on, and the app keeps them.', single: true),
   ];
 
   /// The whole API as Markdown: every socket with its ports and properties, every library with

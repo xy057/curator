@@ -54,6 +54,12 @@ that runs too long is stopped.
 - **Band**: a band of colours along the top of the score. `areas` says what is in it.
 - **Captions**: text under the score, one caption at a time. `list` says what they are,
   `style` how they look; `open` is a double-click on the one showing.
+- **Images**: pictures on the score that scroll with it. Curator keeps their files, draws
+  them and gives each its handles and menu; the extension keeps where each one is. `list`
+  says what they are; `add`, `change` and `remove` are what the user did; `without` takes the
+  pictures of files that were let go out of a state Undo keeps.
+- **Spacers**: turns on Curator's spacers (staves of nothing, stretches made wider). It has
+  no ports.
 - **Export**: what a video and a web page get: their chapters, a video's subtitles.
 - **Settings**: the extension's own settings, for every project. `form` describes them, and
   Curator shows them from the extension's menu in Project Settings ▸ Extensions.

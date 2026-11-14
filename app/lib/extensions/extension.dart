@@ -2,9 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:score_engine/score_engine.dart' show ExtensionPackage;
 
 import '../app_icons.dart';
-import '../app_settings.dart';
 import '../editor_controller.dart';
-import 'built_in.dart';
 import 'bundled.dart';
 
 /// Where an extension comes from: the app ships it ([builtIn]), or the project carries it, a
@@ -16,12 +14,10 @@ enum ExtensionOrigin { builtIn, thirdParty }
 ///
 /// Everything here is by [id], never by type, so the app's own code needs no change for one
 /// more: each project saves its switches by id (`EditState.extensions`; there is no app-wide
-/// default), and the editor turns each on through [apply].
+/// default).
 ///
-/// What one written in the app adds to the editor (its menu items, toolbar buttons, drop
-/// targets, what it draws and exports) is wired into the app by hand, behind its switch. One
-/// that is a package ([PackageExtension]) adds everything through the extension API: its
-/// connector says which of Curator's sockets it uses, and its Lua does the rest.
+/// Every one is a package ([PackageExtension]) and adds everything through the extension
+/// API: its connector says which of Curator's sockets it uses, and its Lua does the rest.
 abstract class CuratorExtension {
   const CuratorExtension();
 
@@ -45,17 +41,9 @@ abstract class CuratorExtension {
 
   ExtensionOrigin get origin => ExtensionOrigin.builtIn;
 
-  /// Its own settings, the content of a dialog from its row's settings button (greyed out
-  /// while null). They are the app's, for every project.
-  Widget Function(BuildContext context, AppSettings settings)? get settings => null;
-
   /// Whether the open project uses it (images on the score…): opening one that does but
   /// never chose to have it on or off asks.
   bool isUsedBy(EditorController controller);
-
-  /// Turns what it adds to [controller] on or off, as the project's switch says: on opening,
-  /// on Undo, and whenever the switch changes.
-  void apply(EditorController controller, bool on);
 
   /// Whether it is on in [controller]'s project.
   bool isOn(EditorController controller) => controller.extensionOn(id);
@@ -90,23 +78,16 @@ class PackageExtension extends CuratorExtension {
   ExtensionOrigin get origin => bundled ? ExtensionOrigin.builtIn : ExtensionOrigin.thirdParty;
   @override
   bool isUsedBy(EditorController controller) => controller.extensions.uses(id);
-  @override
-  void apply(EditorController controller, bool on) {} // the controller starts and stops it
 }
 
 /// Every extension there is, in the order Project Settings lists them.
 abstract final class Extensions {
-  static const attachImage = AttachImageExtension();
-
-  /// Written in the app.
-  static const builtIn = <CuratorExtension>[attachImage];
-
   /// The order Curator's own are listed in; one not named here follows, by id.
   static const _order = ['attachImage', 'captions', 'chapters', 'tonality'];
 
-  /// Curator's own: those written in the app and those bundled as packages, in one order.
+  /// Curator's own: those bundled with the app as packages, in the order they are listed.
   static List<CuratorExtension> get all {
-    final all = <CuratorExtension>[...builtIn, for (final p in BundledExtensions.packages) PackageExtension(p, bundled: true)];
+    final all = <CuratorExtension>[for (final p in BundledExtensions.packages) PackageExtension(p, bundled: true)];
     int place(CuratorExtension e) => switch (_order.indexOf(e.id)) { -1 => _order.length, final i => i };
     return all..sort((a, b) => switch (place(a).compareTo(place(b))) { 0 => a.id.compareTo(b.id), final by => by });
   }

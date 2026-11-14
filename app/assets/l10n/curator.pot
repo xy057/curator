@@ -44,6 +44,7 @@ msgstr ""
 msgid "1 edge"
 msgstr ""
 
+#: assets/extensions/attachImage/src/images.lua
 msgid "1 image"
 msgstr ""
 
@@ -395,6 +396,7 @@ msgstr ""
 msgid "At"
 msgstr ""
 
+#: assets/extensions/attachImage/extension.json
 msgid "Attach Image"
 msgstr ""
 
@@ -864,7 +866,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -1236,6 +1238,7 @@ msgstr ""
 msgid "Image"
 msgstr ""
 
+#: assets/extensions/attachImage/extension.json
 msgid "Images and spacers that scroll with the score."
 msgstr ""
 
@@ -1470,9 +1473,6 @@ msgid "No Recent Files"
 msgstr ""
 
 msgid "No score was found inside the .mxl archive."
-msgstr ""
-
-msgid "No settings"
 msgstr ""
 
 #: assets/extensions/captions/src/sheet.lua
@@ -2735,6 +2735,7 @@ msgstr ""
 msgid "{n} frames"
 msgstr ""
 
+#: assets/extensions/attachImage/src/images.lua
 msgid "{n} images"
 msgstr ""
 

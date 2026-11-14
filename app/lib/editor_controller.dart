@@ -418,7 +418,7 @@ class EditorController extends ChangeNotifier {
     // What the extensions keep goes with it: each moves its own (`project.replaced`).
     final (state: carried, lost: lostByExtensions) =
         carriedExtensionData(placed, (q) => ScoreSwap.quarterAt(q, measures.before, measures.after), end: measures.after.last);
-    final Lost lost = (regions: gone.regions, anchors: gone.anchors, warps: gone.warps, extensions: lostByExtensions, images: gone.images);
+    final Lost lost = (regions: gone.regions, anchors: gone.anchors, warps: gone.warps, extensions: lostByExtensions);
     return ScoreReplacement(
       name: name,
       bytes: bytes,
@@ -539,7 +539,7 @@ class EditorController extends ChangeNotifier {
     // The pairs that can condense follow the score and the pairs just taken on.
     _doc = _doc.copyWith(condensed: Set.unmodifiable({for (final g in condensable) if (edits.condensed.contains(g.id)) g.id}));
     if (_doc.fonts.music case final music when music.isAdded && !_addedFonts.contains(music)) _addedFonts = [..._addedFonts, music];
-    images._load(edits.patches, state.images, arts);
+    images._load(state.images, arts);
     _sync = SyncMap(measureStarts: score.timeline.measureStarts, defaultTempo: score.metadata.tempo ?? 100, beats: score.beats)
       ..load(_doc.midi?.anchors(start: edits.leadIn, totalQuarters: score.timeline.measureStarts.last) ?? edits.anchors,
           leadIn: edits.leadIn)
@@ -764,7 +764,7 @@ class EditorController extends ChangeNotifier {
       rehearsalInRow: rehearsalInRow,
       nameColors: _nameColors,
       pointerColor: _doc.playheadColor,
-      spacers: images.enabled ? _doc.spacers : const [],
+      spacers: extensions.hasSpacers ? _doc.spacers : const [],
       bands: extensions.bands);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
@@ -814,12 +814,7 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Turns each extension's part of the editor on or off as the project says.
-  void _applyExtensions() {
-    for (final e in Extensions.all) {
-      e.apply(this, extensionOn(e.id));
-    }
-    extensions._sync();
-  }
+  void _applyExtensions() => extensions._sync();
 
   /// Whether the score groups its instruments in sections, as printed (Project Settings ▸
   /// Sections; see [CuratedScene.sections]).
@@ -1269,9 +1264,9 @@ class EditorController extends ChangeNotifier {
       textDynamics: edits.textDynamics ?? _defaultTextDynamics,
       typography: edits.typography ?? _defaultTypography,
       centeredLyrics: edits.centeredLyrics ?? _defaultCenteredLyrics,
-      // Only while Attach Image is on.
-      spacers: (edits.extensions[Extensions.attachImage.id] ?? false) ? edits.spacers : const [],
-      gaps: (edits.extensions[Extensions.attachImage.id] ?? false) ? edits.gaps : const []);
+      // Only while an extension that turns them on is (Attach Image).
+      spacers: socketOn(edits, extensions._carried, 'spacers') ? edits.spacers : const [],
+      gaps: socketOn(edits, extensions._carried, 'spacers') ? edits.gaps : const []);
 
   /// What the score is to be engraved with now (an engraving may still be catching up).
   EngraveRequest get _wanted =>
@@ -1371,7 +1366,7 @@ class EditorController extends ChangeNotifier {
   /// the lanes, the images and captions, the syncs as anchors ([syncsAsAnchors]), the music font
   /// kept with it, and what the score is engraved with as it was engraved.
   EditState get pageState {
-    final score = _score!, synced = syncsAsAnchors, images = extensionOn(Extensions.attachImage.id);
+    final score = _score!, synced = syncsAsAnchors, spacers = socketOn(_doc, extensions._carried, 'spacers');
     return exportedSettings.copyWith(
       lanes: _curation!.lanes,
       anchors: synced.anchors,
@@ -1379,7 +1374,6 @@ class EditorController extends ChangeNotifier {
       midi: null,
       takes: synced.takes,
       crossfade: crossfade,
-      patches: this.images._patches,
       embedFont: true,
       textEdits: score.textEdits,
       pairs: score.pairs,
@@ -1387,8 +1381,8 @@ class EditorController extends ChangeNotifier {
       engraving: score.options,
       textDynamics: score.textDynamics,
       centeredLyrics: score.centeredLyrics,
-      spacers: images ? _doc.spacers : const [],
-      gaps: images ? _doc.gaps : const [],
+      spacers: spacers ? _doc.spacers : const [],
+      gaps: spacers ? _doc.gaps : const [],
     );
   }
 
@@ -2277,7 +2271,6 @@ class EditorController extends ChangeNotifier {
         transition: _curation!.transition,
         anchors: _ownAnchors,
         leadIn: _sync!.leadIn,
-        patches: images._patches,
         captionFont: captions._font,
       );
 
@@ -2348,7 +2341,7 @@ class EditorController extends ChangeNotifier {
       _curation!.setSplit(_splitCounts);
       _loadSync(state);
       _performanceChanged(); // the lanes too
-      images._restore(state.patches);
+      images._restore();
       captions._restore(state.captionFont);
       _applyExtensions();
       extensions._restored(before, state);
@@ -2382,7 +2375,7 @@ class EditorController extends ChangeNotifier {
   /// Every edit made in the app, and the view: what a project stores next to the source score.
   ProjectState get projectState => ProjectState(
         edits: isScoreOrder ? _editState.copyWith(partOrder: const []) : _editState,
-        images: images._used,
+        images: images._kept,
         view: ViewState(
           staffSpace: _staffSpace,
           grid: anchors.grid,

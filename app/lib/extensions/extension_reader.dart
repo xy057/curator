@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show Rect;
 
 import 'package:score_engine/score_engine.dart';
 
+import '../image_patch.dart';
 import '../l10n/l10n.dart';
 import '../project_state.dart';
 import 'bundled.dart';
@@ -97,6 +99,14 @@ class ExtensionReaders {
   /// The captions under the score ([captionsOf]).
   List<Caption> get captions => captionsOf(_runtimes);
 
+  /// The pictures on the score ([picturesOf]): the first extension's that has the socket.
+  List<ImagePatch> get pictures {
+    for (final r in _runtimes) {
+      if (r.nodes('images').isNotEmpty) return picturesOf(r);
+    }
+    return const [];
+  }
+
   /// The subtitles of a video showing [from]–[to] seconds of the performance, as a SubRip
   /// file's text (`export.subtitles`): the first extension's that gives any; null: none.
   String? subtitles(double from, double to) {
@@ -128,6 +138,74 @@ List<Caption> captionsOf(Iterable<ExtensionRuntime> runtimes) {
     }
   }
   return const [];
+}
+
+/// The pictures on the score as [runtime]'s `images` socket gives them ({image, at, top,
+/// width, height, crop, ink}). Each stands where it does in the extension's own list
+/// (`images.change` is told its place there): one that doesn't read is kept, with no image
+/// to draw.
+List<ImagePatch> picturesOf(ExtensionRuntime runtime) {
+  for (final node in runtime.nodes('images')) {
+    final list = runtime.ask(node.id, 'list', quiet: true);
+    return List.unmodifiable([
+      if (list is LuaTable)
+        for (final p in list.array) _picture(p),
+    ]);
+  }
+  return const [];
+}
+
+ImagePatch _picture(Object? picture) {
+  if (picture is LuaTable) {
+    if ((picture['image'], picture['at'], picture['top'], picture['width'], picture['height'])
+        case (final String image, final num at, final num top, final num width, final num height)
+        when at.isFinite && top.isFinite && width.isFinite && height.isFinite && width > 0 && height > 0) {
+      final crop = switch (picture['crop']) {
+        final LuaTable c => switch ((c['left'], c['top'], c['right'], c['bottom'])) {
+            (final num l, final num t, final num r, final num b) when 0 <= l && l < r && r <= 1 && 0 <= t && t < b && b <= 1 =>
+              Rect.fromLTRB(l.toDouble(), t.toDouble(), r.toDouble(), b.toDouble()),
+            _ => ImagePatch.full,
+          },
+        _ => ImagePatch.full,
+      };
+      return ImagePatch(
+          image: image, quarter: at.toDouble(), top: top.toDouble(), width: width.toDouble(), height: height.toDouble(), crop: crop, ink: picture['ink'] == true);
+    }
+  }
+  return const ImagePatch(image: '', quarter: 0, top: 0, width: 1, height: 1);
+}
+
+/// [patch] as an `images` socket is handed a picture.
+LuaTable pictureTable(ImagePatch patch) => LuaTable.map({
+      'image': patch.image,
+      'at': patch.quarter,
+      'top': patch.top,
+      'width': patch.width,
+      'height': patch.height,
+      if (patch.crop != ImagePatch.full)
+        'crop': LuaTable.map({'left': patch.crop.left, 'top': patch.crop.top, 'right': patch.crop.right, 'bottom': patch.crop.bottom}),
+      'ink': patch.ink,
+    });
+
+bool _has(ExtensionPackage package, String socket) => package.graph.nodes.any((n) => n.type == socket);
+
+/// Whether an extension that is on in [edits] (one of Curator's own, or of [carried]) has a
+/// [socket]: what its being on turns on in the app (`spacers`).
+bool socketOn(EditState edits, Map<String, ExtensionPackage> carried, String socket) => [...BundledExtensions.packages, ...carried.values]
+    .any((p) => (edits.extensions[p.id] ?? false) && p.api <= ExtensionApi.level && _has(p, socket));
+
+/// The image files the pictures of [state]'s extensions show (those with an `images` socket,
+/// on or off), by name, in the order first shown: the ones a project keeps.
+Map<String, PatchImage> imagesShown(ProjectState state) {
+  final shown = <String, PatchImage>{};
+  for (final p in [...BundledExtensions.packages, ...state.packages.values]) {
+    final value = state.edits.extensionData[p.id];
+    if (value == null || !_has(p, 'images') || p.api > ExtensionApi.level) continue;
+    for (final picture in picturesOf(ExtensionRuntime(p, ReadingHost(p, value)))) {
+      if (state.images[picture.image] case final image?) shown[picture.image] = image;
+    }
+  }
+  return shown;
 }
 
 /// How an extension asks its captions to look (`captions.style`): the font (a text font's
@@ -223,10 +301,11 @@ ProjectState checkedExtensionData(ProjectState state) {
 /// [state] with every extension's data moved to a score that replaced its own
 /// (`project.replaced`): [at] gives where a place of the old score is in the new one, null when
 /// it is gone; [end] is the new score's length, in quarters. Also what each lost, as it says it
-/// ("2 chapters").
+/// ("2 chapters"; what was lost of the pictures on the score last, as it always was said), and
+/// the image files no picture shows any more let go.
 ({ProjectState state, List<String> lost}) carriedExtensionData(ProjectState state, double? Function(double quarter) at, {required double end}) {
   var data = state.edits.extensionData;
-  final lost = <String>[];
+  final lost = <String>[], lostPictures = <String>[];
   final carry = LuaBuiltin('carry', (a) => [at(a.number(0, 'carry').toDouble())]);
   for (final p in [...BundledExtensions.packages, ...state.packages.values]) {
     final value = data[p.id];
@@ -241,10 +320,11 @@ ProjectState checkedExtensionData(ProjectState state) {
       continue;
     }
     if (!LuaJson.same(moved, value)) data = {...data, p.id: moved};
-    if (result.length > 1 && result[1] is String) lost.add(result[1]! as String);
+    if (result.length > 1 && result[1] is String) (_has(p, 'images') ? lostPictures : lost).add(result[1]! as String);
   }
+  final carried = identical(data, state.edits.extensionData) ? state : state.copyWith(edits: state.edits.copyWith(extensionData: Map.unmodifiable(data)));
   return (
-    state: identical(data, state.edits.extensionData) ? state : state.copyWith(edits: state.edits.copyWith(extensionData: Map.unmodifiable(data))),
-    lost: lost,
+    state: carried.copyWith(images: imagesShown(carried)),
+    lost: [...lost, ...lostPictures],
   );
 }

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io' show FileSystemException;
 import 'dart:typed_data';
-import 'dart:ui' show Color, Rect;
+import 'dart:ui' show Color;
 
 import 'package:score_engine/score_engine.dart';
 
@@ -81,7 +81,7 @@ abstract final class ProjectModules {
 
   /// The extensions of Curator's own that keep their data in a module of their own, as they did
   /// before they were packages: the extension's id → that module.
-  static const Map<String, ProjectModule> ownData = {'captions': captions, 'chapters': chapters, 'tonality': tonality};
+  static const Map<String, ProjectModule> ownData = {'attachImage': images, 'captions': captions, 'chapters': chapters, 'tonality': tonality};
 
   /// Whether [id] can be a take's ([Take.id]): `take-1`, `take-2`…, safe as a folder's name.
   static bool isTakeId(String id) => _Takes.isTakeId(id);
@@ -629,10 +629,15 @@ final class _Takes extends ProjectModule {
   static bool isTakeId(String id) => RegExp(r'^take-[1-9][0-9]{0,5}$').hasMatch(id);
 }
 
-/// Images on the score (Attach Image), bottom to top, and each one's file, byte for byte, as
-/// `images/<id>`: only those on the score (Undo keeps the rest while the project is open).
-final class _Images extends ProjectModule {
-  const _Images() : super('images');
+/// Images on the score, and each one's file, byte for byte, as `images/<id>`: only those on
+/// the score (Undo keeps the rest while the project is open). Its JSON is the Attach Image
+/// extension's data, as it keeps it ([EditState.extensionData]): `{"patches": [...]}`, bottom
+/// to top. The module the images had while Attach Image was written in the app, and still the
+/// extension's place in a project ([ProjectModules.ownData]); the files are the app's to keep
+/// and to check, the rest of a patch the extension's (its `project.load`). The files another
+/// extension's pictures show are named in `files`, left out while there are none.
+final class _Images extends _OwnData {
+  const _Images() : super('images', 'attachImage', const {'patches': <Object?>[]}, optional: false);
 
   /// Whether image [id]'s file is compressed already, so deflating it gains nothing (an SVG,
   /// BMP or ICO isn't).
@@ -640,39 +645,48 @@ final class _Images extends ProjectModule {
 
   @override
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files) {
-    final patches = state.edits.patches;
-    for (final id in {for (final p in patches) p.image}) {
+    final json = super.write(state, files);
+    final shown = <String>{
+      if (json['patches'] case final List<Object?> patches)
+        for (final patch in patches)
+          if (patch case {'image': final String id}) id,
+    };
+    for (final id in shown) {
       final image = state.images[id];
       if (image == null || !PatchImage.isId(id)) throw FileSystemException('An image on the score is missing', id);
       files('images/$id', image.bytes, compress: !_packed(id));
     }
-    return {
-      'patches': [
-        for (final p in patches)
-          {
-            'image': p.image,
-            'quarter': p.quarter,
-            'top': p.top,
-            'width': p.width,
-            'height': p.height,
-            if (p.crop != ImagePatch.full) 'crop': [p.crop.left, p.crop.top, p.crop.right, p.crop.bottom],
-            if (p.ink) 'ink': true,
-          },
-      ],
-    };
+    final others = [
+      for (final MapEntry(key: id, value: image) in state.images.entries)
+        if (!shown.contains(id) && PatchImage.isId(id)) (id, image),
+    ];
+    for (final (id, image) in others) {
+      files('images/$id', image.bytes, compress: !_packed(id));
+    }
+    return others.isEmpty ? json : {...json, 'files': [for (final (id, _) in others) id]};
   }
 
   @override
   ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
     final images = <String, PatchImage>{};
-    final patches = [
-      for (final (i, patch) in r.list('patches').indexed) _patch(JsonReader(patch, '${r.where}.patches[$i]'), images, files),
-    ];
-    return state.copyWith(edits: state.edits.copyWith(patches: patches), images: images);
+    for (final (i, patch) in r.list('patches').indexed) {
+      _image(JsonReader(patch, '${r.where}.patches[$i]'), images, files);
+    }
+    for (final id in r.list('files')) {
+      if (id is! String || !PatchImage.isId(id)) continue;
+      if ((PatchImage.kindOfId(id), files('images/$id', limit: PatchImage.maxBytes)) case (final kind?, final bytes?)) images[id] ??= PatchImage(id, kind, bytes);
+    }
+    if (r.json.isEmpty) return state;
+    final json = {
+      for (final MapEntry(:key, :value) in r.json.entries)
+        if (key != 'files') key: value,
+    };
+    return state.copyWith(
+        edits: state.edits.copyWith(extensionData: Map.unmodifiable({...state.edits.extensionData, extension: json})), images: images);
   }
 
-  /// One patch, its image read into [images] (once, however many patches show it).
-  static ImagePatch _patch(JsonReader r, Map<String, PatchImage> images, ModuleFileReader files) {
+  /// The image of one patch, read into [images] (once, however many patches show it).
+  static void _image(JsonReader r, Map<String, PatchImage> images, ModuleFileReader files) {
     final image = r.string('image', required: true)!;
     // Saved as images/<id> as it is: a name that would change there (a/b.png, a:b.png) would
     // leave the patch without its image when opened again.
@@ -681,27 +695,7 @@ final class _Images extends ProjectModule {
       (final kind?, final bytes?) => PatchImage(image, kind, bytes),
       _ => throw _damaged('the image of ${r.where} is missing.'),
     };
-    double size(String key) {
-      final v = r.number(key, required: true)!;
-      if (!(v > 0)) throw _damaged('${r.where}.$key is not a size.');
-      return v;
-    }
-
-    final crop = switch (r.list('crop')) {
-      [] => ImagePatch.full,
-      [final num l, final num t, final num rt, final num b] when 0 <= l && l < rt && rt <= 1 && 0 <= t && t < b && b <= 1 =>
-        Rect.fromLTRB(l.toDouble(), t.toDouble(), rt.toDouble(), b.toDouble()),
-      _ => throw _damaged('${r.where}.crop is not a part of the image.'),
-    };
-    return ImagePatch(
-      image: image,
-      quarter: r.number('quarter', required: true)!,
-      top: r.number('top', required: true)!,
-      width: size('width'),
-      height: size('height'),
-      crop: crop,
-      ink: r.boolean('ink') ?? false,
-    );
+    r.list('crop'); // a list, or the project is damaged: the rest of a patch is the extension's to check
   }
 }
 

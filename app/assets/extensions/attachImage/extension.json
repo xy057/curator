@@ -1,0 +1,10 @@
+{
+  "format": "application/x-curator-extension",
+  "id": "attachImage",
+  "name": "Attach Image",
+  "summary": "Images and spacers that scroll with the score.",
+  "keywords": "image picture photo svg png jpg gif apng webp bmp ico tiff heic avif animated animation spacer space gap blank placeholder",
+  "icon": "image",
+  "api": 1,
+  "data": {"module": "images", "version": 1}
+}

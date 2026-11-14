@@ -330,8 +330,8 @@ void main() {
       c.sync!.addAnchor(SyncAnchor(starts[8], 20, jumpTo: starts[4])); // a warp: back to bar 5
       c.useMidiTempo(MidiTempoMap('tempo.mid', const [(quarter: 0, quartersPerMinute: 96), (quarter: 24, quartersPerMinute: 80)]));
       await c.setFonts(const ScoreFonts(music: MusicFont.leland));
+      c.setExtension('attachImage', true);
       c.setExtension('captions', true);
-      c.images.enabled = true;
       await c.images.add(ImageKind.raster, png, quarter: starts[2], top: 2);
       c.images.update(0, c.images.patches[0].copyWith(ink: true));
       c.extensions.runtime('captions')!.run('require("captions").add({from = ${starts[1]}, to = ${starts[5]}, text = "The horns answer"})');

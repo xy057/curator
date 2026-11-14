@@ -88,7 +88,7 @@ class LoadedPage {
         motion: edits.motion ?? ScoreMotion.standard,
         typography: edits.typography ?? ScoreTypography.standard,
         patches: [
-          for (final p in edits.patches)
+          for (final p in readers.pictures)
             if (arts[p.image] case final art?) p.scene(art),
         ],
         captions: captions ? readers.captions : const [],

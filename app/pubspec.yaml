@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.8.0+371
+version: 0.8.0+372
 
 environment:
   sdk: ^3.13.4
@@ -44,6 +44,8 @@ flutter:
     - assets/basic_pitch/ # Spotify's Basic Pitch, which Align hears a recording with (Apache 2.0, with its licence; Tools/make_basic_pitch_weights.py)
     - assets/lilypond/ # Curator's settings for LilyPond: the piece on one line, what it is written beside it (lilypond.dart)
     # Curator's own extensions, each a folder holding what a .cpe does (extension.json, connect.json, src/…; BundledExtensions).
+    - assets/extensions/attachImage/
+    - assets/extensions/attachImage/src/
     - assets/extensions/chapters/
     - assets/extensions/chapters/src/
     - assets/extensions/captions/

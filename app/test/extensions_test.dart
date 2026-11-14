@@ -157,7 +157,7 @@ void main() {
     expect(c2.extensions.data('com.example.notes'), isNotNull);
   });
 
-  test('Curator’s own extensions are packages too, listed with those written in the app', () {
+  test('Curator’s own extensions are packages too, listed in their order', () {
     expect(Extensions.all.map((e) => e.id), ['attachImage', 'captions', 'chapters', 'tonality']);
     final chapters = Extensions.byId('chapters')!;
     expect(chapters, isA<PackageExtension>());

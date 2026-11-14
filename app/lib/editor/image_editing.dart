@@ -1,26 +1,25 @@
 part of '../editor_controller.dart';
 
-/// Images on the score (the Attach Image extension): adding them, the selection, moving,
-/// resizing, cropping and removing. Nothing here works, and no image is drawn, while
-/// [enabled] is off (Project Settings ▸ Extensions ▸ Attach Image); the images stay in the project.
+/// Images on the score: the files the project keeps, each drawn, the selection, and what the
+/// user does to a picture (adding one, moving, resizing, cropping, removing), handed to the
+/// extension that keeps where the pictures are (its `images` socket: Attach Image). Nothing
+/// here works, and no image is drawn, while no such extension is on ([enabled]: Project
+/// Settings ▸ Extensions); the pictures stay in the project.
 class ImageEditing {
   ImageEditing._(this._editor);
   final EditorController _editor;
 
-  /// The extension's switch, as the project has it ([EditorController.extensionOn]).
-  bool get enabled => _enabled;
-  bool _enabled = false;
-  set enabled(bool value) {
-    if (value == _enabled) return;
-    _enabled = value;
-    if (!value) _deselect();
-    _show();
-    _editor._changed();
-  }
+  /// Whether an extension that puts pictures on the score is on.
+  bool get enabled => _editor.extensions.hasImages;
 
-  /// On the score, bottom to top.
-  List<ImagePatch> get patches => _patches;
-  List<ImagePatch> _patches = const [];
+  /// On the score, bottom to top: as the extension lists them.
+  List<ImagePatch> get patches => _editor.extensions.pictures;
+
+  /// The extension the pictures are handed to, and its socket in its connector.
+  ({ExtensionRuntime runtime, String node})? get _socket => switch (_editor.extensions._imager) {
+        null => null,
+        final runtime => (runtime: runtime, node: runtime.nodes('images').first.id),
+      };
 
   /// Every image file added while the project is open (Undo can bring a removed one back),
   /// and each drawn.
@@ -38,7 +37,7 @@ class ImageEditing {
   bool _cropping = false;
 
   void select(int? index, {bool crop = false}) {
-    if (!_enabled || (index != null && (index < 0 || index >= _patches.length))) index = null;
+    if (!enabled || (index != null && (index < 0 || index >= patches.length))) index = null;
     final cropping = index != null && crop;
     if (index == _selected && cropping == _cropping) return;
     _selected = index;
@@ -54,39 +53,34 @@ class ImageEditing {
 
   /// The images as the scene draws them: none while the extension is off.
   List<ScenePatch> get _scenePatches => [
-        if (_enabled)
-          for (final p in _patches)
+        if (enabled)
+          for (final p in patches)
             if (_arts[p.image] case final art?)
               p.scene(art),
       ];
 
   void _show() => _editor._showSettings();
 
-  /// How big a new image comes in: [defaultHeight] staff spaces high (narrower than
-  /// [maxWidth]), its own shape.
-  static const defaultHeight = 12.0, maxWidth = 40.0;
-
   /// Adds an image of [kind] from [bytes] (a file of type [extension]), its top-left corner
-  /// at score quarter [quarter] and [top] staff spaces down, and selects it. One Undo step.
-  /// Throws a [FormatException] when the bytes are not such an image.
+  /// at score quarter [quarter] and [top] staff spaces down, and selects it. One Undo step
+  /// (the extension's: how big it comes in is its to say). Throws a [FormatException] when the
+  /// bytes are not such an image.
   Future<void> add(ImageKind kind, Uint8List bytes, {required double quarter, required double top, String extension = ''}) async {
-    if (!_enabled || _editor._score == null) return;
+    if (!enabled || _editor._score == null) return;
     (:bytes, :extension) = await PatchImage.portable(bytes, extension);
     // The same file again is the same image: the project keeps it once.
     final same = _images.values.where((i) => i.kind == kind && _arts.containsKey(i.id) && listEquals(i.bytes, bytes)).firstOrNull;
     final image = same ?? PatchImage.create(kind, bytes, extension: extension), document = _documents.current;
     final art = same != null ? _arts[same.id]! : await image.decode();
     // Closed (another maybe opened) or switched off meanwhile: not for what is open now.
-    if (!document.isLatest || !_enabled || _editor._score == null) return same == null ? _dispose(art) : null;
+    final socket = _socket;
+    if (!document.isLatest || socket == null || _editor._score == null) return same == null ? _dispose(art) : null;
     _images[image.id] = image;
     _arts[image.id] = art;
-    final aspect = art.size.width / art.size.height;
-    final height = math.min(defaultHeight, maxWidth / aspect);
-    _patches = [..._patches, ImagePatch(image: image.id, quarter: quarter, top: top, width: height * aspect, height: height)];
     _deselect();
-    _selected = _patches.length - 1;
-    _show();
-    _editor._edited();
+    final index = socket.runtime.ask(socket.node, 'add', args: [image.id, quarter, top, art.size.width / art.size.height]);
+    if (index is num && index >= 1 && index <= patches.length) _selected = index.toInt() - 1;
+    _editor._changed();
   }
 
   /// Pastes the image on the clipboard (a PNG, SVG text, or a copied SVG / PNG / JPEG file)
@@ -94,7 +88,7 @@ class ImageEditing {
   /// spaces down. False when there is no image to paste.
   Future<bool> paste({double? quarter, double top = 4}) async {
     final scene = _editor.scene;
-    if (!_enabled || scene == null) return false;
+    if (!enabled || scene == null) return false;
     final image = await readClipboardImage();
     if (image == null) return false;
     await add(image.kind, image.bytes,
@@ -104,23 +98,22 @@ class ImageEditing {
     return true;
   }
 
-  /// Changes patch [index] (moving, resizing, cropping). Inside [EditorController.beginEdit]
-  /// … [EditorController.endEdit], a whole drag is one Undo step.
+  /// Changes patch [index] (moving, resizing, cropping, its ink). Inside
+  /// [EditorController.beginEdit] … [EditorController.endEdit], a whole drag is one Undo step.
   void update(int index, ImagePatch patch) {
-    if (!_enabled || index < 0 || index >= _patches.length || _patches[index] == patch) return;
-    _patches = [..._patches]..[index] = patch;
-    _show();
-    _editor._edited();
+    final all = patches, socket = _socket;
+    if (socket == null || index < 0 || index >= all.length || all[index] == patch) return;
+    socket.runtime.fire(socket.node, 'change', args: [index + 1, pictureTable(patch)]);
   }
 
   /// Removes patch [index] (the selected one by default).
   void remove([int? index]) {
     index ??= _selected;
-    if (!_enabled || index == null || index < 0 || index >= _patches.length) return;
-    _patches = [..._patches]..removeAt(index);
+    final socket = _socket;
+    if (socket == null || index == null || index < 0 || index >= patches.length) return;
     _deselect();
-    _show();
-    _editor._edited();
+    socket.runtime.fire(socket.node, 'remove', args: [LuaTable.list([index + 1])]);
+    _editor._changed();
   }
 
   /// The image files the project keeps (those [patches] show), in the order first shown.
@@ -128,20 +121,23 @@ class ImageEditing {
 
   /// The patches showing image [id] (indices into [patches]).
   List<int> usesOf(String id) => [
-        for (final (i, p) in _patches.indexed)
+        for (final (i, p) in patches.indexed)
           if (p.image == id) i,
       ];
 
   PatchArt? artOfImage(String id) => _arts[id];
 
-  /// The image files no patch shows: removed while the project is open, kept so Undo can
+  /// The image files no picture shows: removed while the project is open, kept so Undo can
   /// bring them back. Never saved.
-  List<PatchImage> get unused => [
-        for (final image in _images.values)
-          if (!_patches.any((p) => p.image == image.id)) image,
-      ];
+  List<PatchImage> get unused {
+    final shown = _editor.extensions._imagesShown.toSet();
+    return [
+      for (final image in _images.values)
+        if (!shown.contains(image.id)) image,
+    ];
+  }
 
-  /// Lets go of [unused]: Undo no longer brings back the patches that showed them (every
+  /// Lets go of [unused]: Undo no longer brings back the pictures that showed them (every
   /// other edit of those steps stays).
   void purgeUnused() {
     final gone = {for (final image in unused) image.id};
@@ -150,28 +146,25 @@ class ImageEditing {
       _images.remove(id);
       if (_arts.remove(id) case final art?) _letGo(art);
     }
-    List<ImagePatch> kept(List<ImagePatch> patches) =>
-        patches.any((p) => gone.contains(p.image)) ? List.unmodifiable(patches.where((p) => !gone.contains(p.image))) : patches;
-    _editor._history.rewrite(_editor._editState, (state) => state.copyWith(patches: kept(state.patches)));
-    if (_editor._committed case final committed?) _editor._committed = committed.copyWith(patches: kept(committed.patches));
+    _editor.extensions._withoutImages(gone);
     _editor._changed();
   }
 
   /// Removes every patch showing image [id]: one Undo step.
   void removeImage(String id) {
-    if (!_enabled || !_patches.any((p) => p.image == id)) return;
-    _patches = List.unmodifiable(_patches.where((p) => p.image != id));
+    final uses = usesOf(id), socket = _socket;
+    if (socket == null || uses.isEmpty) return;
     _deselect();
-    _show();
-    _editor._edited();
+    socket.runtime.fire(socket.node, 'remove', args: [LuaTable.list([for (final i in uses) i + 1])]);
+    _editor._changed();
   }
 
   /// Shows patch [index]: moves the playhead to where its left edge reaches the pointer (its
   /// first pass) and selects it.
   void locate(int index) {
-    if (!_enabled || index < 0 || index >= _patches.length) return;
+    if (!enabled || index < 0 || index >= patches.length) return;
     final timeline = _editor.timeline;
-    final quarter = _patches[index].quarter;
+    final quarter = patches[index].quarter;
     final first = timeline.timesOf(quarter).firstOrNull;
     _editor.playback.seek(first?.seconds ?? timeline.secondsAtQuarter(quarter));
     select(index);
@@ -191,23 +184,26 @@ class ImageEditing {
     return arts;
   }
 
-  void _load(List<ImagePatch> patches, Map<String, PatchImage> images, Map<String, PatchArt> arts) {
+  void _load(Map<String, PatchImage> images, Map<String, PatchArt> arts) {
     _images.addAll(images);
     _arts.addAll(arts);
-    _patches = List.unmodifiable(patches.where((p) => _arts.containsKey(p.image)));
     _deselect();
   }
 
   /// After Undo / Redo.
-  void _restore(List<ImagePatch> patches) {
-    _patches = patches;
+  void _restore() {
     _deselect();
     _show();
   }
 
-  /// The image files [patches] show, for saving.
+  /// The image files [patches] show.
   Map<String, PatchImage> get _used => {
-        for (final p in _patches) p.image: ?_images[p.image],
+        for (final p in patches) p.image: ?_images[p.image],
+      };
+
+  /// The image files every extension's pictures show, for saving.
+  Map<String, PatchImage> get _kept => {
+        for (final id in _editor.extensions._imagesShown) id: ?_images[id],
       };
 
   /// A turn per document, so an image decoded for one isn't added to the next.
@@ -215,7 +211,6 @@ class ImageEditing {
 
   void _reset() {
     _documents.cancel();
-    _patches = const [];
     _deselect();
     _images.clear();
     _arts.values.forEach(_letGo);

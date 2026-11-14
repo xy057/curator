@@ -61,12 +61,11 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_look.dart`, `editor/extension_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); extensions that are packages (`ExtensionEditing`: their runtimes, data, lanes and selection, the band they give the scene, the score's music read for them); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
 | `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
-| `image_patch.dart` | Attach Image's model: `ImagePatch` (where an image sits), `PatchImage` (its file), SVG and raster drawing (animated too), the clipboard |
+| `image_patch.dart` | Images on the score: `ImagePatch` (where one sits, as an extension's `images.list` gives it), `PatchImage` (its file), SVG and raster drawing (animated too), the clipboard |
 | `span_lane.dart` | `SpanLane`: a lane pinned under the ruler whose stretches (`SpanLaneModel`) are drawn, moved, trimmed and erased the way regions are; the Captions, Spacers, Tonality and recordings' lanes (`take_lanes.dart`) are four. One whose model `paints` (key areas) has its stretches go over each other as regions do, each in its own `color` |
 | `spacer_dialogs.dart`, `spacer_lane.dart`, `score_view/spacer_handles.dart` | Attach Image's spacers: their dialogs; the Spacers lane (a `SpanLane` of the horizontal ones, with add and remove buttons); selecting, moving and resizing them in the score view |
 | `assets_dialog.dart` | Attach Image's Manage assets… (toolbar): the images a project keeps, where each is used, Remove, Remove Unused |
 | `extensions/extension.dart` | `CuratorExtension`, what the app knows of an extension (by id), and `Extensions`, every one there is |
-| `extensions/built_in.dart` | Attach Image as a `CuratorExtension` (the one still written in the app) |
 | `extensions/extension_sheet.dart`, `extensions/extension_files.dart`, `extensions/extension_settings.dart` | What an extension asks the app to show: a table to edit (`ui.sheet`, `SheetHandle`) and a question (`ui.ask`); a file read or written (`ui.open_file`, `ui.save_file`, `decodeText`); its own settings (`ExtensionSettingsForm`, from its `settings` socket) |
 | `extensions/bundled.dart` | `BundledExtensions`: Curator's own extensions that are packages, folders under `assets/extensions/<id>/` read as the app starts |
 | `extensions/extension_reader.dart` | Extensions run to read: `ReadingHost`, `ExtensionReaders` (what a video and a page get: chapters, the band), the band as `band` sockets give it (`bandsOf`), a project's data checked as it opens (`checkedExtensionData`) and carried to a replacing score (`carriedExtensionData`) |
@@ -440,7 +439,8 @@ score. A Fine ends the file but not the score: the bars after it follow the last
 asks `MidiInScore` (the engine's) where they are in the score for beats and snapping, and when each
 warp it follows jumps (`warpSeconds`, by its place among the map's warps).
 
-**An image scrolls with the score** (the Attach Image extension). Right-click the preview ▸
+**An image scrolls with the score** (the Attach Image extension, a package:
+`app/assets/extensions/attachImage`; the `images` socket). Right-click the preview ▸
 Add Image… (an SVG, drawn as vectors, or a raster image: PNG, APNG, JPEG, GIF, WebP, BMP or ICO, kept as it came, or a TIFF, HEIC or AVIF, kept as a PNG of its first frame since only some systems read them: `PatchImage.portable`; the file's type says which), or Paste (⌘V: a PNG, SVG text, or a copied
 file), puts one where it was clicked (⌘V: at the pointer); a file dropped on the score, where
 it is dropped (`ScoreViewState.dropImage`). An `ImagePatch` pins its left edge
@@ -467,11 +467,26 @@ Below them are the unused ones (`ImageEditing.unused`: removed while the project
 kept so Undo can bring them back; never saved). Remove Unused lets go of them and rewrites
 the Undo history without their patches (`EditHistory.rewrite`), so every other edit of
 those steps can still be undone, and a step that only added or removed one is dropped.
-Every change is an Undo step (`patches` in `EditState`); a project keeps them in
-`state.patches` and each image file, byte for byte, as `images/<id>` (format 8); opening
-reads only the files a patch shows. While the
-switch is off the images stay in the project but are not drawn, exported or editable
-(`ImageEditing.enabled`). A file is read through `PatchImage.readFile` (Add Image…, a drop, a copied file pasted), which
+The extension keeps where the pictures are, and the app the rest (the `images` socket):
+`images.lua` holds the patches and their rules (how big a new one comes in, what a change,
+a removal, a replaced score and a damaged project do to them), and `ImageEditing` the files,
+each drawn, the selection, the handles and the menus. `ImageEditing.patches` is what the
+extension's `images.list` gives (`ExtensionEditing.pictures`, `picturesOf`: asked again when
+its data changes), and each thing the user does is handed to it: `images.add` (the new file's
+name, the place, its shape: the index it returns is selected), `images.change` (a picture as
+it is now, at every move of a drag), `images.remove`, and for Remove Unused `images.without`
+(`ExtensionEditing._withoutImages`: each state Undo keeps, without the pictures of the files
+let go). Every change is an Undo step (the extension's data, `EditState.extensionData`); a
+project keeps it as the `images` module (`{"patches": […]}`, the module the images always
+had: `ProjectModules.ownData`) with each image file, byte for byte, as `images/<id>` (format
+8): the files and their names are the module's to check, the rest of a patch the extension's
+(`project.load`); a file another extension's pictures show is named in the module's `files`.
+The project keeps the files the pictures show (`ImageEditing._kept`, `imagesShown`). While the
+switch is off the images stay in the project (read by running the package over its data:
+`ExtensionEditing._pictureReader`) but are not drawn, exported or editable
+(`ImageEditing.enabled`: `ExtensionEditing.hasImages`). A video draws the scene's patches, a
+page asks the extension as it loads (`ExtensionReaders.pictures`), and one made without
+images leaves out what the extension keeps. A file is read through `PatchImage.readFile` (Add Image…, a drop, a copied file pasted), which
 refuses one over 64 MB before reading any of it; a score file over 256 MB (`ScoreFile.maxBytes`)
 and a MIDI file over 64 MB are refused the same way (`EditorController.openFile`, `loadMidiTempo`).
 One render of a PDF makes 64 megapixels at most (`PdfPages.fittedScale`: a poster-size page is
@@ -522,8 +537,10 @@ one's right-hand side how much wider it makes its stretch, engraved when let go.
 Double-click (or right-click ▸ Edit Spacer…) edits either.
 Every change is an Undo
 step (`spacers` and `gaps` in `EditState`, format 24); a vertical one's key and any horizontal
-one re-engrave (`EngraveRequest`), the rest only redraws. While Attach Image is off they stay
-in the project, unengraved; Replace Score keeps vertical ones and the horizontal ones whose first bar
+one re-engrave (`EngraveRequest`), the rest only redraws. They are the app's own (staves
+and stretches of the engraved score), turned on by an extension that is on with a `spacers`
+socket, which has no ports (`ExtensionEditing.hasSpacers`, `socketOn` for what a state is
+engraved with): Attach Image. While it is off they stay in the project, unengraved; Replace Score keeps vertical ones and the horizontal ones whose first bar
 is still there.
 
 **A caption shows under the score** (the Captions extension, a package:
@@ -1950,8 +1967,11 @@ on Windows wherever the registry says that folder now is): it never replaces the
     written.
   - A package made in the app has a `user.<name>` id (`ExtensionActions.idFor`); editing one
     replaces it in the project (`ProjectState.packages`) and starts it again, its data kept.
-  **Captions**, **Chapters** and **Tonality** are packages; **Attach Image** is still
-  written in the app (`extensions/built_in.dart`), behind `images.enabled`.
+  **Attach Image**, **Captions**, **Chapters** and **Tonality** are packages: nothing is an
+  extension written in the app.
+  - What only the app can do stays the app's, behind a socket: an image's file, its decoding,
+    drawing and handles (`images`), the spacers, which are engraved (`spacers`). The extension
+    keeps the data and its rules.
 - **Interface text** follows Apple's HIG *Writing*, in US English: Title Case for menu items,
   buttons and dialog titles that are fragments ("Copy Lane To…", "Couldn’t Export Video"),
   sentence case for tooltips, labels, help lines and messages; an ellipsis only where more

@@ -55,6 +55,12 @@ that runs too long is stopped.
 - **Band**: a band of colours along the top of the score. `areas` says what is in it.
 - **Captions**: text under the score, one caption at a time. `list` says what they are,
   `style` how they look; `open` is a double-click on the one showing.
+- **Images**: pictures on the score that scroll with it. Curator keeps their files, draws
+  them and gives each its handles and menu; the extension keeps where each one is. `list`
+  says what they are; `add`, `change` and `remove` are what the user did; `without` takes the
+  pictures of files that were let go out of a state Undo keeps.
+- **Spacers**: turns on Curator's spacers (staves of nothing, stretches made wider). It has
+  no ports.
 - **Export**: what a video and a web page get: their chapters, a video's subtitles.
 - **Settings**: the extension's own settings, for every project. `form` describes them, and
   Curator shows them from the extension's menu in Project Settings ▸ Extensions.
@@ -291,6 +297,22 @@ The extension’s own settings, for every project: Settings… in its menu in Pr
 Ports:
 
 - `form() → spec`: The settings as a form. spec: rows (each {id, label, value, type}: a "switch", "segments" (one of options, each {value, label}), or a "font" (a text font’s family, "" for none, named none)), preview(values) → what is drawn under them ({caption = text, style = a captions style}), changed(values) called as one is changed: keep them with curator.save_settings.
+
+### Images (`images`)
+
+Pictures on the score that scroll with it, in the preview, a video and a web page. The app keeps each one’s file in the project, draws it, and gives it its handles and its menu (move, resize, Crop, Score Ink, Remove), with Add Image… and Paste in the preview’s menu, files dropped on the score and Manage Assets; the extension keeps where each picture is. An extension has one.
+
+Ports:
+
+- `list() → list`: The pictures, bottom to top: {image = a file’s name, at = quarter (its left edge), top, width, height (in staff spaces, top from the frame’s), crop = {left, top, right, bottom} (the part of the image shown, each 0–1; nil: all of it), ink = true (drawn in the score’s ink)}. The project keeps the files these name. Asked again when the extension’s data changes.
+- `add(image, at, top, aspect) → index`: The user added an image (a file, the clipboard, a drop), kept as the file named image: its top-left corner goes to quarter at, top staff spaces down; aspect is its width over its height. Return the new picture’s index, which is then selected.
+- `change(index, picture)`: Picture index was moved, resized, cropped or had its ink switched: picture is as list gives one, as it is now. Called at every move of a drag, which is one Undo step.
+- `remove(indexes)`: The user removed these pictures: the selected one, or every one showing an image.
+- `without(data, images) → data`: The files named images were let go (Manage Assets ▸ Remove Unused): return data, a state Undo keeps, without the pictures that show them.
+
+### Spacers (`spacers`)
+
+Room in the score: staves of nothing and stretches made wider, with the Spacers lane and their handles in the preview. It has no ports: an extension with one turns them on, and the app keeps them. An extension has one.
 
 Icons: `add`, `close`, `delete`, `reset`, `copy`, `check`, `search`, `more`, `open`, `project`, `score`, `export`, `assets`, `play`, `pause`, `music`, `draw`, `erase`, `tidy`, `audio`, `repeat`, `snap`, `frame`, `lanes`, `image`, `pin`, `link`, `captions`, `settings`, `fonts`, `extensions`, `done`, `failed`, `warning`, `previous`, `next`, `align`, `moveUp`, `moveDown`, `chapters`, `ai`, `show`, `hide`, `test`, `fetch`, `code`, `tonality`, `website`, `keyboard`.
 
