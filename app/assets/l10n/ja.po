@@ -577,11 +577,14 @@ msgstr "変更履歴"
 msgid "Check at launch"
 msgstr "起動時に確認"
 
+msgid "Update channel"
+msgstr "アップデートチャンネル"
+
 #: lib/settings_dialog.dart
 msgid "Check for Updates"
 msgstr "アップデートを確認"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Checking…"
 msgstr "確認中…"
 
@@ -618,7 +621,7 @@ msgstr "音部記号"
 msgid "Clefs"
 msgstr "音部記号"
 
-#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "閉じる"
 
@@ -774,7 +777,7 @@ msgstr "クロスフェード（独自）"
 msgid "Crossfade (the project’s)"
 msgstr "クロスフェード（プロジェクトの）"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Curator is up to date! ☆"
 msgstr "Curator は最新です！☆"
 
@@ -786,11 +789,11 @@ msgstr "Curator プロジェクト"
 msgid "Curator settings"
 msgstr "Curator の設定"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Curator {version} is out, but not for this system yet."
 msgstr "Curator {version} が出ましたが、このシステム向けはまだです。"
 
-#: lib/main.dart lib/settings_dialog.dart
+#: lib/main.dart lib/update_dialog.dart
 msgid "Curator {version} is available! ☆"
 msgstr "Curator {version} が利用可能です！☆"
 
@@ -875,11 +878,11 @@ msgstr "付点"
 msgid "Double barline gap"
 msgstr "複縦線の間隔"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Download {version}"
 msgstr "{version} をダウンロード"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Downloading {version}…"
 msgstr "{version} をダウンロード中…"
 
@@ -1126,7 +1129,7 @@ msgstr "開始"
 msgid "From bar"
 msgstr "開始小節"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "From GitHub."
 msgstr "GitHub から。"
 
@@ -1572,7 +1575,7 @@ msgstr "ウインドウで開く"
 msgid "Open Recent"
 msgstr "最近使った項目を開く"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Open Release Page"
 msgstr "リリースページを開く"
 
@@ -1910,7 +1913,7 @@ msgstr "保存済みのプロジェクトのみ。"
 msgid "Set the anchors from the recording"
 msgstr "録音からアンカーを設定"
 
-#: lib/export_dialog.dart lib/settings_dialog.dart
+#: lib/export_dialog.dart lib/update_dialog.dart
 msgid "Saved “{name}”."
 msgstr "「{name}」を保存しました。"
 
@@ -2461,7 +2464,7 @@ msgstr "ト音記号 8vb"
 msgid "Tremolos"
 msgstr "トレモロ"
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart lib/update_dialog.dart
 msgid "Try Again"
 msgstr "もう一度試す"
 
@@ -2551,7 +2554,7 @@ msgstr "解凍して、このアプリと置き換えてください。"
 msgid "Updates"
 msgstr "アップデート"
 
-#: lib/main.dart
+#: lib/main.dart lib/settings_dialog.dart
 msgid "Update…"
 msgstr "アップデート…"
 
@@ -4645,3 +4648,20 @@ msgstr "LilyPond と MusicXML"
 
 msgid "Shortcuts"
 msgstr "ショートカット"
+
+#: lib/settings_dialog.dart
+msgctxt "update channel"
+msgid "Release"
+msgstr "正式版"
+
+#: lib/settings_dialog.dart lib/update_dialog.dart
+msgid "Pre-release"
+msgstr "プレリリース版"
+
+#: lib/update_dialog.dart
+msgid "You have {version}"
+msgstr "現在のバージョン: {version}"
+
+#: lib/update_dialog.dart
+msgid "No release notes."
+msgstr "リリースノートはありません。"

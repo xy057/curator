@@ -10,6 +10,7 @@ import 'ai_providers.dart';
 import 'app_colors.dart';
 import 'key_bindings.dart';
 import 'l10n/l10n.dart';
+import 'updater.dart' show UpdateChannel;
 import 'video_export.dart';
 import 'window_chrome.dart' show WindowFrame;
 
@@ -50,6 +51,7 @@ class AppSettings extends ChangeNotifier {
         _videoTransparent = _prefs?.getBool(_videoTransparentKey) ?? false,
         _engraving = _readEngraving(_prefs?.getString(_engravingKey)),
         _checkForUpdates = _prefs?.getBool(_updatesKey) ?? true,
+        _updateChannel = UpdateChannel.values.asNameMap()[_prefs?.getString(_updateChannelKey)] ?? UpdateChannel.release,
         _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? defaultTextDynamics,
         _rehearsalInRow = _prefs?.getBool(_rehearsalInRowKey) ?? defaultRehearsalInRow,
         _centeredLyrics = _prefs?.getBool(_centeredLyricsKey) ?? defaultCenteredLyrics,
@@ -102,6 +104,7 @@ class AppSettings extends ChangeNotifier {
   static const _autoCurateKey = 'autoCurateImported', _autoCuratePdfKey = 'autoCuratePdf', _fineSeekKey = 'fineSeekSeconds';
   static const _anchorNudgeKey = 'anchorNudgeSeconds';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
+  static const _updateChannelKey = 'updateChannel';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
@@ -822,6 +825,16 @@ class AppSettings extends ChangeNotifier {
     if (value == _checkForUpdates) return;
     _checkForUpdates = value;
     _prefs?.setBool(_updatesKey, value);
+    notifyListeners();
+  }
+
+  /// Which releases the updater offers: the releases, or pre-releases too.
+  UpdateChannel get updateChannel => _updateChannel;
+  UpdateChannel _updateChannel;
+  set updateChannel(UpdateChannel value) {
+    if (value == _updateChannel) return;
+    _updateChannel = value;
+    _prefs?.setString(_updateChannelKey, value.name);
     notifyListeners();
   }
 

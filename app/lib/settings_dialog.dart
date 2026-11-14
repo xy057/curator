@@ -37,6 +37,7 @@ import 'settings_file.dart';
 import 'sections_editor.dart';
 import 'shortcut_settings.dart';
 import 'ui_kit.dart';
+import 'update_dialog.dart';
 import 'updater.dart';
 import 'l10n/l10n.dart';
 
@@ -58,7 +59,7 @@ Future<void> showSettingsDialog(
         kind: _Window.app,
         settings: settings,
         controller: controller,
-        updater: updater ?? Updater(),
+        updater: updater ?? Updater(channel: settings.updateChannel),
         page: page,
       ),
     );
@@ -439,7 +440,7 @@ final _categories = <_Category>[
     ),
     _Item(
       'Updates',
-      (c) => _updateHelp(c.updater.status),
+      (c) => updateHelp(c.updater.status),
       (c) => _UpdateControl(updater: c.updater),
       keywords: 'update download release new version check latest',
     ),
@@ -448,6 +449,12 @@ final _categories = <_Category>[
       (_) => 'Asks GitHub for a newer version each time the app starts.',
       (c) => _launchSwitch(c),
       keywords: 'update automatic startup',
+    ),
+    _Item(
+      'Update channel',
+      null,
+      (c) => _channelControl(c),
+      keywords: 'update channel release stable pre-release prerelease beta preview early test version',
     ),
     _Item('Website', null, (_) => const _Link(websiteUrl), keywords: 'website home page official site web open'),
     _Item('Changelog', null, (_) => const _Link(changelogUrl), keywords: 'changelog changes release notes what\'s new history website open'),
@@ -914,6 +921,27 @@ _Category _engravingCategory() {
 Widget _launchSwitch(_Context c) =>
     AppSwitch(value: c.settings.checkForUpdates, onChanged: (v) => c.settings.checkForUpdates = v);
 
+/// Settings ▸ About ▸ Update channel: the releases, or pre-releases too. A change asks GitHub
+/// again, on the channel chosen.
+Widget _channelControl(_Context c) => AppSegmented<UpdateChannel>(
+      segments: [
+        ButtonSegment(value: UpdateChannel.release, label: Text('Release'.trIn('update channel'))),
+        ButtonSegment(value: UpdateChannel.prerelease, label: Text('Pre-release'.tr)),
+      ],
+      selected: c.settings.updateChannel,
+      onChanged: (v) {
+        c.settings.updateChannel = v;
+        c.updater
+          ..channel = v
+          ..check();
+      },
+    );
+
+/// The update window for [release] (update_dialog.dart), its notes on Settings' group fill: what
+/// the launch notice's Update… opens.
+Future<void> showUpdate(BuildContext context, Updater updater, Release release) =>
+    showUpdateDialog(context, updater: updater, release: release, groupColor: _groupColor);
+
 /// `0.3.0 (17)`, then the commit when the build knows it.
 String get _versionText => '$appVersion ($appBuild)${appCommit.isEmpty ? '' : ' · $appCommit'}';
 
@@ -926,19 +954,6 @@ String get _systemText {
 
 /// What Copy puts on the clipboard: everything a bug report needs to say which build it is.
 String get aboutText => 'Curator $_versionText\nVerovio $verovioVersion\n$_systemText';
-
-String _updateHelp(UpdateStatus status) => switch (status) {
-      UpdateIdle() => 'From GitHub.'.tr,
-      UpdateChecking() => 'Checking…'.tr,
-      UpToDate() => 'Curator is up to date! ☆'.tr,
-      UpdateAvailable(:final release) when release.download == null =>
-        'Curator {version} is out, but not for this system yet.'.fill({'version': release.version}),
-      UpdateAvailable(:final release) => 'Curator {version} is available! ☆'.fill({'version': release.version}),
-      UpdateDownloading(:final release) => 'Downloading {version}…'.fill({'version': release.version}),
-      UpdateDownloaded(:final path) => '${'Saved “{name}”.'.fill({'name': fileNameOf(path)})} '
-          '${(Platform.isWindows ? 'Close Curator, then replace its folder with the unzipped one.' : 'Unzip it and replace this app with it.').tr}',
-      UpdateFailed(:final message) => message.tr,
-    };
 
 /// Settings ▸ Download Hub ▸ LilyPond's line: what it is for, how far its download has got, or
 /// why it failed.
@@ -2258,7 +2273,8 @@ class _ScrollFollowSlider extends StatelessWidget {
   }
 }
 
-/// Check, then Download, then Show in Finder: the one button the update's state calls for.
+/// Check, then Update… (the update window: what is new, and its Download), then Show in Finder:
+/// the one button the update's state calls for.
 class _UpdateControl extends StatelessWidget {
   const _UpdateControl({required this.updater});
   final Updater updater;
@@ -2276,10 +2292,8 @@ class _UpdateControl extends StatelessWidget {
     final Widget control = switch (updater.status) {
       UpdateIdle() || UpToDate() || UpdateFailed(release: null) => check,
       UpdateChecking() => const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-      UpdateAvailable(:final release) when release.download == null =>
-        OutlinedButton(onPressed: () => openInBrowser(release.pageUrl), child: Text('Open Release Page'.tr)),
       UpdateAvailable(:final release) =>
-        FilledButton(onPressed: () => updater.download(release), child: Text('Download {version}'.fill({'version': release.version}))),
+        FilledButton(onPressed: () => showUpdate(context, updater, release), child: Text('Update…'.tr)),
       UpdateDownloading(:final progress) => SizedBox(
           width: 140,
           child: LinearProgressIndicator(value: progress, borderRadius: AppStyle.of(context).radius(2)),
@@ -2421,12 +2435,13 @@ class _AboutIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: () => settings.mascotIcon = !settings.mascotIcon,
-        child: AppLogo(settings: settings, size: 76),
+        child: AppLogo(settings: settings, size: 72),
       );
 }
 
 /// Settings ▸ About, laid out as a score's title page: the icon over the name and the version,
-/// in the middle; the updates as a card whose badge says where they stand; Website, Changelog,
+/// in the middle; the updates as a card whose badge says where they stand, with whether they are
+/// asked for at launch and on which channel; Website, Changelog,
 /// Source code and Licenses as four tiles; Verovio and the system at the foot (with the
 /// mascot's credit while it shows).
 class _AboutPage extends StatelessWidget {
@@ -2443,9 +2458,9 @@ class _AboutPage extends StatelessWidget {
     final status = c.updater.status;
     return LayoutBuilder(
       builder: (context, box) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 14),
+        padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: box.maxHeight - 34),
+          constraints: BoxConstraints(minHeight: box.maxHeight - 28),
           child: IntrinsicHeight(
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Center(child: _AboutIcon(c.settings)),
@@ -2462,17 +2477,18 @@ class _AboutPage extends StatelessWidget {
                 if (appCommit.isNotEmpty) _Pill(appCommit, mono: true),
                 const _CopyButton(),
               ]),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               _AboutGroup(indent: 14 + badge + 12, rows: [
                 _SettingRow(
                   leading: _UpdateBadge(status),
                   title: 'Updates',
-                  help: _updateHelp(status),
+                  help: updateHelp(status),
                   control: _UpdateControl(updater: c.updater),
                 ),
-                _SettingRow(leading: const SizedBox(width: badge), title: 'Check at launch', help: null, control: _launchSwitch(c)),
+                _SettingRow(leading: const SizedBox(width: badge), title: 'Check at launch', help: null, control: _launchSwitch(c), dense: true),
+                _SettingRow(leading: const SizedBox(width: badge), title: 'Update channel', help: null, control: _channelControl(c), dense: true),
               ]),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Row(spacing: 10, children: [
                 Expanded(child: _LinkTile(AppIcon.website, 'Website'.tr, url: websiteUrl)),
                 Expanded(child: _LinkTile(AppIcon.changelog, 'Changelog'.tr, url: changelogUrl)),
@@ -2480,7 +2496,7 @@ class _AboutPage extends StatelessWidget {
                 Expanded(child: _LinkTile(AppIcon.license, 'Licenses'.tr, onTap: () => showLicensesDialog(context, groupColor: _groupColor))),
               ]),
               const Spacer(),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               // The mascot's credit, only while it shows.
               ListenableBuilder(
                 listenable: c.settings,
@@ -2606,7 +2622,7 @@ class _LinkTileState extends State<_LinkTile> {
         child: AnimatedContainer(
           duration: stateDuration(motion(context, 120)),
           curve: style.curve,
-          height: 68,
+          height: 64,
           decoration: BoxDecoration(
             color: _hover ? Color.alphaBlend(shade, fill) : fill,
             borderRadius: style.radius(10),

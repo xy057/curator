@@ -12,7 +12,7 @@ import 'l10n/l10n.dart';
 const appVersion = '0.8.0';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
-const appBuild = 364;
+const appBuild = 365;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
@@ -63,10 +63,49 @@ class Version implements Comparable<Version> {
   String toString() => '$major.$minor.$patch';
 }
 
+/// Which releases the updater offers (Settings ▸ About ▸ Update channel). A pre-release is
+/// versioned as any other: only GitHub's mark on it says it is one.
+enum UpdateChannel {
+  /// The releases, as GitHub's "latest" names them: never a pre-release.
+  release,
+
+  /// The newest version there is, a pre-release or not.
+  prerelease,
+}
+
 /// The newest release on GitHub, and its download for this platform (null when it has none).
 @immutable
 class Release {
-  const Release({required this.version, required this.pageUrl, this.download, this.downloadSize, this.platform = ''});
+  const Release({
+    required this.version,
+    required this.pageUrl,
+    this.download,
+    this.downloadSize,
+    this.platform = '',
+    this.notes = '',
+    this.prerelease = false,
+    this.published,
+  });
+
+  /// The line the Release workflow writes under what is new, before how to install: the app
+  /// shows a description up to it.
+  static const installMarker = '<!-- install -->';
+
+  /// The most of a description that is kept (GitHub's own limit is 125 000).
+  static const _notesLimit = 60000;
+
+  /// The newest of a GitHub API list of releases (`GET /repos/…/releases`), pre-releases among
+  /// them: the highest version that is no draft, the first listed of two with the same; null
+  /// when there is none.
+  static Release? newest(Object? json, {String platform = '', Uri? origin}) {
+    Release? newest;
+    for (final entry in json is List ? json : const []) {
+      if (entry is! Map || entry['draft'] == true) continue;
+      final release = fromJson(entry, platform: platform, origin: origin);
+      if (release != null && (newest == null || release.version > newest.version)) newest = release;
+    }
+    return newest;
+  }
 
   /// Reads a GitHub API release (`GET /repos/…/releases/latest`); null when it has no version.
   /// Its addresses are taken only when they are https on github.com, or on [origin] (the
@@ -89,13 +128,26 @@ class Release {
     }
 
     final size = asset?['size'];
+    final body = json['body'];
+    final published = json['published_at'];
     return Release(
       version: version,
       pageUrl: '${trusted(json['html_url']) ?? '$repositoryUrl/releases'}',
       download: asset == null ? null : trusted(asset['browser_download_url']),
       downloadSize: size is int && size > 0 ? size : null,
       platform: platform,
+      notes: body is String ? _notesOf(body) : '',
+      prerelease: json['prerelease'] == true,
+      published: published is String ? DateTime.tryParse(published) : null,
     );
+  }
+
+  /// What a description says is new: the text before [installMarker] (all of it when it has
+  /// none), without the comments GitHub doesn't show either.
+  static String _notesOf(String body) {
+    final cut = body.indexOf(installMarker);
+    final text = (cut < 0 ? body : body.substring(0, cut)).replaceAll('\r\n', '\n').replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '').trim();
+    return text.length > _notesLimit ? text.substring(0, _notesLimit) : text;
   }
 
   final Version version;
@@ -103,6 +155,15 @@ class Release {
   final Uri? download;
   final int? downloadSize;
   final String platform;
+
+  /// What is new, as the release's description says it: Markdown, empty when it says nothing.
+  final String notes;
+
+  /// Whether GitHub marks it a pre-release.
+  final bool prerelease;
+
+  /// When it was published.
+  final DateTime? published;
 
   /// The download's own name when it is a plain one (`Curator-1.2.3-macos.zip`); otherwise
   /// (a folder in it, `..`, a name for another kind of file) the name the workflow gives it.
@@ -157,16 +218,33 @@ class UpdateFailed extends UpdateStatus {
   final Release? release;
 }
 
-/// Settings ▸ About: asks GitHub for the latest release and downloads it to the Downloads
-/// folder. It never replaces the running app; the user unzips what it downloaded.
+/// Settings ▸ About: asks GitHub for the newest release on the [channel] and downloads it to
+/// the Downloads folder. It never replaces the running app; the user unzips what it downloaded.
 class Updater extends ChangeNotifier {
-  Updater({Uri? api, this._downloads, String? platform})
-      : api = api ?? Uri.parse('https://api.github.com/repos/xy057/curator/releases/latest'),
+  Updater({Uri? api, this._downloads, String? platform, this._channel = UpdateChannel.release})
+      : api = api ?? Uri.parse('https://api.github.com/repos/xy057/curator/releases'),
         platform = platform ?? Platform.operatingSystem;
 
-  /// The latest-release endpoint (a local server in tests).
+  /// The releases endpoint (a local server in tests): the list of them, and `/latest` under it.
   final Uri api;
   final String? _downloads;
+
+  /// How many of the newest releases the pre-release channel looks through.
+  static const _listed = 20;
+
+  /// Which releases [check] asks for. Changing it forgets what the last check found (not a
+  /// download under way or done) and the answer of one still asked.
+  UpdateChannel get channel => _channel;
+  UpdateChannel _channel;
+  set channel(UpdateChannel value) {
+    if (value == _channel) return;
+    _channel = value;
+    _asked++;
+    if (_status is! UpdateDownloading && _status is! UpdateDownloaded) _set = const UpdateIdle();
+  }
+
+  /// Counts the checks asked and the channel's changes: an answer to an earlier one is dropped.
+  int _asked = 0;
 
   /// Which download is this platform's: `macos`, `windows` or `linux`.
   final String platform;
@@ -186,16 +264,25 @@ class Updater extends ChangeNotifier {
     ..connectionTimeout = _timeout
     ..userAgent = 'Curator/$appVersion';
 
-  /// Asks GitHub for the latest release. Returns it when it is newer than this build.
+  /// Asks GitHub for the [channel]'s newest release. Returns it when it is newer than this
+  /// build.
   Future<Release?> check() async {
     if (busy) return null;
+    final asked = ++_asked;
+    final channel = _channel;
     _set = const UpdateChecking();
     final client = _client();
     try {
-      final request = await client.getUrl(api).timeout(_timeout);
+      // GitHub's "latest" is never a pre-release; the list has them all, newest first.
+      final url = switch (channel) {
+        UpdateChannel.release => api.replace(path: '${api.path}/latest'),
+        UpdateChannel.prerelease => api.replace(queryParameters: {'per_page': '$_listed'}),
+      };
+      final request = await client.getUrl(url).timeout(_timeout);
       request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
       final response = await request.close().timeout(_timeout);
       final body = await response.transform(utf8.decoder).join().timeout(_timeout);
+      if (asked != _asked) return null; // the channel changed meanwhile
       if (response.statusCode == HttpStatus.notFound) {
         _set = const UpToDate(); // nothing released yet
         return null;
@@ -203,15 +290,23 @@ class Updater extends ChangeNotifier {
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException('GitHub returned an error ({code})'.fill({'code': response.statusCode}));
       }
-      final release = Release.fromJson(jsonDecode(body), platform: platform, origin: api);
-      if (release == null) throw const FormatException('The latest release has no version');
-      if (release.version > Version.current) {
+      final json = jsonDecode(body);
+      final Release? release;
+      switch (channel) {
+        case UpdateChannel.release:
+          release = Release.fromJson(json, platform: platform, origin: api);
+          if (release == null) throw const FormatException('The latest release has no version');
+        case UpdateChannel.prerelease:
+          if (json is! List) throw const FormatException('No list of releases');
+          release = Release.newest(json, platform: platform, origin: api); // null: nothing released yet
+      }
+      if (release != null && release.version > Version.current) {
         _set = UpdateAvailable(release);
         return release;
       }
       _set = const UpToDate();
     } catch (e) {
-      _set = UpdateFailed(_describe(e));
+      if (asked == _asked) _set = UpdateFailed(_describe(e));
     } finally {
       client.close(force: true);
     }
