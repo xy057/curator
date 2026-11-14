@@ -1,6 +1,6 @@
 // Writes docs/extension-api.md: the guide the extension editor's Help shows
 // (assets/help/extensions.md) followed by the API's reference, made from the list the app
-// itself answers from (ExtensionApi). test/extension_docs_test.dart fails until it has been run.
+// itself answers from (ExtensionApi). test/in_step_test.dart fails until it has been run.
 // Run from app/: `dart run tool/extension_docs.dart` (`make extension-docs` does).
 import 'dart:io';
 

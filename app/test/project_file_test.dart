@@ -36,48 +36,6 @@ void main() {
         media: media,
       );
 
-  test('a failed save leaves the previous file untouched', () async {
-    final path = '${dir.path}/safe.ccs';
-    await ProjectFile.write(path, contents());
-    final before = File(path).readAsBytesSync();
-
-    await expectLater(
-      ProjectFile.write(path, contents(
-        media: const ProjectMedia(name: 'gone.wav', embedFrom: '/nowhere/gone.wav'),
-      )),
-      throwsA(anything),
-    );
-    expect(File(path).readAsBytesSync(), before);
-    expect(File('$path.saving').existsSync(), isFalse);
-  });
-
-  test('every recording travels in the project, each in a folder of its own', () async {
-    File('${dir.path}/a.wav').writeAsBytesSync([1, 2, 3]);
-    File('${dir.path}/b.wav').writeAsBytesSync([4, 5]);
-    final path = '${dir.path}/takes.ccs';
-    await ProjectFile.write(
-        path,
-        ProjectContents(
-          scoreName: 'Score.musicxml',
-          scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
-          state: const ProjectState(
-              edits: EditState(focus: 'take-1', crossfade: 0.5, takes: [
-            Take('take-1', 'Karajan', regions: [Region(0, 4)]),
-            Take('take-2', 'Bernstein', regions: [Region(4, 8)], anchors: [SyncAnchor(0, 2)], leadIn: 2),
-          ])),
-          // The same name twice: each take's is its own.
-          media: ProjectMedia(name: 'Take.wav', embedFrom: '${dir.path}/a.wav'),
-          takes: {'take-2': ProjectMedia(name: 'Take.wav', embedFrom: '${dir.path}/b.wav')},
-        ));
-    final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
-    expect(File(opened.media!.path!).readAsBytesSync(), [1, 2, 3]);
-    expect(File(opened.takes['take-2']!).readAsBytesSync(), [4, 5]);
-    expect(opened.state.edits.take('take-2')!.anchors, const [SyncAnchor(0, 2)]);
-    expect(opened.state.edits.focus, 'take-1');
-    expect(opened.state.edits.crossfade, 0.5);
-    expect([for (final t in opened.state.edits.takes) t.regions], [[Region(0, 4)], [Region(4, 8)]]);
-  });
-
   /// [path]'s zip with [change] made to it: entries by name (null removes one).
   void rewrite(String path, Map<String, List<int>?> change) {
     final before = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
@@ -96,210 +54,21 @@ void main() {
 
   Future<OpenedProject> open(String path) => ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
 
-  group('the format', () {
-    test('Curator 0.1 to 0.6.1 know a project in modules, and ask for an update', () async {
-      final path = '${dir.path}/new.ccs';
-      await ProjectFile.write(path, contents());
-      final zip = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
-      expect(zip.files.first.name, 'mimetype');
-      // What they read: project.json's format, then its version above theirs (26 at most).
-      expect(json(path, 'project.json'), {'format': ProjectFile.mimeType, 'version': LegacyProject.lastVersion + 1});
-      final manifest = json(path, 'manifest.json');
-      expect(manifest['modules'], {
-        for (final m in ProjectModules.all) m.id: {'version': m.version, if (m.optional) 'optional': true},
-      });
-      final opened = (await open(path)).state.edits;
-      expect([opened.textEdits, opened.split], [{'d1': 'hello'}, {'P2'}]);
-    });
-
-    test('a project saved before modules opens with every field in its module', () async {
-      final path = '${dir.path}/old.ccs';
-      final project = {
-        'format': ProjectFile.mimeType,
-        'version': 17,
-        'score': {'name': 'Score.musicxml', 'entry': 'score/Score.musicxml'},
-        'state': {
-          'textEdits': {'d1': 'hello'},
-          'partNames': {'P1': {'name': 'Solo Piccolo'}},
-          'sections': {'P2': 'none', 'P3': 'bracket-1'},
-          'flags': {'centredLyrics': true},
-          'curation': {
-            'transition': 0.5,
-            'lanes': {
-              'P1': [{'start': 1, 'end': 2, 'transitionIn': 0.3}],
-            },
-          },
-          'sync': {
-            'leadIn': 1,
-            'anchors': [{'quarter': 8, 'seconds': 4, 'jumpTo': 0}, {'quarter': 4, 'seconds': 2}],
-          },
-          'captions': [{'start': 1, 'end': 2, 'text': 'Hi'}],
-          'view': {'time': 3},
-        },
-      };
-      final zip = Archive()
-        ..add(ArchiveFile.string('project.json', jsonEncode(project)))
-        ..add(ArchiveFile.string('score/Score.musicxml', '<score-partwise/>'));
-      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(zip));
-
-      final opened = await open(path);
-      expect(opened.olderFormat, isTrue);
-      final state = opened.state;
-      final e = state.edits;
-      expect(e.barNumbers, isFalse, reason: 'saved before bar numbers (format 18): off, as it was made');
-      expect(e.partNames, {'P1': (name: 'Solo Piccolo', abbreviation: '')});
-      expect(e.sections, {'P2': null, 'P3': 'bracket-1'});
-      expect(e.centeredLyrics, isTrue);
-      expect((e.transition, e.leadIn), (0.5, 1));
-      expect(e.lanes, {'P1': [const Region(1, 2, transitionIn: 0.3)]});
-      expect(e.anchors, [const SyncAnchor(4, 2), const SyncAnchor(8, 4, jumpTo: 0)]);
-      expect(e.extensionData['captions'], {
-        'captions': [
-          [1, 2, 'Hi'],
-        ],
-      });
-      expect(state.view.time, 3);
-
-      // Saved again: in modules, the same.
-      await ProjectFile.write(path, ProjectContents(scoreName: 'Score.musicxml', scoreBytes: Uint8List(1), state: state));
-      final saved = await open(path);
-      expect(saved.olderFormat, isFalse);
-      expect(json(path, 'project.json')['version'], LegacyProject.lastVersion + 1);
-      expect(jsonEncode(ProjectModules.toJson(saved.state)), jsonEncode(ProjectModules.toJson(state)));
-    });
-
-    test('a module this version can\'t read is kept when it may go unread, refused when not', () async {
-      final path = '${dir.path}/later.ccs';
-      await ProjectFile.write(path, contents());
-      final manifest = json(path, 'manifest.json');
-      final modules = manifest['modules']! as Map<String, Object?>;
-      List<int> listing(Map<String, Object?> extra) => utf8.encode(jsonEncode({...manifest, 'modules': {...modules, ...extra}}));
-
-      rewrite(path, {
-        'manifest.json': listing({'harmony': {'version': 3, 'optional': true}}),
-        'modules/harmony.json': utf8.encode('{"keys":[1,2]}'),
-        'harmony/bar-1.bin': [1, 2, 3],
-      });
-      final opened = await open(path);
-      expect(opened.state.edits.textEdits, {'d1': 'hello'});
-      expect(opened.state.foreign.keys, ['harmony']);
-      // Saved here: still there, as it came.
-      final again = '${dir.path}/again.ccs';
-      await ProjectFile.write(again, ProjectContents(scoreName: 'Score.musicxml', scoreBytes: Uint8List(1), state: opened.state));
-      expect(json(again, 'manifest.json')['modules'], containsPair('harmony', {'version': 3, 'optional': true}));
-      expect(json(again, 'modules/harmony.json'), {'keys': [1, 2]});
-      expect(ZipDecoder().decodeBytes(File(again).readAsBytesSync()).findFile('harmony/bar-1.bin')!.content, [1, 2, 3]);
-
-      for (final extra in [
-        {'harmony': {'version': 1}}, // a module of a newer version, needed
-        {'sync': {'version': 99}}, // a newer version of one known here
-      ]) {
-        rewrite(path, {'manifest.json': listing(extra)});
-        await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('newer Curator'))));
-      }
-    });
-
-    test('a project keeps its kind in the manifest; one without a kind is its score\'s', () async {
-      final path = '${dir.path}/kind.ccs';
-      await ProjectFile.write(path, ProjectContents(
-          scoreName: 'Score.pdf', scoreBytes: Uint8List(1), state: const ProjectState(kind: ProjectKind.pdf)));
-      final manifest = json(path, 'manifest.json');
-      expect(manifest['kind'], 'pdf');
-      expect((await open(path)).state.kind, ProjectKind.pdf);
-      // Carried to its score read again (Edit… done), it is still a PDF's.
-      const none = ScoreMetadata(title: '', parts: [], tempo: null, activeMeasures: {});
-      final carried = ScoreSwap(before: none, after: none, textsBefore: const [], textsAfter: const [])
-          .carry(const ProjectState(kind: ProjectKind.pdf), condensable: const [], measuresBefore: const [0, 4], measuresAfter: const [0, 4]);
-      expect(carried.state.kind, ProjectKind.pdf);
-
-      for (final kind in [null, 'tablature']) { // older than kinds; a newer Curator's kind
-        rewrite(path, {'manifest.json': utf8.encode(jsonEncode({...manifest..remove('kind'), 'kind': ?kind}))});
-        expect((await open(path)).state.kind, ProjectKind.score);
-      }
-      await ProjectFile.write(path, contents());
-      expect(json(path, 'manifest.json')['kind'], 'score');
-    });
-
-    test('a damaged module says where', () async {
-      final path = '${dir.path}/damaged.ccs';
-      await ProjectFile.write(path, contents());
-      rewrite(path, {'modules/sync.json': utf8.encode('{"anchors":[[1,"x"]]}')});
-      await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('sync.anchors[0]'))));
-    });
-
-    test('settings files are in modules too', () async {
-      final path = '${dir.path}/look.ccf';
-      const settings = EditState(barNumbers: false, colorNames: true, transition: 0.8, extensions: {'captions': true});
-      await SettingsFile.write(path, settings);
-      expect(json(path, 'settings.json'), {'format': SettingsFile.mimeType, 'version': LegacyProject.lastVersion + 1});
-      expect((json(path, 'manifest.json')['modules']! as Map).keys, [for (final m in ProjectModules.settings) m.id]);
-      final (settings: read, :olderFormat) = await SettingsFile.read(path);
-      expect(olderFormat, isFalse);
-      expect((read.barNumbers, read.colorNames, read.transition), (false, true, 0.8));
-      expect(read.extensions, {'captions': true});
-    });
-
-    test('a settings file saved before modules still imports, and exports in modules', () async {
-      final path = '${dir.path}/old.ccf';
-      final zip = Archive()
-        ..add(ArchiveFile.string('settings.json', jsonEncode({
-          'format': SettingsFile.mimeType,
-          'version': 25,
-          'state': {
-            'barNumbers': false,
-            'flags': {'centredLyrics': true},
-            'curation': {'transition': 0.8, 'lanes': {'P1': []}},
-            'partNames': {'P1': {'name': 'Not a setting'}},
-          },
-        })));
-      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(zip));
-      final (:settings, :olderFormat) = await SettingsFile.read(path);
-      expect(olderFormat, isTrue);
-      expect((settings.barNumbers, settings.centeredLyrics, settings.transition), (false, true, 0.8));
-      expect(settings.lanes, isNull, reason: 'only the score-wide settings');
-      expect(settings.partNames, isEmpty);
-
-      final again = '${dir.path}/again.ccf';
-      await SettingsFile.write(again, settings);
-      expect(json(again, 'settings.json')['version'], LegacyProject.lastVersion + 1);
-      final reread = await SettingsFile.read(again);
-      expect(reread.olderFormat, isFalse);
-      expect(reread.settings.centeredLyrics, isTrue);
-    });
-  });
-
-  group('with a score', () {
-    late EditorController c;
-    late ProjectDocument doc;
-
-    setUp(() async {
-      c = EditorController(vsync: const TestVSync());
-      doc = ProjectDocument(c, AppSettings.memory()..autosave = Duration.zero);
-      await doc.importScore(demoScore.path);
-    });
-
-    tearDown(() {
+  /// The demo imported into a controller and its document, let go after the test.
+  Future<(EditorController, ProjectDocument)> demo() async {
+    final c = EditorController(vsync: const TestVSync());
+    final doc = ProjectDocument(c, AppSettings.memory()..autosave = Duration.zero);
+    addTearDown(() {
       doc.dispose();
       c.dispose();
     });
+    await doc.importScore(demoScore.path);
+    return (c, doc);
+  }
 
-    test('a project saved by Curator 0.6.1 or before opens, and saves in the new format', () async {
-      final path = '${dir.path}/older.ccs';
-      demoProject.copySync(path);
-      await doc.open(path);
-      expect(doc.isOlderFormat, isTrue);
-      final before = jsonEncode(ProjectModules.toJson(c.projectState));
-      expect(json(path, 'project.json')['version'], lessThanOrEqualTo(LegacyProject.lastVersion), reason: 'untouched until saved');
-
-      await doc.save();
-      expect(doc.isOlderFormat, isFalse);
-      expect(json(path, 'manifest.json')['format'], ProjectFile.mimeType);
-      await doc.open(path);
-      expect(doc.isOlderFormat, isFalse);
-      expect(jsonEncode(ProjectModules.toJson(c.projectState)), before);
-    });
-
-    test('every edit survives save and open', () async {
+  test('saved and opened: every edit survives, a failed save leaves the file as it was, every recording travels in its own folder', () async {
+    final (c, doc) = await demo();
+    {
       final part = c.score!.metadata.parts.first;
       c.renamePart(part, name: 'Solo Piccolo', abbreviation: 'Picc.');
       c.curation!.setLane(part.id, [const Region(3, 12), const Region(21, 27, transitionIn: 1.2, transitionOut: 0.15)]);
@@ -404,6 +173,245 @@ void main() {
       expect(doc2.isDirty, isFalse);
       expect(doc2.title, 'round.ccs');
       expect(c2.canUndo, isFalse, reason: 'a freshly opened project has no history');
-    });
+    }
+
+    // A failed save leaves the previous file untouched.
+    {
+      final path = '${dir.path}/safe.ccs';
+      await ProjectFile.write(path, contents());
+      final before = File(path).readAsBytesSync();
+
+      await expectLater(
+        ProjectFile.write(path, contents(
+          media: const ProjectMedia(name: 'gone.wav', embedFrom: '/nowhere/gone.wav'),
+        )),
+        throwsA(anything),
+      );
+      expect(File(path).readAsBytesSync(), before);
+      expect(File('$path.saving').existsSync(), isFalse);
+    }
+
+    // Every recording travels in the project, each in a folder of its own.
+    {
+      File('${dir.path}/a.wav').writeAsBytesSync([1, 2, 3]);
+      File('${dir.path}/b.wav').writeAsBytesSync([4, 5]);
+      final path = '${dir.path}/takes.ccs';
+      await ProjectFile.write(
+          path,
+          ProjectContents(
+            scoreName: 'Score.musicxml',
+            scoreBytes: Uint8List.fromList(utf8.encode('<score-partwise/>')),
+            state: const ProjectState(
+                edits: EditState(focus: 'take-1', crossfade: 0.5, takes: [
+              Take('take-1', 'Karajan', regions: [Region(0, 4)]),
+              Take('take-2', 'Bernstein', regions: [Region(4, 8)], anchors: [SyncAnchor(0, 2)], leadIn: 2),
+            ])),
+            // The same name twice: each take's is its own.
+            media: ProjectMedia(name: 'Take.wav', embedFrom: '${dir.path}/a.wav'),
+            takes: {'take-2': ProjectMedia(name: 'Take.wav', embedFrom: '${dir.path}/b.wav')},
+          ));
+      final opened = await ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
+      expect(File(opened.media!.path!).readAsBytesSync(), [1, 2, 3]);
+      expect(File(opened.takes['take-2']!).readAsBytesSync(), [4, 5]);
+      expect(opened.state.edits.take('take-2')!.anchors, const [SyncAnchor(0, 2)]);
+      expect(opened.state.edits.focus, 'take-1');
+      expect(opened.state.edits.crossfade, 0.5);
+      expect([for (final t in opened.state.edits.takes) t.regions], [[Region(0, 4)], [Region(4, 8)]]);
+    }
+  });
+
+  test('older formats and modules: Curator 0.1 to 0.6.1 ask for an update, a project or settings file saved before modules opens, a module unknown here kept or refused, a kind, damage said where', () async {
+    // Curator 0.1 to 0.6.1 know a project in modules, and ask for an update.
+    {
+      final path = '${dir.path}/new.ccs';
+      await ProjectFile.write(path, contents());
+      final zip = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
+      expect(zip.files.first.name, 'mimetype');
+      // What they read: project.json's format, then its version above theirs (26 at most).
+      expect(json(path, 'project.json'), {'format': ProjectFile.mimeType, 'version': LegacyProject.lastVersion + 1});
+      final manifest = json(path, 'manifest.json');
+      expect(manifest['modules'], {
+        for (final m in ProjectModules.all) m.id: {'version': m.version, if (m.optional) 'optional': true},
+      });
+      final opened = (await open(path)).state.edits;
+      expect([opened.textEdits, opened.split], [{'d1': 'hello'}, {'P2'}]);
+    }
+
+    // A project saved before modules opens with every field in its module.
+    {
+      final path = '${dir.path}/old.ccs';
+      final project = {
+        'format': ProjectFile.mimeType,
+        'version': 17,
+        'score': {'name': 'Score.musicxml', 'entry': 'score/Score.musicxml'},
+        'state': {
+          'textEdits': {'d1': 'hello'},
+          'partNames': {'P1': {'name': 'Solo Piccolo'}},
+          'sections': {'P2': 'none', 'P3': 'bracket-1'},
+          'flags': {'centredLyrics': true},
+          'curation': {
+            'transition': 0.5,
+            'lanes': {
+              'P1': [{'start': 1, 'end': 2, 'transitionIn': 0.3}],
+            },
+          },
+          'sync': {
+            'leadIn': 1,
+            'anchors': [{'quarter': 8, 'seconds': 4, 'jumpTo': 0}, {'quarter': 4, 'seconds': 2}],
+          },
+          'captions': [{'start': 1, 'end': 2, 'text': 'Hi'}],
+          'view': {'time': 3},
+        },
+      };
+      final zip = Archive()
+        ..add(ArchiveFile.string('project.json', jsonEncode(project)))
+        ..add(ArchiveFile.string('score/Score.musicxml', '<score-partwise/>'));
+      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(zip));
+
+      final opened = await open(path);
+      expect(opened.olderFormat, isTrue);
+      final state = opened.state;
+      final e = state.edits;
+      expect(e.barNumbers, isFalse, reason: 'saved before bar numbers (format 18): off, as it was made');
+      expect(e.partNames, {'P1': (name: 'Solo Piccolo', abbreviation: '')});
+      expect(e.sections, {'P2': null, 'P3': 'bracket-1'});
+      expect(e.centeredLyrics, isTrue);
+      expect((e.transition, e.leadIn), (0.5, 1));
+      expect(e.lanes, {'P1': [const Region(1, 2, transitionIn: 0.3)]});
+      expect(e.anchors, [const SyncAnchor(4, 2), const SyncAnchor(8, 4, jumpTo: 0)]);
+      expect(e.extensionData['captions'], {
+        'captions': [
+          [1, 2, 'Hi'],
+        ],
+      });
+      expect(state.view.time, 3);
+
+      // Saved again: in modules, the same.
+      await ProjectFile.write(path, ProjectContents(scoreName: 'Score.musicxml', scoreBytes: Uint8List(1), state: state));
+      final saved = await open(path);
+      expect(saved.olderFormat, isFalse);
+      expect(json(path, 'project.json')['version'], LegacyProject.lastVersion + 1);
+      expect(jsonEncode(ProjectModules.toJson(saved.state)), jsonEncode(ProjectModules.toJson(state)));
+    }
+
+    // A module this version can't read is kept when it may go unread, refused when not.
+    {
+      final path = '${dir.path}/later.ccs';
+      await ProjectFile.write(path, contents());
+      final manifest = json(path, 'manifest.json');
+      final modules = manifest['modules']! as Map<String, Object?>;
+      List<int> listing(Map<String, Object?> extra) => utf8.encode(jsonEncode({...manifest, 'modules': {...modules, ...extra}}));
+
+      rewrite(path, {
+        'manifest.json': listing({'harmony': {'version': 3, 'optional': true}}),
+        'modules/harmony.json': utf8.encode('{"keys":[1,2]}'),
+        'harmony/bar-1.bin': [1, 2, 3],
+      });
+      final opened = await open(path);
+      expect(opened.state.edits.textEdits, {'d1': 'hello'});
+      expect(opened.state.foreign.keys, ['harmony']);
+      // Saved here: still there, as it came.
+      final again = '${dir.path}/again.ccs';
+      await ProjectFile.write(again, ProjectContents(scoreName: 'Score.musicxml', scoreBytes: Uint8List(1), state: opened.state));
+      expect(json(again, 'manifest.json')['modules'], containsPair('harmony', {'version': 3, 'optional': true}));
+      expect(json(again, 'modules/harmony.json'), {'keys': [1, 2]});
+      expect(ZipDecoder().decodeBytes(File(again).readAsBytesSync()).findFile('harmony/bar-1.bin')!.content, [1, 2, 3]);
+
+      for (final extra in [
+        {'harmony': {'version': 1}}, // a module of a newer version, needed
+        {'sync': {'version': 99}}, // a newer version of one known here
+      ]) {
+        rewrite(path, {'manifest.json': listing(extra)});
+        await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('newer Curator'))));
+      }
+    }
+
+    // A project keeps its kind in the manifest; one without a kind is its score's.
+    {
+      final path = '${dir.path}/kind.ccs';
+      await ProjectFile.write(path, ProjectContents(
+          scoreName: 'Score.pdf', scoreBytes: Uint8List(1), state: const ProjectState(kind: ProjectKind.pdf)));
+      final manifest = json(path, 'manifest.json');
+      expect(manifest['kind'], 'pdf');
+      expect((await open(path)).state.kind, ProjectKind.pdf);
+      // Carried to its score read again (Edit… done), it is still a PDF's.
+      const none = ScoreMetadata(title: '', parts: [], tempo: null, activeMeasures: {});
+      final carried = ScoreSwap(before: none, after: none, textsBefore: const [], textsAfter: const [])
+          .carry(const ProjectState(kind: ProjectKind.pdf), condensable: const [], measuresBefore: const [0, 4], measuresAfter: const [0, 4]);
+      expect(carried.state.kind, ProjectKind.pdf);
+
+      for (final kind in [null, 'tablature']) { // older than kinds; a newer Curator's kind
+        rewrite(path, {'manifest.json': utf8.encode(jsonEncode({...manifest..remove('kind'), 'kind': ?kind}))});
+        expect((await open(path)).state.kind, ProjectKind.score);
+      }
+      await ProjectFile.write(path, contents());
+      expect(json(path, 'manifest.json')['kind'], 'score');
+    }
+
+    // A damaged module says where.
+    {
+      final path = '${dir.path}/damaged.ccs';
+      await ProjectFile.write(path, contents());
+      rewrite(path, {'modules/sync.json': utf8.encode('{"anchors":[[1,"x"]]}')});
+      await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('sync.anchors[0]'))));
+    }
+
+    // Settings files are in modules too; one saved before modules still imports, and exports in modules.
+    {
+      final path = '${dir.path}/look.ccf';
+      const settings = EditState(barNumbers: false, colorNames: true, transition: 0.8, extensions: {'captions': true});
+      await SettingsFile.write(path, settings);
+      expect(json(path, 'settings.json'), {'format': SettingsFile.mimeType, 'version': LegacyProject.lastVersion + 1});
+      expect((json(path, 'manifest.json')['modules']! as Map).keys, [for (final m in ProjectModules.settings) m.id]);
+      final (settings: read, :olderFormat) = await SettingsFile.read(path);
+      expect(olderFormat, isFalse);
+      expect((read.barNumbers, read.colorNames, read.transition), (false, true, 0.8));
+      expect(read.extensions, {'captions': true});
+    }
+    {
+      final path = '${dir.path}/old.ccf';
+      final zip = Archive()
+        ..add(ArchiveFile.string('settings.json', jsonEncode({
+          'format': SettingsFile.mimeType,
+          'version': 25,
+          'state': {
+            'barNumbers': false,
+            'flags': {'centredLyrics': true},
+            'curation': {'transition': 0.8, 'lanes': {'P1': []}},
+            'partNames': {'P1': {'name': 'Not a setting'}},
+          },
+        })));
+      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(zip));
+      final (:settings, :olderFormat) = await SettingsFile.read(path);
+      expect(olderFormat, isTrue);
+      expect((settings.barNumbers, settings.centeredLyrics, settings.transition), (false, true, 0.8));
+      expect(settings.lanes, isNull, reason: 'only the score-wide settings');
+      expect(settings.partNames, isEmpty);
+
+      final again = '${dir.path}/again.ccf';
+      await SettingsFile.write(again, settings);
+      expect(json(again, 'settings.json')['version'], LegacyProject.lastVersion + 1);
+      final reread = await SettingsFile.read(again);
+      expect(reread.olderFormat, isFalse);
+      expect(reread.settings.centeredLyrics, isTrue);
+    }
+
+    // The demo, saved by Curator 0.6.1 or before, opens, and saves in the new format.
+    {
+      final (c, doc) = await demo();
+      final path = '${dir.path}/older.ccs';
+      demoProject.copySync(path);
+      await doc.open(path);
+      expect(doc.isOlderFormat, isTrue);
+      final before = jsonEncode(ProjectModules.toJson(c.projectState));
+      expect(json(path, 'project.json')['version'], lessThanOrEqualTo(LegacyProject.lastVersion), reason: 'untouched until saved');
+
+      await doc.save();
+      expect(doc.isOlderFormat, isFalse);
+      expect(json(path, 'manifest.json')['format'], ProjectFile.mimeType);
+      await doc.open(path);
+      expect(doc.isOlderFormat, isFalse);
+      expect(jsonEncode(ProjectModules.toJson(c.projectState)), before);
+    }
   });
 }

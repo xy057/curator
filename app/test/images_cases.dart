@@ -1,7 +1,7 @@
 // What the Attach Image extension is put through, and what is written down of it: edits made
-// at random, projects that are damaged, scores that are replaced, its switch and the spacers.
-// The app's own images were put through the same before the package took their place; what
-// they gave is the digests in attach_image_extension_test.dart.
+// at random, projects that are damaged, scores that are replaced. The app's own images were put
+// through the same before the package took their place; what they gave is the digests in
+// ported_extensions_test.dart.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -319,59 +319,3 @@ String carriedImages(Random random, ({ProjectState state, List<String> lost}) Fu
           (:final state, :final lost) => '${imagesModule(state)} $lost ${state.images.keys.toList()}',
         },
     ].join('\n');
-
-/// The extension's switch and the spacers, which it turns on: what is engraved, drawn and saved
-/// as it is turned off and on, and as Undo goes back over it.
-Future<String> spacerSwitch(EditorController c) async {
-  final out = StringBuffer();
-  final starts = c.timeline.measureStarts;
-  Future<void> say(String did) async {
-    for (var i = 0; i < 600 && c.isReengraving; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    }
-    final request = c.score!.request, page = c.pageState;
-    out.writeln('$did\n  module ${jsonEncode(ProjectModules.spacers.write(c.projectState, (entry, bytes, {compress = true}) {}))}\n'
-        '  enabled ${c.spacers.enabled} images ${c.images.enabled} vertical ${[for (final s in c.spacers.vertical) s.id]} horizontal ${c.spacers.horizontal.length} '
-        'selected ${c.spacers.selectedVertical} ${c.spacers.selectedHorizontal}\n'
-        '  engraved ${request.spacers.length} ${request.gaps.length} drawn ${c.sceneSettings.spacers.length} page ${page.spacers.length} ${page.gaps.length} '
-        'order ${c.projectState.edits.partOrder.where((id) => c.spacers.verticalOf(id) != null).toList()} lanes ${c.laneParts.length}\n'
-        '  used ${Extensions.usedBy(c).map((e) => e.id).toList()} on ${c.extensionOn('attachImage')} chosen ${c.extensionChosen('attachImage')} undo ${c.canUndo} redo ${c.canRedo}');
-  }
-
-  await say('opened');
-  await c.spacers.addVertical(below: c.laneParts[2].id);
-  await say('addVertical while off');
-  c.setExtension('attachImage', true);
-  await say('on');
-  await c.spacers.addVertical(below: c.laneParts[2].id);
-  await say('addVertical');
-  await c.spacers.addHorizontal(starts[3] + 1.5, starts[4]);
-  await say('addHorizontal');
-  await c.spacers.setVertical(c.spacers.vertical.single.copyWith(lines: true, height: 6));
-  await say('setVertical');
-  c.setExtension('attachImage', false);
-  await say('off');
-  await c.spacers.addHorizontal(starts[8], starts[9]);
-  await c.spacers.removeSelected();
-  await say('edits while off');
-  c.undo();
-  await say('undo (on again)');
-  c.undo();
-  await say('undo');
-  c.redo();
-  c.redo();
-  await say('redo twice (off)');
-  c.setExtension('attachImage', true);
-  c.spacers.selectHorizontal(0);
-  await say('on, selected');
-  c.commands.delete();
-  await say('delete');
-  c.spacers.selectVertical(c.spacers.vertical.single.id);
-  await c.images.add(ImageKind.raster, widePng, quarter: starts[2], top: 3);
-  await say('image added over a selected spacer');
-  await c.spacers.removeVertical(c.spacers.vertical.single.id);
-  await say('removeVertical');
-  c.setExtension('attachImage', false);
-  await say('off, an image left');
-  return out.toString();
-}

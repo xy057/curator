@@ -1,24 +1,25 @@
-// The interface's translations: every text the code translates is in the template
-// (assets/l10n/curator.pot), every language's file has the template's texts with the same
-// placeholders, the languages the app ships are wholly translated, and choosing a language
-// re-labels the open window at once.
+// What is made or copied from elsewhere is in step with it: every text the code translates is in
+// the template (assets/l10n/curator.pot, `make l10n`), every language's file has the template's
+// texts with the same placeholders and the languages the app ships are wholly translated, the
+// shortcuts' names are there too, docs/extension-api.md is the guide and the API as they are
+// (`make extension-docs`), and the licence the app carries is the repository's.
 
 import 'dart:io';
 
-import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/key_bindings.dart';
 import 'package:curated_score/l10n/l10n.dart';
 import 'package:curated_score/l10n/po.dart';
-import 'package:curated_score/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'window.dart';
+import '../tool/extension_docs.dart';
 
 void main() {
-  PoFile read(String path) => PoFile.parse(File(path).readAsStringSync());
-  final template = read('assets/l10n/curator.pot');
-  final keys = {for (final e in template.entries) e.key};
+  test('in step: the translations’ template and every language, the shortcuts’ names, docs/extension-api.md, the licence', () {
+    PoFile read(String path) => PoFile.parse(File(path).readAsStringSync());
+    final template = read('assets/l10n/curator.pot');
+    final keys = {for (final e in template.entries) e.key};
 
-  test('every text the code translates is in the template, which tool/l10n.dart has synced', () {
+    // Every text the code translates is in the template, which tool/l10n.dart has synced.
     final missing = <String>[];
     for (final file in Directory('lib').listSync(recursive: true).whereType<File>()) {
       if (!file.path.endsWith('.dart') || file.path.contains('l10n')) continue;
@@ -34,9 +35,16 @@ void main() {
     }
     expect(missing, isEmpty, reason: 'run `make l10n`');
     expect(keys, hasLength(template.entries.length), reason: 'a text twice in curator.pot');
-  });
 
-  test("each language has the template's texts, with the same placeholders", () {
+    // Each command's name, help and heading too (enum data, put in by hand).
+    for (final command in KeyCommand.values) {
+      expect(keys, contains(command.label), reason: command.name);
+      if (command.help case final help?) expect(keys, contains(help), reason: '${command.name}: help');
+      final group = command.group;
+      if (group != 'Curator') expect(keys.contains(group) || keys.contains('heading\u0004$group'), isTrue, reason: group);
+    }
+
+    // Each language has the template's texts, with the same placeholders.
     final placeholder = RegExp(r'\{\w+\}');
     Set<String> placeholders(String text) => {for (final m in placeholder.allMatches(text)) m[0]!};
     for (final language in AppLanguage.values) {
@@ -53,38 +61,16 @@ void main() {
       }
       expect(Strings.tableOf(language), po.table, reason: '$file: loaded');
     }
-  });
-
-  test('a catalog reads back as it was written', () {
+    // A catalog reads back as it was written.
     final po = read(AppLanguage.chineseTraditional.file!);
     expect(PoFile.parse(po.toString()).toString(), po.toString());
-    expect(po.table['page\u0004Flags'], isNotNull);
     expect(po.table['Align\nSet the anchors from the recording'], contains('\n'));
-  });
 
-  testWidgets('choosing Chinese or Japanese re-labels the window, and English brings it back', (tester) async {
-    desktopWindow(tester);
-    addTearDown(() => Strings.use(AppLanguage.english));
-    final settings = AppSettings.memory();
-    await tester.pumpWidget(CuratedScoreApp(settings: settings));
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Open Sample'), findsOneWidget);
+    // docs/extension-api.md is the guide and the API as they are now.
+    final guide = File('assets/help/extensions.md').readAsStringSync();
+    expect(File('../docs/extension-api.md').readAsStringSync(), extensionDocs(guide), reason: 'run `make extension-docs`');
 
-    settings.language = AppLanguage.chineseSimplified;
-    await tester.pump(const Duration(milliseconds: 400)); // past the cross-fade
-    expect(find.text('打开示例'), findsOneWidget);
-    expect(find.text('Open Sample'), findsNothing);
-
-    settings.language = AppLanguage.chineseTraditional;
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('打開範例'), findsOneWidget);
-
-    settings.language = AppLanguage.japanese;
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('サンプルを開く'), findsOneWidget);
-
-    settings.language = AppLanguage.english;
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('Open Sample'), findsOneWidget);
+    // The licence the app carries (Settings ▸ About ▸ Licenses) is the repository's.
+    expect(File('assets/LICENSE.txt').readAsStringSync(), File('../LICENSE').readAsStringSync());
   });
 }

@@ -55,37 +55,40 @@ ExtensionPackage package({Map<String, String>? sources, List<List<String>> wires
     );
 
 void main() {
-  test('A .cpe is read as it was written, what this build doesn’t know kept', () {
-    final p = package(wires: [
-      ['project.opened', 'main.lua#opened'],
-    ]);
-    final bytes = p.write();
-    expect(p.write(), bytes, reason: 'the same package, the same bytes');
-    final back = ExtensionPackage.read(bytes);
-    expect(back, p);
-    expect((back.id, back.name, back.version, back.api), ('com.example.notes', 'Notes', '1.2.0', 1));
-    expect(back.manifest['later'], {'kept': true});
-    expect(back.graph.other, {'theme': 'kept too'});
-    expect(back.graph.node('hologram')!.props, {'depth': 3});
-    expect(back.graph.node('lane')!.y, 200.5);
-    expect(back.graph.wire('project', 'opened')!.to, 'main.lua#opened');
-    expect(back.sources.keys, ['main.lua']);
-    expect(utf8.decode(back.assets['words.txt']!), 'hello');
-    // A changed file is another package.
-    expect(back.copyWith(sources: {'main.lua': 'function opened() return 1 end\n'}) == p, isFalse);
-    expect(() => ExtensionPackage.read(Uint8List.fromList([1, 2, 3])), throwsFormatException);
-    expect(() => ExtensionPackage.fromFiles({'extension.json': Uint8List.fromList(utf8.encode('{"id": "Bad Id"}'))}), throwsFormatException);
-    expect(ExtensionPackage.isThirdPartyId('com.example.notes') && !ExtensionPackage.isThirdPartyId('captions'), isTrue);
-    expect(ExtensionPackage.read(ExtensionPackage.blank(id: 'com.example.new', name: 'New').write()).sources['main.lua'], contains('function opened()'));
-  });
+  test('extensions: a .cpe read as written, one run with its wires, what is wrong with one listed and found, what Lua adds and gives, the API described', () {
+    // A .cpe is read as it was written, what this build doesn’t know kept.
+    {
+      final p = package(wires: [
+        ['project.opened', 'main.lua#opened'],
+      ]);
+      final bytes = p.write();
+      expect(p.write(), bytes, reason: 'the same package, the same bytes');
+      final back = ExtensionPackage.read(bytes);
+      expect(back, p);
+      expect((back.id, back.name, back.version, back.api), ('com.example.notes', 'Notes', '1.2.0', 1));
+      expect(back.manifest['later'], {'kept': true});
+      expect(back.graph.other, {'theme': 'kept too'});
+      expect(back.graph.node('hologram')!.props, {'depth': 3});
+      expect(back.graph.node('lane')!.y, 200.5);
+      expect(back.graph.wire('project', 'opened')!.to, 'main.lua#opened');
+      expect(back.sources.keys, ['main.lua']);
+      expect(utf8.decode(back.assets['words.txt']!), 'hello');
+      // A changed file is another package.
+      expect(back.copyWith(sources: {'main.lua': 'function opened() return 1 end\n'}) == p, isFalse);
+      expect(() => ExtensionPackage.read(Uint8List.fromList([1, 2, 3])), throwsFormatException);
+      expect(() => ExtensionPackage.fromFiles({'extension.json': Uint8List.fromList(utf8.encode('{"id": "Bad Id"}'))}), throwsFormatException);
+      expect(ExtensionPackage.isThirdPartyId('com.example.notes') && !ExtensionPackage.isThirdPartyId('captions'), isTrue);
+      expect(ExtensionPackage.read(ExtensionPackage.blank(id: 'com.example.new', name: 'New').write()).sources['main.lua'], contains('function opened()'));
+    }
 
-  test('An extension runs: files with globals of their own, wires called, data saved, texts translated', () {
-    final host = TestHost()..data = {'notes': [
-      {'at': 4.0, 'text': 'Here'},
-    ]};
-    final runtime = ExtensionRuntime(
-      package(sources: {
-        'main.lua': '''
+    // An extension runs: files with globals of their own, wires called, data saved, texts translated.
+    {
+      final host = TestHost()..data = {'notes': [
+        {'at': 4.0, 'text': 'Here'},
+      ]};
+      final runtime = ExtensionRuntime(
+        package(sources: {
+          'main.lua': '''
           local util = require("util")
           count = 0                       -- this file's own: util.lua has another
           function opened() count = count + 1 print("opened", util.count, curator.name, curator.api) end
@@ -101,190 +104,196 @@ void main() {
           end
           function broken() local nothing = nil return nothing.field end
         ''',
-        'util.lua': 'count = "util\'s"\nfunction place(q) return score.format(q, true) end\n',
-      }, wires: [
+          'util.lua': 'count = "util\'s"\nfunction place(q) return score.format(q, true) end\n',
+        }, wires: [
+          ['project.opened', 'main.lua#opened'],
+          ['lane.items', 'main.lua#items'],
+          ['lane.add', 'main.lua#add'],
+          ['lane.open', 'main.lua#broken'],
+        ]),
+        host,
+      );
+      expect(runtime.problems, isEmpty);
+      expect(host.problems, isEmpty);
+      runtime.fire('project', 'opened');
+      expect(host.printed, ['opened\tutil\'s\tNotes\t1']);
+      expect(runtime.wired('lane', 'items') && !runtime.wired('lane', 'move') && !runtime.wired('nothing', 'here'), isTrue);
+
+      runtime.fire('lane', 'add', args: [8.0]);
+      expect(host.saved, ['Add Note']);
+      expect(host.data, {'notes': [
+        {'at': 4.0, 'text': 'Here'},
+        {'at': 8.0, 'text': '2 条笔记'},
+      ]});
+      expect(jsonEncode(host.data), contains('"at":8.0'), reason: 'a place stays a fraction in the file');
+      final items = runtime.ask('lane', 'items') as LuaTable;
+      expect([for (final item in items.array) ((item as LuaTable)['at'], item['label'])], [(4.0, 'Here'), (8.0, '2 条笔记')]);
+
+      // Undo puts other data under it: the next read is of that.
+      host
+        ..data = {'notes': <Object?>[]}
+        ..revision += 1;
+      expect((runtime.ask('lane', 'items') as LuaTable).length, 0);
+      expect(runtime.lua.run('return require("util").place(4), curator.has("score.bars"), curator.has("socket:lane.items"), curator.has("score.telepathy")'), ['2', true, true, false]);
+
+      // An error is reported with where it is, and the extension goes on.
+      expect(runtime.fire('lane', 'open', args: [1]), isNull);
+      expect((host.problems.single.file, host.problems.single.line, host.problems.single.where), ('main.lua', 14, 'lane.open'));
+      expect(host.problems.single.message, "main.lua:14: attempt to index a nil value (local 'nothing')");
+      // One that draws every frame says so once.
+      host.problems.clear();
+      runtime
+        ..fire('lane', 'open', quiet: true)
+        ..fire('lane', 'open', quiet: true);
+      expect(host.problems, hasLength(1));
+    }
+
+    // What is wrong with an extension’s files is listed, not thrown.
+    {
+      final host = TestHost();
+      final runtime = ExtensionRuntime(
+        package(sources: {
+          'main.lua': 'function opened( end',
+          'other.lua': 'function there() end',
+        }, wires: [
+          ['project.opened', 'main.lua#opened'],
+          ['project.changed', 'other.lua#missing'],
+          ['lane.items', 'gone.lua#items'],
+        ]),
+        host,
+      );
+      expect([for (final p in runtime.problems) p.message], [
+        "main.lua:1: <name> expected near 'end'",
+        'The connector names gone.lua, which isn’t in the extension.',
+        'other.lua has no function missing (wired to project.changed).',
+      ]);
+      expect(runtime.fire('project', 'opened'), isNull);
+      expect([
+        for (final f in Lua.functionsIn('local M = {}\nfunction M.draw(g, frame) end\nfunction opened() end\nM.items = function(...) end\nfunction M:method() end\nlocal function hidden() end\nreturn M'))
+          '${f.name}(${f.parameters.join(', ')}) at ${f.line}',
+      ], ['draw(g, frame) at 2', 'opened() at 3', 'items(...) at 4']);
+    }
+
+    // What Curator adds to Lua: text as people write it, rounding, a snippet run, what a host lacks.
+    {
+      final runtime = ExtensionRuntime(package(), TestHost());
+      Object? value(String code) => runtime.run('return $code').firstOrNull;
+      // Every kind of space, as Dart's \\s and trim() take them: a no-break space, an ideographic one.
+      expect(value(r'text.squeeze("  A\u{A0}\u{3000} B\n\tC  ")'), 'A B C');
+      expect(value(r'text.trim("\u{85} x \u{85}")'), 'x');
+      expect(value('text.upper("où é")'), 'OÙ É');
+      expect(value('#text.lines("a\\r\\nb\\nc")'), 3);
+      expect([value('math.round(2.5)'), value('math.round(-2.5)'), value('math.round(0.49999999999999994)'), value('math.round(7)')], [3, -3, 0, 7]);
+      // A place stays a fraction once it is one: saved as 4.0, not 4.
+      expect(LuaJson.fromLua(runtime.run('return {4 + 0.0, 4}').first, where: 'data').toString(), '[4.0, 4]');
+      // The list has `ui`, but this host gives none: an extension can ask before using it.
+      expect([value('curator.has("ui.form")'), value('curator.has("text.squeeze")'), value('curator.has("socket:lane.items")'), value('curator.has("nothing.here")')],
+          [false, true, true, false]);
+      expect(() => runtime.run('error("no", 0)'), throwsA(isA<LuaError>().having((e) => e.message, 'message', 'no')));
+      // As Dart clamps: a zero below zero is zero, what isn't a number is the highest.
+      expect([value('math.clamp(5, 0, 3)'), value('math.clamp(-1, 0.5, 3)'), value('math.clamp(2, 0, 3)'), value('math.clamp(0/0, 0, 3)'), value('1 / math.clamp(-0.0, 0.0, 1.0)')],
+          [3, 0.5, 2, 3, double.infinity]);
+      expect(() => runtime.run('return math.clamp(1, 3, 0)'), throwsA(isA<LuaError>()));
+      // A text that means two things, by its context; without one for it, as tr gives it.
+      expect([value('curator.tr("Key")'), value('curator.tr_in("music", "Key")'), value('curator.tr_in("door", "Key")'), value('curator.tr_in("music", "{n} notes", {n = 2})')],
+          ['键', '调', '键', '2 条笔记']);
+    }
+
+    // What Lua gives the app: a colour, the music of a score.
+    {
+      final lua = Lua();
+      Object? value(String code) => lua.call(lua.load('return $code', chunk: 'test'), const [], 100000).firstOrNull;
+      expect(luaColor('#3366cc'), const ui.Color(0xFF3366CC));
+      expect(luaColor('#3366cc80'), const ui.Color(0x803366CC));
+      expect(luaColor(value('{r = 1, g = 0.5, b = 0}')), const ui.Color.from(alpha: 1, red: 1, green: 0.5, blue: 0));
+      expect(luaColor(value('{0.25, 2, -1, 0.5}')), const ui.Color.from(alpha: 0.5, red: 0.25, green: 1, blue: 0));
+      expect([luaColor('blue'), luaColor('#12'), luaColor(value('{r = 1}')), luaColor(null), luaColor(7)], everyElement(isNull));
+
+      const xml = '<score-partwise><part id="P1"><measure><attributes><divisions>1</divisions><key><fifths>-1</fifths><mode>minor</mode></key></attributes>'
+          '<note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration></note>'
+          '<note><chord/><pitch><step>F</step><octave>4</octave></pitch><duration>2</duration></note></measure>'
+          '<measure><attributes><key><fifths>2</fifths></key></attributes><note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><tie type="stop"/></note></measure></part></score-partwise>';
+      final music = scoreMusicTable(readScoreMusic(xml, [0, 2, 6]));
+      expect(LuaJson.fromLua(music).toString(),
+          '{notes: [{from: 0.0, to: 2.0, pitch: 62, tied: false, chord: false, part: P1, staff: 1, voice: 1}, {from: 0.0, to: 2.0, pitch: 65, tied: false, chord: true, part: P1, staff: 1, voice: 1}, '
+          '{from: 2.0, to: 6.0, pitch: 62, tied: true, chord: false, part: P1, staff: 1, voice: 1}], keys: [{bar: 1, fifths: -1, minor: true}, {bar: 2, fifths: 2}], bars: [0.0, 2.0, 6.0]}');
+    }
+
+    // What is wrong with an extension as written is found without running it.
+    {
+      String said(ExtensionPackage p) => [for (final x in checkExtension(p)) '${x.warning ? 'warning' : 'error'} ${x.file}${x.line == null ? '' : ':${x.line}'} ${x.message}'].join('\n');
+      // As it should be: only the node of a later Curator's is said, as a warning.
+      final fine = said(package(wires: [
         ['project.opened', 'main.lua#opened'],
+      ]));
+      expect(fine, 'warning connect.json This Curator has no “from-the-future” socket (hologram).');
+
+      final broken = said(package(sources: {
+        'main.lua': 'local M = {}\nfunction M.items() return {} end\nM.made = function() end\nreturn M\n',
+        'bad.lua': 'local x = 1\nlocal y = = 2\n',
+      }, wires: [
         ['lane.items', 'main.lua#items'],
-        ['lane.add', 'main.lua#add'],
-        ['lane.open', 'main.lua#broken'],
-      ]),
-      host,
-    );
-    expect(runtime.problems, isEmpty);
-    expect(host.problems, isEmpty);
-    runtime.fire('project', 'opened');
-    expect(host.printed, ['opened\tutil\'s\tNotes\t1']);
-    expect(runtime.wired('lane', 'items') && !runtime.wired('lane', 'move') && !runtime.wired('nothing', 'here'), isTrue);
+        ['lane.add', 'main.lua#made'],
+        ['lane.open', 'main.lua#nowhere'],
+        ['lane.fly', 'main.lua#items'],
+        ['ghost.run', 'main.lua#items'],
+        ['project.opened', 'gone.lua#opened'],
+        ['project.changed', 'bad.lua#changed'],
+      ]));
+      expect(broken, contains('error bad.lua:2 '));
+      expect(broken, contains('error main.lua main.lua has no function nowhere (wired to lane.open).'));
+      expect(broken, isNot(contains('function made')), reason: 'a function made another way is in the file');
+      expect(broken, contains('warning connect.json A “lane” socket has no port fly here (lane.fly).'));
+      expect(broken, contains('error connect.json ghost.run is wired, but there is no node ghost.'));
+      expect(broken, contains('error connect.json project.opened is wired to gone.lua, which isn’t in the extension.'));
+      expect(broken, isNot(contains('changed')), reason: 'a file that doesn’t read says so once');
 
-    runtime.fire('lane', 'add', args: [8.0]);
-    expect(host.saved, ['Add Note']);
-    expect(host.data, {'notes': [
-      {'at': 4.0, 'text': 'Here'},
-      {'at': 8.0, 'text': '2 条笔记'},
-    ]});
-    expect(jsonEncode(host.data), contains('"at":8.0'), reason: 'a place stays a fraction in the file');
-    final items = runtime.ask('lane', 'items') as LuaTable;
-    expect([for (final item in items.array) ((item as LuaTable)['at'], item['label'])], [(4.0, 'Here'), (8.0, '2 条笔记')]);
-
-    // Undo puts other data under it: the next read is of that.
-    host
-      ..data = {'notes': <Object?>[]}
-      ..revision += 1;
-    expect((runtime.ask('lane', 'items') as LuaTable).length, 0);
-    expect(runtime.lua.run('return require("util").place(4), curator.has("score.bars"), curator.has("socket:lane.items"), curator.has("score.telepathy")'), ['2', true, true, false]);
-
-    // An error is reported with where it is, and the extension goes on.
-    expect(runtime.fire('lane', 'open', args: [1]), isNull);
-    expect((host.problems.single.file, host.problems.single.line, host.problems.single.where), ('main.lua', 14, 'lane.open'));
-    expect(host.problems.single.message, "main.lua:14: attempt to index a nil value (local 'nothing')");
-    // One that draws every frame says so once.
-    host.problems.clear();
-    runtime
-      ..fire('lane', 'open', quiet: true)
-      ..fire('lane', 'open', quiet: true);
-    expect(host.problems, hasLength(1));
-  });
-
-  test('What is wrong with an extension’s files is listed, not thrown', () {
-    final host = TestHost();
-    final runtime = ExtensionRuntime(
-      package(sources: {
-        'main.lua': 'function opened( end',
-        'other.lua': 'function there() end',
-      }, wires: [
-        ['project.opened', 'main.lua#opened'],
-        ['project.changed', 'other.lua#missing'],
-        ['lane.items', 'gone.lua#items'],
-      ]),
-      host,
-    );
-    expect([for (final p in runtime.problems) p.message], [
-      "main.lua:1: <name> expected near 'end'",
-      'The connector names gone.lua, which isn’t in the extension.',
-      'other.lua has no function missing (wired to project.changed).',
-    ]);
-    expect(runtime.fire('project', 'opened'), isNull);
-    expect([
-      for (final f in Lua.functionsIn('local M = {}\nfunction M.draw(g, frame) end\nfunction opened() end\nM.items = function(...) end\nfunction M:method() end\nlocal function hidden() end\nreturn M'))
-        '${f.name}(${f.parameters.join(', ')}) at ${f.line}',
-    ], ['draw(g, frame) at 2', 'opened() at 3', 'items(...) at 4']);
-  });
-
-  test('What Curator adds to Lua: text as people write it, rounding, a snippet run, what a host lacks', () {
-    final runtime = ExtensionRuntime(package(), TestHost());
-    Object? value(String code) => runtime.run('return $code').firstOrNull;
-    // Every kind of space, as Dart's \\s and trim() take them: a no-break space, an ideographic one.
-    expect(value(r'text.squeeze("  A\u{A0}\u{3000} B\n\tC  ")'), 'A B C');
-    expect(value(r'text.trim("\u{85} x \u{85}")'), 'x');
-    expect(value('text.upper("où é")'), 'OÙ É');
-    expect(value('#text.lines("a\\r\\nb\\nc")'), 3);
-    expect([value('math.round(2.5)'), value('math.round(-2.5)'), value('math.round(0.49999999999999994)'), value('math.round(7)')], [3, -3, 0, 7]);
-    // A place stays a fraction once it is one: saved as 4.0, not 4.
-    expect(LuaJson.fromLua(runtime.run('return {4 + 0.0, 4}').first, where: 'data').toString(), '[4.0, 4]');
-    // The list has `ui`, but this host gives none: an extension can ask before using it.
-    expect([value('curator.has("ui.form")'), value('curator.has("text.squeeze")'), value('curator.has("socket:lane.items")'), value('curator.has("nothing.here")')],
-        [false, true, true, false]);
-    expect(() => runtime.run('error("no", 0)'), throwsA(isA<LuaError>().having((e) => e.message, 'message', 'no')));
-    // As Dart clamps: a zero below zero is zero, what isn't a number is the highest.
-    expect([value('math.clamp(5, 0, 3)'), value('math.clamp(-1, 0.5, 3)'), value('math.clamp(2, 0, 3)'), value('math.clamp(0/0, 0, 3)'), value('1 / math.clamp(-0.0, 0.0, 1.0)')],
-        [3, 0.5, 2, 3, double.infinity]);
-    expect(() => runtime.run('return math.clamp(1, 3, 0)'), throwsA(isA<LuaError>()));
-    // A text that means two things, by its context; without one for it, as tr gives it.
-    expect([value('curator.tr("Key")'), value('curator.tr_in("music", "Key")'), value('curator.tr_in("door", "Key")'), value('curator.tr_in("music", "{n} notes", {n = 2})')],
-        ['键', '调', '键', '2 条笔记']);
-  });
-
-  test('What Lua gives the app: a colour, the music of a score', () {
-    final lua = Lua();
-    Object? value(String code) => lua.call(lua.load('return $code', chunk: 'test'), const [], 100000).firstOrNull;
-    expect(luaColor('#3366cc'), const ui.Color(0xFF3366CC));
-    expect(luaColor('#3366cc80'), const ui.Color(0x803366CC));
-    expect(luaColor(value('{r = 1, g = 0.5, b = 0}')), const ui.Color.from(alpha: 1, red: 1, green: 0.5, blue: 0));
-    expect(luaColor(value('{0.25, 2, -1, 0.5}')), const ui.Color.from(alpha: 0.5, red: 0.25, green: 1, blue: 0));
-    expect([luaColor('blue'), luaColor('#12'), luaColor(value('{r = 1}')), luaColor(null), luaColor(7)], everyElement(isNull));
-
-    const xml = '<score-partwise><part id="P1"><measure><attributes><divisions>1</divisions><key><fifths>-1</fifths><mode>minor</mode></key></attributes>'
-        '<note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration></note>'
-        '<note><chord/><pitch><step>F</step><octave>4</octave></pitch><duration>2</duration></note></measure>'
-        '<measure><attributes><key><fifths>2</fifths></key></attributes><note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><tie type="stop"/></note></measure></part></score-partwise>';
-    final music = scoreMusicTable(readScoreMusic(xml, [0, 2, 6]));
-    expect(LuaJson.fromLua(music).toString(),
-        '{notes: [{from: 0.0, to: 2.0, pitch: 62, tied: false, chord: false, part: P1, staff: 1, voice: 1}, {from: 0.0, to: 2.0, pitch: 65, tied: false, chord: true, part: P1, staff: 1, voice: 1}, '
-        '{from: 2.0, to: 6.0, pitch: 62, tied: true, chord: false, part: P1, staff: 1, voice: 1}], keys: [{bar: 1, fifths: -1, minor: true}, {bar: 2, fifths: 2}], bars: [0.0, 2.0, 6.0]}');
-  });
-
-  test('What is wrong with an extension as written is found without running it', () {
-    String said(ExtensionPackage p) => [for (final x in checkExtension(p)) '${x.warning ? 'warning' : 'error'} ${x.file}${x.line == null ? '' : ':${x.line}'} ${x.message}'].join('\n');
-    // As it should be: only the node of a later Curator's is said, as a warning.
-    final fine = said(package(wires: [
-      ['project.opened', 'main.lua#opened'],
-    ]));
-    expect(fine, 'warning connect.json This Curator has no “from-the-future” socket (hologram).');
-
-    final broken = said(package(sources: {
-      'main.lua': 'local M = {}\nfunction M.items() return {} end\nM.made = function() end\nreturn M\n',
-      'bad.lua': 'local x = 1\nlocal y = = 2\n',
-    }, wires: [
-      ['lane.items', 'main.lua#items'],
-      ['lane.add', 'main.lua#made'],
-      ['lane.open', 'main.lua#nowhere'],
-      ['lane.fly', 'main.lua#items'],
-      ['ghost.run', 'main.lua#items'],
-      ['project.opened', 'gone.lua#opened'],
-      ['project.changed', 'bad.lua#changed'],
-    ]));
-    expect(broken, contains('error bad.lua:2 '));
-    expect(broken, contains('error main.lua main.lua has no function nowhere (wired to lane.open).'));
-    expect(broken, isNot(contains('function made')), reason: 'a function made another way is in the file');
-    expect(broken, contains('warning connect.json A “lane” socket has no port fly here (lane.fly).'));
-    expect(broken, contains('error connect.json ghost.run is wired, but there is no node ghost.'));
-    expect(broken, contains('error connect.json project.opened is wired to gone.lua, which isn’t in the extension.'));
-    expect(broken, isNot(contains('changed')), reason: 'a file that doesn’t read says so once');
-
-    // A second project socket, and a later API level.
-    final p = package();
-    final twice = ExtensionPackage(
-      manifest: {...p.manifest, 'api': ExtensionApi.level + 1},
-      graph: ConnectorGraph.fromJson({
-        'nodes': [
-          {'id': 'project', 'type': 'project', 'at': [0, 0]},
-          {'id': 'again', 'type': 'project', 'at': [0, 0]},
-        ],
-        'wires': const [],
-      }),
-      sources: p.sources,
-    );
-    expect(said(twice), 'warning extension.json It needs API level ${ExtensionApi.level + 1}; this Curator has ${ExtensionApi.level}.\n'
-        'error connect.json An extension has one “project” socket (again is a second).');
-  });
-
-  test('Every socket and function of the API says what it is', () {
-    for (final s in ExtensionApi.sockets) {
-      expect(s.summary, isNotEmpty, reason: s.type);
-      for (final p in s.ports) {
-        expect(p.signature, startsWith('${p.name}('), reason: '${s.type}.${p.name}');
-        expect(p.since, lessThanOrEqualTo(ExtensionApi.level));
-      }
+      // A second project socket, and a later API level.
+      final p = package();
+      final twice = ExtensionPackage(
+        manifest: {...p.manifest, 'api': ExtensionApi.level + 1},
+        graph: ConnectorGraph.fromJson({
+          'nodes': [
+            {'id': 'project', 'type': 'project', 'at': [0, 0]},
+            {'id': 'again', 'type': 'project', 'at': [0, 0]},
+          ],
+          'wires': const [],
+        }),
+        sources: p.sources,
+      );
+      expect(said(twice), 'warning extension.json It needs API level ${ExtensionApi.level + 1}; this Curator has ${ExtensionApi.level}.\n'
+          'error connect.json An extension has one “project” socket (again is a second).');
     }
-    for (final l in ExtensionApi.libraries) {
-      for (final f in l.functions) {
-        expect(f.name, startsWith('${l.name}.'));
-        expect(f.signature, startsWith(f.name), reason: f.name);
-        expect(f.summary, isNotEmpty, reason: f.name);
+
+    // Every socket and function of the API says what it is.
+    {
+      for (final s in ExtensionApi.sockets) {
+        expect(s.summary, isNotEmpty, reason: s.type);
+        for (final p in s.ports) {
+          expect(p.signature, startsWith('${p.name}('), reason: '${s.type}.${p.name}');
+          expect(p.since, lessThanOrEqualTo(ExtensionApi.level));
+        }
       }
-    }
-    // What the runtime gives is what the list says, both ways.
-    final runtime = ExtensionRuntime(package(), TestHost());
-    for (final l in ExtensionApi.libraries) {
-      final table = runtime.lua.globals[l.name];
-      if (table is! LuaTable) continue; // the editor's own, not here
-      for (final f in l.functions) {
-        if (f.editor) continue; // the editor's own, not here
-        expect(table[f.name.substring(l.name.length + 1)], isA<LuaFunction>(), reason: '${f.name} is listed but missing');
+      for (final l in ExtensionApi.libraries) {
+        for (final f in l.functions) {
+          expect(f.name, startsWith('${l.name}.'));
+          expect(f.signature, startsWith(f.name), reason: f.name);
+          expect(f.summary, isNotEmpty, reason: f.name);
+        }
       }
-      if (l.addsTo) continue; // Lua's own library: only what Curator adds is listed
-      for (final key in table.hashKeys) {
-        if (table[key] is LuaFunction) expect(ExtensionApi.has('${l.name}.$key'), isTrue, reason: '${l.name}.$key is there but not listed');
+      // What the runtime gives is what the list says, both ways.
+      final runtime = ExtensionRuntime(package(), TestHost());
+      for (final l in ExtensionApi.libraries) {
+        final table = runtime.lua.globals[l.name];
+        if (table is! LuaTable) continue; // the editor's own, not here
+        for (final f in l.functions) {
+          if (f.editor) continue; // the editor's own, not here
+          expect(table[f.name.substring(l.name.length + 1)], isA<LuaFunction>(), reason: '${f.name} is listed but missing');
+        }
+        if (l.addsTo) continue; // Lua's own library: only what Curator adds is listed
+        for (final key in table.hashKeys) {
+          if (table[key] is LuaFunction) expect(ExtensionApi.has('${l.name}.$key'), isTrue, reason: '${l.name}.$key is there but not listed');
+        }
       }
     }
   });

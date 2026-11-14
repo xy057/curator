@@ -71,127 +71,133 @@ return M
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('every icon a connector may name is one of the app’s', () {
-    final names = AppIcon.values.asNameMap();
-    expect([for (final icon in ExtensionApi.icons) if (!names.containsKey(icon)) icon], isEmpty);
-  });
+  test('extensions in a project: carried, run while on, data an edit, saved; Curator’s own as packages, one changed run and never saved; connector icons the app’s', () async {
+    // Every icon a connector may name is one of the app’s.
+    {
+      final names = AppIcon.values.asNameMap();
+      expect([for (final icon in ExtensionApi.icons) if (!names.containsKey(icon)) icon], isEmpty);
+    }
 
-  test('a project carries an extension: it runs while on, its data is an edit, both are saved', () async {
-    final dir = Directory.systemTemp.createTempSync('extensions-test-');
-    addTearDown(() => dir.deleteSync(recursive: true));
-    final settings = AppSettings.memory()..autosave = Duration.zero;
-    final c = EditorController(vsync: const TestVSync());
-    final doc = ProjectDocument(c, settings);
-    addTearDown(() {
-      doc.dispose();
-      c.dispose();
-    });
-    await doc.importScore(demoScore.path);
+    // A project carries an extension: it runs while on, its data is an edit, both are saved.
+    {
+      final dir = Directory.systemTemp.createTempSync('extensions-test-');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final settings = AppSettings.memory()..autosave = Duration.zero;
+      final c = EditorController(vsync: const TestVSync());
+      final doc = ProjectDocument(c, settings);
+      addTearDown(() {
+        doc.dispose();
+        c.dispose();
+      });
+      await doc.importScore(demoScore.path);
 
-    final package = notes();
-    c.extensions.add(package);
-    expect(Extensions.of(c).map((e) => e.id), contains('com.example.notes'));
-    expect(c.extensions.running, isEmpty, reason: 'off until its switch is turned');
-    c.setExtension('com.example.notes', true);
-    final runtime = c.extensions.runtime('com.example.notes')!;
-    expect(c.extensions.problems.value, isEmpty);
-    expect(c.extensions.lanes.map((l) => l.node.id), ['notes']);
-    final lane = runtime.graph.node('notes')!, clear = runtime.graph.node('clear')!;
-    expect(c.extensions.commands(runtime, lane: 'notes').map((n) => n.id), ['clear']);
-    expect(c.extensions.canRun(runtime, clear), isFalse);
+      final package = notes();
+      c.extensions.add(package);
+      expect(Extensions.of(c).map((e) => e.id), contains('com.example.notes'));
+      expect(c.extensions.running, isEmpty, reason: 'off until its switch is turned');
+      c.setExtension('com.example.notes', true);
+      final runtime = c.extensions.runtime('com.example.notes')!;
+      expect(c.extensions.problems.value, isEmpty);
+      expect(c.extensions.lanes.map((l) => l.node.id), ['notes']);
+      final lane = runtime.graph.node('notes')!, clear = runtime.graph.node('clear')!;
+      expect(c.extensions.commands(runtime, lane: 'notes').map((n) => n.id), ['clear']);
+      expect(c.extensions.canRun(runtime, clear), isFalse);
 
-    // The Draw tool adds; each is an Undo step, and the lane follows.
-    runtime.fire('notes', 'add', args: [8.0]);
-    runtime.fire('notes', 'add', args: [2.0]);
-    expect(c.extensions.items(runtime, lane), [(at: 2.0, label: 'Note 2'), (at: 8.0, label: 'Note 1')]);
-    expect(c.extensions.canRun(runtime, clear), isTrue);
-    c.undo();
-    expect(c.extensions.items(runtime, lane), [(at: 8.0, label: 'Note 1')]);
-    c.redo();
-    // Delete removes what is selected in its lane.
-    c.extensions.select('com.example.notes', 'notes', 0);
-    expect(c.commands.canDelete, isTrue);
-    c.commands.delete();
-    expect(c.extensions.items(runtime, lane), [(at: 8.0, label: 'Note 1')]);
-    expect(c.extensions.hasSelection, isFalse);
-    expect(c.extensions.data('com.example.notes'), {
-      'notes': [
-        {'at': 8.0, 'text': 'Note 1'},
-      ],
-    });
+      // The Draw tool adds; each is an Undo step, and the lane follows.
+      runtime.fire('notes', 'add', args: [8.0]);
+      runtime.fire('notes', 'add', args: [2.0]);
+      expect(c.extensions.items(runtime, lane), [(at: 2.0, label: 'Note 2'), (at: 8.0, label: 'Note 1')]);
+      expect(c.extensions.canRun(runtime, clear), isTrue);
+      c.undo();
+      expect(c.extensions.items(runtime, lane), [(at: 8.0, label: 'Note 1')]);
+      c.redo();
+      // Delete removes what is selected in its lane.
+      c.extensions.select('com.example.notes', 'notes', 0);
+      expect(c.commands.canDelete, isTrue);
+      c.commands.delete();
+      expect(c.extensions.items(runtime, lane), [(at: 8.0, label: 'Note 1')]);
+      expect(c.extensions.hasSelection, isFalse);
+      expect(c.extensions.data('com.example.notes'), {
+        'notes': [
+          {'at': 8.0, 'text': 'Note 1'},
+        ],
+      });
 
-    // Saved with the project: the package as it is shared, its data, the data's version.
-    final path = '${dir.path}/notes.ccs';
-    await doc.save(path);
-    final c2 = EditorController(vsync: const TestVSync());
-    final doc2 = ProjectDocument(c2, settings);
-    addTearDown(() {
-      doc2.dispose();
-      c2.dispose();
-    });
-    await doc2.open(path);
-    expect(c2.extensions.carried.keys, ['com.example.notes']);
-    expect(c2.extensions.carried.values.single.digest, package.digest);
-    expect(c2.projectState.dataVersions['com.example.notes'], 2);
-    expect(c2.extensionOn('com.example.notes'), isTrue);
-    final again = c2.extensions.runtime('com.example.notes')!;
-    expect(c2.extensions.items(again, again.graph.node('notes')!), [(at: 8.0, label: 'Note 1')]);
-    expect(c2.extensions.problems.value, isEmpty);
+      // Saved with the project: the package as it is shared, its data, the data's version.
+      final path = '${dir.path}/notes.ccs';
+      await doc.save(path);
+      final c2 = EditorController(vsync: const TestVSync());
+      final doc2 = ProjectDocument(c2, settings);
+      addTearDown(() {
+        doc2.dispose();
+        c2.dispose();
+      });
+      await doc2.open(path);
+      expect(c2.extensions.carried.keys, ['com.example.notes']);
+      expect(c2.extensions.carried.values.single.digest, package.digest);
+      expect(c2.projectState.dataVersions['com.example.notes'], 2);
+      expect(c2.extensionOn('com.example.notes'), isTrue);
+      final again = c2.extensions.runtime('com.example.notes')!;
+      expect(c2.extensions.items(again, again.graph.node('notes')!), [(at: 8.0, label: 'Note 1')]);
+      expect(c2.extensions.problems.value, isEmpty);
 
-    // Off: nothing of it runs, what it saved stays.
-    c2.setExtension('com.example.notes', false);
-    expect(c2.extensions.running, isEmpty);
-    expect(c2.extensions.lanes, isEmpty);
-    expect(c2.extensions.data('com.example.notes'), isNotNull);
-    expect(c2.extensions.uses('com.example.notes'), isTrue);
+      // Off: nothing of it runs, what it saved stays.
+      c2.setExtension('com.example.notes', false);
+      expect(c2.extensions.running, isEmpty);
+      expect(c2.extensions.lanes, isEmpty);
+      expect(c2.extensions.data('com.example.notes'), isNotNull);
+      expect(c2.extensions.uses('com.example.notes'), isTrue);
 
-    // One written for a later Curator says so, and doesn't run.
-    c2.extensions.add(notes(api: ExtensionApi.level + 1, version: '2.0.0'));
-    c2.setExtension('com.example.notes', true);
-    expect(c2.extensions.running, isEmpty);
-    expect(c2.extensions.problems.value.single.message, 'Notes needs a newer Curator.');
+      // One written for a later Curator says so, and doesn't run.
+      c2.extensions.add(notes(api: ExtensionApi.level + 1, version: '2.0.0'));
+      c2.setExtension('com.example.notes', true);
+      expect(c2.extensions.running, isEmpty);
+      expect(c2.extensions.problems.value.single.message, 'Notes needs a newer Curator.');
 
-    // Taken out of the project: its switch does nothing; its data waits for it.
-    c2.extensions.remove('com.example.notes');
-    expect(Extensions.of(c2).map((e) => e.id), isNot(contains('com.example.notes')));
-    expect(c2.extensions.data('com.example.notes'), isNotNull);
-  });
+      // Taken out of the project: its switch does nothing; its data waits for it.
+      c2.extensions.remove('com.example.notes');
+      expect(Extensions.of(c2).map((e) => e.id), isNot(contains('com.example.notes')));
+      expect(c2.extensions.data('com.example.notes'), isNotNull);
+    }
 
-  test('one of Curator’s own, changed, runs in the project while it is open and is never saved', () async {
-    final c = EditorController(vsync: const TestVSync());
-    final doc = ProjectDocument(c, AppSettings.memory()..autosave = Duration.zero);
-    addTearDown(() {
-      doc.dispose();
-      c.dispose();
-    });
-    await doc.importScore(demoScore.path);
-    c.setExtension('chapters', true);
-    final own = c.extensions.package('chapters')!;
-    // Its lane renamed in the connector.
-    final changed = own.copyWith(
-        graph: own.graph.copyWith(nodes: [for (final n in own.graph.nodes) n.id == 'lane' ? n.copyWith(props: {...n.props, 'title': 'Sections'}) : n]));
-    c.extensions.tryOut(changed);
-    expect(c.extensions.tried('chapters'), isTrue);
-    expect(c.extensions.runtime('chapters')!.package, changed, reason: 'running as changed');
-    expect(c.extensions.lanes.single.node.props['title'], 'Sections');
-    expect(c.projectState.packages, isEmpty, reason: 'not the project’s to keep');
-    expect(Extensions.byId('chapters')!.label, 'Chapters', reason: 'Curator’s own is as it was');
-    c.extensions.revert('chapters');
-    expect((c.extensions.tried('chapters'), c.extensions.runtime('chapters')!.package), (false, own));
-    // As it came is no change; a project closed forgets one.
-    c.extensions.tryOut(own);
-    expect(c.extensions.tried('chapters'), isFalse);
-    c.extensions.tryOut(changed);
-    await doc.importScore(demoScore.path);
-    expect(c.extensions.tried('chapters'), isFalse);
-  });
+    // One of Curator’s own, changed, runs in the project while it is open and is never saved.
+    {
+      final c = EditorController(vsync: const TestVSync());
+      final doc = ProjectDocument(c, AppSettings.memory()..autosave = Duration.zero);
+      addTearDown(() {
+        doc.dispose();
+        c.dispose();
+      });
+      await doc.importScore(demoScore.path);
+      c.setExtension('chapters', true);
+      final own = c.extensions.package('chapters')!;
+      // Its lane renamed in the connector.
+      final changed = own.copyWith(
+          graph: own.graph.copyWith(nodes: [for (final n in own.graph.nodes) n.id == 'lane' ? n.copyWith(props: {...n.props, 'title': 'Sections'}) : n]));
+      c.extensions.tryOut(changed);
+      expect(c.extensions.tried('chapters'), isTrue);
+      expect(c.extensions.runtime('chapters')!.package, changed, reason: 'running as changed');
+      expect(c.extensions.lanes.single.node.props['title'], 'Sections');
+      expect(c.projectState.packages, isEmpty, reason: 'not the project’s to keep');
+      expect(Extensions.byId('chapters')!.label, 'Chapters', reason: 'Curator’s own is as it was');
+      c.extensions.revert('chapters');
+      expect((c.extensions.tried('chapters'), c.extensions.runtime('chapters')!.package), (false, own));
+      // As it came is no change; a project closed forgets one.
+      c.extensions.tryOut(own);
+      expect(c.extensions.tried('chapters'), isFalse);
+      c.extensions.tryOut(changed);
+      await doc.importScore(demoScore.path);
+      expect(c.extensions.tried('chapters'), isFalse);
+    }
 
-  test('Curator’s own extensions are packages too, listed in their order', () {
-    expect(Extensions.all.map((e) => e.id), ['attachImage', 'captions', 'chapters', 'tonality']);
-    final chapters = Extensions.byId('chapters')!;
-    expect(chapters, isA<PackageExtension>());
-    expect((chapters.label, chapters.summary, chapters.version), ('Chapters', 'Named places to jump to in a video or web page.', null));
-    expect(() => EditorController(vsync: const TestVSync())..extensions.add(ExtensionPackage.blank(id: 'chapters', name: 'Mine')), throwsFormatException,
-        reason: 'a one-word id is Curator’s');
+    // Curator’s own extensions are packages too, listed in their order.
+    {
+      expect(Extensions.all.map((e) => e.id), ['attachImage', 'captions', 'chapters', 'tonality']);
+      final chapters = Extensions.byId('chapters')!;
+      expect(chapters, isA<PackageExtension>());
+      expect((chapters.label, chapters.summary, chapters.version), ('Chapters', 'Named places to jump to in a video or web page.', null));
+      expect(() => EditorController(vsync: const TestVSync())..extensions.add(ExtensionPackage.blank(id: 'chapters', name: 'Mine')), throwsFormatException,
+          reason: 'a one-word id is Curator’s');
+    }
   });
 }

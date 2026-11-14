@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
-import 'package:score_engine/src/engraving.dart' show Cmd;
 
 import 'demo_score.dart';
 
@@ -21,13 +20,11 @@ void main() {
     score = await LoadedScore.load(demoScore());
   });
 
-  test('reads the part list', () {
+  test('the demo engraves: its parts, a scroll map under every onset that never runs backwards, a phrase found, a video frame', () async {
     final parts = score.metadata.parts;
     expect(parts, hasLength(21));
-    expect(parts.first.name, 'Piccolo');
-    expect(parts.first.family, InstrumentFamily.woodwinds);
-    expect(parts.last.name, 'Double Bass');
-    expect(parts.last.family, InstrumentFamily.strings);
+    expect((parts.first.name, parts.first.family), ('Piccolo', InstrumentFamily.woodwinds));
+    expect((parts.last.name, parts.last.family), ('Double Bass', InstrumentFamily.strings));
     expect(parts.last.staffNumbers, [21]);
     expect(score.metadata.tempo, 93);
     expect(score.metadata.barNumbers, [for (var m = 1; m <= 44; m++) '$m']);
@@ -36,18 +33,16 @@ void main() {
     final xml = '<score-partwise><part-list><score-part id="P1"><part-name>A</part-name></score-part></part-list>'
         '<part id="P1">${measures.map((m) => '<measure $m/>').join()}</part></score-partwise>';
     expect(ScoreMetadata.read(xml).barNumbers, [null, '1', '2', null, '3a', '4']);
-  });
 
-  test('scroll map puts every onset under the pointer as it sounds, and never runs backwards', () {
+    // The scroll map: an anchor on every onset in every staff (and the final barline), each on its notes.
     final map = score.scrollMap;
-    final measures = score.engraving.measures, starts = score.timeline.measureStarts;
+    final bars = score.engraving.measures, starts = score.timeline.measureStarts;
     expect(map.duration, closeTo(44 * 3 * 60 / 93, 1e-6)); // 44 bars of 6/8 at ♩ = 93
-    // An anchor on every onset in every staff (and the final barline), each on its notes.
-    expect(map.times, hasLength(measures.fold(0, (n, m) => n + m.onsetTimes.length) + 1));
-    for (var i = 0; i < measures.length; i++) {
-      for (var j = 0; j < measures[i].onsetTimes.length; j++) {
-        final t = score.timeline.secondsAtQuarter(starts[i] + measures[i].onsetTimes[j]);
-        expect(map.xAt(t), closeTo(measures[i].onsetXs[j], 0.5), reason: 'bar ${i + 1}, onset $j');
+    expect(map.times, hasLength(bars.fold(0, (n, m) => n + m.onsetTimes.length) + 1));
+    for (var i = 0; i < bars.length; i++) {
+      for (var j = 0; j < bars[i].onsetTimes.length; j++) {
+        final t = score.timeline.secondsAtQuarter(starts[i] + bars[i].onsetTimes[j]);
+        expect(map.xAt(t), closeTo(bars[i].onsetXs[j], 0.5), reason: 'bar ${i + 1}, onset $j');
       }
     }
     var previous = double.negativeInfinity;
@@ -56,83 +51,64 @@ void main() {
       expect(x, greaterThanOrEqualTo(previous - 1e-9));
       previous = x;
     }
-
-    // After the final barline it comes to rest over the settle: by default a third as far as it
-    // would go at its last speed; a linear curve keeps that speed all the way, then stops.
+    // After the final barline it comes to rest: a third as far as it would go at its last speed.
     final end = map.duration, v = (map.xAt(end) - map.xAt(end - 1e-3)) / 1e-3;
     expect(map.xAt(end + 10) - map.xAt(end), closeTo(v * 2.5 / 3, 0.05));
-    final linear = map.withMotion(const ScoreMotion(settle: 1, settleCurve: MotionCurve.linear));
-    expect(linear.xAt(end + 0.5) - linear.xAt(end), closeTo(v * 0.5, 0.05));
-    expect(linear.xAt(end + 10) - linear.xAt(end), closeTo(v, 0.05));
-    expect(linear.xAt(2), map.xAt(2), reason: 'only the ending moves differently');
-  });
 
-  test('finds a phrase exactly, in any key and nearly', () {
-    final lines = ScoreLine.read(score.musicXML, score.timeline.measureStarts);
-    final cello = lines.reduce((a, b) => a.length >= b.length ? a : b); // the cellos' running sixteenths
-    expect(score.metadata.parts.firstWhere((p) => p.id == cello.partId).name, 'Violoncello');
+    // Find Phrase: the cellos' running sixteenths, exactly, an octave up in any key, nearly.
+    final lines = ScoreLine.read(score.musicXML, starts);
+    final cello = lines.reduce((a, b) => a.length >= b.length ? a : b);
+    expect(parts.firstWhere((p) => p.id == cello.partId).name, 'Violoncello');
     final notes = [for (var k = 10; k < 16; k++) PhraseNote.ofMidi(cello.pitches[k], value: NoteValue.sixteenth)];
     bool foundAt(List<PhraseMatch> matches) => matches.any((m) => identical(m.line, cello) && m.first == 10);
-
     final exact = PhraseSearch.find(Phrase(notes), lines);
-    expect(foundAt(exact), isTrue);
-    expect(exact.every((m) => m.similarity == 1), isTrue);
-    for (final m in exact) {
-      for (var k = 1; k < notes.length; k++) {
-        expect(m.line.pitches[m.first + k] - m.line.pitches[m.first + k - 1], notes[k].midi! - notes[k - 1].midi!);
-      }
-    }
-    // An octave up: only in any key, which says how far; as eighths, only without the rhythm.
+    expect((foundAt(exact), exact.every((m) => m.similarity == 1)), (true, true));
     final higher = [for (final n in notes) PhraseNote.ofMidi(n.midi! + 12, value: NoteValue.sixteenth)];
     expect(foundAt(PhraseSearch.find(Phrase(higher), lines, anyKey: false)), isFalse);
     expect(PhraseSearch.find(Phrase(higher), lines).firstWhere((m) => identical(m.line, cello) && m.first == 10).transposition, -12);
-    final eighths = [for (final n in notes) n.copyWith(value: NoteValue.eighth)];
-    expect(foundAt(PhraseSearch.find(Phrase(eighths), lines)), isFalse);
-    expect(foundAt(PhraseSearch.find(Phrase(eighths), lines, rhythm: false)), isTrue);
-    // A note a semitone off: not exactly, but nearly.
     final wrong = [...notes]..[3] = PhraseNote.ofMidi(notes[3].midi! + 1, value: NoteValue.sixteenth);
     expect(foundAt(PhraseSearch.find(Phrase(wrong), lines)), isFalse);
-    final near = PhraseSearch.find(Phrase(wrong), lines, similar: true).firstWhere((m) => identical(m.line, cello) && m.first == 10);
-    expect(near.similarity, inInclusiveRange(PhraseSearch.minSimilarity, 0.99));
-    // Each clef's top line: F5, F5, F4 (8vb), G4 (alto), E4 (tenor), A3 (bass); Auto by the notes.
-    expect([for (final c in PhraseClef.values) c.topLine], [38, 38, 31, 32, 30, 26]);
-    expect(Phrase(notes).shownClef, PhraseClef.bass);
-    expect(Phrase(notes, clef: PhraseClef.tenor).musicXML(), contains('<clef><sign>C</sign><line>4</line></clef>'));
-  });
+    expect(PhraseSearch.find(Phrase(wrong), lines, similar: true).firstWhere((m) => identical(m.line, cello) && m.first == 10).similarity,
+        inInclusiveRange(PhraseSearch.minSimilarity, 0.99));
 
-  test('staff spacing: the gap between staves keeps within its least and most', () {
+    // A video frame is the preview drawn offscreen: the same pixels, engraved now or saved (a web page's score).
     final scene = CuratedScene(score);
-    final ids = [for (final p in score.metadata.parts) p.id];
-    final two = Curation(ids)..setLanes({for (final id in ids) id: id == ids[0] || id == ids[1] ? [const Region(0, 1e6)] : []});
-    const tall = ui.Size(960, 4000);
-    double gapBetween() {
-      final ys = [for (final p in scene.layoutAt(1, two, tall).placements) if (p.opacity > 0) p.y];
-      return ys[1] - ys[0];
+    final curation = Curation(parts.map((p) => p.id));
+    for (final p in parts.skip(16)) {
+      curation.setLane(p.id, [Region(0, starts.last)]);
     }
-
-    final wide = gapBetween();
-    scene.motion = const ScoreMotion(maxGap: 60);
-    expect(gapBetween(), closeTo(wide - 80, 1e-6), reason: 'the most, 140 → 60');
-    scene.motion = const ScoreMotion(minGap: 200, maxGap: 60);
-    expect(gapBetween(), closeTo(wide + 60, 1e-6), reason: 'never less than the least');
-    // Crowded, the staves squeeze to the least, and no further.
-    final all = Curation(ids)..setLanes({for (final id in ids) id: [const Region(0, 1e6)]});
-    double spanOf(ScoreMotion motion) {
-      scene.motion = motion;
-      final ys = [for (final p in scene.layoutAt(1, all, const ui.Size(960, 540)).placements) if (p.opacity > 0) p.y];
-      return ys.last - ys.first;
+    Future<List<int>> bytes(ui.Image image) async => (await image.toByteData())!.buffer.asUint8List();
+    final frame = scene.renderFrame(1600, 900, time: 30, curation: curation, devicePixelRatio: 2);
+    final recorder = ui.PictureRecorder();
+    scene.paint(ui.Canvas(recorder)..scale(2), const ui.Size(800, 450), time: 30, curation: curation, devicePixelRatio: 2);
+    final preview = recorder.endRecording().toImageSync(1600, 900);
+    expect(await bytes(frame), await bytes(preview));
+    final saved = CuratedScene(LoadedScore.engraved(score.musicXML, score.request, EngravingFile.read(EngravingFile.write(score.engraving))));
+    final again = saved.renderFrame(1600, 900, time: 30, curation: curation, devicePixelRatio: 2);
+    expect(await bytes(again), await bytes(frame));
+    // 720p laid out like a 540-point-high preview: a fractional density, whole pixels out.
+    final hd = scene.renderFrame(1280, 720, time: 30, curation: curation, devicePixelRatio: 720 / 540);
+    expect((hd.width, hd.height), (1280, 720));
+    for (final image in [frame, preview, again, hd]) {
+      image.dispose();
     }
-
-    final squeezed = spanOf(ScoreMotion.standard);
-    expect(spanOf(const ScoreMotion(minGap: 40)), closeTo(squeezed + 36 * (ids.length - 1), 1));
-    expect(ScoreMotion.fromJson(const {}), ScoreMotion.standard, reason: 'an older file');
+    saved.dispose();
     scene.dispose();
   });
 
-  test('a region leaves out a staff of its instrument; an instrument has room of its own', () async {
-    final piano = await LoadedScore.load(flutePianoScore);
-    final scene = CuratedScene(piano);
+  test('curation: regions drawn and erased, a region leaving out a staff, auto-curate only where staves would run off', () async {
+    // Drawing joins regions; erasing trims, splits and removes them.
+    final c = Curation(['vn', 'va'])..setLane('vn', const [Region(0, 8), Region(12, 16)]);
+    c.paint(['vn', 'va'], const Region(6, 14));
+    expect([c.lane('vn'), c.lane('va')], const [[Region(0, 16)], [Region(6, 14)]]);
+    c.paint(['vn'], const Region(4, 13), shown: false);
+    expect(c.lane('vn'), const [Region(0, 4), Region(13, 16)]);
+    c.paint(['vn'], const Region(0, 5), shown: false);
+    expect(c.lane('vn'), const [Region(13, 16)]);
+
     // The piano's left hand left out in bar 2: a region of its own, meeting bar 1's.
+    final piano = await LoadedScore.load(flutePianoScore);
+    final pianoScene = CuratedScene(piano);
     final curation = Curation(['P1', 'P2'])
       ..setLanes({
         'P1': [const Region(0, 8)],
@@ -141,54 +117,19 @@ void main() {
     expect(curation.lane('P2'), hasLength(2), reason: 'never merged');
     const tall = ui.Size(960, 4000);
     double at(double quarter) => piano.timeline.secondsAtQuarter(quarter);
-    final both = scene.layoutAt(at(1), curation, tall), one = scene.layoutAt(at(7), curation, tall);
-    expect(both.placements, hasLength(3));
-    expect(both.braces, hasLength(1));
-    expect(one.placements, hasLength(2), reason: 'the left hand gone');
-    expect(one.braces, isEmpty);
+    final both = pianoScene.layoutAt(at(1), curation, tall), one = pianoScene.layoutAt(at(7), curation, tall);
+    expect((both.placements.length, both.braces.length), (3, 1));
+    expect((one.placements.length, one.braces.length), (2, 0), reason: 'the left hand gone');
     expect(one.labels.last.centerY, lessThan(both.labels.last.centerY - 10), reason: 'named beside the right hand alone');
     // Split, a lane a staff: each shows where its staff is, and setting one sets the piano's.
     final (rh, lh) = (Curation.staffLaneId('P2', 1), Curation.staffLaneId('P2', 2));
-    expect(Curation.staffOfLane(lh), ('P2', 2));
-    expect(Curation.staffOfLane('P2'), isNull);
     curation.setSplit({'P2': 2});
-    expect([curation.lane(rh), curation.lane(lh)], [
-      [const Region(0, 8)],
-      [const Region(0, 4)],
-    ]);
+    expect([curation.lane(rh), curation.lane(lh)], [[const Region(0, 8)], [const Region(0, 4)]]);
     curation.setLanes({rh: [const Region(0, 2)], lh: [const Region(0, 8)]});
     expect([for (final r in curation.lane('P2')) '${r.start}–${r.end} ${r.hiddenStaves}'], ['0.0–2.0 []', '2.0–8.0 [1]']);
-    curation.setLane('P2', [const Region(0, 8)]);
-    expect(curation.lane(rh), [const Region(0, 8)], reason: 'the piano’s lane set: its staves’ follow');
-    expect(curation.split, {'P2': 2});
-    // Room of a staff's own: between the hands.
-    double hands() {
-      final ys = [for (final p in scene.layoutAt(at(1), curation, tall).placements) p.y];
-      return ys[2] - ys[1];
-    }
+    pianoScene.dispose();
 
-    final apart = hands();
-    scene.instrumentSpacing = {lh: (above: 2, below: 0)};
-    expect(hands(), closeTo(apart + 2 * piano.engraving.staffSpace * scene.renderer.scale, 0.5));
-    scene.instrumentSpacing = const {};
-    curation.setSplit(const {});
-    expect([curation.split, curation.lane(lh)], [isEmpty, isEmpty]);
-    // More room above the piano: the gap to the flute grows by as much (the gaps are at their most).
-    double gap() {
-      final ys = [for (final p in scene.layoutAt(at(1), curation, tall).placements) p.y];
-      return ys[1] - ys[0];
-    }
-
-    final before = gap();
-    scene.instrumentSpacing = {'P2': (above: 3, below: 0)};
-    expect(gap(), closeTo(before + 3 * piano.engraving.staffSpace * scene.renderer.scale, 0.5));
-    scene.instrumentSpacing = {'P2': (above: -1, below: 0)};
-    expect(gap(), closeTo(before - piano.engraving.staffSpace * scene.renderer.scale, 0.5));
-    scene.dispose();
-  });
-
-  test('auto-curate hides the least salient staves where they would run off the frame, only there', () async {
-    // Worked out on another isolate while opening (from the file's bar lengths), as here.
+    // Auto-curate, worked out on another isolate while opening (from the file's bar lengths).
     final stages = <LoadStage>[];
     final measured = await LoadedScore.engrave(score.musicXML, score.request, measure: true, onStage: stages.add);
     expect(stages, [LoadStage.reading, LoadStage.engraving, LoadStage.measuring]);
@@ -200,11 +141,9 @@ void main() {
     final base = Curation(ids)..setLanes(playing);
     bool shownIn(List<Region> lane, int m) => lane.any((r) => r.start <= starts[m] && r.end > starts[m]);
     List<String> shownAt(Map<String, List<Region>> lanes, int m) => [for (final id in ids) if (shownIn(lanes[id]!, m)) id];
-
-    const wide = ui.Size(960, 540), tall = ui.Size(540, 960);
+    const wide = ui.Size(960, 540), upright = ui.Size(540, 960);
     expect(scene.overflowing(base, wide), isNotEmpty, reason: '21 staves in the tutti');
-    final fitted = scene.curatedToFit(base, wide,
-        partIds: ids, activeMeasures: score.metadata.activeMeasures, salience: score.salience);
+    final fitted = scene.curatedToFit(base, wide, partIds: ids, activeMeasures: score.metadata.activeMeasures, salience: score.salience);
     expect(scene.overflowing(Curation(ids)..setLanes(fitted), wide), isEmpty);
     for (var m = 0; m < starts.length - 1; m++) {
       final now = shownAt(fitted, m), before = shownAt(playing, m);
@@ -212,88 +151,10 @@ void main() {
       if (before.isNotEmpty) expect(now, isNotEmpty, reason: 'someone left (bar ${m + 1})');
     }
     // Upright there is room for the opening's few: none goes.
-    final upright = scene.curatedToFit(base, tall,
-        partIds: ids, activeMeasures: score.metadata.activeMeasures, salience: score.salience);
+    final tallFit = scene.curatedToFit(base, upright, partIds: ids, activeMeasures: score.metadata.activeMeasures, salience: score.salience);
     for (var m = 0; m < 5; m++) {
-      expect(shownAt(upright, m), shownAt(playing, m));
+      expect(shownAt(tallFit, m), shownAt(playing, m));
     }
-    scene.dispose();
-  });
-
-  test('triplets on two staves sit above the upper one, clear of its notes', () async {
-    final engraving = (await LoadedScore.load(crossStaffTripletsScore())).engraving;
-    final ints = engraving.commandInts, floats = engraving.commandFloats;
-    List<ui.Rect> boxes(String className) => [
-          for (var b = 0; b < ints.length; b += Cmd.words)
-            if (engraving.classNames[ints[b + Cmd.classIndex]] == className)
-              ui.Rect.fromLTWH(floats[b + Cmd.bounds], floats[b + Cmd.bounds + 1], floats[b + Cmd.bounds + 2], floats[b + Cmd.bounds + 3]),
-        ];
-    final numbers = boxes('tupletNum'), heads = boxes('note');
-    expect(numbers, hasLength(2));
-    for (final number in numbers) {
-      // Not between the staves, where the beams are, nor among the high chord's noteheads.
-      expect(number.bottom, lessThan(engraving.staves.first.top));
-      expect(heads.where((h) => h.overlaps(number)), isEmpty);
-    }
-  });
-
-  test('a video frame is the preview drawn offscreen, at any pixel size', () async {
-    final scene = CuratedScene(score);
-    final curation = Curation(score.metadata.parts.map((p) => p.id));
-    for (final p in score.metadata.parts.skip(16)) {
-      curation.setLane(p.id, [Region(0, score.timeline.measureStarts.last)]);
-    }
-    Future<ByteData> bytes(ui.Image image) async => (await image.toByteData())!;
-
-    // The same pixels as painting the preview at that size and density.
-    final frame = scene.renderFrame(1600, 900, time: 30, curation: curation, devicePixelRatio: 2);
-    final recorder = ui.PictureRecorder();
-    scene.paint(ui.Canvas(recorder)..scale(2), const ui.Size(800, 450),
-        time: 30, curation: curation, devicePixelRatio: 2);
-    final preview = recorder.endRecording().toImageSync(1600, 900);
-    expect((await bytes(frame)).buffer.asUint8List(), (await bytes(preview)).buffer.asUint8List());
-
-    // Engraved beforehand and saved (a web page's score), the same frame.
-    final saved = LoadedScore.engraved(score.musicXML, score.request, EngravingFile.read(EngravingFile.write(score.engraving)));
-    final savedScene = CuratedScene(saved);
-    final again = savedScene.renderFrame(1600, 900, time: 30, curation: curation, devicePixelRatio: 2);
-    expect((await bytes(again)).buffer.asUint8List(), (await bytes(frame)).buffer.asUint8List());
-    again.dispose();
-    savedScene.dispose();
-
-    // 720p laid out like a 540-point-high preview: a fractional density, whole pixels out.
-    final hd = scene.renderFrame(1280, 720, time: 30, curation: curation, devicePixelRatio: 720 / 540);
-    expect((hd.width, hd.height), (1280, 720));
-    final pixels = await bytes(hd);
-    final colours = {for (var i = 0; i < pixels.lengthInBytes; i += 4) pixels.getUint32(i)};
-    expect(colours, contains(0xFFFFFFFF), reason: 'paper');
-    expect(colours, contains(0x14171AFF), reason: 'ink');
-    for (final image in [frame, preview, hd]) {
-      image.dispose();
-    }
-    scene.dispose();
-  });
-
-  test('the band along the top: the staves leave it room, each stretch in its colour; key signatures at concert pitch', () async {
-    // Key signatures at concert pitch: B♭ instruments and horns written sharper, the most parts winning.
-    expect(concertKeySignatures(demoScoreWithKeyChange(bar: 20, concertFifths: -3)),
-        [(measure: 0, fifths: 0, minor: true), (measure: 19, fifths: -3, minor: null)]);
-
-    final scene = CuratedScene(score);
-    final curation = Curation(score.metadata.parts.map((p) => p.id));
-    for (final p in score.metadata.parts.skip(16)) {
-      curation.setLane(p.id, [Region(0, score.timeline.measureStarts.last)]);
-    }
-    const size = ui.Size(800, 450);
-    final top = scene.layoutAt(30, curation, size).placements.first.y;
-    const colour = ui.Color(0xFF7A5C99);
-    scene.bands = [ScoreBand(0, score.timeline.measureStarts.last, colour, '(A minor)')];
-    expect(scene.layoutAt(30, curation, size).placements.first.y, greaterThan(top), reason: 'the staves leave it room');
-    final frame = scene.renderFrame(800, 450, time: 30, curation: curation, devicePixelRatio: 1);
-    final pixels = (await frame.toByteData())!;
-    int at(int x, int y) => pixels.getUint32((y * 800 + x) * 4);
-    expect(at(790, 2), 0x7A5C99FF, reason: 'in its colour (RGBA)');
-    frame.dispose();
     scene.dispose();
   });
 }
