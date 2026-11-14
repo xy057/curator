@@ -310,8 +310,10 @@ class ExtensionRuntime {
     curator['id'] = package.id;
     curator['name'] = package.name;
     curator['version'] = package.version;
-    curator['language'] = host.language;
     curator['null'] = LuaJson.nil;
+    // The language as it is when it is read: it can change while the extension runs, as what
+    // curator.tr gives does.
+    curator.metatable = LuaTable()..['__index'] = LuaBuiltin('curator.__index', (a) => [a.at(1) == 'language' ? host.language : null]);
   }
 
   // MARK: The text library
