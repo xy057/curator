@@ -722,7 +722,7 @@ _Category _typographyCategory() {
           group: s.group,
           shown: switch (s.kind) {
             TextKind.captions => (c) => c.controller!.captions.enabled,
-            TextKind.tonality => (c) => c.controller!.tonality.enabled,
+            TextKind.tonality => (c) => c.controller!.extensionOn('tonality'),
             TextKind.barNumbers || TextKind.tempoRow => (c) => c.controller!.barNumbers,
             _ => null,
           },

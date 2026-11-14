@@ -42,10 +42,13 @@ that runs too long is stopped.
 
 - **Project**: the project opened (`opened`), its data changed (`changed`), checking the
   saved data as a project opens (`load`), moving it when the score is replaced (`replaced`).
-- **Lane**: a lane pinned under the bar ruler. `items` says what is in it; `add`, `move`,
-  `erase`, `open` and `remove` are what the tools and keys do.
+- **Lane**: a lane pinned under the bar ruler. `items` says what is in it; the other ports
+  are what the tools and keys do. Its `kind` is `markers` (places that each run to the next:
+  `add`, `move`, `erase`) or `spans` (stretches with a start and an end, edited as an
+  instrument's regions are: `draw`, `begin`, `change`, `cut`).
 - **Command**: a button on a lane's name. `run` does it; `enabled` says whether it can be
   chosen.
+- **Band**: a band of colours along the top of the score. `areas` says what is in it.
 - **Export**: what a video and a web page get: their chapters.
 
 Every port's function is given in the Reference, as it would be written.
@@ -81,7 +84,19 @@ add `locales/<language>.json` (`zh-Hans.json`, `ja.json`) with the English as th
 ```
 
 `curator.tr("{n} notes", {n = 3})` fills `{n}` in. Titles in the connector are translated
-the same way.
+the same way. A text that means two things gets a context: `curator.tr_in("music", "Key")`
+looks for `"music|Key"` first.
+
+## Colours
+
+A colour is `"#rrggbb"`, or a table of its red, green and blue from 0 to 1:
+`{r = 1, g = 0.5, b = 0}`.
+
+## Dialogs
+
+`ui.form` opens a dialog laid out as Curator's own: rows of fields (a text, a `"switch"`, or
+a `"choice"` among options), a `check` that says what is wrong as it is typed, and `done`,
+called with the values. Lua never draws: it says what it wants, and Curator shows it.
 
 ## Staying compatible
 
@@ -101,7 +116,7 @@ Lua 5.4 as it is written, with these differences: there is one kind of number (w
 to keep a whole number a fraction when it is saved); a string is text, so `#s` counts
 characters as JavaScript does; there are no coroutines, no `io` and no `os.execute`. Beyond
 Lua's own `string`, `table`, `math` and `utf8` there are `text` (trim, squeeze: any kind of
-space) and `math.round`.
+space), `math.round` and `math.clamp`.
 
 ## A whole extension
 

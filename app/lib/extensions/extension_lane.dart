@@ -195,28 +195,7 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
     return SizedBox(
       height: ExtensionLane.height,
       child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        SizedBox(
-          width: kLaneHeaderWidth,
-          child: ListenableBuilder(
-            listenable: c,
-            builder: (context, _) => LaneLabel(
-              height: ExtensionLane.height,
-              color: colors.accentWash,
-              trailing: Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  for (final command in c.extensions.commands(runtime, lane: lane))
-                    LaneButton(
-                      icon: extensionIcon(command.props['icon']),
-                      tooltip: runtime.translate(_text(command.props['title'])),
-                      onPressed: c.extensions.canRun(runtime, command) ? () => runtime.fire(command.id, 'run') : null,
-                    ),
-                ]),
-              ),
-              child: Text(runtime.translate(_text(widget.node.props['title'])), style: TextStyle(fontWeight: FontWeight.w500)),
-            ),
-          ),
-        ),
+        SizedBox(width: kLaneHeaderWidth, child: ExtensionLaneName(controller: c, runtime: runtime, node: widget.node)),
         Expanded(
           child: MouseRegion(
             cursor: laneCursor,
@@ -247,6 +226,131 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
 }
 
 String _text(Object? value) => value is String ? value : '';
+
+/// An extension's lane's name, with the extension's commands for the lane as buttons.
+class ExtensionLaneName extends StatelessWidget {
+  const ExtensionLaneName({super.key, required this.controller, required this.runtime, required this.node});
+  final EditorController controller;
+  final ExtensionRuntime runtime;
+  final GraphNode node;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    return ListenableBuilder(
+      listenable: c,
+      builder: (context, _) => LaneLabel(
+        height: ExtensionLane.height,
+        color: context.colors.accentWash,
+        trailing: Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            for (final command in c.extensions.commands(runtime, lane: node.id))
+              LaneButton(
+                icon: extensionIcon(command.props['icon']),
+                tooltip: runtime.translate(_text(command.props['title'])),
+                onPressed: c.extensions.canRun(runtime, command) ? () => runtime.fire(command.id, 'run') : null,
+              ),
+          ]),
+        ),
+        child: Text(runtime.translate(_text(node.props['title'])), style: TextStyle(fontWeight: FontWeight.w500)),
+      ),
+    );
+  }
+}
+
+/// A lane of an extension's whose kind is spans: a [SpanLane] of the stretches its `items`
+/// gives, each in its own colour when it names one, edited as an instrument's regions are.
+/// The extension is told what a gesture did (`draw`, `begin`, `change`, `cut`, `open`) and
+/// keeps the stretches; with `paint` on they go over each other, else each stops at the next.
+class ExtensionSpanLane extends StatefulWidget {
+  ExtensionSpanLane({required this.controller, required this.runtime, required this.node}) : super(key: ValueKey('lane ${runtime.id} ${node.id}'));
+  final EditorController controller;
+  final ExtensionRuntime runtime;
+  final GraphNode node;
+
+  @override
+  State<ExtensionSpanLane> createState() => _ExtensionSpanLaneState();
+}
+
+class _ExtensionSpanLaneState extends State<ExtensionSpanLane> {
+  late var _model = ExtensionSpans(widget.controller, widget.runtime, widget.node);
+
+  @override
+  void didUpdateWidget(ExtensionSpanLane old) {
+    super.didUpdateWidget(old);
+    // Run again from its files (its code was edited): the same lane of a new runtime.
+    if (!identical(old.runtime, widget.runtime) || !identical(old.node, widget.node)) _model = ExtensionSpans(widget.controller, widget.runtime, widget.node);
+  }
+
+  @override
+  Widget build(BuildContext context) => SpanLane(
+        controller: widget.controller,
+        model: _model,
+        header: ExtensionLaneName(controller: widget.controller, runtime: widget.runtime, node: widget.node),
+      );
+}
+
+/// What a [SpanLane] edits for an extension's spans lane: the stretches its `items` gives, and
+/// its ports for what a gesture does.
+class ExtensionSpans extends SpanLaneModel {
+  ExtensionSpans(this.c, this.runtime, this.node);
+  final EditorController c;
+  final ExtensionRuntime runtime;
+  final GraphNode node;
+
+  String get _lane => node.id;
+  List<LaneStretch> get _items => c.extensions.stretches(runtime, node);
+
+  /// How many stretches a drag found: `change` is of those.
+  int _before = 0;
+
+  @override
+  List<Span> get spans => [for (final s in _items) (start: s.start, end: s.end)];
+
+  @override
+  int? get selected => c.extensions.selectedIn(runtime.id, _lane);
+
+  @override
+  void select(int? index) => c.extensions.select(runtime.id, _lane, index);
+
+  @override
+  bool get live => node.props['live'] != false;
+
+  @override
+  bool get paints => node.props['paint'] == true;
+
+  @override
+  void begin() {
+    _before = _items.length;
+    runtime.fire(_lane, 'begin');
+  }
+
+  @override
+  void update(int index, double start, double end) {
+    if (index < _before) runtime.fire(_lane, 'change', args: [index + 1, start, end]);
+  }
+
+  @override
+  void replaceAll(List<({int from, double start, double end})> pieces) => runtime.fire(_lane, 'cut', args: [
+        LuaTable.list([for (final p in pieces) LuaTable.map({'of': p.from + 1, 'from': p.start, 'to': p.end})]),
+      ]);
+
+  @override
+  void drawn(double start, double end) => runtime.fire(_lane, 'draw', args: [start, end]);
+
+  @override
+  void open(int index) => runtime.fire(_lane, 'open', args: [index + 1]);
+
+  @override
+  String? label(int index) => _items[index].label;
+
+  @override
+  InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);
+
+  @override
+  Color? color(int index) => _items[index].color;
+}
 
 /// The icon a connector names ([ExtensionApi.icons]); one it doesn't know is the extensions'.
 AppIcon extensionIcon(Object? name) => _icons[name] ?? AppIcon.extensions;

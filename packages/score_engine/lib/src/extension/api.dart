@@ -11,7 +11,7 @@ library;
 
 /// A function Lua can call: `score.bars`.
 class ApiFunction {
-  const ApiFunction(this.name, this.signature, this.summary, {this.since = 1, this.example});
+  const ApiFunction(this.name, this.signature, this.summary, {this.since = 1, this.example, this.editor = false});
 
   /// As called: "score.bars".
   final String name;
@@ -21,6 +21,9 @@ class ApiFunction {
   final String summary;
   final int since;
   final String? example;
+
+  /// Whether only the editor gives it, though its library is everywhere (`score.music`).
+  final bool editor;
 }
 
 /// A table of functions: `score`.
@@ -111,7 +114,7 @@ abstract final class ExtensionApi {
       ApiPort('load', 'load(data, version) → data',
           'A project is being opened: check its saved data (written by the extension’s version of the data, "data.version" in extension.json) and return it as this version wants it. An error here says the project is damaged.'),
       ApiPort('replaced', 'replaced(data, carry) → data, lost',
-          'The score is being replaced by another. carry(quarter) gives where a place of the old score is in the new one, or nil when it is gone. Return the saved data moved there, and what was lost as a text ("2 chapters"), or nil.'),
+          'The score is being replaced by another. carry(quarter) gives where a place of the old score is in the new one, or nil when it is gone; a third argument is the new score’s length in quarters. Return the saved data moved there, and what was lost as a text ("2 chapters"), or nil.'),
     ]),
     ApiSocket('command', 'Command', 'Something the user can do: a button on a lane’s name, or an item of the preview’s menu.', ports: [
       ApiPort('run', 'run()', 'The user chose it.'),
@@ -126,19 +129,33 @@ abstract final class ExtensionApi {
       ApiPort('chapters', 'chapters(from, to) → list',
           'The chapters of a video or page showing from–to seconds of the performance: {from, to, name}, in seconds from its start, in order and without gaps. A movie carries them for its player, with a list of their times beside it; a page lists them to jump to.'),
     ]),
-    ApiSocket('lane', 'Lane', 'A lane pinned under the bar ruler, drawn and edited as the app’s own are.', ports: [
+    ApiSocket('lane', 'Lane', 'A lane pinned under the bar ruler, drawn and edited as the app’s own are. Its kind says what it holds: markers (places, each running to the next) or spans (stretches that never overlap).', ports: [
       ApiPort('items', 'items() → list',
-          'What the lane shows, in score order: {at = quarter, label = text}, each running to the next. Asked again when the extension’s data changes.'),
-      ApiPort('add', 'add(at)', 'The Draw tool was clicked at a place (snapped to the beat it is in).'),
-      ApiPort('move', 'move(index, at)', 'Item index is being dragged to start at a place. Called as it moves; the whole drag is one Undo step.'),
-      ApiPort('erase', 'erase(index)', 'The Erase tool was clicked on item index.'),
+          'What the lane shows, in score order. Markers: {at = quarter, label = text}. Spans: {from = quarter, to = quarter, label = text, color = colour}; without a colour a stretch is drawn as a region is. Asked again when the extension’s data changes.'),
       ApiPort('open', 'open(index)', 'Item index was double-clicked.'),
       ApiPort('remove', 'remove(index)', 'Delete was pressed with item index selected.'),
+      ApiPort('nudge', 'nudge(index, direction, fine)', '← (direction -1) or → (1) was pressed with item index selected; fine asks for the smaller step (a beat, not a bar). Unwired: the keys do what they do without it.'),
+      ApiPort('trim', 'trim(index, edge)', '[ (edge "start") or ] ("end") was pressed with item index selected: the edge goes to the playhead.'),
+      ApiPort('add', 'add(at)', 'Markers: the Draw tool was clicked at a place (snapped to the beat it is in).'),
+      ApiPort('move', 'move(index, at)', 'Markers: item index is being dragged to start at a place. Called as it moves; the whole drag is one Undo step.'),
+      ApiPort('erase', 'erase(index)', 'Markers: the Erase tool was clicked on item index.'),
+      ApiPort('draw', 'draw(from, to)', 'Spans: the Draw tool was dragged across from–to (a click: the beat there).'),
+      ApiPort('begin', 'begin()', 'Spans: a drag that may change the stretches begins. Until the next, change and cut are of the stretches as they are now: keep them.'),
+      ApiPort('change', 'change(index, from, to)',
+          'Spans: stretch index (as begin found them) was moved or trimmed to from–to. Called as the drag goes, the whole drag one Undo step; with live off, once as it ends.'),
+      ApiPort('cut', 'cut(pieces)',
+          'Spans: the Erase tool went over stretches. pieces is every stretch as it is left, {of, from, to}: a piece of stretch of (as begin found them). One erased whole has none.'),
     ], props: [
       ApiProp('title', ApiPropType.text, 'The lane’s name.'),
-      ApiProp('kind', ApiPropType.choice, 'Markers are places that each run to the next.', choices: ['markers'], fallback: 'markers'),
-      ApiProp('gap', ApiPropType.number, 'The least two markers are apart, in quarters: a drag stops there.', fallback: 0.25),
+      ApiProp('kind', ApiPropType.choice, 'What it holds: markers are places that each run to the next, spans are stretches with a start and an end.', choices: ['markers', 'spans'], fallback: 'markers'),
+      ApiProp('gap', ApiPropType.number, 'Markers: the least two are apart, in quarters: a drag stops there.', fallback: 0.25),
+      ApiProp('paint', ApiPropType.toggle, 'Spans: a stretch drawn, moved or trimmed goes over the others, as an instrument’s region does (cut them back in change and draw), instead of stopping at them.', fallback: false),
+      ApiProp('live', ApiPropType.toggle, 'Spans: a drag changes the stretch as it goes. Off: once, when it ends.', fallback: true),
       ApiProp('order', ApiPropType.number, 'Where it sits among the pinned lanes: a lower number is higher up.', fallback: 100),
+    ]),
+    ApiSocket('band', 'Band', 'A band of colours along the top of the score, in the preview, a video and a web page: the staves leave it room while it has anything.', single: true, ports: [
+      ApiPort('areas', 'areas() → list',
+          'The band’s stretches, in score order: {from = quarter, to = quarter, color = colour, label = text}, each named at its start. Asked again when the extension’s data or the language changes.'),
     ]),
   ];
 
@@ -165,6 +182,7 @@ abstract final class ExtensionApi {
       }
     }
     out.writeln('\nIcons: ${icons.map((i) => '`$i`').join(', ')}.');
+    out.writeln('\nA colour is `"#rrggbb"`, or a table of its red, green and blue from 0 to 1: `{r = 1, g = 0.5, b = 0}`.');
     out.writeln('\n## Libraries');
     for (final l in libraries) {
       out.writeln('\n### `${l.name}`\n\n${l.summary}\n');
@@ -192,6 +210,9 @@ abstract final class ExtensionApi {
       ApiFunction('curator.tr', 'curator.tr(text, values) → text',
           'text in the interface’s language, from locales/<language>.json; each {name} in it is replaced by values.name.',
           example: 'curator.tr("{n} chapters", {n = 3})'),
+      ApiFunction('curator.tr_in', 'curator.tr_in(context, text, values) → text',
+          'curator.tr for a text that means two things: its translation in a context ("context|text" in locales/<language>.json), else as curator.tr gives it.',
+          example: 'curator.tr_in("music", "Key")'),
       ApiFunction('curator.has', 'curator.has(name) → boolean',
           'Whether this Curator has a function ("score.notes"), a library ("ui"), a socket ("socket:lane") or a port ("socket:lane.items"): for using something newer than the level the extension asks for.'),
       ApiFunction('curator.log', 'curator.log(...)', 'Writes a line to the extension editor’s log. print does the same.'),
@@ -224,6 +245,9 @@ abstract final class ExtensionApi {
           example: 'for _, span in ipairs(score.spans({0, 16, 48})) do\n  print(span.index, span.from, span.to)\nend'),
       ApiFunction('score.rehearsal_marks', 'score.rehearsal_marks() → list', 'The score’s rehearsal marks, in the order written: {at, bar, text}.'),
       ApiFunction('score.parts', 'score.parts() → list', 'The instruments: {id, name, staves}.'),
+      ApiFunction('score.music', 'score.music(done)',
+          'Reads the music off to the side, so a long score doesn’t stop the editor, then calls done(music): music.notes is every pitched note as it sounds, part by part ({from, to} in quarters, pitch as a MIDI number at concert pitch, tied when a tie carries it on from the note before, chord for a chord’s notes after its first, part, staff, voice); music.keys the key signatures at concert pitch ({bar, fifths, minor}, each from its bar on; minor only when the score says which); music.bars where each bar starts, then the score’s end. done(nil) when the score changed meanwhile. In the editor only.',
+          example: 'score.music(function(music)\n  if not music then return end\n  print(#music.notes, "notes")\nend)', editor: true),
     ]),
     ApiLibrary('text', 'Text as people write it: every kind of space counts, in any script.', [
       ApiFunction('text.trim', 'text.trim(text) → text', 'text without the spaces at its ends.'),
@@ -234,6 +258,7 @@ abstract final class ExtensionApi {
     ]),
     ApiLibrary('math', 'Lua’s math library, and:', [
       ApiFunction('math.round', 'math.round(x) → number', 'x to the nearest whole number, a half away from zero.'),
+      ApiFunction('math.clamp', 'math.clamp(x, low, high) → number', 'x, no lower than low and no higher than high.'),
     ], addsTo: true),
     ApiLibrary('lanes', 'What is selected in the extension’s lanes. In the editor only.', [
       ApiFunction('lanes.selected', 'lanes.selected(lane) → index', 'The item selected in a lane (the lane’s id in the connector); nil when none is.'),
@@ -244,10 +269,13 @@ abstract final class ExtensionApi {
       ApiFunction('editor.seek', 'editor.seek(seconds)', 'Moves the playhead.'),
       ApiFunction('editor.beat', 'editor.beat(quarter, pass) → start, end', 'The beat of the lanes’ grid a place is in (bars when zoomed far out).'),
       ApiFunction('editor.snap', 'editor.snap(quarter, pass) → quarter', 'The nearest line of the lanes’ grid, as a drag snaps to it.'),
+      ApiFunction('editor.next', 'editor.next(quarter, unit) → quarter', 'The first barline after a place (unit "bar", the default) or the first beat ("beat"); the score’s end when there is none.'),
+      ApiFunction('editor.previous', 'editor.previous(quarter, unit) → quarter', 'The last barline (or beat) before a place; the score’s start when there is none.'),
+      ApiFunction('editor.nearest', 'editor.nearest(quarter, unit) → quarter', 'The barline (or beat) nearest a place.'),
     ]),
     ApiLibrary('ui', 'Dialogs, laid out as the app’s own. In the editor only.', [
       ApiFunction('ui.form', 'ui.form(spec)',
-          'Opens a dialog. spec: title, confirm (its button’s title), width, rows (each a list of fields: {id, label, value, type = "text" or "switch", max, flex, focus, hint, lines}), leading (buttons at the left: {id, title}), check(values) → nil when it can be confirmed, a text saying why not, or "" to say nothing, and done(values, button), called with the fields’ values by id and "confirm" or a leading button’s id. Cancel calls nothing.',
+          'Opens a dialog. spec: title, confirm (its button’s title), width, spacing (between rows), rows (each a list of fields: {id, label, value, type = "text", "switch" or "choice", max, flex, focus, hint (a text, or a function of the values), lines, options (a choice’s: {value, label, color})}), leading (buttons at the left: {id, title}), check(values) → nil when it can be confirmed, a text saying why not, or "" to say nothing, and done(values, button), called with the fields’ values by id and "confirm" or a leading button’s id. Cancel calls nothing.',
           example:
               'ui.form{\n  title = "Add Note", confirm = "Add",\n  rows = { { {id = "text", label = "Note", focus = true} } },\n  check = function(values) return values.text == "" and "" or nil end,\n  done = function(values) add(values.text) end,\n}'),
       ApiFunction('ui.message', 'ui.message(text)', 'Shows a line at the window’s foot for a moment.'),

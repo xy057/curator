@@ -14,7 +14,6 @@ import '../project_file.dart' show ProjectFile;
 import '../project_modules.dart';
 import '../project_state.dart';
 import '../web_page.dart';
-import '../l10n/l10n.dart';
 
 /// A page as the player shows it: what [WebPage] describes, read and made ready to draw.
 class LoadedPage {
@@ -77,8 +76,9 @@ class LoadedPage {
   }
 
   /// The scene's settings, with captions and bar numbers on or off as the viewer has them, and
-  /// the key areas (Tonality on) named in the viewer's language where the user named none.
-  SceneSettings settings({required bool captions, required bool barNumbers}) => SceneSettings(
+  /// the band along the score's top as the project's extensions give it ([bands]: those run
+  /// to read it; made anew when none is given), named in the viewer's language.
+  SceneSettings settings({required bool captions, required bool barNumbers, ExtensionReaders? bands}) => SceneSettings(
         names: edits.partNames,
         condensed: edits.condensed,
         partOrder: edits.partOrder,
@@ -99,10 +99,7 @@ class LoadedPage {
         nameColors: page.nameColors,
         pointerColor: edits.playheadColor,
         spacers: edits.spacers,
-        keyAreas: [
-          if (edits.extensions['tonality'] ?? false)
-            for (final a in edits.keyAreas) a.label == null ? a.copyWith(label: a.key.name.tr) : a,
-        ],
+        bands: (bands ?? extensions(() => score.timeline)).bands,
       );
 
   /// The lanes as exported, each instrument in [shown] always or never shown instead.

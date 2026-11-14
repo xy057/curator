@@ -113,7 +113,7 @@ void main() {
     expect(c.commands.canDelete, isTrue);
     c.commands.delete();
     expect(c.extensions.items(runtime, lane), [(at: 8.0, label: 'Note 1')]);
-    expect(c.extensions.selected, isNull);
+    expect(c.extensions.hasSelection, isFalse);
     expect(c.extensions.data('com.example.notes'), {
       'notes': [
         {'at': 8.0, 'text': 'Note 1'},

@@ -57,7 +57,6 @@ class EditState {
     this.patches = const [],
     this.captions = const [],
     this.captionFont,
-    this.keyAreas = const [],
     this.fonts = ScoreFonts.standard,
     this.embedFont = true,
     this.engraving = const EngravingOptions(),
@@ -181,8 +180,6 @@ class EditState {
   final List<Caption> captions;
 
 
-  /// Key areas (Tonality), in the score's order, one to a place ([tidyKeyAreas]).
-  final List<KeyArea> keyAreas;
 
   /// Vertical spacers (Attach Image): staves of nothing, each an instrument of its own, in the
   /// order they were added.
@@ -261,7 +258,6 @@ class EditState {
       listEquals(patches, other.patches) &&
       listEquals(captions, other.captions) &&
       captionFont == other.captionFont &&
-      listEquals(keyAreas, other.keyAreas) &&
       fonts == other.fonts &&
       embedFont == other.embedFont &&
       engraving == other.engraving &&
@@ -310,7 +306,6 @@ class EditState {
     List<ImagePatch>? patches,
     List<Caption>? captions,
     Object? captionFont = _kept,
-    List<KeyArea>? keyAreas,
     ScoreFonts? fonts,
     bool? embedFont,
     EngravingOptions? engraving,
@@ -352,7 +347,6 @@ class EditState {
         patches: patches ?? this.patches,
         captions: captions ?? this.captions,
         captionFont: identical(captionFont, _kept) ? this.captionFont : captionFont as String?,
-        keyAreas: keyAreas ?? this.keyAreas,
         fonts: fonts ?? this.fonts,
         embedFont: embedFont ?? this.embedFont,
         engraving: engraving ?? this.engraving,

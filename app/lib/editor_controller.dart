@@ -34,7 +34,6 @@ part 'editor/image_editing.dart';
 part 'editor/lane_editing.dart';
 part 'editor/playback.dart';
 part 'editor/spacer_editing.dart';
-part 'editor/tonality_editing.dart';
 part 'editor/sync_editing.dart';
 
 enum BottomTab { instruments, audio }
@@ -71,7 +70,6 @@ class EditorController extends ChangeNotifier {
   late final anchors = SyncEditing._(this);
   late final images = ImageEditing._(this);
   late final captions = CaptionEditing._(this);
-  late final tonality = TonalityEditing._(this);
   late final spacers = SpacerEditing._(this);
   late final extensions = ExtensionEditing._(this);
   late final commands = EditCommands._(this);
@@ -417,8 +415,8 @@ class EditorController extends ChangeNotifier {
             curate: pdf == null || autoCuratePdf);
     // What the extensions keep goes with it: each moves its own (`project.replaced`).
     final (state: carried, lost: lostByExtensions) =
-        carriedExtensionData(placed, (q) => ScoreSwap.quarterAt(q, measures.before, measures.after));
-    final Lost lost = (regions: gone.regions, anchors: gone.anchors, warps: gone.warps, captions: gone.captions, extensions: lostByExtensions, keys: gone.keys, images: gone.images);
+        carriedExtensionData(placed, (q) => ScoreSwap.quarterAt(q, measures.before, measures.after), end: measures.after.last);
+    final Lost lost = (regions: gone.regions, anchors: gone.anchors, warps: gone.warps, captions: gone.captions, extensions: lostByExtensions, images: gone.images);
     return ScoreReplacement(
       name: name,
       bytes: bytes,
@@ -614,7 +612,6 @@ class EditorController extends ChangeNotifier {
     images._reset();
     captions._reset();
     extensions._reset();
-    tonality._selected = null;
     _scene?.dispose();
     _scene = null;
     _curation?.removeListener(_curationEdited);
@@ -766,7 +763,7 @@ class EditorController extends ChangeNotifier {
       nameColors: _nameColors,
       pointerColor: _doc.playheadColor,
       spacers: images.enabled ? _doc.spacers : const [],
-      keyAreas: tonality._sceneAreas);
+      bands: extensions.bands);
 
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
@@ -2250,18 +2247,16 @@ class EditorController extends ChangeNotifier {
         anchors._isEmpty &&
         images._selected == null &&
         captions._selected == null &&
-        tonality._selected == null &&
         spacers._selected == null &&
-        extensions._selected == null &&
+        extensions._selection.isEmpty &&
         _takeSelected == null) {
       return;
     }
     _takeSelected = null;
     images._deselect();
     captions._selected = null;
-    tonality._selected = null;
     spacers._selected = null;
-    extensions._selected = null;
+    extensions._selection.clear();
     lanes._clear();
     anchors._deselect();
     notifyListeners();
@@ -2357,7 +2352,6 @@ class EditorController extends ChangeNotifier {
       _performanceChanged(); // the lanes too
       images._restore(state.patches);
       captions._restore(state.captions, state.captionFont);
-        tonality._selected = null;
       _applyExtensions();
       extensions._restored(before, state);
       _previewSections = null; // a bracket's drag ends with an edit or none: not under Undo

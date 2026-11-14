@@ -104,7 +104,7 @@ void main() {
     expect(find.textContaining('notes_move'), findsOneWidget);
 
     // The reference: searched as typed.
-    await tester.enterText(find.descendant(of: find.byType(ExtensionReference), matching: find.byType(EditableText)), 'spans');
+    await tester.enterText(find.descendant(of: find.byType(ExtensionReference), matching: find.byType(EditableText)), 'score.spans');
     await tester.pump();
     expect(find.textContaining('score.spans(places, end)'), findsOneWidget);
     expect(find.textContaining('curator.save'), findsNothing);
@@ -127,7 +127,7 @@ void main() {
     expect(closed, isTrue);
     final edited = result!;
     expect(edited.graph.wire('notes', 'move')!.to, 'main.lua#notes_move');
-    expect(edited.sources['main.lua'], contains('-- notes.move: Item index is being dragged'));
+    expect(edited.sources['main.lua'], contains('-- notes.move: Markers: item index is being dragged'));
     expect(edited.sources['main.lua'], endsWith('function M.notes_move(index, at)\nend\n\nreturn M\n'));
     expect(checkExtension(edited), isEmpty);
     expect(ExtensionPackage.read(edited.write()), edited, reason: 'as a .cpe, and back');

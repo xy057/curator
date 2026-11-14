@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
@@ -47,7 +48,7 @@ ExtensionPackage package({Map<String, String>? sources, List<List<String>> wires
       }),
       sources: sources ?? const {'main.lua': 'function opened() end\n'},
       locales: const {
-        'zh-Hans': {'{n} notes': '{n} 条笔记'},
+        'zh-Hans': {'{n} notes': '{n} 条笔记', 'Key': '键', 'music|Key': '调'},
       },
       assets: {'words.txt': Uint8List.fromList(utf8.encode('hello'))},
       readme: '# Notes\n',
@@ -184,6 +185,32 @@ void main() {
     expect([value('curator.has("ui.form")'), value('curator.has("text.squeeze")'), value('curator.has("socket:lane.items")'), value('curator.has("nothing.here")')],
         [false, true, true, false]);
     expect(() => runtime.run('error("no", 0)'), throwsA(isA<LuaError>().having((e) => e.message, 'message', 'no')));
+    // As Dart clamps: a zero below zero is zero, what isn't a number is the highest.
+    expect([value('math.clamp(5, 0, 3)'), value('math.clamp(-1, 0.5, 3)'), value('math.clamp(2, 0, 3)'), value('math.clamp(0/0, 0, 3)'), value('1 / math.clamp(-0.0, 0.0, 1.0)')],
+        [3, 0.5, 2, 3, double.infinity]);
+    expect(() => runtime.run('return math.clamp(1, 3, 0)'), throwsA(isA<LuaError>()));
+    // A text that means two things, by its context; without one for it, as tr gives it.
+    expect([value('curator.tr("Key")'), value('curator.tr_in("music", "Key")'), value('curator.tr_in("door", "Key")'), value('curator.tr_in("music", "{n} notes", {n = 2})')],
+        ['键', '调', '键', '2 条笔记']);
+  });
+
+  test('What Lua gives the app: a colour, the music of a score', () {
+    final lua = Lua();
+    Object? value(String code) => lua.call(lua.load('return $code', chunk: 'test'), const [], 100000).firstOrNull;
+    expect(luaColor('#3366cc'), const ui.Color(0xFF3366CC));
+    expect(luaColor('#3366cc80'), const ui.Color(0x803366CC));
+    expect(luaColor(value('{r = 1, g = 0.5, b = 0}')), const ui.Color.from(alpha: 1, red: 1, green: 0.5, blue: 0));
+    expect(luaColor(value('{0.25, 2, -1, 0.5}')), const ui.Color.from(alpha: 0.5, red: 0.25, green: 1, blue: 0));
+    expect([luaColor('blue'), luaColor('#12'), luaColor(value('{r = 1}')), luaColor(null), luaColor(7)], everyElement(isNull));
+
+    const xml = '<score-partwise><part id="P1"><measure><attributes><divisions>1</divisions><key><fifths>-1</fifths><mode>minor</mode></key></attributes>'
+        '<note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration></note>'
+        '<note><chord/><pitch><step>F</step><octave>4</octave></pitch><duration>2</duration></note></measure>'
+        '<measure><attributes><key><fifths>2</fifths></key></attributes><note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><tie type="stop"/></note></measure></part></score-partwise>';
+    final music = scoreMusicTable(readScoreMusic(xml, [0, 2, 6]));
+    expect(LuaJson.fromLua(music).toString(),
+        '{notes: [{from: 0.0, to: 2.0, pitch: 62, tied: false, chord: false, part: P1, staff: 1, voice: 1}, {from: 0.0, to: 2.0, pitch: 65, tied: false, chord: true, part: P1, staff: 1, voice: 1}, '
+        '{from: 2.0, to: 6.0, pitch: 62, tied: true, chord: false, part: P1, staff: 1, voice: 1}], keys: [{bar: 1, fifths: -1, minor: true}, {bar: 2, fifths: 2}], bars: [0.0, 2.0, 6.0]}');
   });
 
   test('What is wrong with an extension as written is found without running it', () {
@@ -252,6 +279,7 @@ void main() {
       final table = runtime.lua.globals[l.name];
       if (table is! LuaTable) continue; // the editor's own, not here
       for (final f in l.functions) {
+        if (f.editor) continue; // the editor's own, not here
         expect(table[f.name.substring(l.name.length + 1)], isA<LuaFunction>(), reason: '${f.name} is listed but missing');
       }
       if (l.addsTo) continue; // Lua's own library: only what Curator adds is listed

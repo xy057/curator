@@ -43,10 +43,13 @@ that runs too long is stopped.
 
 - **Project**: the project opened (`opened`), its data changed (`changed`), checking the
   saved data as a project opens (`load`), moving it when the score is replaced (`replaced`).
-- **Lane**: a lane pinned under the bar ruler. `items` says what is in it; `add`, `move`,
-  `erase`, `open` and `remove` are what the tools and keys do.
+- **Lane**: a lane pinned under the bar ruler. `items` says what is in it; the other ports
+  are what the tools and keys do. Its `kind` is `markers` (places that each run to the next:
+  `add`, `move`, `erase`) or `spans` (stretches with a start and an end, edited as an
+  instrument's regions are: `draw`, `begin`, `change`, `cut`).
 - **Command**: a button on a lane's name. `run` does it; `enabled` says whether it can be
   chosen.
+- **Band**: a band of colours along the top of the score. `areas` says what is in it.
 - **Export**: what a video and a web page get: their chapters.
 
 Every port's function is given in the Reference, as it would be written.
@@ -82,7 +85,19 @@ add `locales/<language>.json` (`zh-Hans.json`, `ja.json`) with the English as th
 ```
 
 `curator.tr("{n} notes", {n = 3})` fills `{n}` in. Titles in the connector are translated
-the same way.
+the same way. A text that means two things gets a context: `curator.tr_in("music", "Key")`
+looks for `"music|Key"` first.
+
+## Colours
+
+A colour is `"#rrggbb"`, or a table of its red, green and blue from 0 to 1:
+`{r = 1, g = 0.5, b = 0}`.
+
+## Dialogs
+
+`ui.form` opens a dialog laid out as Curator's own: rows of fields (a text, a `"switch"`, or
+a `"choice"` among options), a `check` that says what is wrong as it is typed, and `done`,
+called with the values. Lua never draws: it says what it wants, and Curator shows it.
 
 ## Staying compatible
 
@@ -102,7 +117,7 @@ Lua 5.4 as it is written, with these differences: there is one kind of number (w
 to keep a whole number a fraction when it is saved); a string is text, so `#s` counts
 characters as JavaScript does; there are no coroutines, no `io` and no `os.execute`. Beyond
 Lua's own `string`, `table`, `math` and `utf8` there are `text` (trim, squeeze: any kind of
-space) and `math.round`.
+space), `math.round` and `math.clamp`.
 
 ## A whole extension
 
@@ -178,7 +193,7 @@ Ports:
 - `changed()`: The extension’s saved data changed: an edit of its own, Undo or Redo.
 - `used() → boolean`: Whether the project uses the extension, so opening it offers to turn it on. Unwired: whether it has saved anything.
 - `load(data, version) → data`: A project is being opened: check its saved data (written by the extension’s version of the data, "data.version" in extension.json) and return it as this version wants it. An error here says the project is damaged.
-- `replaced(data, carry) → data, lost`: The score is being replaced by another. carry(quarter) gives where a place of the old score is in the new one, or nil when it is gone. Return the saved data moved there, and what was lost as a text ("2 chapters"), or nil.
+- `replaced(data, carry) → data, lost`: The score is being replaced by another. carry(quarter) gives where a place of the old score is in the new one, or nil when it is gone; a third argument is the new score’s length in quarters. Return the saved data moved there, and what was lost as a text ("2 chapters"), or nil.
 
 ### Command (`command`)
 
@@ -206,25 +221,43 @@ Ports:
 
 ### Lane (`lane`)
 
-A lane pinned under the bar ruler, drawn and edited as the app’s own are.
+A lane pinned under the bar ruler, drawn and edited as the app’s own are. Its kind says what it holds: markers (places, each running to the next) or spans (stretches that never overlap).
 
 Ports:
 
-- `items() → list`: What the lane shows, in score order: {at = quarter, label = text}, each running to the next. Asked again when the extension’s data changes.
-- `add(at)`: The Draw tool was clicked at a place (snapped to the beat it is in).
-- `move(index, at)`: Item index is being dragged to start at a place. Called as it moves; the whole drag is one Undo step.
-- `erase(index)`: The Erase tool was clicked on item index.
+- `items() → list`: What the lane shows, in score order. Markers: {at = quarter, label = text}. Spans: {from = quarter, to = quarter, label = text, color = colour}; without a colour a stretch is drawn as a region is. Asked again when the extension’s data changes.
 - `open(index)`: Item index was double-clicked.
 - `remove(index)`: Delete was pressed with item index selected.
+- `nudge(index, direction, fine)`: ← (direction -1) or → (1) was pressed with item index selected; fine asks for the smaller step (a beat, not a bar). Unwired: the keys do what they do without it.
+- `trim(index, edge)`: [ (edge "start") or ] ("end") was pressed with item index selected: the edge goes to the playhead.
+- `add(at)`: Markers: the Draw tool was clicked at a place (snapped to the beat it is in).
+- `move(index, at)`: Markers: item index is being dragged to start at a place. Called as it moves; the whole drag is one Undo step.
+- `erase(index)`: Markers: the Erase tool was clicked on item index.
+- `draw(from, to)`: Spans: the Draw tool was dragged across from–to (a click: the beat there).
+- `begin()`: Spans: a drag that may change the stretches begins. Until the next, change and cut are of the stretches as they are now: keep them.
+- `change(index, from, to)`: Spans: stretch index (as begin found them) was moved or trimmed to from–to. Called as the drag goes, the whole drag one Undo step; with live off, once as it ends.
+- `cut(pieces)`: Spans: the Erase tool went over stretches. pieces is every stretch as it is left, {of, from, to}: a piece of stretch of (as begin found them). One erased whole has none.
 
 Properties (set on the node in connect.json):
 
 - `title` (text): The lane’s name.
-- `kind` (`"markers"`, default `markers`): Markers are places that each run to the next.
-- `gap` (number, default `0.25`): The least two markers are apart, in quarters: a drag stops there.
+- `kind` (`"markers"` or `"spans"`, default `markers`): What it holds: markers are places that each run to the next, spans are stretches with a start and an end.
+- `gap` (number, default `0.25`): Markers: the least two are apart, in quarters: a drag stops there.
+- `paint` (toggle, default `false`): Spans: a stretch drawn, moved or trimmed goes over the others, as an instrument’s region does (cut them back in change and draw), instead of stopping at them.
+- `live` (toggle, default `true`): Spans: a drag changes the stretch as it goes. Off: once, when it ends.
 - `order` (number, default `100`): Where it sits among the pinned lanes: a lower number is higher up.
 
+### Band (`band`)
+
+A band of colours along the top of the score, in the preview, a video and a web page: the staves leave it room while it has anything. An extension has one.
+
+Ports:
+
+- `areas() → list`: The band’s stretches, in score order: {from = quarter, to = quarter, color = colour, label = text}, each named at its start. Asked again when the extension’s data or the language changes.
+
 Icons: `add`, `close`, `delete`, `reset`, `copy`, `check`, `search`, `more`, `open`, `project`, `score`, `export`, `assets`, `play`, `pause`, `music`, `draw`, `erase`, `tidy`, `audio`, `repeat`, `snap`, `frame`, `lanes`, `image`, `pin`, `link`, `captions`, `settings`, `fonts`, `extensions`, `done`, `failed`, `warning`, `previous`, `next`, `align`, `moveUp`, `moveDown`, `chapters`, `ai`, `show`, `hide`, `test`, `fetch`, `code`, `tonality`, `website`, `keyboard`.
+
+A colour is `"#rrggbb"`, or a table of its red, green and blue from 0 to 1: `{r = 1, g = 0.5, b = 0}`.
 
 ## Libraries
 
@@ -248,6 +281,12 @@ The extension itself: its saved data, its texts.
 
   ```lua
   curator.tr("{n} chapters", {n = 3})
+  ```
+
+- `curator.tr_in(context, text, values) → text`: curator.tr for a text that means two things: its translation in a context ("context|text" in locales/<language>.json), else as curator.tr gives it.
+
+  ```lua
+  curator.tr_in("music", "Key")
   ```
 
 - `curator.has(name) → boolean`: Whether this Curator has a function ("score.notes"), a library ("ui"), a socket ("socket:lane") or a port ("socket:lane.items"): for using something newer than the level the extension asks for.
@@ -288,6 +327,15 @@ The score and the performance it is synced to. Places are in quarter notes from 
 
 - `score.rehearsal_marks() → list`: The score’s rehearsal marks, in the order written: {at, bar, text}.
 - `score.parts() → list`: The instruments: {id, name, staves}.
+- `score.music(done)`: Reads the music off to the side, so a long score doesn’t stop the editor, then calls done(music): music.notes is every pitched note as it sounds, part by part ({from, to} in quarters, pitch as a MIDI number at concert pitch, tied when a tie carries it on from the note before, chord for a chord’s notes after its first, part, staff, voice); music.keys the key signatures at concert pitch ({bar, fifths, minor}, each from its bar on; minor only when the score says which); music.bars where each bar starts, then the score’s end. done(nil) when the score changed meanwhile. In the editor only.
+
+  ```lua
+  score.music(function(music)
+    if not music then return end
+    print(#music.notes, "notes")
+  end)
+  ```
+
 
 ### `text`
 
@@ -304,6 +352,7 @@ Text as people write it: every kind of space counts, in any script.
 Lua’s math library, and:
 
 - `math.round(x) → number`: x to the nearest whole number, a half away from zero.
+- `math.clamp(x, low, high) → number`: x, no lower than low and no higher than high.
 
 ### `lanes`
 
@@ -320,12 +369,15 @@ The editor’s playhead and grid. In the editor only.
 - `editor.seek(seconds)`: Moves the playhead.
 - `editor.beat(quarter, pass) → start, end`: The beat of the lanes’ grid a place is in (bars when zoomed far out).
 - `editor.snap(quarter, pass) → quarter`: The nearest line of the lanes’ grid, as a drag snaps to it.
+- `editor.next(quarter, unit) → quarter`: The first barline after a place (unit "bar", the default) or the first beat ("beat"); the score’s end when there is none.
+- `editor.previous(quarter, unit) → quarter`: The last barline (or beat) before a place; the score’s start when there is none.
+- `editor.nearest(quarter, unit) → quarter`: The barline (or beat) nearest a place.
 
 ### `ui`
 
 Dialogs, laid out as the app’s own. In the editor only.
 
-- `ui.form(spec)`: Opens a dialog. spec: title, confirm (its button’s title), width, rows (each a list of fields: {id, label, value, type = "text" or "switch", max, flex, focus, hint, lines}), leading (buttons at the left: {id, title}), check(values) → nil when it can be confirmed, a text saying why not, or "" to say nothing, and done(values, button), called with the fields’ values by id and "confirm" or a leading button’s id. Cancel calls nothing.
+- `ui.form(spec)`: Opens a dialog. spec: title, confirm (its button’s title), width, spacing (between rows), rows (each a list of fields: {id, label, value, type = "text", "switch" or "choice", max, flex, focus, hint (a text, or a function of the values), lines, options (a choice’s: {value, label, color})}), leading (buttons at the left: {id, title}), check(values) → nil when it can be confirmed, a text saying why not, or "" to say nothing, and done(values, button), called with the fields’ values by id and "confirm" or a leading button’s id. Cancel calls nothing.
 
   ```lua
   ui.form{

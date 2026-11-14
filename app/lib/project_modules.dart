@@ -81,7 +81,7 @@ abstract final class ProjectModules {
 
   /// The extensions of Curator's own that keep their data in a module of their own, as they did
   /// before they were packages: the extension's id → that module.
-  static const Map<String, ProjectModule> ownData = {'chapters': chapters};
+  static const Map<String, ProjectModule> ownData = {'chapters': chapters, 'tonality': tonality};
 
   /// Whether [id] can be a take's ([Take.id]): `take-1`, `take-2`…, safe as a folder's name.
   static bool isTakeId(String id) => _Takes.isTakeId(id);
@@ -773,44 +773,17 @@ abstract base class _OwnData extends ProjectModule {
 
 /// Key areas (Tonality), `[start, end, tonic, mode]` and the user's marking after them if there
 /// is one, in the score's order: a tonic as fifths from C (`-1` F, `6` F♯), a mode `major` or
-/// `minor`.
-/// Optional: an older build, which shows nothing of them, opens the project and keeps them.
-final class _Tonality extends ProjectModule {
-  const _Tonality() : super('tonality', optional: true);
-
-  @override
-  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {
-        'areas': [
-          for (final a in state.edits.keyAreas) [a.start, a.end, a.key.tonic, a.key.minor ? 'minor' : 'major', ?a.label],
-        ],
-      };
+/// `minor`. The module the key areas had while Tonality was written in the app, and still the
+/// extension's place in a project ([ProjectModules.ownData]); what is in it is the extension's
+/// to check (its `project.load`). Optional: an older build, which shows nothing of them, opens
+/// the project and keeps them.
+final class _Tonality extends _OwnData {
+  const _Tonality() : super('tonality', 'tonality', const {'areas': <Object?>[]});
 
   @override
   ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
-    KeyArea area(int i, num start, num end, int tonic, String mode, String? label) {
-      final key = MusicKey(tonic, minor: mode == 'minor');
-      if (start < 0) throw _damaged('${r.where}.areas[$i] starts before the score.');
-      if (end <= start) throw _damaged('${r.where}.areas[$i] ends before it starts.');
-      if ((mode != 'major' && mode != 'minor') || !key.isValid) throw _damaged('${r.where}.areas[$i] is not a key there is.');
-      return KeyArea(start.toDouble(), end.toDouble(), key, label);
-    }
-
-    bool inRange(num start, num end) => start.abs() <= JsonReader.maxNumber && end.abs() <= JsonReader.maxNumber;
-
-    return state.copyWith(
-      edits: state.edits.copyWith(
-        keyAreas: tidyKeyAreas([
-          for (final (i, a) in r.list('areas').indexed)
-            switch (a) {
-              [final num start, final num end, final int tonic, final String mode] when inRange(start, end) =>
-                area(i, start, end, tonic, mode, null),
-              [final num start, final num end, final int tonic, final String mode, final String label] when inRange(start, end) =>
-                area(i, start, end, tonic, mode, label),
-              _ => throw _damaged('${r.where}.areas[$i] is not a stretch and a key.'),
-            },
-        ]),
-      ),
-    );
+    r.list('areas'); // a list, or the project is damaged
+    return super.read(r, state, files);
   }
 }
 

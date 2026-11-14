@@ -1,0 +1,31 @@
+{
+  "nodes": [
+    {"id": "project", "type": "project", "at": [40, 40]},
+    {"id": "lane", "type": "lane", "at": [40, 200], "title": "Tonality", "kind": "spans", "paint": true, "live": true, "order": 10},
+    {"id": "add", "type": "command", "at": [40, 560], "title": "Add Key", "icon": "add", "where": "lane", "lane": "lane"},
+    {"id": "find", "type": "command", "at": [40, 680], "title": "Find Keys", "icon": "search", "where": "lane", "lane": "lane"},
+    {"id": "remove", "type": "command", "at": [40, 800], "title": "Remove Key", "icon": "delete", "where": "lane", "lane": "lane"},
+    {"id": "band", "type": "band", "at": [40, 920]}
+  ],
+  "wires": [
+    ["project.load", "areas.lua#load"],
+    ["project.used", "areas.lua#used"],
+    ["project.replaced", "areas.lua#replaced"],
+    ["lane.items", "lane.lua#items"],
+    ["lane.draw", "lane.lua#draw"],
+    ["lane.begin", "lane.lua#begin"],
+    ["lane.change", "lane.lua#change"],
+    ["lane.cut", "lane.lua#cut"],
+    ["lane.open", "lane.lua#open"],
+    ["lane.remove", "lane.lua#remove"],
+    ["lane.nudge", "lane.lua#nudge"],
+    ["lane.trim", "lane.lua#trim"],
+    ["add.run", "lane.lua#add_at_playhead"],
+    ["find.run", "lane.lua#find"],
+    ["find.enabled", "lane.lua#can_find"],
+    ["remove.run", "lane.lua#remove_selected"],
+    ["remove.enabled", "lane.lua#has_selection"],
+    ["band.areas", "band.lua#areas"]
+  ],
+  "files": {"keys.lua": [420, 40], "areas.lua": [420, 200], "lane.lua": [420, 420], "find.lua": [420, 700], "band.lua": [420, 920]}
+}

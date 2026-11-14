@@ -98,10 +98,9 @@ class PackageExtension extends CuratorExtension {
 abstract final class Extensions {
   static const attachImage = AttachImageExtension();
   static const captions = CaptionsExtension();
-  static const tonality = TonalityExtension();
 
   /// Written in the app.
-  static const builtIn = <CuratorExtension>[attachImage, captions, tonality];
+  static const builtIn = <CuratorExtension>[attachImage, captions];
 
   /// The order Curator's own are listed in; one not named here follows, by id.
   static const _order = ['attachImage', 'captions', 'chapters', 'tonality'];

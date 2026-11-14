@@ -334,9 +334,10 @@ void main() {
       c.captions.setFont(TextFonts.academico);
       c.setExtension('chapters', true);
       c.extensions.runtime('chapters')!.run('local lane = require("lane")\nlane.create(${starts[4]}, "Second theme")\nlane.create(${starts[0]}, "Opening")');
-      c.tonality.enabled = true;
-      c.tonality.add(KeyArea(starts[0], starts[16], const MusicKey.of(0, minor: true)));
-      c.tonality.add(KeyArea(starts[8], starts[12], const MusicKey.of(-1), '(F major)')); // over it: cut in two
+      c.setExtension('tonality', true);
+      c.extensions.runtime('tonality')!.run('local lane = require("lane")\n'
+          'lane.add({from = ${starts[0]}, to = ${starts[16]}, tonic = 3, minor = true})\n' // A minor
+          'lane.add({from = ${starts[8]}, to = ${starts[12]}, tonic = -1, minor = false, label = "(F major)"})'); // over it: cut in two
       final typography = ScoreTypography.standard.withValue('names.size', 1.2).withValue('lyrics.face', TextFace.bold);
       await c.setTypography(typography);
       final saved = c.projectState;
@@ -382,11 +383,13 @@ void main() {
           [starts[4], 'Second theme'],
         ],
       });
-      expect(c2.tonality.areas, [
-        KeyArea(starts[0], starts[8], const MusicKey.of(0, minor: true)),
-        KeyArea(starts[8], starts[12], const MusicKey.of(-1), '(F major)'),
-        KeyArea(starts[12], starts[16], const MusicKey.of(0, minor: true)),
-      ]);
+      expect(c2.extensions.data('tonality'), {
+        'areas': [
+          [starts[0], starts[8], 3, 'minor'],
+          [starts[8], starts[12], -1, 'major', '(F major)'],
+          [starts[12], starts[16], 3, 'minor'],
+        ],
+      });
       expect((c2.typography, c2.scene!.typography, c2.score!.typography), (typography, typography, typography));
       expect(c2.source!.bytes, demoScore.readAsBytesSync());
       expect(doc2.isDirty, isFalse);

@@ -3,6 +3,10 @@ part of '../editor_controller.dart';
 /// An item of an extension's markers lane: from score quarter [at] on, named [label].
 typedef LaneItem = ({double at, String label});
 
+/// A stretch of an extension's spans lane: score quarters [start] to [end], named [label]
+/// (null: nothing) and in [color] (null: as a region is drawn).
+typedef LaneStretch = ({double start, double end, String? label, Color? color});
+
 /// Extensions run from packages ([ExtensionPackage]: Curator's own, bundled with the app, and
 /// those a project carries): which the project can turn on, the ones running (an
 /// [ExtensionRuntime] each, started and stopped as the project's switches say), what each keeps
@@ -82,12 +86,28 @@ class ExtensionEditing {
     }
     _carried = const {};
     _versions = const {};
-    _selected = null;
+    _selection.clear();
     _revision++;
   }
 
   /// Starts and stops runtimes as the project's switches say.
   void _sync() {
+    final e = _editor;
+    final band = _hasBand;
+    try {
+      _startAndStop();
+    } finally {
+      // A band came or went with its extension: the scene shows what there is now.
+      if (band || _hasBand) {
+        e._showSettings();
+        e.playback._markDirty(); // the preview repaints only when asked
+      }
+    }
+  }
+
+  bool get _hasBand => _runtimes.values.any((r) => r.nodes('band').isNotEmpty);
+
+  void _startAndStop() {
     final e = _editor;
     for (final p in packages) {
       final on = e._score != null && e.extensionOn(p.id), running = _runtimes[p.id];
@@ -109,13 +129,18 @@ class ExtensionEditing {
       return;
     }
     final runtime = _runtimes[p.id] = ExtensionRuntime(p, _Host(this, p));
+    _bands = null;
     runtime.fire('project', 'opened');
   }
 
   void _stop(String id) {
-    if (_runtimes.remove(id) == null) return;
-    if (_selected?.extension == id) _selected = null;
+    final runtime = _runtimes.remove(id);
+    if (runtime == null) return;
+    _selection.remove(id);
+    _reading.remove(id);
+    _bands = null; // its band goes with it
     _items.removeWhere((key, _) => key.$1 == id);
+    _stretches.removeWhere((key, _) => key.$1 == id);
     _spans.removeWhere((key, _) => key.$1 == id);
   }
 
@@ -162,6 +187,7 @@ class ExtensionEditing {
     e._doc = e._doc.copyWith(extensionData: Map.unmodifiable({...e._doc.extensionData, id: json}));
     _revision++;
     e._showSettings();
+    if (_runtimes[id]?.nodes('band').isNotEmpty ?? false) e.playback._markDirty(); // the preview repaints only when asked
     e._edited();
     _runtimes[id]?.fire('project', 'changed');
   }
@@ -172,8 +198,7 @@ class ExtensionEditing {
     for (final runtime in _runtimes.values.toList()) {
       if (!identical(before.extensionData[runtime.id], after.extensionData[runtime.id])) runtime.fire('project', 'changed');
     }
-    final selected = _selected;
-    if (selected != null && !identical(before.extensionData[selected.extension], after.extensionData[selected.extension])) _selected = null;
+    _selection.clear(); // what was selected may be gone
   }
 
   void _report(ExtensionProblem problem) {
@@ -195,31 +220,55 @@ class ExtensionEditing {
 
   // MARK: Lanes
 
-  /// What is selected in an extension's lane: item [index] of lane [lane] (a node of its
-  /// connector); null: nothing.
-  ({String extension, String lane, int index})? get selected => _selected;
-  ({String extension, String lane, int index})? _selected;
+  /// What is selected in each extension's lanes: item `index` of lane `lane` (a node of its
+  /// connector). One to an extension, as each of the app's own lanes had its own.
+  final _selection = <String, ({String lane, int index})>{};
+
+  /// Whether anything is selected in an extension's lane.
+  bool get hasSelection => _selection.isNotEmpty;
 
   /// The item selected in [lane] of extension [id]; null: none.
-  int? selectedIn(String id, String lane) => switch (_selected) {
-        final s? when s.extension == id && s.lane == lane => s.index,
+  int? selectedIn(String id, String lane) => switch (_selection[id]) {
+        final s? when s.lane == lane => s.index,
         _ => null,
       };
 
   void select(String id, String lane, int? index) {
-    final next = index == null || index < 0 || !_runtimes.containsKey(id) ? null : (extension: id, lane: lane, index: index);
-    if (next == _selected) return;
-    _selected = next;
+    final next = index == null || index < 0 || !_runtimes.containsKey(id) ? null : (lane: lane, index: index);
+    if (next == _selection[id]) return;
+    next == null ? _selection.remove(id) : _selection[id] = next;
     _editor._changed();
   }
 
-  /// Delete: the selected item's lane removes it.
+  /// The extensions with something selected, in the order they are listed, each with its lane.
+  Iterable<({ExtensionRuntime runtime, String lane, int index})> get _selected sync* {
+    for (final p in packages) {
+      final s = _selection[p.id], runtime = _runtimes[p.id];
+      if (s != null && runtime != null) yield (runtime: runtime, lane: s.lane, index: s.index);
+    }
+  }
+
+  /// Delete: the selected item's lane removes it (the first extension's with one).
   void removeSelected() {
-    final s = _selected;
+    final s = _selected.firstOrNull;
     if (s == null) return;
-    _selected = null;
-    _runtimes[s.extension]?.fire(s.lane, 'remove', args: [s.index + 1]);
+    _selection.remove(s.runtime.id);
+    s.runtime.fire(s.lane, 'remove', args: [s.index + 1]);
     _editor._changed();
+  }
+
+  /// ←/→ with an item selected in a lane that takes them (`nudge`): whether one did.
+  bool nudgeSelected(int direction, {required bool fine}) {
+    final s = _selected.where((s) => s.runtime.wired(s.lane, 'nudge')).firstOrNull;
+    s?.runtime.fire(s.lane, 'nudge', args: [s.index + 1, direction, fine]);
+    return s != null;
+  }
+
+  /// [ / ] with an item selected in a lane that takes them (`trim`): whether one did.
+  bool trimSelected({required bool start}) {
+    final s = _selected.where((s) => s.runtime.wired(s.lane, 'trim')).firstOrNull;
+    s?.runtime.fire(s.lane, 'trim', args: [s.index + 1, start ? 'start' : 'end']);
+    return s != null;
   }
 
   /// The lanes running extensions show, in the order pinned under the ruler.
@@ -230,14 +279,15 @@ class ExtensionEditing {
 
   static num _order(GraphNode node) => switch (node.props['order']) { final num n => n, _ => 100 };
 
-  final _items = <(String, String), ({int revision, LoadedScore? score, List<LaneItem> items})>{};
+  final _items = <(String, String), ({int revision, LoadedScore? score, AppLanguage language, List<LaneItem> items})>{};
+  final _stretches = <(String, String), ({int revision, LoadedScore? score, AppLanguage language, List<LaneStretch> items})>{};
   final _spans = <(String, String), ({List<LaneItem> items, ScoreTimeline timeline, double end, List<MarkerSpan> spans})>{};
 
-  /// What lane [node] of [runtime] shows (its `items`), asked again once the project's data or
-  /// the score changes: a lane is painted every frame while the music plays.
+  /// What lane [node] of [runtime] shows (its `items`), asked again once the project's data,
+  /// the score or the language changes: a lane is painted every frame while the music plays.
   List<LaneItem> items(ExtensionRuntime runtime, GraphNode node) {
-    final key = (runtime.id, node.id), kept = _items[key], score = _editor._score;
-    if (kept != null && kept.revision == _revision && identical(kept.score, score)) return kept.items;
+    final key = (runtime.id, node.id), kept = _items[key], score = _editor._score, language = Strings.language;
+    if (kept != null && kept.revision == _revision && identical(kept.score, score) && kept.language == language) return kept.items;
     final list = runtime.ask(node.id, 'items', quiet: true);
     final items = List<LaneItem>.unmodifiable([
       if (list is LuaTable)
@@ -245,7 +295,23 @@ class ExtensionEditing {
           if (item is LuaTable)
             if (item['at'] case final num at when at.isFinite) (at: at.toDouble(), label: switch (item['label']) { null => '', final v => Lua.show(v) }),
     ]);
-    _items[key] = (revision: _revision, score: score, items: items);
+    _items[key] = (revision: _revision, score: score, language: language, items: items);
+    return items;
+  }
+
+  /// What a spans lane shows (its `items`: {from, to, label, color}), kept as [items] are.
+  List<LaneStretch> stretches(ExtensionRuntime runtime, GraphNode node) {
+    final key = (runtime.id, node.id), kept = _stretches[key], score = _editor._score, language = Strings.language;
+    if (kept != null && kept.revision == _revision && identical(kept.score, score) && kept.language == language) return kept.items;
+    final list = runtime.ask(node.id, 'items', quiet: true);
+    final items = List<LaneStretch>.unmodifiable([
+      if (list is LuaTable)
+        for (final item in list.array)
+          if (item is LuaTable)
+            if ((item['from'], item['to']) case (final num from, final num to) when from.isFinite && to.isFinite)
+              (start: from.toDouble(), end: to.toDouble(), label: switch (item['label']) { null => null, final v => Lua.show(v) }, color: luaColor(item['color'])),
+    ]);
+    _stretches[key] = (revision: _revision, score: score, language: language, items: items);
     return items;
   }
 
@@ -265,6 +331,69 @@ class ExtensionEditing {
   /// Whether [command] can be chosen now: what its `enabled` says; always, with none wired.
   bool canRun(ExtensionRuntime runtime, GraphNode command) =>
       !runtime.wired(command.id, 'enabled') || runtime.ask(command.id, 'enabled', quiet: true) == true;
+
+  // MARK: The band
+
+  ({int revision, LoadedScore? score, AppLanguage language, List<ScoreBand> bands})? _bands;
+
+  /// The band along the score's top: what the running extensions' `band` sockets give, asked
+  /// again once the project's data, the score or the language changes.
+  List<ScoreBand> get bands {
+    final kept = _bands, score = _editor._score, language = Strings.language;
+    if (kept != null && kept.revision == _revision && identical(kept.score, score) && kept.language == language) return kept.bands;
+    final bands = bandsOf(_runtimes.values);
+    _bands = (revision: _revision, score: score, language: language, bands: bands);
+    return bands;
+  }
+
+  /// The band's names follow the interface's [language] (Settings ▸ General ▸ Language), once
+  /// it has switched to it.
+  void followLanguage(AppLanguage language) {
+    final kept = _bands;
+    if (kept == null || kept.bands.isEmpty || language.resolved == kept.language) return;
+    scheduleMicrotask(() {
+      if (_editor._disposed) return;
+      _editor._showSettings();
+      _editor.playback._markDirty();
+    });
+  }
+
+  // MARK: The score's music
+
+  /// The extensions reading the score's music (`score.music`), each with what it calls then.
+  final _reading = <String, LuaFunction>{};
+
+  /// On an isolate, from a static function: a closure made beside one that uses the controller
+  /// would take it along.
+  static Future<ScoreMusic> _musicOff(String xml, List<double> starts) => Isolate.run(() => readScoreMusic(xml, starts));
+
+  /// Reads the score's music for [runtime] off the main isolate, then calls [done] with it
+  /// (nil when the score has changed meanwhile).
+  void _readMusic(ExtensionRuntime runtime, LuaFunction done) {
+    final score = _editor._score;
+    if (score == null) throw LuaError("'score.music' needs a score, and none is open");
+    if (_reading.containsKey(runtime.id)) throw LuaError("'score.music' is reading the score already");
+    _reading[runtime.id] = done;
+    _editor._changed();
+    unawaited(_musicRead(runtime, done, score));
+  }
+
+  Future<void> _musicRead(ExtensionRuntime runtime, LuaFunction done, LoadedScore score) async {
+    final e = _editor, id = runtime.id;
+    ScoreMusic? music;
+    try {
+      music = await _musicOff(score.musicXML, score.timeline.measureStarts);
+    } finally {
+      // Stopped meanwhile (its switch, another project): nothing is called.
+      if (identical(_reading[id], done)) {
+        _reading.remove(id);
+        if (!e._disposed) {
+          if (identical(_runtimes[id], runtime)) runtime.call(done, args: [identical(e._score, score) && music != null ? scoreMusicTable(music) : null], where: 'score.music');
+          e._changed();
+        }
+      }
+    }
+  }
 
   // MARK: What the editor gives Lua
 
@@ -301,6 +430,26 @@ class ExtensionEditing {
       'snap': (a) {
         final q = a.number(0, 'editor.snap').toDouble(), pass = (a.integerOr(1, 'editor.snap') ?? 1) - 1;
         return [snapInLanes(e, q, pass: pass.clamp(0, e.timeline.passes.length - 1))];
+      },
+    });
+    // The grid the keys step by: bars, or beats.
+    double grid(List<Object?> a, String fn, double Function(SyncMap sync, double q, SyncGrid grid) at) {
+      final q = a.number(0, fn).toDouble();
+      final unit = switch (a.stringOr(1, fn)) { null || 'bar' => SyncGrid.bar, 'beat' => SyncGrid.beat, final u => throw LuaError("bad argument #2 to '$fn' ('bar' or 'beat' expected, got '$u')") };
+      final sync = e._sync;
+      if (sync == null) throw LuaError("'$fn' needs a score, and none is open");
+      return at(sync, q, unit);
+    }
+
+    runtime.library('editor', {
+      'next': (a) => [grid(a, 'editor.next', (sync, q, unit) => sync.nextGrid(q, unit))],
+      'previous': (a) => [grid(a, 'editor.previous', (sync, q, unit) => sync.previousGrid(q, unit))],
+      'nearest': (a) => [grid(a, 'editor.nearest', (sync, q, unit) => sync.nearestGrid(q, unit))],
+    });
+    runtime.library('score', {
+      'music': (a) {
+        _readMusic(runtime, a.function(0, 'score.music'));
+        return const [];
       },
     });
     runtime.library('ui', {

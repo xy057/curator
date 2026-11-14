@@ -147,7 +147,7 @@ void main() {
     final before = [for (var i = 0; i <= 12; i++) i * 4.0], after = [for (var i = 0; i <= 6; i++) i * 3.0];
     ({String data, List<String> lost}) carried(List<List<Object>> chapters) {
       final r = carriedExtensionData(state.copyWith(edits: state.edits.copyWith(extensionData: {'chapters': {'chapters': chapters}})),
-          (q) => ScoreSwap.quarterAt(q, before, after));
+          (q) => ScoreSwap.quarterAt(q, before, after), end: after.last);
       return (data: jsonEncode(r.state.edits.extensionData['chapters']), lost: r.lost);
     }
 

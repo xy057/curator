@@ -231,7 +231,7 @@ msgstr "强调色"
 msgid "Accidentals"
 msgstr "变音记号"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Add"
 msgstr "添加"
 
@@ -373,7 +373,7 @@ msgstr "任意元素"
 msgid "Appearance"
 msgstr "外观"
 
-#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/chapters/src/lane.lua
+#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Apply"
 msgstr "应用"
 
@@ -975,7 +975,7 @@ msgstr "刻谱"
 msgid "Engraving…"
 msgstr "正在刻谱…"
 
-#: assets/extensions/chapters/src/lane.lua
+#: assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr "请输入小节或“小节.拍”，如 12 或 12.3"
 
@@ -1124,7 +1124,7 @@ msgstr "帧率"
 msgid "Frame {n} of {all}"
 msgstr "第 {n} 帧，共 {all} 帧"
 
-#: lib/captions_dialog.dart assets/extensions/chapters/src/lane.lua
+#: lib/captions_dialog.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "From"
 msgstr "起始"
 
@@ -1747,7 +1747,7 @@ msgstr "排练记号"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小节号行中的排练记号"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr "移除"
 
@@ -1977,6 +1977,7 @@ msgstr "全选此轨道"
 msgid "Set"
 msgstr "设定"
 
+#: assets/extensions/tonality/src/lane.lua
 msgid "Set Until after From"
 msgstr "“结束”须在“起始”之后"
 
@@ -2538,7 +2539,7 @@ msgstr "⌥←/→"
 msgid "Undo history"
 msgstr "撤销历史"
 
-#: lib/captions_dialog.dart
+#: lib/captions_dialog.dart assets/extensions/tonality/src/lane.lua
 msgid "Until"
 msgstr "结束"
 
@@ -4137,31 +4138,35 @@ msgstr "装饰音（/）"
 msgid "Grace notes"
 msgstr "装饰音"
 
-#: lib/edit_dialogs.dart lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json assets/extensions/tonality/src/lane.lua
 msgid "Add Key"
 msgstr "添加调性"
 
-#: lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json
 msgid "Find Keys"
 msgstr "查找调性"
 
-#: lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json
 msgid "Remove Key"
 msgstr "移除调性"
 
-#: lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json assets/extensions/tonality/extension.json
 msgid "Tonality"
 msgstr "调性"
 
+#: assets/extensions/tonality/src/lane.lua
 msgid "Marking"
 msgstr "标记"
 
+#: assets/extensions/tonality/extension.json
 msgid "The music’s key, in color over the score."
 msgstr "以颜色在乐谱上方标示音乐的调性。"
 
+#: assets/extensions/tonality/src/areas.lua
 msgid "1 key"
 msgstr "1 个调性"
 
+#: assets/extensions/tonality/src/areas.lua
 msgid "{n} keys"
 msgstr "{n} 个调性"
 
@@ -4255,7 +4260,7 @@ msgstr "升C大调"
 msgid "A♯ minor"
 msgstr "升a小调"
 
-#: lib/edit_dialogs.dart
+#: assets/extensions/tonality/src/lane.lua
 msgctxt "tonality"
 msgid "Key"
 msgstr "调性"

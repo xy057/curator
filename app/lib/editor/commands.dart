@@ -43,9 +43,8 @@ class EditCommands {
       _open &&
       (_editor.images._selected != null ||
           _editor.captions._selected != null ||
-          _editor.tonality._selected != null ||
+          _editor.extensions.hasSelection ||
           _editor.spacers.hasSelection ||
-          _editor.extensions._selected != null ||
           (_syncing ? !_anchors._isEmpty || _editor.takeSelection != null : _lanes.selected.isNotEmpty));
 
   /// Delete: a selected image goes first, then a selected caption, a selected key area, a selected
@@ -54,12 +53,11 @@ class EditCommands {
     if (!_open) return;
     if (_editor.images._selected != null) return _editor.images.remove();
     if (_editor.captions._selected != null) return _editor.captions.remove();
-    if (_editor.tonality._selected != null) return _editor.tonality.remove();
+    if (_editor.extensions.hasSelection) return _editor.extensions.removeSelected();
     if (_editor.spacers.hasSelection) {
       _editor.spacers.removeSelected();
       return;
     }
-    if (_editor.extensions._selected != null) return _editor.extensions.removeSelected();
     if (_syncing && _editor.takeSelection != null) return _editor.removeTakeRegion();
     _syncing ? _anchors.delete() : _lanes.delete();
   }
@@ -85,8 +83,8 @@ class EditCommands {
       _anchors.nudge(direction * (fine ? 0.001 : _editor.anchorNudge));
     } else if (_syncing && _anchors.selectedTempo != null) {
       _anchors.moveTempo(direction, fine: fine);
-    } else if (_open && _editor.tonality._selected != null) {
-      _editor.tonality.nudge(direction, beat: fine); // its lane is in both tabs
+    } else if (_open && _editor.extensions.nudgeSelected(direction, fine: fine)) {
+      // An extension's lane took it (Tonality's key area; its lane is in both tabs).
     } else if (_curating && _lanes.selected.isNotEmpty) {
       _lanes.nudge(direction, beat: fine);
     } else {
@@ -127,7 +125,7 @@ class EditCommands {
   /// [ / ]: the selected regions, or the selected key area (in either tab, as its lane is),
   /// start (end) at the playhead's beat.
   void trim({required bool start}) {
-    if (_open && _editor.tonality._selected != null) return _editor.tonality.trimToPlayhead(start: start);
+    if (_open && _editor.extensions.trimSelected(start: start)) return;
     if (_curating) _lanes.trimToPlayhead(start: start);
   }
 }

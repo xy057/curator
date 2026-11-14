@@ -230,7 +230,7 @@ msgstr ""
 msgid "Accidentals"
 msgstr ""
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Add"
 msgstr ""
 
@@ -370,7 +370,7 @@ msgstr ""
 msgid "Appearance"
 msgstr ""
 
-#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/chapters/src/lane.lua
+#: lib/edit_dialogs.dart lib/spacer_dialogs.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Apply"
 msgstr ""
 
@@ -972,7 +972,7 @@ msgstr ""
 msgid "Engraving…"
 msgstr ""
 
-#: assets/extensions/chapters/src/lane.lua
+#: assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr ""
 
@@ -1121,7 +1121,7 @@ msgstr ""
 msgid "Frame {n} of {all}"
 msgstr ""
 
-#: lib/captions_dialog.dart assets/extensions/chapters/src/lane.lua
+#: lib/captions_dialog.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "From"
 msgstr ""
 
@@ -1744,7 +1744,7 @@ msgstr ""
 msgid "Rehearsal marks in bar numbers"
 msgstr ""
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr ""
 
@@ -1974,6 +1974,7 @@ msgstr ""
 msgid "Set"
 msgstr ""
 
+#: assets/extensions/tonality/src/lane.lua
 msgid "Set Until after From"
 msgstr ""
 
@@ -2535,7 +2536,7 @@ msgstr ""
 msgid "Undo history"
 msgstr ""
 
-#: lib/captions_dialog.dart
+#: lib/captions_dialog.dart assets/extensions/tonality/src/lane.lua
 msgid "Until"
 msgstr ""
 
@@ -4122,31 +4123,35 @@ msgstr ""
 msgid "Grace notes"
 msgstr ""
 
-#: lib/edit_dialogs.dart lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json assets/extensions/tonality/src/lane.lua
 msgid "Add Key"
 msgstr ""
 
-#: lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json
 msgid "Find Keys"
 msgstr ""
 
-#: lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json
 msgid "Remove Key"
 msgstr ""
 
-#: lib/tonality_lane.dart
+#: assets/extensions/tonality/connect.json assets/extensions/tonality/extension.json
 msgid "Tonality"
 msgstr ""
 
+#: assets/extensions/tonality/src/lane.lua
 msgid "Marking"
 msgstr ""
 
+#: assets/extensions/tonality/extension.json
 msgid "The music’s key, in color over the score."
 msgstr ""
 
+#: assets/extensions/tonality/src/areas.lua
 msgid "1 key"
 msgstr ""
 
+#: assets/extensions/tonality/src/areas.lua
 msgid "{n} keys"
 msgstr ""
 
@@ -4240,7 +4245,7 @@ msgstr ""
 msgid "A♯ minor"
 msgstr ""
 
-#: lib/edit_dialogs.dart
+#: assets/extensions/tonality/src/lane.lua
 msgctxt "tonality"
 msgid "Key"
 msgstr ""

@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:score_engine/score_engine.dart' show ExtensionRuntime, GraphNode;
 
 import 'app_colors.dart';
 import 'app_icons.dart';
@@ -8,7 +9,6 @@ import 'extensions/extension_lane.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
 import 'spacer_lane.dart';
-import 'tonality_lane.dart';
 import 'instruments_toolbar.dart';
 import 'key_bindings.dart';
 import 'timeline_panel.dart';
@@ -29,7 +29,12 @@ class BottomPanel extends StatelessWidget {
   static const _switch = Duration(milliseconds: 220);
 
   /// Where the Spacers lane sits among the pinned lanes (a lane's `order` in a connector).
-  static const _spacersOrder = 40;
+  static const _captionsOrder = 20, _spacersOrder = 40;
+
+  /// An extension's lane, as its kind says: markers, or spans.
+  Widget _lane(ExtensionRuntime runtime, GraphNode node) => node.props['kind'] == 'spans'
+      ? ExtensionSpanLane(controller: controller, runtime: runtime, node: node)
+      : ExtensionLane(controller: controller, runtime: runtime, node: node);
 
   @override
   Widget build(BuildContext context) => Select(
@@ -40,9 +45,9 @@ class BottomPanel extends StatelessWidget {
           sync: controller.sync,
           tab: controller.tab,
           captions: controller.captions.enabled,
-          tonality: controller.tonality.enabled,
           spacers: controller.spacers.enabled,
-          extensions: [for (final lane in controller.extensions.lanes) '${lane.runtime.id} ${lane.node.id}'].join('\n'),
+          // (Which runtime too: one run again from its files is another.)
+          extensions: [for (final lane in controller.extensions.lanes) '${lane.runtime.id} ${lane.node.id} ${identityHashCode(lane.runtime)}'].join('\n'),
           duration: controller.playback.duration,
         ),
         builder: (context, _) => _panel(context),
@@ -101,16 +106,17 @@ class BottomPanel extends StatelessWidget {
               controller: c,
               child: Column(children: [
                 BarRuler(controller: c),
-                // Pinned: under the ruler in both tabs, never scrolled away. Tonality's first, as
-                // its band tops the score.
-                if (c.tonality.enabled) TonalityLane(controller: c),
-                if (c.captions.enabled) CaptionLane(controller: c),
-                // Extensions' lanes, by their order: Curator's own sit above the spacers.
+                // Pinned: under the ruler in both tabs, never scrolled away. Extensions' lanes go
+                // by their order, around the app's own: Tonality's first (its band tops the
+                // score), above the captions; Chapters' above the spacers; any other under them.
                 for (final lane in c.extensions.lanes)
-                  if (lane.order < _spacersOrder) ExtensionLane(controller: c, runtime: lane.runtime, node: lane.node),
+                  if (lane.order < _captionsOrder) _lane(lane.runtime, lane.node),
+                if (c.captions.enabled) CaptionLane(controller: c),
+                for (final lane in c.extensions.lanes)
+                  if (lane.order >= _captionsOrder && lane.order < _spacersOrder) _lane(lane.runtime, lane.node),
                 if (c.spacers.enabled) SpacerLane(controller: c),
                 for (final lane in c.extensions.lanes)
-                  if (lane.order >= _spacersOrder) ExtensionLane(controller: c, runtime: lane.runtime, node: lane.node),
+                  if (lane.order >= _spacersOrder) _lane(lane.runtime, lane.node),
                 Expanded(
                   child: AnimatedSwitcher(
                     duration: AppStyle.of(context).moving(_switch),

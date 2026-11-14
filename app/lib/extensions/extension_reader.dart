@@ -78,6 +78,28 @@ class ExtensionReaders {
     }
     return const [];
   }
+
+  /// The band along the score's top ([bandsOf]), in the interface's language as it is now.
+  List<ScoreBand> get bands => bandsOf(_runtimes);
+}
+
+/// The band along the score's top as [runtimes]' `band` sockets give it ({from, to, color,
+/// label}): each stretch that has a length and a colour, the first extension's that has any.
+List<ScoreBand> bandsOf(Iterable<ExtensionRuntime> runtimes) {
+  for (final r in runtimes) {
+    for (final node in r.nodes('band')) {
+      final list = r.ask(node.id, 'areas', quiet: true);
+      if (list is! LuaTable) continue;
+      final bands = <ScoreBand>[
+        for (final area in list.array)
+          if (area is LuaTable)
+            if ((area['from'], area['to'], luaColor(area['color'])) case (final num from, final num to, final color?) when from.isFinite && to.isFinite && to > from)
+              ScoreBand(from.toDouble(), to.toDouble(), color, switch (area['label']) { null => '', final v => Lua.show(v) }),
+      ];
+      if (bands.isNotEmpty) return List.unmodifiable(bands);
+    }
+  }
+  return const [];
 }
 
 /// [state] with every extension's data as its `project.load` gives it (checked, and brought to
@@ -105,8 +127,9 @@ ProjectState checkedExtensionData(ProjectState state) {
 
 /// [state] with every extension's data moved to a score that replaced its own
 /// (`project.replaced`): [at] gives where a place of the old score is in the new one, null when
-/// it is gone. Also what each lost, as it says it ("2 chapters").
-({ProjectState state, List<String> lost}) carriedExtensionData(ProjectState state, double? Function(double quarter) at) {
+/// it is gone; [end] is the new score's length, in quarters. Also what each lost, as it says it
+/// ("2 chapters").
+({ProjectState state, List<String> lost}) carriedExtensionData(ProjectState state, double? Function(double quarter) at, {required double end}) {
   var data = state.edits.extensionData;
   final lost = <String>[];
   final carry = LuaBuiltin('carry', (a) => [at(a.number(0, 'carry').toDouble())]);
@@ -114,7 +137,7 @@ ProjectState checkedExtensionData(ProjectState state) {
     final value = data[p.id];
     if (value == null || p.graph.wire('project', 'replaced') == null || p.api > ExtensionApi.level) continue;
     final runtime = ExtensionRuntime(p, ReadingHost(p, value));
-    final result = runtime.fire('project', 'replaced', args: [LuaJson.toLua(value), carry]);
+    final result = runtime.fire('project', 'replaced', args: [LuaJson.toLua(value), carry, end]);
     if (result == null || result.isEmpty || result[0] == null) continue;
     final Object? moved;
     try {

@@ -307,6 +307,12 @@ void _openMath(Lua lua) {
       final x = a.number(0, 'round');
       return [x is int || !x.isFinite ? x : x.round()];
     },
+    // Not Lua's: x no lower than low and no higher than high (as Dart clamps).
+    'clamp': (a) {
+      final low = a.number(1, 'clamp'), high = a.number(2, 'clamp');
+      if (low.compareTo(high) > 0) a.bad(2, 'clamp', 'the highest is under the lowest');
+      return [a.number(0, 'clamp').clamp(low, high)];
+    },
     'sqrt': (a) => [math.sqrt(a.number(0, 'sqrt'))],
     'sin': (a) => [math.sin(a.number(0, 'sin'))],
     'cos': (a) => [math.cos(a.number(0, 'cos'))],

@@ -55,25 +55,3 @@ class CaptionsExtension extends CuratorExtension {
   @override
   void apply(EditorController controller, bool on) => controller.captions.enabled = on;
 }
-
-/// The key the music is in, a band of colours along the score's top ([EditorController.tonality]).
-class TonalityExtension extends CuratorExtension {
-  const TonalityExtension();
-
-  @override
-  String get id => 'tonality';
-  @override
-  String get label => 'Tonality';
-  @override
-  IconData icon(BuildContext context) => AppIcon.tonality.of(context);
-  @override
-  String get summary => 'The music’s key, in color over the score.';
-  @override
-  String get keywords => 'tonality key keys tonic major minor modulation harmony circle of fifths colour color band bar';
-
-  @override
-  bool isUsedBy(EditorController controller) => controller.tonality.areas.isNotEmpty;
-
-  @override
-  void apply(EditorController controller, bool on) => controller.tonality.enabled = on;
-}

@@ -222,9 +222,12 @@ class ExtensionRuntime {
   }
 
   /// [text] in the interface's language: the extension's own translation, else the app's, else
-  /// as written; each `{name}` in it replaced by [values]' entry.
-  String translate(String text, [LuaTable? values]) {
-    var out = package.locales[host.language]?[text] ?? host.translate(text) ?? text;
+  /// as written; each `{name}` in it replaced by [values]' entry. With a [context] (a text that
+  /// means two things: a "Key" of the music, a "Key" of the keyboard), the translation for it
+  /// when there is one: "context|text" in the extension's locales.
+  String translate(String text, [LuaTable? values, String? context]) {
+    final own = package.locales[host.language];
+    var out = (context == null ? null : own?['$context|$text'] ?? host.translate('$context\u0004$text')) ?? own?[text] ?? host.translate(text) ?? text;
     if (values != null) {
       out = out.replaceAllMapped(RegExp(r'\{(\w+)\}'), (m) {
         final v = values[m[1]];
@@ -266,6 +269,7 @@ class ExtensionRuntime {
         return const [];
       },
       'tr': (a) => [translate(a.string(0, 'tr'), a.tableOr(1, 'tr'))],
+      'tr_in': (a) => [translate(a.string(1, 'tr_in'), a.tableOr(2, 'tr_in'), a.string(0, 'tr_in'))],
       'data': (a) => [dataTable],
       'save': (a) {
         final label = a.stringOr(0, 'save');

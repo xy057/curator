@@ -67,7 +67,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  void _showSettings() => _scene.settings = _loaded.settings(captions: _captions, barNumbers: _barNumbers);
+  void _showSettings() => _scene.settings = _loaded.settings(captions: _captions, barNumbers: _barNumbers, bands: _extensions);
 
   /// Plays recording [index] from [at] (seconds of its performance).
   void _hear(int index, {required double at}) {

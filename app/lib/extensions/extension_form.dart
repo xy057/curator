@@ -3,6 +3,7 @@ import 'package:score_engine/score_engine.dart';
 
 import '../app_colors.dart';
 import '../dialog_kit.dart';
+import '../menu_kit.dart';
 import '../ui_kit.dart';
 import '../l10n/l10n.dart';
 
@@ -22,6 +23,9 @@ import '../l10n/l10n.dart';
 /// `check` gives nil when the form can be confirmed, a text when it can't (shown), or "" when
 /// it can't and there is nothing to say (a field still empty). `done` is called with the values
 /// by field id and the button pressed: "confirm", or a leading button's id; Cancel calls nothing.
+/// A field is a text (`max` its longest, `lines`, `hint`: a text, or a function of the values as
+/// they are), a "switch", or a "choice" among `options` ({value, label, color}: its value is the
+/// chosen one's). `spacing` is the room between rows.
 /// Every text of it is translated as the extension's ([ExtensionRuntime.translate]).
 Future<void> showExtensionForm(BuildContext context, ExtensionRuntime runtime, LuaTable spec) async {
   final result = await showAppDialog<({String button, LuaTable values})>(context: context, builder: (context) => _ExtensionForm(runtime: runtime, spec: spec));
@@ -38,10 +42,16 @@ class _Field {
   final String id;
   final LuaTable spec;
 
-  /// "text" or "switch".
+  /// "text", "switch" or "choice".
   final String kind;
   TextEditingController? text;
   bool on = false;
+
+  /// A choice's value: one of its options'.
+  Object? chosen;
+
+  /// A choice's options, each a table {value, label, color}.
+  Iterable<LuaTable> get options => switch (spec['options']) { final LuaTable t => t.array.whereType<LuaTable>(), _ => const [] };
 
   String get label => switch (spec['label']) { final String s => s, _ => '' };
   int get flex => switch (spec['flex']) { final num n when n >= 1 => n.toInt(), _ => 1 };
@@ -79,10 +89,12 @@ class _ExtensionFormState extends State<_ExtensionForm> {
   }
 
   _Field _field(String id, LuaTable spec) {
-    final kind = spec['type'] == 'switch' ? 'switch' : 'text';
+    final kind = switch (spec['type']) { 'switch' => 'switch', 'choice' => 'choice', _ => 'text' };
     final field = _Field(id, spec, kind);
     if (kind == 'switch') {
       field.on = spec['value'] == true;
+    } else if (kind == 'choice') {
+      field.chosen = spec['value'];
     } else {
       field.text = TextEditingController(text: switch (spec['value']) { null => '', final v => Lua.show(v) });
     }
@@ -103,7 +115,7 @@ class _ExtensionFormState extends State<_ExtensionForm> {
     final values = LuaTable()..shape = LuaShape.map;
     for (final row in _rows) {
       for (final f in row) {
-        values[f.id] = f.kind == 'switch' ? f.on : f.text!.text;
+        values[f.id] = switch (f.kind) { 'switch' => f.on, 'choice' => f.chosen, _ => f.text!.text };
       }
     }
     return values;
@@ -130,10 +142,40 @@ class _ExtensionFormState extends State<_ExtensionForm> {
       if (f.kind == 'switch') {
         return AppCheckRow(value: f.on, named: true, label: _tr(f.label), onChanged: (v) => setState(() => f.on = v ?? false));
       }
+      if (f.kind == 'choice') {
+        return AppDropdown<Object>(
+          label: _tr(f.label),
+          value: f.chosen,
+          isExpanded: true,
+          onChanged: (value) => setState(() => f.chosen = value ?? f.chosen),
+          items: [
+            for (final option in f.options)
+              if (option['value'] case final value?)
+                DropdownMenuItem(
+                  value: value,
+                  child: Row(children: [
+                    if (luaColor(option['color']) case final color?)
+                      Container(
+                        width: 12,
+                        height: 12,
+                        margin: const EdgeInsetsDirectional.only(end: 8),
+                        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+                      ),
+                    Expanded(child: Text(_tr(option['label']), overflow: TextOverflow.ellipsis)),
+                  ]),
+                ),
+          ],
+        );
+      }
       return AppTextField(
         controller: f.text!,
         label: _tr(f.label),
-        hint: f.spec['hint'] is String ? _tr(f.spec['hint']) : null,
+        hint: switch (f.spec['hint']) {
+          final String hint => _tr(hint),
+          // What it says for the values as they are (another field's choice, say).
+          final LuaFunction hint => switch (_runtime.call(hint, args: [_values], where: 'ui.form hint')?.firstOrNull) { final String s => _tr(s), _ => null },
+          _ => null,
+        },
         autofocus: f.spec['focus'] == true,
         maxLength: switch (f.spec['max']) { final num n when n >= 1 => n.toInt(), _ => null },
         lines: switch (f.spec['lines']) { final num n when n >= 1 => n.toInt(), _ => 1 },
@@ -149,7 +191,7 @@ class _ExtensionFormState extends State<_ExtensionForm> {
         width: dialogWidth(context, switch (spec['width']) { final num n when n >= 200 && n <= 640 => n.toDouble(), _ => 400 }),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           for (final (i, row) in _rows.indexed) ...[
-            if (i > 0) const SizedBox(height: 12),
+            if (i > 0) SizedBox(height: switch (spec['spacing']) { final num n when n >= 0 && n <= 48 => n.toDouble(), _ => 12 }),
             if (row.length == 1)
               control(row.single)
             else

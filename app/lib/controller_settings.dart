@@ -34,6 +34,6 @@ extension ControllerSettings on EditorController {
     defaultRehearsalInRow = settings.rehearsalInRow;
     defaultCenteredLyrics = settings.centeredLyrics;
     videoLayout = VideoFormat.layoutOf(settings.videoRatio.value);
-    tonality.followLanguage(settings.language);
+    extensions.followLanguage(settings.language);
   }
 }

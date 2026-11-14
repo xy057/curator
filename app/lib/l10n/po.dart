@@ -144,12 +144,16 @@ Iterable<String> translatedLiterals(String source) sync* {
 }
 
 /// The texts a bundled extension's file translates (`assets/extensions/<id>/…`): in its Lua, the
-/// literals given to `curator.tr("…")` or `tr("…")`; in connect.json, every node's `title`; in
+/// literals given to `curator.tr("…")` or `tr("…")`, and to `curator.tr_in("context", "…")` with
+/// their context; in connect.json, every node's `title`; in
 /// extension.json, its `name` and `summary`.
 Iterable<String> extensionTexts(String path, String source) sync* {
   if (path.endsWith('.lua')) {
     for (final m in _luaLiteral.allMatches(source)) {
       yield _dartText((m[1] ?? m[2])!);
+    }
+    for (final m in _luaInContext.allMatches(source)) {
+      yield '${_dartText((m[1] ?? m[2])!)}\u0004${_dartText((m[3] ?? m[4])!)}';
     }
   } else if (path.endsWith('connect.json') || path.endsWith('extension.json')) {
     for (final m in _jsonText.allMatches(source)) {
@@ -159,6 +163,7 @@ Iterable<String> extensionTexts(String path, String source) sync* {
 }
 
 final _luaLiteral = RegExp(r'\btr\(\s*(?:' '$_quoted' r')');
+final _luaInContext = RegExp(r'\btr_in\(\s*(?:' '$_quoted' r')\s*,\s*(?:' '$_quoted' r')');
 final _jsonText = RegExp(r'"(?:title|name|summary)"\s*:\s*("(?:[^"\\]|\\.)*")');
 
 /// A quoted Dart string (no interpolation), its text captured: single, then double quotes.
