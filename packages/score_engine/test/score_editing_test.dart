@@ -269,5 +269,24 @@ void main() {
       score.toggleSlur([ids[0]]);
       expect(score.toMusicXML(), plain);
     }
+
+    // Notes pasted are notes of their own: each has its id, so one found by it is the copy, not what it was copied from.
+    {
+      final score = EditableScore.parse(_fluteOf(2));
+      const voice = VoiceKey(1, '1');
+      score.input(ScorePosition(0, voice, 0, Frac.zero), [for (var i = 0; i < 4; i++) InputItem(const Rhythm(NoteType.quarter), [Pitch(i, 4)])]);
+      List<String> idsIn(int m) => [for (final e in score.eventsIn(0, m, voice)) ...e.ids];
+      final copied = idsIn(0);
+      score.toggleSlur([copied[0], copied[2]]);
+      score.paste(ScorePosition(0, voice, 1, Frac.zero), score.copy(copied));
+      expect({...idsIn(0), ...idsIn(1)}.length, 8);
+      expect(idsIn(0), copied);
+      expect([for (final id in idsIn(1)) score.locate(id)!.position.measure], everyElement(1));
+      expect([for (final id in copied) score.locate(id)!.position.measure], everyElement(0));
+      expect(RegExp(r'id="(cxe\d+)"').allMatches(score.chunk(0, 2).xml).map((m) => m[1]).toSet().length, RegExp(r'id="cxe').allMatches(score.chunk(0, 2).xml).length,
+          reason: 'the slur copied with them has its own too');
+      score.transpose([idsIn(1).first], octaves: 1);
+      expect((score.eventsIn(0, 0, voice).first.pitches.single.octave, score.eventsIn(0, 1, voice).first.pitches.single.octave), (4, 5));
+    }
   });
 }

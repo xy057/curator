@@ -3541,7 +3541,7 @@ class EditableScore {
     var offset = Frac.zero;
     while (true) {
       final view = _view(e.position.part, e.position.measure).voices[e.position.voice]!.firstWhere((x) => x.start == e.position.time);
-      out.add((offset: offset, length: e.length, rhythm: e.rhythm, notes: e.isRest ? const [] : [for (final n in view.notes) n.copy()]));
+      out.add((offset: offset, length: e.length, rhythm: e.rhythm, notes: e.isRest ? const [] : [for (final n in view.notes) _copied(n)]));
       offset = offset + e.length;
       if (identical(e, last) || e.ids.first == last.ids.first) break;
       final after = next(e);
@@ -3549,6 +3549,20 @@ class EditableScore {
       e = after;
     }
     return CopiedMusic(out);
+  }
+
+  /// A copy of [note] without ids, the editor's or its file's: what is pasted from it is a note
+  /// of its own, given an id as it is put in (with the one it was copied from, a click on either
+  /// would find one of them, and an edit of the copy change the other).
+  static XmlElement _copied(XmlElement note) {
+    final copy = note.copy();
+    for (final e in [copy, ...copy.descendantElements]) {
+      if (e.getAttribute('id')?.startsWith('cxe') ?? false) {
+        e.removeAttribute('id');
+        e.removeAttribute('cxe-orig');
+      }
+    }
+    return copy;
   }
 
   /// [music] put in from [at] over what was there; returns where it ends.
