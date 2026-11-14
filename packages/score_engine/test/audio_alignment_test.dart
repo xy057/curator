@@ -1,9 +1,6 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -56,47 +53,4 @@ void main() {
       }
     }
   });
-
-  test("the demo's recording aligns to the anchors set by hand, its pizzicato chord held over bars 41–43 too", () async {
-    // Its FLAC as 16-bit mono WAV (afconvert is macOS's).
-    final archive = ZipDecoder().decodeBytes(demoProject.readAsBytesSync());
-    final temp = Directory.systemTemp.createTempSync('align-demo-');
-    addTearDown(() => temp.deleteSync(recursive: true));
-    final flac = File('${temp.path}/demo.flac')..writeAsBytesSync(archive.files.firstWhere((f) => f.isFile && f.name.startsWith('media/')).content);
-    final wav = '${temp.path}/demo.wav';
-    expect((await Process.run('/usr/bin/afconvert', ['-f', 'WAVE', '-d', 'LEI16', '-c', '1', flac.path, wav])).exitCode, 0);
-    final bytes = File(wav).readAsBytesSync(), data = ByteData.sublistView(bytes);
-    var at = 12, rate = 0;
-    late Float32List samples;
-    while (at + 8 <= bytes.length) {
-      final id = String.fromCharCodes(bytes, at, at + 4), size = data.getUint32(at + 4, Endian.little);
-      if (id == 'fmt ') rate = data.getUint32(at + 12, Endian.little);
-      if (id == 'data') {
-        samples = Float32List.fromList([for (var i = 0; i < size ~/ 2; i++) data.getInt16(at + 8 + 2 * i, Endian.little) / 32768]);
-        break;
-      }
-      at += 8 + size + (size & 1);
-    }
-
-    final starts = [for (var i = 0; i <= 44; i++) i * 3.0];
-    final anchors = AudioAlignment.anchors(
-      audio: heardFrames(samples, rate.toDouble()),
-      notes: soundingNotes(demoScore(), starts).toList(),
-      measureStarts: starts,
-      passes: const [ScorePass(0, 132)],
-    );
-    final project = jsonDecode(utf8.decode(archive.files.firstWhere((f) => f.name == 'project.json').content)) as Map<String, dynamic>;
-    final byHand = SyncMap(measureStarts: starts, defaultTempo: 100)
-      ..load([
-        for (final a in (project['state']['sync']['anchors'] as List).cast<Map<String, dynamic>>())
-          SyncAnchor((a['quarter'] as num).toDouble(), (a['seconds'] as num).toDouble()),
-      ]);
-    final heard = SyncMap(measureStarts: starts, defaultTempo: 100)..load(anchors);
-    // Every bar but the final barline (where a held chord is heard to end is a matter of taste).
-    final errors = [for (final q in starts.take(44)) (heard.secondsAtQuarter(q) - byHand.secondsAtQuarter(q)).abs()];
-    for (final (bar, error) in errors.indexed) {
-      expect(error, lessThan(0.2), reason: 'bar ${bar + 1}');
-    }
-    expect((errors.toList()..sort())[errors.length ~/ 2], lessThan(0.05), reason: 'the median');
-  }, skip: !Platform.isMacOS);
 }

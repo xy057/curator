@@ -21,539 +21,218 @@ String _fluteOf(int bars) => _flute.replaceFirst(
     [for (var i = 2; i <= bars; i++) '<measure number="$i"><note><rest measure="yes"/><duration>4</duration><voice>1</voice></note></measure>'].join());
 
 void main() {
-  test('the score editor types notes over rests, ties them across a barline, and writes MusicXML', () async {
-    final score = EditableScore.parse(_flute);
-    const voice = VoiceKey(1, '1');
-    final start = ScorePosition(0, voice, 0, Frac.zero);
-    Pitch near(int step, Pitch before) => Pitch.nearest(step, before);
-    var before = score.pitchBefore(start); // the clef's middle line: B4
-    expect(before, const Pitch(6, 4));
-    final c5 = near(0, before), d5 = near(1, c5), fSharp = near(3, d5).withAlter(1), f = near(3, fSharp);
-    var at = score.input(start, [
-      InputItem(const Rhythm(NoteType.quarter), [c5]),
-      InputItem(const Rhythm(NoteType.eighth), [d5]),
-      InputItem(const Rhythm(NoteType.eighth), [fSharp]),
-      InputItem(const Rhythm(NoteType.quarter), [f]),
-      InputItem(const Rhythm(NoteType.half), [c5]), // a beat left: tied on into bar 2
-    ]);
-    expect(at, ScorePosition(0, voice, 1, Frac.one));
-    final bar1 = score.eventsIn(0, 0, voice);
-    expect([for (final e in bar1) e.pitches.single], [c5, d5, fSharp, f, c5]);
-    expect(bar1.last.tiedOn, isTrue);
-    final bar2 = score.eventsIn(0, 1, voice);
-    expect(bar2.first.pitches.single, c5);
-    expect([for (final e in bar2.skip(1)) e.isRest], everyElement(isTrue)); // the rest of the bar is rests
+  test('the score editor: notes typed over rests and tied, MusicXML written, Undo and Redo putting back the bars changed, chunks drawing each thing once', () async {
+    {
+      final score = EditableScore.parse(_flute);
+      const voice = VoiceKey(1, '1');
+      final start = ScorePosition(0, voice, 0, Frac.zero);
+      Pitch near(int step, Pitch before) => Pitch.nearest(step, before);
+      var before = score.pitchBefore(start); // the clef's middle line: B4
+      expect(before, const Pitch(6, 4));
+      final c5 = near(0, before), d5 = near(1, c5), fSharp = near(3, d5).withAlter(1), f = near(3, fSharp);
+      var at = score.input(start, [
+        InputItem(const Rhythm(NoteType.quarter), [c5]),
+        InputItem(const Rhythm(NoteType.eighth), [d5]),
+        InputItem(const Rhythm(NoteType.eighth), [fSharp]),
+        InputItem(const Rhythm(NoteType.quarter), [f]),
+        InputItem(const Rhythm(NoteType.half), [c5]), // a beat left: tied on into bar 2
+      ]);
+      expect(at, ScorePosition(0, voice, 1, Frac.one));
+      final bar1 = score.eventsIn(0, 0, voice);
+      expect([for (final e in bar1) e.pitches.single], [c5, d5, fSharp, f, c5]);
+      expect(bar1.last.tiedOn, isTrue);
+      final bar2 = score.eventsIn(0, 1, voice);
+      expect(bar2.first.pitches.single, c5);
+      expect([for (final e in bar2.skip(1)) e.isRest], everyElement(isTrue)); // the rest of the bar is rests
 
-    // The last bar filled, the caret is past it: everything asked of that place answers, and a
-    // note typed there adds the bar it goes in. Undone, the bar is gone again.
-    final end = score.input(at, [InputItem(const Rhythm(NoteType.half, dots: 1), [d5])]);
-    expect(end, ScorePosition(0, voice, 2, Frac.zero));
-    expect(score.measureCount, 2);
-    expect(score.barLength(2), Frac(4));
-    expect(score.describe(2, Frac.zero), '3.1');
-    expect(score.keyAt(0, 2, Frac.zero).fifths, 0);
-    expect(score.pitchBefore(end), d5);
-    expect(score.eventBefore(end)!.pitches.single, d5);
-    expect(score.eventAt(0, 1, 2, Frac.zero), isNull);
-    expect(score.eventsIn(0, 2, voice), isEmpty);
-    expect(score.defaultVoice(0, 1, 2), voice);
-    expect(score.input(end, [InputItem(const Rhythm(NoteType.quarter), [c5])]), ScorePosition(0, voice, 2, Frac.one));
-    expect(score.measureCount, 3);
-    expect(score.barNumber(2), '3');
-    score.undo();
-    expect(score.measureCount, 2);
-    score.undo();
-    at = ScorePosition(0, voice, 1, Frac.one);
-
-    final xml = XmlDocument.parse(score.toMusicXML());
-    final notes = xml.findAllElements('note').toList();
-    expect(xml.findAllElements('beam').length, 2); // the two eighths, beamed
-    expect(notes[3].getElement('accidental')?.innerText, 'natural'); // F after F♯ in the bar
-    expect(notes[2].getElement('accidental')?.innerText, 'sharp');
-    expect(xml.toXmlString(), isNot(contains('cxe'))); // the editor's ids stay its own
-    expect(xml.findAllElements('barline').length, 1); // the final barline kept
-
-    // A click on a note's head finds it, and one on a dynamic the dynamic.
-    score.addDynamic(start, 'mf');
-    final chunk = await EditChunk.engrave(score, 0, score.measureCount);
-    final galley = EditGalley([chunk]);
-    final id = bar1[2].ids.single;
-    final bounds = galley.boundsOf(id)!;
-    expect(galley.hitTest(bounds.center), id);
-    final dynamic = RegExp(r'<dynamics id="(cxe\d+)"').firstMatch(score.chunk(0, 1).xml)!.group(1)!;
-    expect(galley.hitTest(galley.boundsOf(dynamic)!.center), dynamic);
-    expect(galley.timeAtX(galley.xOf(0, Frac(3, 2))!), (measure: 0, time: Frac(3, 2)));
-    chunk.dispose();
-
-    // The same sound spelled as the note above, and back: F♯ is G♭, and its accidental follows.
-    score.respell([id], up: true);
-    expect(score.locate(id)!.pitches.single, const Pitch(4, 5, -1));
-    expect(XmlDocument.parse(score.toMusicXML()).findAllElements('note').elementAt(2).getElement('accidental')?.innerText, 'flat');
-    score.respell([id], up: false);
-    expect(score.locate(id)!.pitches.single, fSharp);
-    score.respell([id], up: false);
-    expect(score.locate(id)!.pitches.single, const Pitch(2, 5, 2)); // E double sharp
-    score.respell([id], up: false);
-    expect(score.locate(id)!.pitches.single, const Pitch(2, 5, 2)); // no further: D would take three sharps
-    score.undo();
-    score.undo();
-    score.undo();
-    expect(score.locate(id)!.pitches.single, fSharp);
-
-    // Pitches and rhythms change; Undo takes each back.
-    score.transpose([id], steps: 1);
-    expect(score.locate(id)!.pitches.single, const Pitch(4, 5)); // G5: the key's, no sharp
-    score.setRhythm([bar1.first.ids.single], NoteType.half);
-    expect(score.eventsIn(0, 0, voice).first.length, Frac(2));
-    score.undo();
-    score.undo();
-    expect(score.locate(id)!.pitches.single, fSharp);
-    while (score.canUndo) {
+      // The last bar filled, the caret is past it: everything asked of that place answers, and a
+      // note typed there adds the bar it goes in. Undone, the bar is gone again.
+      final end = score.input(at, [InputItem(const Rhythm(NoteType.half, dots: 1), [d5])]);
+      expect(end, ScorePosition(0, voice, 2, Frac.zero));
+      expect(score.measureCount, 2);
+      expect(score.barLength(2), Frac(4));
+      expect(score.describe(2, Frac.zero), '3.1');
+      expect(score.keyAt(0, 2, Frac.zero).fifths, 0);
+      expect(score.pitchBefore(end), d5);
+      expect(score.eventBefore(end)!.pitches.single, d5);
+      expect(score.eventAt(0, 1, 2, Frac.zero), isNull);
+      expect(score.eventsIn(0, 2, voice), isEmpty);
+      expect(score.defaultVoice(0, 1, 2), voice);
+      expect(score.input(end, [InputItem(const Rhythm(NoteType.quarter), [c5])]), ScorePosition(0, voice, 2, Frac.one));
+      expect(score.measureCount, 3);
+      expect(score.barNumber(2), '3');
       score.undo();
-    }
-    expect(score.eventsIn(0, 0, voice).single.isRest, isTrue);
-  });
-
-  test('Undo and Redo put back the bars a step changed, and only what is in the score has an id', () {
-    final score = EditableScore.parse(demoScore());
-    // (The space between bars aside: a part whose bars were counted again is written without.)
-    String written() => score.toMusicXML().replaceAll(RegExp(r'>\s+<'), '><');
-    final states = [written()];
-    final voice = score.voicesIn(0, 2).first;
-    final at = ScorePosition(0, voice, 2, Frac.zero);
-    score.input(at, [InputItem(const Rhythm(NoteType.quarter), [const Pitch(0, 5)])]);
-    states.add(written());
-    score.addDynamic(at, 'mf');
-    states.add(written());
-    // What is in force in a bar, and where a note is, follow the bars before it.
-    final key = score.keyAt(0, 6, Frac.zero).fifths;
-    final later = score.eventsIn(0, 5, score.voicesIn(0, 5).first).first.ids.first;
-    expect(score.whereIs(later)!.measure, 5);
-    score.addBars(3, 2); // the bars' number changes: every bar after is put back
-    states.add(written());
-    expect(score.whereIs(later)!.measure, 7);
-    score.setKey(1, KeySig.parse('A')!);
-    states.add(written());
-    expect(score.keyAt(0, 8, Frac.zero).fifths, 3);
-    expect(score.keyAt(0, 0, Frac.zero).fifths, key);
-    score.deleteBars(0, 1);
-    states.add(written());
-    for (var i = states.length - 2; i >= 0; i--) {
+      expect(score.measureCount, 2);
       score.undo();
-      expect(written(), states[i], reason: 'undone to state $i');
+      at = ScorePosition(0, voice, 1, Frac.one);
+
+      final xml = XmlDocument.parse(score.toMusicXML());
+      final notes = xml.findAllElements('note').toList();
+      expect(xml.findAllElements('beam').length, 2); // the two eighths, beamed
+      expect(notes[3].getElement('accidental')?.innerText, 'natural'); // F after F♯ in the bar
+      expect(notes[2].getElement('accidental')?.innerText, 'sharp');
+      expect(xml.toXmlString(), isNot(contains('cxe'))); // the editor's ids stay its own
+      expect(xml.findAllElements('barline').length, 1); // the final barline kept
+
+      // A click on a note's head finds it, and one on a dynamic the dynamic.
+      score.addDynamic(start, 'mf');
+      final chunk = await EditChunk.engrave(score, 0, score.measureCount);
+      final galley = EditGalley([chunk]);
+      final id = bar1[2].ids.single;
+      final bounds = galley.boundsOf(id)!;
+      expect(galley.hitTest(bounds.center), id);
+      final dynamic = RegExp(r'<dynamics id="(cxe\d+)"').firstMatch(score.chunk(0, 1).xml)!.group(1)!;
+      expect(galley.hitTest(galley.boundsOf(dynamic)!.center), dynamic);
+      expect(galley.timeAtX(galley.xOf(0, Frac(3, 2))!), (measure: 0, time: Frac(3, 2)));
+      chunk.dispose();
+
+      // The same sound spelled as the note above, and back: F♯ is G♭, and its accidental follows.
+      score.respell([id], up: true);
+      expect(score.locate(id)!.pitches.single, const Pitch(4, 5, -1));
+      expect(XmlDocument.parse(score.toMusicXML()).findAllElements('note').elementAt(2).getElement('accidental')?.innerText, 'flat');
+      score.respell([id], up: false);
+      expect(score.locate(id)!.pitches.single, fSharp);
+      score.respell([id], up: false);
+      expect(score.locate(id)!.pitches.single, const Pitch(2, 5, 2)); // E double sharp
+      score.respell([id], up: false);
+      expect(score.locate(id)!.pitches.single, const Pitch(2, 5, 2)); // no further: D would take three sharps
+      score.undo();
+      score.undo();
+      score.undo();
+      expect(score.locate(id)!.pitches.single, fSharp);
+
+      // Pitches and rhythms change; Undo takes each back.
+      score.transpose([id], steps: 1);
+      expect(score.locate(id)!.pitches.single, const Pitch(4, 5)); // G5: the key's, no sharp
+      score.setRhythm([bar1.first.ids.single], NoteType.half);
+      expect(score.eventsIn(0, 0, voice).first.length, Frac(2));
+      score.undo();
+      score.undo();
+      expect(score.locate(id)!.pitches.single, fSharp);
+      while (score.canUndo) {
+        score.undo();
+      }
+      expect(score.eventsIn(0, 0, voice).single.isRest, isTrue);
     }
-    expect(score.canUndo, isFalse);
-    expect(score.keyAt(0, 6, Frac.zero).fifths, key);
-    expect(score.whereIs(later)!.measure, 5);
-    // A step of one bar says one bar changed.
-    score.takeChanged();
-    score.redo();
-    final changed = score.takeChanged();
-    expect(changed.bars, {2});
-    expect(changed.from, isNull);
-    for (var i = 2; i < states.length; i++) {
+
+    // Undo and Redo put back the bars a step changed, and only what is in the score has an id.
+    {
+      final score = EditableScore.parse(demoScore());
+      // (The space between bars aside: a part whose bars were counted again is written without.)
+      String written() => score.toMusicXML().replaceAll(RegExp(r'>\s+<'), '><');
+      final states = [written()];
+      final voice = score.voicesIn(0, 2).first;
+      final at = ScorePosition(0, voice, 2, Frac.zero);
+      score.input(at, [InputItem(const Rhythm(NoteType.quarter), [const Pitch(0, 5)])]);
+      states.add(written());
+      score.addDynamic(at, 'mf');
+      states.add(written());
+      // What is in force in a bar, and where a note is, follow the bars before it.
+      final key = score.keyAt(0, 6, Frac.zero).fifths;
+      final later = score.eventsIn(0, 5, score.voicesIn(0, 5).first).first.ids.first;
+      expect(score.whereIs(later)!.measure, 5);
+      score.addBars(3, 2); // the bars' number changes: every bar after is put back
+      states.add(written());
+      expect(score.whereIs(later)!.measure, 7);
+      score.setKey(1, KeySig.parse('A')!);
+      states.add(written());
+      expect(score.keyAt(0, 8, Frac.zero).fifths, 3);
+      expect(score.keyAt(0, 0, Frac.zero).fifths, key);
+      score.deleteBars(0, 1);
+      states.add(written());
+      for (var i = states.length - 2; i >= 0; i--) {
+        score.undo();
+        expect(written(), states[i], reason: 'undone to state $i');
+      }
+      expect(score.canUndo, isFalse);
+      expect(score.keyAt(0, 6, Frac.zero).fifths, key);
+      expect(score.whereIs(later)!.measure, 5);
+      // A step of one bar says one bar changed.
+      score.takeChanged();
       score.redo();
-      expect(written(), states[i], reason: 'redone to state $i');
+      final changed = score.takeChanged();
+      expect(changed.bars, {2});
+      expect(changed.from, isNull);
+      for (var i = 2; i < states.length; i++) {
+        score.redo();
+        expect(written(), states[i], reason: 'redone to state $i');
+      }
+      expect(score.canRedo, isFalse);
+
+      // A triplet needs finer divisions in every bar of its part: only its own bar is engraved again.
+      score.takeChanged();
+      score.input(at, [InputItem(const Rhythm(NoteType.eighth, tuplet: Tuplet(7, 4, NoteType.eighth)), [const Pitch(0, 5)])]);
+      expect(score.takeChanged().bars, {2});
+      expect(EditableScore.parse(score.toMusicXML()).eventsIn(0, 2, voice).first.length, Frac(2, 7));
+
+      // A dynamic deleted is nothing in the score; undone, it is again.
+      final flute = EditableScore.parse(_flute);
+      final start = ScorePosition(0, const VoiceKey(1, '1'), 0, Frac.zero);
+      flute.addDynamic(start, 'p');
+      final id = RegExp(r'<direction[^>]* id="(cxe\d+)"').firstMatch(flute.chunk(0, 2).xml)!.group(1)!;
+      expect(flute.has(id), isTrue);
+      flute.delete([id]);
+      expect(flute.has(id), isFalse);
+      flute.undo();
+      expect(flute.has(id), isTrue);
+      flute.undo();
+      expect(flute.has(id), isFalse);
     }
-    expect(score.canRedo, isFalse);
 
-    // A triplet needs finer divisions in every bar of its part: only its own bar is engraved again.
-    score.takeChanged();
-    score.input(at, [InputItem(const Rhythm(NoteType.eighth, tuplet: Tuplet(7, 4, NoteType.eighth)), [const Pitch(0, 5)])]);
-    expect(score.takeChanged().bars, {2});
-    expect(EditableScore.parse(score.toMusicXML()).eventsIn(0, 2, voice).first.length, Frac(2, 7));
+    // Chunks side by side draw what one engraving of the whole score does, each thing once.
+    {
+      final score = EditableScore.parse(_fluteOf(12));
+      const voice = VoiceKey(1, '1');
+      var at = ScorePosition(0, voice, 0, Frac.zero);
+      for (var i = 0; i < 24; i++) {
+        at = score.input(at, [InputItem(const Rhythm(NoteType.half), [Pitch(i % 7, 4)])]);
+      }
+      List<String> idsIn(int m) => [for (final e in score.eventsIn(0, m, voice)) e.ids.first];
+      // Across the barline between bars 4 and 5, where chunks of two and of four bars both meet:
+      // a tie, a slur, a hairpin, a clef and a key and a time signature that change, a repeat
+      // that ends and one that starts; and a slur over bars 1 to 4, longer than a chunk of two.
+      score.input(ScorePosition(0, voice, 3, Frac(3)), [InputItem(const Rhythm(NoteType.half), [const Pitch(4, 4)])]);
+      score.toggleSlur([idsIn(3)[1], idsIn(4).last]);
+      score.addHairpin(ScorePosition(0, voice, 3, Frac.one), ScorePosition(0, voice, 4, Frac(3)), crescendo: true);
+      score.setClef(ScorePosition(0, voice, 4, Frac.zero), Clef.named('alto')!);
+      score.setKey(4, KeySig.parse('Eb')!);
+      score.setTime(4, TimeSig.parse('3/4')!);
+      score.setBarline(3, ':|:');
+      score.setEnding(2, 3, [1]);
+      score.setEnding(4, 5, [2]);
+      score.toggleSlur([idsIn(0).first, idsIn(3).first]);
+      final slur = RegExp(r'<slur[^>]*type="start"[^>]* id="(cxe\d+)"|<slur[^>]* id="(cxe\d+)"[^>]*type="start"').allMatches(score.chunk(3, 4).xml).map((m) => m.group(1) ?? m.group(2)!).first;
 
-    // A dynamic deleted is nothing in the score; undone, it is again.
-    final flute = EditableScore.parse(_flute);
-    final start = ScorePosition(0, const VoiceKey(1, '1'), 0, Frac.zero);
-    flute.addDynamic(start, 'p');
-    final id = RegExp(r'<direction[^>]* id="(cxe\d+)"').firstMatch(flute.chunk(0, 2).xml)!.group(1)!;
-    expect(flute.has(id), isTrue);
-    flute.delete([id]);
-    expect(flute.has(id), isFalse);
-    flute.undo();
-    expect(flute.has(id), isTrue);
-    flute.undo();
-    expect(flute.has(id), isFalse);
-  });
-
-  test('the score as text for the MusicXML view: an element a line, texts as written, the file\'s own ids, and where an element is', () {
-    final score = EditableScore.parse(_flute.replaceFirst('<part-name>Flute</part-name>', '<part-name>  Flute  1</part-name>')
-        .replaceFirst('<note><rest measure="yes"/><duration>4</duration><voice>1</voice></note><barline',
-            '<note id="n7"><rest measure="yes"/><duration>4</duration><voice>1</voice></note><barline'));
-    final rest = score.eventsIn(0, 1, const VoiceKey(1, '1')).single.ids.single;
-    final (:text, :lines) = score.toMusicXMLText([rest, 'cxe999']);
-    final rows = text.split('\n');
-    expect(rows.take(4), [
-      '<?xml version="1.0" encoding="UTF-8"?>',
-      '<score-partwise version="4.0">',
-      '  <part-list>',
-      '    <score-part id="P1">',
-    ]);
-    expect(rows, contains('      <part-name>  Flute  1</part-name>')); // a text as written
-    expect(rows, contains('        <rest measure="yes"/>'));
-    expect(lines, {rest: rows.indexOf('      <note id="n7">')}); // the file's id given back, the editor's gone
-    expect(text, isNot(contains('cxe')));
-    // Read again, it is the same score.
-    expect(EditableScore.parse(text).toMusicXML().replaceAll(RegExp(r'>\s+<'), '><'), score.toMusicXML().replaceAll(RegExp(r'>\s+<'), '><'));
-
-    // A change says it made a step; one that changes nothing makes none.
-    expect(score.undoStep, isNull);
-    score.addBars(0, 1);
-    final step = score.undoStep;
-    expect(step, isNotNull);
-    score.toggleSlur(const []);
-    expect(identical(score.undoStep, step), isTrue);
-    // Redo forgotten: the score went on another way.
-    score.undo();
-    expect(score.canRedo, isTrue);
-    score.forgetRedo();
-    expect((score.canRedo, score.measureCount), (false, 2));
-  });
-
-  test('markings move on and back by the notes and the grid, up and down the staves, by a drag, a hairpin with its end', () async {
-    var score = EditableScore.parse(_fluteOf(4));
-    // Every direction as written: its part and bar, when in it, what it says, where by the staff.
-    List<String> written() {
-      final out = <String>[];
-      for (final (p, part) in XmlDocument.parse(score.toMusicXML()).findAllElements('part').indexed) {
-        final divisions = int.parse(part.findAllElements('divisions').first.innerText);
-        for (final (m, measure) in part.findElements('measure').indexed) {
-          var cursor = 0;
-          for (final child in measure.childElements) {
-            final duration = int.tryParse(child.getElement('duration')?.innerText ?? '') ?? 0;
-            switch (child.name.local) {
-              case 'note' when child.getElement('chord') == null:
-              case 'forward':
-                cursor += duration;
-              case 'backup':
-                cursor -= duration;
-              case 'direction':
-                final said = child.findElements('direction-type').expand((t) => t.childElements).map((e) => switch (e.name.local) {
-                      'dynamics' => e.childElements.first.name.local,
-                      'wedge' => e.getAttribute('type')!,
-                      _ => e.innerText,
-                    });
-                final staff = child.getElement('staff')?.innerText;
-                out.add('$p:$m@${Frac(cursor, divisions)} ${said.join('+')} ${child.getAttribute('placement')}${staff == null ? '' : ' staff $staff'}');
-            }
-          }
+      int drawn(EditChunk c) => [...c.list.staves, c.list.barlines].fold(0, (n, layer) => n + layer.items.where(c.owns).length);
+      final whole = await EditChunk.engrave(score, 0, 12);
+      expect((whole.lead, whole.trail), (0, 0));
+      for (final bars in [2, 4]) {
+        final chunks = [for (var from = 0; from < 12; from += bars) await EditChunk.engrave(score, from, from + bars)];
+        expect(chunks.fold(0, (n, c) => n + drawn(c)), drawn(whole), reason: 'chunks of $bars bars');
+        // The first of two bars is engraved with a third, where its slur ends.
+        expect(chunks.first.trail, bars == 2 ? 2 : 1);
+        // The slur over the barline is the chunk's it starts in, whole, and found on either side.
+        final galley = EditGalley(chunks, bars: bars);
+        final before = chunks[4 ~/ bars - 1], after = chunks[4 ~/ bars];
+        expect(before.outlines[slur], isNotNull);
+        expect(after.outlines[slur], isNull);
+        final seam = galley.barOf(4)!.left, bounds = galley.boundsOf(slur)!;
+        expect(bounds.left, lessThan(seam));
+        expect(bounds.right, greaterThan(seam));
+        expect(before.spill, greaterThan(0));
+        // Bars are where they are in the whole score, to a hair.
+        final one = EditGalley([whole]);
+        for (var m = 0; m < 12; m++) {
+          expect(galley.barOf(m)!.right - galley.barOf(m)!.left, closeTo(one.barOf(m)!.right - one.barOf(m)!.left, 1), reason: 'bar $m, chunks of $bars');
+          expect(galley.barOf(m)!.left, closeTo(one.barOf(m)!.left, 20), reason: 'bar $m, chunks of $bars');
+        }
+        expect(galley.timeAtX(galley.xOf(5, Frac(2))!), (measure: 5, time: Frac(2)));
+        for (final c in chunks) {
+          c.dispose();
         }
       }
-      return out;
+      whole.dispose();
+      expect([for (final staves in [1, 2, 4, 5, 8, 12, 21, 60]) EditChunk.barsFor(staves)], [6, 6, 6, 4, 3, 2, 2, 2]);
     }
-
-    const voice = VoiceKey(1, '1');
-    ScorePosition at(int m, Frac t) => ScorePosition(0, voice, m, t);
-    score.input(at(0, Frac.zero), [
-      InputItem(const Rhythm(NoteType.quarter), [const Pitch(0, 5)]),
-      InputItem(const Rhythm(NoteType.eighth), [const Pitch(1, 5)]),
-      InputItem(const Rhythm(NoteType.eighth), [const Pitch(2, 5)]),
-      InputItem(const Rhythm(NoteType.half), [const Pitch(3, 5)]),
-    ]);
-    score.addDynamic(at(0, Frac.zero), 'p');
-    score.addText(at(0, Frac.one), 'dolce');
-    score.addHairpin(at(0, Frac.one), at(1, Frac(2)), crescendo: true);
-    final start = written();
-    expect(start, ['0:0@0 p below', '0:0@1 dolce above', '0:0@1 crescendo below', '0:1@2 stop below']);
-
-    // A dynamic, a text and a hairpin are markings; where the hairpin ends is not one of its own.
-    // A dynamic is found by its own id and by its direction's, once.
-    final markings = score.markingsOf(score.ids);
-    expect([for (final m in markings) (m.at.measure, m.at.time, m.below)], [(0, Frac.zero, true), (0, Frac.one, false), (0, Frac.one, true)]);
-    final p = markings[0].id, dolce = markings[1].id, hairpin = markings[2].id;
-    expect(score.markingsOf(score.ids.where((id) => score.isNote(id))), isEmpty);
-
-    // On: to the next note of the staff or the next step of the grid, whichever is nearer, and
-    // over the barline; back, to the last such place of the bar before.
-    void step(String id, int delta) => score.stepMarkings([id], delta, grid: Frac.one);
-    final went = <Object>[];
-    for (final delta in [1, 1, 1, 1, 1, -1]) {
-      step(p, delta);
-      final m = score.markingsOf([p]).single;
-      went.add((m.at.measure, m.at.time));
-    }
-    expect(went, [(0, Frac.one), (0, Frac(3, 2)), (0, Frac(2)), (0, Frac(3)), (1, Frac.zero), (0, Frac(3))]);
-    expect(score.has(p), isTrue); // it is what it was: still selected, in the editor
-    for (var i = 0; i < 6; i++) {
-      score.undo();
-    }
-    expect(written(), start);
-    step(p, -1); // nowhere before the score's start: nothing done, nothing to undo
-    expect(written(), start);
-
-    // A hairpin moved takes its end as far.
-    step(hairpin, 1);
-    expect(written(), ['0:0@0 p below', '0:0@1 dolce above', '0:0@3/2 crescendo below', '0:1@5/2 stop below']);
-    score.undo();
-    // Where its end would be after the last bar, it stays.
-    score.moveMarkings([hairpin], from: hairpin, to: at(3, Frac(3)));
-    expect(written(), start);
-    score.moveMarkings([hairpin], from: hairpin, to: at(2, Frac(2)));
-    expect(written(), ['0:0@0 p below', '0:0@1 dolce above', '0:2@2 crescendo below', '0:3@3 stop below']);
-    score.undo();
-    expect(written(), start);
-
-    // A drag's end: what is selected goes as far as the one held, and changes sides as it does.
-    score.moveMarkings([p, dolce], from: p, to: at(2, Frac.one), below: false);
-    // (In a bar of rest they are written from the last back, each at its time.)
-    expect(written(), ['0:0@1 crescendo below', '0:1@2 stop below', '0:2@2 dolce below', '0:2@1 p above']);
-    score.undo();
-
-    // Up: from under the staff to over it; there is no staff above the top one's.
-    score.liftMarkings([p], -1);
-    expect(written().first, '0:0@0 p above');
-    score.liftMarkings([p], -1);
-    expect(written().first, '0:0@0 p above');
-    score.liftMarkings([p], 1);
-    expect(written(), start);
-
-    // A hairpin made longer and shorter by its end: back over the barline to the bar's end, and
-    // never to where it starts.
-    void stretch(int delta) => score.stepEnds([hairpin], delta, grid: Frac.one);
-    stretch(1);
-    expect(written().last, '0:1@3 stop below');
-    for (var i = 0; i < 3; i++) {
-      stretch(-1);
-    }
-    expect(written().last, '0:0@4 stop below');
-    for (var i = 0; i < 6; i++) {
-      stretch(-1);
-    }
-    expect(written().last, '0:0@3/2 stop below');
-
-    // Engraved, the dynamic is drawn where it was moved to, and found there.
-    step(p, 1);
-    step(p, 1);
-    step(p, 1);
-    final chunk = await EditChunk.engrave(score, 0, score.measureCount);
-    final galley = EditGalley([chunk]);
-    final drawn = score.ids.where((id) => score.markingsOf([id]).firstOrNull?.id == p).map(galley.boundsOf).nonNulls.single;
-    expect(drawn.center.dx, closeTo(galley.xOf(0, Frac(2))!, galley.staffSpace * 2));
-    expect(score.markingsOf([galley.hitTest(drawn.center)!]).single.id, p);
-    chunk.dispose();
-
-    // Down through the instruments: under the flute, over the piano's upper staff, under it,
-    // over its lower one. A part of two staves says which.
-    score = EditableScore.parse(flutePianoScore);
-    score.addDynamic(ScorePosition(0, score.voicesIn(0, 1).first, 1, Frac.zero), 'f');
-    final f = score.markingsOf(score.ids).firstWhere((m) => m.at.part == 0 && m.at.measure == 1).id;
-    String where() => written().firstWhere((d) => d.contains(' f '));
-    expect(where(), '0:1@0 f below');
-    final down = <String>[];
-    for (var i = 0; i < 4; i++) {
-      score.liftMarkings([f], 1);
-      down.add(where());
-    }
-    expect(down, ['1:1@0 f above staff 1', '1:1@0 f below staff 1', '1:1@0 f above staff 2', '1:1@0 f below staff 2']);
-    score.liftMarkings([f], 1); // the last staff: no further
-    expect(where(), down.last);
-    expect(score.markingsOf([f]).single.at.staff, 2);
-  });
-
-  test('a hairpin or a slur deleted takes its own end with it, not that of the one that ends where it starts', () {
-    const voice = VoiceKey(1, '1');
-    ScorePosition at(Frac t) => ScorePosition(0, voice, 0, t);
-    EditableScore fresh() => EditableScore.parse(_flute)..input(at(Frac.zero), [for (var i = 0; i < 4; i++) InputItem(const Rhythm(NoteType.quarter), [Pitch(i, 5)])]);
-    // Notes (n), and where hairpins and slurs start and end, as written.
-    String written(EditableScore score) => RegExp(r'<(wedge|slur) type="(\w+)"|<note')
-        .allMatches(score.toMusicXML().split('<measure').elementAt(1))
-        .map((m) => m.group(1) == null ? 'n' : '${m.group(1)} ${m.group(2)}')
-        .join(', ');
-
-    // The second of two hairpins that meet, by its own id (a click on it) and by every id it has
-    // (⌘A): the first is left whole, and no end is left behind.
-    for (final all in [false, true]) {
-      final score = fresh();
-      score.addHairpin(at(Frac.zero), at(Frac(2)), crescendo: true);
-      score.addHairpin(at(Frac(2)), at(Frac(3)), crescendo: false);
-      expect(written(score), 'wedge crescendo, n, n, wedge stop, wedge diminuendo, n, wedge stop, n');
-      final second = score.markingsOf(score.ids).firstWhere((m) => m.at.time == Frac(2)).id;
-      final wedge = score.ids.firstWhere((id) => id != second && score.markingsOf([id]).firstOrNull?.id == second);
-      score.delete(all ? [second, wedge] : [wedge]);
-      expect(written(score), 'wedge crescendo, n, n, wedge stop, n, n', reason: all ? 'every id' : 'its own id');
-      score.undo();
-      // The first: the second is left whole.
-      final first = score.markingsOf(score.ids).firstWhere((m) => m.at.time == Frac.zero).id;
-      score.delete([first]);
-      expect(written(score), 'n, n, wedge diminuendo, n, wedge stop, n');
-    }
-
-    // Two slurs that meet on a note: the second taken off, the first still ends there.
-    final score = fresh();
-    final notes = [for (final e in score.eventsIn(0, 0, voice)) e.ids.single];
-    score.toggleSlur([notes[0], notes[1]]);
-    score.toggleSlur([notes[1], notes[2]]);
-    expect(written(score), 'n, slur start, n, slur stop, slur start, n, slur stop, n');
-    score.toggleSlur([notes[1], notes[2]]);
-    expect(written(score), 'n, slur start, n, slur stop, n, n');
-  });
-
-  test('chunks side by side draw what one engraving of the whole score does, each thing once', () async {
-    final score = EditableScore.parse(_fluteOf(12));
-    const voice = VoiceKey(1, '1');
-    var at = ScorePosition(0, voice, 0, Frac.zero);
-    for (var i = 0; i < 24; i++) {
-      at = score.input(at, [InputItem(const Rhythm(NoteType.half), [Pitch(i % 7, 4)])]);
-    }
-    List<String> idsIn(int m) => [for (final e in score.eventsIn(0, m, voice)) e.ids.first];
-    // Across the barline between bars 4 and 5, where chunks of two and of four bars both meet:
-    // a tie, a slur, a hairpin, a clef and a key and a time signature that change, a repeat
-    // that ends and one that starts; and a slur over bars 1 to 4, longer than a chunk of two.
-    score.input(ScorePosition(0, voice, 3, Frac(3)), [InputItem(const Rhythm(NoteType.half), [const Pitch(4, 4)])]);
-    score.toggleSlur([idsIn(3)[1], idsIn(4).last]);
-    score.addHairpin(ScorePosition(0, voice, 3, Frac.one), ScorePosition(0, voice, 4, Frac(3)), crescendo: true);
-    score.setClef(ScorePosition(0, voice, 4, Frac.zero), Clef.named('alto')!);
-    score.setKey(4, KeySig.parse('Eb')!);
-    score.setTime(4, TimeSig.parse('3/4')!);
-    score.setBarline(3, ':|:');
-    score.setEnding(2, 3, [1]);
-    score.setEnding(4, 5, [2]);
-    score.toggleSlur([idsIn(0).first, idsIn(3).first]);
-    final slur = RegExp(r'<slur[^>]*type="start"[^>]* id="(cxe\d+)"|<slur[^>]* id="(cxe\d+)"[^>]*type="start"').allMatches(score.chunk(3, 4).xml).map((m) => m.group(1) ?? m.group(2)!).first;
-
-    int drawn(EditChunk c) => [...c.list.staves, c.list.barlines].fold(0, (n, layer) => n + layer.items.where(c.owns).length);
-    final whole = await EditChunk.engrave(score, 0, 12);
-    expect((whole.lead, whole.trail), (0, 0));
-    for (final bars in [2, 4]) {
-      final chunks = [for (var from = 0; from < 12; from += bars) await EditChunk.engrave(score, from, from + bars)];
-      expect(chunks.fold(0, (n, c) => n + drawn(c)), drawn(whole), reason: 'chunks of $bars bars');
-      // The first of two bars is engraved with a third, where its slur ends.
-      expect(chunks.first.trail, bars == 2 ? 2 : 1);
-      // The slur over the barline is the chunk's it starts in, whole, and found on either side.
-      final galley = EditGalley(chunks, bars: bars);
-      final before = chunks[4 ~/ bars - 1], after = chunks[4 ~/ bars];
-      expect(before.outlines[slur], isNotNull);
-      expect(after.outlines[slur], isNull);
-      final seam = galley.barOf(4)!.left, bounds = galley.boundsOf(slur)!;
-      expect(bounds.left, lessThan(seam));
-      expect(bounds.right, greaterThan(seam));
-      expect(before.spill, greaterThan(0));
-      // Bars are where they are in the whole score, to a hair.
-      final one = EditGalley([whole]);
-      for (var m = 0; m < 12; m++) {
-        expect(galley.barOf(m)!.right - galley.barOf(m)!.left, closeTo(one.barOf(m)!.right - one.barOf(m)!.left, 1), reason: 'bar $m, chunks of $bars');
-        expect(galley.barOf(m)!.left, closeTo(one.barOf(m)!.left, 20), reason: 'bar $m, chunks of $bars');
-      }
-      expect(galley.timeAtX(galley.xOf(5, Frac(2))!), (measure: 5, time: Frac(2)));
-      for (final c in chunks) {
-        c.dispose();
-      }
-    }
-    whole.dispose();
-    expect([for (final staves in [1, 2, 4, 5, 8, 12, 21, 60]) EditChunk.barsFor(staves)], [6, 6, 6, 4, 3, 2, 2, 2]);
-  });
-
-  test('the score editor changes keys, time signatures and bars in every part of the demo', () async {
-    final score = EditableScore.parse(demoScore());
-    final bars = score.measureCount;
-    score.addBars(4, 2);
-    expect(score.measureCount, bars + 2);
-    expect(score.barNumber(5), '6');
-    score.deleteBars(4, 2);
-    expect(score.measureCount, bars);
-    score.setKey(8, KeySig.parse('D')!);
-    final clarinet = score.parts.indexWhere((p) => p.name.contains('B Flat'));
-    expect(score.keyAt(clarinet, 8, Frac.zero).fifths, 4); // E major, written for B♭
-    expect(score.keyAt(0, 8, Frac.zero).fifths, 2);
-    score.setTime(10, TimeSig.parse('3/4')!);
-    expect(score.barLength(10), Frac(3));
-    expect(score.setBarline(12, ':|'), isTrue);
-    score.toggleMark([score.eventsIn(0, 2, score.voicesIn(0, 2).first).first.ids.first], 'fermata');
-    // Bars 8–16 engrave with the bar before them and the one after, and say where their own are.
-    final chunk = await EditChunk.engrave(score, 8, 16);
-    expect((chunk.lead, chunk.trail), (1, 1));
-    expect(chunk.data.measures.length, 10);
-    expect(chunk.data.staves.length, greaterThanOrEqualTo(score.parts.length));
-    expect(chunk.left, chunk.data.measures.first.right);
-    expect(chunk.right, chunk.data.measures[8].right);
-    expect(chunk.measure(8), same(chunk.data.measures[1]));
-    expect(chunk.measure(16), isNull);
-    chunk.dispose();
-    score.undo();
-    // And what was written reads as a score again.
-    final again = EditableScore.parse(score.toMusicXML());
-    expect(again.measureCount, bars);
-    expect(again.barLength(10), Frac(3));
-  });
-
-  test('endings, segno, coda, D.C., D.S. and Fine play as ScoreForm reads them; rehearsal marks letter on; both are clicked as markings', () async {
-    final score = EditableScore.parse(_fluteOf(8));
-    List<int> played() => ScoreForm.fromDocument(XmlDocument.parse(score.toMusicXML())).playedOrder();
-    // Bars 1–2 repeated, a first ending over bar 2 and a second over bar 3; the repeat set after
-    // the first ending closes it.
-    score.setEnding(1, 1, EditableScore.endingNumbers('1.')!);
-    expect(score.setBarline(1, ':|'), isTrue);
-    score.setEnding(2, 2, EditableScore.endingNumbers('2')!);
-    expect(score.endings, [(from: 1, to: 1, number: '1'), (from: 2, to: 2, number: '2')]);
-    final xml = score.toMusicXML();
-    expect(xml, contains('<ending number="1" type="start">1.</ending>'));
-    expect(xml, contains('<ending number="1" type="stop"/><repeat direction="backward"/>'));
-    expect(xml, contains('<ending number="2" type="discontinue"/>'));
-    // A barline changed keeps the ending it holds; the same ending again takes it out.
-    score.setBarline(2, '||');
-    score.setBarline(2, '|');
-    expect(score.endings.length, 2);
-    score.setEnding(2, 2, [2]);
-    expect(score.endings.length, 1);
-    score.undo();
-    expect(played(), [0, 1, 0, 2, 3, 4, 5, 6, 7]);
-    // A segno at bar 4, Fine at the end of bar 6, D.S. al Fine at the end of bar 7.
-    score.addJump(3, EditableScore.jumpNamed('Segno')!);
-    score.addJump(5, EditableScore.jumpNamed('fine')!);
-    score.addJump(6, EditableScore.jumpNamed('D.S. al Fine')!);
-    expect(EditableScore.jumpNamed('ds al  fine'), 'dsalfine');
-    expect(EditableScore.jumpNamed('3'), isNull);
-    expect(played(), [0, 1, 0, 2, 3, 4, 5, 6, 3, 4, 5]);
-    // Rehearsal marks: the next offered after the last before, one there said again.
-    expect(score.nextRehearsal(2), 'A');
-    score.setRehearsal(0, 'A');
-    score.setRehearsal(3, score.nextRehearsal(3));
-    expect((score.rehearsalAt(3), score.nextRehearsal(7)), ('B', 'C'));
-    score.setRehearsal(3, 'Z');
-    expect((score.rehearsalAt(3), score.nextRehearsal(7)), ('Z', 'AA'));
-    expect(score.toMusicXML().split('<rehearsal>').length, 3);
-    // The segno is drawn by the editor's id, a rehearsal mark by its direction's: a click
-    // selects either, as a marking.
-    final xml8 = score.chunk(0, 8).xml;
-    final segno = RegExp(r'<segno id="(cxe\d+)"').firstMatch(xml8)!.group(1)!;
-    final mark = RegExp(r'<direction placement="above" id="(cxe\d+)"><direction-type><rehearsal>Z<').firstMatch(xml8)!.group(1)!;
-    expect(score.markingsOf([segno]).single.at.measure, 3);
-    expect(score.markingsOf([mark]).single.at.measure, 3);
-    final chunk = await EditChunk.engrave(score, 0, 8);
-    expect(chunk.outlines[segno], isNotNull);
-    expect(chunk.outlines[mark], isNotNull);
-    chunk.dispose();
-  });
-
-  test('grace notes go in before a note or a rest, beamed and spelled, stay before a note typed there, move, and go', () async {
-    final score = EditableScore.parse(_flute);
-    const voice = VoiceKey(1, '1');
-    final beat2 = ScorePosition(0, voice, 0, Frac.one);
-    int count(String pattern) => RegExp(pattern).allMatches(score.toMusicXML()).length;
-    // D5, then F♯5 with G5 on its chord, before beat 2 of the bar's rest (split there).
-    final d = score.addGrace(beat2, [const Pitch(1, 5)]);
-    final fSharp = score.addGrace(beat2, [const Pitch(3, 5, 1)]);
-    score.addGrace(beat2, [const Pitch(4, 5)], chord: true);
-    expect([...d, ...fSharp].every(score.isGrace), isTrue);
-    expect(score.isNote(d.single), isFalse);
-    expect(score.lastGraceAt(beat2), const Pitch(4, 5));
-    expect(count('<grace slash="yes"/>'), 3);
-    expect(count('<accidental>sharp</accidental>'), 1);
-    expect(count(r'<beam number="1">(begin|end)</beam>'), 2);
-    // A note typed over the rest has them before it; none inside a note.
-    score.input(beat2, [InputItem(const Rhythm(NoteType.quarter), [const Pitch(4, 5)])]);
-    expect(score.eventsIn(0, 0, voice)[1].pitches, [const Pitch(4, 5)]);
-    expect(count('<grace'), 3);
-    expect(score.addGrace(ScorePosition(0, voice, 0, Frac(3, 2)), [const Pitch(0, 5)]), isEmpty);
-    // Clicked by its own id.
-    final chunk = await EditChunk.engrave(score, 0, 2);
-    expect(chunk.outlines[d.single], isNotNull);
-    chunk.dispose();
-    // A step up; one deleted, the next of its chord standing for it.
-    score.transpose(d, steps: 1);
-    expect(count('<grace slash="yes"/><pitch><step>E</step><octave>5</octave>'), 1);
-    score.delete(fSharp);
-    expect((count('<grace'), count('<chord/>')), (2, 0));
   });
 }

@@ -1,7 +1,7 @@
 // What the Captions extension is put through, and what is written down of it: edits made at
 // random, subtitle files made at random, projects that are damaged, scores that are replaced.
 // The app's own captions were put through the same before the package took their place; what
-// they gave is the digests in captions_extension_test.dart.
+// they gave is the digests in ported_extensions_test.dart.
 import 'dart:convert';
 import 'dart:math';
 

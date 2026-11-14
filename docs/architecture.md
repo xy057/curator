@@ -199,7 +199,7 @@ commit, or the version's tag), beside Flutter's `assets/NOTICES` and the fonts' 
 fonts it carries (`WebExport.installedFonts`) are named in the dialog, theirs to allow publishing.
 The app's own licence window (Settings ▸ About ▸ Licenses) also has what pub can't list: Curator's
 own, the GPL every copy must carry (`app/assets/LICENSE.txt`, the repository's LICENSE, which
-about_page_test keeps the same), the bundled fonts' licences and those of the libraries shipped
+in_step_test keeps the same), the bundled fonts' licences and those of the libraries shipped
 compiled, Verovio and PDFium, each with the libraries built into it (`bundledLicenses` in
 main.dart; `packages/score_engine/assets/licenses/`, written by Tools/make_licenses.py, to run
 again when either is updated), and Basic Pitch's, Align's model
@@ -610,7 +610,7 @@ the caption dialog, `CaptionSettings`, and in the engine `parseSubtitles`, `writ
 `captionCues`, `captionsFromCues`, `separateCaptions`), they were put through 700 edits made at
 random, 300 subtitle files made at random, damaged projects and replaced scores, and what they
 gave was written down; the package gives the same to the letter (`test/captions_cases.dart`,
-the digests in `test/captions_extension_test.dart`), and the lane, the dialogs, the sheet and
+the digests in `test/ported_extensions_test.dart`), and the lane, the dialogs, the sheet and
 the settings were the same pixel for pixel.
 
 **A chapter names a stretch of the piece** (the Chapters extension, a package:
@@ -641,7 +641,7 @@ one named Start. A page carries them in its project (Export to Web's Chapters sw
 the extensions that give any, and their data): the player, which runs the same Lua, lists them
 at the top of its side panel, in the times of the recording heard, the one sounding marked, a
 tap jumping there. Replace Score carries each to its place (`project.replaced`), saying those
-past the end as lost. `test/chapters_extension_test.dart` holds the package to what the
+past the end as lost. `test/ported_extensions_test.dart` holds the package to what the
 chapters written in the app did, edit for edit.
 
 **A key area colours the top of the score** (the Tonality extension, a package:
@@ -702,7 +702,7 @@ with no notes (a PDF's skeleton) gets its key signatures' keys, major unless the
 What it finds replaces the areas there are, an area from each change to the next, one Undo step,
 an area found where one was (the same start, end and key) keeping its marking. Replace Score
 carries each area's start and end to their places (`project.replaced`), saying those past the
-end as lost. `test/tonality_extension_test.dart` holds the package to what the key areas written
+end as lost. `test/ported_extensions_test.dart` holds the package to what the key areas written
 in the app did: 600 edits at random (the project's file, the selection, the lane, the band and
 its colours to the last bit), what Find Keys hears in sixty scores made at random, what a
 damaged project says and what Replace Score keeps, each kept as a digest of what the app's own
@@ -1845,10 +1845,14 @@ download (GitHub only, into Downloads).
 
 **Tests run on the demo.** Every test uses `app/assets/demo/WI275 - 01 Intro.ccs` (a 44-bar
 6/8 orchestral intro with its recording and curation), so a fresh clone runs them all.
-The suite is kept small: a test or two per feature, on its main path (engine parts and the
-engraving, scroll map, phrase search, auto-curate, video frame, tapping, takes and tempo maps,
-Align, curation, save and open, safe save, older formats, Undo, the updater's URLs, the app's folders and downloads, web export,
-the app's screens, the accessibility tree, the translations); add one only for a core path none of them covers. `Samples/` is for trying things by hand only. A test's tap that something
+The suite is kept to 25 tests at most, `make smoke`'s among them: one per area, on its main path, what else
+there is of the area folded into it as sections. The engine's: the engraving (parts, scroll map, phrase search,
+video frame), curation (regions, auto-curate), tapping, takes and tempo maps, Align, the score editor, PDF import,
+LilyPond's engraving, Lua, extensions. The app's: save and open (safe save, recordings), older formats, Undo, the
+updater's URLs, the app's folders and downloads, web export, the app's screens, the accessibility tree, what is
+kept in step (the translations, docs/extension-api.md, the licence), extensions in a project, the ported
+extensions' digests, remote AI's client, the score editor, a LilyPond project, the shortcuts' keys. A new check
+goes into its area's test; a new test only for an area none covers, within the 25. `Samples/` is for trying things by hand only. A test's tap that something
 else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app as built
 (opening a window): what only a bundle has, its native library and resources, is checked there.
 
@@ -1998,7 +2002,7 @@ on Windows wherever the registry says that folder now is): it never replaces the
   so switching stays instant. One without an entry shows the English (a debug run prints it).
   A new `.tr` / `.fill` text goes into every file with `make l10n` (`tool/l10n.dart`; text
   translated other than as a literal, an enum's label, is added to curator.pot by hand), and needs
-  its Simplified and Traditional Chinese, with the same placeholders (`test/l10n_test.dart`
+  its Simplified and Traditional Chinese, with the same placeholders (`test/in_step_test.dart`
   checks); a language Crowdin adds may be partly translated. A new language is an `AppLanguage`
   with its locale, and its file. Material's own strings come from `GlobalMaterialLocalizations` (material_ui's).
 - **Something a project saves**: a field of `EditState` (with its `==` and `copyWith`),

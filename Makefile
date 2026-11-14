@@ -61,12 +61,12 @@ web-player: setup
 
 # The interface's text: new `.tr` / `.fill` texts into the template Crowdin translates from
 # (app/assets/l10n/curator.pot), and every language's file in step with it (tool/l10n.dart;
-# docs/translating.md). test/l10n_test.dart fails until it has been run.
+# docs/translating.md). test/in_step_test.dart fails until it has been run.
 l10n:
 	cd app && dart run tool/l10n.dart
 
 # docs/extension-api.md: the extension editor's guide (app/assets/help/extensions.md) and the
-# reference of the API, from ExtensionApi. test/extension_docs_test.dart fails until it has been run.
+# reference of the API, from ExtensionApi. test/in_step_test.dart fails until it has been run.
 extension-docs:
 	cd app && dart run tool/extension_docs.dart
 
