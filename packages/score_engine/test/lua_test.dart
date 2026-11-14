@@ -193,6 +193,8 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
         local ok4, e4 = xpcall(function() error("x", 0) end, function(m) return "handled " .. m end)
         return ok, e, ok2, e2.code, ok3, a, b, ok4, e4, select("#", pcall(error))
       '''), ['false', "test.lua:1: attempt to index a nil value (local 't')", 'false', '7', 'true', '1', '2', 'false', 'handled x', '2']);
+      // A handler that fails itself is the call's failing: xpcall still answers, as Lua's does.
+      expect(run('return xpcall(function() error("a", 0) end, function(m) error("b", 0) end)'), ['false', 'error in error handling']);
       // An error knows its file and line, and the calls it came through.
       try {
         run('local function inner()\n  error("bad")\nend\nlocal function outer()\n  inner()\nend\nouter()');

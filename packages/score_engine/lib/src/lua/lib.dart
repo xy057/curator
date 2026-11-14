@@ -67,18 +67,30 @@ void _openBase(Lua lua) {
   });
   def('xpcall', (a) {
     final handler = a.function(1, 'xpcall'), depth = lua._depth;
+    // What the handler makes of the error; an error of its own is the call's failing, as Lua
+    // has it, not one that goes on past the call.
+    List<Object?> handled(Object? error) {
+      lua._depth = depth;
+      try {
+        return [false, ...handler.call([error])];
+      } on LuaLimit {
+        rethrow;
+      } on LuaError {
+        lua._depth = depth;
+        return [false, 'error in error handling'];
+      }
+    }
+
     try {
       return [true, ...callValue(a[0], a.sublist(2))];
     } on LuaLimit {
       rethrow;
     } on LuaError catch (e) {
-      lua._depth = depth;
-      return [false, ...handler.call([e.value])];
+      return handled(e.value);
     } on StackOverflowError {
       throw LuaLimit('stack overflow (a function calls itself without end?)');
     } catch (e) {
-      lua._depth = depth;
-      return [false, ...handler.call(['$e'])];
+      return handled('$e');
     }
   });
   def('select', (a) {
