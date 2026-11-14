@@ -42,6 +42,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `extension/package.dart` | `ExtensionPackage`: a `.cpe` (a zip: extension.json, connect.json, src/*.lua, locales/, assets/), read as it is and written back as it was, and its connector (`ConnectorGraph`: Curator's sockets as nodes, wired to functions of its files) |
 | `extension/runtime.dart` | `ExtensionRuntime`: one extension running over an `ExtensionHost` (the project and app it stands on): its files as modules, its wires called (`fire`, `ask`, `invoke`), what goes wrong listed, and the `curator`, `score` and `text` libraries its Lua gets |
 | `extension/api.dart` | `ExtensionApi`: every socket and function of the extension API with what it does and the level it came with; it only grows. `curator.has`, the extension editor's reference and docs are made from it |
+| `extension/check.dart` | `checkExtension`: what is wrong with a package as written, found without running it (a file that doesn't read, a wire to nothing; what a later Curator may know is a warning) |
 | `extension/lua_json.dart`, `extension/markers.dart` | Lua values to JSON and back (`LuaJson`); markers in time (`markerSpans`: what a markers lane draws, `score.spans`) |
 | `score_tonality.dart` | Tonality: a key (`MusicKey`: its tonic on the line of fifths, major or minor; its name and its colour), key areas (`KeyArea`: a stretch of the score in a key; `tidyKeyAreas`, one over others cutting them back), a score's key signatures at concert pitch (`concertKeySignatures`) and Find Keys (`findKeys`) |
 | `subtitles.dart` | Captions as subtitles: SRT and WebVTT read (`parseSubtitles`) and written (`writeSubtitles`), placed in the score (`captionsFromCues`) and timed from it (`captionCues`) |
@@ -71,6 +72,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `extensions/bundled.dart` | `BundledExtensions`: Curator's own extensions that are packages, folders under `assets/extensions/<id>/` read as the app starts |
 | `extensions/extension_reader.dart` | Extensions run to read: `ReadingHost`, `ExtensionReaders` (what a video and a page get: chapters), a project's data checked as it opens (`checkedExtensionData`) and carried to a replacing score (`carriedExtensionData`) |
 | `extensions/extension_lane.dart`, `extensions/extension_form.dart` | What the app draws for an extension: its lane (`ExtensionLane`, markers each running to the next, with its commands as buttons) and the dialog `ui.form` asks for |
+| `extensions/extension_editor.dart`, `extensions/connector_view.dart`, `lua_language.dart` | The extension editor (`showExtensionEditor`: Project Settings ▸ Extensions ▸ New Extension, or an extension's menu ▸ Edit…; Curator's own open to read): a package's files beside its connector as a picture (`ConnectorView`: sockets as nodes, files with their functions, a port dragged onto a function wires it, onto a file writes the function), its Lua in a `CodeView` (coloured a line at a time, `luaCode`, `luaTokens`; the API offered as it is typed, `LuaPrompts`), About and README, the reference beside it (`ExtensionReference`, from `ExtensionApi`; a click writes it in) and the guide (`assets/help/extensions.md`), what is wrong listed under it (`checkExtension`, then what running it said), Run (⌘R) |
+| `extensions/extension_actions.dart` | What Project Settings ▸ Extensions does with a package (`ExtensionActions`: new, from a `.cpe`, edit, duplicate, export; `ExtensionMenu`) |
 | `extensions/extensions_dialog.dart` | On opening a project that uses extensions that are off: a switch for each |
 | `caption_lane.dart`, `captions_dialog.dart` | Captions: the lane pinned under the bar ruler, and the sheet that edits every caption (double-click the lane) |
 | `tonality_lane.dart` | Tonality: the lane pinned under the bar ruler, a `SpanLane` of the key areas, each in its key's colour, with add, Find Keys and remove buttons |
@@ -1908,6 +1911,13 @@ on Windows wherever the registry says that folder now is): it never replaces the
     `math.round` are Dart's own, so a port from Dart stays exact.
   - A port (an extension once written in the app) is held to the old code by a test before
     the old code goes: every edit compared, then kept as a digest.
+  - The API is written once, in `ExtensionApi`: the editor's reference and prompts, `curator.has`
+    and `docs/extension-api.md` (the editor's guide, `assets/help/extensions.md`, then the
+    reference; `make extension-docs`, which a test holds it to) all come from it. A new socket
+    or function is added there with its summary, and to the guide when it changes how one is
+    written.
+  - A package made in the app has a `user.<name>` id (`ExtensionActions.idFor`); editing one
+    replaces it in the project (`ProjectState.packages`) and starts it again, its data kept.
   **Chapters** is the first package; **Attach Image**, **Captions** and **Tonality** are still
   written in the app (`extensions/built_in.dart`), behind `images.enabled` /
   `captions.enabled` / `tonality.enabled`.

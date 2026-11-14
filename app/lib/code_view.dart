@@ -31,7 +31,11 @@ class CodeView extends StatelessWidget {
     required this.prompts,
     this.kindOf,
     this.folds,
+    this.readOnly = false,
   });
+
+  /// Whether the code is only read (one of Curator's own extensions).
+  final bool readOnly;
 
   final CodeLineEditingController controller;
   final CodeFindController findController;
@@ -52,6 +56,7 @@ class CodeView extends StatelessWidget {
         controller: controller,
         findController: findController,
         focusNode: focusNode,
+        readOnly: readOnly,
         chunkAnalyzer: folds,
         wordWrap: false,
         padding: const EdgeInsets.fromLTRB(4, 8, 12, 8),

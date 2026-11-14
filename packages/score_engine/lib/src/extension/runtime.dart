@@ -12,8 +12,11 @@ import 'package.dart';
 /// leads nowhere. [file] and [line] say where when it is known; [where] which socket was
 /// calling ("lane.items").
 class ExtensionProblem {
-  const ExtensionProblem(this.extension, this.message, {this.file, this.line, this.trace = const [], this.where});
+  const ExtensionProblem(this.extension, this.message, {this.file, this.line, this.trace = const [], this.where, this.warning = false});
   final String extension, message;
+
+  /// Whether it stops nothing: something a later Curator may know, kept and unused here.
+  final bool warning;
   final String? file, where;
   final int? line;
   final List<String> trace;

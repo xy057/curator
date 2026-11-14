@@ -20,6 +20,7 @@ import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'engraving_settings.dart';
 import 'extensions/extension.dart';
+import 'extensions/extension_actions.dart';
 import 'export_dialog.dart' show revealInFileManager;
 import 'file_names.dart';
 import 'font_settings.dart';
@@ -162,14 +163,13 @@ class _Item {
 
 class _Category {
   const _Category(this.label, this.icon, this.items,
-      {this.empty, this.page, this.preview = false, this.saveDefault, this.title, this.dense = false, this.buttons})
+      {this.page, this.preview = false, this.saveDefault, this.title, this.dense = false, this.buttons})
       : tabs = null;
 
   /// One sidebar entry for several pages, chosen by a switch under its title; each can open in a
   /// window of its own ([_EngravingWindow]). Its items, every tab's, answer the search.
   _Category.tabbed(this.label, this.icon, List<_Category> this.tabs)
       : items = [for (final t in tabs) ...t.items],
-        empty = null,
         page = null,
         preview = false,
         saveDefault = null,
@@ -191,9 +191,6 @@ class _Category {
 
   /// A page of its own in place of the rows of [items], which then only answer the search.
   final Widget Function(_Context)? page;
-
-  /// Shown in place of the items while there are none.
-  final String? empty;
 
   /// Its rows slimmer: many, each of a name and its control (Shortcuts).
   final bool dense;
@@ -595,20 +592,27 @@ final _projectCategories = <_Category>[
   // First-party components that are not part of the main work (import, curate, sync, export):
   // lower priority, each one optional, off by default. Each is a switch for this project only
   // (an Undo step, no app-wide default); what it adds works only while it is on.
-  _Category('Extensions', AppIcon.extensions, [
-    for (final e in Extensions.all)
-      _Item(
-        e.label,
-        (_) => e.summary,
-        (c) => Row(mainAxisSize: MainAxisSize.min, children: [
-          _ExtensionSettingsButton(e, c.settings),
-          const SizedBox(width: 6),
-          AppSwitch(value: e.isOn(c.controller!), onChanged: (v) => e.set(c.controller!, v)),
-        ]),
-        note: e.version,
-        keywords: '${e.keywords} extension',
+  _Category(
+    'Extensions',
+    AppIcon.extensions,
+    page: (c) => _ExtensionsPage(c),
+    buttons: (c) => [
+      Builder(
+        builder: (context) =>
+            _HeaderIcon(tooltip: 'New Extension'.tr, icon: AppIcon.add, onPressed: () => ExtensionActions.create(context, c.controller!)),
       ),
-  ], empty: 'No extensions yet.'),
+      Builder(
+        builder: (context) => _HeaderIcon(
+            tooltip: 'Add Extension from File'.tr, icon: AppIcon.open, onPressed: () => ExtensionActions.addFromFile(context, c.controller!)),
+      ),
+    ],
+    [
+      // The search's: Curator's own (the page lists the project's too).
+      for (final e in Extensions.all)
+        _Item(e.label, (_) => e.summary, (c) => AppSwitch(value: e.isOn(c.controller!), onChanged: (v) => e.set(c.controller!, v)),
+            note: e.version, keywords: '${e.keywords} extension package cpe lua plugin add new edit'),
+    ],
+  ),
   // Fixes for how other programs write their files, on by default; a switch to turn one off.
   _Category('Flags', AppIcon.flags, [
     _Item(
@@ -1349,7 +1353,7 @@ Widget _pageBody(BuildContext context, _Category cat, _Context ctx,
     if (groups.isEmpty || groups.last.$1 != item.group) groups.add((item.group, []));
     groups.last.$2.add(_rowOf(item, ctx, dense: cat.dense));
   }
-  final rows = _Page(key: rowsKey, empty: cat.empty, groups: groups);
+  final rows = _Page(key: rowsKey, groups: groups);
   if (!cat.preview && above == null) return KeyedSubtree(key: key, child: rows);
   final colors = context.colors;
   final preview = cat.preview && ctx.settings.engravingPreview;
@@ -2332,6 +2336,38 @@ class _LilyPondControl extends StatelessWidget {
       _ => FilledButton(onPressed: installer.install, child: Text('Download'.tr)),
     };
     return AnimatedSwitcher(duration: motion(context, 120), child: control);
+  }
+}
+
+/// Project Settings ▸ Extensions: Curator's own, then the ones the project carries, each with
+/// its switch (this project's), its settings (one written in the app) or its menu (a package:
+/// Edit…, Duplicate, Export…, Remove). New and Add from File are by the page's title.
+class _ExtensionsPage extends StatelessWidget {
+  const _ExtensionsPage(this.c);
+  final _Context c;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = c.controller!;
+    final all = Extensions.of(controller);
+    _SettingRow row(CuratorExtension e) => _SettingRow(
+          key: ValueKey(e.id),
+          title: e.label,
+          named: e.origin == ExtensionOrigin.thirdParty, // its maker's name for it
+          note: e.version,
+          help: e.summary.isEmpty ? null : e.summary,
+          control: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (e is PackageExtension) ExtensionMenu(controller: controller, extension: e) else _ExtensionSettingsButton(e, c.settings),
+            const SizedBox(width: 6),
+            AppSwitch(value: e.isOn(controller), onChanged: (v) => e.set(controller, v)),
+          ]),
+        );
+    final own = [for (final e in all) if (e.origin == ExtensionOrigin.builtIn) row(e)];
+    final carried = [for (final e in all) if (e.origin == ExtensionOrigin.thirdParty) row(e)];
+    return _Page(groups: [
+      (null, own),
+      if (carried.isNotEmpty) ('In This Project', carried),
+    ]);
   }
 }
 

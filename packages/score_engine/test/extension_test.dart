@@ -186,6 +186,51 @@ void main() {
     expect(() => runtime.run('error("no", 0)'), throwsA(isA<LuaError>().having((e) => e.message, 'message', 'no')));
   });
 
+  test('What is wrong with an extension as written is found without running it', () {
+    String said(ExtensionPackage p) => [for (final x in checkExtension(p)) '${x.warning ? 'warning' : 'error'} ${x.file}${x.line == null ? '' : ':${x.line}'} ${x.message}'].join('\n');
+    // As it should be: only the node of a later Curator's is said, as a warning.
+    final fine = said(package(wires: [
+      ['project.opened', 'main.lua#opened'],
+    ]));
+    expect(fine, 'warning connect.json This Curator has no “from-the-future” socket (hologram).');
+
+    final broken = said(package(sources: {
+      'main.lua': 'local M = {}\nfunction M.items() return {} end\nM.made = function() end\nreturn M\n',
+      'bad.lua': 'local x = 1\nlocal y = = 2\n',
+    }, wires: [
+      ['lane.items', 'main.lua#items'],
+      ['lane.add', 'main.lua#made'],
+      ['lane.open', 'main.lua#nowhere'],
+      ['lane.fly', 'main.lua#items'],
+      ['ghost.run', 'main.lua#items'],
+      ['project.opened', 'gone.lua#opened'],
+      ['project.changed', 'bad.lua#changed'],
+    ]));
+    expect(broken, contains('error bad.lua:2 '));
+    expect(broken, contains('error main.lua main.lua has no function nowhere (wired to lane.open).'));
+    expect(broken, isNot(contains('function made')), reason: 'a function made another way is in the file');
+    expect(broken, contains('warning connect.json A “lane” socket has no port fly here (lane.fly).'));
+    expect(broken, contains('error connect.json ghost.run is wired, but there is no node ghost.'));
+    expect(broken, contains('error connect.json project.opened is wired to gone.lua, which isn’t in the extension.'));
+    expect(broken, isNot(contains('changed')), reason: 'a file that doesn’t read says so once');
+
+    // A second project socket, and a later API level.
+    final p = package();
+    final twice = ExtensionPackage(
+      manifest: {...p.manifest, 'api': ExtensionApi.level + 1},
+      graph: ConnectorGraph.fromJson({
+        'nodes': [
+          {'id': 'project', 'type': 'project', 'at': [0, 0]},
+          {'id': 'again', 'type': 'project', 'at': [0, 0]},
+        ],
+        'wires': const [],
+      }),
+      sources: p.sources,
+    );
+    expect(said(twice), 'warning extension.json It needs API level ${ExtensionApi.level + 1}; this Curator has ${ExtensionApi.level}.\n'
+        'error connect.json An extension has one “project” socket (again is a second).');
+  });
+
   test('Every socket and function of the API says what it is', () {
     for (final s in ExtensionApi.sockets) {
       expect(s.summary, isNotEmpty, reason: s.type);

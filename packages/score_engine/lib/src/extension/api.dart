@@ -142,6 +142,43 @@ abstract final class ExtensionApi {
     ]),
   ];
 
+  /// The whole API as Markdown: every socket with its ports and properties, every library with
+  /// its functions. docs/extension-api.md is the guide followed by this.
+  static String reference() {
+    final out = StringBuffer('## Sockets\n');
+    String since(int level) => level > 1 ? ' *(API $level)*' : '';
+    for (final s in sockets) {
+      out.writeln('\n### ${s.title} (`${s.type}`)${since(s.since)}\n\n${s.summary}${s.single ? ' An extension has one.' : ''}');
+      if (s.ports.isNotEmpty) out.writeln('\nPorts:\n');
+      for (final p in s.ports) {
+        out.writeln('- `${p.signature}`${since(p.since)}: ${p.summary}');
+      }
+      if (s.props.isNotEmpty) out.writeln('\nProperties (set on the node in connect.json):\n');
+      for (final p in s.props) {
+        final kind = switch (p.type) {
+          ApiPropType.choice => p.choices.map((c) => '`"$c"`').join(' or '),
+          ApiPropType.node => 'the id of a ${p.choices.join(' or ')} node',
+          ApiPropType.icon => 'an icon’s name',
+          final t => t.name,
+        };
+        out.writeln('- `${p.name}` ($kind${p.fallback == null ? '' : ', default `${p.fallback}`'})${since(p.since)}: ${p.summary}');
+      }
+    }
+    out.writeln('\nIcons: ${icons.map((i) => '`$i`').join(', ')}.');
+    out.writeln('\n## Libraries');
+    for (final l in libraries) {
+      out.writeln('\n### `${l.name}`\n\n${l.summary}\n');
+      for (final f in l.functions) {
+        out.writeln('- `${f.signature}`${since(f.since)}: ${f.summary}');
+        if (f.example case final example?) out.writeln('\n  ```lua\n${example.split('\n').map((line) => '  $line').join('\n')}\n  ```\n');
+      }
+      for (final (name, summary) in l.values) {
+        out.writeln('- `${l.name}.$name`: $summary');
+      }
+    }
+    return out.toString();
+  }
+
   /// What Curator's Lua has beyond Lua 5.4's own libraries (string, table, math, utf8, os.time,
   /// os.clock and os.date).
   static const libraries = <ApiLibrary>[

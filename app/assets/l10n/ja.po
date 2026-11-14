@@ -84,6 +84,7 @@ msgstr "プロジェクト、または MusicXML、PDF、LilyPond の楽譜"
 msgid "A tempo map starts at quarter 0."
 msgstr "テンポマップは 4 分音符 0 から始まります。"
 
+#: lib/extensions/extension_editor.dart
 msgid "About"
 msgstr "情報"
 
@@ -230,7 +231,7 @@ msgstr "アクセントカラー"
 msgid "Accidentals"
 msgstr "臨時記号"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/chapters/src/lane.lua
 msgid "Add"
 msgstr "追加"
 
@@ -528,7 +529,7 @@ msgstr "{bars}までの休符をつなぐ"
 msgid "c if a < b, else d"
 msgstr "a < b なら c、そうでなければ d"
 
-#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_form.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/captions_dialog.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "キャンセル"
 
@@ -621,7 +622,7 @@ msgstr "音部記号"
 msgid "Clefs"
 msgstr "音部記号"
 
-#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "閉じる"
 
@@ -841,7 +842,7 @@ msgstr "破線の長さ"
 msgid "Default"
 msgstr "デフォルト"
 
-#: lib/ai_settings.dart lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart lib/extensions/extension_editor.dart
 msgid "Delete"
 msgstr "削除"
 
@@ -860,7 +861,7 @@ msgstr "選択解除（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先に「{name}」への変更を保存しますか？"
 
-#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/captions_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/settings_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完了"
 
@@ -943,7 +944,7 @@ msgstr "字幕を編集…"
 msgid "Edit Spacer…"
 msgstr "スペーサーを編集…"
 
-#: lib/lilypond_dialog.dart lib/settings_dialog.dart
+#: lib/extensions/extension_actions.dart lib/lilypond_dialog.dart lib/settings_dialog.dart
 msgid "Edit…"
 msgstr "編集…"
 
@@ -1030,7 +1031,7 @@ msgstr "「{name}」を書き出しました"
 msgid "Exporting Video…"
 msgstr "ビデオを書き出し中…"
 
-#: lib/captions_dialog.dart lib/export_dialog.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/captions_dialog.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart
 msgid "Export…"
 msgstr "書き出す…"
 
@@ -1062,7 +1063,7 @@ msgstr "フェードアウトのカーブ"
 msgid "Fermatas"
 msgstr "フェルマータ"
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/extensions/extension_editor.dart
 msgid "File"
 msgstr "ファイル"
 
@@ -1197,7 +1198,7 @@ msgstr "2 分音符（7）"
 msgid "Height (staff spaces)"
 msgstr "高さ（譜線間隔）"
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/extensions/extension_editor.dart
 msgid "Help"
 msgstr "ヘルプ"
 
@@ -1414,7 +1415,7 @@ msgstr "音楽フォント"
 msgid "Music symbols"
 msgstr "音楽記号"
 
-#: lib/ai_settings.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart assets/extensions/chapters/src/lane.lua
 msgid "Name"
 msgstr "名前"
 
@@ -1544,7 +1545,7 @@ msgstr "オクターブ記号"
 msgid "Off"
 msgstr "オフ"
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "OK"
 
@@ -1721,7 +1722,7 @@ msgstr "録音"
 msgid "Redo"
 msgstr "やり直す"
 
-#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr "やり直す（{key}）"
 
@@ -1746,7 +1747,7 @@ msgstr "リハーサルマーク"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小節番号の行にリハーサルマーク"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/captions_dialog.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/chapters/src/lane.lua
 msgid "Remove"
 msgstr "削除"
 
@@ -1790,7 +1791,7 @@ msgstr "未使用を削除"
 msgid "Removed: {names}"
 msgstr "削除：{names}"
 
-#: lib/edit_dialogs.dart
+#: lib/edit_dialogs.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart
 msgid "Rename"
 msgstr "名前を変更"
 
@@ -1812,7 +1813,7 @@ msgstr "{name} の名前を変更…"
 msgid "Renamed: {from} → {to}"
 msgstr "名前を変更：{from} → {to}"
 
-#: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/settings_dialog.dart lib/take_lanes.dart
+#: lib/extensions/extension_editor.dart lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/settings_dialog.dart lib/take_lanes.dart
 msgid "Rename…"
 msgstr "名前を変更…"
 
@@ -1947,7 +1948,7 @@ msgstr "音楽についてくる楽譜。"
 msgid "Scrolling"
 msgstr "スクロール"
 
-#: lib/settings_dialog.dart
+#: lib/extensions/extension_editor.dart lib/settings_dialog.dart
 msgid "Search"
 msgstr "検索"
 
@@ -2506,7 +2507,7 @@ msgstr "t = 0 または 1 で定義されていません。"
 msgid "Undo"
 msgstr "取り消す"
 
-#: lib/editor_toolbar.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr "取り消す（{key}）"
 
@@ -2585,6 +2586,7 @@ msgstr "ほかのプロジェクトにも使う"
 msgid "UTF-16 MusicXML is not supported yet; save the file as UTF-8."
 msgstr "UTF-16 の MusicXML にはまだ対応していません。ファイルを UTF-8 で保存してください。"
 
+#: lib/extensions/extension_editor.dart
 msgid "Version"
 msgstr "バージョン"
 
@@ -2638,7 +2640,7 @@ msgstr "アンカーがまだないときのみ。"
 msgid "WebM video"
 msgstr "WebM ビデオ"
 
-#: lib/settings_dialog.dart
+#: lib/extensions/extension_editor.dart lib/settings_dialog.dart
 msgid "Website"
 msgstr "Web サイト"
 
@@ -2856,11 +2858,11 @@ msgstr "和音（Q）"
 msgid "Couldn’t Edit Score"
 msgstr "楽譜を編集できませんでした"
 
-#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard"
 msgstr "破棄"
 
-#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr "変更を破棄しますか？"
 
@@ -2883,7 +2885,7 @@ msgstr "2 分音符"
 msgid "Holds"
 msgstr "延長と停止"
 
-#: lib/captions_dialog.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/captions_dialog.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr "編集を続ける"
 
@@ -3234,6 +3236,7 @@ msgstr "楽器のない譜表が {n} 個"
 msgid "Show Next"
 msgstr "次を表示"
 
+#: lib/extensions/extension_editor.dart
 msgid "Summary"
 msgstr "概要"
 
@@ -3267,7 +3270,7 @@ msgstr "テンポ記号"
 msgid "Staves without an instrument"
 msgstr "楽器のない譜表"
 
-#: lib/pdf_import.dart
+#: lib/extensions/extension_actions.dart lib/pdf_import.dart
 msgid "More"
 msgstr "その他"
 
@@ -3938,7 +3941,7 @@ msgstr "浄書するものがありません。"
 msgid "Couldn’t Import LilyPond Score"
 msgstr "LilyPond の楽譜を読み込めませんでした"
 
-#: lib/lilypond_editor.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/score_editor.dart
 msgid "Find ({key})"
 msgstr "検索（{key}）"
 
@@ -4676,3 +4679,156 @@ msgstr "リリースノートはありません。"
 #: lib/editor/extension_editing.dart
 msgid "{name} needs a newer Curator."
 msgstr "{name} には新しいバージョンの Curator が必要です。"
+
+#: lib/extensions/connector_view.dart
+msgid "Add Socket"
+msgstr "ソケットを追加"
+
+#: lib/extensions/connector_view.dart
+msgid "Remove Socket"
+msgstr "ソケットを削除"
+
+#: lib/extensions/extension_actions.dart lib/settings_dialog.dart
+msgid "New Extension"
+msgstr "新規拡張機能"
+
+#: lib/extensions/extension_actions.dart
+msgid "Create"
+msgstr "作成"
+
+#: lib/extensions/extension_actions.dart
+msgid "Couldn’t Add the Extension"
+msgstr "拡張機能を追加できませんでした"
+
+#: lib/extensions/extension_actions.dart
+msgid "Couldn’t Save the Extension"
+msgstr "拡張機能を保存できませんでした"
+
+#: lib/extensions/extension_actions.dart
+msgid "{name} Copy"
+msgstr "{name} のコピー"
+
+#: lib/extensions/extension_actions.dart
+msgid "Duplicate"
+msgstr "複製"
+
+#: lib/extensions/extension_editor.dart
+msgid "The extension stays as it was."
+msgstr "拡張機能は元のままです。"
+
+#: lib/extensions/extension_editor.dart
+msgid "Reference"
+msgstr "リファレンス"
+
+#: lib/extensions/extension_editor.dart
+msgid "Run ({key})"
+msgstr "実行（{key}）"
+
+#: lib/extensions/extension_editor.dart
+msgid "Run"
+msgstr "実行"
+
+#: lib/extensions/extension_editor.dart
+msgid "Connector"
+msgstr "コネクタ"
+
+#: lib/extensions/extension_editor.dart
+msgctxt "lua"
+msgid "keyword"
+msgstr "キーワード"
+
+#: lib/extensions/extension_editor.dart
+msgctxt "lua"
+msgid "function"
+msgstr "関数"
+
+#: lib/extensions/extension_editor.dart
+msgctxt "lua"
+msgid "library"
+msgstr "ライブラリ"
+
+#: lib/extensions/extension_editor.dart
+msgctxt "lua"
+msgid "value"
+msgstr "値"
+
+#: lib/extensions/extension_editor.dart
+msgid "API level"
+msgstr "API レベル"
+
+#: lib/extensions/extension_editor.dart
+msgid "Data version"
+msgstr "データバージョン"
+
+#: lib/extensions/extension_editor.dart
+msgid "No results"
+msgstr "結果なし"
+
+#: lib/extensions/connector_view.dart
+msgid "Unwire"
+msgstr "接続を解除"
+
+#: lib/extensions/connector_view.dart
+msgid "Letters, digits and _, starting with a letter"
+msgstr "英字、数字、_（先頭は英字）"
+
+#: lib/extensions/connector_view.dart
+msgid "Another socket has this name"
+msgstr "この名前のソケットがすでにあります"
+
+#: lib/extensions/extension_actions.dart
+msgid "View…"
+msgstr "表示…"
+
+#: lib/extensions/extension_editor.dart
+msgid "Use letters, digits and _, ending in .lua"
+msgstr "英字、数字、_ を使い、.lua で終わる名前にします"
+
+#: lib/extensions/extension_editor.dart
+msgid "Another file has this name"
+msgstr "この名前のファイルがすでにあります"
+
+#: lib/extensions/extension_editor.dart
+msgid "New File"
+msgstr "新規ファイル"
+
+#: lib/extensions/extension_editor.dart
+msgid "Rename File"
+msgstr "ファイル名を変更"
+
+#: lib/extensions/extension_editor.dart
+msgid "Extension"
+msgstr "拡張機能"
+
+#: lib/extensions/extension_editor.dart
+msgid "Edit Extension"
+msgstr "拡張機能を編集"
+
+#: lib/extensions/extension_editor.dart
+msgctxt "heading"
+msgid "Files"
+msgstr "ファイル"
+
+#: lib/extensions/extension_editor.dart
+msgid "ID"
+msgstr "ID"
+
+#: lib/extensions/extension_editor.dart
+msgid "Like com.example.notes: lower-case, with a dot"
+msgstr "com.example.notes のように、小文字でドットを含めます"
+
+#: lib/extensions/extension_editor.dart
+msgid "Author"
+msgstr "作者"
+
+#: lib/extensions/extension_editor.dart
+msgid "Search Words"
+msgstr "検索キーワード"
+
+#: lib/settings_dialog.dart
+msgid "Add Extension from File"
+msgstr "ファイルから拡張機能を追加"
+
+msgctxt "heading"
+msgid "In This Project"
+msgstr "このプロジェクト内"
