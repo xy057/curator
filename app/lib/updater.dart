@@ -9,10 +9,10 @@ import 'l10n/l10n.dart';
 /// This build's version: `version` in pubspec.yaml without the build number (`make versions`
 /// checks they agree; `make check` and the Release workflow run it). The Release workflow tags
 /// each release `v` + this.
-const appVersion = '0.8.0';
+const appVersion = '0.9.0';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
-const appBuild = 377;
+const appBuild = 378;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
