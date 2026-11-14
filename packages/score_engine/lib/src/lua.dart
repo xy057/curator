@@ -6,7 +6,9 @@
 /// numbers are one kind (3 / 1 is 3, as in Lua 5.1), a string is text (its length counts UTF-16
 /// units, not bytes), bitwise operators work on 32 bits, and there are no coroutines and no
 /// `<close>` variables. A script is stopped past a number of steps ([Lua.steps]), past a depth
-/// of calls and past a size of string or list, by a [LuaLimit] that `pcall` doesn't catch.
+/// of calls and past a size of string or list, by a [LuaLimit] that `pcall` doesn't catch. A
+/// string or a list made takes steps by its length ([Lua.spend]), however it is made, so the
+/// steps bound what a script can hold as well as how long it runs.
 library;
 
 import 'dart:math' as math;
@@ -204,6 +206,37 @@ final class Lua {
     if (v is LuaTable) return v.metatable?.field(event);
     if (v is String) return _stringMeta.field(event);
     return null;
+  }
+
+  /// Takes the steps that making a string of [length] characters, or a list of as many values,
+  /// costs: one for every 64. The script is stopped at its next step when none are left.
+  void spend(int length) => steps -= length >> 6;
+
+  /// [text], just made, paid for by its length ([spend]).
+  String _made(String text) {
+    steps -= text.length >> 6;
+    return text;
+  }
+
+  /// Takes the steps that [value], made by the host for a script, costs: a string by its length
+  /// ([spend]), a table a step and what it holds in turn, as a script making it would spend.
+  /// What a script is handed it pays for as it does for what it makes.
+  void made(Object? value) {
+    if (value is String) return spend(value.length);
+    if (value is! LuaTable) return;
+    final seen = Set<LuaTable>.identity(), left = [value];
+    while (left.isNotEmpty) {
+      final table = left.removeLast();
+      if (!seen.add(table)) continue;
+      steps -= 1 + ((table.array.length + table.hashLength) >> 6);
+      for (final held in table.array.followedBy(table._hash?.values ?? const [])) {
+        if (held is String) {
+          steps -= held.length >> 6;
+        } else if (held is LuaTable) {
+          left.add(held);
+        }
+      }
+    }
   }
 
   LuaLimit _tooLong() => LuaLimit('the script ran too long and was stopped');

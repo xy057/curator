@@ -245,11 +245,15 @@ class ExtensionRuntime {
     return out;
   }
 
-  /// Adds [functions] as the global table [name] (or to it, when it is there).
-  LuaTable library(String name, Map<String, LuaCall> functions) {
+  /// Adds [functions] as the global table [name] (or to it, when it is there). What one gives
+  /// the script pays for as it does for what it makes itself ([Lua.made]): a text read, a list
+  /// of the score's bars. Not those of [kept], which hand over a table there already is.
+  LuaTable library(String name, Map<String, LuaCall> functions, {Set<String> kept = const {}}) {
     final existing = lua.globals[name];
     final t = existing is LuaTable ? existing : (LuaTable()..shape = LuaShape.map);
-    functions.forEach((key, fn) => t[key] = LuaBuiltin('$name.$key', fn));
+    functions.forEach((key, fn) {
+      t[key] = LuaBuiltin('$name.$key', kept.contains(key) ? fn : (a) => fn(a)..forEach(lua.made));
+    });
     lua.globals[name] = t;
     return t;
   }
@@ -301,7 +305,7 @@ class ExtensionRuntime {
         if (bytes == null) return const [null];
         return [String.fromCharCodes(bytes)];
       },
-    });
+    }, kept: const {'data', 'list', 'map'});
     curator['api'] = ExtensionApi.level;
     curator['id'] = package.id;
     curator['name'] = package.name;

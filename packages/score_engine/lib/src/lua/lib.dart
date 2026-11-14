@@ -87,10 +87,13 @@ void _openBase(Lua lua) {
     final i = a.integer(0, 'select');
     if (i < 0) {
       if (-i > a.length - 1) a.bad(0, 'select', 'index out of range');
+      lua.spend(-i);
       return a.sublist(a.length + i);
     }
     if (i == 0) a.bad(0, 'select', 'index out of range');
-    return i >= a.length ? _none : a.sublist(i);
+    if (i >= a.length) return _none;
+    lua.spend(a.length - i);
+    return a.sublist(i);
   });
   def('rawget', (a) => [a.table(0, 'rawget')[a.at(1)]]);
   def('rawset', (a) {
@@ -163,6 +166,7 @@ void _openBase(Lua lua) {
   LuaCall loader(String fn) => (a) {
         final code = a.at(0);
         if (code is! String) return [null, "'$fn' takes the code as a string"];
+        lua.spend(code.length);
         try {
           return [lua.load(code, chunk: a.stringOr(1, fn) ?? 'loaded')];
         } on LuaError catch (e) {
@@ -234,8 +238,11 @@ void _openTable(Lua lua) {
       lua.steps -= out.length >> 6;
       return [out.toString()];
     },
-    'unpack': (a) => _unpack(a, 'unpack'),
-    'pack': (a) => [LuaTable.list(a)..['n'] = a.length],
+    'unpack': (a) => _unpack(lua, a, 'unpack'),
+    'pack': (a) {
+      lua.spend(a.length);
+      return [LuaTable.list(a)..['n'] = a.length];
+    },
     'sort': (a) {
       final t = a.table(0, 'sort'), by = a.functionOr(1, 'sort');
       final list = t.array;
@@ -255,6 +262,8 @@ void _openTable(Lua lua) {
       final to = a.tableOr(4, 'move') ?? from;
       if (e >= f) {
         if (e - f > Lua.maxLength) throw lua._tooBig();
+        lua.steps -= e - f; // a value at a time, as a loop moving them would spend
+        if (lua.steps < 0) throw lua._tooLong();
         if (t > e || t <= f || !identical(to, from)) {
           for (var i = 0; i <= e - f; i++) {
             to[t + i] = from[f + i];
@@ -269,13 +278,14 @@ void _openTable(Lua lua) {
     },
   });
   lua.globals['table'] = table;
-  lua.globals['unpack'] = LuaBuiltin('unpack', (a) => _unpack(a, 'unpack'));
+  lua.globals['unpack'] = LuaBuiltin('unpack', (a) => _unpack(lua, a, 'unpack'));
 }
 
-List<Object?> _unpack(List<Object?> a, String fn) {
+List<Object?> _unpack(Lua lua, List<Object?> a, String fn) {
   final t = a.table(0, fn), i = a.integerOr(1, fn) ?? 1, j = a.integerOr(2, fn) ?? t.length;
   if (j < i) return _none;
   if (j - i >= 1000000) throw LuaError('too many results to unpack');
+  lua.spend(j - i + 1);
   return List<Object?>.generate(j - i + 1, (k) => t[i + k], growable: false);
 }
 
@@ -466,7 +476,7 @@ void _openOs(Lua lua) {
 
 void _openUtf8(Lua lua) {
   final utf8 = Lua.library('utf8', {
-    'char': (a) => [String.fromCharCodes([for (var i = 0; i < a.length; i++) a.integer(i, 'char')])],
+    'char': (a) => [lua._made(String.fromCharCodes([for (var i = 0; i < a.length; i++) a.integer(i, 'char')]))],
     'len': (a) {
       final s = a.string(0, 'len');
       final i = _from(a.integerOr(1, 'len') ?? 1, s.length), j = _to(a.integerOr(2, 'len') ?? -1, s.length);
@@ -475,7 +485,9 @@ void _openUtf8(Lua lua) {
     'codepoint': (a) {
       final s = a.string(0, 'codepoint');
       final i = _from(a.integerOr(1, 'codepoint') ?? 1, s.length), j = _to(a.integerOr(2, 'codepoint') ?? i, s.length);
-      return i > j ? _none : s.substring(i - 1, j).runes.toList();
+      if (i > j) return _none;
+      lua.spend(j - i + 1);
+      return s.substring(i - 1, j).runes.toList();
     },
     'codes': (a) {
       final s = a.string(0, 'codes');
