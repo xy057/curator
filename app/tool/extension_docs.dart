@@ -8,7 +8,7 @@ import 'package:score_engine/src/extension/api.dart';
 
 /// docs/extension-api.md as it should be, from the [guide].
 String extensionDocs(String guide) => '<!-- Made by app/tool/extension_docs.dart (make extension-docs): edit app/assets/help/extensions.md and ExtensionApi instead. -->\n'
-    '${guide.trimRight()}\n\n# Reference\n\nAPI level ${ExtensionApi.level}.\n\n${ExtensionApi.reference()}';
+    '${ExtensionApi.docs(guide)}';
 
 void main() {
   final file = File('../docs/extension-api.md')..writeAsStringSync(extensionDocs(File('assets/help/extensions.md').readAsStringSync()));

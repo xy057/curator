@@ -1555,7 +1555,7 @@ msgstr "八度记号"
 msgid "Off"
 msgstr "关闭"
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "好"
 
@@ -4865,3 +4865,15 @@ msgstr "还原"
 #: lib/extensions/extension_editor.dart
 msgid "Not Saved"
 msgstr "未保存"
+
+#: lib/extensions/extension_docs.dart
+msgid "Couldn’t Save the Docs"
+msgstr "无法保存文档"
+
+#: lib/extensions/extension_docs.dart
+msgid "Copy Docs"
+msgstr "拷贝文档"
+
+#: lib/extensions/extension_docs.dart
+msgid "Download Docs for AI…"
+msgstr "下载供 AI 使用的文档…"

@@ -189,6 +189,42 @@ abstract final class ExtensionApi {
     ApiSocket('spacers', 'Spacers', 'Room in the score: staves of nothing and stretches made wider, with the Spacers lane and their handles in the preview. It has no ports: an extension with one turns them on, and the app keeps them.', single: true),
   ];
 
+  /// The docs whole, as Markdown: the [guide] to writing an extension, then the [reference].
+  static String docs(String guide) => '${guide.trimRight()}\n\n# Reference\n\nAPI level $level.\n\n${reference()}';
+
+  /// The API as JSON, for a program (or a model) to read: what [reference] says, as data.
+  static Map<String, Object?> toJson() => {
+        'level': level,
+        'sockets': [
+          for (final s in sockets)
+            {
+              'type': s.type,
+              'title': s.title,
+              'summary': s.summary,
+              'single': s.single,
+              'since': s.since,
+              'ports': [for (final p in s.ports) {'name': p.name, 'signature': p.signature, 'summary': p.summary, 'since': p.since}],
+              'props': [
+                for (final p in s.props)
+                  {'name': p.name, 'type': p.type.name, 'summary': p.summary, if (p.choices.isNotEmpty) 'choices': p.choices, if (p.fallback != null) 'default': p.fallback, 'since': p.since},
+              ],
+            },
+        ],
+        'icons': icons,
+        'libraries': [
+          for (final l in libraries)
+            {
+              'name': l.name,
+              'summary': l.summary,
+              'functions': [
+                for (final f in l.functions)
+                  {'name': f.name, 'signature': f.signature, 'summary': f.summary, 'since': f.since, if (f.editor) 'editorOnly': true, if (f.example != null) 'example': f.example},
+              ],
+              if (l.values.isNotEmpty) 'values': [for (final (name, summary) in l.values) {'name': name, 'summary': summary}],
+            },
+        ],
+      };
+
   /// The whole API as Markdown: every socket with its ports and properties, every library with
   /// its functions. docs/extension-api.md is the guide followed by this.
   static String reference() {

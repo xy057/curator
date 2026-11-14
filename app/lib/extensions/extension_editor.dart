@@ -18,6 +18,7 @@ import '../menu_kit.dart';
 import '../ui_kit.dart';
 import '../l10n/l10n.dart';
 import 'connector_view.dart';
+import 'extension_docs.dart';
 
 /// Opens the extension editor on [package], over the whole window. Returns the extension as
 /// edited (Done); null when it was left as it is. With [onRun], Run (⌘R) hands the extension
@@ -42,7 +43,6 @@ Future<ExtensionPackage?> showExtensionEditor(
     ));
 
 /// The guide the editor's Help shows.
-const extensionGuideAsset = 'assets/help/extensions.md';
 
 /// What the editor shows at its right.
 enum _Side { none, reference, help }
@@ -375,9 +375,14 @@ class _ExtensionEditorState extends State<ExtensionEditor> {
                   VerticalDivider(width: 1, color: colors.line),
                   SizedBox(
                     width: 340,
-                    child: _side == _Side.reference
-                        ? ExtensionReference(onInsert: _code.containsKey(_shown) && !widget.readOnly ? _insert : null)
-                        : const _Guide(),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      ExtensionDocsBar(title: (_side == _Side.reference ? 'Reference' : 'Help').tr),
+                      Expanded(
+                        child: _side == _Side.reference
+                            ? ExtensionReference(onInsert: _code.containsKey(_shown) && !widget.readOnly ? _insert : null)
+                            : const _Guide(),
+                      ),
+                    ]),
                   ),
                 ],
               ]),

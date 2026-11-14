@@ -1555,7 +1555,7 @@ msgstr "オクターブ記号"
 msgid "Off"
 msgstr "オフ"
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "OK"
 
@@ -4865,3 +4865,15 @@ msgstr "元に戻す"
 #: lib/extensions/extension_editor.dart
 msgid "Not Saved"
 msgstr "未保存"
+
+#: lib/extensions/extension_docs.dart
+msgid "Couldn’t Save the Docs"
+msgstr "ドキュメントを保存できませんでした"
+
+#: lib/extensions/extension_docs.dart
+msgid "Copy Docs"
+msgstr "ドキュメントをコピー"
+
+#: lib/extensions/extension_docs.dart
+msgid "Download Docs for AI…"
+msgstr "AI 用ドキュメントをダウンロード…"
