@@ -118,6 +118,23 @@ void main() {
     score.undo();
     score.undo();
 
+    // A letter over several notes selected is one step of Undo: ⌘A, G, and ⌘Z gives them all back.
+    {
+      final before = score.toMusicXML();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+      await tester.pump();
+      expect([for (final e in score.eventsIn(0, 0, voice).take(3)) e.pitches.single.name], ['G4', 'G5', 'G5']); // each the G nearest it
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pump();
+      expect(score.toMusicXML(), before);
+      await engraved();
+    }
+
     // ⌘Z takes the rest back; Done gives the score as edited.
     await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);

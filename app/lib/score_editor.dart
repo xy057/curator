@@ -394,12 +394,13 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   // MARK: Editing
 
-  /// Runs [change] on the score, then engraves what it changed. A change that made an Undo step
-  /// (not Undo or Redo themselves: [history]) leaves the scores Undo went back from behind.
+  /// Runs [change] on the score, then engraves what it changed: one step of Undo, whatever it
+  /// does (a letter over every note selected). A change that made an Undo step (not Undo or
+  /// Redo themselves: [history]) leaves the scores Undo went back from behind.
   void _edit(void Function() change, {bool history = false}) {
     final step = score.undoStep;
     try {
-      change();
+      history ? change() : score.edit(change);
     } on Object catch (e) {
       setState(() => _engraveError = '$e');
     }
