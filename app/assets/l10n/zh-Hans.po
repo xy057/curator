@@ -1,13 +1,21 @@
-# Curator’s interface in Simplified Chinese.
-#
-# Terms: score 乐谱, project 项目, lane 轨道, region 区域, playhead 播放头, bar 小节, staff 谱表, staff space 谱间距, engraving 刻谱, anchor 锚点, warp 跳转, tempo map 速度图, caption 字幕, spacer 间隔, transition 过渡, condensing 声部合并, recording 录音.
+# Curator’s interface, in US English: the template every language is translated from.
+# Each text is its own key; a msgctxt tells apart one English word that means two things.
+# Keep every {placeholder} in the translation (its place is yours).
 msgid ""
 msgstr ""
-"Project-Id-Version: Curator\n"
+"Project-Id-Version: curator-by-xy057\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: zh-Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Crowdin-Project: curator-by-xy057\n"
+"X-Crowdin-Project-ID: 945415\n"
+"X-Crowdin-Language: zh-CN\n"
+"X-Crowdin-File: /main/app/assets/l10n/curator.pot\n"
+"X-Crowdin-File-ID: 21\n"
+"Language-Team: Chinese Simplified\n"
+"Language: zh_CN\n"
+"PO-Revision-Date: 2026-11-14 06:21\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -298,11 +306,9 @@ msgid "Align"
 msgstr "对齐"
 
 #: lib/audio_panel.dart
-msgid ""
-"Align\n"
+msgid "Align\n"
 "Set the anchors from the recording"
-msgstr ""
-"对齐\n"
+msgstr "对齐\n"
 "根据录音设置锚点"
 
 msgid "Align grace notes"
@@ -566,7 +572,7 @@ msgid "Captions"
 msgstr "字幕"
 
 msgid "Carbon"
-msgstr "Carbon"
+msgstr ""
 
 #: assets/extensions/captions/src/settings.lua
 msgid "Center"
@@ -2550,7 +2556,7 @@ msgid "Fine seek"
 msgstr "精细定位"
 
 msgid "⌥←/→"
-msgstr "⌥←/→"
+msgstr ""
 
 msgid "Undo history"
 msgstr "撤销历史"
@@ -3183,7 +3189,7 @@ msgstr "{n} / {count}"
 
 #: lib/pdf_import.dart
 msgid "×{n}"
-msgstr "×{n}"
+msgstr ""
 
 #: lib/edit_dialogs.dart
 msgid "Spacing of {name}"
@@ -3373,11 +3379,9 @@ msgid "with"
 msgstr "与"
 
 #: lib/editor_controller.dart
-msgid ""
-"Couldn’t load the recording.\n"
+msgid "Couldn’t load the recording.\n"
 "{error}"
-msgstr ""
-"无法载入录音。\n"
+msgstr "无法载入录音。\n"
 "{error}"
 
 #: lib/error_text.dart
@@ -3389,19 +3393,15 @@ msgid "The settings are damaged: {detail}"
 msgstr "设置文件已损坏：{detail}"
 
 #: lib/media_converter.dart
-msgid ""
-"Couldn’t read audio from this file.\n"
+msgid "Couldn’t read audio from this file.\n"
 "{error}"
-msgstr ""
-"无法从这个文件读取音频。\n"
+msgstr "无法从这个文件读取音频。\n"
 "{error}"
 
 #: lib/project_document.dart
-msgid ""
-"Can’t find the linked recording:\n"
+msgid "Can’t find the linked recording:\n"
 "{file}"
-msgstr ""
-"找不到链接的录音：\n"
+msgstr "找不到链接的录音：\n"
 "{file}"
 
 #: lib/score_editor.dart
@@ -3421,27 +3421,21 @@ msgid "Couldn’t write {file}."
 msgstr "无法写入 {file}。"
 
 #: lib/video_export.dart
-msgid ""
-"FFmpeg couldn’t write the sound.\n"
+msgid "FFmpeg couldn’t write the sound.\n"
 "{error}"
-msgstr ""
-"FFmpeg 无法写入声音。\n"
+msgstr "FFmpeg 无法写入声音。\n"
 "{error}"
 
 #: lib/video_export.dart
-msgid ""
-"FFmpeg couldn’t write the video.\n"
+msgid "FFmpeg couldn’t write the video.\n"
 "{error}"
-msgstr ""
-"FFmpeg 无法写入视频。\n"
+msgstr "FFmpeg 无法写入视频。\n"
 "{error}"
 
 #: lib/web_export.dart
-msgid ""
-"Couldn’t write the page.\n"
+msgid "Couldn’t write the page.\n"
 "{error}"
-msgstr ""
-"无法写入网页。\n"
+msgstr "无法写入网页。\n"
 "{error}"
 
 #: lib/error_text.dart
@@ -3861,7 +3855,7 @@ msgstr "运行测试"
 
 #: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart
 msgid "{n}%"
-msgstr "{n}%"
+msgstr ""
 
 #: lib/pdf_import.dart
 msgid "Read with AI…"
@@ -4123,7 +4117,7 @@ msgstr "自定义请求体"
 
 #: lib/score_editor.dart
 msgid "MusicXML"
-msgstr "MusicXML"
+msgstr ""
 
 #: lib/score_editor.dart
 msgctxt "musicxml"
@@ -4640,7 +4634,7 @@ msgid "A beat · ⇧ a sixteenth"
 msgstr "一拍 · ⇧ 十六分音符"
 
 msgid "1 BPM · ⇧ 0.1"
-msgstr "1 BPM · ⇧ 0.1"
+msgstr ""
 
 msgid "A bar · ⇧ a beat"
 msgstr "一小节 · ⇧ 一拍"
@@ -4832,7 +4826,7 @@ msgstr "文件"
 
 #: lib/extensions/extension_editor.dart
 msgid "ID"
-msgstr "ID"
+msgstr ""
 
 #: lib/extensions/extension_editor.dart
 msgid "Like com.example.notes: lower-case, with a dot"
@@ -4877,3 +4871,4 @@ msgstr "拷贝文档"
 #: lib/extensions/extension_docs.dart
 msgid "Download Docs for AI…"
 msgstr "下载供 AI 使用的文档…"
+
