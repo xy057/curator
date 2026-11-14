@@ -108,6 +108,17 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
         return p:len(), tostring(p), p == Point.new(3, 4), p ~= p, Point.new(1, 1) < p, #p, p("x"), p .. p, defaults.missing, defaults.n,
           getmetatable(p) == Point, rawequal(p, Point.new(3, 4)), getmetatable("s").__index == string
       '''), ['5', '(3,4)', 'true', 'false', 'true', '2', '3', '(3,4)(3,4)', 'missing!', '8', 'true', 'false', 'true']);
+      // What stands in for a call may be a table called the same way; one that is its own isn't
+      // called without end.
+      expect(run('''
+        local inner = setmetatable({}, {__call = function(self, outer, a) return "inner", a end})
+        local outer = setmetatable({}, {__call = inner})
+        local own = {}
+        setmetatable(own, {__call = own})
+        local name, a = outer(1)
+        local ok, _, b = pcall(outer, 2)
+        return name, a, ok, b, pcall(own)
+      '''), ['inner', '1', 'true', '2', 'false', 'attempt to call a table value']);
       expect(run('''
         local t = {}
         t[1] = "a" t[3] = "c" t[2] = "b"          -- 3 joins the list once 2 is there

@@ -12,8 +12,7 @@ void _openBase(Lua lua) {
 
   List<Object?> callValue(Object? fn, List<Object?> args) {
     if (fn is LuaFunction) return fn.call(args);
-    final h = lua._meta(fn, '__call');
-    if (h is LuaFunction) return h.call([fn, ...args]);
+    if (lua._called(fn, args) case (final h, final all)?) return h.call(all);
     throw LuaError('attempt to call a ${Lua.typeOf(fn)} value');
   }
 

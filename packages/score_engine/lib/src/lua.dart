@@ -249,8 +249,7 @@ final class Lua {
   List<Object?> _invoke(Object? fn, List<Object?> args, _Site at) {
     try {
       if (fn is LuaFunction) return fn.call(args);
-      final h = _meta(fn, '__call');
-      if (h is LuaFunction) return h.call([fn, ...args]);
+      if (_called(fn, args) case (final h, final all)?) return h.call(all);
     } on LuaError catch (e) {
       at.place(e);
       rethrow;
@@ -261,6 +260,21 @@ final class Lua {
       throw at.error('$e');
     }
     throw at.error('attempt to call a ${typeOf(fn)} value${_suffix(at.what)}');
+  }
+
+  /// What calling [value], which is no function, calls in its place, and with what: its
+  /// `__call` and itself before [args]; where that is no function either, its own `__call` in
+  /// turn (a few deep: one that is its own never ends). Null: nothing.
+  (LuaFunction, List<Object?>)? _called(Object? value, List<Object?> args) {
+    var all = args;
+    for (var i = 0; i < 16; i++) {
+      final h = _meta(value, '__call');
+      if (h == null) return null;
+      all = [value, ...all];
+      if (h is LuaFunction) return (h, all);
+      value = h;
+    }
+    return null;
   }
 
   Object? _index(Object? o, Object? k, _Site at) {
