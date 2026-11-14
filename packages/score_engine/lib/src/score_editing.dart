@@ -2226,9 +2226,7 @@ class EditableScore {
         final number = found.getAttribute('number') ?? '1';
         final note = found.ancestors.whereType<XmlElement>().firstWhere((a) => a.name.local == 'note');
         found.remove();
-        for (final n in note.findElements('notations')) {
-          if (n.childElements.isEmpty) n.remove();
-        }
+        _dropEmptyNotations(note);
         _commit(where.part, where.measure, content);
         _removeStop(where.part, where.measure, (e) => e.name.local == 'slur' && e.getAttribute('type') == 'stop' && (e.getAttribute('number') ?? '1') == number,
             after: _timeOfNote(content, note));

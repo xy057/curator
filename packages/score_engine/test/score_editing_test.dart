@@ -255,5 +255,19 @@ void main() {
       expect([for (final e in again.eventsIn(1, 0, again.voicesIn(1, 0).first)) e.length], [Frac(4)], reason: 'its divisions are still said');
       expect('light-heavy'.allMatches(score.toMusicXML()).length, 2);
     }
+
+    // A slur taken off again (S on its first note) leaves the notes as they were, a lyric too.
+    {
+      final score = EditableScore.parse(_fluteOf(2));
+      const voice = VoiceKey(1, '1');
+      score.input(ScorePosition(0, voice, 0, Frac.zero), [for (var i = 0; i < 4; i++) InputItem(const Rhythm(NoteType.quarter), [Pitch(i, 4)])]);
+      score.setLyric(score.eventsIn(0, 0, voice).first.ids.first, 'la');
+      final plain = score.toMusicXML();
+      final ids = [for (final e in score.eventsIn(0, 0, voice)) e.ids.first];
+      score.toggleSlur([ids[0], ids[2]]);
+      expect('<slur'.allMatches(score.toMusicXML()).length, 2);
+      score.toggleSlur([ids[0]]);
+      expect(score.toMusicXML(), plain);
+    }
   });
 }
