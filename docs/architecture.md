@@ -774,6 +774,11 @@ ticked for those bars only, so bars that change (another ratio, score size or ra
 another size never plans again for it. It plans every segment (about 20 ms for 350 bars), so
 while a gesture lasts (a region or anchor dragged, the score size slid) the controller keeps the
 answer from before and works it out once as the gesture ends; Export's dialog rebuilds then too.
+When each lane is shown, in playback time, is made from its regions once for a curation and a
+timeline and kept by the scene (`CuratedScene._spansOf`, from `Curation.shownSpans`; searched by
+`Curation.shownIn`, ramped by `Curation.visibilityIn`): a plan asks whether each staff is shown in
+every segment and a frame how much of every lane is, and Auto-curate plans again for each staff it
+tries hiding (770 bars of 21 instruments fit in 0.7 s; made each time asked, 13 s).
 
 **A trackpad's swipe scrolls; it never drags.** A two-finger swipe comes as pan-zoom events, which
 a drag recognizer takes as a drag unless told not to: every drag in the app is given
