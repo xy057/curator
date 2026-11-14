@@ -4,6 +4,7 @@
 /// signatures, bars, barlines, lyrics, tuplets), each an Undo step.
 library;
 
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:xml/xml.dart';
@@ -915,6 +916,11 @@ class EditableScore {
     score._indexAll();
     return score;
   }
+
+  /// [parse] on another isolate, the score handed back whole: an orchestral movement takes a
+  /// fifth of a second to read, a long one seconds, which the window would stand still for.
+  /// (A static function: a closure made in a widget's method would take the widget along.)
+  static Future<EditableScore> parseApart(String musicXML) => Isolate.run(() => EditableScore.parse(musicXML));
 
   final XmlDocument _document;
   final List<EditPart> parts;

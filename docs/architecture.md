@@ -1093,7 +1093,9 @@ replacement: its steps were of the old file.
 Edit… opens the score's MusicXML (`LoadedScore.musicXML`) in an editor over the window
 (`score_editor.dart`); Done hands back the file as edited, which replaces the score (above)
 (`ProjectDocument.prepareReplacementWith`, the same carrying over, dialog and fresh Undo); nothing
-edited, or Cancel, changes nothing. `EditableScore` (`score_editing.dart`) keeps the document's
+edited, or Cancel, changes nothing. The score is read for it on another isolate and handed back
+whole (`EditableScore.parseApart`: a fifth of a second for an orchestral movement, which the window
+would stand still for). `EditableScore` (`score_editing.dart`) keeps the document's
 elements and edits them in place, never a model of its own written back out, so what it doesn't
 know (sounds, layout hints, other notations) is kept as it was. It gives every note, rest, bar,
 direction and slur an id `cxeN` (an id it had is kept aside and restored on export); Verovio

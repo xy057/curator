@@ -1386,6 +1386,9 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (warnings.isNotEmpty && mounted) await showImportWarnings(context, replacement.name, warnings);
   }
 
+  /// Whether [_editScore] is reading the score for the editor.
+  bool _readingScore = false;
+
   /// Project Settings ▸ Project Info ▸ Score ▸ Edit…: the score's MusicXML in the score editor;
   /// what is edited there replaces the score (this project's edits and recording kept; asks
   /// first when the two differ).
@@ -1395,14 +1398,21 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (loaded.pdf case final pdf?) return _editPdf(pdf.layout);
     if (controller.lilypond case final lilypond?) return _editLilyPond(lilypond);
     final name = '${stemOf(controller.fileName ?? document.title ?? 'Score')}.musicxml';
+    // Read off the main isolate (the window would stand still for a long score); another score
+    // opened meanwhile isn't this one's to edit (the same engraved again is), and a second
+    // Edit… waits for the first.
+    if (_readingScore) return;
+    _readingScore = true;
     final EditableScore score;
     try {
-      score = EditableScore.parse(loaded.musicXML);
+      score = await EditableScore.parseApart(loaded.musicXML);
     } on Object catch (e) {
       await _guard(() => Future.error(e), title: 'Couldn’t Edit Score'.tr);
       return;
+    } finally {
+      _readingScore = false;
     }
-    if (!mounted) return;
+    if (!mounted || controller.score?.musicXML != loaded.musicXML) return;
     final xml = await showScoreEditor(context, score, name: name);
     if (xml == null || !mounted) return;
     await _guard(() async => _putInPlace(await document.prepareReplacementWith(name, utf8.encode(xml))),

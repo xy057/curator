@@ -23,6 +23,10 @@ String _fluteOf(int bars) => _flute.replaceFirst(
 void main() {
   test('the score editor: notes typed over rests and tied, MusicXML written, Undo and Redo putting back the bars changed, chunks drawing each thing once', () async {
     {
+      // Read on another isolate, it is the score read here.
+      expect((await EditableScore.parseApart(_flute)).toMusicXML(), EditableScore.parse(_flute).toMusicXML());
+      await expectLater(EditableScore.parseApart('<score-timewise/>'), throwsFormatException);
+
       final score = EditableScore.parse(_flute);
       const voice = VoiceKey(1, '1');
       final start = ScorePosition(0, voice, 0, Frac.zero);
