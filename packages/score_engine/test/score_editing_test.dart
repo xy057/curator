@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 import 'package:xml/xml.dart';
@@ -231,6 +233,23 @@ void main() {
           expect(galley.barOf(m)!.left, closeTo(one.barOf(m)!.left, 20), reason: 'bar $m, chunks of $bars');
         }
         expect(galley.timeAtX(galley.xOf(5, Frac(2))!), (measure: 5, time: Frac(2)));
+        // Everything selected is drawn as each thing selected is in turn: found from what a
+        // chunk draws when more is selected than that, from what is selected otherwise.
+        List<String> draws(Iterable<Set<String>> selections) {
+          final canvas = TestRecordingCanvas();
+          for (final ids in selections) {
+            galley.paintOnly(canvas, Rect.fromLTWH(0, 0, galley.width, galley.height), ids, const Color(0xFF3366FF));
+          }
+          return [
+            for (final i in canvas.invocations)
+              if ('${i.invocation.memberName}'.contains('draw')) '${i.invocation.memberName} ${i.invocation.positionalArguments}',
+          ]..sort();
+        }
+
+        final all = {...score.ids};
+        expect(all.length, greaterThan(chunks.first.list.sourced.length));
+        expect(draws([all]), draws([for (final id in all) {id}]));
+        expect(draws([all]), isNotEmpty);
         for (final c in chunks) {
           c.dispose();
         }
