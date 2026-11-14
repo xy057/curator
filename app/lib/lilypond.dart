@@ -336,8 +336,10 @@ abstract final class LilyPond {
       );
       cancel?.whenCancelled(process.kill);
       final log = StringBuffer();
-      final out = process.stdout.transform(utf8.decoder).forEach(log.write);
-      final err = process.stderr.transform(utf8.decoder).forEach(log.write);
+      // (What it says isn't always UTF-8: it quotes the line of a file in another encoding.)
+      const decoder = Utf8Decoder(allowMalformed: true);
+      final out = process.stdout.transform(decoder).forEach(log.write);
+      final err = process.stderr.transform(decoder).forEach(log.write);
       final code = await process.exitCode;
       await Future.wait([out, err]);
       if (cancel?.cancelled ?? false) throw const DownloadException(DownloadProblem.cancelled);
