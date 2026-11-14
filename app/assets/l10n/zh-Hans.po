@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Chinese Simplified\n"
 "Language: zh_CN\n"
-"PO-Revision-Date: 2026-11-13 22:41\n"
+"PO-Revision-Date: 2026-11-14 04:43\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -583,11 +583,14 @@ msgstr "更新日志"
 msgid "Check at launch"
 msgstr "启动时检查"
 
+msgid "Update channel"
+msgstr ""
+
 #: lib/settings_dialog.dart
 msgid "Check for Updates"
 msgstr "检查更新"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Checking…"
 msgstr "正在检查…"
 
@@ -624,7 +627,7 @@ msgstr "谱号"
 msgid "Clefs"
 msgstr "谱号"
 
-#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "关闭"
 
@@ -780,7 +783,7 @@ msgstr "交叉淡化（自己的）"
 msgid "Crossfade (the project’s)"
 msgstr "交叉淡化（项目的）"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Curator is up to date! ☆"
 msgstr "Curator 已是最新版本！☆"
 
@@ -792,11 +795,11 @@ msgstr "Curator 项目"
 msgid "Curator settings"
 msgstr "Curator 设置"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Curator {version} is out, but not for this system yet."
 msgstr "Curator {version} 已推出，但这个系统还要再等等。"
 
-#: lib/main.dart lib/settings_dialog.dart
+#: lib/main.dart lib/update_dialog.dart
 msgid "Curator {version} is available! ☆"
 msgstr "Curator {version} 已推出！☆"
 
@@ -881,11 +884,11 @@ msgstr "附点"
 msgid "Double barline gap"
 msgstr "双小节线间隙"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Download {version}"
 msgstr "下载 {version}"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Downloading {version}…"
 msgstr "正在下载 {version}…"
 
@@ -1132,7 +1135,7 @@ msgstr "起始"
 msgid "From bar"
 msgstr "起始小节"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "From GitHub."
 msgstr "来自 GitHub。"
 
@@ -1578,7 +1581,7 @@ msgstr "在窗口中打开"
 msgid "Open Recent"
 msgstr "打开最近使用"
 
-#: lib/settings_dialog.dart
+#: lib/update_dialog.dart
 msgid "Open Release Page"
 msgstr "打开发布页面"
 
@@ -1916,7 +1919,7 @@ msgstr "仅限已保存的项目。"
 msgid "Set the anchors from the recording"
 msgstr "根据录音设置锚点"
 
-#: lib/export_dialog.dart lib/settings_dialog.dart
+#: lib/export_dialog.dart lib/update_dialog.dart
 msgid "Saved “{name}”."
 msgstr "已保存“{name}”。"
 
@@ -2467,7 +2470,7 @@ msgstr "低八度高音谱号"
 msgid "Tremolos"
 msgstr "震音"
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart lib/update_dialog.dart
 msgid "Try Again"
 msgstr "重试"
 
@@ -2557,7 +2560,7 @@ msgstr "请解压，并用它替换此应用。"
 msgid "Updates"
 msgstr "更新"
 
-#: lib/main.dart
+#: lib/main.dart lib/settings_dialog.dart
 msgid "Update…"
 msgstr "更新…"
 
@@ -4638,5 +4641,22 @@ msgid "LilyPond and MusicXML"
 msgstr ""
 
 msgid "Shortcuts"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgctxt "update channel"
+msgid "Release"
+msgstr ""
+
+#: lib/settings_dialog.dart lib/update_dialog.dart
+msgid "Pre-release"
+msgstr ""
+
+#: lib/update_dialog.dart
+msgid "You have {version}"
+msgstr ""
+
+#: lib/update_dialog.dart
+msgid "No release notes."
 msgstr ""
 
