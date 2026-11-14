@@ -31,7 +31,7 @@ class AppSettings extends ChangeNotifier {
         _autoCuratePdf = _prefs?.getBool(_autoCuratePdfKey) ?? false,
         _fineSeek = _readStep(_prefs, _fineSeekKey, fineSeekChoices, defaultFineSeek),
         _anchorNudge = _readStep(_prefs, _anchorNudgeKey, anchorNudgeChoices, defaultAnchorNudge),
-        _language = AppLanguage.values.asNameMap()[_prefs?.getString(_languageKey)] ?? AppLanguage.system,
+        _language = AppLanguage.named(_prefs?.getString(_languageKey)),
         _transition = _prefs?.getDouble(_transitionKey) ?? defaultTransition,
         _musicFont = _prefs?.getString(_musicFontKey) ?? MusicFont.bravura.name,
         _textFont = _prefs?.getString(_textFontKey) ?? TextFonts.academico,
@@ -237,8 +237,9 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The interface's language; [AppLanguage.system] follows the system's.
-  AppLanguage get language => _language;
+  /// The interface's language; [AppLanguage.system] follows the system's, as does one whose
+  /// translations the app no longer carries.
+  AppLanguage get language => AppLanguage.values.contains(_language) ? _language : AppLanguage.system;
   AppLanguage _language;
   set language(AppLanguage value) {
     if (value == _language) return;

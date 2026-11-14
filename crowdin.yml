@@ -7,7 +7,7 @@ preserve_hierarchy: true
 
 files:
   - source: /app/assets/l10n/curator.pot
-    # One file a language, named by its BCP 47 tag (the locale AppLanguage gives it).
+    # One file a language, named by its locale (`_` or `-`); the app lists each file it finds.
     translation: /app/assets/l10n/%locale_with_underscore%.po
     # Keyed by the placeholder `translation` uses; each language's Crowdin code to the app's tag.
     languages_mapping:

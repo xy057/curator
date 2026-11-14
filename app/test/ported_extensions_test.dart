@@ -453,7 +453,7 @@ void main() {
           case 13:
             c.extensions.removeSelected(); // Delete
           case 14:
-            Strings.use(random.nextBool() ? AppLanguage.chineseSimplified : AppLanguage.english);
+            Strings.use(random.nextBool() ? AppLanguage.of('zh-Hans') : AppLanguage.english);
           case 15:
             if (c.canUndo) {
               c.undo();
