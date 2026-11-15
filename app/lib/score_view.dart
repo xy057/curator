@@ -13,6 +13,7 @@ import 'edit_dialogs.dart';
 import 'error_text.dart';
 import 'image_patch.dart';
 import 'lanes_common.dart' show SideSwipe, isCommandPressed, isZoomModifierPressed;
+import 'plugins/plugins.dart';
 import 'spacer_dialogs.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
@@ -154,7 +155,8 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
   void _openMenu(TapUpDetails d, VideoFrame frame) {
     final scene = c.scene;
     final extensions = c.extensions.menu('preview').isNotEmpty || c.extensions.menu('caption').isNotEmpty;
-    if (!(c.images.enabled || extensions) || scene == null || !frame.rect.contains(d.localPosition)) return;
+    final plugins = PluginScope.read(context)?.commandsWhere((command) => command.preview).isNotEmpty ?? false;
+    if (!(c.images.enabled || extensions || plugins) || scene == null || !frame.rect.contains(d.localPosition)) return;
     final p = frame.toLayout(d.localPosition);
     final hit = _patchAt(p, frame), caption = hit == null ? _captionAt(p, frame) : null;
     final gap = hit == null && caption == null ? _gapAt(p, frame) : null;
@@ -226,6 +228,10 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
       ],
       // What the extensions offer for the place clicked (Add Caption…).
       for (final (:runtime, :command) in c.extensions.menu('preview')) _command(runtime, command, at.quarter),
+      // And what plugins put here (app.command's `preview`), given the place too.
+      if (PluginScope.read(context) case final plugins?)
+        for (final entry in plugins.commandsWhere((command) => command.preview))
+          MenuItemButton(onPressed: plugins.actionOf(entry, [at.quarter]), child: Text(plugins.titleOf(entry))),
     ];
   }
 

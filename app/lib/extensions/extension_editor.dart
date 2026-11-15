@@ -228,44 +228,8 @@ class _ExtensionEditorState extends State<ExtensionEditor> {
     });
   }
 
-  static final _fileName = RegExp(r'^[A-Za-z0-9_]+(/[A-Za-z0-9_]+)*\.lua$');
-
   /// Asks for a file's name ([from]: the one it has); null: cancelled.
-  Future<String?> _askFileName({String? from}) {
-    final name = TextEditingController(text: from ?? '');
-    return showAppDialog<String>(
-      context: context,
-      builder: (context) => StatefulBuilder(builder: (context, setState) {
-        final text = name.text.trim();
-        final problem = text.isEmpty || text == from
-            ? ''
-            : !_fileName.hasMatch(text)
-                ? 'Use letters, digits and _, ending in .lua'.tr
-                : _code.containsKey(text)
-                    ? 'Another file has this name'.tr
-                    : null;
-        return AppDialog(
-          title: Text(from == null ? 'New File'.tr : 'Rename File'.tr),
-          content: SizedBox(
-            width: dialogWidth(context, 340),
-            child: AppTextField(
-              controller: name,
-              label: 'Name',
-              hint: 'util.lua',
-              autofocus: true,
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) => problem == null ? Navigator.pop(context, text) : null,
-            ),
-          ),
-          status: problem == null || problem.isEmpty ? null : Text(problem, style: TextStyle(color: context.colors.erase)),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
-            FilledButton(onPressed: problem == null ? () => Navigator.pop(context, text) : null, child: Text(from == null ? 'Add'.tr : 'Rename'.tr)),
-          ],
-        );
-      }),
-    ).whenComplete(name.dispose);
-  }
+  Future<String?> _askFileName({String? from}) => askLuaFileName(context, from: from, taken: _code.containsKey);
 
   Future<void> _addFile() async {
     final path = await _askFileName();
@@ -380,7 +344,7 @@ class _ExtensionEditorState extends State<ExtensionEditor> {
                       Expanded(
                         child: _side == _Side.reference
                             ? ExtensionReference(onInsert: _code.containsKey(_shown) && !widget.readOnly ? _insert : null)
-                            : const _Guide(),
+                            : const ScriptGuide(extensionGuideAsset),
                       ),
                     ]),
                   ),
@@ -542,22 +506,11 @@ class _ExtensionEditorState extends State<ExtensionEditor> {
         findController: _finds[_shown] ??= CodeFindController(code),
         focusNode: _focus,
         readOnly: widget.readOnly,
-        prompts: _shown == _readmeView ? const _NoPrompts() : LuaPrompts(() => code.text),
-        kindOf: _kind,
+        prompts: _shown == _readmeView ? const NoPrompts() : LuaPrompts(() => code.text),
+        kindOf: luaPromptKind,
       ),
     );
   }
-
-  static String? _kind(CodePrompt prompt) => prompt is! LuaPrompt
-      ? null
-      : prompt.function?.signature ??
-          switch (prompt.kind) {
-            LuaKind.keyword => 'keyword'.trIn('lua'),
-            LuaKind.function => 'function'.trIn('lua'),
-            LuaKind.library => 'library'.trIn('lua'),
-            LuaKind.value => 'value'.trIn('lua'),
-            LuaKind.local => null,
-          };
 
   /// What extension.json says: its name, id, version, summary, who made it.
   Widget _aboutPage(BuildContext context) {
@@ -604,59 +557,118 @@ class _ExtensionEditorState extends State<ExtensionEditor> {
   }
 
   /// Under what shows: what is wrong with it (as written, then as it ran), and what it printed.
-  List<Widget> _under(BuildContext context) {
-    final colors = context.colors;
-    final id = _package.id;
-    final ran = [...?widget.problems?.value.where((p) => p.extension == id)];
-    final all = [..._problems.where((p) => !p.warning), ...ran, ..._problems.where((p) => p.warning)];
-    final log = widget.log?.value ?? const <String>[];
-    return [
-      if (all.isNotEmpty) ...[
-        Divider(height: 1, color: colors.line),
-        CodeProblemList(problems: [
-          for (final p in all)
-            (
-              text: [if (p.file != null) '${p.file}${p.line == null ? '' : ':${p.line}'}: ', p.message, if (p.where != null && p.file == null) ' (${p.where})'].join(),
-              error: !p.warning,
-              onTap: p.file == null ? null : () => _goTo(p.file, p.line),
-            ),
-        ]),
-      ],
-      if (log.isNotEmpty) ...[
-        Divider(height: 1, color: colors.line),
-        Container(
-          height: 92,
-          color: colors.chrome,
-          child: ListView(
-            reverse: true,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            children: [
-              for (final line in log.reversed) Text(line, style: monospace.copyWith(fontSize: 12, height: 1.4, color: colors.text)),
-            ],
+  List<Widget> _under(BuildContext context) => scriptOutput(context,
+      written: _problems, ran: [...?widget.problems?.value.where((p) => p.extension == _package.id)], log: widget.log?.value ?? const [], goTo: _goTo);
+}
+
+final _luaFileName = RegExp(r'^[A-Za-z0-9_]+(/[A-Za-z0-9_]+)*\.lua$');
+
+/// Asks for a Lua file's name in a package ([from]: the one it has, renamed), one no file of it
+/// has ([taken]); null: cancelled.
+Future<String?> askLuaFileName(BuildContext context, {String? from, required bool Function(String path) taken}) {
+  final name = TextEditingController(text: from ?? '');
+  return showAppDialog<String>(
+    context: context,
+    builder: (context) => StatefulBuilder(builder: (context, setState) {
+      final text = name.text.trim();
+      final problem = text.isEmpty || text == from
+          ? ''
+          : !_luaFileName.hasMatch(text)
+              ? 'Use letters, digits and _, ending in .lua'.tr
+              : taken(text)
+                  ? 'Another file has this name'.tr
+                  : null;
+      return AppDialog(
+        title: Text(from == null ? 'New File'.tr : 'Rename File'.tr),
+        content: SizedBox(
+          width: dialogWidth(context, 340),
+          child: AppTextField(
+            controller: name,
+            label: 'Name',
+            hint: 'util.lua',
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => problem == null ? Navigator.pop(context, text) : null,
           ),
         ),
-      ],
-    ];
-  }
+        status: problem == null || problem.isEmpty ? null : Text(problem, style: TextStyle(color: context.colors.erase)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr)),
+          FilledButton(onPressed: problem == null ? () => Navigator.pop(context, text) : null, child: Text(from == null ? 'Add'.tr : 'Rename'.tr)),
+        ],
+      );
+    }),
+  ).whenComplete(name.dispose);
+}
+
+/// What a word offered as Lua is typed is, shown beside it: an API function's signature, else
+/// its kind.
+String? luaPromptKind(CodePrompt prompt) => prompt is! LuaPrompt
+    ? null
+    : prompt.function?.signature ??
+        switch (prompt.kind) {
+          LuaKind.keyword => 'keyword'.trIn('lua'),
+          LuaKind.function => 'function'.trIn('lua'),
+          LuaKind.library => 'library'.trIn('lua'),
+          LuaKind.value => 'value'.trIn('lua'),
+          LuaKind.local => null,
+        };
+
+/// Under an editor's code: what is wrong with the package as [written] and as it [ran] (a
+/// click goes to the place, [goTo]), then the lines it printed ([log]).
+List<Widget> scriptOutput(BuildContext context,
+    {required List<ScriptProblem> written, required List<ScriptProblem> ran, required List<String> log, required void Function(String? file, int? line) goTo}) {
+  final colors = context.colors;
+  final all = [...written.where((p) => !p.warning), ...ran, ...written.where((p) => p.warning)];
+  return [
+    if (all.isNotEmpty) ...[
+      Divider(height: 1, color: colors.line),
+      CodeProblemList(problems: [
+        for (final p in all)
+          (
+            text: [if (p.file != null) '${p.file}${p.line == null ? '' : ':${p.line}'}: ', p.message, if (p.where != null && p.file == null) ' (${p.where})'].join(),
+            error: !p.warning,
+            onTap: p.file == null ? null : () => goTo(p.file, p.line),
+          ),
+      ]),
+    ],
+    if (log.isNotEmpty) ...[
+      Divider(height: 1, color: colors.line),
+      Container(
+        height: 92,
+        color: colors.chrome,
+        child: ListView(
+          reverse: true,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          children: [
+            for (final line in log.reversed) Text(line, style: monospace.copyWith(fontSize: 12, height: 1.4, color: colors.text)),
+          ],
+        ),
+      ),
+    ],
+  ];
 }
 
 /// Nothing is offered as the README is typed.
-class _NoPrompts implements CodeAutocompletePromptsBuilder {
-  const _NoPrompts();
+class NoPrompts implements CodeAutocompletePromptsBuilder {
+  const NoPrompts();
   @override
   CodeAutocompleteEditingValue? build(BuildContext context, CodeLine codeLine, CodeLineSelection selection) => null;
 }
 
-/// The guide to writing an extension ([extensionGuideAsset]).
-class _Guide extends StatefulWidget {
-  const _Guide();
+/// A guide an editor's Help shows: the one at [asset] (to writing an extension,
+/// [extensionGuideAsset], or a plugin).
+class ScriptGuide extends StatefulWidget {
+  const ScriptGuide(this.asset, {super.key});
+  final String asset;
   @override
-  State<_Guide> createState() => _GuideState();
+  State<ScriptGuide> createState() => _ScriptGuideState();
 }
 
-class _GuideState extends State<_Guide> {
-  static String? _text;
-  late final Future<String> _loading = _text != null ? Future.value(_text) : rootBundle.loadString(extensionGuideAsset).then((t) => _text = t);
+class _ScriptGuideState extends State<ScriptGuide> {
+  static final _texts = <String, String>{};
+  late final Future<String> _loading =
+      _texts[widget.asset] != null ? Future.value(_texts[widget.asset]) : rootBundle.loadString(widget.asset).then((t) => _texts[widget.asset] = t);
 
   @override
   Widget build(BuildContext context) => ColoredBox(
@@ -670,12 +682,20 @@ class _GuideState extends State<_Guide> {
       );
 }
 
-/// The extension API to look things up in: every socket with its ports and properties, every
-/// library with its functions, searched as typed. A click on a function puts its call in the
-/// code ([onInsert]); on a port, a function for it.
+/// One more part of a reference, under a heading: what isn't a library's (a plugin's events,
+/// the app's commands), each row as it is shown, what it says, and what a click puts in the code.
+typedef ReferenceSection = ({String title, String? summary, List<({String signature, String summary, String insert})> rows});
+
+/// An API to look things up in: every socket with its ports and properties, every library
+/// with its functions, then [sections], searched as typed. A click on a function puts its call
+/// in the code ([onInsert]); on a port, a function for it. The extensions' ([ExtensionApi])
+/// unless another's [sockets] and [libraries] are given (the plugins').
 class ExtensionReference extends StatefulWidget {
-  const ExtensionReference({super.key, this.onInsert});
+  const ExtensionReference({super.key, this.onInsert, this.sockets = ExtensionApi.sockets, this.libraries = ExtensionApi.libraries, this.sections = const []});
   final ValueChanged<String>? onInsert;
+  final List<ApiSocket> sockets;
+  final List<ApiLibrary> libraries;
+  final List<ReferenceSection> sections;
 
   @override
   State<ExtensionReference> createState() => _ExtensionReferenceState();
@@ -736,7 +756,7 @@ class _ExtensionReferenceState extends State<ExtensionReference> {
 
     final insert = widget.onInsert;
     final rows = <Widget>[];
-    for (final socket in ExtensionApi.sockets) {
+    for (final socket in widget.sockets) {
       final ports = [for (final p in socket.ports) if (matches([socket.type, socket.title, p.name, p.signature, p.summary])) p];
       final props = [for (final p in socket.props) if (matches([socket.type, socket.title, p.name, p.summary])) p];
       if (ports.isEmpty && props.isEmpty) continue;
@@ -749,7 +769,7 @@ class _ExtensionReferenceState extends State<ExtensionReference> {
         rows.add(entry('${p.name}  (${p.type.name}${p.fallback == null ? '' : ', ${p.fallback}'})', p.summary, since: p.since));
       }
     }
-    for (final library in ExtensionApi.libraries) {
+    for (final library in widget.libraries) {
       final functions = [for (final f in library.functions) if (matches([f.name, f.signature, f.summary])) f];
       final values = [for (final v in library.values) if (matches(['${library.name}.${v.$1}', v.$2])) v];
       if (functions.isEmpty && values.isEmpty) continue;
@@ -759,6 +779,14 @@ class _ExtensionReferenceState extends State<ExtensionReference> {
       }
       for (final (name, summary) in values) {
         rows.add(entry('${library.name}.$name', summary, onTap: insert == null ? null : () => insert('${library.name}.$name')));
+      }
+    }
+    for (final section in widget.sections) {
+      final found = [for (final r in section.rows) if (matches([section.title, r.signature, r.summary])) r];
+      if (found.isEmpty) continue;
+      rows.add(heading(section.title, section.summary));
+      for (final r in found) {
+        rows.add(entry(r.signature, r.summary, onTap: insert == null ? null : () => insert(r.insert)));
       }
     }
     return ColoredBox(

@@ -43,7 +43,7 @@ List<XTypeGroup> _types(LuaTable spec) => [
 /// Asks for a file an extension reads (`ui.open_file`), and hands its `done` the file as text:
 /// {name, text}; {name, too_big} past the bytes it reads at most (`max`); {name, error} when it
 /// can't be read. Nothing chosen calls nothing.
-Future<void> openExtensionFile(ExtensionRuntime runtime, LuaTable spec) async {
+Future<void> openExtensionFile(ScriptRuntime runtime, LuaTable spec) async {
   final file = await openFile(acceptedTypeGroups: _types(spec));
   final done = spec['done'];
   if (file == null || done is! LuaFunction) return;
@@ -65,7 +65,7 @@ Future<void> openExtensionFile(ExtensionRuntime runtime, LuaTable spec) async {
 /// for the place chosen: {name, extension}, the extension the name's when it is one of the
 /// types', else the chosen type's first. `done` is told once it is written, or why it wasn't
 /// ({error}).
-Future<void> saveExtensionFile(BuildContext context, ExtensionRuntime runtime, LuaTable spec) async {
+Future<void> saveExtensionFile(BuildContext context, ScriptRuntime runtime, LuaTable spec) async {
   final types = _types(spec);
   final location = await getSaveLocation(acceptedTypeGroups: types, suggestedName: switch (spec['name']) { final String s => s, _ => null });
   if (location == null || !context.mounted) return;

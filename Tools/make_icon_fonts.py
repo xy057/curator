@@ -165,6 +165,8 @@ ICONS = [
     ('update', 'Updates to the app.', 'update', 'update-now'),
     # Settings ▸ Shortcuts
     ('keyboard', 'Keyboard shortcuts.', 'keyboard', 'keyboard'),
+    # Settings ▸ Plugins
+    ('plugins', 'Plugins.', 'power', 'plug'),
 ]
 
 

@@ -68,6 +68,7 @@ class AppSettings extends ChangeNotifier {
         _hideAi = _prefs?.getBool(_hideAiKey) ?? false,
         aiHidden = _prefs?.getBool(_hideAiKey) ?? false,
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true,
+        _pluginsOn = Set.unmodifiable(_prefs?.getStringList(_pluginsOnKey) ?? const <String>[]),
         _keys = KeyMap.read(_prefs?.getString(_keysKey)) {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
@@ -106,7 +107,7 @@ class AppSettings extends ChangeNotifier {
   // macOS reads the flag itself, before Dart runs (MainFlutterWindow.swift: "flutter." + this).
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
   static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel', _pdfAiExamsKey = 'pdfAiExams';
-  static const _hideAiKey = 'hideAi', _keysKey = 'keyBindings';
+  static const _hideAiKey = 'hideAi', _keysKey = 'keyBindings', _pluginsOnKey = 'pluginsOn';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
 
@@ -697,6 +698,43 @@ class AppSettings extends ChangeNotifier {
     } else {
       _prefs?.setString('extension.$id', jsonEncode(json));
     }
+    notifyListeners();
+  }
+
+  /// What was kept since the app started, by plugin (as [_extensionSettings]).
+  final _pluginSettings = <String, Object?>{};
+
+  /// What plugin [id] keeps (`curator.settings` in its Lua), as JSON; null: nothing yet.
+  Object? pluginSettings(String id) {
+    if (_pluginSettings.containsKey(id)) return _pluginSettings[id];
+    final saved = _prefs?.getString('plugin.$id');
+    if (saved == null) return null;
+    try {
+      return jsonDecode(saved);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Keeps [json] as plugin [id]'s settings (`curator.save_settings`).
+  void setPluginSettings(String id, Object? json) {
+    _pluginSettings[id] = json;
+    if (json == null) {
+      _prefs?.remove('plugin.$id');
+    } else {
+      _prefs?.setString('plugin.$id', jsonEncode(json));
+    }
+    notifyListeners();
+  }
+
+  /// The plugins that are on (Settings ▸ Plugins), by id: each runs from the app's start. One
+  /// never turned on is off.
+  Set<String> get pluginsOn => _pluginsOn;
+  Set<String> _pluginsOn;
+  void setPluginOn(String id, bool on) {
+    if (_pluginsOn.contains(id) == on) return;
+    _pluginsOn = Set.unmodifiable(on ? {..._pluginsOn, id} : ({..._pluginsOn}..remove(id)));
+    _prefs?.setStringList(_pluginsOnKey, _pluginsOn.toList()..sort());
     notifyListeners();
   }
 

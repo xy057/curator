@@ -1,6 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:re_editor/re_editor.dart';
-import 'package:score_engine/score_engine.dart' show ApiFunction, ExtensionApi;
+import 'package:score_engine/score_engine.dart' show ApiFunction, ApiLibrary, ExtensionApi, PluginApi;
 
 import 'lilypond_language.dart' show lilyPondTheme;
 
@@ -52,6 +52,10 @@ const luaLibraries = {
 };
 
 final _builtIns = {...luaGlobals, ...luaLibraries.keys, for (final l in ExtensionApi.libraries) l.name};
+
+/// The libraries only a plugin has (`app`, `project`): coloured where one is asked for something
+/// (`app.run`), since an extension may well call something of its own by such a word.
+final _pluginLibraries = {for (final l in PluginApi.libraries) l.name}.difference(_builtIns);
 
 bool _isWordStart(int c) => (c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A) || c == 0x5F;
 bool _isWord(int c) => _isWordStart(c) || (c >= 0x30 && c <= 0x39);
@@ -143,7 +147,7 @@ bool _isWord(int c) => _isWordStart(c) || (c >= 0x30 && c <= 0x39);
                   ? 'literal'
                   : afterFunction
                       ? (k < n && (line.codeUnitAt(k) == 0x2E || line.codeUnitAt(k) == 0x3A) ? null : 'title')
-                      : _builtIns.contains(word)
+                      : _builtIns.contains(word) || (_pluginLibraries.contains(word) && k < n && line.codeUnitAt(k) == 0x2E)
                           ? 'built_in'
                           : null;
       if (scope != null) {
@@ -257,10 +261,12 @@ class LuaPrompt extends CodePrompt {
 
 /// What to offer where the caret is in Lua: after a library's dot (`score.`) its functions and
 /// values; else, once two letters are typed, Lua's words, the libraries, and the names the file
-/// uses ([text], the file as it is). Nothing in a comment or a string.
+/// uses ([text], the file as it is). Nothing in a comment or a string. [libraries] are the
+/// API's whose Lua it is: an extension's, or a plugin's ([PluginApi.libraries]).
 class LuaPrompts implements CodeAutocompletePromptsBuilder {
-  LuaPrompts(this.text);
+  LuaPrompts(this.text, {this.libraries = ExtensionApi.libraries});
   final String Function() text;
+  final List<ApiLibrary> libraries;
 
   static const limit = 40;
 
@@ -269,14 +275,14 @@ class LuaPrompts implements CodeAutocompletePromptsBuilder {
       promptsFor(codeLine.text.substring(0, selection.extentOffset.clamp(0, codeLine.text.length)));
 
   /// The members of library [name]: the API's, or Lua's own.
-  static List<LuaPrompt> membersOf(String name) => [
-        for (final l in ExtensionApi.libraries)
+  static List<LuaPrompt> membersOf(String name, {List<ApiLibrary> libraries = ExtensionApi.libraries}) => [
+        for (final l in libraries)
           if (l.name == name) ...[
             for (final f in l.functions) LuaPrompt(f.name.substring(name.length + 1), LuaKind.function, function: f),
             for (final (value, _) in l.values) LuaPrompt(value, LuaKind.value),
           ],
         for (final member in luaLibraries[name] ?? const <String>[])
-          if (!ExtensionApi.has('$name.$member')) LuaPrompt(member, member == 'huge' || member == 'pi' ? LuaKind.value : LuaKind.function),
+          if (!libraries.any((l) => l.functions.any((f) => f.name == '$name.$member'))) LuaPrompt(member, member == 'huge' || member == 'pi' ? LuaKind.value : LuaKind.function),
       ];
 
   static final _names = RegExp(r'[A-Za-z_][A-Za-z0-9_]*');
@@ -294,14 +300,14 @@ class LuaPrompts implements CodeAutocompletePromptsBuilder {
     }
 
     if (RegExp(r'([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_0-9]*)$').firstMatch(before) case final m?) {
-      final members = membersOf(m[1]!);
+      final members = membersOf(m[1]!, libraries: libraries);
       return members.isEmpty ? null : offer(m[2]!, members);
     }
     if (RegExp(r'(?:^|[^A-Za-z0-9_.:])([A-Za-z_][A-Za-z0-9_]+)$').firstMatch(before) case final m?) {
       final typed = m[1]!;
-      final known = {..._keywords, ..._literals, ..._builtIns};
+      final known = {..._keywords, ..._literals, ..._builtIns, for (final l in libraries) l.name};
       return offer(typed, [
-        for (final l in ExtensionApi.libraries) LuaPrompt(l.name, LuaKind.library),
+        for (final l in libraries) LuaPrompt(l.name, LuaKind.library),
         for (final name in luaLibraries.keys) LuaPrompt(name, LuaKind.library),
         for (final name in luaGlobals) LuaPrompt(name, LuaKind.function),
         for (final word in [..._keywords, ..._literals]) LuaPrompt(word, LuaKind.keyword),

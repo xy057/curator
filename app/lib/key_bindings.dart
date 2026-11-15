@@ -388,6 +388,16 @@ class KeyMap {
     return null;
   }
 
+  /// The command of the menus or the editor that [key] gives, if one does: a key a plugin's
+  /// command can't have.
+  KeyCommand? holderOf(KeyChord key) {
+    for (final other in KeyCommand.values) {
+      if (!other.shown || !other.place.sharesKeysWith(KeyPlace.editor)) continue;
+      if (keysOf(other).contains(key) || (!_chosen.containsKey(other) && other.also.contains(key))) return other;
+    }
+    return null;
+  }
+
   /// As saved: `{"open": "6f+c", "warp": ""}`, by name, "" for none.
   String write() => jsonEncode({for (final MapEntry(:key, :value) in _chosen.entries) key.name: value?.write() ?? ''});
 

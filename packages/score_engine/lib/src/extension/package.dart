@@ -1,11 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
-import '../zip_entries.dart';
+import '../script.dart';
 
 /// An extension as it travels: a `.cpe` file (Curator Project Extension), a zip archive holding
 ///
@@ -21,7 +18,7 @@ import '../zip_entries.dart';
 /// know stays in the file, so an extension made for a later Curator survives being opened and
 /// saved by this one (see [ConnectorGraph]).
 @immutable
-class ExtensionPackage {
+class ExtensionPackage implements ScriptPackage {
   ExtensionPackage({
     required Map<String, Object?> manifest,
     ConnectorGraph? graph,
@@ -39,7 +36,7 @@ class ExtensionPackage {
   static const fileExtension = 'cpe';
 
   /// The most a package unpacks to, a file of it, and how many it holds.
-  static const maxBytes = 64 << 20, maxTextBytes = 4 << 20, maxFiles = 2000;
+  static const maxBytes = PackageFiles.maxBytes, maxTextBytes = PackageFiles.maxTextBytes, maxFiles = PackageFiles.maxFiles;
 
   /// A new extension: one file with one function, wired to the project opening.
   factory ExtensionPackage.blank({required String id, required String name}) => ExtensionPackage(
@@ -58,19 +55,25 @@ class ExtensionPackage {
   final ConnectorGraph graph;
 
   /// Each Lua file by its path under `src/` ("main.lua", "util/text.lua").
+  @override
   final Map<String, String> sources;
 
   /// Each language's texts by its locale ("zh-Hans"): the English → the translation.
+  @override
   final Map<String, Map<String, String>> locales;
 
   /// Each file under `assets/` by its path there.
+  @override
   final Map<String, Uint8List> assets;
   final String? readme;
 
   /// Stable for good: a project keeps its switch and its data under it. Curator's own are one
   /// word ("captions"); anyone else's has a dot, a domain backwards ("com.example.lyrics").
+  @override
   String get id => _text('id') ?? '';
+  @override
   String get name => _text('name') ?? id;
+  @override
   String? get version => _text('version');
   String get summary => _text('summary') ?? '';
   String get keywords => _text('keywords') ?? '';
@@ -98,11 +101,12 @@ class ExtensionPackage {
   static bool isBuiltInId(String id) => RegExp(r'^[a-zA-Z][a-zA-Z0-9]{0,31}$').hasMatch(id);
 
   /// A module's name ("util.text") for a file's path ("util/text.lua").
-  static String moduleOf(String path) => (path.endsWith('.lua') ? path.substring(0, path.length - 4) : path).replaceAll('/', '.');
+  static String moduleOf(String path) => PackageFiles.moduleOf(path);
 
   /// The file a `require` of [module] reads; null: there is none.
+  @override
   String? fileOf(String module) {
-    final path = '${module.replaceAll('.', '/')}.lua';
+    final path = PackageFiles.pathOf(module);
     return sources.containsKey(path) ? path : null;
   }
 
@@ -137,18 +141,10 @@ class ExtensionPackage {
     for (final path in assets.keys.toList()..sort()) 'assets/$path': assets[path]!,
   });
 
-  static Uint8List _bytes(String text) => Uint8List.fromList(utf8.encode(text));
+  static Uint8List _bytes(String text) => PackageFiles.bytes(text);
 
   /// What it holds, as one number: two packages holding the same have the same.
-  late final String digest = () {
-    final all = BytesBuilder(copy: false);
-    files.forEach((path, bytes) {
-      all
-        ..add(utf8.encode('$path\n${bytes.length}\n'))
-        ..add(bytes);
-    });
-    return sha256.convert(all.takeBytes()).toString();
-  }();
+  late final String digest = PackageFiles.digest(files);
 
   @override
   bool operator ==(Object other) => other is ExtensionPackage && other.digest == digest;
@@ -158,43 +154,15 @@ class ExtensionPackage {
   /// A package from its files by path, as [files] lists them. What is wrong with it is a
   /// [FormatException] that says so.
   factory ExtensionPackage.fromFiles(Map<String, Uint8List> files) {
-    String text(String path) {
-      try {
-        return utf8.decode(files[path]!);
-      } on FormatException {
-        throw FormatException('$path isn’t text.');
-      }
-    }
-
-    Object? json(String path) {
-      try {
-        return jsonDecode(text(path));
-      } on FormatException {
-        throw FormatException('$path isn’t JSON.');
-      }
-    }
+    String text(String path) => PackageFiles.text(files, path);
+    Object? json(String path) => PackageFiles.json(files, path);
 
     if (!files.containsKey('extension.json')) throw const FormatException('This isn’t a Curator extension.');
     final manifest = json('extension.json');
     if (manifest is! Map<String, Object?> || (manifest['format'] ?? mimeType) != mimeType) throw const FormatException('This isn’t a Curator extension.');
     final id = manifest['id'];
     if (id is! String || !(isThirdPartyId(id) || isBuiltInId(id))) throw const FormatException('The extension has no id Curator can use.');
-    final sources = <String, String>{}, locales = <String, Map<String, String>>{}, assets = <String, Uint8List>{};
-    for (final path in files.keys) {
-      if (path.contains('..') || path.startsWith('/')) throw FormatException('$path isn’t a path an extension may have.');
-      if (path.startsWith('src/') && path.endsWith('.lua')) {
-        sources[path.substring(4)] = text(path);
-      } else if (path.startsWith('locales/') && path.endsWith('.json')) {
-        final table = json(path);
-        if (table is! Map<String, Object?>) throw FormatException('$path isn’t a table of texts.');
-        locales[path.substring(8, path.length - 5)] = {
-          for (final MapEntry(:key, :value) in table.entries)
-            if (value is String) key: value,
-        };
-      } else if (path.startsWith('assets/')) {
-        assets[path.substring(7)] = files[path]!;
-      }
-    }
+    final (:sources, :locales, :assets) = PackageFiles.sorted(files, what: 'extension');
     return ExtensionPackage(
       manifest: manifest,
       graph: files.containsKey('connect.json') ? ConnectorGraph.fromJson(json('connect.json')) : ConnectorGraph(),
@@ -206,37 +174,12 @@ class ExtensionPackage {
   }
 
   /// The package a `.cpe` file's [bytes] hold. A [FormatException] says what is wrong with one.
-  factory ExtensionPackage.read(Uint8List bytes) {
-    final Archive archive;
-    try {
-      archive = ZipDecoder().decodeBytes(bytes);
-    } catch (_) {
-      throw const FormatException('This isn’t a Curator extension.');
-    }
-    if (archive.files.length > maxFiles) throw const FormatException('The extension holds too many files.');
-    final files = <String, Uint8List>{};
-    var total = 0;
-    for (final file in archive.files) {
-      if (!file.isFile || file.name == 'mimetype') continue;
-      final text = !file.name.startsWith('assets/');
-      final content = ZipEntries.read(file, limit: text ? maxTextBytes : maxBytes - total);
-      total += content.length;
-      if (total > maxBytes) throw const FormatException('The extension is too big.');
-      files[file.name] = content;
-    }
-    return ExtensionPackage.fromFiles(files);
-  }
+  factory ExtensionPackage.read(Uint8List bytes) => ExtensionPackage.fromFiles(PackageFiles.unzip(bytes, what: 'extension'));
 
   /// It as a `.cpe` file: the same bytes for the same package, whenever it is written.
   Uint8List write() => _written;
 
-  late final Uint8List _written = () {
-    final at = DateTime.utc(2000).millisecondsSinceEpoch ~/ 1000;
-    final archive = Archive()
-      ..add(ArchiveFile.noCompress('mimetype', mimeType.length, ascii.encode(mimeType))..lastModTime = at);
-    files.forEach((path, bytes) => archive.add(ArchiveFile.bytes(path, bytes)..lastModTime = at));
-    return ZipEncoder().encodeBytes(archive);
-  }();
+  late final Uint8List _written = PackageFiles.zip(mimeType, files);
 }
 
 /// A socket of Curator's an extension uses: one node of its [ConnectorGraph]. What kind
