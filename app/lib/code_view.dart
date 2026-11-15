@@ -178,11 +178,12 @@ class CodeFindBar extends StatelessWidget implements PreferredSizeWidget {
 
   static const _row = 38.0;
 
+  // The rows and the 1 px line under them, which a Container's border takes from its height.
   @override
   Size get preferredSize => Size(double.infinity, switch (controller.value) {
         null => 0,
-        final v when v.replaceMode && !readOnly => _row * 2,
-        _ => _row,
+        final v when v.replaceMode && !readOnly => _row * 2 + 1,
+        _ => _row + 1,
       });
 
   @override
