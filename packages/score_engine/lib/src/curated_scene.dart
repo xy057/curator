@@ -392,6 +392,9 @@ class LoadedScore {
       engrave(musicXML, request, tempo: metadata.tempo, pdf: pdf, lilypond: lilypond);
 }
 
+/// A run of staves in one section (start and end, inclusive, in the planned order).
+typedef _SectionRun = ({int start, int end, bool barlines, bool outset});
+
 /// What a drawn score is read into: the score written for it, prepared, and its drawing.
 typedef _DrawnRead = ({String musicXML, ScoreMetadata metadata, PreparedScore prepared, EngravingData engraving});
 
@@ -850,8 +853,11 @@ class CuratedScene {
   /// shared staff just above its first player's.
   late List<PlannedStaff> _order = _plannedOrder();
 
+  /// The score's parts by id, made once (a frame's layout asks for them).
+  late final Map<String, ScorePart> _parts = {for (final p in score.metadata.parts) p.id: p};
+
   List<PlannedStaff> _plannedOrder() {
-    final parts = {for (final p in score.metadata.parts) p.id: p};
+    final parts = _parts;
     return [
       for (final id in _partOrder) ...[
         for (final g in score.condensed)
@@ -867,12 +873,25 @@ class CuratedScene {
   /// are of one section, two instruments or more, or one the user put in it (bracketed even
   /// while only one shows); [outset] when one of them is on more than one
   /// staff (its brace takes the room beside the staves).
-  late List<({int start, int end, bool barlines, bool outset})> _sectionRuns = _sectionRunsOf(_order);
+  late List<_SectionRun> _sectionRuns = _sectionRunsOf(_order);
 
-  List<({int start, int end, bool barlines, bool outset})> _sectionRunsOf(List<PlannedStaff> order) {
-    final parts = {for (final p in score.metadata.parts) p.id: p};
+  /// Each staff of [_order] in a section's run, the run it is in: made again only as the runs are.
+  Map<int, _SectionRun> get _runOf {
+    if (_runOfKept case (final runs, final of) when identical(runs, _sectionRuns)) return of;
+    final of = <int, _SectionRun>{
+      for (final run in _sectionRuns)
+        for (var i = run.start; i <= run.end; i++) i: run,
+    };
+    _runOfKept = (_sectionRuns, of);
+    return of;
+  }
+
+  (List<_SectionRun>, Map<int, _SectionRun>)? _runOfKept;
+
+  List<_SectionRun> _sectionRunsOf(List<PlannedStaff> order) {
+    final parts = _parts;
     ScorePart partOf(String id) => parts[id] ?? parts[_groups[id]!.partIds.first]!; // a pair: its first player
-    final runs = <({int start, int end, bool barlines, bool outset})>[];
+    final runs = <_SectionRun>[];
     var start = 0;
     for (var i = 1; i <= order.length; i++) {
       final section = sectionOf(partOf(order[start].partId));
@@ -984,14 +1003,14 @@ class CuratedScene {
   Object _planKeyFor(Curation curation, ui.Size size) =>
       (curation, curation.revision, curation.transition, size, verticalMargin, _motion.minGap, _motion.maxGap, _timelineVersion, _condensedVersion, _orderVersion, _spacingVersion, _captionReserve, _bandReserve, _displayVersion, _motion.glide);
 
-  SpacingPlan _buildPlan(Curation curation, ui.Size size) {
+  SpacingPlan _buildPlan(Curation curation, ui.Size size, {Iterable<RegionEdge>? edges}) {
     final pointerX = renderer.pointerX(size.width);
     final top = _top; // the plan's 0 in the frame
     return SpacingPlan.build(
       staves: display.staves,
       order: _order,
       scrollMap: scrollMap,
-      edges: curation.edgesInSeconds(timeline),
+      edges: edges ?? curation.edgesInSeconds(timeline),
       isShown: (k, seconds) => _isStaffShown(curation, k, seconds),
       spacing: {
         for (final MapEntry(key: id, value: (:above, :below)) in _instrumentSpacing.entries)
@@ -1050,7 +1069,9 @@ class CuratedScene {
     final key = _planKeyFor(curation, size);
     if (_plan == null || _planKey != key) {
       final pointerX = renderer.pointerX(size.width);
-      _plan = _buildPlan(curation, size);
+      // Every lane's edges, worked out once for both plans.
+      final edges = curation.edgesInSeconds(timeline).toList();
+      _plan = _buildPlan(curation, size, edges: edges);
       final zone = renderer.frozen, bare = renderer.bare;
       final kept = [for (final (k, s) in _order.indexed) if (!bare.contains(s.staffIndex)) k];
       _keyPlan = zone == null
@@ -1060,7 +1081,7 @@ class CuratedScene {
               staves: display.staves,
               order: [for (final s in _order) if (!bare.contains(s.staffIndex)) s],
               scrollMap: scrollMap,
-              edges: curation.edgesInSeconds(timeline),
+              edges: edges,
               isShown: (k, seconds) => _isStaffShown(curation, kept[k], seconds),
               minReach: (pointerX - renderer.musicLeftFor(0)) / renderer.scale,
               maxReach: (pointerX - renderer.musicLeft) / renderer.scale,
@@ -1775,7 +1796,7 @@ class CuratedScene {
   }) layoutAt(double time, Curation curation, ui.Size size) {
     final visibility = _visibilityAt(time, curation);
     final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + _top];
-    final parts = {for (final p in score.metadata.parts) p.id: p};
+    final parts = _parts;
 
     final placements = <StaffPlacement>[];
     final labels = <StaffLabel>[];
@@ -1860,10 +1881,7 @@ class CuratedScene {
       final middle = p.y + height / 2;
       return (top: middle - room / 2, bottom: middle + room / 2);
     }
-    final runOf = <int, ({int start, int end, bool barlines, bool outset})>{
-      for (final run in _sectionRuns)
-        for (var i = run.start; i <= run.end; i++) i: run,
-    };
+    final runOf = _runOf;
     final shown = placed.keys.toList();
     for (var k = 1; k < shown.length; k++) {
       final above = placed[shown[k - 1]]!, below = placed[shown[k]]!;
