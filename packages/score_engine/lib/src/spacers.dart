@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
+import 'musicxml_kit.dart';
+
 /// The key a vertical spacer is written in: concert pitch, or an instrument's transposition
 /// (a staff in B♭ shows the key a clarinet's does).
 enum SpacerKey {
@@ -162,27 +164,27 @@ abstract final class Spacers {
     final bars = _barsOf(reference), lengths = barLengths(doc);
     for (final spacer in spacers) {
       if (root.findElements('part').any((p) => p.getAttribute('id') == spacer.id)) continue;
-      partList.children.add(_element('score-part', attributes: {'id': spacer.id}, children: [
-        _element('part-name', text: nameOf(spacer.id)),
+      partList.children.add(xmlElement('score-part', attributes: {'id': spacer.id}, children: [
+        xmlElement('part-name', text: nameOf(spacer.id)),
       ]));
-      root.children.add(_element('part', attributes: {'id': spacer.id}, children: [
+      root.children.add(xmlElement('part', attributes: {'id': spacer.id}, children: [
         for (final (i, bar) in bars.indexed)
           XmlElement.tag('measure', attributes: [
             for (final a in bar.measure.attributes) if (a.name.local != 'width') a.copy(),
           ], children: [
             for (final b in bar.measure.findElements('barline')) if (b.getAttribute('location') == 'left') b.copy(),
             if (i == 0 || bar.divisions != bars[i - 1].divisions || bar.keys.isNotEmpty || bar.times.isNotEmpty)
-              _element('attributes', children: [
-                if (i == 0 || bar.divisions != bars[i - 1].divisions) _element('divisions', text: '${bar.divisions}'),
+              xmlElement('attributes', children: [
+                if (i == 0 || bar.divisions != bars[i - 1].divisions) xmlElement('divisions', text: '${bar.divisions}'),
                 for (final k in bar.keys) _key(k, spacer.key),
                 for (final t in bar.times) t.copy(),
-                if (i == 0) _element('clef', children: [_element('sign', text: 'G'), _element('line', text: '2')]),
+                if (i == 0) xmlElement('clef', children: [xmlElement('sign', text: 'G'), xmlElement('line', text: '2')]),
               ]),
-            _element('note', attributes: {'print-object': 'no'}, children: [
-              _element('rest', attributes: {'measure': 'yes'}),
+            xmlElement('note', attributes: {'print-object': 'no'}, children: [
+              xmlElement('rest', attributes: {'measure': 'yes'}),
               // As long as the bar is engraved, should this part's be short.
-              _element('duration', text: '${i < lengths.length ? math.max(bar.length, (lengths[i] * bar.divisions).round()) : bar.length}'),
-              _element('voice', text: '1'),
+              xmlElement('duration', text: '${i < lengths.length ? math.max(bar.length, (lengths[i] * bar.divisions).round()) : bar.length}'),
+              xmlElement('voice', text: '1'),
             ]),
             for (final b in bar.measure.findElements('barline')) if (b.getAttribute('location') != 'left') b.copy(),
           ]),
@@ -227,15 +229,15 @@ abstract final class Spacers {
               final n = int.tryParse(d.innerText.trim()) ?? 0;
               if (n > 0) divisions = n;
             }
-            if (e.getElement('transpose') case final t?) shift = _fifthsOf(int.tryParse(t.getElement('chromatic')?.innerText.trim() ?? '') ?? 0);
+            if (e.getElement('transpose') case final t?) shift = writtenFifthsOf(xmlInt(t.getElement('chromatic')) ?? 0);
             keys.addAll([for (final k in e.findElements('key')) if (k.getAttribute('number') case null || '1') (k, shift)]);
             times.addAll(e.findElements('time'));
           case 'note' when e.getElement('chord') == null && e.getElement('grace') == null:
-            at += _duration(e);
+            at += durationOf(e);
           case 'forward':
-            at += _duration(e);
+            at += durationOf(e);
           case 'backup':
-            at -= _duration(e);
+            at -= durationOf(e);
         }
         if (at > length) length = at;
       }
@@ -243,21 +245,6 @@ abstract final class Spacers {
     }
     return out;
   }
-
-  /// The fifths a written key is from the concert key for an instrument [chromatic] semitones
-  /// from written to sounding (B♭: −2 → +2).
-  static int _fifthsOf(int chromatic) {
-    final f = (-chromatic * 7) % 12;
-    return f > 6 ? f - 12 : f;
-  }
-
-  static XmlElement _element(String name,
-          {Map<String, String> attributes = const {}, List<XmlNode> children = const [], String? text}) =>
-      XmlElement.tag(name,
-          attributes: [for (final MapEntry(:key, :value) in attributes.entries) XmlAttribute(XmlName.qualified(key), value)],
-          children: [...children, if (text != null) XmlText(text)]);
-
-  static int _duration(XmlElement e) => int.tryParse(e.getElement('duration')?.innerText.trim() ?? '') ?? 0;
 
   /// How long each bar of [doc] is, quarters: its longest part's, as it is engraved (one part's
   /// bar can be short, a rest left out).

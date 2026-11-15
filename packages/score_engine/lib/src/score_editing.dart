@@ -9,6 +9,8 @@ import 'dart:math' as math;
 
 import 'package:xml/xml.dart';
 
+import 'musicxml_kit.dart';
+
 // MARK: Time
 
 /// An exact time or length in quarter notes.
@@ -2993,10 +2995,7 @@ class EditableScore {
   /// sharps more than concert pitch.
   static int _fifthsOf(XmlElement? transpose) {
     if (transpose == null) return 0;
-    final chromatic = int.tryParse(_childText(transpose, 'chromatic')?.trim() ?? '') ?? 0;
-    var f = (-chromatic * 7) % 12;
-    if (f > 6) f -= 12;
-    return f;
+    return writtenFifthsOf(int.tryParse(_childText(transpose, 'chromatic')?.trim() ?? '') ?? 0);
   }
 
   /// The bar after [m] that changes [what] (`key`, `time`), or the end.

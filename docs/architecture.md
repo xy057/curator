@@ -57,6 +57,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `audio_alignment.dart`, `basic_pitch.dart` | Align: a recording heard by Spotify's Basic Pitch (`BasicPitch`, its network run in Dart) as which keys sound and start, a chunk at a time (`AudioNotes`, resampled to its rate), matched to the score's notes by multiscale DTW, the path thinned into anchors (`AudioAlignment.anchors`) |
 | `phrase_search.dart` | Find Phrase: a melody entered (`Phrase`, `PhraseNote`) and its MusicXML for Verovio, drawn as `PhrasePicture`; every voice of the score as it sounds (`ScoreLine`); where a phrase is played (`PhraseSearch`) |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
+| `musicxml_kit.dart` | What the engine's MusicXML readers and writers share: a number read (`xmlInt`, `durationOf`), an element written (`xmlElement`), a transposing part's key (`writtenFifthsOf`), and a part's bars walked in time (`MeasureCursor`: divisions, backup, forward, chords) |
 | `zip_entries.dart` | `ZipEntries`: an entry of someone else's zip (a project, an .mxl), its bytes counted as they unpack and refused past a limit |
 
 **`app/`** is the editor around it:
