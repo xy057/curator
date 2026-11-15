@@ -538,12 +538,14 @@ void LinkDocumentController::startPendingExport ()
     if (found->frames () <= 0 || !found->isSampleAccessEnabled ())
         return reply ("error", "unreadable");
 
-    const std::string folder = curatorCacheFolder () + "/DAW Link";
+    // A folder for each recording (by its ID), the file named as the DAW names the recording:
+    // Curator calls the take it makes of it by the file's name.
+    char hash[24];
+    std::snprintf (hash, sizeof hash, "%016llx", static_cast<unsigned long long> (std::hash<std::string> {} (sourceID)));
+    const std::string folder = curatorCacheFolder () + "/DAW Link/" + hash;
     makeFolders (folder);
-    char hash[16];
-    std::snprintf (hash, sizeof hash, "%08zx", std::hash<std::string> {} (sourceID) & 0xffffffffu);
     const char* sourceName = found->getName ();
-    const std::string path = folder + "/" + safeName (sourceName ? sourceName : "") + " " + hash + ".wav";
+    const std::string path = folder + "/" + safeName (sourceName ? sourceName : "") + ".wav";
     const double rate = found->getSampleRate ();
 
     std::lock_guard<std::mutex> lock (exportMutex_);

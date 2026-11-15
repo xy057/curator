@@ -67,9 +67,13 @@ target_link_libraries(link_core PUBLIC ara_plugin)
 target_compile_definitions(link_core PUBLIC LINK_VERSION="${LINK_VERSION}" LINK_BUILD=${LINK_BUILD})
 target_compile_options(link_core PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
-# Code signing: an ad-hoc signature sealing the bundle (Apple silicon runs nothing unsigned).
+# A bundle of [target]: its Info.plist, the licences of the SDKs in it (the app's asset, one
+# copy), and an ad-hoc signature sealing it (Apple silicon runs nothing unsigned).
+set(LINK_LICENSES "${CMAKE_CURRENT_SOURCE_DIR}/../app/assets/daw_link/LICENSES.txt")
 function(link_bundle target extension plist)
     configure_file("${plist}" "${CMAKE_CURRENT_BINARY_DIR}/${target}-Info.plist" @ONLY)
+    target_sources(${target} PRIVATE "${LINK_LICENSES}")
+    set_source_files_properties("${LINK_LICENSES}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     set_target_properties(${target} PROPERTIES
         BUNDLE ON
         BUNDLE_EXTENSION ${extension}

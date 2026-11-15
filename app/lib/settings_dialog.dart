@@ -16,6 +16,7 @@ import 'app_settings.dart';
 import 'color_dialog.dart';
 import 'audio_panel.dart' show pickAudio;
 import 'condensing_editor.dart';
+import 'daw_link.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'engraving_settings.dart';
@@ -350,6 +351,21 @@ final _categories = <_Category>[
       ),
       group: 'Keyboard',
       keywords: 'anchor nudge step arrow keyboard sync time move precise fine milliseconds',
+    ),
+    _Item(
+      'Listen for Curator Link',
+      null,
+      (c) => AppSwitch(value: c.settings.dawLink, onChanged: (v) => c.settings.dawLink = v),
+      group: 'DAW',
+      keywords: 'daw ara plugin plug-in link cubase logic studio one reaper nuendo tempo map transport playhead recording',
+    ),
+    _Item(
+      'Curator Link plug-in',
+      null,
+      (c) => const _CuratorLinkPlugIns(),
+      shown: (_) => CuratorLinkPlugIns.supported,
+      group: 'DAW',
+      keywords: 'install update daw ara plugin plug-in vst3 audio unit component cubase logic studio one reaper',
     ),
   ]),
   _Category('Appearance', AppIcon.appearance, [
@@ -1953,6 +1969,77 @@ class _Dropdown<T> extends StatelessWidget {
 
 /// The model the PDF import's Read with AI asks ("model · provider", names as they are, and its
 /// exam's result), or None: a click chooses one ([showPdfAiModelDialog]).
+/// Curator Link's VST3 and Audio Unit installed for DAWs ([CuratorLinkPlugIns]): the DAWs
+/// connected now, then Install (Update when another version is there, Reinstall when this one).
+class _CuratorLinkPlugIns extends StatefulWidget {
+  const _CuratorLinkPlugIns();
+
+  @override
+  State<_CuratorLinkPlugIns> createState() => _CuratorLinkPlugInsState();
+}
+
+class _CuratorLinkPlugInsState extends State<_CuratorLinkPlugIns> {
+  String? _installed = CuratorLinkPlugIns.installed();
+  bool _busy = false;
+  String? _problem;
+
+  static String get _version => '$appVersion ($appBuild)';
+
+  Future<void> _install() async {
+    setState(() {
+      _busy = true;
+      _problem = null;
+    });
+    try {
+      final ByteData data;
+      try {
+        data = await rootBundle.load(CuratorLinkPlugIns.asset);
+      } catch (_) {
+        throw StateError('This build of Curator has no Curator Link.'.tr);
+      }
+      await CuratorLinkPlugIns.install(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+    } catch (e) {
+      _problem = e is StateError ? e.message : describeError(e);
+    }
+    if (mounted) {
+      setState(() {
+        _busy = false;
+        _installed = CuratorLinkPlugIns.installed();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = TextStyle(fontSize: 12, color: context.colors.textMuted);
+    return ListenableBuilder(
+      listenable: DawLink.shared,
+      builder: (context, _) {
+        final hosts = {for (final s in DawLink.shared.sessions) if (s.host.isNotEmpty) s.host};
+        return Row(mainAxisSize: MainAxisSize.min, children: [
+          if (_problem != null)
+            Flexible(child: Text(_problem!, style: muted.copyWith(color: Theme.of(context).colorScheme.error), overflow: TextOverflow.ellipsis, maxLines: 2))
+          else if (hosts.isNotEmpty)
+            Flexible(child: Text('Connected: {daws}'.fill({'daws': hosts.join(', ')}), style: muted, overflow: TextOverflow.ellipsis))
+          else if (_installed != null)
+            Text(_installed!.isEmpty ? 'Installed'.tr : _installed!, style: muted),
+          const SizedBox(width: 10),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+            onPressed: _busy ? null : _install,
+            child: Text(_installed == null
+                ? 'Install'.tr
+                : _installed == _version
+                    ? 'Reinstall'.tr
+                    : 'Update'.tr),
+          ),
+        ]);
+      },
+    );
+  }
+}
+
 class _PdfAiModel extends StatelessWidget {
   const _PdfAiModel({required this.settings});
   final AppSettings settings;

@@ -1,7 +1,12 @@
 
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:curated_score/audio_track.dart';
+import 'package:curated_score/daw_link.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/project_state.dart';
@@ -27,7 +32,7 @@ void main() {
   });
   tearDown(() => c.dispose());
 
-  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes', () async {
+  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Curator Link', () async {
     // One history steps back through every kind of edit, in order, whichever tab is showing; a new edit drops the redo; nothing open, nothing to undo.
     {
       expect(c.canUndo, isFalse, reason: 'opening is not an edit');
@@ -167,6 +172,97 @@ void main() {
       await c.removeTake('take-1');
       expect((c.focus, c.editsSync), ('take-2', true));
       expect(c.sync!.anchors, const [SyncAnchor(0, 2), SyncAnchor(8, 6)]);
+    }
+
+    // A DAW followed through Curator Link, the plug-in's end played here over a socket: only one
+    // saying the token back is heard; its tempo where the recording is placed becomes the sync's
+    // (one Undo step), again as the DAW changes it; its transport moves the playhead; a recording
+    // is asked for; a tempo map chosen here ends it, as the DAW going does.
+    {
+      await open();
+      final folder = await Directory.systemTemp.createTemp('daw-link');
+      final link = DawLink(folder);
+      await link.start();
+      final discovery = jsonDecode(File('${folder.path}/daw-link.json').readAsStringSync()) as Map<String, Object?>;
+      Future<void> until(bool Function() done) async {
+        for (var i = 0; i < 200 && !done(); i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        expect(done(), isTrue);
+      }
+
+      final impostor = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
+      impostor.write('{"t":"hello","token":"guess","protocol":1}\n{"t":"document","id":"x"}\n');
+      await impostor.drain<void>().timeout(const Duration(seconds: 2));
+      expect(link.sessions, isEmpty, reason: 'a wrong token is let go');
+
+      final daw = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
+      final heard = StreamIterator(daw.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()));
+      void say(Map<String, Object?> message) => daw.write('${jsonEncode(message)}\n');
+      Map<String, Object?> song(List<List<num>> tempo) => {
+            't': 'document', 'id': 'doc', 'name': 'Symphony',
+            'contexts': [{'id': 'c', 'tempo': tempo, 'bars': [[6, 8, 0]]}],
+            'tracks': [{'id': 't', 'name': 'Strings', 'context': 'c'}],
+            'sources': [{'id': 'take-1', 'name': 'Take 1', 'rate': 48000, 'frames': 48000 * 60, 'channels': 2}],
+            'regions': [{'id': 'r', 'track': 't', 'source': 'take-1', 'start': 1, 'length': 59, 'from': 0.5, 'span': 59}],
+          };
+      say({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'plugin': '0.9.0'});
+      say(song([[0, 0], [3, 6], [9, 15]]));
+      await until(() => link.find('doc') != null);
+      final (session, document) = link.find('doc')!;
+      expect(session.host, 'Cubase 15');
+
+      final region = document.regions.single, context = document.contexts.single;
+      expect(c.daw.follow(link, (document: 'doc', source: 'take-1', region: null, bar: 2, transport: true)), isTrue);
+      final pickup = c.score!.metadata.pickups.contains(0) ? c.score!.timeline.measureStarts[1] : 0.0;
+      final expected = context.tempoFor(region, name: 'Cubase 15 · Strings', bar: 2, pickup: pickup)!;
+      expect(c.midiTempo, expected.map);
+      expect(c.sync!.startSeconds, closeTo(expected.start, 1e-9));
+      c.undo();
+      expect(c.usesMidiTempo, isFalse, reason: 'taking the DAW’s tempo is one Undo step');
+      c.redo();
+
+      say(song([[0, 0], [3, 6], [8, 15]])); // a faster end, as the DAW's tempo track was edited
+      await until(() => c.midiTempo!.tempos.last.quartersPerMinute == 108);
+
+      say({'t': 'transport', 'playing': true, 'seconds': 3.0, 'quarters': 6, 'tempo': 120});
+      await until(() => c.playback.followsDaw);
+      say({'t': 'transport', 'playing': false, 'seconds': 4.0, 'quarters': 8, 'tempo': 120});
+      await until(() => !c.playback.followsDaw);
+      expect(c.playback.time.value, closeTo(3.5, 1e-9), reason: 'song 4 s is 3.5 s into the recording');
+
+      final asked = link.recording(session, 'doc', 'take-1');
+      expect(await heard.moveNext(), isTrue);
+      expect(jsonDecode(heard.current), {'t': 'export', 'document': 'doc', 'source': 'take-1'});
+      say({'t': 'exported', 'document': 'doc', 'source': 'take-1', 'path': '/tmp/Take 1.wav'});
+      expect(await asked, '/tmp/Take 1.wav');
+
+      c.useMidiTempo(null);
+      expect(c.daw.following, isNull, reason: 'another tempo chosen here ends it');
+      c.daw.follow(link, (document: 'doc', source: 'take-1', region: null, bar: 1, transport: true));
+      say({'t': 'transport', 'playing': true, 'seconds': 5.0, 'quarters': 10, 'tempo': 120});
+      await until(() => c.playback.followsDaw);
+      daw.destroy();
+      await until(() => link.sessions.isEmpty && !c.playback.followsDaw);
+      await link.stop();
+      expect(File('${folder.path}/daw-link.json').existsSync(), isFalse, reason: 'its discovery file goes with it');
+
+      // The plug-ins installed from the zip the app bundles: each bundle in its folder, replacing
+      // what was there, its program executable; nothing outside them.
+      final plugIns = '${folder.path}/Plug-Ins';
+      File('$plugIns/VST3/Curator Link.vst3/Contents/old.txt').createSync(recursive: true);
+      final zip = Archive()
+        ..add(ArchiveFile.string('Curator Link.vst3/Contents/Info.plist',
+            '<key>CFBundleShortVersionString</key>\n\t<string>0.9.0</string>\n<key>CFBundleVersion</key><string>468</string>'))
+        ..add(ArchiveFile.string('Curator Link.vst3/Contents/MacOS/Curator Link', 'program'))
+        ..add(ArchiveFile.string('Curator Link.component/Contents/MacOS/Curator Link', 'program'))
+        ..add(ArchiveFile.string('Elsewhere/stray.txt', 'no'));
+      await CuratorLinkPlugIns.install(Uint8List.fromList(ZipEncoder().encode(zip)), folder: plugIns);
+      expect(CuratorLinkPlugIns.installed(folder: plugIns), '0.9.0 (468)');
+      expect(File('$plugIns/VST3/Curator Link.vst3/Contents/old.txt').existsSync(), isFalse);
+      expect(File('$plugIns/Components/Curator Link.component/Contents/MacOS/Curator Link').statSync().modeString(), 'rwxr-xr-x');
+      expect(Directory('$plugIns/Elsewhere').existsSync() || File('${folder.path}/Elsewhere/stray.txt').existsSync(), isFalse);
+      await folder.delete(recursive: true);
     }
   });
 }

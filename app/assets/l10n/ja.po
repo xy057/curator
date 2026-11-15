@@ -546,7 +546,7 @@ msgstr "{bars}までの休符をつなぐ"
 msgid "c if a < b, else d"
 msgstr "a < b なら c、そうでなければ d"
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "キャンセル"
 
@@ -725,7 +725,7 @@ msgstr "設定を読み込めませんでした"
 msgid "Couldn’t Load Recording"
 msgstr "録音を読み込めませんでした"
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart lib/daw_follow_dialog.dart
 msgid "Couldn’t load the recording. {error}"
 msgstr "録音を読み込めませんでした。{error}"
 
@@ -1567,7 +1567,7 @@ msgstr "オクターブ記号"
 msgid "Off"
 msgstr "オフ"
 
-#: lib/ai_settings.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/daw_follow_dialog.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr ""
 
@@ -1734,7 +1734,7 @@ msgstr "録音を読み込み中…"
 msgid "RECENT"
 msgstr "最近使った項目"
 
-#: lib/audio_panel.dart lib/take_lanes.dart lib/web_player/player.dart
+#: lib/audio_panel.dart lib/daw_follow_dialog.dart lib/take_lanes.dart lib/web_player/player.dart
 msgid "Recording"
 msgstr "録音"
 
@@ -3512,6 +3512,24 @@ msgstr "読み込み"
 
 msgid "Keyboard"
 msgstr "キーボード"
+
+msgid "DAW"
+msgstr ""
+
+msgid "Listen for Curator Link"
+msgstr "Curator Link を待ち受ける"
+
+msgid "Curator Link plug-in"
+msgstr "Curator Link プラグイン"
+
+msgid "Use this recording"
+msgstr "この録音を使う"
+
+msgid "Follow the DAW’s playhead"
+msgstr "DAW の再生ヘッドに追従"
+
+msgid "DAW bar of the score’s bar 1"
+msgstr "スコアの第1小節にあたる DAW の小節"
 
 #: assets/extensions/chapters/src/lane.lua
 msgid "Chapter"
@@ -5319,3 +5337,91 @@ msgstr "MIDI ビュー"
 #: lib/main.dart
 msgid "Couldn’t Import MIDI File"
 msgstr "MIDI ファイルを読み込めませんでした"
+
+#: lib/audio_panel.dart
+msgid "Follow DAW…"
+msgstr "DAW に追従…"
+
+#: lib/daw_follow_dialog.dart
+msgid "Couldn’t get the recording from the DAW. {error}"
+msgstr "DAW から録音を取得できませんでした。{error}"
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW gives no tempo for this recording yet."
+msgstr "DAW はこの録音のテンポをまだ提供していません。"
+
+#: lib/daw_follow_dialog.dart
+msgid "It is too long."
+msgstr "長すぎます。"
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW is out of memory."
+msgstr "DAW のメモリが不足しています。"
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW doesn’t let it be read yet."
+msgstr "DAW はまだ読み取りを許可していません。"
+
+#: lib/daw_follow_dialog.dart
+msgid "It is no longer in the DAW."
+msgstr "DAW にもうありません。"
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW disconnected."
+msgstr "DAW との接続が切れました。"
+
+#: lib/daw_follow_dialog.dart
+msgid "The file couldn’t be written."
+msgstr "ファイルを書き込めませんでした。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow DAW"
+msgstr "DAW に追従"
+
+#: lib/daw_follow_dialog.dart
+msgid "No DAW connected."
+msgstr "接続中の DAW はありません。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Curator isn’t listening for Curator Link."
+msgstr "Curator は Curator Link を待ち受けていません。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Put Curator Link on a track in your DAW."
+msgstr "DAW のトラックに Curator Link を挿してください。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Turn it on in Settings ▸ General."
+msgstr "設定 ▸ 一般 でオンにしてください。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow"
+msgstr "追従"
+
+#: lib/daw_follow_dialog.dart
+msgid "Getting the Recording"
+msgstr "録音を取得中"
+
+#: lib/settings_dialog.dart
+msgid "This build of Curator has no Curator Link."
+msgstr "この Curator のビルドには Curator Link が含まれていません。"
+
+#: lib/settings_dialog.dart
+msgid "Connected: {daws}"
+msgstr "接続中：{daws}"
+
+#: lib/settings_dialog.dart
+msgid "Installed"
+msgstr "インストール済み"
+
+#: lib/settings_dialog.dart
+msgid "Install"
+msgstr "インストール"
+
+#: lib/settings_dialog.dart
+msgid "Reinstall"
+msgstr "再インストール"
+
+#: lib/settings_dialog.dart
+msgid "Update"
+msgstr "アップデート"

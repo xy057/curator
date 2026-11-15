@@ -86,7 +86,7 @@ $(DAW_LINK_SDKS)/AudioUnitSDK/src/AudioUnitSDK/AUBase.cpp:
 DAW_LINK_SDK_FILES := $(DAW_LINK_SDKS)/ARA_SDK/ARA_Library/PlugIn/ARAPlug.h $(DAW_LINK_SDKS)/vst3sdk/public.sdk/source/main/macmain.cpp \
 	$(DAW_LINK_SDKS)/AudioUnitSDK/src/AudioUnitSDK/AUBase.cpp
 
-$(DAW_LINK_ZIP): $(DAW_LINK_SDK_FILES) $(shell find daw_link/src daw_link/mac -type f) daw_link/CMakeLists.txt app/pubspec.yaml
+$(DAW_LINK_ZIP): $(DAW_LINK_SDK_FILES) $(shell find daw_link/src daw_link/mac daw_link/test -type f) daw_link/CMakeLists.txt app/assets/daw_link/LICENSES.txt app/pubspec.yaml
 	cmake -S daw_link -B daw_link/build -DLINK_VERSION=$(APP_VERSION) -DLINK_BUILD=$(APP_BUILD) "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
 	cmake --build daw_link/build -j 8
 	daw_link/build/link_host "daw_link/build/out/Curator Link.vst3" "daw_link/build/out/Curator Link.component"

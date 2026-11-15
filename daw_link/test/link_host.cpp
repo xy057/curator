@@ -442,7 +442,7 @@ int main (int argc, const char* argv[])
     auto exported = curator.next ("exported", 10, [&] { dc->notifyModelUpdates (controller); });
     check (exported["error"].empty (), "written without an error " + exported["error"]);
     const std::string path = exported["path"];
-    check (contains (path, std::string (home) + "/Library/Caches/Curator/DAW Link/Take 1 ") && contains (path, ".wav"), "into Curator's cache");
+    check (contains (path, std::string (home) + "/Library/Caches/Curator/DAW Link/") && contains (path, "/Take 1.wav"), "into Curator's cache, by the recording's name");
     {
         std::ifstream wav (path, std::ios::binary);
         std::vector<char> bytes ((std::istreambuf_iterator<char> (wav)), std::istreambuf_iterator<char> ());
