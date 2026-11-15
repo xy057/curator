@@ -13,7 +13,7 @@ import 'l10n/l10n.dart';
 const appVersion = '0.9.0';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
-const appBuild = 437;
+const appBuild = 438;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.

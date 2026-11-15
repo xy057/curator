@@ -1346,8 +1346,8 @@ class _TempoScale {
   const _TempoScale(this.lo, this.hi, {required this.large});
 
   /// Fits the steps in view, at least 20 beats a minute apart.
-  factory _TempoScale.fit(EditorController c, double width, {required bool large}) {
-    final bpms = [for (final s in _tempoSteps(c, width)) s.$3];
+  factory _TempoScale.fit(EditorController c, double width, {required bool large, List<(double, double, double, bool)>? steps}) {
+    final bpms = [for (final s in steps ?? _tempoSteps(c, width)) s.$3];
     var lo = bpms.reduce(math.min), hi = bpms.reduce(math.max);
     if (hi - lo < 20) {
       final m = (hi + lo) / 2;
@@ -1398,7 +1398,7 @@ class _TempoPainter extends CustomPainter {
     }
 
     final segments = _tempoSteps(c, size.width);
-    final fit = scale?.value ?? _TempoScale.fit(c, size.width, large: large);
+    final fit = scale?.value ?? _TempoScale.fit(c, size.width, large: large, steps: segments);
     double y(double bpm) => fit.y(bpm, size);
 
     final line = Paint()
