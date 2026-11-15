@@ -41,6 +41,9 @@ mixin PackageManifest implements ScriptPackage {
   /// The manifest, whole.
   Map<String, Object?> get manifest;
 
+  /// Every file of it by its path in the archive, the mimetype aside.
+  Map<String, Uint8List> get files;
+
   /// Stable for good: what is kept for it (its switch, its data or settings) is kept under it.
   /// Curator's own are one word ("captions"); anyone else's has a dot, a domain backwards
   /// ("com.example.lyrics").

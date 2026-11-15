@@ -105,6 +105,7 @@ class ExtensionPackage with PackageManifest implements ScriptPackage {
   static const _encoder = JsonEncoder.withIndent('  ');
 
   /// Every file of it by its path in the archive, in the order written (the mimetype aside).
+  @override
   late final Map<String, Uint8List> files = Map.unmodifiable({
     'extension.json': _bytes('${_encoder.convert(manifest)}\n'),
     'connect.json': _bytes('${graph.toText()}\n'),

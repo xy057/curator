@@ -51,13 +51,24 @@ assistant.
 /// The docs as a zip to hand to a person or a model: a README saying what is in it, the guide
 /// and reference as one Markdown file, the API as JSON, and each of [examples] (Curator's own
 /// extensions) as a folder. The same bytes for the same docs.
-Uint8List extensionDocsPack(String guide, {required List<ExtensionPackage> examples}) {
+Uint8List extensionDocsPack(String guide, {required List<ExtensionPackage> examples}) => docsPack('curator-extension-docs',
+    readme: _packReadme, docsName: 'extension-api.md', docs: ExtensionApi.docs(guide), api: ExtensionApi.toJson(), examples: examples);
+
+/// A docs pack (an extension's or a plugin's) as a zip in [folder]: [readme], the [docs] as
+/// [docsName], the [api] as `api.json`, and each of [examples] as a folder. The same bytes for
+/// the same docs.
+Uint8List docsPack(String folder,
+    {required String readme,
+    required String docsName,
+    required String docs,
+    required Object? api,
+    required List<PackageManifest> examples}) {
   final at = DateTime.utc(2000).millisecondsSinceEpoch ~/ 1000;
   final archive = Archive();
-  void add(String path, List<int> bytes) => archive.add(ArchiveFile.bytes('curator-extension-docs/$path', bytes)..lastModTime = at);
-  add('README.md', utf8.encode(_packReadme.trimLeft()));
-  add('extension-api.md', utf8.encode(ExtensionApi.docs(guide)));
-  add('api.json', utf8.encode(const JsonEncoder.withIndent('  ').convert(ExtensionApi.toJson())));
+  void add(String path, List<int> bytes) => archive.add(ArchiveFile.bytes('$folder/$path', bytes)..lastModTime = at);
+  add('README.md', utf8.encode(readme.trimLeft()));
+  add(docsName, utf8.encode(docs));
+  add('api.json', utf8.encode(const JsonEncoder.withIndent('  ').convert(api)));
   for (final p in examples) {
     p.files.forEach((path, bytes) => add('examples/${p.id}/$path', bytes));
   }
