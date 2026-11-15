@@ -51,6 +51,7 @@ export 'src/score_chapter.dart';
 export 'src/score_fonts.dart';
 export 'src/score_form.dart';
 export 'src/score_patch.dart';
+export 'src/number_text.dart';
 export 'src/score_text.dart';
 export 'src/score_band.dart';
 export 'src/score_typography.dart';

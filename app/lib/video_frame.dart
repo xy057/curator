@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:score_engine/score_engine.dart' show plainNumber;
 
 /// A video's shape, width : height: one of the [presets], or any the user types between
 /// [min] and [max] (1:4 to 4:1).
@@ -17,9 +18,8 @@ class VideoRatio {
   double get value => width / height;
 
   /// "16:9", "2.39:1".
-  String get label => '${_number(width)}:${_number(height)}';
+  String get label => '${plainNumber(width)}:${plainNumber(height)}';
 
-  static String _number(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';
 
   /// Reads "16:9", "16/9", "1920x1080" or "1920 × 1080" (both reduced to 16:9), or one
   /// number ("2.39", read as 2.39:1). Null if it isn't a ratio within [min]…[max].

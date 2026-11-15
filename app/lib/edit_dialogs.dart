@@ -103,9 +103,8 @@ class _SpacingDialog extends StatefulWidget {
 
 class _SpacingDialogState extends State<_SpacingDialog> {
   late final _room = widget.controller.spacingOf(widget.part.id);
-  late final _above = TextEditingController(text: _text(_room.above)), _below = TextEditingController(text: _text(_room.below));
+  late final _above = TextEditingController(text: plainNumber(_room.above)), _below = TextEditingController(text: plainNumber(_room.below));
 
-  static String _text(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';
 
   /// A field's room, null when it isn't a number of staff spaces in range ('' is 0).
   static double? _parse(String text) {

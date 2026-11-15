@@ -7,6 +7,7 @@ import 'display_list.dart';
 import 'engraving.dart';
 import 'lilypond_svg.dart';
 import 'native/constants.dart';
+import 'number_text.dart';
 import 'score_editing.dart' show Frac;
 import 'score_metadata.dart';
 import 'spacers.dart';
@@ -1275,7 +1276,7 @@ class _MusicXmlWriter {
     'fp', 'rf', 'rfz', 'sfz', 'sffz', 'fz', 'n', 'pf', 'sfzp',
   };
 
-  static String _number(double v) => v == v.roundToDouble() ? '${v.round()}' : v.toStringAsFixed(2);
+  static String _number(double v) => plainNumber(v, digits: 2);
 
   /// The note value of a beat [unit] (whole notes) and its dots: 3/8 a dotted crotchet.
   static (String, int)? _beatUnit(Frac unit) {

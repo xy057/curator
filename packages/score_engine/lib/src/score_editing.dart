@@ -10,6 +10,7 @@ import 'dart:math' as math;
 import 'package:xml/xml.dart';
 
 import 'musicxml_kit.dart';
+import 'number_text.dart';
 
 // MARK: Time
 
@@ -2604,7 +2605,7 @@ class EditableScore {
         sound: perMinute == null ? null : _el('sound', const [], {'tempo': _number(perMinute * quarters)}));
   }
 
-  static String _number(double v) => v == v.roundToDouble() ? '${v.round()}' : v.toStringAsFixed(2);
+  static String _number(double v) => plainNumber(v, digits: 2);
 
   /// Text above the staff at [at].
   void addText(ScorePosition at, String text, {bool below = false, bool italic = false}) =>

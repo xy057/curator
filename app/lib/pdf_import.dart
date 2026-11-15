@@ -1343,7 +1343,7 @@ class _PdfImportState extends State<PdfImport> {
 
   /// A tempo mark as its tag says it: its words and its speed.
   static String _tempoText(PdfTempo mark, double? speed) =>
-      [if (mark.words.isNotEmpty) mark.words, if (speed != null) '♩ = ${_ScoreFieldsState._number(speed)}'].join(' ');
+      [if (mark.words.isNotEmpty) mark.words, if (speed != null) '♩ = ${plainNumber(speed)}'].join(' ');
 
   MouseCursor _cursorAt(Offset local) {
     if (_tool != _Tool.select) return SystemMouseCursors.precise;
@@ -2542,11 +2542,10 @@ class _ScoreFields extends StatefulWidget {
 class _ScoreFieldsState extends State<_ScoreFields> {
   late final _title = TextEditingController(text: widget.layout.title);
   late final _meter = TextEditingController(text: widget.layout.meter.toString());
-  late final _pickup = TextEditingController(text: _number(widget.layout.pickup));
-  late final _tempo = TextEditingController(text: _number(widget.layout.tempo));
+  late final _pickup = TextEditingController(text: plainNumber(widget.layout.pickup));
+  late final _tempo = TextEditingController(text: plainNumber(widget.layout.tempo));
   bool _badMeter = false;
 
-  static String _number(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';
 
   @override
   void dispose() {
