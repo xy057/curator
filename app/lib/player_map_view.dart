@@ -660,8 +660,11 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
       ]),
       SizedBox(height: gap / 2),
       AppSegmented<SeatShape>(
+        // Auto (back to how Smart Seating seated it) only for a section it seated.
+        key: ValueKey(s.auto != null),
         expand: true,
         segments: [
+          if (s.auto != null) ButtonSegment(value: SeatShape.auto, label: Text('Auto'.tr)),
           ButtonSegment(value: SeatShape.rows, label: Text('Rows'.tr)),
           ButtonSegment(value: SeatShape.arc, label: Text('Arc'.tr)),
           ButtonSegment(value: SeatShape.line, label: Text('Line'.tr)),

@@ -1079,13 +1079,15 @@ them, each about as wide; the strings a fan of sectors as wide as their players,
 deep, their names inside it; basses and keyboards and harp on either side just outside it; winds,
 brass, percussion and voices (on risers, names over them) in gently curved rows behind, pushed back
 where their ends would meet the sides; soloists in front. Each section keeps its `SeatPlan` (rows, a
-ring's sector, bows: how it was seated, in the section's JSON as `plan`), and its name goes by the
-plan, clear of its dots. Fitted to the stage names and all (up to 1.6 times wider than planned, the
+ring's sector, bows: how it is seated, in the section's JSON as `plan`) and Smart Seating's (`auto`:
+`true` while it is the plan, moved and scaled with the section), and its name goes by the plan,
+clear of its dots. Fitted to the stage names and all (up to 1.6 times wider than planned, the
 dots round and never bigger than 0.07 of the stage's height, so a few players aren't blown up), then
 seated again with names as wide as that scale makes them; names moved apart where they would
 overlap. Edit… opens the editor: a section dragged moves with its name, a name alone, a player alone
 in Players mode; arrows nudge, Delete removes, its own Undo while open, Done one Undo step. More,
-Fewer, Remove Player and Rows / Arc / Line seat the section anew by its plan (`MapSection.withCount`,
+Fewer, Remove Player and Auto / Rows / Arc / Line (Auto, back to Smart Seating's plan, only for a
+section it seated) seat the section anew by its plan (`MapSection.withCount`,
 `arranged`; a fan stays a fan, a moved name keeps its distance; a section from before plans seen as
 its rows), and `PlayerMap.roomFor` moves each section it would now cover the shortest way clear,
 away from it, those in turn, and shrinks the map where it would leave the stage. A map travels as a `.cpm` (JSON: format,

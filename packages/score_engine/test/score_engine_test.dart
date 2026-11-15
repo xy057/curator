@@ -136,6 +136,13 @@ void main() {
         tidy(grown, '$name ×$count');
       }
       expect([for (final s in grown.sections.firstWhere((s) => s.name == 'Flute').seats) s.link?.part], ['P2', 'P3', null, null, null, null]);
+      // Seated in rows, then as Smart Seating seated it again: the fan, its players as many.
+      final fan = grown.sections.first, rows = fan.arranged(SeatShape.rows, 18);
+      expect((fan.shape, rows.shape, rows.plan?.kind), (SeatShape.auto, SeatShape.rows, SeatPlanKind.rows));
+      final back = rows.withCount(17).arranged(SeatShape.auto, 17);
+      expect((back.shape, back.plan, back.seats.length), (SeatShape.auto, fan.auto, 17));
+      final kept = grown.withSections([rows, ...grown.sections.skip(1)]).encode();
+      expect(PlayerMap.decode(kept).encode(), kept, reason: 'a plan and Smart Seating’s apart');
       // A section from before plans: seen as the row it is.
       const old = MapSection(name: 'Old', color: 0xFF000000, labelX: 0.45, labelY: 0.6, seats: [MapSeat(0.4, 0.5), MapSeat(0.5, 0.5)]);
       expect(old.withCount(3).seats.map((s) => s.y).toSet(), hasLength(1));

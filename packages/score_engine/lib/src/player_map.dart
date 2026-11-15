@@ -63,8 +63,9 @@ class MapSeat {
   int get hashCode => Object.hash(x, y, link);
 }
 
-/// How [MapSection.arranged] seats a section's players.
-enum SeatShape { rows, arc, line }
+/// How [MapSection.arranged] seats a section's players: as Smart Seating seated them
+/// ([MapSection.auto]), or in rows, a bow or a line.
+enum SeatShape { auto, rows, arc, line }
 
 /// The ways a [SeatPlan] seats players.
 enum SeatPlanKind {
@@ -258,8 +259,9 @@ class SeatPlan {
 
 /// A group of players seen as one: a name drawn at [labelX], [labelY], a colour (0xAARRGGBB), the
 /// size of its dots (across, as a part of the stage's height) and its [seats]. [link] is what
-/// they play unless a seat says otherwise; [plan] how they were seated, so that more or fewer
-/// are seated the same way (null: a map made before plans, seen from its seats when asked).
+/// they play unless a seat says otherwise; [plan] how they are seated, so that more or fewer
+/// are seated the same way (null: a map made before plans, seen from its seats when asked), and
+/// [auto] how Smart Seating seated them, to go back to (null: none did).
 @immutable
 class MapSection {
   const MapSection({
@@ -271,6 +273,7 @@ class MapSection {
     this.link,
     this.seats = const [],
     this.plan,
+    this.auto,
   });
 
   static const defaultSize = 0.055, minSize = 0.015, maxSize = 0.2;
@@ -281,12 +284,13 @@ class MapSection {
   final double labelX, labelY;
   final PlayerLink? link;
   final List<MapSeat> seats;
-  final SeatPlan? plan;
+  final SeatPlan? plan, auto;
 
   /// What seat [i] plays: its own link, else the section's.
   PlayerLink? linkOf(int i) => seats[i].link ?? link;
 
-  MapSection copyWith({String? name, int? color, double? size, double? labelX, double? labelY, List<MapSeat>? seats, SeatPlan? plan}) => MapSection(
+  MapSection copyWith({String? name, int? color, double? size, double? labelX, double? labelY, List<MapSeat>? seats, SeatPlan? plan, SeatPlan? auto}) =>
+      MapSection(
         name: name ?? this.name,
         color: color ?? this.color,
         size: size ?? this.size,
@@ -295,10 +299,11 @@ class MapSection {
         link: link,
         seats: seats ?? this.seats,
         plan: plan ?? this.plan,
+        auto: auto ?? this.auto,
       );
 
   MapSection linked(PlayerLink? link) =>
-      MapSection(name: name, color: color, size: size, labelX: labelX, labelY: labelY, link: link, seats: seats, plan: plan);
+      MapSection(name: name, color: color, size: size, labelX: labelX, labelY: labelY, link: link, seats: seats, plan: plan, auto: auto);
 
   /// Moved by [dx], [dy], its name and plan with it.
   MapSection moved(double dx, double dy) => copyWith(
@@ -306,6 +311,7 @@ class MapSection {
         labelY: labelY + dy,
         seats: [for (final s in seats) s.at(s.x + dx, s.y + dy)],
         plan: plan?.moved(dx, dy),
+        auto: auto?.moved(dx, dy),
       );
 
   /// Scaled by [f] about [cx], [cy] of the stage, its dots too.
@@ -315,6 +321,7 @@ class MapSection {
         labelY: cy + (labelY - cy) * f,
         seats: [for (final s in seats) s.at(cx + (s.x - cx) * f, cy + (s.y - cy) * f)],
         plan: plan?.scaled(f, cx, cy),
+        auto: auto?.scaled(f, cx, cy),
       );
 
   /// The middle of its seats (its name's place when it has none).
@@ -341,14 +348,16 @@ class MapSection {
     );
   }
 
-  /// [count] players seated as [shape] about where its seats are now, on a stage [aspect] wide
-  /// to its height, each keeping its own link in order (new ones with none); its name just
-  /// under them.
+  /// [count] players seated as [shape] about where its seats are now (as Smart Seating seated
+  /// them, moved as the section was, for [SeatShape.auto]), on a stage [aspect] wide to its
+  /// height, each keeping its own link in order (new ones with none); its name by them.
   MapSection arranged(SeatShape shape, int count, {double aspect = PlayerMap.defaultAspect}) {
     count = count.clamp(1, PlayerMap.maxSeats);
     final c = center, unit = size * 1.45 / SeatPlan.pitch; // a seat's pitch, in stage heights
     final SeatPlan plan;
     switch (shape) {
+      case SeatShape.auto:
+        plan = auto ?? _seen(aspect);
       case SeatShape.line:
         plan = SeatPlan(SeatPlanKind.rows, x: c.x, y: c.y, unitX: unit / aspect, unitY: unit);
       case SeatShape.rows:
@@ -364,6 +373,7 @@ class MapSection {
 
   /// The shape [arranged] would give its seats as they are.
   SeatShape get shape => switch (plan) {
+        final p? when p == auto => SeatShape.auto,
         SeatPlan(kind: SeatPlanKind.rows, across: null) => SeatShape.line,
         SeatPlan(kind: SeatPlanKind.rows) => SeatShape.rows,
         null => _seen().across == null ? SeatShape.line : SeatShape.rows,
@@ -415,6 +425,8 @@ class MapSection {
           for (final s in seats) [_round(s.x), _round(s.y), ?s.link?.toJson()],
         ],
         'plan': ?plan?.toJson(),
+        // Smart Seating's: the plan's own while the section is seated by it.
+        if (auto != null) 'auto': auto == plan ? true : auto!.toJson(),
       };
 
   static MapSection fromJson(Object? json, String where) {
@@ -430,6 +442,7 @@ class MapSection {
     final label = _numbers(m['label'], '$where.label', 2);
     final seats = m['seats'] ?? const [];
     if (seats is! List || seats.length > PlayerMap.maxSeats) throw FormatException('$where.seats is not a list of seats.');
+    final plan = m['plan'] == null ? null : SeatPlan.fromJson(m['plan'], '$where.plan');
     return MapSection(
       name: name,
       color: color,
@@ -447,7 +460,12 @@ class MapSection {
             _ => throw FormatException('$where.seats[$i] is not a seat.'),
           },
       ],
-      plan: m['plan'] == null ? null : SeatPlan.fromJson(m['plan'], '$where.plan'),
+      plan: plan,
+      auto: switch (m['auto']) {
+        null => null,
+        true => plan ?? (throw FormatException('$where.auto has no plan.')),
+        final auto => SeatPlan.fromJson(auto, '$where.auto'),
+      },
     );
   }
 
@@ -461,6 +479,7 @@ class MapSection {
       other.labelY == labelY &&
       other.link == link &&
       other.plan == plan &&
+      other.auto == auto &&
       listEquals(other.seats, seats);
   @override
   int get hashCode => Object.hash(name, color, size, labelX, labelY, link, seats.length);
@@ -1189,8 +1208,8 @@ class _Seating {
       final k = math.min(kx, ky), size = (_dot * k).clamp(MapSection.minSize, biggest);
       return [
         for (final (d, plan) in placed)
-          MapSection(name: d.name, color: d.color, size: size, labelX: 0, labelY: 0, link: d.link, seats: [for (final l in d.seats) MapSeat(0, 0, link: l)]).planned(
-            SeatPlan(plan.kind,
+          () {
+            final stage = SeatPlan(plan.kind,
                 x: 0.5 + (plan.x - cx) * kx / aspect,
                 y: 0.5 + (plan.y - cy) * ky,
                 unitX: kx / aspect,
@@ -1200,10 +1219,11 @@ class _Seating {
                 to: plan.to,
                 mid: plan.mid,
                 across: plan.across,
-                behind: plan.behind),
-            d.seats.length,
-            aspect: aspect,
-          ),
+                behind: plan.behind);
+            final seats = [for (final l in d.seats) MapSeat(0, 0, link: l)];
+            return MapSection(name: d.name, color: d.color, size: size, labelX: 0, labelY: 0, link: d.link, seats: seats, auto: stage)
+                .planned(stage, d.seats.length, aspect: aspect);
+          }(),
       ];
     }
 
