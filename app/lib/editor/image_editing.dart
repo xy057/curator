@@ -172,16 +172,13 @@ class ImageEditing {
 
   /// Opens a project's images: every one is drawn before anything is replaced.
   static Future<Map<String, PatchArt>> _decodeAll(Map<String, PatchImage> images) async {
-    final arts = <String, PatchArt>{};
-    try {
-      for (final image in images.values) {
-        arts[image.id] = await image.decode();
-      }
-    } catch (_) {
-      arts.values.forEach(_dispose);
+    // Decoded together; when one can't be, those that were are let go.
+    final arts = await Future.wait([for (final image in images.values) image.decode().then<PatchArt?>((art) => art, onError: (_) => null)]);
+    if (arts.contains(null)) {
+      arts.nonNulls.forEach(_dispose);
       throw const FormatException('Couldn’t read an image in the project.');
     }
-    return arts;
+    return {for (final (i, image) in images.values.indexed) image.id: arts[i]!};
   }
 
   void _load(Map<String, PatchImage> images, Map<String, PatchArt> arts) {

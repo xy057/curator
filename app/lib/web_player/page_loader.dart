@@ -52,10 +52,13 @@ class LoadedPage {
 
     // The fonts first: the score is measured and drawn in them.
     await edits.fonts.music.load();
-    for (final f in page.fonts) {
-      for (final file in f.files) {
-        await ui.loadFontFromList(await fetch(file), fontFamily: f.family);
-      }
+    // Fetched together (each a round trip), then taken in order.
+    final fonts = await Future.wait([
+      for (final f in page.fonts)
+        for (final file in f.files) fetch(file).then((bytes) => (family: f.family, bytes: bytes)),
+    ]);
+    for (final (:family, :bytes) in fonts) {
+      await ui.loadFontFromList(bytes, fontFamily: family);
     }
     final score = switch (state.pdf) {
       // A PDF score: its systems as printed, cut as in the app.
@@ -64,14 +67,12 @@ class LoadedPage {
           textFontFound:
               page.fonts.any((f) => f.family == TextFonts.familyOf(edits.fonts.text)) || edits.fonts.text == TextFonts.academico),
     };
-    final arts = <String, PatchArt>{};
-    for (final MapEntry(key: id, value: image) in state.images.entries) {
-      try {
-        arts[id] = await image.decode();
-      } on FormatException {
-        // Not drawn: the rest of the page still is.
-      }
-    }
+    // Decoded together; one that can't be is not drawn, and the rest of the page still is.
+    final decoded = await Future.wait([
+      for (final MapEntry(key: id, value: image) in state.images.entries)
+        image.decode().then<(String, PatchArt?)>((art) => (id, art)).catchError((_) => (id, null), test: (e) => e is FormatException),
+    ]);
+    final arts = {for (final (id, art) in decoded) id: ?art};
     return LoadedPage._(page, score, edits, arts, state.packages);
   }
 
