@@ -97,7 +97,6 @@ class EditorController extends ChangeNotifier {
   CuratedScene? _scene;
   Curation? _curation;
   SyncMap? _sync;
-  String? _fileName;
   bool _loading = false;
   double _staffSpace = 9;
 
@@ -129,7 +128,7 @@ class EditorController extends ChangeNotifier {
   /// Where the beats fall in each bar (from the time signatures): the finer grid.
   BeatGrid get beats => _score!.beats;
 
-  String? get fileName => _fileName;
+  String? get fileName => _source?.name;
   bool get isLoading => _loading;
   double get staffSpace => _staffSpace;
 
@@ -186,7 +185,7 @@ class EditorController extends ChangeNotifier {
       pages.close();
       rethrow;
     }
-    await _install(name, bytes, score, ProjectState(edits: edits, pdf: layout, kind: ProjectKind.pdf), pages: pages);
+    await _install(name, bytes, score, ProjectState(edits: edits, pdf: layout), pages: pages);
   }
 
   /// Opens (imports) a LilyPond score: its main file, [bytes] named [name], with the files it
@@ -194,25 +193,36 @@ class EditorController extends ChangeNotifier {
   Future<void> openLilyPond(String name, Uint8List bytes, LilyPondProject lilypond) async {
     final edits = await _newProjectEdits();
     final score = await _engrave('', _requestFor(edits), lilypond: await _readLilyPond(lilypond), measure: autoCurateImported);
-    await _install(name, bytes, score, ProjectState(edits: edits, lilypond: lilypond, kind: ProjectKind.lilypond));
+    await _install(name, bytes, score, ProjectState(edits: edits, lilypond: lilypond));
   }
 
   /// [lilypond]'s engraving read as a score ([LilyPondScore.read]), on another isolate: a long
   /// score's takes a while. Loading from here, [_engrave] next.
-  Future<LilyPondScore> _readLilyPond(LilyPondProject lilypond) async {
+  Future<LilyPondScore> _readLilyPond(LilyPondProject lilypond) {
+    final (svg, data) = (lilypond.svg, lilypond.data);
+    return _startLoading(() => LilyPond.readScore(svg, data));
+  }
+
+  /// Loading from here: [read] runs with the window saying it reads; if it fails, loading ends
+  /// ([failed] first). Loading goes on to engrave ([_engrave]).
+  Future<T> _startLoading<T>(Future<T> Function() read, {VoidCallback? failed}) async {
     _loading = true;
     _loadStage.value = LoadStage.reading;
     notifyListeners();
-    final (svg, data) = (lilypond.svg, lilypond.data);
     try {
-      return await LilyPond.readScore(svg, data);
+      return await read();
     } on Object {
-      _loading = false;
-      if (!_disposed) {
-        _loadStage.value = null;
-        notifyListeners();
-      }
+      failed?.call();
+      _endLoading();
       rethrow;
+    }
+  }
+
+  void _endLoading() {
+    _loading = false;
+    if (!_disposed) {
+      _loadStage.value = null;
+      notifyListeners();
     }
   }
 
@@ -377,22 +387,8 @@ class EditorController extends ChangeNotifier {
     // Read once for what it holds (its texts as written: the edits are carried by them), and
     // once more as engraved.
     // (On another isolate: a large score takes a while.)
-    _loading = true;
-    _loadStage.value = LoadStage.reading;
-    notifyListeners();
-    final ({String xml, ScoreMetadata metadata, List<ScoreText> texts, LilyPondScore? drawn}) read;
-    try {
-      read = await _readApart(pdf, bytes, lilypond == null ? null : (lilypond.svg, lilypond.data));
-    } on Object {
-      art?.dispose();
-      _loading = false;
-      if (!_disposed) {
-        _loadStage.value = null;
-        notifyListeners();
-      }
-      rethrow;
-    }
-    final (:xml, :metadata, :texts, :drawn) = read;
+    final (:xml, :metadata, :texts, :drawn) =
+        await _startLoading(() => _readApart(pdf, bytes, lilypond == null ? null : (lilypond.svg, lilypond.data)), failed: () => art?.dispose());
     final swap = ScoreSwap(before: before.metadata, after: metadata, textsBefore: before.texts, textsAfter: texts);
     final LoadedScore score;
     try {
@@ -481,11 +477,7 @@ class EditorController extends ChangeNotifier {
         if (!_disposed) _loadStage.value = s;
       });
     } finally {
-      _loading = false;
-      if (!_disposed) {
-        _loadStage.value = null;
-        notifyListeners();
-      }
+      _endLoading();
     }
   }
 
@@ -525,7 +517,6 @@ class EditorController extends ChangeNotifier {
       _lilyPondEngravings[state.edits.fonts.text] = (project: project, score: engraved);
     }
     _source = (name: name, bytes: bytes);
-    _fileName = name;
     _staffSpace = (view.staffSpace ?? _staffSpace).clamp(minStaffSpace, maxStaffSpace);
     _doc = edits.copyWith(
       partNames: Map.unmodifiable(edits.partNames),
@@ -631,7 +622,6 @@ class EditorController extends ChangeNotifier {
     _lilypond = null;
     _lilyPondEngravings.clear();
     _source = null;
-    _fileName = null;
     _doc = const EditState();
     _previewSections = null;
     _overflowing = null;
@@ -679,9 +669,7 @@ class EditorController extends ChangeNotifier {
   /// Sets [scrollFollow]: an Undo step (one for a whole drag, inside [beginEdit] / [endEdit]).
   void setScrollFollow(double value) {
     if (value == _doc.scrollFollow) return;
-    _doc = _doc.copyWith(scrollFollow: value);
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(scrollFollow: value));
   }
 
   /// How the score moves in a project that hasn't set its own (the one saved by Project
@@ -700,9 +688,7 @@ class EditorController extends ChangeNotifier {
   /// Sets [motion]: an Undo step.
   void setMotion(ScoreMotion value) {
     if (value == _doc.motion) return;
-    _doc = _doc.copyWith(motion: value);
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(motion: value));
   }
 
   /// How the score's texts look in a project that hasn't set its own (the one saved by Project
@@ -774,6 +760,13 @@ class EditorController extends ChangeNotifier {
   /// Gives the scene [sceneSettings] again, after a change of any of them.
   void _showSettings() => _scene?.settings = sceneSettings;
 
+  /// [next] as the document, shown at once: one Undo step (its setter has checked it is new).
+  void _showEdit(EditState next) {
+    _doc = next;
+    _showSettings();
+    _edited();
+  }
+
   /// [part]'s section (Project Settings ▸ Sections, see [CuratedScene.sectionOf]): the user's
   /// choice, else its family's name; null: none, standing alone.
   String? sectionOf(ScorePart part) =>
@@ -827,9 +820,7 @@ class EditorController extends ChangeNotifier {
   /// Groups the instruments in sections, or stops: one Undo step.
   void setGroupSections(bool on) {
     if (on == _doc.groupSections) return;
-    _doc = _doc.copyWith(groupSections: on);
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(groupSections: on));
   }
 
   /// Whether every bar's number is shown under the staves (Project Settings ▸ Engraving; see
@@ -839,9 +830,7 @@ class EditorController extends ChangeNotifier {
   /// Shows the bar numbers, or hides them: one Undo step.
   void setBarNumbers(bool on) {
     if (on == _doc.barNumbers) return;
-    _doc = _doc.copyWith(barNumbers: on);
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(barNumbers: on));
   }
 
   /// The playback line's colour (Project Settings ▸ Instruments); null: the score's own blue ([RenderStyle.pointer]).
@@ -850,9 +839,7 @@ class EditorController extends ChangeNotifier {
   /// Colours the playback line, or gives it back its own blue (null): one Undo step.
   void setPlayheadColor(Color? color) {
     if (color == _doc.playheadColor) return;
-    _doc = _doc.copyWith(playheadColor: color);
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(playheadColor: color));
   }
 
   /// Whether the instruments are named in their family's colour (Project Settings ▸
@@ -862,9 +849,7 @@ class EditorController extends ChangeNotifier {
   /// Colours the names by family, or puts them back in the ink: one Undo step.
   void setColorNames(bool on) {
     if (on == _doc.colorNames) return;
-    _doc = _doc.copyWith(colorNames: on);
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(colorNames: on));
   }
 
   /// The groups instruments can be named in the colour of: the families' (which can't be
@@ -1132,9 +1117,7 @@ class EditorController extends ChangeNotifier {
   /// Sets [rehearsalInRow] for this project: one Undo step, only redrawing.
   void setRehearsalInRow(bool on) {
     if (_score == null || on == _doc.rehearsalInRow) return;
-    _doc = _doc.copyWith(rehearsalInRow: on);
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(rehearsalInRow: on));
   }
 
   /// Whether syllables are centred under their noteheads ([EngraveRequest.centeredLyrics]) in a
@@ -1317,22 +1300,33 @@ class EditorController extends ChangeNotifier {
       if (embed != null) embedFont = embed;
       return;
     }
-    _preparingFonts++;
-    notifyListeners();
-    try {
-      await LoadedScore.prepareFonts(fonts);
-      if (score.lilypond != null && _lilypond != null) await _lilyPondIn(fonts);
-    } finally {
-      _preparingFonts--;
-      if (!_disposed) notifyListeners();
-    }
+    await _prepareFonts(score, fonts);
     if (_score != score || fonts == _doc.fonts) return; // closed, or another score opened, meanwhile
-    if (fonts.music.isAdded && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
+    _keepAdded(fonts);
     _doc = _doc.copyWith(fonts: fonts, embedFont: embed);
     if (!canEmbedFont) _doc = _doc.copyWith(embedFont: false); // as it will be saved
     final engraved = _reengrave();
     _edited(); // one Undo step, right away
     await engraved;
+  }
+
+  /// Gets [fonts] ready to engrave [score] with, and a LilyPond score's text set in them by
+  /// LilyPond (when [lilyPond]), the window saying it engraves meanwhile.
+  Future<void> _prepareFonts(LoadedScore score, ScoreFonts fonts, {bool lilyPond = true}) async {
+    _preparingFonts++;
+    notifyListeners();
+    try {
+      await LoadedScore.prepareFonts(fonts);
+      if (lilyPond && score.lilypond != null && _lilypond != null) await _lilyPondIn(fonts);
+    } finally {
+      _preparingFonts--;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  /// [fonts]' music font kept among those added, when it is one.
+  void _keepAdded(ScoreFonts fonts) {
+    if (fonts.music.isAdded && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
   }
 
   /// Whether an added music font is saved inside the project (Project Settings ▸ Engraving): an
@@ -1406,17 +1400,9 @@ class EditorController extends ChangeNotifier {
     if (fonts.music.isMissing) {
       if (await findInstalledMusicFont(fonts.music.name) case final found?) fonts = fonts.copyWith(music: found);
     }
-    _preparingFonts++;
-    notifyListeners();
-    try {
-      await LoadedScore.prepareFonts(fonts);
-      if (score.lilypond != null && _lilypond != null && LilyPond.installed) await _lilyPondIn(fonts);
-    } finally {
-      _preparingFonts--;
-      if (!_disposed) notifyListeners();
-    }
+    await _prepareFonts(score, fonts, lilyPond: LilyPond.installed);
     if (_score != score) return; // closed, or another score opened, meanwhile
-    if (fonts.music.isAdded && !_addedFonts.contains(fonts.music)) _addedFonts = [..._addedFonts, fonts.music];
+    _keepAdded(fonts);
     final engraved = _wanted;
     beginEdit(); // the transition is the curation's: one step with the rest
     try {
