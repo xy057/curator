@@ -241,62 +241,35 @@ class ScrollMap {
       {BeatGrid? beats, double follow = 1, ScoreMotion motion = ScoreMotion.standard}) {
     final measures = score.measures;
     final starts = timeline.measureStarts;
-    // Each measure's onsets as (quarters into it, x), closed by the next measure's first
-    // onset (or the final barline).
-    final points = [
-      for (var i = 0; i < measures.length; i++)
-        () {
-          final m = measures[i];
-          final next = i + 1 < measures.length ? measures[i + 1] : null;
-          return <(double, double)>[
-            if (m.onsetTimes.isEmpty || m.onsetTimes.first > 0) (0, m.left),
-            for (var j = 0; j < m.onsetTimes.length; j++) (m.onsetTimes[j], m.onsetXs[j]),
-            (m.duration, next != null && next.onsetXs.isNotEmpty ? next.onsetXs.first : m.right),
-          ];
-        }(),
-    ];
-    double xAtQuarter(double q) {
-      final i = segmentAt(measures.length + 1, q, (i) => starts[i]);
-      return _interpolate(points[i], q - starts[i]);
+    // What doesn't change with the tempo, kept for the next map of this score (one is made at
+    // every frame of a drag of an anchor).
+    var shape = _shapes[score];
+    if (shape == null || !identical(shape.starts, starts) || !identical(shape.beats, beats)) {
+      _shapes[score] = shape = _ScoreShape.read(measures, starts, beats);
     }
-
-    // Every beat in the score, and the final barline.
-    final beatQuarters = <double>[
-      for (var i = 0; i < measures.length; i++)
-        if (beats == null || i >= beats.measureStarts.length - 1)
-          for (var q = 0.0; q < measures[i].duration - 1e-9; q += 1) starts[i] + q
-        else
-          ...beats.beatsIn(i),
-      starts[measures.length],
-    ];
-    // Every onset in the score, and the final barline.
-    final onsetQuarters = <double>[
-      for (var i = 0; i < measures.length; i++)
-        for (final (q, _) in points[i].take(points[i].length - 1)) starts[i] + q,
-      starts[measures.length],
-    ];
+    final (:beatQuarters, :beatXs, :onsetQuarters, :onsetXs, :xAtQuarter) = shape.at;
 
     // One pass's anchors: strictly increasing times and x (an anchor no further on than the
     // one before can't be reached any later; the pass's end is always kept, as a warp jumps
     // from there).
-    (List<double>, List<double>) anchors(List<double> all, ScorePass pass, int k) {
-      final quarters = [
-        pass.start,
-        for (final q in all)
-          if (q > pass.start + 1e-9 && q < pass.end - 1e-9) q,
-        pass.end,
-      ];
+    (List<double>, List<double>) anchors(List<double> all, List<double> allXs, ScorePass pass, int k) {
       final times = <double>[], xs = <double>[];
-      for (final (j, q) in quarters.indexed) {
-        final t = timeline.secondsAtQuarter(q, pass: k), x = xAtQuarter(q);
+      void add(double q, double x, {required bool last}) {
+        final t = timeline.secondsAtQuarter(q, pass: k);
         if (times.isNotEmpty && (t <= times.last + 1e-6 || x <= xs.last + 1e-3)) {
-          if (j < quarters.length - 1 || times.length < 2) continue;
+          if (!last || times.length < 2) return;
           times.removeLast();
           xs.removeLast();
         }
         times.add(t);
         xs.add(xs.isEmpty ? x : math.max(x, xs.last + 1e-3));
       }
+
+      add(pass.start, xAtQuarter(pass.start), last: false);
+      for (final (j, q) in all.indexed) {
+        if (q > pass.start + 1e-9 && q < pass.end - 1e-9) add(q, allXs[j], last: false);
+      }
+      add(pass.end, xAtQuarter(pass.end), last: true);
       return (times, xs);
     }
 
@@ -306,14 +279,17 @@ class ScrollMap {
     final beatCurves = <_Curve>[], onsetCurves = <_Curve>[];
     final passStarts = <double>[];
     for (final (k, pass) in timeline.passes.indexed) {
-      final (bt, bx) = anchors(beatQuarters, pass, k);
-      final (ot, ox) = anchors(onsetQuarters, pass, k);
+      final (bt, bx) = anchors(beatQuarters, beatXs, pass, k);
+      final (ot, ox) = anchors(onsetQuarters, onsetXs, pass, k);
       beatCurves.add(_Curve(bt, bx, followsNotes: false, floor: motion.slowest, tail: motion));
       onsetCurves.add(_Curve(ot, ox, followsNotes: true, floor: motion.slowest, tail: motion));
       passStarts.add(k == 0 ? double.negativeInfinity : timeline.secondsAtQuarter(pass.start, pass: k));
     }
     return ScrollMap._(beatCurves, onsetCurves, passStarts, follow.isFinite ? follow.clamp(0, 1) : 1, motion);
   }
+
+  /// Each score's [_ScoreShape], while its bars and beats are the same.
+  static final _shapes = Expando<_ScoreShape>();
 
   /// How closely the scroll follows the notes: 0 glides from beat to beat, 1 puts every
   /// onset on time; in between, a blend.
@@ -582,12 +558,15 @@ class _Curve extends _Scroll {
       }
     }
 
+    final range = Float64List(2); // one, filled again for each anchor of each sweep
     for (var sweep = 0; sweep < 500; sweep++) {
       var moved = 0.0;
       for (var i = 0; i < n; i++) {
         var num = 0.0, den = 0.0;
         // The speed at an anchor is at least the floor of the slower stretch beside it.
-        final range = [floor * math.min(secants[math.max(0, i - 1)], secants[math.min(n - 2, i)]), double.infinity];
+        range
+          ..[0] = floor * math.min(secants[math.max(0, i - 1)], secants[math.min(n - 2, i)])
+          ..[1] = double.infinity;
         if (i > 0) {
           num += weights[i - 1] * (3 * secants[i - 1] - m[i - 1]);
           den += 2 * weights[i - 1];
@@ -613,4 +592,66 @@ class _Curve extends _Scroll {
 /// differently.
 class _Solved {
   List<double>? tangents;
+}
+
+/// What a [ScrollMap] of a score takes that doesn't change with the tempo: every beat and every
+/// onset in score quarters (each list closed by the final barline) and where each is drawn, and
+/// x at any quarter.
+typedef _ScoreShapeOf = ({
+  List<double> beatQuarters,
+  List<double> beatXs,
+  List<double> onsetQuarters,
+  List<double> onsetXs,
+  double Function(double quarter) xAtQuarter,
+});
+
+class _ScoreShape {
+  _ScoreShape(this.starts, this.beats, this.at);
+  final List<double> starts;
+  final BeatGrid? beats;
+  final _ScoreShapeOf at;
+
+  static _ScoreShape read(List<MeasureLayout> measures, List<double> starts, BeatGrid? beats) {
+    // Each measure's onsets as (quarters into it, x), closed by the next measure's first
+    // onset (or the final barline).
+    final points = [
+      for (var i = 0; i < measures.length; i++)
+        () {
+          final m = measures[i];
+          final next = i + 1 < measures.length ? measures[i + 1] : null;
+          return <(double, double)>[
+            if (m.onsetTimes.isEmpty || m.onsetTimes.first > 0) (0, m.left),
+            for (var j = 0; j < m.onsetTimes.length; j++) (m.onsetTimes[j], m.onsetXs[j]),
+            (m.duration, next != null && next.onsetXs.isNotEmpty ? next.onsetXs.first : m.right),
+          ];
+        }(),
+    ];
+    double xAtQuarter(double q) {
+      final i = segmentAt(measures.length + 1, q, (i) => starts[i]);
+      return ScrollMap._interpolate(points[i], q - starts[i]);
+    }
+
+    // Every beat in the score, and the final barline.
+    final beatQuarters = <double>[
+      for (var i = 0; i < measures.length; i++)
+        if (beats == null || i >= beats.measureStarts.length - 1)
+          for (var q = 0.0; q < measures[i].duration - 1e-9; q += 1) starts[i] + q
+        else
+          ...beats.beatsIn(i),
+      starts[measures.length],
+    ];
+    // Every onset in the score, and the final barline.
+    final onsetQuarters = <double>[
+      for (var i = 0; i < measures.length; i++)
+        for (final (q, _) in points[i].take(points[i].length - 1)) starts[i] + q,
+      starts[measures.length],
+    ];
+    return _ScoreShape(starts, beats, (
+      beatQuarters: beatQuarters,
+      beatXs: [for (final q in beatQuarters) xAtQuarter(q)],
+      onsetQuarters: onsetQuarters,
+      onsetXs: [for (final q in onsetQuarters) xAtQuarter(q)],
+      xAtQuarter: xAtQuarter,
+    ));
+  }
 }
