@@ -37,6 +37,32 @@ class ApiLibrary {
 
   /// Its fields that aren't functions: (`curator.api`, what it is).
   final List<(String, String)> values;
+
+  /// After a name in the docs, the level it came with when it is past the first.
+  static String since(int level) => level > 1 ? ' *(API $level)*' : '';
+
+  /// It as an API's `toJson` lists it.
+  Map<String, Object?> toJson() => {
+        'name': name,
+        'summary': summary,
+        'functions': [
+          for (final f in functions)
+            {'name': f.name, 'signature': f.signature, 'summary': f.summary, 'since': f.since, if (f.editor) 'editorOnly': true, if (f.example != null) 'example': f.example},
+        ],
+        if (values.isNotEmpty) 'values': [for (final (name, summary) in values) {'name': name, 'summary': summary}],
+      };
+
+  /// It in the docs' reference, as Markdown: its functions (with their examples) and values.
+  void writeDocs(StringBuffer out) {
+    out.writeln('\n### `$name`\n\n$summary\n');
+    for (final f in functions) {
+      out.writeln('- `${f.signature}`${since(f.since)}: ${f.summary}');
+      if (f.example case final example?) out.writeln('\n  ```lua\n${example.split('\n').map((line) => '  $line').join('\n')}\n  ```\n');
+    }
+    for (final (value, summary) in values) {
+      out.writeln('- `$name.$value`: $summary');
+    }
+  }
 }
 
 /// A port of a socket: something Curator calls the wired function for.
@@ -211,25 +237,14 @@ abstract final class ExtensionApi {
             },
         ],
         'icons': icons,
-        'libraries': [
-          for (final l in libraries)
-            {
-              'name': l.name,
-              'summary': l.summary,
-              'functions': [
-                for (final f in l.functions)
-                  {'name': f.name, 'signature': f.signature, 'summary': f.summary, 'since': f.since, if (f.editor) 'editorOnly': true, if (f.example != null) 'example': f.example},
-              ],
-              if (l.values.isNotEmpty) 'values': [for (final (name, summary) in l.values) {'name': name, 'summary': summary}],
-            },
-        ],
+        'libraries': [for (final l in libraries) l.toJson()],
       };
 
   /// The whole API as Markdown: every socket with its ports and properties, every library with
   /// its functions. docs/extension-api.md is the guide followed by this.
   static String reference() {
     final out = StringBuffer('## Sockets\n');
-    String since(int level) => level > 1 ? ' *(API $level)*' : '';
+    const since = ApiLibrary.since;
     for (final s in sockets) {
       out.writeln('\n### ${s.title} (`${s.type}`)${since(s.since)}\n\n${s.summary}${s.single ? ' An extension has one.' : ''}');
       if (s.ports.isNotEmpty) out.writeln('\nPorts:\n');
@@ -251,14 +266,7 @@ abstract final class ExtensionApi {
     out.writeln('\nA colour is `"#rrggbb"`, or a table of its red, green and blue from 0 to 1: `{r = 1, g = 0.5, b = 0}`.');
     out.writeln('\n## Libraries');
     for (final l in libraries) {
-      out.writeln('\n### `${l.name}`\n\n${l.summary}\n');
-      for (final f in l.functions) {
-        out.writeln('- `${f.signature}`${since(f.since)}: ${f.summary}');
-        if (f.example case final example?) out.writeln('\n  ```lua\n${example.split('\n').map((line) => '  $line').join('\n')}\n  ```\n');
-      }
-      for (final (name, summary) in l.values) {
-        out.writeln('- `${l.name}.$name`: $summary');
-      }
+      l.writeDocs(out);
     }
     return out.toString();
   }
