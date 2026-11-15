@@ -25,14 +25,8 @@ abstract final class ExtensionActions {
   static const _types = XTypeGroup(label: 'Curator Extension', extensions: [ExtensionPackage.fileExtension]);
 
   /// An id for an extension named [name] that the project has none with: "user.my-notes".
-  static String idFor(String name, EditorController controller) {
-    final slug = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
-    final base = 'user.${slug.isEmpty ? 'extension' : slug}';
-    for (var n = 1;; n++) {
-      final id = n == 1 ? base : '$base-$n';
-      if (controller.extensions.package(id) == null) return id;
-    }
-  }
+  static String idFor(String name, EditorController controller) =>
+      PackageFiles.userId(name, 'extension', (id) => controller.extensions.package(id) != null);
 
   /// Asks for a new extension's name, adds it to the project and opens it in the editor.
   static Future<void> create(BuildContext context, EditorController controller) async {

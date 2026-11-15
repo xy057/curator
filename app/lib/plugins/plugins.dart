@@ -162,14 +162,7 @@ class Plugins extends ChangeNotifier {
   }
 
   /// An id for a plugin named [name] that there is none with yet: "user.my-plugin".
-  String idFor(String name) {
-    final slug = PluginRuntime.idOf(name);
-    final base = 'user.${slug.isEmpty ? 'plugin' : slug}';
-    for (var n = 1;; n++) {
-      final id = n == 1 ? base : '$base-$n';
-      if (package(id) == null) return id;
-    }
-  }
+  String idFor(String name) => PackageFiles.userId(name, 'plugin', (id) => package(id) != null);
 
   // MARK: Running
 

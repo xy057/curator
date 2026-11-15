@@ -83,6 +83,20 @@ abstract final class PackageFiles {
 
   static Uint8List bytes(String text) => Uint8List.fromList(utf8.encode(text));
 
+  /// A name as an id's word: "Count Bars…" is "count-bars".
+  static String slug(String name) => name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
+
+  /// An id for a package the user makes, named [name], that isn't [taken] yet: "user.my-notes",
+  /// then "user.my-notes-2"; [kind] ("plugin") when the name has no letters or digits.
+  static String userId(String name, String kind, bool Function(String id) taken) {
+    final slug = PackageFiles.slug(name);
+    final base = 'user.${slug.isEmpty ? kind : slug}';
+    for (var n = 1;; n++) {
+      final id = n == 1 ? base : '$base-$n';
+      if (!taken(id)) return id;
+    }
+  }
+
   /// What [files] (each by its path, in order) hold, as one number: the same for the same.
   static String digest(Map<String, Uint8List> files) {
     final all = BytesBuilder(copy: false);

@@ -206,10 +206,8 @@ class PluginRuntime extends ScriptRuntime {
     throw LuaError("bad argument #1 to '$fn' (there is no command '$name')");
   }
 
-  static final _idChars = RegExp(r'[^a-z0-9]+');
-
   /// An id from a title: "Count Bars…" is "count-bars".
-  static String idOf(String title) => title.toLowerCase().replaceAll(_idChars, '-').replaceAll(RegExp(r'^-+|-+$'), '');
+  static String idOf(String title) => PackageFiles.slug(title);
 
   void _installApp() {
     library('app', {
