@@ -161,10 +161,18 @@ void main() {
       expect(old.dragged(0, 3, seat: 1).seats.map((s) => s.y), [0.5, closeTo(1 - old.size / 2, 1e-9)]);
       final far = old.toJson()..['seats'] = [[9, 0.5]];
       expect(MapSection.fromJson(far, 'section').seats.single.x, 2);
-      // Counted from names and staves; a contrabassoon is no bass.
-      ScorePart part(String id, String name, [int staves = 1]) =>
-          ScorePart(id: id, name: name, abbreviation: '', sound: null, staffNumbers: [for (var i = 1; i <= staves; i++) i]);
-      final band = PlayerMap.smart([part('a', 'Horn in F 1-4', 2), part('b', 'Trumpets I–III'), part('c', 'Contrabassoon'), part('d', 'Violin')]);
+      // Counted from names and staves; a contrabassoon is no bass, nor a contrabass clarinet;
+      // tubular bells are no tuba; a harp named in Chinese is known by its sound, and a guitar is
+      // no section of violins.
+      ScorePart part(String id, String name, [int staves = 1, String? sound]) =>
+          ScorePart(id: id, name: name, abbreviation: '', sound: sound, staffNumbers: [for (var i = 1; i <= staves; i++) i]);
+      final band = PlayerMap.smart([
+        part('a', 'Horn in F 1-4', 2), part('b', 'Trumpets I–III'), part('c', 'Contrabassoon'), part('d', 'Violin'), //
+        part('e', 'Contrabass Clarinet'), part('f', 'Tubular Bells'), part('g', '竖琴', 1, 'pluck.harp'), part('i', 'Guitar', 1, 'pluck.guitar'),
+      ]);
+      expect({for (final s in band.sections) s.name: (s.color, s.seats.length)}, containsPair('Contrabass Clarinet', (MapColors.woodwinds, 1)));
+      expect({for (final s in band.sections) s.name: (s.color, s.seats.length)},
+          allOf(containsPair('Tubular Bells', (MapColors.percussion, 1)), containsPair('竖琴', (MapColors.keyboards, 1)), containsPair('Guitar', (MapColors.other, 1))));
       final seats = {for (final s in band.sections) s.name: [for (var i = 0; i < s.seats.length; i++) s.linkOf(i)?.key]};
       expect(seats['Horn in F 1-4'], ['a', 'a', 'a', 'a']);
       expect(seats['Trumpets I–III'], ['b', 'b', 'b']);

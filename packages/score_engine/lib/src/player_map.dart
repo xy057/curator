@@ -998,29 +998,37 @@ class _Seating {
     return (count: found.length, first: found.first.$1);
   }
 
+  /// What [p] is: by its name (and its abbreviation), an instrument's own name before a word
+  /// several share ("Contrabass Clarinet" a clarinet, "Bass Trombone" a trombone, "Tubular Bells"
+  /// no tuba), else by its sound (a name in a language these patterns don't know), else its family.
   _Role _role(ScorePart p, bool choir) {
     final name = '${nameOf(p)} ${p.name} ${p.abbreviation}'.toLowerCase(), sound = (p.sound ?? '').toLowerCase();
     bool has(String pattern) => RegExp(pattern).hasMatch(name);
+    bool sounds(String ids) => RegExp('^(?:$ids)').hasMatch(sound);
     if (has(r'\bsolo\b|soloist')) return _Role.solo;
     if (sound.startsWith('strings.cello') || has(r'cello|\bvc\b|\bvlc\b')) return _Role.cello;
     if (sound.startsWith('strings.viola') || has(r'viola|\bvla\b|\bva\b|bratsche')) return _Role.viola;
-    if (sound.startsWith('strings.contrabass') || has(r'contrabass(?!o)|double bass|kontrabass(?!o)|\bcb\b|\bd\.?b\.?\b|basses')) return _Role.bass;
+    if (sound.startsWith('strings.contrabass')) return _Role.bass;
     if (sound.startsWith('strings.violin') || has(r'violin|\bvln?\b|violine|\bvl\b')) {
       final second = has(r'(violin|vln?|violine|vl)\.?\s*(2|ii)\b') || has(r'\bsecond\b|\b2nd\b');
       final first = has(r'(violin|vln?|violine|vl)\.?\s*(1|i)\b') || has(r'\bfirst\b|\b1st\b');
       return second && !first ? _Role.violin2 : _Role.violin1;
     }
-    if (has(r'harp')) return _Role.harp;
-    if (sound.startsWith('keyboard.') || has(r'piano|celest|organ|harpsichord|cembalo|clavi|keyboard|synth')) return _Role.keyboard;
-    if (has(r'piccolo|flute|\bfl\b|\bpicc?\b|flauto|flöte')) return _Role.flute;
-    if (has(r'oboe|cor anglais|english horn|\bob\b|\bc\.?a\.?\b')) return _Role.oboe;
-    if (has(r'clarinet|\bcl\b|clarinetto|klarinette')) return _Role.clarinet;
+    if (has(r'harp(?!sichord)|\bhp\b|\bhrp\b|\barpa\b|harfe')) return _Role.harp;
+    if (sound.startsWith('keyboard.') || has(r'piano|\bpno\b|\bpf\b|klavier|celest|organ|harpsichord|cembalo|clavi|keyboard|synth')) {
+      return _Role.keyboard;
+    }
+    if (has(r'piccolo(?!\s+(trumpet|trompete|tromba))|flute|\bfl\b|\bpicc?\b|flauto|flöte')) return _Role.flute;
+    if (has(r'oboe|cor anglais|english horn|englisch ?horn|corno inglese|\bob\b|\bc\.?a\.?\b')) return _Role.oboe;
+    if (has(r'clarinet|basset|\bcl\b|klarinette')) return _Role.clarinet;
     if (has(r'bassoon|\bbsn\b|\bfg\b|fagott')) return _Role.bassoon;
-    if (has(r'sax')) return _Role.saxophone;
-    if (has(r'horn|\bhn\b|\bcor\b|corno')) return _Role.horn;
-    if (has(r'trumpet|cornet|\btpt?\b|\btr\b|tromba|trompete|flugel')) return _Role.trumpet;
+    if (has(r'sax(?!horn)')) return _Role.saxophone;
+    if (has(r'(?<!flugel)(?<!flügel)horn|\bhn\b|\bcor\b|corno')) return _Role.horn;
+    if (has(r'trumpet|cornet|\btpt?\b|\btr\b|tromba|trompete|fl[uü]gel')) return _Role.trumpet;
     if (has(r'trombone|\btbn?\b|posaune|euphonium')) return _Role.trombone;
-    if (has(r'tuba|cimbasso')) return _Role.tuba;
+    if (has(r'\btub(a|as|en)\b|\btba\b|cimbasso|sousaphone')) return _Role.tuba;
+    // After the winds and brass: theirs of that name are no string basses ("Piccolo in D♭" neither).
+    if (has(r'contrabass|double bass|kontrabass|\bcb\b|(?<!\bin\s)\bd\.?b\.?\b|basses')) return _Role.bass;
     if (has(r'timpani|\btimp|pauken')) return _Role.timpani;
     if (p.isUnpitchedPercussion ||
         has(r'percussion|drum|cymbal|triangle|glock|xylo|vibra|marimba|bells|tam-?tam|gong|snare|tambourine|perc\b|chimes|wood ?block')) {
@@ -1030,13 +1038,25 @@ class _Seating {
       return _Role.voice;
     }
     if (has(r'\bbass\b')) return _Role.bass;
+    if (sounds(r'wind\.flutes')) return _Role.flute;
+    if (sounds(r'wind\.reed\.(oboe|english-horn|heckelphone)')) return _Role.oboe;
+    if (sounds(r'wind\.reed\.(clarinet|basset-horn)')) return _Role.clarinet;
+    if (sounds(r'wind\.reed\.(bassoon|contrabassoon)')) return _Role.bassoon;
+    if (sounds(r'wind\.reed\.saxophone')) return _Role.saxophone;
+    if (sounds(r'brass\.(french-horn|horn|wagner-tuba)')) return _Role.horn;
+    if (sounds(r'brass\.(trumpet|cornet|flugelhorn|bugle)')) return _Role.trumpet;
+    if (sounds(r'brass\.(trombone|euphonium|baritone)')) return _Role.trombone;
+    if (sounds(r'brass\.(tuba|sousaphone|helicon)')) return _Role.tuba;
+    if (sounds(r'drum\.timpani')) return _Role.timpani;
+    if (sounds(r'pluck\.harp')) return _Role.harp;
     return switch (p.family) {
       InstrumentFamily.woodwinds => _Role.flute,
       InstrumentFamily.brass => _Role.horn,
       InstrumentFamily.percussion => _Role.percussion,
       InstrumentFamily.keyboards => _Role.keyboard,
       InstrumentFamily.voices => _Role.voice,
-      InstrumentFamily.strings => _Role.violin1,
+      // A guitar, a mandolin: no section of violins.
+      InstrumentFamily.strings => sound.startsWith('pluck.') ? _Role.other : _Role.violin1,
       InstrumentFamily.other => _Role.other,
     };
   }
