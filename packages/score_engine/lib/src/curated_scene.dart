@@ -73,6 +73,18 @@ class EngraveRequest {
   /// Horizontal spacers: blanks opened between beats.
   final List<HorizontalSpacer> gaps;
 
+  /// This request as it is sent to another isolate to read the score: all but the fonts, whose
+  /// files (an added music font's can be megabytes) would be copied there and nothing read.
+  EngraveRequest get apart => EngraveRequest(
+      textEdits: textEdits,
+      pairs: pairs,
+      options: options,
+      textDynamics: textDynamics,
+      typography: typography,
+      centeredLyrics: centeredLyrics,
+      spacers: spacers,
+      gaps: gaps);
+
   @override
   bool operator ==(Object other) =>
       other is EngraveRequest &&
@@ -235,9 +247,9 @@ class LoadedScore {
       double? tempo,
       bool measure = false,
       void Function(LoadStage stage)? onStage}) async {
-    final r = request;
+    final r = request, apart = request.apart;
     onStage?.call(LoadStage.reading);
-    final (:metadata, :prepared, :barLengths) = await Isolate.run(() => _prepare(musicXML, r));
+    final (:metadata, :prepared, :barLengths) = await Isolate.run(() => _prepare(musicXML, apart));
     // What each bar plays, from the file's bar lengths (kept only where they are the
     // engraving's).
     Future<({List<double> starts, BarSalience salience})> measured() => Isolate.run(() {
@@ -292,7 +304,8 @@ class LoadedScore {
       void Function(LoadStage stage)? onStage,
       bool textFontFound = true}) async {
     onStage?.call(LoadStage.reading);
-    final read = await Isolate.run(() => drawn.read(request));
+    final apart = request.apart;
+    final read = await Isolate.run(() => drawn.read(apart));
     ({List<double> starts, BarSalience salience})? salience;
     if (measure) {
       onStage?.call(LoadStage.measuring);
