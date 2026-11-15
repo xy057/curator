@@ -151,7 +151,7 @@ class ConstantTempoTimeline implements ScoreTimeline {
 /// [firstPass] to [end] in pass [lastPass] of [whole]. Times stay the performance's own; only
 /// the passes are cut, so what reads them treats the cut as the score's ends: the scroll comes
 /// to rest after [end] ([ScoreMotion.settle]), and a lane shown at [start] is shown from the
-/// beginning, with no transition there (see [Curation.visibilityAt]). The music either side
+/// beginning, with no transition there (see [Curation.visibilityIn]). The music either side
 /// is still engraved, so the frame shows it.
 class ClippedTimeline implements ScoreTimeline {
   ClippedTimeline(this.whole, {required this.firstPass, required this.start, required this.lastPass, required this.end})

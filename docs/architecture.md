@@ -288,7 +288,7 @@ centred, so the margin tells only while the share is between the two), points in
 key; an instrument's own room above and below (a lane's ⋯ ▸ Spacing…, `EditState.spacing`, staff
 spaces, negative takes some away, saved in `instruments` from its version 2; `CuratedScene.instrumentSpacing`)
 is added to its ink's reach, so the shared gaps make way for it; the staves' glide (`SpacingPlan` and
-`KeyColumnPlan`'s blend) and fade (`Curation.visibilityAt`'s ramp, then the ink after `inkDelay`,
+`KeyColumnPlan`'s blend) and fade (`Curation.visibilityIn`'s ramp, then the ink after `inkDelay`,
 `ScoreMotion.inkFor`); the scroll's settle and slowest speed (`ScrollMap.withMotion`: a new slowest
 speed solves the notes' curves again, a new settle only re-ends them); the ending's fade
 (`CuratedScene.endOf(timeline, motion)`, so playback's duration and a clipped video's end follow);

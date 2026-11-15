@@ -68,8 +68,6 @@ class LilySource {
   factory LilySource.of(String name, String text, LilyPondProject project) =>
       LilySource(name: name, text: text, folder: project.folder, files: project.files);
 
-  LilySource withText(String text) => LilySource(name: name, text: text, folder: folder, files: files, origin: origin);
-
   /// A score to start from (File ▸ New LilyPond Score…) in a main file named [name]: a staff of
   /// a few bars, its instrument named [part].
   factory LilySource.blank(String name, {required String part}) => LilySource(name: name, text: '''

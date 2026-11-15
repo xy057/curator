@@ -491,7 +491,8 @@ class Curation extends ChangeNotifier {
   }
 
   /// 0…1 at [seconds] for a lane shown over [spans] ([shownSpans]): each edge a ramp of its
-  /// transition centred on it, shaped by [curve].
+  /// transition centred on it, shaped by [curve]; a region reaching the piece's start or end
+  /// doesn't fade there.
   static double visibilityIn(List<ShownSpan> spans, double seconds, {MotionCurve curve = MotionCurve.smooth}) {
     var v = 0.0;
     for (final (:start, :end, :fadeIn, :fadeOut) in spans) {
@@ -500,16 +501,6 @@ class Curation extends ChangeNotifier {
     }
     return v;
   }
-
-  /// Whether [partId] is inside one of its regions at [seconds] (ignoring the fades).
-  bool isShownAt(String partId, double seconds, ScoreTimeline timeline) => shownIn(shownSpans(partId, timeline), seconds);
-
-  /// 0…1 for every part at [seconds]. Each region edge is a smooth ramp of that edge's
-  /// transition ([transitionInOf], [transitionOutOf]) centred on the edge, so the result is continuous in time.
-  /// Regions reaching the start or end of the piece don't fade there. [curve] shapes each ramp.
-  Map<String, double> visibilityAt(double seconds, ScoreTimeline timeline, {MotionCurve curve = MotionCurve.smooth}) => {
-        for (final entry in _lanes.entries) entry.key: visibilityIn(_spans(entry.value, timeline), seconds, curve: curve),
-      };
 
   /// The staves of [partId] the region shown at [seconds] leaves out ([Region.hiddenStaves]):
   /// the nearest region's between regions, and before or after the performance (where one
@@ -521,7 +512,7 @@ class Curation extends ChangeNotifier {
   }
 
   /// 0…1: how much of staff [n] of [partId] shows at [seconds], as far as its regions say
-  /// ([Region.hiddenStaves]; [visibilityAt] says how much the instrument shows). Where two
+  /// ([Region.hiddenStaves]; [visibilityIn] says how much the instrument shows). Where two
   /// regions meet, a staff one leaves out and the other shows fades over the transition there,
   /// centred on it; [curve] shapes the fade.
   double staffVisibilityAt(String partId, int n, double seconds, ScoreTimeline timeline,
