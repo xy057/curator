@@ -85,7 +85,7 @@ msgstr ""
 msgid "A tempo map starts at quarter 0."
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "About"
 msgstr ""
 
@@ -370,6 +370,7 @@ msgstr ""
 msgid "Anything"
 msgstr ""
 
+#: assets/plugins/appearanceMenu/src/main.lua
 msgid "Appearance"
 msgstr ""
 
@@ -531,7 +532,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/plugins/plugin_actions.dart lib/plugins/plugin_editor.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -626,7 +627,7 @@ msgstr ""
 msgid "Clefs"
 msgstr ""
 
-#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/phrase_search_window.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/phrase_search_window.dart lib/plugins/plugin_editor.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr ""
 
@@ -664,7 +665,7 @@ msgstr ""
 msgid "Condensing"
 msgstr ""
 
-#: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart
+#: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart assets/plugins/scoreFacts/src/main.lua
 msgid "Copy"
 msgstr ""
 
@@ -847,7 +848,7 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
-#: lib/ai_settings.dart lib/app_menus.dart lib/extensions/extension_editor.dart
+#: lib/ai_settings.dart lib/app_menus.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "Delete"
 msgstr ""
 
@@ -866,7 +867,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/score_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/plugins/plugin_editor.dart lib/score_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -949,7 +950,7 @@ msgstr ""
 msgid "Edit Spacer…"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart lib/lilypond_dialog.dart lib/settings_dialog.dart
+#: lib/extensions/extension_actions.dart lib/lilypond_dialog.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart
 msgid "Edit…"
 msgstr ""
 
@@ -1036,7 +1037,7 @@ msgstr ""
 msgid "Exporting Video…"
 msgstr ""
 
-#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua
+#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua
 msgid "Export…"
 msgstr ""
 
@@ -1068,7 +1069,7 @@ msgstr ""
 msgid "Fermatas"
 msgstr ""
 
-#: lib/app_menus.dart lib/extensions/extension_editor.dart
+#: lib/app_menus.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "File"
 msgstr ""
 
@@ -1204,7 +1205,7 @@ msgstr ""
 msgid "Height (staff spaces)"
 msgstr ""
 
-#: lib/app_menus.dart lib/extensions/extension_editor.dart
+#: lib/app_menus.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "Help"
 msgstr ""
 
@@ -1424,7 +1425,7 @@ msgstr ""
 msgid "Music symbols"
 msgstr ""
 
-#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua
 msgid "Name"
 msgstr ""
 
@@ -1552,7 +1553,7 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr ""
 
@@ -1730,7 +1731,7 @@ msgstr ""
 msgid "Redo"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr ""
 
@@ -1755,7 +1756,7 @@ msgstr ""
 msgid "Rehearsal marks in bar numbers"
 msgstr ""
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr ""
 
@@ -1821,7 +1822,7 @@ msgstr ""
 msgid "Renamed: {from} → {to}"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/settings_dialog.dart lib/take_lanes.dart
+#: lib/extensions/extension_editor.dart lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/settings_dialog.dart lib/take_lanes.dart
 msgid "Rename…"
 msgstr ""
 
@@ -1999,7 +2000,7 @@ msgstr ""
 msgid "Settings Imported"
 msgstr ""
 
-#: lib/app_menus.dart lib/extensions/extension_actions.dart
+#: lib/app_menus.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
 msgid "Settings…"
 msgstr ""
 
@@ -2521,7 +2522,7 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr ""
 
@@ -2600,7 +2601,7 @@ msgstr ""
 msgid "UTF-16 MusicXML is not supported yet; save the file as UTF-8."
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "Version"
 msgstr ""
 
@@ -2630,7 +2631,7 @@ msgstr ""
 msgid "Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:"
 msgstr ""
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart assets/plugins/appearanceMenu/src/main.lua assets/plugins/scoreFacts/src/main.lua
 msgid "View"
 msgstr ""
 
@@ -2654,7 +2655,7 @@ msgstr ""
 msgid "WebM video"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/settings_dialog.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart lib/settings_dialog.dart
 msgid "Website"
 msgstr ""
 
@@ -2682,7 +2683,7 @@ msgstr ""
 msgid "Woodwinds"
 msgstr ""
 
-#: lib/edit_dialogs.dart
+#: lib/edit_dialogs.dart lib/plugins/plugin_actions.dart
 msgid "This one can’t be undone."
 msgstr ""
 
@@ -2876,11 +2877,11 @@ msgstr ""
 msgid "Couldn’t Edit Score"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Discard"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr ""
 
@@ -2903,7 +2904,7 @@ msgstr ""
 msgid "Holds"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr ""
 
@@ -3254,7 +3255,7 @@ msgstr ""
 msgid "Show Next"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "Summary"
 msgstr ""
 
@@ -3288,7 +3289,7 @@ msgstr ""
 msgid "Staves without an instrument"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart lib/pdf_import.dart
+#: lib/extensions/extension_actions.dart lib/pdf_import.dart lib/plugins/plugin_actions.dart
 msgid "More"
 msgstr ""
 
@@ -3947,7 +3948,7 @@ msgstr ""
 msgid "Couldn’t Import LilyPond Score"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Find ({key})"
 msgstr ""
 
@@ -4702,7 +4703,7 @@ msgstr ""
 msgid "New Extension"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart
+#: lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
 msgid "Create"
 msgstr ""
 
@@ -4714,11 +4715,11 @@ msgstr ""
 msgid "Couldn’t Save the Extension"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart
+#: lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
 msgid "{name} Copy"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart
+#: lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
 msgid "Duplicate"
 msgstr ""
 
@@ -4726,15 +4727,15 @@ msgstr ""
 msgid "The extension stays as it was."
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "Reference"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "Run ({key})"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "Run"
 msgstr ""
 
@@ -4762,7 +4763,7 @@ msgctxt "lua"
 msgid "value"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "API level"
 msgstr ""
 
@@ -4794,7 +4795,7 @@ msgstr ""
 msgid "Another file has this name"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "New File"
 msgstr ""
 
@@ -4810,12 +4811,12 @@ msgstr ""
 msgid "Edit Extension"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgctxt "heading"
 msgid "Files"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "ID"
 msgstr ""
 
@@ -4823,11 +4824,11 @@ msgstr ""
 msgid "Like com.example.notes: lower-case, with a dot"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "Author"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
 msgid "Search Words"
 msgstr ""
 
@@ -4837,6 +4838,13 @@ msgstr ""
 
 msgctxt "heading"
 msgid "In This Project"
+msgstr ""
+
+msgctxt "heading"
+msgid "Added"
+msgstr ""
+
+msgid "Plugins"
 msgstr ""
 
 #: lib/extensions/connector_view.dart
@@ -4861,4 +4869,96 @@ msgstr ""
 
 #: lib/extensions/extension_docs.dart
 msgid "Download Docs for AI…"
+msgstr ""
+
+#: lib/plugins/plugin_actions.dart lib/settings_dialog.dart
+msgid "New Plugin"
+msgstr ""
+
+#: lib/plugins/plugin_actions.dart
+msgid "Couldn’t Add the Plugin"
+msgstr ""
+
+#: lib/plugins/plugin_actions.dart
+msgid "Couldn’t Save the Plugin"
+msgstr ""
+
+#: lib/plugins/plugin_actions.dart
+msgid "Remove “{name}”?"
+msgstr ""
+
+#: lib/plugins/plugin_actions.dart
+msgid "View…"
+msgstr ""
+
+#: lib/plugins/plugin_editor.dart
+msgid "The plugin stays as it was."
+msgstr ""
+
+#: lib/plugins/plugin_editor.dart
+msgid "Plugin"
+msgstr ""
+
+#: lib/plugins/plugin_editor.dart
+msgid "Edit Plugin"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Add Plugin from File"
+msgstr ""
+
+#: assets/plugins/appearanceMenu/plugin.json
+msgid "Appearance Menu"
+msgstr ""
+
+#: assets/plugins/appearanceMenu/plugin.json
+msgid "Light, Dark and System in the View menu."
+msgstr ""
+
+#: assets/plugins/reopenLast/plugin.json
+msgid "Reopen Last Project"
+msgstr ""
+
+#: assets/plugins/reopenLast/plugin.json
+msgid "Opens the latest project as Curator starts."
+msgstr ""
+
+#: assets/plugins/saveBeforeExport/plugin.json
+msgid "Save Before Export"
+msgstr ""
+
+#: assets/plugins/saveBeforeExport/plugin.json
+msgid "Saves the project each time it is exported."
+msgstr ""
+
+#: assets/plugins/scoreFacts/plugin.json assets/plugins/scoreFacts/src/main.lua
+msgid "Score Facts"
+msgstr ""
+
+#: assets/plugins/scoreFacts/plugin.json
+msgid "A command that counts the score’s bars, parts and staves."
+msgstr ""
+
+#: assets/plugins/scoreFacts/src/main.lua
+msgid "Bars: {n}"
+msgstr ""
+
+#: assets/plugins/scoreFacts/src/main.lua
+msgid "Parts: {n}"
+msgstr ""
+
+#: assets/plugins/scoreFacts/src/main.lua
+msgid "Staves: {n}"
+msgstr ""
+
+#: assets/plugins/scoreFacts/src/main.lua
+msgid "Rehearsal marks: {n}"
+msgstr ""
+
+#: assets/plugins/scoreFacts/src/main.lua
+msgid "Length: {time}"
+msgstr ""
+
+#: assets/plugins/scoreFacts/src/main.lua
+msgid "Score Facts…"
 msgstr ""

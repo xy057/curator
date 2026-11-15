@@ -8,6 +8,7 @@ import 'app_logo.dart';
 import 'app_settings.dart';
 import 'file_names.dart';
 import 'key_bindings.dart';
+import 'plugins/plugins.dart';
 import 'project_file.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
@@ -41,6 +42,8 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.colors;
+    // The buttons plugins put here (app.command's `home`), after the app's own.
+    final plugins = PluginScope.of(context), added = plugins?.commandsWhere((command) => command.home) ?? const <PluginEntry>[];
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -102,6 +105,14 @@ class HomeScreen extends StatelessWidget {
                       icon: Icon(AppIcon.demo.of(context), size: 18),
                       label: Text('Open Sample'.tr),
                     ),
+                    for (final entry in added)
+                      OutlinedButton.icon(
+                        key: ValueKey('plugin ${entry.command.id}'),
+                        style: withIconStyle(context),
+                        onPressed: plugins!.actionOf(entry),
+                        icon: Icon(Plugins.iconOf(context, entry), size: 18),
+                        label: Text(plugins.titleOf(entry)),
+                      ),
                   ],
                 ),
               ),

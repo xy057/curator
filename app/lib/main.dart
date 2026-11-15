@@ -39,6 +39,9 @@ import 'lilypond_editor.dart';
 import 'media_converter.dart';
 import 'phrase_search_window.dart';
 import 'pdf_ai_model_dialog.dart';
+import 'plugins/bundled.dart';
+import 'plugins/plugin_actions.dart';
+import 'plugins/plugins.dart';
 import 'pdf_import.dart';
 import 'project_document.dart';
 import 'project_file.dart';
@@ -63,11 +66,12 @@ Future<void> main() async {
   unawaited(Isolate.run(() => ScratchSpace.sweep(keep: keep)).catchError((_) {}));
   FontResources.workDirectory = ScratchSpace.folder('fonts').path; // metrics of fonts not bundled
   LicenseRegistry.addLicense(bundledLicenses);
-  final (settings, _, _) = await (AppSettings.load(), _loadStrings(), BundledExtensions.load(rootBundle)).wait;
+  final (settings, _, _, _) = await (AppSettings.load(), _loadStrings(), BundledExtensions.load(rootBundle), BundledPlugins.load(rootBundle)).wait;
+  final plugins = await Plugins.load(settings);
   if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
   final updater = Updater(channel: settings.updateChannel);
   if (settings.checkForUpdates) unawaited(updater.check());
-  runApp(CuratedScoreApp(settings: settings, updater: updater));
+  runApp(CuratedScoreApp(settings: settings, updater: updater, plugins: plugins));
 }
 
 /// The interface's languages: each translations file the bundle has.
@@ -105,10 +109,13 @@ Stream<LicenseEntry> bundledLicenses() async* {
 }
 
 class CuratedScoreApp extends StatefulWidget {
-  const CuratedScoreApp({super.key, this.settings, this.updater});
+  const CuratedScoreApp({super.key, this.settings, this.updater, this.plugins});
 
   /// Stored preferences; in-memory defaults when not given (tests).
   final AppSettings? settings;
+
+  /// The app's plugins (Settings ▸ Plugins); none added, kept nowhere, when not given (tests).
+  final Plugins? plugins;
 
   /// Settings ▸ About; one that hasn't checked yet when not given (tests).
   final Updater? updater;
@@ -119,6 +126,7 @@ class CuratedScoreApp extends StatefulWidget {
 
 class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final settings = widget.settings ?? AppSettings.memory();
+  late final plugins = widget.plugins ?? Plugins(settings);
 
   // Appearance changes cross-fade: the theme changes at once, under a still of the window as it
   // was, which fades out. A lerped theme would rebuild every widget on every frame of the fade.
@@ -205,7 +213,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
   }
 
   // The same widget each build: a change of settings rebuilds only what reads them (or the theme).
-  late final _home = AppWindow(settings: settings, updater: widget.updater);
+  late final _home = AppWindow(settings: settings, updater: widget.updater, plugins: plugins);
 
   // Built once per accent, style, density and motion: a new ThemeData never equals the last (its extensions and button
   // styles compare by identity), so one per build would rebuild every widget that reads the
@@ -223,8 +231,9 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    // Plugins too: the keys they give the app's commands reach every window.
     return ListenableBuilder(
-      listenable: settings,
+      listenable: Listenable.merge([settings, plugins]),
       builder: (context, _) {
         _buildThemes();
         return MaterialApp(
@@ -239,8 +248,10 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           // The still fades over everything, open menus and dialogs too, and is part of the next still.
           // The keys as set (Settings ▸ Shortcuts) reach every window: tooltips name them.
-          builder: (context, child) => KeyMapScope(
-            keys: settings.keys,
+          builder: (context, child) => PluginScope(
+            plugins: plugins,
+            child: KeyMapScope(
+            keys: plugins.keysOver(settings.keys),
             child: _StillBoundary(
               key: _windowKey,
               child: Stack(fit: StackFit.expand, children: [
@@ -266,6 +277,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
                         ),
                 ),
               ]),
+            ),
             ),
           ),
           home: _home,
@@ -296,9 +308,10 @@ class _RenderStillBoundary extends RenderRepaintBoundary {
 /// The menus act on the tab showing; a project's tab keeps its editor as it was left while
 /// another shows.
 class AppWindow extends StatefulWidget {
-  const AppWindow({super.key, this.settings, this.updater});
+  const AppWindow({super.key, this.settings, this.updater, this.plugins});
   final AppSettings? settings;
   final Updater? updater;
+  final Plugins? plugins;
 
   @override
   State<AppWindow> createState() => _AppWindowState();
@@ -340,9 +353,10 @@ class _OpenProject {
   bool get isSample => path == null && lilypond == null;
 }
 
-class _AppWindowState extends State<AppWindow> {
+class _AppWindowState extends State<AppWindow> implements PluginWindow {
   late final settings = widget.settings ?? AppSettings.memory();
   late final updater = widget.updater ?? Updater(channel: settings.updateChannel);
+  late final plugins = widget.plugins ?? Plugins(settings);
   late final _lifecycle = AppLifecycleListener(onExitRequested: _exitRequested);
 
   /// Every project open, those closing too (their pages stay until they have).
@@ -396,6 +410,11 @@ class _AppWindowState extends State<AppWindow> {
     // transparent. (Not an idle task: one waits while anything animates, re-arming a timer on
     // every turn of the event loop, which spun and, in widget tests, filled memory.)
     WidgetsBinding.instance.addPostFrameCallback((_) => CuratedScene.warmUp());
+    // The plugins that are on start once the window is up: one may show something as it does.
+    plugins.attach(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) plugins.start();
+    });
   }
 
   @override
@@ -403,6 +422,7 @@ class _AppWindowState extends State<AppWindow> {
     FocusManager.instance.removeListener(_focusChanged);
     settings.removeListener(_settingsChanged);
     updater.removeListener(_launchCheckAnswered);
+    plugins.detach(this);
     _lifecycle.dispose();
     _homeKeys.dispose();
     _menus.dispose();
@@ -477,6 +497,32 @@ class _AppWindowState extends State<AppWindow> {
 
   void _snack(String message) => _messenger?.showSnackBar(SnackBar(content: Text(message.tr)));
 
+  // MARK: What plugins act on
+
+  /// The app's own commands as the menus last had them, by id: what a plugin's `app.run` does.
+  Map<String, VoidCallback?> _commands = const {};
+
+  @override
+  Map<String, VoidCallback?> get commands => _commands;
+  @override
+  BuildContext? get dialogContext => mounted ? context : null;
+  @override
+  EditorController? get controller => switch (_showing?.page) { final page? when page.controller.score != null => page.controller, _ => null };
+  @override
+  PluginProject? get project => _showing == null ? null : _asPlugins(_showing!);
+  @override
+  List<PluginProject> get projects => [for (final p in _tabs) _asPlugins(p)];
+  @override
+  int? get showing => _showing == null ? null : _tabs.indexOf(_showing!);
+  @override
+  void showTab(int? index) => _show(index == null ? null : _tabs[index]);
+  @override
+  void open(String path) => _openPath(path);
+  @override
+  void message(String text) => _messenger?.showSnackBar(SnackBar(content: Text(text)));
+
+  static PluginProject _asPlugins(_OpenProject project) => (name: project.label.value.name, path: project.label.value.path, edited: project.label.value.edited);
+
   void _settings({String? page}) =>
       showSettingsDialog(context, settings, controller: _showing?.page?.controller, updater: updater, page: page);
 
@@ -489,6 +535,7 @@ class _AppWindowState extends State<AppWindow> {
     _showing?.page?._hide();
     setState(() => _showing = project);
     _menus.value++;
+    plugins.emit('project.shown', [Plugins.projectTable(project == null ? null : _asPlugins(project))]);
     if (project == null) {
       WindowChrome.showDocument();
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -522,6 +569,13 @@ class _AppWindowState extends State<AppWindow> {
     if (!File(path).existsSync()) {
       settings.removeRecent(path);
       _snack('Can’t find “{name}”. Was it moved or deleted?'.fill({'name': fileNameOf(path)}));
+      return;
+    }
+    // A plugin's file is added to the app, and shown where its switch is.
+    if (path.toLowerCase().endsWith('.${PluginPackage.fileExtension}')) {
+      unawaited(PluginActions.addFile(context, plugins, path).then((added) {
+        if (added && mounted) _settings(page: 'Plugins');
+      }));
       return;
     }
     final open = _tabs.where((p) => p.file == path).firstOrNull;
@@ -574,7 +628,7 @@ class _AppWindowState extends State<AppWindow> {
       _show(project);
       if (!await page._confirmDiscard() || !mounted || project.closing) return;
     }
-    final tabs = _tabs, at = tabs.indexOf(project);
+    final tabs = _tabs, at = tabs.indexOf(project), closed = _asPlugins(project);
     tabs.remove(project);
     setState(() => project.closing = true); // its page drops the editor now
     if (_showing == project) _show(tabs.isEmpty ? null : tabs[math.min(at, tabs.length - 1)]);
@@ -583,6 +637,7 @@ class _AppWindowState extends State<AppWindow> {
     if (!mounted) return;
     setState(() => _projects.remove(project));
     project.label.dispose();
+    plugins.emit('project.closed', [Plugins.projectTable(closed)]);
   }
 
   Future<AppExitResponse> _exitRequested() async {
@@ -621,7 +676,7 @@ class _AppWindowState extends State<AppWindow> {
     final tabs = _tabs, barShown = tabs.isNotEmpty && _tabBar;
     // The menus follow the tab showing; the window below them is built here and passed through.
     return ListenableBuilder(
-      listenable: Listenable.merge([_recent, _menus, _typing]),
+      listenable: Listenable.merge([_recent, _menus, _typing, plugins]),
       builder: (context, window) {
         final page = _showing?.page;
         final open = page != null && page._hasScore.value;
@@ -633,39 +688,75 @@ class _AppWindowState extends State<AppWindow> {
         // a key the field leaves unused would otherwise reach the menu.
         final edit = page != null && !_typing.value && free ? page._edit.value : null;
         final commands = page?._commands;
+        // Each of the app's commands as it can be chosen now, by its id: the menus' items, and
+        // what a plugin runs.
+        final does = _commands = <String, VoidCallback?>{
+          'about': () => _settings(page: 'About'),
+          'settings': _settings,
+          'newLilyPond': free ? _newLilyPond : null,
+          'open': free ? _open : null,
+          'importScore': free ? _import : null,
+          'close': _showing == null || !free ? null : () => _close(_showing!),
+          // Enabled but for the demo: Save explains when there is nothing to save.
+          'save': page == null ? _nothingToSave : page._isSample.value ? null : page._save,
+          'saveAs': page == null ? _nothingToSave : page._isSample.value ? null : page._saveAs,
+          'exportVideo': open && page._canExport.value ? page._exportVideo : null,
+          'exportWeb': open && page._canExport.value ? page._exportWeb : null,
+          'undo': edit != null && edit.undo ? page!.controller.undo : null,
+          'redo': edit != null && edit.redo ? page!.controller.redo : null,
+          'cut': edit != null && edit.copy ? commands!.cut : null,
+          'copy': edit != null && edit.copy ? commands!.copy : null,
+          'paste': edit != null && edit.paste ? page!._paste : null,
+          'delete': edit != null && edit.delete ? commands!.delete : null,
+          'selectAll': edit != null && commands!.canSelectAll ? commands.selectAll : null,
+          'findPhrase': open && !_typing.value && free && !page.controller.isPdf ? page._findPhrase : null,
+          'projectSettings': open ? page._projectSettings : null,
+          'showPreview': open ? () => page._showPreview(!page._previewShown) : null,
+          'showTimeline': open ? () => page._showTimeline(!page._timelineShown) : null,
+          'maximizePreview': open ? () => page._maximize(timeline: false) : null,
+          'maximizeTimeline': open ? () => page._maximize(timeline: true) : null,
+          'showTabBar': () => settings.tabBar = !_tabBar,
+          'showAllTabs': _tabBar ? null : () => settings.tabBar = true,
+          'previousTab': tabs.isEmpty || !free ? null : () => _step(-1),
+          'nextTab': tabs.isEmpty || !free ? null : () => _step(1),
+          // The editor's keys, in no menu.
+          if (open && free) ...page._editorCommands,
+        };
         return AppMenus(
           keys: KeyMap.of(context),
-          onOpen: free ? _open : null,
-          onImport: free ? _import : null,
-          onNewLilyPond: free ? _newLilyPond : null,
-          // Enabled but for the demo: Save explains when there is nothing to save.
-          onSave: page == null ? _nothingToSave : page._isSample.value ? null : page._save,
-          onSaveAs: page == null ? _nothingToSave : page._isSample.value ? null : page._saveAs,
+          plugins: plugins,
+          free: free,
+          typing: _typing.value,
+          onOpen: does['open'],
+          onImport: does['importScore'],
+          onNewLilyPond: does['newLilyPond'],
+          onSave: does['save'],
+          onSaveAs: does['saveAs'],
           onSettings: _settings,
-          onAbout: () => _settings(page: 'About'),
+          onAbout: does['about'],
           recentFiles: _recent.value,
           onOpenRecent: free ? _openPath : null,
           onClearRecent: settings.clearRecent,
-          onClose: _showing == null || !free ? null : () => _close(_showing!),
-          onProjectSettings: open ? page._projectSettings : null,
-          onExportVideo: open && page._canExport.value ? page._exportVideo : null,
-          onExportWeb: open && page._canExport.value ? page._exportWeb : null,
-          onUndo: edit != null && edit.undo ? page!.controller.undo : null,
-          onRedo: edit != null && edit.redo ? page!.controller.redo : null,
-          onCut: edit != null && edit.copy ? commands!.cut : null,
-          onCopy: edit != null && edit.copy ? commands!.copy : null,
-          onPaste: edit != null && edit.paste ? page!._paste : null,
-          onDelete: edit != null && edit.delete ? commands!.delete : null,
-          onSelectAll: edit != null && commands!.canSelectAll ? commands.selectAll : null,
-          onFindPhrase: open && !_typing.value && free && !page.controller.isPdf ? page._findPhrase : null,
+          onClose: does['close'],
+          onProjectSettings: does['projectSettings'],
+          onExportVideo: does['exportVideo'],
+          onExportWeb: does['exportWeb'],
+          onUndo: does['undo'],
+          onRedo: does['redo'],
+          onCut: does['cut'],
+          onCopy: does['copy'],
+          onPaste: does['paste'],
+          onDelete: does['delete'],
+          onSelectAll: does['selectAll'],
+          onFindPhrase: does['findPhrase'],
           previewShown: page?._previewShown ?? true,
           timelineShown: page?._timelineShown ?? true,
           onShowPreview: open ? page._showPreview : null,
           onShowTimeline: open ? page._showTimeline : null,
-          onMaximizePreview: open ? () => page._maximize(timeline: false) : null,
-          onMaximizeTimeline: open ? () => page._maximize(timeline: true) : null,
-          onNextTab: tabs.isEmpty || !free ? null : () => _step(1),
-          onPreviousTab: tabs.isEmpty || !free ? null : () => _step(-1),
+          onMaximizePreview: does['maximizePreview'],
+          onMaximizeTimeline: does['maximizeTimeline'],
+          onNextTab: does['nextTab'],
+          onPreviousTab: does['previousTab'],
           tabBarShown: _tabBar,
           onShowTabBar: (on) => settings.tabBar = on,
           child: window!,
@@ -717,6 +808,7 @@ class _AppWindowState extends State<AppWindow> {
                   child: ProjectPage(
                     key: project.key,
                     settings: settings,
+                    plugins: plugins,
                     path: project.path,
                     lilypond: project.lilypond,
                     showing: _showing == project,
@@ -789,6 +881,7 @@ class ProjectPage extends StatefulWidget {
   const ProjectPage({
     super.key,
     required this.settings,
+    this.plugins,
     required this.path,
     this.lilypond,
     required this.showing,
@@ -802,6 +895,9 @@ class ProjectPage extends StatefulWidget {
   });
 
   final AppSettings settings;
+
+  /// The app's plugins, told what happens to the project.
+  final Plugins? plugins;
 
   /// The project or score it opens; null: the sample, or [lilypond].
   final String? path;
@@ -926,7 +1022,14 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     if (widget.showing) widget.onMenusChanged();
   }
 
+  bool _playing = false;
+
   void _scoreChanged() {
+    // Plugins hear the project showing start and stop.
+    if (controller.playback.isPlaying != _playing) {
+      _playing = !_playing;
+      if (widget.showing) widget.plugins?.emit(_playing ? 'playback.started' : 'playback.stopped');
+    }
     final open = controller.score != null;
     _hasScore.value = open;
     _canExport.value = open && !controller.isReengraving;
@@ -1031,8 +1134,13 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         if (warnings.isNotEmpty && mounted) await showImportWarnings(context, controller.fileName ?? path, warnings);
       });
     }
-    if (mounted && controller.score == null) widget.onFailed();
+    if (!mounted) return;
+    if (controller.score == null) return widget.onFailed();
+    widget.plugins?.emit('project.opened', [Plugins.projectTable(_asPlugins)]);
   }
+
+  /// The project as plugins are told of it.
+  PluginProject get _asPlugins => (name: widget.label.value.name, path: document.path, edited: document.isDirty);
 
   void _snack(String message) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.tr)));
@@ -1163,6 +1271,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       await document.save(path);
       saved = true;
     }, title: 'Couldn’t Save Project'.tr);
+    if (saved && mounted) widget.plugins?.emit('project.saved', [Plugins.projectTable(_asPlugins)]);
     return saved;
   }
 
@@ -1562,56 +1671,88 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// The window's keys: those the user can change as [keys] has them (Settings ▸ Shortcuts), after
   /// the rest, which are listed as [KeyCommand]s too (a key here is added there, where it keeps
   /// the user from giving it to another command).
-  Map<ShortcutActivator, VoidCallback> _bindings(KeyMap keys) => {
-        // Space plays / pauses — or, in tap mode, marks the bar or beat sounding now.
-        const SingleActivator(LogicalKeyboardKey.space): _commands.space,
-        const SingleActivator(LogicalKeyboardKey.enter): controller.playback.togglePlay,
-        const SingleActivator(LogicalKeyboardKey.numpadEnter): controller.playback.togglePlay,
-        // P too: tap mode takes Space.
-        const SingleActivator(LogicalKeyboardKey.keyP): controller.playback.togglePlay,
-        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _commands.arrow(-1, fine: false),
-        const SingleActivator(LogicalKeyboardKey.arrowRight): () => _commands.arrow(1, fine: false),
-        const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () => _commands.arrow(-1, fine: true),
-        const SingleActivator(LogicalKeyboardKey.arrowRight, shift: true): () => _commands.arrow(1, fine: true),
-        const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): () => _commands.arrow(-1, fine: true, nudge: true),
-        const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): () => _commands.arrow(1, fine: true, nudge: true),
-        const SingleActivator(LogicalKeyboardKey.arrowUp): () => _commands.vertical(-1),
-        const SingleActivator(LogicalKeyboardKey.arrowDown): () => _commands.vertical(1),
-        const SingleActivator(LogicalKeyboardKey.arrowUp, shift: true): () => _commands.vertical(-1, fine: true),
-        const SingleActivator(LogicalKeyboardKey.arrowDown, shift: true): () => _commands.vertical(1, fine: true),
-        const SingleActivator(LogicalKeyboardKey.keyA, meta: true): _commands.selectAll,
-        const SingleActivator(LogicalKeyboardKey.keyA, control: true): _commands.selectAll,
-        const SingleActivator(LogicalKeyboardKey.delete): _commands.delete,
-        const SingleActivator(LogicalKeyboardKey.backspace): _commands.delete,
-        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): controller.undo,
-        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true): controller.redo,
-        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): controller.undo,
-        const SingleActivator(LogicalKeyboardKey.keyY, control: true): controller.redo,
-        // Windows' and Linux's other Redo, as the score editor takes it.
-        const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): controller.redo,
-        const SingleActivator(LogicalKeyboardKey.escape): _commands.escape,
-        // Instruments tab: the selected regions. Paste: those, or Attach Image's image at the pointer.
-        const SingleActivator(LogicalKeyboardKey.keyC, meta: true): _commands.copy,
-        const SingleActivator(LogicalKeyboardKey.keyC, control: true): _commands.copy,
-        const SingleActivator(LogicalKeyboardKey.keyX, meta: true): _commands.cut,
-        const SingleActivator(LogicalKeyboardKey.keyX, control: true): _commands.cut,
-        const SingleActivator(LogicalKeyboardKey.keyV, meta: true): _paste,
-        const SingleActivator(LogicalKeyboardKey.keyV, control: true): _paste,
-        for (final (command, action) in <(KeyCommand, VoidCallback)>[
-          (KeyCommand.goToStart, () => controller.playback.seek(0)),
-          (KeyCommand.goToEnd, () => controller.playback.seek(controller.playback.duration)),
-          (KeyCommand.goTo, _goTo), // a bar or a time: the toolbar's readout, typed
-          (KeyCommand.metronome, _toggleMetronome),
-          (KeyCommand.tapAnchors, _toggleTapMode),
-          (KeyCommand.warp, _warp),
-          // Instruments tab: tools, and trimming the selected regions to the playhead.
-          (KeyCommand.selectTool, () => _commands.tool(LaneTool.select)),
-          (KeyCommand.drawTool, () => _commands.tool(LaneTool.draw)),
-          (KeyCommand.eraseTool, () => _commands.tool(LaneTool.erase)),
-          (KeyCommand.trimStart, () => _commands.trim(start: true)),
-          (KeyCommand.trimEnd, () => _commands.trim(start: false)),
-        ])
-          if (keys[command] case final key?) key.activator: action,
+  Map<ShortcutActivator, VoidCallback> _bindings(KeyMap keys) {
+    // Each as plugins have it when its key is pressed (one may wrap or hide it after this is
+    // built): what one put around a command is what its key does, and one hidden does nothing.
+    VoidCallback own(String id, VoidCallback action) => switch (widget.plugins) {
+          final plugins? => () {
+              if (!plugins.hides(id)) plugins.invoke(id, action);
+            },
+          null => action,
+        };
+    final does = {for (final MapEntry(:key, :value) in _editorCommands.entries) key: own(key, value)};
+    final undo = own('undo', controller.undo), redo = own('redo', controller.redo), paste = own('paste', _paste);
+    final copy = own('copy', _commands.copy), cut = own('cut', _commands.cut);
+    final delete = own('delete', _commands.delete), selectAll = own('selectAll', _commands.selectAll);
+    return {
+      // Space plays / pauses — or, in tap mode, marks the bar or beat sounding now.
+      const SingleActivator(LogicalKeyboardKey.space): _commands.space,
+      const SingleActivator(LogicalKeyboardKey.enter): does['playPause']!,
+      const SingleActivator(LogicalKeyboardKey.numpadEnter): does['playPause']!,
+      // P too: tap mode takes Space.
+      const SingleActivator(LogicalKeyboardKey.keyP): does['playPause']!,
+      const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _commands.arrow(-1, fine: false),
+      const SingleActivator(LogicalKeyboardKey.arrowRight): () => _commands.arrow(1, fine: false),
+      const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () => _commands.arrow(-1, fine: true),
+      const SingleActivator(LogicalKeyboardKey.arrowRight, shift: true): () => _commands.arrow(1, fine: true),
+      const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): () => _commands.arrow(-1, fine: true, nudge: true),
+      const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true): () => _commands.arrow(1, fine: true, nudge: true),
+      const SingleActivator(LogicalKeyboardKey.arrowUp): () => _commands.vertical(-1),
+      const SingleActivator(LogicalKeyboardKey.arrowDown): () => _commands.vertical(1),
+      const SingleActivator(LogicalKeyboardKey.arrowUp, shift: true): () => _commands.vertical(-1, fine: true),
+      const SingleActivator(LogicalKeyboardKey.arrowDown, shift: true): () => _commands.vertical(1, fine: true),
+      const SingleActivator(LogicalKeyboardKey.keyA, meta: true): selectAll,
+      const SingleActivator(LogicalKeyboardKey.keyA, control: true): selectAll,
+      const SingleActivator(LogicalKeyboardKey.delete): delete,
+      const SingleActivator(LogicalKeyboardKey.backspace): delete,
+      const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): undo,
+      const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true): redo,
+      const SingleActivator(LogicalKeyboardKey.keyZ, control: true): undo,
+      const SingleActivator(LogicalKeyboardKey.keyY, control: true): redo,
+      // Windows' and Linux's other Redo, as the score editor takes it.
+      const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): redo,
+      const SingleActivator(LogicalKeyboardKey.escape): does['deselect']!,
+      // Instruments tab: the selected regions. Paste: those, or Attach Image's image at the pointer.
+      const SingleActivator(LogicalKeyboardKey.keyC, meta: true): copy,
+      const SingleActivator(LogicalKeyboardKey.keyC, control: true): copy,
+      const SingleActivator(LogicalKeyboardKey.keyX, meta: true): cut,
+      const SingleActivator(LogicalKeyboardKey.keyX, control: true): cut,
+      const SingleActivator(LogicalKeyboardKey.keyV, meta: true): paste,
+      const SingleActivator(LogicalKeyboardKey.keyV, control: true): paste,
+      for (final command in const [
+        KeyCommand.goToStart,
+        KeyCommand.goToEnd,
+        KeyCommand.goTo,
+        KeyCommand.metronome,
+        KeyCommand.tapAnchors,
+        KeyCommand.warp,
+        KeyCommand.selectTool,
+        KeyCommand.drawTool,
+        KeyCommand.eraseTool,
+        KeyCommand.trimStart,
+        KeyCommand.trimEnd,
+      ])
+        if (keys[command] case final key?) key.activator: does[command.name]!,
+    };
+  }
+
+  /// The editor's commands that are in no menu, by id ([PluginApi.commands]): what their keys
+  /// do, and what a plugin runs.
+  Map<String, VoidCallback> get _editorCommands => {
+        'playPause': controller.playback.togglePlay,
+        'goToStart': () => controller.playback.seek(0),
+        'goToEnd': () => controller.playback.seek(controller.playback.duration),
+        'goTo': _goTo, // a bar or a time: the toolbar's readout, typed
+        'metronome': _toggleMetronome,
+        'tapAnchors': _toggleTapMode,
+        'warp': _warp,
+        // Instruments tab: tools, and trimming the selected regions to the playhead.
+        'selectTool': () => _commands.tool(LaneTool.select),
+        'drawTool': () => _commands.tool(LaneTool.draw),
+        'eraseTool': () => _commands.tool(LaneTool.erase),
+        'trimStart': () => _commands.trim(start: true),
+        'trimEnd': () => _commands.trim(start: false),
+        'deselect': _commands.escape,
       };
 
   static const _minTimeline = 150.0, _minScore = 180.0;
@@ -1622,8 +1763,9 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final toolbar = EditorToolbar(
       controller: controller,
       document: document,
-      onExportVideo: _exportVideo,
-      onExportWeb: _exportWeb,
+      // As plugins have them: the toolbar's Export does what the menu's does.
+      onExportVideo: () => (widget.plugins?.wrapped('exportVideo', _exportVideo) ?? _exportVideo)(),
+      onExportWeb: () => (widget.plugins?.wrapped('exportWeb', _exportWeb) ?? _exportWeb)(),
       videoFrame: settings.previewVideoFrame,
       onVideoFrame: (on) => settings.previewVideoFrame = on,
       videoRatio: settings.videoRatio,

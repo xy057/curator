@@ -1,0 +1,9 @@
+{
+  "format": "application/x-curator-plugin",
+  "id": "saveBeforeExport",
+  "name": "Save Before Export",
+  "summary": "Saves the project each time it is exported.",
+  "keywords": "save export video web automatic before wrap",
+  "icon": "export",
+  "api": 1
+}

@@ -143,10 +143,16 @@ Iterable<String> translatedLiterals(String source) sync* {
   }
 }
 
-/// The texts a bundled extension's file translates (`assets/extensions/<id>/…`): in its Lua, the
-/// literals given to `curator.tr("…")` or `tr("…")`, and to `curator.tr_in("context", "…")` with
-/// their context; in connect.json, every node's `title`; in
-/// extension.json, its `name` and `summary`.
+/// Where Curator's own extensions and plugins are kept, each a folder of its files: what
+/// [extensionTexts] is asked of.
+const bundledScriptFolders = ['assets/extensions', 'assets/plugins'];
+
+/// The texts a bundled extension's or plugin's file translates (`assets/extensions/<id>/…`,
+/// `assets/plugins/<id>/…`): in its Lua, the literals given to `curator.tr("…")` or `tr("…")`,
+/// and to `curator.tr_in("context", "…")` with their context; in a plugin's Lua also what the
+/// app translates as it shows it (a command's or a dialog's `title`, `confirm` and `label`, and
+/// each menu `menu` names); in connect.json, every node's `title`; in extension.json and
+/// plugin.json, the `name` and `summary`.
 Iterable<String> extensionTexts(String path, String source) sync* {
   if (path.endsWith('.lua')) {
     for (final m in _luaLiteral.allMatches(source)) {
@@ -155,7 +161,17 @@ Iterable<String> extensionTexts(String path, String source) sync* {
     for (final m in _luaInContext.allMatches(source)) {
       yield '${_dartText((m[1] ?? m[2])!)}\u0004${_dartText((m[3] ?? m[4])!)}';
     }
-  } else if (path.endsWith('connect.json') || path.endsWith('extension.json')) {
+    if (path.replaceAll(r'\', '/').contains('assets/plugins/')) {
+      for (final m in _luaShown.allMatches(source)) {
+        final text = _dartText((m[2] ?? m[3])!);
+        if (m[1] != 'menu') {
+          yield text;
+        } else {
+          yield* text.split('/').map((part) => part.trim()).where((part) => part.isNotEmpty);
+        }
+      }
+    }
+  } else if (path.endsWith('connect.json') || path.endsWith('extension.json') || path.endsWith('plugin.json')) {
     for (final m in _jsonText.allMatches(source)) {
       if (jsonDecode(m[1]!) case final String text when text.isNotEmpty) yield text;
     }
@@ -164,6 +180,7 @@ Iterable<String> extensionTexts(String path, String source) sync* {
 
 final _luaLiteral = RegExp(r'\btr\(\s*(?:' '$_quoted' r')');
 final _luaInContext = RegExp(r'\btr_in\(\s*(?:' '$_quoted' r')\s*,\s*(?:' '$_quoted' r')');
+final _luaShown = RegExp(r'\b(title|confirm|label|menu)\s*=\s*(?:' '$_quoted' r')');
 final _jsonText = RegExp(r'"(?:title|name|summary)"\s*:\s*("(?:[^"\\]|\\.)*")');
 
 /// A quoted Dart string (no interpolation), its text captured: single, then double quotes.

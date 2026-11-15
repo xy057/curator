@@ -43,6 +43,10 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `extension/runtime.dart` | `ExtensionRuntime`: one extension running over an `ExtensionHost` (the project and app it stands on): its files as modules, its wires called (`fire`, `ask`, `invoke`), what goes wrong listed, and the `curator`, `score` and `text` libraries its Lua gets |
 | `extension/api.dart` | `ExtensionApi`: every socket and function of the extension API with what it does and the level it came with; it only grows. `curator.has`, the extension editor's reference and docs are made from it |
 | `extension/check.dart` | `checkExtension`: what is wrong with a package as written, found without running it (a file that doesn't read, a wire to nothing; what a later Curator may know is a warning) |
+| `script.dart` | What an extension's Lua and a plugin's share: a package's files (`ScriptPackage`, `PackageFiles`: zipped and read in one place), what goes wrong (`ScriptProblem`), and one package running (`ScriptRuntime` over a `ScriptHost`: its files as modules, its calls limited, the `curator` texts and settings, `text` and `score`) |
+| `plugin/package.dart` | `PluginPackage`: a `.cgp` (a zip: plugin.json, src/main.lua and the files it requires, locales/, assets/), read as it is and written back as it was |
+| `plugin/runtime.dart` | `PluginRuntime`: one plugin running over a `PluginHost` (the app): main.lua run once, the commands it added (`PluginCommand`, `PluginKey`), what it changed of the app's own (`hidden`, `titles`, `keys`, `wraps`), what it listens to (`emit`); `checkPlugin` |
+| `plugin/api.dart` | `PluginApi`: every function, event, command and setting of the plugin API with what it does and the level it came with; it only grows. `curator.has`, the plugin editor's reference and docs are made from it |
 | `extension/lua_json.dart`, `extension/markers.dart`, `extension/values.dart` | Lua values to JSON and back (`LuaJson`); markers in time (`markerSpans`: what a markers lane draws, `score.spans`); a colour as Lua gives one (`luaColor`: "#rrggbb" or {r, g, b}) and a score's music as Lua takes it (`readScoreMusic`, `scoreMusicTable`: `score.music`) |
 | `score_band.dart`, `key_signatures.dart` | A stretch of the band along a frame's top (`ScoreBand`: what a `band` socket gives the scene); a score's key signatures at concert pitch (`concertKeySignatures`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
@@ -74,6 +78,11 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `extensions/extension_editor.dart`, `extensions/connector_view.dart`, `lua_language.dart` | The extension editor (`showExtensionEditor`: Project Settings ▸ Extensions ▸ New Extension, or an extension's menu ▸ Edit…; Curator's own are edited as any and run as changed while the project is open, never saved, as the sample project is: `ExtensionEditing.tryOut`, Revert in the row's menu; a video and a page use them as they came): a package's files beside its connector, the board an extension is worked on from (`ConnectorView`: no card ever over another (`_Layout.of` moves one down past those above it), a card dragged anywhere on it and kept on a grid, the empty picture dragged to move over it, Tidy Up (`tidyConnector`: two columns, each file by the ports wired to it), a wire pulled from a port's pin or a function's, a click on a wire marking it for Delete, a double click on a port showing its function or writing one first, each port's count of calls while the extension runs (`ExtensionRuntime.calls`) and what went wrong at it; read only, the cards still move, unsaved; sockets as nodes, files with their functions, a port dragged onto a function wires it, onto a file writes the function), its Lua in a `CodeView` (coloured a line at a time, `luaCode`, `luaTokens`; the API offered as it is typed, `LuaPrompts`), About and README, the reference beside it (`ExtensionReference`, from `ExtensionApi`; a click writes it in) and the guide (`assets/help/extensions.md`), what is wrong listed under it (`checkExtension`, then what running it said), Run (⌘R) |
 | `extensions/extension_actions.dart` | What Project Settings ▸ Extensions does with a package (`ExtensionActions`: new, from a `.cpe`, edit, duplicate, export; `ExtensionMenu`) |
 | `extensions/extensions_dialog.dart` | On opening a project that uses extensions that are off: a switch for each |
+| `plugins/plugins.dart` | `Plugins`, the app's plugins (Settings ▸ Plugins): which there are (Curator's own and the `.cgp` files of the app's Plugins folder), which are on (`AppSettings.pluginsOn`), those running, and what they add and change as the menus, the keys and the buttons ask (`commands`, `chords`, `keysOver`, `hides`, `titleFor`, `invoke`, `run`, `emit`); what the app gives their Lua (`app`, `project`, `ui`) over the window (`PluginWindow`); `PluginScope` |
+| `plugins/bundled.dart` | `BundledPlugins`: Curator's own plugins, folders under `assets/plugins/<id>/` read as the app starts; each off until asked for, and an example in the docs |
+| `plugins/plugin_actions.dart` | What Settings ▸ Plugins does with a plugin (`PluginActions`: new, from a `.cgp`, edit, duplicate, export, remove; `PluginMenu`) |
+| `plugins/plugin_editor.dart` | The plugin editor (`showPluginEditor`): a package's Lua (main.lua first, and kept), About and README, the reference (`PluginApi`, with its events, commands and settings) and the guide (`assets/help/plugins.md`), what is wrong under it (`checkPlugin`, then what running it said), Run (⌘R). It is made of the extension editor's parts (`ExtensionReference`, `ExtensionDocsBar`, `ScriptGuide`, `scriptOutput`, `LuaPrompts`), each given the API it shows |
+| `plugins/plugin_docs.dart` | The plugin docs handed out of the editor: Copy Docs and Download Docs for AI… (`pluginDocsPack`) |
 | `settings_dialog.dart` | Settings… (⌘,, the app's) and Edit ▸ Project Settings… (⇧⌘,, the open project's: each change an edit), one window laid out the same: categories, pages of items, a search |
 | `key_bindings.dart`, `shortcut_settings.dart` | Settings ▸ Shortcuts (see *Every key is a KeyCommand*): every command a key gives (`KeyCommand`), its keys (`KeyChord`), those the user gave the menus' and the editor's commands (`KeyMap`, `AppSettings.keys`, over the window as `KeyMapScope`), tooltips naming a command's key as set (`keyed`); the page's control: a field taking the keys typed next (`ShortcutKeys`), or keycaps (`KeyCaps`) |
 | `licenses_dialog.dart` | Settings ▸ About ▸ Licenses (`showLicensesDialog`): every package's licences from the `LicenseRegistry` (`packageLicenses`, read once), Curator's first, the chosen one's text selectable |
@@ -1861,7 +1870,7 @@ there is of the area folded into it as sections. The engine's: the engraving (pa
 video frame), curation (regions, auto-curate), tapping, takes and tempo maps, Align, the score editor, PDF import,
 LilyPond's engraving, Lua, extensions. The app's: save and open (safe save, recordings), older formats, Undo, the
 updater's URLs, the app's folders and downloads, web export, the app's screens, the accessibility tree, what is
-kept in step (the translations, docs/extension-api.md, the licence), extensions in a project, the ported
+kept in step (the translations, docs/extension-api.md and docs/plugin-api.md, the commands plugins are told of, the licence), extensions in a project and plugins in the app, the ported
 extensions' digests, remote AI's client, the score editor, a LilyPond project, the shortcuts' keys. A new check
 goes into its area's test; a new test only for an area none covers, within the 25. `Samples/` is for trying things by hand only. A test's tap that something
 else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app as built
@@ -1988,6 +1997,36 @@ on Windows wherever the registry says that folder now is): it never replaces the
   - What only the app can do stays the app's, behind a socket: an image's file, its decoding,
     drawing and handles (`images`), the spacers, which are engraved (`spacers`). The extension
     keeps the data and its rules.
+- **A plugin** changes the app itself, for every project (Settings ▸ Plugins), where an
+  extension belongs to a project. It is a package too (`PluginPackage`, a `.cgp`), with no
+  connector: Curator runs its `src/main.lua` once, as the app starts or its switch is turned
+  on, and the plugin says what it adds and changes (`app.command`, `app.on`, `app.wrap`,
+  `app.hide`, `app.rename`, `app.rebind`). `Plugins` keeps them (the app's Plugins folder,
+  `AppFolders`; the switches and what each keeps in `AppSettings`), runs those that are on (a
+  `PluginRuntime` each) and answers the app: the menus (`AppMenus._withPlugins`: its own items
+  hidden, renamed and wrapped by id, the plugins' put in), the keys (`keysOver` for the app's
+  commands, `chords` for the plugins'), the toolbar, Home and the score's menu
+  (`commandsWhere`), and what happens (`emit`, from `main.dart`). Turned off, its runtime is
+  dropped, and everything it added or changed with it: nothing is undone by hand. Rules:
+  - The API only grows (`PluginApi.level`), written once in `PluginApi`: the editor's
+    reference and prompts, `curator.has` and `docs/plugin-api.md` (`make plugin-docs`, which a
+    test holds it to) come from it. A new function, event or setting is added there, and to
+    the guide (`assets/help/plugins.md`) when it changes how one is written.
+  - Each of the app's commands a plugin may run or change is a row of `PluginApi.commands`,
+    by its `KeyCommand`'s name, and an entry of the window's table (`_AppWindowState.build`,
+    `ProjectPage._editorCommands`). A new menu item or editor key is added to all three;
+    `in_step_test` holds the list to `KeyCommand`.
+  - What a plugin put around a command is looked up when the command is chosen
+    (`Plugins.invoke`), never kept from when a widget was built.
+  - A plugin's Lua is asked while widgets are built (`enabled`, `checked`), so what it reports
+    or changes then is told after the frame (`Plugins._later`), and a function that failed is
+    not asked again.
+  - Lua builds no interface: a command, a form's rows, a sheet are described and the app draws
+    them (`ui`, the extensions' own dialogs). A plugin reaches no file but through a dialog
+    that asks the user, and one from a file is off until its switch is turned.
+  - Curator's own (`app/assets/plugins/<id>/`, one-word ids) are read, never changed
+    (Duplicate copies one), and their texts are the app's translations (`tool/l10n.dart` reads
+    their Lua and plugin.json).
 - **Interface text** follows Apple's HIG *Writing*, in US English: Title Case for menu items,
   buttons and dialog titles that are fragments ("Copy Lane To…", "Couldn’t Export Video"),
   sentence case for tooltips, labels, help lines and messages; an ellipsis only where more
@@ -1997,7 +2036,7 @@ on Windows wherever the registry says that folder now is): it never replaces the
   Update to open it!"), no jokes or kaomoji, still short and still with the fix; labels,
   buttons and titles stay plain. Contractions; seconds and minutes spelled out in
   sentences; no "e.g.". One word per thing: the playhead (never the pointer), the sample,
-  open (a score), add (a recording, a MIDI tempo map), transition, Extensions.
+  open (a score), add (a recording, a MIDI tempo map), transition, Extensions, Plugins.
   It is written in English in the code and translated where it is shown (Settings ▸ General ▸
   Language: System, English, Simplified or Traditional Chinese, switched live; `AppLanguage`):
   `'Open Sample'.tr`, `'Couldn’t align. {error}'.fill({'error': …})` with values (the translation

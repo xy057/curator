@@ -1,0 +1,9 @@
+{
+  "format": "application/x-curator-plugin",
+  "id": "reopenLast",
+  "name": "Reopen Last Project",
+  "summary": "Opens the latest project as Curator starts.",
+  "keywords": "reopen restore last recent project launch start startup session resume",
+  "icon": "open",
+  "api": 1
+}

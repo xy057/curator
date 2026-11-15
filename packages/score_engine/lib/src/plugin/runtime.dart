@@ -173,21 +173,23 @@ class PluginRuntime extends ScriptRuntime {
     return null;
   }
 
-  /// Whether [command] can be chosen now, as its `enabled` says (always, without one; not when
-  /// that fails).
-  bool canRun(PluginCommand command, [List<Object?> args = const []]) {
-    final enabled = command.enabled;
-    if (enabled == null) return true;
-    final result = call(enabled, args: args, where: '${command.id} enabled', steps: ScriptRuntime.frameSteps);
+  /// The `enabled` and `checked` functions that failed: asked at every drawing of a menu, one
+  /// says what is wrong once and is not asked again.
+  final _failed = Set<LuaFunction>.identity();
+
+  bool _ask(LuaFunction fn, String where, List<Object?> args) {
+    if (_failed.contains(fn)) return false;
+    final result = call(fn, args: args, where: where, steps: ScriptRuntime.frameSteps);
+    if (result == null) _failed.add(fn);
     return result != null && result.truthy(0);
   }
 
+  /// Whether [command] can be chosen now, as its `enabled` says (always, without one; not when
+  /// that fails).
+  bool canRun(PluginCommand command, [List<Object?> args = const []]) => command.enabled == null || _ask(command.enabled!, '${command.id} enabled', args);
+
   /// Whether [command] is ticked now, as its `checked` says.
-  bool isChecked(PluginCommand command) {
-    final checked = command.checked;
-    if (checked == null) return false;
-    return call(checked, where: '${command.id} checked', steps: ScriptRuntime.frameSteps)?.truthy(0) ?? false;
-  }
+  bool isChecked(PluginCommand command) => command.checked != null && _ask(command.checked!, '${command.id} checked', const []);
 
   /// Does [command]; whether it ran without an error.
   bool perform(PluginCommand command, [List<Object?> args = const []]) => call(command.run, args: args, where: command.id) != null;

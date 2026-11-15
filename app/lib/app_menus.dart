@@ -6,6 +6,7 @@ import 'app_colors.dart';
 import 'file_names.dart';
 import 'key_bindings.dart';
 import 'l10n/l10n.dart';
+import 'plugins/plugins.dart';
 
 /// The menu bar: native on macOS, a Material menu bar at the top of the window elsewhere.
 /// Both are built from the same [PlatformMenu] description.
@@ -46,7 +47,17 @@ class AppMenus extends StatelessWidget {
     this.onPreviousTab,
     this.tabBarShown = true,
     this.onShowTabBar,
+    this.plugins,
+    this.free = true,
+    this.typing = false,
   });
+
+  /// The app's plugins: what they add to the menus and change in them; null: none (a test).
+  final Plugins? plugins;
+
+  /// Whether no dialog is over the window, and whether a text field has the keyboard: what
+  /// plugins added is off under a dialog, and a key of theirs without ⌘ or ⌃ while typing.
+  final bool free, typing;
 
   /// The keys of the items the user can give others (Settings ▸ Shortcuts).
   final KeyMap keys;
@@ -122,19 +133,32 @@ class AppMenus extends StatelessWidget {
   /// [command]'s key as set, if it has one.
   SingleActivator? _keyOf(KeyCommand command) => keys[command]?.activator;
 
+  /// One of the app's own items, by its command's id ([PluginApi.commands]), as plugins have
+  /// it: gone when one hid it, named as one renamed it, doing what one put around it.
+  PlatformMenuItem? _own(String id, String label, {MenuSerializableShortcut? shortcut, VoidCallback? onSelected}) {
+    final plugins = this.plugins;
+    if (plugins == null) return _MenuItem(id, label: label, shortcut: shortcut, onSelected: onSelected);
+    if (plugins.hides(id)) return null;
+    return _MenuItem(id, label: plugins.titleFor(id) ?? label, shortcut: shortcut, onSelected: plugins.wrapped(id, onSelected));
+  }
+
   PlatformMenuItemGroup get _tabs => PlatformMenuItemGroup(members: [
-        PlatformMenuItem(label: 'Show Previous Tab'.tr, shortcut: _keyOf(KeyCommand.previousTab), onSelected: onPreviousTab),
-        PlatformMenuItem(label: 'Show Next Tab'.tr, shortcut: _keyOf(KeyCommand.nextTab), onSelected: onNextTab),
+        ?_own('previousTab', 'Show Previous Tab'.tr, shortcut: _keyOf(KeyCommand.previousTab), onSelected: onPreviousTab),
+        ?_own('nextTab', 'Show Next Tab'.tr, shortcut: _keyOf(KeyCommand.nextTab), onSelected: onNextTab),
       ]);
+
+  /// The menus as they are now: the app's own, as plugins changed them, with what plugins added.
+  @visibleForTesting
+  List<PlatformMenuItem> get menus => _withPlugins(_menus);
 
   List<PlatformMenuItem> get _menus => [
         if (_mac)
-          PlatformMenu(label: 'Curator', menus: [
+          _Menu('Curator', label: 'Curator', menus: [
             PlatformMenuItemGroup(members: [
-              PlatformMenuItem(label: 'About Curator'.tr, onSelected: onAbout),
+              ?_own('about', 'About Curator'.tr, onSelected: onAbout),
             ]),
             PlatformMenuItemGroup(members: [
-              PlatformMenuItem(label: 'Settings…'.tr, shortcut: _key(LogicalKeyboardKey.comma), onSelected: onSettings),
+              ?_own('settings', 'Settings…'.tr, shortcut: _key(LogicalKeyboardKey.comma), onSelected: onSettings),
             ]),
             const PlatformMenuItemGroup(members: [
               PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.servicesSubmenu),
@@ -146,11 +170,11 @@ class AppMenus extends StatelessWidget {
             ]),
             const PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.quit),
           ]),
-        PlatformMenu(label: 'File'.tr, menus: [
+        _Menu('File', label: 'File'.tr, menus: [
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'New LilyPond Score…'.tr, shortcut: _keyOf(KeyCommand.newLilyPond), onSelected: onNewLilyPond),
-            PlatformMenuItem(label: 'Open…'.tr, shortcut: _keyOf(KeyCommand.open), onSelected: onOpen),
-            PlatformMenuItem(label: 'Import…'.tr, shortcut: _keyOf(KeyCommand.importScore), onSelected: onImport),
+            ?_own('newLilyPond', 'New LilyPond Score…'.tr, shortcut: _keyOf(KeyCommand.newLilyPond), onSelected: onNewLilyPond),
+            ?_own('open', 'Open…'.tr, shortcut: _keyOf(KeyCommand.open), onSelected: onOpen),
+            ?_own('importScore', 'Import…'.tr, shortcut: _keyOf(KeyCommand.importScore), onSelected: onImport),
             PlatformMenu(label: 'Open Recent'.tr, menus: [
               if (recentFiles.isEmpty)
                 PlatformMenuItem(label: 'No Recent Files'.tr) // no handler: greyed out
@@ -163,20 +187,21 @@ class AppMenus extends StatelessWidget {
             ]),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Close'.tr, shortcut: _keyOf(KeyCommand.close), onSelected: onClose),
-            PlatformMenuItem(label: 'Save'.tr, shortcut: _keyOf(KeyCommand.save), onSelected: onSave),
-            PlatformMenuItem(label: 'Save As…'.tr, shortcut: _keyOf(KeyCommand.saveAs), onSelected: onSaveAs),
+            ?_own('close', 'Close'.tr, shortcut: _keyOf(KeyCommand.close), onSelected: onClose),
+            ?_own('save', 'Save'.tr, shortcut: _keyOf(KeyCommand.save), onSelected: onSave),
+            ?_own('saveAs', 'Save As…'.tr, shortcut: _keyOf(KeyCommand.saveAs), onSelected: onSaveAs),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Export Video…'.tr, shortcut: _keyOf(KeyCommand.exportVideo), onSelected: onExportVideo),
-            PlatformMenuItem(label: 'Export to Web…'.tr, shortcut: _keyOf(KeyCommand.exportWeb), onSelected: onExportWeb),
+            ?_own('exportVideo', 'Export Video…'.tr, shortcut: _keyOf(KeyCommand.exportVideo), onSelected: onExportVideo),
+            ?_own('exportWeb', 'Export to Web…'.tr, shortcut: _keyOf(KeyCommand.exportWeb), onSelected: onExportWeb),
           ]),
         ]),
-        PlatformMenu(label: 'Edit'.tr, menus: [
+        _Menu('Edit', label: 'Edit'.tr, menus: [
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Undo'.tr, shortcut: _key(LogicalKeyboardKey.keyZ), onSelected: onUndo),
-            PlatformMenuItem(
-              label: 'Redo'.tr,
+            ?_own('undo', 'Undo'.tr, shortcut: _key(LogicalKeyboardKey.keyZ), onSelected: onUndo),
+            ?_own(
+              'redo',
+              'Redo'.tr,
               shortcut: _mac
                   ? _key(LogicalKeyboardKey.keyZ, shift: true)
                   : const SingleActivator(LogicalKeyboardKey.keyY, control: true),
@@ -184,54 +209,56 @@ class AppMenus extends StatelessWidget {
             ),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Cut'.tr, shortcut: _key(LogicalKeyboardKey.keyX), onSelected: onCut),
-            PlatformMenuItem(label: 'Copy'.tr, shortcut: _key(LogicalKeyboardKey.keyC), onSelected: onCopy),
-            PlatformMenuItem(label: 'Paste'.tr, shortcut: _key(LogicalKeyboardKey.keyV), onSelected: onPaste),
-            PlatformMenuItem(
-              label: 'Delete'.tr,
+            ?_own('cut', 'Cut'.tr, shortcut: _key(LogicalKeyboardKey.keyX), onSelected: onCut),
+            ?_own('copy', 'Copy'.tr, shortcut: _key(LogicalKeyboardKey.keyC), onSelected: onCopy),
+            ?_own('paste', 'Paste'.tr, shortcut: _key(LogicalKeyboardKey.keyV), onSelected: onPaste),
+            ?_own(
+              'delete',
+              'Delete'.tr,
               shortcut: SingleActivator(_mac ? LogicalKeyboardKey.backspace : LogicalKeyboardKey.delete),
               onSelected: onDelete,
             ),
-            PlatformMenuItem(label: 'Select All'.tr, shortcut: _key(LogicalKeyboardKey.keyA), onSelected: onSelectAll),
+            ?_own('selectAll', 'Select All'.tr, shortcut: _key(LogicalKeyboardKey.keyA), onSelected: onSelectAll),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Find Phrase…'.tr, shortcut: _keyOf(KeyCommand.findPhrase), onSelected: onFindPhrase),
+            ?_own('findPhrase', 'Find Phrase…'.tr, shortcut: _keyOf(KeyCommand.findPhrase), onSelected: onFindPhrase),
           ]),
           // The open project's settings, then the app's; on macOS the Curator menu has the
           // app's too, with the shortcut.
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(
-                label: 'Project Settings…'.tr,
-                shortcut: _keyOf(KeyCommand.projectSettings),
-                onSelected: onProjectSettings),
-            PlatformMenuItem(label: 'Settings…'.tr, shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
+            ?_own('projectSettings', 'Project Settings…'.tr, shortcut: _keyOf(KeyCommand.projectSettings), onSelected: onProjectSettings),
+            ?_own('settings', 'Settings…'.tr, shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
           ]),
         ]),
-        PlatformMenu(label: 'View'.tr, menus: [
+        _Menu('View', label: 'View'.tr, menus: [
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(
-              label: previewShown ? 'Hide Preview'.tr : 'Show Preview'.tr,
+            ?_own(
+              'showPreview',
+              previewShown ? 'Hide Preview'.tr : 'Show Preview'.tr,
               shortcut: _keyOf(KeyCommand.showPreview),
               onSelected: onShowPreview == null ? null : () => onShowPreview!(!previewShown),
             ),
-            PlatformMenuItem(
-              label: timelineShown ? 'Hide Timeline'.tr : 'Show Timeline'.tr,
+            ?_own(
+              'showTimeline',
+              timelineShown ? 'Hide Timeline'.tr : 'Show Timeline'.tr,
               shortcut: _keyOf(KeyCommand.showTimeline),
               onSelected: onShowTimeline == null ? null : () => onShowTimeline!(!timelineShown),
             ),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(label: 'Maximize Preview'.tr, shortcut: _keyOf(KeyCommand.maximizePreview), onSelected: onMaximizePreview),
-            PlatformMenuItem(label: 'Maximize Timeline'.tr, shortcut: _keyOf(KeyCommand.maximizeTimeline), onSelected: onMaximizeTimeline),
+            ?_own('maximizePreview', 'Maximize Preview'.tr, shortcut: _keyOf(KeyCommand.maximizePreview), onSelected: onMaximizePreview),
+            ?_own('maximizeTimeline', 'Maximize Timeline'.tr, shortcut: _keyOf(KeyCommand.maximizeTimeline), onSelected: onMaximizeTimeline),
           ]),
           PlatformMenuItemGroup(members: [
-            PlatformMenuItem(
-              label: tabBarShown ? 'Hide Tab Bar'.tr : 'Show Tab Bar'.tr,
+            ?_own(
+              'showTabBar',
+              tabBarShown ? 'Hide Tab Bar'.tr : 'Show Tab Bar'.tr,
               shortcut: _keyOf(KeyCommand.showTabBar),
               onSelected: onShowTabBar == null ? null : () => onShowTabBar!(!tabBarShown),
             ),
-            PlatformMenuItem(
-              label: 'Show All Tabs'.tr,
+            ?_own(
+              'showAllTabs',
+              'Show All Tabs'.tr,
               shortcut: _keyOf(KeyCommand.showAllTabs),
               onSelected: onShowTabBar == null || tabBarShown ? null : () => onShowTabBar!(true),
             ),
@@ -239,7 +266,7 @@ class AppMenus extends StatelessWidget {
           if (!_mac) _tabs,
         ]),
         if (_mac)
-          PlatformMenu(label: 'Window'.tr, menus: [
+          _Menu('Window', label: 'Window'.tr, menus: [
             PlatformMenuItemGroup(members: [
               PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.minimizeWindow),
               PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.zoomWindow),
@@ -249,18 +276,121 @@ class AppMenus extends StatelessWidget {
             PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.arrangeWindowsInFront),
           ]),
         if (!_mac)
-          PlatformMenu(label: 'Help'.tr, menus: [
-            PlatformMenuItem(label: 'About Curator'.tr, onSelected: onAbout),
+          _Menu('Help', label: 'Help'.tr, menus: [
+            ?_own('about', 'About Curator'.tr, onSelected: onAbout),
           ]),
       ];
 
+  // MARK: What plugins add
+
+  /// Whether a menu can show [key] and take it: one that holds ⌘ or ⌃, or a function key (a
+  /// letter alone would be taken from what is typed). Another key works in the window instead.
+  static bool _menuKey(KeyChord key) => KeyCommand.open.refuses(key) == null;
+
+  /// [top], the app's own menus, with the commands plugins added: each in the menu it names
+  /// (one the app hasn't got is a new menu, before Window and Help), beside the item it names
+  /// or at the menu's end, in a menu inside it when it names one. A group left empty (its
+  /// items hidden) goes.
+  List<PlatformMenuItem> _withPlugins(List<PlatformMenuItem> top) {
+    final plugins = this.plugins;
+    if (plugins == null) return top;
+    final chords = plugins.chords(keys);
+    final names = {for (final m in top.whereType<_Menu>()) m.name.toLowerCase(): m.name};
+    final added = <String, List<PluginEntry>>{};
+    for (final entry in plugins.commands) {
+      if (entry.command.menu.isEmpty) continue;
+      final menu = entry.command.menu.first;
+      (added[names[menu.toLowerCase()] ?? menu] ??= []).add(entry);
+    }
+    final out = <PlatformMenuItem>[
+      for (final menu in top)
+        if (menu is _Menu) _Menu(menu.name, label: menu.label, menus: _insert(_tidy(menu.menus), added.remove(menu.name) ?? const [], chords)) else menu,
+    ];
+    final end = out.indexWhere((m) => m is _Menu && (m.name == 'Window' || m.name == 'Help'));
+    out.insertAll(end < 0 ? out.length : end, [
+      for (final MapEntry(key: name, value: entries) in added.entries)
+        PlatformMenu(label: entries.first.runtime.translate(name), menus: _insert(const [], entries, chords)),
+    ]);
+    return out;
+  }
+
+  static List<PlatformMenuItem> _tidy(List<PlatformMenuItem> items) => [
+        for (final item in items)
+          if (item is! PlatformMenuItemGroup || item.members.isNotEmpty) item,
+      ];
+
+  /// [items] with [entries] (commands of this menu, [depth] menus down) put in.
+  List<PlatformMenuItem> _insert(List<PlatformMenuItem> items, List<PluginEntry> entries, Map<String, KeyChord> chords, [int depth = 1]) {
+    if (entries.isEmpty) return items;
+    var out = items;
+    final rest = <PlatformMenuItem>[], inside = <String, List<PluginEntry>>{};
+    for (final entry in entries) {
+      final command = entry.command;
+      if (command.menu.length > depth) {
+        (inside[command.menu[depth]] ??= []).add(entry);
+        continue;
+      }
+      final item = _added(entry, chords), beside = command.before ?? command.after;
+      final placed = beside == null ? null : _beside(out, beside, item, after: command.before == null);
+      if (placed == null) {
+        rest.add(item);
+      } else {
+        out = placed;
+      }
+    }
+    for (final MapEntry(key: name, value: entries) in inside.entries) {
+      rest.add(PlatformMenu(label: entries.first.runtime.translate(name), menus: _insert(const [], entries, chords, depth + 1)));
+    }
+    return [...out, if (out.isEmpty) ...rest else if (rest.isNotEmpty) PlatformMenuItemGroup(members: rest)];
+  }
+
+  /// [items] with [item] before or after the one whose command is [id], in its group; null
+  /// when none of them is.
+  static List<PlatformMenuItem>? _beside(List<PlatformMenuItem> items, String id, PlatformMenuItem item, {required bool after}) {
+    for (final (i, each) in items.indexed) {
+      if (each is _MenuItem && each.id == id) return [...items.take(after ? i + 1 : i), item, ...items.skip(after ? i + 1 : i)];
+      if (each is PlatformMenuItemGroup) {
+        final members = _beside(each.members, id, item, after: after);
+        if (members != null) return [...items.take(i), PlatformMenuItemGroup(members: members), ...items.skip(i + 1)];
+      }
+    }
+    return null;
+  }
+
+  /// A command a plugin added, as a menu's item: ticked while its `checked` says so, greyed
+  /// out while its `enabled` says no, or under a dialog.
+  PlatformMenuItem _added(PluginEntry entry, Map<String, KeyChord> chords) {
+    final plugins = this.plugins!, title = plugins.titleOf(entry), key = chords[entry.command.id];
+    return _MenuItem(
+      entry.command.id,
+      label: entry.runtime.isChecked(entry.command) ? '✓ $title' : title,
+      shortcut: key != null && _menuKey(key) ? key.activator : null,
+      onSelected: free && entry.runtime.canRun(entry.command) ? () => plugins.perform(entry) : null,
+    );
+  }
+
+  /// The keys of plugins' commands that no menu takes: those of commands in no menu, and a
+  /// key without ⌘ or ⌃ (not while typing). The window takes them, while no dialog is up.
+  Map<ShortcutActivator, VoidCallback> get _windowKeys {
+    final plugins = this.plugins;
+    if (plugins == null || !free) return const {};
+    final chords = plugins.chords(keys);
+    return {
+      for (final entry in plugins.commands)
+        if (chords[entry.command.id] case final key?)
+          if (_menuKey(key) ? entry.command.menu.isEmpty : !typing) key.activator: () => plugins.perform(entry),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final menus = _menus;
-    if (_mac) return PlatformMenuBar(menus: menus, child: child);
+    final menus = this.menus, windowKeys = _windowKeys;
+    // Always around the window, with or without keys: the window under it keeps its place in
+    // the tree (and so its state) as plugins come and go.
+    if (_mac) return PlatformMenuBar(menus: menus, child: CallbackShortcuts(bindings: windowKeys, child: child));
     // Elsewhere the menu bar only shows the shortcuts; these make them work.
     return CallbackShortcuts(
-      bindings: {for (final (key, action) in _shortcuts(menus)) key: action},
+      bindings: {for (final (key, action) in _shortcuts(menus)) key: action, ...windowKeys},
       child: Column(children: [
         DecoratedBox(
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor))),
@@ -320,4 +450,17 @@ class AppMenus extends StatelessWidget {
               ],
           },
       ];
+}
+
+/// One of the app's menus, by its name in English: what a plugin's command names to be in it.
+class _Menu extends PlatformMenu {
+  _Menu(this.name, {required super.label, required super.menus});
+  final String name;
+}
+
+/// A menu's item that is a command, by the command's id: one of the app's own
+/// ([PluginApi.commands]) or one a plugin added, which another can sit beside.
+class _MenuItem extends PlatformMenuItem {
+  const _MenuItem(this.id, {required super.label, super.shortcut, super.onSelected});
+  final String id;
 }

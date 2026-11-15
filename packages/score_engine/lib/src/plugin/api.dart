@@ -142,7 +142,8 @@ abstract final class PluginApi {
   ];
 
   static const events = <ApiEvent>[
-    ApiEvent('project.opened', 'function(project)', 'A project has opened in a tab. project: {name, path} (no path until it is saved).'),
+    ApiEvent('app.started', 'function()', 'Curator has started and its window is up. Told once, to the plugins on as it starts: one turned on later isn’t told.'),
+    ApiEvent('project.opened', 'function(project)', 'A project has opened in a tab. project: {name, path, edited} (no path until it is saved).'),
     ApiEvent('project.saved', 'function(project)', 'The project was saved (Save, Save As…).'),
     ApiEvent('project.closed', 'function(project)', 'A project’s tab was closed.'),
     ApiEvent('project.shown', 'function(project)', 'Another tab shows: its project, or nil for Home.'),

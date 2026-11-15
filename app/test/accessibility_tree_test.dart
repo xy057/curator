@@ -65,7 +65,7 @@ void main() {
       await frames('closing $name');
     }
 
-    for (final p in ['General', 'Appearance', 'Advanced', 'Download Hub', 'Remote AI Provider', 'About']) {
+    for (final p in ['General', 'Appearance', 'Advanced', 'Plugins', 'Download Hub', 'Remote AI Provider', 'About']) {
       await page(p, () => showSettingsDialog(context(), settings, controller: c, page: p));
     }
     for (final p in ['Project Info', 'Display', 'Instruments', 'Sections', 'Condensing', 'Extensions', 'Flags', 'Engraving', 'Animation']) {

@@ -2,11 +2,17 @@
 // each is saved as a PNG of the whole window for visual review.
 // Run: SCREENSHOT_DIR=/some/dir flutter test test/app_screenshot_test.dart
 
+import 'dart:async';
+
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/phrase_search_window.dart';
+import 'package:curated_score/plugins/plugin_actions.dart';
+import 'package:curated_score/plugins/plugin_editor.dart';
+import 'package:curated_score/plugins/plugins.dart';
+import 'package:curated_score/settings_dialog.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,7 +29,8 @@ void main() {
     desktopWindow(tester);
 
     final settings = AppSettings.memory()..addRecent(demoProject.absolute.path);
-    await tester.pumpWidget(CuratedScoreApp(settings: settings));
+    final plugins = Plugins(settings);
+    await tester.pumpWidget(CuratedScoreApp(settings: settings, plugins: plugins));
     await tester.pump(const Duration(seconds: 1));
     await screenshot(tester, 'home');
     await tester.tap(find.text('Open Sample'));
@@ -41,6 +48,58 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     await screenshot(tester, 'app');
+
+    // Plugins: Score Facts, turned on, puts its button on the toolbar and takes its key; either
+    // shows what it counted in a dialog of the app's.
+    plugins.turn('scoreFacts', true);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final button = find.byKey(const ValueKey('plugin scoreFacts'));
+    expect(button, findsOneWidget);
+    await tester.tap(button);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining('Bars: '), findsOneWidget);
+    await screenshot(tester, 'app-plugin-dialog', inside: find.textContaining('Bars: '), outermost: true);
+    await tester.tap(find.text('Copy'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining('Bars: '), findsNothing);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining('Bars: '), findsOneWidget, reason: 'its key');
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(plugins.problems.value, isEmpty);
+    // Settings ▸ Plugins lists it, on, among Curator's own; its menu's View… shows its code.
+    final page = tester.element(find.byType(ProjectPage));
+    unawaited(showSettingsDialog(page, settings, controller: state.controller as EditorController, page: 'Plugins'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Reopen Last Project'), findsOneWidget);
+    await screenshot(tester, 'settings-plugins', inside: find.text('Reopen Last Project'), outermost: true);
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    unawaited(PluginActions.edit(page, plugins, plugins.package('scoreFacts')!));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(PluginEditor), findsOneWidget);
+    await screenshot(tester, 'plugin-editor', inside: find.byType(PluginEditor), outermost: true);
+    await tester.tap(find.text('Close'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(PluginEditor), findsNothing);
+    plugins.turn('scoreFacts', false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(button, findsNothing);
 
     // The same showing the video's frame (the toolbar's toggle), letterboxed in the view.
     settings.previewVideoFrame = true;

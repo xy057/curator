@@ -67,11 +67,19 @@ Uint8List extensionDocsPack(String guide, {required List<ExtensionPackage> examp
   return ZipEncoder().encodeBytes(archive);
 }
 
-/// The head of the editor's Reference and Help: its [title], Copy (the docs whole, as
-/// Markdown, to paste to a model or a note) and Download (the pack: [extensionDocsPack]).
+/// The extension docs whole, as Markdown, and their pack, as the extension editor hands them out.
+Future<String> extensionDocs() async => ExtensionApi.docs(await rootBundle.loadString(extensionGuideAsset));
+Future<Uint8List> extensionPack() async => extensionDocsPack(await rootBundle.loadString(extensionGuideAsset), examples: BundledExtensions.packages);
+
+/// The head of an editor's Reference and Help: its [title], Copy (the [docs] whole, as
+/// Markdown, to paste to a model or a note) and Download (the [pack], saved as [packName]):
+/// the extensions' ([extensionDocsPack]) unless others are given (the plugins').
 class ExtensionDocsBar extends StatefulWidget {
-  const ExtensionDocsBar({super.key, required this.title});
+  const ExtensionDocsBar({super.key, required this.title, this.docs = extensionDocs, this.pack = extensionPack, this.packName = 'Curator Extension Docs.zip'});
   final String title;
+  final Future<String> Function() docs;
+  final Future<Uint8List> Function() pack;
+  final String packName;
 
   @override
   State<ExtensionDocsBar> createState() => _ExtensionDocsBarState();
@@ -81,7 +89,7 @@ class _ExtensionDocsBarState extends State<ExtensionDocsBar> {
   bool _copied = false;
 
   Future<void> _copy() async {
-    await Clipboard.setData(ClipboardData(text: ExtensionApi.docs(await rootBundle.loadString(extensionGuideAsset))));
+    await Clipboard.setData(ClipboardData(text: await widget.docs()));
     if (!mounted) return;
     setState(() => _copied = true);
     await Future<void>.delayed(const Duration(milliseconds: 1500));
@@ -90,12 +98,12 @@ class _ExtensionDocsBarState extends State<ExtensionDocsBar> {
 
   Future<void> _download() async {
     final location = await getSaveLocation(
-        acceptedTypeGroups: const [XTypeGroup(label: 'Zip', extensions: ['zip'])], suggestedName: 'Curator Extension Docs.zip');
+        acceptedTypeGroups: const [XTypeGroup(label: 'Zip', extensions: ['zip'])], suggestedName: widget.packName);
     if (location == null || !mounted) return;
     final path = await confirmSavePath(context, location.path, 'zip');
     if (path == null) return;
     try {
-      await File(path).writeAsBytes(extensionDocsPack(await rootBundle.loadString(extensionGuideAsset), examples: BundledExtensions.packages));
+      await File(path).writeAsBytes(await widget.pack());
     } on FileSystemException catch (e) {
       if (!mounted) return;
       await showAppDialog<void>(

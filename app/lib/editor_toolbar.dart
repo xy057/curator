@@ -11,6 +11,7 @@ import 'editor_controller.dart';
 import 'key_bindings.dart';
 import 'menu_kit.dart';
 import 'phrase_search_window.dart';
+import 'plugins/plugins.dart';
 import 'project_document.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
@@ -72,6 +73,8 @@ class EditorToolbar extends StatelessWidget {
   Widget _bar(BuildContext context) {
     final c = controller;
     final colors = context.colors;
+    // The buttons plugins put here (app.command's `toolbar`), before Export.
+    final plugins = PluginScope.of(context), added = plugins?.commandsWhere((command) => command.toolbar) ?? const <PluginEntry>[];
     return Container(
       height: heightOf(context),
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -129,6 +132,14 @@ class EditorToolbar extends StatelessWidget {
             icon: AppIcon.assets.of(context),
             tooltip: 'Manage assets…'.tr,
             onPressed: () => showAssetsDialog(context, c),
+          ),
+        for (final entry in added)
+          ToolbarButton(
+            key: ValueKey('plugin ${entry.command.id}'),
+            icon: Plugins.iconOf(context, entry),
+            tooltip: plugins!.tipOf(entry, KeyMap.of(context)),
+            selected: entry.runtime.isChecked(entry.command),
+            onPressed: plugins.actionOf(entry),
           ),
         _ExportMenu(enabled: !c.isReengraving, onVideo: onExportVideo, onWeb: onExportWeb),
         ToolbarButton(

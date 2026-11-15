@@ -1,8 +1,9 @@
 // What is made or copied from elsewhere is in step with it: every text the code translates is in
 // the template (assets/l10n/curator.pot, `make l10n`), every language's file has the template's
 // texts with the same placeholders and the languages the app ships are wholly translated, the
-// shortcuts' names are there too, docs/extension-api.md is the guide and the API as they are
-// (`make extension-docs`), and the licence the app carries is the repository's.
+// shortcuts' names are there too, docs/extension-api.md and docs/plugin-api.md are the guides
+// and the APIs as they are (`make extension-docs`, `make plugin-docs`), the commands plugins
+// are told of are the app's, and the licence the app carries is the repository's.
 
 import 'dart:io';
 
@@ -11,10 +12,13 @@ import 'package:curated_score/l10n/l10n.dart';
 import 'package:curated_score/l10n/po.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:score_engine/score_engine.dart' show PluginApi;
+
 import '../tool/extension_docs.dart';
+import '../tool/plugin_docs.dart';
 
 void main() {
-  test('in step: the translations’ template and every language, the shortcuts’ names, docs/extension-api.md, the licence', () {
+  test('in step: the translations’ template and every language, the shortcuts’ names, the API docs, plugins’ commands, the licence', () {
     PoFile read(String path) => PoFile.parse(File(path).readAsStringSync());
     final template = read('assets/l10n/curator.pot');
     final keys = {for (final e in template.entries) e.key};
@@ -27,7 +31,7 @@ void main() {
         if (!keys.contains(key)) missing.add('${file.path}: $key');
       }
     }
-    for (final file in Directory('assets/extensions').listSync(recursive: true).whereType<File>()) {
+    for (final file in [for (final folder in bundledScriptFolders) ...Directory(folder).listSync(recursive: true).whereType<File>()]) {
       if (!file.path.endsWith('.lua') && !file.path.endsWith('.json')) continue;
       for (final key in extensionTexts(file.path, file.readAsStringSync())) {
         if (!keys.contains(key)) missing.add('${file.path}: $key');
@@ -75,6 +79,21 @@ void main() {
     // docs/extension-api.md is the guide and the API as they are now.
     final guide = File('assets/help/extensions.md').readAsStringSync();
     expect(File('../docs/extension-api.md').readAsStringSync(), extensionDocs(guide), reason: 'run `make extension-docs`');
+    expect(File('../docs/plugin-api.md').readAsStringSync(), pluginDocs(File('assets/help/plugins.md').readAsStringSync()), reason: 'run `make plugin-docs`');
+
+    // The commands plugins are told of (PluginApi.commands) are the app's: each of the menus'
+    // and the editor's own, by its name, its title and whether its key can be changed, with
+    // About, which has no key.
+    final told = {for (final c in PluginApi.commands) c.id: c};
+    final own = [for (final c in KeyCommand.values) if (c.place == KeyPlace.menus || c.place == KeyPlace.editor) c];
+    expect(told.keys.toSet().difference({for (final c in own) c.name}), {'about'});
+    for (final c in own) {
+      if (told[c.name] case final command?) {
+        expect((command.title, command.rebind), (c.label, c.editable), reason: c.name);
+        // (The tabs' two are in Window on macOS, where the API puts them, and in View elsewhere.)
+        if (c.place == KeyPlace.menus && command.menu != 'Window') expect(command.menu, c.group, reason: c.name);
+      }
+    }
 
     // The licence the app carries (Settings ▸ About ▸ Licenses) is the repository's.
     expect(File('assets/LICENSE.txt').readAsStringSync(), File('../LICENSE').readAsStringSync());

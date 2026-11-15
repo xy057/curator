@@ -11,7 +11,7 @@ COMMIT := --dart-define=CURATOR_COMMIT=$(shell git rev-parse --short HEAD 2>/dev
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
-.PHONY: help setup run build web-player l10n extension-docs test check versions smoke doctor clean
+.PHONY: help setup run build web-player l10n extension-docs plugin-docs test check versions smoke doctor clean
 
 help:
 	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG), get Dart packages"
@@ -20,6 +20,7 @@ help:
 	@echo "make web-player – build the web player File ▸ Export to Web… copies (run and build do when it is out of date)"
 	@echo "make l10n    – put new interface text into the translation files (app/assets/l10n, synced with Crowdin)"
 	@echo "make extension-docs – write docs/extension-api.md from the guide and the extension API's own list"
+	@echo "make plugin-docs – write docs/plugin-api.md from the guide and the plugin API's own list"
 	@echo "make test    – run the engine and app tests (builds the native engine on first run)"
 	@echo "make check   – analyze both packages, then run every test"
 	@echo "make versions – check that updater.dart says the version pubspec.yaml does"
@@ -69,6 +70,11 @@ l10n:
 # reference of the API, from ExtensionApi. test/in_step_test.dart fails until it has been run.
 extension-docs:
 	cd app && dart run tool/extension_docs.dart
+
+# docs/plugin-api.md: the plugin editor's guide (app/assets/help/plugins.md) and the reference
+# of the API, from PluginApi. test/in_step_test.dart fails until it has been run.
+plugin-docs:
+	cd app && dart run tool/plugin_docs.dart
 
 # Every test runs on the bundled demo project (app/assets/demo), so a fresh clone can run them all.
 test: setup

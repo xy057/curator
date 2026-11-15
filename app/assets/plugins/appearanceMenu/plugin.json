@@ -1,0 +1,9 @@
+{
+  "format": "application/x-curator-plugin",
+  "id": "appearanceMenu",
+  "name": "Appearance Menu",
+  "summary": "Light, Dark and System in the View menu.",
+  "keywords": "theme appearance light dark system mode night menu switch toggle",
+  "icon": "show",
+  "api": 1
+}

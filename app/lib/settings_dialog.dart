@@ -6,7 +6,7 @@ import 'dart:math' as math;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:score_engine/score_engine.dart' show RenderStyle, TextKind, verovioVersion;
+import 'package:score_engine/score_engine.dart' show PluginPackage, RenderStyle, TextKind, verovioVersion;
 
 import 'ai_settings.dart';
 import 'app_colors.dart';
@@ -37,6 +37,9 @@ import 'error_text.dart';
 import 'settings_file.dart';
 import 'sections_editor.dart';
 import 'shortcut_settings.dart';
+import 'plugins/bundled.dart';
+import 'plugins/plugin_actions.dart';
+import 'plugins/plugins.dart';
 import 'ui_kit.dart';
 import 'update_dialog.dart';
 import 'updater.dart';
@@ -407,6 +410,36 @@ final _categories = <_Category>[
           shown: (_) => command.shown,
           keywords: 'shortcut shortcuts key keys keyboard hotkey ${KeyMap.standard.labelsOf(command).join(' ')}',
         ),
+    ],
+  ),
+  // What changes the app itself, in every project: Curator's own, off until asked for, and the
+  // ones the user added or wrote. The page is _PluginsPage; these rows are what the search finds.
+  _Category(
+    'Plugins',
+    AppIcon.plugins,
+    page: (_) => const _PluginsPage(),
+    buttons: (_) => [
+      Builder(
+        builder: (context) => _HeaderIcon(
+            tooltip: 'New Plugin'.tr,
+            icon: AppIcon.add,
+            onPressed: () {
+              if (PluginScope.read(context) case final plugins?) PluginActions.create(context, plugins);
+            }),
+      ),
+      Builder(
+        builder: (context) => _HeaderIcon(
+            tooltip: 'Add Plugin from File'.tr,
+            icon: AppIcon.open,
+            onPressed: () {
+              if (PluginScope.read(context) case final plugins?) PluginActions.addFromFile(context, plugins);
+            }),
+      ),
+    ],
+    [
+      for (final p in BundledPlugins.packages)
+        _Item(p.name, (_) => p.summary.isEmpty ? null : p.summary, (_) => _PluginSwitch(p.id),
+            note: p.version, keywords: '${p.keywords} plugin plugins package cgp lua script add-on addon menu command key toolbar customize extend new edit'),
     ],
   ),
   // What the app can download and keep on this computer, beside it: tools, and AI run here
@@ -2368,6 +2401,55 @@ class _ExtensionsPage extends StatelessWidget {
       (null, own),
       if (carried.isNotEmpty) ('In This Project', carried),
     ]);
+  }
+}
+
+/// Settings ▸ Plugins: Curator's own, then the ones the user added, each with its switch (the
+/// app's, for every project) and its menu (Settings…, Edit…, Duplicate, Export…, Remove). What
+/// went wrong in one that is on stands in for its summary. New and Add from File are by the
+/// page's title.
+class _PluginsPage extends StatelessWidget {
+  const _PluginsPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final plugins = PluginScope.of(context);
+    if (plugins == null) return const _Page(groups: []);
+    return ValueListenableBuilder(
+      valueListenable: plugins.problems,
+      builder: (context, _, _) {
+        _SettingRow row(PluginPackage p) => _SettingRow(
+              key: ValueKey(p.id),
+              title: p.name,
+              named: !plugins.isOwn(p.id), // its maker's name for it
+              note: p.version,
+              help: (plugins.isOn(p.id) ? plugins.problemOf(p.id)?.message : null) ?? (p.summary.isEmpty ? null : p.summary),
+              control: Row(mainAxisSize: MainAxisSize.min, children: [
+                PluginMenu(plugins: plugins, package: p),
+                const SizedBox(width: 6),
+                _PluginSwitch(p.id),
+              ]),
+            );
+        final own = [for (final p in plugins.packages) if (plugins.isOwn(p.id)) row(p)];
+        final added = [for (final p in plugins.packages) if (!plugins.isOwn(p.id)) row(p)];
+        return _Page(groups: [
+          if (own.isNotEmpty) (null, own),
+          if (added.isNotEmpty) ('Added', added),
+        ]);
+      },
+    );
+  }
+}
+
+/// A plugin's switch: on, it runs from now and each time the app starts.
+class _PluginSwitch extends StatelessWidget {
+  const _PluginSwitch(this.id);
+  final String id;
+
+  @override
+  Widget build(BuildContext context) {
+    final plugins = PluginScope.of(context);
+    return AppSwitch(value: plugins?.isOn(id) ?? false, onChanged: plugins == null ? null : (v) => plugins.turn(id, v));
   }
 }
 

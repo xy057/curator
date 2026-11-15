@@ -1,0 +1,9 @@
+{
+  "format": "application/x-curator-plugin",
+  "id": "scoreFacts",
+  "name": "Score Facts",
+  "summary": "A command that counts the score’s bars, parts and staves.",
+  "keywords": "count bars measures parts staves length duration statistics info facts",
+  "icon": "score",
+  "api": 1
+}

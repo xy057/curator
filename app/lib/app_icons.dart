@@ -328,7 +328,10 @@ enum AppIcon {
   update(IconData(0xE06A, fontFamily: _refined), IconData(0xE06A, fontFamily: _carbon)),
 
   /// Keyboard shortcuts. Refined: keyboard; Carbon: keyboard.
-  keyboard(IconData(0xE06B, fontFamily: _refined), IconData(0xE06B, fontFamily: _carbon));
+  keyboard(IconData(0xE06B, fontFamily: _refined), IconData(0xE06B, fontFamily: _carbon)),
+
+  /// Plugins. Refined: power; Carbon: plug.
+  plugins(IconData(0xE06C, fontFamily: _refined), IconData(0xE06C, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;
