@@ -1193,7 +1193,8 @@ class _SidebarTileState extends State<SidebarTile> {
 
 /// Text laid out for a painter and kept: a lane or a ruler paints at every frame of playback, a
 /// drag or a zoom, and laying its labels out again each time is most of its work. Up to [limit]
-/// are kept; past it, all are let go.
+/// are kept; past it, the one asked for least lately is let go, so one asked for during a paint
+/// stays until [limit] others have been asked for since.
 class LabelCache {
   LabelCache({this.limit = 128});
   final int limit;
@@ -1201,8 +1202,8 @@ class LabelCache {
 
   /// What [key] names, laid out by [make] the first time it is asked for.
   TextPainter of(Object key, TextPainter Function() make) {
-    if (_kept[key] case final kept?) return kept;
-    if (_kept.length >= limit) clear();
+    if (_kept.remove(key) case final kept?) return _kept[key] = kept; // the latest asked for goes last
+    if (_kept.length >= limit) _kept.remove(_kept.keys.first)!.dispose();
     return _kept[key] = make();
   }
 
