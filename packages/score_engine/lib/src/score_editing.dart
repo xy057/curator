@@ -575,7 +575,7 @@ _Content _read(XmlElement measure, int divisions) {
           graces.putIfAbsent(key, () => []).add(child);
           continue;
         }
-        final length = Frac(int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0, divisions);
+        final length = Frac(durationOf(child), divisions);
         if (child.getElement('chord') != null && last != null) {
           last.notes.add(child);
           continue;
@@ -586,10 +586,10 @@ _Content _read(XmlElement measure, int divisions) {
         cursor = cursor + length;
         c.length = Frac.max(c.length, cursor);
       case 'backup':
-        cursor = Frac.max(Frac.zero, cursor - Frac(int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0, divisions));
+        cursor = Frac.max(Frac.zero, cursor - Frac(durationOf(child), divisions));
         last = null;
       case 'forward':
-        cursor = cursor + Frac(int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0, divisions);
+        cursor = cursor + Frac(durationOf(child), divisions);
         c.length = Frac.max(c.length, cursor);
         last = null;
       default:
@@ -1037,7 +1037,7 @@ class EditableScore {
     var any = false;
     for (final m in part._measures) {
       for (final d in m.findAllElements('divisions')) {
-        final v = int.tryParse(d.innerText.trim());
+        final v = xmlInt(d);
         if (v != null && v > 0) {
           all = any ? _lcm(all, v) : v;
           any = true;
@@ -1045,7 +1045,7 @@ class EditableScore {
       }
     }
     // Rescale bar by bar, each from the divisions in force there.
-    final changed = part._measures.any((m) => m.findAllElements('divisions').any((d) => (int.tryParse(d.innerText.trim()) ?? all) != all));
+    final changed = part._measures.any((m) => m.findAllElements('divisions').any((d) => (xmlInt(d) ?? all) != all));
     if (changed) {
       var current = 1;
       for (var i = 0; i < part._measures.length; i++) {
@@ -1054,7 +1054,7 @@ class EditableScore {
         for (final child in copy.childElements) {
           if (child.name.local == 'attributes') {
             final d = child.getElement('divisions');
-            final v = int.tryParse(d?.innerText.trim() ?? '');
+            final v = xmlInt(d);
             if (v != null && v > 0) {
               current = v;
               factor = all ~/ v;
@@ -1079,7 +1079,7 @@ class EditableScore {
     part.staves = 1;
     for (final m in part._measures) {
       for (final s in m.findAllElements('staves')) {
-        part.staves = math.max(part.staves, int.tryParse(s.innerText.trim()) ?? 1);
+        part.staves = math.max(part.staves, xmlInt(s) ?? 1);
       }
     }
   }
@@ -1153,17 +1153,17 @@ class EditableScore {
   static _Context _applyAttributes(_Context context, XmlElement a) {
     var c = context;
     if (a.getElement('key') case final key?) {
-      final fifths = int.tryParse(_childText(key, 'fifths')?.trim() ?? '');
+      final fifths = xmlInt(key.getElement('fifths'));
       if (fifths != null) c = c.copyWith(key: KeySig(fifths, minor: _childText(key, 'mode')?.trim() == 'minor'));
     }
     if (a.getElement('time') case final time?) {
-      final beats = _childText(time, 'beats')?.trim(), type = int.tryParse(_childText(time, 'beat-type')?.trim() ?? '');
+      final beats = _childText(time, 'beats')?.trim(), type = xmlInt(time.getElement('beat-type'));
       // (One that says no length, a beat type of 0 or beats that are no numbers, is none: a bar
       // of no length could never be filled.)
       final meter = beats == null || type == null || type < 1 ? null : TimeSig(beats, type, symbol: time.getAttribute('symbol'));
       if (meter != null && meter.count >= 1) c = c.copyWith(meter: meter);
     }
-    if (a.getElement('staves') case final s?) c = c.copyWith(staves: int.tryParse(s.innerText.trim()) ?? c.staves);
+    if (a.getElement('staves') case final s?) c = c.copyWith(staves: xmlInt(s) ?? c.staves);
     final clefs = a.findElements('clef').toList();
     if (clefs.isNotEmpty) {
       c = c.copyWith(clefs: {
@@ -1531,11 +1531,11 @@ class EditableScore {
                 break;
               }
               start = cursor;
-              cursor += int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0;
+              cursor += durationOf(child);
             case 'backup':
-              cursor = math.max(0, cursor - (int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0));
+              cursor = math.max(0, cursor - durationOf(child));
             case 'forward':
-              cursor += int.tryParse(_childText(child, 'duration')?.trim() ?? '') ?? 0;
+              cursor += durationOf(child);
           }
           for (final e in child.descendantElements) {
             final starts = _spanStarts(e);
@@ -2996,7 +2996,7 @@ class EditableScore {
   /// sharps more than concert pitch.
   static int _fifthsOf(XmlElement? transpose) {
     if (transpose == null) return 0;
-    return writtenFifthsOf(int.tryParse(_childText(transpose, 'chromatic')?.trim() ?? '') ?? 0);
+    return writtenFifthsOf(xmlInt(transpose.getElement('chromatic')) ?? 0);
   }
 
   /// The bar after [m] that changes [what] (`key`, `time`), or the end.

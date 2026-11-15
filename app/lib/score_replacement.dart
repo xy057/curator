@@ -319,8 +319,7 @@ class ScoreSwap {
 
   static String _tempo(double? qpm) => switch (qpm) {
     null => 'none'.tr,
-    final t when t == t.roundToDouble() => '♩ = ${t.round()}',
-    final t => '♩ = ${t.toStringAsFixed(1)}',
+    final t => '♩ = ${plainNumber(t, digits: 1)}',
   };
 }
 

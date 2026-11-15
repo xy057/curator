@@ -196,7 +196,7 @@ abstract final class Spacers {
   static XmlElement _key((XmlElement key, int concertShift) key, SpacerKey to) {
     final copy = key.$1.copy();
     final fifths = copy.getElement('fifths');
-    final written = int.tryParse(fifths?.innerText.trim() ?? '');
+    final written = xmlInt(fifths);
     if (fifths != null && written != null) {
       fifths.children
         ..clear()
@@ -226,7 +226,7 @@ abstract final class Spacers {
         switch (e.name.local) {
           case 'attributes':
             if (e.getElement('divisions') case final d?) {
-              final n = int.tryParse(d.innerText.trim()) ?? 0;
+              final n = xmlInt(d) ?? 0;
               if (n > 0) divisions = n;
             }
             if (e.getElement('transpose') case final t?) shift = writtenFifthsOf(xmlInt(t.getElement('chromatic')) ?? 0);

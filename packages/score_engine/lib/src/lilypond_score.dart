@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'display_list.dart';
 import 'engraving.dart';
 import 'lilypond_svg.dart';
+import 'musicxml_kit.dart' show writtenFifthsOf;
 import 'native/constants.dart';
 import 'number_text.dart';
 import 'score_editing.dart' show Frac;
@@ -560,7 +561,7 @@ class _Reader {
         (line) => sigs.any((s) => s.signature is KeySignature && s.record['l'] == line),
         orElse: () => reference);
     // (Written less concert: a B♭ clarinet's D major is C, two sharps more.)
-    final keyShift = -_fifthsOf(_transposition(keyStaff)?.semitones ?? 0);
+    final keyShift = -writtenFifthsOf(-(_transposition(keyStaff)?.semitones ?? 0));
     return LilyPondScore._(
       engraving: engraving,
       musicXML: _MusicXmlWriter(this, starts, finish, sigs).write(),
@@ -947,13 +948,6 @@ class _Reader {
       return semitones == 0 ? null : (semitones: semitones, steps: octave * 7 + step);
     }
     return null;
-  }
-
-  /// How many fifths an interval of [semitones] moves a key (a whole tone down: two flats).
-  static int _fifthsOf(int semitones) {
-    var f = (semitones * 7) % 12;
-    if (f > 6) f -= 12;
-    return f;
   }
 }
 

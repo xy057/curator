@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
 import 'musicxml_kit.dart';
+import 'number_text.dart';
 import 'score_metadata.dart';
 import 'spacers.dart';
 
@@ -263,8 +264,8 @@ abstract final class Condenser {
   /// draws one.
   static String _clef(XmlElement? clef) {
     final sign = clef?.getElement('sign')?.innerText.trim() ?? 'G';
-    final line = int.tryParse(clef?.getElement('line')?.innerText.trim() ?? '') ?? const {'G': 2, 'F': 4, 'C': 3}[sign] ?? 0;
-    final octaves = int.tryParse(clef?.getElement('clef-octave-change')?.innerText.trim() ?? '') ?? 0;
+    final line = xmlInt(clef?.getElement('line')) ?? const {'G': 2, 'F': 4, 'C': 3}[sign] ?? 0;
+    final octaves = xmlInt(clef?.getElement('clef-octave-change')) ?? 0;
     return '$sign$line$octaves';
   }
 
@@ -272,7 +273,7 @@ abstract final class Condenser {
   /// (octave-change folded in, so "octave-change -1" and "diatonic -7, chromatic -12" are
   /// the same), and whether it is doubled an octave. None is 0 0.
   static String _transposition(XmlElement? transpose) {
-    int n(String name) => int.tryParse(transpose?.getElement(name)?.innerText.trim() ?? '') ?? 0;
+    int n(String name) => xmlInt(transpose?.getElement(name)) ?? 0;
     final octaves = n('octave-change');
     final doubled = transpose?.getElement('double');
     return '${n('diatonic') + 7 * octaves} ${n('chromatic') + 12 * octaves}'
@@ -314,7 +315,7 @@ abstract final class Condenser {
   }
 
   /// A `<divisions>` value, or null when it is none a score can use (0, negative, absurd).
-  static int? _divisionsIn(XmlElement? element) => switch (int.tryParse(element?.innerText.trim() ?? '')) {
+  static int? _divisionsIn(XmlElement? element) => switch (xmlInt(element)) {
         final n? when n > 0 && n <= _maxDivisions => n,
         _ => null,
       };
@@ -529,7 +530,7 @@ abstract final class Condenser {
     if (reading.voices.length > 1) {
       for (final node in reading.body.whereType<XmlElement>()) {
         final v = node.getElement('voice');
-        if (v != null) v.innerText = '${(int.tryParse(v.innerText.trim()) ?? 1) + offset}';
+        if (v != null) v.innerText = '${(xmlInt(v) ?? 1) + offset}';
       }
       return;
     }
@@ -682,7 +683,7 @@ class _PartReader {
   /// Follows the key an attributes element sets.
   void _follow(XmlElement attributes) {
     final fifths = attributes.getElement('key')?.getElement('fifths');
-    if (fifths != null) _fifths = int.tryParse(fifths.innerText.trim()) ?? _fifths;
+    if (fifths != null) _fifths = xmlInt(fifths) ?? _fifths;
   }
 
   _BarReading next(XmlElement measure) {
@@ -736,7 +737,7 @@ class _PartReader {
       final value = double.tryParse(e.innerText.trim());
       if (value == null) continue;
       final scaled = value * divisions / _current;
-      e.innerText = scaled == scaled.roundToDouble() ? '${scaled.round()}' : '$scaled';
+      e.innerText = plainNumber(scaled);
     }
   }
 }
@@ -855,7 +856,7 @@ class _Group {
     if (pitch == null) return 0;
     const steps = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11};
     final step = steps[pitch.getElement('step')?.innerText.trim()] ?? 0;
-    final octave = int.tryParse(pitch.getElement('octave')?.innerText.trim() ?? '') ?? 4;
+    final octave = xmlInt(pitch.getElement('octave')) ?? 4;
     final alter = double.tryParse(pitch.getElement('alter')?.innerText.trim() ?? '')?.round() ?? 0;
     return octave * 12 + step + alter;
   }
