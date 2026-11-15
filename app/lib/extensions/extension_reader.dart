@@ -102,7 +102,7 @@ class ExtensionReaders {
   /// The pictures on the score ([picturesOf]): the first extension's that has the socket.
   List<ImagePatch> get pictures {
     for (final r in _runtimes) {
-      if (r.nodes('images').isNotEmpty) return picturesOf(r);
+      if (r.graph.has('images')) return picturesOf(r);
     }
     return const [];
   }

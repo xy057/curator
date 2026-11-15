@@ -171,7 +171,7 @@ class ExtensionEditing {
     _bands = null; // its band goes with it
     _captions = null;
     _sockets();
-    if (runtime.nodes('images').isNotEmpty && _imager == null) _editor.images._deselect(); // nothing to select now
+    if (runtime.graph.has('images') && _imager == null) _editor.images._deselect(); // nothing to select now
     _items.removeWhere((key, _) => key.$1 == id);
     _stretches.removeWhere((key, _) => key.$1 == id);
     _spans.removeWhere((key, _) => key.$1 == id);
@@ -440,8 +440,8 @@ class ExtensionEditing {
   bool _spacers = false;
 
   void _sockets() {
-    _imager = _runtimes.values.where((r) => r.nodes('images').isNotEmpty).firstOrNull;
-    _spacers = _runtimes.values.any((r) => r.nodes('spacers').isNotEmpty);
+    _imager = _runtimes.values.where((r) => r.graph.has('images')).firstOrNull;
+    _spacers = _runtimes.values.any((r) => r.graph.has('spacers'));
   }
 
   /// Whether an extension that is on puts pictures on the score, and whether one turns the

@@ -69,15 +69,6 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
   /// Labels as laid out in the lane, kept: playback repaints it every frame.
   final _labels = LabelCache(limit: 64);
 
-  TextPainter _label(String text, double maxWidth, Color color) => _labels.of(
-      (text, maxWidth, color),
-      () => TextPainter(
-            text: TextSpan(text: text, style: TextStyle(fontSize: 11, color: color)),
-            textDirection: TextDirection.ltr,
-            maxLines: 1,
-            ellipsis: '…',
-          )..layout(maxWidth: maxWidth));
-
   @override
   void dispose() {
     _labels.clear();
@@ -110,7 +101,7 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
 
   void _onDown(PointerDownEvent e) {
     if (e.buttons != kPrimaryButton) return;
-    final p = e.localPosition, pass = tl.passAt(c.viewport.seconds(p.dx)), q = c.laneQuarter(p.dx);
+    final p = e.localPosition, pass = c.lanePass(p.dx), q = c.laneQuarter(p.dx);
     final doubleClick = _clicks.press(e.timeStamp, p);
     final hit = _hit(p.dx);
     c.clearSelection();
@@ -404,7 +395,7 @@ class _MarkersPainter extends CustomPainter {
       final left = math.max(x0, 0.0), room = x1 - left - 12;
       final width = (x0 < 0 ? (room / 16).floorToDouble() * 16 : room.floorToDouble()).clamp(0.0, 400.0).toDouble();
       if (width < 8) continue;
-      final text = s._label(items[span.marker].label, width, on ? colors.surface : colors.text);
+      final text = s._labels.text(items[span.marker].label, TextStyle(fontSize: 11, color: on ? colors.surface : colors.text), maxWidth: width);
       text.paint(canvas, Offset(left + 6, rect.center.dy - text.height / 2));
     }
   }
