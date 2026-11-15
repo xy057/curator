@@ -485,16 +485,9 @@ class Curation extends ChangeNotifier {
   /// Whether [seconds] is inside one of [spans] ([shownSpans]), ignoring the fades.
   static bool shownIn(List<ShownSpan> spans, double seconds) {
     // The last that starts at or before it: they are in order, and none reaches the next.
-    var lo = 0, hi = spans.length;
-    while (lo < hi) {
-      final mid = (lo + hi) >> 1;
-      if (spans[mid].start <= seconds) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
-      }
-    }
-    return lo > 0 && seconds < spans[lo - 1].end;
+    if (spans.isEmpty) return false;
+    final last = spans[segmentAt(spans.length + 1, seconds, (i) => spans[i].start)];
+    return last.start <= seconds && seconds < last.end;
   }
 
   /// 0…1 at [seconds] for a lane shown over [spans] ([shownSpans]): each edge a ramp of its

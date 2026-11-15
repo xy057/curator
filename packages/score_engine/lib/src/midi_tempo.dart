@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import 'search.dart';
 import 'sync_map.dart';
 
 /// A tempo from a point on: [quarter] (quarter notes from the start of the MIDI file) on,
@@ -150,18 +151,7 @@ class MidiTempoMap {
   }();
 
   /// The last change whose [key] is at or before [value] (the first before them all).
-  int _lastAtOrBefore(double value, double Function(int i) key) {
-    var lo = 0, hi = tempos.length - 1;
-    while (lo < hi) {
-      final mid = (lo + hi + 1) >> 1;
-      if (key(mid) <= value) {
-        lo = mid;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    return lo;
-  }
+  int _lastAtOrBefore(double value, double Function(int i) key) => segmentAt(tempos.length + 1, value, key);
 
   // MARK: Editing
 

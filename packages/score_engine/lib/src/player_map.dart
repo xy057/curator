@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'score_dynamics.dart';
 import 'score_metadata.dart';
+import 'search.dart';
 import 'scroll_map.dart';
 import 'sounding_notes.dart';
 
@@ -1027,17 +1028,9 @@ class _Events {
 
   double level(double t) {
     // The last onset at or before t.
-    var lo = 0, hi = onsets.length;
-    while (lo < hi) {
-      final mid = (lo + hi) >> 1;
-      if (onsets[mid] <= t) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
-      }
-    }
-    final last = lo - 1;
-    if (last < 0) return 0;
+    if (onsets.isEmpty) return 0;
+    final last = segmentAt(onsets.length + 1, t, (i) => onsets[i]);
+    if (onsets[last] > t) return 0;
     var level = 0.0;
     const window = PlayerPulses.attack + PlayerPulses.longest;
     for (var i = last; i >= 0 && t - onsets[i] < window; i--) {
