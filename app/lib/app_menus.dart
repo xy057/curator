@@ -42,6 +42,8 @@ class AppMenus extends StatelessWidget {
     this.onShowPreview,
     this.onShowTimeline,
     this.onMaximizePreview,
+    this.playerMapShown = false,
+    this.onShowPlayerMap,
     this.onMaximizeTimeline,
     this.onNextTab,
     this.onPreviousTab,
@@ -111,6 +113,11 @@ class AppMenus extends StatelessWidget {
   /// whether to show it; null (greyed out) while nothing is open.
   final bool previewShown, timelineShown;
   final ValueChanged<bool>? onShowPreview, onShowTimeline;
+
+  /// View ▸ Show Player Map / Show Score: the project's map in the score's place (the toolbar's
+  /// switch); null while nothing is open.
+  final bool playerMapShown;
+  final ValueChanged<bool>? onShowPlayerMap;
 
   /// View ▸ Maximize Preview / Timeline: the other at its smallest; null while nothing is open.
   final VoidCallback? onMaximizePreview, onMaximizeTimeline;
@@ -248,6 +255,14 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             ?_own('maximizePreview', 'Maximize Preview'.tr, shortcut: _keyOf(KeyCommand.maximizePreview), onSelected: onMaximizePreview),
             ?_own('maximizeTimeline', 'Maximize Timeline'.tr, shortcut: _keyOf(KeyCommand.maximizeTimeline), onSelected: onMaximizeTimeline),
+          ]),
+          PlatformMenuItemGroup(members: [
+            ?_own(
+              'showPlayerMap',
+              playerMapShown ? 'Show Score'.tr : 'Show Player Map'.tr,
+              shortcut: _keyOf(KeyCommand.showPlayerMap),
+              onSelected: onShowPlayerMap == null ? null : () => onShowPlayerMap!(!playerMapShown),
+            ),
           ]),
           PlatformMenuItemGroup(members: [
             ?_own(

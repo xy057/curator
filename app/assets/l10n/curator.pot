@@ -162,6 +162,7 @@ msgstr ""
 msgid "Page"
 msgstr ""
 
+#: lib/player_map_view.dart
 msgid "Pause"
 msgstr ""
 
@@ -169,6 +170,7 @@ msgstr ""
 msgid "Performance"
 msgstr ""
 
+#: lib/player_map_view.dart
 msgid "Play"
 msgstr ""
 
@@ -533,7 +535,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/plugins/plugin_actions.dart lib/plugins/plugin_editor.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/plugins/plugin_editor.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -849,7 +851,7 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
-#: lib/ai_settings.dart lib/app_menus.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/ai_settings.dart lib/app_menus.dart lib/extensions/extension_editor.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart
 msgid "Delete"
 msgstr ""
 
@@ -868,7 +870,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/plugins/plugin_editor.dart lib/score_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -951,7 +953,7 @@ msgstr ""
 msgid "Edit Spacer…"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart lib/lilypond_dialog.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart
+#: lib/extensions/extension_actions.dart lib/lilypond_dialog.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart
 msgid "Edit…"
 msgstr ""
 
@@ -1038,7 +1040,7 @@ msgstr ""
 msgid "Exporting Video…"
 msgstr ""
 
-#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
+#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Export…"
 msgstr ""
 
@@ -1244,7 +1246,7 @@ msgstr ""
 msgid "Images and spacers that scroll with the score."
 msgstr ""
 
-#: lib/app_menus.dart lib/home_screen.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
+#: lib/app_menus.dart lib/home_screen.dart lib/player_map_view.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Import…"
 msgstr ""
 
@@ -1328,7 +1330,7 @@ msgstr ""
 msgid "Lightness"
 msgstr ""
 
-#: assets/extensions/captions/src/settings.lua
+#: lib/player_map_view.dart assets/extensions/captions/src/settings.lua
 msgid "Line"
 msgstr ""
 
@@ -1426,7 +1428,7 @@ msgstr ""
 msgid "Music symbols"
 msgstr ""
 
-#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
+#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Name"
 msgstr ""
 
@@ -1485,7 +1487,7 @@ msgstr ""
 msgid "No subtitles found in this file."
 msgstr ""
 
-#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua assets/plugins/navigator/src/main.lua
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua assets/plugins/navigator/src/main.lua
 msgid "None"
 msgstr ""
 
@@ -1554,7 +1556,7 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr ""
 
@@ -1732,7 +1734,7 @@ msgstr ""
 msgid "Redo"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Redo ({key})"
 msgstr ""
 
@@ -1757,7 +1759,7 @@ msgstr ""
 msgid "Rehearsal marks in bar numbers"
 msgstr ""
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr ""
 
@@ -1938,6 +1940,7 @@ msgstr ""
 msgid "Saving…"
 msgstr ""
 
+#: lib/editor_toolbar.dart lib/web_player/player.dart
 msgid "Score"
 msgstr ""
 
@@ -1968,6 +1971,7 @@ msgstr ""
 msgid "Search results"
 msgstr ""
 
+#: lib/player_map_view.dart
 msgid "Sections"
 msgstr ""
 
@@ -2081,7 +2085,7 @@ msgstr ""
 msgid "Sine"
 msgstr ""
 
-#: assets/extensions/captions/src/settings.lua
+#: lib/player_map_view.dart assets/extensions/captions/src/settings.lua
 msgid "Size"
 msgstr ""
 
@@ -2523,7 +2527,7 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Undo ({key})"
 msgstr ""
 
@@ -2878,11 +2882,11 @@ msgstr ""
 msgid "Couldn’t Edit Score"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Discard"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Discard Your Changes?"
 msgstr ""
 
@@ -2905,7 +2909,7 @@ msgstr ""
 msgid "Holds"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
 msgid "Keep Editing"
 msgstr ""
 
@@ -3040,7 +3044,7 @@ msgstr ""
 msgid "Import PDF"
 msgstr ""
 
-#: lib/pdf_import.dart
+#: lib/pdf_import.dart lib/player_map_view.dart
 msgid "Instrument"
 msgstr ""
 
@@ -3155,7 +3159,7 @@ msgstr ""
 msgid "Single"
 msgstr ""
 
-#: lib/instruments_toolbar.dart lib/pdf_import.dart
+#: lib/instruments_toolbar.dart lib/pdf_import.dart lib/player_map_view.dart
 msgid "Staff {n}"
 msgstr ""
 
@@ -3290,7 +3294,7 @@ msgstr ""
 msgid "Staves without an instrument"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart lib/pdf_import.dart lib/plugins/plugin_actions.dart
+#: lib/extensions/extension_actions.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
 msgid "More"
 msgstr ""
 
@@ -4455,6 +4459,9 @@ msgstr ""
 msgid "Hide / Show Timeline"
 msgstr ""
 
+msgid "Score / Player Map"
+msgstr ""
+
 msgid "Hide / Show Tab Bar"
 msgstr ""
 
@@ -5118,4 +5125,117 @@ msgstr ""
 
 #: assets/plugins/navigator/src/main.lua
 msgid "Rehearsal Marks"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Show Player Map"
+msgstr ""
+
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/web_player/player.dart
+msgid "Player Map"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "No player map"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Smart Seating"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Orchestra (American)"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Orchestra (European)"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Ensemble"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Couldn’t Import the Player Map"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "It needs a newer version of Curator."
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "It isn’t a player map."
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Couldn’t Export the Player Map"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Section"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Edit Player Map"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Players"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Add Section"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgctxt "player map"
+msgid "Staff"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "All Staves"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Color"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Fewer"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Rows"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Arc"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Player {n}"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Same as Section"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Remove Player"
+msgstr ""
+
+#: lib/player_map_view.dart
+msgid "Remove Section"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Show Score"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Score ({key})"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Player map ({key})"
 msgstr ""

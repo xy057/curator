@@ -60,6 +60,7 @@ class AppSettings extends ChangeNotifier {
         _videoChapters = _prefs?.getBool(_videoChaptersKey) ?? true,
         _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false,
         _tabBar = _prefs?.getBool(_tabBarKey) ?? true,
+        _playerMap = _prefs?.getBool(_playerMapKey) ?? false,
         _rememberWindow = _prefs?.getBool(_rememberWindowKey) ?? true,
         _windowFrame = WindowFrame.parse(_prefs?.getString(_windowFrameKey)),
         _aiProviders = List.unmodifiable(AiProvider.read(_prefs?.getString(_aiProvidersKey))),
@@ -103,7 +104,7 @@ class AppSettings extends ChangeNotifier {
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
-  static const _tabBarKey = 'showTabBar';
+  static const _tabBarKey = 'showTabBar', _playerMapKey = 'showPlayerMap';
   // macOS reads the flag itself, before Dart runs (MainFlutterWindow.swift: "flutter." + this).
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
   static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel', _pdfAiExamsKey = 'pdfAiExams';
@@ -532,6 +533,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _tabBar) return;
     _tabBar = value;
     _prefs?.setBool(_tabBarKey, value);
+    notifyListeners();
+  }
+
+  /// The toolbar's Score / Player Map switch (View ▸ Show Player Map / Show Score): the project's
+  /// player map in the score's place. Off by default.
+  bool get playerMap => _playerMap;
+  bool _playerMap;
+  set playerMap(bool value) {
+    if (value == _playerMap) return;
+    _playerMap = value;
+    _prefs?.setBool(_playerMapKey, value);
     notifyListeners();
   }
 

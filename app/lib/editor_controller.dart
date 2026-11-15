@@ -35,6 +35,7 @@ part 'editor/extension_editing.dart';
 part 'editor/image_editing.dart';
 part 'editor/lane_editing.dart';
 part 'editor/playback.dart';
+part 'editor/player_map_editing.dart';
 part 'editor/spacer_editing.dart';
 part 'editor/sync_editing.dart';
 
@@ -73,6 +74,7 @@ class EditorController extends ChangeNotifier {
   late final images = ImageEditing._(this);
   late final captions = CaptionLook._(this);
   late final spacers = SpacerEditing._(this);
+  late final playerMap = PlayerMapEditing._(this);
   late final extensions = ExtensionEditing._(this);
   late final commands = EditCommands._(this);
 

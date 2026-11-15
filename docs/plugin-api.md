@@ -485,6 +485,7 @@ View:
 - `showTimeline`: Hide / Show Timeline
 - `maximizePreview`: Maximize Preview
 - `maximizeTimeline`: Maximize Timeline
+- `showPlayerMap`: Score / Player Map
 - `showTabBar`: Hide / Show Tab Bar
 - `showAllTabs`: Show All Tabs
 

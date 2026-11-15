@@ -32,6 +32,8 @@ class EditorToolbar extends StatelessWidget {
     required this.onVideoRatio,
     this.onShowTabBar,
     this.readout,
+    this.playerMap = false,
+    this.onPlayerMap,
   });
   final EditorController controller;
   final ProjectDocument document;
@@ -48,6 +50,10 @@ class EditorToolbar extends StatelessWidget {
   /// Shows the tab bar (View ▸ Show Tab Bar), Home and the other projects in it; null (no
   /// button) while it shows.
   final VoidCallback? onShowTabBar;
+
+  /// Whether the player map shows in the score's place; [onPlayerMap] switches (null: no switch).
+  final bool playerMap;
+  final ValueChanged<bool>? onPlayerMap;
 
   /// The time readout, which ⌘G opens to type where to go.
   final GlobalKey<TimeReadoutState>? readout;
@@ -115,6 +121,22 @@ class EditorToolbar extends StatelessWidget {
             onPressed: c.isPdf ? null : () => Plugins.doOwn(context, 'findPhrase', () => PhraseSearchWindow.toggle(Overlay.of(context), c)),
           ),
         ),
+        if (onPlayerMap case final onPlayerMap?) ...[
+          const ToolbarDivider(),
+          // The score or the player map in its place: one lit, as a segmented switch.
+          ToolbarButton(
+            icon: AppIcon.score.of(context),
+            tooltip: keyed(context, KeyCommand.showPlayerMap, (key) => 'Score ({key})'.fill({'key': key}), 'Score'.tr),
+            selected: !playerMap,
+            onPressed: () => onPlayerMap(false),
+          ),
+          ToolbarButton(
+            glyph: const _PlayerMapGlyph(),
+            tooltip: keyed(context, KeyCommand.showPlayerMap, (key) => 'Player map ({key})'.fill({'key': key}), 'Player Map'.tr),
+            selected: playerMap,
+            onPressed: () => onPlayerMap(true),
+          ),
+        ],
         const Spacer(),
         _SavingIndicator(document: document),
         ToolbarButton(
@@ -313,6 +335,36 @@ class _PlayButton extends StatelessWidget {
 }
 
 /// A metronome: its case and the pendulum swung to the right.
+/// The player map's button: players on a bow, as the map seats them.
+class _PlayerMapGlyph extends StatelessWidget {
+  const _PlayerMapGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = IconTheme.of(context);
+    return CustomPaint(size: Size.square(icon.size ?? 18), painter: _PlayerMapGlyphPainter(icon.color ?? context.colors.text));
+  }
+}
+
+class _PlayerMapGlyphPainter extends CustomPainter {
+  const _PlayerMapGlyphPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 24);
+    final dot = Paint()..color = color;
+    // A front bow of five, two behind.
+    for (final (x, y, r) in const [(4.0, 15.5, 1.9), (7.6, 10.4, 1.9), (12.0, 8.6, 1.9), (16.4, 10.4, 1.9), (20.0, 15.5, 1.9), (9.2, 4.2, 1.5), (14.8, 4.2, 1.5)]) {
+      canvas.drawCircle(Offset(x, y), r, dot);
+    }
+    canvas.drawCircle(const Offset(12, 19.5), 1.3, dot..color = color.withValues(alpha: 0.6)); // the conductor
+  }
+
+  @override
+  bool shouldRepaint(_PlayerMapGlyphPainter old) => old.color != color;
+}
+
 class _MetronomeGlyph extends StatelessWidget {
   const _MetronomeGlyph();
 

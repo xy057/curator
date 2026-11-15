@@ -41,8 +41,11 @@ void main() {
       await c.editText(vivo.id, 'Presto'); // texts
       c.setTransition(0.8); // the staff transition
       c.setStaffSpace(6); // the view: not an Undo step
+      c.playerMap.set(c.playerMap.smart(SeatingPreset.ensemble)); // the player map
 
       c.tab = BottomTab.audio; // the tab doesn't decide what Undo undoes
+      c.undo();
+      expect(c.playerMap.map, isNull);
       c.undo();
       expect(c.curation!.transition, 0.3);
       c.undo();
@@ -56,7 +59,7 @@ void main() {
       expect(c.canUndo, isFalse);
       expect(c.staffSpace, 6);
 
-      for (var i = 0; i < 5; i++) {
+      for (var i = 0; i < 6; i++) {
         c.redo();
       }
       expect(c.curation!.transition, 0.8);

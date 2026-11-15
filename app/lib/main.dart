@@ -39,6 +39,7 @@ import 'lilypond_editor.dart';
 import 'media_converter.dart';
 import 'phrase_search_window.dart';
 import 'pdf_ai_model_dialog.dart';
+import 'player_map_view.dart';
 import 'plugins/bundled.dart';
 import 'plugins/plugin_actions.dart';
 import 'plugins/plugins.dart';
@@ -719,6 +720,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'showTimeline': open ? () => page._showTimeline(!page._timelineShown) : null,
           'maximizePreview': open ? () => page._maximize(timeline: false) : null,
           'maximizeTimeline': open ? () => page._maximize(timeline: true) : null,
+          'showPlayerMap': open ? () => settings.playerMap = !settings.playerMap : null,
           'showTabBar': () => settings.tabBar = !_tabBar,
           'showAllTabs': _tabBar ? null : () => settings.tabBar = true,
           'previousTab': tabs.isEmpty || !free ? null : () => _step(-1),
@@ -759,6 +761,8 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           onShowTimeline: open ? page._showTimeline : null,
           onMaximizePreview: does['maximizePreview'],
           onMaximizeTimeline: does['maximizeTimeline'],
+          playerMapShown: settings.playerMap,
+          onShowPlayerMap: open ? (on) => settings.playerMap = on : null,
           onNextTab: does['nextTab'],
           onPreviousTab: does['previousTab'],
           tabBarShown: _tabBar,
@@ -969,10 +973,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// settings (a slider in Settings changes them many times a second).
   late final _shown = ValueNotifier(_shownSettings);
 
-  ({bool videoFrame, VideoRatio videoRatio, bool tabBar}) get _shownSettings => (
+  ({bool videoFrame, VideoRatio videoRatio, bool tabBar, bool playerMap}) get _shownSettings => (
         videoFrame: settings.previewVideoFrame,
         videoRatio: settings.videoRatio,
         tabBar: settings.tabBar,
+        playerMap: settings.playerMap,
       );
 
   late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit]);
@@ -1781,12 +1786,22 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       // While the tab bar is hidden, its tabs (Home among them) are a click away.
       onShowTabBar: settings.tabBar ? null : () => settings.tabBar = true,
       readout: _readout,
+      playerMap: settings.playerMap,
+      onPlayerMap: (on) => settings.playerMap = on,
     );
-    final score = Expanded(child: ScoreView(
+    final view = ScoreView(
       key: _scoreView,
       controller: controller,
       aspectRatio: settings.previewVideoFrame ? settings.videoFormat.aspectRatio : null,
-    ));
+    );
+    // The toolbar's switch (View ▸ Show Player Map): the map in the score's place. The score is
+    // kept, offstage, so it comes back as it was.
+    final score = Expanded(
+      child: Stack(fit: StackFit.expand, children: [
+        Offstage(offstage: settings.playerMap, child: view),
+        if (settings.playerMap) PlayerMapPanel(controller: controller),
+      ]),
+    );
     // Working in the timeline leaves the image selected in the score.
     // Keyed so it keeps its state when the preview is hidden or shown around it.
     final timeline = KeyedSubtree(

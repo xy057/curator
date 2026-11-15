@@ -20,6 +20,7 @@ void main() {
     final c = EditorController(vsync: const TestVSync());
     addTearDown(c.dispose);
     await c.openFile(demoScore.path);
+    c.playerMap.set(c.playerMap.smart(SeatingPreset.american));
     final folder = Directory.systemTemp.createTempSync('web-export-');
     addTearDown(() => folder.deleteSync(recursive: true));
     final player = Uint8List.fromList(ZipEncoder().encodeBytes(Archive()
@@ -35,6 +36,7 @@ void main() {
       captionStyle: const CaptionStyle(),
       speed: const WebChoice(0.75, open: true),
       barNumbers: const WebChoice(false),
+      playerMap: const WebChoice(true, open: true),
     );
     await WebExport.write(c, out, page: page, player: player);
     expect(File('$out/index.html').readAsStringSync(), contains('<title>Intro &lt;1&gt;</title>'));
@@ -43,6 +45,12 @@ void main() {
     final loaded = await LoadedPage.load((path) => File('$out/${WebPage.folder}/$path').readAsBytes());
     expect(loaded.page.recordings.single.audio, isNull, reason: 'no recording: silent');
     expect((loaded.page.speed.value, loaded.page.speed.open, loaded.page.barNumbers.open), (0.75, true, false));
+    // The player map goes with the project, shown first, the viewer free to switch; a page
+    // written before it had one shows the score.
+    expect(loaded.edits.playerMap!.encode(), c.playerMap.map!.encode());
+    expect((loaded.page.playerMap.value, loaded.page.playerMap.open), (true, true));
+    final older = page.toJson()..['viewer'] = ({...(page.toJson()['viewer'] as Map<String, Object?>)}..remove('playerMap'));
+    expect(WebPage.fromJson(older).playerMap.value, isFalse);
 
     // The same frame as the editor's preview.
     final heard = loaded.page.recordings.single;

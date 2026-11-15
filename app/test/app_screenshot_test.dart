@@ -7,8 +7,10 @@ import 'dart:async';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/editor_toolbar.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/phrase_search_window.dart';
+import 'package:curated_score/player_map_view.dart';
 import 'package:curated_score/plugins/plugin_actions.dart';
 import 'package:curated_score/plugins/plugin_editor.dart';
 import 'package:curated_score/plugins/plugins.dart';
@@ -152,6 +154,46 @@ void main() {
     controller.setExtension('attachImage', false);
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
     await tester.pump(const Duration(milliseconds: 50));
+
+    // The toolbar's switch shows the player map in the score's place: none yet, then seated
+    // smartly, swelling at bar 37 as loud as it is played once the notes are read; in its editor a
+    // section dragged sideways, Done making it the project's in one Undo step; Score switches back.
+    await tester.tap(find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Player map'))));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(settings.playerMap, isTrue);
+    expect(find.text('No player map'), findsOneWidget);
+    controller.playerMap.set(controller.playerMap.smart(SeatingPreset.american));
+    controller.playback.seek(70.3);
+    for (var i = 0; i < 100 && identical(controller.playerMap.pulses, PlayerPulses.none); i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(identical(controller.playerMap.pulses, PlayerPulses.none), isFalse, reason: 'the notes were read');
+    await screenshot(tester, 'app-player-map');
+    final seated = controller.playerMap.map!;
+    unawaited(showPlayerMapEditor(tester.element(find.byType(ProjectPage)), controller));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(PlayerMapEditor), findsOneWidget);
+    final stageArea = find.descendant(
+        of: find.byType(PlayerMapEditor), matching: find.byWidgetPredicate((w) => w is CustomPaint && w.painter is PlayerMapPainter));
+    final area = tester.getRect(stageArea), seat = seated.sections.first.seats.first;
+    await tester.dragFrom(area.topLeft + MapStage(area.size, seated.aspect).toView(seat.x, seat.y), const Offset(60, 0));
+    await tester.pump();
+    expect(find.text('Violin I'), findsWidgets, reason: 'its name in the inspector');
+    await screenshot(tester, 'player-map-editor', inside: find.byType(PlayerMapEditor), outermost: true);
+    await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(controller.playerMap.map!.sections.first.seats.first.x, greaterThan(seat.x));
+    controller.undo();
+    expect(controller.playerMap.map, seated);
+    controller.undo();
+    expect(controller.playerMap.map, isNull);
+    await tester.tap(find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Score'))));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(settings.playerMap, isFalse);
 
     // Find Phrase (⌘F): the cellos' running sixteenths typed two octaves up, found in any key.
     PhraseSearchWindow.show(Overlay.of(tester.element(find.byType(ProjectPage))), controller);

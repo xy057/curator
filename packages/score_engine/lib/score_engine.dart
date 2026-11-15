@@ -36,6 +36,7 @@ export 'src/pdf_pages.dart';
 export 'src/pdf_score.dart';
 export 'src/pdf_text.dart';
 export 'src/phrase_search.dart';
+export 'src/player_map.dart';
 export 'src/plugin/api.dart';
 export 'src/plugin/package.dart';
 export 'src/plugin/runtime.dart';
@@ -43,6 +44,7 @@ export 'src/score_metadata.dart';
 export 'src/score_motion.dart';
 export 'src/score_edit_view.dart';
 export 'src/score_editing.dart';
+export 'src/score_dynamics.dart';
 export 'src/score_caption.dart'
     show Caption, CaptionAlign, CaptionBar, CaptionCountdown, CaptionRun, CaptionSize, CaptionSpan, CaptionStyle, captionRuns, captionSpans;
 export 'src/score_chapter.dart';

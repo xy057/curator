@@ -94,6 +94,79 @@ void main() {
     }
     saved.dispose();
     scene.dispose();
+
+    // The player map: the demo seated as an orchestra (its numbered winds one section of a
+    // player each, the strings a fan, everything on the stage), as a file and back, found again
+    // in another score by name; each note swells its players, a long one fading slower.
+    {
+      final seated = PlayerMap.smart(parts);
+      final names = [for (final s in seated.sections) s.name];
+      expect(names.take(5), ['Violin I', 'Violin II', 'Viola', 'Violoncello', 'Double Bass']);
+      expect(names, containsAll(['Piccolo', 'Flute', 'Clarinet in B♭', 'Horn in F', 'Timpani']));
+      final flutes = seated.sections.firstWhere((s) => s.name == 'Flute');
+      expect(flutes.link, isNull);
+      expect([for (final s in flutes.seats) s.link?.part], ['P2', 'P3']);
+      for (final s in seated.sections) {
+        for (final seat in [...s.seats.map((x) => (x.x, x.y)), (s.labelX, s.labelY)]) {
+          expect(seat.$1 >= 0 && seat.$1 <= 1 && seat.$2 >= 0 && seat.$2 <= 1, isTrue, reason: '${s.name} on the stage');
+        }
+      }
+      // Counted from names and staves; a contrabassoon is no bass.
+      ScorePart part(String id, String name, [int staves = 1]) =>
+          ScorePart(id: id, name: name, abbreviation: '', sound: null, staffNumbers: [for (var i = 1; i <= staves; i++) i]);
+      final band = PlayerMap.smart([part('a', 'Horn in F 1-4', 2), part('b', 'Trumpets I–III'), part('c', 'Contrabassoon'), part('d', 'Violin')]);
+      final seats = {for (final s in band.sections) s.name: [for (var i = 0; i < s.seats.length; i++) s.linkOf(i)?.key]};
+      expect(seats['Horn in F 1-4'], ['a', 'a', 'a', 'a']);
+      expect(seats['Trumpets I–III'], ['b', 'b', 'b']);
+      expect(seats['Contrabassoon'], ['c']);
+      expect(PlayerMap.smart([part('h', 'Horns 1.2', 2)]).sections.single.seats.map((s) => s.link?.key), ['h#1', 'h#2']);
+
+      final text = seated.encode();
+      expect(PlayerMap.decode(text).encode(), text);
+      expect(() => PlayerMap.decode('{"format": "something else"}'), throwsFormatException);
+      expect(() => PlayerMap.decode(text.replaceFirst('"version": 1', '"version": 2')), throwsFormatException);
+      final other = [part('X9', 'Flute 2'), part('P2', 'Oboe')];
+      final moved = PlayerMap.decode(text).relinked(other);
+      expect([for (final s in moved.sections.firstWhere((s) => s.name == 'Flute').seats) s.link?.part], [null, 'X9'],
+          reason: 'by name; P2 is an oboe there, so no flute');
+
+      final dynamics = ScoreDynamics.read(score.musicXML, starts);
+      final pulses = PlayerPulses.of(soundingNotes(score.musicXML, starts), score.timeline, seated.links, dynamics: dynamics);
+      final violins = seated.sections.first.link!;
+      final first = soundingNotes(score.musicXML, starts).firstWhere((n) => n.partId == violins.part);
+      final on = score.timeline.secondsAtQuarter(first.start);
+      expect(pulses.level(violins, on - 0.001), 0);
+      expect(pulses.level(violins, on + PlayerPulses.attack), closeTo(PlayerPulses.strengthOf(dynamics.at(violins.part, first.start)), 1e-9),
+          reason: 'as far as it is loud');
+      expect(PlayerPulses.strengthOf(ScoreDynamics.levels['pp']!), lessThan(PlayerPulses.strengthOf(ScoreDynamics.levels['ff']!)));
+
+      // Dynamics: a mark holds, a hairpin ramps to the mark it reaches (a step where none), an
+      // accent is its moment's, fp an accent then piano; mf before anything.
+      String bar(String body) => '<measure><attributes><divisions>1</divisions></attributes>$body</measure>';
+      String note(int beats) => '<note><pitch><step>C</step><octave>4</octave></pitch><duration>$beats</duration></note>';
+      String dyn(String mark) => '<direction><direction-type><dynamics><$mark/></dynamics></direction-type></direction>';
+      String wedge(String type) => '<direction><direction-type><wedge type="$type"/></direction-type></direction>';
+      final read = ScoreDynamics.read(
+          '<score-partwise><part id="P1">'
+          '${bar('${note(1)}${dyn('p')}${wedge('crescendo')}${note(4)}${wedge('stop')}${dyn('f')}${note(1)}')}'
+          '${bar('${wedge('diminuendo')}${note(2)}${wedge('stop')}${note(1)}${dyn('sfz')}${note(1)}${note(1)}${dyn('fp')}${note(1)}')}'
+          '</part></score-partwise>',
+          [0, 6, 12]);
+      final levels = ScoreDynamics.levels;
+      expect(read.at('P1', 0), ScoreDynamics.standard);
+      expect(read.at('P1', 1), levels['p']);
+      expect(read.at('P1', 3), closeTo((levels['p']! + levels['f']!) / 2, 1e-9));
+      expect(read.at('P1', 5), levels['f']);
+      expect(read.at('P1', 7), closeTo(levels['f']! - ScoreDynamics.step / 2, 1e-9));
+      expect(read.at('P1', 8), closeTo(levels['f']! - ScoreDynamics.step, 1e-9), reason: 'no mark ends it: a step softer, held');
+      expect(read.at('P1', 9), ScoreDynamics.accents['sfz']!.$1);
+      expect(read.at('P1', 10), closeTo(levels['f']! - ScoreDynamics.step, 1e-9));
+      expect((read.at('P1', 11), read.at('P1', 11.5)), (ScoreDynamics.accents['fp']!.$1, levels['p']));
+      expect(read.at('P9', 3), ScoreDynamics.standard);
+      expect(PlayerPulses.envelope(0.3, 0.1), lessThan(PlayerPulses.envelope(0.3, 2)), reason: 'a long note fades slower');
+      expect(PlayerPulses.envelope(PlayerPulses.attack + PlayerPulses.fadeOf(0.5), 0.5), 0);
+      expect(pulses.level(const PlayerLink('nobody'), on), 0);
+    }
   });
 
   test('curation: regions drawn and erased, a region leaving out a staff, auto-curate only where staves would run off', () async {
