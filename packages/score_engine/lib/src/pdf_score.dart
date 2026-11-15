@@ -380,8 +380,13 @@ abstract final class PdfEngraving {
     final out = <int>{};
     final bars = math.min(layout.bars.length, data.measures.length);
     if (bars == 0) return out;
-    // The bars are in order along the line: from the last starting at or before [left].
-    for (var bar = segmentAt(bars + 1, left, (i) => data.measures[i].left); bar < bars; bar++) {
+    // The bars are in order along the line, end to end: from the last starting at or before
+    // [left], and any before it ending there.
+    var first = math.max(0, lastAtOrBefore(bars, left, (i) => data.measures[i].left));
+    while (first > 0 && data.measures[first - 1].right >= left) {
+      first--;
+    }
+    for (var bar = first; bar < bars; bar++) {
       final m = data.measures[bar];
       if (m.left > right) break;
       if (m.right < left) continue;

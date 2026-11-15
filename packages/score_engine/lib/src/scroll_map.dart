@@ -329,7 +329,7 @@ class ScrollMap {
 
   double get duration => _curves.last.end;
 
-  int _passAt(double t) => segmentAt(_starts.length + 1, t, (i) => i < _starts.length ? _starts[i] : double.infinity);
+  int _passAt(double t) => math.max(0, lastAtOrBefore(_starts.length, t, (i) => _starts[i]));
 
   /// How long the score takes to come to rest after the final barline reaches the pointer.
   double get settle => motion.settle;
@@ -633,7 +633,7 @@ class _ScoreShape {
         }(),
     ];
     double xAtQuarter(double q) {
-      final i = segmentAt(measures.length + 1, q, (i) => starts[i]);
+      final i = math.max(0, lastAtOrBefore(measures.length, q, (i) => starts[i]));
       return ScrollMap._interpolate(points[i], q - starts[i]);
     }
 

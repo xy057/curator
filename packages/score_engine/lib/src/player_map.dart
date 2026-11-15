@@ -1028,9 +1028,8 @@ class _Events {
 
   double level(double t) {
     // The last onset at or before t.
-    if (onsets.isEmpty) return 0;
-    final last = segmentAt(onsets.length + 1, t, (i) => onsets[i]);
-    if (onsets[last] > t) return 0;
+    final last = lastAtOrBefore(onsets.length, t, (i) => onsets[i]);
+    if (last < 0) return 0;
     var level = 0.0;
     const window = PlayerPulses.attack + PlayerPulses.longest;
     for (var i = last; i >= 0 && t - onsets[i] < window; i--) {

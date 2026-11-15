@@ -171,8 +171,8 @@ class FrozenZone {
       if (list == null || list.isEmpty) return null;
       // Before anything has passed the edge, only an opening signature applies; a staff
       // with no opening key (e.g. horns in C) shows none until its first key change.
-      final last = list[segmentAt(list.length + 1, x, (i) => list[i].x)]; // they are in order
-      return last.x <= x ? last : (list.first.x < _firstOnset ? list.first : null);
+      final last = lastAtOrBefore(list.length, x, (i) => list[i].x); // they are in order
+      return last >= 0 ? list[last] : (list.first.x < _firstOnset ? list.first : null);
     }
 
     return (clef: current(_clefs[staff]), key: current(_keys[staff]), time: current(_meters[staff]));

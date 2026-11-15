@@ -193,7 +193,7 @@ class EditGalley {
   /// Chunk [k]'s left edge in the galley.
   double chunkLeft(int k) => _lefts[k];
 
-  int _chunkAtX(double x) => segmentAt(_lefts.length + 1, x, (k) => _lefts[k]); // they go left to right
+  int _chunkAtX(double x) => math.max(0, lastAtOrBefore(_lefts.length, x, (k) => _lefts[k])); // they go left to right
 
   /// How far chunk [k]'s staff [n] moves to its place.
   ui.Offset _shift(int k, int n) {

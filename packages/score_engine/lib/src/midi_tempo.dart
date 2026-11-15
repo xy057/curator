@@ -151,7 +151,7 @@ class MidiTempoMap {
   }();
 
   /// The last change whose [key] is at or before [value] (the first before them all).
-  int _lastAtOrBefore(double value, double Function(int i) key) => segmentAt(tempos.length + 1, value, key);
+  int _lastAtOrBefore(double value, double Function(int i) key) => math.max(0, lastAtOrBefore(tempos.length, value, key));
 
   // MARK: Editing
 

@@ -377,7 +377,7 @@ class _RulerPainter extends CustomPainter {
     for (final (k, bars) in _barsByPass(tl).indexed) {
       double xOf(int j) => v.x(tl.secondsAtQuarter(starts[bars[j]], pass: k));
       // Along a pass the bars go left to right: from the last left of the ruler, to its right end.
-      for (var j = segmentAt(bars.length + 1, -40, xOf); j < bars.length; j++) {
+      for (var j = math.max(0, lastAtOrBefore(bars.length, -40, xOf)); j < bars.length; j++) {
         final i = bars[j], x = xOf(j);
         if (x > size.width + 40) break;
         if (x < -40) continue;
