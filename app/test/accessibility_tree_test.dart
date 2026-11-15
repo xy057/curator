@@ -7,6 +7,7 @@
 import 'dart:async';
 
 import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/daw_link.dart';
 import 'package:curated_score/dialog_kit.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
@@ -22,7 +23,7 @@ void main() {
   final binding = AccessibilityMirrorBinding();
   final mirror = binding.mirror;
 
-  testWidgets('every settings page, scrolled through in a short window and reached by the sidebar, keeps the accessibility tree whole; a MIDI project’s engraving pages are greyed out', (tester) async {
+  testWidgets('every settings page, scrolled through in a short window and reached by the sidebar, keeps the accessibility tree whole; a MIDI project’s engraving pages are greyed out; where Curator Link can’t be, it says so', (tester) async {
     tester.view
       ..physicalSize = const Size(2000, 1240)
       ..devicePixelRatio = 2;
@@ -151,6 +152,21 @@ void main() {
     expect((find.text('Names').evaluate().length, find.text('Noteheads').evaluate().length), (1, 0));
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await frames('closing a MIDI project’s Engraving');
+
+    // Off macOS Curator Link isn't there: Settings say so, and its switch is off for good.
+    CuratorLinkPlugIns.debugSupported = false;
+    addTearDown(() => CuratorLinkPlugIns.debugSupported = null);
+    unawaited(showSettingsDialog(context(), settings, controller: c, page: 'General'));
+    await frames('Settings without Curator Link');
+    await tester.enterText(find.byType(SearchField), 'Curator Link');
+    await frames('Settings without Curator Link, searched');
+    expect(find.text('Curator Link is not available for this operating system.'), findsOneWidget);
+    expect(find.text('OS not supported'), findsOneWidget);
+    expect(find.text('Install'), findsNothing);
+    expect(tester.widget<AppSwitch>(find.descendant(of: find.ancestor(of: find.text('Listen for Curator Link'), matching: find.byType(Row)).first,
+        matching: find.byType(AppSwitch))).onChanged, isNull);
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await frames('closing Settings without Curator Link');
     handle.dispose();
   });
 }

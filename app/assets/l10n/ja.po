@@ -5474,3 +5474,10 @@ msgstr "ステムを取り込み中"
 #: lib/settings_dialog.dart
 msgid "Uninstall"
 msgstr "アンインストール"
+
+#: lib/settings_dialog.dart
+msgid "OS not supported"
+msgstr "このOSには非対応"
+
+msgid "Curator Link is not available for this operating system."
+msgstr "Curator Link はこのオペレーティングシステムでは使用できません。"

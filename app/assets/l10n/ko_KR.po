@@ -5460,3 +5460,10 @@ msgstr ""
 #: lib/settings_dialog.dart
 msgid "Uninstall"
 msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "OS not supported"
+msgstr ""
+
+msgid "Curator Link is not available for this operating system."
+msgstr ""

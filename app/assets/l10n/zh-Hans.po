@@ -5474,3 +5474,10 @@ msgstr "正在采集分轨"
 #: lib/settings_dialog.dart
 msgid "Uninstall"
 msgstr "卸载"
+
+#: lib/settings_dialog.dart
+msgid "OS not supported"
+msgstr "不支持此系统"
+
+msgid "Curator Link is not available for this operating system."
+msgstr "Curator Link 不适用于此操作系统。"

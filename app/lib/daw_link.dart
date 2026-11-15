@@ -265,7 +265,13 @@ abstract final class CuratorLinkPlugIns {
   static const asset = 'assets/daw_link/CuratorLink.zip';
   static const vst3 = 'Curator Link.vst3', component = 'Curator Link.component';
 
-  static bool get supported => Platform.isMacOS;
+  /// Whether this system can have it: macOS. Elsewhere Settings say it isn't available and
+  /// Follow DAW… is greyed out; Curator doesn't listen.
+  static bool get supported => debugSupported ?? Platform.isMacOS;
+
+  /// Stands in for the system in tests; null: the real one.
+  @visibleForTesting
+  static bool? debugSupported;
 
   /// `~/Library/Audio/Plug-Ins`, or null without a home.
   static String? get plugInsFolder {

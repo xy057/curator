@@ -73,7 +73,7 @@ Future<void> main() async {
   if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
   final updater = Updater(channel: settings.updateChannel);
   if (settings.checkForUpdates) unawaited(updater.check());
-  runApp(CuratedScoreApp(settings: settings, updater: updater, plugins: plugins, dawLink: DawLink.shared));
+  runApp(CuratedScoreApp(settings: settings, updater: updater, plugins: plugins, dawLink: CuratorLinkPlugIns.supported ? DawLink.shared : null));
 }
 
 /// The interface's languages: each translations file the bundle has.

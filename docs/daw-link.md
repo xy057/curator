@@ -20,7 +20,9 @@ can then:
 ## Installing
 
 Curator Link runs on macOS (Apple silicon and Intel). Curator carries it, so there is nothing to
-download.
+download. On Windows and Linux, Settings ▸ General ▸ DAW says Curator Link is not available for
+the system ("OS not supported"), Listen for Curator Link stays off, Curator opens no port, and the
+Audio tab's Sync ▸ Follow DAW… is greyed out. A project's stems are kept and can be edited there.
 
 1. **Quit your DAW.** A DAW reads its plug-ins when it starts.
 2. In Curator, open **Settings ▸ General ▸ DAW** and click **Install** next to
@@ -195,4 +197,5 @@ Fields are only added over time. A message type or field that one side doesn't k
 The SDKs' licences are in `app/assets/daw_link/LICENSES.txt`. That file is shown under Settings
 ▸ About ▸ Licenses and copied into each bundle.
 
-Only macOS is built so far. The protocol and Curator's side don't depend on the system.
+Only macOS is built so far (`CuratorLinkPlugIns.supported`). The protocol and Curator's side don't depend on
+the system.

@@ -362,16 +362,19 @@ final _categories = <_Category>[
     ),
     _Item(
       'Listen for Curator Link',
-      null,
-      (c) => AppSwitch(value: c.settings.dawLink, onChanged: (v) => c.settings.dawLink = v),
+      (_) => CuratorLinkPlugIns.supported ? null : 'Curator Link is not available for this operating system.',
+      (c) => CuratorLinkPlugIns.supported
+          ? AppSwitch(value: c.settings.dawLink, onChanged: (v) => c.settings.dawLink = v)
+          : const AppSwitch(value: false, onChanged: null),
       group: 'DAW',
       keywords: 'daw ara plugin plug-in link cubase logic studio one reaper nuendo tempo map transport playhead recording',
     ),
     _Item(
       'Curator Link plug-in',
       null,
-      (c) => const _CuratorLinkPlugIns(),
-      shown: (_) => CuratorLinkPlugIns.supported,
+      (c) => CuratorLinkPlugIns.supported
+          ? const _CuratorLinkPlugIns()
+          : Builder(builder: (context) => Text('OS not supported'.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted))),
       group: 'DAW',
       keywords: 'install update daw ara plugin plug-in vst3 audio unit component cubase logic studio one reaper',
     ),
