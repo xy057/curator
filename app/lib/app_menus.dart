@@ -8,6 +8,23 @@ import 'key_bindings.dart';
 import 'l10n/l10n.dart';
 import 'plugins/plugins.dart';
 
+/// The MIDI menu as it is now ([AppMenus.midi]): what is on ([velocity]: louder notes darker;
+/// [sharedRange]: every row's height the same span of pitches; [fileTempo]: it plays by its
+/// file's own tempo map), and what each item does, null (greyed out) when it can't (a row at
+/// its tallest, the file's tempo followed already).
+typedef MidiMenu = ({
+  bool velocity,
+  bool sharedRange,
+  bool fileTempo,
+  VoidCallback? onVelocity,
+  VoidCallback? onSharedRange,
+  VoidCallback? onTallerRows,
+  VoidCallback? onShorterRows,
+  VoidCallback? onWiderBeats,
+  VoidCallback? onNarrowerBeats,
+  VoidCallback? onFileTempo,
+});
+
 /// The menu bar: native on macOS, a Material menu bar at the top of the window elsewhere.
 /// Both are built from the same [PlatformMenu] description.
 class AppMenus extends StatelessWidget {
@@ -49,6 +66,7 @@ class AppMenus extends StatelessWidget {
     this.onPreviousTab,
     this.tabBarShown = true,
     this.onShowTabBar,
+    this.midi,
     this.plugins,
     this.free = true,
     this.typing = false,
@@ -114,8 +132,8 @@ class AppMenus extends StatelessWidget {
   final bool previewShown, timelineShown;
   final ValueChanged<bool>? onShowPreview, onShowTimeline;
 
-  /// View ▸ Show Player Map / Show Score: the project's map in the score's place (the toolbar's
-  /// switch); null while nothing is open.
+  /// View ▸ Show Player Map / Show Score (Show MIDI View for a MIDI project): the project's map
+  /// in the score's place (the toolbar's switch); null while nothing is open.
   final bool playerMapShown;
   final ValueChanged<bool>? onShowPlayerMap;
 
@@ -130,6 +148,10 @@ class AppMenus extends StatelessWidget {
   /// and is greyed out while it shows.
   final bool tabBarShown;
   final ValueChanged<bool>? onShowTabBar;
+
+  /// The MIDI menu, for a MIDI project (its notes drawn in rows, nothing engraved); null, and no
+  /// such menu, while another project or none shows.
+  final MidiMenu? midi;
 
   static bool get _mac => defaultTargetPlatform == TargetPlatform.macOS;
 
@@ -148,6 +170,9 @@ class AppMenus extends StatelessWidget {
     if (plugins.hides(id)) return null;
     return _MenuItem(id, label: plugins.titleFor(id) ?? label, shortcut: shortcut, onSelected: plugins.wrapped(id, onSelected));
   }
+
+  /// [title] as an item that is on or off: ticked while [on] (a plugin's `checked` likewise).
+  static String _ticked(String title, bool on) => on ? '✓ $title' : title;
 
   PlatformMenuItemGroup get _tabs => PlatformMenuItemGroup(members: [
         ?_own('previousTab', 'Show Previous Tab'.tr, shortcut: _keyOf(KeyCommand.previousTab), onSelected: onPreviousTab),
@@ -259,7 +284,7 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             ?_own(
               'showPlayerMap',
-              playerMapShown ? 'Show Score'.tr : 'Show Player Map'.tr,
+              playerMapShown ? (midi == null ? 'Show Score'.tr : 'Show MIDI View'.tr) : 'Show Player Map'.tr,
               shortcut: _keyOf(KeyCommand.showPlayerMap),
               onSelected: onShowPlayerMap == null ? null : () => onShowPlayerMap!(!playerMapShown),
             ),
@@ -280,6 +305,26 @@ class AppMenus extends StatelessWidget {
           ]),
           if (!_mac) _tabs,
         ]),
+        if (midi case final midi?)
+          _Menu('MIDI', label: 'MIDI'.tr, menus: [
+            PlatformMenuItemGroup(members: [
+              ?_own('midiVelocity', _ticked('Shade Notes by Velocity'.tr, midi.velocity),
+                  shortcut: _keyOf(KeyCommand.midiVelocity), onSelected: midi.onVelocity),
+              ?_own('midiSharedRange', _ticked('Shared Pitch Range'.tr, midi.sharedRange),
+                  shortcut: _keyOf(KeyCommand.midiSharedRange), onSelected: midi.onSharedRange),
+            ]),
+            PlatformMenuItemGroup(members: [
+              ?_own('midiTallerRows', 'Taller Rows'.tr, shortcut: _keyOf(KeyCommand.midiTallerRows), onSelected: midi.onTallerRows),
+              ?_own('midiShorterRows', 'Shorter Rows'.tr, shortcut: _keyOf(KeyCommand.midiShorterRows), onSelected: midi.onShorterRows),
+              ?_own('midiWiderBeats', 'Wider Beats'.tr, shortcut: _keyOf(KeyCommand.midiWiderBeats), onSelected: midi.onWiderBeats),
+              ?_own('midiNarrowerBeats', 'Narrower Beats'.tr,
+                  shortcut: _keyOf(KeyCommand.midiNarrowerBeats), onSelected: midi.onNarrowerBeats),
+            ]),
+            PlatformMenuItemGroup(members: [
+              ?_own('midiFileTempo', _ticked('Use File’s Tempo'.tr, midi.fileTempo),
+                  shortcut: _keyOf(KeyCommand.midiFileTempo), onSelected: midi.onFileTempo),
+            ]),
+          ]),
         if (_mac)
           _Menu('Window', label: 'Window'.tr, menus: [
             PlatformMenuItemGroup(members: [
@@ -378,7 +423,7 @@ class AppMenus extends StatelessWidget {
     final plugins = this.plugins!, title = plugins.titleOf(entry), key = chords[entry.command.id];
     return _MenuItem(
       entry.command.id,
-      label: entry.runtime.isChecked(entry.command) ? '✓ $title' : title,
+      label: _ticked(title, entry.runtime.isChecked(entry.command)),
       shortcut: key != null && _menuKey(key) ? key.activator : null,
       onSelected: free && entry.runtime.canRun(entry.command) ? () => plugins.perform(entry) : null,
     );

@@ -27,6 +27,8 @@ export 'src/key_signatures.dart';
 export 'src/lilypond_score.dart';
 export 'src/lilypond_svg.dart' show readLilyPondSvg;
 export 'src/lua.dart';
+export 'src/midi_file.dart';
+export 'src/midi_score.dart';
 export 'src/midi_tempo.dart';
 export 'src/pdf_ai.dart';
 export 'src/pdf_ai_exam.dart';

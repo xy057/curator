@@ -391,11 +391,15 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   static const _scoreTypes = XTypeGroup(label: 'MusicXML', extensions: _scoreExtensions);
   static const _pdfTypes = XTypeGroup(label: 'PDF', extensions: ['pdf']);
   static const _lilyPondTypes = XTypeGroup(label: 'LilyPond', extensions: LilyPond.extensions);
-  /// What Import… takes: a PDF to set out in its import, or a LilyPond score for LilyPond to engrave.
-  static XTypeGroup get _importableTypes => XTypeGroup(label: 'Scores'.tr, extensions: const ['pdf', ...LilyPond.extensions]);
-  /// What Replace… takes: a score file, a PDF to set out in its import, or a LilyPond score.
+  static XTypeGroup get _midiTypes => XTypeGroup(label: 'MIDI', extensions: MediaFormats.midi.toList());
+  /// What Import… takes: a PDF to set out in its import, a LilyPond score for LilyPond to
+  /// engrave, or a MIDI file to show as rows of its notes.
+  static XTypeGroup get _importableTypes =>
+      XTypeGroup(label: 'Scores'.tr, extensions: ['pdf', ...LilyPond.extensions, ...MediaFormats.midi]);
+  /// What Replace… takes: a score file, a PDF to set out in its import, a LilyPond score, or a
+  /// MIDI file.
   static XTypeGroup get _replaceableTypes =>
-      XTypeGroup(label: 'Scores'.tr, extensions: const [..._scoreExtensions, 'pdf', ...LilyPond.extensions]);
+      XTypeGroup(label: 'Scores'.tr, extensions: [..._scoreExtensions, 'pdf', ...LilyPond.extensions, ...MediaFormats.midi]);
   static XTypeGroup get _projectTypes => XTypeGroup(label: 'Curator project'.tr, extensions: const [ProjectFile.extension]);
 
   @override
@@ -601,10 +605,10 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     if (file != null && mounted) _openPath(file.path);
   }
 
-  /// Import… (⌘I): a PDF score, set out in its import, or a LilyPond score, engraved by
-  /// LilyPond, to start a new project in a new tab.
+  /// Import… (⌘I): a PDF score, set out in its import, a LilyPond score, engraved by LilyPond,
+  /// or a MIDI file, shown as rows of its notes, to start a new project in a new tab.
   Future<void> _import() async {
-    final file = await openFile(acceptedTypeGroups: [_importableTypes, _pdfTypes, _lilyPondTypes]);
+    final file = await openFile(acceptedTypeGroups: [_importableTypes, _pdfTypes, _lilyPondTypes, _midiTypes]);
     if (file != null && mounted) _openPath(file.path);
   }
 
@@ -666,11 +670,11 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
 
   // MARK: Home's drops
 
+  /// A MIDI file opens as a project of its own (on an open project's Audio tab it is that
+  /// score's tempo map instead).
   void _droppedOnHome(String path) {
-    if (MediaFormats.isMidi(path) || MediaFormats.isRecording(path)) {
-      _snack(MediaFormats.isMidi(path)
-          ? 'Open a score first, then its MIDI tempo map.'
-          : 'Open a score first, then its recording.');
+    if (MediaFormats.isRecording(path)) {
+      _snack('Open a score first, then its recording.');
     } else {
       _openPath(path);
     }
@@ -693,6 +697,13 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
         // a key the field leaves unused would otherwise reach the menu.
         final edit = page != null && !_typing.value && free ? page._edit.value : null;
         final commands = page?._commands;
+        // The MIDI menu's, for a MIDI project: a change of its look, greyed out when it changes
+        // nothing (a row at its tallest) or a dialog is up.
+        final midi = open ? page._midi.value : null;
+        VoidCallback? midiLook(MidiLook Function(MidiLook) change) {
+          final look = midi?.look, next = look == null ? null : change(look);
+          return next == null || next == look || !free ? null : () => unawaited(page!.controller.setMidiLook(next));
+        }
         // Each of the app's commands as it can be chosen now, by its id: the menus' items, and
         // what a plugin runs.
         final does = _commands = <String, VoidCallback?>{
@@ -721,6 +732,13 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'maximizePreview': open ? () => page._maximize(timeline: false) : null,
           'maximizeTimeline': open ? () => page._maximize(timeline: true) : null,
           'showPlayerMap': open ? () => settings.playerMap = !settings.playerMap : null,
+          'midiVelocity': midiLook((look) => look.copyWith(velocity: !look.velocity)),
+          'midiSharedRange': midiLook((look) => look.copyWith(sharedRange: !look.sharedRange)),
+          'midiTallerRows': midiLook((look) => look.rows(1)),
+          'midiShorterRows': midiLook((look) => look.rows(-1)),
+          'midiWiderBeats': midiLook((look) => look.beats(1)),
+          'midiNarrowerBeats': midiLook((look) => look.beats(-1)),
+          'midiFileTempo': midi == null || midi.fileTempo || !free ? null : page!.controller.useFileTempo,
           'showTabBar': () => settings.tabBar = !_tabBar,
           'showAllTabs': _tabBar ? null : () => settings.tabBar = true,
           'previousTab': tabs.isEmpty || !free ? null : () => _step(-1),
@@ -767,6 +785,20 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           onPreviousTab: does['previousTab'],
           tabBarShown: _tabBar,
           onShowTabBar: (on) => settings.tabBar = on,
+          midi: midi == null
+              ? null
+              : (
+                  velocity: midi.look.velocity,
+                  sharedRange: midi.look.sharedRange,
+                  fileTempo: midi.fileTempo,
+                  onVelocity: does['midiVelocity'],
+                  onSharedRange: does['midiSharedRange'],
+                  onTallerRows: does['midiTallerRows'],
+                  onShorterRows: does['midiShorterRows'],
+                  onWiderBeats: does['midiWiderBeats'],
+                  onNarrowerBeats: does['midiNarrowerBeats'],
+                  onFileTempo: does['midiFileTempo'],
+                ),
           child: window!,
         );
       },
@@ -980,7 +1012,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         playerMap: settings.playerMap,
       );
 
-  late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit]);
+  /// A MIDI project's look and whether it plays by its file's own tempo map: what the MIDI menu
+  /// shows; null for any other project (and no such menu).
+  final _midi = ValueNotifier<({MidiLook look, bool fileTempo})?>(null);
+
+  late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit, _midi]);
 
   void _settingsChanged() {
     controller.takeSettings(settings);
@@ -1043,6 +1079,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final open = controller.score != null;
     _hasScore.value = open;
     _canExport.value = open && !controller.isReengraving;
+    _midi.value = controller.isMidi ? (look: controller.midiLook, fileTempo: controller.followsFileTempo) : null;
     _edit.value = (
       undo: controller.canUndo,
       redo: controller.canRedo,
@@ -1086,6 +1123,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     _hasScore.dispose();
     _canExport.dispose();
     _isSample.dispose();
+    _midi.dispose();
     _edit.dispose();
     _shown.dispose();
     _keys.dispose();
@@ -1135,6 +1173,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       await _guard(() => _importPdf(path), title: 'Couldn’t Import PDF'.tr);
     } else if (LilyPond.isLilyPond(path)) {
       await _guard(() => _importLilyPond(path), title: 'Couldn’t Import LilyPond Score'.tr);
+    } else if (MediaFormats.isMidi(path)) {
+      await _guard(() => document.importMidi(path), title: 'Couldn’t Import MIDI File'.tr);
     } else {
       await _guard(() async {
         await document.importScore(path);
@@ -1450,14 +1490,23 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// out in its import first, which takes the window ([leave] closes it). Asks first when the
   /// two differ; picked a score file, the project is a score's, a PDF, a PDF's.
   Future<void> _replaceScore(VoidCallback leave) async {
-    final file = await openFile(
-        acceptedTypeGroups: [_AppWindowState._replaceableTypes, _AppWindowState._scoreTypes, _AppWindowState._pdfTypes]);
+    final file = await openFile(acceptedTypeGroups: [
+      _AppWindowState._replaceableTypes,
+      _AppWindowState._scoreTypes,
+      _AppWindowState._pdfTypes,
+      _AppWindowState._midiTypes,
+    ]);
     if (file == null || !mounted || controller.score == null) return;
     if (file.path.toLowerCase().endsWith('.pdf')) {
       leave();
       await _guard(() => _replaceWithPdf(file.path), title: 'Couldn’t Import PDF'.tr);
     } else if (LilyPond.isLilyPond(file.path)) {
       await _guard(() => _replaceWithLilyPond(file.path), title: 'Couldn’t Import LilyPond Score'.tr);
+    } else if (MediaFormats.isMidi(file.path)) {
+      await _guard(() async {
+        final bytes = await File(file.path).readAsBytes();
+        await _putInPlace(await document.prepareReplacementWith(fileNameOf(file.path), bytes, midi: true));
+      }, title: 'Couldn’t Import MIDI File'.tr);
     } else {
       await _guard(() async => _putInPlace(await document.prepareReplacement(file.path)));
     }
@@ -1512,7 +1561,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// first when the two differ).
   Future<void> _editScore() async {
     final loaded = controller.score;
-    if (loaded == null) return;
+    if (loaded == null || controller.isMidi) return; // a MIDI project's notes are its file's
     if (loaded.pdf case final pdf?) return _editPdf(pdf.layout);
     if (controller.lilypond case final lilypond?) return _editLilyPond(lilypond);
     final name = '${stemOf(controller.fileName ?? document.title ?? 'Score')}.musicxml';

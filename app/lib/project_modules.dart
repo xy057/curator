@@ -70,10 +70,11 @@ abstract final class ProjectModules {
   static const view = _View();
   static const pdf = _Pdf();
   static const lilypond = _LilyPond();
+  static const midi = _Midi();
 
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
-    pdf, lilypond, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, chapters, //
+    pdf, lilypond, midi, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, chapters, //
     tonality, spacers, packages, extensionData, playerMap, view,
   ];
 
@@ -953,4 +954,19 @@ final class _LilyPond extends ProjectModule {
       ),
     );
   }
+}
+
+/// A MIDI project's ([ProjectKind.midi]) view: how its rows are drawn ([EditState.midiLook], the
+/// MIDI menu's); any other project's is empty. Optional: a Curator that knows nothing of it
+/// can't read a MIDI project's score, and loses nothing of any other's.
+final class _Midi extends ProjectModule {
+  const _Midi() : super('midi', optional: true);
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) =>
+      state.kind == ProjectKind.midi ? {'look': state.edits.midiLook.toJson()} : const {};
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) =>
+      r.isAbsent('look') ? state : state.copyWith(edits: state.edits.copyWith(midiLook: MidiLook.fromJson(r.map('look'))));
 }

@@ -126,7 +126,9 @@ class EditorToolbar extends StatelessWidget {
           // The score or the player map in its place: one lit, as a segmented switch.
           ToolbarButton(
             icon: AppIcon.score.of(context),
-            tooltip: keyed(context, KeyCommand.showPlayerMap, (key) => 'Score ({key})'.fill({'key': key}), 'Score'.tr),
+            tooltip: c.isMidi
+                ? keyed(context, KeyCommand.showPlayerMap, (key) => 'MIDI view ({key})'.fill({'key': key}), 'MIDI View'.tr)
+                : keyed(context, KeyCommand.showPlayerMap, (key) => 'Score ({key})'.fill({'key': key}), 'Score'.tr),
             selected: !playerMap,
             onPressed: () => onPlayerMap(false),
           ),

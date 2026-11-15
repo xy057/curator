@@ -196,6 +196,76 @@ class EditorController extends ChangeNotifier {
     await _install(name, bytes, score, ProjectState(edits: edits, lilypond: lilypond));
   }
 
+  /// Opens (imports) a MIDI file: [bytes], named [name]. Its notes are drawn in rows (the MIDI
+  /// view), each in its instrument's colour, and it plays by its own tempo map.
+  Future<void> openMidi(String name, Uint8List bytes) async {
+    final (:score, :tempo) = await _startLoading(() => _readMidi(name, bytes, tempo: true));
+    final edits = (await _newProjectEdits()).copyWith(colorNames: true, midi: tempo);
+    final loaded = await _engrave('', _requestFor(edits), midi: score, measure: autoCurateImported);
+    await _install(name, bytes, loaded, ProjectState(edits: edits, kind: ProjectKind.midi));
+  }
+
+  /// The MIDI file [bytes] read as a score, and with [tempo] its tempo map, on another isolate
+  /// (a closure of its own, so it takes nothing else along).
+  static Future<({MidiScore score, MidiTempoMap? tempo})> _readMidi(String name, Uint8List bytes, {bool tempo = false}) => Isolate.run(
+      () => (score: MidiScore.read(bytes, title: stemOf(name)), tempo: tempo ? MidiTempoMap.read(bytes, name: name) : null));
+
+  /// Whether the open project is a MIDI file's ([openMidi], [ProjectKind.midi]): drawn as rows
+  /// of its notes, with nothing engraved to set or edit.
+  bool get isMidi => _score != null && _kind == ProjectKind.midi;
+
+  /// How a MIDI project's rows are drawn (the MIDI menu's).
+  MidiLook get midiLook => _doc.midiLook;
+
+  /// Draws a MIDI project's rows as [look] says: one Undo step. The future completes when
+  /// they are laid out again.
+  Future<void> setMidiLook(MidiLook look) async {
+    if (!isMidi || look == _doc.midiLook) return;
+    _doc = _doc.copyWith(midiLook: look);
+    final engraved = _reengrave();
+    _edited(); // one Undo step, right away
+    await engraved;
+  }
+
+  /// Whether a MIDI project plays by its file's own tempo map, as it came: what
+  /// [useFileTempo] puts back.
+  bool get followsFileTempo {
+    // Asked at every change (the menus'): compared once for each tempo map followed.
+    final followed = _doc.midi, file = _fileTempo;
+    if (!identical(followed, _followedTempo.$1) || !identical(file, _followedTempo.$2)) {
+      _followedTempo = (followed, file, followed != null && followed == file);
+    }
+    return _followedTempo.$3;
+  }
+
+  (MidiTempoMap?, MidiTempoMap?, bool) _followedTempo = (null, null, false);
+
+  /// The open MIDI project's file's tempo map; null for any other project, or when the file's
+  /// can't be read.
+  MidiTempoMap? get _fileTempo {
+    final source = _source;
+    if (!isMidi || source == null) return null;
+    if (identical(_fileTempoOf, source.bytes)) return _fileTempoRead;
+    _fileTempoOf = source.bytes;
+    try {
+      return _fileTempoRead = MidiTempoMap.read(source.bytes, name: source.name);
+    } on FormatException {
+      return _fileTempoRead = null;
+    }
+  }
+
+  Uint8List? _fileTempoOf;
+  MidiTempoMap? _fileTempoRead;
+
+  /// Plays a MIDI project by its file's own tempo map again (MIDI ▸ Use the File’s Tempo), in
+  /// place of whatever the sync is: one Undo step. False, changing nothing, when it does already.
+  bool useFileTempo() {
+    final tempo = _fileTempo;
+    if (tempo == null || followsFileTempo) return false;
+    useMidiTempo(tempo);
+    return true;
+  }
+
   /// [lilypond]'s engraving read as a score ([LilyPondScore.read]), on another isolate: a long
   /// score's takes a while. Loading from here, [_engrave] next.
   Future<LilyPondScore> _readLilyPond(LilyPondProject lilypond) {
@@ -345,6 +415,9 @@ class EditorController extends ChangeNotifier {
     } else if (state.lilypond case final lilypond?) {
       pages = null;
       score = await _engrave('', _requestFor(edits), lilypond: await _readLilyPond(lilypond));
+    } else if (state.kind == ProjectKind.midi) {
+      pages = null;
+      score = await _engrave('', _requestFor(edits), midi: (await _startLoading(() => _readMidi(name, scoreBytes))).score);
     } else {
       pages = null;
       score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
@@ -380,22 +453,24 @@ class EditorController extends ChangeNotifier {
   /// replacement not used is let go by [discardReplacement]. [pages] stay the caller's if this
   /// fails.
   Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes,
-      {PdfScoreLayout? pdf, PdfPages? pages, LilyPondProject? lilypond}) async {
+      {PdfScoreLayout? pdf, PdfPages? pages, LilyPondProject? lilypond, bool midi = false}) async {
     final before = _score!;
     final source = pdf == null ? null : pages ?? _pdfPages!;
     final art = pdf == null ? null : PdfScoreArt(pdf, PdfPagesSource(source!));
     // Read once for what it holds (its texts as written: the edits are carried by them), and
     // once more as engraved.
     // (On another isolate: a large score takes a while.)
-    final (:xml, :metadata, :texts, :drawn) =
-        await _startLoading(() => _readApart(pdf, bytes, lilypond == null ? null : (lilypond.svg, lilypond.data)), failed: () => art?.dispose());
+    final (:xml, :metadata, :texts, :drawn, :rows) = await _startLoading(
+        () => _readApart(pdf, bytes, lilypond == null ? null : (lilypond.svg, lilypond.data), midi ? name : null),
+        failed: () => art?.dispose());
     final swap = ScoreSwap(before: before.metadata, after: metadata, textsBefore: before.texts, textsAfter: texts);
     final LoadedScore score;
     try {
       score = await _engrave(
           xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_doc.textEdits), pairs: swap.pairs(_doc.pairs))),
           pdf: art,
-          lilypond: drawn);
+          lilypond: drawn,
+          midi: rows);
     } on Object {
       art?.dispose();
       rethrow;
@@ -407,7 +482,13 @@ class EditorController extends ChangeNotifier {
     final state = projectState.copyWith(
         pdf: () => pdf,
         lilypond: () => lilypond,
-        kind: pdf != null ? ProjectKind.pdf : lilypond != null ? ProjectKind.lilypond : ProjectKind.score);
+        kind: pdf != null
+            ? ProjectKind.pdf
+            : lilypond != null
+                ? ProjectKind.lilypond
+                : midi
+                    ? ProjectKind.midi
+                    : ProjectKind.score);
     final measures = (before: before.timeline.measureStarts, after: score.timeline.measureStarts);
     final (state: placed, lost: gone) =
         swap.carry(state,
@@ -433,14 +514,21 @@ class EditorController extends ChangeNotifier {
 
   /// A replacement score read on another isolate (a closure of its own, so it takes nothing
   /// else along): the score LilyPond drew ([lilypond]: its SVG and data) as [LilyPondScore], or
-  /// [pdf]'s score, or [bytes]'.
-  static Future<({String xml, ScoreMetadata metadata, List<ScoreText> texts, LilyPondScore? drawn})> _readApart(
-          PdfScoreLayout? pdf, Uint8List bytes, (String, String)? lilypond) =>
+  /// [pdf]'s score, or [bytes] as a MIDI file named [midi] ([MidiScore]), or [bytes]'.
+  static Future<({String xml, ScoreMetadata metadata, List<ScoreText> texts, LilyPondScore? drawn, MidiScore? rows})> _readApart(
+          PdfScoreLayout? pdf, Uint8List bytes, (String, String)? lilypond, String? midi) =>
       Isolate.run(() {
         final drawn = lilypond == null ? null : LilyPondScore.read(lilypond.$1, lilypond.$2);
-        final xml = drawn?.musicXML ?? pdf?.musicXML() ?? ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
+        final rows = midi == null ? null : MidiScore.read(bytes, title: stemOf(midi));
+        final xml = drawn?.musicXML ?? pdf?.musicXML() ?? rows?.musicXML ?? ScoreFile.decodeMusicXML(bytes), doc = ScoreMetadata.parse(xml);
         final metadata = ScoreMetadata.fromDocument(doc);
-        return (xml: xml, metadata: metadata, texts: PreparedScore.prepare(doc, const {}, metadata: metadata).texts, drawn: drawn);
+        return (
+          xml: xml,
+          metadata: metadata,
+          texts: PreparedScore.prepare(doc, const {}, metadata: metadata).texts,
+          drawn: drawn,
+          rows: rows,
+        );
       });
 
   /// Puts [replacement] in place of the score, keeping the recording; Undo starts again from
@@ -469,11 +557,11 @@ class EditorController extends ChangeNotifier {
   /// [measure]: what each bar plays worked out too ([LoadedScore.salience]), for a new score's
   /// auto-curation.
   Future<LoadedScore> _engrave(String musicXML, EngraveRequest request,
-      {PdfScoreArt? pdf, LilyPondScore? lilypond, bool measure = false}) async {
+      {PdfScoreArt? pdf, LilyPondScore? lilypond, MidiScore? midi, bool measure = false}) async {
     _loading = true;
     notifyListeners();
     try {
-      return await LoadedScore.engrave(musicXML, request, pdf: pdf, lilypond: lilypond, measure: measure, onStage: (s) {
+      return await LoadedScore.engrave(musicXML, request, pdf: pdf, lilypond: lilypond, midi: midi, measure: measure, onStage: (s) {
         if (!_disposed) _loadStage.value = s;
       });
     } finally {
@@ -1243,7 +1331,8 @@ class EditorController extends ChangeNotifier {
       centeredLyrics: edits.centeredLyrics ?? _defaultCenteredLyrics,
       // Only while an extension that turns them on is (Attach Image).
       spacers: socketOn(edits, extensions._carried, 'spacers') ? edits.spacers : const [],
-      gaps: socketOn(edits, extensions._carried, 'spacers') ? edits.gaps : const []);
+      gaps: socketOn(edits, extensions._carried, 'spacers') ? edits.gaps : const [],
+      midi: edits.midiLook);
 
   /// What the score is to be engraved with now (an engraving may still be catching up).
   EngraveRequest get _wanted =>

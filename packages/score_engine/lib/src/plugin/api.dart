@@ -83,7 +83,7 @@ abstract final class PluginApi {
   }
 
   /// The menus the app has, by the name a command's `menu` gives: any other name is a new menu.
-  static const menus = ['File', 'Edit', 'View', 'Window', 'Help'];
+  static const menus = ['File', 'Edit', 'View', 'MIDI', 'Window', 'Help'];
 
   /// The icons a command's `icon` may name (the app's own, by name).
   static const icons = ExtensionApi.icons;
@@ -124,6 +124,14 @@ abstract final class PluginApi {
     ApiCommand('showPlayerMap', 'Score / Player Map', 'View'),
     ApiCommand('showTabBar', 'Hide / Show Tab Bar', 'View'),
     ApiCommand('showAllTabs', 'Show All Tabs', 'View'),
+    // A MIDI project's (the menu is in the menu bar while one shows).
+    ApiCommand('midiVelocity', 'Shade Notes by Velocity', 'MIDI'),
+    ApiCommand('midiSharedRange', 'Shared Pitch Range', 'MIDI'),
+    ApiCommand('midiTallerRows', 'Taller Rows', 'MIDI'),
+    ApiCommand('midiShorterRows', 'Shorter Rows', 'MIDI'),
+    ApiCommand('midiWiderBeats', 'Wider Beats', 'MIDI'),
+    ApiCommand('midiNarrowerBeats', 'Narrower Beats', 'MIDI'),
+    ApiCommand('midiFileTempo', 'Use File’s Tempo', 'MIDI'),
     ApiCommand('previousTab', 'Show Previous Tab', 'Window'),
     ApiCommand('nextTab', 'Show Next Tab', 'Window'),
     // The editor's keys, in no menu.

@@ -59,3 +59,23 @@ Future<({double length, Waveform waveform})?> demoWaveform() async {
   }
   return (length: length, waveform: await Waveform.analyze(samples, n / length));
 }
+
+/// A MIDI file of two bars of 3/4 at ♩ = 120, 480 ticks a quarter: a first track with its name,
+/// tempo and meter, then a flute (C5, D5, and an E5 held over the barline) and a cello (C3
+/// throughout), each named by its track and set to its General MIDI program.
+final duetMidi = () {
+  List<int> track(List<int> events) =>
+      [...'MTrk'.codeUnits, 0, 0, events.length + 4 >> 8, events.length + 4 & 0xff, ...events, 0, 0xff, 0x2f, 0];
+  List<int> name(String name) => [0, 0xff, 0x03, name.length, ...name.codeUnits];
+  return Uint8List.fromList([
+    ...'MThd'.codeUnits, 0, 0, 0, 6, 0, 1, 0, 3, 480 >> 8, 480 & 0xff, //
+    ...track([...name('Duet'), 0, 0xff, 0x51, 3, 0x07, 0xa1, 0x20, 0, 0xff, 0x58, 4, 3, 2, 24, 8]),
+    ...track([
+      ...name('Flute'), 0, 0xc0, 73, //
+      0, 0x90, 72, 80, 0x83, 0x60, 0x80, 72, 0, //
+      0, 0x90, 74, 80, 0x83, 0x60, 0x80, 74, 0, //
+      0, 0x90, 76, 80, 0x8f, 0x00, 0x80, 76, 0,
+    ]),
+    ...track([...name('Cello'), 0, 0xc1, 42, 0, 0x91, 48, 64, 0x96, 0x40, 0x81, 48, 0]),
+  ]);
+}();

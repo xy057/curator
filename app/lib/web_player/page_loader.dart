@@ -64,6 +64,8 @@ class LoadedPage {
       // A PDF score: its systems as printed, cut as in the app.
       final layout? => LoadedScore.fromPdf(PdfScoreArt(layout, _PageSystems(fetch)), WebPage.requestOf(edits)),
       null => LoadedScore.engraved(musicXML, WebPage.requestOf(edits), EngravingFile.read(engravingBytes),
+          // A MIDI project's: rows of notes, each in its instrument's colour.
+          roll: manifest.string('kind') == ProjectKind.midi.name,
           textFontFound:
               page.fonts.any((f) => f.family == TextFonts.familyOf(edits.fonts.text)) || edits.fonts.text == TextFonts.academico),
     };

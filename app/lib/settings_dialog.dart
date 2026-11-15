@@ -166,7 +166,7 @@ class _Item {
 
 class _Category {
   const _Category(this.label, this.icon, this.items,
-      {this.page, this.preview = false, this.saveDefault, this.title, this.dense = false, this.buttons})
+      {this.page, this.preview = false, this.saveDefault, this.title, this.dense = false, this.buttons, this.enabled})
       : tabs = null;
 
   /// One sidebar entry for several pages, chosen by a switch under its title; each can open in a
@@ -178,7 +178,12 @@ class _Category {
         saveDefault = null,
         title = null,
         dense = false,
-        buttons = null;
+        buttons = null,
+        enabled = null;
+
+  /// Whether it has anything for the project open; null: always. Else it is greyed out in the
+  /// sidebar, and the search finds nothing of it.
+  final bool Function(_Context)? enabled;
 
   final String label;
   final AppIcon icon;
@@ -512,6 +517,10 @@ final _categories = <_Category>[
   ]),
 ];
 
+/// Whether the project open has an engraving to set: not a MIDI project, whose notes are drawn
+/// in rows. What only an engraving has isn't offered for one (its pages greyed out, its rows gone).
+bool _engraved(_Context c) => !c.controller!.isMidi;
+
 /// The open project's settings (Edit ▸ Project Settings…): each change an edit.
 final _projectCategories = <_Category>[
   _Category('Project Info', AppIcon.about, [
@@ -522,7 +531,8 @@ final _projectCategories = <_Category>[
         final open = c.controller?.score != null;
         return Row(mainAxisSize: MainAxisSize.min, spacing: 8, children: [
           OutlinedButton(
-            onPressed: c.editScore == null || !open
+            // A MIDI project's notes are its file's: nothing written to edit.
+            onPressed: c.editScore == null || !open || !_engraved(c)
                 ? null
                 : () {
                     Navigator.pop(context); // the editor takes the window
@@ -540,7 +550,7 @@ final _projectCategories = <_Category>[
           ),
         ]);
       }),
-      keywords: 'edit editor replace swap another score file musicxml mei pdf import notes write',
+      keywords: 'edit editor replace swap another score file musicxml mei pdf midi import notes write',
     ),
     _Item(
       'Recording',
@@ -617,7 +627,7 @@ final _projectCategories = <_Category>[
     _Item('Groups', null, (_) => const SizedBox.shrink(),
         keywords: 'color colour group groups add remove rename family woodwinds brass strings percussion'),
   ]),
-  _Category('Sections', AppIcon.lanes, page: (c) => _SectionsPage(c), [
+  _Category('Sections', AppIcon.lanes, page: (c) => _SectionsPage(c), enabled: _engraved, [
     _Item(
       'Group sections',
       null,
@@ -625,7 +635,7 @@ final _projectCategories = <_Category>[
       keywords: 'bracket barline barlines group sections family instrument woodwinds brass strings percussion printed',
     ),
   ]),
-  _Category('Condensing', AppIcon.condense, page: (c) => _CondensingPage(c), [
+  _Category('Condensing', AppIcon.condense, page: (c) => _CondensingPage(c), enabled: _engraved, [
     _Item(
       'All pairs',
       _condensedText,
@@ -658,7 +668,7 @@ final _projectCategories = <_Category>[
     ],
   ),
   // Fixes for how other programs write their files, on by default; a switch to turn one off.
-  _Category('Flags', AppIcon.flags, [
+  _Category('Flags', AppIcon.flags, enabled: _engraved, [
     _Item(
       'Dynamics typed as text',
       (_) => 'Engraves “f” set in a music font as a dynamic.',
@@ -752,6 +762,7 @@ _Category _typographyCategory() {
             TextKind.captions => (c) => c.controller!.captions.enabled,
             TextKind.tonality => (c) => c.controller!.extensionOn('tonality'),
             TextKind.barNumbers || TextKind.tempoRow => (c) => c.controller!.barNumbers,
+            TextKind(engraved: true) => _engraved,
             _ => null,
           },
           keywords: 'font text type typography engraving ${s.kind.label} ${s.kind.isSymbol ? 'music symbol smufl glyph ' : ''}${s.keywords}',
@@ -776,6 +787,7 @@ _Category _advancedEngravingCategory() {
           s.title,
           null,
           (c) => EngravingControl(target: target(c), setting: s),
+          shown: _engraved,
           group: s.group,
           keywords: 'engrave engraving advanced verovio ${s.group} ${s.keywords} ${s.key}',
         ),
@@ -903,12 +915,12 @@ _Category _engravingCategory() {
     saveDefault: _savesTo(target),
     [
       _Item('Music font', null, (c) => MusicFontPicker(controller: c.controller!),
-          group: 'Fonts', keywords: 'font smufl bravura leland petaluma notation'),
+          shown: _engraved, group: 'Fonts', keywords: 'font smufl bravura leland petaluma notation'),
       _Item(
         'Embed font',
         null,
         (c) => EmbedFontSwitch(controller: c.controller!),
-        shown: (c) => !c.controller!.fonts.music.isBundled, // a bundled one is in every copy of the app
+        shown: (c) => _engraved(c) && !c.controller!.fonts.music.isBundled, // a bundled one is in every copy of the app
         group: 'Fonts',
         keywords: 'font embed include file installed',
       ),
@@ -927,6 +939,7 @@ _Category _engravingCategory() {
           s.title,
           null,
           (c) => EngravingControl(target: target(c), setting: s),
+          shown: _engraved,
           group: s.group,
           keywords: 'engrave engraving ${s.group} ${s.keywords} ${s.key}',
         ),
@@ -1037,8 +1050,29 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     return null;
   }
 
+  /// Whether [cat] has anything for the project open ([_Category.enabled]).
+  bool _enabled(_Category cat) => cat.enabled?.call(_ctx) ?? true;
+
+  /// The page shown: the one chosen, or the first when that one has nothing for this project
+  /// (it was left there in another's).
+  _Category get _shownPage => _enabled(_categories[_page]) ? _categories[_page] : _categories.first;
+
+  /// [cat]'s tabs with a row to show for the project open (a MIDI project has no Advanced
+  /// engraving); null: it has no tabs.
+  List<_Category>? _tabsOf(_Category cat) {
+    final tabs = cat.tabs;
+    if (tabs == null) return null;
+    final shown = [for (final t in tabs) if (_shownItems(t).isNotEmpty) t];
+    return shown.isEmpty ? tabs : shown;
+  }
+
   /// [cat]'s tab shown, or [cat] itself.
-  _Category _tabOf(_Category cat) => cat.tabs?[_lastTabs[cat.label] ?? 0] ?? cat;
+  _Category _tabOf(_Category cat) {
+    final tabs = _tabsOf(cat);
+    if (tabs == null) return cat;
+    final last = cat.tabs![_lastTabs[cat.label] ?? 0];
+    return tabs.contains(last) ? last : tabs.first;
+  }
 
   /// [tab] in a window of its own, over the editor, in place of this one.
   void _popOut(_Category tab) {
@@ -1096,8 +1130,9 @@ class _SettingsWindowState extends State<_SettingsWindow> {
     if (q.isEmpty) return null;
     return [
       for (final cat in _categories)
-        for (final item in _shownItems(cat))
-          if (_searched(cat, item).toLowerCase().contains(q)) (cat, item),
+        if (_enabled(cat))
+          for (final item in _shownItems(cat))
+            if (_searched(cat, item).toLowerCase().contains(q)) (cat, item),
     ];
   }
 
@@ -1187,11 +1222,13 @@ class _SettingsWindowState extends State<_SettingsWindow> {
           SidebarTile(
             icon: cat.icon.of(context),
             label: cat.label.trIn('page'),
-            selected: !searching && i == _page,
-            onTap: () {
-              _search.clear();
-              setState(() => _page = _lastPage = i);
-            },
+            selected: !searching && cat == _shownPage,
+            onTap: !_enabled(cat)
+                ? null
+                : () {
+                    _search.clear();
+                    setState(() => _page = _lastPage = i);
+                  },
           ),
         const Spacer(),
         if (widget.kind == _Window.project && widget.controller != null) _SettingsFileButtons(widget.controller!),
@@ -1210,10 +1247,10 @@ class _SettingsWindowState extends State<_SettingsWindow> {
 
   Widget _content(BuildContext context) {
     final matches = _matches;
-    final cat = _categories[_page];
+    final cat = _shownPage;
     // A tabbed page: its tab's rows, preview and Save as Default under the page's title.
     final tab = _tabOf(cat);
-    final tabs = cat.tabs;
+    final tabs = _tabsOf(cat);
     Widget page;
     if (matches == null && cat.page != null) {
       page = KeyedSubtree(key: ValueKey(_page), child: cat.page!(_ctx));
@@ -1229,7 +1266,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
                     child: AppSegmented<int>(
                       segments: [for (final (i, t) in tabs.indexed) ButtonSegment(value: i, label: Text(t.label.tr))],
                       selected: tabs.indexOf(tab),
-                      onChanged: (i) => setState(() => _lastTabs[cat.label] = i),
+                      onChanged: (i) => setState(() => _lastTabs[cat.label] = cat.tabs!.indexOf(tabs[i])),
                     ),
                   ),
                 ));
