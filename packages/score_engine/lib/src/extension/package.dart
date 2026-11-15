@@ -66,6 +66,7 @@ class ExtensionPackage with PackageManifest implements ScriptPackage {
   /// Each file under `assets/` by its path there.
   @override
   final Map<String, Uint8List> assets;
+  @override
   final String? readme;
 
   /// What it says of the data it saves: `version` (raised when the data's shape changes; its

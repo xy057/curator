@@ -94,7 +94,7 @@ msgstr ""
 msgid "A tempo map starts at quarter 0."
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "About"
 msgstr ""
 
@@ -243,7 +243,7 @@ msgstr ""
 msgid "Accidentals"
 msgstr ""
 
-#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
+#: lib/ai_settings.dart lib/condensing_editor.dart lib/pdf_import.dart lib/script_editor.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Add"
 msgstr ""
 
@@ -544,7 +544,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/plugins/plugin_editor.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -639,7 +639,7 @@ msgstr ""
 msgid "Clefs"
 msgstr ""
 
-#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/phrase_search_window.dart lib/plugins/plugin_editor.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/script_editor.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr ""
 
@@ -860,7 +860,7 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
-#: lib/ai_settings.dart lib/app_menus.dart lib/extensions/extension_editor.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart
+#: lib/ai_settings.dart lib/app_menus.dart lib/player_map_view.dart lib/script_editor.dart
 msgid "Delete"
 msgstr ""
 
@@ -879,7 +879,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -1081,7 +1081,7 @@ msgstr ""
 msgid "Fermatas"
 msgstr ""
 
-#: lib/app_menus.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/app_menus.dart lib/script_editor.dart
 msgid "File"
 msgstr ""
 
@@ -1217,7 +1217,7 @@ msgstr ""
 msgid "Height (staff spaces)"
 msgstr ""
 
-#: lib/app_menus.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/app_menus.dart lib/script_editor.dart
 msgid "Help"
 msgstr ""
 
@@ -1437,7 +1437,7 @@ msgstr ""
 msgid "Music symbols"
 msgstr ""
 
-#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
+#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/player_map_view.dart lib/script_editor.dart assets/extensions/chapters/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Name"
 msgstr ""
 
@@ -1812,7 +1812,7 @@ msgstr ""
 msgid "Removed: {names}"
 msgstr ""
 
-#: lib/edit_dialogs.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart
+#: lib/edit_dialogs.dart lib/extensions/connector_view.dart lib/script_editor.dart
 msgid "Rename"
 msgstr ""
 
@@ -1834,7 +1834,7 @@ msgstr ""
 msgid "Renamed: {from} → {to}"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/settings_dialog.dart lib/take_lanes.dart
+#: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/script_editor.dart lib/settings_dialog.dart lib/take_lanes.dart
 msgid "Rename…"
 msgstr ""
 
@@ -1972,7 +1972,7 @@ msgstr ""
 msgid "Scrolling"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/settings_dialog.dart
+#: lib/script_editor.dart lib/settings_dialog.dart
 msgid "Search"
 msgstr ""
 
@@ -2615,7 +2615,7 @@ msgstr ""
 msgid "UTF-16 MusicXML is not supported yet; save the file as UTF-8."
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Version"
 msgstr ""
 
@@ -2669,7 +2669,7 @@ msgstr ""
 msgid "WebM video"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart lib/settings_dialog.dart
+#: lib/script_editor.dart lib/settings_dialog.dart
 msgid "Website"
 msgstr ""
 
@@ -3269,7 +3269,7 @@ msgstr ""
 msgid "Show Next"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Summary"
 msgstr ""
 
@@ -3962,7 +3962,7 @@ msgstr ""
 msgid "Couldn’t Import LilyPond Score"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart lib/script_editor.dart
 msgid "Find ({key})"
 msgstr ""
 
@@ -4744,15 +4744,15 @@ msgstr ""
 msgid "The extension stays as it was."
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Reference"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Run ({key})"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Run"
 msgstr ""
 
@@ -4760,22 +4760,22 @@ msgstr ""
 msgid "Connector"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgctxt "lua"
 msgid "keyword"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgctxt "lua"
 msgid "function"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgctxt "lua"
 msgid "library"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgctxt "lua"
 msgid "value"
 msgstr ""
@@ -4788,7 +4788,7 @@ msgstr ""
 msgid "Data version"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgid "No results"
 msgstr ""
 
@@ -4804,19 +4804,19 @@ msgstr ""
 msgid "Another socket has this name"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgid "Use letters, digits and _, ending in .lua"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgid "Another file has this name"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "New File"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgid "Rename File"
 msgstr ""
 
@@ -4828,12 +4828,12 @@ msgstr ""
 msgid "Edit Extension"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgctxt "heading"
 msgid "Files"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "ID"
 msgstr ""
 
@@ -4841,11 +4841,11 @@ msgstr ""
 msgid "Like com.example.notes: lower-case, with a dot"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Author"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Search Words"
 msgstr ""
 

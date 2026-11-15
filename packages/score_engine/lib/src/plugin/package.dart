@@ -62,6 +62,7 @@ class PluginPackage with PackageManifest implements ScriptPackage {
   final Map<String, Map<String, String>> locales;
   @override
   final Map<String, Uint8List> assets;
+  @override
   final String? readme;
 
   /// Whether [id] is one a plugin from elsewhere may have, or one of Curator's own may.
