@@ -494,15 +494,17 @@ class TimeReadoutState extends State<TimeReadout> {
     final mono = TextStyle(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, color: colors.text);
     if (_editing) return _input(colors, mono);
     final playback = widget.controller.playback;
-    return ValueListenableBuilder<double>(
-      valueListenable: playback.time,
-      builder: (context, time, _) => Row(mainAxisSize: MainAxisSize.min, children: [
+    // Built again only as what it says changes (a tenth of a second, a beat), not at every frame.
+    return Select<(String, String, String)>(
+      listenable: playback.time,
+      select: () => (_clock(playback.time.value), _clock(playback.duration), _position(playback.time.value)),
+      builder: (context, shown) => Row(mainAxisSize: MainAxisSize.min, children: [
         _Clickable(
           tip: keyed(context, KeyCommand.goTo, (key) => 'Go to time ({key})'.fill({'key': key}), 'Go to time'.tr),
           onTap: () => edit(time: true),
           child: Text.rich(TextSpan(children: [
-            TextSpan(text: _clock(time), style: mono.copyWith(fontWeight: FontWeight.w500)),
-            TextSpan(text: '  /  ${_clock(playback.duration)}', style: mono.copyWith(color: colors.textMuted)),
+            TextSpan(text: shown.$1, style: mono.copyWith(fontWeight: FontWeight.w500)),
+            TextSpan(text: '  /  ${shown.$2}', style: mono.copyWith(color: colors.textMuted)),
           ])),
         ),
         const SizedBox(width: 10),
@@ -520,7 +522,7 @@ class TimeReadoutState extends State<TimeReadout> {
                 border: AppStyle.of(context).isCarbon
                     ? Border(bottom: BorderSide(color: CarbonColors.maybeOf(context)!.borderStrong))
                     : Border.all(color: colors.line)),
-            child: Text(_position(time), style: mono.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: colors.text)),
+            child: Text(shown.$3, style: mono.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: colors.text)),
           ),
         ),
       ]),
