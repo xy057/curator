@@ -33,19 +33,15 @@ Future<ExtensionPackage?> showExtensionEditor(
 
 /// An extension's files edited together ([ScriptEditorState]), its connector first, as a
 /// picture ([ConnectorView]): what Curator calls in it, wired to its functions.
-class ExtensionEditor extends StatefulWidget {
-  const ExtensionEditor({super.key, required this.package, this.readOnly = false, this.unsaved = false, this.onRun, this.calls, this.problems, this.log});
-  final ExtensionPackage package;
-  final bool readOnly;
+class ExtensionEditor extends ScriptEditor<ExtensionPackage> {
+  const ExtensionEditor(
+      {super.key, required super.package, super.readOnly, this.unsaved = false, super.onRun, this.calls, super.problems, super.log});
 
   /// One of Curator's own: edited and run as any, and never saved (it says so by its name).
   final bool unsaved;
-  final void Function(ExtensionPackage package)? onRun;
 
   /// How often each of its ports has been called as it runs in the project; null: it isn't running.
   final Map<String, int>? Function()? calls;
-  final ValueListenable<List<ExtensionProblem>>? problems;
-  final ValueListenable<List<String>>? log;
 
   @override
   State<ExtensionEditor> createState() => _ExtensionEditorState();
@@ -58,17 +54,6 @@ class _ExtensionEditorState extends ScriptEditorState<ExtensionEditor, Extension
 
   /// Each file's functions, read when it last changed; null: it doesn't read.
   final _functions = <String, (String, List<FileFunction>?)>{};
-
-  @override
-  ExtensionPackage get original => widget.package;
-  @override
-  bool get readOnly => widget.readOnly;
-  @override
-  void Function(ExtensionPackage package)? get onRun => widget.onRun;
-  @override
-  ValueListenable<List<ScriptProblem>>? get ranProblems => widget.problems;
-  @override
-  ValueListenable<List<String>>? get log => widget.log;
 
   @override
   List<ScriptProblem> check(ExtensionPackage package) => checkExtension(package);
@@ -122,8 +107,11 @@ class _ExtensionEditorState extends ScriptEditorState<ExtensionEditor, Extension
     return found;
   }
 
-  @override
-  int? lineOf(String path, String function) => _functionsOf(path, code[path]!.text)?.where((f) => f.name == function).firstOrNull?.line;
+  /// Shows [file] where [function] is in it (a wire opened in the connector), or at its top.
+  void _open(String file, String? function) {
+    final path = codePath(file), c = code[path];
+    goTo(file, function == null || c == null ? null : _functionsOf(path, c.text)?.where((f) => f.name == function).firstOrNull?.line);
+  }
 
   @override
   void fileRenamed(String from, String to) {
@@ -182,7 +170,7 @@ class _ExtensionEditorState extends ScriptEditorState<ExtensionEditor, Extension
             setState(() => _graph = graph);
             changed();
           },
-          onOpen: (file, function) => goTo(file, null, function),
+          onOpen: _open,
           onCreate: _createFunction,
           problems: {
             for (final p in [...?widget.problems?.value])

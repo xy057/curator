@@ -56,30 +56,14 @@ final List<ReferenceSection> pluginReferenceSections = [
 
 /// A plugin's files edited together ([ScriptEditorState]), main.lua first: the file that runs,
 /// which keeps its name and stays.
-class PluginEditor extends StatefulWidget {
-  const PluginEditor({super.key, required this.package, this.readOnly = false, this.onRun, this.problems, this.log});
-  final PluginPackage package;
-  final bool readOnly;
-  final void Function(PluginPackage package)? onRun;
-  final ValueListenable<List<ScriptProblem>>? problems;
-  final ValueListenable<List<String>>? log;
+class PluginEditor extends ScriptEditor<PluginPackage> {
+  const PluginEditor({super.key, required super.package, super.readOnly, super.onRun, super.problems, super.log});
 
   @override
   State<PluginEditor> createState() => _PluginEditorState();
 }
 
 class _PluginEditorState extends ScriptEditorState<PluginEditor, PluginPackage> {
-  @override
-  PluginPackage get original => widget.package;
-  @override
-  bool get readOnly => widget.readOnly;
-  @override
-  void Function(PluginPackage package)? get onRun => widget.onRun;
-  @override
-  ValueListenable<List<ScriptProblem>>? get ranProblems => widget.problems;
-  @override
-  ValueListenable<List<String>>? get log => widget.log;
-
   @override
   List<ScriptProblem> check(PluginPackage package) => checkPlugin(package);
 

@@ -24,24 +24,36 @@ enum ScriptSide { none, reference, help }
 /// What a script editor shows that isn't one of the package's Lua files.
 const scriptAbout = '\u0000about', scriptReadme = '\u0000readme';
 
+/// A script editor's page, as the extension and plugin editors are opened: the package, and
+/// what is done with it.
+abstract class ScriptEditor<P extends PackageManifest> extends StatefulWidget {
+  const ScriptEditor({super.key, required this.package, this.readOnly = false, this.onRun, this.problems, this.log});
+
+  /// The package as it was opened.
+  final P package;
+  final bool readOnly;
+
+  /// Run (⌘R): the package as it stands handed to what runs it, the editor staying open.
+  final void Function(P package)? onRun;
+
+  /// What went wrong as it ran, and what it printed.
+  final ValueListenable<List<ScriptProblem>>? problems;
+  final ValueListenable<List<String>>? log;
+}
+
 /// What the extension and plugin editors share: a package's Lua files edited together
 /// ([CodeView], coloured and prompted by `lua_language.dart`), what its manifest says of it
 /// (About), and its README; beside them the API's reference (a click puts a function in the
 /// code) and a guide; under them what is wrong with it as it is written ([check], as it is
 /// typed) and, once run, what it printed and what went wrong. Each editor gives what is its own.
-abstract class ScriptEditorState<W extends StatefulWidget, P extends PackageManifest> extends State<W> {
-  // MARK: What the editor is given
+abstract class ScriptEditorState<W extends ScriptEditor<P>, P extends PackageManifest> extends State<W> {
+  // MARK: What the editor is given ([ScriptEditor])
 
-  /// The package as it was opened.
-  P get original;
-  bool get readOnly;
-
-  /// Run (⌘R): the package as it stands handed to what runs it, the editor staying open.
-  void Function(P package)? get onRun;
-
-  /// What went wrong as it ran, and what it printed.
-  ValueListenable<List<ScriptProblem>>? get ranProblems;
-  ValueListenable<List<String>>? get log;
+  P get original => widget.package;
+  bool get readOnly => widget.readOnly;
+  void Function(P package)? get onRun => widget.onRun;
+  ValueListenable<List<ScriptProblem>>? get ranProblems => widget.problems;
+  ValueListenable<List<String>>? get log => widget.log;
 
   // MARK: What each editor has of its own
 
@@ -82,9 +94,6 @@ abstract class ScriptEditorState<W extends StatefulWidget, P extends PackageMani
 
   /// What shows for a problem in [file] that isn't Lua; null: nothing.
   String? shownFor(String file) => file == manifestFile ? scriptAbout : null;
-
-  /// The line [function] is on in file [path]; null: none.
-  int? lineOf(String path, String function) => null;
 
   /// A file renamed or deleted: what the editor keeps of it follows.
   void fileRenamed(String from, String to) {}
@@ -196,16 +205,18 @@ abstract class ScriptEditorState<W extends StatefulWidget, P extends PackageMani
 
   // MARK: Files
 
-  /// Shows [file] at [line] (or where [function] is), or what a file that isn't Lua is shown in.
-  void goTo(String? file, int? line, [String? function]) {
-    final path = file == null ? null : (file.startsWith('src/') ? file.substring(4) : file);
+  /// The Lua file [file] names (a problem's says src/ first).
+  String codePath(String file) => file.startsWith('src/') ? file.substring(4) : file;
+
+  /// Shows [file] at [line], or what a file that isn't Lua is shown in.
+  void goTo(String? file, int? line) {
+    final path = file == null ? null : codePath(file);
     final c = code[path];
     if (c == null) {
       final other = file == null ? null : shownFor(file);
       if (other != null) setState(() => shown = other);
       return;
     }
-    if (function != null) line ??= lineOf(path!, function);
     setState(() => shown = path!);
     if (line == null) return;
     final index = (line - 1).clamp(0, c.codeLines.length - 1);
