@@ -91,7 +91,8 @@ class EditorToolbar extends StatelessWidget {
         ToolbarButton(
           icon: AppIcon.toStart.of(context),
           tooltip: keyed(context, KeyCommand.goToStart, (key) => 'Go to start ({key})'.fill({'key': key}), 'Go to start'.tr),
-          onPressed: () => c.playback.seek(0),
+          // As its key does it: what a plugin put around the command is what the button does.
+          onPressed: () => Plugins.doOwn(context, 'goToStart', () => c.playback.seek(0)),
         ),
         const SizedBox(width: 2),
         _PlayButton(controller: c),
@@ -100,7 +101,7 @@ class EditorToolbar extends StatelessWidget {
           glyph: const _MetronomeGlyph(),
           tooltip: keyed(context, KeyCommand.metronome, (key) => 'Metronome ({key})'.fill({'key': key}), 'Metronome'.tr),
           selected: c.playback.metronome,
-          onPressed: () => c.playback.metronome = !c.playback.metronome,
+          onPressed: () => Plugins.doOwn(context, 'metronome', () => c.playback.metronome = !c.playback.metronome),
         ),
         const SizedBox(width: 12),
         TimeReadout(key: readout, controller: c),
@@ -111,7 +112,7 @@ class EditorToolbar extends StatelessWidget {
             icon: AppIcon.search.of(context),
             tooltip: keyed(context, KeyCommand.findPhrase, (key) => 'Find phrase ({key})'.fill({'key': key}), 'Find phrase'.tr),
             selected: shown,
-            onPressed: c.isPdf ? null : () => PhraseSearchWindow.toggle(Overlay.of(context), c),
+            onPressed: c.isPdf ? null : () => Plugins.doOwn(context, 'findPhrase', () => PhraseSearchWindow.toggle(Overlay.of(context), c)),
           ),
         ),
         const Spacer(),
@@ -119,12 +120,12 @@ class EditorToolbar extends StatelessWidget {
         ToolbarButton(
           icon: AppIcon.undo.of(context),
           tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}),
-          onPressed: c.canUndo ? c.undo : null,
+          onPressed: c.canUndo ? () => Plugins.doOwn(context, 'undo', c.undo) : null,
         ),
         ToolbarButton(
           icon: AppIcon.redo.of(context),
           tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}),
-          onPressed: c.canRedo ? c.redo : null,
+          onPressed: c.canRedo ? () => Plugins.doOwn(context, 'redo', c.redo) : null,
         ),
         const ToolbarDivider(),
         if (c.images.enabled)
@@ -281,7 +282,7 @@ class _PlayButton extends StatelessWidget {
       return OverlaySemantics(
         child: IconButton(
           tooltip: tip.tr,
-          onPressed: controller.playback.togglePlay,
+          onPressed: () => Plugins.doOwn(context, 'playPause', controller.playback.togglePlay),
           iconSize: 16,
           constraints: BoxConstraints.tightFor(width: AppStyle.of(context).control, height: AppStyle.of(context).control),
           padding: EdgeInsets.zero,
@@ -306,7 +307,7 @@ class _PlayButton extends StatelessWidget {
       tooltip: tip,
       color: dark ? colors.accent : colors.accentStrong,
       selected: playing,
-      onPressed: controller.playback.togglePlay,
+      onPressed: () => Plugins.doOwn(context, 'playPause', controller.playback.togglePlay),
     );
   }
 }

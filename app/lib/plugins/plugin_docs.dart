@@ -40,9 +40,13 @@ the keys, the toolbar and Home, changes the app's own commands, and listens to w
   start at 1.
 - Keep what the plugin remembers in `curator.settings()` and `curator.save_settings(table)`.
 - An id of your own has a dot: `com.example.hello`.
-- Start from the example nearest what is asked: `scoreFacts` (a command with a key, a toolbar
-  button and a dialog), `reopenLast` (something done as the app starts), `themeMenu` (a menu
-  of ticked commands that change a setting).
+- Start from the example nearest what is asked: `reopenLast` (something done as the app
+  starts), `appearanceMenu` (a menu of ticked commands that change a setting),
+  `saveBeforeExport` (two of the app's commands wrapped), each a few lines; `navigator` for
+  everything at once (a menu of its own with menus inside, keys, a toolbar button, lists in a
+  menu, events, a timer, a form, a table to edit, files, settings kept for each project,
+  several modules). In `navigator`, every comment that starts with `Edge:` marks something a
+  plugin can't do, and what it does in its place: read them before promising a feature.
 ''';
 
 /// The plugin docs as a zip to hand to a person or a model: a README saying what is in it, the

@@ -195,6 +195,8 @@ abstract final class PluginApi {
           example:
               'app.command{\n  title = "Count Bars",\n  menu = "View",\n  key = "cmd+shift+b",\n  enabled = function() return score.open() end,\n  run = function()\n    ui.message(curator.tr("{n} bars", {n = #score.bars()}))\n  end,\n}'),
       ApiFunction('app.remove', 'app.remove(id)', 'Takes out a command the plugin added.'),
+      ApiFunction('app.refresh', 'app.refresh()',
+          'Has every command asked again whether it can be chosen and is ticked (enabled, checked): after something they hang on changed in a timer or a dialog’s answer. A command that ran and an event that was told do it by themselves.'),
       ApiFunction('app.run', 'app.run(name, ...) → boolean',
           'Does a command, the app’s own or a plugin’s, by its id ("exportVideo") or its title ("Export Video..."): as its menu item or its key would. false when it can’t be chosen now.',
           example: 'app.run("save")'),

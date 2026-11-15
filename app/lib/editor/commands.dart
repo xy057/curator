@@ -68,7 +68,10 @@ class EditCommands {
   }
 
   /// Space: taps an anchor while tapping is armed (the Audio tab), else plays or pauses.
-  void space() => _syncing && _anchors.tapArmed ? _anchors.tap() : _editor.playback.togglePlay();
+  void space() => taps ? _anchors.tap() : _editor.playback.togglePlay();
+
+  /// Whether Space taps an anchor now (tap mode, on the Audio tab) rather than plays.
+  bool get taps => _syncing && _anchors.tapArmed;
 
   /// ←/→ nudge the selected anchors ([EditorController.anchorNudge], [fine] 1 ms), the
   /// selected change of a tempo map (a beat, [fine] a sixteenth), regions or key area (a bar,
